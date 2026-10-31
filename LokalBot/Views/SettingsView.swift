@@ -32,7 +32,7 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                 settingsSearchField.padding(.horizontal, 14)
                 List(selection: Binding(get: { queryIsEmpty ? Optional(app.settingsTab) : nil }, set: {
-                    if let category = $0 { app.settingsTab = category; settingsQuery = ""; app.focusedSettingID = nil }
+                    if let category = $0 { app.selectSettingsTab(category); settingsQuery = "" }
                 })) {
                     ForEach(AppState.SettingsTab.allCases, id: \.self) { category in
                         SettingsCategoryLabel(category: category)
@@ -176,7 +176,7 @@ struct SettingsView: View {
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .personalContext:
-            personalContextSection; emailSection
+            personalContextSection; emailSection; filesSection
         case .writing:
             AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
@@ -805,6 +805,11 @@ struct SettingsView: View {
                                               help: "Off by default. Captures the focused display at most once a minute on meaningful changes and links each frame to the meeting.")
                             }
                     .settingTarget("settings.meetingVisualContextEnabled", selected: app.focusedSettingID)
+                            if app.settings.semanticSearchEnabled {
+                                SettingsHelp("Search by meaning also matches what captured screens show. The first "
+                                             + "such search downloads EmbeddingGemma 2's image model (555 MB); picture "
+                                             + "vectors are deleted with the pixels.")
+                            }
                         }
                         SettingsDetails("How screen context is captured",
                                         "Captures context after app or window changes, clicks, typing pauses, settled "
@@ -921,6 +926,12 @@ struct SettingsView: View {
                     .settingsSecondary()
                     .accessibilityIdentifier("settings.digestInstructions.count")
             }
+        }
+    }
+
+    @ViewBuilder private var filesSection: some View {
+        if shows("Files", ["files", "folders", "documents", "pdf", "photos", "pictures", "screenshots", "digup"]) {
+            FileSearchSettingsSection(focusedSettingID: app.focusedSettingID)
         }
     }
 

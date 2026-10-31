@@ -47,6 +47,9 @@ packages:
   LaunchAtLogin:
     url: https://github.com/sindresorhus/LaunchAtLogin-Modern
     from: "1.1.0"
+  DigUp:
+    url: https://github.com/stevyhacker/DigUp  # fork of ARahim3/DigUp
+    revision: dc2651ad8299160bbe91e972f857e1a1599a8419  # DigUpKit only (MIT): file crawling, reading, index and search
 
 # Shared application body. Both `LokalBot` (prod) and `LokalBot Dev` build the
 # SAME sources from this template and differ only in identity-bearing settings
@@ -131,6 +134,8 @@ targetTemplates:
         product: Logging
       - package: LaunchAtLogin
         product: LaunchAtLogin
+      - package: DigUp
+        product: DigUpKit
       # Embed the self-contained CLI into Contents/Helpers/ and code-sign it
       # on copy (hardened runtime during a notarised archive). It's a target
       # dependency so it's built first; `link: false` because a tool is
@@ -186,6 +191,26 @@ targetTemplates:
           inference servers may receive meeting titles and chosen display
           names as context, but never attendee emails.
         LSApplicationCategoryType: public.app-category.productivity
+        NSDocumentsFolderUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSDesktopFolderUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSDownloadsFolderUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSRemovableVolumesUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSNetworkVolumesUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
         NSLocalNetworkUsageDescription: >-
           LokalBot connects to inference servers you add on your own network,
           such as a model server on another computer, only after you approve

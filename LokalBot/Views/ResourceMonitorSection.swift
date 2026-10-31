@@ -251,6 +251,7 @@ enum ResourceMonitorPresentation {
         case .embedder: "Embeddings"
         case .cotyping: "Autocomplete"
         case .graniteASR: "Transcribe"
+        case .mediaEmbedder: "File search"
         case nil: residencyID == LlamaCotypingRuntime.residencyID ? "Autocomplete" : "Local model"
         }
     }

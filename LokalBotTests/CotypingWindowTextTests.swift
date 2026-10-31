@@ -106,6 +106,59 @@ final class CotypingWindowTextTests: XCTestCase {
 
     // MARK: - Rereading
 
+    /// A reread reuses the last lines when the window image is unchanged
+    /// outside the field: the caret blinking in the field does not count, a
+    /// changed word elsewhere or a moved window or field does.
+    func testFingerprintIgnoresTheFieldButNotTheRestOfTheWindow() throws {
+        let window = CGRect(x: 100, y: 50, width: 750, height: 500)
+        let field = CGRect(x: 150, y: 450, width: 600, height: 40)
+        // 2 pixels per point; rectangles in pixels from the image's top left.
+        func image(_ marks: [CGRect]) throws -> CGImage {
+            let context = try XCTUnwrap(CGContext(
+                data: nil, width: 1_500, height: 1_000, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.setFillColor(CGColor(gray: 0.97, alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: 1_500, height: 1_000))
+            context.setFillColor(CGColor(gray: 0.1, alpha: 1))
+            for line in 0..<10 {
+                context.fill(CGRect(x: 80, y: 1_000 - 60 - line * 60 - 18, width: 900 - line * 40, height: 18))
+            }
+            for mark in marks {
+                context.fill(CGRect(x: mark.minX, y: 1_000 - mark.maxY, width: mark.width, height: mark.height))
+            }
+            return try XCTUnwrap(context.makeImage())
+        }
+        let plain = try image([])
+        let caret = try image([CGRect(x: 400, y: 815, width: 2, height: 30)])
+        let draft = try image([CGRect(x: 120, y: 810, width: 300, height: 30)])
+        let changedWord = try image([CGRect(x: 1_000, y: 120, width: 40, height: 18)])
+        func fingerprint(_ image: CGImage, window: CGRect = window, field: CGRect = field) throws -> Data {
+            try XCTUnwrap(CotypingWindowText.fingerprint(of: image, windowFrame: window, fieldFrame: field))
+        }
+        XCTAssertEqual(try fingerprint(plain), try fingerprint(plain))
+        XCTAssertEqual(try fingerprint(caret), try fingerprint(plain))
+        XCTAssertEqual(try fingerprint(draft), try fingerprint(plain))
+        XCTAssertNotEqual(try fingerprint(changedWord), try fingerprint(plain))
+        XCTAssertNotEqual(try fingerprint(plain, window: window.offsetBy(dx: 10, dy: 0)), try fingerprint(plain))
+        XCTAssertNotEqual(try fingerprint(plain, field: field.insetBy(dx: 0, dy: -10)), try fingerprint(plain))
+    }
+
+    func testReusedLinesAreForgottenWithTheTextInUse() {
+        let recognized = CotypingWindowTextCapture.RecognizedLines()
+        let lines = [Line(text: "Shared plan", frame: CGRect(x: 0, y: 0, width: 100, height: 20))]
+        let fingerprint = Data([1, 2, 3])
+        let generation = recognized.generation
+        recognized.store(lines, forKey: "field", fingerprint: fingerprint, ifGeneration: generation)
+        XCTAssertEqual(recognized.lines(forKey: "field", fingerprint: fingerprint), lines)
+        XCTAssertNil(recognized.lines(forKey: "other field", fingerprint: fingerprint))
+        XCTAssertNil(recognized.lines(forKey: "field", fingerprint: Data([9])))
+        recognized.clear()
+        XCTAssertNil(recognized.lines(forKey: "field", fingerprint: fingerprint))
+        // A recognition that started before the text was forgotten cannot store.
+        recognized.store(lines, forKey: "field", fingerprint: fingerprint, ifGeneration: generation)
+        XCTAssertNil(recognized.lines(forKey: "field", fingerprint: fingerprint))
+    }
+
     func testRereadingKeepsThePromptUnlessNewTextAppears() {
         let current = Self.snapshot(Self.chat)
         XCTAssertFalse(CotypingWindowText.shouldReplace(current, with: Self.snapshot(Self.chat), heldFor: 5))

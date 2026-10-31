@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: October 26, 2026
+Effective: October 31, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -36,6 +36,9 @@ LokalBot can store the following under its Application Support directory:
 - opt-in Agent Mode sessions and the agent runtime;
 - facts, preferences, goals, and principles you ask Ask to remember about
   you, encrypted;
+- an index of the folders you choose to search under Files: file paths,
+  their text, and vectors of what they say or show (see [Files you
+  choose](#files-you-choose));
 - conversations downloaded from email accounts you connect, encrypted (see
   **Email** under [Network access](#network-access)); and
 - preferences, diagnostic logs, and encryption keys.
@@ -46,6 +49,11 @@ Screen Recording permissions. You can switch to accessible text without pixels,
 visual context, or fully off. Pixels are deleted after 14 days by default, and
 captured text, screenshot titles, URLs, and document names follow the same
 retention unless you explicitly choose to keep screen text and metadata forever.
+With visual context and search by meaning on, each retained screenshot also gets
+a vector of what it shows, made on this Mac from the pixels decrypted in memory
+(never written to disk) once you first search screens by meaning; that search
+downloads EmbeddingGemma 2's image and audio projector (555 MB). A screenshot's
+vector is deleted whenever its pixels are, even when its text is kept forever.
 Activity titles expire on the configured schedule even with that exception;
 app names and duration totals remain. Saved moments remain until you unsave or delete them. Dictation scratch
 audio is deleted after transcription by default. Dictated text is not kept,
@@ -301,6 +309,8 @@ The app may make these outbound connections:
   Qwen3 forced aligner (about 1 GB) that times each word; alignment and speaker
   processing remain on this Mac. Remembering voices also uses the local
   Pyannote models, which download on first use like the speaker models.
+  Turning on Files downloads EmbeddingGemma 2's image and audio projector
+  (555 MB), pinned and checked like the other models.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
@@ -539,6 +549,64 @@ including the Limited Use requirements.
   [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
   Deleting LokalBot's library folder removes all downloaded mail.
 
+## Files you choose
+
+Files (Settings → Personal Context → Files) searches folders on your Mac by
+what is in them. It is off until you turn it on after a notice, and it reads
+nothing until you choose a folder. It never picks folders by itself: Settings
+offers Documents, Desktop and Downloads as one-click choices, and macOS asks
+you for access only when you pick one. Its engine is
+[DigUp](https://github.com/ARahim3/DigUp)'s, which runs inside LokalBot.
+
+- **What LokalBot reads.** Only the folders you list. In them it reads
+  pictures and screenshots, PDFs page by page (scanned pages as pictures),
+  and documents such as txt, md, rtf, doc, docx, odt, and html. It skips
+  hidden files and folders, app bundles, caches, the insides of code projects
+  except their screenshots, folders that look like datasets, and iCloud files
+  that are not downloaded; it never downloads them. Unless you turn off
+  **Include recordings and video**, it also reads recordings 30 seconds of
+  sound at a time and videos a frame per shot plus their sound. A folder you
+  remove from the list is dropped from the index at the next pass. LokalBot
+  never changes, moves, or uploads your files.
+- **How it is used.** An on-device model (EmbeddingGemma 2, with its image
+  and audio projector) turns each picture, page, and passage into a vector;
+  Apple's Vision reads the text in screenshots. Ask and Quick Recall search
+  those vectors and the extracted text when the Files source is selected, and
+  the Ask assistant can call `search_files` to read the passages that matched.
+  For a matched moment in a recording or video, the assistant hears what was
+  said: LokalBot transcribes just those 30 seconds with the transcription
+  model you chose, only if that model is already on this Mac and no meeting is
+  recording, and keeps the words in memory for that answer only. A remote
+  transcription server receives the clip only if you approved its origin.
+  Opening a moment plays it in a LokalBot window.
+  Reading happens in passes when something in the folders changes, and pauses
+  while a meeting records, in Low Power Mode, and while the Mac is warm. The
+  model runs only while new or changed files are read. A folder's first read
+  goes slower while you use the Mac: LokalBot checks how long ago the last key
+  press or mouse move was (never which key or where), as macOS reports it. On
+  battery, that first read waits for a charger unless you turn on **Read big
+  folders on battery**.
+  Before you add a folder, LokalBot counts what it holds to show how long the
+  first read will take. The count uses file metadata only (types, sizes, and
+  page counts and durations from Spotlight) and is not kept; the only thing
+  saved is how fast this Mac indexes, as timings without file names.
+- **Where it is kept.** In `files-index.noindex` in the library: each indexed
+  file's path, size, and dates, the text LokalBot extracted from it, short
+  excerpts, a photo's EXIF capture date, and the vectors. Transcribed moments
+  are not stored. It is not
+  encrypted beyond your disk's own encryption, because it holds text that
+  the files themselves already hold unencrypted in the folders you chose.
+- **Who receives it.** No one, by default: searching and indexing run on your
+  Mac. If you ask Ask a question with Files selected and your Think model is
+  a remote server, the passages `search_files` returns go to that server, as
+  meeting and screen text do, and only to an origin you approved (see
+  **Optional remote inference** under [Network access](#network-access)).
+  External agents using the CLI or MCP can't read Files.
+- **How long it is kept, and deleting it.** The index follows the folders:
+  a file you delete or move out of them leaves the index at the next pass.
+  Turning Files off deletes the whole index at once. Deleting LokalBot's
+  library folder removes it too.
+
 ## Permissions
 
 LokalBot asks only for permissions needed by enabled features. macOS does not
@@ -565,6 +633,9 @@ grant optional permissions until you approve them:
   When it is already granted, Autocomplete also uses it to place suggestions
   in fields that report no caret position and to read the focused window's
   text (see below); it never asks for it.
+- Files and Folders access (Desktop, Documents, Downloads, external and
+  network drives), only when a folder you choose under Files lives there;
+  macOS asks the first time LokalBot reads it.
 
 On a fresh install, LokalBot asks through a notification before it records a
 detected meeting. You can switch to automatic recording or turn auto-record
@@ -675,8 +746,8 @@ while **Read coding agent sessions** is on.
 
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
-captured text, and semantic search vector until you unsave or delete that
-moment. Excluded apps and domains and focused secure fields are skipped.
+captured text, and semantic search vectors (of its text and, with visual
+context, of its picture) until you unsave or delete that moment. Excluded apps and domains and focused secure fields are skipped.
 Private and incognito browser windows are captured like any other window, so
 add a browser or site to the exclusions to keep it out. Detected credentials,
 payment card numbers, and IBANs are redacted and
@@ -1073,7 +1144,7 @@ platform differences:
   settings-change access or `setup`, `config` and `secret` commands, and
   personal context is read only from a library that came from a Mac, because
   the app has no Personal Context page or setting for it yet.
-- **Mac-only features.** Personal Context, email, selection actions, meeting note export,
+- **Mac-only features.** Personal Context, email, Files, selection actions, meeting note export,
   daily memory notes, spoken summaries and coding-agent sessions are not in the
   Windows and Linux app yet, so none of their data is collected there.
 - **Network access** is limited to model and runtime downloads you request

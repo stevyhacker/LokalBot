@@ -110,6 +110,98 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(bursts.map(\.prompts), [["Original request"], ["Fork-only request"]])
     }
 
+    /// 2026-10-31: every refresh re-parsed each transcript still being written
+    /// in full, and every new day re-parsed the whole window.
+    func testARefreshParsesOnlyAppendedBytesAndMatchesAFullRead() throws {
+        let reader = ClaudeCodeSessionReader(root: root.appendingPathComponent("claude"))
+        let cache = CodingAgentParseCache()
+        let file = root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl")
+        var parsed = 0
+        for count in [3, 7, claudeWorkday.count] {
+            let text = claudeWorkday.prefix(count).joined(separator: "\n") + "\n"
+            try writeText(text, to: file, created: "2026-09-29T08:00:00Z", modified: "2026-09-29T20:00:00Z")
+
+            let refreshed = reader.transcripts(in: dayInterval, cache: cache)
+
+            XCTAssertEqual(refreshed.filesRead, 1)
+            XCTAssertEqual(refreshed.bytesRead, text.utf8.count - parsed, "only the appended bytes are parsed")
+            XCTAssertEqual(refreshed.transcripts, reader.transcripts(in: dayInterval).transcripts)
+            parsed = text.utf8.count
+        }
+        let unchanged = reader.transcripts(in: dayInterval, cache: cache)
+        XCTAssertEqual(unchanged.filesRead, 0)
+        XCTAssertEqual(unchanged.bytesRead, 0)
+        XCTAssertEqual(unchanged.transcripts, reader.transcripts(in: dayInterval).transcripts)
+    }
+
+    func testALineStillBeingWrittenIsReadAgainOnceComplete() throws {
+        let reader = ClaudeCodeSessionReader(root: root.appendingPathComponent("claude"))
+        let cache = CodingAgentParseCache()
+        let file = root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl")
+        let complete = claudeWorkday.prefix(5).joined(separator: "\n") + "\n"
+        let pending = claudeWorkday[5]
+        func write(_ text: String) throws {
+            try writeText(text, to: file, created: "2026-09-29T08:00:00Z", modified: "2026-09-29T20:00:00Z")
+        }
+
+        try write(complete + pending.prefix(60))
+        let torn = reader.transcripts(in: dayInterval, cache: cache)
+        XCTAssertEqual(torn.transcripts, reader.transcripts(in: dayInterval).transcripts)
+
+        try write(complete + pending)
+        let unterminated = reader.transcripts(in: dayInterval, cache: cache)
+        XCTAssertEqual(unterminated.bytesRead, pending.utf8.count, "the unfinished line is read again")
+        XCTAssertEqual(unterminated.transcripts, reader.transcripts(in: dayInterval).transcripts)
+
+        try write(complete + pending + "\n")
+        let terminated = reader.transcripts(in: dayInterval, cache: cache)
+        XCTAssertEqual(terminated.bytesRead, pending.utf8.count + 1)
+        XCTAssertEqual(terminated.transcripts, unterminated.transcripts, "a final line without its newline still counts")
+        let commit = CodingAgentEvent.Kind.action(.commit(message: "Keep the digest badge fresh"))
+        XCTAssertEqual(terminated.transcripts.first?.events.contains { $0.kind == commit }, true)
+        XCTAssertNotEqual(torn.transcripts, terminated.transcripts)
+    }
+
+    func testANewDayReusesTheCacheAndAWiderWindowOrRewrittenFileReparses() throws {
+        try write(labeledSession, to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
+                  created: "2026-09-29T08:00:00Z", modified: "2026-09-30T10:05:00Z")
+        let scanner = CodingAgentSessionScanner(
+            readers: [ClaudeCodeSessionReader(root: root.appendingPathComponent("claude"))])
+        let cache = CodingAgentParseCache()
+        let first = try utc("2026-09-29T00:00:00Z"), second = try utc("2026-09-30T00:00:00Z")
+        func scan(_ start: Date, _ end: Date, cache: CodingAgentParseCache?) -> CodingAgentDayScan {
+            scanner.scan(from: start, through: end, calendar: calendar, cache: cache)
+        }
+
+        let window = scan(first, second, cache: cache)
+        let nextDay = scan(second, second, cache: cache)
+        XCTAssertGreaterThan(window.bytesRead, 0)
+        XCTAssertEqual(nextDay.filesRead, 0, "a window moving to the next day parses nothing again")
+        XCTAssertEqual(nextDay.bursts, scan(second, second, cache: nil).bursts)
+
+        let reachingBack = scan(first, second, cache: cache)
+        XCTAssertEqual(reachingBack.bytesRead, window.bytesRead, "days the cache no longer holds are parsed again")
+        XCTAssertEqual(reachingBack.bursts, window.bursts)
+
+        // The agent rewrites the file instead of appending to it.
+        try write(Array(labeledSession.suffix(2)) + labeledSession.prefix(4),
+                  to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
+                  created: "2026-09-29T08:00:00Z", modified: "2026-09-30T11:00:00Z")
+        let rewritten = scan(first, second, cache: cache)
+        XCTAssertEqual(rewritten.bytesRead, window.bytesRead, "a file whose earlier bytes changed is parsed again")
+        XCTAssertEqual(rewritten.bursts, scan(first, second, cache: nil).bursts)
+    }
+
+    func testRecordsInOneFolderShareOneLabel() throws {
+        var summary = ClaudeCodeSessionSummary()
+        summary.consume(
+            CodingAgentJSONLines(data: Data((claudeWorkday.joined(separator: "\n") + "\n").utf8)),
+            retainingFrom: dayInterval.start)
+
+        XCTAssertEqual(summary.labels, [.init(workingDirectory: "/Users/me/Code/LokalBot", branch: "claude/fix-badge")])
+        XCTAssertGreaterThan(summary.records.count, 10)
+    }
+
     func testCompactingActivityNeverChangesABurst() throws {
         let start = try utc("2026-09-29T09:00:00Z")
         var events = [CodingAgentEvent(at: start, kind: .prompt("Build it"))]
@@ -155,19 +247,7 @@ final class CodingAgentSessionTests: XCTestCase {
     /// whole scan window, so a session that moved on relabeled the work it
     /// had saved on earlier days, and each relabel rebuilt those days' digests.
     func testClaudeBurstsAreLabeledByTheirOwnRecordsWhateverTheScanWindow() throws {
-        let app = "/Users/me/Code/LokalBot", mojo = "/Users/me/Code/Mojo"
-        try write([
-            claudeUser(uuid: "u1", at: "2026-09-29T09:00:00Z", text: "Fix the stale digest badge"),
-            claudeAssistantText(uuid: "a1", at: "2026-09-29T09:05:00Z", text: "Fixed the badge."),
-            claudeUser(uuid: "u2", at: "2026-09-29T15:00:00Z", text: "Draft the release notes",
-                       cwd: app, branch: "claude/release-notes"),
-            claudeAssistantText(uuid: "a2", at: "2026-09-29T15:05:00Z", text: "Drafted them.",
-                                cwd: app, branch: "claude/release-notes"),
-            claudeUser(uuid: "u3", at: "2026-09-30T10:00:00Z", text: "Apply the Mojo branding",
-                       cwd: mojo, branch: "mojo-branding"),
-            #"{"parentUuid":"u3","isSidechain":false,"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/Users/me/Code/Mojo/Sources/Theme.swift","old_string":"a","new_string":"b"}}]},"#
-                + claudeTrailer(uuid: "a3", at: "2026-09-30T10:05:00Z", cwd: mojo, branch: "mojo-branding"),
-        ], to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
+        try write(labeledSession, to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
            created: "2026-09-29T08:00:00Z", modified: "2026-09-30T10:05:00Z")
         let scanner = CodingAgentSessionScanner(
             readers: [ClaudeCodeSessionReader(root: root.appendingPathComponent("claude"))])
@@ -252,6 +332,28 @@ final class CodingAgentSessionTests: XCTestCase {
             "Open tabs", "NEVER KEPT", "hidden reasoning",
         ] {
             XCTAssertFalse(evidence.contains(leaked), "leaked \(leaked)")
+        }
+    }
+
+    func testCodexRefreshParsesOnlyAppendedBytesAndPicksUpRenames() throws {
+        let codex = root.appendingPathComponent("codex", isDirectory: true)
+        let rollout = codex.appendingPathComponent("sessions/2026/09/03/rollout-2026-09-03T10-00-00-T1.jsonl")
+        let index = codex.appendingPathComponent("session_index.jsonl")
+        let reader = CodexSessionReader(root: codex)
+        let cache = CodingAgentParseCache()
+        var parsed = 0
+        for (count, names) in [(5, ["Update app branding"]), (codexResumedRollout.count, ["Update app branding", "Update Mojo branding"])] {
+            let text = codexResumedRollout.prefix(count).joined(separator: "\n") + "\n"
+            try writeText(text, to: rollout, created: "2026-09-03T10:00:00Z", modified: "2026-09-29T18:00:00Z")
+            try write(names.map { #"{"id":"T1","thread_name":"\#($0)"}"# }, to: index,
+                      created: "2026-09-03T10:00:00Z", modified: "2026-09-29T18:00:00Z")
+
+            let refreshed = reader.transcripts(in: dayInterval, cache: cache)
+
+            XCTAssertEqual(refreshed.bytesRead, text.utf8.count - parsed, "only the appended bytes are parsed")
+            XCTAssertEqual(refreshed.transcripts, reader.transcripts(in: dayInterval).transcripts)
+            XCTAssertEqual(refreshed.transcripts.map(\.title), [names.last])
+            parsed = text.utf8.count
         }
     }
 
@@ -563,6 +665,22 @@ final class CodingAgentSessionTests: XCTestCase {
         ]
     }
 
+    private var labeledSession: [String] {
+        let app = "/Users/me/Code/LokalBot", mojo = "/Users/me/Code/Mojo"
+        return [
+            claudeUser(uuid: "u1", at: "2026-09-29T09:00:00Z", text: "Fix the stale digest badge"),
+            claudeAssistantText(uuid: "a1", at: "2026-09-29T09:05:00Z", text: "Fixed the badge."),
+            claudeUser(uuid: "u2", at: "2026-09-29T15:00:00Z", text: "Draft the release notes",
+                       cwd: app, branch: "claude/release-notes"),
+            claudeAssistantText(uuid: "a2", at: "2026-09-29T15:05:00Z", text: "Drafted them.",
+                                cwd: app, branch: "claude/release-notes"),
+            claudeUser(uuid: "u3", at: "2026-09-30T10:00:00Z", text: "Apply the Mojo branding",
+                       cwd: mojo, branch: "mojo-branding"),
+            #"{"parentUuid":"u3","isSidechain":false,"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/Users/me/Code/Mojo/Sources/Theme.swift","old_string":"a","new_string":"b"}}]},"#
+                + claudeTrailer(uuid: "a3", at: "2026-09-30T10:05:00Z", cwd: mojo, branch: "mojo-branding"),
+        ]
+    }
+
     private var codexResumedRollout: [String] {
         [
             #"{"timestamp":"2026-09-03T10:00:00.000Z","type":"session_meta","payload":{"id":"T1","timestamp":"2026-09-03T10:00:00.000Z","cwd":"/Users/me/Code/Mojo","originator":"Codex Desktop","source":"vscode","git":{"branch":"stevyhacker/mojo-branding","commit_hash":"abc"}}}"#,
@@ -625,9 +743,13 @@ final class CodingAgentSessionTests: XCTestCase {
     }
 
     private func write(_ lines: [String], to url: URL, created: String, modified: String) throws {
+        try writeText(lines.joined(separator: "\n") + "\n", to: url, created: created, modified: modified)
+    }
+
+    private func writeText(_ text: String, to url: URL, created: String, modified: String) throws {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: url)
+        try Data(text.utf8).write(to: url)
         try FileManager.default.setAttributes(
             [.creationDate: try utc(created), .modificationDate: try utc(modified)],
             ofItemAtPath: url.path)

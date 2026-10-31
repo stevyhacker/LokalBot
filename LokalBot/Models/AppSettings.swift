@@ -401,6 +401,18 @@ struct AppSettings: Codable, Equatable {
     /// the person asks. Turning it off stops saving and use but keeps what is
     /// already remembered until the person forgets it.
     var askMemoryEnabled: Bool = true
+    /// Files (Settings → Personal Context → Files): search the folders the
+    /// person chooses by what is in them, with DigUp's engine. Off until they
+    /// turn it on after a notice; turning it off deletes the file index.
+    var fileSearchEnabled: Bool = false
+    /// The folders Files reads, as absolute paths.
+    var fileSearchFolders: [String] = []
+    /// Files also reads recordings and video (sound in 30-second windows, a
+    /// frame per shot), so a moment can be found and opened.
+    var fileSearchIncludesMedia: Bool = true
+    /// Files reads a folder's first pass on battery too. Off, big reads wait
+    /// for a charger; a few new files are read right away either way.
+    var fileSearchReadsOnBattery: Bool = false
     /// After the overnight review, learn facts and goals about the person
     /// from their own lines in that day's meetings (preferences wait for
     /// review; principles are never learned). Needs Ask memory and the review.
@@ -930,6 +942,10 @@ struct AppSettings: Codable, Equatable {
         case dreamingHour
         case dreamingFirstEligibleDayKey
         case askMemoryEnabled
+        case fileSearchEnabled
+        case fileSearchFolders
+        case fileSearchIncludesMedia
+        case fileSearchReadsOnBattery
         case personalLearningEnabled
         case personalLearningFromDictation
         case memoryRoutinesEnabled
@@ -1138,6 +1154,10 @@ struct AppSettings: Codable, Equatable {
             dreamingFirstEligibleDayKey,
             forKey: .dreamingFirstEligibleDayKey)
         try c.encode(askMemoryEnabled, forKey: .askMemoryEnabled)
+        try c.encode(fileSearchEnabled, forKey: .fileSearchEnabled)
+        try c.encode(fileSearchFolders, forKey: .fileSearchFolders)
+        try c.encode(fileSearchIncludesMedia, forKey: .fileSearchIncludesMedia)
+        try c.encode(fileSearchReadsOnBattery, forKey: .fileSearchReadsOnBattery)
         try c.encode(personalLearningEnabled, forKey: .personalLearningEnabled)
         try c.encode(personalLearningFromDictation, forKey: .personalLearningFromDictation)
         try c.encode(memoryRoutinesEnabled, forKey: .memoryRoutinesEnabled)
@@ -1338,6 +1358,10 @@ struct AppSettings: Codable, Equatable {
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)
         askMemoryEnabled = decode(.askMemoryEnabled, defaults.askMemoryEnabled)
+        fileSearchEnabled = decode(.fileSearchEnabled, defaults.fileSearchEnabled)
+        fileSearchFolders = decode(.fileSearchFolders, defaults.fileSearchFolders)
+        fileSearchIncludesMedia = decode(.fileSearchIncludesMedia, defaults.fileSearchIncludesMedia)
+        fileSearchReadsOnBattery = decode(.fileSearchReadsOnBattery, defaults.fileSearchReadsOnBattery)
         personalLearningEnabled = decode(.personalLearningEnabled, defaults.personalLearningEnabled)
         personalLearningFromDictation = decode(.personalLearningFromDictation, defaults.personalLearningFromDictation)
         memoryRoutinesEnabled = decode(.memoryRoutinesEnabled, defaults.memoryRoutinesEnabled)

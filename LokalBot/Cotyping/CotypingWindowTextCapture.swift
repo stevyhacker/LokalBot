@@ -64,6 +64,7 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
             // Another field, window or document: forget the old text.
             self.entry = nil
             generation &+= 1
+            Self.recognized.clear()
         }
         let snapshot = entry?.snapshot
         let due = entry.map { now - $0.startedAt >= Self.refreshInterval } ?? true
@@ -101,6 +102,7 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
             entry = nil
             generation &+= 1
         }
+        Self.recognized.clear()
     }
 
     /// The text in use without starting a read. For tests.
@@ -166,6 +168,39 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
     private static let recognitionQueue = DispatchQueue(
         label: "me.dotenv.LokalBot.cotyping.window-text", qos: .utility)
 
+    /// The last lines recognized for the field in use, outside the field, with
+    /// the fingerprint of the image they came from. Held and cleared with the
+    /// text in use, so it keeps no text the field's prompt could not.
+    final class RecognizedLines: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entry: (key: String, fingerprint: Data, lines: [CotypingWindowText.Line])?
+        private var clears: UInt64 = 0
+
+        var generation: UInt64 { lock.withLock { clears } }
+
+        func lines(forKey key: String, fingerprint: Data) -> [CotypingWindowText.Line]? {
+            lock.withLock { entry.flatMap { $0.key == key && $0.fingerprint == fingerprint ? $0.lines : nil } }
+        }
+
+        /// Dropped when the text was forgotten while recognition ran.
+        func store(_ lines: [CotypingWindowText.Line], forKey key: String, fingerprint: Data,
+                   ifGeneration generation: UInt64) {
+            lock.withLock {
+                guard clears == generation else { return }
+                entry = (key, fingerprint, lines)
+            }
+        }
+
+        func clear() {
+            lock.withLock {
+                entry = nil
+                clears &+= 1
+            }
+        }
+    }
+
+    static let recognized = RecognizedLines()
+
     /// Captures only the focused window, while its app is still in front.
     /// Never asks for Screen Recording: without it there is no window text.
     static func read(_ request: Request) async -> [CotypingWindowText.Line]? {
@@ -196,11 +231,30 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
             let image = try await SCScreenshotManager.captureImage(
                 contentFilter: filter, configuration: configuration)
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == request.processID else { return nil }
-            return await recognize(Image(image: image), windowFrame: window.frame)
+            let fingerprint = CotypingWindowText.fingerprint(
+                of: image, windowFrame: window.frame, fieldFrame: request.target.fieldFrame)
+            if let fingerprint, let lines = recognized.lines(forKey: request.key, fingerprint: fingerprint) {
+                log("window unchanged outside the field; reused the last reading")
+                return lines
+            }
+            let generation = recognized.generation
+            let lines = await recognizeLines(in: image, windowFrame: window.frame)
+            if let fingerprint {
+                // The draft is never prompt context, so it is not kept either.
+                let field = request.target.fieldFrame.insetBy(
+                    dx: -CotypingWindowText.fieldMargin, dy: -CotypingWindowText.fieldMargin)
+                recognized.store(lines.filter { !$0.frame.intersects(field) }, forKey: request.key,
+                                 fingerprint: fingerprint, ifGeneration: generation)
+            }
+            return lines
         } catch {
             log("capture failed (\((error as NSError).domain) \((error as NSError).code))")
             return nil
         }
+    }
+
+    static func recognizeLines(in image: CGImage, windowFrame: CGRect) async -> [CotypingWindowText.Line] {
+        await recognize(Image(image: image), windowFrame: windowFrame)
     }
 
     /// The same recognizer as screen memory and Compose: `.fast` drops every

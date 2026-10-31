@@ -45,7 +45,7 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective October 26, 2026</p>
+      <p class="eyebrow">Effective October 31, 2026</p>
       <h1>Privacy Policy</h1>
       <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service. This page describes the Mac app; <a href="#windows-and-linux">Windows and Linux</a> lists where the Windows and Linux app, an alpha, differs.</p>
     </header>
@@ -61,6 +61,7 @@
         <li>records of local Claude Code and Codex sessions for the day digest (requests, commits, pull requests, and changed file names; never tool output or file contents), on by default and removable in Settings → Day Memory;</li>
         <li>opt-in Agent Mode sessions and runtime files;</li>
         <li>an encrypted Personal Context list of facts, preferences, goals, and principles about you;</li>
+        <li>an index of the folders you choose to search under Files: file paths, their text, and vectors of what they say or show (see <a href="#files">Files you choose</a>);</li>
         <li>conversations downloaded from email accounts you connect, encrypted (see <a href="#email">Email from Gmail</a>); and</li>
         <li>preferences, diagnostic logs, and encryption keys.</li>
       </ul>
@@ -91,6 +92,16 @@
         <li><strong>Retention and deletion:</strong> messages older than 90 days are deleted automatically, and mail you trash or delete is removed at the next check. Disconnect in Settings → Personal Context → Email deletes that account's mail and tokens at once and asks Google to revoke access; you can also remove it at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
       </ul>
 
+      <h2 id="files">Files you choose</h2>
+      <p>Files (Settings → Personal Context → Files) searches folders on your Mac by what is in them. It is off until you turn it on after a notice, and it reads nothing until you choose a folder. It never picks folders by itself: Settings offers Documents, Desktop and Downloads as one-click choices, and macOS asks you for access only when you pick one. Its engine is <a href="https://github.com/ARahim3/DigUp">DigUp</a>'s, running inside LokalBot.</p>
+      <ul>
+        <li><strong>What LokalBot reads:</strong> only the folders you list: pictures and screenshots, PDFs page by page, and documents such as txt, md, rtf, doc, docx, odt, and html. It skips hidden folders, app bundles, caches, the insides of code projects except their screenshots, folders that look like datasets, and iCloud files that are not downloaded. Unless you turn it off, it also reads recordings 30 seconds of sound at a time and videos a frame per shot plus their sound. LokalBot never changes, moves, or uploads your files.</li>
+        <li><strong>How it is used:</strong> an on-device model, EmbeddingGemma 2 with its image and audio projector (a one-time 555 MB download), turns each picture, page, and passage into a vector, and Ask and Quick Recall search them when the Files source is selected. Reading runs when something in the folders changes and pauses while a meeting records, in Low Power Mode, and while the Mac is warm. A folder's first read goes slower while you use the Mac, judged by how long ago the last key press or mouse move was (never which key or where), and on battery it waits for a charger unless you allow it. Before you add a folder, LokalBot counts what it holds from file metadata alone to show how long the first read will take; the count is not kept. For a matched moment in a recording or video, the Ask assistant transcribes just those 30 seconds with your transcription model, only if it is already on your Mac and no meeting is recording, and keeps the words only for that answer.</li>
+        <li><strong>Where it is kept:</strong> in <code>files-index.noindex</code> in the library: file paths, sizes and dates, the extracted text, short excerpts, photo capture dates, and the vectors.</li>
+        <li><strong>Who receives it:</strong> no one by default. If you ask Ask a question with Files selected and your Think model is a remote server you approved, the passages it looked up go to that server, as meeting and screen text do. External agents using the CLI or MCP can't read Files.</li>
+        <li><strong>Retention and deletion:</strong> the index follows the folders, so a file you delete or move out of them leaves it at the next pass. Turning Files off deletes the whole index.</li>
+      </ul>
+
       <h2>Permissions and consent</h2>
       <p>Microphone and system-audio permissions enable recording. Calendar access helps detect and title meetings and provides local speaker-name suggestions. Attendee emails remain in meeting metadata, are deleted with the meeting, and are never added to transcripts, exports, or model prompts; once you connect email, they also choose which mail conversations LokalBot downloads. Accessibility enables browser-meeting detection, Cotyping, dictation insertion, and approved agent interaction. Screen Recording enables visual screen context when selected.</p>
       <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting. You can switch to automatic recording or turn auto-record off. You are responsible for informing participants and obtaining any consent required before recording other people.</p>
@@ -102,7 +113,7 @@
       <p>The Windows and Linux app follows this policy, with these differences:</p>
       <ul>
         <li><strong>Storage:</strong> the library is in <code>%LOCALAPPDATA%\LokalBot</code> on Windows and <code>~/.local/share/LokalBot</code> on Linux. API keys, the ChatGPT sign-in, calendar links, and the screen-image key are kept in the system credential store (Windows Credential Manager, or the Secret Service on Linux).</li>
-        <li><strong>Not collected there yet:</strong> Personal Context, email, coding-agent session records, spoken summaries, daily memory notes, and meeting note export are Mac only for now.</li>
+        <li><strong>Not collected there yet:</strong> Personal Context, email, Files, coding-agent session records, spoken summaries, daily memory notes, and meeting note export are Mac only for now.</li>
         <li><strong>System audio</strong> comes from the whole output (WASAPI loopback, or a PulseAudio or PipeWire monitor), so anything else playing during a recording is recorded too. Meeting detection looks at which apps use the microphone and asks with a notification.</li>
         <li><strong>Screen context</strong> reads visible text through accessibility (UI Automation or AT-SPI) and otherwise uses on-device OCR, downloaded only when you ask for it. The same exclusions, redaction, encryption, and 14-day default retention apply.</li>
         <li><strong>Dictation</strong> audio stays in memory and is never written to disk. The text is pasted through the clipboard, and your previous clipboard comes back afterwards. The last 10 results are kept for 7 days, encrypted, so you can copy one again.</li>
