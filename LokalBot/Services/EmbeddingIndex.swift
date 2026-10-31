@@ -370,6 +370,8 @@ final class EmbeddingIndex {
                 ON screen_embeddings(ts);
             CREATE INDEX IF NOT EXISTS idx_screen_embeddings_app_ts
                 ON screen_embeddings(app, ts);
+            CREATE INDEX IF NOT EXISTS idx_screen_embeddings_model
+                ON screen_embeddings(model_id);
             """)
         if database?.hasRow(
             "SELECT 1 FROM pragma_table_info('embedded_meetings') WHERE name = 'model_id'"
@@ -393,12 +395,16 @@ final class EmbeddingIndex {
                 SELECT 1 FROM sqlite_master
                 WHERE type = 'table' AND name = 'screenshots'
                 """) {
+                // Two index ranges instead of `!=`, which reads every vector
+                // (41 MB on a large library) at each launch on the main actor.
                 screenVectorsNeedRebuild = database.hasRow(
-                    "SELECT 1 FROM screen_embeddings WHERE model_id != ?1 LIMIT 1",
+                    "SELECT 1 FROM screen_embeddings WHERE model_id < ?1 OR model_id > ?1 LIMIT 1",
                     bind: [Self.indexVersion])
-                database.run(
-                    "DELETE FROM screen_embeddings WHERE model_id != ?1",
-                    bind: [Self.indexVersion])
+                if screenVectorsNeedRebuild {
+                    database.run(
+                        "DELETE FROM screen_embeddings WHERE model_id < ?1 OR model_id > ?1",
+                        bind: [Self.indexVersion])
+                }
             }
         }
         _ = reconcileDeletedMeetings()

@@ -98,6 +98,12 @@ final class CaptureTraceRecorder: @unchecked Sendable {
             recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: false, read: value) }
             return value
         }
+        /// Recorded as a full read, which is what replay answers it with.
+        func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead {
+            let value = base.readPrivacy(processID: processID, nodeLimit: nodeLimit)
+            recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: true, read: value) }
+            return value
+        }
         func focusedWindowTitle(processID: pid_t) -> String? {
             let value = base.focusedWindowTitle(processID: processID)
             recorder.record { .init(t: $0, query: .focusedTitle, processID: processID, title: value) }
