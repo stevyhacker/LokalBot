@@ -5,7 +5,9 @@ import AppKit
 /// MM:SS timer so a glance at the menu bar confirms a meeting is being captured
 /// — no window required. Idle, it's just the app glyph.
 struct MenuBarLabel: View {
-    @ObservedObject var app: AppState
+    /// Not AppState: the status item redraws only when its glyph can change.
+    @ObservedObject var scene: AppSceneState
+    let recording: RecordingController
     @ObservedObject var dictation: DictationCoordinator
     @Environment(\.openWindow) private var openWindow
 
@@ -19,17 +21,17 @@ struct MenuBarLabel: View {
     }
 
     @ViewBuilder private var glyph: some View {
-        if app.isRecording {
+        if scene.values.isRecording {
             HStack(spacing: 3) {
                 Image(systemName: "record.circle.fill")
                     .foregroundStyle(LBTokens.Palette.recording)
-                MeetingRecordingTimerText(recording: app.recording)
+                MeetingRecordingTimerText(recording: recording)
             }
                 .monospacedDigit()
-        } else if app.dictation.state.isRecording {
-            Text("\(Image(systemName: "mic.circle.fill")) \(app.dictation.menuBarLabel)")
+        } else if dictation.state.isRecording {
+            Text("\(Image(systemName: "mic.circle.fill")) \(dictation.menuBarLabel)")
                 .monospacedDigit()
-        } else if app.dictation.state.isWorking {
+        } else if dictation.state.isWorking {
             Image(systemName: "mic.and.signal.meter.fill")
         } else {
             Image(nsImage: MenuBarIcon.image)
