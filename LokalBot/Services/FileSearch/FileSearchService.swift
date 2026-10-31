@@ -36,8 +36,8 @@ struct FileSearchHit: Identifiable, Hashable, Sendable {
         case .image: "Picture"
         case .pdf: page.map { "PDF · page \($0)" } ?? "PDF"
         case .doc: "Document"
-        case .audio: "Recording"
-        case .video: "Video"
+        case .audio: seconds.map { "Recording · \(Transcript.stamp($0))" } ?? "Recording"
+        case .video: seconds.map { "Video · \(Transcript.stamp($0))" } ?? "Video"
         case .code: "Code"
         }
     }
@@ -136,6 +136,9 @@ final class FileSearchService: ObservableObject {
     struct Configuration: Equatable, Sendable {
         var enabled = false
         var folders: [String] = []
+        /// Read recordings and video too: sound 30 seconds at a time (a new
+        /// window every 25 s) and a frame per shot, at most one every 3 s.
+        var includesMedia = true
     }
 
     /// One pass's embedder: what its vectors are called (the index's
@@ -150,10 +153,10 @@ final class FileSearchService: ObservableObject {
     typealias StartEmbedder = @MainActor (_ progress: @escaping @Sendable (Double) -> Void) async throws
         -> EmbedderSession
 
-    /// Recordings and video stay out until moments can be opened in place
-    /// (DigUp reads them in 30-second windows and frames every few seconds).
+    /// Recordings and video, by extension, for when the person turns them off
+    /// (DigUp recognises them by type, so the list errs on the side of more).
     /// Code stays out because `IndexOptions.includeCode` is off.
-    nonisolated static let excludedExtensions: Set<String> = [
+    nonisolated static let mediaExtensions: Set<String> = [
         "mp3", "m4a", "m4b", "aac", "wav", "wave", "aif", "aiff", "aifc", "caf", "flac", "ogg", "oga", "opus",
         "wma", "amr", "mka", "ape", "ac3", "eac3", "mp4", "m4v", "mov", "qt", "avi", "mkv", "webm", "wmv", "flv",
         "mpg", "mpeg", "m2v", "mts", "m2ts", "3gp", "3g2", "ogv", "mxf", "dv", "vob",
@@ -169,6 +172,9 @@ final class FileSearchService: ObservableObject {
 
     private(set) var configuration = Configuration()
     var isRecording: () -> Bool = { false }
+    /// The words at a recording's or video's matched moment, for the
+    /// assistant (`FileMomentTranscriber`); nil leaves moments without words.
+    var transcribeMoment: (@MainActor (FileSearchHit) async -> String?)?
 
     private let worker: FileIndexWorker
     private let reader: FileSearchReader
@@ -328,7 +334,7 @@ final class FileSearchService: ObservableObject {
         stopFlag.clear()
         let started = Date()
         let roots = configuration.folders
-        let options = Self.indexOptions()
+        let options = Self.indexOptions(includesMedia: configuration.includesMedia)
         let stop = stopFlag
 
         // Find what is new or changed first: an unchanged library never loads the model.
@@ -424,9 +430,11 @@ final class FileSearchService: ObservableObject {
 
     // MARK: - Indexing (on the index queue)
 
-    nonisolated static func indexOptions() -> IndexOptions {
+    /// Turning recordings and video off excludes them by extension; the next
+    /// sync then drops those already indexed.
+    nonisolated static func indexOptions(includesMedia: Bool = true) -> IndexOptions {
         var options = IndexOptions()
-        options.excludedExtensions = excludedExtensions
+        if !includesMedia { options.excludedExtensions = mediaExtensions }
         return options
     }
 
@@ -499,9 +507,13 @@ final class FileSearchService: ObservableObject {
         .map { $0 }
     }
 
-    /// The stored text of a matched passage, for the agent to read.
+    /// The stored text of a matched passage, for the agent to read. For a
+    /// recording or video moment, what was said in its 30-second window.
     func passage(of hit: FileSearchHit) async -> String? {
-        await reader.passage(segment: hit.id)
+        if hit.kind == .audio || hit.kind == .video {
+            return await transcribeMoment?(hit)
+        }
+        return await reader.passage(segment: hit.id)
     }
 
     /// A passage cited by an earlier answer, by its id; nil once its file left

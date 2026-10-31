@@ -1,5 +1,6 @@
 import CoreGraphics
 import DigUpKit
+import SQLite3
 import ImageIO
 import UniformTypeIdentifiers
 import XCTest
@@ -135,15 +136,38 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertEqual(found.map(\.name), ["old.txt"])
     }
 
-    func testAudioAndVideoStayOutOfTheIndexForNow() {
-        let options = FileSearchService.indexOptions()
+    func testRecordingsAndVideoAreReadUnlessTurnedOff() {
+        XCTAssertTrue(FileSearchService.indexOptions().excludedExtensions.isEmpty)
+        XCTAssertTrue(FileSearchService.Configuration().includesMedia)
+        let off = FileSearchService.indexOptions(includesMedia: false)
         for ext in ["mp3", "m4a", "wav", "mov", "mp4", "mkv"] {
-            XCTAssertTrue(options.excludedExtensions.contains(ext), ext)
+            XCTAssertTrue(off.excludedExtensions.contains(ext), ext)
         }
         for ext in ["pdf", "png", "jpg", "heic", "txt", "md", "docx"] {
-            XCTAssertFalse(options.excludedExtensions.contains(ext), ext)
+            XCTAssertFalse(off.excludedExtensions.contains(ext), ext)
         }
-        XCTAssertFalse(options.includeCode)
+        XCTAssertFalse(off.includeCode)
+    }
+
+    func testARecordingIsReadInOverlappingWindowsAndLeavesWhenMediaIsTurnedOff() async throws {
+        try writeTone("podcast-episode.wav", seconds: 40)
+        try write("notes.txt", String(repeating: "Episode notes about sleep and morning routines. ", count: 8))
+        let service = makeService()
+
+        service.apply(.init(enabled: true, folders: [chosen.path]))
+        await service.waitUntilIdle()
+
+        XCTAssertEqual(service.totals.byKind["audio"], 1)
+        // DigUp reads 30 s windows every 25 s: 0–30 s and 25–40 s.
+        XCTAssertEqual(try segmentStarts(kind: "audio"), [0, 25])
+        let byName = await service.search("podcast episode", queryVector: nil)
+        XCTAssertEqual(byName.first?.name, "podcast-episode.wav")
+        XCTAssertEqual(byName.first?.kind, .audio)
+
+        service.apply(.init(enabled: true, folders: [chosen.path], includesMedia: false))
+        await service.waitUntilIdle()
+        XCTAssertNil(service.totals.byKind["audio"])
+        XCTAssertEqual(service.totals.byKind["doc"], 1)
     }
 
     // MARK: - Helpers
@@ -156,6 +180,34 @@ final class FileSearchServiceTests: XCTestCase {
                 return .init(source: FakeFileEmbedder.workerInfo.vectorSource,
                              makeEmbedder: { FakeFileEmbedder() }, end: {})
             })
+    }
+
+    /// A 16 kHz mono tone: DigUp drops silent windows.
+    private func writeTone(_ name: String, seconds: Int) throws {
+        let rate = 16_000
+        var samples = Data(capacity: rate * seconds * 2)
+        for index in 0..<(rate * seconds) {
+            let value = Int16(sin(Double(index) * 2 * .pi * 440 / Double(rate)) * 9_000)
+            withUnsafeBytes(of: value.littleEndian) { samples.append(contentsOf: $0) }
+        }
+        var wav = Data("RIFF".utf8)
+        func append<T: FixedWidthInteger>(_ value: T) { withUnsafeBytes(of: value.littleEndian) { wav.append(contentsOf: $0) } }
+        append(UInt32(36 + samples.count))
+        wav.append(Data("WAVEfmt ".utf8))
+        append(UInt32(16)); append(UInt16(1)); append(UInt16(1)); append(UInt32(rate))
+        append(UInt32(rate * 2)); append(UInt16(2)); append(UInt16(16))
+        wav.append(Data("data".utf8))
+        append(UInt32(samples.count))
+        wav.append(samples)
+        try wav.write(to: chosen.appendingPathComponent(name))
+    }
+
+    private func segmentStarts(kind: String) throws -> [Double] {
+        let file = root.appendingPathComponent(FileSearchService.indexFolderName).appendingPathComponent(IndexStore.mainFile)
+        let database = try XCTUnwrap(SQLiteDatabase(url: file, readOnly: true))
+        return database.query("SELECT loc FROM segments WHERE kind = ?1 ORDER BY loc", bind: [kind]) {
+            sqlite3_column_double($0, 0)
+        }
     }
 
     private func write(_ name: String, _ text: String) throws {

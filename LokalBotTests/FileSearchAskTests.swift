@@ -129,6 +129,12 @@ final class FileSearchAskTests: XCTestCase {
         let row = QuickRecallRowModel.file(pdf)
         XCTAssertEqual(row.id, "file.3")
         XCTAssertEqual(row.title, "Lease.pdf")
+        let moment = FileSearchHit(id: 4, path: "/Users/me/Podcasts/sleep.mp3", kind: .audio, seconds: 754,
+                                   excerpt: nil, modified: Date(timeIntervalSince1970: 0), isSemantic: true)
+        XCTAssertEqual(moment.kindLabel, "Recording · 00:12:34")
+        XCTAssertEqual(FileSearchHit(id: 5, path: "/m.mov", kind: .video, seconds: 3_723, excerpt: nil,
+                                     modified: Date(timeIntervalSince1970: 0), isSemantic: true).kindLabel,
+                       "Video · 01:02:03")
         XCTAssertNotNil(FileSearchHit.exifDate("2026:05:14 18:02:11"))
         XCTAssertNil(FileSearchHit.exifDate("not a date"))
     }
