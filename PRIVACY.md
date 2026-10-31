@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: October 30, 2026
+Effective: October 31, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -561,20 +561,29 @@ nothing until you choose a folder. Its engine is
   and documents such as txt, md, rtf, doc, docx, odt, and html. It skips
   hidden files and folders, app bundles, caches, the insides of code projects
   except their screenshots, folders that look like datasets, and iCloud files
-  that are not downloaded; it never downloads them. Recordings and video are
-  not read yet. A folder you remove from the list is dropped from the index
-  at the next pass. LokalBot never changes, moves, or uploads your files.
+  that are not downloaded; it never downloads them. Unless you turn off
+  **Include recordings and video**, it also reads recordings 30 seconds of
+  sound at a time and videos a frame per shot plus their sound. A folder you
+  remove from the list is dropped from the index at the next pass. LokalBot
+  never changes, moves, or uploads your files.
 - **How it is used.** An on-device model (EmbeddingGemma 2, with its image
   and audio projector) turns each picture, page, and passage into a vector;
   Apple's Vision reads the text in screenshots. Ask and Quick Recall search
   those vectors and the extracted text when the Files source is selected, and
   the Ask assistant can call `search_files` to read the passages that matched.
+  For a matched moment in a recording or video, the assistant hears what was
+  said: LokalBot transcribes just those 30 seconds with the transcription
+  model you chose, only if that model is already on this Mac and no meeting is
+  recording, and keeps the words in memory for that answer only. A remote
+  transcription server receives the clip only if you approved its origin.
+  Opening a moment plays it in a LokalBot window.
   Reading happens in passes when something in the folders changes, and pauses
   while a meeting records, in Low Power Mode, and while the Mac is warm. The
   model runs only while new or changed files are read.
 - **Where it is kept.** In `files-index.noindex` in the library: each indexed
   file's path, size, and dates, the text LokalBot extracted from it, short
-  excerpts, a photo's EXIF capture date, and the vectors. It is not
+  excerpts, a photo's EXIF capture date, and the vectors. Transcribed moments
+  are not stored. It is not
   encrypted beyond your disk's own encryption, because it holds text that
   the files themselves already hold unencrypted in the folders you chose.
 - **Who receives it.** No one, by default: searching and indexing run on your

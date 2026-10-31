@@ -1,5 +1,5 @@
 {
-  "originHash" : "e939b4695fd54da1a3a875874a4cc430daeaf62106d3533569ee0be3f7ad3b0a",
+  "originHash" : "3dc159bcad9c777daa327cc2d894ac73480eda04b017a7b18866d48edb2ff0f6",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -22,7 +22,7 @@
     {
       "identity" : "digup",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ARahim3/DigUp",
+      "location" : "https://github.com/stevyhacker/DigUp",
       "state" : {
         "revision" : "dc2651ad8299160bbe91e972f857e1a1599a8419"
       }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LokalBot Files: how it works and what it costs to compute</title>
 <!--
-  Technical explainer for pull request #409 (Files: search chosen folders by meaning, on DigUp's engine).
+  Technical explainer for Files and screen search by meaning on DigUp's engine (pull requests #409, #410).
   Render: python3 Scripts/render_explainer.py Docs/explainers/files-search-how-it-works.html Docs/explainers/files-search-how-it-works.pdf
   Each .page is one A4 sheet. Timings and memory come from Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder
   (Apple M4 Max, 48 GiB, macOS 27.2, on AC power). Fonts ship with macOS, so it renders offline.
@@ -182,7 +182,7 @@ tr.muted td { color: var(--ink-faint); }
 
 <!-- ───────────────────────── Page 1: how it works ───────────────────────── -->
 <section class="page">
-  <div class="eyebrow">LokalBot · Files · pull request #409</div>
+  <div class="eyebrow">LokalBot · Files and screens</div>
   <h1>Search your folders by what is in them</h1>
   <p class="lede">Files brings <a href="https://github.com/ARahim3/DigUp">DigUp</a>'s file search into Ask. You choose
     folders; LokalBot reads the pictures, screenshots, PDFs and documents in them on this Mac, and Ask, Quick Recall
@@ -192,6 +192,7 @@ tr.muted td { color: var(--ink-faint); }
     <span class="chip"><b>“the clause about pets in the lease”</b> → the PDF, opened at page 4</span>
     <span class="chip"><b>“payment declined error”</b> → the screenshot</span>
     <span class="chip"><b>“a dog on the beach”</b> → the photo</span>
+    <span class="chip"><b>“where they talk about sleep”</b> → the podcast, playing at 12:34</span>
     <span class="chip"><b>“INV-2041”</b> → the invoice, by its exact words</span>
   </div>
 
@@ -292,6 +293,7 @@ tr.muted td { color: var(--ink-faint); }
       <ul>
         <li>An embedder that talks to LokalBot's own llama-server, not DigUp's llama.cpp build.</li>
         <li>Ask, Quick Recall, the assistant's tool and <code>[file:ID]</code> citations.</li>
+        <li>Moments play in a LokalBot window; the assistant hears the matched 30 seconds.</li>
         <li>Pauses for recordings, Low Power Mode and heat; Settings with a notice.</li>
       </ul>
     </div>
@@ -299,7 +301,7 @@ tr.muted td { color: var(--ink-faint); }
       <span class="tag skip">Left out for now</span>
       <ul>
         <li>DigUp's own panel, hotkey, updater and model downloader.</li>
-        <li>Recordings and video (phase 3), and code search.</li>
+        <li>Code search.</li>
         <li>The CLI and MCP: external agents can't read Files.</li>
       </ul>
     </div>
@@ -312,7 +314,7 @@ tr.muted td { color: var(--ink-faint); }
     them under Files. Ask a question, and the assistant searches them too and cites the file it used.
   </div>
 
-  <div class="foot"><span>LokalBot · Files explainer · pull request #409</span><span>1 / 5 · How it works</span></div>
+  <div class="foot"><span>LokalBot · Files explainer · pull requests #409 and #410</span><span>1 / 5 · How it works</span></div>
 </section>
 
 <!-- ───────────────────────── Page 2: one pass ───────────────────────── -->
@@ -345,7 +347,7 @@ tr.muted td { color: var(--ink-faint); }
         <p>A llama-server on port 17876, held in memory for the pass.</p></li>
       <li class="gpu"><span class="n">6</span>
         <h3>Read and embed <span>CPU reads · GPU embeds</span></h3>
-        <p>Screenshots first, then pictures, PDFs and documents, newest first. While the GPU embeds one file, a CPU
+        <p>Screenshots first, then pictures, PDFs, documents, recordings and video, newest first. While the GPU embeds one file, a CPU
           thread decodes, OCRs or extracts the next. Long PDFs get their first 30 pages now.</p></li>
       <li class="gpu"><span class="n">7</span>
         <h3>Finish long files <span>30 pages · 40 chunks a step</span></h3>
@@ -366,7 +368,8 @@ tr.muted td { color: var(--ink-faint); }
           <tr><td>PDF page</td><td>PDFKit text, up to 4,000 characters</td><td>1 text per page</td></tr>
           <tr><td>Scanned page</td><td>rendered page; OCR words</td><td>1 image · 280 tokens</td></tr>
           <tr><td>Document</td><td>Cocoa text, ~1,800-character chunks</td><td>1 text per chunk</td></tr>
-          <tr class="muted"><td>Recording, video</td><td colspan="2">not read yet: excluded by extension until moments open in place</td></tr>
+          <tr><td>Recording</td><td>30 s of sound, a new window every 25 s; silence skipped</td><td>1 audio per window</td></tr>
+          <tr><td>Video</td><td>a frame per shot, at most one every 3 s, plus its sound</td><td>1 image per frame · 70 tokens</td></tr>
         </table>
       </div>
       <div class="card skip">
@@ -409,14 +412,14 @@ tr.muted td { color: var(--ink-faint); }
     <span class="tag compute">Model time per item · p50</span>
     <div class="bars">
       <div class="bar"><span class="label">Search query (text server)</span><span class="track"><span class="fill query" style="width: 1.4%"></span></span><span class="value">6 ms</span></div>
-      <div class="bar"><span class="label">Video frame, 70 tokens · not yet</span><span class="track"><span class="fill ghost" style="width: 10%"></span></span><span class="value">44 ms</span></div>
+      <div class="bar"><span class="label">Video frame, 70 tokens</span><span class="track"><span class="fill" style="width: 10%"></span></span><span class="value">44 ms</span></div>
       <div class="bar"><span class="label">Picture, 140 tokens</span><span class="track"><span class="fill" style="width: 17.2%"></span></span><span class="value">76 ms</span></div>
       <div class="bar"><span class="label">Screenshot, 280 tokens</span><span class="track"><span class="fill" style="width: 31.4%"></span></span><span class="value">139 ms</span></div>
-      <div class="bar"><span class="label">30 s of audio · not yet</span><span class="track"><span class="fill ghost" style="width: 31%"></span></span><span class="value">137 ms</span></div>
+      <div class="bar"><span class="label">30 s of audio</span><span class="track"><span class="fill" style="width: 31%"></span></span><span class="value">137 ms</span></div>
       <div class="bar"><span class="label">Screenshot, llama.cpp's own sizing</span><span class="track"><span class="fill ghost" style="width: 55.9%"></span></span><span class="value">247 ms</span></div>
       <div class="bar"><span class="label">32 text passages (≈ 7,000 tokens)</span><span class="track"><span class="fill index" style="width: 100%"></span></span><span class="value">442 ms</span></div>
     </div>
-    <p class="faint" style="font-size:9.6px;">Striped: not indexed by Files yet, or for comparison. Sizing each image for
+    <p class="faint" style="font-size:9.6px;">Striped: for comparison. Sizing each image for
       its token budget is what took a screenshot from 574 tokens and 247 ms (13 October run) to 277 tokens and 139 ms.
       One image per request; batching eight saved nothing.</p>
   </div>
@@ -429,6 +432,8 @@ tr.muted td { color: var(--ink-faint); }
         <tr><td>2,000 screenshots</td><td class="num">≈ 4.6 min</td></tr>
         <tr><td>10,000 photos</td><td class="num">≈ 13 min</td></tr>
         <tr><td>5,000 PDF pages of text</td><td class="num">≈ 2–3 min</td></tr>
+        <tr><td>An hour of video</td><td class="num">≈ 72 s</td></tr>
+        <tr><td>An hour of recordings</td><td class="num">≈ 20 s</td></tr>
         <tr><td>A day's 20 new screenshots</td><td class="num">≈ 3 s</td></tr>
         <tr><td>A day of screen captures (≈ 490)</td><td class="num">≈ 70 s</td></tr>
         <tr><td>Nothing changed</td><td class="num">0 s</td></tr>
@@ -501,6 +506,7 @@ tr.muted td { color: var(--ink-faint); }
           <li><code>FileImageSizingTests</code>: DigUp's Pillow fixtures, bit for bit.</li>
           <li><code>FileSearchAskTests</code>: source, tool, citations, evidence.</li>
           <li><code>FileMediaEmbedderReferenceTests</code>: the live-server check above.</li>
+          <li><code>FileMomentTranscriberTests</code>: 30-second clips, transcribed once.</li>
         </ul>
       </div>
     </div>
@@ -522,7 +528,6 @@ tr.muted td { color: var(--ink-faint); }
       <ul>
         <li><b>Check screens on your library.</b> Rerun the 13 October benchmark with the new ranking, the 280 budget
           and short literal queries.</li>
-        <li><b>Recordings and video.</b> 30-second sound windows and a frame per shot, opened at the moment.</li>
         <li><b>A helper process</b> for indexing, so a runaway PDF can be stopped without touching the app.</li>
       </ul>
     </div>

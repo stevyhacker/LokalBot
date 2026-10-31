@@ -48,7 +48,7 @@ packages:
     url: https://github.com/sindresorhus/LaunchAtLogin-Modern
     from: "1.1.0"
   DigUp:
-    url: https://github.com/ARahim3/DigUp
+    url: https://github.com/stevyhacker/DigUp  # fork of ARahim3/DigUp
     revision: dc2651ad8299160bbe91e972f857e1a1599a8419  # DigUpKit only (MIT): file crawling, reading, index and search
 
 # Shared application body. Both `LokalBot` (prod) and `LokalBot Dev` build the

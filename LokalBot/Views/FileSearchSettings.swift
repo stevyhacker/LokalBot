@@ -12,8 +12,9 @@ struct FileSearchSettingsSection: View {
     static let readingDetails = "LokalBot reads only the folders listed here: pictures and screenshots, PDFs page by page, "
         + "and documents such as txt, md, rtf, docx, odt and html. It skips hidden folders, app bundles, caches, code "
         + "projects (except their screenshots), folders that look like datasets, and iCloud files that are not downloaded. "
-        + "Recordings and video are not read yet. The index keeps each file's path, its text, and a vector of what it says "
-        + "or shows, in the LokalBot library. The image and text model downloads once and runs only while new or changed "
+        + "With recordings and video included, sound is read 30 seconds at a time and video a frame per shot, so a "
+        + "search can open the moment in LokalBot's player. The index keeps each file's path, its text, and a vector of "
+        + "what it says, shows or sounds like, in the LokalBot library. The image and text model downloads once and runs only while new or changed "
         + "files are read. Reading pauses while a meeting records, in Low Power Mode, and while the Mac is warm."
 
     var body: some View {
@@ -29,6 +30,14 @@ struct FileSearchSettingsSection: View {
                 ForEach(app.settings.fileSearchFolders, id: \.self) { folder in
                     folderRow(folder)
                 }
+                Toggle(isOn: Binding(
+                    get: { app.settings.fileSearchIncludesMedia },
+                    set: { on in app.changeSettings { $0.fileSearchIncludesMedia = on } })) {
+                    SettingsLabel("Include recordings and video",
+                                  help: "Sound is read 30 seconds at a time and video a frame per shot. A first pass "
+                                      + "over hours of video takes a while.")
+                }
+                .settingTarget("settings.fileSearchIncludesMedia", selected: focusedSettingID)
                 Button("Add Folder…", action: chooseFolders)
                     .accessibilityIdentifier("settings.files.addFolder")
                     .settingTarget("settings.fileSearchFolders", selected: focusedSettingID)
@@ -41,7 +50,7 @@ struct FileSearchSettingsSection: View {
             Button("Privacy Policy") { NSWorkspace.shared.open(Self.privacyPolicyURL) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("LokalBot reads the folders you choose and keeps an index of their text and pictures in its library. Nothing leaves this Mac. The first time, it downloads EmbeddingGemma 2's image model (555 MB). Turning Files off deletes the index.")
+            Text("LokalBot reads the folders you choose and keeps an index of their text, pictures and sound in its library. Nothing leaves this Mac. The first time, it downloads EmbeddingGemma 2's image model (555 MB). Turning Files off deletes the index.")
         }
         .confirmationDialog("Turn off Files?", isPresented: $confirmingOff) {
             Button("Turn Off and Delete the Index", role: .destructive) {
