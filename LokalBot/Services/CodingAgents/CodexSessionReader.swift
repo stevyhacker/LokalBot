@@ -18,14 +18,6 @@ struct CodexSessionReader: CodingAgentSessionReader {
         self.root = root
     }
 
-    /// Opening bytes of records that never carry evidence beyond their time.
-    private static let timestampOnlyMarkers = [
-        #""type":"function_call_output""#, #""type":"custom_tool_call_output""#,
-        #""type":"reasoning""#, #""type":"token_count""#, #""type":"token_usage_record""#,
-        #""item":{"type":"Reasoning""#, #""item":{"type":"AgentMessage""#,
-        #""item":{"type":"UserMessage""#, #""item":{"type":"ImageView""#,
-    ]
-
     func transcripts(in interval: DateInterval) -> CodingAgentReadResult {
         transcripts(in: interval, cache: nil)
     }
@@ -45,26 +37,23 @@ struct CodexSessionReader: CodingAgentSessionReader {
         var selected: Set<String> = []
         for candidate in candidates {
             selected.insert(candidate.url.path)
-            if let cached = cache?.entry(for: candidate, interval: interval) {
-                if let transcript = cached.transcript { result.transcripts.append(transcript) }
-                continue
-            }
             do {
-                let lines = try CodingAgentJSONLines(contentsOf: candidate.url)
-                result.filesRead += 1
-                result.bytesRead += candidate.size
-                let transcript = parse(lines, interval: interval)
-                cache?.store(
-                    .init(size: candidate.size, modified: candidate.modified, transcript: transcript, recordKeys: []),
-                    for: candidate, interval: interval)
-                if let transcript { result.transcripts.append(transcript) }
+                let read = try CodingAgentParseCache.summary(
+                    of: candidate, from: interval.start, cache: cache) { CodexRolloutSummary() }
+                if let bytes = read.bytesRead {
+                    result.filesRead += 1
+                    result.bytesRead += bytes
+                }
+                if let transcript = read.summary.transcript(in: interval) { result.transcripts.append(transcript) }
             } catch {
                 result.unreadableFiles.append(candidate.url.path)
             }
         }
-        cache?.prune(keeping: selected, under: root, interval: interval)
+        let index = root.appendingPathComponent("session_index.jsonl")
+        selected.insert(index.path)
+        cache?.prune(keeping: selected, under: root)
         if !result.transcripts.isEmpty {
-            let titles = threadTitles()
+            let titles = threadTitles(in: index, cache: cache)
             for index in result.transcripts.indices {
                 result.transcripts[index].title = titles[result.transcripts[index].sessionID]
                     .flatMap(CodingAgentText.title)
@@ -73,15 +62,42 @@ struct CodexSessionReader: CodingAgentSessionReader {
         return result
     }
 
-    func parse(_ lines: CodingAgentJSONLines, interval: DateInterval) -> CodingAgentTranscript? {
-        var transcript = CodingAgentTranscript(agent: .codex, sessionID: "", events: [])
-        var isSubagent = false
+    /// Thread names by id; later lines are renames and win.
+    private func threadTitles(in index: URL, cache: CodingAgentParseCache?) -> [String: String] {
+        let always = DateInterval(start: .distantPast, end: .distantFuture)
+        guard let file = Self.candidateFiles([index], in: always).first,
+              let read = try? CodingAgentParseCache.summary(
+                  of: file, from: .distantPast, cache: cache, empty: { CodexThreadTitles() })
+        else { return [:] }
+        return read.summary.titles
+    }
+}
+
+/// What the Codex reader keeps of one rollout between scans: the session's
+/// id and labels, and its events with redundant activity compacted away.
+struct CodexRolloutSummary: CodingAgentFileSummary {
+    private(set) var sessionID = ""
+    private(set) var workingDirectory: String?
+    private(set) var branch: String?
+    private(set) var consultedLokalBot = false
+    private(set) var isSubagent = false
+    private(set) var events: [CodingAgentStoredEvent] = []
+
+    /// Opening bytes of records that never carry evidence beyond their time.
+    private static let timestampOnlyMarkers = [
+        #""type":"function_call_output""#, #""type":"custom_tool_call_output""#,
+        #""type":"reasoning""#, #""type":"token_count""#, #""type":"token_usage_record""#,
+        #""item":{"type":"Reasoning""#, #""item":{"type":"AgentMessage""#,
+        #""item":{"type":"UserMessage""#, #""item":{"type":"ImageView""#,
+    ]
+
+    mutating func consume(_ lines: CodingAgentJSONLines, retainingFrom start: Date) {
+        guard !isSubagent else { return }
         lines.forEach { line in
             guard !isSubagent else { return }
             if Self.timestampOnlyMarkers.contains(where: { line.prefix(400, contains: $0) }) {
-                if let at = CodingAgentTimestamp.date(line.stringValue(forKey: "timestamp")),
-                   interval.contains(at) {
-                    transcript.events.append(CodingAgentEvent(at: at, kind: .activity))
+                if let at = CodingAgentTimestamp.date(line.stringValue(forKey: "timestamp")), at >= start {
+                    append(.activity, at: at)
                 }
                 return
             }
@@ -92,44 +108,58 @@ struct CodexSessionReader: CodingAgentSessionReader {
                 // {"subagent":{"other":"guardian"}}; people start "vscode"/"cli".
                 if let source = payload["source"] as? [String: Any], source["subagent"] != nil {
                     isSubagent = true
+                    events = []
                     return
                 }
-                transcript.sessionID = payload["id"] as? String ?? transcript.sessionID
-                transcript.workingDirectory = payload["cwd"] as? String
+                sessionID = payload["id"] as? String ?? sessionID
+                workingDirectory = payload["cwd"] as? String
                 if let git = payload["git"] as? [String: Any],
                    let branch = git["branch"] as? String, !branch.isEmpty, branch != "HEAD" {
-                    transcript.branch = branch
+                    self.branch = branch
                 }
                 return
             }
-            inspectForLokalBotAccess(record, payload: payload, transcript: &transcript)
-            guard let at = CodingAgentTimestamp.date(record["timestamp"] as? String),
-                  interval.contains(at) else { return }
-            let before = transcript.events.count
+            inspectForLokalBotAccess(record, payload: payload)
+            guard let at = CodingAgentTimestamp.date(record["timestamp"] as? String), at >= start else { return }
+            let before = events.count
             switch record["type"] as? String {
             case "response_item":
-                appendResponseItem(payload, at: at, to: &transcript)
+                appendResponseItem(payload, at: at)
             case "event_msg":
                 if payload["type"] as? String == "item_completed",
                    let item = payload["item"] as? [String: Any] {
-                    appendCompletedItem(item, at: at, to: &transcript)
+                    appendCompletedItem(item, at: at)
                 }
             default:
                 break
             }
-            if transcript.events.count == before {
-                transcript.events.append(CodingAgentEvent(at: at, kind: .activity))
-            }
+            if events.count == before { append(.activity, at: at) }
         }
-        transcript.events = CodingAgentBurstBuilder.compactingActivity(transcript.events)
-        guard !isSubagent, !transcript.sessionID.isEmpty,
-              transcript.events.contains(where: { !$0.isAnnotation }) else { return nil }
-        return transcript
+        events = CodingAgentBurstBuilder.compactingActivity(events)
     }
 
-    private func appendResponseItem(
-        _ payload: [String: Any], at: Date, to transcript: inout CodingAgentTranscript
-    ) {
+    mutating func trim(before start: Date) {
+        events.removeAll { $0.at < start }
+    }
+
+    /// The session's transcript inside `interval`, or `nil` for a subagent
+    /// thread or a window holding no work.
+    func transcript(in interval: DateInterval) -> CodingAgentTranscript? {
+        guard !isSubagent, !sessionID.isEmpty else { return nil }
+        let events = events.compactMap { stored in
+            interval.contains(stored.at) ? CodingAgentEvent(at: stored.at, kind: stored.kind) : nil
+        }
+        guard events.contains(where: { !$0.isAnnotation }) else { return nil }
+        return CodingAgentTranscript(
+            agent: .codex, sessionID: sessionID, workingDirectory: workingDirectory, branch: branch,
+            consultedLokalBot: consultedLokalBot, events: events)
+    }
+
+    private mutating func append(_ kind: CodingAgentEvent.Kind, at: Date) {
+        events.append(CodingAgentStoredEvent(at: at, kind: kind, record: -1))
+    }
+
+    private mutating func appendResponseItem(_ payload: [String: Any], at: Date) {
         switch payload["type"] as? String {
         case "message":
             let role = payload["role"] as? String
@@ -148,54 +178,46 @@ struct CodexSessionReader: CodingAgentSessionReader {
                 if !prompts.isEmpty {
                     let joined = CodingAgentText.truncated(
                         prompts.joined(separator: " "), maxCharacters: CodingAgentText.promptCharacters)
-                    transcript.events.append(CodingAgentEvent(at: at, kind: .prompt(joined)))
+                    append(.prompt(joined), at: at)
                 }
             } else if let reply = CodingAgentText.reply(texts.joined(separator: "\n")) {
-                transcript.events.append(CodingAgentEvent(at: at, kind: .reply(reply)))
+                append(.reply(reply), at: at)
             }
         case "function_call", "custom_tool_call":
-            transcript.events.append(CodingAgentEvent(at: at, kind: .toolCall))
+            append(.toolCall, at: at)
             let body = (payload["arguments"] ?? payload["input"]) as? String ?? ""
-            for path in patchedFiles(in: body) {
-                transcript.events.append(CodingAgentEvent(
-                    at: at,
-                    kind: .fileChange(CodingAgentText.displayPath(
-                        path, workingDirectory: transcript.workingDirectory))))
+            for path in Self.patchedFiles(in: body) {
+                append(.fileChange(CodingAgentText.displayPath(path, workingDirectory: workingDirectory)), at: at)
             }
-            if let command = shellCommand(inArguments: body) {
+            if let command = Self.shellCommand(inArguments: body) {
                 for action in CodingAgentText.actions(inCommand: command) {
-                    transcript.events.append(CodingAgentEvent(at: at, kind: .action(action)))
+                    append(.action(action), at: at)
                 }
             }
             for url in CodingAgentText.pullRequestURLs(in: body) {
-                transcript.events.append(CodingAgentEvent(at: at, kind: .pullRequest(url)))
+                append(.pullRequest(url), at: at)
             }
         default:
             break
         }
     }
 
-    private func appendCompletedItem(
-        _ item: [String: Any], at: Date, to transcript: inout CodingAgentTranscript
-    ) {
+    private mutating func appendCompletedItem(_ item: [String: Any], at: Date) {
         switch item["type"] as? String {
         case "CommandExecution":
             // Only the command; `aggregated_output` and friends are never read.
             guard let command = Self.command(in: item) else { return }
             for action in CodingAgentText.actions(inCommand: command) {
-                transcript.events.append(CodingAgentEvent(at: at, kind: .action(action)))
+                append(.action(action), at: at)
             }
             for url in CodingAgentText.pullRequestURLs(in: command) {
-                transcript.events.append(CodingAgentEvent(at: at, kind: .pullRequest(url)))
+                append(.pullRequest(url), at: at)
             }
         case "FileChange":
             // `changes` maps each path to its diff; only the keys are used.
             guard let changes = item["changes"] as? [String: Any] else { return }
             for path in changes.keys.sorted() {
-                transcript.events.append(CodingAgentEvent(
-                    at: at,
-                    kind: .fileChange(CodingAgentText.displayPath(
-                        path, workingDirectory: transcript.workingDirectory))))
+                append(.fileChange(CodingAgentText.displayPath(path, workingDirectory: workingDirectory)), at: at)
             }
         default:
             break
@@ -210,7 +232,7 @@ struct CodexSessionReader: CodingAgentSessionReader {
     }
 
     /// `apply_patch` names each file on a header line.
-    private func patchedFiles(in body: String) -> [String] {
+    private static func patchedFiles(in body: String) -> [String] {
         guard body.contains("*** ") else { return [] }
         return body.components(separatedBy: "\n").compactMap { line in
             for header in ["*** Update File: ", "*** Add File: "] where line.hasPrefix(header) {
@@ -222,7 +244,7 @@ struct CodexSessionReader: CodingAgentSessionReader {
 
     /// Shell tools pass JSON arguments with `cmd` (string) or `command`
     /// (string or argv).
-    private func shellCommand(inArguments body: String) -> String? {
+    private static func shellCommand(inArguments body: String) -> String? {
         guard body.hasPrefix("{"), let data = body.data(using: .utf8),
               let arguments = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else { return nil }
@@ -230,33 +252,34 @@ struct CodexSessionReader: CodingAgentSessionReader {
         return (arguments["command"] as? [String])?.last
     }
 
-    private func inspectForLokalBotAccess(
-        _ record: [String: Any], payload: [String: Any], transcript: inout CodingAgentTranscript
-    ) {
-        guard !transcript.consultedLokalBot else { return }
+    private mutating func inspectForLokalBotAccess(_ record: [String: Any], payload: [String: Any]) {
+        guard !consultedLokalBot else { return }
         let item = payload["item"] as? [String: Any]
         let server = item?["server"] as? String ?? ""
         let name = payload["name"] as? String ?? ""
         let command = item.flatMap(Self.command(in:))
-            ?? shellCommand(inArguments: (payload["arguments"] ?? payload["input"]) as? String ?? "")
+            ?? Self.shellCommand(inArguments: (payload["arguments"] ?? payload["input"]) as? String ?? "")
             ?? ""
         if CodingAgentText.readsLokalBot(toolName: server)
             || CodingAgentText.readsLokalBot(toolName: name)
             || CodingAgentText.readsLokalBot(command: CodingAgentText.unwrappedShellCommand(command)) {
-            transcript.consultedLokalBot = true
+            consultedLokalBot = true
         }
     }
+}
 
-    /// Thread names by id; later lines are renames and win.
-    private func threadTitles() -> [String: String] {
-        let url = root.appendingPathComponent("session_index.jsonl")
-        guard let lines = try? CodingAgentJSONLines(contentsOf: url) else { return [:] }
-        var titles: [String: String] = [:]
+/// Thread names by id from `session_index.jsonl`; later lines are renames
+/// and win, so appended lines fold into the names already read.
+struct CodexThreadTitles: CodingAgentFileSummary {
+    private(set) var titles: [String: String] = [:]
+
+    mutating func consume(_ lines: CodingAgentJSONLines, retainingFrom start: Date) {
         lines.forEach { line in
             guard let record = line.object(), let id = record["id"] as? String,
                   let name = record["thread_name"] as? String, !name.isEmpty else { return }
             titles[id] = name
         }
-        return titles
     }
+
+    mutating func trim(before start: Date) {}
 }

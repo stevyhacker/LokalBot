@@ -38,9 +38,22 @@ enum CodingAgentAction: Hashable, Codable, Sendable {
     }
 }
 
+/// An event's time and kind, as activity compaction reads them.
+protocol CodingAgentTimedEvent {
+    var at: Date { get }
+    var kind: CodingAgentEvent.Kind { get }
+}
+
+extension CodingAgentTimedEvent {
+    var isAnnotation: Bool {
+        if case .pullRequest = kind { return true }
+        return false
+    }
+}
+
 /// One timestamped fact from a transcript. Tool output, file contents,
 /// reasoning, and injected system or developer text never become events.
-struct CodingAgentEvent: Equatable, Sendable {
+struct CodingAgentEvent: CodingAgentTimedEvent, Equatable, Sendable {
     enum Kind: Equatable, Sendable {
         case prompt(String)
         case reply(String)
@@ -66,11 +79,6 @@ struct CodingAgentEvent: Equatable, Sendable {
     /// session that moves on never relabels work that already settled.
     var workingDirectory: String?
     var branch: String?
-
-    var isAnnotation: Bool {
-        if case .pullRequest = kind { return true }
-        return false
-    }
 }
 
 /// One parsed session, with events already clipped to the requested day.
@@ -467,9 +475,13 @@ enum CodingAgentBurstBuilder {
     /// Bursts are cut at midnight, so a ping is kept when its neighbors fall
     /// on different days: otherwise the next day's first event, or the
     /// scan window's start, would move the edge of a burst already saved.
-    static func compactingActivity(
-        _ events: [CodingAgentEvent], calendar: Calendar = .current
-    ) -> [CodingAgentEvent] {
+    /// So compacting a whole file and then clipping it to whole days of
+    /// `calendar` keeps the same events as clipping first, and compacting
+    /// again after later events are appended keeps the same as compacting
+    /// once at the end.
+    static func compactingActivity<Event: CodingAgentTimedEvent>(
+        _ events: [Event], calendar: Calendar = .current
+    ) -> [Event] {
         let annotations = events.filter(\.isAnnotation)
         let ordered = events.enumerated()
             .filter { !$0.element.isAnnotation }
