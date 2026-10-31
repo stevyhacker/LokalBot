@@ -11,7 +11,8 @@ import Foundation
 /// images as PNG sized for their budget (`FileImageSizing`), audio as WAV, each
 /// medium as a typed content part. That run reproduced DigUp's reference
 /// vectors at cosine ≥ 0.9997.
-final class FileMediaEmbedder: Embedder {
+/// Immutable after init (an endpoint and a URLSession), so it can cross threads.
+final class FileMediaEmbedder: Embedder, @unchecked Sendable {
     /// Which vectors this pipeline makes: the model files, the llama.cpp build,
     /// the image sizing and the request shapes. Bump it when any of them changes
     /// the vectors (the reference-vector check says when); every file index then
@@ -71,6 +72,17 @@ final class FileMediaEmbedder: Embedder {
     }
 
     func close() {}
+
+    /// One picture already sized and encoded (`FileImageSizing.png(of:budget:)`),
+    /// for screen captures that are decrypted in memory. Throws `WorkerError`
+    /// when the server can't answer and any other error when it rejects the
+    /// picture.
+    func embedImage(png: Data) throws -> [Float] {
+        guard let vector = try post(Self.requestBody(inputs: [Self.imagePart(png: png)])).first else {
+            throw WorkerError.died("the media embedder returned no vector")
+        }
+        return vector
+    }
 
     // MARK: - Requests
 

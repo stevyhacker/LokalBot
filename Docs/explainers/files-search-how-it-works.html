@@ -186,7 +186,8 @@ tr.muted td { color: var(--ink-faint); }
   <h1>Search your folders by what is in them</h1>
   <p class="lede">Files brings <a href="https://github.com/ARahim3/DigUp">DigUp</a>'s file search into Ask. You choose
     folders; LokalBot reads the pictures, screenshots, PDFs and documents in them on this Mac, and Ask, Quick Recall
-    and the Ask assistant can then find a file by what it says or shows, not only by its name.</p>
+    and the Ask assistant can then find a file by what it says or shows, not only by its name. The same image model
+    also lets screen search find a captured screen by what it showed (page 5).</p>
   <div class="chips">
     <span class="chip"><b>“the clause about pets in the lease”</b> → the PDF, opened at page 4</span>
     <span class="chip"><b>“payment declined error”</b> → the screenshot</span>
@@ -311,7 +312,7 @@ tr.muted td { color: var(--ink-faint); }
     them under Files. Ask a question, and the assistant searches them too and cites the file it used.
   </div>
 
-  <div class="foot"><span>LokalBot · Files explainer · pull request #409</span><span>1 / 4 · How it works</span></div>
+  <div class="foot"><span>LokalBot · Files explainer · pull request #409</span><span>1 / 5 · How it works</span></div>
 </section>
 
 <!-- ───────────────────────── Page 2: one pass ───────────────────────── -->
@@ -387,7 +388,7 @@ tr.muted td { color: var(--ink-faint); }
     </div>
   </div>
 
-  <div class="foot"><span>LokalBot · Files explainer · FileSearchService.swift, FileSearchWorkers.swift</span><span>2 / 4 · One pass</span></div>
+  <div class="foot"><span>LokalBot · Files explainer · FileSearchService.swift, FileSearchWorkers.swift</span><span>2 / 5 · One pass</span></div>
 </section>
 
 <!-- ───────────────────────── Page 3: compute ───────────────────────── -->
@@ -429,6 +430,7 @@ tr.muted td { color: var(--ink-faint); }
         <tr><td>10,000 photos</td><td class="num">≈ 13 min</td></tr>
         <tr><td>5,000 PDF pages of text</td><td class="num">≈ 2–3 min</td></tr>
         <tr><td>A day's 20 new screenshots</td><td class="num">≈ 3 s</td></tr>
+        <tr><td>A day of screen captures (≈ 490)</td><td class="num">≈ 70 s</td></tr>
         <tr><td>Nothing changed</td><td class="num">0 s</td></tr>
       </table>
       <p class="faint" style="font-size:9.6px;">From the per-item times above; PDF pages from text throughput
@@ -455,7 +457,7 @@ tr.muted td { color: var(--ink-faint); }
     is already running, plus a scan of the vectors in memory.
   </div>
 
-  <div class="foot"><span>Numbers: the 30 October media-embedder benchmark (#408) · llama.cpp's sizing: 13 October report</span><span>3 / 4 · Compute</span></div>
+  <div class="foot"><span>Numbers: the 30 October media-embedder benchmark (#408) · llama.cpp's sizing: 13 October report</span><span>3 / 5 · Compute</span></div>
 </section>
 
 <!-- ───────────────────────── Page 4: trust ───────────────────────── -->
@@ -518,8 +520,8 @@ tr.muted td { color: var(--ink-faint); }
     <div class="card compute">
       <span class="tag compute">What comes next</span>
       <ul>
-        <li><b>Screen images.</b> The same media server can embed your retained screenshots. On your library (13 October)
-          image vectors found the right screen first for 71 of 138 queries, against 44 for today's screen search.</li>
+        <li><b>Check screens on your library.</b> Rerun the 13 October benchmark with the new ranking, the 280 budget
+          and short literal queries.</li>
         <li><b>Recordings and video.</b> 30-second sound windows and a frame per shot, opened at the moment.</li>
         <li><b>A helper process</b> for indexing, so a runaway PDF can be stopped without touching the app.</li>
       </ul>
@@ -537,7 +539,106 @@ tr.muted td { color: var(--ink-faint); }
     </p>
   </div>
 
-  <div class="foot"><span>LokalBot · Files explainer · github.com/ARahim3/DigUp (MIT)</span><span>4 / 4 · Trust</span></div>
+  <div class="foot"><span>LokalBot · Files explainer · github.com/ARahim3/DigUp (MIT)</span><span>4 / 5 · Trust</span></div>
+</section>
+
+<!-- ───────────────────────── Page 5: screens ───────────────────────── -->
+<section class="page">
+  <div class="eyebrow" style="color: var(--query);">Screens</div>
+  <h2>Screens by what they show</h2>
+  <p class="lede">With Text + visual context and search by meaning on, each retained screenshot also gets a vector of
+    its picture, and screen search ranks text and picture vectors with the query's words the way DigUp ranks files.</p>
+
+  <svg viewBox="0 0 780 250" role="img" aria-label="A capture is decrypted in memory, sized, embedded by the media server and stored; a search scores text and picture vectors on one scale and adds the words">
+    <text class="lane index" x="0" y="11">MAKING A PICTURE VECTOR · BATCHED, 15 MIN AFTER NEW CAPTURES</text>
+    <rect class="box index" x="0" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="10" y="40">Retained capture</text>
+    <text class="t2" x="10" y="56">HEIC, ≤ 1,500 px,</text>
+    <text class="t2" x="10" y="68">AES-GCM sealed</text>
+    <text class="tm" x="10" y="88">key in your Keychain</text>
+    <rect class="box index" x="159" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="169" y="40">Decrypt in memory</text>
+    <text class="t2" x="169" y="56">never written to disk</text>
+    <text class="t2" x="169" y="68">size to 280 tokens</text>
+    <text class="tm" x="169" y="88">FileImageSizing</text>
+    <rect class="box compute" x="318" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="328" y="40">media llama-server</text>
+    <text class="tm" x="328" y="54">port 17876 · GPU</text>
+    <text class="t2" x="328" y="70">≈ 139 ms a screen</text>
+    <text class="tm" x="328" y="88">newest first, 16 a batch</text>
+    <rect class="box store" x="477" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="487" y="40">picture vector</text>
+    <text class="t2" x="487" y="56">screen_image_embeddings</text>
+    <text class="t2" x="487" y="68">in the library database</text>
+    <text class="tm" x="487" y="88">3 KB a screen</text>
+    <rect class="box skip" x="636" y="22" width="144" height="86" rx="8" style="stroke: var(--skip);"/>
+    <text class="t1" x="646" y="40">Leaves with pixels</text>
+    <text class="t2" x="646" y="56">retention, delete,</text>
+    <text class="t2" x="646" y="68">range delete</text>
+    <text class="tm" x="646" y="88">even if text is kept</text>
+    <path class="arrow index" d="M144,65 L157,65" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M303,65 L316,65" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M462,65 L475,65" marker-end="url(#ai)"/>
+    <path class="arrow index dash" d="M621,65 L634,65" marker-end="url(#ai)"/>
+
+    <text class="lane query" x="0" y="140">RANKING A SEARCH · ASK, QUICK RECALL, THE ASSISTANT'S search_screen</text>
+    <rect class="box query" x="0" y="152" width="242" height="86" rx="8"/>
+    <text class="t1" x="10" y="170">1 · Score every vector</text>
+    <text class="t2" x="10" y="186">text and picture vectors of all screens,</text>
+    <text class="t2" x="10" y="198">centred per kind: text scores higher</text>
+    <text class="t2" x="10" y="210">than pictures for the same topic</text>
+    <text class="tm" x="10" y="228">one z scale; filters can't move it</text>
+    <rect class="box query" x="269" y="152" width="242" height="86" rx="8"/>
+    <text class="t1" x="279" y="170">2 · Qualify</text>
+    <text class="t2" x="279" y="186">stands out by meaning (z ≥ 2)</text>
+    <text class="t2" x="279" y="198">or holds at least half the words;</text>
+    <text class="t2" x="279" y="210">one common word no longer does</text>
+    <text class="tm" x="279" y="228">honest "nothing found"</text>
+    <rect class="box query" x="538" y="152" width="242" height="86" rx="8"/>
+    <text class="t1" x="548" y="170">3 · Score</text>
+    <text class="t2" x="548" y="186">z + 2 × (share of words)^1.5</text>
+    <text class="t2" x="548" y="198">codes like "INV2041": words × 2,</text>
+    <text class="t2" x="548" y="210">meaning × ½</text>
+    <text class="tm" x="548" y="228">replaces rank fusion</text>
+    <path class="arrow query" d="M242,195 L267,195" marker-end="url(#aq)"/>
+    <path class="arrow query" d="M511,195 L536,195" marker-end="url(#aq)"/>
+  </svg>
+
+  <div class="grid2">
+    <div class="card query">
+      <span class="tag query">Why pictures · your library, 13 October</span>
+      <table>
+        <tr><th>Screen search</th><th class="num">First</th><th class="num">Top 5</th></tr>
+        <tr><td>Picture vectors</td><td class="num ok">71 / 138</td><td class="num ok">107</td></tr>
+        <tr><td>Screen-text vectors</td><td class="num">52</td><td class="num">84</td></tr>
+        <tr><td>Shipped: words + text, rank fusion</td><td class="num warn">44</td><td class="num warn">76</td></tr>
+      </table>
+      <p class="faint" style="font-size:9.6px;">505 real screens, queries written by a different model from the
+        pixels (content in English and Serbian, appearance in English). Picture vectors won for every kind of query.
+        Fusion scored below text alone because the OR-fallback word list weighed as much as meaning; the new ranking
+        removes that. This exact combination has not been rerun on your library yet.</p>
+    </div>
+    <div class="card compute">
+      <span class="tag compute">Compute and storage</span>
+      <ul>
+        <li><b>≈ 70 s of GPU a day</b> for about 490 captures, in passes 15 minutes after new captures.</li>
+        <li><b>≈ 21 MB</b> of picture vectors for 14 days of captures (3 KB each).</li>
+        <li><b>Searching</b> adds one dot product per retained screen; the query vector is the one the text server
+          already made.</li>
+        <li><b>Starts</b> only after your first search of screens by meaning, which is when the 555 MB projector
+          downloads if Files hasn't already.</li>
+        <li><b>Waits</b> while a meeting records, in Low Power Mode, and while the Mac is hot.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="band query">
+    <b>Where it shows.</b> Screen moments found by their picture appear in Ask and Quick Recall marked "Related by
+    meaning", with their window title when they have no text. The assistant's <code>search_screen</code> uses the same
+    ranking, so it can answer "the dashboard with the red chart" even when no word on screen says so.
+  </div>
+
+  <div class="foot"><span>LokalBot · Files explainer · ScreenImageEmbeddings, ScreenSearchRanking, ScreenSearch</span><span>5 / 5 · Screens</span></div>
 </section>
 
 </body>

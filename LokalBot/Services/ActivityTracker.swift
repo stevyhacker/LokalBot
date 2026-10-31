@@ -748,6 +748,10 @@ final class ActivityStore {
                 SELECT 1 FROM sqlite_master
                 WHERE type = 'table' AND name = 'screen_embeddings'
                 """)
+            let hasImageEmbeddings = try database.hasRowChecked("""
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = 'screen_image_embeddings'
+                """)
             for start in stride(from: 0, to: snapshotIDs.count, by: 400) {
                 let chunk = Array(snapshotIDs[start..<min(start + 400, snapshotIDs.count)])
                 let placeholders = (1...chunk.count).map { "?\($0)" }.joined(separator: ", ")
@@ -763,6 +767,12 @@ final class ActivityStore {
                 if hasScreenEmbeddings {
                     try database.runChecked("""
                         DELETE FROM screen_embeddings
+                        WHERE snapshot_id IN (\(placeholders))
+                        """, bind: bindings)
+                }
+                if hasImageEmbeddings {
+                    try database.runChecked("""
+                        DELETE FROM screen_image_embeddings
                         WHERE snapshot_id IN (\(placeholders))
                         """, bind: bindings)
                 }
@@ -1078,9 +1088,20 @@ final class ActivityStore {
     /// Clear only the row whose file was successfully removed. This avoids
     /// losing the sole reference to an encrypted file when filesystem cleanup
     /// fails (permissions, transient volume error, and so on).
+    /// The capture's picture vector goes first: it was made from these pixels
+    /// and must not outlive them (`ScreenImageEmbeddings`). If the update then
+    /// fails, the pixels stay and are embedded again later.
     func clearScreenshotPath(_ path: String) throws {
-        try requiredDatabase().runChecked(
-            "UPDATE screenshots SET path = '' WHERE path = ?1", bind: [path])
+        let database = try requiredDatabase()
+        if try database.hasRowChecked("""
+            SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_image_embeddings'
+            """) {
+            try database.runChecked("""
+                DELETE FROM screen_image_embeddings
+                WHERE snapshot_id IN (SELECT id FROM screenshots WHERE path = ?1)
+                """, bind: [path])
+        }
+        try database.runChecked("UPDATE screenshots SET path = '' WHERE path = ?1", bind: [path])
     }
 
     @discardableResult

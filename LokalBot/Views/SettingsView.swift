@@ -805,6 +805,11 @@ struct SettingsView: View {
                                               help: "Off by default. Captures the focused display at most once a minute on meaningful changes and links each frame to the meeting.")
                             }
                     .settingTarget("settings.meetingVisualContextEnabled", selected: app.focusedSettingID)
+                            if app.settings.semanticSearchEnabled {
+                                SettingsHelp("Search by meaning also matches what captured screens show. The first "
+                                             + "such search downloads EmbeddingGemma 2's image model (555 MB); picture "
+                                             + "vectors are deleted with the pixels.")
+                            }
                         }
                         SettingsDetails("How screen context is captured",
                                         "Captures context after app or window changes, clicks, typing pauses, settled "

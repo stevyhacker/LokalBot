@@ -110,6 +110,9 @@ extension RecallSearch {
         var files: [FileSearchHit] = []
         /// More meetings, screen sources or files matched than are listed.
         var isTruncated = false
+        /// The share of the query's words each keyword screen hit holds, for
+        /// ranking it with meaning matches (`ScreenSearch`).
+        var screenCoverage: [Int64: Double] = [:]
 
         /// Pass one group more than `displayLimit` so a cut list is detected.
         mutating func setMeetings(_ groups: [MeetingRecallGroup]) {
@@ -202,9 +205,13 @@ extension RecallSearch {
             }
             guard !Task.isCancelled, searchScreens else { return result }
             var hits = store.searchOCR(query, limit: 2_000, filter: screenFilter, groupResults: false)
+            let matchedAll = !hits.isEmpty
             if hits.isEmpty {
                 hits = store.searchOCR(query, limit: 2_000, matchAll: false, dropStopWords: true,
                                        filter: screenFilter, groupResults: false)
+            }
+            var coverage = ScreenSearch.coverage(query: query, hits: hits, matchedAll: matchedAll) {
+                store.ocrText(snapshotID: $0)
             }
             let found = Set(hits.map(\.snapshotID))
             let saved = store.savedMoments(limit: 2_000).filter { moment in
@@ -216,6 +223,8 @@ extension RecallSearch {
             }
             hits += saved.map { ActivityStore.OCRHit(snapshotID: $0.snapshotID, ts: $0.ts, app: $0.app,
                                                     windowTitle: $0.windowTitle, snippet: $0.note) }
+            for moment in saved { coverage[moment.snapshotID] = 1 }
+            result.screenCoverage = coverage
             result.setScreens(screenGroups(readableScreens(hits, query: query), limit: displayLimit + 1))
             return result
         }
@@ -245,23 +254,16 @@ extension RecallSearch {
                                              limit: displayLimit + 1))
         }
         if searchScreens {
-            let semantic = await app.embeddingIndex.searchScreen(query, filter: filter, limit: 200,
-                                                                 priority: .interactive)
+            // Text and picture vectors on one scale, ranked with the keyword
+            // hits (`ScreenSearch`). With no vectors yet the keyword results stay.
+            let meanings = await app.embeddingIndex.screenMeanings(query, filter: filter, priority: .interactive)
             guard !Task.isCancelled else { return Result() }
-            let hits = result.screens.flatMap(\.matches)
-            let keywordByID = Dictionary(hits.map { ($0.snapshotID, $0) }, uniquingKeysWith: { first, _ in first })
-            let semanticByID = Dictionary(semantic.map { ($0.snapshotID, $0) }, uniquingKeysWith: { first, _ in first })
-            let ranked = ScreenSearchRanker.fuse(keyword: hits, semantic: semantic, limit: 2_000)
-            result.setScreens(screenGroups(ranked.compactMap { match in
-                if let hit = keywordByID[match.snapshotID] { return hit }
-                guard let hit = semanticByID[match.snapshotID],
-                      let shot = app.activityStore.screenshot(id: match.snapshotID) else { return nil }
-                guard let excerpt = RecallPassage.excerpt(hit.text, query: query) else { return nil }
-                var result = ActivityStore.OCRHit(snapshotID: shot.id, ts: shot.ts, app: shot.app,
-                                                   windowTitle: shot.windowTitle, snippet: excerpt)
-                result.isSemantic = true
-                return result
-            }, limit: displayLimit + 1))
+            if !meanings.isEmpty {
+                let ranked = ScreenSearch.ranked(
+                    query: query, keyword: result.screens.flatMap(\.matches), coverage: result.screenCoverage,
+                    meanings: meanings, limit: 2_000, screenshot: { app.activityStore.screenshot(id: $0) })
+                result.setScreens(screenGroups(ranked, limit: displayLimit + 1))
+            }
         }
         return result
     }

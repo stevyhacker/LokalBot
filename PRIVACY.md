@@ -49,6 +49,11 @@ Screen Recording permissions. You can switch to accessible text without pixels,
 visual context, or fully off. Pixels are deleted after 14 days by default, and
 captured text, screenshot titles, URLs, and document names follow the same
 retention unless you explicitly choose to keep screen text and metadata forever.
+With visual context and search by meaning on, each retained screenshot also gets
+a vector of what it shows, made on this Mac from the pixels decrypted in memory
+(never written to disk) once you first search screens by meaning; that search
+downloads EmbeddingGemma 2's image and audio projector (555 MB). A screenshot's
+vector is deleted whenever its pixels are, even when its text is kept forever.
 Activity titles expire on the configured schedule even with that exception;
 app names and duration totals remain. Saved moments remain until you unsave or delete them. Dictation scratch
 audio is deleted after transcription by default. Dictated text is not kept,
@@ -722,8 +727,8 @@ while **Read coding agent sessions** is on.
 
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
-captured text, and semantic search vector until you unsave or delete that
-moment. Excluded apps and domains and focused secure fields are skipped.
+captured text, and semantic search vectors (of its text and, with visual
+context, of its picture) until you unsave or delete that moment. Excluded apps and domains and focused secure fields are skipped.
 Private and incognito browser windows are captured like any other window, so
 add a browser or site to the exclusions to keep it out. Detected credentials,
 payment card numbers, and IBANs are redacted and

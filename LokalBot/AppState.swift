@@ -166,6 +166,10 @@ final class AppState: ObservableObject {
                 || settings.fileSearchFolders != oldValue.fileSearchFolders {
                 applyFileSearchSetting()
             }
+            if settings.semanticSearchEnabled != oldValue.semanticSearchEnabled
+                || settings.effectiveScreenContextCaptureMode != oldValue.effectiveScreenContextCaptureMode {
+                applyScreenImageSetting()
+            }
             if interactive {
                 if Self.dictationLifecycleChanged(from: oldValue, to: settings) {
                     dictation.applySettings()
@@ -745,8 +749,44 @@ final class AppState: ObservableObject {
             storage: storage,
             embedder: UITestRuntime.isUnitTesting ? EmbeddingIndex.unavailableEmbedder : nil)
         for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
+        created.screenSearchByMeaningDidStart = { [weak self] in
+            guard let self, self.screenImagesWanted else { return }
+            self.screenImages.resume()
+        }
         cachedEmbeddingIndex = created
         return created
+    }
+
+    /// Picture vectors for retained screen captures, made on the media
+    /// embedder Files uses. Wanted only with search by meaning and Text +
+    /// visual context; headless runs and test hosts never make them.
+    private var cachedScreenImages: ScreenImageEmbeddings?
+    var screenImages: ScreenImageEmbeddings {
+        if let cachedScreenImages { return cachedScreenImages }
+        let created = ScreenImageEmbeddings.live(
+            storage: storage, databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+        created.isEnabled = { [weak self] in self?.screenImagesWanted ?? false }
+        created.isInUse = { [weak self] in self?.embeddingIndex.isScreenSearchInUse ?? false }
+        created.pauseReason = { [weak self] in
+            guard let self else { return nil }
+            return FileSearchService.PauseReason.current(
+                isRecording: self.recording.isRecording || self.recording.isStarting)
+        }
+        cachedScreenImages = created
+        return created
+    }
+
+    private var screenImagesWanted: Bool {
+        settings.semanticSearchEnabled && settings.effectiveScreenContextCaptureMode.capturesPixels
+            && !UITestRuntime.isUnitTesting && !Self.isUITesting && HeadlessCommand.requested == nil
+    }
+
+    private func applyScreenImageSetting() {
+        if screenImagesWanted {
+            screenImages.conditionsDidChange()
+        } else {
+            cachedScreenImages?.stop()
+        }
     }
     private(set) lazy var screenshots = ScreenshotService(
         store: activityStore, storage: storage, sampler: sampler,
@@ -1109,6 +1149,7 @@ final class AppState: ObservableObject {
     private func meetingRecordingStateDidChange(active: Bool) {
         guard interactive else { return }
         if settings.fileSearchEnabled { fileSearch.conditionsDidChange() }
+        if screenImagesWanted { screenImages.conditionsDidChange() }
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
         }
@@ -1489,6 +1530,7 @@ final class AppState: ObservableObject {
             self.embeddingBackfillTask = nil
             self.embeddingBackfill = nil
             await self.embeddingIndex.resumeScreenBackfill()
+            if self.screenImagesWanted { self.screenImages.resume() }
         }
         embeddingBackfillTask = (token, task)
     }
@@ -1498,6 +1540,7 @@ final class AppState: ObservableObject {
     private func screenTextDidArrive() {
         guard settings.semanticSearchEnabled else { return }
         embeddingIndex.screenTextDidArrive()
+        if screenImagesWanted { screenImages.capturesDidArrive() }
     }
 
     private func reindexEmbeddingInBackground(_ meeting: Meeting) {
@@ -1631,6 +1674,7 @@ final class AppState: ObservableObject {
             dreaming.stop()
             email.stop()
             if settings.fileSearchEnabled { fileSearch.stop() }
+            cachedScreenImages?.stop()
             chat.stop()
             dictation.stop()
             cotyping.stop()

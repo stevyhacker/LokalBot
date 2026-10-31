@@ -268,12 +268,7 @@ final class FileSearchService: ObservableObject {
         releaseTimer = nil
     }
 
-    var pauseReason: PauseReason? {
-        if isRecording() { return .recording }
-        if ProcessInfo.processInfo.isLowPowerModeEnabled { return .lowPower }
-        if ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue { return .warm }
-        return nil
-    }
+    var pauseReason: PauseReason? { PauseReason.current(isRecording: isRecording()) }
 
     private func turnOff() {
         stop()
@@ -514,6 +509,18 @@ final class FileSearchService: ObservableObject {
     func hit(segment id: Int64) async -> FileSearchHit? {
         guard configuration.enabled else { return nil }
         return await reader.hit(segment: id)
+    }
+}
+
+extension FileSearchService.PauseReason {
+    /// Why background model work should wait now: a meeting is recording, Low
+    /// Power Mode is on, or the Mac is hot. Files and picture vectors for
+    /// screens both use it.
+    static func current(isRecording: Bool) -> Self? {
+        if isRecording { return .recording }
+        if ProcessInfo.processInfo.isLowPowerModeEnabled { return .lowPower }
+        if ProcessInfo.processInfo.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue { return .warm }
+        return nil
     }
 }
 

@@ -418,7 +418,7 @@ final class MeetingChatTools: ChatToolRunner {
             ]),
         ChatToolSpec(
             name: "search_screen",
-            summary: "Search text the user has SEEN on screen (OCR'd from on-device screen captures, outside of meetings too). Returns app, window and a snippet with a timestamp.",
+            summary: "Search what the user has SEEN on screen (text read from on-device screen captures, and with search by meaning what the captures show), outside of meetings too. Returns app, window and a snippet with a timestamp.",
             arguments: [
                 .init(name: "query", description: "What to look for, in natural language or keywords.", required: true),
             ]),
@@ -440,7 +440,7 @@ final class MeetingChatTools: ChatToolRunner {
         case "list_meetings": return list(call)
         case "get_meeting": return get(call)
         case "get_action_items": return actionItems(call)
-        case "search_screen": return searchScreen(call)
+        case "search_screen": return await searchScreen(call)
         case "activity_summary": return activitySummary(call)
         case "search_files": return await searchFiles(call)
         default: return ChatToolResult(text: "Unknown tool '\(call.name)'.", summary: "unknown tool")
@@ -606,7 +606,7 @@ final class MeetingChatTools: ChatToolRunner {
             evidence: ChatEvidence(fileIDs: Set(hits.map(\.id))))
     }
 
-    private func searchScreen(_ call: ChatToolCall) -> ChatToolResult {
+    private func searchScreen(_ call: ChatToolCall) async -> ChatToolResult {
         guard let query = call.string("query") else {
             return ChatToolResult(text: "Provide a 'query' argument.", summary: "missing query")
         }
@@ -622,14 +622,29 @@ final class MeetingChatTools: ChatToolRunner {
         if let raw = call.string("_lokalbot_screen_ids") {
             filter.snapshotIDs = Set(raw.split(separator: ",").compactMap { Int64($0) })
         }
-        var hits = activityStore.searchOCR(query, limit: 12, filter: filter)
+        var hits = activityStore.searchOCR(query, limit: 40, filter: filter)
+        let matchedAll = !hits.isEmpty
         if hits.isEmpty {
             // Same rescue as meeting search: a natural-language question ANDs
             // stop words and misses; retry on OR'd content keywords.
             hits = activityStore.searchOCR(
-                query, limit: 12, matchAll: false, dropStopWords: true,
+                query, limit: 40, matchAll: false, dropStopWords: true,
                 filter: filter)
         }
+        // With search by meaning, the screen's text and picture vectors rank
+        // with the keyword hits, as in Ask (`ScreenSearch`).
+        if settingsProvider().semanticSearchEnabled {
+            let meanings = await embeddingIndex.screenMeanings(query, filter: filter, priority: .agent)
+            if !meanings.isEmpty {
+                let store = activityStore
+                let coverage = ScreenSearch.coverage(query: query, hits: hits, matchedAll: matchedAll) {
+                    store.ocrText(snapshotID: $0)
+                }
+                hits = ScreenSearch.ranked(query: query, keyword: hits, coverage: coverage, meanings: meanings,
+                                           limit: 12, screenshot: { store.screenshot(id: $0) })
+            }
+        }
+        hits = Array(hits.prefix(12))
         return ChatToolResult(
             text: MeetingChatFormat.screenResults(query: query, hits: hits),
             summary: "“\(query)” — \(hits.count) screen match\(hits.count == 1 ? "" : "es")",

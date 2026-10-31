@@ -55,6 +55,13 @@ enum FileImageSizing {
               let image = CGImageSourceCreateImageAtIndex(
                   source, 0, [kCGImageSourceShouldCache: false] as CFDictionary)
         else { throw SizingError.unreadable }
+        return try png(of: image, budget: budget)
+    }
+
+    /// An image already in memory (a decrypted screen capture), the same way:
+    /// nothing is written to disk.
+    static func png(of image: CGImage, budget: Int) throws -> Data {
+        guard budgets.contains(budget) else { throw SizingError.unsupportedBudget(budget) }
         guard let target = targetSize(height: image.height, width: image.width, budget: budget) else {
             throw SizingError.tooThin
         }
