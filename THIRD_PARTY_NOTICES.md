@@ -25,6 +25,7 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | EventSource | MIT | https://github.com/mattt/EventSource |
 | yyjson | MIT | https://github.com/ibireme/yyjson |
 | llama.cpp | MIT | https://github.com/ggml-org/llama.cpp |
+| DigUpKit (DigUp's file crawler, readers, index and search, used by Files; image sizing ported to Swift in LokalBot) | MIT | https://github.com/ARahim3/DigUp |
 | sherpa-onnx | Apache-2.0 | https://github.com/k2-fsa/sherpa-onnx |
 | ONNX Runtime | MIT | https://github.com/microsoft/onnxruntime |
 | Sample meeting recordings (bundled; a fictional script voiced in English with the ElevenLabs Eleven v4 premade voices "Bella" and "Chris", and in German, Simplified Chinese and Serbian with Gemini 3.8 Flash TTS voices) | Generated audio used under the ElevenLabs Terms of Service and the Gemini API Terms of Service; scripts GPL-3.0 as part of LokalBot | `LokalBot/Resources/SampleMeeting/README.md` |
@@ -32,6 +33,7 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | pi agent packages (optional, installed on request) | MIT | https://github.com/earendil-works/pi |
 | LFM models (downloaded on request) | LFM Open License v1.0 | https://docs.liquid.ai/lfm/help/model-license |
 | Parakeet Ultra (downloaded on request; moondream post-training of NVIDIA Parakeet v3, Core ML conversion by FluidInference) | CC-BY-4.0 | https://huggingface.co/moondream/parakeet-ultra / https://huggingface.co/FluidInference/parakeet-ultra-coreml |
+| EmbeddingGemma 2 (downloaded on first use of search by meaning, and its image and audio projector when Files is turned on; ggml-org's GGUF conversion) | Apache-2.0 | https://huggingface.co/google/embeddinggemma-2 / https://huggingface.co/ggml-org/embeddinggemma-2-GGUF |
 | Granite Speech 5.0 2B (downloaded on request; official IBM GGUF and projector) | Apache-2.0 | https://huggingface.co/ibm-granite/granite-speech-5.0-2b / https://huggingface.co/ibm-granite/granite-speech-5.0-2b-GGUF |
 
 Downloaded AI models are not bundled with LokalBot. Each model remains subject
@@ -242,6 +244,8 @@ user's operating system; it is not included in LokalBot's downloads.
 ## MIT License
 
 mlx-audio portions: Copyright (c) 2024 Prince Canuma.
+
+DigUp and DigUpKit portions: Copyright (c) 2026 Abdur Rahim.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

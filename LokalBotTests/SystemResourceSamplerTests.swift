@@ -174,6 +174,7 @@ final class ResourceMonitorPresentationTests: XCTestCase {
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.embedder.residencyID), "Embeddings")
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.cotyping.residencyID), "Autocomplete")
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.graniteASR.residencyID), "Transcribe")
+        XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.mediaEmbedder.residencyID), "File search")
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaCotypingRuntime.residencyID), "Autocomplete")
         // A port-keyed id names no role: labels must not depend on which app
         // copy's ports are in use.

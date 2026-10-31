@@ -401,6 +401,12 @@ struct AppSettings: Codable, Equatable {
     /// the person asks. Turning it off stops saving and use but keeps what is
     /// already remembered until the person forgets it.
     var askMemoryEnabled: Bool = true
+    /// Files (Settings → Personal Context → Files): search the folders the
+    /// person chooses by what is in them, with DigUp's engine. Off until they
+    /// turn it on after a notice; turning it off deletes the file index.
+    var fileSearchEnabled: Bool = false
+    /// The folders Files reads, as absolute paths.
+    var fileSearchFolders: [String] = []
     /// After the overnight review, learn facts and goals about the person
     /// from their own lines in that day's meetings (preferences wait for
     /// review; principles are never learned). Needs Ask memory and the review.
@@ -930,6 +936,8 @@ struct AppSettings: Codable, Equatable {
         case dreamingHour
         case dreamingFirstEligibleDayKey
         case askMemoryEnabled
+        case fileSearchEnabled
+        case fileSearchFolders
         case personalLearningEnabled
         case personalLearningFromDictation
         case memoryRoutinesEnabled
@@ -1138,6 +1146,8 @@ struct AppSettings: Codable, Equatable {
             dreamingFirstEligibleDayKey,
             forKey: .dreamingFirstEligibleDayKey)
         try c.encode(askMemoryEnabled, forKey: .askMemoryEnabled)
+        try c.encode(fileSearchEnabled, forKey: .fileSearchEnabled)
+        try c.encode(fileSearchFolders, forKey: .fileSearchFolders)
         try c.encode(personalLearningEnabled, forKey: .personalLearningEnabled)
         try c.encode(personalLearningFromDictation, forKey: .personalLearningFromDictation)
         try c.encode(memoryRoutinesEnabled, forKey: .memoryRoutinesEnabled)
@@ -1338,6 +1348,8 @@ struct AppSettings: Codable, Equatable {
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)
         askMemoryEnabled = decode(.askMemoryEnabled, defaults.askMemoryEnabled)
+        fileSearchEnabled = decode(.fileSearchEnabled, defaults.fileSearchEnabled)
+        fileSearchFolders = decode(.fileSearchFolders, defaults.fileSearchFolders)
         personalLearningEnabled = decode(.personalLearningEnabled, defaults.personalLearningEnabled)
         personalLearningFromDictation = decode(.personalLearningFromDictation, defaults.personalLearningFromDictation)
         memoryRoutinesEnabled = decode(.memoryRoutinesEnabled, defaults.memoryRoutinesEnabled)

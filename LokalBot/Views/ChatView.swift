@@ -345,6 +345,8 @@ private struct EditorialTurn: View {
                                     let citation = parsed.citations[number - 1]
                                     if let snapshotID = citation.snapshotID {
                                         app.openScreenSnapshot(snapshotID)
+                                    } else if let fileID = citation.fileID {
+                                        app.openFileCitation(fileID)
                                     } else {
                                         app.openCitation(citation)
                                     }
@@ -783,6 +785,8 @@ private struct EvidenceDisclosure: View {
     @EnvironmentObject var app: AppState
     let citations: [ChatCitation]
     @State private var isExpanded: Bool
+    /// Cited files, looked up in the Files index.
+    @State private var files: [Int64: FileSearchHit] = [:]
 
     init(citations: [ChatCitation]) {
         self.citations = citations
@@ -814,6 +818,7 @@ private struct EvidenceDisclosure: View {
             }
         }
         .accessibilityIdentifier("chat.sources")
+        .task(id: citations.compactMap(\.fileID)) { await loadCitedFiles() }
     }
 
     private var evidenceSummary: String {
@@ -822,6 +827,7 @@ private struct EvidenceDisclosure: View {
             switch citation.kind {
             case .meeting: "meeting:\(citation.meetingID)"
             case .screen: "screen:\(citation.snapshotID.map(String.init) ?? "unknown")"
+            case .file: "file:\(citation.sourceID)"
             }
         })
         if citations.count == 1 {
@@ -841,6 +847,8 @@ private struct EvidenceDisclosure: View {
             case .meeting: app.openCitation(citation)
             case .screen:
                 if let snapshotID = citation.snapshotID { app.openScreenSnapshot(snapshotID) }
+            case .file:
+                if let hit = citation.fileID.flatMap({ files[$0] }) { FileSearchOpener.open(hit, query: nil) }
             }
         } label: {
             HStack(spacing: 10) {
@@ -910,7 +918,22 @@ private struct EvidenceDisclosure: View {
                 "Screen · \(shot.ts.formatted(date: .abbreviated, time: .shortened))",
                 "display",
                 true)
+        case .file:
+            guard let hit = citation.fileID.flatMap({ files[$0] }) else {
+                return ("File", "Local source missing", "doc", false)
+            }
+            return (hit.name, "\(hit.kindLabel) · \(hit.folder)", hit.icon, true)
         }
+    }
+
+    private func loadCitedFiles() async {
+        let ids = citations.compactMap(\.fileID)
+        guard !ids.isEmpty, app.settings.fileSearchEnabled else { return }
+        var found: [Int64: FileSearchHit] = [:]
+        for id in ids {
+            if let hit = await app.fileSearch.hit(segment: id) { found[id] = hit }
+        }
+        files = found
     }
 
 }

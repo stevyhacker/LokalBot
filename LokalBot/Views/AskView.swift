@@ -40,6 +40,7 @@ private struct AskContent: View {
     @State private var hits: [SearchIndex.Hit] = []
     @State private var resultsTruncated = false
     @State private var ocrHits: [ActivityStore.OCRHit] = []
+    @State private var fileHits: [FileSearchHit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
     private var selectedScreenApp: String? {
         get { app.recallState.screenApp }
@@ -286,7 +287,9 @@ private struct AskContent: View {
     }
 
     private var groupedMeetings: [MeetingRecallGroup] { RecallSearch.groups(hits) }
-    private var resultCount: Int { groupedMeetings.count + screenGroups.count }
+    private var resultCount: Int { groupedMeetings.count + screenGroups.count + fileHits.count }
+    private var filesEnabled: Bool { app.settings.fileSearchEnabled }
+    private var availableSources: [AskSourceScope] { AskSourceScope.available(filesEnabled: filesEnabled) }
     /// A search that found more than the list holds says so instead of
     /// presenting the listed count as the total.
     private var resultCountLabel: String {
@@ -315,7 +318,11 @@ private struct AskContent: View {
             app.openSearchHit(groupedMeetings[selectedResult].primary)
         } else {
             let index = selectedResult - groupedMeetings.count
-            if screenGroups.indices.contains(index) { app.openScreenSnapshot(screenGroups[index].primary.snapshotID) }
+            if screenGroups.indices.contains(index) {
+                app.openScreenSnapshot(screenGroups[index].primary.snapshotID)
+            } else if fileHits.indices.contains(index - screenGroups.count) {
+                FileSearchOpener.open(fileHits[index - screenGroups.count], query: searchedQuery)
+            }
         }
     }
 
@@ -375,7 +382,8 @@ private struct AskContent: View {
         if resultCount > 0, !remembers {
             app.recallState.selectResultEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
-                screenIDs: answerScreenIDs)
+                screenIDs: answerScreenIDs,
+                hadFiles: !fileHits.isEmpty)
         }
         escalate()
     }
@@ -428,13 +436,16 @@ private struct AskContent: View {
     }
 
     private var sourceMenuItems: [WorkspaceMenu.Item] {
-        var items = AskSourceScope.allCases.map { source in
+        let selectedAvailable = availableSources.filter(sources.contains)
+        var items = availableSources.map { source in
             WorkspaceMenu.Item(title: source.displayName,
-                enabled: !((sources.contains(source) && sources.count == 1)
+                enabled: !((sources.contains(source) && selectedAvailable.count == 1)
                            || (source == .screen && !pinnedScreens.isEmpty)),
                 selected: sources.contains(source), action: { toggleSource(source) })
         }
-        items += [.separator, .init(title: "Result type", children: AskFacet.allCases.map { option in
+        items += [.separator, .init(title: "Result type", children: AskFacet.allCases.filter {
+            $0 != .files || filesEnabled
+        }.map { option in
             .init(title: option.rawValue, selected: facet == option, action: { facet = option })
         })]
         if sources.contains(.screen) {
@@ -449,8 +460,8 @@ private struct AskContent: View {
     }
 
     private var sourceSummary: String {
-        sources == AskSourceScope.defaults ? "All sources"
-            : AskSourceScope.allCases.filter(sources.contains).map(\.displayName).joined(separator: ", ")
+        sources.isSuperset(of: availableSources) ? "All sources"
+            : availableSources.filter(sources.contains).map(\.displayName).joined(separator: ", ")
     }
 
     private var hasSearchFilters: Bool {
@@ -496,7 +507,8 @@ private struct AskContent: View {
     private func toggleSource(_ source: AskSourceScope) {
         var selection = sources
         if selection.contains(source) {
-            if selection.count > 1 { selection.remove(source) }
+            // A source that is not offered (Files while it is off) never counts as the last one.
+            if selection.intersection(availableSources).count > 1 { selection.remove(source) }
         } else {
             selection.insert(source)
         }
@@ -729,7 +741,7 @@ private struct AskContent: View {
                      : " · Return opens · ⌘Return asks"))
                     .workspaceTextRole(.metadata)
                 if resultCount == 0 && !isSearching {
-                    noMatchesRow(sources == [.today]
+                    noMatchesRow(availableSources.filter(sources.contains) == [.today]
                         ? "Activity totals are available in Ask. Enable Meetings or Screen to search source text."
                         : "No results for “\(query)” in \(sourceSummary) · \(timeScopeLabel).")
                     if hasSearchFilters {
@@ -760,6 +772,12 @@ private struct AskContent: View {
                     }
                     .id(groupedMeetings.count + index)
                     .listRowBackground(groupedMeetings.count + index == selectedResult ? Brand.teal.opacity(0.12) : Color.clear)
+                }
+                ForEach(Array(fileHits.enumerated()), id: \.element.id) { index, hit in
+                    let position = groupedMeetings.count + screenGroups.count + index
+                    FileSearchResultRow(hit: hit) { FileSearchOpener.open(hit, query: searchedQuery) }
+                        .id(position)
+                        .listRowBackground(position == selectedResult ? Brand.teal.opacity(0.12) : Color.clear)
                 }
             }
             .listStyle(.inset)
@@ -821,7 +839,7 @@ private struct AskContent: View {
         let q = query, request = app.recallState, dateScope = app.askDateScope
         searchedQuery = q
         // Never leave rows from a previous query available to Return.
-        hits = []; ocrHits = []; screenGroups = []; resultsTruncated = false
+        hits = []; ocrHits = []; screenGroups = []; fileHits = []; resultsTruncated = false
         isSearching = !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
@@ -847,6 +865,7 @@ private struct AskContent: View {
         hits = result.meetings.flatMap(\.matches)
         resultsTruncated = result.isTruncated
         screenGroups = result.screens
+        fileHits = result.files
         ocrHits = result.screens.flatMap(\.matches)
         screenApps = Array(Set(ocrHits.map(\.app) + [selectedScreenApp].compactMap { $0 })).sorted()
         selectedResult = min(selectedResult, max(0, resultCount - 1))
