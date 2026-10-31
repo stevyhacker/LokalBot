@@ -166,6 +166,29 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertEqual(inside.files, 0, "files under a chosen folder are read already")
     }
 
+    func testTheSuggestedFoldersAreDocumentsDesktopAndDownloadsNotChosenYet() throws {
+        let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+        let all = FileSearchService.suggestedFolders(excluding: [])
+        try XCTSkipIf(all.isEmpty, "this account has no Documents, Desktop or Downloads folder")
+        XCTAssertTrue(all.allSatisfy { ["Documents", "Desktop", "Downloads"].contains($0.name) })
+        XCTAssertEqual(all.map(\.name), ["Documents", "Desktop", "Downloads"].filter { name in
+            all.contains { $0.name == name }
+        }, "in the order they are offered")
+        XCTAssertTrue(all.allSatisfy { $0.path.hasPrefix(home + "/") })
+
+        let first = try XCTUnwrap(all.first)
+        XCTAssertFalse(FileSearchService.suggestedFolders(excluding: [first.path]).contains(first))
+        XCTAssertEqual(FileSearchService.suggestedFolders(excluding: [home]), [], "a chosen home folder holds them all")
+    }
+
+    func testTheEstimateSaysWhenAFolderCannotBeOpened() {
+        let missing = root.appendingPathComponent("Gone", isDirectory: true).path
+        let estimate = FileSearchService.estimate(of: [missing], excluding: [], options: FileSearchService.indexOptions(),
+                                                  costsFolder: root.appendingPathComponent("costs"), checksSpeed: false)
+        XCTAssertEqual(estimate.unreadable, [missing])
+        XCTAssertEqual(estimate.files, 0)
+    }
+
     func testRemovingAFolderDropsItsFilesAndTurningOffDeletesTheIndex() async throws {
         try write("notes.txt", String(repeating: "Invoice INV-2041 was paid late in October. ", count: 8))
         let service = makeService()

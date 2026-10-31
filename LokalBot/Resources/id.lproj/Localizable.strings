@@ -1540,3 +1540,11 @@
 "On battery, the first read waits for a charger." = "Saat memakai baterai, pembacaan pertama menunggu pengisi daya.";
 "About %@ left" = "Sisa sekitar %@";
 "Waiting for a charger: %lld files left to read." = "Menunggu pengisi daya: %lld file lagi untuk dibaca.";
+"Index on this Mac" = "Indeks di Mac ini";
+"Model download, first time only" = "Unduhan model, hanya pertama kali";
+"Suggested folders" = "Folder yang disarankan";
+"Each shows what it holds and how long its first read takes before anything is read." = "Masing-masing menunjukkan isinya dan berapa lama pembacaan pertamanya, sebelum apa pun dibaca.";
+"Documents" = "Dokumen";
+"Desktop" = "Desktop";
+"Downloads" = "Unduhan";
+"macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again." = "macOS belum mengizinkan LokalBot membuka folder ini. Izinkan di Pengaturan Sistem → Privasi & Keamanan → File dan Folder, lalu tambahkan lagi.";

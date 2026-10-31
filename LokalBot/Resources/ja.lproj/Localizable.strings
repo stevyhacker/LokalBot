@@ -1540,3 +1540,11 @@
 "On battery, the first read waits for a charger." = "バッテリー駆動中の初回読み取りは、充電器につなぐまで待ちます。";
 "About %@ left" = "残り約%@";
 "Waiting for a charger: %lld files left to read." = "充電器の接続待ち：あと %lld 件のファイルを読み取ります。";
+"Index on this Mac" = "このMac上のインデックス";
+"Model download, first time only" = "モデルのダウンロード（初回のみ）";
+"Suggested folders" = "おすすめのフォルダ";
+"Each shows what it holds and how long its first read takes before anything is read." = "それぞれ、読み取りを始める前に、中身と初回読み取りにかかる時間を表示します。";
+"Documents" = "書類";
+"Desktop" = "デスクトップ";
+"Downloads" = "ダウンロード";
+"macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again." = "macOSがLokalBotにこのフォルダを開くことを許可していません。システム設定 → プライバシーとセキュリティ → ファイルとフォルダで許可してから、もう一度追加してください。";

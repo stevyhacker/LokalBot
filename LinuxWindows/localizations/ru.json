@@ -205,7 +205,6 @@
   "Downloading the on-device model — {0}%": "Загрузка модели на устройстве — {0}%",
   "Downloading {name}…": "Загрузка {name}…",
   "Downloading · {0}%": "Загрузка · {0}%",
-  "Downloads": "Загрузки",
   "Downloads come from the model provider and never include your meeting content.": "Загрузки поступают от поставщика модели и никогда не включают содержимое вашего собрания.",
   "Draft a follow-up from my most recent meeting. Do not send it.": "Набросайте продолжение моей последней встречи. Не отправляйте его.",
   "Draft follow-up": "Подготовить письмо по итогам…",

@@ -553,7 +553,9 @@ including the Limited Use requirements.
 
 Files (Settings → Personal Context → Files) searches folders on your Mac by
 what is in them. It is off until you turn it on after a notice, and it reads
-nothing until you choose a folder. Its engine is
+nothing until you choose a folder. It never picks folders by itself: Settings
+offers Documents, Desktop and Downloads as one-click choices, and macOS asks
+you for access only when you pick one. Its engine is
 [DigUp](https://github.com/ARahim3/DigUp)'s, which runs inside LokalBot.
 
 - **What LokalBot reads.** Only the folders you list. In them it reads

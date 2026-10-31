@@ -516,11 +516,7 @@ final class FileSearchService: ObservableObject {
         // Folders taken off the list leave the index; a folder that is missing
         // (an unplugged drive) or that macOS won't list keeps its files.
         _ = try store.prune(keepingUnder: roots)
-        let readable = roots.filter { path in
-            var isFolder: ObjCBool = false
-            return FileManager.default.fileExists(atPath: path, isDirectory: &isFolder) && isFolder.boolValue
-                && Crawler.canList(URL(fileURLWithPath: path))
-        }
+        let readable = roots.filter(isReadableFolder)
         let indexer = try Indexer(store: store, options: options, makeEmbedder: {
             throw WorkerError.failed("syncing never embeds")
         })
@@ -573,27 +569,34 @@ final class FileSearchService: ObservableObject {
     // MARK: - Estimating
 
     /// What adding `folders` would read, before anything is read: files by
-    /// kind and how long the first pass takes on this Mac at full speed.
-    /// DigUp's `Estimator` goes by metadata alone (counts, PDF page counts and
-    /// durations from Spotlight); its costs are what indexing has measured
-    /// here, or else its M4 Pro costs scaled by a one-second speed check made
-    /// once. Files already under a chosen folder don't count.
+    /// kind, how long the first pass takes on this Mac at full speed, and how
+    /// much room the index will take (`FileIndexSize`). DigUp's `Estimator`
+    /// goes by metadata alone (counts, PDF page counts and durations from
+    /// Spotlight); its costs are what indexing has measured here, or else its
+    /// M4 Pro costs scaled by a one-second speed check made once. Files
+    /// already under a chosen folder don't count.
     func estimate(of folders: [String], progress: @escaping @MainActor (Int) -> Void = { _ in })
         async -> FileFolderEstimate {
         let options = Self.indexOptions(includesMedia: configuration.includesMedia)
         let chosen = configuration.folders
         let costsFolder = worker.folder
         let relay = FileCountProgress { checked in Task { @MainActor in progress(checked) } }
-        return await Task.detached(priority: .utility) {
+        var estimate = await Task.detached(priority: .utility) {
             Self.estimate(of: folders, excluding: chosen, options: options, costsFolder: costsFolder,
                           progress: relay.checked)
         }.value
+        estimate.downloadBytes = FileSearchModels.missingDownloadBytes(storageRoot: costsFolder.deletingLastPathComponent())
+        return estimate
     }
 
     nonisolated static func estimate(of folders: [String], excluding chosen: [String], options: IndexOptions,
                                      costsFolder: URL, checksSpeed: Bool = true,
                                      progress: @escaping (Int) -> Void = { _ in }) -> FileFolderEstimate {
-        let report = Crawler.crawl(folders.map { URL(fileURLWithPath: $0, isDirectory: true) }, options: options) {
+        // Opening a protected folder (Documents, Desktop, Downloads) is what
+        // makes macOS ask the person; one they said no to can't be listed.
+        let unreadable = folders.filter { !isReadableFolder($0) }
+        let readable = folders.filter { !unreadable.contains($0) }
+        let report = Crawler.crawl(readable.map { URL(fileURLWithPath: $0, isDirectory: true) }, options: options) {
             progress($0.checked)
         }
         let indexed = chosen.flatMap { [$0, FolderSelection.realPath($0)] }
@@ -606,7 +609,34 @@ final class FileSearchService: ObservableObject {
             MeasuredCosts.setSpeed(speed, in: costsFolder)
             measured.speed = speed
         }
-        return FileFolderEstimate(Estimator.estimate(candidates, options: options, costs: measured.costs))
+        var estimate = FileFolderEstimate(candidates, options: options, costs: measured.costs)
+        estimate.unreadable = unreadable
+        return estimate
+    }
+
+    nonisolated static func isReadableFolder(_ path: String) -> Bool {
+        var isFolder: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isFolder) && isFolder.boolValue
+            && Crawler.canList(URL(fileURLWithPath: path))
+    }
+
+    /// Documents, Desktop and Downloads, for one-click choices before any
+    /// folder is chosen: the ones that exist and aren't chosen already.
+    /// Nothing in them is opened until the person picks one, so macOS asks
+    /// for access only then.
+    nonisolated static func suggestedFolders(excluding chosen: [String]) -> [FileFolderSuggestion] {
+        let fileManager = FileManager.default
+        let common: [(FileManager.SearchPathDirectory, String, String)] = [
+            (.documentDirectory, "Documents", "doc"),
+            (.desktopDirectory, "Desktop", "menubar.dock.rectangle"),
+            (.downloadsDirectory, "Downloads", "arrow.down.circle"),
+        ]
+        return common.compactMap { directory, name, symbol in
+            guard let path = fileManager.urls(for: directory, in: .userDomainMask).first?.standardizedFileURL.path,
+                  fileManager.fileExists(atPath: path),
+                  !chosen.contains(where: { $0 == path || FolderSelection.isInside(path, $0) }) else { return nil }
+            return FileFolderSuggestion(name: name, path: path, symbol: symbol)
+        }
     }
 
     // MARK: - Searching
@@ -676,10 +706,48 @@ struct FileFolderEstimate: Equatable, Sendable {
     var seconds = 0.0
     /// The rest of long PDFs and documents, read after everything's first part.
     var laterSeconds = 0.0
+    /// The room these files take in the index once read through.
+    var indexBytes = 0.0
+    /// The model still to download before the first pass (0 once it's here).
+    var downloadBytes: Int64 = 0
+    /// Chosen folders macOS won't let LokalBot open (access was declined in
+    /// System Settings → Privacy & Security → Files and Folders).
+    var unreadable: [String] = []
 
     init() {}
 
-    init(_ estimate: Estimate) {
+    /// DigUp's estimate of `candidates`, kind by kind, so each kind's size
+    /// can be told: PDFs' pages counted to the end and each video's length.
+    init(_ candidates: [Candidate], options: IndexOptions, costs: Costs) {
+        var estimate = Estimate()
+        for (kind, group) in Dictionary(grouping: candidates, by: \.kind) {
+            switch kind {
+            case .pdf:
+                let pdfs = Estimator.estimate(group, options: options, costs: costs)
+                estimate = estimate + pdfs
+                let later = costs.pdfPage > 0 ? (pdfs.laterSeconds / costs.pdfPage).rounded() : 0
+                indexBytes += (Double(pdfs.pdfPages) + later) * FileIndexSize.pdfPage
+            case .video:
+                for file in group {
+                    let video = Estimator.estimate([file], options: options, costs: costs)
+                    estimate = estimate + video
+                    indexBytes += FileIndexSize.video(seconds: video.videoSeconds, options: options)
+                }
+            default:
+                let part = Estimator.estimate(group, options: options, costs: costs)
+                estimate = estimate + part
+                switch kind {
+                case .image: indexBytes += Double(group.count) * FileIndexSize.picture
+                case .screenshot: indexBytes += Double(group.count) * FileIndexSize.screenshot
+                case .doc:
+                    // DigUp's own guess at a document's chunks, read to the end.
+                    let chunks = group.reduce(0) { $0 + max(1, min(options.maxChunks, Int($1.size / 2000))) }
+                    indexBytes += Double(chunks) * FileIndexSize.docChunk
+                case .audio: indexBytes += FileIndexSize.sound(seconds: part.audioSeconds, options: options)
+                default: indexBytes += part.bytes
+                }
+            }
+        }
         files = estimate.files.values.reduce(0, +)
         pictures = (estimate.files[.image] ?? 0) + (estimate.files[.screenshot] ?? 0)
         documents = (estimate.files[.pdf] ?? 0) + (estimate.files[.doc] ?? 0)
@@ -687,6 +755,45 @@ struct FileFolderEstimate: Equatable, Sendable {
         playingSeconds = estimate.audioSeconds + estimate.videoSeconds
         seconds = estimate.seconds
         laterSeconds = estimate.laterSeconds
+    }
+}
+
+/// A common folder offered before any is chosen. `name` is its English name,
+/// looked up in the app's language: Finder's own name for it would have to be
+/// read from inside the folder, which macOS guards.
+struct FileFolderSuggestion: Identifiable, Equatable, Sendable {
+    let name: String
+    let path: String
+    let symbol: String
+    var id: String { path }
+}
+
+/// Bytes the file index takes per item, measured on 31 October 2026 by
+/// indexing samples of each kind: a 768 × float16 vector (1.5 KB) per passage,
+/// picture, window or frame, the file's row, and any words, which the keyword
+/// index keeps twice (about 2.3 bytes a character). Files themselves are never
+/// copied.
+enum FileIndexSize {
+    static let picture = 2_700.0
+    /// With about 1,500 characters of words read from it.
+    static let screenshot = 6_700.0
+    /// A page of about 2,400 characters.
+    static let pdfPage = 7_700.0
+    /// For each 2,000 bytes of a document: DigUp's chunk estimate.
+    static let docChunk = 8_700.0
+    /// 30 seconds of sound, one window every `audioHop` (25) seconds.
+    static let soundWindow = 2_000.0
+    /// A frame per shot, at most one every `frameInterval` (3) seconds and
+    /// 1,200 a video; near-duplicate frames are dropped, so this is the most.
+    static let videoFrame = 2_000.0
+    static let framesPerVideo = 1_200.0
+
+    static func sound(seconds: Double, options: IndexOptions) -> Double {
+        (seconds / options.audioHop).rounded(.up) * soundWindow
+    }
+
+    static func video(seconds: Double, options: IndexOptions) -> Double {
+        min(seconds / options.frameInterval, framesPerVideo) * videoFrame + sound(seconds: seconds, options: options)
     }
 }
 

@@ -205,7 +205,6 @@
   "Downloading the on-device model — {0}%": "Téléchargement du modèle sur l'appareil – {0}%",
   "Downloading {name}…": "Téléchargement de {name}…",
   "Downloading · {0}%": "Téléchargement · {0}%",
-  "Downloads": "Téléchargements",
   "Downloads come from the model provider and never include your meeting content.": "Les téléchargements proviennent du fournisseur de modèles et n'incluent jamais le contenu de votre réunion.",
   "Draft a follow-up from my most recent meeting. Do not send it.": "Rédiger un suivi de ma dernière réunion. Ne l'envoyez pas.",
   "Draft follow-up": "Rédiger un suivi…",

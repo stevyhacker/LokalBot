@@ -1540,3 +1540,11 @@
 "On battery, the first read waits for a charger." = "A kan batiri, karatun farko yana jiran caja.";
 "About %@ left" = "Saura kusan %@";
 "Waiting for a charger: %lld files left to read." = "Ana jiran caja: saura fayiloli %lld da za a karanta.";
+"Index on this Mac" = "Fihirisa a kan wannan Mac";
+"Model download, first time only" = "Sauke samfuri, a karon farko kawai";
+"Suggested folders" = "Manyan fayilolin da aka ba da shawara";
+"Each shows what it holds and how long its first read takes before anything is read." = "Kowanne yana nuna abin da ke cikinsa da tsawon lokacin da karatunsa na farko zai ɗauka, kafin a karanta komai.";
+"Documents" = "Takardu";
+"Desktop" = "Tebur";
+"Downloads" = "Zazzagewa";
+"macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again." = "macOS bai bar LokalBot ya buɗe wannan babban fayil ba. Ba da izini a Saitunan Tsari → Sirri da Tsaro → Fayiloli da Manyan fayiloli, sannan ka sake ƙara shi.";

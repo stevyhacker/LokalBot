@@ -1539,3 +1539,11 @@
 "On battery, the first read waits for a charger." = "On battery, the first read waits for a charger.";
 "About %@ left" = "About %@ left";
 "Waiting for a charger: %lld files left to read." = "Waiting for a charger: %lld files left to read.";
+"Index on this Mac" = "Index on this Mac";
+"Model download, first time only" = "Model download, first time only";
+"Suggested folders" = "Suggested folders";
+"Each shows what it holds and how long its first read takes before anything is read." = "Each shows what it holds and how long its first read takes before anything is read.";
+"Documents" = "Documents";
+"Desktop" = "Desktop";
+"Downloads" = "Downloads";
+"macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again." = "macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again.";

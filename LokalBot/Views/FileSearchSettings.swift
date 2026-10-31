@@ -34,6 +34,9 @@ struct FileSearchSettingsSection: View {
                 ForEach(app.settings.fileSearchFolders, id: \.self) { folder in
                     folderRow(folder)
                 }
+                if app.settings.fileSearchFolders.isEmpty {
+                    suggestions
+                }
                 Toggle(isOn: Binding(
                     get: { app.settings.fileSearchIncludesMedia },
                     set: { on in app.changeSettings { $0.fileSearchIncludesMedia = on } })) {
@@ -67,7 +70,7 @@ struct FileSearchSettingsSection: View {
             Text("LokalBot reads the folders you choose and keeps an index of their text, pictures and sound in its library. Nothing leaves this Mac. The first time, it downloads EmbeddingGemma 2's image model (555 MB). Turning Files off deletes the index.")
         }
         .sheet(item: $adding) { addition in
-            FileFolderAddSheet(folders: addition.folders, files: app.fileSearch,
+            FileFolderAddSheet(folders: addition.folders, name: addition.name, files: app.fileSearch,
                                waitsForCharger: hasBattery && !app.settings.fileSearchReadsOnBattery) {
                 app.changeSettings { settings in
                     for folder in addition.folders where !settings.fileSearchFolders.contains(folder) {
@@ -86,6 +89,31 @@ struct FileSearchSettingsSection: View {
     }
 
     static let privacyPolicyURL = URL(string: "https://www.lokalbot.com/privacy#files")!
+
+    /// One click opens the same estimate sheet as Add Folder…; macOS asks for
+    /// access to the folder only then.
+    @ViewBuilder private var suggestions: some View {
+        let common = FileSearchService.suggestedFolders(excluding: app.settings.fileSearchFolders)
+        if !common.isEmpty {
+            LabeledContent {
+                HStack(spacing: 8) {
+                    ForEach(common) { folder in
+                        Button {
+                            adding = FolderAddition(folders: [folder.path],
+                                                    name: app.settings.appLanguage.localized(folder.name))
+                        } label: {
+                            Label(LocalizedStringKey(folder.name), systemImage: folder.symbol)
+                        }
+                        .help(Text(verbatim: (folder.path as NSString).abbreviatingWithTildeInPath))
+                        .accessibilityIdentifier("settings.files.suggested.\(folder.name)")
+                    }
+                }
+            } label: {
+                SettingsLabel("Suggested folders",
+                              help: "Each shows what it holds and how long its first read takes before anything is read.")
+            }
+        }
+    }
 
     private func folderRow(_ folder: String) -> some View {
         HStack(spacing: 8) {
@@ -128,6 +156,8 @@ struct FileSearchSettingsSection: View {
 private struct FolderAddition: Identifiable {
     let id = UUID()
     let folders: [String]
+    /// What to call a single folder in the sheet, when it isn't its file name.
+    var name: String?
 }
 
 /// Before a folder is added: what it holds and how long its first read takes
@@ -135,6 +165,7 @@ private struct FolderAddition: Identifiable {
 /// read until the person adds it, and adding doesn't wait for the count.
 struct FileFolderAddSheet: View {
     let folders: [String]
+    var name: String?
     @ObservedObject var files: FileSearchService
     let waitsForCharger: Bool
     let add: () -> Void
@@ -174,12 +205,20 @@ struct FileFolderAddSheet: View {
 
     private var title: Text {
         folders.count == 1
-            ? Text("Add “\(URL(fileURLWithPath: folders[0]).lastPathComponent)”?")
+            ? Text("Add “\(name ?? URL(fileURLWithPath: folders[0]).lastPathComponent)”?")
             : Text("Add \(folders.count) folders?")
     }
 
     @ViewBuilder private func summary(_ estimate: FileFolderEstimate) -> some View {
-        if estimate.files == 0 {
+        if !estimate.unreadable.isEmpty {
+            Label("macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again.",
+                  systemImage: "lock")
+                .workspaceTextRole(.warning)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if estimate.files == 0, !estimate.unreadable.isEmpty {
+            EmptyView()
+        } else if estimate.files == 0 {
             Text("LokalBot found nothing here it reads yet. New files are read as they arrive.")
                 .fixedSize(horizontal: false, vertical: true)
         } else {
@@ -208,6 +247,16 @@ struct FileFolderAddSheet: View {
                     GridRow {
                         Text("Rest of long PDFs and documents")
                         Text("About \(Self.duration(estimate.laterSeconds)) more")
+                    }
+                }
+                GridRow {
+                    Text("Index on this Mac")
+                    Text("About \(ByteCountFormatter.string(fromByteCount: Int64(estimate.indexBytes), countStyle: .file))")
+                }
+                if estimate.downloadBytes > 0 {
+                    GridRow {
+                        Text("Model download, first time only")
+                        Text(ByteCountFormatter.string(fromByteCount: estimate.downloadBytes, countStyle: .file))
                     }
                 }
             }

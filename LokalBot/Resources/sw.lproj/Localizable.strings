@@ -1540,3 +1540,11 @@
 "On battery, the first read waits for a charger." = "Ikiwa kwenye betri, usomaji wa kwanza husubiri chaja.";
 "About %@ left" = "Muda uliobaki: takriban %@";
 "Waiting for a charger: %lld files left to read." = "Inasubiri chaja: faili %lld bado hazijasomwa.";
+"Index on this Mac" = "Faharasa kwenye Mac hii";
+"Model download, first time only" = "Upakuaji wa modeli, mara ya kwanza tu";
+"Suggested folders" = "Folda zinazopendekezwa";
+"Each shows what it holds and how long its first read takes before anything is read." = "Kila moja inaonyesha kilichomo na muda ambao usomaji wake wa kwanza utachukua, kabla chochote hakijasomwa.";
+"Documents" = "Hati";
+"Desktop" = "Eneo-kazi";
+"Downloads" = "Vipakuliwa";
+"macOS hasn't let LokalBot open this folder. Allow it in System Settings → Privacy & Security → Files and Folders, then add it again." = "macOS haijairuhusu LokalBot kufungua folda hii. Iruhusu katika Mipangilio ya Mfumo → Faragha na Usalama → Faili na Folda, kisha uiongeze tena.";
