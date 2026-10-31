@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"How do I let Claude Code or Codex search my meeting notes?","description":"Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.","datePublished":"2026-10-14","dateModified":"2026-10-20","mainEntityOfPage":"https://www.lokalbot.com/claude-code-codex-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"How do I let Claude Code or Codex search my meeting notes?","item":"https://www.lokalbot.com/claude-code-codex-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/claude-code-codex-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"Does the agent get my audio?","acceptedAnswer":{"@type":"Answer","text":"No. The MCP tools return text: meeting metadata, summaries, transcripts, action items, names, and answers. They don't return audio."}},{"@type":"Question","name":"Can the agent edit or delete meetings?","acceptedAnswer":{"@type":"Answer","text":"No. The CLI and MCP server are read-only. Changes happen in the LokalBot app."}},{"@type":"Question","name":"Does this work with other MCP clients?","acceptedAnswer":{"@type":"Answer","text":"Yes. Any MCP client that can start a local command can run lokalbot-cli mcp, for example Cursor. Each client's own data handling applies."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"How do I let Claude Code or Codex search my meeting notes?","description":"Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.","datePublished":"2026-10-14","dateModified":"2026-10-31","mainEntityOfPage":"https://www.lokalbot.com/claude-code-codex-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"How do I let Claude Code or Codex search my meeting notes?","item":"https://www.lokalbot.com/claude-code-codex-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/claude-code-codex-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"Does the agent get my audio?","acceptedAnswer":{"@type":"Answer","text":"No. The MCP tools return text: meeting metadata, summaries, transcripts, action items, names, and answers. They don't return audio."}},{"@type":"Question","name":"Can the agent edit or delete meetings?","acceptedAnswer":{"@type":"Answer","text":"No. The CLI and MCP server are read-only. Changes happen in the LokalBot app."}},{"@type":"Question","name":"Does this work with other MCP clients?","acceptedAnswer":{"@type":"Answer","text":"Yes. Any MCP client that can start a local command can run lokalbot-cli mcp, for example Cursor. Each client's own data handling applies."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -43,7 +43,7 @@
       <p class="eyebrow">Agents and MCP</p>
       <h1>How do I let Claude Code or Codex search my meeting notes?</h1>
       <p class="guide-hero__lead">Keep the meetings on your computer and give the agent a local, read-only way in. LokalBot records and transcribes calls on-device and includes an MCP server: turn on agent access, add it to Claude Code or Codex, and the agent can search, read, and ask about your meetings without a notetaker bot or a cloud account.</p>
-      <p class="guide-byline"><time datetime="2026-10-20">Updated October 20, 2026</time> · 5 min read</p>
+      <p class="guide-byline"><time datetime="2026-10-31">Updated October 31, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article">
@@ -58,7 +58,7 @@
         <h2>Set it up</h2>
         <ol>
           <li>Install LokalBot, let the models download, and record a short test meeting.</li>
-          <li>In <strong>Settings → Privacy &amp; Data → External agents</strong>, turn on <strong>Allow external agents to read your meeting library</strong>.</li>
+          <li>On a Mac, in <strong>Settings → Privacy → External agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong> and keep <strong>Meetings</strong> ticked. On Windows and Linux, turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>.</li>
           <li>In <strong>Settings → Advanced → Agent CLI</strong>, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\Programs\LokalBot\bin</code>; add that folder to your PATH.</li>
           <li>Register the MCP server with your agent:</li>
         </ol>
@@ -67,7 +67,7 @@
 
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
-        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac.</p>
+        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac, except file search.</p>
         <p>In Claude Code you can install the LokalBot plugin instead. It adds the same server and a <code>/lokalbot:recall</code> command: run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
 
         <h2>What the agent can do</h2>
@@ -78,14 +78,15 @@
           <li><strong>Follow up.</strong> <code>get_action_items</code> lists open actions with your corrections applied, and <code>list_people</code> shows who you meet, by name only. Email addresses are never returned.</li>
         </ul>
         <p>An agent without MCP can run the same commands in a shell. For example, <code>lokalbot-cli search "pricing decision"</code> prints matching meetings as JSON.</p>
-        <p>If you also save screen text, a second toggle, <strong>Allow external agents to read screen memory</strong>, grants access to today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
+        <p>Screen memory has its own permission: on a Mac, the <strong>Screen memory</strong> box under the same switch; on Windows and Linux, a second toggle, <strong>Allow external agents to read screen memory</strong>. It grants today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
+        <p>On a Mac, the <strong>Files</strong> box lets the agent search the folders you chose under Files with <code>search_files</code>, by their words. It gets each matching file's path, a short excerpt, and the passage that matched. LokalBot never changes the files.</p>
 
         <h2>Where your meetings go once an agent reads them</h2>
         <p>LokalBot doesn't upload your library, and its agent access is read-only, so the agent can't change or delete meetings. But whatever a tool returns becomes part of the agent's conversation, and Claude Code and Codex send that conversation to Anthropic or OpenAI under their own terms. Treat it like pasting the text in yourself:</p>
         <ul>
           <li>Prefer <code>search_meetings</code> and <code>ask_library</code> to pulling whole transcripts.</li>
-          <li>Turn access on only for agents you trust with that content, and turn the toggle off to cut access again.</li>
-          <li>The toggle controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
+          <li>Turn access on only for agents you trust with that content, tick only what they need, and turn the switch off to cut access again.</li>
+          <li>The switch controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
         </ul>
     </article>
 

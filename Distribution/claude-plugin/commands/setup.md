@@ -13,7 +13,7 @@ Install LokalBot and set it up for the user by following [AGENT_SETUP.md](../../
 These steps are for a Mac. On Windows or Linux, agent-driven setup isn't available yet: follow the Windows and Linux section of AGENT_SETUP.md with the user instead, and stop there.
 
 1. If `/Applications/LokalBot.app` is missing, run `brew install --cask stevyhacker/tap/lokalbot`. Never remove the quarantine attribute.
-2. Use `CLI=/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`. Run `$CLI setup start --wait 300` and tell the user to click Allow in LokalBot. Add `--meeting-library` or `--screen-memory` only if they want you to read those.
+2. Use `CLI=/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`. Run `$CLI setup start --wait 300` and tell the user to click Allow in LokalBot. Add `--meeting-library`, `--screen-memory`, or `--files` only if they want you to read their meetings or screen memory, or search the folders they chose under Files.
 3. Run `$CLI setup plan` and talk through it with the user: automatic recording, calendar, notes language, Day Memory detail, dictation, autocomplete, and launch at login. Explain each setting listed in `notes.needsApproval` before asking for it. Use `$CLI config describe <key>` for the choices.
 4. Save the agreed plan and run `$CLI setup apply plan.json --wait 300`. Tell the user one approval card is waiting for them in LokalBot.
 5. Poll `$CLI models status` until `meetingReady` is true.

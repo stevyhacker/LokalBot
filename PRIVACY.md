@@ -195,8 +195,8 @@ includes the relevant items in its prompt to your Think model, which may be
 an approved remote server. A question limited to some sources or days gets
 only items you stated, not learned ones.
 The answer lists the items it was given. External agents can read only items
-you mark **Share with agents**, and only while the separate personal-context
-grant described under External-agent access is on. Agent Mode, Autocomplete,
+you mark **Share with agents**, and only while **What I shared about myself**
+is ticked for them, as described under External-agent access. Agent Mode, Autocomplete,
 notes, exports, and diagnostics never get them.
 Turning off **Remember what I tell Ask** stops saving and using them and
 keeps what is saved; **Forget**, **Forget everything…**, or Undo on the Ask
@@ -601,7 +601,10 @@ you for access only when you pick one. Its engine is
   a remote server, the passages `search_files` returns go to that server, as
   meeting and screen text do, and only to an origin you approved (see
   **Optional remote inference** under [Network access](#network-access)).
-  External agents using the CLI or MCP can't read Files.
+  External agents using the CLI or MCP can search the index only while you
+  tick **Files** for them, and only in the folders you chose; what they read
+  then goes wherever that agent sends it (see
+  [External-agent access](#external-agent-access)).
 - **How long it is kept, and deleting it.** The index follows the folders:
   a file you delete or move out of them leaves the index at the next pass.
   Turning Files off deletes the whole index at once. Deleting LokalBot's
@@ -645,36 +648,69 @@ before recording other people.
 ## External-agent access
 
 The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
-access unless you explicitly enable Agent Access under Settings → Privacy.
-Meeting access includes action items with your saved corrections and a People
-view of names, open actions, decisions, and shared meetings; it never
-includes attendee email addresses. An
-enabled external tool runs as your macOS user, so only connect tools you trust.
-Screen-memory MCP tools require a second, independent toggle and a history
-profile: today, the rolling last seven days, or all retained history. They
-expose captured text, window/app activity, timestamps, and capture metadata,
-but never decrypted screenshot pixels or screenshot file paths. Queries are
-clamped to the granted period and out-of-scope ids appear missing. Enabling
-meeting access does not enable screen-memory access, or vice versa. A connected
-MCP client may transmit tool inputs and results under that client's own privacy
-terms.
+access until you turn on **Allow external agents to read your LokalBot data**
+under Settings → Privacy → External agents. It is off by default. Under it is a
+box for each kind of data: **Meetings**, **Screen memory**, **What I shared
+about myself**, and **Files**. Agents can read only the kinds you tick, and
+ticking one never grants another. The first time you turn the switch on, only
+Meetings is ticked. The last ticked box can't be unticked; turn the switch off
+instead. Turning the switch off removes every read grant, and LokalBot
+remembers which boxes were ticked, and the screen history range, in the
+library's `control/agent-read-choices.json` for the next time. Grants made
+with the separate toggles of earlier versions, or through agent setup, stay as
+they were: the switch shows on while any kind is granted, nothing is added on
+upgrade, and Files starts unticked.
 
-**Allow external agents to read what I shared about myself** is a third,
-independent grant, off by default. It covers only the Personal Context items you mark
-**Share with agents**. Neither meeting nor screen access implies it, and Agent
-Mode's own session access doesn't either. While it is on, LokalBot keeps a
+Each kind's grant is its own marker file in the library's private `control/`
+folder, which the CLI and MCP server check even while LokalBot is closed. An
+enabled external tool runs as your macOS user, so only connect tools you trust.
+A connected MCP client may transmit tool inputs and results under that
+client's own privacy terms.
+
+**Meetings** covers the meeting library, including action items with your
+saved corrections and a People view of names, open actions, decisions, and
+shared meetings; it never includes attendee email addresses.
+
+**Screen memory** also needs a history range, **Granted history**, shown under
+its box: today, the rolling last seven days, or all retained history. Its MCP
+tools expose captured text, window/app activity, timestamps, and capture
+metadata, but never decrypted screenshot pixels or screenshot file paths.
+Queries are clamped to the granted period and out-of-scope ids appear missing.
+
+**What I shared about myself** covers only the Personal Context items you mark
+**Share with agents**; **Choose items…** under its box opens them. Agent
+Mode's own session access doesn't grant it. While it is ticked, LokalBot keeps a
 plaintext copy of exactly those items, with their kind, text, and dates, in the
 library's `control/personal-context.json` (mode 0600) so the CLI can read them
 without the encryption key. The copy is rewritten whenever you edit, unshare,
-or forget an item. It is deleted when you turn the grant off, and when LokalBot
-can't read Personal Context. `get_personal_context` and `lokalbot-cli personal-context`
-return at most 12 items, the most relevant to the agent's stated task.
+or forget an item. It is deleted when you untick the box or turn the switch
+off, and when LokalBot can't read Personal Context. `get_personal_context` and
+`lokalbot-cli personal-context` return at most 12 items, the most relevant to
+the agent's stated task.
+
+**Files** lets agents search the folders you chose under
+[Files](#files-you-choose) by their words, with `search_files` or
+`lokalbot-cli search-files`. The search covers the text LokalBot extracted from
+documents, PDF pages, screenshots, and pictures, plus file names; recordings
+and video match only by name. Search by meaning stays in LokalBot's Ask. Each
+result has the file's path, name, kind, page or position in seconds, modified
+date, the photo's capture date if it has one, size, a short excerpt, and the
+passage that matched, up to 1,500 characters. Only files that still exist in
+the folders you chose are returned. Searching never changes, moves, or uploads
+your files. The paths point at your own files, so an agent that can run
+commands as you can open them with its own access, which LokalBot can't limit.
+While Files is ticked, and Files is on with at least one folder, LokalBot keeps
+the list of chosen folders in the library's `control/files-access.json` (mode
+0600), so the CLI can search without reading LokalBot's settings. It is
+rewritten when you change the folders and deleted when you untick the box,
+turn the switch off, or turn Files off.
 
 `get_briefing` and `lokalbot-cli brief` give an agent one short overview to
 start a session with. With every grant off they still answer, but say only
 which grants are off and how to turn them on, not how much the library holds.
 Each other part needs the grant that covers its source. Shared Personal Context
-items need the personal-context grant. The meeting count, the newest meeting's title, and
+items need the personal-context grant. For Files, the overview says only
+whether it is on and how many folders it covers. The meeting count, the newest meeting's title, and
 your own open action items need meeting access. Current projects and goals from
 the overnight review need meeting access for meeting sources and screen access,
 within its history profile, for screen, activity, and digest sources; entries
@@ -713,14 +749,17 @@ background, which also starts the capture and schedules you have turned on.
 An agent setting LokalBot up for you can ask for this access with
 `lokalbot-cli setup start`. The CLI leaves a short-lived request in the
 library's `control/` folder, and LokalBot shows it in a window that names the
-program that asked. Only clicking Allow turns access on. Read access to the
-meeting library or screen memory appears as separate boxes, off unless you
-tick them, and Don't Allow leaves everything off. With access, the agent can
+program that asked. Only clicking Allow turns access on. If the agent also
+asks to read meetings, screen memory, or Files (`--meeting-library`,
+`--screen-memory`, `--files`), each appears as a separate box (**Let agents
+read your meetings**, **Let agents read screen memory**, **Let agents search
+your files**), off unless you tick it, and shows as ticked under External
+agents afterwards. Don't Allow leaves everything off. With access, the agent can
 also choose a model preset (which downloads models), show you macOS permission
 prompts, set launch at login, and restart LokalBot when macOS needs it. The
 permissions themselves are always yours to grant.
-This toggle grants no meeting-library, screen-memory, or personal-context
-access, and none of those grants it.
+This toggle grants no meeting-library, screen-memory, personal-context, or
+file access, and none of those grants it.
 
 **Open in Claude** and **Open in Codex**, in a meeting's More menu, start a new
 conversation in that installed app with the meeting's title, summary, and as much

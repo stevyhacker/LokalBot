@@ -168,7 +168,7 @@ private final class WordsEmbedder: Embedder {
             vector[abs(word.hashValue) % 768] += 1
         }
         let norm = sqrt(vector.reduce(0) { $0 + $1 * $1 })
-        return norm > 0 ? vector.map { $0 / norm } : vector.enumerated().map { $0.offset == 0 ? 1 : 0 }
+        return norm > 0 ? vector.map { $0 / norm } : vector.indices.map { $0 == 0 ? 1 : 0 }
     }
 
     func embedTexts(_ texts: [String]) throws -> [[Float]] { texts.map(Self.vector) }

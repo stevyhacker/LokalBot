@@ -558,8 +558,8 @@ GUIDES = [
         "slug": "claude-code-codex-meeting-notes",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-10-31",
+        "updated_label": "October 31, 2026",
         "title": "Let Claude Code or Codex Search Your Meeting Notes",
         "description": "Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.",
         "eyebrow": "Agents and MCP",
@@ -578,7 +578,7 @@ GUIDES = [
         <h2>Set it up</h2>
         <ol>
           <li>Install LokalBot, let the models download, and record a short test meeting.</li>
-          <li>In <strong>Settings → Privacy &amp; Data → External agents</strong>, turn on <strong>Allow external agents to read your meeting library</strong>.</li>
+          <li>On a Mac, in <strong>Settings → Privacy → External agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong> and keep <strong>Meetings</strong> ticked. On Windows and Linux, turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>.</li>
           <li>In <strong>Settings → Advanced → Agent CLI</strong>, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code>; add that folder to your PATH.</li>
           <li>Register the MCP server with your agent:</li>
         </ol>
@@ -587,7 +587,7 @@ GUIDES = [
 
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
-        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac.</p>
+        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac, except file search.</p>
         <p>In Claude Code you can install the LokalBot plugin instead. It adds the same server and a <code>/lokalbot:recall</code> command: run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
 
         <h2>What the agent can do</h2>
@@ -598,14 +598,15 @@ GUIDES = [
           <li><strong>Follow up.</strong> <code>get_action_items</code> lists open actions with your corrections applied, and <code>list_people</code> shows who you meet, by name only. Email addresses are never returned.</li>
         </ul>
         <p>An agent without MCP can run the same commands in a shell. For example, <code>lokalbot-cli search "pricing decision"</code> prints matching meetings as JSON.</p>
-        <p>If you also save screen text, a second toggle, <strong>Allow external agents to read screen memory</strong>, grants access to today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
+        <p>Screen memory has its own permission: on a Mac, the <strong>Screen memory</strong> box under the same switch; on Windows and Linux, a second toggle, <strong>Allow external agents to read screen memory</strong>. It grants today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
+        <p>On a Mac, the <strong>Files</strong> box lets the agent search the folders you chose under Files with <code>search_files</code>, by their words. It gets each matching file's path, a short excerpt, and the passage that matched. LokalBot never changes the files.</p>
 
         <h2>Where your meetings go once an agent reads them</h2>
         <p>LokalBot doesn't upload your library, and its agent access is read-only, so the agent can't change or delete meetings. But whatever a tool returns becomes part of the agent's conversation, and Claude Code and Codex send that conversation to Anthropic or OpenAI under their own terms. Treat it like pasting the text in yourself:</p>
         <ul>
           <li>Prefer <code>search_meetings</code> and <code>ask_library</code> to pulling whole transcripts.</li>
-          <li>Turn access on only for agents you trust with that content, and turn the toggle off to cut access again.</li>
-          <li>The toggle controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
+          <li>Turn access on only for agents you trust with that content, tick only what they need, and turn the switch off to cut access again.</li>
+          <li>The switch controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
         </ul>
         """,
         "faq": [
@@ -724,8 +725,8 @@ GUIDES = [
         "slug": "meeting-transcripts-obsidian-markdown",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-10-31",
+        "updated_label": "October 31, 2026",
         "title": "How to Get Meeting Transcripts into Obsidian as Markdown",
         "description": "Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script.",
         "eyebrow": "Obsidian and Markdown",
@@ -749,7 +750,7 @@ GUIDES = [
         <p>The daily note lists meetings by time, title, and ID. It doesn't include their transcripts, so pair it with option 1 if you want the full text in the vault.</p>
 
         <h2>Option 4: your own script</h2>
-        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>, and install the CLI from <strong>Settings → Advanced → Agent CLI</strong>. Then save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
+        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn it on: on a Mac, <strong>Allow external agents to read your LokalBot data</strong> in <strong>Settings → Privacy → External agents</strong>, with <strong>Meetings</strong> ticked; on Windows and Linux, <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>. Then install the CLI from <strong>Settings → Advanced → Agent CLI</strong>, save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
         <pre class="code" aria-label="Shell script that writes each LokalBot meeting into an Obsidian vault"><span class="c-op"># Folder inside your vault</span>
 vault=<span class="c-str">"$HOME/Documents/Obsidian/Meetings"</span>
 mkdir -p <span class="c-str">"$vault"</span>

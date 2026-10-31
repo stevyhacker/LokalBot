@@ -6,8 +6,8 @@ This plugin connects Claude Code to your on-device LokalBot meeting library thro
 
 - **`/lokalbot:recall` command** — search your meeting library and get answers with citations (meeting title + date). See [commands/recall.md](commands/recall.md).
 - **`/lokalbot:setup` command** (Mac) — install LokalBot and set it up with you: you allow access and approve consent changes in LokalBot, and Claude does the rest from the terminal. See [commands/setup.md](commands/setup.md) and [AGENT_SETUP.md](../../AGENT_SETUP.md).
-- **`lokalbot-cli` skill** — teaches Claude when and how to use the CLI (`list`, `get`, `search`, `path`) from [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md).
-- **`lokalbot` MCP server** — runs `lokalbot-cli mcp` over stdio, exposing `list_meetings`, `get_meeting`, `search_meetings`, and `ask_library` (plus the separately gated screen-memory tools).
+- **`lokalbot-cli` skill** — teaches Claude when and how to use the CLI (`list`, `get`, `search`, `path`, and on a Mac `search-files`) from [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md).
+- **`lokalbot` MCP server** — runs `lokalbot-cli mcp` over stdio, exposing `list_meetings`, `get_meeting`, `search_meetings`, and `ask_library` (plus the separately gated screen-memory and personal-context tools, and on a Mac `search_files` for the folders you chose under Files).
 
 ## Install
 
@@ -25,9 +25,9 @@ The first command adds this repository as a plugin marketplace (the catalog live
 
 LokalBot does not upload library content. This plugin starts the CLI and MCP server locally, but Claude Code may transmit tool inputs and results under Anthropic's terms. Enable access only for a client you trust, request the minimum meeting content needed, and do not forward it to additional services.
 
-## Prerequisite: consent toggle
+## Prerequisite: consent
 
-The MCP tools require an explicit opt-in in the LokalBot app: **Settings > Privacy & Data > "Allow external agents to read your meeting library"**. If a tool returns `[access_disabled]`, flip that toggle — the plugin does not work around it. Screen-memory tools need the separate "Allow external agents to read screen memory" toggle.
+The MCP tools require an explicit opt-in in the LokalBot app. On a Mac: **Settings > Privacy > External agents > "Allow external agents to read your LokalBot data"**, with **Meetings** ticked. On Windows and Linux: **Settings > Privacy & Data > "Allow external agents to read your meeting library"**. If a tool returns `[access_disabled]`, turn that on — the plugin does not work around it. On a Mac, screen memory, what you shared about yourself, and Files each need their own box under the same switch; on Windows and Linux, screen memory has its own "Allow external agents to read screen memory" toggle.
 
 ## CLI availability
 

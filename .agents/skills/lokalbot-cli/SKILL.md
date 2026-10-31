@@ -5,7 +5,7 @@ description: The user's local memory of their meetings, screen, coding-agent wor
 
 # LokalBot CLI Skill
 
-LokalBot is a private work-memory app for macOS, Linux and Windows. Its read-only CLI retrieves recorded meetings; separately authorized MCP tools retrieve screen-memory text and metadata. Use this skill for evidence from the user's recorded work, not for scheduling meetings or answering general questions about a topic.
+LokalBot is a private work-memory app for macOS, Linux and Windows. Its read-only CLI retrieves recorded meetings and, on a Mac, searches the folders the user chose under Files; separately authorized MCP tools retrieve screen-memory text and metadata. Use this skill for evidence from the user's recorded work, not for scheduling meetings or answering general questions about a topic.
 
 If `lokalbot-cli` isn't on PATH, use the embedded copy directly:
 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`.
@@ -31,6 +31,7 @@ Before asking the user about past work, a decision, a commitment, or where somet
 - Use `people` for everything about one person: what the user owes them, what they owe the user, decisions made together, and shared meetings.
 - Use `path` only when the task needs an on-disk folder or audio file.
 - For viewed screen text or app activity, use the screen-memory MCP tools within the user's separate permission and history scope.
+- Use `search-files` (MCP: `search_files`) for something in the user's own documents, PDFs, screenshots, or pictures, such as a contract clause, a receipt, or an error they took a screenshot of. Mac only.
 - Use `personal-context` (MCP: `get_personal_context`) before advising on a personal decision or tailoring work to the user: it returns the facts, preferences, goals, and principles the user chose to share, most relevant to your task first.
 
 ## Discovery
@@ -106,7 +107,19 @@ lokalbot-cli personal-context --task "Evaluate a job offer in Berlin"
 lokalbot-cli personal-context --task "Plan next quarter" --kind goal --kind principle --limit 5
 ```
 
-Items are the user's own statements (`authority: "stated"`), shared by them for agents. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, so don't infer the user's values from their absence. They are not evidence about meetings or other people. A `[personal_context_disabled]` error means the user hasn't turned on "Allow external agents to read what I shared about myself" in Settings → Privacy. Explain that, and don't work around it. The Windows and Linux app has no such setting or About you page yet, so there personal context is on only in a library that came from a Mac.
+Items are the user's own statements (`authority: "stated"`), shared by them for agents. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, so don't infer the user's values from their absence. They are not evidence about meetings or other people. A `[personal_context_disabled]` error means the user hasn't ticked What I shared about myself (see [When access is off](#when-access-is-off)). Explain that, and don't work around it. The Windows and Linux app has no such setting or About you page yet, so there personal context is on only in a library that came from a Mac.
+
+## Files
+
+```bash
+lokalbot-cli search-files "lease renewal"
+lokalbot-cli search-files "payment declined" --kind screenshot --after 2026-10-01 --table
+lokalbot-cli search-files "quarterly report" --kind pdf --kind doc --limit 5
+```
+
+Searches only the folders the user chose under Files in LokalBot: the text LokalBot read from documents, PDF pages, screenshots, and pictures, plus file names, best match first. It matches words, not meaning, so use words the file would contain and rephrase when nothing comes back; search by meaning is in LokalBot's Ask. Recordings and video match only by name. Each result has `path`, `kind`, `page` (PDFs) or `seconds`, `modified`, `taken` (photos), `size`, `excerpt`, and `passage`, the matched text up to 1,500 characters. `--kind` takes `screenshot`, `image`, `pdf`, `doc`, `audio`, or `video` and repeats; `--after` and `--before` take YYYY-MM-DD; `--limit` goes up to 50 (default 10). It works with the app closed.
+
+Cite files by path. Open one yourself only when the passage isn't enough, and never change, move, or delete it. `[files_unavailable]` means Files is off in LokalBot, has no folder, or hasn't read its folders yet; the user chooses folders in Settings → Personal Context → Files. Mac only: the Windows and Linux app has no Files yet.
 
 ## Path lookup
 
@@ -137,6 +150,7 @@ printf %s "$KEY" | lokalbot-cli secret set openai-compatible --wait 120
 lokalbot-cli status                              # version, recording, models, permissions, agent access
 lokalbot-cli open settings dictationShortcut     # show the user a setting in LokalBot
 lokalbot-cli open settings permissions           # or a section
+lokalbot-cli open settings filesAccess           # the Files box; also agentAccess, screenMemoryAccess, personalContextAccess
 ```
 
 `search`, `describe`, and `config schema` work any time. Everything else needs the separate "Allow external agents to change LokalBot settings" toggle in LokalBot → Settings → Privacy. If a command returns `[settings_access_disabled]`, explain that setting and let the user choose. These commands start LokalBot in the background when it isn't running; pass `--no-launch` when the user doesn't want it started.
@@ -164,14 +178,14 @@ lokalbot-cli setup finish
 lokalbot-cli doctor                        # exit 0 when ready; nextSteps otherwise
 ```
 
-- Ask before adding `--meeting-library` or `--screen-memory` to `setup start`, and before requesting any setting in the plan's `notes.needsApproval`.
+- Ask before adding `--meeting-library`, `--screen-memory`, or `--files` to `setup start`, and before requesting any setting in the plan's `notes.needsApproval`.
 - Exit 3 means the user hasn't answered yet, 4 means they declined (don't ask again unless they say so), and 5 means the request expired.
 - For permissions, tell the user exactly what to click, then poll `permissions` until it shows the grant.
 - Never install by removing the quarantine attribute, and never write LokalBot's preferences or files in `control/` yourself.
 
 ## MCP alternative (and ask_library)
 
-The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings` (`include: "summary"` works as in `list --include summary`), `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves under its own permission.
+The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings` (`include: "summary"` works as in `list --include summary`), `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves, and `search_files` (Mac only) searches the user's chosen folders as `search-files` does, each under its own permission.
 
 ```bash
 claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
@@ -181,11 +195,13 @@ When `lokalbot-cli` is on PATH, `claude mcp add lokalbot -- lokalbot-cli mcp` wo
 
 `ask_library` is the synthesis tool: it sends the question to LokalBot's **local** model, which reads the library and returns only an answer with meeting citations — useful when the user wants a conclusion rather than quotes. It needs the LokalBot app running, and the first call can take up to a minute while the model loads. Prefer `search`/`get` when the user wants exact wording.
 
-Meeting tools require the user's consent toggle: LokalBot → Settings → Privacy → "Allow external agents to read your meeting library". If a tool returns `[access_disabled]`, explain the setting and let the user choose whether to enable it. Do not change consent markers or work around disabled access.
-
 LokalBot itself does not upload library content. An external agent or MCP client may transmit tool inputs and results under its own privacy terms, so connect only clients the user trusts and retrieve the minimum meeting content needed.
 
-Screen-memory tools require the separate "Allow external agents to read screen memory" toggle. A meeting-library grant never implies a screen-memory grant. If a screen tool returns `[screen_access_disabled]`, explain that separate choice and do not work around it.
+## When access is off
+
+Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → Privacy → External agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, meetings and screen memory have their own toggles in Settings → Privacy & Data: "Allow external agents to read your meeting library" and "Allow external agents to read screen memory".
+
+`[access_disabled]` means meetings are off, `[screen_access_disabled]` screen memory, `[personal_context_disabled]` what the user shared, and `[files_access_disabled]` Files; the message names the place. Tell the user which one it is and let them choose. Don't change consent markers or work around disabled access.
 
 ## Evidence and privacy
 
