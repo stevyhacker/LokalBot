@@ -45,7 +45,7 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective October 30, 2026</p>
+      <p class="eyebrow">Effective October 31, 2026</p>
       <h1>Privacy Policy</h1>
       <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service. This page describes the Mac app; <a href="#windows-and-linux">Windows and Linux</a> lists where the Windows and Linux app, an alpha, differs.</p>
     </header>
@@ -93,10 +93,10 @@
       </ul>
 
       <h2 id="files">Files you choose</h2>
-      <p>Files (Settings → Personal Context → Files) searches folders on your Mac by what is in them. It is off until you turn it on after a notice, and it reads nothing until you choose a folder. Its engine is <a href="https://github.com/ARahim3/DigUp">DigUp</a>'s, running inside LokalBot.</p>
+      <p>Files (Settings → Personal Context → Files) searches folders on your Mac by what is in them. It is off until you turn it on after a notice, and it reads nothing until you choose a folder. It never picks folders by itself: Settings offers Documents, Desktop and Downloads as one-click choices, and macOS asks you for access only when you pick one. Its engine is <a href="https://github.com/ARahim3/DigUp">DigUp</a>'s, running inside LokalBot.</p>
       <ul>
-        <li><strong>What LokalBot reads:</strong> only the folders you list: pictures and screenshots, PDFs page by page, and documents such as txt, md, rtf, doc, docx, odt, and html. It skips hidden folders, app bundles, caches, the insides of code projects except their screenshots, folders that look like datasets, and iCloud files that are not downloaded. Recordings and video are not read yet. LokalBot never changes, moves, or uploads your files.</li>
-        <li><strong>How it is used:</strong> an on-device model, EmbeddingGemma 2 with its image and audio projector (a one-time 555 MB download), turns each picture, page, and passage into a vector, and Ask and Quick Recall search them when the Files source is selected. Reading runs when something in the folders changes and pauses while a meeting records, in Low Power Mode, and while the Mac is warm.</li>
+        <li><strong>What LokalBot reads:</strong> only the folders you list: pictures and screenshots, PDFs page by page, and documents such as txt, md, rtf, doc, docx, odt, and html. It skips hidden folders, app bundles, caches, the insides of code projects except their screenshots, folders that look like datasets, and iCloud files that are not downloaded. Unless you turn it off, it also reads recordings 30 seconds of sound at a time and videos a frame per shot plus their sound. LokalBot never changes, moves, or uploads your files.</li>
+        <li><strong>How it is used:</strong> an on-device model, EmbeddingGemma 2 with its image and audio projector (a one-time 555 MB download), turns each picture, page, and passage into a vector, and Ask and Quick Recall search them when the Files source is selected. Reading runs when something in the folders changes and pauses while a meeting records, in Low Power Mode, and while the Mac is warm. A folder's first read goes slower while you use the Mac, judged by how long ago the last key press or mouse move was (never which key or where), and on battery it waits for a charger unless you allow it. Before you add a folder, LokalBot counts what it holds from file metadata alone to show how long the first read will take; the count is not kept. For a matched moment in a recording or video, the Ask assistant transcribes just those 30 seconds with your transcription model, only if it is already on your Mac and no meeting is recording, and keeps the words only for that answer.</li>
         <li><strong>Where it is kept:</strong> in <code>files-index.noindex</code> in the library: file paths, sizes and dates, the extracted text, short excerpts, photo capture dates, and the vectors.</li>
         <li><strong>Who receives it:</strong> no one by default. If you ask Ask a question with Files selected and your Think model is a remote server you approved, the passages it looked up go to that server, as meeting and screen text do. External agents using the CLI or MCP can't read Files.</li>
         <li><strong>Retention and deletion:</strong> the index follows the folders, so a file you delete or move out of them leaves it at the next pass. Turning Files off deletes the whole index.</li>

@@ -1,4 +1,6 @@
 import AppKit
+import AVFoundation
+import AVKit
 import PDFKit
 import SwiftUI
 
@@ -32,14 +34,19 @@ struct FileSearchResultRow: View {
 }
 
 /// Opens a file found by search. A PDF opens in a LokalBot window at the
-/// matched page with the query's words marked; anything else opens in its
-/// default app.
+/// matched page with the query's words marked; a recording or video plays in
+/// a LokalBot window from the matched moment (no QuickTime scripting, so no
+/// Automation permission); anything else opens in its default app.
 @MainActor
 enum FileSearchOpener {
     private static var windows: [ObjectIdentifier: NSWindow] = [:]
 
     static func open(_ hit: FileSearchHit, query: String?) {
         guard FileManager.default.fileExists(atPath: hit.path) else { return }
+        if hit.kind == .audio || hit.kind == .video {
+            play(hit)
+            return
+        }
         guard hit.kind == .pdf, let document = PDFDocument(url: hit.url) else {
             NSWorkspace.shared.open(hit.url)
             return
@@ -53,11 +60,36 @@ enum FileSearchOpener {
             view.go(to: page)
             view.highlightedSelections = highlights(of: query, in: document, on: page)
         }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 920),
+        present(view, title: hit.page.map { "\(hit.name) — page \($0)" } ?? hit.name, url: hit.url,
+                size: NSSize(width: 780, height: 920))
+    }
+
+    /// Plays from the matched moment: the start of its 30-second sound
+    /// window, or the frame's time.
+    private static func play(_ hit: FileSearchHit) {
+        let player = AVPlayer(url: hit.url)
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .inline
+        view.showsFullScreenToggleButton = hit.kind == .video
+        let start = CMTime(seconds: max(0, hit.seconds ?? 0), preferredTimescale: 600)
+        player.seek(to: start, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+            Task { @MainActor in player.play() }
+        }
+        let title = hit.seconds.map { "\(hit.name) — \(Transcript.stamp($0))" } ?? hit.name
+        present(view, title: title, url: hit.url,
+                size: hit.kind == .video ? NSSize(width: 960, height: 600) : NSSize(width: 560, height: 120)) {
+            player.pause()
+        }
+    }
+
+    private static func present(_ view: NSView, title: String, url: URL, size: NSSize,
+                                onClose: @escaping @MainActor () -> Void = {}) {
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
-        window.title = hit.page.map { "\(hit.name) — page \($0)" } ?? hit.name
-        window.representedURL = hit.url
+        window.title = title
+        window.representedURL = url
         window.contentView = view
         window.isReleasedWhenClosed = false
         window.center()
@@ -65,7 +97,10 @@ enum FileSearchOpener {
         windows[key] = window
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
                                                queue: .main) { _ in
-            Task { @MainActor in windows[key] = nil }
+            Task { @MainActor in
+                onClose()
+                windows[key] = nil
+            }
         }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
