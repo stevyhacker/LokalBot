@@ -68,6 +68,29 @@ final class PowerSourceMonitor: ObservableObject {
         readIsOnBattery()
     }
 
+    /// The Mac has an internal battery (a laptop).
+    nonisolated static func hasBattery() -> Bool {
+        let snapshot = IOPSCopyPowerSourcesInfo().takeRetainedValue()
+        let sources = IOPSCopyPowerSourcesList(snapshot).takeRetainedValue() as [CFTypeRef]
+        return sources.contains { source in
+            let description = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any]
+            return description?[kIOPSTypeKey] as? String == kIOPSInternalBatteryType
+        }
+    }
+
+    private static var limitedPowerSource: CFRunLoopSource?
+
+    /// Starts posting `.powerSourceDidChange` on the main thread whenever the
+    /// Mac moves between battery and a charger. Later calls do nothing.
+    static func postSourceChanges() {
+        guard limitedPowerSource == nil,
+              let source = IOPSCreateLimitedPowerNotification({ _ in
+                  NotificationCenter.default.post(name: .powerSourceDidChange, object: nil)
+              }, nil)?.takeRetainedValue() else { return }
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
+        limitedPowerSource = source
+    }
+
     /// True when the providing power source is the internal battery. Defaults to
     /// false (treat as AC) when IOKit can't name a providing source — desktop Macs
     /// have no battery and report none, and "not on battery" is the safe read there.
@@ -79,4 +102,10 @@ final class PowerSourceMonitor: ObservableObject {
         let source = providing.takeUnretainedValue() as String
         return source != kIOPSACPowerValue
     }
+}
+
+extension Notification.Name {
+    /// The Mac moved between battery and a charger (once
+    /// `PowerSourceMonitor.postSourceChanges()` has run).
+    static let powerSourceDidChange = Notification.Name("LokalBotPowerSourceDidChange")
 }

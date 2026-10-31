@@ -241,8 +241,11 @@ enum MeetingChatFormat {
         for (hit, passage) in hits {
             let date = hit.date.formatted(date: .abbreviated, time: .omitted)
             let body = clean(String((passage ?? hit.excerpt ?? "").prefix(700)))
+            let isMoment = hit.kind == .audio || hit.kind == .video
+            let emptyNote = isMoment ? " — matched by its sound or picture; no words transcribed" : " — a picture without text"
+            let lead = isMoment && !body.isEmpty ? ": said in these 30 seconds: " : ": "
             lines.append("- [file:\(hit.id)] \(hit.name) (\(hit.kindLabel), \(date)) in \(hit.folder)"
-                + (body.isEmpty ? " — a picture without text" : ": \(body)"))
+                + (body.isEmpty ? emptyNote : lead + body))
         }
         return lines.joined(separator: "\n")
     }
@@ -598,8 +601,15 @@ final class MeetingChatTools: ChatToolRunner {
         let vector = settingsProvider().semanticSearchEnabled
             ? await embeddingIndex.queryVector(query, priority: .agent) : nil
         let hits = await files.search(query, queryVector: vector, interval: interval, limit: 8)
+        // Recordings and video are transcribed on demand: only the first two
+        // moments, to keep an answer quick.
         var found: [(hit: FileSearchHit, passage: String?)] = []
-        for hit in hits { found.append((hit, await files.passage(of: hit))) }
+        var moments = 0
+        for hit in hits {
+            let isMoment = hit.kind == .audio || hit.kind == .video
+            if isMoment { moments += 1 }
+            found.append((hit, isMoment && moments > 2 ? nil : await files.passage(of: hit)))
+        }
         return ChatToolResult(
             text: MeetingChatFormat.fileResults(query: query, hits: found),
             summary: "“\(query)” — \(hits.count) file\(hits.count == 1 ? "" : "s")",

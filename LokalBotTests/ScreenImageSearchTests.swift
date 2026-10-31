@@ -50,6 +50,27 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertEqual(recorder.starts, 1, "nothing new never starts the image model")
     }
 
+    func testOnBatteryAPassReadsTheNewestFewDozenAndLeavesTheRestForACharger() async throws {
+        for minute in 0..<(ScreenImageEmbeddings.batteryLimit + 20) {
+            try insert(path: "/shots/\(minute).heic.enc", minutesAgo: minute + 1)
+        }
+        let recorder = SessionRecorder()
+        let images = makeImages(recorder: recorder)
+        var onBattery = true
+        images.isOnBattery = { onBattery }
+
+        let outcome = await images.runPass()
+
+        XCTAssertEqual(outcome, .waitingForPower(embedded: ScreenImageEmbeddings.batteryLimit))
+        XCTAssertEqual(recorder.loaded.first, "/shots/0.heic.enc", "the newest captures go first")
+        XCTAssertFalse(recorder.loaded.contains("/shots/\(ScreenImageEmbeddings.batteryLimit).heic.enc"))
+
+        onBattery = false
+        let plugged = await images.runPass()
+        XCTAssertEqual(plugged, .finished(embedded: 20))
+        XCTAssertEqual(images.embeddedCount(), ScreenImageEmbeddings.batteryLimit + 20)
+    }
+
     func testAVectorLeavesWithItsPixels() async throws {
         let kept = try insert(path: "/shots/kept.heic.enc", minutesAgo: 3)
         let expiring = try insert(path: "/shots/expiring.heic.enc", minutesAgo: 2)

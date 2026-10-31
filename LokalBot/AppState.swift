@@ -163,7 +163,9 @@ final class AppState: ObservableObject {
                 cachedEmbeddingIndex?.stopScreenBackfill()
             }
             if settings.fileSearchEnabled != oldValue.fileSearchEnabled
-                || settings.fileSearchFolders != oldValue.fileSearchFolders {
+                || settings.fileSearchFolders != oldValue.fileSearchFolders
+                || settings.fileSearchIncludesMedia != oldValue.fileSearchIncludesMedia
+                || settings.fileSearchReadsOnBattery != oldValue.fileSearchReadsOnBattery {
                 applyFileSearchSetting()
             }
             if settings.semanticSearchEnabled != oldValue.semanticSearchEnabled
@@ -757,8 +759,18 @@ final class AppState: ObservableObject {
             guard let self else { return false }
             return self.recording.isRecording || self.recording.isStarting
         }
+        service.transcribeMoment = { [weak self] hit in await self?.fileMoments.passage(for: hit) }
         return service
     }()
+    /// Transcribes a recording's or video's matched 30 seconds for the
+    /// assistant, with the person's transcription model, only if it is on
+    /// this Mac, and never while a meeting records.
+    private(set) lazy var fileMoments = FileMomentTranscriber.live(
+        settings: { [weak self] in self?.settings ?? AppSettings() },
+        isRecording: { [weak self] in
+            guard let self else { return true }
+            return self.recording.isRecording || self.recording.isStarting
+        })
     private var cachedSearchIndex: SearchIndex?
     var searchIndex: SearchIndex {
         if let cachedSearchIndex { return cachedSearchIndex }
@@ -2730,7 +2742,9 @@ final class AppState: ObservableObject {
         // The folders agents may search follow the folders Files reads.
         filesAccess.refresh()
         guard settings.fileSearchEnabled || fileSearch.configuration.enabled else { return }
-        fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders))
+        fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders,
+                               includesMedia: settings.fileSearchIncludesMedia,
+                               readsOnBattery: settings.fileSearchReadsOnBattery))
     }
 
     func applyDreamingSetting() {

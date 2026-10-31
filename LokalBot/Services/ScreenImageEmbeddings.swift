@@ -20,6 +20,10 @@ import SQLite3
 /// nobody downloads the image model for a search they never make. A vector
 /// goes with its pixels: retention clears both (`ActivityStore.clearScreenshotPath`),
 /// and deleting a capture deletes both.
+///
+/// The first pass over a library is a big read, so it is paced while the
+/// person uses the Mac (`IndexPacing`), and on battery a pass stops after the
+/// newest few dozen captures: the rest wait for a charger.
 @MainActor
 final class ScreenImageEmbeddings {
     /// Model, projector, sizing and request shapes. Any change embeds every
@@ -27,6 +31,8 @@ final class ScreenImageEmbeddings {
     nonisolated static let modelID = "embeddinggemma-2-q8-mmproj-q8-image280-v\(FileMediaEmbedder.vectorVersion)"
     nonisolated static let budget = 280
     nonisolated static let batchSize = 16
+    /// On battery, a pass reads at most this many captures, newest first.
+    nonisolated static let batteryLimit = 3 * batchSize
     nonisolated static let vectorBytes = 768 * MemoryLayout<Float>.stride
 
     /// One pass's embedder: a sized PNG in, a vector out. `embed` blocks; it
@@ -44,6 +50,8 @@ final class ScreenImageEmbeddings {
         case skipped
         case finished(embedded: Int)
         case paused
+        /// On battery, with more left after the newest `batteryLimit`.
+        case waitingForPower(embedded: Int)
         case failed(String)
     }
 
@@ -52,6 +60,8 @@ final class ScreenImageEmbeddings {
     /// Screens have been searched by meaning on this library.
     var isInUse: () -> Bool = { false }
     var pauseReason: () -> FileSearchService.PauseReason? = { nil }
+    var isOnBattery: () -> Bool = { false }
+    var pacing = IndexPacing.unpaced
 
     private let database: SQLiteDatabase?
     private let startSession: StartSession
@@ -81,7 +91,7 @@ final class ScreenImageEmbeddings {
     }
 
     static func live(storage: StorageManager, databaseURL: URL) -> ScreenImageEmbeddings {
-        ScreenImageEmbeddings(
+        let embeddings = ScreenImageEmbeddings(
             databaseURL: databaseURL,
             startSession: {
                 let model = try await EmbeddingIndex.preparedModel(storage: storage)
@@ -101,6 +111,9 @@ final class ScreenImageEmbeddings {
                         source, 0, [kCGImageSourceShouldCache: false] as CFDictionary)
                 }
             })
+        embeddings.isOnBattery = { PowerSourceMonitor.currentlyOnBattery() }
+        embeddings.pacing = .live
+        return embeddings
     }
 
     // MARK: - Scheduling
@@ -150,7 +163,7 @@ final class ScreenImageEmbeddings {
             let delay = schedule.retryDelay(afterFailures: failures)
             lokalbotLog("screen image embedding failed: \(reason); retrying in \(Int(delay.components.seconds)) s")
             scheduleRun(after: delay)
-        case .finished:
+        case .finished, .waitingForPower:
             failures = 0
         case .paused, .skipped:
             break
@@ -160,7 +173,8 @@ final class ScreenImageEmbeddings {
     // MARK: - A pass
 
     /// Embeds retained captures without a picture vector, newest first, until
-    /// none are left, a pause condition appears, or the embedder fails.
+    /// none are left, a pause condition appears, the embedder fails, or, on
+    /// battery, `batteryLimit` captures are through.
     @discardableResult
     func runPass() async -> PassOutcome {
         if let running { return await running.value }
@@ -197,12 +211,14 @@ final class ScreenImageEmbeddings {
         }
         var session: Session?
         var embedded = 0
+        var tried = 0
         var outcome: PassOutcome?
         while outcome == nil {
             if Task.isCancelled { outcome = .paused; break }
             if !isEnabled() || pauseReason() != nil { outcome = .paused; break }
             let batch = Self.pending(database, limit: Self.batchSize)
             if batch.isEmpty { outcome = .finished(embedded: embedded); break }
+            if tried >= Self.batteryLimit, isOnBattery() { outcome = .waitingForPower(embedded: embedded); break }
             if session == nil {
                 do {
                     session = try await startSession()
@@ -212,6 +228,7 @@ final class ScreenImageEmbeddings {
                 }
             }
             guard let current = session else { break }
+            let started = Date()
             let results = await Task.detached(priority: .utility) {
                 batch.map { item in (item, Self.embed(item, loader: loader, session: current)) }
             }.value
@@ -245,6 +262,9 @@ final class ScreenImageEmbeddings {
                 break
             }
             if let stop { outcome = .failed(stop) }
+            tried += batch.count
+            let rest = pacing.rest(after: Date().timeIntervalSince(started))
+            if outcome == nil, rest > 0 { try? await Task.sleep(for: .seconds(rest)) }
         }
         await session?.end()
         return outcome ?? .paused

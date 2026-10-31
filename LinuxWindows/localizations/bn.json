@@ -205,7 +205,6 @@
   "Downloading the on-device model — {0}%": "অন-ডিভাইস মডেল ডাউনলোড করা হচ্ছে — {0}%",
   "Downloading {name}…": "ডাউনলোড হচ্ছে {name}…",
   "Downloading · {0}%": "ডাউনলোড হচ্ছে · {0}%",
-  "Downloads": "ডাউনলোড",
   "Downloads come from the model provider and never include your meeting content.": "ডাউনলোডগুলি মডেল প্রদানকারীর কাছ থেকে আসে এবং আপনার মিটিংয়ের বিষয়বস্তু কখনই অন্তর্ভুক্ত করে না।",
   "Draft a follow-up from my most recent meeting. Do not send it.": "আমার সাম্প্রতিক মিটিং থেকে একটি ফলো-আপ খসড়া। পাঠাবেন না।",
   "Draft follow-up": "ফলো-আপের খসড়া লিখুন…",

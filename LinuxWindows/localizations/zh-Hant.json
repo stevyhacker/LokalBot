@@ -205,7 +205,6 @@
   "Downloading the on-device model — {0}%": "下載設備上模型 — {0}%",
   "Downloading {name}…": "正在下載 {name}...",
   "Downloading · {0}%": "正在下載·{0}%",
-  "Downloads": "下載",
   "Downloads come from the model provider and never include your meeting content.": "下載來自模型提供商，絕不包含您的會議內容。",
   "Draft a follow-up from my most recent meeting. Do not send it.": "起草我最近一次會議的後續行動。不要發送它。",
   "Draft follow-up": "草擬後續追蹤訊息…",
