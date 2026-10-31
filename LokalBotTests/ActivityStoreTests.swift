@@ -451,6 +451,36 @@ final class ActivityStoreTests: XCTestCase {
                                        matchAll: false, dropStopWords: true).isEmpty)
     }
 
+    /// Snippets are built after ranking, only for the rows returned; deferred
+    /// snippets filled later must equal them, for FTS and CJK substring search.
+    func testDeferredOCRSnippetsMatchTheEagerOnes() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let texts = ["Quarterly budget review with the finance team and the budget owners",
+                     "Unrelated notes about lunch",
+                     "比如logo再大 budget 一点",
+                     "Budget draft: travel, hardware, and a second budget line for contractors"]
+        for (index, text) in texts.enumerated() {
+            _ = try store.insertScreenshot(ts: start.addingTimeInterval(Double(index * 600)), path: "",
+                                           app: index % 2 == 0 ? "Notes" : "Mail", windowTitle: "Window \(index)",
+                                           ocr: text)
+        }
+        for query in ["budget", "logo", "比如"] {
+            for grouped in [true, false] {
+                let eager = store.searchOCR(query, limit: 10, groupResults: grouped)
+                let deferred = store.searchOCR(query, limit: 10, groupResults: grouped, deferringSnippets: true)
+                XCTAssertFalse(eager.isEmpty, query)
+                XCTAssertTrue(deferred.allSatisfy { $0.snippet.isEmpty && $0.pendingSnippet != nil })
+                XCTAssertTrue(eager.allSatisfy { $0.pendingSnippet == nil })
+                XCTAssertEqual(store.fillOCRSnippets(deferred), eager, "\(query) grouped=\(grouped)")
+            }
+        }
+        XCTAssertTrue(store.searchOCR("budget").contains { $0.snippet.contains("«") })
+    }
+
     func testMigratesLegacySchemaPreservingRows() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")

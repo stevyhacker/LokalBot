@@ -1,5 +1,14 @@
 import Foundation
 
+/// Ask's query and retrieval state for the session. Only Ask observes it:
+/// AppState does not relay its changes, so a keystroke in the query field
+/// re-renders Ask rather than every AppState observer.
+@MainActor
+final class RecallWorkspace: ObservableObject {
+    @Published var query = ""
+    @Published var state = RecallWorkspaceState()
+}
+
 /// Shared, session-lived navigation state. Opening evidence does not discard
 /// the selected filters, attachments, result or unfinished question.
 struct RecallWorkspaceState {
@@ -131,6 +140,88 @@ extension RecallSearch {
         }
     }
 
+    /// Keyword screen matches as source sessions, and what ranking them with
+    /// meaning matches needs (`ScreenSearch.coverage`): whether every word of
+    /// the query matched, and which hits are saved moments.
+    struct KeywordScreens: Sendable {
+        var groups: [ScreenRecallGroup]
+        var matchedAll: Bool
+        var saved: Set<Int64>
+    }
+
+    /// Keyword screen matches (relaxed when the strict query finds nothing)
+    /// and saved moments whose note or title matches, as source sessions.
+    /// One group more than `displayLimit` is returned so a cut list shows.
+    static func keywordScreenGroups(in store: ActivityStore, query: String,
+                                    filter: ScreenSearchFilter) -> [ScreenRecallGroup] {
+        keywordScreens(in: store, query: query, filter: filter).groups
+    }
+
+    static func keywordScreens(in store: ActivityStore, query: String,
+                               filter: ScreenSearchFilter) -> KeywordScreens {
+        var hits = store.searchOCR(query, limit: 2_000, filter: filter, groupResults: false, deferringSnippets: true)
+        let matchedAll = !hits.isEmpty
+        if hits.isEmpty {
+            hits = store.searchOCR(query, limit: 2_000, matchAll: false, dropStopWords: true,
+                                   filter: filter, groupResults: false, deferringSnippets: true)
+        }
+        let found = Set(hits.map(\.snapshotID))
+        let saved = store.savedMoments(limit: 2_000).filter { moment in
+            !found.contains(moment.snapshotID)
+                && (filter.snapshotIDs?.contains(moment.snapshotID) ?? true)
+                && (filter.interval.map { moment.ts >= $0.start && moment.ts < $0.end } ?? true)
+                && (filter.app.map { $0.caseInsensitiveCompare(moment.app) == .orderedSame } ?? true)
+                && [moment.note, moment.windowTitle].contains { $0.localizedCaseInsensitiveContains(query) }
+        }
+        hits += saved.map { ActivityStore.OCRHit(snapshotID: $0.snapshotID, ts: $0.ts, app: $0.app,
+                                                windowTitle: $0.windowTitle, snippet: $0.note) }
+        return KeywordScreens(
+            groups: readableScreenGroups(hits, query: query, limit: displayLimit + 1, fill: store.fillOCRSnippets),
+            matchedAll: matchedAll, saved: Set(saved.map(\.snapshotID)))
+    }
+
+    /// `screenGroups(readableScreens(fill(hits), query:), limit:)`, filling
+    /// only the hits that can reach the first `limit` groups. Dropping an
+    /// unreadable hit can only split a session, never merge two, so sessions
+    /// are settled in order of their best hit until no later one can rank
+    /// above the `limit`th group. Typically 5–20% of 2,000 hits get snippets.
+    static func readableScreenGroups(
+        _ hits: [ActivityStore.OCRHit], query: String, limit: Int = displayLimit,
+        fill: ([ActivityStore.OCRHit]) -> [ActivityStore.OCRHit]
+    ) -> [ScreenRecallGroup] {
+        guard limit > 0 else { return [] }
+        let candidates = sessions(hits)
+        var settled: [(first: Int, matches: [ActivityStore.OCRHit])] = []
+        var next = 0
+        while next < candidates.count {
+            if settled.count >= limit {
+                let firsts = settled.map(\.first).sorted()
+                if firsts[limit - 1] < candidates[next][0] { break }
+            }
+            // At least as many sessions as groups are still missing, in one fill.
+            let batch = candidates[next..<min(candidates.count, next + max(1, limit - settled.count))]
+            next += batch.count
+            // `fill` keeps order, so the filled hits follow the batch's offsets.
+            var filled = fill(batch.flatMap { $0 }.map { hits[$0] }).makeIterator()
+            for session in batch {
+                var readableOffsets: [Int] = []
+                var readable: [ActivityStore.OCRHit] = []
+                for offset in session {
+                    guard let hit = filled.next(),
+                          let kept = readableScreens([hit], query: query).first else { continue }
+                    readableOffsets.append(offset)
+                    readable.append(kept)
+                }
+                for group in sessions(readable) {
+                    settled.append((readableOffsets[group[0]], group.map { readable[$0] }))
+                }
+            }
+        }
+        return settled.sorted { $0.first < $1.first }.prefix(limit).map { group in
+            ScreenRecallGroup(id: "screen-\(group.matches[0].snapshotID)", matches: group.matches)
+        }
+    }
+
     static func readableScreens(_ hits: [ActivityStore.OCRHit], query: String) -> [ActivityStore.OCRHit] {
         hits.compactMap { hit in
             guard let excerpt = RecallPassage.excerpt(hit.snippet, query: query)
@@ -145,30 +236,34 @@ extension RecallSearch {
     /// Each timestamp is classified once; long sessions avoid quadratic scans.
     static func screenGroups(_ hits: [ActivityStore.OCRHit], limit: Int = displayLimit) -> [ScreenRecallGroup] {
         guard limit > 0 else { return [] }
+        return sessions(hits).prefix(limit).map { group in
+            ScreenRecallGroup(id: "screen-\(hits[group[0]].snapshotID)", matches: group.map { hits[$0] })
+        }
+    }
+
+    /// Hit offsets per source session (same app, window and day, no gap over
+    /// five minutes), each in relevance order, sessions by their best hit.
+    private static func sessions(_ hits: [ActivityStore.OCRHit]) -> [[Int]] {
         struct Source: Hashable { let app: String; let window: String; let day: Date }
         let calendar = Calendar.current
-        let buckets = Dictionary(grouping: hits.enumerated()) { indexed in
-            Source(app: indexed.element.app, window: indexed.element.windowTitle,
-                   day: calendar.startOfDay(for: indexed.element.ts))
+        let buckets = Dictionary(grouping: hits.indices) { index in
+            Source(app: hits[index].app, window: hits[index].windowTitle,
+                   day: calendar.startOfDay(for: hits[index].ts))
         }
-        var rankedGroups: [[EnumeratedSequence<[ActivityStore.OCRHit]>.Element]] = []
+        var rankedGroups: [[Int]] = []
         for bucket in buckets.values {
-            let chronological = bucket.sorted {
-                $0.element.ts == $1.element.ts ? $0.offset < $1.offset : $0.element.ts < $1.element.ts
-            }
-            var current: [EnumeratedSequence<[ActivityStore.OCRHit]>.Element] = []
-            for indexed in chronological {
-                if let previous = current.last, indexed.element.ts.timeIntervalSince(previous.element.ts) > 300 {
-                    rankedGroups.append(current.sorted { $0.offset < $1.offset })
+            let chronological = bucket.sorted { hits[$0].ts == hits[$1].ts ? $0 < $1 : hits[$0].ts < hits[$1].ts }
+            var current: [Int] = []
+            for index in chronological {
+                if let previous = current.last, hits[index].ts.timeIntervalSince(hits[previous].ts) > 300 {
+                    rankedGroups.append(current.sorted())
                     current = []
                 }
-                current.append(indexed)
+                current.append(index)
             }
-            if !current.isEmpty { rankedGroups.append(current.sorted { $0.offset < $1.offset }) }
+            if !current.isEmpty { rankedGroups.append(current.sorted()) }
         }
-        return rankedGroups.sorted { $0[0].offset < $1[0].offset }.prefix(limit).map { group in
-            ScreenRecallGroup(id: "screen-\(group[0].element.snapshotID)", matches: group.map(\.element))
-        }
+        return rankedGroups.sorted { $0[0] < $1[0] }
     }
 
     @MainActor
@@ -204,28 +299,15 @@ extension RecallSearch {
                 result.setMeetings(groups(readable(hits, query: query), limit: displayLimit + 1))
             }
             guard !Task.isCancelled, searchScreens else { return result }
-            var hits = store.searchOCR(query, limit: 2_000, filter: screenFilter, groupResults: false)
-            let matchedAll = !hits.isEmpty
-            if hits.isEmpty {
-                hits = store.searchOCR(query, limit: 2_000, matchAll: false, dropStopWords: true,
-                                       filter: screenFilter, groupResults: false)
-            }
-            var coverage = ScreenSearch.coverage(query: query, hits: hits, matchedAll: matchedAll) {
+            let keyword = keywordScreens(in: store, query: query, filter: screenFilter)
+            // Counted on the hits that made the list, whose snippets are filled.
+            var coverage = ScreenSearch.coverage(query: query, hits: keyword.groups.flatMap(\.matches),
+                                                 matchedAll: keyword.matchedAll) {
                 store.ocrText(snapshotID: $0)
             }
-            let found = Set(hits.map(\.snapshotID))
-            let saved = store.savedMoments(limit: 2_000).filter { moment in
-                !found.contains(moment.snapshotID)
-                    && (screenFilter.snapshotIDs?.contains(moment.snapshotID) ?? true)
-                    && (screenFilter.interval.map { moment.ts >= $0.start && moment.ts < $0.end } ?? true)
-                    && (screenFilter.app.map { $0.caseInsensitiveCompare(moment.app) == .orderedSame } ?? true)
-                    && [moment.note, moment.windowTitle].contains { $0.localizedCaseInsensitiveContains(query) }
-            }
-            hits += saved.map { ActivityStore.OCRHit(snapshotID: $0.snapshotID, ts: $0.ts, app: $0.app,
-                                                    windowTitle: $0.windowTitle, snippet: $0.note) }
-            for moment in saved { coverage[moment.snapshotID] = 1 }
+            for id in keyword.saved { coverage[id] = 1 }
             result.screenCoverage = coverage
-            result.setScreens(screenGroups(readableScreens(hits, query: query), limit: displayLimit + 1))
+            result.setScreens(keyword.groups)
             return result
         }
         guard !Task.isCancelled else { return Result() }

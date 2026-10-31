@@ -65,15 +65,19 @@ enum ScreenContextPrivacy {
         // A browser with an unreadable address, its own or a framed page's,
         // cannot establish that it is outside a configured exclusion. Native
         // documents need no web URL.
-        let hasDomainRules = excludedDomains.contains {
-            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
+        let hasDomainRules = Self.hasDomainRules(excludedDomains)
         if hasDomainRules, observation.hasWebContent || isBrowser(observation) {
             guard sanitizedURL(observation.sourceURL) != nil, !observation.hasUnattributedWebContent else {
                 return false
             }
         }
         return true
+    }
+
+    /// Whether any site exclusion is configured; only then does a sample or
+    /// capture need the page's address.
+    static func hasDomainRules(_ excludedDomains: [String]) -> Bool {
+        excludedDomains.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
     /// What activity tracking may store for one sample. Every window keeps
@@ -101,9 +105,7 @@ enum ScreenContextPrivacy {
         guard !isExcluded(sourceURL: observation.sourceURL, rules: excludedDomains) else {
             return ActivityDisposition(keepsApp: false, keepsTitle: false)
         }
-        let hasDomainRules = excludedDomains.contains {
-            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
+        let hasDomainRules = Self.hasDomainRules(excludedDomains)
         let unverifiableSite = hasDomainRules
             && (observation.hasWebContent || isBrowser(observation))
             && sanitizedURL(observation.sourceURL) == nil

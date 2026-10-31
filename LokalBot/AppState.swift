@@ -319,10 +319,22 @@ final class AppState: ObservableObject {
     // Navigation (main window): sidebar section and selected meeting.
     @Published var navSection: NavSection = .today
     @Published var showingActions = false
-    @Published var meetingNoteDrafts: [UUID: String] = [:]
+    /// Unsaved note text, so a remounted editor resumes it. Editors read it
+    /// only when they appear; publishing it re-rendered every AppState
+    /// observer on each keystroke.
+    var meetingNoteDrafts: [UUID: String] = [:]
     @Published var actionSelection: Set<String> = []
-    @Published var recallQuery = ""
-    @Published var recallState = RecallWorkspaceState()
+    /// Ask's query and scope live on their own object, observed by Ask alone,
+    /// so typing a query does not re-render every AppState observer.
+    let recall = RecallWorkspace()
+    var recallQuery: String {
+        get { recall.query }
+        set { recall.query = newValue }
+    }
+    var recallState: RecallWorkspaceState {
+        get { recall.state }
+        set { recall.state = newValue }
+    }
     @Published var evidenceMeetingID: UUID?
     @Published var evidenceReturnSection: NavSection?
     private var evidenceReturnMeetingIDs: Set<Meeting.ID>?
@@ -503,11 +515,17 @@ final class AppState: ObservableObject {
 
     /// Open Settings as a destination inside the existing main window.
     func openSettings(tab: SettingsTab? = nil) {
-        if let tab { settingsTab = tab }
-        focusedSettingID = nil
-        evidenceReturnSection = nil
-        navSection = .settings
+        if let tab { selectSettingsTab(tab) } else if focusedSettingID != nil { focusedSettingID = nil }
+        if evidenceReturnSection != nil { evidenceReturnSection = nil }
+        if navSection != .settings { navSection = .settings }
         WindowAccess.shared.open("main")
+    }
+
+    /// A Settings category click. Every `@Published` assignment re-renders all
+    /// AppState observers, equal value or not, so assign only what changes.
+    func selectSettingsTab(_ tab: SettingsTab) {
+        if settingsTab != tab { settingsTab = tab }
+        if focusedSettingID != nil { focusedSettingID = nil }
     }
 
     /// Navigate to the Ask section, optionally pre-filling the query and/or
@@ -893,7 +911,8 @@ final class AppState: ObservableObject {
         mutateEvidence: { [weak self] days, mutation in
             try self?.withPrimaryEvidenceChange(on: days, .revision, mutation)
         },
-        onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) })
+        onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) },
+        waitUntilReady: { [weak self] in await self?.waitForLibrary() })
     /// Meeting-recording lifecycle: recorders, watchdog, timer tick, prewarm.
     private(set) lazy var recording = RecordingController(
         storage: storage,
@@ -1267,7 +1286,8 @@ final class AppState: ObservableObject {
         calendarObserver = calendar.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
         }
-        modelRolesObserver = modelRoles.objectWillChange.sink { [weak self] in
+        // Not download progress: the model views observe ModelRoles directly.
+        modelRolesObserver = modelRoles.readinessChanges.sink { [weak self] in
             self?.objectWillChange.send()
         }
         navigationHandoffObserver = navigationHandoff.objectWillChange.sink { [weak self] in
@@ -1501,6 +1521,12 @@ final class AppState: ObservableObject {
                     systemAudioPolicy: pending.systemAudioPolicy)
             }
         }
+    }
+
+    /// Returns once the meeting library has loaded, for launch work that
+    /// should not compete with it.
+    private func waitForLibrary() async {
+        for await ready in $libraryReady.values where ready { return }
     }
 
     private func reindexLibraryInBackground(_ meetings: [Meeting]) {
@@ -2325,7 +2351,8 @@ final class AppState: ObservableObject {
             lastError = "Could not retract changed evidence from Dream memory: " + error.localizedDescription
         }
         refreshDreamMemory()
-        latestDreamReport = dreamStore.latestReport()
+        let latest = dreamStore.latestReport()
+        if latestDreamReport != latest { latestDreamReport = latest }
         // An in-flight dream is checked against its own sources when it
         // commits, so only a change to the day being dreamed stops it early.
         dreaming.reconsiderReports(invalidating: invalidatedKeys, cancellingInFlight: false)
@@ -2975,10 +3002,13 @@ final class AppState: ObservableObject {
 
     func refreshDreamMemory() {
         if settings.cotypingUseMeetingMemory || settings.cotypingUseScreenMemory { cotyping.invalidateMemoryContext() }
+        // Evidence changes and every Settings visit reload this; an unchanged
+        // memory must not re-render every AppState observer.
         do {
-            dreamMemory = try dreamStore.loadMemory()
+            let loaded = try dreamStore.loadMemory()
+            if dreamMemory != loaded { dreamMemory = loaded }
         } catch {
-            dreamMemory = nil
+            if dreamMemory != nil { dreamMemory = nil }
             lastError = "Could not load dream memory: \(error.localizedDescription)"
         }
     }

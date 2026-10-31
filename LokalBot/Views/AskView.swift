@@ -6,7 +6,7 @@ struct AskView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            AskContent(model: app.chat)
+            AskContent(model: app.chat, recall: app.recall)
                 .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
@@ -15,27 +15,28 @@ struct AskView: View {
 private struct AskContent: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var model: ChatViewModel
+    @ObservedObject var recall: RecallWorkspace
 
     private var query: String {
-        get { app.recallQuery }
-        nonmutating set { app.recallQuery = newValue }
+        get { recall.query }
+        nonmutating set { recall.query = newValue }
     }
     private var queryBinding: Binding<String> { Binding(get: { query }, set: { query = $0 }) }
     private var meetingScope: Set<UUID>? {
-        get { app.recallState.meetingIDs }
-        nonmutating set { app.recallState.meetingIDs = newValue }
+        get { recall.state.meetingIDs }
+        nonmutating set { recall.state.meetingIDs = newValue }
     }
     private var screenScope: Set<Int64>? {
-        get { app.recallState.screenIDs }
-        nonmutating set { app.recallState.screenIDs = newValue }
+        get { recall.state.screenIDs }
+        nonmutating set { recall.state.screenIDs = newValue }
     }
     private var selectedResult: Int {
-        get { app.recallState.selectedResult }
-        nonmutating set { app.recallState.selectedResult = newValue }
+        get { recall.state.selectedResult }
+        nonmutating set { recall.state.selectedResult = newValue }
     }
     private var facet: AskFacet {
-        get { app.recallState.facet }
-        nonmutating set { app.recallState.facet = newValue }
+        get { recall.state.facet }
+        nonmutating set { recall.state.facet = newValue }
     }
     @State private var hits: [SearchIndex.Hit] = []
     @State private var resultsTruncated = false
@@ -43,13 +44,13 @@ private struct AskContent: View {
     @State private var fileHits: [FileSearchHit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
     private var selectedScreenApp: String? {
-        get { app.recallState.screenApp }
-        nonmutating set { app.recallState.screenApp = newValue }
+        get { recall.state.screenApp }
+        nonmutating set { recall.state.screenApp = newValue }
     }
     @State private var screenApps: [String] = []
     private var pinnedScreens: [ScreenAskContext] {
-        get { app.recallState.pins }
-        nonmutating set { app.recallState.pins = newValue }
+        get { recall.state.pins }
+        nonmutating set { recall.state.pins = newValue }
     }
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
@@ -66,8 +67,8 @@ private struct AskContent: View {
     }
 
     private var sources: Set<AskSourceScope> {
-        get { app.recallState.sources }
-        nonmutating set { app.recallState.sources = newValue }
+        get { recall.state.sources }
+        nonmutating set { recall.state.sources = newValue }
     }
 
     private var layout: some View {
@@ -166,7 +167,7 @@ private struct AskContent: View {
         pendingQuestion = nil
         app.askDayScope = handoff.dayScope.map(Calendar.current.startOfDay(for:))
         mode = handoff.mode
-        app.recallState.selectEvidence(meetingIDs: handoff.meetingIDs,
+        recall.state.selectEvidence(meetingIDs: handoff.meetingIDs,
                                        screenIDs: handoff.screenSnapshotIDs.map { Set($0) })
         if let handedQuery = handoff.query {
             query = handedQuery
@@ -380,7 +381,7 @@ private struct AskContent: View {
         // search results its words happened to match.
         let remembers = app.settings.askMemoryEnabled && RememberIntent.parse(query) != nil
         if resultCount > 0, !remembers {
-            app.recallState.selectResultEvidence(
+            recall.state.selectResultEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
                 screenIDs: answerScreenIDs,
                 hadFiles: !fileHits.isEmpty)
@@ -417,7 +418,7 @@ private struct AskContent: View {
         if meetingScope != nil || screenScope != nil {
             Button {
                 clearPinnedScreens(restoringScope: true)
-                app.recallState.clearEvidence()
+                recall.state.clearEvidence()
                 runSearch()
             } label: {
                 Label("\(meetingScope.map { "\($0.count) meetings" } ?? "All meetings") · \(screenScope.map { "\($0.count) screens" } ?? "All screens")",
@@ -512,7 +513,7 @@ private struct AskContent: View {
         } else {
             selection.insert(source)
         }
-        app.recallState.chooseSources(selection)
+        recall.state.chooseSources(selection)
         if !selection.contains(.screen) { selectedScreenApp = nil }
     }
 
@@ -691,8 +692,8 @@ private struct AskContent: View {
     }
 
     private func resetAskScope() {
-        app.recallState.clearEvidence()
-        app.recallState.chooseSources(AskSourceScope.defaults)
+        recall.state.clearEvidence()
+        recall.state.chooseSources(AskSourceScope.defaults)
         app.askDateScope = nil
         pinnedScreens = []
         showingTimeScope = false
@@ -703,7 +704,7 @@ private struct AskContent: View {
             resetAskScope()
             return
         }
-        app.recallState.selectEvidence(meetingIDs: scope.meetingIDs, screenIDs: scope.screenSnapshotIDs,
+        recall.state.selectEvidence(meetingIDs: scope.meetingIDs, screenIDs: scope.screenSnapshotIDs,
                                        sources: scope.sources)
         app.askDateScope = scope.dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
         pinnedScreens = []
@@ -711,23 +712,23 @@ private struct AskContent: View {
     }
 
     private func reconcilePinnedScreenScope() {
-        app.recallState.reconcilePins(dateScope: app.askDateScope)
+        recall.state.reconcilePins(dateScope: app.askDateScope)
     }
 
     private func rememberScreenAccessBeforePinning() {
-        app.recallState.beginPinning()
+        recall.state.beginPinning()
     }
 
     private func removePinnedScreen(_ id: Int64) {
-        app.recallState.removePin(id)
+        recall.state.removePin(id)
     }
 
     private func clearPinnedScreens(restoringScope: Bool) {
-        app.recallState.clearPins(restoringScope: restoringScope)
+        recall.state.clearPins(restoringScope: restoringScope)
     }
 
     private func restoreScopeAfterRemovingPins() {
-        app.recallState.clearPins(restoringScope: true)
+        recall.state.clearPins(restoringScope: true)
     }
 
     // MARK: - Results
@@ -836,7 +837,7 @@ private struct AskContent: View {
     private func runSearch(cancelPendingQuestion: Bool = true) {
         if cancelPendingQuestion { pendingQuestion = nil }
         searchTask?.cancel()
-        let q = query, request = app.recallState, dateScope = app.askDateScope
+        let q = query, request = recall.state, dateScope = app.askDateScope
         searchedQuery = q
         // Never leave rows from a previous query available to Return.
         hits = []; ocrHits = []; screenGroups = []; fileHits = []; resultsTruncated = false

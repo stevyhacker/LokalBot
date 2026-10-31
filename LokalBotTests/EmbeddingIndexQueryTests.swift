@@ -129,6 +129,63 @@ final class EmbeddingIndexQueryTests: XCTestCase {
                        recorder: recorder, meetingID: meetingID, screenID: screenID)
     }
 
+    /// The database paths score rows in place and read text only for the rows
+    /// they keep; they must rank exactly like the in-memory rankers, ties and
+    /// floors included.
+    func testDatabaseRankingMatchesInMemoryRanking() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("embedding-ranking-\(UUID().uuidString)", isDirectory: true)
+        roots.append(root)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let databaseURL = root.appendingPathComponent("lokalbotv3.sqlite")
+        let store = ActivityStore(databaseURL: databaseURL)
+        // Creates the embedding tables.
+        let index = EmbeddingIndex(databaseURL: databaseURL, storage: StorageManager(rootURL: root),
+                                   embedder: { texts, _, _ in texts.map { _ in [1, 0] } })
+        defer { withExtendedLifetime(index) {} }
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let meetingID = UUID()
+        XCTAssertTrue(database.run(
+            "INSERT INTO embedded_meetings (meeting_id, source_mtime, model_id) VALUES (?1, ?2, ?3)",
+            bind: [meetingID.uuidString, 1.0, EmbeddingIndex.indexVersion]))
+        // Cosines with [1, 0]: below both floors, ties, between the floors.
+        let cosines: [Float] = [0.5, 0.8, 0.8, 0.6, 0.95, 0.8, 0.7, 0.9]
+        var screens: [EmbeddingIndex.ScreenCandidate] = []
+        var chunks: [EmbeddingIndex.Candidate] = []
+        for (index, cosine) in cosines.enumerated() {
+            let ts = now.addingTimeInterval(Double(index % 3))
+            let text = "Capture \(index)"
+            let vector = vectorData([cosine, (1 - cosine * cosine).squareRoot()])
+            let id = try store.insertScreenshot(ts: ts, path: "", app: "App \(index)", ocr: text)
+            XCTAssertTrue(database.run("""
+                INSERT INTO screen_embeddings (snapshot_id, ts, app, text, vec, model_id)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                """, bind: [id, ts.timeIntervalSince1970, "App \(index)", text, vector, EmbeddingIndex.indexVersion]))
+            XCTAssertTrue(database.run(
+                "INSERT INTO embeddings (meeting_id, start, text, vec) VALUES (?1, ?2, ?3, ?4)",
+                bind: [meetingID.uuidString, Double(index), text, vector]))
+            screens.append(.init(snapshotID: id, ts: ts, app: "App \(index)", text: text, vector: vector))
+            chunks.append(.init(meetingID: meetingID, start: Double(index), text: text, vector: vector))
+        }
+        let query: [Float] = [1, 0]
+
+        let foundScreens = EmbeddingIndex.screenHits(in: database, filter: .all, queryVector: query, limit: 4)
+        XCTAssertEqual(foundScreens, EmbeddingIndex.rankScreen(screens, against: query, limit: 4))
+        XCTAssertEqual(foundScreens.map(\.text), ["Capture 4", "Capture 7", "Capture 2", "Capture 5"])
+
+        let foundChunks = EmbeddingIndex.meetingHits(in: database, meetingIDs: [meetingID], queryVector: query, limit: 5)
+        let rankedChunks = EmbeddingIndex.rank(chunks, against: query, limit: 5)
+        XCTAssertEqual(foundChunks.map(\.text), rankedChunks.map(\.text))
+        XCTAssertEqual(foundChunks.map(\.score), rankedChunks.map(\.score))
+        XCTAssertEqual(foundChunks.map(\.start), [4, 7, 1, 2, 5])
+
+        // A capture deleted while ranking ran is dropped by the main-actor check.
+        try store.deleteScreenshot(id: foundScreens[0].snapshotID)
+        XCTAssertEqual(EmbeddingIndex.liveScreenHits(foundScreens, in: database).map(\.snapshotID),
+                       foundScreens.dropFirst().map(\.snapshotID))
+    }
+
     func testMeetingAndScreenSearchShareOneQueryEmbedding() async throws {
         let library = try makeLibrary()
 

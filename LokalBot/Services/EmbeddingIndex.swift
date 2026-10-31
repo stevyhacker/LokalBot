@@ -1,3 +1,4 @@
+import Accelerate
 import Foundation
 import SQLite3
 
@@ -314,6 +315,8 @@ final class EmbeddingIndex {
                 ON screen_embeddings(ts);
             CREATE INDEX IF NOT EXISTS idx_screen_embeddings_app_ts
                 ON screen_embeddings(app, ts);
+            CREATE INDEX IF NOT EXISTS idx_screen_embeddings_model
+                ON screen_embeddings(model_id);
             """)
         if database?.hasRow(
             "SELECT 1 FROM pragma_table_info('embedded_meetings') WHERE name = 'model_id'"
@@ -337,12 +340,16 @@ final class EmbeddingIndex {
                 SELECT 1 FROM sqlite_master
                 WHERE type = 'table' AND name = 'screenshots'
                 """) {
+                // Two index ranges instead of `!=`, which reads every vector
+                // (41 MB on a large library) at each launch on the main actor.
                 screenVectorsNeedRebuild = database.hasRow(
-                    "SELECT 1 FROM screen_embeddings WHERE model_id != ?1 LIMIT 1",
+                    "SELECT 1 FROM screen_embeddings WHERE model_id < ?1 OR model_id > ?1 LIMIT 1",
                     bind: [Self.indexVersion])
-                database.run(
-                    "DELETE FROM screen_embeddings WHERE model_id != ?1",
-                    bind: [Self.indexVersion])
+                if screenVectorsNeedRebuild {
+                    database.run(
+                        "DELETE FROM screen_embeddings WHERE model_id < ?1 OR model_id > ?1",
+                        bind: [Self.indexVersion])
+                }
             }
         }
         _ = reconcileDeletedMeetings()
@@ -859,67 +866,26 @@ final class EmbeddingIndex {
         let url = databaseURL
         let worker = Task.detached(priority: .userInitiated) {
             guard !Task.isCancelled, let database = SQLiteDatabase(url: url, readOnly: true) else { return [ScreenHit]() }
-            var conditions = ["embedded.model_id = ?1"]
-            var bindings: [Any] = [Self.indexVersion]
-            if let ids = filter.snapshotIDs {
-                guard !ids.isEmpty else { return [] }
-                let placeholders = ids.sorted().map { id -> String in
-                    bindings.append(id)
-                    return "?\(bindings.count)"
-                }
-                conditions.append("embedded.snapshot_id IN (\(placeholders.joined(separator: ",")))")
-            }
-            if let interval = filter.interval {
-                let startParameter = bindings.count + 1
-                bindings.append(interval.start.timeIntervalSince1970)
-                let endParameter = bindings.count + 1
-                bindings.append(interval.end.timeIntervalSince1970)
-                conditions.append(
-                    "embedded.ts >= ?\(startParameter) AND embedded.ts < ?\(endParameter)")
-            }
-            if let app = filter.app {
-                let parameter = bindings.count + 1
-                bindings.append(app)
-                conditions.append("embedded.app = ?\(parameter) COLLATE NOCASE")
-            }
-
-            let candidates: [ScreenCandidate] = database.query("""
-                SELECT embedded.snapshot_id, embedded.ts, embedded.app,
-                       embedded.text, embedded.vec
-                FROM screen_embeddings AS embedded
-                JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
-                WHERE \(conditions.joined(separator: " AND "))
-                  AND EXISTS (
-                      SELECT 1 FROM ocr_metadata AS ocr
-                      WHERE ocr.snapshot_id = embedded.snapshot_id
-                  )
-                ORDER BY embedded.snapshot_id
-                """, bind: bindings) { statement in
-                guard let app = sqlite3_column_text(statement, 2),
-                      let text = sqlite3_column_text(statement, 3),
-                      let blob = sqlite3_column_blob(statement, 4) else { return nil }
-                let byteCount = Int(sqlite3_column_bytes(statement, 4))
-                guard byteCount == queryVector.count * MemoryLayout<Float>.stride else { return nil }
-                return ScreenCandidate(
-                    snapshotID: sqlite3_column_int64(statement, 0),
-                    ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
-                    app: String(cString: app),
-                    text: String(cString: text),
-                    vector: Data(bytes: blob, count: byteCount))
-            }
-            return Self.rankScreen(candidates, against: queryVector, limit: limit)
+            return Self.screenHits(in: database, filter: filter, queryVector: queryVector, limit: limit)
         }
         let ranked = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
         guard !Task.isCancelled else { return [] }
-        return ranked.filter { hit in
-            database.hasRow(
-                """
-                SELECT 1 FROM screenshots AS shot JOIN ocr_metadata AS meta ON meta.snapshot_id = shot.id
-                JOIN ocr_fts AS ocr ON ocr.rowid = meta.rowid
-                WHERE shot.id = ?1
-                """,
-                bind: [hit.snapshotID])
-        }
+        return Self.liveScreenHits(ranked, in: database)
+    }
+
+    /// Drops hits whose capture or screen text was deleted while ranking ran.
+    /// One query for all hits: this runs on the main actor.
+    nonisolated static func liveScreenHits(_ hits: [ScreenHit], in database: SQLiteDatabase) -> [ScreenHit] {
+        guard !hits.isEmpty else { return [] }
+        let placeholders = hits.indices.map { "?\($0 + 1)" }.joined(separator: ",")
+        let live = Set(database.query(
+            """
+            SELECT shot.id FROM screenshots AS shot JOIN ocr_metadata AS meta ON meta.snapshot_id = shot.id
+            JOIN ocr_fts AS ocr ON ocr.rowid = meta.rowid
+            WHERE shot.id IN (\(placeholders))
+            """,
+            bind: hits.map(\.snapshotID)) { sqlite3_column_int64($0, 0) })
+        return hits.filter { live.contains($0.snapshotID) }
     }
 
     /// A capture's best meaning match for a query, and what search shows for it.
@@ -973,7 +939,8 @@ final class EmbeddingIndex {
             let modality: ScreenSearchRanking.Modality
             let cosine: Float
         }
-        let byteCount = queryVector.count * MemoryLayout<Float>.stride
+        var scorer = VectorScorer(queryVector)
+        let byteCount = scorer.byteCount
         func read(_ statement: OpaquePointer, modality: ScreenSearchRanking.Modality) -> Row? {
             guard let app = sqlite3_column_text(statement, 2),
                   let blob = sqlite3_column_blob(statement, 4),
@@ -982,7 +949,7 @@ final class EmbeddingIndex {
             return Row(snapshotID: sqlite3_column_int64(statement, 0),
                        ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
                        app: String(cString: app), text: text, modality: modality,
-                       cosine: cosine(Data(bytes: blob, count: byteCount), queryVector: queryVector))
+                       cosine: scorer.score(blob))
         }
         var rows: [Row] = database.query("""
             SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.text, embedded.vec
@@ -1033,45 +1000,7 @@ final class EmbeddingIndex {
         let url = databaseURL
         let worker = Task.detached(priority: .userInitiated) {
             guard !Task.isCancelled, let database = SQLiteDatabase(url: url, readOnly: true) else { return [Hit]() }
-            var bindings: [Any] = [Self.indexVersion]
-            let scope: String
-            if let meetingIDs {
-                let parameters = meetingIDs.sorted { $0.uuidString < $1.uuidString }.map { id -> String in
-                    bindings.append(id.uuidString)
-                    return "?\(bindings.count)"
-                }
-                scope = "embedded.meeting_id IN (\(parameters.joined(separator: ",")))"
-            } else { scope = "1 = 1" }
-            let candidates: [Candidate] = database.query(
-                """
-                SELECT embedded.meeting_id, embedded.start, embedded.text, embedded.vec
-                FROM embeddings AS embedded
-                WHERE \(scope) AND EXISTS (
-                    SELECT 1 FROM embedded_meetings AS indexed
-                    WHERE indexed.meeting_id = embedded.meeting_id
-                      AND indexed.model_id = ?1
-                )
-                  AND NOT EXISTS (
-                    SELECT 1 FROM deleted_meetings AS deleted
-                    WHERE deleted.meeting_id = embedded.meeting_id
-                )
-                """, bind: bindings
-            ) { statement in
-                guard let idText = sqlite3_column_text(statement, 0),
-                      let meetingID = UUID(uuidString: String(cString: idText)),
-                      let text = sqlite3_column_text(statement, 2),
-                      let blob = sqlite3_column_blob(statement, 3) else { return nil }
-                let byteCount = Int(sqlite3_column_bytes(statement, 3))
-                guard byteCount == queryVector.count * MemoryLayout<Float>.stride else { return nil }
-                let candidate = Candidate(
-                    meetingID: meetingID,
-                    start: sqlite3_column_double(statement, 1),
-                    text: String(cString: text),
-                    vector: Data(bytes: blob, count: byteCount))
-                guard meetingIDs?.contains(candidate.meetingID) ?? true else { return nil }
-                return candidate
-            }
-            return Self.rank(candidates, against: queryVector, limit: limit)
+            return Self.meetingHits(in: database, meetingIDs: meetingIDs, queryVector: queryVector, limit: limit)
         }
         let ranked = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
         guard !Task.isCancelled else { return [] }
@@ -1107,89 +1036,235 @@ final class EmbeddingIndex {
         let vector: Data
     }
 
-    /// Cosine scoring is the expensive part of brute-force retrieval. Keep it
-    /// off the main actor and retain only the best `limit` rows instead of
-    /// allocating and sorting a hit for every embedding in the library.
+    /// Brute-force meeting retrieval over one read-only connection.
+    nonisolated static func meetingHits(
+        in database: SQLiteDatabase,
+        meetingIDs: Set<UUID>?,
+        queryVector: [Float],
+        limit: Int
+    ) -> [Hit] {
+        var bindings: [Any] = [Self.indexVersion]
+        let scope: String
+        if let meetingIDs {
+            let parameters = meetingIDs.sorted { $0.uuidString < $1.uuidString }.map { id -> String in
+                bindings.append(id.uuidString)
+                return "?\(bindings.count)"
+            }
+            scope = "embedded.meeting_id IN (\(parameters.joined(separator: ",")))"
+        } else { scope = "1 = 1" }
+        // Score every row straight from SQLite's buffer, then read text only
+        // for the rows kept: copying all chunks' text and vectors first cost
+        // more than the scoring itself.
+        var scorer = VectorScorer(queryVector)
+        var scored: [(score: Float, order: Int, rowID: Int64, meetingID: UUID, start: TimeInterval)] = []
+        database.withStatement(
+            """
+            SELECT embedded.rowid, embedded.meeting_id, embedded.start, embedded.vec
+            FROM embeddings AS embedded
+            WHERE \(scope) AND EXISTS (
+                SELECT 1 FROM embedded_meetings AS indexed
+                WHERE indexed.meeting_id = embedded.meeting_id
+                  AND indexed.model_id = ?1
+            )
+              AND NOT EXISTS (
+                SELECT 1 FROM deleted_meetings AS deleted
+                WHERE deleted.meeting_id = embedded.meeting_id
+            )
+            """, bind: bindings
+        ) { statement in
+            var order = 0
+            while sqlite3_step(statement) == SQLITE_ROW {
+                guard let blob = sqlite3_column_blob(statement, 3),
+                      Int(sqlite3_column_bytes(statement, 3)) == scorer.byteCount,
+                      let meetingID = uuid(column: 1, of: statement),
+                      meetingIDs?.contains(meetingID) ?? true else { continue }
+                let score = scorer.score(blob)
+                order += 1
+                guard score > meetingSimilarityFloor else { continue }
+                scored.append((score, order, sqlite3_column_int64(statement, 0), meetingID,
+                               sqlite3_column_double(statement, 2)))
+            }
+        }
+        let kept = scored.sorted { meetingRanksFirst(($0.score, $0.order), ($1.score, $1.order)) }.prefix(limit)
+        let texts = Dictionary(uniqueKeysWithValues: rowTexts(
+            in: database, table: "embeddings", key: "rowid", ids: kept.map(\.rowID)))
+        return kept.compactMap { row in
+            texts[row.rowID].map { Hit(meetingID: row.meetingID, start: row.start, text: $0, score: row.score) }
+        }
+    }
+
+    /// Brute-force screen retrieval over one read-only connection.
+    nonisolated static func screenHits(
+        in database: SQLiteDatabase,
+        filter: ScreenSearchFilter,
+        queryVector: [Float],
+        limit: Int
+    ) -> [ScreenHit] {
+        var conditions = ["embedded.model_id = ?1"]
+        var bindings: [Any] = [Self.indexVersion]
+        if let ids = filter.snapshotIDs {
+            guard !ids.isEmpty else { return [] }
+            let placeholders = ids.sorted().map { id -> String in
+                bindings.append(id)
+                return "?\(bindings.count)"
+            }
+            conditions.append("embedded.snapshot_id IN (\(placeholders.joined(separator: ",")))")
+        }
+        if let interval = filter.interval {
+            let startParameter = bindings.count + 1
+            bindings.append(interval.start.timeIntervalSince1970)
+            let endParameter = bindings.count + 1
+            bindings.append(interval.end.timeIntervalSince1970)
+            conditions.append(
+                "embedded.ts >= ?\(startParameter) AND embedded.ts < ?\(endParameter)")
+        }
+        if let app = filter.app {
+            let parameter = bindings.count + 1
+            bindings.append(app)
+            conditions.append("embedded.app = ?\(parameter) COLLATE NOCASE")
+        }
+
+        // As for meetings: score in place, read app and text for kept rows.
+        var scorer = VectorScorer(queryVector)
+        var scored: [(score: Float, snapshotID: Int64, ts: TimeInterval)] = []
+        database.withStatement("""
+            SELECT embedded.snapshot_id, embedded.ts, embedded.vec
+            FROM screen_embeddings AS embedded
+            JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
+            WHERE \(conditions.joined(separator: " AND "))
+              AND EXISTS (
+                  SELECT 1 FROM ocr_metadata AS ocr
+                  WHERE ocr.snapshot_id = embedded.snapshot_id
+              )
+            ORDER BY embedded.snapshot_id
+            """, bind: bindings) { statement in
+            while sqlite3_step(statement) == SQLITE_ROW {
+                guard let blob = sqlite3_column_blob(statement, 2),
+                      Int(sqlite3_column_bytes(statement, 2)) == scorer.byteCount else { continue }
+                let score = scorer.score(blob)
+                guard score > screenSimilarityFloor else { continue }
+                scored.append((score, sqlite3_column_int64(statement, 0), sqlite3_column_double(statement, 1)))
+            }
+        }
+        let kept = scored.sorted {
+            screenRanksFirst(($0.score, $0.ts, $0.snapshotID), ($1.score, $1.ts, $1.snapshotID))
+        }.prefix(limit)
+        var details: [Int64: (app: String, text: String)] = [:]
+        if !kept.isEmpty {
+            let placeholders = (1...kept.count).map { "?\($0)" }.joined(separator: ",")
+            database.withStatement(
+                "SELECT snapshot_id, app, text FROM screen_embeddings WHERE snapshot_id IN (\(placeholders))",
+                bind: kept.map(\.snapshotID)
+            ) { statement in
+                while sqlite3_step(statement) == SQLITE_ROW {
+                    guard let app = sqlite3_column_text(statement, 1),
+                          let text = sqlite3_column_text(statement, 2) else { continue }
+                    details[sqlite3_column_int64(statement, 0)] = (String(cString: app), String(cString: text))
+                }
+            }
+        }
+        return kept.compactMap { row in
+            details[row.snapshotID].map {
+                ScreenHit(snapshotID: row.snapshotID, ts: Date(timeIntervalSince1970: row.ts),
+                          app: $0.app, text: $0.text, score: row.score)
+            }
+        }
+    }
+
+    /// Dot products against one query, reading each stored vector through a
+    /// reused aligned buffer (SQLite blobs carry no alignment guarantee).
+    struct VectorScorer {
+        let queryVector: [Float]
+        let byteCount: Int
+        private var scratch: [Float]
+
+        init(_ queryVector: [Float]) {
+            self.queryVector = queryVector
+            byteCount = queryVector.count * MemoryLayout<Float>.stride
+            scratch = Array(repeating: 0, count: queryVector.count)
+        }
+
+        /// `bytes` must hold `byteCount` bytes.
+        mutating func score(_ bytes: UnsafeRawPointer) -> Float {
+            var total: Float = 0
+            scratch.withUnsafeMutableBytes { $0.copyMemory(from: UnsafeRawBufferPointer(start: bytes, count: byteCount)) }
+            vDSP_dotpr(scratch, 1, queryVector, 1, &total, vDSP_Length(queryVector.count))
+            return total
+        }
+
+        /// Nil when the stored vector has another dimension.
+        mutating func score(_ vector: Data) -> Float? {
+            guard byteCount > 0, vector.count == byteCount else { return nil }
+            return vector.withUnsafeBytes { score($0.baseAddress!) }
+        }
+    }
+
+    nonisolated private static func uuid(column: Int32, of statement: OpaquePointer) -> UUID? {
+        guard let text = sqlite3_column_text(statement, column) else { return nil }
+        var bytes: uuid_t = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        let parsed = text.withMemoryRebound(to: CChar.self, capacity: 37) { uuid_parse($0, &bytes) }
+        return parsed == 0 ? UUID(uuid: bytes) : nil
+    }
+
+    nonisolated private static func rowTexts(
+        in database: SQLiteDatabase, table: String, key: String, ids: [Int64]
+    ) -> [(Int64, String)] {
+        guard !ids.isEmpty else { return [] }
+        let placeholders = ids.indices.map { "?\($0 + 1)" }.joined(separator: ",")
+        return database.query("SELECT \(key), text FROM \(table) WHERE \(key) IN (\(placeholders))",
+                              bind: ids) { statement in
+            sqlite3_column_text(statement, 1).map { (sqlite3_column_int64(statement, 0), String(cString: $0)) }
+        }
+    }
+
+    /// In-memory ranking with the same floor and order as `meetingHits`.
     nonisolated static func rank(
         _ candidates: [Candidate],
         against queryVector: [Float],
         limit: Int
     ) -> [Hit] {
-        var best: [Hit] = []
-        best.reserveCapacity(limit)
-
-        for candidate in candidates {
-            let score: Float = candidate.vector.withUnsafeBytes { bytes in
-                var total: Float = 0
-                for index in queryVector.indices {
-                    let value = bytes.loadUnaligned(
-                        fromByteOffset: index * MemoryLayout<Float>.stride,
-                        as: Float.self)
-                    total += queryVector[index] * value
-                }
-                return total
-            }
-            guard score > meetingSimilarityFloor else { continue }
-            let hit = Hit(meetingID: candidate.meetingID, start: candidate.start,
-                          text: candidate.text, score: score)
-            if best.count < limit {
-                best.append(hit)
-            } else if let weakest = best.indices.min(by: { best[$0].score < best[$1].score }),
-                      score > best[weakest].score {
-                best[weakest] = hit
-            }
+        var scorer = VectorScorer(queryVector)
+        let scored = candidates.indices.compactMap { index -> (score: Float, order: Int)? in
+            let candidate = candidates[index]
+            guard let score = scorer.score(candidate.vector), score > meetingSimilarityFloor else { return nil }
+            return (score, index)
         }
-        return best.sorted { $0.score > $1.score }
+        return scored.sorted(by: meetingRanksFirst).prefix(limit).map { row in
+            let candidate = candidates[row.order]
+            return Hit(meetingID: candidate.meetingID, start: candidate.start, text: candidate.text, score: row.score)
+        }
     }
 
+    /// In-memory ranking with the same floor and order as `screenHits`.
     nonisolated static func rankScreen(
         _ candidates: [ScreenCandidate],
         against queryVector: [Float],
         limit: Int
     ) -> [ScreenHit] {
-        var best: [ScreenHit] = []
-        best.reserveCapacity(limit)
-        for candidate in candidates {
-            let score = cosine(candidate.vector, queryVector: queryVector)
-            guard score > screenSimilarityFloor else { continue }
-            let hit = ScreenHit(
-                snapshotID: candidate.snapshotID,
-                ts: candidate.ts,
-                app: candidate.app,
-                text: candidate.text,
-                score: score)
-            if best.count < limit {
-                best.append(hit)
-            } else if let weakest = best.indices.min(by: {
-                let lhs = best[$0]
-                let rhs = best[$1]
-                if lhs.score != rhs.score { return lhs.score < rhs.score }
-                if lhs.ts != rhs.ts { return lhs.ts < rhs.ts }
-                return lhs.snapshotID > rhs.snapshotID
-            }), Self.screenHitSort(hit, best[weakest]) {
-                best[weakest] = hit
-            }
+        var scorer = VectorScorer(queryVector)
+        let scored = candidates.compactMap { candidate -> ScreenHit? in
+            guard let score = scorer.score(candidate.vector), score > screenSimilarityFloor else { return nil }
+            return ScreenHit(snapshotID: candidate.snapshotID, ts: candidate.ts, app: candidate.app,
+                             text: candidate.text, score: score)
         }
-        return best.sorted(by: screenHitSort)
+        return Array(scored.sorted {
+            screenRanksFirst(($0.score, $0.ts.timeIntervalSince1970, $0.snapshotID),
+                             ($1.score, $1.ts.timeIntervalSince1970, $1.snapshotID))
+        }.prefix(limit))
     }
 
-    nonisolated private static func cosine(_ vector: Data, queryVector: [Float]) -> Float {
-        vector.withUnsafeBytes { bytes in
-            var total: Float = 0
-            for index in queryVector.indices {
-                let value = bytes.loadUnaligned(
-                    fromByteOffset: index * MemoryLayout<Float>.stride,
-                    as: Float.self)
-                total += queryVector[index] * value
-            }
-            return total
-        }
+    /// Higher score first; equal scores keep library order.
+    nonisolated private static func meetingRanksFirst(_ lhs: (score: Float, order: Int),
+                                                      _ rhs: (score: Float, order: Int)) -> Bool {
+        lhs.score != rhs.score ? lhs.score > rhs.score : lhs.order < rhs.order
     }
 
-    nonisolated private static func screenHitSort(_ lhs: ScreenHit, _ rhs: ScreenHit) -> Bool {
+    /// Higher score, then the newer capture, then the lower capture ID.
+    nonisolated private static func screenRanksFirst(_ lhs: (score: Float, ts: TimeInterval, id: Int64),
+                                                     _ rhs: (score: Float, ts: TimeInterval, id: Int64)) -> Bool {
         if lhs.score != rhs.score { return lhs.score > rhs.score }
         if lhs.ts != rhs.ts { return lhs.ts > rhs.ts }
-        return lhs.snapshotID < rhs.snapshotID
+        return lhs.id < rhs.id
     }
 
     nonisolated private static func vectorData(_ vector: [Float]) -> Data {
