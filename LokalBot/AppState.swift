@@ -845,7 +845,8 @@ final class AppState: ObservableObject {
         mutateEvidence: { [weak self] days, mutation in
             try self?.withPrimaryEvidenceChange(on: days, .revision, mutation)
         },
-        onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) })
+        onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) },
+        waitUntilReady: { [weak self] in await self?.waitForLibrary() })
     /// Meeting-recording lifecycle: recorders, watchdog, timer tick, prewarm.
     private(set) lazy var recording = RecordingController(
         storage: storage,
@@ -1447,6 +1448,12 @@ final class AppState: ObservableObject {
                     systemAudioPolicy: pending.systemAudioPolicy)
             }
         }
+    }
+
+    /// Returns once the meeting library has loaded, for launch work that
+    /// should not compete with it.
+    private func waitForLibrary() async {
+        for await ready in $libraryReady.values where ready { return }
     }
 
     private func reindexLibraryInBackground(_ meetings: [Meeting]) {
