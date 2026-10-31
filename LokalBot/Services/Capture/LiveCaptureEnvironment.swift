@@ -109,10 +109,20 @@ struct LiveAccessibilitySource: AccessibilitySource {
     func isTrusted() -> Bool { AXIsProcessTrusted() }
 
     func read(processID: pid_t, includeText: Bool) -> AccessibilityRead {
-        let snapshot = ScreenAccessibilityReader.resolve(processID: processID, includeText: includeText)
+        let snapshot = ScreenAccessibilityReader.resolve(processID: processID, reading: includeText ? .text : .metadata)
         let failure = snapshot == nil && includeText
             ? ScreenAccessibilityReader.lastTextReadFailure(for: processID) : nil
         return AccessibilityRead(snapshot: snapshot, failure: failure)
+    }
+
+    func readWindow(processID: pid_t) -> AccessibilityRead {
+        AccessibilityRead(snapshot: ScreenAccessibilityReader.resolve(processID: processID, reading: .window),
+                          failure: nil)
+    }
+
+    func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead {
+        AccessibilityRead(snapshot: ScreenAccessibilityReader.resolve(
+            processID: processID, reading: .privacy, nodeLimit: nodeLimit ?? 320), failure: nil)
     }
 
     func focusedWindowTitle(processID: pid_t) -> String? {

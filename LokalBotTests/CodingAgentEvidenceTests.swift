@@ -223,6 +223,37 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertEqual(recorder.ranges.map { $0.1 }, [try date("2026-09-29T00:00:00Z"), try date("2026-09-10T00:00:00Z")])
     }
 
+    /// The first scan parses every transcript in the window, so at launch it
+    /// waits for the meeting library instead of competing with its load.
+    func testTheFirstScanWaitsUntilTheLibraryIsReady() async throws {
+        let recorder = ScanRecorder()
+        let scanned = expectation(description: "first scan")
+        let libraryReady = AsyncStream<Void>.makeStream()
+        let now = try date("2026-09-29T15:00:00Z")
+        let ingestor = CodingAgentEvidenceIngestor(
+            store: makeStore(),
+            configuration: { .init(agents: [.claudeCode]) },
+            scan: { _, first, last, _ in
+                recorder.record(first, last)
+                scanned.fulfill()
+                return CodingAgentDayScan(
+                    interval: DateInterval(start: first, end: last.addingTimeInterval(86_400)), bursts: [],
+                    sessionCount: 0, filesRead: 0, bytesRead: 0, unreadableFiles: [], excludedSessions: 0)
+            },
+            mutateEvidence: { _, body in try body() },
+            waitUntilReady: { for await _ in libraryReady.stream { return } },
+            now: { now }, calendar: calendar)
+        defer { ingestor.stop() }
+
+        ingestor.start()
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertTrue(recorder.ranges.isEmpty, "nothing is read while the library loads")
+
+        libraryReady.continuation.yield()
+        await fulfillment(of: [scanned], timeout: 5)
+        XCTAssertEqual(recorder.ranges.map { $0.0 }, [try date("2026-09-23T00:00:00Z")])
+    }
+
     func testAScanFinishingAfterTheFeatureIsTurnedOffStoresNothing() async throws {
         let store = makeStore()
         let switchBox = ConfigurationBox(.init(agents: [.claudeCode]))

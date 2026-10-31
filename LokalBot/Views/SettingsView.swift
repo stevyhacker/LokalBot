@@ -32,7 +32,7 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                 settingsSearchField.padding(.horizontal, 14)
                 List(selection: Binding(get: { queryIsEmpty ? Optional(app.settingsTab) : nil }, set: {
-                    if let category = $0 { app.settingsTab = category; settingsQuery = ""; app.focusedSettingID = nil }
+                    if let category = $0 { app.selectSettingsTab(category); settingsQuery = "" }
                 })) {
                     ForEach(AppState.SettingsTab.allCases, id: \.self) { category in
                         SettingsCategoryLabel(category: category)
