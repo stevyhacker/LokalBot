@@ -95,6 +95,77 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertEqual(service.totals.searchable, 1)
     }
 
+    func testOnBatteryAFoldersFirstReadWaitsForAChargerButNewFilesAreReadRightAway() async throws {
+        let many = FileSearchService.newFilesLimit + 1
+        for index in 0..<many {
+            try write("note-\(index).txt", "Meeting note number \(index) about the spring launch plan and its budget.")
+        }
+        let service = makeService()
+        let onBattery = BatteryFlag(true)
+        service.isOnBattery = { onBattery.value }
+
+        service.apply(.init(enabled: true, folders: [chosen.path]))
+        await service.waitUntilIdle()
+
+        XCTAssertEqual(service.state, .waitingForPower(left: many))
+        XCTAssertEqual(starts, 0, "a big read on battery never loads the model")
+
+        try write("fresh.txt", "A new file saved while on battery: the offsite moved to Lisbon.")
+        service.requestPass()
+        await service.waitUntilIdle()
+
+        XCTAssertEqual(service.state, .waitingForPower(left: many))
+        XCTAssertEqual(service.totals.searchable, 1)
+        let fresh = await service.search("Lisbon", queryVector: nil)
+        XCTAssertEqual(fresh.map(\.name), ["fresh.txt"])
+
+        onBattery.value = false
+        service.conditionsDidChange()
+        await service.waitUntilIdle()
+
+        XCTAssertEqual(service.state, .ready)
+        XCTAssertEqual(service.totals.searchable, many + 1)
+    }
+
+    func testReadingOnBatteryReadsAFoldersFirstPassRightAway() async throws {
+        for index in 0...FileSearchService.newFilesLimit {
+            try write("note-\(index).txt", "Research note \(index) on battery chemistry and charging curves.")
+        }
+        let service = makeService()
+        service.isOnBattery = { true }
+
+        service.apply(.init(enabled: true, folders: [chosen.path], readsOnBattery: true))
+        await service.waitUntilIdle()
+
+        XCTAssertEqual(service.state, .ready)
+        XCTAssertEqual(service.totals.searchable, FileSearchService.newFilesLimit + 1)
+    }
+
+    func testTheEstimateCountsWhatAFolderHoldsAndLeavesOutFilesAlreadyChosen() throws {
+        let more = root.appendingPathComponent("More", isDirectory: true)
+        try FileManager.default.createDirectory(at: more, withIntermediateDirectories: true)
+        try "Packing list for the trip: passport, chargers, the blue jacket."
+            .write(to: more.appendingPathComponent("packing.txt"), atomically: true, encoding: .utf8)
+        try writePicture("../More/beach.png", width: 640, height: 480)
+        try writePicture("../More/hills.png", width: 640, height: 480)
+        try write("already.txt", "This folder is chosen already.")
+        let options = FileSearchService.indexOptions()
+        let costs = root.appendingPathComponent("costs", isDirectory: true)
+
+        let estimate = FileSearchService.estimate(of: [more.path], excluding: [chosen.path], options: options,
+                                                  costsFolder: costs, checksSpeed: false)
+
+        XCTAssertEqual(estimate.files, 3)
+        XCTAssertEqual(estimate.pictures, 2)
+        XCTAssertEqual(estimate.documents, 1)
+        XCTAssertEqual(estimate.recordings, 0)
+        XCTAssertGreaterThan(estimate.seconds, 0)
+
+        let inside = FileSearchService.estimate(of: [chosen.path], excluding: [root.path], options: options,
+                                                costsFolder: costs, checksSpeed: false)
+        XCTAssertEqual(inside.files, 0, "files under a chosen folder are read already")
+    }
+
     func testRemovingAFolderDropsItsFilesAndTurningOffDeletesTheIndex() async throws {
         try write("notes.txt", String(repeating: "Invoice INV-2041 was paid late in October. ", count: 8))
         let service = makeService()
@@ -226,6 +297,18 @@ final class FileSearchServiceTests: XCTestCase {
             chosen.appendingPathComponent(name) as CFURL, UTType.png.identifier as CFString, 1, nil))
         CGImageDestinationAddImage(destination, image, nil)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
+    }
+}
+
+private final class BatteryFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var on: Bool
+
+    init(_ on: Bool) { self.on = on }
+
+    var value: Bool {
+        get { lock.withLock { on } }
+        set { lock.withLock { on = newValue } }
     }
 }
 

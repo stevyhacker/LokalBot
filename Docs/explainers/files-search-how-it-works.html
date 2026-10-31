@@ -332,7 +332,8 @@ tr.muted td { color: var(--ink-faint); }
       <li class="gate"><span class="n">2</span>
         <h3>Should it wait? <span>checked before each batch</span></h3>
         <p>A meeting is recording, Low Power Mode is on, or the Mac is hot (thermal state serious or critical).
-          Then it waits, and starts again when that ends.</p></li>
+          Then it waits, and starts again when that ends. On battery, a folder's first read waits for a charger;
+          up to 50 new files are read anyway.</p></li>
       <li><span class="n">3</span>
         <h3>Sync <span>CPU · no model</span></h3>
         <p>DigUp walks the folders and compares sizes and dates with the index: new and changed files are queued,
@@ -348,7 +349,8 @@ tr.muted td { color: var(--ink-faint); }
       <li class="gpu"><span class="n">6</span>
         <h3>Read and embed <span>CPU reads · GPU embeds</span></h3>
         <p>Screenshots first, then pictures, PDFs, documents, recordings and video, newest first. While the GPU embeds one file, a CPU
-          thread decodes, OCRs or extracts the next. Long PDFs get their first 30 pages now.</p></li>
+          thread decodes, OCRs or extracts the next. Long PDFs get their first 30 pages now. While you use the Mac it rests
+          twice as long as each batch took; two minutes idle, it runs flat out.</p></li>
       <li class="gpu"><span class="n">7</span>
         <h3>Finish long files <span>30 pages · 40 chunks a step</span></h3>
         <p>The rest of PDFs over 50 pages and of long documents, once everything else is searchable.</p></li>
@@ -453,13 +455,23 @@ tr.muted td { color: var(--ink-faint); }
         server exists only during a pass and counts against LokalBot's model memory budget, so it can't push out a
         model you are using. Search vectors take 1.5 KB each, loaded on the first search and freed after ten idle
         minutes: 20,000 pages and pictures are about 30 MB.</p>
+      <div style="margin-top: 14px;"><span class="tag compute">Pacing · a big read</span></div>
+      <div class="bars">
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">You're at the Mac</span><span class="track"><span class="fill" style="width: 33.3%"></span></span><span class="value">1/3</span></div>
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">2 min, no input</span><span class="track"><span class="fill" style="width: 100%"></span></span><span class="value">full</span></div>
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">On battery</span><span class="track"><span class="fill" style="width: 0%"></span></span><span class="value">waits</span></div>
+      </div>
+      <p style="font-size:10.4px;" class="dim">After each batch it rests twice as long as the batch took (at most 20 s)
+        while the next file is decoded. 10,000 photos: ≈ 13 min while you're away, ≈ 40 min while you work. On
+        battery, up to 50 new files are still read; the rest waits unless you turn on reading on battery.</p>
     </div>
   </div>
 
   <div class="band compute">
-    <b>When it runs.</b> Only during a pass, and only for files that are new or changed. When a meeting starts
-    recording, Low Power Mode comes on or the Mac gets hot, it stops after the files in hand and waits. Typing a search costs one 6 ms embedding on the server that
-    is already running, plus a scan of the vectors in memory.
+    <b>When it runs.</b> Only during a pass, and only for files that are new or changed. Adding a folder first shows
+    its estimate on this Mac. While you work, a big read gets a third of the time (the times above, tripled); idle,
+    it runs at full speed; on battery it waits for a charger. A recording, Low Power Mode or heat stops it after the
+    files in hand. A search costs one 6 ms embedding plus a scan of the vectors in memory.
   </div>
 
   <div class="foot"><span>Numbers: the 30 October media-embedder benchmark (#408) · llama.cpp's sizing: 13 October report</span><span>3 / 5 · Compute</span></div>
@@ -632,7 +644,8 @@ tr.muted td { color: var(--ink-faint); }
           already made.</li>
         <li><b>Starts</b> only after your first search of screens by meaning, which is when the 555 MB projector
           downloads if Files hasn't already.</li>
-        <li><b>Waits</b> while a meeting records, in Low Power Mode, and while the Mac is hot.</li>
+        <li><b>Waits</b> while a meeting records, in Low Power Mode, and while the Mac is hot; paced while you work,
+          and on battery only the newest 48 captures a pass.</li>
       </ul>
     </div>
   </div>

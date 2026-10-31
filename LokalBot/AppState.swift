@@ -164,7 +164,8 @@ final class AppState: ObservableObject {
             }
             if settings.fileSearchEnabled != oldValue.fileSearchEnabled
                 || settings.fileSearchFolders != oldValue.fileSearchFolders
-                || settings.fileSearchIncludesMedia != oldValue.fileSearchIncludesMedia {
+                || settings.fileSearchIncludesMedia != oldValue.fileSearchIncludesMedia
+                || settings.fileSearchReadsOnBattery != oldValue.fileSearchReadsOnBattery {
                 applyFileSearchSetting()
             }
             if settings.semanticSearchEnabled != oldValue.semanticSearchEnabled
@@ -2700,7 +2701,8 @@ final class AppState: ObservableObject {
         guard HeadlessCommand.requested == nil, !Self.isUITesting, libraryReady else { return }
         guard settings.fileSearchEnabled || fileSearch.configuration.enabled else { return }
         fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders,
-                               includesMedia: settings.fileSearchIncludesMedia))
+                               includesMedia: settings.fileSearchIncludesMedia,
+                               readsOnBattery: settings.fileSearchReadsOnBattery))
     }
 
     func applyDreamingSetting() {

@@ -579,7 +579,15 @@ nothing until you choose a folder. Its engine is
   Opening a moment plays it in a LokalBot window.
   Reading happens in passes when something in the folders changes, and pauses
   while a meeting records, in Low Power Mode, and while the Mac is warm. The
-  model runs only while new or changed files are read.
+  model runs only while new or changed files are read. A folder's first read
+  goes slower while you use the Mac: LokalBot checks how long ago the last key
+  press or mouse move was (never which key or where), as macOS reports it. On
+  battery, that first read waits for a charger unless you turn on **Read big
+  folders on battery**.
+  Before you add a folder, LokalBot counts what it holds to show how long the
+  first read will take. The count uses file metadata only (types, sizes, and
+  page counts and durations from Spotlight) and is not kept; the only thing
+  saved is how fast this Mac indexes, as timings without file names.
 - **Where it is kept.** In `files-index.noindex` in the library: each indexed
   file's path, size, and dates, the text LokalBot extracted from it, short
   excerpts, a photo's EXIF capture date, and the vectors. Transcribed moments

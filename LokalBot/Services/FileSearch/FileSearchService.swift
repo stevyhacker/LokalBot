@@ -98,6 +98,11 @@ struct FileSearchHit: Identifiable, Hashable, Sendable {
 /// files, stops at the next file when a meeting starts recording, in Low Power
 /// Mode, or when the Mac is hot, and starts again when that ends. The image
 /// and audio model loads only while a pass has files to read.
+///
+/// A big read (a folder's first pass, the rest of long files) is paced while
+/// the person uses the Mac (`IndexPacing`) and, on battery, waits for a
+/// charger unless reading on battery is on. A few new files are read right
+/// away on any power source.
 @MainActor
 final class FileSearchService: ObservableObject {
     enum PauseReason: Equatable, Sendable {
@@ -111,6 +116,8 @@ final class FileSearchService: ObservableObject {
         case indexing(done: Int, total: Int)
         case finishingLongFiles(left: Int)
         case paused(PauseReason)
+        /// On battery, a big read waits for a charger: `left` files.
+        case waitingForPower(left: Int)
         case ready
         case failed(String)
     }
@@ -131,6 +138,8 @@ final class FileSearchService: ObservableObject {
         var filesRead: Int
         var modelSeconds: Double
         var wallSeconds: Double
+        /// Of `wallSeconds`, how long reading rested while the person used the Mac.
+        var restedSeconds: Double = 0
     }
 
     struct Configuration: Equatable, Sendable {
@@ -139,6 +148,9 @@ final class FileSearchService: ObservableObject {
         /// Read recordings and video too: sound 30 seconds at a time (a new
         /// window every 25 s) and a frame per shot, at most one every 3 s.
         var includesMedia = true
+        /// Read big passes on battery too. Off, a folder's first pass and the
+        /// rest of long files wait for a charger.
+        var readsOnBattery = false
     }
 
     /// One pass's embedder: what its vectors are called (the index's
@@ -162,6 +174,10 @@ final class FileSearchService: ObservableObject {
         "mpg", "mpeg", "m2v", "mts", "m2ts", "3gp", "3g2", "ogv", "mxf", "dv", "vob",
     ]
     nonisolated static let indexFolderName = "files-index.noindex"
+    /// New files a sync finds, up to this many, are read on any power source;
+    /// more is a big read that waits for a charger on battery (as DigUp's
+    /// helper does).
+    nonisolated static let newFilesLimit = 50
     /// How long changes in the folders settle before a pass reads them.
     static let changeDelay: Duration = .seconds(5)
     static let vectorIdleSeconds: TimeInterval = 600
@@ -169,12 +185,17 @@ final class FileSearchService: ObservableObject {
     @Published private(set) var state: State = .off
     @Published private(set) var totals = Totals()
     @Published private(set) var lastPass: PassReport?
+    /// About how long the pass reading now has left, at the pace so far.
+    @Published private(set) var secondsLeft: Double?
 
     private(set) var configuration = Configuration()
     var isRecording: () -> Bool = { false }
     /// The words at a recording's or video's matched moment, for the
     /// assistant (`FileMomentTranscriber`); nil leaves moments without words.
     var transcribeMoment: (@MainActor (FileSearchHit) async -> String?)?
+    /// Asked between jobs on the index queue, so it must not need the main actor.
+    var isOnBattery: @Sendable () -> Bool = { false }
+    var pacing = IndexPacing.unpaced
 
     private let worker: FileIndexWorker
     private let reader: FileSearchReader
@@ -186,6 +207,7 @@ final class FileSearchService: ObservableObject {
     private var watcher: FileFolderWatcher?
     private var observers: [NSObjectProtocol] = []
     private var releaseTimer: Timer?
+    private var readingStarted: Date?
 
     init(indexFolder: URL, startEmbedder: @escaping StartEmbedder) {
         worker = FileIndexWorker(folder: indexFolder)
@@ -193,7 +215,7 @@ final class FileSearchService: ObservableObject {
         self.startEmbedder = startEmbedder
         let center = NotificationCenter.default
         for name in [Notification.Name.NSProcessInfoPowerStateDidChange,
-                     ProcessInfo.thermalStateDidChangeNotification] {
+                     ProcessInfo.thermalStateDidChangeNotification, .powerSourceDidChange] {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.conditionsDidChange() }
             })
@@ -205,7 +227,8 @@ final class FileSearchService: ObservableObject {
     }
 
     static func live(storage: StorageManager) -> FileSearchService {
-        FileSearchService(
+        PowerSourceMonitor.postSourceChanges()
+        let service = FileSearchService(
             indexFolder: storage.rootURL.appendingPathComponent(indexFolderName, isDirectory: true),
             startEmbedder: { progress in
                 let model = try await EmbeddingIndex.preparedModel(storage: storage)
@@ -218,6 +241,9 @@ final class FileSearchService: ObservableObject {
                     makeEmbedder: { FileMediaEmbedder(endpoint: endpoint) },
                     end: { await FileMediaEmbedderRuntime.shared.end(pass) })
             })
+        service.isOnBattery = { PowerSourceMonitor.currentlyOnBattery() }
+        service.pacing = .live
+        return service
     }
 
     var isAvailable: Bool { configuration.enabled && !configuration.folders.isEmpty }
@@ -243,6 +269,9 @@ final class FileSearchService: ObservableObject {
             state = .noFolders
             return
         }
+        // Reading on battery turned off: a big read going on battery stops at
+        // the next job, and the next pass waits for a charger.
+        if previous.readsOnBattery, !next.readsOnBattery { stopFlag.set() }
         if releaseTimer == nil {
             releaseTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.reader.releaseIfIdle(after: Self.vectorIdleSeconds) }
@@ -257,6 +286,8 @@ final class FileSearchService: ObservableObject {
         if let reason = pauseReason {
             stopFlag.set()
             if passTask == nil { state = .paused(reason) }
+        } else if case .waitingForPower = state {
+            if !bigReadsWaitForPower { requestPass() }
         } else if case .paused = state {
             requestPass()
         } else if passWanted {
@@ -275,6 +306,9 @@ final class FileSearchService: ObservableObject {
     }
 
     var pauseReason: PauseReason? { PauseReason.current(isRecording: isRecording()) }
+
+    /// On battery with reading on battery off.
+    var bigReadsWaitForPower: Bool { !configuration.readsOnBattery && isOnBattery() }
 
     private func turnOff() {
         stop()
@@ -326,6 +360,7 @@ final class FileSearchService: ObservableObject {
             await runOnePass()
         }
         passTask = nil
+        secondsLeft = nil
         if case .indexing = state { state = .ready }
         if case .finishingLongFiles = state { state = .ready }
     }
@@ -338,9 +373,9 @@ final class FileSearchService: ObservableObject {
         let stop = stopFlag
 
         // Find what is new or changed first: an unchanged library never loads the model.
-        let work: Int
+        let synced: FileSyncResult
         do {
-            work = try await worker.perform { store in
+            synced = try await worker.perform { store in
                 try Self.sync(store: store, roots: roots, options: options)
             }
         } catch {
@@ -348,7 +383,7 @@ final class FileSearchService: ObservableObject {
             return
         }
         await refreshTotals()
-        guard work > 0 else {
+        guard synced.waiting > 0 else {
             state = .ready
             return
         }
@@ -356,14 +391,28 @@ final class FileSearchService: ObservableObject {
             state = pauseReason.map(State.paused) ?? .ready
             return
         }
+        // On battery only what this sync just found, if it is a few files; a
+        // folder's first pass waits for a charger.
+        let readsOnBattery = configuration.readsOnBattery
+        let onBattery = isOnBattery
+        let waitsForPower: @Sendable () -> Bool = { !readsOnBattery && onBattery() }
+        var only: Set<Int64>?
+        if waitsForPower() {
+            guard !synced.fresh.isEmpty else {
+                state = .waitingForPower(left: synced.waiting)
+                return
+            }
+            only = synced.fresh
+        }
+        let pacer = FileIndexPacer(pacing: pacing)
 
         let session: EmbedderSession
         do {
             if FileSearchModels.missingDownloadBytes(storageRoot: worker.folder.deletingLastPathComponent()) > 0 {
                 state = .downloading(nil)
             }
-            session = try await startEmbedder { fraction in
-                Task { @MainActor [weak self] in
+            session = try await startEmbedder { [weak self] fraction in
+                Task { @MainActor in
                     if case .downloading = self?.state { self?.state = .downloading(fraction) }
                 }
             }
@@ -373,27 +422,42 @@ final class FileSearchService: ObservableObject {
             return
         }
 
-        state = .indexing(done: 0, total: work)
+        state = .indexing(done: 0, total: only?.count ?? synced.waiting)
+        readingStarted = Date()
+        secondsLeft = nil
         let relay = FilePassProgress { [weak self] update in
             Task { @MainActor in self?.apply(update) }
         }
         let outcome: Result<FilePassOutcome, Error>
         do {
-            outcome = .success(try await worker.perform { store in
-                try Self.index(store: store, options: options, session: session, stop: stop, progress: relay)
+            outcome = .success(try await worker.perform { [only] store in
+                try Self.index(store: store, options: options, session: session, only: only, stop: stop,
+                               waitsForPower: waitsForPower, pacer: pacer, progress: relay)
             })
         } catch {
             outcome = .failure(error)
         }
         await session.end()
         reader.markStale()
+        readingStarted = nil
+        secondsLeft = nil
         await refreshTotals()
 
         switch outcome {
         case .success(let result):
             lastPass = PassReport(finished: Date(), filesRead: result.filesRead, modelSeconds: result.seconds,
-                                  wallSeconds: Date().timeIntervalSince(started))
-            state = stop.isSet ? (pauseReason.map(State.paused) ?? .ready) : .ready
+                                  wallSeconds: Date().timeIntervalSince(started), restedSeconds: pacer.rested)
+            if result.filesRead > 0, let pass = lastPass {
+                lokalbotLog("file search: read \(pass.filesRead) files in \(Int(pass.wallSeconds)) s "
+                            + "(model \(Int(pass.modelSeconds)) s, rested \(Int(pass.restedSeconds)) s)")
+            }
+            if stop.isSet {
+                state = pauseReason.map(State.paused) ?? .ready
+            } else if result.left > 0, waitsForPower() {
+                state = .waitingForPower(left: result.left)
+            } else {
+                state = .ready
+            }
         case .failure(let error):
             lokalbotLog("file search: pass stopped: \(error)")
             // The embedder went away (WorkerError): files stay pending for the next pass.
@@ -404,7 +468,14 @@ final class FileSearchService: ObservableObject {
     private func apply(_ update: FilePassProgress.Update) {
         switch update {
         case .files(let done, let total):
-            if case .indexing = state { state = .indexing(done: done, total: total) }
+            guard case .indexing = state else { return }
+            state = .indexing(done: done, total: total)
+            // At the pace so far, once there is enough of it to go by.
+            if let readingStarted, done >= 10, total > done {
+                secondsLeft = Date().timeIntervalSince(readingStarted) / Double(done) * Double(total - done)
+            } else if done >= total {
+                secondsLeft = nil
+            }
         case .longFiles(let left):
             if case .indexing = state { state = .finishingLongFiles(left: left) }
             if case .finishingLongFiles = state { state = .finishingLongFiles(left: left) }
@@ -438,9 +509,10 @@ final class FileSearchService: ObservableObject {
         return options
     }
 
-    /// Brings the index in line with the folders and returns how many files
-    /// wait to be read (new, changed, or long files read part way).
-    nonisolated static func sync(store: IndexStore, roots: [String], options: IndexOptions) throws -> Int {
+    /// Brings the index in line with the folders and says how many files wait
+    /// to be read (new, changed, or long files read part way), and which ones
+    /// it just found, if they are a few.
+    nonisolated static func sync(store: IndexStore, roots: [String], options: IndexOptions) throws -> FileSyncResult {
         // Folders taken off the list leave the index; a folder that is missing
         // (an unplugged drive) or that macOS won't list keeps its files.
         _ = try store.prune(keepingUnder: roots)
@@ -453,12 +525,20 @@ final class FileSearchService: ObservableObject {
             throw WorkerError.failed("syncing never embeds")
         })
         defer { indexer.finish() }
-        _ = try indexer.sync(readable.map { URL(fileURLWithPath: $0, isDirectory: true) })
-        return try store.pendingCount() + store.unfinishedCount().files
+        let summary = try indexer.sync(readable.map { URL(fileURLWithPath: $0, isDirectory: true) })
+        return FileSyncResult(
+            waiting: try store.pendingCount() + store.unfinishedCount().files,
+            fresh: summary.queued.count <= newFilesLimit ? Set(summary.queued) : [])
     }
 
+    /// Reads what is pending (`only` some: new files on battery). A big read
+    /// stops at the next job when `waitsForPower` says so, and every job
+    /// rests as `pacer` says.
     nonisolated static func index(store: IndexStore, options: IndexOptions, session: EmbedderSession,
-                                  stop: FileIndexStopFlag, progress: FilePassProgress) throws -> FilePassOutcome {
+                                  only: Set<Int64>? = nil, stop: FileIndexStopFlag,
+                                  waitsForPower: @escaping @Sendable () -> Bool = { false },
+                                  pacer: FileIndexPacer = FileIndexPacer(pacing: .unpaced),
+                                  progress: FilePassProgress) throws -> FilePassOutcome {
         let indexer = try Indexer(store: store, options: options, makeEmbedder: session.makeEmbedder)
         defer { indexer.finish() }
         indexer.embedderSource = session.source
@@ -469,18 +549,64 @@ final class FileSearchService: ObservableObject {
         indexer.costsFolder = store.directory
         try indexer.checkModel()
         var outcome = FilePassOutcome()
-        let read = try indexer.run(shouldStop: { stop.isSet }) { event in
+        let bigRead = only == nil
+        let shouldStop: () -> Bool = {
+            if stop.isSet || bigRead && waitsForPower() { return true }
+            pacer.restBetweenJobs { stop.isSet }
+            return stop.isSet
+        }
+        let read = try indexer.run(only: only, shouldStop: shouldStop) { event in
             outcome.seconds += event.seconds
             progress.files(done: event.done, total: event.total)
         }
         outcome.filesRead = read.values.reduce(0, +)
-        if !stop.isSet {
-            try indexer.finishLongFiles(shouldStop: { stop.isSet }) { step in
+        if bigRead, !shouldStop() {
+            try indexer.finishLongFiles(shouldStop: shouldStop) { step in
                 outcome.seconds += step.seconds
                 progress.longFiles(left: step.files)
             }
         }
+        outcome.left = try store.pendingCount() + store.unfinishedCount().files
         return outcome
+    }
+
+    // MARK: - Estimating
+
+    /// What adding `folders` would read, before anything is read: files by
+    /// kind and how long the first pass takes on this Mac at full speed.
+    /// DigUp's `Estimator` goes by metadata alone (counts, PDF page counts and
+    /// durations from Spotlight); its costs are what indexing has measured
+    /// here, or else its M4 Pro costs scaled by a one-second speed check made
+    /// once. Files already under a chosen folder don't count.
+    func estimate(of folders: [String], progress: @escaping @MainActor (Int) -> Void = { _ in })
+        async -> FileFolderEstimate {
+        let options = Self.indexOptions(includesMedia: configuration.includesMedia)
+        let chosen = configuration.folders
+        let costsFolder = worker.folder
+        let relay = FileCountProgress { checked in Task { @MainActor in progress(checked) } }
+        return await Task.detached(priority: .utility) {
+            Self.estimate(of: folders, excluding: chosen, options: options, costsFolder: costsFolder,
+                          progress: relay.checked)
+        }.value
+    }
+
+    nonisolated static func estimate(of folders: [String], excluding chosen: [String], options: IndexOptions,
+                                     costsFolder: URL, checksSpeed: Bool = true,
+                                     progress: @escaping (Int) -> Void = { _ in }) -> FileFolderEstimate {
+        let report = Crawler.crawl(folders.map { URL(fileURLWithPath: $0, isDirectory: true) }, options: options) {
+            progress($0.checked)
+        }
+        let indexed = chosen.flatMap { [$0, FolderSelection.realPath($0)] }
+        let candidates = report.candidates.filter { file in
+            !indexed.contains { FolderSelection.isInside(file.path, $0) }
+        }
+        var measured = MeasuredCosts.load(from: costsFolder)
+        if checksSpeed, !candidates.isEmpty, measured.speed == nil, measured.tallies.isEmpty,
+           let speed = MeasuredCosts.Speed.measure() {
+            MeasuredCosts.setSpeed(speed, in: costsFolder)
+            measured.speed = speed
+        }
+        return FileFolderEstimate(Estimator.estimate(candidates, options: options, costs: measured.costs))
     }
 
     // MARK: - Searching
@@ -536,9 +662,66 @@ extension FileSearchService.PauseReason {
     }
 }
 
+/// What adding folders would read (`FileSearchService.estimate`).
+struct FileFolderEstimate: Equatable, Sendable {
+    var files = 0
+    /// Photos and screenshots.
+    var pictures = 0
+    /// PDFs and documents.
+    var documents = 0
+    /// Recordings and videos, and how long they play.
+    var recordings = 0
+    var playingSeconds = 0.0
+    /// The first pass at full speed on this Mac.
+    var seconds = 0.0
+    /// The rest of long PDFs and documents, read after everything's first part.
+    var laterSeconds = 0.0
+
+    init() {}
+
+    init(_ estimate: Estimate) {
+        files = estimate.files.values.reduce(0, +)
+        pictures = (estimate.files[.image] ?? 0) + (estimate.files[.screenshot] ?? 0)
+        documents = (estimate.files[.pdf] ?? 0) + (estimate.files[.doc] ?? 0)
+        recordings = (estimate.files[.audio] ?? 0) + (estimate.files[.video] ?? 0)
+        playingSeconds = estimate.audioSeconds + estimate.videoSeconds
+        seconds = estimate.seconds
+        laterSeconds = estimate.laterSeconds
+    }
+}
+
+/// Forwards a crawl's count of files checked, at most a few times a second.
+final class FileCountProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private var last = Date.distantPast
+    private let send: @Sendable (Int) -> Void
+
+    init(send: @escaping @Sendable (Int) -> Void) {
+        self.send = send
+    }
+
+    func checked(_ count: Int) {
+        let due = lock.withLock {
+            guard Date().timeIntervalSince(last) > 0.2 else { return false }
+            last = Date()
+            return true
+        }
+        if due { send(count) }
+    }
+}
+
 struct FilePassOutcome: Sendable {
     var filesRead = 0
     var seconds = 0.0
+    /// Files still waiting afterwards (a big read held for a charger, or stopped).
+    var left = 0
+}
+
+struct FileSyncResult: Sendable {
+    /// Files waiting to be read.
+    var waiting: Int
+    /// The ones this sync found, when they are `newFilesLimit` or fewer.
+    var fresh: Set<Int64>
 }
 
 /// Forwards progress from the index queue, at most a few times a second.

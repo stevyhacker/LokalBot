@@ -163,6 +163,8 @@ struct SettingDescriptor: Identifiable {
               aliases: "files folders documents downloads desktop pictures add folder"),
         .init(id: "settings.fileSearchIncludesMedia", title: "Include recordings and video", category: .personalContext,
               aliases: "files audio video recordings podcasts movies sound moments"),
+        .init(id: "settings.fileSearchReadsOnBattery", title: "Read big folders on battery", category: .personalContext,
+              aliases: "files battery charger power plugged in first pass indexing"),
         .init(id: "settings.email", title: "Email accounts", category: .personalContext, aliases: "email gmail mail inbox google account read-only meeting brief"),
         .init(id: "settings.memoryRoutinesEnabled", title: "Enable safe local routines", category: .dayMemory, aliases: "memoryRoutinesEnabled"),
         .init(id: "settings.memoryRoutineWeekday", title: "Weekly log day", category: .dayMemory, aliases: "memoryRoutineWeekday"),
