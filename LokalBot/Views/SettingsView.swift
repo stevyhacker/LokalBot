@@ -1151,12 +1151,7 @@ struct SettingsView: View {
                     RetentionSettingsControls()
                 }
                 Section("External agents") {
-                    AgentAccessToggleRow(manager: app.agentAccess)
-                    .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
-                    ScreenMemoryAccessToggleRow(manager: app.screenMemoryAccess)
-                    .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
-                    PersonalContextAccessToggleRow(manager: app.personalContextAccess)
-                    .settingTarget("settings.personalContextAccess", selected: app.focusedSettingID)
+                    AgentReadAccessRows(access: app.agentReadAccess, focusedSettingID: app.focusedSettingID)
                     SettingsControlAccessToggleRow(manager: app.settingsControl)
                     .settingTarget("settings.settingsControlAccess", selected: app.focusedSettingID)
                     AgentSettingsChangesList(changes: app.agentSettingsChanges)
@@ -1507,23 +1502,6 @@ private struct LaunchAtLoginToggleRow: View {
     }
 }
 
-/// Observes the nested manager directly so its published marker state keeps
-/// the toggle live without relying on AppState to forward changes.
-private struct AgentAccessToggleRow: View {
-    @ObservedObject var manager: AgentAccessManager
-
-    var body: some View {
-        Group {
-            Toggle(isOn: Binding(
-                get: { manager.isEnabled },
-                set: { manager.setEnabled($0) })) {
-                SettingsLabel("Allow external agents to read your meeting library",
-                              help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.")
-            }
-        }
-    }
-}
-
 private struct SettingsControlAccessToggleRow: View {
     @ObservedObject var manager: SettingsControlAccessManager
 
@@ -1600,20 +1578,41 @@ private struct AgentSettingsChangesList: View {
     }
 }
 
-private struct PersonalContextAccessToggleRow: View {
+/// The one switch for reading LokalBot data, and a box for each kind under
+/// it (`AgentReadAccess`). Observes the coordinator, which forwards every
+/// per-kind manager's changes, so grants from agent setup show at once.
+private struct AgentReadAccessRows: View {
     @EnvironmentObject private var app: AppState
-    @ObservedObject var manager: PersonalContextAccessManager
+    @ObservedObject var access: AgentReadAccess
+    let focusedSettingID: String?
 
     var body: some View {
-        Group {
-            Toggle(isOn: Binding(
-                get: { manager.isEnabled },
-                set: { manager.setEnabled($0) })) {
-                SettingsLabel("Allow external agents to read what I shared about myself",
-                              help: "Separate, read-only access to the Personal Context items you mark Share with agents. Nothing else in Personal Context is readable.")
+        Toggle(isOn: Binding(get: { access.isEnabled }, set: { access.setEnabled($0) })) {
+            SettingsLabel("Allow external agents to read your LokalBot data",
+                          help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) read what you tick below: read-only, on this Mac only. Off by default.")
+        }
+        .accessibilityIdentifier("settings.agentAccess")
+        .settingTarget("settings.agentAccess", selected: focusedSettingID)
+        if access.isEnabled {
+            box(.meetings, "Meetings", help: "List, read, search, and ask about your meetings.")
+            box(.screenMemory, "Screen memory",
+                help: "Captured text and metadata, within the history you grant. Screenshot pixels are never returned.")
+                .settingTarget("settings.screenMemoryAccess", selected: focusedSettingID)
+            if access.isTicked(.screenMemory) {
+                Picker(selection: Binding(get: { access.screenScope }, set: { access.setScreenScope($0) })) {
+                    ForEach(ScreenMemoryAccessProfile.Scope.allCases) { scope in
+                        Text(LocalizedStringKey(scope.displayName)).tag(scope)
+                    }
+                } label: {
+                    SettingsLabel("Granted history", help: access.screenScope.detail)
+                }
+                .padding(.leading, 20)
             }
-            .accessibilityIdentifier("settings.personalContextAccess")
-            if manager.isEnabled {
+            box(.personalContext, "What I shared about myself",
+                help: "Only the Personal Context items you mark Share with agents.")
+                .accessibilityIdentifier("settings.personalContextAccess")
+                .settingTarget("settings.personalContextAccess", selected: focusedSettingID)
+            if access.isTicked(.personalContext) {
                 LabeledContent {
                     Button("Choose items…") {
                         app.settingsTab = .personalContext
@@ -1621,40 +1620,40 @@ private struct PersonalContextAccessToggleRow: View {
                     }
                     .buttonStyle(.workspaceLink)
                 } label: {
-                    SettingsLabel(manager.sharedCount == 1 ? "1 item shared"
-                                                           : "\(manager.sharedCount) items shared",
+                    SettingsLabel(access.personalContext.sharedCount == 1 ? "1 item shared"
+                                      : "\(access.personalContext.sharedCount) items shared",
                                   help: "Agents get the most relevant shared items for their task, at most 12 at a time.")
                 }
+                .padding(.leading, 20)
             }
-            if let error = manager.lastError {
-                Text(error).workspaceTextRole(.warning)
+            box(.files, "Files", help: "Search the folders you chose under Files by their words. Files are never changed.")
+                .accessibilityIdentifier("settings.filesAccess")
+                .settingTarget("settings.filesAccess", selected: focusedSettingID)
+            if access.isTicked(.files), !app.settings.fileSearchEnabled || app.settings.fileSearchFolders.isEmpty {
+                LabeledContent {
+                    Button("Choose folders…") {
+                        app.settingsTab = .personalContext
+                        app.focusedSettingID = "settings.fileSearchEnabled"
+                    }
+                    .buttonStyle(.workspaceLink)
+                } label: {
+                    SettingsLabel("Files has no folders yet",
+                                  help: "Agents can search only folders you chose in Personal Context → Files.")
+                }
+                .padding(.leading, 20)
             }
+        }
+        ForEach([access.personalContext.lastError, access.files.lastError].compactMap { $0 }, id: \.self) { error in
+            Text(error).workspaceTextRole(.warning)
         }
     }
-}
 
-private struct ScreenMemoryAccessToggleRow: View {
-    @ObservedObject var manager: ScreenMemoryAccessManager
-
-    var body: some View {
-        Group {
-            Toggle(isOn: Binding(
-                get: { manager.isEnabled },
-                set: { manager.setEnabled($0) })) {
-                SettingsLabel("Allow external agents to read screen memory",
-                              help: "Separate, scoped, read-only access to captured text and metadata. Screenshot pixels are never returned.")
-            }
-            if manager.isEnabled {
-                Picker(selection: Binding(
-                    get: { manager.profile.scope },
-                    set: { manager.setScope($0) })) {
-                    ForEach(ScreenMemoryAccessProfile.Scope.allCases) { scope in
-                        Text(LocalizedStringKey(scope.displayName)).tag(scope)
-                    }
-                } label: {
-                    SettingsLabel("Granted history", help: manager.profile.scope.detail)
-                }
-            }
+    private func box(_ kind: AgentReadAccess.Kind, _ title: String, help: String) -> some View {
+        Toggle(isOn: Binding(get: { access.isTicked(kind) }, set: { access.setTicked(kind, $0) })) {
+            SettingsLabel(title, help: help)
         }
+        .toggleStyle(.checkbox)
+        .disabled(access.isTicked(kind) && !access.canUntick(kind))
+        .padding(.leading, 20)
     }
 }

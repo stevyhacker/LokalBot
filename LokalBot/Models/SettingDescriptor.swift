@@ -194,9 +194,10 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.permissions", title: "Permissions", category: .privacy, aliases: "microphone screen recording accessibility input monitoring"),
         .init(id: "settings.memoryHealth", title: "Memory health", category: .advanced, aliases: "diagnostics capture recovery"),
         .init(id: "settings.resourceMonitor", title: "Resource monitor", category: .advanced, aliases: "cpu ram memory footprint"),
-        .init(id: "settings.agentAccess", title: "External meeting access", category: .privacy, aliases: "mcp claude coding agent CLI"),
+        .init(id: "settings.agentAccess", title: "Allow external agents to read your LokalBot data", category: .privacy, aliases: "mcp claude coding agent CLI meetings external access"),
         .init(id: "settings.screenMemoryAccess", title: "External screen access", category: .privacy, aliases: "mcp screen memory agent"),
         .init(id: "settings.personalContextAccess", title: "External personal context access", category: .privacy, aliases: "mcp agent about you personal context share facts preferences goals principles"),
+        .init(id: "settings.filesAccess", title: "External file access", category: .privacy, aliases: "mcp agent files folders documents search_files search-files"),
         .init(id: "settings.settingsControlAccess", title: "External settings access", category: .privacy, aliases: "cli terminal agent configure settings control"),
     ]
 }

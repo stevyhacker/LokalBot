@@ -4,7 +4,7 @@ import Foundation
 struct MCPCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "mcp",
-        abstract: "Serve the meeting library and optional screen memory over MCP.",
+        abstract: "Serve the meeting library, and optionally screen memory, shared Personal Context, and Files, over MCP.",
         discussion: """
             For GUI agent clients (Claude Desktop, and any MCP-capable app):
 
@@ -13,20 +13,24 @@ struct MCPCommand: AsyncParsableCommand {
 
             Start with get_briefing: what LokalBot holds and which
             permissions are on, in one read. Meeting tools: list_meetings,
-            get_meeting, search_meetings, ask_library. Screen-memory tools: search_screen, get_timeline,
-            get_recent_activity, get_app_usage, get_screenshot_detail.
-            Personal context: get_personal_context, under its own Privacy
-            toggle, returns only Personal Context items the user shared.
+            get_meeting, search_meetings, ask_library, get_action_items,
+            list_people, get_person. Screen-memory tools: search_screen,
+            get_timeline, get_recent_activity, get_app_usage,
+            get_screenshot_detail. Personal context: get_personal_context
+            returns only Personal Context items the user shared. Files:
+            search_files searches the folders the user chose under Files by
+            their words and returns paths, excerpts, and matched passages.
             Read tools work with the app closed; ask_library needs the app
             running (it answers with the local model on localhost:17872).
 
-            Meeting tools require "Allow external agents to read your meeting
-            library". Screen-memory tools require the separate "Allow external
-            agents to read screen memory" Privacy toggle. Screen tools expose
-            only local OCR and metadata — never decrypted pixels or screenshot
-            file paths. The MCP handshake and tools/list work while either
-            permission is off; a call returns a structured scope-specific
-            access error with enable steps.
+            Each group needs its box under "Allow external agents to read
+            your LokalBot data" in Settings → Privacy → External agents:
+            Meetings, Screen memory, What I shared about myself, or Files.
+            Screen tools expose only local OCR and metadata — never decrypted
+            pixels or screenshot file paths. search_files never changes files.
+            The MCP handshake and tools/list work while a permission is off;
+            a call returns a structured scope-specific access error with
+            enable steps.
             """)
 
     func run() async throws {
