@@ -62,6 +62,11 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
     static let metadataOnly = ScreenAccessibilityReader {
         CaptureEnvironment.current.accessibility.read(processID: $0, includeText: false).snapshot
     }
+    /// Metadata without the walk for web pages, for samples that need no page
+    /// address (no site exclusions are configured).
+    static let windowOnly = ScreenAccessibilityReader {
+        CaptureEnvironment.current.accessibility.readWindow(processID: $0).snapshot
+    }
     static let defaultDeadlineMilliseconds = 180
     static let perElementMessagingTimeout: Float = 0.025
 
@@ -196,7 +201,11 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         textReadFailures[processID] = reason
     }
 
-    static func resolve(processID: pid_t, includeText: Bool = true) -> ScreenAccessibilitySnapshot? {
+    /// `walksWindow: false` reads only the window and its focused element:
+    /// no text, web content, or page address (activity samples without site
+    /// exclusions, which would otherwise walk up to 320 nodes every 5 s).
+    static func resolve(processID: pid_t, includeText: Bool = true,
+                        walksWindow: Bool = true) -> ScreenAccessibilitySnapshot? {
         func fail(_ reason: String, transient: Bool = false) -> ScreenAccessibilitySnapshot? {
             noteTextReadFailure(.init(reason: reason, isTransient: transient),
                                 processID: processID, includeText: includeText)
@@ -226,7 +235,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         var totalCharacters = 0
         let started = ContinuousClock.now
         let maximumDuration = Duration.milliseconds(140)
-        let maximumNodes = 320
+        let maximumNodes = walksWindow || includeText ? 320 : 0
         let maximumCharacters = 24_000
 
         while !queue.isEmpty,

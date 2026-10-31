@@ -92,6 +92,12 @@ final class CaptureTraceRecorder: @unchecked Sendable {
             recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: includeText, read: value) }
             return value
         }
+        /// Recorded as a metadata read, which is what replay answers it with.
+        func readWindow(processID: pid_t) -> AccessibilityRead {
+            let value = base.readWindow(processID: processID)
+            recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: false, read: value) }
+            return value
+        }
         func focusedWindowTitle(processID: pid_t) -> String? {
             let value = base.focusedWindowTitle(processID: processID)
             recorder.record { .init(t: $0, query: .focusedTitle, processID: processID, title: value) }

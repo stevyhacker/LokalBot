@@ -69,6 +69,7 @@ final class ActivityStore {
                     FOREIGN KEY(snapshot_id) REFERENCES screenshots(id) ON DELETE CASCADE);
                 CREATE INDEX IF NOT EXISTS idx_screenshot_ts ON screenshots(ts);
                 CREATE INDEX IF NOT EXISTS idx_screenshot_app_ts ON screenshots(app, ts);
+                CREATE INDEX IF NOT EXISTS idx_screenshot_path ON screenshots(path) WHERE path != '';
                 CREATE INDEX IF NOT EXISTS idx_screen_bookmarks_created
                     ON screen_bookmarks(created_at);
                 CREATE TABLE IF NOT EXISTS coding_agent_bursts (
@@ -1078,9 +1079,11 @@ final class ActivityStore {
     /// Clear only the row whose file was successfully removed. This avoids
     /// losing the sole reference to an encrypted file when filesystem cleanup
     /// fails (permissions, transient volume error, and so on).
+    /// Retention calls this once per expired capture on the main actor; the
+    /// partial path index keeps each call from scanning every capture row.
     func clearScreenshotPath(_ path: String) throws {
         try requiredDatabase().runChecked(
-            "UPDATE screenshots SET path = '' WHERE path = ?1", bind: [path])
+            "UPDATE screenshots SET path = '' WHERE path = ?1 AND path != ''", bind: [path])
     }
 
     @discardableResult
@@ -1460,6 +1463,8 @@ final class ActivitySampler: ObservableObject {
 
     private let store: ActivityStore
     private let accessibilityReader: ScreenAccessibilityReader
+    /// Used instead when no site is excluded, so a sample needs no page address.
+    private let windowReader: ScreenAccessibilityReader
     /// Injected by AppState; apps matching these are logged as "Private".
     var excludedApps: () -> [String] = { [] }
     var excludedDomains: () -> [String] = { [] }
@@ -1483,11 +1488,13 @@ final class ActivitySampler: ObservableObject {
     init(
         store: ActivityStore,
         notificationCenter: NotificationCenter = .default,
-        accessibilityReader: ScreenAccessibilityReader = .metadataOnly
+        accessibilityReader: ScreenAccessibilityReader = .metadataOnly,
+        windowReader: ScreenAccessibilityReader = .windowOnly
     ) {
         self.store = store
         self.notificationCenter = notificationCenter
         self.accessibilityReader = accessibilityReader
+        self.windowReader = windowReader
     }
 
     var hasTerminationObserver: Bool { terminationObserver != nil }
@@ -1543,9 +1550,10 @@ final class ActivitySampler: ObservableObject {
         let processID = frontmost.processIdentifier
         let isExcluded = ScreenshotCaptureLayout.isExcluded(
             appName: appName, bundleIdentifier: frontmost.bundleIdentifier, excludedApps: excludedApps())
+        let reader = ScreenContextPrivacy.hasDomainRules(excludedDomains()) ? accessibilityReader : windowReader
         let accessibility = isExcluded
             ? ScreenAccessibilityCaptureResult(snapshot: nil, timedOut: false)
-            : await accessibilityReader.capture(processID: processID)
+            : await reader.capture(processID: processID)
         guard !isPaused, generation == samplingGeneration else { return }
         guard environment.workspace.frontmostApplication()?.processIdentifier == processID else {
             closeCurrentBlock()

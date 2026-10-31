@@ -335,6 +335,8 @@ final class MeetingDetector {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain)
         let micBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            // A call starting or ending reads every browser window again.
+            BrowserMeetingSession.quietWindows.removeAll()
             DispatchQueue.main.async { self?.tick() }
         }
         AudioObjectAddPropertyListenerBlock(deviceID, &runningAddr, .main, micBlock)

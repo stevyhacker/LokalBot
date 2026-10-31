@@ -115,6 +115,11 @@ struct LiveAccessibilitySource: AccessibilitySource {
         return AccessibilityRead(snapshot: snapshot, failure: failure)
     }
 
+    func readWindow(processID: pid_t) -> AccessibilityRead {
+        AccessibilityRead(snapshot: ScreenAccessibilityReader.resolve(
+            processID: processID, includeText: false, walksWindow: false), failure: nil)
+    }
+
     func focusedWindowTitle(processID: pid_t) -> String? {
         FocusedWindowTitleLookup.resolveTitle(processID: processID)
     }
