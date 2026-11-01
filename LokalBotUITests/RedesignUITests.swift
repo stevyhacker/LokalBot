@@ -58,7 +58,7 @@ final class RedesignUITests: XCTestCase {
             ("timeline", ["LOKALBOT_INITIAL_SECTION": "timeline"]),
             ("search", ["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search", "LOKALBOT_INITIAL_SEARCH": "failover"]),
             ("ask", ["LOKALBOT_INITIAL_SECTION": "ask"]),
-            ("settings", ["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "dayMemory"]),
+            ("settings", ["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "overview"]),
             ("models", ["LOKALBOT_INITIAL_SECTION": "models"]),
             ("dictation", ["LOKALBOT_INITIAL_SECTION": "dictation"]),
             ("autocomplete", ["LOKALBOT_INITIAL_SECTION": "autocomplete", "LOKALBOT_COTYPING_DEMO": "1"]),
@@ -120,7 +120,7 @@ final class RedesignUITests: XCTestCase {
             "meeting": "meeting.audioPlayer", "transcript": "transcript.segment.0.text",
             "review": "meeting.review.speakers",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
-            "ask": "ask.submit", "settings": "settings.retention", "models": "models.overview",
+            "ask": "ask.submit", "settings": "settings.overview", "models": "models.overview",
             "dictation": "dictation.form", "agent": "agent.composer",
         ]
         if let identifier = anchors[route] {
