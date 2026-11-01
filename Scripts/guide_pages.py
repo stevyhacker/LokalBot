@@ -558,7 +558,7 @@ GUIDES = [
         "slug": "claude-code-codex-meeting-notes",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-31",
+        "updated": "2026-11-01",
         "updated_label": "October 31, 2026",
         "title": "Let Claude Code or Codex Search Your Meeting Notes",
         "description": "Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.",
@@ -578,8 +578,8 @@ GUIDES = [
         <h2>Set it up</h2>
         <ol>
           <li>Install LokalBot, let the models download, and record a short test meeting.</li>
-          <li>On a Mac, in <strong>Settings → Privacy → External agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong> and keep <strong>Meetings</strong> ticked. On Windows and Linux, turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>.</li>
-          <li>In <strong>Settings → Advanced → Agent CLI</strong>, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code>; add that folder to your PATH.</li>
+          <li>On a Mac, in <strong>Settings → External Agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong> and keep <strong>Meetings</strong> ticked. On Windows and Linux, turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>.</li>
+          <li>In <strong>Settings → External Agents → Agent CLI</strong> on a Mac, or <strong>Settings → Advanced → Agent CLI</strong> on Windows and Linux, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code>; add that folder to your PATH.</li>
           <li>Register the MCP server with your agent:</li>
         </ol>
         <pre class="code" aria-label="Add LokalBot's MCP server to Claude Code or Codex"><span class="c-op"># Claude Code</span>
@@ -725,7 +725,7 @@ GUIDES = [
         "slug": "meeting-transcripts-obsidian-markdown",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-31",
+        "updated": "2026-11-01",
         "updated_label": "October 31, 2026",
         "title": "How to Get Meeting Transcripts into Obsidian as Markdown",
         "description": "Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script.",
@@ -738,7 +738,7 @@ GUIDES = [
         <p>An Obsidian vault is a folder of Markdown files. Anything that writes a <code>.md</code> file into that folder can feed it, and the notes keep working without an account, a plugin, or a sync service in between. If the transcript is a file you own, nothing upstream can change how you get to it.</p>
 
         <h2>Option 1: a note for every meeting (Mac)</h2>
-        <p>In <strong>Settings → Recording → Meeting note export</strong>, turn on <strong>Export a note for each meeting</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. LokalBot writes one note per meeting, including meetings you recorded before turning it on, named like <code>2026-10-14 Atlas release sync (4f7c2a91).md</code>.</p>
+        <p>In <strong>Settings → Meetings → Meeting note export</strong>, turn on <strong>Export a note for each meeting</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. LokalBot writes one note per meeting, including meetings you recorded before turning it on, named like <code>2026-10-14 Atlas release sync (4f7c2a91).md</code>.</p>
         <p>Each note starts with properties: date, time, duration, meeting app, and the people and tracked projects involved as <code>[[links]]</code>, so they show up in backlinks and the graph. Then come the summary, the action items as checkboxes with the ones you finished checked off, and the transcript, unless you turn off <strong>Include the transcript</strong>. Detected passwords and keys are redacted.</p>
         <p>Notes stay current: marking an action done, renaming a speaker, or regenerating a summary updates the note. A note keeps its first name when you rename the meeting, so your links to it keep working. Once you edit, move, or delete a note, it is yours: LokalBot leaves it alone and does not write that meeting again.</p>
 
@@ -746,11 +746,11 @@ GUIDES = [
         <p>Open a meeting and choose <strong>Export → Export Meeting as Markdown…</strong>, then save it into your vault. The file starts with the title, date, duration, and meeting app, followed by the summary and the full transcript. <strong>Copy Meeting as Markdown</strong> puts the same text on the clipboard. This is fine for the occasional meeting and tedious for every one.</p>
 
         <h2>Option 3: a daily note in Obsidian format (Mac)</h2>
-        <p>In <strong>Settings → Day Memory → Daily note export</strong>, turn on <strong>Export a daily memory note</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. Each evening (6 PM by default) LokalBot writes or refreshes one note for the day, with <code>date</code> and <code>tags</code> properties: the day's digest, a list of its meetings, app time, and saved moments. A day missed while the Mac was asleep is written later. If you edit a generated note, LokalBot keeps your edits and pauses the export until you move that note or choose another folder.</p>
+        <p>In <strong>Settings → Daily Review → Daily note export</strong>, turn on <strong>Export a daily memory note</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. Each evening (6 PM by default) LokalBot writes or refreshes one note for the day, with <code>date</code> and <code>tags</code> properties: the day's digest, a list of its meetings, app time, and saved moments. A day missed while the Mac was asleep is written later. If you edit a generated note, LokalBot keeps your edits and pauses the export until you move that note or choose another folder.</p>
         <p>The daily note lists meetings by time, title, and ID. It doesn't include their transcripts, so pair it with option 1 if you want the full text in the vault.</p>
 
         <h2>Option 4: your own script</h2>
-        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn it on: on a Mac, <strong>Allow external agents to read your LokalBot data</strong> in <strong>Settings → Privacy → External agents</strong>, with <strong>Meetings</strong> ticked; on Windows and Linux, <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>. Then install the CLI from <strong>Settings → Advanced → Agent CLI</strong>, save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
+        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn it on: on a Mac, <strong>Allow external agents to read your LokalBot data</strong> in <strong>Settings → External Agents</strong>, with <strong>Meetings</strong> ticked; on Windows and Linux, <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>. Then install the CLI from <strong>Settings → External Agents → Agent CLI</strong> on a Mac or <strong>Settings → Advanced → Agent CLI</strong> on Windows and Linux, save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
         <pre class="code" aria-label="Shell script that writes each LokalBot meeting into an Obsidian vault"><span class="c-op"># Folder inside your vault</span>
 vault=<span class="c-str">"$HOME/Documents/Obsidian/Meetings"</span>
 mkdir -p <span class="c-str">"$vault"</span>
