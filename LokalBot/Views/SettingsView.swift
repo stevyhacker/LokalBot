@@ -160,6 +160,8 @@ struct SettingsView: View {
             "Choose the models behind Transcribe, Think, and Autocomplete."
         case .privacy:
             "Control retention, exclusions, encryption, and remote processing."
+        case .devices:
+            "Read your work memory on your own iPhone, iPad, or Android device."
         case .advanced:
             "Inspect memory health, resources, diagnostics, and Agent CLI."
         }
@@ -188,6 +190,8 @@ struct SettingsView: View {
             EmptyView() // handled by the ModelsView branch in body
         case .privacy:
             privacySection; exclusionsSection; permissionsSection; privacyLinksSection
+        case .devices:
+            CompanionSettingsSections()
         case .advanced:
             memoryHealthSection; resourceMonitorSection; systemSection; agentCLISection
         }

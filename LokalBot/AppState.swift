@@ -54,7 +54,7 @@ final class AppState: ObservableObject {
     /// Which tab the Settings surface shows (spec §2.5 — Settings absorbs
     /// Models as a tab strip). Session-sticky like TypeTab.
     enum SettingsTab: String, CaseIterable {
-        case general, recording, dayMemory, personalContext, writing, dictation, models, privacy, advanced
+        case general, recording, dayMemory, personalContext, writing, dictation, models, privacy, devices, advanced
 
         var displayName: String {
             switch self {
@@ -62,6 +62,7 @@ final class AppState: ObservableObject {
             case .dayMemory: "Day Memory"
             case .personalContext: "Personal Context"
             case .privacy: "Privacy & Data"
+            case .devices: "Phones & tablets"
             default: rawValue.capitalized
             }
         }
@@ -76,6 +77,7 @@ final class AppState: ObservableObject {
             case .dictation: "mic"
             case .models: "shippingbox"
             case .privacy: "lock"
+            case .devices: "ipad.and.iphone"
             case .advanced: "slider.horizontal.3"
             }
         }
@@ -93,6 +95,7 @@ final class AppState: ObservableObject {
             case "dictation": self = .dictation
             case "models": self = .models
             case "privacy": self = .privacy
+            case "devices", "phones", "tablets", "phones & tablets", "companion": self = .devices
             case "advanced": self = .advanced
             default: return nil
             }
@@ -208,6 +211,9 @@ final class AppState: ObservableObject {
                 }
                 if settings.learnsFromDictation != oldValue.learnsFromDictation {
                     applyDictationLearningSetting()
+                }
+                if Self.companionChanged(from: oldValue, to: settings) {
+                    applyCompanionSetting()
                 }
             }
         }
@@ -981,6 +987,57 @@ final class AppState: ObservableObject {
         askMemoryEnabled: { [weak self] in self?.settings.askMemoryEnabled ?? false },
         deferHistoryLoading: true)
 
+    /// Phones and tablets (Settings → Phones & tablets). Created the first
+    /// time sharing is turned on; with sharing off it never exists, so
+    /// nothing listens and no record is built.
+    private var companionHost: CompanionHost?
+    private var companionCurationObserver: AnyCancellable?
+
+    var companion: CompanionHost {
+        if let companionHost { return companionHost }
+        let host = CompanionHost(
+            root: storage.rootURL,
+            activityDatabaseURL: activityStore.databaseURL,
+            factory: CompanionServerFactory.live,
+            opApplier: CompanionOpApplier(outcomes: outcomeIndex, meetings: { [weak self] in self?.meetings ?? [] }),
+            askResponder: CompanionAskResponder(dependencies: .init(
+                settings: { [store = settingsStore] in store.current },
+                makeEngine: { [weak self] in
+                    guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+                    return try await self.thinkExecution.makeTextEngine(
+                        self.settings, priority: .interactive, purpose: "companion ask")
+                },
+                tools: { [unowned self] in self.libraryTools },
+                meetings: { [weak self] in self?.meetings ?? [] })),
+            language: { [weak self] in self?.settings.appLanguage ?? .system })
+        companionHost = host
+        return host
+    }
+
+    /// Starts, reconfigures, or stops sharing to match Settings. Waits for the
+    /// library so ops from devices find their meetings.
+    func applyCompanionSetting() {
+        guard interactive, libraryReady else { return }
+        guard settings.companionSharingEnabled else {
+            companionHost?.stop()
+            companionCurationObserver = nil
+            return
+        }
+        let host = companion
+        host.apply(settings.companionSharing)
+        if companionCurationObserver == nil {
+            companionCurationObserver = Publishers.Merge3(
+                projectStore.$curation.dropFirst().map { _ in () },
+                projectStore.$summaries.dropFirst().map { _ in () },
+                peopleStore.$curation.dropFirst().map { _ in () }
+            ).sink { [weak host] in host?.connectionsChanged() }
+        }
+    }
+
+    static func companionChanged(from old: AppSettings, to new: AppSettings) -> Bool {
+        old.companionSharing != new.companionSharing
+    }
+
     /// What the person told LokalBot about themselves: Ask and Quick Recall
     /// read and add to it, Settings → Personal Context edits it.
     /// Dictated words waiting for the overnight learning pass, while Learn
@@ -1401,6 +1458,7 @@ final class AppState: ObservableObject {
             let merged = byID.values.sorted { $0.startedAt > $1.startedAt }
             self.meetings = merged
             self.libraryReady = true
+            self.applyCompanionSetting()
             self.speakerIdentity.maintainRetention(meetings: { [weak self] in self?.meetings ?? [] })
             self.learnSpeakerVoices(after: .seconds(60))
             Task { await self.outcomeIndex.refreshInBackground(meetings: merged) }
@@ -1441,6 +1499,8 @@ final class AppState: ObservableObject {
     /// a whole meeting is expensive, so it waits for typing to settle.
     func meetingNotesDidChange(_ meeting: Meeting) {
         reindexSearchInBackground(meeting)
+        // Notes are saved outside the evidence path; paired devices show them.
+        companionHost?.evidenceChanged(days: [meeting.startedAt], meetingIDs: [meeting.id])
         guard settings.semanticSearchEnabled else { return }
         notesEmbeddingDebounce[meeting.id]?.cancel()
         notesEmbeddingDebounce[meeting.id] = Task { @MainActor [weak self] in
@@ -1581,6 +1641,7 @@ final class AppState: ObservableObject {
             interactive = false
             settingsStore.flush()
             settingsControl.stop()
+            companionHost?.stop()
             let pendingCotypingRuntimeTask = self.cotypingRuntimeTask
             pendingCotypingRuntimeTask?.cancel()
             await pendingCotypingRuntimeTask?.value
@@ -2133,6 +2194,7 @@ final class AppState: ObservableObject {
                          activityOnly: activityOnly)
         // Learned facts and goals go with the meeting they came from.
         if !meetingIDs.isEmpty { personalModel.retractIfLoaded() }
+        companionHost?.evidenceChanged(days: days, meetingIDs: meetingIDs)
     }
 
     /// Reprocessing revises a meeting; it does not delete it. On 2026-10-07 a
@@ -2184,6 +2246,8 @@ final class AppState: ObservableObject {
         guard !days.isEmpty else { return }
         dailyMemoryExportScheduler.reconsider(days: days)
         memoryRoutines.reconsiderEvidence()
+        // Titles retention cleared disappear from paired devices too.
+        companionHost?.evidenceChanged(days: days, meetingIDs: [])
     }
 
     private func withPrimaryEvidenceChange<T>(for meetings: [Meeting], _ change: EvidenceChange,
@@ -2218,6 +2282,7 @@ final class AppState: ObservableObject {
             dailyMemoryExportScheduler.digestDidChange(on: day)
         }
         memoryRoutines.reconsiderEvidence()
+        companionHost?.dayDigestChanged(day)
         // A dream only reads finished days' digests. Today's digest is
         // refreshed many times a day and no report depends on it yet; a past
         // day's regenerated digest revokes exactly that day's report.

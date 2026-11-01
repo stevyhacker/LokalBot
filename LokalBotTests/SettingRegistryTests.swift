@@ -58,6 +58,8 @@ final class SettingRegistryTests: XCTestCase {
             "dictationIntent": try stored(DictationIntent.allCases),
             "dictationTriggerMode": try stored(DictationTriggerMode.allCases),
             "dictationOutputMode": try stored(DictationOutputMode.allCases),
+            // Shortest window first, so a later choice shares more.
+            "companionHistory": try stored([CompanionHistoryWindow.days30, .days90, .days365, .all]),
         ]
         let choiceSpecs = SettingRegistry.all.filter { $0.kind.choices != nil }
         XCTAssertEqual(Set(choiceSpecs.map(\.key)), Set(expected.keys))
@@ -107,6 +109,7 @@ final class SettingRegistryTests: XCTestCase {
                        .number(AppSettings.minimumSpeechSpeed...AppSettings.maximumSpeechSpeed))
         XCTAssertEqual(SettingRegistry.spec(for: "cotypingDebounceMs")?.kind,
                        .integer(CotypingDebouncePolicy.minimumMilliseconds...AppSettings.maximumCotypingDebounceMs))
+        XCTAssertEqual(SettingRegistry.spec(for: "companionPort")?.kind, .integer(CompanionSharing.portRange))
     }
 
     func testSearchDescriptorsAgreeWithTheRegistry() {

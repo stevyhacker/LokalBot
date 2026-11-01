@@ -16,6 +16,7 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.textSize" { return language.localized(settings.textSize.displayName) }
         if id == "settings.cotypingBackend" { return language.localized(settings.cotypingBackend.title) }
         if id == "settings.modelDownloadSource" { return language.localized(settings.modelDownloadSource.displayName) }
+        if id == "settings.companionHistory" { return language.localized(settings.companionHistory.displayName) }
         guard let data = try? JSONEncoder().encode(settings),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let value = object[String(id.dropFirst("settings.".count))] else { return language.localized("Open details") }
@@ -45,6 +46,11 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.ollamaBaseURL", settings.summarizerBackend != .ollama { return "settings.summarizerBackend" }
         if id == "settings.screenshotIntervalMinutes", !settings.effectiveScreenContextCaptureMode.capturesText {
             return "settings.effectiveScreenContextCaptureMode"
+        }
+        // Phones & tablets shows its other controls only while sharing is on.
+        if !settings.companionSharingEnabled, id.hasPrefix("settings.companion"),
+           id != "settings.companionSharingEnabled" {
+            return "settings.companionSharingEnabled"
         }
         return id
     }
@@ -165,6 +171,21 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.keepOCRTextForever", title: "Keep screen text forever", category: .privacy, aliases: "retention text OCR vectors"),
         .init(id: "settings.excludedApps", title: "Never capture these apps", category: .privacy, aliases: "exclude applications"),
         .init(id: "settings.excludedScreenDomains", title: "Never capture these sites", category: .privacy, aliases: "domain exclusions"),
+        .init(id: "settings.companionSharingEnabled", title: "Share with my phones and tablets", category: .devices,
+              aliases: "companion iphone ipad android phone tablet sync pair devices tailscale local network qr code"),
+        .init(id: "settings.companionDevices", title: "Paired devices", category: .devices,
+              aliases: "companion add a device pair qr code remove device iphone ipad android"),
+        .init(id: "settings.companionShareMeetings", title: "Share meetings", category: .devices, aliases: "companion meetings summaries notes actions"),
+        .init(id: "settings.companionShareTranscripts", title: "Share transcripts", category: .devices, aliases: "companion transcript speakers"),
+        .init(id: "settings.companionShareDigests", title: "Share Day Digests", category: .devices, aliases: "companion digest journal"),
+        .init(id: "settings.companionShareTimeline", title: "Share the Timeline", category: .devices, aliases: "companion timeline activity sessions"),
+        .init(id: "settings.companionShareWindowTitles", title: "Include window titles", category: .devices, aliases: "companion window titles"),
+        .init(id: "settings.companionSharePeople", title: "Share people", category: .devices, aliases: "companion people"),
+        .init(id: "settings.companionShareProjects", title: "Share projects", category: .devices, aliases: "companion projects"),
+        .init(id: "settings.companionHistory", title: "Shared history", category: .devices, aliases: "companion history days how far back"),
+        .init(id: "settings.companionAnswersQuestions", title: "Answer questions from my devices", category: .devices, aliases: "companion ask questions phone"),
+        .init(id: "settings.companionPort", title: "Port", category: .devices, aliases: "companion port tcp listener"),
+        .init(id: "settings.companionAdvertisesOnBonjour", title: "Advertise on the local network", category: .devices, aliases: "companion bonjour mdns discovery"),
         .init(id: "settings.cotypingExcludedApps", title: "Never suggest in these apps", category: .writing, aliases: "exclude autocomplete applications"),
         .init(id: "settings.cotypingExcludedDomains", title: "Never suggest on these sites", category: .writing, aliases: "exclude autocomplete websites"),
         .init(id: "settings.dayDigestCustomPrompt", title: "Digest instructions", category: .dayMemory, aliases: "prompt daily journal"),

@@ -145,6 +145,7 @@ flowchart LR
 - **You choose what to retain.** Activity-only tracking is the default. Visible screen text and encrypted screenshots are opt-in. Pause capture or exclude apps and domains at any time. Detection has limits; exclude anything you never want retained.
 - **You control retention.** Captured screen text and screenshots expire after 14 days by default. Adjust the window or explicitly save a moment to keep it until you unsave or delete it.
 - **Network access has boundaries.** Models, updates, and optional agent runtimes need downloads. Automatic update checks can be disabled. A remote model server receives context only after you approve its origin; optional Agent Mode and external CLI/MCP clients have separate permissions and data handling.
+- **Your phone gets a copy only if you pair it.** Settings → Phones & tablets is off by default. When you turn it on, the Mac sends the phones and tablets you pair an end-to-end encrypted copy of the data you choose, over your local network or Tailscale, with no LokalBot server in between. Screenshots, screen text, attendee emails, and voice profiles are never shared.
 
 To check the local processing path, download the models, select the built-in backend, disable automatic update checks, and observe network traffic while recording, transcribing, and summarizing. Approved agent commands and external clients are separate paths.
 
@@ -259,12 +260,17 @@ For the Mac app, use an Apple Silicon Mac with full Xcode installed; the [build 
 
 ```bash
 brew install xcodegen cmake
+# Rust (https://rustup.rs) builds the phone and tablet sync library; the repo
+# pins the toolchain, which rustup installs on first use.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
 
 git clone https://github.com/stevyhacker/lokalbot.git
 cd lokalbot
 
 # XcodeGen needs these paths before the first build fetches the runtimes.
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+# The phone and tablet sync library (Rust), as a local Swift package.
+Scripts/build-sync-xcframework.sh
 xcodegen generate
 open LokalBot.xcodeproj
 ```

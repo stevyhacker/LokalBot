@@ -129,6 +129,10 @@ extension SettingSpec {
             // earlier ones (ModelScope, then HF-Mirror, then Hugging Face), so
             // only moving back toward Hugging Face narrows.
             return choiceRank(new) > choiceRank(old)
+        case "companionHistory":
+            // Choices run from the shortest window to all history, so a later
+            // choice shares more with paired devices.
+            return choiceRank(new) > choiceRank(old)
         default:
             break
         }

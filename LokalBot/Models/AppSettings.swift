@@ -391,6 +391,37 @@ struct AppSettings: Codable, Equatable {
     /// Local wall-clock hour (0...23) after which the overnight dream may run.
     /// Nights the Mac slept through catch up at the next launch or wake.
     var dreamingHour: Int = 4
+
+    // MARK: - Phones & tablets
+
+    /// Shares an allowlisted, end-to-end encrypted copy of the library with
+    /// phones and tablets the person pairs, over the local network or
+    /// Tailscale only. Off by default: nothing listens while it is off, and
+    /// it is independent of agent access and the other grants.
+    var companionSharingEnabled: Bool = false
+    /// What paired devices receive, per data class. The defaults are generous
+    /// because the copy stays on the person's own devices; each applies only
+    /// while sharing is on.
+    var companionShareMeetings: Bool = true
+    var companionShareTranscripts: Bool = true
+    var companionShareDigests: Bool = true
+    var companionShareTimeline: Bool = true
+    /// Window titles in the shared Timeline. Titles the Mac's retention has
+    /// already cleared stay cleared.
+    var companionShareWindowTitles: Bool = true
+    var companionSharePeople: Bool = true
+    var companionShareProjects: Bool = true
+    /// How far back the shared copy reaches; older records are withdrawn.
+    var companionHistory: CompanionHistoryWindow = .all
+    /// Answer questions sent from paired devices with the Think model and its
+    /// existing approvals.
+    var companionAnswersQuestions: Bool = true
+    /// The one TCP port the listener binds while sharing is on.
+    var companionPort: Int = CompanionSharing.defaultPort
+    /// Advertise `_lokalbot._tcp` on the local network. Off leaves the Mac
+    /// reachable only at the addresses a device stored when it paired, such
+    /// as its Tailscale address.
+    var companionAdvertisesOnBonjour: Bool = true
     /// First local calendar day eligible for dreaming during the current
     /// enabled period. Persisting the boundary prevents a multi-day sleep from
     /// silently skipping the last workday, without backfilling history from
@@ -929,6 +960,18 @@ struct AppSettings: Codable, Equatable {
         case dreamingEnabled
         case dreamingHour
         case dreamingFirstEligibleDayKey
+        case companionSharingEnabled
+        case companionShareMeetings
+        case companionShareTranscripts
+        case companionShareDigests
+        case companionShareTimeline
+        case companionShareWindowTitles
+        case companionSharePeople
+        case companionShareProjects
+        case companionHistory
+        case companionAnswersQuestions
+        case companionPort
+        case companionAdvertisesOnBonjour
         case askMemoryEnabled
         case personalLearningEnabled
         case personalLearningFromDictation
@@ -1137,6 +1180,18 @@ struct AppSettings: Codable, Equatable {
         try c.encodeIfPresent(
             dreamingFirstEligibleDayKey,
             forKey: .dreamingFirstEligibleDayKey)
+        try c.encode(companionSharingEnabled, forKey: .companionSharingEnabled)
+        try c.encode(companionShareMeetings, forKey: .companionShareMeetings)
+        try c.encode(companionShareTranscripts, forKey: .companionShareTranscripts)
+        try c.encode(companionShareDigests, forKey: .companionShareDigests)
+        try c.encode(companionShareTimeline, forKey: .companionShareTimeline)
+        try c.encode(companionShareWindowTitles, forKey: .companionShareWindowTitles)
+        try c.encode(companionSharePeople, forKey: .companionSharePeople)
+        try c.encode(companionShareProjects, forKey: .companionShareProjects)
+        try c.encode(companionHistory, forKey: .companionHistory)
+        try c.encode(companionAnswersQuestions, forKey: .companionAnswersQuestions)
+        try c.encode(CompanionSharing.clampedPort(companionPort), forKey: .companionPort)
+        try c.encode(companionAdvertisesOnBonjour, forKey: .companionAdvertisesOnBonjour)
         try c.encode(askMemoryEnabled, forKey: .askMemoryEnabled)
         try c.encode(personalLearningEnabled, forKey: .personalLearningEnabled)
         try c.encode(personalLearningFromDictation, forKey: .personalLearningFromDictation)
@@ -1337,6 +1392,19 @@ struct AppSettings: Codable, Equatable {
         dreamingEnabled = decode(.dreamingEnabled, defaults.dreamingEnabled)
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)
+        companionSharingEnabled = decode(.companionSharingEnabled, defaults.companionSharingEnabled)
+        companionShareMeetings = decode(.companionShareMeetings, defaults.companionShareMeetings)
+        companionShareTranscripts = decode(.companionShareTranscripts, defaults.companionShareTranscripts)
+        companionShareDigests = decode(.companionShareDigests, defaults.companionShareDigests)
+        companionShareTimeline = decode(.companionShareTimeline, defaults.companionShareTimeline)
+        companionShareWindowTitles = decode(.companionShareWindowTitles, defaults.companionShareWindowTitles)
+        companionSharePeople = decode(.companionSharePeople, defaults.companionSharePeople)
+        companionShareProjects = decode(.companionShareProjects, defaults.companionShareProjects)
+        companionHistory = decode(.companionHistory, defaults.companionHistory)
+        companionAnswersQuestions = decode(.companionAnswersQuestions, defaults.companionAnswersQuestions)
+        companionPort = CompanionSharing.clampedPort(decode(.companionPort, defaults.companionPort))
+        companionAdvertisesOnBonjour = decode(
+            .companionAdvertisesOnBonjour, defaults.companionAdvertisesOnBonjour)
         askMemoryEnabled = decode(.askMemoryEnabled, defaults.askMemoryEnabled)
         personalLearningEnabled = decode(.personalLearningEnabled, defaults.personalLearningEnabled)
         personalLearningFromDictation = decode(.personalLearningFromDictation, defaults.personalLearningFromDictation)

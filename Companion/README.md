@@ -63,9 +63,12 @@ phone can pair and sync before the Mac side is involved:
 
 ```sh
 cd LinuxWindows
-cargo run -p lokalbot-sync --example companion_host -- \
-  --fixture ../Companion/protocol/fixtures/sample-library.json
+cargo run -p lokalbot-sync --example companion_host -- --name "Dev Mac"
 ```
 
-It prints the pairing link and a QR code. Both apps also have **Try it without
-a Mac**, which loads the same sample library on the device.
+It prints the pairing link and a QR code, asks `y`/`n` when a device pairs
+(`--auto-approve` skips that), applies action changes and answers questions
+with a canned reply. Type `pair` for a new code, `devices`, `remove <id>`,
+`publish` or `quit`. `--port`, `--dir` and `--loopback` are optional. Both apps
+also have **Try it without a Mac**, which loads the same sample library on the
+device.

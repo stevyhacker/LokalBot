@@ -54,7 +54,7 @@ ORGANIZATION = {
 # Bump a date when you edit that page so the sitemap's lastmod stays honest.
 STATIC_PAGES = {
     "": "2026-10-29",
-    "privacy": "2026-10-26",
+    "privacy": "2026-11-01",
     "terms": "2026-10-26",
     "support": "2026-10-26",
     "enshittification-proof": "2026-10-26",
