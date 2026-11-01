@@ -1,0 +1,517 @@
+[
+  {
+    "kind": "manifest", "key": "library", "version": 1, "seq": 1, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "schemaVersion": 1,
+      "libraryName": "Sample library",
+      "macName": "Sample Mac",
+      "dataClasses": { "meetings": true, "transcripts": true, "digests": true, "timeline": true, "windowTitles": true, "people": true, "projects": true },
+      "historyDays": 0,
+      "askEnabled": true,
+      "generatedAt": "2026-10-31T10:12:00.000Z"
+    }
+  },
+  {
+    "kind": "meeting", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "version": 1, "seq": 2, "deleted": false,
+    "sortKey": "2026-10-31T08:00:00.000Z",
+    "body": {
+      "id": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02",
+      "title": "Product standup",
+      "startedAt": "2026-10-31T08:00:00.000Z",
+      "endedAt": "2026-10-31T08:18:00.000Z",
+      "day": "2026-10-31",
+      "timeZoneOffsetMinutes": 60,
+      "durationSeconds": 1080,
+      "appName": "Google Meet",
+      "people": [
+        { "id": "person:maya-chen", "displayName": "Maya Chen" },
+        { "id": "person:ben-ortiz", "displayName": "Ben Ortiz" },
+        { "id": "person:priya-nair", "displayName": "Priya Nair" }
+      ],
+      "projects": [ { "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c01", "name": "Onboarding" } ],
+      "summaryMarkdown": "## Recap\nOnboarding is on track and the customer study runs next week. The export PR is ready for review.\n\n## Action items\n- **You:** Review the export PR (by Monday)\n- **Owner unclear:** Confirm the study participants\n\n## Decisions\n- Test the onboarding flow with five customers before release.",
+      "actions": [
+        {
+          "id": "act-7c1e40a2", "text": "Review the export PR", "owner": "You", "ownerIsUser": true, "ownerUnclear": false,
+          "dueDate": "2026-11-03", "dueText": "by Monday", "status": "open", "importance": 3,
+          "citations": [ { "start": 312.0, "end": 318.5, "speaker": "Ben Ortiz", "excerpt": "Could you review the export PR by Monday?" } ]
+        },
+        {
+          "id": "act-91b0d3f5", "text": "Confirm the study participants", "ownerIsUser": false, "ownerUnclear": true,
+          "status": "open", "importance": 3,
+          "citations": [ { "start": 498.2, "end": 505.0, "speaker": "Priya Nair", "excerpt": "Someone needs to confirm the study participants." } ]
+        }
+      ],
+      "decisions": [
+        { "id": "dec-2f8a6b11", "text": "Test the onboarding flow with five customers before release.",
+          "citations": [ { "start": 554.0, "end": 561.3, "speaker": "Maya Chen", "excerpt": "We test it with five customers before release." } ] }
+      ],
+      "openQuestions": [],
+      "hasTranscript": true
+    }
+  },
+  {
+    "kind": "meeting", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "version": 1, "seq": 3, "deleted": false,
+    "sortKey": "2026-10-30T15:00:00.000Z",
+    "body": {
+      "id": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03",
+      "title": "Call with Northwind",
+      "startedAt": "2026-10-30T15:00:00.000Z",
+      "endedAt": "2026-10-30T15:35:00.000Z",
+      "day": "2026-10-30",
+      "timeZoneOffsetMinutes": 60,
+      "durationSeconds": 2100,
+      "appName": "Zoom",
+      "people": [ { "id": "person:alex-romero", "displayName": "Alex Romero" } ],
+      "projects": [ { "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c02", "name": "Pricing" } ],
+      "summaryMarkdown": "## Recap\nNorthwind accepted the annual plan at a 15% discount. Alex will take the pricing tiers to legal; you send a short follow-up with the annual numbers.\n\n## Action items\n- **You:** Draft the Northwind follow-up (by Wednesday)\n- **Alex Romero:** Share pricing tiers with legal (early next week)\n\n## Decisions\n- Annual plan gets a 15% discount.",
+      "actions": [
+        {
+          "id": "act-4d2c9e07", "text": "Draft the Northwind follow-up", "owner": "You", "ownerIsUser": true, "ownerUnclear": false,
+          "dueDate": "2026-11-05", "dueText": "by Wednesday", "status": "open", "importance": 4,
+          "citations": [ { "start": 1950.0, "end": 1957.4, "speaker": "Alex Romero", "excerpt": "Send us a short follow-up with the annual numbers." } ]
+        },
+        {
+          "id": "act-a3f61b28", "text": "Share pricing tiers with legal", "owner": "Alex Romero", "ownerIsUser": false, "ownerUnclear": false,
+          "dueDate": "2026-11-04", "dueText": "early next week", "status": "open", "importance": 3,
+          "citations": [ { "start": 1422.0, "end": 1430.2, "speaker": "Alex Romero", "excerpt": "I'll take the tiers to legal early next week." } ]
+        }
+      ],
+      "decisions": [
+        { "id": "dec-6e0b7a90", "text": "Annual plan gets a 15% discount.",
+          "citations": [ { "start": 1601.0, "end": 1609.5, "speaker": "You", "excerpt": "Let's make it fifteen percent off for annual." } ] }
+      ],
+      "openQuestions": [],
+      "hasTranscript": false
+    }
+  },
+  {
+    "kind": "meeting", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e04", "version": 1, "seq": 4, "deleted": false,
+    "sortKey": "2026-10-30T13:30:00.000Z",
+    "body": {
+      "id": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e04",
+      "title": "1:1 with Maya",
+      "startedAt": "2026-10-30T13:30:00.000Z",
+      "endedAt": "2026-10-30T13:55:00.000Z",
+      "day": "2026-10-30",
+      "timeZoneOffsetMinutes": 60,
+      "durationSeconds": 1500,
+      "appName": "Google Meet",
+      "people": [ { "id": "person:maya-chen", "displayName": "Maya Chen" } ],
+      "projects": [],
+      "summaryMarkdown": "## Recap\nMaya is happy with the study plan. You agreed to share your study notes before Friday.\n\n## Action items\n- **You:** Share study notes (done)",
+      "notesMarkdown": "- Maya wants to lead the next design review",
+      "actions": [
+        {
+          "id": "act-0e5d77c3", "text": "Share study notes", "owner": "You", "ownerIsUser": true, "ownerUnclear": false,
+          "status": "done", "importance": 2,
+          "citations": [ { "start": 640.0, "end": 645.0, "speaker": "You", "excerpt": "I'll share my study notes before Friday." } ]
+        }
+      ],
+      "decisions": [],
+      "openQuestions": [],
+      "hasTranscript": false
+    }
+  },
+  {
+    "kind": "meeting", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "version": 1, "seq": 5, "deleted": false,
+    "sortKey": "2026-10-30T09:30:00.000Z",
+    "body": {
+      "id": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01",
+      "title": "Design review — onboarding",
+      "startedAt": "2026-10-30T09:30:00.000Z",
+      "endedAt": "2026-10-30T10:12:00.000Z",
+      "day": "2026-10-30",
+      "timeZoneOffsetMinutes": 60,
+      "durationSeconds": 2520,
+      "appName": "Zoom",
+      "people": [
+        { "id": "person:maya-chen", "displayName": "Maya Chen" },
+        { "id": "person:ben-ortiz", "displayName": "Ben Ortiz" }
+      ],
+      "projects": [
+        { "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c01", "name": "Onboarding" },
+        { "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c02", "name": "Pricing" }
+      ],
+      "summaryMarkdown": "## Recap\nThe team cut onboarding from five steps to three and will test it with five customers before release. Ben simplifies the import step; Maya runs the study.\n\n## Action items\n- **You:** Send the revised pricing deck to Maya (by Thursday)\n- **Maya Chen:** Book the study room for Tuesday (done)\n- **Ben Ortiz:** Simplify the import step (next Thursday)\n\n## Decisions\n- Ship the three-step flow behind a flag first.\n\n## Open questions\n- Which five customers go first?",
+      "notesMarkdown": "- Ask legal about the pricing tiers before the Northwind call",
+      "actions": [
+        {
+          "id": "act-1f2e3d4c", "text": "Send the revised pricing deck to Maya", "owner": "You", "ownerIsUser": true, "ownerUnclear": false,
+          "dueDate": "2026-10-30", "dueText": "by Thursday", "status": "open", "importance": 4,
+          "citations": [ { "start": 721.4, "end": 728.9, "speaker": "Maya Chen", "excerpt": "Could you send me the revised deck by Thursday, so I can take it into the pricing call?" } ]
+        },
+        {
+          "id": "act-58ab2e19", "text": "Book the study room for Tuesday", "owner": "Maya Chen", "ownerIsUser": false, "ownerUnclear": false,
+          "status": "done", "importance": 2,
+          "citations": [ { "start": 1661.0, "end": 1666.2, "speaker": "Maya Chen", "excerpt": "I'll book the study room for Tuesday." } ]
+        },
+        {
+          "id": "act-c40f8d62", "text": "Simplify the import step", "owner": "Ben Ortiz", "ownerIsUser": false, "ownerUnclear": false,
+          "dueDate": "2026-11-05", "dueText": "next Thursday", "status": "open", "importance": 3,
+          "citations": [ { "start": 1302.0, "end": 1310.1, "speaker": "Ben Ortiz", "excerpt": "I can simplify the import step by next Thursday." } ]
+        }
+      ],
+      "decisions": [
+        { "id": "dec-b7d1e3a4", "text": "Ship the three-step flow behind a flag first.",
+          "citations": [ { "start": 1870.0, "end": 1878.4, "speaker": "You", "excerpt": "Let's ship the three-step flow behind a flag first." } ] }
+      ],
+      "openQuestions": [
+        { "id": "oq-5a9c2e6f", "text": "Which five customers go first?", "citations": [] }
+      ],
+      "hasTranscript": true
+    }
+  },
+  {
+    "kind": "meeting", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "version": 1, "seq": 6, "deleted": false,
+    "sortKey": "2026-10-29T10:00:00.000Z",
+    "body": {
+      "id": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05",
+      "title": "Pricing workshop",
+      "startedAt": "2026-10-29T10:00:00.000Z",
+      "endedAt": "2026-10-29T10:58:00.000Z",
+      "day": "2026-10-29",
+      "timeZoneOffsetMinutes": 60,
+      "durationSeconds": 3480,
+      "appName": "In person",
+      "people": [
+        { "id": "person:priya-nair", "displayName": "Priya Nair" },
+        { "id": "person:ben-ortiz", "displayName": "Ben Ortiz" }
+      ],
+      "projects": [ { "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c02", "name": "Pricing" } ],
+      "summaryMarkdown": "## Recap\nThe team kept three pricing tiers and dropped the usage-based option. Priya rewrites the pricing page copy.\n\n## Action items\n- **Priya Nair:** Update the pricing page copy (next Friday)\n\n## Decisions\n- Keep three pricing tiers.",
+      "actions": [
+        {
+          "id": "act-e2a7c915", "text": "Update the pricing page copy", "owner": "Priya Nair", "ownerIsUser": false, "ownerUnclear": false,
+          "dueDate": "2026-11-07", "dueText": "next Friday", "status": "open", "importance": 3,
+          "citations": [ { "start": 2410.0, "end": 2416.8, "speaker": "Priya Nair", "excerpt": "I'll rewrite the pricing page copy by next Friday." } ]
+        }
+      ],
+      "decisions": [
+        { "id": "dec-3c5f9b02", "text": "Keep three pricing tiers.",
+          "citations": [ { "start": 2950.0, "end": 2955.0, "speaker": "Ben Ortiz", "excerpt": "So we keep three tiers." } ] }
+      ],
+      "openQuestions": [],
+      "hasTranscript": false
+    }
+  },
+  {
+    "kind": "meeting", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06", "version": 1, "seq": 7, "deleted": false,
+    "sortKey": "2026-10-27T08:00:00.000Z",
+    "body": {
+      "id": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06",
+      "title": "Product standup",
+      "startedAt": "2026-10-27T08:00:00.000Z",
+      "endedAt": "2026-10-27T08:21:00.000Z",
+      "day": "2026-10-27",
+      "timeZoneOffsetMinutes": 60,
+      "durationSeconds": 1260,
+      "appName": "Google Meet",
+      "people": [
+        { "id": "person:maya-chen", "displayName": "Maya Chen" },
+        { "id": "person:ben-ortiz", "displayName": "Ben Ortiz" },
+        { "id": "person:priya-nair", "displayName": "Priya Nair" }
+      ],
+      "projects": [ { "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c01", "name": "Onboarding" } ],
+      "summaryMarkdown": "## Recap\nThe week starts with the onboarding redesign. Maya drafts the study plan.\n\n## Action items\n- **Maya Chen:** Draft the onboarding study plan (done)",
+      "actions": [
+        {
+          "id": "act-6b3d0f44", "text": "Draft the onboarding study plan", "owner": "Maya Chen", "ownerIsUser": false, "ownerUnclear": false,
+          "status": "done", "importance": 3,
+          "citations": [ { "start": 402.0, "end": 407.5, "speaker": "Maya Chen", "excerpt": "I'll draft the study plan this week." } ]
+        }
+      ],
+      "decisions": [],
+      "openQuestions": [],
+      "hasTranscript": false
+    }
+  },
+  {
+    "kind": "transcript", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "version": 1, "seq": 8, "deleted": false,
+    "sortKey": "2026-10-30T09:30:00.000Z",
+    "body": {
+      "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01",
+      "segments": [
+        { "start": 2.0, "end": 9.5, "speaker": "Maya Chen", "colorIndex": 1, "text": "Thanks for joining. Today is about cutting the onboarding flow down." },
+        { "start": 10.2, "end": 18.0, "speaker": "You", "colorIndex": 0, "text": "Right now it's five steps. I think three is enough if we merge the import and the template choice." },
+        { "start": 18.6, "end": 26.4, "speaker": "Ben Ortiz", "colorIndex": 2, "text": "Merging them works if the import step gets simpler. It does too much today." },
+        { "start": 721.4, "end": 728.9, "speaker": "Maya Chen", "colorIndex": 1, "text": "Could you send me the revised deck by Thursday, so I can take it into the pricing call?" },
+        { "start": 729.5, "end": 732.0, "speaker": "You", "colorIndex": 0, "text": "Yes, I'll send it." },
+        { "start": 1302.0, "end": 1310.1, "speaker": "Ben Ortiz", "colorIndex": 2, "text": "I can simplify the import step by next Thursday." },
+        { "start": 1661.0, "end": 1666.2, "speaker": "Maya Chen", "colorIndex": 1, "text": "I'll book the study room for Tuesday." },
+        { "start": 1700.0, "end": 1709.0, "speaker": "Maya Chen", "colorIndex": 1, "text": "We still need to pick which five customers go first." },
+        { "start": 1870.0, "end": 1878.4, "speaker": "You", "colorIndex": 0, "text": "Let's ship the three-step flow behind a flag first." },
+        { "start": 1879.0, "end": 1884.0, "speaker": "Ben Ortiz", "colorIndex": 2, "text": "Agreed. A flag keeps it safe." }
+      ]
+    }
+  },
+  {
+    "kind": "transcript", "key": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "version": 1, "seq": 9, "deleted": false,
+    "sortKey": "2026-10-31T08:00:00.000Z",
+    "body": {
+      "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02",
+      "segments": [
+        { "start": 3.0, "end": 9.0, "speaker": "Maya Chen", "colorIndex": 1, "text": "Quick round. Onboarding first." },
+        { "start": 9.5, "end": 17.0, "speaker": "You", "colorIndex": 0, "text": "The three-step flow is in a branch. The study runs next week." },
+        { "start": 312.0, "end": 318.5, "speaker": "Ben Ortiz", "colorIndex": 2, "text": "Could you review the export PR by Monday?" },
+        { "start": 498.2, "end": 505.0, "speaker": "Priya Nair", "colorIndex": 3, "text": "Someone needs to confirm the study participants." },
+        { "start": 554.0, "end": 561.3, "speaker": "Maya Chen", "colorIndex": 1, "text": "We test it with five customers before release." }
+      ]
+    }
+  },
+  {
+    "kind": "day", "key": "2026-10-31", "version": 1, "seq": 10, "deleted": false,
+    "sortKey": "2026-10-31",
+    "body": {
+      "date": "2026-10-31",
+      "timeline": {
+        "trackedSeconds": 5580,
+        "sessions": [
+          { "start": "2026-10-31T08:00:00.000Z", "end": "2026-10-31T08:18:00.000Z", "title": "Product standup", "kind": "meeting",
+            "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "project": "Onboarding", "apps": [ { "name": "Google Meet", "seconds": 1080 } ] },
+          { "start": "2026-10-31T08:25:00.000Z", "end": "2026-10-31T09:40:00.000Z", "title": "Export PR review", "kind": "work", "project": "Onboarding",
+            "apps": [ { "name": "Safari", "seconds": 3000 }, { "name": "Xcode", "seconds": 1500 } ],
+            "windowTitles": [ "Export rework · Pull Request #212", "ExportService.swift" ] }
+        ],
+        "byProject": [ { "name": "Onboarding", "seconds": 5580 } ],
+        "byApp": [ { "name": "Safari", "seconds": 3000 }, { "name": "Xcode", "seconds": 1500 }, { "name": "Google Meet", "seconds": 1080 } ],
+        "savedMoments": []
+      },
+      "meetingIds": [ "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02" ]
+    }
+  },
+  {
+    "kind": "day", "key": "2026-10-30", "version": 1, "seq": 11, "deleted": false,
+    "sortKey": "2026-10-30",
+    "body": {
+      "date": "2026-10-30",
+      "digest": {
+        "markdown": "## Highlights\n- Agreed a three-step onboarding flow, shipped behind a flag first.\n- Northwind accepted the annual plan at a 15% discount.\n\n## Decisions\n- Ship the three-step flow behind a flag first.\n- Annual plan gets a 15% discount.\n\n## Tasks\n- Send the revised pricing deck to Maya.\n- Draft the Northwind follow-up.\n\n## Blockers\n- Waiting on legal review of the pricing tiers.\n\n## Follow-ups\n- Ask Priya which five customers go first.",
+        "generatedAt": "2026-10-30T21:05:00.000Z",
+        "userEdited": false,
+        "sections": {
+          "highlights": [ "Agreed a three-step onboarding flow, shipped behind a flag first.", "Northwind accepted the annual plan at a 15% discount." ],
+          "decisions": [ "Ship the three-step flow behind a flag first.", "Annual plan gets a 15% discount." ],
+          "tasks": [ "Send the revised pricing deck to Maya.", "Draft the Northwind follow-up." ],
+          "blockers": [ "Waiting on legal review of the pricing tiers." ],
+          "followUps": [ "Ask Priya which five customers go first." ]
+        }
+      },
+      "timeline": {
+        "trackedSeconds": 16380,
+        "sessions": [
+          { "start": "2026-10-30T08:02:00.000Z", "end": "2026-10-30T09:24:00.000Z", "title": "Onboarding prototype", "kind": "work", "project": "Onboarding",
+            "apps": [ { "name": "Xcode", "seconds": 3200 }, { "name": "Terminal", "seconds": 1100 }, { "name": "Claude Code", "seconds": 620 } ],
+            "windowTitles": [ "OnboardingFlow.swift", "Terminal — swift test" ] },
+          { "start": "2026-10-30T09:30:00.000Z", "end": "2026-10-30T10:12:00.000Z", "title": "Design review — onboarding", "kind": "meeting",
+            "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "project": "Onboarding", "apps": [ { "name": "Zoom", "seconds": 2520 } ] },
+          { "start": "2026-10-30T10:20:00.000Z", "end": "2026-10-30T11:15:00.000Z", "title": "Pricing deck", "kind": "work", "project": "Pricing",
+            "apps": [ { "name": "Keynote", "seconds": 2100 }, { "name": "Mail", "seconds": 1200 } ],
+            "windowTitles": [ "Pricing 2027.key", "Re: Northwind annual plan" ] },
+          { "start": "2026-10-30T12:40:00.000Z", "end": "2026-10-30T13:14:00.000Z", "title": "Coding agent session", "kind": "agent", "project": "Onboarding",
+            "apps": [ { "name": "Claude Code", "seconds": 2040 } ] },
+          { "start": "2026-10-30T13:30:00.000Z", "end": "2026-10-30T13:55:00.000Z", "title": "1:1 with Maya", "kind": "meeting",
+            "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e04", "apps": [ { "name": "Google Meet", "seconds": 1500 } ] },
+          { "start": "2026-10-30T15:00:00.000Z", "end": "2026-10-30T15:35:00.000Z", "title": "Call with Northwind", "kind": "meeting",
+            "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "project": "Pricing", "apps": [ { "name": "Zoom", "seconds": 2100 } ] }
+        ],
+        "byProject": [ { "name": "Onboarding", "seconds": 9480 }, { "name": "Pricing", "seconds": 5400 }, { "name": "Other", "seconds": 1500 } ],
+        "byApp": [
+          { "name": "Zoom", "seconds": 4620 }, { "name": "Xcode", "seconds": 3200 }, { "name": "Claude Code", "seconds": 2660 },
+          { "name": "Keynote", "seconds": 2100 }, { "name": "Google Meet", "seconds": 1500 }, { "name": "Mail", "seconds": 1200 },
+          { "name": "Terminal", "seconds": 1100 }
+        ],
+        "savedMoments": [ { "at": "2026-10-30T10:48:00.000Z", "label": "Pricing table idea" } ]
+      },
+      "meetingIds": [
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e04", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03"
+      ]
+    }
+  },
+  {
+    "kind": "day", "key": "2026-10-29", "version": 1, "seq": 12, "deleted": false,
+    "sortKey": "2026-10-29",
+    "body": {
+      "date": "2026-10-29",
+      "digest": {
+        "markdown": "## Highlights\n- Kept three pricing tiers and dropped the usage-based option.\n- Onboarding copy is drafted in Figma.\n\n## Decisions\n- Keep three pricing tiers.\n\n## Tasks\n- Priya updates the pricing page copy.\n\n## Follow-ups\n- Send Northwind the annual numbers.",
+        "generatedAt": "2026-10-29T21:02:00.000Z",
+        "userEdited": false,
+        "sections": {
+          "highlights": [ "Kept three pricing tiers and dropped the usage-based option.", "Onboarding copy is drafted in Figma." ],
+          "decisions": [ "Keep three pricing tiers." ],
+          "tasks": [ "Priya updates the pricing page copy." ],
+          "blockers": [],
+          "followUps": [ "Send Northwind the annual numbers." ]
+        }
+      },
+      "timeline": {
+        "trackedSeconds": 10980,
+        "sessions": [
+          { "start": "2026-10-29T07:45:00.000Z", "end": "2026-10-29T09:50:00.000Z", "title": "Onboarding copy", "kind": "work", "project": "Onboarding",
+            "apps": [ { "name": "Figma", "seconds": 4200 }, { "name": "Notion", "seconds": 3300 } ],
+            "windowTitles": [ "Onboarding v3 — Figma", "Copy deck" ] },
+          { "start": "2026-10-29T10:00:00.000Z", "end": "2026-10-29T10:58:00.000Z", "title": "Pricing workshop", "kind": "meeting",
+            "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "project": "Pricing", "apps": [] }
+        ],
+        "byProject": [ { "name": "Onboarding", "seconds": 7500 }, { "name": "Pricing", "seconds": 3480 } ],
+        "byApp": [ { "name": "Figma", "seconds": 4200 }, { "name": "Notion", "seconds": 3300 } ],
+        "savedMoments": []
+      },
+      "meetingIds": [ "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05" ]
+    }
+  },
+  {
+    "kind": "day", "key": "2026-10-27", "version": 1, "seq": 13, "deleted": false,
+    "sortKey": "2026-10-27",
+    "body": {
+      "date": "2026-10-27",
+      "digest": {
+        "markdown": "## Highlights\n- Kicked off the onboarding redesign.\n\n## Tasks\n- Maya drafts the onboarding study plan.",
+        "generatedAt": "2026-10-27T21:00:00.000Z",
+        "userEdited": false,
+        "sections": {
+          "highlights": [ "Kicked off the onboarding redesign." ],
+          "decisions": [],
+          "tasks": [ "Maya drafts the onboarding study plan." ],
+          "blockers": [],
+          "followUps": []
+        }
+      },
+      "timeline": {
+        "trackedSeconds": 1260,
+        "sessions": [
+          { "start": "2026-10-27T08:00:00.000Z", "end": "2026-10-27T08:21:00.000Z", "title": "Product standup", "kind": "meeting",
+            "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06", "project": "Onboarding", "apps": [ { "name": "Google Meet", "seconds": 1260 } ] }
+        ],
+        "byProject": [ { "name": "Onboarding", "seconds": 1260 } ],
+        "byApp": [ { "name": "Google Meet", "seconds": 1260 } ],
+        "savedMoments": []
+      },
+      "meetingIds": [ "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06" ]
+    }
+  },
+  {
+    "kind": "person", "key": "person:maya-chen", "version": 1, "seq": 14, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "id": "person:maya-chen", "displayName": "Maya Chen", "lastMetAt": "2026-10-31T08:00:00.000Z",
+      "openWork": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "actionId": "act-1f2e3d4c", "text": "Send the revised pricing deck to Maya", "dueDate": "2026-10-30", "theirs": false }
+      ],
+      "decisionsTogether": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "text": "Test the onboarding flow with five customers before release." },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "text": "Ship the three-step flow behind a flag first." }
+      ],
+      "meetingIds": [
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e04",
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06"
+      ]
+    }
+  },
+  {
+    "kind": "person", "key": "person:ben-ortiz", "version": 1, "seq": 15, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "id": "person:ben-ortiz", "displayName": "Ben Ortiz", "lastMetAt": "2026-10-31T08:00:00.000Z",
+      "openWork": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "actionId": "act-7c1e40a2", "text": "Review the export PR", "dueDate": "2026-11-03", "theirs": false },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "actionId": "act-c40f8d62", "text": "Simplify the import step", "dueDate": "2026-11-05", "theirs": true }
+      ],
+      "decisionsTogether": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "text": "Ship the three-step flow behind a flag first." },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "text": "Keep three pricing tiers." }
+      ],
+      "meetingIds": [
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01",
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06"
+      ]
+    }
+  },
+  {
+    "kind": "person", "key": "person:priya-nair", "version": 1, "seq": 16, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "id": "person:priya-nair", "displayName": "Priya Nair", "lastMetAt": "2026-10-31T08:00:00.000Z",
+      "openWork": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "actionId": "act-e2a7c915", "text": "Update the pricing page copy", "dueDate": "2026-11-07", "theirs": true }
+      ],
+      "decisionsTogether": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "text": "Keep three pricing tiers." }
+      ],
+      "meetingIds": [
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06"
+      ]
+    }
+  },
+  {
+    "kind": "person", "key": "person:alex-romero", "version": 1, "seq": 17, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "id": "person:alex-romero", "displayName": "Alex Romero", "lastMetAt": "2026-10-30T15:00:00.000Z",
+      "openWork": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "actionId": "act-4d2c9e07", "text": "Draft the Northwind follow-up", "dueDate": "2026-11-05", "theirs": false },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "actionId": "act-a3f61b28", "text": "Share pricing tiers with legal", "dueDate": "2026-11-04", "theirs": true }
+      ],
+      "decisionsTogether": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "text": "Annual plan gets a 15% discount." }
+      ],
+      "meetingIds": [ "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03" ]
+    }
+  },
+  {
+    "kind": "project", "key": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c01", "version": 1, "seq": 18, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c01", "name": "Onboarding",
+      "whereItStands": "The three-step flow is agreed and ships behind a flag after a five-customer study next week. Ben is simplifying the import step.",
+      "yourActions": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "actionId": "act-7c1e40a2", "text": "Review the export PR", "dueDate": "2026-11-03", "status": "open" }
+      ],
+      "waitingOnOthers": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "actionId": "act-c40f8d62", "text": "Simplify the import step", "owner": "Ben Ortiz", "dueDate": "2026-11-05" }
+      ],
+      "decisions": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "text": "Test the onboarding flow with five customers before release." },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "text": "Ship the three-step flow behind a flag first." }
+      ],
+      "timeThisWeekSeconds": 23820,
+      "people": [
+        { "id": "person:maya-chen", "displayName": "Maya Chen" },
+        { "id": "person:ben-ortiz", "displayName": "Ben Ortiz" },
+        { "id": "person:priya-nair", "displayName": "Priya Nair" }
+      ],
+      "meetingIds": [
+        "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06"
+      ]
+    }
+  },
+  {
+    "kind": "project", "key": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c02", "version": 1, "seq": 19, "deleted": false,
+    "sortKey": "2026-10-31T10:12:00.000Z",
+    "body": {
+      "id": "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c02", "name": "Pricing",
+      "whereItStands": "Three tiers stay and the annual plan gets 15% off. Legal still has to review the tiers.",
+      "yourActions": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", "actionId": "act-1f2e3d4c", "text": "Send the revised pricing deck to Maya", "dueDate": "2026-10-30", "status": "open" },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "actionId": "act-4d2c9e07", "text": "Draft the Northwind follow-up", "dueDate": "2026-11-05", "status": "open" }
+      ],
+      "waitingOnOthers": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "actionId": "act-a3f61b28", "text": "Share pricing tiers with legal", "owner": "Alex Romero", "dueDate": "2026-11-04" },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "actionId": "act-e2a7c915", "text": "Update the pricing page copy", "owner": "Priya Nair", "dueDate": "2026-11-07" }
+      ],
+      "decisions": [
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "text": "Annual plan gets a 15% discount." },
+        { "meetingId": "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05", "text": "Keep three pricing tiers." }
+      ],
+      "timeThisWeekSeconds": 8880,
+      "people": [
+        { "id": "person:alex-romero", "displayName": "Alex Romero" },
+        { "id": "person:priya-nair", "displayName": "Priya Nair" },
+        { "id": "person:ben-ortiz", "displayName": "Ben Ortiz" }
+      ],
+      "meetingIds": [ "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03", "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05" ]
+    }
+  }
+]
