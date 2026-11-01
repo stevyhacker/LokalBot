@@ -18,13 +18,21 @@
 set -euo pipefail
 
 if [ -z "${LOKALBOT_SYNC_CLEAN_ENV:-}" ]; then
+  # Keep wherever the caller's cargo and rustup live: CI images and custom
+  # installations don't always use ~/.cargo/bin.
+  rust_path="$HOME/.cargo/bin"
+  for tool in cargo rustup; do
+    if found=$(command -v "$tool" 2>/dev/null); then
+      rust_path="$rust_path:$(dirname "$found")"
+    fi
+  done
   keep=(
     LOKALBOT_SYNC_CLEAN_ENV=1
     "HOME=$HOME"
     "USER=${USER:-$(id -un)}"
     "TMPDIR=${TMPDIR:-/tmp}"
     "TERM=${TERM:-dumb}"
-    "PATH=$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    "PATH=$rust_path:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   )
   # The Xcode that invoked us, and a custom Rust installation, still apply.
   for name in DEVELOPER_DIR RUSTUP_HOME CARGO_HOME CARGO_TARGET_DIR; do
