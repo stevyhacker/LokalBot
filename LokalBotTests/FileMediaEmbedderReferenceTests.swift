@@ -26,43 +26,67 @@ final class FileMediaEmbedderReferenceTests: XCTestCase {
     private static let port = 17_919
 
     func testDigUpsReferenceInputsMakeItsReferenceVectors() async throws {
-        guard let path = ProcessInfo.processInfo.environment["LOKALBOT_MEDIA_EMBEDDER_MODELS"] else {
-            throw XCTSkip("Set LOKALBOT_MEDIA_EMBEDDER_MODELS to a folder with the text model and projector.")
-        }
-        let models = URL(fileURLWithPath: path, isDirectory: true)
-        let model = models.appendingPathComponent(EmbeddingIndex.modelFile)
-        let projector = models.appendingPathComponent(FileSearchModels.projectorFile)
-        guard LocalLlamaServerAuthentication.readMarker(port: Self.port) == nil else {
-            throw XCTSkip("Needs the unused private port \(Self.port).")
-        }
         let fixtures = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "vectors", withExtension: "json", subdirectory: "Fixtures/MediaEmbedderReference"))
             .deletingLastPathComponent()
         let reference = try JSONDecoder().decode(Reference.self, from: Data(contentsOf: fixtures
             .appendingPathComponent("vectors.json")))
 
-        let server = LlamaServer(port: Self.port, contextTokens: 2_048,
+        let made = try await Self.withServer { try Self.vectors(endpoint: $0, fixtures: fixtures) }
+
+        XCTAssertEqual(Set(made.keys), Set(reference.vectors.keys))
+        for (name, vector) in made.sorted(by: { $0.key < $1.key }) {
+            guard let expected = reference.vectors[name] else { continue }
+            let cosine = Self.cosine(vector, expected)
+            let bar = Self.jpegInputs.contains(name) ? Self.jpegAgreement : Self.agreement
+            XCTAssertGreaterThanOrEqual(cosine, bar, "\(name) moved from \(reference.madeWith)'s vector")
+            print("media embedder reference \(name): cosine \(cosine)")
+        }
+    }
+
+    /// A text longer than the server's batch gets the vector of its first
+    /// 2,047 tokens and `<eos>`, as DigUp's embedder and transformers cut it,
+    /// so what follows the cut changes nothing. Sent whole, llama-server
+    /// refused such a page with HTTP 500 and every indexing pass stopped there
+    /// (1 November).
+    func testATextLongerThanTheBatchIsCutLikeDigUpCutsIt() async throws {
+        let page = Prompts.document(title: "zastava-1906-08-10-str2", text: String(
+            repeating: "Српска застава, лист за политику и књижевност, излази сваког дана осим недеље. ", count: 100))
+
+        let made = try await Self.withServer { endpoint in
+            try FileMediaEmbedder(endpoint: endpoint).embedTexts([page + " Крај.", page + " A different ending."])
+        }
+
+        XCTAssertEqual(made.count, 2)
+        XCTAssertEqual(Self.cosine(made[0], made[1]), 1, accuracy: 1e-6)
+    }
+
+    /// Runs `body` off the main thread against the media llama-server with the
+    /// app's arguments on a private port.
+    private static func withServer<T: Sendable>(
+        _ body: @escaping @Sendable (FileMediaEmbedder.Endpoint) throws -> T) async throws -> T {
+        guard let path = ProcessInfo.processInfo.environment["LOKALBOT_MEDIA_EMBEDDER_MODELS"] else {
+            throw XCTSkip("Set LOKALBOT_MEDIA_EMBEDDER_MODELS to a folder with the text model and projector.")
+        }
+        let models = URL(fileURLWithPath: path, isDirectory: true)
+        let model = models.appendingPathComponent(EmbeddingIndex.modelFile)
+        let projector = models.appendingPathComponent(FileSearchModels.projectorFile)
+        guard LocalLlamaServerAuthentication.readMarker(port: port) == nil else {
+            throw XCTSkip("Needs the unused private port \(port).")
+        }
+        let server = LlamaServer(port: port, contextTokens: 2_048,
                                  extraArgs: FileMediaEmbedderRuntime.serverArguments(projector: projector))
         do {
             try await server.ensureRunning(modelAt: model)
             let token = await server.authenticationToken()
-            let endpoint = FileMediaEmbedder.Endpoint(
-                baseURL: URL(string: "http://127.0.0.1:\(Self.port)")!, token: token)
-            let made = try await Task.detached { try Self.vectors(endpoint: endpoint, fixtures: fixtures) }.value
-            XCTAssertEqual(Set(made.keys), Set(reference.vectors.keys))
-            for (name, vector) in made.sorted(by: { $0.key < $1.key }) {
-                guard let expected = reference.vectors[name] else { continue }
-                let cosine = zip(vector, expected).reduce(Float(0)) { $0 + $1.0 * $1.1 }
-                    / (Self.norm(vector) * Self.norm(expected))
-                let bar = Self.jpegInputs.contains(name) ? Self.jpegAgreement : Self.agreement
-                XCTAssertGreaterThanOrEqual(cosine, bar, "\(name) moved from \(reference.madeWith)'s vector")
-                print("media embedder reference \(name): cosine \(cosine)")
-            }
+            let endpoint = FileMediaEmbedder.Endpoint(baseURL: URL(string: "http://127.0.0.1:\(port)")!, token: token)
+            let made = try await Task.detached { try body(endpoint) }.value
+            await server.stop()
+            return made
         } catch {
             await server.stop()
             throw error
         }
-        await server.stop()
     }
 
     private struct Reference: Decodable {
@@ -98,6 +122,10 @@ final class FileMediaEmbedderReferenceTests: XCTestCase {
         let speech = try embedder.embedAudio([fixtures.appendingPathComponent("speech.wav").path])[0]
         made["speech"] = try XCTUnwrap(speech.vector, "speech.wav: \(speech.error ?? "no vector")")
         return made
+    }
+
+    private static func cosine(_ lhs: [Float], _ rhs: [Float]) -> Float {
+        zip(lhs, rhs).reduce(Float(0)) { $0 + $1.0 * $1.1 } / (norm(lhs) * norm(rhs))
     }
 
     private static func norm(_ vector: [Float]) -> Float {
