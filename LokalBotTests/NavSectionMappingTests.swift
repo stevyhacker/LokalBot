@@ -23,13 +23,15 @@ final class NavSectionMappingTests: XCTestCase {
         XCTAssertEqual(AppState.NavSection(captureName: "Models"), .settings)
     }
 
-    /// Settings opens on Overview, and every other page sits under one
-    /// sidebar heading, in the order the sidebar shows them.
+    /// Settings opens on Overview with General right under it, above the
+    /// headings, and every other page sits under one sidebar heading, in the
+    /// order the sidebar shows them.
     func testSettingsPagesAreGroupedByFeature() {
         let pages = AppState.SettingsTab.allCases
-        XCTAssertEqual(pages.first, .overview)
+        XCTAssertEqual(Array(pages.prefix(2)), [.overview, .general])
         XCTAssertNil(AppState.SettingsTab.overview.group)
-        XCTAssertTrue(pages.dropFirst().allSatisfy { $0.group != nil })
+        XCTAssertNil(AppState.SettingsTab.general.group)
+        XCTAssertTrue(pages.dropFirst(2).allSatisfy { $0.group != nil })
         let order = pages.compactMap(\.group)
         XCTAssertEqual(order, order.sorted { lhs, rhs in
             AppState.SettingsTab.Group.allCases.firstIndex(of: lhs)! < AppState.SettingsTab.Group.allCases.firstIndex(of: rhs)!

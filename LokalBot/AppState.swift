@@ -55,27 +55,28 @@ final class AppState: ObservableObject {
     /// up, in sidebar order. Raw values stay stable for the CLI, AppControl and
     /// saved selections, so a renamed page keeps its old identifier.
     enum SettingsTab: String, CaseIterable {
-        case overview
+        case overview, general
         case recording, dayMemory, files, email
         case ask, personalContext, daily
         case writing, dictation
         case models, agents
-        case general, privacy, advanced
+        case privacy, advanced
 
         enum Group: String, CaseIterable {
             case memory = "Memory", assistant = "Assistant", writing = "Writing",
                  connections = "Connections", app = "App"
         }
 
-        /// The sidebar heading the page sits under; Overview has none.
+        /// The sidebar heading the page sits under. Overview and General have
+        /// none: they come first, above the headings.
         var group: Group? {
             switch self {
-            case .overview: nil
+            case .overview, .general: nil
             case .recording, .dayMemory, .files, .email: .memory
             case .ask, .personalContext, .daily: .assistant
             case .writing, .dictation: .writing
             case .models, .agents: .connections
-            case .general, .privacy, .advanced: .app
+            case .privacy, .advanced: .app
             }
         }
 
