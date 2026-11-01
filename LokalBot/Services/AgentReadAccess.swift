@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// Settings → Privacy → External agents: one switch for reading LokalBot data,
+/// Settings → External Agents: one switch for reading LokalBot data,
 /// with a box for each kind under it. Each kind keeps its own marker in
 /// `control/`, which is what `lokalbot-cli` and its MCP server check, with the
 /// app closed too. The switch only writes and removes those markers: turning
@@ -107,6 +107,24 @@ final class AgentReadAccess: ObservableObject {
         }
         guard ticked || canUntick(kind) else { return }
         grant(kind, ticked)
+    }
+
+    /// A feature page's own box for its kind. Ticking it grants exactly that
+    /// kind, turning the main switch on without granting the others;
+    /// unticking the last granted kind turns the switch off.
+    func setGranted(_ kind: Kind, _ on: Bool) {
+        if on {
+            guard !isGranted(kind) else { return }
+            // The history shown while screen memory was off is the one granted.
+            if kind == .screenMemory { screenMemory.setScope(remembered.screenScope) }
+            grant(kind, true)
+        } else if granted == [kind] {
+            setEnabled(false)
+            return
+        } else {
+            grant(kind, false)
+        }
+        objectWillChange.send()
     }
 
     func setScreenScope(_ scope: ScreenMemoryAccessProfile.Scope) {

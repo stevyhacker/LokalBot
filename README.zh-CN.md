@@ -65,7 +65,7 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 - **用你的语言写。** 在 Mac 上，同一个小模型可以用德语、法语、意大利语、西班牙语等语言补全。
 - **留在你的电脑上。** 小模型在应用内运行：Mac 上是 Gemma 4 E2B，Windows 和 Linux 上是 LFM2.5 1.2B。你输入的内容和它读取的上下文都不会离开你的电脑。
 
-在 **Settings → Writing** 中开启。可以先在示例对话里试用，之后还能看到它帮你写了多少字。
+在 **Settings → Autocomplete** 中开启。可以先在示例对话里试用，之后还能看到它帮你写了多少字。
 
 ### 接着上次的进度
 
@@ -239,7 +239,7 @@ Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、
 
 ## 开发者与智能体
 
-应用内置了 **`lokalbot-cli`**：它是会议记录库的只读接口，同时也是一个 stdio **Model Context Protocol (MCP)** 服务器。访问默认关闭：先在 **Settings → Privacy & Data** 中开启会议记录库访问，再到 **Settings → Advanced → Agent CLI** 安装 CLI。
+应用内置了 **`lokalbot-cli`**：它是会议记录库的只读接口，同时也是一个 stdio **Model Context Protocol (MCP)** 服务器。访问默认关闭：在 Mac 上，先在 **Settings → External Agents** 中开启会议记录库访问，再在同一页的 **Agent CLI** 安装 CLI；在 Windows 和 Linux 上，分别在 **Settings → Privacy & Data** 和 **Settings → Advanced → Agent CLI** 中完成。
 
 <div align="center"><img src="Assets/cli-demo.svg" alt="终端动画：lokalbot-cli 以表格列出会议，搜索 redis 并返回 JSON，然后打印最新会议的摘要" width="720" /></div>
 

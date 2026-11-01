@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A compact live readout in Settings → Advanced. Whole-app figures use
+/// A compact live readout in Settings → Diagnostics. Whole-app figures use
 /// native process accounting for LokalBot and its helpers; model rows merge
 /// subprocess-backed GGUF/ONNX runtimes with retained CoreML/MLX models.
 struct ResourceMonitorSection: View {

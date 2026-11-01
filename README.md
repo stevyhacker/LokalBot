@@ -65,7 +65,7 @@ As you type in other apps, gray text suggests how your sentence ends. Press **Ta
 - **Writes in your language.** On Mac, the same small model keeps up in German, French, Italian, Spanish, and more.
 - **Stays on your computer.** A small model runs inside the app: Gemma 4 E2B on Mac, LFM2.5 1.2B on Windows and Linux. What you type and the context it reads never leave your computer.
 
-Turn it on in **Settings → Writing**, where you can try it on a sample conversation first and later see how much it wrote for you.
+Turn it on in **Settings → Autocomplete**, where you can try it on a sample conversation first and later see how much it wrote for you.
 
 ### Pick up where you left off
 
@@ -226,7 +226,7 @@ On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Par
 
 ## For developers & agents
 
-The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → Privacy** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, turn on meeting-library access in **Settings → Privacy & Data**. Then install the CLI from **Settings → Advanced → Agent CLI**.
+The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, turn on meeting-library access in **Settings → Privacy & Data**. Then install the CLI from **Settings → Advanced → Agent CLI**.
 
 <div align="center"><img src="Assets/cli-demo.svg" alt="Animated terminal session: lokalbot-cli lists meetings as a table, searches transcripts for redis and returns JSON, then prints the latest meeting summary" width="720" /></div>
 

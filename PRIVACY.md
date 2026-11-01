@@ -87,7 +87,7 @@ vocabulary, and note exports leave it out. **Remove sample** deletes it in one
 step, and nothing records that you tried it.
 
 **Read coding agent sessions** is on by default and can be turned off in
-Settings → Day Memory. While it is on, LokalBot reads Claude Code session files
+Settings → Screen & Activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
 `~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
 titles. It never opens the agents' credentials, settings, or databases, and
@@ -315,7 +315,7 @@ The app may make these outbound connections:
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
 - **Email (optional):** nothing is read until you connect an account under
-  Settings → Personal Context → Email, after a notice that says what is read. LokalBot
+  Settings → Email, after a notice that says what is read. LokalBot
   signs in to Google with its own OAuth client, which has no secret: Google's
   consent page opens in macOS's sign-in sheet and returns only to LokalBot. If
   you import your own Google Cloud client instead, its id and secret are kept
@@ -381,13 +381,13 @@ The app may make these outbound connections:
   origin for autocomplete there; an approval for Think does not cover
   autocomplete, and one for autocomplete does not cover Think. Choosing and
   approving a server is your consent to send it what autocomplete uses, so
-  your Settings → Writing choices apply as set. While you type where
+  your Settings → Autocomplete choices apply as set. While you type where
   autocomplete can suggest, each request sends the text before the caret,
   your writing profile (name, style, languages, and notes), the API key you
   configured, and whichever of these you have turned on: the app and window
   title, the clipboard, visible text above the field, focused-window text,
   meeting and work memory, screen-derived memory, and learned examples.
-  Settings → Writing → Context names the server they go to. Secure fields and
+  Settings → Autocomplete → Context names the server they go to. Secure fields and
   excluded apps and sites are never read. A server on the internet must
   use HTTPS. A server on your own network (a private, link-local, or Tailscale
   address, or a `.local`, `.home.arpa`, `.ts.net`, or single-label name) may
@@ -551,7 +551,7 @@ including the Limited Use requirements.
 
 ## Files you choose
 
-Files (Settings → Personal Context → Files) searches folders on your Mac by
+Files (Settings → Files) searches folders on your Mac by
 what is in them. It is off until you turn it on after a notice, and it reads
 nothing until you choose a folder. It never picks folders by itself: Settings
 offers Documents, Desktop and Downloads as one-click choices, and macOS asks
@@ -649,7 +649,7 @@ before recording other people.
 
 The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
 access until you turn on **Allow external agents to read your LokalBot data**
-under Settings → Privacy → External agents. It is off by default. Under it is a
+under Settings → External Agents. It is off by default. Under it is a
 box for each kind of data: **Meetings**, **Screen memory**, **What I shared
 about myself**, and **Files**. Agents can read only the kinds you tick, and
 ticking one never grants another. The first time you turn the switch on, only
@@ -852,7 +852,7 @@ and unknown document contexts do not learn or reuse examples. Settings →
 Autocomplete → **Forget learned text** removes the stored examples and cancels
 pending learning writes.
 
-Autocomplete keeps local counters, shown under Settings → Writing → **Usage and
+Autocomplete keeps local counters, shown under Settings → Autocomplete → **Usage and
 timing**: suggestions generated and accepted, generation time, and, for each
 kind of app (native apps, browsers, chat, email), the wait from your last
 keystroke to a visible suggestion, whether accepted text then appeared in the
@@ -863,7 +863,7 @@ discarded; only the outcome is counted. No typed text, app name, or window title
 is stored. **Reset** clears the counters, and **Copy measurements** puts the
 counts on the clipboard only when you click it.
 
-Settings → Writing → **Statistics** shows how much autocomplete wrote for you.
+Settings → Autocomplete → **Statistics** shows how much autocomplete wrote for you.
 For each local day and month it counts the suggestions shown and used, the
 words and characters accepted, and accepts deleted or undone at once, each also
 by kind of app and by autocomplete model, plus accepted typo corrections. To
@@ -882,7 +882,7 @@ Autocomplete also has a separate **Use visible text above the field** setting.
 It is on for new installs and only takes effect while Autocomplete itself is on;
 settings saved by earlier versions keep their choice, which was off unless you
 turned it on. Onboarding says so where Autocomplete is prepared, and Settings →
-Writing turns it off. It reads Accessibility labels and messages in the focused
+Autocomplete turns it off. It reads Accessibility labels and messages in the focused
 field's column, up to 600 points above it, within the same visible window/pane.
 It selects at most three excerpts within 420 characters. Hidden/offscreen text,
 other inputs, sidebars, toolbars, secure fields, credential-bearing snippets,
@@ -906,7 +906,7 @@ autocomplete without this additional context.
 Autocomplete also has a **Use the focused window as context** setting. It is on
 for every install, including settings saved by earlier versions, and only takes
 effect while Autocomplete itself is on and Screen Recording is already granted;
-Autocomplete never asks for Screen Recording. Settings → Writing turns it off.
+Autocomplete never asks for Screen Recording. Settings → Autocomplete turns it off.
 While you type in a field, Autocomplete captures only the focused window,
 recognizes its text on this Mac with Apple's Vision framework, and drops the
 image. Text inside the field you are typing in is left out, since it is already
@@ -1030,7 +1030,7 @@ A result older than 7 days is dropped when LokalBot starts or saves the next
 dictation, and any beyond the newest 10 right away; **Clear** deletes the file. They are never logged or sent anywhere. Text meant
 for a password field is never kept.
 
-Selection actions are off by default (Settings → General → Shortcut). When
+Selection actions are off by default (Settings → Ask, or Turn On on Settings → Overview). When
 enabled, pressing their shortcut reads the text selected in the frontmost app
 once, through Accessibility. Apps on the shared exclusion list and secure
 fields are not read. When an app does not expose its selection that way,

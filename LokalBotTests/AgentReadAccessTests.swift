@@ -96,6 +96,30 @@ final class AgentReadAccessTests: XCTestCase {
         XCTAssertEqual(access.granted, [.files])
     }
 
+    /// A feature page's own box grants that kind alone: ticking Files on the
+    /// Files page never lets agents read meetings too.
+    func testAPageBoxGrantsOnlyItsKindAndTheLastOneTurnsTheSwitchOff() {
+        let access = makeAccess()
+        access.setScreenScope(.today)
+
+        access.setGranted(.files, true)
+        XCTAssertTrue(access.isEnabled)
+        XCTAssertEqual(access.granted, [.files])
+        XCTAssertTrue(FilesAccessGate(root: root).isEnabled)
+        XCTAssertFalse(AgentAccessGate(root: root).isEnabled, "Meetings stays off")
+
+        access.setGranted(.screenMemory, true)
+        XCTAssertEqual(access.granted, [.screenMemory, .files])
+        XCTAssertEqual(ScreenMemoryAccessGate(root: root).profile.scope, .today, "the remembered history applies")
+
+        access.setGranted(.screenMemory, false)
+        XCTAssertEqual(access.granted, [.files])
+        access.setGranted(.files, false)
+        XCTAssertFalse(access.isEnabled)
+        XCTAssertFalse(FilesAccessGate(root: root).isEnabled)
+        XCTAssertTrue(access.isTicked(.files), "turning off through the last box remembers it, like the switch")
+    }
+
     private func makeAccess() -> AgentReadAccess {
         let meetings = AgentAccessManager(storage: StorageManager(), settings: { AppSettings() },
                                           gate: AgentAccessGate(root: root), startEngine: { _, _ in nil })

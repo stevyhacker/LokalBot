@@ -58,7 +58,7 @@ final class RedesignUITests: XCTestCase {
             ("timeline", ["LOKALBOT_INITIAL_SECTION": "timeline"]),
             ("search", ["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search", "LOKALBOT_INITIAL_SEARCH": "failover"]),
             ("ask", ["LOKALBOT_INITIAL_SECTION": "ask"]),
-            ("settings", ["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "privacy"]),
+            ("settings", ["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "dayMemory"]),
             ("models", ["LOKALBOT_INITIAL_SECTION": "models"]),
             ("dictation", ["LOKALBOT_INITIAL_SECTION": "dictation"]),
             ("autocomplete", ["LOKALBOT_INITIAL_SECTION": "autocomplete", "LOKALBOT_COTYPING_DEMO": "1"]),
@@ -483,7 +483,7 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "advanced"])
+        try launch(["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "agents"])
         let form = app.scrollViews["settings.form"]
         let cli = UITestHarness.staticText(containing: "Agent CLI", in: app)
         UITestHarness.scrollTo(cli, in: app, within: form, attempts: 16)
@@ -496,7 +496,7 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(UITestHarness.toggle("Enable autocomplete", in: app).exists,
                        "Dictation has its own page, separate from autocomplete")
         snapshot("settings-dictation")
-        UITestHarness.selectSettingsCategory("Advanced", in: app)
+        UITestHarness.selectSettingsCategory("Diagnostics", in: app)
         let cpu = element("settings.resourceMonitor.cpu")
         UITestHarness.scrollTo(cpu, in: app, within: form, attempts: 16)
         let cells = [cpu, element("settings.resourceMonitor.memory"), element("settings.resourceMonitor.models"),
@@ -536,7 +536,7 @@ final class RedesignUITests: XCTestCase {
     func testAutocompleteAcceptsPhysicalTabAndEscapeDismissesGhost() throws {
         try launch(["LOKALBOT_COTYPING_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Writing", in: app)
+        UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         let editor = app.textViews["autocomplete.rehearsal.editor"]
         UITestHarness.scrollTo(editor, in: app)
         editor.click()
@@ -602,7 +602,7 @@ final class RedesignUITests: XCTestCase {
     func testRetentionReviewCancelPreservesPolicy() throws {
         try launch(["LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Privacy & Data", in: app)
+        UITestHarness.selectSettingsCategory("Screen & Activity", in: app)
         let before = UserDefaults(suiteName: suite!)?.data(forKey: "lokalbotv3.settings")
         let review = app.buttons["Review expired context…"]
         UITestHarness.scrollTo(review, in: app)

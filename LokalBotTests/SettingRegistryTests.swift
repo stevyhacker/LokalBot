@@ -165,8 +165,12 @@ final class SettingRegistryTests: XCTestCase {
     }
 
     func testSnapshotSpecSelection() throws {
-        XCTAssertEqual(try SettingsSnapshot.specs(category: "privacy", keys: nil).map(\.key),
-                       ["retentionDays", "keepOCRTextForever", "excludedApps", "excludedScreenDomains"])
+        XCTAssertEqual(try SettingsSnapshot.specs(category: "files", keys: nil).map(\.key),
+                       ["fileSearchEnabled", "fileSearchFolders", "fileSearchIncludesMedia", "fileSearchReadsOnBattery"])
+        // Retention and exclusions live with the capture they limit.
+        XCTAssertEqual(try SettingsSnapshot.specs(category: "privacy", keys: nil).map(\.key), [])
+        XCTAssertTrue(try SettingsSnapshot.specs(category: "dayMemory", keys: nil).map(\.key)
+            .contains("retentionDays"))
         XCTAssertEqual(try SettingsSnapshot.specs(category: nil, keys: ["appTheme"]).map(\.key), ["appTheme"])
         XCTAssertThrowsError(try SettingsSnapshot.specs(category: nil, keys: ["languageHint"])) { error in
             XCTAssertEqual((error as? AppControlError)?.code, "unknown_key")

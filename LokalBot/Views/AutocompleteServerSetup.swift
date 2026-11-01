@@ -149,7 +149,7 @@ struct AutocompleteServerSetup: View {
                         .toggleStyle(.checkbox)
                         .font(.scaled(.body).weight(.medium))
                         .accessibilityIdentifier("models.autocompleteServer.consent")
-                    Text("What you type goes to this server as you type, with the context you turn on under Settings → Writing.")
+                    Text("What you type goes to this server as you type, with the context you turn on under Settings → Autocomplete.")
                         .font(.scaled(.callout)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if url.scheme?.lowercased() != "https" {

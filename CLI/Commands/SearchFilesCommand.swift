@@ -10,8 +10,8 @@ struct SearchFilesCommand: AsyncParsableCommand {
             (documents, PDF pages, words in screenshots and pictures, and file
             names), best match first, with the passage that matched. Works
             without launching the app. Search by meaning stays in LokalBot's
-            Ask. Needs file access: LokalBot → Settings → Privacy → External
-            agents, with Files ticked. JSON by default.
+            Ask. Needs file access: LokalBot → Settings → External Agents,
+            with Files ticked. JSON by default.
             """
     )
 

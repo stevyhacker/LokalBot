@@ -7,7 +7,6 @@
       "Deletes every fact, preference, goal, and principle saved here. Your Ask history is kept.",
       "Forget Everything",
       "Forget everything…",
-      "Privacy settings…",
       "Stop Always Using"
     ],
     "ActionEvidencePassages.swift": [
@@ -257,7 +256,7 @@
       "Using \\(…)"
     ],
     "OnboardingView.swift": [
-      "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Writing."
+      "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Autocomplete."
     ],
     "OutcomeOverviewViews.swift": [
       "Allow matching across meetings",
@@ -345,7 +344,6 @@
       "Retained moments · \\(…) of \\(…)"
     ],
     "SettingsView.swift": [
-      "Choose…",
       "Idle fallback: at least every \\(…) min",
       "\\(…) ms",
       "\\(…) of \\(…) characters",

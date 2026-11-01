@@ -12,7 +12,7 @@ on **October 9, 2026** in light appearance from the `v0.10.2` release commit
 | [meetings-summary.png](meetings-summary.png) | Podcast trailer review with recap, actions, decisions, and source citations |
 | [today.png](today.png) | Items needing attention and the day digest |
 | [timeline.png](timeline.png) | Day overview, digest, open items, and work sessions |
-| [cotyping.png](cotyping.png) | Settings → Writing with the Autocomplete preview and rehearsal |
+| [cotyping.png](cotyping.png) | Settings → Autocomplete (then called Writing) with the preview and rehearsal |
 
 These are unedited captures of the native SwiftUI views, with fictional content
 from `Scripts/seed_demo_library.py --profile studio`: a small video studio's

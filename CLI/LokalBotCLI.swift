@@ -9,11 +9,11 @@ struct LokalBotCLI: AsyncParsableCommand {
             Intended for coding agents (Claude Code, Codex CLI, Cursor, Gemini)
             and humans alike. The CLI is symlinked at
             ~/.local/bin/lokalbot-cli by the in-app installer (Settings →
-            Agent CLI). Output defaults to JSON; pass --table for plain text.
+            External Agents → Agent CLI). Output defaults to JSON; pass --table for plain text.
             Library commands need meeting access, search-files needs file
             access, and personal-context its own access. config, secret, models,
             permissions, status, doctor, restart, and open need the separate
-            settings access in Settings → Privacy; setup start asks the person
+            settings access in Settings → External Agents; setup start asks the person
             for it.
             """,
         version: "lokalbot-cli \(HelperVersion.current())",

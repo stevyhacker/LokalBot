@@ -296,7 +296,7 @@ struct AppSettings: Codable, Equatable {
     var retentionDays: Int = 14
     /// Keep OCR'd screen text past `retentionDays`. Off by default — screen
     /// text can be as sensitive as the pixels it came from, so keeping it
-    /// forever is an explicit opt-in (Settings → Privacy).
+    /// forever is an explicit opt-in (Settings → Screen & Activity).
     var keepOCRTextForever: Bool = false
     /// System-wide Quick Recall opens a compact search surface without first
     /// bringing the main app forward. Off by default because a global shortcut
@@ -401,7 +401,7 @@ struct AppSettings: Codable, Equatable {
     /// the person asks. Turning it off stops saving and use but keeps what is
     /// already remembered until the person forgets it.
     var askMemoryEnabled: Bool = true
-    /// Files (Settings → Personal Context → Files): search the folders the
+    /// Files (Settings → Files): search the folders the
     /// person chooses by what is in them, with DigUp's engine. Off until they
     /// turn it on after a notice; turning it off deletes the file index.
     var fileSearchEnabled: Bool = false

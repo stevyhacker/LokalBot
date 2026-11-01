@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// App-side owner of the Personal context grant (Settings → Privacy). While it
+/// App-side owner of the Personal context grant (Settings → External Agents). While it
 /// is on, the app keeps `control/personal-context.json` in step with the
 /// claims the person shared, so `lokalbot-cli` and its MCP server can answer
 /// without the app running and without reading the encrypted personal model.

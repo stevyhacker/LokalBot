@@ -78,9 +78,10 @@ means the person has not allowed access yet; run `setup start`.
 1. **Gatekeeper.** The first-open confirmation, if macOS shows one.
 2. **Access.** One Allow in LokalBot for `setup start`, ticking the read
    boxes they agreed to. Later they can change what agents read in Settings →
-   Privacy → External agents: **Allow external agents to read your LokalBot
-   data**, with a box each for Meetings, Screen memory, What I shared about
-   myself, and Files. What I shared about myself is turned on only there.
+   External Agents: **Allow external agents to read your LokalBot data**, with
+   a box each for Meetings, Screen memory, What I shared about myself, and
+   Files. The Screen & Activity, Personal Context, and Files pages show the same
+   box for their kind. What I shared about myself is turned on only in the app.
 3. **Consent review.** One card for the consent changes in the plan, such as
    capture level, calendar, automatic recording, or a remote server.
 4. **macOS permissions.** Allow in the Microphone and Calendar prompts, and
