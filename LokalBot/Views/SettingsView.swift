@@ -42,17 +42,21 @@ struct SettingsView: View {
                             .padding(.vertical, 3)
                             .tag(category)
                     }
+                    // Headings are plain rows, like the main sidebar's: a List
+                    // Section reaches accessibility as a group with no name.
                     ForEach(AppState.SettingsTab.Group.allCases, id: \.self) { group in
-                        Section {
-                            ForEach(AppState.SettingsTab.allCases.filter { $0.group == group }, id: \.self) { category in
-                                SettingsCategoryLabel(category: category)
-                                    .padding(.vertical, 3)
-                                    .tag(category)
-                            }
-                        } header: {
-                            Text(LocalizedStringKey(group.rawValue))
-                                .font(.scaled(.subheadline).bold())
-                                .settingsSecondary()
+                        Text(LocalizedStringKey(group.rawValue))
+                            .font(.scaled(.subheadline).bold())
+                            .settingsSecondary()
+                            .padding(.top, 8)
+                            .accessibilityAddTraits(.isHeader)
+                            .selectionDisabled(true)
+                            .listRowSeparator(.hidden)
+                            .accessibilityIdentifier("settings.group.\(group)")
+                        ForEach(AppState.SettingsTab.allCases.filter { $0.group == group }, id: \.self) { category in
+                            SettingsCategoryLabel(category: category)
+                                .padding(.vertical, 3)
+                                .tag(category)
                         }
                     }
                 }
