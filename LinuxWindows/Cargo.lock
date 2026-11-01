@@ -4508,7 +4508,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-agent"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -4533,7 +4533,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-ai"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4569,7 +4569,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-app"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -4605,7 +4605,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-audio"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "cpal",
@@ -4623,7 +4623,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-cli"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4640,7 +4640,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-core"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -4664,7 +4664,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-engine"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4689,7 +4689,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-i18n"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "chrono",
  "pure-rust-locales",
@@ -4699,7 +4699,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-platform"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -4745,7 +4745,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-speech"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "log",
@@ -4762,7 +4762,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-sync"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -4785,7 +4785,7 @@ dependencies = [
 
 [[package]]
 name = "lokalbot-update"
-version = "0.11.6"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

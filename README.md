@@ -65,7 +65,7 @@ As you type in other apps, gray text suggests how your sentence ends. Press **Ta
 - **Writes in your language.** On Mac, the same small model keeps up in German, French, Italian, Spanish, and more.
 - **Stays on your computer.** A small model runs inside the app: Gemma 4 E2B on Mac, LFM2.5 1.2B on Windows and Linux. What you type and the context it reads never leave your computer.
 
-Turn it on in **Settings → Writing**, where you can try it on a sample conversation first and later see how much it wrote for you.
+Turn it on in **Settings → Autocomplete**, where you can try it on a sample conversation first and later see how much it wrote for you.
 
 ### Pick up where you left off
 
@@ -227,17 +227,18 @@ On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Par
 
 ## For developers & agents
 
-The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default. Enable meeting-library access in **Settings → Privacy & Data**, then install the CLI from **Settings → Advanced → Agent CLI**.
+The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, turn on meeting-library access in **Settings → Privacy & Data**. Then install the CLI from **Settings → Advanced → Agent CLI**.
 
 <div align="center"><img src="Assets/cli-demo.svg" alt="Animated terminal session: lokalbot-cli lists meetings as a table, searches transcripts for redis and returns JSON, then prints the latest meeting summary" width="720" /></div>
 
 ```bash
 lokalbot-cli search "database decision"
 lokalbot-cli get latest --include metadata,summary
+lokalbot-cli search-files "lease renewal" --kind pdf   # Mac, with Files ticked
 lokalbot-cli mcp
 ```
 
-Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. There the CLI has the read-only commands and every MCP tool; `ask`, `reply`, and the setup and configuration commands are Mac only.
+Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. There the CLI has the read-only commands and every MCP tool except `search_files`; `ask`, `reply`, `search-files`, and the setup and configuration commands are Mac only.
 
 Connect Claude Code with one command, or install the [Claude Code plugin](Distribution/claude-plugin/README.md):
 
@@ -248,7 +249,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. External clients may send results to their own model providers.
+Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. On a Mac, `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs the Files box and never changes your files. External clients may send results to their own model providers.
 
 The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
 

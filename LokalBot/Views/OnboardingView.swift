@@ -178,7 +178,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Text and images build on app activity. Images are encrypted on disk; captured text remains searchable under your retention policy.")
                     .workspaceTextRole(.supporting)
-                Text("Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Privacy & Data.")
+                Text("Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Screen & Activity.")
                     .workspaceTextRole(.supporting)
             }
             Label("These choices are applied on the final Review step.", systemImage: "checklist")
@@ -216,7 +216,7 @@ struct OnboardingView: View {
                 .accessibilityLabel("Also prepare Autocomplete (optional)")
             if includeAutocomplete {
                 modelRow("Autocomplete", model: app.settings.cotypingBuiltInModelID, role: .autocomplete)
-                Text("Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Writing.")
+                Text("Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Autocomplete.")
                     .workspaceTextRole(.supporting)
             }
             if showsDownloadSource {
@@ -249,7 +249,7 @@ struct OnboardingView: View {
                 Text(model).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(app.modelRoles.snapshot[role].label).font(.scaled(.callout).weight(.semibold))
+            ModelRoleStatusText(roles: app.modelRoles, role: role)
         }.workspacePanel()
     }
 
@@ -270,5 +270,15 @@ struct OnboardingView: View {
             Text("You can browse, search and edit your existing local library immediately. Setup does not delete any content or change existing remote-server approvals.")
                 .workspaceTextRole(.trust)
         }
+    }
+}
+
+/// Download progress reaches only this label: AppState does not relay it.
+private struct ModelRoleStatusText: View {
+    @ObservedObject var roles: ModelRoles
+    let role: ModelRole
+
+    var body: some View {
+        Text(roles.snapshot[role].label).font(.scaled(.callout).weight(.semibold))
     }
 }

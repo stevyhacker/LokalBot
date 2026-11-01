@@ -124,7 +124,7 @@ struct PersonalContextProjection: Codable, Equatable, Sendable {
 }
 
 /// Cross-process truth for the Personal context grant: a marker the app sets
-/// from Settings → Privacy, plus the projection it keeps in sync. Separate
+/// from Settings → External Agents or Personal Context, plus the projection it keeps in sync. Separate
 /// from meeting and screen access, and no Agent Mode capability satisfies it.
 struct PersonalContextAccessGate {
     static let markerName = "personal-context-access-enabled"
@@ -197,9 +197,9 @@ enum PersonalContextTool {
     static let maximumTaskCharacters = 500
 
     static let disabledMessage =
-        "Personal context access is off. The user can turn it on in LokalBot → Settings → Privacy → " +
-        "\"Allow external agents to read what I shared about myself\", then choose items to share in " +
-        "Settings → Personal Context."
+        "Personal context access is off. The user can turn it on in "
+        + AgentReadAccessCopy.path(ticking: "What I shared about myself")
+        + ", then choose items to share in Settings → Personal Context."
     static let unavailableMessage =
         "Personal context access is on, but LokalBot hasn't written the shared items yet. " +
         "Open LokalBot once so it can prepare them."

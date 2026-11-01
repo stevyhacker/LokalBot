@@ -23,6 +23,24 @@ final class NavSectionMappingTests: XCTestCase {
         XCTAssertEqual(AppState.NavSection(captureName: "Models"), .settings)
     }
 
+    /// Settings opens on Overview with General right under it, above the
+    /// headings, and every other page sits under one sidebar heading, in the
+    /// order the sidebar shows them.
+    func testSettingsPagesAreGroupedByFeature() {
+        let pages = AppState.SettingsTab.allCases
+        XCTAssertEqual(Array(pages.prefix(2)), [.overview, .general])
+        XCTAssertNil(AppState.SettingsTab.overview.group)
+        XCTAssertNil(AppState.SettingsTab.general.group)
+        XCTAssertTrue(pages.dropFirst(2).allSatisfy { $0.group != nil })
+        let order = pages.compactMap(\.group)
+        XCTAssertEqual(order, order.sorted { lhs, rhs in
+            AppState.SettingsTab.Group.allCases.firstIndex(of: lhs)! < AppState.SettingsTab.Group.allCases.firstIndex(of: rhs)!
+        }, "a heading's pages are listed together")
+        XCTAssertEqual(Set(pages.map(\.displayName)).count, pages.count)
+        XCTAssertEqual(AppState.SettingsTab.dayMemory.displayName, "Screen & Activity")
+        XCTAssertEqual(AppState.SettingsTab.writing.displayName, "Autocomplete")
+    }
+
     func testSettingsTabCaptureNamesSelectTheTab() {
         XCTAssertEqual(AppState.SettingsTab(captureName: "models"), .models)
         XCTAssertEqual(AppState.SettingsTab(captureName: "general"), .general)
@@ -30,6 +48,18 @@ final class NavSectionMappingTests: XCTestCase {
         XCTAssertEqual(AppState.SettingsTab(captureName: "dictation"), .dictation)
         XCTAssertEqual(AppState.SettingsTab(captureName: "privacy"), .privacy)
         XCTAssertEqual(AppState.SettingsTab(captureName: "advanced"), .advanced)
+        // Pages renamed when Settings was organized by feature keep their
+        // old names, and the new pages have their own.
+        XCTAssertEqual(AppState.SettingsTab(captureName: "day memory"), .dayMemory)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "screen"), .dayMemory)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "writing"), .writing)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "autocomplete"), .writing)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "diagnostics"), .advanced)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "overview"), .overview)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "files"), .files)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "email"), .email)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "daily review"), .daily)
+        XCTAssertEqual(AppState.SettingsTab(captureName: "external agents"), .agents)
         XCTAssertNil(AppState.SettingsTab(captureName: "settings"))
         XCTAssertNil(AppState.SettingsTab(captureName: "capture"))
     }

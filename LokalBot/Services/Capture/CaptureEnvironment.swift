@@ -39,9 +39,27 @@ protocol WorkspaceSource: Sendable {
 protocol AccessibilitySource: Sendable {
     func isTrusted() -> Bool
     func read(processID: pid_t, includeText: Bool) -> AccessibilityRead
+    /// The focused window's title, frame, document, and focused-field state,
+    /// without walking its contents for web pages.
+    func readWindow(processID: pid_t) -> AccessibilityRead
+    /// Secure fields and page addresses without text, over at most
+    /// `nodeLimit` elements: a capture's recheck after its pixels were taken.
+    func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead
     func focusedWindowTitle(processID: pid_t) -> String?
     func browserMeetingSnapshot(processID: pid_t, expectedURL: URL?) -> BrowserMeetingSession.Snapshot?
     func browserReadIssue(processID: pid_t) -> BrowserMeetingSession.ReadIssue?
+}
+
+extension AccessibilitySource {
+    /// Recorded and replayed environments answer with their metadata read.
+    func readWindow(processID: pid_t) -> AccessibilityRead {
+        read(processID: processID, includeText: false)
+    }
+
+    /// Recorded and replayed environments answer with their full read.
+    func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead {
+        read(processID: processID, includeText: true)
+    }
 }
 
 protocol WindowSource: Sendable {

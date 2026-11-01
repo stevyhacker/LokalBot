@@ -30,7 +30,11 @@ struct AgentContextPicker: View {
                 Section("Saved moments") {
                     if let momentError {
                         Text(momentError).font(.scaled(.callout)).foregroundStyle(.secondary)
-                        Button("Open Privacy settings") { dismiss(); app.openSettings(tab: .privacy) }
+                        Button("Open External Agents settings") {
+                            dismiss()
+                            app.openSettings(tab: .agents)
+                            app.focusedSettingID = "settings.screenMemoryAccess"
+                        }
                     }
                     ForEach(moments.filter { query.isEmpty || "\($0.windowTitle) \($0.note)".localizedCaseInsensitiveContains(query) }, id: \.snapshotID) { moment in
                         attach(.init(id: "moment:\(moment.snapshotID)", kind: .moment,

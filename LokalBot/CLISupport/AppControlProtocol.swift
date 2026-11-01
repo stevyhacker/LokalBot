@@ -21,7 +21,7 @@ enum AppControlProtocol {
     /// Settings sections `open settings <name>` accepts besides setting keys.
     static let settingsDestinations = [
         "models", "permissions", "agentAccess", "screenMemoryAccess", "personalContextAccess",
-        "settingsControlAccess", "memoryHealth", "resourceMonitor", "autocompleteStatistics",
+        "filesAccess", "settingsControlAccess", "memoryHealth", "resourceMonitor", "autocompleteStatistics",
         "dictationWritingProfile",
     ]
 

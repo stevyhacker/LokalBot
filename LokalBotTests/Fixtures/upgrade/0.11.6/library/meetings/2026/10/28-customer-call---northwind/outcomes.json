@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-44444444-1",
+      "schemaVersion": 2,
+      "text": "Email the SSO security overview",
+      "citations": [
+        {
+          "meetingID": "44444444-4444-4444-8444-444444444444",
+          "segmentID": "segment-0001-0000015000-0000030000",
+          "start": 15,
+          "end": 30,
+          "speaker": "me",
+          "excerpt": "SSO is on the Q3 roadmap. I'll send you the security overview this week."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    },
+    {
+      "id": "demo-action-44444444-2",
+      "schemaVersion": 2,
+      "text": "Prepare a 250-seat pricing quote",
+      "citations": [
+        {
+          "meetingID": "44444444-4444-4444-8444-444444444444",
+          "segmentID": "segment-0002-0000030000-0000045000",
+          "start": 30,
+          "end": 45,
+          "speaker": "them",
+          "excerpt": "Great. Pricing for 250 seats would help us get budget approved."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [
+    {
+      "id": "demo-decision-44444444-1",
+      "schemaVersion": 2,
+      "text": "Send the security overview and a 250-seat quote this week.",
+      "citations": [
+        {
+          "meetingID": "44444444-4444-4444-8444-444444444444",
+          "segmentID": "segment-0001-0000015000-0000030000",
+          "start": 15,
+          "end": 30,
+          "speaker": "me",
+          "excerpt": "SSO is on the Q3 roadmap. I'll send you the security overview this week."
+        }
+      ]
+    }
+  ],
+  "openQuestions": [
+    "Target rollout date once SSO ships?"
+  ]
+}

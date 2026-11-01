@@ -250,9 +250,9 @@ final class MainWindowUITests: XCTestCase {
     /// the workspace sidebar can return directly to another destination.
     func testSidebarNavigationSwitchesSections() {
         clickSidebar("sidebar.settings")
-        XCTAssertTrue(app.descendants(matching: .any)["settings.form"]
+        XCTAssertTrue(app.descendants(matching: .any)["settings.overview"]
             .waitForExistence(timeout: 6),
-                      "settings pane did not render")
+                      "Settings did not open on Overview")
         XCTAssertTrue(identified("settings.categories").exists,
                       "Settings category navigation missing")
         XCTAssertEqual(app.windows.count, 1, "Settings must stay in the main window")
@@ -1164,7 +1164,7 @@ final class MainWindowUITests: XCTestCase {
 
     func testNemotronSpeakerModelSelectionPersistsAndRespectsDiarizationToggle() {
         clickSidebar("sidebar.settings")
-        UITestHarness.selectSettingsCategory("Recording", in: app)
+        UITestHarness.selectSettingsCategory("Meetings", in: app)
         let picker = app.popUpButtons["settings.diarizationModel"]
         UITestHarness.scrollTo(picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 4))
@@ -1190,7 +1190,7 @@ final class MainWindowUITests: XCTestCase {
 
         clickSidebar("sidebar.meetings")
         clickSidebar("sidebar.settings")
-        UITestHarness.selectSettingsCategory("Recording", in: app)
+        UITestHarness.selectSettingsCategory("Meetings", in: app)
         UITestHarness.scrollTo(picker, in: app)
         XCTAssertEqual(picker.value as? String, "Nemotron 3 (Preview)")
     }
@@ -1199,7 +1199,7 @@ final class MainWindowUITests: XCTestCase {
     /// macOS Settings scene is gone (spec: one home per concern).
     func testSettingsShortcutLandsInWindow() {
         app.typeKey(",", modifierFlags: .command)
-        XCTAssertTrue(app.descendants(matching: .any)["settings.form"]
+        XCTAssertTrue(app.descendants(matching: .any)["settings.categories"]
             .waitForExistence(timeout: 6),
                       "⌘, did not open Settings in the main window")
     }

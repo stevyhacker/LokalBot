@@ -173,6 +173,12 @@ enum ChatPrompt {
         read or saw on screen (docs, sites, code, messages). Use activity_summary \
         for how a day was spent across apps.
         """)
+        if tools.contains(where: { $0.name == "search_files" }) {
+            lines.append("""
+            • Use search_files for the user's own documents, PDFs, pictures and \
+            screenshots in the folders they chose, described by content or by what a picture shows.
+            """)
+        }
         lines.append("")
         lines.append("""
         Citing sources:
@@ -185,6 +191,13 @@ enum ChatPrompt {
         [screen:ID] marker that search_screen returned. The app renders it as a private, \
         local thumbnail linking to that captured moment. Never invent a screen id.
         """)
+        if tools.contains(where: { $0.name == "search_files" }) {
+            lines.append("""
+            • When part of your final answer comes from search_files, append the exact \
+            [file:ID] marker that search_files returned. The app links it to the file on this Mac. \
+            Never invent a file id.
+            """)
+        }
         if !libraryOverview.isEmpty {
             lines.append("")
             lines.append("Current meeting library (navigation metadata only; call a tool before citing or describing meeting contents):")

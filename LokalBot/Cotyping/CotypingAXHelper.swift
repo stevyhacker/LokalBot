@@ -641,7 +641,7 @@ enum CotypingAXHelper {
     }
 
     /// Whether Chrome-based browsers are asked for enhanced accessibility
-    /// (Settings → Writing → Advanced). Turning it off hands back every
+    /// (Settings → Autocomplete → Advanced). Turning it off hands back every
     /// browser this process asked.
     static func configureChromiumEnhancedAccessibility(_ enabled: Bool) {
         let turnedOff = cacheState.withLock {

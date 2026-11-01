@@ -32,11 +32,11 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertTrue(mapped.citations[1].label.hasPrefix("Design review — onboarding · "))
     }
 
-    func testScreenAndUnknownCitationsCarryNoMeeting() {
+    func testScreenFileAndUnknownCitationsCarryNoMeeting() {
         let mapped = CompanionAskCitations.map(
-            "Seen on screen [screen:42]. Unknown [meeting:deadbeef].", meetings: [meeting])
-        XCTAssertEqual(mapped.answer, "Seen on screen [1]. Unknown [2].")
-        XCTAssertEqual(mapped.citations.map(\.label), ["Screen moment", "Meeting"])
+            "Seen on screen [screen:42]. In a file [file:7]. Unknown [meeting:deadbeef].", meetings: [meeting])
+        XCTAssertEqual(mapped.answer, "Seen on screen [1]. In a file [2]. Unknown [3].")
+        XCTAssertEqual(mapped.citations.map(\.label), ["Screen moment", "File", "Meeting"])
         XCTAssertTrue(mapped.citations.allSatisfy { $0.meetingId == nil })
     }
 
@@ -56,6 +56,8 @@ final class CompanionAskResponderTests: XCTestCase {
 
     func testToolsFollowTheSharedClasses() {
         XCTAssertEqual(CompanionAskResponder.scopes(for: .all), [.meetings, .today])
+        // Screen memory and Files are never searched for a device, whatever Ask on the Mac allows.
+        XCTAssertTrue(CompanionAskResponder.scopes(for: .all).isDisjoint(with: [.screen, .files]))
         var classes = CompanionSharing.DataClasses.all
         classes.windowTitles = false
         XCTAssertEqual(CompanionAskResponder.scopes(for: classes), [.meetings],

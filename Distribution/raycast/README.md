@@ -10,8 +10,10 @@ leaving Raycast.
 - [LokalBot 0.6.2 or later](https://github.com/stevyhacker/lokalbot/releases)
   (a release newer than 0.10.10 for Ask LokalBot and Draft Reply, which also
   need the LokalBot app running)
-- **Allow external agents to read your meeting library** enabled in LokalBot's
-  Settings → Privacy
+- **Allow external agents to read your LokalBot data** turned on in LokalBot's
+  Settings → External Agents (Settings → Privacy → External agents in
+  earlier versions), with **Meetings** ticked (older
+  releases call it **Allow external agents to read your meeting library**)
 
 The extension calls LokalBot's read-only `lokalbot-cli` helper. Ask LokalBot
 and Draft Reply send your question, or the text you selected, to LokalBot's

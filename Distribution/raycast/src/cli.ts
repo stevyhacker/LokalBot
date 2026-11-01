@@ -167,7 +167,7 @@ export function describeAskError(outcome: AskOutcome): {
       return {
         title: "Turn on meeting library access",
         message:
-          "In LokalBot, open Settings → Privacy and turn on “Allow external agents to read your meeting library”.",
+          "In LokalBot, open Settings → External Agents (Privacy → External agents in earlier versions), turn on “Allow external agents to read your LokalBot data”, and tick Meetings.",
       };
     case "app_not_running":
       return {

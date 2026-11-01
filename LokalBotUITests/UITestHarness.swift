@@ -197,7 +197,10 @@ enum UITestHarness {
 
     static func selectSettingsCategory(_ name: String, in app: XCUIApplication,
                                        file: StaticString = #filePath, line: UInt = #line) {
-        let title = name == "Recording" ? "Meetings" : (name == "Privacy" ? "Privacy & Data" : name)
+        // Pages renamed when Settings was organized by feature keep their old names here.
+        let renamed = ["Recording": "Meetings", "Privacy": "Privacy & Permissions", "Privacy & Data": "Privacy & Permissions",
+                       "Writing": "Autocomplete", "Advanced": "Diagnostics", "Day Memory": "Screen & Activity"]
+        let title = renamed[name] ?? name
         let list = app.descendants(matching: .any)["settings.categories"].firstMatch
         XCTAssertTrue(list.waitForExistence(timeout: 6), file: file, line: line)
         let row = list.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", title, title)).firstMatch

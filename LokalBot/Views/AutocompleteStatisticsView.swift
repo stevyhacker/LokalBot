@@ -1,7 +1,7 @@
 import Charts
 import SwiftUI
 
-/// Settings → Writing → Statistics: how much autocomplete wrote for you. It
+/// Settings → Autocomplete → Statistics: how much autocomplete wrote for you. It
 /// counts what was shown as well as what was taken, and what you typed
 /// yourself, so it can say how often a suggestion is used and how much of
 /// your text it wrote, and it prices keystrokes at your own typing speed.

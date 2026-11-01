@@ -71,6 +71,8 @@ final class CompanionSettingsTests: XCTestCase {
         XCTAssertEqual(AppState.SettingsTab(captureName: "phones & tablets"), .devices)
         XCTAssertEqual(AppState.SettingsTab(captureName: "devices"), .devices)
         XCTAssertEqual(AppState.SettingsTab.devices.displayName, "Phones & tablets")
+        // A connection to other devices, beside Models and External Agents.
+        XCTAssertEqual(AppState.SettingsTab.devices.group, .connections)
         XCTAssertTrue(SettingDescriptor.search("tailscale").contains { $0.id == "settings.companionSharingEnabled" })
         // The other controls appear only once sharing is on.
         let port = try? XCTUnwrap(SettingDescriptor.all.first { $0.id == "settings.companionPort" })

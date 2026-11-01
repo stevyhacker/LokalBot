@@ -1,6 +1,6 @@
 import XCTest
 
-/// Hosted regression checks for the Writing rehearsal: it must accept, keep,
+/// Hosted regression checks for the Autocomplete rehearsal: it must accept, keep,
 /// and discard a suggestion the way autocomplete does in another app. The
 /// host's demo mode supplies fixed suggestions, so no model is involved.
 final class AutocompleteRehearsalUITests: XCTestCase {
@@ -114,7 +114,7 @@ final class AutocompleteRehearsalUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
             .waitForExistence(timeout: 10), "main window never rendered")
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Writing", in: app)
+        UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         let editor = app.textViews["autocomplete.rehearsal.editor"]
         UITestHarness.scrollTo(editor, in: app)
         editor.click()

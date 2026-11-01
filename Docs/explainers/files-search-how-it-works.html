@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot Files: how it works and what it costs to compute</title>
+<!--
+  Technical explainer for Files and screen search by meaning on DigUp's engine (pull requests #409, #410).
+  Render: python3 Scripts/render_explainer.py Docs/explainers/files-search-how-it-works.html Docs/explainers/files-search-how-it-works.pdf
+  Each .page is one A4 sheet. Timings and memory come from Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder
+  (Apple M4 Max, 48 GiB, macOS 27.2, on AC power). Fonts ship with macOS, so it renders offline.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --paper: #f6f3ec;
+  --paper-2: #efeadf;
+  --card: #fbf9f4;
+  --ink: #17212b;
+  --ink-dim: #4c5a66;
+  --ink-faint: #74818c;
+  --rule: rgba(23, 33, 43, 0.12);
+  --rule-strong: rgba(23, 33, 43, 0.24);
+  --grid: rgba(15, 122, 110, 0.06);
+  --index: #0f7a6e;          /* the indexing path */
+  --index-soft: rgba(15, 122, 110, 0.10);
+  --query: #5b4bc4;          /* the search path */
+  --query-soft: rgba(91, 75, 196, 0.10);
+  --compute: #b86e00;        /* model time and memory */
+  --compute-soft: rgba(184, 110, 0, 0.12);
+  --skip: #b24a40;
+  --skip-soft: rgba(178, 74, 64, 0.10);
+  --serif: "Iowan Old Style", "Charter", "Palatino", Georgia, serif;
+  --sans: "Avenir Next", "Avenir", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    --paper: #12171c; --paper-2: #182027; --card: #1b232b;
+    --ink: #e9eef1; --ink-dim: #b3c0c9; --ink-faint: #8796a1;
+    --rule: rgba(233, 238, 241, 0.12); --rule-strong: rgba(233, 238, 241, 0.24);
+    --grid: rgba(70, 200, 180, 0.05);
+    --index: #3fc7b4; --index-soft: rgba(63, 199, 180, 0.12);
+    --query: #a99bff; --query-soft: rgba(169, 155, 255, 0.12);
+    --compute: #f0a640; --compute-soft: rgba(240, 166, 64, 0.14);
+    --skip: #f08a80; --skip-soft: rgba(240, 138, 128, 0.12);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); }
+body {
+  color: var(--ink); font-family: var(--sans); font-size: 11.5px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased; print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+.page {
+  width: 210mm; height: 297mm; overflow: hidden; position: relative;
+  padding: 14mm 14mm 11mm; display: flex; flex-direction: column; gap: 14px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 6mm 6mm;
+  break-after: page;
+}
+.page:last-child { break-after: auto; }
+@media screen { body { padding: 24px 0; } .page { margin: 0 auto 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.12); } }
+h1, h2, h3, p { margin: 0; }
+h1 { font-family: var(--serif); font-size: 33px; line-height: 1.08; letter-spacing: -0.01em; font-weight: 700; }
+h2 { font-family: var(--serif); font-size: 21px; line-height: 1.15; font-weight: 700; }
+h3 { font-size: 12px; font-weight: 700; letter-spacing: 0.01em; }
+.eyebrow { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--index); }
+.lede { font-size: 13.5px; color: var(--ink-dim); max-width: 64ch; }
+.dim { color: var(--ink-dim); }
+.faint { color: var(--ink-faint); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
+.foot span:last-child { white-space: nowrap; }
+.foot {
+  margin-top: auto; display: flex; justify-content: space-between; gap: 12px;
+  font-size: 9px; color: var(--ink-faint); border-top: 1px solid var(--rule-strong); padding-top: 6px;
+  font-family: var(--mono);
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.grid2 > *, .grid3 > *, .grid4 > * { min-width: 0; }
+.card {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 9px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 5px; overflow-wrap: break-word;
+}
+.card.index { border-top: 3px solid var(--index); }
+.card.query { border-top: 3px solid var(--query); }
+.card.compute { border-top: 3px solid var(--compute); }
+.card.skip { border-top: 3px solid var(--skip); }
+.card p, .card li { font-size: 10.8px; color: var(--ink-dim); }
+.card ul { margin: 0; padding-left: 15px; display: flex; flex-direction: column; gap: 2px; }
+.tag { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+.tag.index { color: var(--index); } .tag.query { color: var(--query); }
+.tag.compute { color: var(--compute); } .tag.skip { color: var(--skip); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-size: 10.5px; padding: 3px 9px; border-radius: 999px; background: var(--card);
+  border: 1px solid var(--rule-strong); color: var(--ink);
+}
+.chip b { color: var(--index); font-weight: 650; }
+.band {
+  border-radius: 10px; padding: 10px 13px; background: var(--index-soft);
+  border: 1px solid rgba(15, 122, 110, 0.25); font-size: 11.2px;
+}
+.band.compute { background: var(--compute-soft); border-color: rgba(184, 110, 0, 0.3); }
+.band.query { background: var(--query-soft); border-color: rgba(91, 75, 196, 0.3); }
+
+/* Diagram */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg .box { fill: var(--card); stroke: var(--rule-strong); stroke-width: 1; }
+svg .box.index { stroke: var(--index); }
+svg .box.query { stroke: var(--query); }
+svg .box.store { fill: var(--index-soft); stroke: var(--index); }
+svg .box.compute { fill: var(--compute-soft); stroke: var(--compute); }
+svg .t1 { fill: var(--ink); font-family: var(--sans); font-size: 11px; font-weight: 700; }
+svg .t2 { fill: var(--ink-dim); font-family: var(--sans); font-size: 9.4px; }
+svg .tm { fill: var(--ink-faint); font-family: var(--mono); font-size: 8.6px; }
+svg .lane { fill: var(--ink-faint); font-family: var(--mono); font-size: 8.8px; letter-spacing: 0.1em; }
+svg .lane.index { fill: var(--index); } svg .lane.query { fill: var(--query); }
+svg .arrow { fill: none; stroke: var(--ink-faint); stroke-width: 1.4; }
+svg .arrow.index { stroke: var(--index); } svg .arrow.query { stroke: var(--query); }
+svg .arrow.dash { stroke-dasharray: 4 3; }
+svg .lbl { fill: var(--ink-dim); font-family: var(--mono); font-size: 8.4px; }
+
+/* Pass timeline */
+ol.pass { list-style: none; margin: 0; padding: 0; position: relative; display: flex; flex-direction: column; gap: 7px; align-self: start; }
+ol.pass::before { content: ""; position: absolute; left: 12px; top: 6px; bottom: 6px; width: 2px; background: var(--rule-strong); }
+ol.pass li { position: relative; padding-left: 36px; }
+ol.pass li .n {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--card); border: 2px solid var(--index); color: var(--index);
+  font-family: var(--mono); font-size: 10px; font-weight: 700; display: grid; place-items: center;
+}
+ol.pass li.gpu .n { border-color: var(--compute); color: var(--compute); background: var(--compute-soft); }
+ol.pass li.gate .n { border-color: var(--skip); color: var(--skip); }
+ol.pass h3 { display: flex; justify-content: space-between; gap: 8px; }
+ol.pass h3 span { font-family: var(--mono); font-size: 9.2px; font-weight: 500; color: var(--ink-faint); white-space: nowrap; }
+ol.pass p { font-size: 10.6px; color: var(--ink-dim); }
+.branch {
+  margin: 3px 0 0; padding: 5px 9px; border-left: 3px solid var(--index); background: var(--index-soft);
+  border-radius: 0 6px 6px 0; font-size: 10.3px;
+}
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 10.4px; }
+th {
+  text-align: left; font-family: var(--mono); font-size: 8.8px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 600; padding: 0 8px 5px 0; border-bottom: 1px solid var(--rule-strong);
+}
+td { padding: 4.5px 8px 4.5px 0; border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--ink-dim); }
+td:first-child { color: var(--ink); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 10px; }
+tr.muted td { color: var(--ink-faint); }
+.ok { color: var(--index); font-weight: 700; }
+.warn { color: var(--compute); font-weight: 700; }
+
+/* Bars */
+.bars { display: flex; flex-direction: column; gap: 6px; }
+.bar { display: grid; grid-template-columns: 190px 1fr 62px; align-items: center; gap: 8px; font-size: 10.4px; }
+.bar .label { color: var(--ink-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .track { height: 12px; background: var(--paper-2); border-radius: 3px; position: relative; overflow: hidden; border: 1px solid var(--rule); }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--compute); border-radius: 2px; }
+.bar .fill.index { background: var(--index); }
+.bar .fill.query { background: var(--query); }
+.bar .fill.ghost { background: repeating-linear-gradient(45deg, var(--compute-soft), var(--compute-soft) 4px, transparent 4px, transparent 8px); border: 1px dashed var(--compute); }
+.bar .value { font-family: var(--mono); font-size: 10px; text-align: right; color: var(--ink); }
+
+.kpi { padding: 11px 12px; }
+.kpi .big { font-family: var(--serif); font-size: 26px; font-weight: 700; line-height: 1; color: var(--ink); }
+.kpi .big small { font-size: 13px; font-family: var(--sans); font-weight: 600; color: var(--ink-dim); margin-left: 2px; }
+.kpi p { font-size: 10.2px; }
+</style>
+</head>
+<body>
+
+<!-- ───────────────────────── Page 1: how it works ───────────────────────── -->
+<section class="page">
+  <div class="eyebrow">LokalBot · Files and screens</div>
+  <h1>Search your folders by what is in them</h1>
+  <p class="lede">Files brings <a href="https://github.com/ARahim3/DigUp">DigUp</a>'s file search into Ask. You choose
+    folders; LokalBot reads the pictures, screenshots, PDFs and documents in them on this Mac, and Ask, Quick Recall
+    and the Ask assistant can then find a file by what it says or shows, not only by its name. The same image model
+    also lets screen search find a captured screen by what it showed (page 5).</p>
+  <div class="chips">
+    <span class="chip"><b>“the clause about pets in the lease”</b> → the PDF, opened at page 4</span>
+    <span class="chip"><b>“payment declined error”</b> → the screenshot</span>
+    <span class="chip"><b>“a dog on the beach”</b> → the photo</span>
+    <span class="chip"><b>“where they talk about sleep”</b> → the podcast, playing at 12:34</span>
+    <span class="chip"><b>“INV-2041”</b> → the invoice, by its exact words</span>
+  </div>
+
+  <svg viewBox="0 0 780 366" role="img" aria-label="Indexing path from chosen folders through DigUpKit and the media embedder into the file index; search path from Ask through the text embedder and DigUp's searcher to results">
+    <defs>
+      <marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f7a6e"/></marker>
+      <marker id="aq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b4bc4"/></marker>
+    </defs>
+    <text class="lane index" x="0" y="11">INDEXING · IN THE BACKGROUND, ONLY WHILE FILES ARE NEW OR CHANGED</text>
+    <rect class="box index" x="0" y="22" width="144" height="96" rx="8"/>
+    <text class="t1" x="10" y="40">Folders you choose</text>
+    <text class="t2" x="10" y="56">Settings → Personal</text>
+    <text class="t2" x="10" y="68">Context → Files</text>
+    <text class="tm" x="10" y="88">FSEvents: a change</text>
+    <text class="tm" x="10" y="100">starts a pass in 5 s</text>
+    <rect class="box index" x="159" y="22" width="144" height="96" rx="8"/>
+    <text class="t1" x="169" y="40">DigUpKit (MIT)</text>
+    <text class="t2" x="169" y="56">crawl + skip rules</text>
+    <text class="t2" x="169" y="68">ImageIO · PDFKit</text>
+    <text class="t2" x="169" y="80">Vision OCR · Cocoa text</text>
+    <text class="tm" x="169" y="100">CPU, one file ahead</text>
+    <rect class="box index" x="318" y="22" width="144" height="96" rx="8"/>
+    <text class="t1" x="328" y="40">FileMediaEmbedder</text>
+    <text class="t2" x="328" y="56">resize to the token</text>
+    <text class="t2" x="328" y="68">budget, Pillow-exact</text>
+    <text class="t2" x="328" y="80">PNG / WAV content parts</text>
+    <text class="tm" x="328" y="100">HTTP, file by file</text>
+    <rect class="box compute" x="477" y="22" width="144" height="96" rx="8"/>
+    <text class="t1" x="487" y="40">media llama-server</text>
+    <text class="tm" x="487" y="54">port 17876 · GPU</text>
+    <text class="t2" x="487" y="70">EmbeddingGemma 2</text>
+    <text class="t2" x="487" y="82">+ image &amp; audio projector</text>
+    <text class="tm" x="487" y="100">873 MiB, in a pass only</text>
+    <rect class="box store" x="636" y="22" width="144" height="96" rx="8"/>
+    <text class="t1" x="646" y="40">files-index.noindex</text>
+    <text class="t2" x="646" y="56">SQLite (WAL), in library</text>
+    <text class="t2" x="646" y="68">paths · text · FTS5 words</text>
+    <text class="t2" x="646" y="80">768-d float16 vectors</text>
+    <text class="tm" x="646" y="100">1.5 KB per vector</text>
+    <path class="arrow index" d="M144,70 L157,70" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M303,70 L316,70" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M462,70 L475,70" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M621,70 L634,70" marker-end="url(#ai)"/>
+
+    <text class="lane query" x="0" y="160">SEARCH · AS YOU TYPE IN ASK AND QUICK RECALL, AND THE ASSISTANT'S search_files</text>
+    <rect class="box query" x="0" y="172" width="144" height="96" rx="8"/>
+    <text class="t1" x="10" y="190">Ask · Quick Recall</text>
+    <text class="t2" x="10" y="206">Files source and result</text>
+    <text class="t2" x="10" y="218">type; date scope applies</text>
+    <text class="t2" x="10" y="234">Assistant: search_files</text>
+    <text class="tm" x="10" y="250">cites [file:ID]</text>
+    <rect class="box query" x="159" y="172" width="144" height="96" rx="8"/>
+    <text class="t1" x="169" y="190">text embedder</text>
+    <text class="tm" x="169" y="204">port 17873 · 310 MB</text>
+    <text class="t2" x="169" y="220">already runs for search</text>
+    <text class="t2" x="169" y="232">by meaning</text>
+    <text class="tm" x="169" y="250">≈ 6 ms a query</text>
+    <rect class="box query" x="318" y="196" width="144" height="48" rx="24"/>
+    <text class="t1" x="340" y="216">query vector</text>
+    <text class="tm" x="340" y="230">same space as pictures</text>
+    <rect class="box query" x="477" y="172" width="144" height="96" rx="8"/>
+    <text class="t1" x="487" y="190">DigUp Searcher</text>
+    <text class="t2" x="487" y="206">meaning: stands out in</text>
+    <text class="t2" x="487" y="218">its modality (z ≥ 2)</text>
+    <text class="t2" x="487" y="230">words: FTS5 coverage</text>
+    <text class="tm" x="487" y="250">own connection &amp; queue</text>
+    <rect class="box query" x="636" y="172" width="144" height="96" rx="8"/>
+    <text class="t1" x="646" y="190">Results</text>
+    <text class="t2" x="646" y="206">file · kind · date</text>
+    <text class="t2" x="646" y="218">matched words or folder</text>
+    <text class="t2" x="646" y="234">a PDF opens at the page,</text>
+    <text class="t2" x="646" y="246">its words marked</text>
+    <path class="arrow query" d="M144,220 L157,220" marker-end="url(#aq)"/>
+    <path class="arrow query" d="M303,220 L316,220" marker-end="url(#aq)"/>
+    <path class="arrow query" d="M462,220 L475,220" marker-end="url(#aq)"/>
+    <path class="arrow query" d="M621,220 L634,220" marker-end="url(#aq)"/>
+    <path class="arrow index dash" d="M708,118 C708,144 549,146 549,170" marker-end="url(#ai)"/>
+    <text class="lbl" x="560" y="136">reads the index</text>
+
+    <rect x="0" y="292" width="780" height="72" rx="9" fill="var(--compute-soft)" stroke="var(--compute)" stroke-width="1"/>
+    <text class="t1" x="14" y="312">One model, two servers.</text>
+    <text class="t2" x="14" y="328">Both run the same EmbeddingGemma 2 file LokalBot already uses for search by meaning (same revision, same SHA-256).</text>
+    <text class="t2" x="14" y="342">Only the indexing server loads the 555 MB image and audio projector. Their text vectors are identical (cosine 1.000000),</text>
+    <text class="t2" x="14" y="356">so a query from the small server scores pictures and PDF pages directly, and searching never loads the projector.</text>
+  </svg>
+
+  <div class="grid3">
+    <div class="card index">
+      <span class="tag index">Taken from DigUp</span>
+      <ul>
+        <li>The engine, <code>DigUpKit</code>, pinned by commit: crawler, skip rules, readers, index, search.</li>
+        <li>Its image sizing, ported to Swift: matches Pillow bit for bit.</li>
+        <li>Its ranking: meaning per modality plus exact words.</li>
+      </ul>
+    </div>
+    <div class="card query">
+      <span class="tag query">Added by LokalBot</span>
+      <ul>
+        <li>An embedder that talks to LokalBot's own llama-server, not DigUp's llama.cpp build.</li>
+        <li>Ask, Quick Recall, the assistant's tool and <code>[file:ID]</code> citations.</li>
+        <li>Moments play in a LokalBot window; the assistant hears the matched 30 seconds.</li>
+        <li>Pauses for recordings, Low Power Mode and heat; Settings with a notice.</li>
+      </ul>
+    </div>
+    <div class="card skip">
+      <span class="tag skip">Left out for now</span>
+      <ul>
+        <li>DigUp's own panel, hotkey, updater and model downloader.</li>
+        <li>Code search.</li>
+        <li>Search by meaning for external agents: the CLI and MCP search Files by words only.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="band query">
+    <b>Try it.</b> Settings → Personal Context → Files → <i>Search my files</i>, then <i>Add Folder…</i> for Documents,
+    Downloads or a photo folder; Settings shows each pass as it runs. In Ask, type what you are looking for: files
+    follow meetings and screen moments, and <i>Sources → Result type → Files</i> shows only files. Quick Recall lists
+    them under Files. Ask a question, and the assistant searches them too and cites the file it used.
+  </div>
+
+  <div class="foot"><span>LokalBot · Files explainer · pull requests #409 and #410</span><span>1 / 5 · How it works</span></div>
+</section>
+
+<!-- ───────────────────────── Page 2: one pass ───────────────────────── -->
+<section class="page">
+  <div class="eyebrow">Indexing</div>
+  <h2>One indexing pass, step by step</h2>
+  <p class="lede">A pass runs at launch, when the folder list changes, and five seconds after something in the folders
+    changes. It reads only what is new or changed, and the image model loads only when there is something to read.</p>
+
+  <div class="grid2" style="grid-template-columns: 1.08fr 0.92fr; gap: 16px;">
+    <ol class="pass">
+      <li><span class="n">1</span>
+        <h3>Trigger <span>launch · folders · FSEvents + 5 s</span></h3>
+        <p>Changes inside hidden folders are ignored. A burst of changes becomes one pass.</p></li>
+      <li class="gate"><span class="n">2</span>
+        <h3>Should it wait? <span>checked before each batch</span></h3>
+        <p>A meeting is recording, Low Power Mode is on, or the Mac is hot (thermal state serious or critical).
+          Then it waits, and starts again when that ends. On battery, a folder's first read waits for a charger;
+          up to 50 new files are read anyway.</p></li>
+      <li><span class="n">3</span>
+        <h3>Sync <span>CPU · no model</span></h3>
+        <p>DigUp walks the folders and compares sizes and dates with the index: new and changed files are queued,
+          moved files keep their vectors, deleted files and folders taken off the list leave the index.</p>
+        <p class="branch"><b>Nothing new?</b> The pass ends here. An unchanged library never loads the image model.</p></li>
+      <li><span class="n">4</span>
+        <h3>Prepare the model <span>first time only</span></h3>
+        <p>Downloads the 555 MB projector (and the 310 MB text model, if search by meaning never ran), each checked
+          against its pinned size and SHA-256.</p></li>
+      <li class="gpu"><span class="n">5</span>
+        <h3>Start the media server <span>≈ 1 s · 873 MiB</span></h3>
+        <p>A llama-server on port 17876, held in memory for the pass.</p></li>
+      <li class="gpu"><span class="n">6</span>
+        <h3>Read and embed <span>CPU reads · GPU embeds</span></h3>
+        <p>Screenshots first, then pictures, PDFs, documents, recordings and video, newest first. While the GPU embeds one file, a CPU
+          thread decodes, OCRs or extracts the next. Long PDFs get their first 30 pages now. While you use the Mac it rests
+          twice as long as each batch took; two minutes idle, it runs flat out.</p></li>
+      <li class="gpu"><span class="n">7</span>
+        <h3>Finish long files <span>30 pages · 40 chunks a step</span></h3>
+        <p>The rest of PDFs over 50 pages and of long documents, once everything else is searchable.</p></li>
+      <li><span class="n">8</span>
+        <h3>Let go <span>2 min · 10 min</span></h3>
+        <p>The media server stops two minutes after the pass. Search vectors leave memory after ten minutes without a
+          search.</p></li>
+    </ol>
+
+    <div style="display:flex; flex-direction:column; gap:12px; min-width:0;">
+      <div class="card index">
+        <span class="tag index">What one file becomes</span>
+        <table>
+          <tr><th>Kind</th><th>Read with</th><th>Vectors</th></tr>
+          <tr><td>Screenshot</td><td>ImageIO; Vision OCR for exact words</td><td>1 image · 280 tokens</td></tr>
+          <tr><td>Picture</td><td>ImageIO, EXIF date</td><td>1 image · 140 tokens</td></tr>
+          <tr><td>PDF page</td><td>PDFKit text, up to 4,000 characters</td><td>1 text per page</td></tr>
+          <tr><td>Scanned page</td><td>rendered page; OCR words</td><td>1 image · 280 tokens</td></tr>
+          <tr><td>Document</td><td>Cocoa text, ~1,800-character chunks</td><td>1 text per chunk</td></tr>
+          <tr><td>Recording</td><td>30 s of sound, a new window every 25 s; silence skipped</td><td>1 audio per window</td></tr>
+          <tr><td>Video</td><td>a frame per shot, at most one every 3 s, plus its sound</td><td>1 image per frame · 70 tokens</td></tr>
+        </table>
+      </div>
+      <div class="card skip">
+        <span class="tag skip">Never read</span>
+        <ul>
+          <li>Hidden files and folders, <code>~/Library</code>, app bundles, Photos libraries.</li>
+          <li>Caches: <code>CACHEDIR.TAG</code>, <code>node_modules</code>, <code>DerivedData</code>, <code>.noindex</code>.</li>
+          <li>Inside code projects, everything but screenshots.</li>
+          <li>Folders that look like datasets (300+ machine-named media files).</li>
+          <li>iCloud files that are only in the cloud: never downloaded.</li>
+          <li>Pictures under 256 px, links, copy-protected audio.</li>
+        </ul>
+      </div>
+      <div class="band">
+        <b>Outages don't cost files.</b> If the media server stops answering, DigUp ends the pass and keeps the files
+        queued for the next one. Only a file that can't be read, like a broken picture, is marked failed, and it is
+        read again when it changes.
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>LokalBot · Files explainer · FileSearchService.swift, FileSearchWorkers.swift</span><span>2 / 5 · One pass</span></div>
+</section>
+
+<!-- ───────────────────────── Page 3: compute ───────────────────────── -->
+<section class="page">
+  <div class="eyebrow" style="color: var(--compute);">Compute on your Mac</div>
+  <h2>How much your M4 Max works for it</h2>
+  <p class="lede">Measured on this MacBook (M4 Max, 48 GB, on AC power) with the app's own llama-server and settings.
+    Model time runs on the GPU; reading files runs on a CPU thread at the same time.</p>
+
+  <div class="grid4">
+    <div class="card compute kpi"><div class="big">0<small> B</small></div><p>sent off this Mac by indexing or searching.</p></div>
+    <div class="card compute kpi"><div class="big">555<small> MB</small></div><p>one download, the first time: the image and audio projector.</p></div>
+    <div class="card compute kpi"><div class="big">873<small> MiB</small></div><p>while a pass runs (peak 1,002). Gone 2 minutes after it.</p></div>
+    <div class="card compute kpi"><div class="big">≈ 6<small> ms</small></div><p>to embed a search, on the text server that already runs.</p></div>
+  </div>
+
+  <div class="card compute">
+    <span class="tag compute">Model time per item · p50</span>
+    <div class="bars">
+      <div class="bar"><span class="label">Search query (text server)</span><span class="track"><span class="fill query" style="width: 1.4%"></span></span><span class="value">6 ms</span></div>
+      <div class="bar"><span class="label">Video frame, 70 tokens</span><span class="track"><span class="fill" style="width: 10%"></span></span><span class="value">44 ms</span></div>
+      <div class="bar"><span class="label">Picture, 140 tokens</span><span class="track"><span class="fill" style="width: 17.2%"></span></span><span class="value">76 ms</span></div>
+      <div class="bar"><span class="label">Screenshot, 280 tokens</span><span class="track"><span class="fill" style="width: 31.4%"></span></span><span class="value">139 ms</span></div>
+      <div class="bar"><span class="label">30 s of audio</span><span class="track"><span class="fill" style="width: 31%"></span></span><span class="value">137 ms</span></div>
+      <div class="bar"><span class="label">Screenshot, llama.cpp's own sizing</span><span class="track"><span class="fill ghost" style="width: 55.9%"></span></span><span class="value">247 ms</span></div>
+      <div class="bar"><span class="label">32 text passages (≈ 7,000 tokens)</span><span class="track"><span class="fill index" style="width: 100%"></span></span><span class="value">442 ms</span></div>
+    </div>
+    <p class="faint" style="font-size:9.6px;">Striped: for comparison. Sizing each image for
+      its token budget is what took a screenshot from 574 tokens and 247 ms (13 October run) to 277 tokens and 139 ms.
+      One image per request; batching eight saved nothing.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card compute">
+      <span class="tag compute">First pass · model time</span>
+      <table>
+        <tr><th>Folder holds</th><th class="num">GPU time</th></tr>
+        <tr><td>2,000 screenshots</td><td class="num">≈ 4.6 min</td></tr>
+        <tr><td>10,000 photos</td><td class="num">≈ 13 min</td></tr>
+        <tr><td>5,000 PDF pages of text</td><td class="num">≈ 2–3 min</td></tr>
+        <tr><td>An hour of video</td><td class="num">≈ 72 s</td></tr>
+        <tr><td>An hour of recordings</td><td class="num">≈ 20 s</td></tr>
+        <tr><td>A day's 20 new screenshots</td><td class="num">≈ 3 s</td></tr>
+        <tr><td>A day of screen captures (≈ 490)</td><td class="num">≈ 70 s</td></tr>
+        <tr><td>Nothing changed</td><td class="num">0 s</td></tr>
+      </table>
+      <p class="faint" style="font-size:9.6px;">From the per-item times above; PDF pages from text throughput
+        (≈ 14 ms per 1,500 characters). Reading runs on the CPU at the same time. DigUp measures Vision OCR at about
+        0.24 s per Retina screenshot, so for screenshots, reading rather than the GPU sets the pace.</p>
+    </div>
+    <div class="card compute">
+      <span class="tag compute">Memory · footprint</span>
+      <div class="bars">
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">Text server, idle</span><span class="track"><span class="fill query" style="width: 26.5%"></span></span><span class="value">266 MiB</span></div>
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">Media server, idle</span><span class="track"><span class="fill" style="width: 87.1%"></span></span><span class="value">873 MiB</span></div>
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">Media server, peak</span><span class="track"><span class="fill" style="width: 100%"></span></span><span class="value">1,002 MiB</span></div>
+      </div>
+      <p style="font-size:10.4px;" class="dim">The text server is the one search by meaning already keeps. The media
+        server exists only during a pass and counts against LokalBot's model memory budget, so it can't push out a
+        model you are using. Search vectors take 1.5 KB each, loaded on the first search and freed after ten idle
+        minutes: 20,000 pages and pictures are about 30 MB.</p>
+      <div style="margin-top: 14px;"><span class="tag compute">Pacing · a big read</span></div>
+      <div class="bars">
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">You're at the Mac</span><span class="track"><span class="fill" style="width: 33.3%"></span></span><span class="value">1/3</span></div>
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">2 min, no input</span><span class="track"><span class="fill" style="width: 100%"></span></span><span class="value">full</span></div>
+        <div class="bar" style="grid-template-columns: 120px 1fr 62px;"><span class="label">On battery</span><span class="track"><span class="fill" style="width: 0%"></span></span><span class="value">waits</span></div>
+      </div>
+      <p style="font-size:10.4px;" class="dim">After each batch it rests twice as long as the batch took (at most 20 s)
+        while the next file is decoded. 10,000 photos: ≈ 13 min while you're away, ≈ 40 min while you work. On
+        battery, up to 50 new files are still read; the rest waits unless you turn on reading on battery.</p>
+    </div>
+  </div>
+
+  <div class="band compute">
+    <b>When it runs.</b> Only during a pass, and only for files that are new or changed. Adding a folder first shows
+    its time and index size on this Mac. While you work, a big read gets a third of the time (the times above, tripled); idle,
+    it runs at full speed; on battery it waits for a charger. A recording, Low Power Mode or heat stops it after the
+    files in hand. A search costs one 6 ms embedding plus a scan of the vectors in memory.
+  </div>
+
+  <div class="foot"><span>Numbers: the 30 October media-embedder benchmark (#408) · llama.cpp's sizing: 13 October report</span><span>3 / 5 · Compute</span></div>
+</section>
+
+<!-- ───────────────────────── Page 4: trust ───────────────────────── -->
+<section class="page">
+  <div class="eyebrow">Quality and boundaries</div>
+  <h2>Why the results can be trusted</h2>
+  <p class="lede">The vectors match DigUp's measured pipeline, the ranking is the one DigUp tested, and the feature
+    has the same boundaries as LokalBot's other sources.</p>
+
+  <div class="grid2" style="grid-template-columns: 1.1fr 0.9fr; gap: 14px;">
+    <div class="card index">
+      <span class="tag index">Same vectors as DigUp · cosine to its reference</span>
+      <table>
+        <tr><th>Input</th><th class="num">Tokens</th><th class="num">Cosine</th></tr>
+        <tr><td>Texts (English, Bengali, Arabic, 1,800-token document)</td><td class="num">—</td><td class="num ok">≥ 0.999999</td></tr>
+        <tr><td>Screenshot (PNG), budget 280</td><td class="num">277</td><td class="num ok">1.000000</td></tr>
+        <tr><td>Speech (WAV)</td><td class="num">104</td><td class="num ok">1.000000</td></tr>
+        <tr><td>Photo (JPEG), budget 140</td><td class="num">134</td><td class="num ok">0.99964</td></tr>
+        <tr><td>Photo as video frame, budget 70</td><td class="num">67</td><td class="num ok">0.99860</td></tr>
+        <tr class="muted"><td>Screenshot, llama.cpp's own sizing</td><td class="num">574</td><td class="num warn">0.98981</td></tr>
+        <tr class="muted"><td>Photo, llama.cpp's own sizing</td><td class="num">340</td><td class="num warn">0.97075</td></tr>
+      </table>
+      <p class="faint" style="font-size:9.6px;">Through the app's Swift path and a live media server
+        (<code>FileMediaEmbedderReferenceTests</code>). JPEG inputs sit just under 1.0 only because macOS decodes JPEG
+        with ImageIO and DigUp's reference with stb_image; fed the same pixels, the paths agree exactly.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px; min-width:0;">
+      <div class="card query">
+        <span class="tag query">Ranking</span>
+        <p>Each search scores every vector, then centres the scores within each modality, because text scores higher
+          than pictures for the same topic. A file counts when it stands out by meaning (z ≥ 2) or holds at least half
+          the query's words; exact words add a bonus, so invoice numbers and names win. On DigUp's evals this found the
+          right file first 88% of the time, against 73% with reciprocal-rank fusion, the method LokalBot uses for
+          screens today (synthetic eval; 86% against 82% on real files).</p>
+      </div>
+      <div class="card">
+        <span class="tag">Tests in this pull request</span>
+        <ul>
+          <li><code>FileSearchServiceTests</code>: DigUp's real crawler, readers and index.</li>
+          <li><code>FileMediaEmbedderTests</code>: request shapes, outages, broken files.</li>
+          <li><code>FileImageSizingTests</code>: DigUp's Pillow fixtures, bit for bit.</li>
+          <li><code>FileSearchAskTests</code>: source, tool, citations, evidence.</li>
+          <li><code>FileMediaEmbedderReferenceTests</code>: the live-server check above.</li>
+          <li><code>FileMomentTranscriberTests</code>: 30-second clips, transcribed once.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card skip">
+      <span class="tag skip">Privacy boundaries</span>
+      <ul>
+        <li>Off until you turn it on after a notice; nothing is read until you choose a folder.</li>
+        <li>Reads only the listed folders; never changes, moves or uploads a file.</li>
+        <li>Turning Files off deletes the whole index at once.</li>
+        <li>A remote Think model sees file passages only when you ask with Files selected, and only at an origin you approved.</li>
+        <li>External agents (CLI, MCP) search Files by words only, and only while Files is ticked under Settings → Privacy → External agents.</li>
+      </ul>
+    </div>
+    <div class="card compute">
+      <span class="tag compute">What comes next</span>
+      <ul>
+        <li><b>Check screens on your library.</b> Rerun the 13 October benchmark with the new ranking, the 280 budget
+          and short literal queries.</li>
+        <li><b>A helper process</b> for indexing, so a runaway PDF can be stopped without touching the app.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <span class="tag">Where it lives</span>
+    <p class="mono" style="font-size:9.6px; line-height:1.65; color: var(--ink-dim);">
+      LokalBot/Services/FileSearch/ FileSearchService · FileSearchWorkers · FileMediaEmbedder · FileMediaEmbedderRuntime · FileImageSizing<br>
+      LokalBot/Views/ FileSearchSettings · FileSearchResultRow (PDF opener) · AskView · QuickRecallView · ChatView (citations)<br>
+      LokalBot/Models/ AskRouting (source, result type, tool scope) · RecallWorkspaceState (search)<br>
+      LokalBot/Services/Chat/ MeetingChatTools (search_files) · ChatCitation ([file:ID]) · ChatAgent (prompt)<br>
+      LlamaServerRole.mediaEmbedder (17876) · project.yml: DigUp at dc2651a · PRIVACY.md “Files you choose”
+    </p>
+  </div>
+
+  <div class="foot"><span>LokalBot · Files explainer · github.com/ARahim3/DigUp (MIT)</span><span>4 / 5 · Trust</span></div>
+</section>
+
+<!-- ───────────────────────── Page 5: screens ───────────────────────── -->
+<section class="page">
+  <div class="eyebrow" style="color: var(--query);">Screens</div>
+  <h2>Screens by what they show</h2>
+  <p class="lede">With Text + visual context and search by meaning on, each retained screenshot also gets a vector of
+    its picture, and screen search ranks text and picture vectors with the query's words the way DigUp ranks files.</p>
+
+  <svg viewBox="0 0 780 250" role="img" aria-label="A capture is decrypted in memory, sized, embedded by the media server and stored; a search scores text and picture vectors on one scale and adds the words">
+    <text class="lane index" x="0" y="11">MAKING A PICTURE VECTOR · BATCHED, 15 MIN AFTER NEW CAPTURES</text>
+    <rect class="box index" x="0" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="10" y="40">Retained capture</text>
+    <text class="t2" x="10" y="56">HEIC, ≤ 1,500 px,</text>
+    <text class="t2" x="10" y="68">AES-GCM sealed</text>
+    <text class="tm" x="10" y="88">key in your Keychain</text>
+    <rect class="box index" x="159" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="169" y="40">Decrypt in memory</text>
+    <text class="t2" x="169" y="56">never written to disk</text>
+    <text class="t2" x="169" y="68">size to 280 tokens</text>
+    <text class="tm" x="169" y="88">FileImageSizing</text>
+    <rect class="box compute" x="318" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="328" y="40">media llama-server</text>
+    <text class="tm" x="328" y="54">port 17876 · GPU</text>
+    <text class="t2" x="328" y="70">≈ 139 ms a screen</text>
+    <text class="tm" x="328" y="88">newest first, 16 a batch</text>
+    <rect class="box store" x="477" y="22" width="144" height="86" rx="8"/>
+    <text class="t1" x="487" y="40">picture vector</text>
+    <text class="t2" x="487" y="56">screen_image_embeddings</text>
+    <text class="t2" x="487" y="68">in the library database</text>
+    <text class="tm" x="487" y="88">3 KB a screen</text>
+    <rect class="box skip" x="636" y="22" width="144" height="86" rx="8" style="stroke: var(--skip);"/>
+    <text class="t1" x="646" y="40">Leaves with pixels</text>
+    <text class="t2" x="646" y="56">retention, delete,</text>
+    <text class="t2" x="646" y="68">range delete</text>
+    <text class="tm" x="646" y="88">even if text is kept</text>
+    <path class="arrow index" d="M144,65 L157,65" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M303,65 L316,65" marker-end="url(#ai)"/>
+    <path class="arrow index" d="M462,65 L475,65" marker-end="url(#ai)"/>
+    <path class="arrow index dash" d="M621,65 L634,65" marker-end="url(#ai)"/>
+
+    <text class="lane query" x="0" y="140">RANKING A SEARCH · ASK, QUICK RECALL, THE ASSISTANT'S search_screen</text>
+    <rect class="box query" x="0" y="152" width="242" height="86" rx="8"/>
+    <text class="t1" x="10" y="170">1 · Score every vector</text>
+    <text class="t2" x="10" y="186">text and picture vectors of all screens,</text>
+    <text class="t2" x="10" y="198">centred per kind: text scores higher</text>
+    <text class="t2" x="10" y="210">than pictures for the same topic</text>
+    <text class="tm" x="10" y="228">one z scale; filters can't move it</text>
+    <rect class="box query" x="269" y="152" width="242" height="86" rx="8"/>
+    <text class="t1" x="279" y="170">2 · Qualify</text>
+    <text class="t2" x="279" y="186">stands out by meaning (z ≥ 2)</text>
+    <text class="t2" x="279" y="198">or holds at least half the words;</text>
+    <text class="t2" x="279" y="210">one common word no longer does</text>
+    <text class="tm" x="279" y="228">honest "nothing found"</text>
+    <rect class="box query" x="538" y="152" width="242" height="86" rx="8"/>
+    <text class="t1" x="548" y="170">3 · Score</text>
+    <text class="t2" x="548" y="186">z + 2 × (share of words)^1.5</text>
+    <text class="t2" x="548" y="198">codes like "INV2041": words × 2,</text>
+    <text class="t2" x="548" y="210">meaning × ½</text>
+    <text class="tm" x="548" y="228">replaces rank fusion</text>
+    <path class="arrow query" d="M242,195 L267,195" marker-end="url(#aq)"/>
+    <path class="arrow query" d="M511,195 L536,195" marker-end="url(#aq)"/>
+  </svg>
+
+  <div class="grid2">
+    <div class="card query">
+      <span class="tag query">Why pictures · your library, 13 October</span>
+      <table>
+        <tr><th>Screen search</th><th class="num">First</th><th class="num">Top 5</th></tr>
+        <tr><td>Picture vectors</td><td class="num ok">71 / 138</td><td class="num ok">107</td></tr>
+        <tr><td>Screen-text vectors</td><td class="num">52</td><td class="num">84</td></tr>
+        <tr><td>Shipped: words + text, rank fusion</td><td class="num warn">44</td><td class="num warn">76</td></tr>
+      </table>
+      <p class="faint" style="font-size:9.6px;">505 real screens, queries written by a different model from the
+        pixels (content in English and Serbian, appearance in English). Picture vectors won for every kind of query.
+        Fusion scored below text alone because the OR-fallback word list weighed as much as meaning; the new ranking
+        removes that. This exact combination has not been rerun on your library yet.</p>
+    </div>
+    <div class="card compute">
+      <span class="tag compute">Compute and storage</span>
+      <ul>
+        <li><b>≈ 70 s of GPU a day</b> for about 490 captures, in passes 15 minutes after new captures.</li>
+        <li><b>≈ 21 MB</b> of picture vectors for 14 days of captures (3 KB each).</li>
+        <li><b>Searching</b> adds one dot product per retained screen; the query vector is the one the text server
+          already made.</li>
+        <li><b>Starts</b> only after your first search of screens by meaning, which is when the 555 MB projector
+          downloads if Files hasn't already.</li>
+        <li><b>Waits</b> while a meeting records, in Low Power Mode, and while the Mac is hot; paced while you work,
+          and on battery only the newest 48 captures a pass.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="band query">
+    <b>Where it shows.</b> Screen moments found by their picture appear in Ask and Quick Recall marked "Related by
+    meaning", with their window title when they have no text. The assistant's <code>search_screen</code> uses the same
+    ranking, so it can answer "the dashboard with the red chart" even when no word on screen says so.
+  </div>
+
+  <div class="foot"><span>LokalBot · Files explainer · ScreenImageEmbeddings, ScreenSearchRanking, ScreenSearch</span><span>5 / 5 · Screens</span></div>
+</section>
+
+</body>
+</html>

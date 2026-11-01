@@ -9,14 +9,25 @@ import CoreML
 /// Owns CoreML buffers off the main actor. Nemotron's mutable prediction buffers
 /// are used synchronously here and a fresh diarizer resets speaker state per track.
 actor NeuralDiarizationEngine {
+    private static let communityRuntimeID = "diarization:pyannote-community-1"
+    private static let nemotronRuntimeID = "diarization:nemotron-3"
+
     private var models: OfflineDiarizerModels?
     private var nemotron: Nemotron3Models?
     private let communityPreparation = AsyncSingleFlight()
     private let nemotronPreparation = AsyncSingleFlight()
     private let communityLoader: @Sendable () async throws -> OfflineDiarizerModels
     private let nemotronLoader: @Sendable () async throws -> Nemotron3Models
+    private var activeUses = 0
+    private let idleSeconds: TimeInterval
+    /// Like the transcription engines, release the models once processing
+    /// has been idle for a while; they used to stay resident until quit.
+    /// Recording-time prewarm does not start the timer, so a prewarmed model
+    /// waits for the meeting it was loaded for.
+    private lazy var idle = IdleTimer(seconds: idleSeconds) { [weak self] in await self?.unload() }
 
     init(
+        idleSeconds: TimeInterval = 120,
         communityLoader: @escaping @Sendable () async throws -> OfflineDiarizerModels = {
             try await NeuralDiarizationEngine.loadPinnedCommunityModels()
         },
@@ -25,9 +36,12 @@ actor NeuralDiarizationEngine {
             return try await Nemotron3Models.load(config: .offline, directory: directory)
         }
     ) {
+        self.idleSeconds = idleSeconds
         self.communityLoader = communityLoader
         self.nemotronLoader = nemotronLoader
     }
+
+    var hasLoadedModels: Bool { models != nil || nemotron != nil }
 
     /// The Pyannote voice model is on disk, so background work can use it
     /// without a download. Loading still verifies every byte.
@@ -80,7 +94,7 @@ actor NeuralDiarizationEngine {
         var errorDescription: String? {
             switch self {
             case let .processing(model, reason):
-                "\(model.displayName) speaker processing failed: \(reason). Retry, or choose another speaker model in Settings → Recording."
+                "\(model.displayName) speaker processing failed: \(reason). Retry, or choose another speaker model in Settings → Meetings."
             }
         }
     }
@@ -131,7 +145,7 @@ actor NeuralDiarizationEngine {
 
     private func loadCommunity() async throws {
         guard models == nil else { return }
-        let id = "diarization:pyannote-community-1"
+        let id = Self.communityRuntimeID
         await ModelRuntimeRegistry.shared.reserve(id: id, role: "Speaker diarization / voice samples",
             label: DiarizationModel.community1.displayName, estimatedBytes: ModelRuntimeRegistry.gibibytes(0.1))
         do {
@@ -144,7 +158,7 @@ actor NeuralDiarizationEngine {
 
     private func loadNemotron() async throws {
         guard nemotron == nil else { return }
-        let id = "diarization:nemotron-3"
+        let id = Self.nemotronRuntimeID
         await ModelRuntimeRegistry.shared.reserve(id: id, role: "Speaker diarization",
             label: DiarizationModel.nemotron3.displayName, estimatedBytes: ModelRuntimeRegistry.gibibytes(0.3))
         do {
@@ -155,8 +169,29 @@ actor NeuralDiarizationEngine {
         }
     }
 
+    private func finishUse() {
+        activeUses -= 1
+        guard activeUses == 0 else { return }
+        Task { await idle.bump() }
+    }
+
+    private func unload() async {
+        guard activeUses == 0, !(await communityPreparation.isRunning),
+              !(await nemotronPreparation.isRunning), activeUses == 0 else { return }
+        if models != nil {
+            models = nil
+            await ModelRuntimeRegistry.shared.unregister(id: Self.communityRuntimeID)
+        }
+        if nemotron != nil {
+            nemotron = nil
+            await ModelRuntimeRegistry.shared.unregister(id: Self.nemotronRuntimeID)
+        }
+    }
+
     /// Errors are surfaced to the retry UI, never saved as successful generic-speaker checkpoints.
     func diarizeDetailed(url: URL, model: DiarizationModel, includeVoiceSamples: Bool) async throws -> SpeakerDiarizationResult {
+        activeUses += 1
+        defer { finishUse() }
         try await prepareModels(model: model, includeVoiceSamples: includeVoiceSamples)
         do {
             let result: SpeakerDiarizationResult

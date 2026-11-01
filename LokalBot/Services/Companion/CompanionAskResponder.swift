@@ -8,14 +8,18 @@ protocol CompanionAskOutput: AnyObject, Sendable {
 }
 
 /// Turns the agent's `[meeting:ID@HH:MM:SS]` markers into records.md's
-/// `[n]` references and citation list. Screen citations stay text only.
+/// `[n]` references and citation list. Screen and file citations stay text
+/// only and never name what they point at.
 enum CompanionAskCitations {
     static func map(_ answer: String, meetings: [Meeting]) -> (answer: String, citations: [CompanionAskResult.Citation]) {
         let extracted = ChatCitationParser.extract(answer)
         let citations = extracted.citations.enumerated().map { offset, citation -> CompanionAskResult.Citation in
             let index = offset + 1
-            guard citation.kind == .meeting else {
-                return .init(index: index, label: "Screen moment")
+            switch citation.kind {
+            case .meeting: break
+            case .screen: return .init(index: index, label: "Screen moment")
+            // Files are never searched for a device; a stray marker names no file.
+            case .file: return .init(index: index, label: "File")
             }
             guard let meeting = resolve(citation.meetingID, in: meetings) else {
                 return .init(index: index, at: citation.seconds, label: "Meeting")
