@@ -149,7 +149,10 @@ prelink() {
     -exported_symbols_list "$work/exports.txt" -force_load "$TARGET_DIR/$target/release/$LIB" \
     -o "$dir/lokalbot_sync.o"
   xcrun libtool -static -o "$dir/$LIB" "$dir/lokalbot_sync.o"
-  xcrun nm -gUj "$dir/$LIB" | grep '^_' | LC_ALL=C sort -u > "$dir/exported.txt"
+  # Rust's standard library embeds LLVM bitcode, which older Xcode linkers
+  # keep through `ld -r` and whose tools can't parse a newer Rust's LLVM:
+  # list the machine-code symbols only.
+  xcrun nm --no-llvm-bc -gUj "$dir/$LIB" | grep '^_' | LC_ALL=C sort -u > "$dir/exported.txt"
   if ! cmp -s "$work/declared.txt" "$dir/exported.txt"; then
     log "$target exports differ from the header's functions:"
     diff "$work/declared.txt" "$dir/exported.txt" | head -n 20 >&2
