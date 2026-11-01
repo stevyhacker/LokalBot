@@ -1,8 +1,8 @@
 use serde_json::{Value, json};
 
 use super::{
-    DESIGN_REVIEW, FIXTURE, Phone, STANDUP, days_after_latest, due_date, fixture_days,
-    meeting_field,
+    DESIGN_REVIEW, FIXTURE, Phone, STANDUP, days_after_latest, due_date, fixture_body,
+    fixture_days, meeting_field,
 };
 
 const NORTHWIND: &str = "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03";
@@ -159,8 +159,8 @@ fn actions_sort_overdue_first_then_by_due_date() {
             "act-1f2e3d4c", // overdue
             "act-7c1e40a2",
             "act-a3f61b28",
-            "act-4d2c9e07", // same due date: the later meeting…
-            "act-c40f8d62", // …before the earlier one
+            "act-4d2c9e07",
+            "act-c40f8d62",
             "act-e2a7c915",
             "act-91b0d3f5", // no due date, newest meeting first
             "act-0e5d77c3",
@@ -176,7 +176,10 @@ fn actions_sort_overdue_first_then_by_due_date() {
         meeting_field(DESIGN_REVIEW, "startedAt")
     );
     assert_eq!(first["pending"], false);
-    assert_eq!(first["action"]["dueText"], "by Thursday");
+    assert_eq!(
+        first["action"]["dueText"],
+        fixture_body("meeting", DESIGN_REVIEW)["actions"][0]["dueText"]
+    );
     assert_eq!(first["action"]["citations"][0]["start"], 721.4);
     assert!(first.get("syncNote").is_none());
 
@@ -201,6 +204,36 @@ fn actions_sort_overdue_first_then_by_due_date() {
             "act-1f2e3d4c",
             "act-e2a7c915"
         ]
+    );
+}
+
+#[test]
+fn actions_due_the_same_day_list_the_newer_meeting_first() {
+    let meeting = |id: &str, started: &str, action: &str| {
+        json!({
+            "kind": "meeting", "key": id, "version": 1, "seq": 1, "deleted": false,
+            "sortKey": started,
+            "body": {
+                "id": id, "title": id, "startedAt": started, "endedAt": started,
+                "day": &started[..10], "timeZoneOffsetMinutes": 0, "durationSeconds": 60,
+                "people": [], "projects": [],
+                "actions": [{
+                    "id": action, "text": action, "ownerIsUser": true, "ownerUnclear": false,
+                    "dueDate": "2030-01-10", "status": "open", "importance": 3, "citations": []
+                }],
+                "decisions": [], "openQuestions": [], "hasTranscript": false
+            }
+        })
+    };
+    let phone = Phone::new();
+    let records = json!([
+        meeting("older", "2030-01-01T09:00:00.000Z", "act-older"),
+        meeting("newer", "2030-01-02T09:00:00.000Z", "act-newer"),
+    ]);
+    phone.client.import_records(records.to_string()).unwrap();
+    assert_eq!(
+        action_ids(&phone, ActionFilter::default(), "2030-01-05"),
+        ["act-newer", "act-older"]
     );
 }
 
