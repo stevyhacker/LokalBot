@@ -6,7 +6,8 @@ import XCTest
 @testable import LokalBot
 
 /// The media embedder's requests have the shapes the 30 October parity run
-/// qualified, and a server outage stops a pass instead of failing files.
+/// qualified, a text longer than one batch is cut the way DigUp cuts it, and a
+/// server outage stops a pass instead of failing files.
 final class FileMediaEmbedderTests: XCTestCase {
     private var folder: URL!
 
@@ -37,6 +38,37 @@ final class FileMediaEmbedderTests: XCTestCase {
         XCTAssertEqual(requests[0].request.url?.path, "/v1/embeddings")
         XCTAssertEqual(vectors[0].count, 768)
         XCTAssertEqual(sqrt(vectors[0].reduce(0) { $0 + $1 * $1 }), 1, accuracy: 1e-5)
+    }
+
+    /// A dense page past the server's batch goes as its tokens, cut where
+    /// DigUp's embedder cuts. Sent whole, llama-server refused it with HTTP 500
+    /// and every indexing pass stopped at that page (1 November).
+    func testATextLongerThanOneBatchGoesAsItsTokensCutLikeDigUp() throws {
+        let tokens = [2] + Array(repeating: 1_000, count: 3_000) + [1]
+        respondWithTokens(tokens)
+        let short = "title: none | text: passage"
+        let page = "title: zastava | text: " + String(repeating: "Српска застава излази сваког дана. ", count: 120)
+
+        let vectors = try makeEmbedder().embedTexts([short, page])
+
+        XCTAssertEqual(vectors.count, 2)
+        let requests = MediaEmbedderURLProtocolStub.requests
+        XCTAssertEqual(requests.map { $0.request.url?.path }, ["/tokenize", "/v1/embeddings"],
+                       "only the long text is tokenized")
+        XCTAssertEqual(requests[0].body["content"] as? String, page)
+        XCTAssertEqual(requests[0].body["add_special"] as? Bool, true)
+        let inputs = try XCTUnwrap(requests[1].body["input"] as? [Any])
+        XCTAssertEqual(inputs.first as? String, short)
+        XCTAssertEqual(inputs.last as? [Int], Array(tokens.prefix(2_047)) + [1])
+    }
+
+    func testALongTextThatFitsOneBatchGoesAsText() throws {
+        respondWithTokens([2] + Array(repeating: 1_000, count: 2_046) + [1])
+        let page = "title: none | text: " + String(repeating: "Ćirilica i latinica. ", count: 200)
+
+        _ = try makeEmbedder().embedTexts([page])
+
+        XCTAssertEqual(MediaEmbedderURLProtocolStub.requests.last?.body["input"] as? [String], [page])
     }
 
     func testAnImageGoesAsASizedPNGContentPart() throws {
@@ -104,6 +136,31 @@ final class FileMediaEmbedderTests: XCTestCase {
         XCTAssertNotNil(made[1].vector)
     }
 
+    /// llama-server answers an input too large for its batch with HTTP 500;
+    /// that input fails alone, and any other 500 still stops the pass.
+    func testAnInputTooLargeForTheBatchFailsThatFileOnly() throws {
+        let tooLarge = Data((#"{"error":{"code":500,"message":"input (2162 tokens) is too large to process. "#
+            + #"increase the physical batch size (current batch size: 2048)","type":"server_error"}}"#).utf8)
+        var calls = 0
+        MediaEmbedderURLProtocolStub.respond { _ in
+            calls += 1
+            return calls == 1 ? (500, tooLarge) : (200, Self.response(count: 1))
+        }
+        let first = try writePicture(width: 640, height: 480)
+        let second = try writePicture(width: 640, height: 480)
+        let embedder = makeEmbedder()
+
+        let made = try embedder.embedImages([first.path, second.path], budget: 70)
+
+        XCTAssertNil(made[0].vector)
+        XCTAssertTrue(made[0].error?.contains("too large to process") == true)
+        XCTAssertNotNil(made[1].vector)
+        MediaEmbedderURLProtocolStub.respond { _ in (500, Data(#"{"error":{"message":"failed to decode"}}"#.utf8)) }
+        XCTAssertThrowsError(try embedder.embedImages([first.path], budget: 70)) {
+            XCTAssertTrue($0 is WorkerError)
+        }
+    }
+
     func testAServerErrorStopsThePass() throws {
         MediaEmbedderURLProtocolStub.respond { _ in (503, Data("loading".utf8)) }
         let picture = try writePicture(width: 640, height: 480)
@@ -132,6 +189,14 @@ final class FileMediaEmbedderTests: XCTestCase {
         return FileMediaEmbedder(
             endpoint: .init(baseURL: URL(string: "http://127.0.0.1:1")!, token: "secret"),
             session: URLSession(configuration: configuration))
+    }
+
+    /// Answers `/tokenize` with `tokens` and embeddings with unit vectors.
+    private func respondWithTokens(_ tokens: [Int]) {
+        let tokenized = (try? JSONSerialization.data(withJSONObject: ["tokens": tokens])) ?? Data()
+        MediaEmbedderURLProtocolStub.respond { body in
+            body["content"] != nil ? (200, tokenized) : (200, Self.response(count: (body["input"] as? [Any])?.count ?? 0))
+        }
     }
 
     private static func response(count: Int) -> Data {

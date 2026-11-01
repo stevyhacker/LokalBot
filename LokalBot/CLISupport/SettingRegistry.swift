@@ -3,12 +3,12 @@ import Foundation
 /// Where a setting lives in Settings. Mirrors `AppState.SettingsTab` without
 /// depending on the app target, so the CLI can group and describe settings.
 enum SettingCategory: String, CaseIterable, Codable {
-    case overview
+    case overview, general
     case recording, dayMemory, files, email
     case ask, personalContext, daily
     case writing, dictation
     case models, agents
-    case general, privacy, advanced
+    case privacy, advanced
 }
 
 /// How a terminal change to a setting is authorized once the person allows

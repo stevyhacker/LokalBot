@@ -7,8 +7,8 @@ import Foundation
 /// requests here are synchronous.
 ///
 /// Inputs travel the way the 30 October parity run qualified them
-/// (Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder): texts as given,
-/// images as PNG sized for their budget (`FileImageSizing`), audio as WAV, each
+/// (Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder): texts as given
+/// (cut to one batch when longer, `fitted`), images as PNG sized for their budget (`FileImageSizing`), audio as WAV, each
 /// medium as a typed content part. That run reproduced DigUp's reference
 /// vectors at cosine ≥ 0.9997.
 /// Immutable after init (an endpoint and a URLSession), so it can cross threads.
@@ -26,6 +26,10 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
     /// Texts per request. One request is one llama-server batch; this keeps a
     /// long document from becoming a single multi-minute request.
     static let textsPerRequest = 16
+    /// The most tokens one input may have, `<bos>` and `<eos>` included: the
+    /// server's batch (`-ub 2048`; an embedding must fit in one), and where
+    /// DigUp's own embedder cuts a text.
+    static let maxInputTokens = 2_048
     static let requestTimeout: TimeInterval = 120
 
     struct Endpoint: Sendable {
@@ -47,7 +51,7 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         vectors.reserveCapacity(texts.count)
         for start in stride(from: 0, to: texts.count, by: Self.textsPerRequest) {
             let slice = Array(texts[start..<min(start + Self.textsPerRequest, texts.count)])
-            let made = try post(Self.requestBody(inputs: slice))
+            let made = try post(Self.requestBody(inputs: try slice.map(fitted)))
             guard made.count == slice.count else {
                 throw WorkerError.died("the media embedder returned \(made.count) of \(slice.count) vectors")
             }
@@ -105,13 +109,62 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         }
     }
 
-    /// The server answered, but not with vectors for this input (HTTP 4xx).
+    /// A text as it is sent: itself when it fits one batch, otherwise its
+    /// tokens cut the way DigUp's embedder (and transformers) cuts, the first
+    /// `maxInputTokens - 1` and `<eos>`. llama-server refuses a longer input
+    /// with HTTP 500 instead of cutting it, and a dense page of Cyrillic or
+    /// figures passes 2,048 tokens well within the 4,000 characters DigUp
+    /// sends. No token is shorter than a byte, so shorter texts skip the
+    /// tokenizer; tokens and text make the same vector.
+    private func fitted(_ text: String) throws -> Any {
+        guard text.utf8.count + 2 > Self.maxInputTokens else { return text }
+        let tokens = try tokens(of: text)
+        guard tokens.count > Self.maxInputTokens, let eos = tokens.last else { return text }
+        return Array(tokens.prefix(Self.maxInputTokens - 1)) + [eos]
+    }
+
+    /// The server's tokens for a text, with the `<bos>` and `<eos>` it embeds.
+    private func tokens(of text: String) throws -> [Int] {
+        let (data, http) = try send("tokenize", ["content": text, "add_special": true])
+        guard http.statusCode == 200 else {
+            throw WorkerError.died("HTTP \(http.statusCode) from the media embedder's tokenizer")
+        }
+        guard let tokens = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["tokens"] as? [Int]
+        else { throw WorkerError.died("unexpected /tokenize payload") }
+        return tokens
+    }
+
+    /// The server answered, but not with vectors for this input (HTTP 4xx, or
+    /// an input too large for its batch).
     private struct RejectedInput: Error, CustomStringConvertible {
         let description: String
     }
 
     private func post(_ body: [String: Any]) throws -> [[Float]] {
-        var request = URLRequest(url: endpoint.baseURL.appendingPathComponent("v1/embeddings"))
+        let (data, http) = try send("v1/embeddings", body)
+        switch http.statusCode {
+        case 200:
+            return try Self.vectors(fromResponse: data)
+        case 400..<500 where http.statusCode != 401 && http.statusCode != 408 && http.statusCode != 429,
+             500 where Self.isTooLarge(data):
+            throw RejectedInput(description: "HTTP \(http.statusCode): "
+                + String(decoding: data.prefix(200), as: UTF8.self))
+        default:
+            throw WorkerError.died("HTTP \(http.statusCode) from the media embedder")
+        }
+    }
+
+    /// llama-server's answer to an input longer than its batch: HTTP 500,
+    /// though the server is fine. Texts are cut to fit first (`fitted`); a
+    /// picture or recording that still doesn't fit fails alone instead of
+    /// stopping every pass at the same file.
+    static func isTooLarge(_ data: Data) -> Bool {
+        String(decoding: data.prefix(300), as: UTF8.self).contains("too large to process")
+    }
+
+    /// One synchronous request to the server.
+    private func send(_ path: String, _ body: [String: Any]) throws -> (Data, HTTPURLResponse) {
+        var request = URLRequest(url: endpoint.baseURL.appendingPathComponent(path))
         request.httpMethod = "POST"
         request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -130,17 +183,7 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         }
         task.resume()
         semaphore.wait()
-
-        let (data, http) = try result.get()
-        switch http.statusCode {
-        case 200:
-            return try Self.vectors(fromResponse: data)
-        case 400..<500 where http.statusCode != 401 && http.statusCode != 408 && http.statusCode != 429:
-            throw RejectedInput(description: "HTTP \(http.statusCode): "
-                + String(decoding: data.prefix(200), as: UTF8.self))
-        default:
-            throw WorkerError.died("HTTP \(http.statusCode) from the media embedder")
-        }
+        return try result.get()
     }
 
     // MARK: - Request and response shapes
