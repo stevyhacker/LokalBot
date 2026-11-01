@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings → Day Memory → Coding agent sessions. On by default; the saved
+/// Settings → Screen & Activity → Coding agent sessions. On by default; the saved
 /// records can be deleted here, while the agents' own files stay untouched.
 struct CodingAgentEvidenceSettings: View {
     @EnvironmentObject private var app: AppState

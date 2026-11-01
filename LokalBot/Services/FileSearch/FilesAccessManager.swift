@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// App-side owner of the Files grant (Settings → Privacy → External agents).
+/// App-side owner of the Files grant (Settings → External Agents).
 /// While it is on and Files is on with a folder, the app keeps
 /// `control/files-access.json` listing the chosen folders, so `lokalbot-cli`
 /// and its MCP server can search the Files index without the app running and

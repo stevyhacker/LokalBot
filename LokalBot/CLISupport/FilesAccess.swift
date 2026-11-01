@@ -13,8 +13,8 @@ struct FilesAccessProjection: Codable, Equatable, Sendable {
 }
 
 /// Cross-process truth for the Files grant: a marker the app sets from
-/// Settings → Privacy → External agents, plus the projection it keeps in sync
-/// with Settings → Personal Context → Files. Separate from every other grant,
+/// Settings → External Agents (or the box on Settings → Files), plus the
+/// projection it keeps in sync with Settings → Files. Separate from every other grant,
 /// and no Agent Mode capability satisfies it.
 struct FilesAccessGate {
     static let markerName = "files-access-enabled"
@@ -98,11 +98,11 @@ enum FilesSearchTool {
     static let passageCharacters = 1_500
 
     static let disabledMessage =
-        "File access is off. The user can turn it on in LokalBot → Settings → Privacy → External agents: "
+        "File access is off. The user can turn it on in LokalBot → Settings → External Agents: "
         + "\"Allow external agents to read your LokalBot data\", then tick Files."
     static let unavailableMessage =
         "File access is on, but Files is off in LokalBot or has no folder yet. The user can choose folders in "
-        + "LokalBot → Settings → Personal Context → Files."
+        + "LokalBot → Settings → Files."
     static let note =
         "Found by their words: text LokalBot read from documents, PDF pages, screenshots and pictures, and file "
         + "names. Recordings and video match only by name here. Paths point at the user's own files; LokalBot "

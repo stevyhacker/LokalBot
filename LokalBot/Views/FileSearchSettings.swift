@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Settings → Personal Context → Files. Nothing is read until the person
+/// Settings → Files. Nothing is read until the person
 /// turns Files on after a notice and chooses a folder.
 struct FileSearchSettingsSection: View {
     @EnvironmentObject var app: AppState

@@ -29,7 +29,7 @@ private struct AgentSetupCard: View {
                         Text(verbatim: String(request.requester.prefix(80))).font(.scaled(.headline))
                         Text("asks to set up LokalBot for you from the terminal.")
                     }
-                    Text("Allowing it lets the agent change your LokalBot settings, download models, and walk you through macOS permissions. Turning on capture, a data source, or sharing still asks you here. You can turn this off at any time in Settings → Privacy.")
+                    Text("Allowing it lets the agent change your LokalBot settings, download models, and walk you through macOS permissions. Turning on capture, a data source, or sharing still asks you here. You can turn this off at any time in Settings → External Agents.")
                         .workspaceTextRole(.supporting)
                     if request.grants.contains(.meetingLibrary) {
                         Toggle(isOn: $meetingLibrary) {

@@ -51,49 +51,94 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Which tab the Settings surface shows (spec §2.5 — Settings absorbs
-    /// Models as a tab strip). Session-sticky like TypeTab.
+    /// A Settings page. Each feature has one page with everything that sets it
+    /// up, in sidebar order. Raw values stay stable for the CLI, AppControl and
+    /// saved selections, so a renamed page keeps its old identifier.
     enum SettingsTab: String, CaseIterable {
-        case general, recording, dayMemory, personalContext, writing, dictation, models, privacy, advanced
+        case overview
+        case recording, dayMemory, files, email
+        case ask, personalContext, daily
+        case writing, dictation
+        case models, agents
+        case general, privacy, advanced
+
+        enum Group: String, CaseIterable {
+            case memory = "Memory", assistant = "Assistant", writing = "Writing",
+                 connections = "Connections", app = "App"
+        }
+
+        /// The sidebar heading the page sits under; Overview has none.
+        var group: Group? {
+            switch self {
+            case .overview: nil
+            case .recording, .dayMemory, .files, .email: .memory
+            case .ask, .personalContext, .daily: .assistant
+            case .writing, .dictation: .writing
+            case .models, .agents: .connections
+            case .general, .privacy, .advanced: .app
+            }
+        }
 
         var displayName: String {
             switch self {
+            case .overview: "Overview"
             case .recording: "Meetings"
-            case .dayMemory: "Day Memory"
+            case .dayMemory: "Screen & Activity"
+            case .files: "Files"
+            case .email: "Email"
+            case .ask: "Ask"
             case .personalContext: "Personal Context"
-            case .privacy: "Privacy & Data"
-            default: rawValue.capitalized
+            case .daily: "Daily Review"
+            case .writing: "Autocomplete"
+            case .dictation: "Dictation"
+            case .models: "Models"
+            case .agents: "External Agents"
+            case .general: "General"
+            case .privacy: "Privacy & Permissions"
+            case .advanced: "Diagnostics"
             }
         }
 
         var icon: String {
             switch self {
-            case .general: "gearshape"
+            case .overview: "square.grid.2x2"
             case .recording: "person.2"
-            case .dayMemory: "calendar.day.timeline.left"
+            case .dayMemory: "macwindow"
+            case .files: "doc.on.doc"
+            case .email: "envelope"
+            case .ask: "sparkles"
             case .personalContext: "person.crop.circle"
+            case .daily: "moon.stars"
             case .writing: "pencil"
             case .dictation: "mic"
             case .models: "shippingbox"
+            case .agents: "point.3.connected.trianglepath.dotted"
+            case .general: "gearshape"
             case .privacy: "lock"
-            case .advanced: "slider.horizontal.3"
+            case .advanced: "stethoscope"
             }
         }
 
-        /// Legacy capture names select their tab; the pre-merge "models"
-        /// section name lands on the Models tab.
+        /// Capture and launch names, including the names pages had before
+        /// Settings was organized by feature.
         init?(captureName: String) {
             switch captureName.lowercased() {
+            case "overview": self = .overview
             case "general": self = .general
             case "recording", "meetings": self = .recording
-            case "daymemory", "day memory": self = .dayMemory
+            case "daymemory", "day memory", "screen", "screen & activity", "activity": self = .dayMemory
+            case "files": self = .files
+            case "email", "mail", "gmail": self = .email
+            case "ask": self = .ask
             case "personalcontext", "personal context", "personal-context", "aboutyou", "about you":
                 self = .personalContext
-            case "writing", "write": self = .writing
+            case "daily", "dailyreview", "daily review", "overnight", "routines": self = .daily
+            case "writing", "write", "autocomplete": self = .writing
             case "dictation": self = .dictation
             case "models": self = .models
-            case "privacy": self = .privacy
-            case "advanced": self = .advanced
+            case "agents", "externalagents", "external agents", "agent-access": self = .agents
+            case "privacy", "permissions": self = .privacy
+            case "advanced", "diagnostics": self = .advanced
             default: return nil
             }
         }
@@ -477,8 +522,10 @@ final class AppState: ObservableObject {
     @Published var typeTab: TypeTab = .dictation {
         didSet { Self.navigationDefaults.set(typeTab.rawValue, forKey: Self.typeTabDefaultsKey) }
     }
-    private static let settingsTabDefaultsKey = "lokalbotv3.settings.selectedTab"
-    @Published var settingsTab: SettingsTab = .general {
+    /// Renamed when Settings was organized by feature, so everyone opens the
+    /// new Overview once; the page chosen after that is remembered.
+    private static let settingsTabDefaultsKey = "lokalbotv4.settings.selectedPage"
+    @Published var settingsTab: SettingsTab = .overview {
         didSet { Self.navigationDefaults.set(settingsTab.rawValue, forKey: Self.settingsTabDefaultsKey) }
     }
     @Published var focusedSettingID: String?

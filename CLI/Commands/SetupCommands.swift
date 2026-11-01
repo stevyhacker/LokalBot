@@ -411,7 +411,7 @@ struct DoctorCommand: ParsableCommand {
         var checks: [JSONValue] = []
         if case .array(let items)? = report["checks"] { checks = items }
         checks.append(["name": "cliOnPath", "ok": .bool(onPath), "detail": .string(onPath
-            ? "lokalbot-cli is on PATH." : "lokalbot-cli is not on PATH. Settings → Agent CLI installs it in ~/.local/bin.")])
+            ? "lokalbot-cli is on PATH." : "lokalbot-cli is not on PATH. Settings → External Agents → Agent CLI installs it in ~/.local/bin.")])
         report["checks"] = .array(checks)
         print(ControlOutput.json(.object(report)))
         if report["ready"] != .bool(true) { throw ExitCode.failure }

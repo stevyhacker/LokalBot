@@ -13,6 +13,9 @@ struct SettingsView: View {
     @State private var forgettingCotypingLearning = false
     @State private var confirmingDreamMemoryClear = false
     @State private var cotypingLearningMessage: String?
+    /// Model choices and transcription options open over the page that uses
+    /// them, so no setting sends you to another page to finish.
+    @State private var sheet: SettingsSheet?
 
     // Settings search + live system readouts.
     @State private var settingsQuery = ""
@@ -34,10 +37,27 @@ struct SettingsView: View {
                 List(selection: Binding(get: { queryIsEmpty ? Optional(app.settingsTab) : nil }, set: {
                     if let category = $0 { app.selectSettingsTab(category); settingsQuery = "" }
                 })) {
-                    ForEach(AppState.SettingsTab.allCases, id: \.self) { category in
+                    ForEach(AppState.SettingsTab.allCases.filter { $0.group == nil }, id: \.self) { category in
                         SettingsCategoryLabel(category: category)
                             .padding(.vertical, 3)
                             .tag(category)
+                    }
+                    // Headings are plain rows, like the main sidebar's: a List
+                    // Section reaches accessibility as a group with no name.
+                    ForEach(AppState.SettingsTab.Group.allCases, id: \.self) { group in
+                        Text(LocalizedStringKey(group.rawValue))
+                            .font(.scaled(.subheadline).bold())
+                            .settingsSecondary()
+                            .padding(.top, 8)
+                            .accessibilityAddTraits(.isHeader)
+                            .selectionDisabled(true)
+                            .listRowSeparator(.hidden)
+                            .accessibilityIdentifier("settings.group.\(group)")
+                        ForEach(AppState.SettingsTab.allCases.filter { $0.group == group }, id: \.self) { category in
+                            SettingsCategoryLabel(category: category)
+                                .padding(.vertical, 3)
+                                .tag(category)
+                        }
                     }
                 }
                 .listStyle(.inset)
@@ -59,6 +79,9 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity)
                 if !queryIsEmpty {
                     searchResults
+                } else if app.settingsTab == .overview {
+                    SettingsOverview(permissions: permissions, access: app.agentReadAccess,
+                                     email: app.email, personalModel: app.personalModel)
                 } else if app.settingsTab == .models {
                     ModelsView()
                     .settingTarget("settings.models", selected: app.focusedSettingID)
@@ -79,6 +102,18 @@ struct SettingsView: View {
                     .id(app.settingsTab)
                 }
             }.frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+                .sheet(item: $sheet) { sheet in
+                    switch sheet {
+                    case .model(let role):
+                        ModelPickerSheet(app: app, role: role, openConnections: {
+                            self.sheet = nil
+                            app.openSettings(tab: .models)
+                            app.focusedSettingID = "settings.openAIBaseURL"
+                        })
+                    case .transcriptionOptions:
+                        ModelTranscriptionOptionsSheet(app: app)
+                    }
+                }
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel(Text(LocalizedStringKey(queryIsEmpty ? app.settingsTab.displayName : "Search settings")))
                 .splitPaneAccessibilityLabel(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
@@ -144,39 +179,65 @@ struct SettingsView: View {
 
     private var settingsTabSubtitle: String {
         switch app.settingsTab {
-        case .general:
-            "Startup, the main window, shortcuts, and updates."
+        case .overview:
+            "Everything LokalBot can do on this Mac, and what’s on."
         case .recording:
-            "Meeting capture, detection, processing, and summaries."
+            "Detection, transcription, speakers, notes, and export."
         case .dayMemory:
-            "Activity, captured context, daily briefs, routines, and exports."
+            "What LokalBot sees on screen, how long it keeps it, and what it never captures."
+        case .files:
+            "Folders LokalBot reads, so Ask can find files by what’s in them."
+        case .email:
+            "Read-only Gmail, so briefs and Ask know the conversation."
+        case .ask:
+            "Ask from any app, act on selected text, and choose what answers use."
         case .personalContext:
-            "What you told LokalBot, what it learns about you, and what agents can read."
+            "What you told LokalBot about yourself, and what it learns."
+        case .daily:
+            "The day digest, the overnight review, routines, and the daily note."
         case .writing:
-            "Autocomplete and your writing profile."
+            "Suggestions as you type in other apps, and your writing profile."
         case .dictation:
             "The dictation shortcut, speech model, and where the text goes."
         case .models:
             "Choose the models behind Transcribe, Think, and Autocomplete."
+        case .agents:
+            "What Claude, Codex, Cursor, and other agents can read or change."
+        case .general:
+            "Startup, appearance, and updates."
         case .privacy:
-            "Control retention, exclusions, encryption, and remote processing."
+            "Where your data lives and every permission LokalBot uses."
         case .advanced:
-            "Inspect memory health, resources, diagnostics, and Agent CLI."
+            "Memory health, resources, and files for support."
         }
     }
 
-    /// Spec §2.5 tab distribution: SettingsView's existing sections spread
-    /// across General · Recording · Privacy · Advanced; Models is ModelsView.
+    /// Each page holds one feature: everything that turns it on and sets it
+    /// up. Models is ModelsView and Overview is SettingsOverview.
     @ViewBuilder private func sections(for tab: AppState.SettingsTab) -> some View {
         switch tab {
+        case .overview, .models:
+            EmptyView() // handled by their own branches in body
         case .general:
             generalSection; updatesSection; aboutSection
         case .recording:
             meetingsSection; processingSection; summarizationSection; meetingNoteExportSection
         case .dayMemory:
-            dayTrackingSection; routinesSection; dreamingSection
+            screenCaptureSection; retentionSection; exclusionsSection; codingAgentsSection
+            AgentKindAccessSection(access: app.agentReadAccess, kind: .screenMemory)
+        case .files:
+            FileSearchSettingsSection(focusedSettingID: app.focusedSettingID)
+            if app.settings.fileSearchEnabled {
+                AgentKindAccessSection(access: app.agentReadAccess, kind: .files)
+            }
+        case .email:
+            EmailSettingsSection(email: app.email, focusedSettingID: app.focusedSettingID)
+        case .ask:
+            askAnywhereSection; selectionActionsSection; askAnswersSection; askSourcesSection
         case .personalContext:
-            personalContextSection; emailSection; filesSection
+            PersonalContextSettings(personalModel: app.personalModel, access: app.agentReadAccess)
+        case .daily:
+            dayDigestSection; dreamingSection; routinesSection; dailyNoteExportSection
         case .writing:
             AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
@@ -184,12 +245,12 @@ struct SettingsView: View {
         case .dictation:
             Section("Dictation") { DictationSettingsControls() }
             DictationView(dictation: app.dictation, embedded: true)
-        case .models:
-            EmptyView() // handled by the ModelsView branch in body
+        case .agents:
+            agentAccessSection; agentCLISection
         case .privacy:
-            privacySection; exclusionsSection; permissionsSection; privacyLinksSection
+            privacySection; permissionsSection; privacyLinksSection
         case .advanced:
-            memoryHealthSection; resourceMonitorSection; systemSection; agentCLISection
+            memoryHealthSection; resourceMonitorSection; systemSection
         }
     }
 
@@ -234,34 +295,22 @@ struct SettingsView: View {
 
     // MARK: - Sections
 
-    @ViewBuilder private var memoryHealthSection: some View {
-        if shows("Memory Health", ["health", "capture", "activity", "audio", "ocr",
-                                   "accessibility", "retention", "queue", "routines",
-                                   "disk", "permissions", "recovery", "diagnostics"]) {
-            MemoryHealthSection()
-                    .settingTarget("settings.memoryHealth", selected: app.focusedSettingID)
-        }
+    private var memoryHealthSection: some View {
+        MemoryHealthSection()
+            .settingTarget("settings.memoryHealth", selected: app.focusedSettingID)
     }
 
-    @ViewBuilder private var resourceMonitorSection: some View {
-        if shows("Resource Monitor", ["resource", "usage", "cpu", "memory", "ram",
-                                      "footprint", "models", "loaded", "running",
-                                      "performance", "diagnostics"]) {
-            ResourceMonitorSection()
-                    .settingTarget("settings.resourceMonitor", selected: app.focusedSettingID)
-        }
+    private var resourceMonitorSection: some View {
+        ResourceMonitorSection()
+            .settingTarget("settings.resourceMonitor", selected: app.focusedSettingID)
     }
 
     @ViewBuilder private var generalSection: some View {
-        if shows("General", ["launch", "login", "startup", "open at login", "auto start",
-                                 "appearance", "theme", "dark", "light", "text size", "font",
-                                 "menu bar", "menubar", "dock", "dock icon", "hide dock",
-                                 "window", "background", "tray", "ask", "quick recall", "shortcut",
-                                 "hotkey", "global search"]) {
                 Section("General") {
                     LaunchAtLoginToggleRow(state: LaunchAtLoginState.shared)
                         .accessibilityLabel("Launch LokalBot at login")
                         .accessibilityHint("Start automatically so it's ready to catch meetings.")
+                        .settingTarget("settings.launchAtLogin", selected: app.focusedSettingID)
 
                     Toggle(isOn: $app.settings.menuBarOnly) {
                         SettingsLabel("Menu bar only (hide Dock icon)",
@@ -302,11 +351,18 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
                 }
-                Section("Shortcut") {
+    }
+
+    // MARK: - Ask
+
+    private var askAnywhereSection: some View {
+                Section("Ask anywhere") {
                     Toggle(isOn: $app.settings.quickRecallEnabled) {
                         SettingsLabel("Enable the system-wide Ask shortcut",
                                       help: "Press \(app.settings.quickRecallShortcut.displayLabel) in any app to search your work memory or ask a question. LokalBot registers only this shortcut and never reads other keystrokes.")
                     }
+                    .accessibilityLabel("Enable the system-wide Ask shortcut")
+                    .accessibilityIdentifier("settings.quickRecallEnabled")
                     .settingTarget("settings.quickRecallEnabled", selected: app.focusedSettingID)
                     LabeledContent("Ask shortcut") {
                         ShortcutRecorder(
@@ -322,12 +378,19 @@ struct SettingsView: View {
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
                     .settingTarget("settings.quickRecallShortcut", selected: app.focusedSettingID)
+                }
+    }
+
+    private var selectionActionsSection: some View {
+                Section("Selection actions") {
                     Toggle(isOn: $app.settings.selectionActionsEnabled) {
                         SettingsLabel("Enable the selection actions shortcut",
                                       help: "Select text in any app and press \(app.settings.selectionActionsShortcut.displayLabel) to rewrite, translate, summarize, or answer it with your Think model. "
                                         + "Actions marked “with my memory” also search your meetings. LokalBot reads the selection only when you press the shortcut, skips excluded apps and password fields, and keeps nothing. "
                                         + "Apps that hide their selection from Accessibility are copied with ⌘C, then your clipboard is restored.")
                     }
+                    .accessibilityLabel("Enable the selection actions shortcut")
+                    .accessibilityIdentifier("settings.selectionActionsEnabled")
                     .settingTarget("settings.selectionActionsEnabled", selected: app.focusedSettingID)
                     LabeledContent("Selection actions shortcut") {
                         ShortcutRecorder(
@@ -344,29 +407,73 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.selectionActionsShortcut", selected: app.focusedSettingID)
                 }
-            }
+    }
 
+    private var askAnswersSection: some View {
+        Section("Answers") {
+            modelRow(.assistant, title: "Think model", value: ModelSettingsPresentation.assistantName(app.settings),
+                     help: "Also writes meeting notes and the overnight review.")
+            Toggle(isOn: $app.settings.semanticSearchEnabled) {
+                SettingsLabel("Enable search by meaning",
+                              help: "The model downloads when semantic search is first used. Meeting text and text captured from your screen are indexed locally.")
+            }
+            .settingTarget("settings.semanticSearchEnabled", selected: app.focusedSettingID)
+        }
+    }
+
+    /// Where Ask's answers come from. Each source is set up on its own page,
+    /// so this summary is one of the few rows that opens another page.
+    private var askSourcesSection: some View {
+        Section {
+            sourceRow(.recording, value: "On")
+                .settingTarget("settings.askSources", selected: app.focusedSettingID)
+            sourceRow(.dayMemory, value: app.settings.effectiveScreenContextCaptureMode.capturesText ? "On" : "Off")
+            sourceRow(.files, value: app.settings.fileSearchEnabled ? "On" : "Off")
+            sourceRow(.email, value: app.email.accounts.isEmpty ? "Not connected" : "On")
+            sourceRow(.personalContext, value: app.settings.askMemoryEnabled ? "On" : "Off")
+        } header: {
+            Text("What Ask can search")
+        }
+    }
+
+    private func sourceRow(_ page: AppState.SettingsTab, value: String) -> some View {
+        Button { app.selectSettingsTab(page) } label: {
+            LabeledContent {
+                HStack(spacing: 6) {
+                    Text(LocalizedStringKey(value)).settingsSecondary()
+                    Image(systemName: "chevron.right").font(.scaled(.caption)).settingsSecondary()
+                }
+            } label: {
+                Label { Text(LocalizedStringKey(page.displayName)) } icon: {
+                    Image(systemName: page.icon).foregroundStyle(Brand.teal)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("settings.askSource.\(page.rawValue)")
+    }
+
+    /// A model a page uses, with its picker opening over this page.
+    private func modelRow(_ role: ModelPickerRole, title: String, value: String, help: String? = nil) -> some View {
+        LabeledContent {
+            HStack(spacing: 10) {
+                Text(value)
+                    .settingsSecondary()
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Button("Change…") { sheet = .model(role) }
+                    .accessibilityIdentifier("settings.model.change.\(role.rawValue)")
+            }
+        } label: {
+            SettingsLabel(title, help: help)
+        }
     }
 
     @ViewBuilder private var cotypingSection: some View {
-        if shows("Autocomplete", ["cotyping", "autocomplete", "suggestion", "suggestions",
-                              "length", "words", "max words", "ghost", "inline",
-                              "completion", "typing", "server"]) {
             Section("Autocomplete") {
-                LabeledContent("Autocomplete model") {
-                    HStack(spacing: 10) {
-                        Text(app.settings.cotypingModelDisplayName)
-                            .settingsSecondary()
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        // The model, or a server, is chosen in the Models picker.
-                        Button("Change…") {
-                            app.openSettings(tab: .models)
-                            app.focusedSettingID = "settings.cotypingBuiltInModelID"
-                        }
-                        .accessibilityIdentifier("settings.cotypingModel.change")
-                    }
-                }
+                // The model, or a server, is chosen in the same picker Models uses.
+                modelRow(.autocomplete, title: "Autocomplete model", value: app.settings.cotypingModelDisplayName)
                 Stepper("Suggestion length: up to \(app.settings.cotypingMaxWords) words",
                         value: $app.settings.cotypingMaxWords, in: 2...50)
                 Toggle("Allow multi-line suggestions", isOn: $app.settings.cotypingMultiLine)
@@ -458,7 +565,8 @@ struct SettingsView: View {
                         .settingsSecondary()
                 }
             }
-            Section("Writing profile") {
+            Section {
+                WritingProfileFields()
                 Toggle(isOn: $app.settings.cotypingUseLocalLearning) {
                     SettingsLabel("Learn locally from accepted completions",
                                   help: "Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.")
@@ -481,14 +589,10 @@ struct SettingsView: View {
                 if let cotypingLearningMessage {
                     Text(cotypingLearningMessage).settingsSecondary()
                 }
-                profileField("Your name", prompt: "Optional", text: $app.settings.cotypingUserName)
-                    .settingTarget("settings.cotypingUserName", selected: app.focusedSettingID)
-                profileField("Writing style", prompt: "Optional, e.g. concise and friendly",
-                             text: $app.settings.cotypingStyleNote)
-                    .settingTarget("settings.cotypingStyleNote", selected: app.focusedSettingID)
-                profileField("Languages", prompt: "Optional, e.g. English, German",
-                             text: $app.settings.cotypingLanguages)
-                    .settingTarget("settings.cotypingLanguages", selected: app.focusedSettingID)
+            } header: {
+                Text("Writing profile")
+            } footer: {
+                SettingsHelp("Dictation’s Compose uses the same profile.")
             }
             Section("Exclusions") {
                 ExclusionRulesEditor(title: "Never suggest in these apps", value: $app.settings.cotypingExcludedApps, kind: .applications)
@@ -499,6 +603,19 @@ struct SettingsView: View {
                        isOn: $app.settings.cotypingSuggestInIntegratedTerminals)
                     .settingTarget("settings.cotypingSuggestInIntegratedTerminals", selected: app.focusedSettingID)
             }
+            // Visible by default: hidden under Advanced, few people found them.
+            Section("Extras") {
+                Toggle("Autocorrect the current word",
+                       isOn: $app.settings.cotypingAutocorrect)
+                .settingTarget("settings.cotypingAutocorrect", selected: app.focusedSettingID)
+                Toggle("Emoji autocomplete", isOn: $app.settings.cotypingEmoji)
+                .settingTarget("settings.cotypingEmoji", selected: app.focusedSettingID)
+                Toggle("Macros", isOn: $app.settings.cotypingMacros)
+                .settingTarget("settings.cotypingMacros", selected: app.focusedSettingID)
+                Toggle("Match the app font and text color",
+                       isOn: $app.settings.cotypingMatchHostStyle)
+                .settingTarget("settings.cotypingMatchHostStyle", selected: app.focusedSettingID)
+            }
             Section {
                 DisclosureGroup("Advanced", isExpanded: Binding(
                     get: { writingAdvancedExpanded || app.focusedSettingID != nil },
@@ -507,22 +624,11 @@ struct SettingsView: View {
                            isOn: $app.settings.cotypingInProcessRuntime)
                     .disabled(app.settings.cotypingBackend != .onDevice)
                     .settingTarget("settings.cotypingInProcessRuntime", selected: app.focusedSettingID)
-                    Toggle("Match the app font and text color",
-                           isOn: $app.settings.cotypingMatchHostStyle)
-                    .settingTarget("settings.cotypingMatchHostStyle", selected: app.focusedSettingID)
                     Toggle("Use enhanced accessibility in Chrome-based browsers",
                            isOn: $app.settings.cotypingChromiumEnhancedAccessibility)
                     .settingTarget("settings.cotypingChromiumEnhancedAccessibility", selected: app.focusedSettingID)
-                    Toggle("Autocorrect the current word",
-                           isOn: $app.settings.cotypingAutocorrect)
-                    .settingTarget("settings.cotypingAutocorrect", selected: app.focusedSettingID)
-                    Toggle("Emoji autocomplete", isOn: $app.settings.cotypingEmoji)
-                    .settingTarget("settings.cotypingEmoji", selected: app.focusedSettingID)
-                    Toggle("Macros", isOn: $app.settings.cotypingMacros)
-                    .settingTarget("settings.cotypingMacros", selected: app.focusedSettingID)
                 }
             }
-        }
     }
 
     /// What each optional autocomplete context source can do right now.
@@ -531,26 +637,13 @@ struct SettingsView: View {
                                         screenRecordingGranted: permissions.granted[.screenRecording] ?? false)
     }
 
-    /// A labeled, visibly editable text field for optional profile values.
-    private func profileField(_ title: String, prompt: String, text: Binding<String>) -> some View {
-        LabeledContent(title) {
-            TextField(title, text: text, prompt: Text(prompt))
-                .labelsHidden()
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 280)
-        }
-    }
-
     @ViewBuilder private var permissionsSection: some View {
-            if shows("Permissions", ["permission", "grant", "access", "microphone", "mic",
-                                     "screen recording", "system audio", "accessibility",
-                                     "input monitoring", "keyboard", "relaunch", "tcc"]) {
                 Section("Permissions") {
                     PermissionRow(permission: .microphone).settingTarget("settings.permissions", selected: app.focusedSettingID)
                     PermissionRow(permission: .accessibility,
                                   why: "Optional — window titles for the day timeline and browser-meeting detection.")
                     PermissionRow(permission: .screenRecording,
-                                  why: "Optional — only used while visual capture (Day Memory) is on. System audio does not need it.")
+                                  why: "Optional — only used while visual capture (Screen & Activity) is on. System audio does not need it.")
                     PermissionRow(permission: .inputMonitoring,
                                   why: "Optional — powers the dictation and autocomplete shortcuts.")
                     HStack {
@@ -558,14 +651,11 @@ struct SettingsView: View {
                         Spacer()
                         Button("Relaunch") { PermissionManager.relaunch() }
                     }
+                    LabeledContent("Calendar access") { calendarAccessControl }
                 }
-            }
-
     }
 
     @ViewBuilder private var meetingsSection: some View {
-            if shows("Meetings", ["meeting", "auto record", "detect", "debounce", "stop debounce",
-                                  "recording", "calendar", "calendar access", "browser", "google meet"]) {
                 Section("Meetings") {
                     Picker(selection: $app.settings.autoRecordMode) {
                         ForEach(AppSettings.AutoRecordMode.allCases) { mode in
@@ -618,23 +708,25 @@ struct SettingsView: View {
                         LabeledContent("Calendar access") { calendarAccessControl }
                     }
                 }
-            }
-
     }
 
     @ViewBuilder private var processingSection: some View {
-            if shows("Processing", ["transcribe", "transcription", "summarize", "summary",
-                                    "automatic", "auto", "after meeting", "model", "models", "engine",
-                                    "echo", "echo cancellation", "speakers", "headphones",
-                                    "microphone mode", "voice isolation"]) {
                 Section("Processing") {
                     Toggle("Transcribe automatically after each meeting", isOn: $app.settings.autoTranscribe)
                     .settingTarget("settings.autoTranscribe", selected: app.focusedSettingID)
                     Toggle("Summarize automatically after transcription", isOn: $app.settings.autoSummarize)
                     .settingTarget("settings.autoSummarize", selected: app.focusedSettingID)
-                    LabeledContent("Transcribe and Think models") {
-                        Button("Manage in Models…") { app.openSettings(tab: .models) }
+                    modelRow(.transcription, title: "Transcribe model", value: app.settings.transcriptionModelDisplayName,
+                             help: "Also used by Dictation.")
+                    LabeledContent {
+                        Button("Edit…") { sheet = .transcriptionOptions }
+                            .accessibilityIdentifier("settings.transcriptionOptions.edit")
+                    } label: {
+                        SettingsLabel("Language and vocabulary",
+                                      help: app.settings.transcriptionLanguage.displayName)
                     }
+                    modelRow(.assistant, title: "Think model", value: ModelSettingsPresentation.assistantName(app.settings),
+                             help: "Writes the notes. Also used by Ask and the overnight review.")
                 }
                 Section("Speakers and echo") {
                     Toggle(isOn: $app.settings.echoCancellation) {
@@ -645,14 +737,9 @@ struct SettingsView: View {
                     SettingsDetails("Microphone mode requirement",
                                     "Set LokalBot's microphone mode to Standard (Control Center → microphone icon → LokalBot's row). macOS Voice Isolation removes the echo this feature looks for. The meeting app can stay on Voice Isolation; the mode is set per app, not per microphone. Headphones need no echo removal.")
                 }
-            }
-
     }
 
     @ViewBuilder private var summarizationSection: some View {
-            if shows("Summarization", ["summary", "summarize", "notes", "template", "language",
-                                       "diarization", "speaker", "split speaker", "neural", "nemotron", "pyannote",
-                                       "microphone", "my microphone", "action items", "owner"]) {
                 Section("Summarization") {
                     Picker(selection: $app.settings.noteTemplate) {
                         ForEach(NoteTemplate.allCases) { template in
@@ -677,7 +764,7 @@ struct SettingsView: View {
                     .settingTarget("settings.meetingNotesUseCalendarContext", selected: app.focusedSettingID)
                     Toggle(isOn: $app.settings.meetingNotesUseScreenTitles) {
                         SettingsLabel("Give notes the titles of documents on screen",
-                                      help: "Adds titles of documents and pages captured during the call, never their captured text. Requires screen context in Day Memory.")
+                                      help: "Adds titles of documents and pages captured during the call, never their captured text. Requires screen context in Screen & Activity.")
                     }
                     .settingTarget("settings.meetingNotesUseScreenTitles", selected: app.focusedSettingID)
                 }
@@ -686,6 +773,7 @@ struct SettingsView: View {
                            isOn: $app.settings.multiSpeakerDiarization)
                         .accessibilityLabel("Separate voices by speaker")
                         .accessibilityIdentifier("settings.multiSpeakerDiarization")
+                        .settingTarget("settings.multiSpeakerDiarization", selected: app.focusedSettingID)
                     Picker(selection: $app.settings.diarizationModel) {
                         ForEach(DiarizationModel.allCases) { model in
                             Text(LocalizedStringKey(model.displayName)).tag(model)
@@ -696,21 +784,20 @@ struct SettingsView: View {
                     .disabled(!app.settings.multiSpeakerDiarization)
                     .accessibilityLabel("Speaker model")
                     .accessibilityIdentifier("settings.diarizationModel")
+                    .settingTarget("settings.diarizationModel", selected: app.focusedSettingID)
                     Toggle(isOn: $app.settings.microphoneIsUser) {
                         SettingsLabel("My microphone is me",
                                       help: "Treats speech from this Mac's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items.")
                     }
                         .accessibilityLabel("My microphone is me")
                         .accessibilityIdentifier("settings.microphoneIsUser")
+                        .settingTarget("settings.microphoneIsUser", selected: app.focusedSettingID)
                     SpeakerIdentitySettingsControls()
+                        .settingTarget("settings.rememberedPeople", selected: app.focusedSettingID)
                 }
-            }
-
     }
 
     @ViewBuilder private var meetingNoteExportSection: some View {
-            if shows("Meeting note export", ["export", "obsidian", "logseq", "markdown", "vault",
-                                             "notes", "transcript", "folder"]) {
                 Section("Meeting note export") {
                     Toggle(isOn: Binding(
                         get: { app.settings.meetingNoteExportEnabled },
@@ -744,18 +831,12 @@ struct SettingsView: View {
                         }
                     }
                 }
-            }
-
     }
 
-    @ViewBuilder private var dayTrackingSection: some View {
-            if shows("Day tracking", ["tracking", "activity", "screenshots", "screen", "capture",
-                                      "ocr", "window", "accessibility", "retention", "private",
-                                      "excluded apps", "never capture", "export", "obsidian",
-                                      "logseq", "markdown", "daily note", "vault", "digest",
-                                      "journal", "schedule", "prompt", "coding agent", "claude code",
-                                      "codex", "agent sessions"]) {
-                Section("Day Memory") {
+    // MARK: - Screen & Activity
+
+    @ViewBuilder private var screenCaptureSection: some View {
+                Section("Activity") {
                     Toggle(isOn: Binding(
                         get: { app.settings.trackingEnabled },
                         set: { enabled in app.changeSettings { $0.trackingEnabled = enabled } })) {
@@ -797,8 +878,6 @@ struct SettingsView: View {
                                           help: "When later captured text shows an action's words with a completion such as “message sent” or “merged”, the action offers Mark Done. Nothing changes until you confirm.")
                         }
                         .settingTarget("settings.suggestActionCompletion", selected: app.focusedSettingID)
-                        Button("Manage retention and cleanup…") { app.openSettings(tab: .privacy) }
-                        Button("Manage capture exclusions…") { app.openSettings(tab: .privacy) }
                         if app.settings.effectiveScreenContextCaptureMode.capturesPixels {
                             Toggle(isOn: $app.settings.meetingVisualContextEnabled) {
                                 SettingsLabel("Capture low-frequency visual context during meetings",
@@ -818,13 +897,27 @@ struct SettingsView: View {
                                             + "local OCR fills gaps. Private windows, excluded domains, secure fields, "
                                             + "and detected credentials are never captured. Visuals are encrypted "
                                             + "with a key kept in your Mac's Keychain; extracted text follows the same retention "
-                                            + "(see Privacy). Saved moments keep their encrypted frame and text "
+                                            + "(below). Saved moments keep their encrypted frame and text "
                                             + "until you unsave or delete them. Excluded apps log as “Private”.")
                     }
                 }
-                Section("Coding agent sessions") {
-                    CodingAgentEvidenceSettings()
-                }
+    }
+
+    private var retentionSection: some View {
+        Section("Screen memory retention") {
+            RetentionSettingsControls()
+        }
+    }
+
+    private var codingAgentsSection: some View {
+        Section("Coding agent sessions") {
+            CodingAgentEvidenceSettings()
+        }
+    }
+
+    // MARK: - Daily Review
+
+    private var dayDigestSection: some View {
                 Section("Day digest") {
                     Toggle(isOn: $app.settings.dayDigestAutoEnabled) {
                         SettingsLabel("Generate the day digest automatically",
@@ -839,6 +932,9 @@ struct SettingsView: View {
                     }
                     digestInstructionsField.settingTarget("settings.dayDigestCustomPrompt", selected: app.focusedSettingID)
                 }
+    }
+
+    private var dailyNoteExportSection: some View {
                 Section("Daily note export") {
                     Toggle(isOn: Binding(
                         get: { app.settings.dailyMemoryExportEnabled },
@@ -874,8 +970,6 @@ struct SettingsView: View {
                             in: 0...23)
                     }
                 }
-            }
-
     }
 
     private var digestInstructionsField: some View {
@@ -929,22 +1023,7 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder private var filesSection: some View {
-        if shows("Files", ["files", "folders", "documents", "pdf", "photos", "pictures", "screenshots", "digup"]) {
-            FileSearchSettingsSection(focusedSettingID: app.focusedSettingID)
-        }
-    }
-
-    @ViewBuilder private var emailSection: some View {
-        if shows("Email", ["email", "gmail", "mail", "inbox", "google", "account", "read-only"]) {
-            EmailSettingsSection(email: app.email, focusedSettingID: app.focusedSettingID)
-        }
-    }
-
-    @ViewBuilder private var routinesSection: some View {
-        if shows("Routines", ["routine", "automation", "standup", "stand-up", "weekly log",
-                              "follow-up", "follow up", "unfinished actions", "journal",
-                              "schedule", "history", "local output"]) {
+    private var routinesSection: some View {
             Section("Routines") {
                 Toggle(isOn: Binding(
                     get: { app.settings.memoryRoutinesEnabled },
@@ -1011,13 +1090,9 @@ struct SettingsView: View {
                 SettingsDetails("How routines run",
                                 "Each routine has a fixed local read scope and writes Markdown only inside the chosen folder. Missed daily or weekly runs catch up after wake, each run stops after 30 seconds, and every attempt is recorded in the local database.")
             }
-        }
     }
 
-    @ViewBuilder private var dreamingSection: some View {
-        if shows("Dreaming", ["dream", "dreaming", "overnight", "retrospective", "morning",
-                              "brief", "memory", "projects", "goals", "pin", "pinned",
-                              "downtime", "sleep"]) {
+    private var dreamingSection: some View {
             Section("Overnight review") {
                 Toggle(isOn: Binding(
                     get: { app.settings.dreamingEnabled },
@@ -1089,14 +1164,6 @@ struct SettingsView: View {
                                     + "Nights the Mac slept through catch up at the next launch. Evidence and generated files stay in the local library. If no model is reachable, a plain evidence summary is written instead. "
                                     + "Reviews and memory are kept after screen text expires; deleting or correcting a meeting or capture they used removes what depended on it, and Clear work memory removes all of it.")
             }
-        }
-    }
-
-    @ViewBuilder private var personalContextSection: some View {
-        if shows("Personal Context", ["personal", "context", "about", "you", "remember", "memory", "facts", "preferences", "goals",
-                               "principles", "values", "personal", "profile", "forget"]) {
-            PersonalContextSettings(personalModel: app.personalModel, access: app.personalContextAccess)
-        }
     }
 
     private func dreamMemoryPinRow(
@@ -1117,9 +1184,6 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var privacySection: some View {
-            if shows("Privacy", ["privacy", "retention", "ocr", "text", "screen text", "history",
-                                 "delete", "prune", "forever", "keep", "local", "network",
-                                 "data", "security", "agents", "mcp", "claude", "cli"]) {
                 Section("Where your data lives") {
                     if case .remote(let host) = app.settings.transcriptionPresentation {
                         if InferencePresentation(settings: app.settings) == .onDevice {
@@ -1140,24 +1204,25 @@ struct SettingsView: View {
                             remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
                     }
                     storageLocationRow
+                        .settingTarget("settings.libraryLocation", selected: app.focusedSettingID)
                     if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
-                        Label("Autocomplete also sends what you type, with the context you turn on under Writing, to \(host).",
+                        Label("Autocomplete also sends what you type, with the context you turn on under Autocomplete, to \(host).",
                               systemImage: "network")
                             .settingsSecondary()
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Section("Screen memory retention") {
-                    RetentionSettingsControls()
-                }
-                Section("External agents") {
-                    AgentReadAccessRows(access: app.agentReadAccess, focusedSettingID: app.focusedSettingID)
-                    SettingsControlAccessToggleRow(manager: app.settingsControl)
-                    .settingTarget("settings.settingsControlAccess", selected: app.focusedSettingID)
-                    AgentSettingsChangesList(changes: app.agentSettingsChanges)
-                }
-            }
+    }
 
+    // MARK: - External Agents
+
+    private var agentAccessSection: some View {
+        Section("External agents") {
+            AgentReadAccessRows(access: app.agentReadAccess, focusedSettingID: app.focusedSettingID)
+            SettingsControlAccessToggleRow(manager: app.settingsControl)
+                .settingTarget("settings.settingsControlAccess", selected: app.focusedSettingID)
+            AgentSettingsChangesList(changes: app.agentSettingsChanges)
+        }
     }
 
     private var storageLocationRow: some View {
@@ -1174,7 +1239,7 @@ struct SettingsView: View {
         }
     }
 
-    /// Policy and support links close the Privacy & Data page.
+    /// Policy and support links close the Privacy & Permissions page.
     private var privacyLinksSection: some View {
         Section {
             HStack(spacing: 16) {
@@ -1188,12 +1253,11 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var updatesSection: some View {
-            if shows("Updates", ["update", "version", "sparkle", "upgrade", "check", "release",
-                                 "appcast", "download"]) {
                 Section("Updates") {
                     Toggle("Check for updates automatically", isOn: Binding(
                         get: { updates.automaticallyChecksForUpdates },
                         set: { updates.automaticallyChecksForUpdates = $0 }))
+                    .settingTarget("settings.updates", selected: app.focusedSettingID)
                     LabeledContent("Current version") {
                         Text(AppUpdateManager.currentVersionString).settingsSecondary()
                     }
@@ -1205,8 +1269,6 @@ struct SettingsView: View {
                          ? "Updates are signed and delivered via Sparkle. Only the update feed and the chosen download are fetched."
                          : Self.inactiveUpdaterNote)
                 }
-            }
-
     }
 
     /// The repository opens in the default browser; LokalBot itself sends nothing.
@@ -1223,9 +1285,6 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var systemSection: some View {
-            if shows("System", ["system", "hardware", "ram", "memory", "chip", "cpu", "battery",
-                                "power", "low power", "diagnostics", "performance", "generations",
-                                "export", "logs", "support", "health"]) {
                 Section("System") {
                     LabeledContent("This Mac") {
                         Text(DeviceInfo.snapshot().summaryLine)
@@ -1263,9 +1322,8 @@ struct SettingsView: View {
                         }
                         SettingsHelp("Diagnostics include logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots.")
                     }
+                    .settingTarget("settings.exportDiagnostics", selected: app.focusedSettingID)
                 }
-            }
-
     }
 
     private func exportDiagnostics() {
@@ -1282,8 +1340,6 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var agentCLISection: some View {
-            if shows("Agent CLI", ["cli", "agent", "terminal", "claude", "codex", "cursor",
-                                   "gemini", "symlink", "install", "uninstall", "path"]) {
                 Section("Agent CLI") {
                     let installer = LokalBotCLIInstaller.bundled
                     if installer.bundledBinary == nil {
@@ -1298,6 +1354,7 @@ struct SettingsView: View {
                                 MemoryHealthStatus(value: "Not installed", tone: .idle)
                             }
                         }
+                        .settingTarget("settings.agentCLI", selected: app.focusedSettingID)
                         HStack {
                             Button(LocalizedStringKey(installer.isInstalled ? "Reinstall…" : "Install for your coding agent…")) {
                                 cliMessage = nil
@@ -1335,11 +1392,9 @@ struct SettingsView: View {
                         if let cliMessage {
                             SettingsHelp(cliMessage)
                         }
-                        SettingsHelp("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy.")
+                        SettingsHelp("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own switch above.")
                     }
                 }
-            }
-
     }
 
     /// Release builds explain the state; only dev builds point at release setup.
@@ -1375,12 +1430,6 @@ struct SettingsView: View {
                 }
             }
         }
-    }
-
-    /// A section is visible when the search field is empty or its title/keywords
-    /// match the query (every query token must appear).
-    private func shows(_ title: String, _ keywords: [String]) -> Bool {
-        true
     }
 
     private func chooseDailyExportFolder() {
@@ -1615,8 +1664,8 @@ private struct AgentReadAccessRows: View {
             if access.isTicked(.personalContext) {
                 LabeledContent {
                     Button("Choose items…") {
-                        app.settingsTab = .personalContext
-                        app.focusedSettingID = "settings.askMemoryEnabled"
+                        app.selectSettingsTab(.personalContext)
+                        app.focusedSettingID = "settings.agentKind.personalContext"
                     }
                     .buttonStyle(.workspaceLink)
                 } label: {
@@ -1632,13 +1681,13 @@ private struct AgentReadAccessRows: View {
             if access.isTicked(.files), !app.settings.fileSearchEnabled || app.settings.fileSearchFolders.isEmpty {
                 LabeledContent {
                     Button("Choose folders…") {
-                        app.settingsTab = .personalContext
+                        app.selectSettingsTab(.files)
                         app.focusedSettingID = "settings.fileSearchEnabled"
                     }
                     .buttonStyle(.workspaceLink)
                 } label: {
                     SettingsLabel("Files has no folders yet",
-                                  help: "Agents can search only folders you chose in Personal Context → Files.")
+                                  help: "Agents can search only the folders you chose under Files.")
                 }
                 .padding(.leading, 20)
             }

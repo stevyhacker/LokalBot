@@ -71,7 +71,7 @@ It finds files by their words (text LokalBot read from them, and file names), be
 
 ## When access is off
 
-LokalBot's Settings → Privacy → External agents has one switch, "Allow external agents to read your LokalBot data", with a box for each kind: Meetings, Screen memory, What I shared about myself, and Files. `[access_disabled]` means Meetings isn't ticked, `[personal_context_disabled]` What I shared about myself, and `[files_access_disabled]` Files; `[files_unavailable]` means Files is off in LokalBot or has no folder yet. Tell the user which box it is and let them decide. Don't work around it, and never create or edit files in LokalBot's `control` folder.
+LokalBot's Settings → External Agents has one switch, "Allow external agents to read your LokalBot data", with a box for each kind: Meetings, Screen memory, What I shared about myself, and Files. `[access_disabled]` means Meetings isn't ticked, `[personal_context_disabled]` What I shared about myself, and `[files_access_disabled]` Files; `[files_unavailable]` means Files is off in LokalBot or has no folder yet. Tell the user which box it is and let them decide. Don't work around it, and never create or edit files in LokalBot's `control` folder.
 
 Screen history has no command here. The user can attach saved screen moments to a task from the composer.
 
@@ -86,7 +86,7 @@ lokalbot-cli status
 lokalbot-cli doctor
 ```
 
-`config search` and `config describe` always work. Everything else needs "Allow external agents to change LokalBot settings" under Settings → Privacy. If a command returns `[settings_access_disabled]`, tell the user where the setting is instead. Change a setting only when the user asks, and read `lokalbot-cli config --help` first: changes that turn on capture or a data source wait for the user's approval in LokalBot.
+`config search` and `config describe` always work. Everything else needs "Allow external agents to change LokalBot settings" under Settings → External Agents. If a command returns `[settings_access_disabled]`, tell the user where the setting is instead. Change a setting only when the user asks, and read `lokalbot-cli config --help` first: changes that turn on capture or a data source wait for the user's approval in LokalBot.
 
 ## Evidence and privacy
 

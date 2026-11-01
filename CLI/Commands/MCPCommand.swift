@@ -24,7 +24,7 @@ struct MCPCommand: AsyncParsableCommand {
             running (it answers with the local model on localhost:17872).
 
             Each group needs its box under "Allow external agents to read
-            your LokalBot data" in Settings → Privacy → External agents:
+            your LokalBot data" in Settings → External Agents:
             Meetings, Screen memory, What I shared about myself, or Files.
             Screen tools expose only local OCR and metadata — never decrypted
             pixels or screenshot file paths. search_files never changes files.

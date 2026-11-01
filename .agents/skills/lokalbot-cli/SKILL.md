@@ -119,7 +119,7 @@ lokalbot-cli search-files "quarterly report" --kind pdf --kind doc --limit 5
 
 Searches only the folders the user chose under Files in LokalBot: the text LokalBot read from documents, PDF pages, screenshots, and pictures, plus file names, best match first. It matches words, not meaning, so use words the file would contain and rephrase when nothing comes back; search by meaning is in LokalBot's Ask. Recordings and video match only by name. Each result has `path`, `kind`, `page` (PDFs) or `seconds`, `modified`, `taken` (photos), `size`, `excerpt`, and `passage`, the matched text up to 1,500 characters. `--kind` takes `screenshot`, `image`, `pdf`, `doc`, `audio`, or `video` and repeats; `--after` and `--before` take YYYY-MM-DD; `--limit` goes up to 50 (default 10). It works with the app closed.
 
-Cite files by path. Open one yourself only when the passage isn't enough, and never change, move, or delete it. `[files_unavailable]` means Files is off in LokalBot, has no folder, or hasn't read its folders yet; the user chooses folders in Settings → Personal Context → Files. Mac only: the Windows and Linux app has no Files yet.
+Cite files by path. Open one yourself only when the passage isn't enough, and never change, move, or delete it. `[files_unavailable]` means Files is off in LokalBot, has no folder, or hasn't read its folders yet; the user chooses folders in Settings → Files. Mac only: the Windows and Linux app has no Files yet.
 
 ## Path lookup
 
@@ -153,7 +153,7 @@ lokalbot-cli open settings permissions           # or a section
 lokalbot-cli open settings filesAccess           # the Files box; also agentAccess, screenMemoryAccess, personalContextAccess
 ```
 
-`search`, `describe`, and `config schema` work any time. Everything else needs the separate "Allow external agents to change LokalBot settings" toggle in LokalBot → Settings → Privacy. If a command returns `[settings_access_disabled]`, explain that setting and let the user choose. These commands start LokalBot in the background when it isn't running; pass `--no-launch` when the user doesn't want it started.
+`search`, `describe`, and `config schema` work any time. Everything else needs the separate "Allow external agents to change LokalBot settings" toggle in LokalBot → Settings → External Agents. If a command returns `[settings_access_disabled]`, explain that setting and let the user choose. These commands start LokalBot in the background when it isn't running; pass `--no-launch` when the user doesn't want it started.
 
 Changing settings:
 
@@ -199,7 +199,7 @@ LokalBot itself does not upload library content. An external agent or MCP client
 
 ## When access is off
 
-Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → Privacy → External agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, meetings and screen memory have their own toggles in Settings → Privacy & Data: "Allow external agents to read your meeting library" and "Allow external agents to read screen memory".
+Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → External Agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, meetings and screen memory have their own toggles in Settings → Privacy & Data: "Allow external agents to read your meeting library" and "Allow external agents to read screen memory".
 
 `[access_disabled]` means meetings are off, `[screen_access_disabled]` screen memory, `[personal_context_disabled]` what the user shared, and `[files_access_disabled]` Files; the message names the place. Tell the user which one it is and let them choose. Don't change consent markers or work around disabled access.
 

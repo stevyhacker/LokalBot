@@ -94,7 +94,7 @@ actor NeuralDiarizationEngine {
         var errorDescription: String? {
             switch self {
             case let .processing(model, reason):
-                "\(model.displayName) speaker processing failed: \(reason). Retry, or choose another speaker model in Settings → Recording."
+                "\(model.displayName) speaker processing failed: \(reason). Retry, or choose another speaker model in Settings → Meetings."
             }
         }
     }

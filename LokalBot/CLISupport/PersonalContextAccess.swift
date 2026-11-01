@@ -124,7 +124,7 @@ struct PersonalContextProjection: Codable, Equatable, Sendable {
 }
 
 /// Cross-process truth for the Personal context grant: a marker the app sets
-/// from Settings → Privacy, plus the projection it keeps in sync. Separate
+/// from Settings → External Agents or Personal Context, plus the projection it keeps in sync. Separate
 /// from meeting and screen access, and no Agent Mode capability satisfies it.
 struct PersonalContextAccessGate {
     static let markerName = "personal-context-access-enabled"

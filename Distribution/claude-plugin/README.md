@@ -27,11 +27,11 @@ LokalBot does not upload library content. This plugin starts the CLI and MCP ser
 
 ## Prerequisite: consent
 
-The MCP tools require an explicit opt-in in the LokalBot app. On a Mac: **Settings > Privacy > External agents > "Allow external agents to read your LokalBot data"**, with **Meetings** ticked. On Windows and Linux: **Settings > Privacy & Data > "Allow external agents to read your meeting library"**. If a tool returns `[access_disabled]`, turn that on — the plugin does not work around it. On a Mac, screen memory, what you shared about yourself, and Files each need their own box under the same switch; on Windows and Linux, screen memory has its own "Allow external agents to read screen memory" toggle.
+The MCP tools require an explicit opt-in in the LokalBot app. On a Mac: **Settings > External Agents > "Allow external agents to read your LokalBot data"** (Settings > Privacy > External agents in earlier versions), with **Meetings** ticked. On Windows and Linux: **Settings > Privacy & Data > "Allow external agents to read your meeting library"**. If a tool returns `[access_disabled]`, turn that on — the plugin does not work around it. On a Mac, screen memory, what you shared about yourself, and Files each need their own box under the same switch; on Windows and Linux, screen memory has its own "Allow external agents to read screen memory" toggle.
 
 ## CLI availability
 
-The MCP server and the `/lokalbot:recall` command invoke `lokalbot-cli` from your PATH. **Settings → Advanced → Agent CLI** in LokalBot installs it: at `~/.local/bin/lokalbot-cli` on macOS and Linux, and at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows, whose folder you add to PATH yourself ([how](../../LinuxWindows/README.md#coding-agents)). On a Mac, the embedded copy also works directly: `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`. The manifests reference the bare `lokalbot-cli` command; adjust your PATH or symlink if you installed LokalBot elsewhere.
+The MCP server and the `/lokalbot:recall` command invoke `lokalbot-cli` from your PATH. **Settings → External Agents → Agent CLI** in LokalBot (Settings → Advanced on Windows, Linux, and earlier Mac versions) installs it: at `~/.local/bin/lokalbot-cli` on macOS and Linux, and at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows, whose folder you add to PATH yourself ([how](../../LinuxWindows/README.md#coding-agents)). On a Mac, the embedded copy also works directly: `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`. The manifests reference the bare `lokalbot-cli` command; adjust your PATH or symlink if you installed LokalBot elsewhere.
 
 ## Schema verification
 

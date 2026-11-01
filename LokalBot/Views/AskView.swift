@@ -456,7 +456,7 @@ private struct AskContent: View {
                     .init(title: name, selected: selectedScreenApp == name, action: { selectedScreenApp = name })
                 }))
         }
-        items += [.separator, .init(title: "Manage source permissions…", action: { app.openSettings(tab: .privacy) })]
+        items += [.separator, .init(title: "Manage source permissions…", action: { app.openSettings(tab: .ask) })]
         return items
     }
 
