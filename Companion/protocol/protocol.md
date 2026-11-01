@@ -54,8 +54,10 @@ Idle connections send `{"type":"ping"}` every 20 s; either side closes after
 
 ## Keys and Noise
 
-- Every device has a long-term X25519 **static key**. Apple platforms keep the
-  private key in the Keychain (`ThisDeviceOnly`, not synchronizable); Android
+- Every device has a long-term X25519 **static key**. The Mac keeps the private
+  key in its Keychain through the app's existing secret store (never
+  synchronized, like the Ask history key); iPhone and iPad keep it in the
+  Keychain as `AfterFirstUnlockThisDeviceOnly`, not synchronizable; Android
   keeps it encrypted under a hardware-backed Keystore AES key. The platform
   passes the 32 private bytes to the Rust crate at construction.
 - Prologue for every handshake: the ASCII bytes `lokalbot-companion/1`.

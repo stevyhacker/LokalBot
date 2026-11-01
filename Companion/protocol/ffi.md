@@ -77,12 +77,20 @@ set_action_status(meeting_id, action_id, status: string)   // queues an action.s
 
 // questions
 ask(request_json: string, extra_addresses: [string], listener: AskListener) -> string   // blocks; returns the result JSON; saves it to ask history
-queue_question(request_json: string)    // keep for the next time the Mac is reachable
-queued_questions() -> [string]
+queue_question(request_json: string)    // keep for the next time the Mac is reachable; the same requestId replaces it
+queued_questions() -> [string]          // request JSON, oldest first
 ask_history(limit: u32) -> [string]     // [{ request, result }] newest first
 
 callback interface AskListener { on_delta(text: string) }
+```
 
+Queued questions leave the queue only through `ask`: once the Mac answers
+(`askDone`), `ask` saves the answer to the history and removes the queued
+question with the same `requestId`, in one step. A failure (`askFailed`, a
+timeout) or an unreachable Mac leaves it queued. `sync` never sends queued
+questions; after a sync the app asks each one itself.
+
+```text
 // reads (JSON bodies from records.md; lists are newest first)
 manifest() -> string?
 meetings(from_day: string?, to_day: string?, limit: u32) -> [string]
