@@ -151,7 +151,7 @@ final class SettingsUITests: XCTestCase {
         UITestHarness.scrollTo(files, in: app, within: app.scrollViews["settings.overview"])
         XCTAssertTrue(files.waitForExistence(timeout: 4), "Files is off by default and offers Set Up")
         files.click()
-        XCTAssertTrue(UITestHarness.toggle("Search my files", in: app).waitForExistence(timeout: 6),
+        XCTAssertTrue(app.descendants(matching: .any)["settings.files.enabled"].waitForExistence(timeout: 6),
                       "Set Up opens Files, where its notice turns it on")
     }
 
