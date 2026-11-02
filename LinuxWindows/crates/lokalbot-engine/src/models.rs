@@ -1,8 +1,8 @@
 //! Which models are installed, and downloading the ones a feature needs.
 //!
 //! Ids are shared with the UI: GGUF catalog ids (`qwen3.5-4b`), speech model
-//! ids (`qwen3-asr-0.6b`), `llama-runtime` for the llama.cpp binaries and
-//! `ocrs-text` for the screen text recognition models.
+//! ids (`qwen3-asr-0.6b`), `llama-runtime` for the llama.cpp binaries, and
+//! `ocrs-text` and `tesseract-languages` for screen text recognition.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -30,6 +30,7 @@ enum ModelRef {
     Speech(&'static lokalbot_speech::models::SpeechModel),
     Runtime,
     Ocr,
+    OcrLanguages,
 }
 
 impl Models {
@@ -48,6 +49,9 @@ impl Models {
         if id == lokalbot_ai::ocr::OCR_MODEL_ID {
             return Some(ModelRef::Ocr);
         }
+        if id == lokalbot_ai::ocr::OCR_LANGUAGES_ID {
+            return Some(ModelRef::OcrLanguages);
+        }
         if let Some(entry) = lokalbot_ai::catalog::entry(id) {
             return Some(ModelRef::Gguf(entry));
         }
@@ -61,6 +65,9 @@ impl Models {
             Some(ModelRef::Speech(model)) => lokalbot_speech::models::is_installed(paths, model),
             Some(ModelRef::Runtime) => self.shared.runtime.usable_backend().is_some(),
             Some(ModelRef::Ocr) => lokalbot_ai::ocr::is_installed(paths),
+            Some(ModelRef::OcrLanguages) => lokalbot_ai::ocr::status(paths)
+                .download
+                .is_none_or(|download| download.id != lokalbot_ai::ocr::OCR_LANGUAGES_ID),
             None => false,
         }
     }
@@ -115,14 +122,18 @@ impl Models {
         ]
     }
 
-    /// Screen context reads text with OCR when accessibility has little.
+    /// Screen context reads text with OCR when accessibility has little. What
+    /// that takes depends on this computer: maybe nothing at all.
     pub fn screen_requirements(&self) -> Vec<String> {
         let settings = self.shared.settings();
         if settings.screen_context_capture_mode == lokalbot_core::ScreenContextMode::ActivityOnly {
-            Vec::new()
-        } else {
-            vec![lokalbot_ai::ocr::OCR_MODEL_ID.to_string()]
+            return Vec::new();
         }
+        lokalbot_ai::ocr::status(self.shared.library.paths())
+            .download
+            .map(|download| download.id.to_string())
+            .into_iter()
+            .collect()
     }
 
     pub fn dictation_requirements(&self) -> Vec<String> {
@@ -183,9 +194,12 @@ impl Models {
         if self.shared.runtime.usable_backend().is_some() {
             installed.push(RUNTIME_ID.to_string());
         }
-        let screen_text_ready = lokalbot_ai::ocr::is_installed(self.shared.library.paths());
-        if screen_text_ready {
+        let screen_text = lokalbot_ai::ocr::status(self.shared.library.paths());
+        if lokalbot_ai::ocr::is_installed(self.shared.library.paths()) {
             installed.push(lokalbot_ai::ocr::OCR_MODEL_ID.to_string());
+        }
+        if lokalbot_ai::ocr::has_language_data(self.shared.library.paths()) {
+            installed.push(lokalbot_ai::ocr::OCR_LANGUAGES_ID.to_string());
         }
         let ready = |ids: Vec<String>| ids.iter().all(|id| installed.contains(id));
         let status = ModelStatus {
@@ -202,7 +216,8 @@ impl Models {
                 lokalbot_ai::autocomplete::server::Route::Unavailable(_) => false,
             },
             embeddings_ready: ready(self.embedding_requirements()),
-            screen_text_ready,
+            screen_text_ready: screen_text.is_ready(),
+            screen_text,
             runtime_backend,
             runtime_needs_check: self.shared.runtime.runtime_needs_check(),
             runtime_storage: self.shared.runtime.storage(),
@@ -286,6 +301,9 @@ impl Models {
             Some(ModelRef::Speech(model)) => lokalbot_speech::models::uninstall(&paths, model),
             Some(ModelRef::Runtime) => self.shared.runtime.uninstall(),
             Some(ModelRef::Ocr) => lokalbot_ai::ocr::delete(&paths).map_err(anyhow::Error::from),
+            Some(ModelRef::OcrLanguages) => {
+                lokalbot_ai::ocr::delete_languages(&paths).map_err(anyhow::Error::from)
+            }
             None => Err(anyhow!("unknown model {id}")),
         };
         if let Err(err) = result {
@@ -327,6 +345,7 @@ impl Models {
             ModelRef::Speech(model) => model.display_name.to_string(),
             ModelRef::Runtime => "the llama.cpp runtime".to_string(),
             ModelRef::Ocr => lokalbot_ai::ocr::OCR_DISPLAY_NAME.to_string(),
+            ModelRef::OcrLanguages => lokalbot_ai::ocr::OCR_LANGUAGES_DISPLAY_NAME.to_string(),
         };
         let shared = self.shared.clone();
         let id_owned = id.to_string();
@@ -389,6 +408,9 @@ impl Models {
                     .ensure_runtime(&settings, cancel, &mut progress)
             }
             ModelRef::Ocr => lokalbot_ai::ocr::download(&paths, cancel, &mut progress),
+            ModelRef::OcrLanguages => {
+                lokalbot_ai::ocr::download_languages(&paths, cancel, &mut progress)
+            }
         }
     }
 }

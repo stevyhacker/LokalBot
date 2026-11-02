@@ -36,6 +36,7 @@ optdepends=(
   'wtype: dictation on Hyprland and Sway'
   'ydotool: dictation on other Wayland desktops'
   'grim: screen context on Hyprland and Sway'
+  'tesseract: read screen text in scripts other than Latin'
 )
 provides=("$_pkgname=$pkgver")
 conflicts=("$_pkgname")

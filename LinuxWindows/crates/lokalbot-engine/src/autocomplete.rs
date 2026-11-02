@@ -368,7 +368,7 @@ impl Host for EngineHost {
     }
 
     fn window_text_ready(&self) -> bool {
-        lokalbot_ai::ocr::is_installed(self.shared.library.paths())
+        lokalbot_ai::ocr::is_ready(self.shared.library.paths())
     }
 
     fn read_window(&self, request: &WindowRequest) -> Option<WindowRead> {

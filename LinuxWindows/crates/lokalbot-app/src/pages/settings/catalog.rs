@@ -380,7 +380,7 @@ pub const ENTRIES: &[Entry] = &[
         id: "settings.screenTextRecognition",
         title: "Screen text recognition",
         category: DayMemory,
-        aliases: "ocr model download screenshots text",
+        aliases: "ocr model download screenshots text tesseract language script",
         value: details,
     },
     Entry {

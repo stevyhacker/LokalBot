@@ -7,12 +7,14 @@ use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, Context, IntoElement as _, ParentElement as _, SharedString, Styled as _, div, px,
+    AnyElement, App, Context, Entity, IntoElement as _, ParentElement as _, SharedString,
+    Styled as _, div, px,
 };
+use lokalbot_ai::ocr::{self, OcrBackend, OcrStatus};
 use lokalbot_core::ScreenContextMode;
 
 use super::{Section, SettingsPage};
-use crate::state::AppEvent;
+use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
@@ -124,7 +126,12 @@ impl SettingsPage {
                 .screenshot_interval_minutes
                 .round()
                 .clamp(1.0, 15.0) as u32;
+            // The download recognition needs is offered right under the choice.
             memory = memory
+                .row(
+                    "settings.screenTextRecognition",
+                    self.screen_text_model_row(cx),
+                )
                 .row(
                     "settings.screenContextStatus",
                     settings_row::content_row(
@@ -133,10 +140,6 @@ impl SettingsPage {
                         false,
                         cx,
                     ),
-                )
-                .row(
-                    "settings.screenTextRecognition",
-                    self.screen_text_model_row(cx),
                 )
                 .row(
                     "settings.screenshotIntervalMinutes",
@@ -404,54 +407,16 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// The OCR models: what they do, their size, and Download when missing.
+    /// Screen text recognition: what reads here, in which languages, and the
+    /// download that would help. Never started on its own.
     fn screen_text_model_row(&self, cx: &mut Context<Self>) -> AnyElement {
-        let lb = cx.lb().clone();
-        let (installed, progress) = {
-            let data = self.data.read(cx);
-            (
-                data.models.screen_text_ready,
-                data.downloads.get(lokalbot_ai::ocr::OCR_MODEL_ID).cloned(),
-            )
-        };
-        let size = super::models::size_label(lokalbot_ai::ocr::total_size());
-        let help = lokalbot_i18n::format(
-            "Reads text from the window's pixels on this PC when accessibility shows little. ocrs, {size}, models under {0}. Latin script only.",
-            &[
-                ("size", size.to_string()),
-                ("0", lokalbot_ai::ocr::OCR_MODEL_LICENSE.to_string()),
-            ],
-        );
-        let data = self.data.clone();
-        let control: AnyElement = match (&progress, installed) {
-            (Some(progress), _) if progress.error.is_none() => div()
-                .text_size(ty::SECONDARY)
-                .text_color(lb.text_secondary)
-                .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                    "Downloading · {0}%",
-                    &[("0", format!("{}", (progress.fraction() * 100.).round()))],
-                )))
-                .into_any_element(),
-            (_, true) => settings_row::value(lokalbot_i18n::tr("Ready"), cx).into_any_element(),
-            _ => Button::new("settings-download-ocr")
-                .primary()
-                .small()
-                .icon(Icon::new(Ico::CircleArrowDown))
-                .label(lokalbot_i18n::format(
-                    "Download · {size}",
-                    &[("size", size.to_string())],
-                ))
-                .on_click(move |_, _, cx| {
-                    data.update(cx, |data, cx| {
-                        data.request(
-                            AppEvent::DownloadModel(lokalbot_ai::ocr::OCR_MODEL_ID.to_string()),
-                            cx,
-                        )
-                    })
-                })
-                .into_any_element(),
-        };
-        let failed = progress.and_then(|p| p.error);
+        let status = self.data.read(cx).models.screen_text.clone();
+        let failed = status
+            .download
+            .and_then(|download| self.data.read(cx).downloads.get(download.id).cloned())
+            .and_then(|progress| progress.error);
+        let help = screen_text_help(&status);
+        let control = screen_text_control(&self.data, "settings-download-ocr", cx);
         settings_row::row(
             "settings.screenTextRecognition",
             lokalbot_i18n::tr("Screen text recognition"),
@@ -468,6 +433,114 @@ impl SettingsPage {
             cx,
         )
         .into_any_element()
+    }
+}
+
+/// What recognition does on this computer and what it would take to do more.
+pub(crate) fn screen_text_help(status: &OcrStatus) -> String {
+    let list = |names: &[String]| names.join(", ");
+    let mut sentences = vec![
+        lokalbot_i18n::tr(
+            "Reads text from the window's pixels on this PC when accessibility shows little.",
+        )
+        .to_string(),
+    ];
+    let offers_ocrs = status.download.is_some_and(|d| d.id == ocr::OCR_MODEL_ID);
+    match status.backend {
+        OcrBackend::Tesseract => sentences.push(lokalbot_i18n::format(
+            "Tesseract reads {languages} here.",
+            &[("languages", list(&status.reading))],
+        )),
+        OcrBackend::Windows => sentences.push(lokalbot_i18n::format(
+            "Windows reads {languages} here with its built-in recognizer.",
+            &[("languages", list(&status.reading))],
+        )),
+        OcrBackend::Ocrs | OcrBackend::None
+            if status.backend == OcrBackend::Ocrs || offers_ocrs =>
+        {
+            sentences.push(lokalbot_i18n::format(
+                "ocrs ({size}, model license {0}) reads unaccented Latin letters.",
+                &[
+                    ("size", super::models::size_label(ocr::total_size())),
+                    ("0", ocr::OCR_MODEL_LICENSE.to_string()),
+                ],
+            ));
+        }
+        _ => {}
+    }
+    if !status.missing.is_empty() {
+        let languages = list(&status.missing);
+        if status
+            .download
+            .is_some_and(|d| d.id == ocr::OCR_LANGUAGES_ID)
+        {
+            sentences.push(lokalbot_i18n::format(
+                "To read {languages}, download their language data from the Tesseract project ({license}).",
+                &[
+                    ("languages", languages),
+                    ("license", ocr::OCR_LANGUAGES_LICENSE.to_string()),
+                ],
+            ));
+        } else if status.needs_program {
+            sentences.push(lokalbot_i18n::format(
+                "To read {languages}, install the Tesseract program with your package manager.",
+                &[("languages", languages)],
+            ));
+        } else if cfg!(windows) {
+            sentences.push(lokalbot_i18n::format(
+                "To read {languages}, add the language in Windows Settings under Time & language.",
+                &[("languages", languages)],
+            ));
+        }
+    }
+    sentences.join(" ")
+}
+
+/// Download when that would help, its progress while it runs, or Ready.
+pub(crate) fn screen_text_control(
+    data: &Entity<AppData>,
+    id: &'static str,
+    cx: &mut App,
+) -> AnyElement {
+    let lb = cx.lb().clone();
+    let (status, progress) = {
+        let state = data.read(cx);
+        let status = state.models.screen_text.clone();
+        let progress = status
+            .download
+            .and_then(|download| state.downloads.get(download.id).cloned());
+        (status, progress)
+    };
+    match (status.download, progress) {
+        (Some(_), Some(progress)) if progress.error.is_none() => div()
+            .text_size(ty::SECONDARY)
+            .text_color(lb.text_secondary)
+            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
+                "Downloading · {0}%",
+                &[("0", format!("{}", (progress.fraction() * 100.).round()))],
+            )))
+            .into_any_element(),
+        (Some(download), _) => {
+            let data = data.clone();
+            Button::new(id)
+                .primary()
+                .small()
+                .icon(Icon::new(Ico::CircleArrowDown))
+                .label(lokalbot_i18n::format(
+                    "Download · {size}",
+                    &[("size", super::models::size_label(download.bytes))],
+                ))
+                .on_click(move |_, _, cx| {
+                    data.update(cx, |data, cx| {
+                        data.request(AppEvent::DownloadModel(download.id.to_string()), cx)
+                    })
+                })
+                .into_any_element()
+        }
+        (None, _) if status.is_ready() => {
+            settings_row::value(lokalbot_i18n::tr("Ready"), cx).into_any_element()
+        }
+        (None, _) => div().into_any_element(),
     }
 }
 
@@ -490,6 +563,66 @@ pub(super) fn text_source_label(source: &str) -> String {
         lokalbot_i18n::format("{label}, redacted", &[("label", label.to_string())])
     } else {
         label
+    }
+}
+
+#[cfg(test)]
+mod screen_text_tests {
+    use lokalbot_ai::ocr::{OCR_LANGUAGES_ID, OCR_MODEL_ID, OcrBackend, OcrDownload, OcrStatus};
+
+    use super::screen_text_help;
+
+    fn download(id: &'static str) -> Option<OcrDownload> {
+        Some(OcrDownload { id, bytes: 1 })
+    }
+
+    #[test]
+    fn tesseract_names_what_it_reads_and_the_download_for_the_rest() {
+        let help = screen_text_help(&OcrStatus {
+            backend: OcrBackend::Tesseract,
+            reading: vec!["English".into()],
+            missing: vec!["简体中文".into()],
+            download: download(OCR_LANGUAGES_ID),
+            needs_program: false,
+        });
+        assert!(help.contains("Tesseract reads English here."), "{help}");
+        assert!(help.contains("To read 简体中文, download"), "{help}");
+        assert!(!help.contains("ocrs"), "{help}");
+    }
+
+    #[test]
+    fn no_program_says_to_install_it_and_offers_ocrs() {
+        let help = screen_text_help(&OcrStatus {
+            backend: OcrBackend::None,
+            reading: Vec::new(),
+            missing: vec!["Русский".into()],
+            download: download(OCR_MODEL_ID),
+            needs_program: true,
+        });
+        assert!(help.contains("ocrs ("), "{help}");
+        assert!(help.contains("unaccented Latin letters"), "{help}");
+        assert!(
+            help.contains("To read Русский, install the Tesseract program"),
+            "{help}"
+        );
+    }
+
+    #[test]
+    fn nothing_missing_asks_for_nothing() {
+        for backend in [OcrBackend::Ocrs, OcrBackend::Tesseract, OcrBackend::Windows] {
+            let help = screen_text_help(&OcrStatus {
+                backend,
+                reading: vec!["English".into()],
+                ..Default::default()
+            });
+            assert!(!help.contains("To read"), "{help}");
+        }
+    }
+
+    #[test]
+    fn the_old_latin_only_claim_is_gone() {
+        let help = screen_text_help(&OcrStatus::default());
+        assert!(!help.contains("Latin script only"), "{help}");
     }
 }
 

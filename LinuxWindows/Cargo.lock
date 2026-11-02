@@ -4597,6 +4597,7 @@ dependencies = [
  "libloading",
  "log",
  "lokalbot-core",
+ "lokalbot-i18n",
  "ocrs",
  "parking_lot",
  "regex",
@@ -4613,6 +4614,7 @@ dependencies = [
  "ureq 3.4.2",
  "uuid",
  "whatlang",
+ "windows 0.62.2",
  "windows-sys 0.61.2",
  "zip 9.0.5",
 ]

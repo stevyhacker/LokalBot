@@ -210,8 +210,9 @@ under the license of the model it comes from. The speech models are
 sherpa-onnx's ONNX conversions from its `asr-models`,
 `speaker-segmentation-models` and `speaker-recongition-models` releases
 (https://github.com/k2-fsa/sherpa-onnx/releases), the ocrs models come from
-ocrs's own storage, and the text models come from Hugging Face, pinned to a
-revision.
+ocrs's own storage, Tesseract's language data comes from GitHub, and the text
+models come from Hugging Face, each pinned to a revision or digest. Tesseract
+itself is not included: on Linux, LokalBot runs the copy your system installed.
 
 | Model | Used for | License | Source |
 | --- | --- | --- | --- |
@@ -223,6 +224,7 @@ revision.
 | pyannote segmentation 3.0 | telling speakers apart | MIT | https://huggingface.co/pyannote/segmentation-3.0 |
 | TitaNet-S, NVIDIA NeMo | recognizing voices | Apache-2.0: NVIDIA's model card puts it under the NeMo toolkit's license | https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/titanet_small |
 | ocrs text detection and recognition | screen text | CC-BY-SA-4.0 | https://huggingface.co/robertknight/ocrs |
+| Tesseract `tessdata_fast` language data | screen text on Linux | Apache-2.0 | https://github.com/tesseract-ocr/tessdata_fast |
 | Qwen3.5 0.8B, 2B and 4B; Qwen3.6 27B and 35B-A3B (GGUF by Unsloth) | Think, Autocomplete | Apache-2.0 | https://huggingface.co/Qwen |
 | LFM2.5 1.2B Instruct (GGUF by Unsloth), 2.6B and 8B-A1B, Liquid AI | Think, Autocomplete | LFM Open License v1.0 | https://huggingface.co/LiquidAI |
 | Gemma 4 E2B base (GGUF by mradermacher), E4B and 12B (GGUF by Unsloth), Google DeepMind | Think, Autocomplete | Apache-2.0 | https://ai.google.dev/gemma/docs/gemma_4_license |

@@ -51,6 +51,9 @@ pub fn model_name(id: &str) -> String {
     if id == lokalbot_ai::ocr::OCR_MODEL_ID {
         return lokalbot_ai::ocr::OCR_DISPLAY_NAME.into();
     }
+    if id == lokalbot_ai::ocr::OCR_LANGUAGES_ID {
+        return lokalbot_ai::ocr::OCR_LANGUAGES_DISPLAY_NAME.into();
+    }
     if lokalbot_speech::models::is_remote(id) {
         return lokalbot_i18n::tr("Transcription server").into();
     }
@@ -84,6 +87,9 @@ pub fn model_bytes(id: &str, settings: &Settings) -> u64 {
     if id == lokalbot_ai::ocr::OCR_MODEL_ID {
         return lokalbot_ai::ocr::total_size();
     }
+    if id == lokalbot_ai::ocr::OCR_LANGUAGES_ID {
+        return lokalbot_ai::ocr::languages_size();
+    }
     lokalbot_speech::models::find(id)
         .map(|m| m.archive.size)
         .unwrap_or(0)
@@ -111,8 +117,18 @@ pub fn models_in_use(settings: &Settings) -> Vec<String> {
     }
     if settings.screen_context_capture_mode != lokalbot_core::ScreenContextMode::ActivityOnly {
         ids.push(lokalbot_ai::ocr::OCR_MODEL_ID.to_string());
+        ids.push(lokalbot_ai::ocr::OCR_LANGUAGES_ID.to_string());
     }
     ids
+}
+
+/// The name of the engine reading screen text here.
+pub fn screen_text_engine_name(status: &lokalbot_ai::ocr::OcrStatus) -> &'static str {
+    match status.backend {
+        lokalbot_ai::ocr::OcrBackend::Tesseract => "Screen text recognition (Tesseract)",
+        lokalbot_ai::ocr::OcrBackend::Windows => "Screen text recognition (Windows)",
+        _ => lokalbot_ai::ocr::OCR_DISPLAY_NAME,
+    }
 }
 
 /// What Autocomplete downloads: its model and the llama.cpp runtime. A
@@ -146,7 +162,7 @@ fn model_purpose(id: &str) -> &'static str {
     if id == lokalbot_ai::catalog::EMBEDDING_MODEL_ID {
         return lokalbot_i18n::tr("Search by meaning");
     }
-    if id == lokalbot_ai::ocr::OCR_MODEL_ID {
+    if id == lokalbot_ai::ocr::OCR_MODEL_ID || id == lokalbot_ai::ocr::OCR_LANGUAGES_ID {
         return lokalbot_i18n::tr("Reads screen text");
     }
     if let Some(entry) = lokalbot_ai::catalog::entry(id) {

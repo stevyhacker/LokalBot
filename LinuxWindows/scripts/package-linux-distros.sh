@@ -128,7 +128,8 @@ EOF
   # Arch's gcc-libs is a meta package of every GCC runtime; namcap asks for
   # libgcc and libstdc++, and for hicolor-icon-theme, which owns the icon folders.
   # System audio uses PulseAudio or PipeWire's PulseAudio server; the
-  # suggested tools enable typing and screenshots on some desktops.
+  # suggested tools enable typing and screenshots on some desktops. Tesseract
+  # reads screen text in scripts other than Latin; without it, ocrs reads Latin.
   cat <<'EOF'
 overrides:
   deb:
@@ -148,6 +149,7 @@ overrides:
       - mesa-vulkan-drivers
       - libegl1
       - libwayland-egl1
+      - tesseract-ocr
     suggests:
       - xdotool
       - wtype
@@ -166,6 +168,8 @@ overrides:
       - libxkbcommon-x11.so.0()(64bit)
       - libvulkan.so.1()(64bit)
       - libwayland-client.so.0()(64bit)
+    recommends:
+      - tesseract
     suggests:
       - xdotool
       - wtype

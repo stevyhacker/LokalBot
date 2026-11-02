@@ -776,7 +776,7 @@ fn sync(
 }
 
 /// The words in screenshots, for keyword search, with the OCR the person already
-/// has; Files never downloads it. It reads Latin script only.
+/// has; Files never downloads it. It reads what screen text recognition reads.
 struct ScreenshotWords {
     paths: LibraryPaths,
     engine: Option<lokalbot_ai::ocr::OcrEngine>,
@@ -797,7 +797,7 @@ impl pass::ReadText for ScreenshotWords {
     fn text_of(&mut self, rgb: &image_sizing::Rgb) -> String {
         if !self.tried {
             self.tried = true;
-            if lokalbot_ai::ocr::is_installed(&self.paths) {
+            if lokalbot_ai::ocr::is_ready(&self.paths) {
                 match lokalbot_ai::ocr::OcrEngine::load(&self.paths) {
                     Ok(engine) => self.engine = Some(engine),
                     Err(err) => log::debug!("file search: no OCR: {err:#}"),

@@ -202,6 +202,9 @@ pub struct AskScope {
 #[allow(clippy::large_enum_variant)]
 pub enum EngineEvent {
     Recording(RecordingUpdate),
+    /// What screen text recognition can do changed: something was installed or
+    /// removed outside the app's own downloads.
+    ScreenText(lokalbot_ai::ocr::OcrStatus),
     /// `None` when the meeting is no longer being processed.
     Processing {
         meeting_id: Uuid,
@@ -623,8 +626,10 @@ pub struct ModelStatus {
     pub think_ready: bool,
     pub autocomplete_ready: bool,
     pub embeddings_ready: bool,
-    /// The screen text recognition (OCR) models are downloaded.
+    /// Some screen text recognition engine can read now.
     pub screen_text_ready: bool,
+    /// Which one, in which languages, and what download would help.
+    pub screen_text: lokalbot_ai::ocr::OcrStatus,
     pub runtime_backend: Option<String>,
     /// CUDA is downloaded, but its setup GPU check has not passed.
     pub runtime_needs_check: bool,

@@ -6,7 +6,7 @@
 //! - [`think`]: chat, embedding and raw-completion clients with the consent gate.
 //! - [`anthropic`]: Claude through Anthropic's Messages API.
 //! - [`plans`]: Think on the user's ChatGPT or Claude plan.
-//! - [`ocr`]: on-device screen text recognition (ocrs).
+//! - [`ocr`]: on-device screen text recognition (ocrs, Tesseract, Windows).
 //!
 //! Errors are `anyhow::Error`; the ones callers act on are [`AiError`] values
 //! inside it (`err.downcast_ref::<AiError>()`).

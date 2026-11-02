@@ -25,8 +25,9 @@ use lokalbot_core::settings::{AutoRecordMode, SummarizerBackend};
 use crate::pages::ask::composer_inference;
 use crate::pages::settings::model_options::download_source_row;
 use crate::pages::settings::models::{
-    autocomplete_needs, model_bytes, model_name, models_in_use, size_label,
+    autocomplete_needs, model_bytes, model_name, models_in_use, screen_text_engine_name, size_label,
 };
+use crate::pages::settings::{screen_text_control, screen_text_help};
 use crate::state::{AppData, AppEvent};
 use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
@@ -193,15 +194,12 @@ impl Onboarding {
 
     fn prepare_models(&mut self, cx: &mut Context<Self>) {
         let include_autocomplete = self.include_autocomplete;
-        // The draft is not applied yet, so its screen text model is asked for here.
+        // The draft is not applied yet, so what its screen text needs is asked for here.
         let screen_text = self.draft.screen_context() != ScreenContextMode::ActivityOnly;
         self.data.update(cx, |data, cx| {
             data.request(AppEvent::PrepareModels, cx);
-            if screen_text && !data.models.screen_text_ready {
-                data.request(
-                    AppEvent::DownloadModel(lokalbot_ai::ocr::OCR_MODEL_ID.to_string()),
-                    cx,
-                );
+            if screen_text && let Some(download) = data.models.screen_text.download {
+                data.request(AppEvent::DownloadModel(download.id.to_string()), cx);
             }
             if include_autocomplete {
                 let missing: Vec<String> = autocomplete_needs(&data.settings)
@@ -271,6 +269,15 @@ impl Onboarding {
                 menu
             });
         let screen_context = draft.screen_context() != ScreenContextMode::ActivityOnly;
+        // What screen text needs, offered with the choice that needs it.
+        let screen_text_status = self.data.read(cx).models.screen_text.clone();
+        let screen_text_offer =
+            (screen_context && screen_text_status.download.is_some()).then(|| {
+                (
+                    screen_text_help(&screen_text_status),
+                    screen_text_control(&self.data, "onboarding-download-ocr", cx),
+                )
+            });
         v_flex()
             .gap(px(16.))
             .child(text(
@@ -333,7 +340,16 @@ impl Onboarding {
                                     .child(text(
                                         crate::pages::settings::day_memory_mode_detail(draft.context_mode),
                                         lb.text_secondary,
-                                    )),
+                                    ))
+                                    .when_some(screen_text_offer, |this, (help, control)| {
+                                        this.child(
+                                            h_flex()
+                                                .gap(px(12.))
+                                                .items_center()
+                                                .child(div().flex_1().min_w_0().child(text(help, lb.text_secondary)))
+                                                .child(control),
+                                        )
+                                    }),
                             )
                             .child(ui::divider(cx))
                             .child(
@@ -511,14 +527,31 @@ impl Onboarding {
             .then(|| model_status(embedding_id, status.embeddings_ready));
         // Everything "Prepare" downloads: Transcribe with voice detection and
         // speaker separation, Think, search by meaning, the llama.cpp runtime,
-        // screen text when chosen, and Autocomplete's model when asked for.
-        let ocr_id = lokalbot_ai::ocr::OCR_MODEL_ID;
-        let screen_text = (self.draft.screen_context() != ScreenContextMode::ActivityOnly)
-            .then(|| model_status(ocr_id, status.screen_text_ready));
+        // what screen text needs when chosen, and Autocomplete's model when asked for.
+        let screen_text_download = (self.draft.screen_context() != ScreenContextMode::ActivityOnly)
+            .then_some(status.screen_text.download)
+            .flatten();
+        let ocr_id = screen_text_download.map_or(lokalbot_ai::ocr::OCR_MODEL_ID, |d| d.id);
+        let screen_text =
+            (self.draft.screen_context() != ScreenContextMode::ActivityOnly).then(|| {
+                model_status(
+                    ocr_id,
+                    status.screen_text_ready && screen_text_download.is_none(),
+                )
+            });
+        let screen_text_name = match screen_text_download {
+            Some(download) => format!(
+                "{} · {}",
+                model_name(download.id),
+                size_label(download.bytes)
+            ),
+            None => screen_text_engine_name(&status.screen_text).to_string(),
+        };
         let mut needed = models_in_use(&settings);
-        if screen_text.is_some() && !needed.iter().any(|id| id == ocr_id) {
-            needed.push(ocr_id.to_string());
-        }
+        // Counted from what this computer lacks, not from what could be installed.
+        needed.retain(|id| {
+            id != lokalbot_ai::ocr::OCR_MODEL_ID && id != lokalbot_ai::ocr::OCR_LANGUAGES_ID
+        });
         if self.include_autocomplete {
             for id in autocomplete_needs(&settings) {
                 if !needed.contains(&id) {
@@ -530,7 +563,8 @@ impl Onboarding {
             .iter()
             .filter(|id| !status.installed.contains(id))
             .map(|id| model_bytes(id, &settings))
-            .sum();
+            .sum::<u64>()
+            + screen_text_download.map_or(0, |d| d.bytes);
         let autocomplete = model_status(
             &settings.cotyping_built_in_model_id,
             status.autocomplete_ready,
@@ -550,7 +584,7 @@ impl Onboarding {
                 this.child(model_row(lokalbot_i18n::tr("Search by meaning"), with_size(embedding_id), search, downloads.get(embedding_id).map(|d| d.fraction()), cx))
             })
             .when_some(screen_text, |this, screen_text| {
-                this.child(model_row(lokalbot_i18n::tr("Screen text"), with_size(ocr_id), screen_text, downloads.get(ocr_id).map(|d| d.fraction()), cx))
+                this.child(model_row(lokalbot_i18n::tr("Screen text"), screen_text_name, screen_text, downloads.get(ocr_id).map(|d| d.fraction()), cx))
             })
             .child(
                 h_flex()

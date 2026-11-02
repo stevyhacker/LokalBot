@@ -399,6 +399,8 @@ struct Worker {
     paused: Arc<AtomicBool>,
     devices: Option<Devices>,
     ocr: Option<lokalbot_ai::ocr::OcrEngine>,
+    /// What recognition could do when last looked.
+    ocr_status: Option<lokalbot_ai::ocr::OcrStatus>,
     processor: Processor,
     policy: CapturePolicy,
     last_text_fingerprint: Option<[u8; 32]>,
@@ -421,6 +423,7 @@ impl Worker {
             paused,
             devices: None,
             ocr: None,
+            ocr_status: None,
             processor: Processor::default(),
             policy: CapturePolicy::default(),
             last_text_fingerprint: None,
@@ -554,7 +557,12 @@ impl Worker {
             if let Some(devices) = &self.devices {
                 self.status.capture_limitation = devices.capture.limitation();
             }
-            self.status.ocr_installed = lokalbot_ai::ocr::is_installed(self.shared.library.paths());
+            let ocr = lokalbot_ai::ocr::status(self.shared.library.paths());
+            self.status.ocr_installed = ocr.is_ready();
+            if self.ocr_status.as_ref() != Some(&ocr) {
+                self.ocr_status = Some(ocr.clone());
+                self.shared.emit(EngineEvent::ScreenText(ocr));
+            }
         }
         self.status.active = enabled && !self.paused.load(Ordering::Relaxed);
         self.status.waiting_for_window = self.manual_until.is_some();
@@ -780,7 +788,7 @@ impl Worker {
             None
         };
         let ocr_available = !privacy::has_rich_accessible_text(&accessible_text)
-            && lokalbot_ai::ocr::is_installed(self.shared.library.paths());
+            && lokalbot_ai::ocr::is_ready(self.shared.library.paths());
         let ts = Utc::now();
         let mut capture = ScreenCapture {
             ts,
@@ -975,12 +983,14 @@ impl Worker {
     }
 }
 
-/// The OCR engine, loaded on first use and kept while screen context is on.
+/// The OCR engine, loaded on first use and kept while screen context is on and
+/// this computer still calls for it.
 fn load_ocr<'a>(
     slot: &'a mut Option<lokalbot_ai::ocr::OcrEngine>,
     paths: &lokalbot_core::LibraryPaths,
 ) -> Option<&'a lokalbot_ai::ocr::OcrEngine> {
-    if slot.is_none() {
+    if slot.as_ref().is_none_or(|engine| !engine.is_current(paths)) {
+        *slot = None;
         match lokalbot_ai::ocr::OcrEngine::load(paths) {
             Ok(engine) => *slot = Some(engine),
             Err(err) => {

@@ -1149,7 +1149,7 @@ impl SettingsPage {
                 self.toggle(
                     "settings.cotypingUseWindowText",
                     lokalbot_i18n::tr("Use the focused window as context"),
-                    Some(lokalbot_i18n::tr("Read the whole window you are typing in with on-device text recognition, so suggestions follow the full conversation or page. The image and text stay on this computer and are never saved; capture exclusions apply and private browser windows are skipped. The recognition model reads Latin script.")),
+                    Some(lokalbot_i18n::tr("Read the whole window you are typing in with on-device text recognition, so suggestions follow the full conversation or page. The image and text stay on this computer and are never saved; capture exclusions apply and private browser windows are skipped.")),
                     settings.cotyping_use_window_text,
                     |s, v| s.cotyping_use_window_text = v,
                     cx,
@@ -1469,19 +1469,21 @@ impl SettingsPage {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let id = "settings.cotypingUseWindowTextState";
-        let ocr = lokalbot_ai::ocr::OCR_MODEL_ID;
-        let offer = matches!(state, ContextState::Unavailable(_))
-            && !ocr_ready
-            && self.data.read(cx).settings.cotyping_enabled;
+        let download = self.data.read(cx).models.screen_text.download;
+        let offer = download.filter(|_| {
+            matches!(state, ContextState::Unavailable(_))
+                && !ocr_ready
+                && self.data.read(cx).settings.cotyping_enabled
+        });
         let row = h_flex().w_full().gap(px(10.)).items_center().child(
             div()
                 .flex_1()
                 .min_w_0()
                 .child(context_state_line(state, cx)),
         );
-        let row = if offer {
+        let row = if let Some(download) = offer {
             let data = self.data.clone();
-            let progress = downloads.get(ocr).map(|d| d.fraction());
+            let progress = downloads.get(download.id).map(|d| d.fraction());
             row.child(
                 Button::new("settings-cotyping-window-download")
                     .outline()
@@ -1494,16 +1496,13 @@ impl SettingsPage {
                         ),
                         None => lokalbot_i18n::format(
                             "Download · {size}",
-                            &[(
-                                "size",
-                                models::size_label(lokalbot_ai::ocr::total_size()).to_string(),
-                            )],
+                            &[("size", models::size_label(download.bytes).to_string())],
                         ),
                     })
                     .disabled(progress.is_some())
                     .on_click(move |_, _, cx| {
                         data.update(cx, |data, cx| {
-                            data.request(AppEvent::DownloadModel(ocr.to_string()), cx)
+                            data.request(AppEvent::DownloadModel(download.id.to_string()), cx)
                         })
                     }),
             )

@@ -1,6 +1,6 @@
 //! Reading the focused window for autocomplete (`CotypingWindowTextCapture`):
 //! captures only that window, recognizes its text with the on-device OCR
-//! model, and drops the image at once. Never downloads: without the model
+//! engine, and drops the image at once. Never downloads: without an engine
 //! there is no window text. An image unchanged outside the field reuses the
 //! last lines. Logs carry counts and times only, never text.
 
@@ -41,10 +41,10 @@ pub(crate) struct WindowReader {
 }
 
 impl WindowReader {
-    /// `None` when the model is not installed, or the window in front is not
-    /// the one asked about.
+    /// `None` when nothing here can read, or the window in front is not the one
+    /// asked about.
     pub fn read(&mut self, paths: &LibraryPaths, request: &WindowRequest) -> Option<WindowRead> {
-        if !ocr::is_installed(paths) {
+        if !ocr::is_ready(paths) {
             return None;
         }
         let capture = self.capture.get_or_insert_with(screen::window_capture);
@@ -82,7 +82,11 @@ impl WindowReader {
                 window: frame,
             });
         }
-        if self.engine.is_none() {
+        if self
+            .engine
+            .as_ref()
+            .is_none_or(|engine| !engine.is_current(paths))
+        {
             self.engine = OcrEngine::load(paths)
                 .map_err(|err| log::warn!("autocomplete window text: {err:#}"))
                 .ok();

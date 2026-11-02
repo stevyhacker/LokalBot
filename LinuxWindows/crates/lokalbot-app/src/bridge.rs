@@ -323,6 +323,7 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 autocomplete_ready: status.autocomplete_ready,
                 embeddings_ready: status.embeddings_ready,
                 screen_text_ready: status.screen_text_ready,
+                screen_text: status.screen_text,
                 runtime_backend: status.runtime_backend.map(SharedString::from),
                 runtime_needs_check: status.runtime_needs_check,
                 runtime_storage: status.runtime_storage,
@@ -382,6 +383,10 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
         EngineEvent::ModelChecks(status) => data.model_checks = status,
         EngineEvent::ConnectionCheck(check) => data.connection_check = check,
         EngineEvent::Screen(status) => data.screen = status,
+        EngineEvent::ScreenText(status) => {
+            data.models.screen_text_ready = status.is_ready();
+            data.models.screen_text = status;
+        }
         EngineEvent::Routines(status) => data.routines = *status,
         EngineEvent::Dream(status) => data.dream = *status,
         EngineEvent::Retention(status) => data.retention = status,

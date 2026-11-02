@@ -1152,8 +1152,14 @@ platform differences:
   sample meeting is imported and kept out of personal memory as on macOS.
 - **Screen context** is off until you turn it on.
   - Visible text is read through accessibility first (AT-SPI on Linux, UI
-    Automation on Windows). Otherwise on-device OCR is used; its model
-    downloads only when you ask for it in Settings.
+    Automation on Windows). Otherwise on-device OCR is used: the recognizer
+    built into Windows on Windows, and the Tesseract program on Linux if it's
+    installed, in your app and system languages. ocrs is the fallback for Latin
+    letters. Its models and Tesseract's language data download only when you ask
+    for them in Settings.
+  - On Linux, Tesseract gets a window's pixels over a pipe from memory, and they
+    are never written to a file for it. Only the text it returns is used; nothing
+    else it prints is kept or logged.
   - Secrets are redacted before anything is stored, and an image is dropped
     when anything was redacted.
   - Excluded apps and sites, private and incognito windows, focused password
@@ -1170,7 +1176,8 @@ platform differences:
     days, and estimated counts in `cotyping-stats.json` and `cotyping-usage.json`.
     Suggestions come from the local Autocomplete model or a server you approve,
     and accepted text is typed into the field without the clipboard.
-  - Window text needs the on-device OCR model, which reads Latin script.
+  - Window text needs on-device OCR, and uses what screen context uses. It
+    never starts a download.
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
@@ -1290,7 +1297,7 @@ platform differences:
   and its contributions leave at the next opening.
 - **Files you choose.** Page counts and durations come from the files' own
   headers. Words in screenshots come from screen text recognition only if it's
-  already downloaded, and matched files open in their default app. A scanned page
+  already available, and matched files open in their default app. A scanned page
   is read only when its picture is stored as a JPEG or plain raster; JBIG2, CCITT
   and JPEG 2000 scans stay unread.
 - **Remote servers.** Think and Agent Mode refuse plain HTTP to any non-loopback
@@ -1315,7 +1322,8 @@ platform differences:
 - **Network access** is limited to model and runtime downloads you request
   (models from Hugging Face, or HF-Mirror or ModelScope if you choose them, and
   GitHub, the llama.cpp runtime from GitHub, the
-  OCR model from the ocrs project's storage), Agent Mode setup, update checks,
+  OCR model from the ocrs project's storage, Tesseract's language data from
+  GitHub), Agent Mode setup, update checks,
   AI servers and subscription plans you approve, and the calendar links you
   add.
 

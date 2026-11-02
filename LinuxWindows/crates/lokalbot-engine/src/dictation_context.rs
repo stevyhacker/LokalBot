@@ -280,7 +280,7 @@ pub(crate) fn capture_screen(
     }
     let text = if privacy::has_rich_accessible_text(&accessible.text) {
         accessible.text.clone()
-    } else if capture.name() != "portal" && lokalbot_ai::ocr::is_installed(paths) {
+    } else if capture.name() != "portal" && lokalbot_ai::ocr::is_ready(paths) {
         let recognized = capture.capture(&window).ok().and_then(|image| {
             if cancelled.load(Ordering::Relaxed) {
                 return None;

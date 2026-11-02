@@ -398,8 +398,10 @@ pub struct ModelStatus {
     pub think_ready: bool,
     pub autocomplete_ready: bool,
     pub embeddings_ready: bool,
-    /// The screen text recognition (OCR) models are downloaded.
+    /// Some screen text recognition engine can read now.
     pub screen_text_ready: bool,
+    /// Which one, in which languages, and what download would help.
+    pub screen_text: lokalbot_ai::ocr::OcrStatus,
     /// "CUDA", "Vulkan" or "CPU" for the selected built-in runtime, once installed.
     pub runtime_backend: Option<SharedString>,
     /// CUDA is downloaded, but its setup GPU check has not passed.
