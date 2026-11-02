@@ -158,28 +158,32 @@ final class FileSearchReader: @unchecked Sendable {
     }
 }
 
-/// FSEvents on the chosen folders. Hidden paths are ignored; everything else
-/// is reported in batches and the service decides whether a pass is due.
+/// FSEvents on the chosen folders. A batch that can't alter what a sync finds
+/// (`FileChangeFilter`) goes no further; from the others, the first change that
+/// can is reported and the service decides whether a pass is due.
 final class FileFolderWatcher {
     private var stream: FSEventStreamRef?
     private let queue = DispatchQueue(label: "me.dotenv.LokalBot.file-watch", qos: .utility)
-    private let onChange: @Sendable ([String]) -> Void
+    private let filter: FileChangeFilter
+    private let onChange: @Sendable (String) -> Void
 
-    init?(folders: [String], latency: CFTimeInterval = 2, onChange: @escaping @Sendable ([String]) -> Void) {
+    init?(folders: [String], options: IndexOptions, latency: CFTimeInterval = 2,
+          onChange: @escaping @Sendable (String) -> Void) {
+        filter = FileChangeFilter(folders: folders, options: options)
         self.onChange = onChange
         let existing = folders.filter { FileManager.default.fileExists(atPath: $0) }
         guard !existing.isEmpty else { return nil }
         var context = FSEventStreamContext(
             version: 0, info: Unmanaged.passUnretained(self).toOpaque(),
             retain: nil, release: nil, copyDescription: nil)
-        let callback: FSEventStreamCallback = { _, info, count, paths, _, _ in
+        let callback: FSEventStreamCallback = { _, info, count, paths, flags, _ in
             guard let info else { return }
             let watcher = Unmanaged<FileFolderWatcher>.fromOpaque(info).takeUnretainedValue()
             let array = Unmanaged<CFArray>.fromOpaque(paths).takeUnretainedValue() as? [String] ?? []
-            let visible = array.prefix(count).filter { path in
-                !path.split(separator: "/").contains { $0.hasPrefix(".") }
+            let changes = array.prefix(count).enumerated().map { index, path in
+                FileChangeFilter.Change(path: path, flags: flags[index])
             }
-            if !visible.isEmpty { watcher.onChange(Array(visible)) }
+            if let first = watcher.filter.firstThatMatters(changes) { watcher.onChange(first) }
         }
         let flags = UInt32(kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagFileEvents
             | kFSEventStreamCreateFlagNoDefer)

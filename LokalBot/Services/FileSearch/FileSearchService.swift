@@ -94,10 +94,11 @@ struct FileSearchHit: Identifiable, Hashable, Sendable {
 /// embed their words on the text embedder search by meaning already runs.
 ///
 /// Indexing happens in passes: at launch, after the folders change, and a few
-/// seconds after something in them changes. A pass reads only new and changed
-/// files, stops at the next file when a meeting starts recording, in Low Power
-/// Mode, or when the Mac is hot, and starts again when that ends. The image
-/// and audio model loads only while a pass has files to read.
+/// seconds after a change in them that can alter the index (`FileChangeFilter`).
+/// A pass reads only new and changed files, stops at the next file when a
+/// meeting starts recording, in Low Power Mode, or when the Mac is hot, and
+/// starts again when that ends. The image and audio model loads only while a
+/// pass has files to read.
 ///
 /// A big read (a folder's first pass, the rest of long files) is paced while
 /// the person uses the Mac (`IndexPacing`) and, on battery, waits for a
@@ -178,8 +179,6 @@ final class FileSearchService: ObservableObject {
     /// more is a big read that waits for a charger on battery (as DigUp's
     /// helper does).
     nonisolated static let newFilesLimit = 50
-    /// How long changes in the folders settle before a pass reads them.
-    static let changeDelay: Duration = .seconds(5)
     static let vectorIdleSeconds: TimeInterval = 600
 
     @Published private(set) var state: State = .off
@@ -189,6 +188,8 @@ final class FileSearchService: ObservableObject {
     @Published private(set) var secondsLeft: Double?
 
     private(set) var configuration = Configuration()
+    /// How long changes in the folders settle before a pass reads them.
+    var changeDelay: Duration = .seconds(5)
     var isRecording: () -> Bool = { false }
     /// The words at a recording's or video's matched moment, for the
     /// assistant (`FileMomentTranscriber`); nil leaves moments without words.
@@ -258,9 +259,10 @@ final class FileSearchService: ObservableObject {
             if previous.enabled || state != .off { turnOff() }
             return
         }
-        if next.folders != previous.folders || watcher == nil {
+        if next.folders != previous.folders || next.includesMedia != previous.includesMedia || watcher == nil {
             watcher?.stop()
-            watcher = FileFolderWatcher(folders: next.folders) { [weak self] _ in
+            watcher = FileFolderWatcher(folders: next.folders,
+                                        options: Self.indexOptions(includesMedia: next.includesMedia)) { [weak self] _ in
                 Task { @MainActor in self?.foldersDidChange() }
             }
         }
@@ -327,8 +329,9 @@ final class FileSearchService: ObservableObject {
     private func foldersDidChange() {
         guard isAvailable else { return }
         changeTask?.cancel()
+        let delay = changeDelay
         changeTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.changeDelay)
+            try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             self?.requestPass()
         }
