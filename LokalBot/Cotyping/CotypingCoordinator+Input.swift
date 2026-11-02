@@ -23,8 +23,10 @@ extension CotypingCoordinator {
         }
         switch event.kind {
         case .acceptance, .fullAcceptance:
-            break // owned by the accept tap
+            // The accept itself is owned by the accept tap.
+            CotypingWindowTextCapture.shared.noteTyping()
         case .textMutation:
+            CotypingWindowTextCapture.shared.noteTyping()
             // Typing through a ghost that is already on screen has no wait to
             // measure; scheduling the next suggestion starts a new one.
             pendingKeystrokeUptime = nil
