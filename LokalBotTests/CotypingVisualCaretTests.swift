@@ -546,6 +546,195 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.pointSize, 14, accuracy: 0.7)
     }
 
+    // MARK: - Cyrillic
+
+    /// A Cyrillic line as measured from its pixels and read by accurate recognition.
+    private func measuredLine(
+        _ typed: String, read: String? = nil, caretAt caretX: CGFloat? = nil, baseline: CGFloat = 375, size: CGFloat = 14
+    ) -> Locator.RecognizedLine {
+        var measured = line(typed, baseline: baseline, size: size)
+        measured.edgesAreMeasured = true
+        measured.text = read ?? typed
+        if let caretX {
+            measured.text += "|"
+            measured.characterBeforeLastMaxX = measured.maxX
+            measured.lastCharacterMinX = caretX - 0.5
+            measured.maxX = caretX + 0.5
+        }
+        return measured
+    }
+
+    func testOnlyACaretLineInCyrillicIsReadAsCyrillic() {
+        XCTAssertTrue(Locator.caretLineIsCyrillic("Здраво"))
+        XCTAssertTrue(Locator.caretLineIsCyrillic("Hello\nЗдраво"))
+        XCTAssertTrue(Locator.caretLineIsCyrillic("Погледај PR 422"))
+        XCTAssertFalse(Locator.caretLineIsCyrillic("Čekam te, šta ćeš"))
+        XCTAssertFalse(Locator.caretLineIsCyrillic("Здраво\nHello"))
+    }
+
+    /// Recognition mixes Latin letters into a word, as it does not know Serbian's.
+    func testACyrillicLineMatchesHoweverItsLettersWereRead() throws {
+        for (typed, read) in [
+            ("Сегодня вечером будет", "Сегодня вечером будет"),
+            ("Ђорђе је рекао", "Бophe je рекао"),
+            ("Хвала вам на помоћи", "Хвaлa вам на пoмohи"),
+            ("Љиљана је данас", "Льильана je данас"),
+            ("Њима је љубав", "НБима je льубав")
+        ] {
+            let found = try XCTUnwrap(Locator.locate(
+                lines: [measuredLine(typed, read: read)], precedingText: typed, fieldFrame: field), read)
+            XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.05, read)
+            XCTAssertTrue(found.sizeIsReliable, read)
+            XCTAssertNotNil(found.textStartX, read)
+        }
+    }
+
+    /// Other text of about the same length is not the typed text. Taking any
+    /// Cyrillic line for it put the caret up to 24 pt off.
+    func testACyrillicLineWithOtherTextDoesNotMatch() {
+        for (typed, shown) in [
+            ("Сегодня вечером будет", "Спасибо большое за по"),
+            ("Здраво, стижем за пет", "Шта ћеш да радиш вечер"),
+            ("Ђорђе је рекао да ће", "Сегодня вечером будет")
+        ] {
+            XCTAssertNil(Locator.locate(lines: [measuredLine(shown)], precedingText: typed, fieldFrame: field), shown)
+        }
+    }
+
+    /// With one letter lost, the typed text looked a closer match ending a word
+    /// earlier, so that word was added after the line's real end: 13 pt off.
+    func testALetterLostFromAMeasuredLineDoesNotMoveTheCaretOn() throws {
+        let typed = "Здраво, стижем за п"
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [measuredLine(typed, read: "здраво, стижем з п")], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.05)
+        XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
+    }
+
+    /// Recognition lost the last word, and the ink past what it read holds it:
+    /// that word is on screen, so the caret does not move by it again.
+    func testAWordLostInReadingIsNotAddedAfterTheInk() throws {
+        let typed = "Видимо се у г"
+        var read = measuredLine(typed, read: "Видимо се у")
+        read.inkHasMoreWords = true
+        let found = try XCTUnwrap(Locator.locate(lines: [read], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.05)
+        XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
+    }
+
+    func testAMeasuredCaretIsWhereItIsDrawnWhenOneLetterReadsAsTwo() throws {
+        let typed = "Да ли можеш да ми пошаљеш"
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [measuredLine(typed, read: "Да ли можеш да ми пошальеш", caretAt: end(of: typed) + 0.5)],
+            precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: typed) + 0.5, accuracy: 0.05)
+    }
+
+    /// The capture can be from before the last key, with the caret drawn where
+    /// it was. Stale by a letter the caret was a letter behind, for four keys.
+    func testAMeasuredCaretInAFrameFromBeforeTheLastKeyMovesOn() throws {
+        let typed = "Привет, как дела"
+        let shown = "Привет, как дел"
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [measuredLine(shown, caretAt: end(of: shown))], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.6)
+    }
+
+    func testAMeasuredCaretTouchingTheLastLetterHasNotSeenASpaceTyped() throws {
+        let word = "Привет, как"
+        let spaced = word + " "
+        let stale = try XCTUnwrap(Locator.locate(
+            lines: [measuredLine(word, caretAt: end(of: word))], precedingText: spaced, fieldFrame: field))
+        XCTAssertEqual(stale.caretX, end(of: spaced), accuracy: 0.6)
+        let current = try XCTUnwrap(Locator.locate(
+            lines: [measuredLine(word, caretAt: end(of: spaced))], precedingText: spaced, fieldFrame: field))
+        XCTAssertEqual(current.caretX, end(of: spaced), accuracy: 0.05, "the space is not added twice")
+    }
+
+    /// Latin keeps the matching it had: a line read a letter short still counts
+    /// as a line whose last word was missed.
+    func testAFastRecognitionLineKeepsItsOwnMatching() throws {
+        let typed = "Looks good, just a smal"
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good, just a", baseline: 375)], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 1)
+    }
+
+    @MainActor
+    func testACyrillicLineIsMeasuredAgainEveryFewLetters() throws {
+        let visualCaret = CotypingVisualCaret()
+        let typed = "Сегодня вечером"
+        let whole = try XCTUnwrap(Locator.locate(
+            lines: [measuredLine(typed)], precedingText: typed, fieldFrame: field))
+        XCTAssertTrue(whole.sizeIsReliable)
+        visualCaret.remember(whole, for: viberField(typed))
+        XCTAssertFalse(visualCaret.isDueForAFind(viberField(typed + " бу")))
+        XCTAssertTrue(visualCaret.isDueForAFind(viberField(typed + " буде")))
+    }
+
+    /// Runs the real recognizer on Cyrillic drawn at a display's own pixels and
+    /// scaled up as the capture does: drawing directly at 3x hid the Serbian bug.
+    /// With fast recognition, none of these has a line to match.
+    func testRecognitionFindsTheCaretInRenderedCyrillic() throws {
+        let frame = CGRect(x: 1170, y: 300, width: 640, height: 40)
+        let font = try XCTUnwrap(NSFont(name: "HelveticaNeue", size: 13.5))
+        let inset: CGFloat = 6, baseline: CGFloat = 16
+        let messages = [
+            "Сегодня вечером будет встреча", "Привет, как дела, увидимся завтра",
+            "Здраво, стижем за пет минута", "Хвала вам на помоћи", "Ђорђе је рекао да ће доћи сутра",
+            "Морам да завршим ово до петка "
+        ]
+        for scale in [CGFloat(1), 2] {
+            for showsCaret in [false, true] {
+                for typed in messages {
+                    let caretX = inset + CotypingInlineGhostLayout.width(of: typed, font: font)
+                    let image = try XCTUnwrap(Self.renderedField(
+                        typed, font: font, size: frame.size, origin: CGPoint(x: inset, y: baseline),
+                        displayScale: scale, captureScale: CotypingVisualCaret.captureScale(for: frame, backingScale: scale),
+                        caretX: showsCaret ? caretX : nil))
+                    let lines = CotypingVisualCaret.recognize(image, frame: frame, precedingText: typed)
+                    let label = "\(typed) at \(scale)x, caret \(showsCaret)"
+                    let found = try XCTUnwrap(Locator.locate(lines: lines, precedingText: typed, fieldFrame: frame), label)
+                    XCTAssertEqual(found.caretX, frame.minX + caretX, accuracy: 2.5, label)
+                    XCTAssertEqual(found.baseline, frame.minY + baseline, accuracy: 1, label)
+                    XCTAssertEqual(found.pointSize, 13.5, accuracy: 1, label)
+                }
+            }
+        }
+    }
+
+    /// One line of text drawn at the display's own pixels, then scaled up to
+    /// what the capture asks for.
+    private static func renderedField(
+        _ text: String, font: NSFont, size: CGSize, origin: CGPoint,
+        displayScale: CGFloat, captureScale: CGFloat, caretX: CGFloat?
+    ) -> CGImage? {
+        func bitmap(scale: CGFloat) -> CGContext? {
+            CGContext(
+                data: nil, width: Int(size.width * scale), height: Int(size.height * scale), bitsPerComponent: 8,
+                bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
+        }
+        guard let display = bitmap(scale: displayScale) else { return nil }
+        display.scaleBy(x: displayScale, y: displayScale)
+        display.setFillColor(.white)
+        display.fill(CGRect(origin: .zero, size: size))
+        let ink = NSColor(white: 0.1, alpha: 1)
+        display.textPosition = origin
+        CTLineDraw(CTLineCreateWithAttributedString(NSAttributedString(
+            string: text, attributes: [.font: font, .foregroundColor: ink])), display)
+        if let caretX {
+            display.setFillColor(ink.cgColor)
+            display.fill(CGRect(x: caretX, y: origin.y + font.descender, width: 1, height: font.ascender - font.descender))
+        }
+        guard let drawn = display.makeImage() else { return nil }
+        guard captureScale != displayScale else { return drawn }
+        guard let capture = bitmap(scale: captureScale) else { return nil }
+        capture.interpolationQuality = .high
+        capture.draw(drawn, in: CGRect(x: 0, y: 0, width: capture.width, height: capture.height))
+        return capture.makeImage()
+    }
+
     // MARK: - Waiting for a find
 
     /// A finished suggestion waits at most its budget for the caret, then is
