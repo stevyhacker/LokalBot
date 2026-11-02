@@ -13,6 +13,11 @@ from pathlib import Path
 P = Path(__file__).resolve().parent
 A = json.loads((P / 'production/anchors.json').read_text())
 TAKES = {'n08': 'assets/voice/n08-s47.mp3'}
+# Live replies land at different moments: the commitment's close-up holds until it has landed, and the
+# call picks up from there, whichever comes first.
+A['commit_end'] = A['commit'] + 1.4
+A['c04_from'] = max(A['c04'], A['commit_end'])
+A['contra_from'] = max(A['contradiction'], A['c08']) + 2.2
 
 
 def voice_len(line_id):
@@ -22,13 +27,13 @@ def voice_len(line_id):
 
 
 # Cameras: [box x, y, w, h on the 1920x1080 canvas], [film x, y, w]; the film rect's height follows the box.
-CALL = [[542, 44, 1318, 890], [0, 28, 1440]]
-PANEL = [[1279, 44, 581, 890], [1098, 38, 334]]
-CARD = [[1100, 110, 760, 780], [1098, 58, 334]]
-SETTINGS = [[542, 44, 1318, 890], [560, 190, 720]]
-SETTINGS_IN = [[542, 44, 1318, 890], [585, 200, 640]]
-MEETING = [[542, 44, 1318, 890], [440, 190, 980]]
-FT = [[1170, 44, 690, 890], [425, 120, 590]]
+CALL = [[500, 60, 1370, 829], [0, 62, 3200]]
+PANEL = [[1279, 44, 581, 890], [2440, 88, 736]]
+CARD = [[1100, 110, 760, 780], [2440, 88, 736]]
+SETTINGS = [[500, 60, 1370, 829], [1290, 470, 1460]]
+SETTINGS_IN = [[500, 60, 1370, 829], [1320, 490, 1360]]
+MEETING = [[500, 60, 1370, 829], [960, 300, 2160]]
+FT = [[1170, 44, 690, 890], [945, 190, 1310]]
 
 
 def cam(*keys):
@@ -39,56 +44,56 @@ def cam(*keys):
 # (id, footage from, footage to, length or voice line, cameras, voice lines [(id, offset)], beat text, flags)
 BEATS = [
     dict(id='cold-a', f=('c03', -0.6, 'c03', 4.6), length=5.2, cam=cam((0, CALL)), voice=[('c03', 0.5)], call=True),
-    dict(id='cold-b', f=('c03', 4.6, 'screen_answer', 4.0), length=9.6, cam=cam((0, CALL), (2.2, PANEL), (5.2, PANEL), (6.6, CARD)),
+    dict(id='cold-b', f=('c03', 4.6, 'screen_answer', 4.0), length=9.6, cam=cam((0, CALL), (2.6, PANEL), (5.2, PANEL), (7.2, CARD)),
          voice=[('n01', 0.9)], fade_out=0.5,
-         text=dict(at=5.6, kicker='Screen answer · Muse Spark', headline='4.1%, from my screen last week',
+         text=dict(at=5.6, kicker='Screen answer · Muse Spark', headline='4.1%, from my screen',
                    detail='Found in screen memory on my Mac, cropped by Vision, read by Spark.', width=880)),
     dict(id='title', scene='title', length=5.0),
     dict(id='settings', f=('settings', 0, 'settings', 10), length=10.2, cam=cam((0, SETTINGS), (9.0, SETTINGS_IN)),
          voice=[('n02', 0.3)], fade_in=0.5,
          text=dict(at=0.4, kicker='Settings · Meta Muse', headline='Each one is opt-in',
                    chips=['Fast live text', 'Screen answers', 'Live answers', 'Floating panel'], width=400)),
-    dict(id='start', f=('live_view', 0, 'call_open', 1.0), voice_fit='n03', pad=0.3, cam=cam((0, CALL)), voice=[('n03', 0.1)],
+    dict(id='start', f=('press', 0, 'press', 6.0), voice_fit='n03', pad=0.3, cam=cam((0, CALL)), voice=[('n03', 0.1)],
          fade_in=0.5,
          text=dict(at=0.3, kicker='Live Radar', headline='One press, then back to the call', width=400)),
-    dict(id='c01', f=('call_open', 1.0, 'c02', -0.4), voice_fit='c01', pad=0.25, cam=cam((0, CALL)), voice=[('c01', 0.1)], call=True),
+    dict(id='c01', f=('c01', 0, 'c02', -0.4), voice_fit='c01', pad=0.25, cam=cam((0, CALL)), voice=[('c01', 0.1)], call=True),
     dict(id='c02', f=('c02', -0.4, 'commit', -1.2), voice_fit='c02', pad=0.15, cam=cam((0, CALL)), voice=[('c02', 0.05)], call=True),
-    dict(id='commit', f=('commit', -1.2, 'c04', 0), voice_fit='n04', pad=0.4, cam=cam((0, CALL), (1.3, PANEL)),
+    dict(id='commit', f=('commit', -1.2, 'commit_end', 0), voice_fit='n04', pad=0.4, cam=cam((0, CALL), (2.6, PANEL)),
          voice=[('n04', 0.2)],
-         text=dict(at=1.5, kicker='Voice Transcribe → Muse Spark', headline='Caught as it’s said',
+         text=dict(at=1.8, kicker='Voice Transcribe → Muse Spark', headline='Caught as it’s said',
                    detail='Every item has to quote a line from the call, or it’s dropped.', width=880)),
-    dict(id='c04', f=('c04', 0, 'c05', -0.4), voice_fit='c04', pad=0.2, cam=cam((0, PANEL), (0.9, CALL)), voice=[('c04', 0.15)],
+    dict(id='c04', f=('c04_from', 0, 'c05', -0.4), voice_fit='c04', pad=0.2, cam=cam((0, PANEL), (2.0, CALL)), voice=[('c04', 0.15)],
          call=True),
-    dict(id='c05', f=('c05', -0.4, 'c05', 2.6), voice_fit='c05', pad=0.5, cam=cam((0, CALL), (1.6, PANEL)), voice=[('c05', 0.15)],
+    dict(id='c05', f=('c05', -0.4, 'c05', 2.6), voice_fit='c05', pad=0.5, cam=cam((0, CALL), (0.3, CALL), (2.9, PANEL)), voice=[('c05', 0.15)],
          call=True),
-    dict(id='q1-look', f=('c05', 2.6, 'q1_answer', 0.6), length=None, rate=1.0, cam=cam((0, PANEL)), voice=[('n05', 0.3)],
+    dict(id='q1-look', f=('c05', 2.6, 'q1_answer', 0.6), at_least='n05', pad=0.8, cam=cam((0, PANEL)), voice=[('n05', 0.3)],
          text=dict(at=0.3, kicker='Live answers · Muse Wonder', headline='It looks it up in my work',
-                   detail='What LokalBot remembers comes first, then my documents, sheets, PDFs and code. Real time.',
+                   detail='What LokalBot remembers comes first, then my documents, sheets, PDFs and code.',
                    width=880)),
-    dict(id='q1-answer', f=('q1_answer', 0.6, 'q1_answer', 3.4), voice_fit='n06', pad=0.4, cam=cam((0, PANEL), (1.0, CARD)),
+    dict(id='q1-answer', f=('q1_answer', 0.6, 'q1_answer', 3.4), voice_fit='n06', pad=0.4, cam=cam((0, PANEL), (1.8, CARD)),
          voice=[('n06', 0.2)], fade_out=0.4,
          text=dict(at=0.4, kicker='Quote checked', headline='$12 per seat, from the sheet’s own row',
-                   chips=['Northwind pricing v2.xlsx', 'question → answer: {q1} s'], width=880)),
-    dict(id='c07', f=('c07', -0.4, 'contradiction', 0.2), voice_fit='c07', pad=0.1, cam=cam((0, CALL)), voice=[('c07', 0.0)],
+                   chips=['Northwind pricing v2.xlsx', 'caught → answered: {q1} s'], width=880)),
+    dict(id='c07', f=('c07', -0.4, 'c08', -0.2), voice_fit='c07', pad=0.1, cam=cam((0, CALL)), voice=[('c07', 0.0)],
          call=True, fade_in=0.4),
-    dict(id='c08', f=('contradiction', 0.2, 'c08', 2.4), voice_fit='c08', pad=0.1, cam=cam((0, CALL), (1.4, CARD)),
+    dict(id='c08', f=('c08', -0.2, 'contra_from', 0), voice_fit='c08', pad=0.1, cam=cam((0, CALL), (0.6, CALL), (3.4, CARD)),
          voice=[('c08', 0.0)], call=True),
-    dict(id='contra', f=('c08', 2.4, 'c08', 4.9), voice_fit='n08', pad=0.3, cam=cam((0, CARD)), voice=[('n08', 0.1)],
+    dict(id='contra', f=('contra_from', 0, 'contra_from', 2.5), voice_fit='n08', pad=0.3, cam=cam((0, CARD)), voice=[('n08', 0.1)],
          fade_out=0.4,
          text=dict(at=0.2, kicker='Contradiction · Muse Spark', headline='We agreed on Monday the 3rd',
-                   detail='Quoted from the Launch planning meeting, October 21, found by search on my Mac.', width=880)),
+                   detail='Quoted from the Launch planning meeting, October 25, found by search on my Mac.', width=880)),
     dict(id='c09', f=('c09', -0.4, 'c10', -0.2), voice_fit='c09', pad=0.05, cam=cam((0, CALL)), voice=[('c09', 0.03)],
          call=True, fade_in=0.4),
     dict(id='c10', f=('c10', -0.2, 'c10', 2.4), voice_fit='c10', pad=0.1, cam=cam((0, CALL)), voice=[('c10', 0.0)], call=True),
     # Wonder searches the code while another answer holds the panel's top card, so this runs wide, at speed.
-    dict(id='q2-look', f=('c10', 2.4, 'q2_answer', 0.3), length=6.0, cam=cam((0, CALL), (5.0, CALL), (6.0, PANEL)),
+    dict(id='q2-look', f=('c10', 2.4, 'q2_answer', 0.3), length=6.0, cam=cam((0, CALL), (3.4, CALL), (6.0, PANEL)),
          voice=[('n09', 0.4)],
          text=dict(at=0.3, kicker='Live answers · code', headline='It reads the repository too',
                    detail='Tracked files only. Never .env files or keys.', width=400)),
-    dict(id='q2-answer', f=('q2_answer', 0.3, 'q2_answer', 4.3), length=6.6, cam=cam((0, PANEL), (0.9, CARD)), fade_out=0.5,
+    dict(id='q2-answer', f=('q2_answer', 0.3, 'q2_answer', 4.3), length=6.6, cam=cam((0, PANEL), (1.8, CARD)), fade_out=0.5,
          text=dict(at=0.9, kicker='Quote checked', headline='Yes, hidden by default',
                    detail='AppSettings.swift, line 176, linked on GitHub at the commit it read.',
-                   chips=['question → answer: {q2} s'], width=880)),
+                   chips=['caught → answered: {q2} s'], width=880)),
     dict(id='board', f=('board', -0.3, 'board', 8.7), voice_fit='n10', pad=1.8, cam=cam((0, CALL)), voice=[('n10', 0.8)],
          fade_in=0.5,
          text=dict(at=0.6, kicker='After the call', headline='All of it, on the board', width=400)),
@@ -120,7 +125,10 @@ def main():
     t = 0.0
     shots, voice, beats, scenes = [], [], [], {}
     for b in BEATS:
-        if 'length' in b and b['length']:
+        if 'at_least' in b:
+            f0, f1 = film(*b['f'][:2]), film(*b['f'][2:])
+            length = max(f1 - f0, voice_len(b['at_least']) + b.get('pad', 0.3))
+        elif 'length' in b and b['length']:
             length = b['length']
         elif 'voice_fit' in b:
             length = voice_len(b['voice_fit']) + b.get('pad', 0.3)
@@ -149,10 +157,8 @@ def main():
     n12 = next(start for lid, start in voice if lid == 'n12')
     scenes['models']['cues'] = [round(n12 + word_time('n12', w) - 0.15, 3)
                                 for w in ('realtime', 'fast reading', 'careful', 'search')]
-    edit = {'fps': 30, 'duration': round(t, 3), 'footage': 'assets/footage/film.mp4', 'source_size': [1440, 1080],
+    edit = {'fps': 60, 'duration': round(t, 3), 'footage': 'assets/footage/film.mp4', 'source_size': [3200, 2000],
             'takes': TAKES, 'shots': shots, 'voice': voice, 'beats': beats, 'scenes': scenes,
-            'badge': {'text': 'Filmed by the CI test · scripted call · live Muse replies',
-                      'start': shots[0]['start'], 'end': scenes['endcard']['start']},
             'endcard_note': 'Filmed on a hosted Mac by the hackathon UI test: the call’s words are scripted, '
                             'and Muse Spark and Muse Wonder answer live through the Meta Model API.',
             'anchors_run': A['run']}

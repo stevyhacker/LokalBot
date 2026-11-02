@@ -75,9 +75,11 @@ for i, s in enumerate(E['shots']):
         speed = f'<div class="speed" id="speed-{s["id"]}" style="left:{x + w - 170}px;top:{y + 18}px">{s["rate"]:.1f}× speed</div>'
     shots_html.append(f'''{speed}
       <div class="card" id="card-{s['id']}" data-layout-allow-overflow>
-        <video id="v-{s['id']}" class="clip footage" src="{E['footage']}" muted playsinline
-          data-start="{s['start']}" data-duration="{dur}" data-media-start="{s['media_start']}"
-          data-track-index="{1 + i % 2}"{rate}></video>
+        <div class="frame" id="frame-{s['id']}" data-layout-allow-overflow>
+          <video id="v-{s['id']}" class="clip footage" src="{E['footage']}" muted playsinline
+            data-start="{s['start']}" data-duration="{dur}" data-media-start="{s['media_start']}"
+            data-track-index="{1 + i % 2}"{rate}></video>
+        </div>
       </div>''')
 
 beats_html = []
@@ -99,8 +101,7 @@ caps_html = '\n'.join(
 
 MIX = 'assets/sound/final-mix.wav'
 mix_dur = media_duration(MIX) if (P / MIX).exists() else TOTAL
-config = {'shots': E['shots'], 'beats': E['beats'], 'scenes': E['scenes'], 'src': [SRC_W, SRC_H], 'total': TOTAL,
-          'badge': E.get('badge')}
+config = {'shots': E['shots'], 'beats': E['beats'], 'scenes': E['scenes'], 'total': TOTAL, 'fps': E['fps'], 'canvas': [1920, 1080]}
 
 page = f'''<!doctype html>
 <html lang="en">
@@ -126,8 +127,9 @@ page = f'''<!doctype html>
         background-image: linear-gradient(rgba(47,211,189,0.06) 1px, transparent 1px),
           linear-gradient(90deg, rgba(47,211,189,0.06) 1px, transparent 1px);
         background-size: 48px 48px; }}
-      .card {{ position: absolute; overflow: hidden; border-radius: 18px; opacity: 0; background: #000;
-        box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), 0 0 0 1px rgba(47,211,189,0.25); }}
+      .card {{ position: absolute; inset: 0; opacity: 0;
+        filter: drop-shadow(0 0 1px rgba(47,211,189,0.55)) drop-shadow(0 26px 34px rgba(0,0,0,0.55)); }}
+      .frame {{ position: absolute; inset: 0; background: #000; }}
       .footage {{ position: absolute; left: 0; top: 0; width: {SRC_W}px; height: {SRC_H}px; transform-origin: 0 0; }}
       .speed {{ position: absolute; z-index: 5; width: 150px; text-align: center; opacity: 0; font-family: "JetBrains Mono", monospace;
         font-size: 18px; font-weight: 700; color: #091216; background: var(--voice); border-radius: 999px; padding: 6px 0; }}
@@ -149,9 +151,6 @@ page = f'''<!doctype html>
         text-transform: uppercase; padding: 6px 10px; border-radius: 8px; opacity: 0; white-space: nowrap; }}
       .who-ana {{ color: #08202a; background: var(--ana); }}
       .who-stevan {{ color: #052520; background: var(--teal); }}
-      #badge {{ position: absolute; left: 72px; top: 7px; opacity: 0; font-family: "JetBrains Mono", monospace;
-        font-size: 14px; color: #b4c8c4; padding: 5px 10px; border: 1px dashed var(--line); border-radius: 8px;
-        background: rgba(9,18,22,0.75); }}
       .scene {{ position: absolute; inset: 0; opacity: 0; display: flex; flex-direction: column; justify-content: center;
         padding: 0 0 40px 150px; }}
       #title .eyebrow {{ font-family: "JetBrains Mono", monospace; font-size: 26px; letter-spacing: 0.16em; color: var(--teal);
@@ -184,7 +183,6 @@ page = f'''<!doctype html>
       <div id="grid"></div>
 {''.join(shots_html)}
 {''.join(beats_html)}
-      <div id="badge">{html.escape(E.get('badge', {}).get('text', ''))}</div>
       <div class="scene" id="title">
         <div class="eyebrow">LokalBot × Meta Muse</div>
         <div class="big">From meeting<br/><span class="to">to done</span></div>
@@ -216,17 +214,24 @@ page = f'''<!doctype html>
       const tl = gsap.timeline({{ paused: true }});
       tl.fromTo("#grid", {{ backgroundPosition: "0px 0px" }}, {{ backgroundPosition: "-96px -48px", duration: C.total, ease: "none" }}, 0);
       // A camera keyframe is [time, [box x, y, w, h], [film x, y, w]]: the card's place on the canvas and
-      // the part of the film it shows, as wide as w and as tall as the box's shape allows.
-      const view = (box, src) => {{
+      // the part of the film it shows, as wide as w and as tall as the box's shape allows. Between keyframes
+      // the scale changes geometrically around the one film point both poses agree on, and the box's edges
+      // follow the same curve, so nothing slides against anything. Every frame is set exactly, as
+      // transforms and a clip path: both land between pixels, where layout properties would snap to them.
+      const pose = ([, box, src]) => {{
         const k = box[2] / src[2];
-        return {{ card: {{ left: box[0], top: box[1], width: box[2], height: box[3] }},
-                 video: {{ x: -src[0] * k, y: -src[1] * k, scale: k }} }};
+        return {{ box, k, tx: box[0] - src[0] * k, ty: box[1] - src[1] * k }};
+      }};
+      const smoother = u => u * u * u * (u * (6 * u - 15) + 10);
+      const lerp = (a, b, m) => a + (b - a) * m;
+      const place = (s, p, at) => {{
+        const [l, t, w, h] = p.box, [cw, ch] = C.canvas;
+        tl.set("#frame-" + s.id, {{ clipPath: `inset(${{t.toFixed(3)}}px ${{(cw - l - w).toFixed(3)}}px ${{(ch - t - h).toFixed(3)}}px ${{l.toFixed(3)}}px round 18px)` }}, at);
+        tl.set("#v-" + s.id, {{ x: p.tx, y: p.ty, scale: p.k, force3D: false, transformOrigin: "0 0" }}, at);
       }};
       for (const s of C.shots) {{
-        const card = "#card-" + s.id, video = "#v-" + s.id;
-        const first = view(s.cam[0][1], s.cam[0][2]);
-        tl.set(card, first.card, 0);
-        tl.set(video, first.video, 0);
+        const card = "#card-" + s.id;
+        place(s, pose(s.cam[0]), 0);
         const fadeIn = s.fade_in ?? 0.35, fadeOut = s.fade_out ?? 0.35;
         if (s.start === 0 || fadeIn === 0) tl.set(card, {{ opacity: 1 }}, s.start);
         else tl.fromTo(card, {{ opacity: 0 }}, {{ opacity: 1, duration: fadeIn, ease: "power1.out" }}, s.start);
@@ -237,10 +242,15 @@ page = f'''<!doctype html>
           tl.to("#speed-" + s.id, {{ opacity: 0, duration: 0.3 }}, s.end - 0.4);
         }}
         for (let i = 1; i < s.cam.length; i++) {{
-          const [t0] = s.cam[i - 1], [t1, box, src] = s.cam[i];
-          const v = view(box, src), ease = s.cam[i][3] || "power2.inOut";
-          tl.to(card, {{ ...v.card, duration: t1 - t0, ease }}, s.start + t0);
-          tl.to(video, {{ ...v.video, duration: t1 - t0, ease }}, s.start + t0);
+          const a = pose(s.cam[i - 1]), b = pose(s.cam[i]), t0 = s.cam[i - 1][0], t1 = s.cam[i][0];
+          const frames = Math.round((t1 - t0) * C.fps);
+          const same = Math.abs(b.k / a.k - 1) < 1e-4;
+          for (let f = 1; f <= frames; f++) {{
+            const e = smoother(f / frames);
+            const m = same ? e : (a.k * Math.pow(b.k / a.k, e) - a.k) / (b.k - a.k);
+            place(s, {{ box: a.box.map((v, n) => lerp(v, b.box[n], m)), k: same ? a.k : a.k * Math.pow(b.k / a.k, e),
+                       tx: lerp(a.tx, b.tx, m), ty: lerp(a.ty, b.ty, m) }}, s.start + t0 + f / C.fps);
+          }}
         }}
       }}
       for (const b of C.beats) {{
@@ -249,10 +259,6 @@ page = f'''<!doctype html>
         if (b.chips && b.chips.length)
           tl.fromTo(el + " .chip", {{ opacity: 0, y: 8 }}, {{ opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: "power2.out" }}, b.start + 0.4);
         tl.to(el, {{ opacity: 0, y: -10, duration: 0.4, ease: "power1.in" }}, b.end - 0.4);
-      }}
-      if (C.badge) {{
-        tl.fromTo("#badge", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, C.badge.start);
-        tl.to("#badge", {{ opacity: 0, duration: 0.5 }}, C.badge.end - 0.5);
       }}
       const sc = C.scenes;
       tl.fromTo("#title", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, sc.title.start);

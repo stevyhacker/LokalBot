@@ -2,8 +2,8 @@
 
 Reads one frame a second of assets/footage/film.mp4 with tesseract: the call's
 caption bar (who is speaking, what is typed), the floating panel, and the
-Follow-through sheet. Each anchor is the first second its text shows up,
-after the anchor before it. Check the result against the frames before
+Follow-through sheet. Each anchor is the first second its text shows up
+after the anchor it follows. Check the result against the frames before
 trusting a new take: OCR can miss a moment, and then the anchor is null.
 """
 import json
@@ -15,31 +15,35 @@ from pathlib import Path
 
 P = Path(__file__).resolve().parent
 FILM = P / 'assets/footage/film.mp4'
-REGIONS = {'cap': 'crop=920:70:180:875,scale=1840:-1', 'panel': 'crop=330:500:1100:42,scale=990:-1',
-           'card': 'crop=330:300:1100:42,scale=990:-1', 'sheet': 'crop=600:780:425:120'}
+REGIONS = {'cap': 'crop=1965:115:245:1725', 'panel': 'crop=756:1150:2430:76', 'card': 'crop=756:700:2430:76',
+           'sheet': 'crop=1280:1640:960:200', 'settings': 'crop=1460:900:1290:470'}
 
-# (anchor, region, pattern); searched in order, each from the previous anchor on.
+# (anchor, region, pattern, anchor it comes after): the first second the text shows up after that anchor.
 RULES = [
-    ('live_view', 'panel', r'Live Transcript'),
-    ('call_open', 'panel', r'Live Radar'),
-    ('c01', 'cap', r'Hi!'),
-    ('c02', 'cap', r"send the revised"),
-    ('commit', 'panel', r'COMMITMENT'),
-    ('c04', 'cap', r'Great\. What'),
-    ('q1_caught', 'card', r'OPEN QUESTION.*Team plan price'),
-    ('c05', 'cap', r'One second'),
-    ('q1_answer', 'panel', r'Answer from your work'),
-    ('c03', 'cap', r'And what'),
-    ('screen_answer', 'panel', r'On your screen'),
-    ('c07', 'cap', r'Also, the launch'),
-    ('contradiction', 'panel', r'CONTRADICTION'),
-    ('c08', 'cap', r'thought it was'),
-    ('c09', 'cap', r'Unrelated'),
-    ('c10', 'cap', r'Hm,(?! I)'),
-    ('q2_answer', 'panel', r'radar panel hidden.*Answer from your work'),
-    ('ft_open', 'sheet', r'planning the next step|Read meeting'),
-    ('ft_email', 'sheet', r'Email draft'),
-    ('ft_invite', 'sheet', r'Meeting invitation'),
+    ('live_view', 'panel', r'Live Transcript', None),
+    ('call_open', 'panel', r'Live Radar', 'live_view'),
+    ('c01', 'cap', r'Hi!', 'call_open'),
+    ('c02', 'cap', r'send the revised', 'c01'),
+    ('commit', 'panel', r'COMMITMENT', 'c01'),
+    ('c04', 'cap', r'Great\. What', 'c02'),
+    ('c05', 'cap', r'One second', 'c04'),
+    ('q1_caught', 'card', r'OPEN QUESTION.*Team plan price', 'c04'),
+    ('q1_answer', 'card', r'Team plan price.*Answer from your work', 'q1_caught'),
+    ('c03', 'cap', r'And what', 'c05'),
+    ('screen_answer', 'panel', r'4\.1%', 'c03'),
+    ('c07', 'cap', r'Also, the launch', 'c03'),
+    ('c08', 'cap', r'thought it was', 'c07'),
+    ('contradiction', 'panel', r'CONTRADICTION', 'c07'),
+    ('c09', 'cap', r'Unrelated', 'c08'),
+    ('c10', 'cap', r'Hm,(?! I)', 'c09'),
+    # A caught question's row carries its time; the transcript strip's copy of the line doesn't.
+    ('q2_caught', 'panel', r'radar panel hidden.{0,60}0\d:\d\d', 'c09'),
+    ('q2_answer', 'card', r'radar panel hidden.*Answer from your work', 'c09'),
+    ('board', 'panel', r'Stop Recording', 'q2_answer'),
+    ('meeting_page', 'panel', r'Ask\s*This\s*Meeting', 'board'),
+    ('ft_open', 'sheet', r'Muse Wonder', 'meeting_page'),
+    ('ft_email', 'sheet', r'Email draft', 'ft_open'),
+    ('ft_invite', 'sheet', r'Meeting invitation', 'ft_email'),
 ]
 
 
@@ -62,23 +66,17 @@ def main():
     (frames / 'timeline.json').write_text(json.dumps(rows, indent=0, ensure_ascii=False) + '\n')
     run = (P / 'assets/footage/run-id.txt').read_text().strip()
     anchors = {'run': int(run), 'note': 'Film seconds of each moment in the CI take, from anchors.py (tesseract, one frame a second).'}
-    after = 0
-    for name, region, pattern in RULES:
-        hit = next((r['t'] for r in rows if r['t'] >= after and re.search(pattern, r[region])), None)
-        anchors[name] = hit
-        if hit is not None:
-            after = hit
-    # The settings page is up from about 11 s before the live view. The board shows once Open LokalBot
-    # closes the call, the meeting page once the host relaunches on it, and Follow-through is done
-    # when its last approval stops showing "planning the next step".
-    anchors['settings'] = anchors['live_view'] - 11
-    anchors['board'] = next((r['t'] for r in rows if r['t'] > (anchors['q2_answer'] or 0)
-                             and 'Stop Recording' in r['panel']), None)
-    anchors['meeting_page'] = next((r['t'] for r in rows if r['t'] > (anchors['board'] or 0)
-                                    and 'Ask This Meeting' in r['panel']), None)
+    for name, region, pattern, after in RULES:
+        since = anchors.get(after) or 0
+        anchors[name] = next((r['t'] for r in rows if r['t'] >= since and re.search(pattern, r[region])), None)
+    # The settings page has settled on the Meta Muse switches once they all show. Follow-through
+    # is done when its last approval stops showing "planning the next step".
+    settled = [r['t'] for r in rows if r['t'] < anchors['live_view'] and 'Folders and repositories' in r['settings']]
+    anchors['settings'] = settled[-1] - 10 if settled else anchors['live_view'] - 11
     planning = [r['t'] for r in rows if r['t'] > (anchors['ft_invite'] or 0) and 'planning the next step' in r['sheet']]
     anchors['ft_done'] = planning[-1] + 1 if planning else None
-    # A question caught while an answer holds the spotlight never reaches the top card; set those by hand.
+    # A question caught while an answer holds the top card has no row OCR can always read. Its answer card
+    # states the real seconds, so set q2_caught by hand from that when this comes up empty.
     manual = P / 'production/anchors-manual.json'
     if manual.exists():
         anchors.update({k: v for k, v in json.loads(manual.read_text()).items() if not k.startswith('_')})

@@ -22,9 +22,10 @@
         background-image: linear-gradient(rgba(47,211,189,0.06) 1px, transparent 1px),
           linear-gradient(90deg, rgba(47,211,189,0.06) 1px, transparent 1px);
         background-size: 48px 48px; }
-      .card { position: absolute; overflow: hidden; border-radius: 18px; opacity: 0; background: #000;
-        box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), 0 0 0 1px rgba(47,211,189,0.25); }
-      .footage { position: absolute; left: 0; top: 0; width: 1440px; height: 1080px; transform-origin: 0 0; }
+      .card { position: absolute; inset: 0; opacity: 0;
+        filter: drop-shadow(0 0 1px rgba(47,211,189,0.55)) drop-shadow(0 26px 34px rgba(0,0,0,0.55)); }
+      .frame { position: absolute; inset: 0; background: #000; }
+      .footage { position: absolute; left: 0; top: 0; width: 3200px; height: 2000px; transform-origin: 0 0; }
       .speed { position: absolute; z-index: 5; width: 150px; text-align: center; opacity: 0; font-family: "JetBrains Mono", monospace;
         font-size: 18px; font-weight: 700; color: #091216; background: var(--voice); border-radius: 999px; padding: 6px 0; }
       .beat { position: absolute; left: 72px; top: 0; height: 930px; opacity: 0; display: flex; flex-direction: column; gap: 22px;
@@ -45,9 +46,6 @@
         text-transform: uppercase; padding: 6px 10px; border-radius: 8px; opacity: 0; white-space: nowrap; }
       .who-ana { color: #08202a; background: var(--ana); }
       .who-stevan { color: #052520; background: var(--teal); }
-      #badge { position: absolute; left: 72px; top: 7px; opacity: 0; font-family: "JetBrains Mono", monospace;
-        font-size: 14px; color: #b4c8c4; padding: 5px 10px; border: 1px dashed var(--line); border-radius: 8px;
-        background: rgba(9,18,22,0.75); }
       .scene { position: absolute; inset: 0; opacity: 0; display: flex; flex-direction: column; justify-content: center;
         padding: 0 0 40px 150px; }
       #title .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 26px; letter-spacing: 0.16em; color: var(--teal);
@@ -76,118 +74,160 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="179.49">
+    <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="175.49">
       <div id="grid"></div>
 
       <div class="card" id="card-cold-a" data-layout-allow-overflow>
-        <video id="v-cold-a" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="0.0" data-duration="5.2" data-media-start="57.4"
-          data-track-index="1"></video>
+        <div class="frame" id="frame-cold-a" data-layout-allow-overflow>
+          <video id="v-cold-a" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="0.0" data-duration="5.2" data-media-start="89.4"
+            data-track-index="1"></video>
+        </div>
       </div>
       <div class="card" id="card-cold-b" data-layout-allow-overflow>
-        <video id="v-cold-b" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="5.2" data-duration="9.6" data-media-start="62.6"
-          data-track-index="2" data-playback-rate="1.0833"></video>
+        <div class="frame" id="frame-cold-b" data-layout-allow-overflow>
+          <video id="v-cold-b" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="5.2" data-duration="9.6" data-media-start="94.6"
+            data-track-index="2" data-playback-rate="0.9792"></video>
+        </div>
       </div>
       <div class="card" id="card-settings" data-layout-allow-overflow>
-        <video id="v-settings" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="19.8" data-duration="10.2" data-media-start="10"
-          data-track-index="1" data-playback-rate="0.9804"></video>
+        <div class="frame" id="frame-settings" data-layout-allow-overflow>
+          <video id="v-settings" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="19.8" data-duration="10.2" data-media-start="41"
+            data-track-index="1" data-playback-rate="0.9804"></video>
+        </div>
       </div>
       <div class="card" id="card-start" data-layout-allow-overflow>
-        <video id="v-start" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="30.0" data-duration="7.34" data-media-start="21"
-          data-track-index="2" data-playback-rate="0.8174"></video>
+        <div class="frame" id="frame-start" data-layout-allow-overflow>
+          <video id="v-start" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="30.0" data-duration="7.34" data-media-start="261.9"
+            data-track-index="2" data-playback-rate="0.8174"></video>
+        </div>
       </div>
       <div class="card" id="card-c01" data-layout-allow-overflow>
-        <video id="v-c01" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="37.34" data-duration="7.21" data-media-start="27.0"
-          data-track-index="1" data-playback-rate="0.4993"></video>
+        <div class="frame" id="frame-c01" data-layout-allow-overflow>
+          <video id="v-c01" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="37.34" data-duration="7.21" data-media-start="62"
+            data-track-index="1" data-playback-rate="0.2219"></video>
+        </div>
       </div>
       <div class="card" id="card-c02" data-layout-allow-overflow>
-        <video id="v-c02" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="44.55" data-duration="3.83" data-media-start="30.6"
-          data-track-index="2" data-playback-rate="0.8355"></video>
+        <div class="frame" id="frame-c02" data-layout-allow-overflow>
+          <video id="v-c02" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="44.55" data-duration="3.83" data-media-start="63.6"
+            data-track-index="2" data-playback-rate="0.8355"></video>
+        </div>
       </div>
       <div class="card" id="card-commit" data-layout-allow-overflow>
-        <video id="v-commit" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="48.38" data-duration="9.28" data-media-start="33.8"
-          data-track-index="1" data-playback-rate="0.2371"></video>
+        <div class="frame" id="frame-commit" data-layout-allow-overflow>
+          <video id="v-commit" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="48.38" data-duration="9.28" data-media-start="66.8"
+            data-track-index="1" data-playback-rate="0.2802"></video>
+        </div>
       </div>
       <div class="card" id="card-c04" data-layout-allow-overflow>
-        <video id="v-c04" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="57.66" data-duration="4.68" data-media-start="36"
-          data-track-index="2" data-playback-rate="1.1966"></video>
+        <div class="frame" id="frame-c04" data-layout-allow-overflow>
+          <video id="v-c04" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="57.66" data-duration="4.68" data-media-start="69.4"
+            data-track-index="2" data-playback-rate="0.6838"></video>
+        </div>
       </div>
       <div class="card" id="card-c05" data-layout-allow-overflow>
-        <video id="v-c05" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="62.34" data-duration="2.98" data-media-start="41.6"
-          data-track-index="1" data-playback-rate="1.0067"></video>
+        <div class="frame" id="frame-c05" data-layout-allow-overflow>
+          <video id="v-c05" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="62.34" data-duration="2.98" data-media-start="72.6"
+            data-track-index="1" data-playback-rate="1.0067"></video>
+        </div>
       </div>
       <div class="card" id="card-q1-look" data-layout-allow-overflow>
-        <video id="v-q1-look" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="65.32" data-duration="14.0" data-media-start="44.6"
-          data-track-index="2"></video>
+        <div class="frame" id="frame-q1-look" data-layout-allow-overflow>
+          <video id="v-q1-look" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="65.32" data-duration="10.0" data-media-start="75.6"
+            data-track-index="2"></video>
+        </div>
       </div>
       <div class="card" id="card-q1-answer" data-layout-allow-overflow>
-        <video id="v-q1-answer" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="79.32" data-duration="8.16" data-media-start="58.6"
-          data-track-index="1" data-playback-rate="0.3431"></video>
+        <div class="frame" id="frame-q1-answer" data-layout-allow-overflow>
+          <video id="v-q1-answer" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="75.32" data-duration="8.16" data-media-start="85.6"
+            data-track-index="1" data-playback-rate="0.3431"></video>
+        </div>
       </div>
       <div class="card" id="card-c07" data-layout-allow-overflow>
-        <video id="v-c07" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="87.48" data-duration="5.7" data-media-start="69.6"
-          data-track-index="2" data-playback-rate="1.1579"></video>
+        <div class="frame" id="frame-c07" data-layout-allow-overflow>
+          <video id="v-c07" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="83.48" data-duration="5.7" data-media-start="100.6"
+            data-track-index="2" data-playback-rate="0.7368"></video>
+        </div>
       </div>
       <div class="card" id="card-c08" data-layout-allow-overflow>
-        <video id="v-c08" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="93.18" data-duration="4.1" data-media-start="76.2"
-          data-track-index="1" data-playback-rate="0.5366"></video>
+        <div class="frame" id="frame-c08" data-layout-allow-overflow>
+          <video id="v-c08" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="89.18" data-duration="4.1" data-media-start="104.8"
+            data-track-index="1" data-playback-rate="1.0732"></video>
+        </div>
       </div>
       <div class="card" id="card-contra" data-layout-allow-overflow>
-        <video id="v-contra" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="97.28" data-duration="6.46" data-media-start="78.4"
-          data-track-index="2" data-playback-rate="0.387"></video>
+        <div class="frame" id="frame-contra" data-layout-allow-overflow>
+          <video id="v-contra" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="93.28" data-duration="6.46" data-media-start="109.2"
+            data-track-index="2" data-playback-rate="0.387"></video>
+        </div>
       </div>
       <div class="card" id="card-c09" data-layout-allow-overflow>
-        <video id="v-c09" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="103.74" data-duration="7.73" data-media-start="88.6"
-          data-track-index="1" data-playback-rate="0.8021"></video>
+        <div class="frame" id="frame-c09" data-layout-allow-overflow>
+          <video id="v-c09" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="99.74" data-duration="7.73" data-media-start="119.6"
+            data-track-index="1" data-playback-rate="1.9664"></video>
+        </div>
       </div>
       <div class="card" id="card-c10" data-layout-allow-overflow>
-        <video id="v-c10" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="111.47" data-duration="2.18" data-media-start="94.8"
-          data-track-index="2" data-playback-rate="1.1927"></video>
-      </div><div class="speed" id="speed-q2-look" style="left:1690px;top:62px">3.0× speed</div>
+        <div class="frame" id="frame-c10" data-layout-allow-overflow>
+          <video id="v-c10" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="107.47" data-duration="2.18" data-media-start="134.8"
+            data-track-index="2" data-playback-rate="1.1927"></video>
+        </div>
+      </div>
       <div class="card" id="card-q2-look" data-layout-allow-overflow>
-        <video id="v-q2-look" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="113.65" data-duration="6.0" data-media-start="97.4"
-          data-track-index="1" data-playback-rate="2.9833"></video>
+        <div class="frame" id="frame-q2-look" data-layout-allow-overflow>
+          <video id="v-q2-look" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="109.65" data-duration="6.0" data-media-start="137.4"
+            data-track-index="1" data-playback-rate="0.8167"></video>
+        </div>
       </div>
       <div class="card" id="card-q2-answer" data-layout-allow-overflow>
-        <video id="v-q2-answer" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="119.65" data-duration="6.6" data-media-start="115.3"
-          data-track-index="2" data-playback-rate="0.6061"></video>
+        <div class="frame" id="frame-q2-answer" data-layout-allow-overflow>
+          <video id="v-q2-answer" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="115.65" data-duration="6.6" data-media-start="142.3"
+            data-track-index="2" data-playback-rate="0.6061"></video>
+        </div>
       </div>
       <div class="card" id="card-board" data-layout-allow-overflow>
-        <video id="v-board" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="126.25" data-duration="8.92" data-media-start="160.7"
-          data-track-index="1" data-playback-rate="1.009"></video>
+        <div class="frame" id="frame-board" data-layout-allow-overflow>
+          <video id="v-board" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="122.25" data-duration="8.92" data-media-start="191.7"
+            data-track-index="1" data-playback-rate="1.009"></video>
+        </div>
       </div>
       <div class="card" id="card-meeting" data-layout-allow-overflow>
-        <video id="v-meeting" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="135.17" data-duration="3.4" data-media-start="186"
-          data-track-index="2"></video>
-      </div><div class="speed" id="speed-ft" style="left:1690px;top:62px">1.3× speed</div>
+        <div class="frame" id="frame-meeting" data-layout-allow-overflow>
+          <video id="v-meeting" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="131.17" data-duration="3.4" data-media-start="209"
+            data-track-index="2"></video>
+        </div>
+      </div><div class="speed" id="speed-ft" style="left:1690px;top:62px">1.5× speed</div>
       <div class="card" id="card-ft" data-layout-allow-overflow>
-        <video id="v-ft" class="clip footage" src="assets/footage/film.mp4" muted playsinline
-          data-start="138.57" data-duration="20.56" data-media-start="191.6"
-          data-track-index="1" data-playback-rate="1.3327"></video>
+        <div class="frame" id="frame-ft" data-layout-allow-overflow>
+          <video id="v-ft" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+            data-start="134.57" data-duration="20.56" data-media-start="222.6"
+            data-track-index="1" data-playback-rate="1.5272"></video>
+        </div>
       </div>
 
       <div class="beat" id="beat-cold-b" style="width:880px">
         <div class="kicker">Screen answer · Muse Spark</div>
-        <div class="headline">4.1%, from my screen last week</div>
+        <div class="headline">4.1%, from my screen</div>
         <div class="detail">Found in screen memory on my Mac, cropped by Vision, read by Spark.</div>
         
       </div>
@@ -212,19 +252,19 @@
       <div class="beat" id="beat-q1-look" style="width:880px">
         <div class="kicker">Live answers · Muse Wonder</div>
         <div class="headline">It looks it up in my work</div>
-        <div class="detail">What LokalBot remembers comes first, then my documents, sheets, PDFs and code. Real time.</div>
+        <div class="detail">What LokalBot remembers comes first, then my documents, sheets, PDFs and code.</div>
         
       </div>
       <div class="beat" id="beat-q1-answer" style="width:880px">
         <div class="kicker">Quote checked</div>
         <div class="headline">$12 per seat, from the sheet’s own row</div>
         
-        <div class="chips"><span class="chip">Northwind pricing v2.xlsx</span><span class="chip">question → answer: 17 s</span></div>
+        <div class="chips"><span class="chip">Northwind pricing v2.xlsx</span><span class="chip">caught → answered: 12 s</span></div>
       </div>
       <div class="beat" id="beat-contra" style="width:880px">
         <div class="kicker">Contradiction · Muse Spark</div>
         <div class="headline">We agreed on Monday the 3rd</div>
-        <div class="detail">Quoted from the Launch planning meeting, October 21, found by search on my Mac.</div>
+        <div class="detail">Quoted from the Launch planning meeting, October 25, found by search on my Mac.</div>
         
       </div>
       <div class="beat" id="beat-q2-look" style="width:400px">
@@ -237,7 +277,7 @@
         <div class="kicker">Quote checked</div>
         <div class="headline">Yes, hidden by default</div>
         <div class="detail">AppSettings.swift, line 176, linked on GitHub at the commit it read.</div>
-        <div class="chips"><span class="chip">question → answer: 22 s</span></div>
+        <div class="chips"><span class="chip">caught → answered: 16 s</span></div>
       </div>
       <div class="beat" id="beat-board" style="width:400px">
         <div class="kicker">After the call</div>
@@ -251,7 +291,6 @@
         <div class="detail">The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.</div>
         
       </div>
-      <div id="badge">Filmed by the CI test · scripted call · live Muse replies</div>
       <div class="scene" id="title">
         <div class="eyebrow">LokalBot × Meta Muse</div>
         <div class="big">From meeting<br/><span class="to">to done</span></div>
@@ -275,8 +314,8 @@
         <div class="url">github.com/stevyhacker/lokalbot</div>
         <div class="note">Filmed on a hosted Mac by the hackathon UI test: the call’s words are scripted, and Muse Spark and Muse Wonder answer live through the Meta Model API.</div>
       </div>
-      <div class="clip cap" id="cap-01" data-start="6.1" data-duration="2.35" data-track-index="20"><span class="cap-text">Someone asks for a number on a call.</span></div>
-      <div class="clip cap" id="cap-02" data-start="8.5" data-duration="5.7" data-track-index="20"><span class="cap-text">LokalBot saw it on my screen last week, and answers before I&#x27;ve found the tab.</span></div>
+      <div class="clip cap" id="cap-01" data-start="6.1" data-duration="2.43" data-track-index="20"><span class="cap-text">Someone asks for a number on a call.</span></div>
+      <div class="clip cap" id="cap-02" data-start="8.58" data-duration="5.3" data-track-index="20"><span class="cap-text">LokalBot saw it on my screen earlier, and answers before I&#x27;ve found the tab.</span></div>
       <div class="clip cap" id="cap-03" data-start="20.1" data-duration="5.363" data-track-index="20"><span class="cap-text">LokalBot already records my meetings and remembers my screen, on my Mac.</span></div>
       <div class="clip cap" id="cap-04" data-start="25.513" data-duration="4.547" data-track-index="20"><span class="cap-text">For this hackathon, I connected that memory to three Meta models.</span></div>
       <div class="clip cap" id="cap-05" data-start="30.1" data-duration="2.83" data-track-index="20"><span class="cap-text">I&#x27;m on a call with Ana about our launch.</span></div>
@@ -285,35 +324,42 @@
       <div class="clip cap" id="cap-08" data-start="53.26" data-duration="4.78" data-track-index="20"><span class="cap-text">Muse Spark reads it, and my commitment lands seconds later.</span></div>
       <div class="clip cap" id="cap-09" data-start="65.62" data-duration="2.75" data-track-index="20"><span class="cap-text">Muse Wonder looks it up in my work.</span></div>
       <div class="clip cap" id="cap-10" data-start="68.42" data-duration="6.42" data-track-index="20"><span class="cap-text">It starts from what LokalBot remembers, then searches my documents and opens the sheet.</span></div>
-      <div class="clip cap" id="cap-11" data-start="79.52" data-duration="4.07" data-track-index="20"><span class="cap-text">Twelve dollars per seat, quoted from the sheet&#x27;s own row.</span></div>
-      <div class="clip cap" id="cap-12" data-start="83.64" data-duration="4.22" data-track-index="20"><span class="cap-text">If a quote isn&#x27;t in what it read, the answer is dropped.</span></div>
-      <div class="clip cap" id="cap-13" data-start="97.38" data-duration="6.74" data-track-index="20"><span class="cap-text">When the plan changes, the radar shows what we agreed in the planning meeting, with the quote.</span></div>
-      <div class="clip cap" id="cap-14" data-start="114.05" data-duration="8.74" data-track-index="20"><span class="cap-text">Wonder reads code too. It searches the repository, opens the settings, and links the exact line on GitHub.</span></div>
-      <div class="clip cap" id="cap-15" data-start="127.05" data-duration="7.7" data-track-index="20"><span class="cap-text">After the call, it&#x27;s all on the board: what we promised, decided, asked, and changed.</span></div>
-      <div class="clip cap" id="cap-16" data-start="139.57" data-duration="3.03" data-track-index="20"><span class="cap-text">Follow-through takes my commitment from there.</span></div>
-      <div class="clip cap" id="cap-17" data-start="142.65" data-duration="8.55" data-track-index="20"><span class="cap-text">Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice, and books our talk for tomorrow.</span></div>
-      <div class="clip cap" id="cap-18" data-start="151.25" data-duration="3.46" data-track-index="20"><span class="cap-text">Nothing is sent until I approve it.</span></div>
-      <div class="clip cap" id="cap-19" data-start="159.53" data-duration="9.59" data-track-index="20"><span class="cap-text">Three Meta models, each where it fits: realtime speech, fast reading of text and images, and careful lookups and plans.</span></div>
-      <div class="clip cap" id="cap-20" data-start="169.17" data-duration="3.82" data-track-index="20"><span class="cap-text">Search and speaker separation stay on my Mac.</span></div>
-      <div class="clip cap" id="cap-21" data-start="174.09" data-duration="3.54" data-track-index="20"><span class="cap-text">LokalBot. From meeting to done.</span></div>
-      <audio id="mix" src="assets/sound/final-mix.wav" data-start="0" data-duration="179.38" data-track-index="30"></audio>
+      <div class="clip cap" id="cap-11" data-start="75.52" data-duration="4.07" data-track-index="20"><span class="cap-text">Twelve dollars per seat, quoted from the sheet&#x27;s own row.</span></div>
+      <div class="clip cap" id="cap-12" data-start="79.64" data-duration="4.22" data-track-index="20"><span class="cap-text">If a quote isn&#x27;t in what it read, the answer is dropped.</span></div>
+      <div class="clip cap" id="cap-13" data-start="93.38" data-duration="6.74" data-track-index="20"><span class="cap-text">When the plan changes, the radar shows what we agreed in the planning meeting, with the quote.</span></div>
+      <div class="clip cap" id="cap-14" data-start="110.05" data-duration="8.74" data-track-index="20"><span class="cap-text">Wonder reads code too. It searches the repository, opens the settings, and links the exact line on GitHub.</span></div>
+      <div class="clip cap" id="cap-15" data-start="123.05" data-duration="7.7" data-track-index="20"><span class="cap-text">After the call, it&#x27;s all on the board: what we promised, decided, asked, and changed.</span></div>
+      <div class="clip cap" id="cap-16" data-start="135.57" data-duration="3.03" data-track-index="20"><span class="cap-text">Follow-through takes my commitment from there.</span></div>
+      <div class="clip cap" id="cap-17" data-start="138.65" data-duration="8.55" data-track-index="20"><span class="cap-text">Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice, and books our talk for tomorrow.</span></div>
+      <div class="clip cap" id="cap-18" data-start="147.25" data-duration="3.46" data-track-index="20"><span class="cap-text">Nothing is sent until I approve it.</span></div>
+      <div class="clip cap" id="cap-19" data-start="155.53" data-duration="9.59" data-track-index="20"><span class="cap-text">Three Meta models, each where it fits: realtime speech, fast reading of text and images, and careful lookups and plans.</span></div>
+      <div class="clip cap" id="cap-20" data-start="165.17" data-duration="3.82" data-track-index="20"><span class="cap-text">Search and speaker separation stay on my Mac.</span></div>
+      <div class="clip cap" id="cap-21" data-start="170.09" data-duration="3.54" data-track-index="20"><span class="cap-text">LokalBot. From meeting to done.</span></div>
+      <audio id="mix" src="assets/sound/final-mix.wav" data-start="0" data-duration="175.38" data-track-index="30"></audio>
     </div>
     <script>
-      const C = {"shots":[{"id":"cold-a","start":0.0,"end":5.2,"media_start":57.4,"rate":1.0,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"cold-b","start":5.2,"end":14.8,"media_start":62.6,"rate":1.0833,"cam":[[0,[542,44,1318,890],[0,28,1440]],[2.2,[1279,44,581,890],[1098,38,334]],[5.2,[1279,44,581,890],[1098,38,334]],[6.6,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.5,"call":false},{"id":"settings","start":19.8,"end":30.0,"media_start":10,"rate":0.9804,"cam":[[0,[542,44,1318,890],[560,190,720]],[9.0,[542,44,1318,890],[585,200,640]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"start","start":30.0,"end":37.34,"media_start":21,"rate":0.8174,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"c01","start":37.34,"end":44.55,"media_start":27.0,"rate":0.4993,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"c02","start":44.55,"end":48.38,"media_start":30.6,"rate":0.8355,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"commit","start":48.38,"end":57.66,"media_start":33.8,"rate":0.2371,"cam":[[0,[542,44,1318,890],[0,28,1440]],[1.3,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":false},{"id":"c04","start":57.66,"end":62.34,"media_start":36,"rate":1.1966,"cam":[[0,[1279,44,581,890],[1098,38,334]],[0.9,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"c05","start":62.34,"end":65.32,"media_start":41.6,"rate":1.0067,"cam":[[0,[542,44,1318,890],[0,28,1440]],[1.6,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":true},{"id":"q1-look","start":65.32,"end":79.32,"media_start":44.6,"rate":1.0,"cam":[[0,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":false},{"id":"q1-answer","start":79.32,"end":87.48,"media_start":58.6,"rate":0.3431,"cam":[[0,[1279,44,581,890],[1098,38,334]],[1.0,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.4,"call":false},{"id":"c07","start":87.48,"end":93.18,"media_start":69.6,"rate":1.1579,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.4,"fade_out":0,"call":true},{"id":"c08","start":93.18,"end":97.28,"media_start":76.2,"rate":0.5366,"cam":[[0,[542,44,1318,890],[0,28,1440]],[1.4,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0,"call":true},{"id":"contra","start":97.28,"end":103.74,"media_start":78.4,"rate":0.387,"cam":[[0,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.4,"call":false},{"id":"c09","start":103.74,"end":111.47,"media_start":88.6,"rate":0.8021,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.4,"fade_out":0,"call":true},{"id":"c10","start":111.47,"end":113.65,"media_start":94.8,"rate":1.1927,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"q2-look","start":113.65,"end":119.65,"media_start":97.4,"rate":2.9833,"cam":[[0,[542,44,1318,890],[0,28,1440]],[5.0,[542,44,1318,890],[0,28,1440]],[6.0,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":false},{"id":"q2-answer","start":119.65,"end":126.25,"media_start":115.3,"rate":0.6061,"cam":[[0,[1279,44,581,890],[1098,38,334]],[0.9,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.5,"call":false},{"id":"board","start":126.25,"end":135.17,"media_start":160.7,"rate":1.009,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"meeting","start":135.17,"end":138.57,"media_start":186,"rate":1.0,"cam":[[0,[542,44,1318,890],[440,190,980]]],"fade_in":0.4,"fade_out":0,"call":false},{"id":"ft","start":138.57,"end":159.13,"media_start":191.6,"rate":1.3327,"cam":[[0,[1170,44,690,890],[425,120,590]]],"fade_in":0.3,"fade_out":0.6,"call":false}],"beats":[{"kicker":"Screen answer \u00b7 Muse Spark","headline":"4.1%, from my screen last week","detail":"Found in screen memory on my Mac, cropped by Vision, read by Spark.","width":880,"chips":[],"id":"cold-b","start":10.8,"end":14.7},{"kicker":"Settings \u00b7 Meta Muse","headline":"Each one is opt-in","chips":["Fast live text","Screen answers","Live answers","Floating panel"],"width":400,"id":"settings","start":20.2,"end":29.9},{"kicker":"Live Radar","headline":"One press, then back to the call","width":400,"chips":[],"id":"start","start":30.3,"end":37.24},{"kicker":"Voice Transcribe \u2192 Muse Spark","headline":"Caught as it\u2019s said","detail":"Every item has to quote a line from the call, or it\u2019s dropped.","width":880,"chips":[],"id":"commit","start":49.88,"end":57.56},{"kicker":"Live answers \u00b7 Muse Wonder","headline":"It looks it up in my work","detail":"What LokalBot remembers comes first, then my documents, sheets, PDFs and code. Real time.","width":880,"chips":[],"id":"q1-look","start":65.62,"end":79.22},{"kicker":"Quote checked","headline":"$12 per seat, from the sheet\u2019s own row","chips":["Northwind pricing v2.xlsx","question \u2192 answer: 17 s"],"width":880,"id":"q1-answer","start":79.72,"end":87.38},{"kicker":"Contradiction \u00b7 Muse Spark","headline":"We agreed on Monday the 3rd","detail":"Quoted from the Launch planning meeting, October 21, found by search on my Mac.","width":880,"chips":[],"id":"contra","start":97.48,"end":103.64},{"kicker":"Live answers \u00b7 code","headline":"It reads the repository too","detail":"Tracked files only. Never .env files or keys.","width":400,"chips":[],"id":"q2-look","start":113.95,"end":119.55},{"kicker":"Quote checked","headline":"Yes, hidden by default","detail":"AppSettings.swift, line 176, linked on GitHub at the commit it read.","chips":["question \u2192 answer: 22 s"],"width":880,"id":"q2-answer","start":120.55,"end":126.15},{"kicker":"After the call","headline":"All of it, on the board","width":400,"chips":[],"id":"board","start":126.85,"end":135.07},{"kicker":"Follow-through \u00b7 Muse Wonder","headline":"It drafts. I approve.","detail":"The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.","width":880,"chips":[],"id":"ft","start":139.17,"end":159.03}],"scenes":{"title":{"start":14.8,"end":19.8},"models":{"start":159.13,"end":173.49,"cues":[162.82,164.46,166.9,169.38]},"endcard":{"start":173.49,"end":179.49}},"src":[1440,1080],"total":179.49,"badge":{"text":"Filmed by the CI test \u00b7 scripted call \u00b7 live Muse replies","start":0.0,"end":173.49}};
+      const C = {"shots":[{"id":"cold-a","start":0.0,"end":5.2,"media_start":89.4,"rate":1.0,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0,"fade_out":0,"call":true},{"id":"cold-b","start":5.2,"end":14.8,"media_start":94.6,"rate":0.9792,"cam":[[0,[500,60,1370,829],[0,62,3200]],[2.6,[1279,44,581,890],[2440,88,736]],[5.2,[1279,44,581,890],[2440,88,736]],[7.2,[1100,110,760,780],[2440,88,736]]],"fade_in":0,"fade_out":0.5,"call":false},{"id":"settings","start":19.8,"end":30.0,"media_start":41,"rate":0.9804,"cam":[[0,[500,60,1370,829],[1290,470,1460]],[9.0,[500,60,1370,829],[1320,490,1360]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"start","start":30.0,"end":37.34,"media_start":261.9,"rate":0.8174,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"c01","start":37.34,"end":44.55,"media_start":62,"rate":0.2219,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0,"fade_out":0,"call":true},{"id":"c02","start":44.55,"end":48.38,"media_start":63.6,"rate":0.8355,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0,"fade_out":0,"call":true},{"id":"commit","start":48.38,"end":57.66,"media_start":66.8,"rate":0.2802,"cam":[[0,[500,60,1370,829],[0,62,3200]],[2.6,[1279,44,581,890],[2440,88,736]]],"fade_in":0,"fade_out":0,"call":false},{"id":"c04","start":57.66,"end":62.34,"media_start":69.4,"rate":0.6838,"cam":[[0,[1279,44,581,890],[2440,88,736]],[2.0,[500,60,1370,829],[0,62,3200]]],"fade_in":0,"fade_out":0,"call":true},{"id":"c05","start":62.34,"end":65.32,"media_start":72.6,"rate":1.0067,"cam":[[0,[500,60,1370,829],[0,62,3200]],[0.3,[500,60,1370,829],[0,62,3200]],[2.9,[1279,44,581,890],[2440,88,736]]],"fade_in":0,"fade_out":0,"call":true},{"id":"q1-look","start":65.32,"end":75.32,"media_start":75.6,"rate":1.0,"cam":[[0,[1279,44,581,890],[2440,88,736]]],"fade_in":0,"fade_out":0,"call":false},{"id":"q1-answer","start":75.32,"end":83.48,"media_start":85.6,"rate":0.3431,"cam":[[0,[1279,44,581,890],[2440,88,736]],[1.8,[1100,110,760,780],[2440,88,736]]],"fade_in":0,"fade_out":0.4,"call":false},{"id":"c07","start":83.48,"end":89.18,"media_start":100.6,"rate":0.7368,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0.4,"fade_out":0,"call":true},{"id":"c08","start":89.18,"end":93.28,"media_start":104.8,"rate":1.0732,"cam":[[0,[500,60,1370,829],[0,62,3200]],[0.6,[500,60,1370,829],[0,62,3200]],[3.4,[1100,110,760,780],[2440,88,736]]],"fade_in":0,"fade_out":0,"call":true},{"id":"contra","start":93.28,"end":99.74,"media_start":109.2,"rate":0.387,"cam":[[0,[1100,110,760,780],[2440,88,736]]],"fade_in":0,"fade_out":0.4,"call":false},{"id":"c09","start":99.74,"end":107.47,"media_start":119.6,"rate":1.9664,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0.4,"fade_out":0,"call":true},{"id":"c10","start":107.47,"end":109.65,"media_start":134.8,"rate":1.1927,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0,"fade_out":0,"call":true},{"id":"q2-look","start":109.65,"end":115.65,"media_start":137.4,"rate":0.8167,"cam":[[0,[500,60,1370,829],[0,62,3200]],[3.4,[500,60,1370,829],[0,62,3200]],[6.0,[1279,44,581,890],[2440,88,736]]],"fade_in":0,"fade_out":0,"call":false},{"id":"q2-answer","start":115.65,"end":122.25,"media_start":142.3,"rate":0.6061,"cam":[[0,[1279,44,581,890],[2440,88,736]],[1.8,[1100,110,760,780],[2440,88,736]]],"fade_in":0,"fade_out":0.5,"call":false},{"id":"board","start":122.25,"end":131.17,"media_start":191.7,"rate":1.009,"cam":[[0,[500,60,1370,829],[0,62,3200]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"meeting","start":131.17,"end":134.57,"media_start":209,"rate":1.0,"cam":[[0,[500,60,1370,829],[960,300,2160]]],"fade_in":0.4,"fade_out":0,"call":false},{"id":"ft","start":134.57,"end":155.13,"media_start":222.6,"rate":1.5272,"cam":[[0,[1170,44,690,890],[945,190,1310]]],"fade_in":0.3,"fade_out":0.6,"call":false}],"beats":[{"kicker":"Screen answer \u00b7 Muse Spark","headline":"4.1%, from my screen","detail":"Found in screen memory on my Mac, cropped by Vision, read by Spark.","width":880,"chips":[],"id":"cold-b","start":10.8,"end":14.7},{"kicker":"Settings \u00b7 Meta Muse","headline":"Each one is opt-in","chips":["Fast live text","Screen answers","Live answers","Floating panel"],"width":400,"id":"settings","start":20.2,"end":29.9},{"kicker":"Live Radar","headline":"One press, then back to the call","width":400,"chips":[],"id":"start","start":30.3,"end":37.24},{"kicker":"Voice Transcribe \u2192 Muse Spark","headline":"Caught as it\u2019s said","detail":"Every item has to quote a line from the call, or it\u2019s dropped.","width":880,"chips":[],"id":"commit","start":50.18,"end":57.56},{"kicker":"Live answers \u00b7 Muse Wonder","headline":"It looks it up in my work","detail":"What LokalBot remembers comes first, then my documents, sheets, PDFs and code.","width":880,"chips":[],"id":"q1-look","start":65.62,"end":75.22},{"kicker":"Quote checked","headline":"$12 per seat, from the sheet\u2019s own row","chips":["Northwind pricing v2.xlsx","caught \u2192 answered: 12 s"],"width":880,"id":"q1-answer","start":75.72,"end":83.38},{"kicker":"Contradiction \u00b7 Muse Spark","headline":"We agreed on Monday the 3rd","detail":"Quoted from the Launch planning meeting, October 25, found by search on my Mac.","width":880,"chips":[],"id":"contra","start":93.48,"end":99.64},{"kicker":"Live answers \u00b7 code","headline":"It reads the repository too","detail":"Tracked files only. Never .env files or keys.","width":400,"chips":[],"id":"q2-look","start":109.95,"end":115.55},{"kicker":"Quote checked","headline":"Yes, hidden by default","detail":"AppSettings.swift, line 176, linked on GitHub at the commit it read.","chips":["caught \u2192 answered: 16 s"],"width":880,"id":"q2-answer","start":116.55,"end":122.15},{"kicker":"After the call","headline":"All of it, on the board","width":400,"chips":[],"id":"board","start":122.85,"end":131.07},{"kicker":"Follow-through \u00b7 Muse Wonder","headline":"It drafts. I approve.","detail":"The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.","width":880,"chips":[],"id":"ft","start":135.17,"end":155.03}],"scenes":{"title":{"start":14.8,"end":19.8},"models":{"start":155.13,"end":169.49,"cues":[158.82,160.46,162.9,165.38]},"endcard":{"start":169.49,"end":175.49}},"total":175.49,"fps":60,"canvas":[1920,1080]};
       const tl = gsap.timeline({ paused: true });
       tl.fromTo("#grid", { backgroundPosition: "0px 0px" }, { backgroundPosition: "-96px -48px", duration: C.total, ease: "none" }, 0);
       // A camera keyframe is [time, [box x, y, w, h], [film x, y, w]]: the card's place on the canvas and
-      // the part of the film it shows, as wide as w and as tall as the box's shape allows.
-      const view = (box, src) => {
+      // the part of the film it shows, as wide as w and as tall as the box's shape allows. Between keyframes
+      // the scale changes geometrically around the one film point both poses agree on, and the box's edges
+      // follow the same curve, so nothing slides against anything. Every frame is set exactly, as
+      // transforms and a clip path: both land between pixels, where layout properties would snap to them.
+      const pose = ([, box, src]) => {
         const k = box[2] / src[2];
-        return { card: { left: box[0], top: box[1], width: box[2], height: box[3] },
-                 video: { x: -src[0] * k, y: -src[1] * k, scale: k } };
+        return { box, k, tx: box[0] - src[0] * k, ty: box[1] - src[1] * k };
+      };
+      const smoother = u => u * u * u * (u * (6 * u - 15) + 10);
+      const lerp = (a, b, m) => a + (b - a) * m;
+      const place = (s, p, at) => {
+        const [l, t, w, h] = p.box, [cw, ch] = C.canvas;
+        tl.set("#frame-" + s.id, { clipPath: `inset(${t.toFixed(3)}px ${(cw - l - w).toFixed(3)}px ${(ch - t - h).toFixed(3)}px ${l.toFixed(3)}px round 18px)` }, at);
+        tl.set("#v-" + s.id, { x: p.tx, y: p.ty, scale: p.k, force3D: false, transformOrigin: "0 0" }, at);
       };
       for (const s of C.shots) {
-        const card = "#card-" + s.id, video = "#v-" + s.id;
-        const first = view(s.cam[0][1], s.cam[0][2]);
-        tl.set(card, first.card, 0);
-        tl.set(video, first.video, 0);
+        const card = "#card-" + s.id;
+        place(s, pose(s.cam[0]), 0);
         const fadeIn = s.fade_in ?? 0.35, fadeOut = s.fade_out ?? 0.35;
         if (s.start === 0 || fadeIn === 0) tl.set(card, { opacity: 1 }, s.start);
         else tl.fromTo(card, { opacity: 0 }, { opacity: 1, duration: fadeIn, ease: "power1.out" }, s.start);
@@ -324,10 +370,15 @@
           tl.to("#speed-" + s.id, { opacity: 0, duration: 0.3 }, s.end - 0.4);
         }
         for (let i = 1; i < s.cam.length; i++) {
-          const [t0] = s.cam[i - 1], [t1, box, src] = s.cam[i];
-          const v = view(box, src), ease = s.cam[i][3] || "power2.inOut";
-          tl.to(card, { ...v.card, duration: t1 - t0, ease }, s.start + t0);
-          tl.to(video, { ...v.video, duration: t1 - t0, ease }, s.start + t0);
+          const a = pose(s.cam[i - 1]), b = pose(s.cam[i]), t0 = s.cam[i - 1][0], t1 = s.cam[i][0];
+          const frames = Math.round((t1 - t0) * C.fps);
+          const same = Math.abs(b.k / a.k - 1) < 1e-4;
+          for (let f = 1; f <= frames; f++) {
+            const e = smoother(f / frames);
+            const m = same ? e : (a.k * Math.pow(b.k / a.k, e) - a.k) / (b.k - a.k);
+            place(s, { box: a.box.map((v, n) => lerp(v, b.box[n], m)), k: same ? a.k : a.k * Math.pow(b.k / a.k, e),
+                       tx: lerp(a.tx, b.tx, m), ty: lerp(a.ty, b.ty, m) }, s.start + t0 + f / C.fps);
+          }
         }
       }
       for (const b of C.beats) {
@@ -336,10 +387,6 @@
         if (b.chips && b.chips.length)
           tl.fromTo(el + " .chip", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: "power2.out" }, b.start + 0.4);
         tl.to(el, { opacity: 0, y: -10, duration: 0.4, ease: "power1.in" }, b.end - 0.4);
-      }
-      if (C.badge) {
-        tl.fromTo("#badge", { opacity: 0 }, { opacity: 1, duration: 0.5 }, C.badge.start);
-        tl.to("#badge", { opacity: 0, duration: 0.5 }, C.badge.end - 0.5);
       }
       const sc = C.scenes;
       tl.fromTo("#title", { opacity: 0 }, { opacity: 1, duration: 0.5 }, sc.title.start);

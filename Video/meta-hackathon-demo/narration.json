@@ -1,8 +1,8 @@
 {
   "note": "Narration is first person in the author's own cloned voice; 'stevan' and 'ana' lines are the call, as the CI film's script says them. Every claim is checked against the footage named in BRIEF.md.",
   "lines": [
-    {"id": "c03", "voice": "ana", "text": "And what was our trial-to-paid conversion last month, by the way?"},
-    {"id": "n01", "voice": "narrator", "text": "Someone asks for a number on a call. LokalBot saw it on my screen last week, and answers before I've found the tab."},
+    {"id": "c03", "voice": "ana", "text": "And what was our trial-to-paid conversion in September, by the way?"},
+    {"id": "n01", "voice": "narrator", "text": "Someone asks for a number on a call. LokalBot saw it on my screen earlier, and answers before I've found the tab."},
     {"id": "n02", "voice": "narrator", "text": "LokalBot already records my meetings and remembers my screen, on my Mac. For this hackathon, I connected that memory to three Meta models."},
     {"id": "n03", "voice": "narrator", "text": "I'm on a call with Ana about our launch. I press Start Radar, and a small panel floats over the call."},
     {"id": "c01", "voice": "ana", "text": "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."},

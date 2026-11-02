@@ -11,7 +11,7 @@
  },
  {
   "file": "c03-s11.mp3",
-  "heard": "And what was our trial-to-paid conversion last month, by the way?",
+  "heard": "And what was our trial to paid conversion in September, by the way?",
   "missing": []
  },
  {
@@ -71,10 +71,8 @@
  },
  {
   "file": "n01-s11.mp3",
-  "heard": "Someone asks for a number on a call. LokalBot saw it on my screen last week, and answers before I found the tab.",
-  "missing": [
-   "ive"
-  ]
+  "heard": "Someone asks for a number on a call. LokalBot saw it on my screen earlier and answers before I've found the tab.",
+  "missing": []
  },
  {
   "file": "n02-s11.mp3",

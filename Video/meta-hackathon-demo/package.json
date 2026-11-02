@@ -5,6 +5,6 @@
   "scripts": {
     "dev": "npx --yes hyperframes@0.8.150 preview",
     "check": "npx --yes hyperframes@0.8.150 check",
-    "render": "npx --yes hyperframes@0.8.150 render --fps 30 --quality delivery --workers 4 --strict --output renders/meta-hackathon-demo.mp4"
+    "render": "npx --yes hyperframes@0.8.150 render --fps 60 --quality delivery --workers 4 --strict --output renders/meta-hackathon-demo.mp4"
   }
 }

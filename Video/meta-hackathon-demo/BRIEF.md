@@ -14,9 +14,9 @@ voice: ElevenLabs eleven_v4; narration and Stevan's lines in the author's own vo
 
 ## Intent
 
-The user asked to "use the scripted demo but improve it": the film is cut from the CI UI test (`LokalBotUITests/HackathonFilmUITests.swift`, workflow `meta-hackathon-film.yml`), which drives the real app on a hosted Mac with live Muse Spark and Muse Wonder replies. The call's words are scripted, because the runner has no meeting audio; the film says so on screen and on the end card.
+The user asked to "use the scripted demo but improve it": the film is cut from the CI UI test (`LokalBotUITests/HackathonFilmUITests.swift`, workflow `meta-hackathon-film.yml`), which drives the real app on a hosted Mac with live Muse Spark and Muse Wonder replies. The call's words are scripted, because the runner has no meeting audio; the end card says so.
 
-Story, in order: a screen answer as the cold open (4.1% from last week's dashboard), the title, the Meta Muse settings, Start Radar over a call, a commitment caught as it's said, a live answer from the pricing sheet, the launch-date contradiction, a live answer from the code, the board after the call, Follow-through drafting for approval, the three models, the end card.
+Story, in order: a screen answer as the cold open (4.1% from a dashboard seen earlier), the title, the Meta Muse settings, Start Radar over a call, a commitment caught as it's said, a live answer from the pricing sheet, the launch-date contradiction, a live answer from the code, the board after the call, Follow-through drafting for approval, the three models, the end card.
 
 ## Customizations
 

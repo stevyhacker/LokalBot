@@ -1,4 +1,8 @@
 {
- "_note": "Run 40884392779: the panel question was caught at 93 (the question count goes to 3) while the conversion answer held the spotlight.",
- "q2_caught": 93
+ "_note": "Moments OCR can't see in run 41470837273: its capture stalled from 52 to 62 s and 122 to 135 s. q2_caught is q2_answer minus the 16 s on the code answer's card. press is where the Start Radar clip from the earlier Retina take starts, appended to film.mp4.",
+ "live_view": 52,
+ "call_open": 62,
+ "c08": 105,
+ "q2_caught": 126,
+ "press": 261.9
 }
