@@ -1,6 +1,7 @@
 //! The Mac's end: `SyncServer` publishes records into its database and
 //! serves paired devices over TCP.
 
+mod answers;
 mod session;
 pub(crate) mod store;
 
@@ -18,11 +19,11 @@ use serde_json::Value;
 
 use crate::error::{Result, SyncError};
 use crate::keys::{self, KEY_LEN};
-use crate::messages::Message;
 use crate::pairing::Payload;
 use crate::records::{KINDS, MANIFEST, MANIFEST_KEY, iso_from_unix, now_iso, unix_now};
 use crate::wire::{Channel, PAIRING_ID_LEN, Tuning};
 
+use self::answers::{Answer, Answers};
 use self::store::HostStore;
 
 /// More simultaneous connections than any person's devices need.
@@ -85,27 +86,25 @@ pub trait ServerDelegate: Send + Sync {
     fn devices_changed(&self);
 }
 
-/// Streams one answer back to the phone that asked. Calls after the answer
-/// finished or the phone disconnected are ignored.
+/// Streams one answer to the phone that asked. The Mac finishes it even if
+/// the phone disconnects, and the phone gets it by asking again with the
+/// same `requestId` (see `answers`). Calls after the answer finished are
+/// ignored.
 #[derive(uniffi::Object)]
 pub struct AskSink {
-    channel: Arc<Channel>,
-    request_id: String,
+    answer: Arc<Answer>,
+    answers: Arc<Answers>,
     finished: AtomicBool,
-    events: Sender<session::Event>,
 }
 
 #[uniffi::export]
 impl AskSink {
     /// The next part of the answer text.
     pub fn delta(&self, text: String) {
-        if self.finished.load(Ordering::SeqCst) || self.channel.is_closed() {
+        if self.finished.load(Ordering::SeqCst) {
             return;
         }
-        let _ = self.channel.send(&Message::AskDelta {
-            request_id: self.request_id.clone(),
-            text,
-        });
+        self.answer.delta(text);
     }
 
     /// The final answer: records.md's Ask result, as JSON.
@@ -113,21 +112,17 @@ impl AskSink {
         if self.finished.swap(true, Ordering::SeqCst) {
             return;
         }
-        let message = match serde_json::from_str::<Value>(&result_json) {
+        match serde_json::from_str::<Value>(&result_json) {
             Ok(Value::Object(mut result)) => {
-                result.insert("requestId".into(), Value::String(self.request_id.clone()));
-                Message::AskDone {
-                    request_id: self.request_id.clone(),
-                    result: Value::Object(result),
-                }
+                let request_id = self.answer.request_id().to_owned();
+                result.insert("requestId".into(), Value::String(request_id));
+                self.answer.done(Value::Object(result));
             }
-            _ => Message::AskFailed {
-                request_id: self.request_id.clone(),
-                message: "The Mac produced an unreadable answer.".into(),
-            },
-        };
-        let _ = self.channel.send(&message);
-        let _ = self.events.send(session::Event::AskFinished);
+            _ => self.answer.failed(
+                &self.answers,
+                "The Mac produced an unreadable answer.".into(),
+            ),
+        }
     }
 
     /// The Mac could not answer.
@@ -135,11 +130,17 @@ impl AskSink {
         if self.finished.swap(true, Ordering::SeqCst) {
             return;
         }
-        let _ = self.channel.send(&Message::AskFailed {
-            request_id: self.request_id.clone(),
-            message,
-        });
-        let _ = self.events.send(session::Event::AskFinished);
+        self.answer.failed(&self.answers, message);
+    }
+}
+
+impl AskSink {
+    fn new(answer: Arc<Answer>, answers: Arc<Answers>) -> Self {
+        Self {
+            answer,
+            answers,
+            finished: AtomicBool::new(false),
+        }
     }
 }
 
@@ -179,6 +180,7 @@ pub(crate) struct ServerInner {
     sessions: Mutex<HashMap<u64, SessionHandle>>,
     next_session: AtomicU64,
     connections: AtomicUsize,
+    answers: Arc<Answers>,
 }
 
 /// The Mac's listener and record database.
@@ -209,6 +211,7 @@ impl SyncServer {
                 sessions: Mutex::new(HashMap::new()),
                 next_session: AtomicU64::new(1),
                 connections: AtomicUsize::new(0),
+                answers: Arc::default(),
             }),
         }))
     }
@@ -326,6 +329,7 @@ impl SyncServer {
             .store
             .lock()
             .remove_device(&device_id, &now_iso())?;
+        self.inner.answers.forget_device(&device_id);
         let sessions: Vec<Sender<session::Event>> = self
             .inner
             .sessions

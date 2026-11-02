@@ -93,6 +93,7 @@ pub(crate) fn fast_tuning() -> Tuning {
         handshake_timeout: Duration::from_secs(5),
         approval_timeout: Duration::from_secs(3),
         ask_timeout: Duration::from_secs(5),
+        answer_retention: Duration::from_secs(60),
         offer_lifetime_secs: 300,
         batch_bytes: 512 * 1024,
     }

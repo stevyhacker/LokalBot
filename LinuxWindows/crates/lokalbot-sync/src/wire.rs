@@ -43,6 +43,9 @@ pub(crate) struct Tuning {
     pub approval_timeout: Duration,
     /// How long a phone waits for the next part of an answer.
     pub ask_timeout: Duration,
+    /// How long the Mac keeps a finished answer for a phone that
+    /// disconnected while it was written.
+    pub answer_retention: Duration,
     /// Seconds a pairing offer stays valid.
     pub offer_lifetime_secs: i64,
     pub batch_bytes: usize,
@@ -57,6 +60,7 @@ impl Default for Tuning {
             handshake_timeout: Duration::from_secs(10),
             approval_timeout: Duration::from_secs(120),
             ask_timeout: Duration::from_secs(600),
+            answer_retention: Duration::from_secs(24 * 60 * 60),
             offer_lifetime_secs: 5 * 60,
             batch_bytes: 512 * 1024,
         }

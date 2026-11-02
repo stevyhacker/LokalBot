@@ -15,13 +15,17 @@ public actor FixtureStore: CompanionStore {
         public var pairedStatus: SyncStatus?
         /// Whether Ask reaches the (pretend) Mac.
         public var macReachable: Bool
+        /// The first this many answers drop after their first word, as on a
+        /// lock screen: the question is queued and asking again picks it up.
+        public var droppedAnswers: Int
 
         public init(now: @escaping @Sendable () -> Date = { Date() }, keepsChangesPending: Bool = false,
-                    pairedStatus: SyncStatus? = nil, macReachable: Bool = true) {
+                    pairedStatus: SyncStatus? = nil, macReachable: Bool = true, droppedAnswers: Int = 0) {
             self.now = now
             self.keepsChangesPending = keepsChangesPending
             self.pairedStatus = pairedStatus
             self.macReachable = macReachable
+            self.droppedAnswers = droppedAnswers
         }
     }
 
@@ -226,6 +230,12 @@ public actor FixtureStore: CompanionStore {
                     onDelta: @escaping @Sendable (String) -> Void) async throws -> AskResult {
         guard configuration.macReachable else { throw CompanionStoreError.unreachable }
         let (answer, citations) = sampleAnswer(to: request.question)
+        if configuration.droppedAnswers > 0 {
+            configuration.droppedAnswers -= 1
+            onDelta(String(answer.prefix { $0 != " " }))
+            if !queue.contains(where: { $0.requestId == request.requestId }) { queue.append(request) }
+            throw CompanionStoreError.interrupted
+        }
         var streamed = ""
         for word in answer.split(separator: " ", omittingEmptySubsequences: false) {
             let piece = (streamed.isEmpty ? "" : " ") + word
@@ -236,7 +246,9 @@ public actor FixtureStore: CompanionStore {
         let result = AskResult(requestId: request.requestId, answer: answer, citations: citations,
                                engineLabel: configuration.pairedStatus == nil ? "Sample library" : "Qwen3.6 35B",
                                location: .mac, answeredAt: configuration.now())
-        history.insert(AskExchange(request: request, result: result), at: 0)
+        if !history.contains(where: { $0.request.requestId == request.requestId }) {
+            history.insert(AskExchange(request: request, result: result), at: 0)
+        }
         queue.removeAll { $0.requestId == request.requestId }
         return result
     }

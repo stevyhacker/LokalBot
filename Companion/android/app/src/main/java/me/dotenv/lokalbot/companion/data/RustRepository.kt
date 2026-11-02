@@ -1,8 +1,10 @@
 package me.dotenv.lokalbot.companion.data
 
+import android.util.Log
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,9 @@ class RustRepository(
 
     private val scope = CoroutineScope(SupervisorJob() + io)
     private val syncLock = Mutex()
+
+    /** Request ids being asked right now, so a queued one isn't asked twice at once. */
+    private val asking: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val macKey: ByteArray? = client.pairedMac()?.macKeyB64?.let(::decodeKey)
 
     override val id: String = "paired-" + (macKey?.let { keyFingerprint(it) } ?: "unpaired")
@@ -135,18 +140,27 @@ class RustRepository(
             }
         }
         var revoked = false
+        val started = System.nanoTime()
+        asking += request.requestId
         val event = try {
             val json = RecordJson.encodeToString(AskRequest.serializer(), request)
             val addresses = discover(fingerprint())
             val result = core { client.ask(json, addresses, listener) }.decode(AskResult.serializer())
             AskEvent.Done(result)
+        } catch (e: SyncException.Interrupted) {
+            // The core queued the question; the next ask of it picks up the answer.
+            Log.i(TAG, "ask interrupted after ${(System.nanoTime() - started) / 1_000_000_000} s: ${e.message}")
+            AskEvent.Interrupted
         } catch (e: SyncException) {
+            Log.w(TAG, "ask failed: ${e::class.simpleName}: ${e.message}")
             val reason = failureOf(e)
             revoked = reason == SyncFailure.Revoked
             if (reason == SyncFailure.Unreachable || revoked) {
                 _syncState.value = SyncState.Failed(statusInfo(), reason, e.message.orEmpty())
             }
             AskEvent.Failed(e.message.orEmpty(), macUnreachable = reason == SyncFailure.Unreachable)
+        } finally {
+            asking -= request.requestId
         }
         // Deltas arrive on the core's thread while ask() blocks; the flow ends with this event.
         send(event)
@@ -173,6 +187,7 @@ class RustRepository(
             if (report.received > 0u || report.deleted > 0u || report.opsApplied > 0u) changed()
             SyncOutcome.Synced(report.received.toInt(), report.deleted.toInt(), report.address)
         } catch (e: SyncException) {
+            Log.w(TAG, "sync failed: ${e::class.simpleName}: ${e.message}")
             SyncOutcome.Failed(failureOf(e), e.message.orEmpty())
         }
         _syncState.value = when (outcome) {
@@ -184,14 +199,24 @@ class RustRepository(
         outcome
     }
 
-    /** Questions asked while the Mac was away: ask them now and announce each answer. */
+    /**
+     * Questions asked while the Mac was away, or whose connection dropped
+     * while it answered: ask them now and announce each answer. A question
+     * Ask is asking right now is left to it.
+     */
     private suspend fun askQueuedQuestions() {
         val answered = askHistory(500).map { it.request.requestId }.toSet()
-        for (request in queuedQuestions().filter { it.requestId !in answered }) {
+        for (request in queuedQuestions().filter { it.requestId !in answered && it.requestId !in asking }) {
             val addresses = discover(fingerprint())
-            val result = runCatching {
-                core { client.ask(RecordJson.encodeToString(AskRequest.serializer(), request), addresses, NoDeltas) }
-            }.getOrNull() ?: break
+            if (!asking.add(request.requestId)) continue
+            val result = try {
+                runCatching {
+                    core { client.ask(RecordJson.encodeToString(AskRequest.serializer(), request), addresses, NoDeltas) }
+                }.getOrNull()
+            } finally {
+                asking -= request.requestId
+            }
+            if (result == null) break
             onQueuedAnswer(request, result.decode(AskResult.serializer()))
             changed()
         }
@@ -228,6 +253,8 @@ class RustRepository(
     }
 
     companion object {
+        private const val TAG = "LokalBot"
+
         fun failureOf(e: SyncException): SyncFailure = when (e) {
             is SyncException.Unreachable, is SyncException.Io -> SyncFailure.Unreachable
             is SyncException.Revoked -> SyncFailure.Revoked

@@ -502,6 +502,37 @@ fn asking_streams_the_answer_and_keeps_it() {
 }
 
 #[test]
+fn a_slow_answer_without_text_keeps_the_connection() {
+    // The Mac's Ask agent can think for minutes before writing a word; pings
+    // must keep the session open past the idle timeout.
+    let host = Host::new();
+    host.delegate.on_ask(|request, sink| {
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(4));
+            let result = json!({
+                "requestId": request["requestId"], "answer": "Done.", "citations": [],
+                "engineLabel": "Test engine", "location": "mac", "answeredAt": "2026-10-31T07:15:02.000Z"
+            });
+            sink.done(result.to_string());
+        });
+    });
+    let phone = Phone::paired(&host);
+    let slow = crate::wire::Tuning {
+        idle_timeout: Duration::from_secs(2),
+        ask_timeout: Duration::from_secs(30),
+        ..fast_tuning()
+    };
+    host.server.set_tuning(slow.clone());
+    phone.client.set_tuning(slow);
+    let result = phone
+        .client
+        .ask(question("q1"), vec![], Box::new(Collector(Arc::default())))
+        .unwrap();
+    let result: Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(result["answer"], "Done.");
+}
+
+#[test]
 fn a_failed_answer_is_an_error_and_is_not_kept() {
     let host = Host::new();
     host.delegate
@@ -525,6 +556,144 @@ fn a_failed_answer_is_an_error_and_is_not_kept() {
             .ask(question("q2"), vec![], Box::new(Collector(Arc::default()))),
         Err(SyncError::Protocol(_))
     ));
+}
+
+/// The Mac's answer to `request`: "Three " at once, "steps." after `pause`.
+fn answer_slowly(
+    asked: &Arc<AtomicUsize>,
+    pause: Duration,
+) -> impl Fn(Value, Arc<crate::AskSink>) + Send + Sync + 'static + use<> {
+    let asked = Arc::clone(asked);
+    move |request, sink| {
+        asked.fetch_add(1, Ordering::SeqCst);
+        sink.delta("Three ".into());
+        std::thread::spawn(move || {
+            std::thread::sleep(pause);
+            sink.delta("steps.".into());
+            let result = json!({
+                "requestId": request["requestId"], "answer": "Three steps.", "citations": [],
+                "engineLabel": "Test engine", "location": "mac", "answeredAt": "2026-10-31T07:15:02.000Z"
+            });
+            sink.done(result.to_string());
+        });
+    }
+}
+
+/// A phone that stops waiting for the next part of an answer after `wait`,
+/// as a locked phone or a lost Wi-Fi connection does.
+fn impatient(phone: &Phone, wait: Duration) {
+    phone.client.set_tuning(crate::wire::Tuning {
+        ask_timeout: wait,
+        ..fast_tuning()
+    });
+}
+
+#[test]
+fn an_answer_the_phone_left_is_finished_and_picked_up() {
+    let host = Host::new();
+    let asked = Arc::new(AtomicUsize::new(0));
+    host.delegate
+        .on_ask(answer_slowly(&asked, Duration::from_millis(800)));
+    let phone = Phone::paired(&host);
+    impatient(&phone, Duration::from_millis(200));
+    let error = phone
+        .client
+        .ask(question("q1"), vec![], Box::new(Collector(Arc::default())))
+        .unwrap_err();
+    assert!(matches!(error, SyncError::Interrupted(_)), "{error:?}");
+    // The question waits in the queue, and nothing is in the history yet.
+    assert_eq!(phone.client.queued_questions().unwrap().len(), 1);
+    assert!(phone.client.ask_history(0).unwrap().is_empty());
+
+    // The Mac finishes without the phone; asking again gets the whole
+    // answer at once and does not ask the Mac a second time.
+    std::thread::sleep(Duration::from_millis(1200));
+    impatient(&phone, Duration::from_secs(5));
+    let deltas = Arc::new(Mutex::new(Vec::new()));
+    let result = phone
+        .client
+        .ask(
+            question("q1"),
+            vec![],
+            Box::new(Collector(Arc::clone(&deltas))),
+        )
+        .unwrap();
+    assert_eq!(*deltas.lock(), ["Three steps."]);
+    let result: Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(result["answer"], "Three steps.");
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+    assert!(phone.client.queued_questions().unwrap().is_empty());
+    assert_eq!(phone.client.ask_history(0).unwrap().len(), 1);
+
+    // Picking it up again keeps one copy in the history.
+    phone
+        .client
+        .ask(question("q1"), vec![], Box::new(Collector(Arc::default())))
+        .unwrap();
+    assert_eq!(phone.client.ask_history(0).unwrap().len(), 1);
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn asking_again_while_the_mac_is_answering_continues_the_answer() {
+    let host = Host::new();
+    let asked = Arc::new(AtomicUsize::new(0));
+    host.delegate
+        .on_ask(answer_slowly(&asked, Duration::from_millis(1500)));
+    let phone = Phone::paired(&host);
+    impatient(&phone, Duration::from_millis(300));
+    assert!(matches!(
+        phone
+            .client
+            .ask(question("q1"), vec![], Box::new(Collector(Arc::default()))),
+        Err(SyncError::Interrupted(_))
+    ));
+
+    // Back while the Mac is still writing: the text so far, then the rest.
+    impatient(&phone, Duration::from_secs(5));
+    let deltas = Arc::new(Mutex::new(Vec::new()));
+    let result = phone
+        .client
+        .ask(
+            question("q1"),
+            vec![],
+            Box::new(Collector(Arc::clone(&deltas))),
+        )
+        .unwrap();
+    assert_eq!(*deltas.lock(), ["Three ", "steps."]);
+    let result: Value = serde_json::from_str(&result).unwrap();
+    assert_eq!(result["requestId"], "q1");
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn kept_answers_are_per_device_and_expire() {
+    let host = Host::new();
+    let asked = Arc::new(AtomicUsize::new(0));
+    host.delegate.on_ask(answer_slowly(&asked, Duration::ZERO));
+    let phone = Phone::paired(&host);
+    let ask = |phone: &Phone| {
+        phone
+            .client
+            .ask(question("q1"), vec![], Box::new(Collector(Arc::default())))
+            .unwrap()
+    };
+    ask(&phone);
+    ask(&phone);
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+
+    // Another device's question with the same id is its own.
+    let tablet = Phone::paired(&host);
+    ask(&tablet);
+    assert_eq!(asked.load(Ordering::SeqCst), 2);
+
+    // Past the retention the Mac answers afresh.
+    host.server.set_tuning(crate::wire::Tuning {
+        answer_retention: Duration::ZERO,
+        ..fast_tuning()
+    });
+    ask(&phone);
+    assert_eq!(asked.load(Ordering::SeqCst), 3);
 }
 
 #[test]

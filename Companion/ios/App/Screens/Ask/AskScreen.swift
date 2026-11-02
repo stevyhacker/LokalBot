@@ -6,6 +6,7 @@ import SwiftUI
 struct AskSplit: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppNavigator.self) private var navigator
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = AskModel()
     @State private var compactColumn = NavigationSplitViewColumn.detail
     @State private var handledRequest = 0
@@ -21,6 +22,10 @@ struct AskSplit: View {
             }
         }
         .task(id: session.revision) { await model.load(session) }
+        // Back from the lock screen or another app: pick up an answer the Mac kept writing.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.resumeWaiting(session) } }
+        }
         .onAppear(perform: consumeRequests)
         .onChange(of: navigator.newQuestionRequest) { consumeRequests() }
     }
@@ -67,6 +72,10 @@ struct ConversationList: View {
                             Label("Waiting for your Mac", systemImage: "clock")
                                 .labelStyle(.titleAndIcon)
                                 .foregroundStyle(LBTokens.Palette.attentionText)
+                        } else if conversation.turns.contains(where: { $0.state == .waiting }) {
+                            Label("Your Mac is answering", systemImage: "arrow.triangle.2.circlepath")
+                                .labelStyle(.titleAndIcon)
+                                .foregroundStyle(LBTokens.Palette.accentText)
                         }
                     }
                     .font(LBTokens.Typography.caption)

@@ -13,6 +13,9 @@ public final class AskModel {
             case queued
             /// The Mac didn't answer; the phone offers its own search and the queue.
             case macUnreachable
+            /// The connection dropped while the Mac answered. It keeps
+            /// answering, and the turn picks the answer up on return.
+            case waiting
             case failed(String)
         }
 
@@ -23,6 +26,11 @@ public final class AskModel {
         public var askedAt: Date
         /// "Search this device" results for this question.
         public var localResults: [SearchHit]?
+        /// The connection dropped once while the Mac answered, so the
+        /// question is queued.
+        public var interrupted = false
+        /// Picking up an answer: the next delta is the whole text so far.
+        var restartText = false
 
         public var id: String { request.requestId }
     }
@@ -71,6 +79,11 @@ public final class AskModel {
         }
         let saved = Set(history.map(\.request.requestId))
         for request in queued where !saved.contains(request.requestId) {
+            // An interrupted turn keeps its partial answer and its state.
+            if let memory = memoryTurn(request.requestId), memory.interrupted {
+                turnsByConversation[request.conversationId, default: []].append(memory)
+                continue
+            }
             turnsByConversation[request.conversationId, default: []].append(Turn(
                 request: request, answer: "", result: nil, state: .queued,
                 askedAt: memoryTurn(request.requestId)?.askedAt ?? Date()))
@@ -127,13 +140,29 @@ public final class AskModel {
         await send(turn.request, session: session)
     }
 
+    /// Picks up an answer whose connection dropped, e.g. when the phone is
+    /// unlocked again.
+    public func resumeWaiting(_ session: CompanionSession) async {
+        guard !isAnswering,
+              let waiting = conversations.lazy.flatMap(\.turns).last(where: { $0.state == .waiting }) else { return }
+        // The Mac sends the text so far as the first delta.
+        update(waiting.id) { $0.state = .answering; $0.restartText = true }
+        await send(waiting.request, session: session)
+    }
+
     private func send(_ request: AskRequest, session: CompanionSession) async {
         let id = request.requestId
+        session.askingIDs.insert(id)
+        defer { session.askingIDs.remove(id) }
         let addresses = await session.discoverAddresses()
         do {
             let result = try await session.store.ask(request, extraAddresses: addresses) { [weak self] delta in
                 Task { @MainActor in
-                    self?.update(id) { if $0.state == .answering { $0.answer += delta } }
+                    self?.update(id) {
+                        guard $0.state == .answering else { return }
+                        $0.answer = $0.restartText ? delta : $0.answer + delta
+                        $0.restartText = false
+                    }
                 }
             }
             update(id) {
@@ -141,8 +170,11 @@ public final class AskModel {
                 $0.answer = result.answer
                 $0.state = .answered
             }
+        } catch CompanionStoreError.interrupted {
+            update(id) { $0.state = .waiting; $0.interrupted = true }
         } catch CompanionStoreError.unreachable, CompanionStoreError.notPaired {
-            update(id) { $0.state = .macUnreachable }
+            // An interrupted question is queued already: out of reach, it keeps waiting.
+            update(id) { $0.state = $0.interrupted ? .waiting : .macUnreachable }
         } catch {
             update(id) { $0.state = .failed(error.localizedDescription) }
         }

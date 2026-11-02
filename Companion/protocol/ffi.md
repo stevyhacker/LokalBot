@@ -8,7 +8,7 @@ both apps decode them with their own `Codable` / kotlinx.serialization models.
 
 Errors are one enum, `SyncError`, with variants carrying a `message`:
 `Io`, `Protocol`, `Crypto`, `Storage`, `NotPaired`, `Unreachable`,
-`PairingRejected`, `PairingExpired`, `Revoked`, `InvalidInput`.
+`Interrupted`, `PairingRejected`, `PairingExpired`, `Revoked`, `InvalidInput`.
 
 ## Shared
 
@@ -89,6 +89,13 @@ Queued questions leave the queue only through `ask`: once the Mac answers
 question with the same `requestId`, in one step. A failure (`askFailed`, a
 timeout) or an unreachable Mac leaves it queued. `sync` never sends queued
 questions; after a sync the app asks each one itself.
+
+When the connection drops after the Mac has the question, `ask` queues the
+question itself and fails with `Interrupted`. The Mac keeps answering (see
+protocol.md, Flow for `purpose: "ask"`), so asking the same request again
+picks the answer up: the text so far arrives as the first delta, so an app
+showing a partial answer starts it over from that delta. An answer picked up
+twice is saved once.
 
 ```text
 // reads (JSON bodies from records.md; lists are newest first)

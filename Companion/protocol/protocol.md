@@ -141,6 +141,14 @@ Flow for `purpose: "sync"`:
 Flow for `purpose: "ask"`: `hello` → `welcome` → `ask` → `askDelta`* →
 `askDone` or `askFailed` → close. No records are sent.
 
+An answer outlives the connection that asked. If the phone disconnects
+(a lock screen, a Wi-Fi change), the host still finishes the answer and keeps
+it for 24 hours, per device and `requestId`. An `ask` with a `requestId` the
+host is answering or kept for this device asks the Mac nothing new: the host
+sends the text so far as one `askDelta`, then the rest as it arrives, or
+`askDone` at once. A failed answer is not kept, so asking again after
+`askFailed` asks the Mac again.
+
 A removed device that completes a session handshake gets `revoked` and the
 connection closes. (A device whose key the host never knew is dropped during
 the handshake and learns nothing.)

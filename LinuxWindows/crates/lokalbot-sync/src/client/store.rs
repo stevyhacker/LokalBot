@@ -451,7 +451,9 @@ impl ClientStore {
         Ok(questions)
     }
 
-    /// Saves an answer and drops the question from the queue.
+    /// Saves an answer and drops the question from the queue. An answer
+    /// picked up twice (two attempts attached to the same answer) is kept
+    /// once.
     pub fn save_answer(
         &self,
         request_id: &str,
@@ -461,7 +463,8 @@ impl ClientStore {
     ) -> Result<()> {
         let tx = self.db.unchecked_transaction()?;
         tx.execute(
-            "INSERT INTO ask_history (request_id, request, result, answered_at) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO ask_history (request_id, request, result, answered_at) \
+             SELECT ?1, ?2, ?3, ?4 WHERE NOT EXISTS (SELECT 1 FROM ask_history WHERE request_id = ?1)",
             params![request_id, request.to_string(), result.to_string(), now],
         )?;
         tx.execute("DELETE FROM questions WHERE request_id = ?1", [request_id])?;

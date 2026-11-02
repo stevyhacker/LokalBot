@@ -56,6 +56,7 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         guard let error = error as? SyncError else { return error }
         switch error {
         case .Unreachable: return CompanionStoreError.unreachable
+        case .Interrupted: return CompanionStoreError.interrupted
         case .NotPaired: return CompanionStoreError.notPaired
         case .PairingRejected: return CompanionStoreError.pairingRejected
         case .PairingExpired: return CompanionStoreError.pairingExpired

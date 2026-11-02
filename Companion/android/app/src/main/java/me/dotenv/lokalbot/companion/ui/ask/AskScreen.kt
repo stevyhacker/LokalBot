@@ -84,6 +84,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import me.dotenv.lokalbot.companion.R
@@ -134,6 +135,11 @@ fun AskScreen(repository: CompanionRepository) {
             draft = it
             navigator.askDraft = null
         }
+    }
+    // Back from the lock screen or another app: pick up an answer the Mac kept writing.
+    LifecycleStartEffect(viewModel) {
+        viewModel.resumeWaiting()
+        onStopOrDispose {}
     }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val send = {
@@ -342,6 +348,7 @@ private fun TurnView(turn: AskTurnState, actions: TurnActions) {
             }
             TurnPhase.MacUnreachable -> Unreachable(turn, actions)
             TurnPhase.Queued -> Notice(stringResource(R.string.ask_queued), palette.accentFill, palette.accentText)
+            TurnPhase.Waiting -> Notice(stringResource(R.string.ask_waiting), palette.accentFill, palette.accentText)
             TurnPhase.Failed -> {
                 Notice(turn.error?.let { stringResource(R.string.ask_failed_with, it) } ?: stringResource(R.string.ask_stopped), palette.attention, palette.attentionText)
                 OutlinedButton(onClick = { actions.onRetry(turn.request.question) }) { Text(stringResource(R.string.ask_retry)) }

@@ -23,6 +23,11 @@ pub enum SyncError {
     /// No address of the Mac answered with a handshake.
     #[error("{0}")]
     Unreachable(String),
+    /// The connection dropped after the Mac had the question. The Mac keeps
+    /// answering; the question is queued, and asking it again picks up the
+    /// answer.
+    #[error("{0}")]
+    Interrupted(String),
     /// The person declined the pairing on the Mac, or did not answer.
     #[error("{0}")]
     PairingRejected(String),

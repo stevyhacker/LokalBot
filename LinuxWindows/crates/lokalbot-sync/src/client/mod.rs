@@ -274,6 +274,11 @@ impl SyncClient {
 
     /// Asks the Mac, streaming the answer's text to `listener`. Returns the
     /// result JSON (records.md, Ask) and saves it to the history.
+    ///
+    /// If the connection drops once the Mac has the question, the Mac keeps
+    /// answering: this queues the question and fails with `Interrupted`.
+    /// Asking the same request again picks the answer up, with the text so
+    /// far as the first delta.
     pub fn ask(
         &self,
         request_json: String,
@@ -298,6 +303,11 @@ impl SyncClient {
             &*listener,
         );
         channel.close();
+        if let Err(SyncError::Interrupted(_)) = &result {
+            self.store
+                .lock()
+                .queue_question(&request_id, &request, &now_iso())?;
+        }
         let result = self.finish(result)?;
         self.store
             .lock()
@@ -763,21 +773,26 @@ fn run_ask(
         cursor: 0,
         purpose: "ask".into(),
     })?;
-    let mut welcomed = false;
+    let mut asked = false;
     let mut deadline = Instant::now() + tuning.handshake_timeout;
     loop {
         let message = inbox
             .recv(channel, tuning, Some(deadline))
             .map_err(|e| match e {
-                SyncError::Io(_) if welcomed => SyncError::io("Your Mac took too long to answer."),
+                // A lock screen or a Wi-Fi change; the Mac answers anyway.
+                SyncError::Io(_) if asked => SyncError::Interrupted(
+                    "The connection to your Mac dropped while it was answering. \
+                     It keeps working, and the answer arrives when this device reconnects."
+                        .into(),
+                ),
                 other => other,
             })?;
         match message {
-            Message::Welcome { .. } if !welcomed => {
-                welcomed = true;
+            Message::Welcome { .. } if !asked => {
                 channel.send(&Message::Ask {
                     request: request.clone(),
                 })?;
+                asked = true;
                 deadline = Instant::now() + tuning.ask_timeout;
             }
             Message::AskDelta {

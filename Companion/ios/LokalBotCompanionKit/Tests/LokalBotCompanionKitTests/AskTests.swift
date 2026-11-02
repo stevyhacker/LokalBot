@@ -100,6 +100,32 @@ struct AskModelTests {
         #expect(model.turn(id)?.state == .queued)
     }
 
+    @Test func picksUpAnAnswerCutOffByTheLockScreen() async throws {
+        let status = SyncStatus(paired: true, lastSyncAt: SampleLibrary.referenceDate, lastAddress: "192.168.1.20:17890",
+                                cursor: 19, macName: "Sample Mac")
+        let store = try FixtureStore.sampleLibrary(configuration: .init(
+            now: { SampleLibrary.referenceDate }, pairedStatus: status, droppedAnswers: 1))
+        let session = CompanionSession(store: store)
+        await session.start()
+        let model = AskModel()
+        model.draft = "What did we decide about onboarding?"
+        await model.submit(session)
+        let id = try #require(model.current?.turns.first?.id)
+        #expect(model.turn(id)?.state == .waiting)
+        // The question waits in the queue, and a reload keeps the turn as it was.
+        #expect(try await store.queuedQuestions().map(\.requestId) == [id])
+        await model.load(session)
+        #expect(model.turn(id)?.state == .waiting)
+        #expect(model.turn(id)?.answer.isEmpty == false)
+
+        await model.resumeWaiting(session)
+        let turn = try #require(model.turn(id))
+        #expect(turn.state == .answered)
+        #expect(turn.answer == turn.result?.answer)
+        #expect(try await store.queuedQuestions().isEmpty)
+        #expect(try await store.askHistory(limit: 10).count == 1)
+    }
+
     @Test func searchTermsDropQuestionWords() {
         #expect(AskModel.searchTerms("What did we decide about the pricing tiers?") == "pricing tiers")
     }

@@ -50,6 +50,10 @@ public enum CompanionStoreError: Error, Equatable, LocalizedError {
     case notPaired
     /// No address answered. The phone offers to search its own copy instead.
     case unreachable
+    /// The connection dropped after the Mac had the question. The Mac keeps
+    /// answering and the question is queued; asking it again picks up the
+    /// answer, whose first delta is the text so far.
+    case interrupted
     case pairingRejected
     case pairingExpired
     /// The Mac removed this device; its copy has been erased.
@@ -61,6 +65,7 @@ public enum CompanionStoreError: Error, Equatable, LocalizedError {
         switch self {
         case .notPaired: "This device isn't paired with a Mac."
         case .unreachable: "Your Mac isn't reachable right now. It needs to be awake, with sharing on, on the same Wi-Fi or on Tailscale."
+        case .interrupted: "The connection to your Mac dropped, but it's still answering. The answer appears here when you come back."
         case .pairingRejected: "Your Mac didn't allow this device."
         case .pairingExpired: "This pairing code has expired. Show a new one on your Mac."
         case .revoked: "Your Mac removed this device, so its copy was erased."

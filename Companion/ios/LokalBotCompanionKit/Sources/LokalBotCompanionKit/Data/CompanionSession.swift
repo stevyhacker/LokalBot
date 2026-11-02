@@ -26,6 +26,8 @@ public final class CompanionSession {
     public private(set) var lastSyncError: String?
     /// One-off messages for the user, such as being removed by the Mac.
     public var notice: String?
+    /// Request ids being asked right now, so a queued one isn't asked twice at once.
+    var askingIDs: Set<String> = []
 
     /// Bonjour results as `host:port`, preferring the paired Mac. Set by the app.
     public var discoverAddresses: @MainActor () async -> [String] = { [] }
@@ -122,9 +124,13 @@ public final class CompanionSession {
         }
     }
 
+    /// Questions asked while the Mac was away, or whose connection dropped
+    /// while it answered. A question Ask is asking right now is left to it.
     private func answerQueuedQuestions(addresses: [String]) async {
         guard let queued = try? await store.queuedQuestions(), !queued.isEmpty else { return }
-        for request in queued {
+        for request in queued where !askingIDs.contains(request.requestId) {
+            askingIDs.insert(request.requestId)
+            defer { askingIDs.remove(request.requestId) }
             guard let result = try? await store.ask(request, extraAddresses: addresses, onDelta: { _ in }) else { break }
             onQueuedAnswer(request, result)
         }

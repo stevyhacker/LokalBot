@@ -51,6 +51,23 @@ struct AskTurnView: View {
             }
         case .macUnreachable:
             unreachable
+        case .waiting:
+            VStack(alignment: .leading, spacing: 10) {
+                if !turn.answer.isEmpty {
+                    metadata("LokalBot", systemImage: "sparkles", time: nil)
+                    answerText
+                }
+                Label {
+                    Text("The connection to your Mac dropped, but it's still answering. The answer appears here when you come back.")
+                } icon: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                }
+                .font(LBTokens.Typography.secondary)
+                .foregroundStyle(LBTokens.Palette.accentText)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lbStatusSurface(LBTokens.Palette.accentFill)
+            }
         case .queued:
             Label {
                 Text("Waiting for your Mac. It's sent the next time your Mac is reachable, and you'll get a notification with the answer.")

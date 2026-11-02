@@ -45,7 +45,7 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective November 1, 2026</p>
+      <p class="eyebrow">Effective November 2, 2026</p>
       <h1>Privacy Policy</h1>
       <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service. This page describes the Mac app; <a href="#windows-and-linux">Windows and Linux</a> lists where the Windows and Linux app, an alpha, differs.</p>
     </header>
@@ -90,7 +90,7 @@
         <li><strong>What is never shared:</strong> calendar attendee email addresses, speaker evidence and voice profiles, screenshots and their paths, captured screen text, the files you chose under Files, email, Personal Context, overnight memory, Ask conversations held on the Mac, settings, and API keys.</li>
         <li><strong>Where it travels:</strong> directly between your Mac and your devices, over your local network or your Tailscale network. LokalBot operates no server or relay and receives nothing. The Mac listens on one port and refuses every connection that doesn't come from a private network or Tailscale address. On the local network it announces itself with Bonjour under a neutral name unless you turn that off.</li>
         <li><strong>Encryption and pairing:</strong> every connection is end-to-end encrypted and mutually authenticated with the Noise Protocol Framework. A device pairs only by scanning a code on the Mac that expires after five minutes and works once, and only after you allow it there. Afterwards the Mac accepts only the keys of devices you paired.</li>
-        <li><strong>Questions and changes from your devices:</strong> with <strong>Answer questions from my devices</strong> on, the Mac answers with your Think model and its existing approvals and never searches screen memory or your files for a device; with an approved remote Think server, the question and its context go there as they do for Ask on the Mac, and the device shows it. A device can mark an action open, done, or deferred.</li>
+        <li><strong>Questions and changes from your devices:</strong> with <strong>Answer questions from my devices</strong> on, the Mac answers with your Think model and its existing approvals and never searches screen memory or your files for a device; with an approved remote Think server, the question and its context go there as they do for Ask on the Mac, and the device shows it. If the device disconnects before the answer is finished, the Mac finishes it and holds it in memory, never on disk, for up to 24 hours or until LokalBot quits, so the device can collect it. A device can mark an action open, done, or deferred.</li>
         <li><strong>Removing a device:</strong> remove it under Settings → Phones &amp; tablets; it is refused from its next connection. <strong>Remove this device</strong> on the device erases its copy.</li>
       </ul>
 

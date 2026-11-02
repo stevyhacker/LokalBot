@@ -56,7 +56,11 @@ interface CompanionRepository {
     /** Queues `action.setStatus` for the Mac and shows it locally as pending. */
     suspend fun setActionStatus(meetingId: String, actionId: String, status: ActionStatus)
 
-    /** Streams the Mac's answer. Ends with [AskEvent.Done] or [AskEvent.Failed]. */
+    /**
+     * Streams the Mac's answer. Ends with [AskEvent.Done], [AskEvent.Failed] or
+     * [AskEvent.Interrupted]. Asking the same request again after an
+     * interruption picks the answer up; its first delta is the text so far.
+     */
     fun ask(request: AskRequest): Flow<AskEvent>
     suspend fun queueQuestion(request: AskRequest)
     suspend fun queuedQuestions(): List<AskRequest>
@@ -118,6 +122,9 @@ sealed interface AskEvent {
     data class Delta(val text: String) : AskEvent
     data class Done(val result: AskResult) : AskEvent
     data class Failed(val message: String, val macUnreachable: Boolean) : AskEvent
+
+    /** The connection dropped after the Mac had the question; it keeps answering and the question is queued. */
+    data object Interrupted : AskEvent
 }
 
 /** Tailscale's CGNAT and ULA ranges and MagicDNS names; everything else is the local network. */

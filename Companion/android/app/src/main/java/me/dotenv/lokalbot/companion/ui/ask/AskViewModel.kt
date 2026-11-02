@@ -19,7 +19,8 @@ import me.dotenv.lokalbot.companion.data.model.AskResult
 import me.dotenv.lokalbot.companion.data.model.AskTurn
 import me.dotenv.lokalbot.companion.ui.common.LibraryViewModel
 
-enum class TurnPhase { Streaming, Done, Failed, MacUnreachable, Queued }
+/** [Waiting]: the connection dropped while the Mac answered; it keeps answering and the turn picks the answer up later. */
+enum class TurnPhase { Streaming, Done, Failed, MacUnreachable, Queued, Waiting }
 
 data class AskTurnState(
     val request: AskRequest,
@@ -29,6 +30,10 @@ data class AskTurnState(
     val phase: TurnPhase = TurnPhase.Streaming,
     val error: String? = null,
     val localHits: List<SearchHit>? = null,
+    /** The connection dropped once while the Mac answered, so the question is queued. */
+    val interrupted: Boolean = false,
+    /** Picking up an answer: the next delta is the whole text so far. */
+    val restartText: Boolean = false,
 )
 
 data class Conversation(val id: String, val title: String, val lastAt: String?, val exchanges: List<AskExchange>)
@@ -54,6 +59,8 @@ class AskViewModel(repository: CompanionRepository) : LibraryViewModel(repositor
 
     init {
         refreshHistory()
+        // A background sync may pick up a waiting answer before Ask does.
+        viewModelScope.launch { repository.revision.collect { completeWaitingFromHistory() } }
     }
 
     fun ask(question: String) {
@@ -67,16 +74,38 @@ class AskViewModel(repository: CompanionRepository) : LibraryViewModel(repositor
             history = previous.flatMap { listOf(AskTurn("user", it.request.question), AskTurn("assistant", it.answer)) },
         )
         _state.update { it.copy(turns = it.turns + AskTurnState(request, repository.now())) }
+        run(request)
+    }
+
+    /** Picks up answers whose connection dropped, e.g. when the phone is unlocked again. */
+    fun resumeWaiting() {
+        if (_state.value.busy) return
+        val waiting = _state.value.turns.lastOrNull { it.phase == TurnPhase.Waiting } ?: return
+        // The Mac sends the text so far as the first delta.
+        updateTurn(waiting.request.requestId) { it.copy(phase = TurnPhase.Streaming, restartText = true) }
+        run(waiting.request)
+    }
+
+    private fun run(request: AskRequest) {
         job = viewModelScope.launch {
             repository.ask(request).collect { event ->
                 updateTurn(request.requestId) { turn ->
                     when (event) {
-                        is AskEvent.Delta -> turn.copy(answer = turn.answer + event.text)
-                        is AskEvent.Done -> turn.copy(answer = event.result.answer, result = event.result, phase = TurnPhase.Done)
-                        is AskEvent.Failed -> turn.copy(
-                            phase = if (event.macUnreachable) TurnPhase.MacUnreachable else TurnPhase.Failed,
-                            error = event.message,
+                        is AskEvent.Delta -> turn.copy(
+                            answer = if (turn.restartText) event.text else turn.answer + event.text,
+                            restartText = false,
                         )
+                        is AskEvent.Done -> turn.copy(answer = event.result.answer, result = event.result, phase = TurnPhase.Done)
+                        // An interrupted question is queued already: out of reach, it keeps waiting.
+                        is AskEvent.Failed -> if (event.macUnreachable && turn.interrupted) {
+                            turn.copy(phase = TurnPhase.Waiting)
+                        } else {
+                            turn.copy(
+                                phase = if (event.macUnreachable) TurnPhase.MacUnreachable else TurnPhase.Failed,
+                                error = event.message,
+                            )
+                        }
+                        AskEvent.Interrupted -> turn.copy(phase = TurnPhase.Waiting, interrupted = true)
                     }
                 }
             }
@@ -139,6 +168,19 @@ class AskViewModel(repository: CompanionRepository) : LibraryViewModel(repositor
                 }
             _state.update { it.copy(conversations = conversations) }
         }
+    }
+
+    private suspend fun completeWaitingFromHistory() {
+        val waiting = _state.value.turns.filter { it.phase == TurnPhase.Waiting }.map { it.request.requestId }.toSet()
+        if (waiting.isEmpty()) return
+        val answered = repository.askHistory(200).filter { it.request.requestId in waiting }
+        for (exchange in answered) {
+            updateTurn(exchange.request.requestId) { turn ->
+                if (turn.phase != TurnPhase.Waiting) turn
+                else turn.copy(answer = exchange.result.answer, result = exchange.result, phase = TurnPhase.Done)
+            }
+        }
+        if (answered.isNotEmpty()) refreshHistory()
     }
 
     private fun updateTurn(requestId: String, change: (AskTurnState) -> AskTurnState) {

@@ -6,7 +6,6 @@
 
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
@@ -232,6 +231,7 @@ fn run_session(
     };
     let mut worker = Worker {
         inner,
+        device_id: device_id.clone(),
         channel: Arc::clone(&channel),
         events,
         received,
@@ -293,6 +293,7 @@ fn linger_inbox(channel: &Channel, inbox: &mut Inbox, tuning: &Tuning) {
 
 struct Worker<'a> {
     inner: &'a Arc<ServerInner>,
+    device_id: String,
     channel: Arc<Channel>,
     events: Sender<Event>,
     received: Receiver<Event>,
@@ -528,17 +529,23 @@ impl Worker<'_> {
             .and_then(Value::as_str)
             .unwrap_or_default()
             .to_owned();
-        let sink = Arc::new(AskSink {
-            channel: Arc::clone(&self.channel),
-            request_id: request_id.clone(),
-            finished: AtomicBool::new(false),
-            events: self.events.clone(),
-        });
         if request_id.is_empty() {
-            sink.failed("The question had no requestId.".into());
+            let _ = self.channel.send(&Message::AskFailed {
+                request_id,
+                message: "The question had no requestId.".into(),
+            });
+            let _ = self.events.send(Event::AskFinished);
             return;
         }
-        self.inner.delegate.ask(request.to_string(), sink);
+        // Asking again for an answer the Mac is writing or kept attaches to it.
+        let answers = &self.inner.answers;
+        let (answer, new) =
+            answers.begin(&self.device_id, &request_id, self.tuning.answer_retention);
+        answer.attach(&self.channel, &self.events);
+        if new {
+            let sink = AskSink::new(answer, Arc::clone(answers));
+            self.inner.delegate.ask(request.to_string(), Arc::new(sink));
+        }
     }
 
     fn fail(&self, code: &str, message: String) {

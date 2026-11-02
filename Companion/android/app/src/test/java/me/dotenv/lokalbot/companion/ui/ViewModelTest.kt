@@ -129,6 +129,41 @@ class ViewModelTest {
     }
 
     @Test
+    fun `an answer cut off by the lock screen is picked up on return`() {
+        var attempts = 0
+        val flaky = object : CompanionRepository by repository {
+            override fun ask(request: AskRequest): Flow<AskEvent> = when (++attempts) {
+                1 -> flowOf(AskEvent.Delta("Maya asked "), AskEvent.Interrupted)
+                2 -> flowOf(AskEvent.Failed("No route to the Mac", macUnreachable = true))
+                // Picking up: the first delta is the whole text so far.
+                3 -> flowOf(AskEvent.Delta("Maya asked about pricing"), AskEvent.Interrupted)
+                else -> repository.ask(request)
+            }
+        }
+        val viewModel = AskViewModel(flaky)
+        viewModel.ask("What did Maya ask me?")
+        fun turn() = viewModel.state.value.turns.single()
+        assertThat(turn().phase).isEqualTo(TurnPhase.Waiting)
+        assertThat(turn().answer).isEqualTo("Maya asked ")
+
+        // Still out of reach: the question stays queued, so it keeps waiting.
+        viewModel.resumeWaiting()
+        assertThat(turn().phase).isEqualTo(TurnPhase.Waiting)
+        assertThat(turn().answer).isEqualTo("Maya asked ")
+
+        viewModel.resumeWaiting()
+        assertThat(turn().answer).isEqualTo("Maya asked about pricing")
+
+        viewModel.resumeWaiting()
+        assertThat(turn().phase).isEqualTo(TurnPhase.Done)
+        assertThat(turn().answer).isEqualTo(turn().result!!.answer)
+        assertThat(attempts).isEqualTo(4)
+        // Nothing left to pick up.
+        viewModel.resumeWaiting()
+        assertThat(attempts).isEqualTo(4)
+    }
+
+    @Test
     fun `an unreachable Mac offers local search and a queue`() {
         val offline = object : CompanionRepository by repository {
             override fun ask(request: AskRequest): Flow<AskEvent> = flowOf(AskEvent.Failed("No route to the Mac", macUnreachable = true))

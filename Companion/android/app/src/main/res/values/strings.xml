@@ -262,6 +262,7 @@
     <string name="ask_when_back">Ask when my Mac is back</string>
     <string name="ask_no_local_hits">Nothing on this device matches.</string>
     <string name="ask_queued">Queued. LokalBot asks your Mac the next time it connects and lets you know when the answer is ready.</string>
+    <string name="ask_waiting">The connection to your Mac dropped, but it\'s still answering. The answer appears here when you come back.</string>
     <string name="ask_failed_with">Your Mac couldn\'t answer: %1$s</string>
     <string name="ask_stopped">Response stopped.</string>
     <string name="ask_retry">Ask again</string>

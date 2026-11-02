@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: November 1, 2026
+Effective: November 2, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -548,7 +548,10 @@ no shared copy is built.
   the meetings and Timeline you share; screen memory and your files are never
   searched for a device. With an approved remote Think server, the question
   and the context it needs go to that server as they do for Ask on the Mac,
-  and the device shows that a remote engine answered.
+  and the device shows that a remote engine answered. If the device
+  disconnects before the answer is finished, the Mac finishes it and holds it
+  in memory, never on disk, for up to 24 hours or until LokalBot quits, so the
+  device can collect it when it reconnects.
 - **Changes from your devices.** A device can mark an action open, done, or
   deferred. The Mac applies the change as if you made it in Actions.
 - **Storage.** The Mac keeps the shared records and the paired devices' public
