@@ -13,6 +13,22 @@ enum FilmCall {
     static var isRequested: Bool { ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_CALL"] == "1" }
     private static var window: NSWindow?
 
+    /// Vision's first text recognition takes most of a minute on the hosted
+    /// Mac, and the film's questions come sooner than that. This loads it on a
+    /// real capture and writes `LOKALBOT_UI_TEST_VISION_READY` when it's done,
+    /// which the test waits for before pressing Start Radar.
+    static func prepareVision() {
+        let env = ProcessInfo.processInfo.environment
+        guard let ready = env["LOKALBOT_UI_TEST_VISION_READY"], let screens = env["LOKALBOT_UI_TEST_SCREENS"] else { return }
+        Task.detached(priority: .userInitiated) {
+            let started = Date()
+            let data = try? Data(contentsOf: URL(fileURLWithPath: screens).appendingPathComponent("dashboard.jpg"))
+            let crop = data.flatMap { RadarScreenAnswers.crop($0, terms: ["trial", "paid"]) }
+            let result = "\(Int(Date().timeIntervalSince(started))) s, crop \(crop == nil ? "failed" : "ok")"
+            FileManager.default.createFile(atPath: ready, contents: Data(result.utf8))
+        }
+    }
+
     static func show(app: AppState, title: String) {
         guard isRequested, window == nil, let screen = NSScreen.main else { return }
         let frame = screen.visibleFrame.insetBy(dx: 10, dy: 6)

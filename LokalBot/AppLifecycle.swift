@@ -352,6 +352,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let raw = env["LOKALBOT_INITIAL_ASK_FACET"], let facet = AskFacet(rawValue: raw) { app.recallState.facet = facet }
         app.recallState.screenApp = env["LOKALBOT_INITIAL_ASK_SCREEN_APP"]
         #endif
+        #if LOKALBOT_UI_TEST_HOST
+        FilmCall.prepareVision()
+        #endif
         if env["LOKALBOT_SHOW_GETTING_STARTED"] == "1" {
             UserDefaults.standard.set(false, forKey: "lokalbotv3.gettingStartedDismissed")
         }

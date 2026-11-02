@@ -152,7 +152,7 @@ enum MuseUITestTransport {
         let call: (name: String, arguments: [String: Any])
         if question.contains("Team plan") {
             call = turn == 0
-                ? ("read_document", ["path": "Docs/meta-hackathon/demo-files/Northwind pricing v2.xlsx", "query": "Team plan price"])
+                ? ("read_document", ["path": "Northwind pricing v2.xlsx", "query": "Team plan price"])
                 : ("answer", ["text": "$12 per seat a month, in the Northwind pricing sheet.",
                               "sources": [["id": "R1", "quote": "Team | $12 per seat"]]])
         } else if question.contains("radar panel"), let repository {

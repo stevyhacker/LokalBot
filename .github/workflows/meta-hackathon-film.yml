@@ -104,6 +104,21 @@ jobs:
             echo "Muse replies: scripted (no META_API_KEY secret)" >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # What live answers may read: the sheet and brief, and this repository without
+      # the film's notes, tests and scripted replies, which would answer its questions.
+      - name: Make the folders live answers read
+        run: |
+          folders="$RUNNER_TEMP/film-folders"
+          mkdir -p "$folders/Northwind"
+          cp Docs/meta-hackathon/demo-files/* "$folders/Northwind/"
+          git clone --quiet --no-checkout --branch "$GITHUB_REF_NAME" "file://$PWD" "$folders/LokalBot"
+          git -C "$folders/LokalBot" remote set-url origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git -C "$folders/LokalBot" sparse-checkout set --no-cone '/*' '!/HACKATHON.md' '!/PRIVACY.md' '!/DEVELOPMENT.md' \
+            '!/Docs/meta-hackathon/' '!/Benchmarks/MuseRadar/' '!/Video/meta-hackathon-demo/' '!/LokalBotTests/' \
+            '!/LokalBotUITests/' '!/LokalBot/Engines/MuseUITestTransport.swift'
+          git -C "$folders/LokalBot" checkout --quiet "$GITHUB_REF_NAME"
+          echo "FILM_FOLDERS=$folders/Northwind:$folders/LokalBot" >> "$GITHUB_ENV"
+
       - name: Point the film test at the frames folder
         run: |
           mkdir -p .build/film/frames
@@ -120,6 +135,7 @@ jobs:
                   for target in config['TestTargets']:
                       env = target.setdefault('EnvironmentVariables', {})
                       env['LOKALBOT_FILM_FRAMES'] = frames
+                      env['LOKALBOT_FILM_FOLDERS'] = os.environ['FILM_FOLDERS']
                       if live:
                           env['LOKALBOT_FILM_MUSE'] = 'live'
                           env['LOKALBOT_FILM_META_KEY_FILE'] = key_file

@@ -94,16 +94,24 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(3)
 
         // 2. A live meeting: Start Radar, then the transcript arrives line by line.
+        let visionReady = library.appendingPathComponent(".film-vision-ready")
         app = try UITestHarness.relaunch(
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
                           "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
                           "LOKALBOT_UI_TEST_SCREENS": try FilmFixture.screens().path,
                           "LOKALBOT_UI_TEST_CALL": "1",
+                          "LOKALBOT_UI_TEST_VISION_READY": visionReady.path,
                           "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
                 .merging(windowSize) { _, new in new })
         let start = app.buttons["live.radar.start"]
         XCTAssertTrue(film.wait(for: start, timeout: 15), "Live Radar pane did not render")
+        // Questions come within seconds of Start Radar; screen answers need Vision loaded by then.
+        let visionDeadline = Date().addingTimeInterval(240)
+        while !FileManager.default.fileExists(atPath: visionReady.path), Date() < visionDeadline { film.hold(0.5) }
+        let vision = (try? String(contentsOf: visionReady, encoding: .utf8)) ?? "not ready"
+        XCTContext.runActivity(named: "Vision: \(vision)") { _ in }
+        print("Film Vision warm-up: \(vision)")
         film.hold(2)
         start.click()
         let started = Date()
@@ -267,10 +275,15 @@ private final class Film {
 /// An earlier planning meeting the radar can contradict, and the meeting that
 /// is filmed live and then followed through.
 private enum FilmFixture {
-    /// Live answers read this checkout: its pricing sheet and its code.
+    /// Live answers read `LOKALBOT_FILM_FOLDERS`: the workflow's copy of the
+    /// pricing sheet and brief, and of this repository without the film's own
+    /// notes and tests, which would answer its questions for it. Otherwise
+    /// they read this checkout.
     static func settingsJSON(file: StaticString = #filePath) throws -> String {
         let root = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
-        let folders = String(decoding: try JSONSerialization.data(withJSONObject: [root.path]), as: UTF8.self)
+        let paths = ProcessInfo.processInfo.environment["LOKALBOT_FILM_FOLDERS"]?.components(separatedBy: ":")
+            ?? [root.appendingPathComponent("Docs/meta-hackathon/demo-files").path, root.path]
+        let folders = String(decoding: try JSONSerialization.data(withJSONObject: paths), as: UTF8.self)
         return """
         {
           "menuBarOnly": false,

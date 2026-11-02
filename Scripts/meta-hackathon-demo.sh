@@ -49,8 +49,9 @@ live_answers() {
   cp "$REPO/Docs/meta-hackathon/demo-files/"* "$NORTHWIND/"
   git clone --quiet --no-checkout --branch meta-hackathon "$REPO" "$CODE"
   git -C "$CODE" remote set-url origin "$(git -C "$REPO" remote get-url origin)"
-  git -C "$CODE" sparse-checkout set --no-cone '/*' '!/HACKATHON.md' '!/Docs/meta-hackathon/' '!/Benchmarks/MuseRadar/' \
-    '!/LokalBotTests/' '!/LokalBotUITests/' '!/LokalBot/Engines/MuseUITestTransport.swift'
+  git -C "$CODE" sparse-checkout set --no-cone '/*' '!/HACKATHON.md' '!/PRIVACY.md' '!/DEVELOPMENT.md' \
+    '!/Docs/meta-hackathon/' '!/Benchmarks/MuseRadar/' '!/Video/meta-hackathon-demo/' '!/LokalBotTests/' '!/LokalBotUITests/' \
+    '!/LokalBot/Engines/MuseUITestTransport.swift'
   git -C "$CODE" checkout --quiet meta-hackathon
   python3 -I - "$SUITE" "$NORTHWIND" "$CODE" <<'PY'
 import json, plistlib, subprocess, sys

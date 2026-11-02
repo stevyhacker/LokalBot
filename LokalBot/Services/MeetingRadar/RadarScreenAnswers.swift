@@ -144,6 +144,7 @@ enum RadarScreenAnswers {
         do {
             try VNImageRequestHandler(cgImage: image).perform([request])
         } catch {
+            lokalbotLog("live radar screen crop failed error=\(error.localizedDescription)")
             return nil
         }
         let lines = (request.results ?? []).compactMap { observation -> (text: String, box: CGRect)? in
