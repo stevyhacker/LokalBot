@@ -101,6 +101,16 @@ LokalBot defaults:
   it, the side bearing added, a caret bar taken as the caret and a 3× capture
   on the non-Retina display, five suggestions began 0.6–1.0 pt after the
   caret (before: 2–5 pt over the last letter).
+- Fast recognition cannot read Serbian's accented letters: on the 1x display
+  "Čekam" came back as "&kam", "Žao" as "2ao", "Đorđe" as "E)orde", and it
+  often ran words together. Those letters no longer count against a line,
+  spaces are not compared, and one size holds for a field once a whole line
+  has measured it. A new message starts where the field's first line was
+  found, and a miss on a few letters no longer leads to a popup. Replaying
+  14 accented messages keystroke by keystroke through the real recogniser at
+  1x (2026-11-02): inline 72–77% → 98%, popups 5–12% → 0, ghost size
+  12.8–15 pt → 12.9–13.6 pt, worst caret error 13 → 3.6 pt. Cyrillic is still
+  shown in a popup: recognition reads none of it.
 
 ## Keystroke latency
 

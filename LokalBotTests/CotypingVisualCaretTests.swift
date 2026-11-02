@@ -330,11 +330,165 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertGreaterThan(next.caretRect.minX, found.caretX)
         XCTAssertEqual(next.fieldStyle?.fontPointSize, found.pointSize,
                        "the ghost is drawn at the size the caret moves by")
-        // Another field of the same kind elsewhere, or other text: not reused.
+        // Another field of the same kind elsewhere: not reused.
         var moved = chromeField("element-3", text: "Looks good")
         moved.inputFrameRect = self.field.offsetBy(dx: 0, dy: -200)
         XCTAssertFalse(visualCaret.resolve(moved).caretIsExact)
-        XCTAssertFalse(visualCaret.resolve(chromeField("element-4", text: "Something else")).caretIsExact)
+    }
+
+    /// Measured at 1x on 2026-11-02: fast recognition cannot read "č", "ž" or
+    /// "đ". Capitals with them came back as other characters, so a short
+    /// Serbian message never matched and the suggestion went to a popup.
+    func testLettersRecognitionCannotReadDoNotStopAMatch() throws {
+        for (reading, typed) in [
+            ("&kam te ispred", "Čekam te ispred"),
+            ("2ao mi je", "Žao mi je"),
+            ("E)orde je dosao kuci", "Đorđe je došao kući"),
+            ("tso, sta ima", "Ćao, šta ima"),
+            ("setir curetina", "šećer ćuretina"),
+        ] {
+            let found = try XCTUnwrap(Locator.locate(
+                lines: [line(reading, baseline: 375)], precedingText: typed, fieldFrame: field), reading)
+            XCTAssertEqual(found.caretX, line(reading, baseline: 375).maxX, accuracy: 3, reading)
+        }
+        // Without such letters the same mistakes still rule a line out.
+        XCTAssertNil(Locator.locate(
+            lines: [line("&kam xx 1spxxd", baseline: 375)], precedingText: "Pekam te ispred", fieldFrame: field))
+    }
+
+    /// Recognition ran these words together. Counting the spaces it lost took
+    /// the line for the end of a longer paragraph, and sized the font from
+    /// part of the text: 21 pt for 13.5 pt text.
+    func testWordsRunTogetherStillMatchAndMeasureTheWholeLine() throws {
+        let typed = "Thanks for the quick reply to me"
+        var together = line(typed, baseline: 375)
+        together.text = "Thanksforthequickreplytome"
+        let found = try XCTUnwrap(Locator.locate(lines: [together], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.05)
+        XCTAssertTrue(found.sizeIsReliable)
+        XCTAssertNil(found.firstWordEndX, "it is the paragraph's first line")
+    }
+
+    /// "Šta ćeš da radiš večeras" came back as "a ces da radis veceras". All
+    /// of the typed text was then fitted to a line without its first letters.
+    func testALineMissingItsFirstLettersStillMeasuresTheFont() throws {
+        let typed = "Šta ćeš da radiš večeras"
+        let origin = end(of: "Št")
+        var recognized = line("a ćeš da radiš večeras", minX: origin, baseline: 375)
+        recognized.text = "a ces da radis veceras"
+        recognized.tailMinX = end(of: "Šta ć", from: 1183)
+        let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.pointSize, 14, accuracy: 0.5)
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 1)
+        XCTAssertFalse(found.sizeIsReliable, "the counts differ")
+        XCTAssertNil(found.textStartX, "where the line starts is not known")
+
+        // Too short to measure past its start: fitting all of the typed text
+        // to it would be far smaller than text in a field.
+        var short = line("a c", minX: origin, baseline: 375)
+        short.box.size.height = 13
+        let few = try XCTUnwrap(Locator.locate(lines: [short], precedingText: "Šta c", fieldFrame: field))
+        XCTAssertEqual(few.pointSize, 14, accuracy: 1)
+    }
+
+    /// Fitting all of "Čekam" to what is read as "&kam" is right: "&" stands
+    /// for two letters. Measuring only the letters that line up gave 18 pt.
+    func testAShortLineThatReadsTwoLettersAsOneIsMeasuredWhole() throws {
+        var recognized = line("Čekam", baseline: 375)
+        recognized.text = "&kam"
+        let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: "Čekam", fieldFrame: field))
+        XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
+    }
+
+    /// Other scripts are not excused: any line of the right length would pass.
+    func testOtherScriptsAreNotMatchedOnLengthAlone() {
+        XCTAssertNil(Locator.locate(
+            lines: [line("Paste files", baseline: 375)], precedingText: "Чекам те овдје", fieldFrame: field))
+    }
+
+    /// One size for one field. It changed from find to find with how much of
+    /// the line recognition could read, and the caret moves by it.
+    @MainActor
+    func testAFontMeasuredFromAWholeLineOutlastsFindsThatCouldNot() throws {
+        let visualCaret = CotypingVisualCaret()
+        let typed = "Dobro je, vidimo se"
+        let whole = try XCTUnwrap(Locator.locate(
+            lines: [line(typed, baseline: 375)], precedingText: typed, fieldFrame: field))
+        XCTAssertTrue(whole.sizeIsReliable)
+        visualCaret.remember(whole, for: viberField(typed))
+
+        var poor = whole
+        poor.precedingText = typed + " sutra"
+        poor.caretX += 30
+        poor.pointSize = 18
+        poor.sizeIsReliable = false
+        visualCaret.remember(poor, for: viberField(poor.precedingText))
+        let resolved = visualCaret.resolve(viberField(poor.precedingText))
+        XCTAssertEqual(try XCTUnwrap(resolved.fieldStyle?.fontPointSize), 14, accuracy: 0.05)
+        XCTAssertEqual(resolved.caretRect.minX, poor.caretX, accuracy: 0.01, "its caret is still used")
+    }
+
+    /// The next message after one was sent: no text to follow on from, and
+    /// too few letters to find, yet the field's first line is known.
+    @MainActor
+    func testANewMessageStartsWhereTheFieldsFirstLineStarts() throws {
+        let visualCaret = CotypingVisualCaret()
+        let typed = "Dobro je, vidimo se"
+        let whole = try XCTUnwrap(Locator.locate(
+            lines: [line(typed, baseline: 375)], precedingText: typed, fieldFrame: field))
+        visualCaret.remember(whole, for: viberField(typed))
+
+        let next = visualCaret.resolve(viberField("Ćao"))
+        XCTAssertTrue(next.caretIsExact)
+        XCTAssertEqual(next.caretRect.minX, end(of: "Ćao"), accuracy: 0.6)
+        // On a line of its own, or once it would wrap, its place is not known.
+        XCTAssertFalse(visualCaret.resolve(viberField("Ćao\nkako si")).caretIsExact)
+        XCTAssertFalse(visualCaret.resolve(viberField(String(repeating: "dugacka poruka ", count: 12))).caretIsExact)
+        // Nor in a field of another size, which may hold another font.
+        var taller = viberField("Ćao")
+        taller.inputFrameRect = field.insetBy(dx: 0, dy: -10)
+        XCTAssertFalse(visualCaret.resolve(taller).caretIsExact)
+        // A line that wrapped from the one before says nothing about the first.
+        let first = "Thanks for the quick review, I will push the fixes"
+        let wrapped = try XCTUnwrap(Locator.locate(
+            lines: [line(first, baseline: 375), line("in a follow-up later", baseline: 354)],
+            precedingText: first + " in a follow-up later", fieldFrame: field))
+        XCTAssertNil(wrapped.textStartX)
+    }
+
+    @MainActor
+    func testTheCaretIsMeasuredAgainSoonerUntilTheFontIsKnown() throws {
+        let visualCaret = CotypingVisualCaret()
+        XCTAssertTrue(visualCaret.isDueForAFind(viberField("Dobro")), "nothing found yet")
+
+        let short = try XCTUnwrap(Locator.locate(
+            lines: [line("Dobro", baseline: 375)], precedingText: "Dobro", fieldFrame: field))
+        XCTAssertFalse(short.sizeIsReliable, "too short to measure")
+        visualCaret.remember(short, for: viberField("Dobro"))
+        XCTAssertFalse(visualCaret.isDueForAFind(viberField("Dobro j")))
+        XCTAssertTrue(visualCaret.isDueForAFind(viberField("Dobro je, ")))
+
+        let typed = "Dobro je, vidimo se"
+        let whole = try XCTUnwrap(Locator.locate(
+            lines: [line(typed, baseline: 375)], precedingText: typed, fieldFrame: field))
+        visualCaret.remember(whole, for: viberField(typed))
+        XCTAssertFalse(visualCaret.isDueForAFind(viberField(typed + " sutra u")))
+        XCTAssertTrue(visualCaret.isDueForAFind(viberField(typed + " sutra u gradu")))
+    }
+
+    func testAMissOnAFewLettersSaysNothingAboutTheField() {
+        XCTAssertFalse(Locator.missCounts(for: "Ćao"))
+        XCTAssertFalse(Locator.missCounts(for: "Ćao ti\nŠta"))
+        XCTAssertTrue(Locator.missCounts(for: "Ćao, šta ima"))
+    }
+
+    private func viberField(_ text: String) -> CotypingField {
+        CotypingField(
+            appName: "Viber", bundleID: "com.viber.osx", processID: 7, role: "AXTextField",
+            precedingText: text, trailingText: "", selectionLength: 0,
+            caretRect: CGRect(x: 1174, y: 381, width: 1, height: 22), inputFrameRect: field,
+            isSecure: false, caretIsExact: false)
     }
 
     /// On a non-Retina display the capture is scaled up to three times its

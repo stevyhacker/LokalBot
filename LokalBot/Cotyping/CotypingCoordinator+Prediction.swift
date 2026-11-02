@@ -243,8 +243,12 @@ extension CotypingCoordinator {
             clearStaleGeneratedResult()
             return
         }
-        await visualCaret.waitForPending(milliseconds: Self.visualCaretWaitMilliseconds)
-        guard work == generation, isRunning else { return }
+        // A caret already placed needs no wait: a find still running only
+        // measures it again, and the suggestion is ready now.
+        if !displayField(liveField).caretIsExact {
+            await visualCaret.waitForPending(milliseconds: Self.visualCaretWaitMilliseconds)
+            guard work == generation, isRunning else { return }
+        }
         let pendingAcceptedTail = lastAcceptedTail
         lastAcceptedTail = nil
         _ = applyGenerationResult(
