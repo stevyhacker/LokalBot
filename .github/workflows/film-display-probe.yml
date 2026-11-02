@@ -1,0 +1,62 @@
+# Temporary: can the hosted Mac give the film a HiDPI screen?
+name: Film display probe
+on:
+  push:
+    branches: [meta-hackathon]
+    paths:
+      - ".github/workflows/film-display-probe.yml"
+      - "Scripts/film/virtual-display.m"
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Displays before
+        run: |
+          system_profiler SPDisplaysDataType
+          sysctl -n hw.model machdep.cpu.brand_string hw.ncpu hw.memsize
+      - name: Create the display
+        run: |
+          mkdir -p out
+          clang -fobjc-arc -framework Foundation -framework CoreGraphics -o out/virtual-display Scripts/film/virtual-display.m
+          nohup out/virtual-display 1600 1000 > out/virtual-display.log 2>&1 &
+          sleep 6
+          cat out/virtual-display.log
+          pgrep -l virtual-display || echo "virtual-display exited"
+      - name: Displays after
+        run: |
+          system_profiler SPDisplaysDataType
+          cat out/virtual-display.log
+      - name: Window on it
+        run: |
+          cat > out/win.swift <<'SWIFT'
+          import AppKit
+          let app = NSApplication.shared
+          app.setActivationPolicy(.regular)
+          for s in NSScreen.screens { print("screen", s.frame, "visible", s.visibleFrame, "scale", s.backingScaleFactor) }
+          print("main", NSScreen.main?.frame ?? .zero, NSScreen.main?.backingScaleFactor ?? 0)
+          let w = NSWindow(contentRect: NSRect(x: 100, y: 200, width: 900, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
+          let t = NSTextField(labelWithString: "Answer from your work: $12 per seat per month, for 2–50 seats.")
+          t.font = .systemFont(ofSize: 15); t.frame = NSRect(x: 30, y: 300, width: 800, height: 40)
+          w.contentView?.addSubview(t); w.title = "Film probe"; w.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
+          print("window scale", w.backingScaleFactor, "on", w.screen?.frame ?? .zero)
+          DispatchQueue.main.asyncAfter(deadline: .now() + 12) { app.terminate(nil) }
+          app.run()
+          SWIFT
+          swiftc -o out/win out/win.swift
+          out/win &
+          sleep 6
+          for i in 1 2 3; do /usr/bin/time -p screencapture -x -t jpg "out/shot-$i.jpg"; done
+          screencapture -x -m "out/main.png" || true
+          sips -g pixelWidth -g pixelHeight out/main.png out/shot-1.jpg
+          ls -la out
+          wait || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: film-display-probe
+          path: out/*.*g
+          retention-days: 3
