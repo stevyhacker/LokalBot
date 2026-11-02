@@ -97,7 +97,10 @@ pub(crate) struct Pairing {
 
 impl Pairing {
     pub fn mac_key(&self) -> Result<[u8; KEY_LEN]> {
-        crate::keys::key_array(&crate::keys::b64url_decode(&self.mac_key)?, "computer's key")
+        crate::keys::key_array(
+            &crate::keys::b64url_decode(&self.mac_key)?,
+            "computer's key",
+        )
     }
 }
 
