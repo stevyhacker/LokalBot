@@ -5,6 +5,8 @@ This branch is LokalBot's entry to the Meta Global AI Developer Hackathon (26 Oc
 - **Live Radar.** While a meeting is recorded, it catches commitments, decisions, and open questions as they are said. It also flags contradictions with earlier meetings, such as "On 19 Oct you agreed the launch is Monday the 3rd". With fast live text, Muse Voice Transcribe streams the transcript turn by turn, and items appear about 3 seconds after the speaker finishes. With screen answers, a question asked in the meeting is answered from something you had on screen earlier: local search finds the capture, Vision on the Mac crops it, and Muse Spark reads the crop. With live answers, Muse Wonder looks up the answer to a question or problem in your work: first what LokalBot remembers about your projects and open actions, then your meetings, screen text, and the documents, sheets, PDFs, code, and pull requests in folders you choose. Each answer cites the line it rests on. A floating panel shows what the radar catches over the meeting app, and offers Start Radar there when a recording starts.
 - **Follow-through.** After the meeting, Muse plans the work for one of your commitments. It reads what it needs from your meetings, then proposes an email, a calendar invitation, or a task for a coding agent. You approve each step, and each opens as a draft.
 
+**Demo film (2:59):** https://github.com/user-attachments/assets/face7925-eee1-4560-9fb2-094dfc6265b8
+
 ## What is new
 
 Everything on this branch after the tag `v0.11.4` is hackathon work. That tag is LokalBot's last release, merged at 16:52 CET on 26 October, before the 17:00 CET kickoff.
