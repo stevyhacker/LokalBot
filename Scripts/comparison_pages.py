@@ -22,7 +22,7 @@ VERIFIED = "2026-10-26"
 
 # When LokalBot's own facts on these pages last changed (not the competitors').
 # It moves dateModified and the sitemap's lastmod, but not "Last verified".
-LOKALBOT_UPDATED = "2026-10-26"
+LOKALBOT_UPDATED = "2026-11-01"
 
 CHECK = '<i class="ph ph-check" aria-hidden="true"></i>'
 CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
@@ -567,7 +567,7 @@ PAGES = [
         "faq": [
             ("Isn't Screenpipe open source?", "It used to be MIT-licensed. Current versions are source-available under the Screenpipe Commercial License: free for personal, non-profit, educational, and research use, while business use needs a paid license. LokalBot is GPLv3, so anyone can use it at work, study it, and share changes."),
             ("Does LokalBot record my screen all the time?", "No. Out of the box it saves the app name and window title. Visible text and encrypted screenshots are separate opt-ins (on a Mac, they need Accessibility and Screen Recording permission), and captures are deleted after 14 days by default."),
-            ("Can AI agents read my LokalBot history?", "Yes, if you allow it. The bundled CLI and MCP server are read-only and stay off until you enable Agent Access in Settings → Privacy."),
+            ("Can AI agents read my LokalBot history?", "Yes, if you allow it. The bundled CLI and MCP server are read-only and stay off until you allow them in Settings → External Agents on a Mac, or Settings → Privacy & Data on Windows and Linux."),
         ],
         "cta_title": "Remember your day, on your terms.",
         "disclaimer": "Screenpipe is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on its public site, pricing, and repository",
