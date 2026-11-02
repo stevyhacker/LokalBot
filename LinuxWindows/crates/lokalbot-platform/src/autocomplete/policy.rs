@@ -35,6 +35,7 @@ pub mod reasons {
     pub const SEARCH: &str = "Search field.";
     pub const NO_CARET: &str = "No caret in this field.";
     pub const TERMINAL: &str = "Not available in terminal apps.";
+    pub const INTEGRATED_TERMINAL: &str = "Not available in the integrated terminal.";
     pub const FILE_DIALOG: &str = "Open or save dialog.";
     pub const NO_FIELD: &str = "No focused text field.";
     pub const EXCLUDED_APP: &str = "Disabled in this app.";
@@ -61,9 +62,30 @@ pub struct ReadPolicy {
     /// Read the text shown above the field, such as the conversation being
     /// answered. Never on the Tab path.
     pub visible_text: bool,
+    /// The whole focused window may be read from its pixels
+    /// (`cotyping_use_window_text`); the engine does the reading.
+    pub window_text: bool,
+    /// Read the field's font and colors (`cotyping_match_host_style`).
+    pub match_host_style: bool,
+    /// Suggest in xterm.js surfaces (`cotyping_suggest_in_integrated_terminals`).
+    pub suggest_in_integrated_terminals: bool,
 }
 
 impl ReadPolicy {
+    pub fn from_settings(settings: &lokalbot_core::Settings, enabled: bool) -> Self {
+        Self {
+            enabled,
+            excluded_apps: settings.cotyping_excluded_app_list(),
+            excluded_domains: settings.cotyping_excluded_domain_list(),
+            capture_excluded_apps: settings.excluded_app_list(),
+            capture_excluded_domains: settings.excluded_domain_list(),
+            visible_text: settings.cotyping_use_visible_context,
+            window_text: settings.cotyping_use_window_text,
+            match_host_style: settings.cotyping_match_host_style,
+            suggest_in_integrated_terminals: settings.cotyping_suggest_in_integrated_terminals,
+        }
+    }
+
     /// Whether `app_name`/`app_id` may be read. Unknown owners fail closed.
     pub fn allows_app(&self, app_name: &str, app_id: &str) -> bool {
         if !self.enabled || (app_name.trim().is_empty() && app_id.trim().is_empty()) {
@@ -86,26 +108,54 @@ impl ReadPolicy {
     /// and browsers whose page cannot be read left out
     /// (`CotypingVisibleContext.Policy.permits`).
     pub fn allows_visible_text(&self, field: &FieldSnapshot) -> bool {
-        if !self.visible_text || !self.allows_app(&field.app_name, &field.app_id) {
+        self.visible_text
+            && !field.is_integrated_terminal
+            && self.allows_surroundings(
+                &field.app_name,
+                &field.app_id,
+                &field.window_title,
+                field.url.as_deref(),
+            )
+    }
+
+    /// The same rule for text read from the focused window's pixels. Each
+    /// source needs its own grant.
+    pub fn allows_window_text(
+        &self,
+        app_name: &str,
+        app_id: &str,
+        window_title: &str,
+        url: Option<&str>,
+        is_integrated_terminal: bool,
+    ) -> bool {
+        self.window_text
+            && !is_integrated_terminal
+            && self.allows_surroundings(app_name, app_id, window_title, url)
+    }
+
+    fn allows_surroundings(
+        &self,
+        app_name: &str,
+        app_id: &str,
+        window_title: &str,
+        url: Option<&str>,
+    ) -> bool {
+        if !self.allows_app(app_name, app_id) {
             return false;
         }
-        if crate::privacy::is_private_window(&field.window_title) {
+        if crate::privacy::is_private_window(window_title) {
             return false;
         }
-        if crate::privacy::is_excluded_app(
-            &field.app_name,
-            &field.app_id,
-            &self.capture_excluded_apps,
-        ) {
+        if crate::privacy::is_excluded_app(app_name, app_id, &self.capture_excluded_apps) {
             return false;
         }
-        let browser = crate::privacy::is_browser(&field.app_name, &field.app_id);
-        if browser && crate::privacy::sanitized_url(field.url.as_deref()).is_none() {
+        let browser = crate::privacy::is_browser(app_name, app_id);
+        if browser && crate::privacy::sanitized_url(url).is_none() {
             return false;
         }
-        !crate::privacy::is_excluded_url(field.url.as_deref(), &self.capture_excluded_domains)
+        !crate::privacy::is_excluded_url(url, &self.capture_excluded_domains)
             && !is_host_disabled(
-                field.url.as_deref().and_then(host_from_url).as_deref(),
+                url.and_then(host_from_url).as_deref(),
                 &self.excluded_domains,
             )
     }
@@ -124,6 +174,14 @@ pub fn is_excluded(app_name: &str, app_id: &str, rules: &[String]) -> bool {
                 .iter()
                 .any(|hay| !hay.is_empty() && hay.contains(&rule))
         })
+}
+
+/// Whether a DOM class list marks an xterm.js surface
+/// (`CotypingSurfaceClassifier.isIntegratedTerminal`).
+pub fn is_integrated_terminal(dom_classes: &str) -> bool {
+    dom_classes
+        .split_whitespace()
+        .any(|class| class.to_lowercase().starts_with("xterm"))
 }
 
 /// Terminal emulators: their history and completions fight ghost text
@@ -282,6 +340,9 @@ pub fn disabled_reason(policy: &ReadPolicy, focus: &FocusSnapshot) -> Option<&'s
         Capability::Blocked(reason) | Capability::Unsupported(reason) => return Some(reason),
     }
     let field = focus.field.as_ref()?;
+    if field.is_integrated_terminal && !policy.suggest_in_integrated_terminals {
+        return Some(reasons::INTEGRATED_TERMINAL);
+    }
     let host = field.url.as_deref().and_then(host_from_url);
     if is_host_disabled(host.as_deref(), &policy.excluded_domains) {
         return Some(reasons::EXCLUDED_SITE);
@@ -491,6 +552,89 @@ pub fn is_right_to_left(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_integrated_terminal_is_a_class_starting_with_xterm() {
+        assert!(is_integrated_terminal("xterm-helper-textarea"));
+        assert!(is_integrated_terminal("monaco XTerm-screen"));
+        assert!(!is_integrated_terminal("editor my-xterm"));
+        assert!(!is_integrated_terminal(""));
+    }
+
+    #[test]
+    fn window_text_has_its_own_grant_and_the_same_exclusions() {
+        let policy = ReadPolicy {
+            enabled: true,
+            window_text: true,
+            capture_excluded_apps: vec!["Signal".into()],
+            capture_excluded_domains: vec!["bank.example".into()],
+            excluded_domains: vec!["private.example".into()],
+            ..ReadPolicy::default()
+        };
+        let allows = |name: &str, id: &str, title: &str, url: Option<&str>| {
+            policy.allows_window_text(name, id, title, url, false)
+        };
+        assert!(allows("Text Editor", "org.gnome.TextEditor", "Notes", None));
+        assert!(!allows("Signal", "signal", "Chat", None));
+        assert!(!allows(
+            "Text Editor",
+            "x",
+            "Inbox - Private Browsing",
+            None
+        ));
+        // A browser whose page cannot be read abstains.
+        assert!(!allows("Firefox", "firefox", "Inbox", None));
+        assert!(allows(
+            "Firefox",
+            "firefox",
+            "Inbox",
+            Some("https://mail.example/")
+        ));
+        assert!(!allows(
+            "Firefox",
+            "firefox",
+            "x",
+            Some("https://bank.example/a")
+        ));
+        assert!(!allows(
+            "Firefox",
+            "firefox",
+            "x",
+            Some("https://private.example/a")
+        ));
+        assert!(!policy.allows_window_text("Text Editor", "x", "Notes", None, true));
+        let off = ReadPolicy {
+            window_text: false,
+            ..policy.clone()
+        };
+        assert!(!off.allows_window_text("Text Editor", "x", "Notes", None, false));
+    }
+
+    #[test]
+    fn an_integrated_terminal_gets_a_reason_unless_allowed() {
+        let mut policy = ReadPolicy {
+            enabled: true,
+            ..ReadPolicy::default()
+        };
+        let focus = FocusSnapshot {
+            app_name: "Code".into(),
+            app_id: "code".into(),
+            capability: Capability::Supported,
+            field: Some(FieldSnapshot {
+                is_integrated_terminal: true,
+                app_name: "Code".into(),
+                app_id: "code".into(),
+                ..FieldSnapshot::default()
+            }),
+            focus_key: None,
+        };
+        assert_eq!(
+            disabled_reason(&policy, &focus),
+            Some(reasons::INTEGRATED_TERMINAL)
+        );
+        policy.suggest_in_integrated_terminals = true;
+        assert_eq!(disabled_reason(&policy, &focus), None);
+    }
 
     fn rules(list: &str) -> Vec<String> {
         lokalbot_core::settings::split_list(list)

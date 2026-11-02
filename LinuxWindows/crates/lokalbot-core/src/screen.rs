@@ -303,14 +303,41 @@ impl Library {
         })
     }
 
-    /// Deletes moments with their pixels, text, bookmark and vectors
-    /// (`ScreenshotService.deleteCapture`, `ActivityStore.deleteScreenshots`).
-    /// Files go first: a file that cannot be removed keeps its row, so the
-    /// deletion can be retried. Returns how many moments were removed.
+    /// Deletes moments with their pixels, text, bookmark and vectors. The
+    /// person deleted the source, so overnight memory built from those days
+    /// and their unedited generated journals are withdrawn first
+    /// (`AppState.withPrimaryEvidenceChange`). Returns how many were removed.
     pub fn delete_screen_moments(&self, ids: &[i64]) -> Result<usize> {
         if self.is_read_only() {
             bail!("the library is open read-only");
         }
+        let dates = self.with_db(|db| {
+            if !table_exists(db, "screenshots")? {
+                return Ok(Vec::new());
+            }
+            let mut dates = Vec::new();
+            for &id in ids.iter().filter(|id| **id > 0) {
+                let ts: Option<f64> = db
+                    .query_row("SELECT ts FROM screenshots WHERE id = ?1", [id], |row| {
+                        row.get(0)
+                    })
+                    .optional()?;
+                dates.extend(ts.map(crate::time::from_epoch));
+            }
+            Ok(dates)
+        })?;
+        crate::evidence::with_screen_mutation(
+            self.paths().root(),
+            &dates,
+            crate::evidence::EvidenceChange::Removal,
+            || self.remove_screen_moments(ids),
+        )
+    }
+
+    /// `ScreenshotService.deleteCapture`, `ActivityStore.deleteScreenshots`.
+    /// Files go first: a file that cannot be removed keeps its row, so the
+    /// deletion can be retried.
+    pub(crate) fn remove_screen_moments(&self, ids: &[i64]) -> Result<usize> {
         let root = self.paths().root().to_path_buf();
         let mut removable = Vec::new();
         for &id in ids.iter().filter(|id| **id > 0) {
@@ -345,6 +372,7 @@ impl Library {
             let tx = db.unchecked_transaction()?;
             let has_metadata = table_exists(&tx, "ocr_metadata")?;
             let has_vectors = table_exists(&tx, "screen_embeddings")?;
+            let has_image_vectors = table_exists(&tx, "screen_image_embeddings")?;
             for &id in &removable {
                 if has_metadata {
                     tx.execute(
@@ -360,6 +388,12 @@ impl Library {
                 tx.execute("DELETE FROM screen_bookmarks WHERE snapshot_id = ?1", [id])?;
                 if has_vectors {
                     tx.execute("DELETE FROM screen_embeddings WHERE snapshot_id = ?1", [id])?;
+                }
+                if has_image_vectors {
+                    tx.execute(
+                        "DELETE FROM screen_image_embeddings WHERE snapshot_id = ?1",
+                        [id],
+                    )?;
                 }
                 tx.execute("DELETE FROM screenshots WHERE id = ?1", [id])?;
             }
@@ -746,7 +780,13 @@ mod tests {
             })
             .unwrap();
         library.save_moment(id, "keep").unwrap();
+        let dates_before = crate::evidence::read_state(dir.path()).unwrap().revision;
         assert_eq!(library.delete_screen_moments(&[id, 999]).unwrap(), 1);
+        // Deleting a source advances the evidence for its days.
+        let state = crate::evidence::read_state(dir.path()).unwrap();
+        assert_eq!(state.revision, dates_before + 1);
+        assert!(state.invalidated_activity_days.is_some());
+        assert!(state.invalidated_days.is_empty());
         assert!(!file.exists());
         assert!(library.screen_moment(id).unwrap().is_none());
         assert!(

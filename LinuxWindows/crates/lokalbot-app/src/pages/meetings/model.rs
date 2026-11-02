@@ -37,9 +37,39 @@ pub struct MeetingDoc {
     pub review: Vec<ReviewSpeaker>,
     /// Remote speakers without a name (`unnamedRemoteSpeakers`).
     pub unnamed_remote: usize,
+    /// The sealed speaker journal, when this computer can open it. Private:
+    /// it only ever reaches the speaker sheet and the recognized-voices line.
+    pub identity: Option<lokalbot_core::voice::IdentityState>,
+    pub speaker_notice: Option<String>,
+    /// Unnamed call speakers that match a remembered person.
+    pub recognized: Vec<(String, lokalbot_core::voice::NameMatch)>,
+    /// The transcript or speakers changed since the notes were written.
+    pub notes_need_refresh: bool,
+    /// Notes still being written, shown in place of final ones.
+    pub partial_progress: Option<SharedString>,
+    /// Actions from the notes a refresh moved aside, for the Review tab.
+    pub previous_actions: Vec<MeetingAction>,
+    /// Saved edits that didn't match a regenerated action: text and detail.
+    pub unmatched_edits: Vec<(String, String)>,
+    /// `recording-health.json` reports a problem.
+    pub capture_needs_attention: bool,
+    /// Crash audio from a Mac whose checkpoints were never verified.
+    pub recovery_needs_attention: bool,
+    pub additional_audio: f64,
+    /// What was on screen during the meeting.
+    pub screen: lokalbot_core::meeting_screen::MeetingScreenContext,
 }
 
 impl MeetingDoc {
+    /// The notes have outcomes, so the Decisions card shows.
+    pub(crate) fn has_outcomes(&self) -> bool {
+        self.outcomes.as_ref().is_some_and(|o| {
+            !o.action_items.is_empty()
+                || !o.decision_records.is_empty()
+                || !o.open_questions.is_empty()
+        })
+    }
+
     pub fn has_summary(&self) -> bool {
         self.summary
             .as_deref()
@@ -263,9 +293,23 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         log::warn!("transcript for {}: {err:#}", meeting.id);
         None
     });
-    let summary = library.summary(&meeting).ok().flatten();
+    let partial = transcript
+        .as_ref()
+        .and_then(|t| lokalbot_ai::notes::partial::MeetingNotesPartial::load(&folder, t));
+    // Finished parts show in place of final notes while the rest is written.
+    let summary = match &partial {
+        Some(partial) => Some(lokalbot_ai::notes::render::synchronize(
+            &partial.summary,
+            &partial.outcomes,
+            partial.template,
+        )),
+        None => library.summary(&meeting).ok().flatten(),
+    };
     let notes = library.notes(&meeting).unwrap_or_default();
-    let outcomes = library.outcomes(&meeting).ok().flatten();
+    let outcomes = match &partial {
+        Some(partial) => Some(partial.outcomes.clone()),
+        None => library.outcomes(&meeting).ok().flatten(),
+    };
     // The WAV tracks this app records, or the `.m4a` a macOS library keeps:
     // the player and the waveform read both.
     let audio = library.audio(&meeting);
@@ -286,12 +330,37 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         .map(Arc::from);
 
     let speakers = Speakers::new(transcript.as_ref());
-    let actions: Vec<MeetingAction> = library
-        .meeting_actions(&meeting)
-        .unwrap_or_else(|err| {
+    let references = match &partial {
+        Some(partial) => {
+            // Saved edits follow the actions they match, as they will when
+            // the notes finish.
+            let previous = library
+                .outcomes(&meeting)
+                .ok()
+                .flatten()
+                .or_else(|| library.previous_outcomes(&meeting).ok().flatten());
+            let saved = library.outcome_state(&meeting).unwrap_or_default();
+            let state = match &previous {
+                Some(previous) => lokalbot_core::meeting_review::reconcile_state(
+                    &saved,
+                    previous,
+                    &partial.outcomes,
+                ),
+                None => saved,
+            };
+            lokalbot_core::OutcomeProjection {
+                meeting: meeting.clone(),
+                outcomes: partial.outcomes.clone(),
+                state,
+            }
+            .action_references()
+        }
+        None => library.meeting_actions(&meeting).unwrap_or_else(|err| {
             log::warn!("actions for {}: {err:#}", meeting.id);
             Vec::new()
-        })
+        }),
+    };
+    let actions: Vec<MeetingAction> = references
         .into_iter()
         .map(|reference| meeting_action(reference, &speakers))
         .collect();
@@ -316,17 +385,92 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         .as_ref()
         .map(|t| transcript_rows(t, &speakers))
         .unwrap_or_default();
+    let previous_actions = if outcomes.is_none() {
+        library
+            .previous_outcome_projection(&meeting)
+            .ok()
+            .flatten()
+            .map(|projection| {
+                projection
+                    .action_references()
+                    .into_iter()
+                    .map(|reference| meeting_action(reference, &speakers))
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    // Voices with action-linked speech first, from the previous notes if need be.
     let review = transcript
         .as_ref()
-        .map(|t| review_speakers(t, &speakers, &actions))
+        .map(|t| {
+            let linked = if actions.is_empty() {
+                &previous_actions
+            } else {
+                &actions
+            };
+            review_speakers(t, &speakers, linked)
+        })
         .unwrap_or_default();
 
     let unnamed_remote = transcript
         .as_ref()
         .map(unnamed_remote_speakers)
         .unwrap_or(0);
+    let memory = lokalbot_engine::voice::memory(library);
+    // No journal means no reason to open the credential store.
+    let identity = folder
+        .join(lokalbot_core::voice::EVIDENCE_FOLDER)
+        .join(lokalbot_core::voice::IDENTITY_FILE)
+        .is_file()
+        .then(|| memory.state(&meeting).ok())
+        .flatten();
+    let recognized = transcript
+        .as_ref()
+        .map(|t| lokalbot_core::voice::recognized_speakers(identity.as_ref(), t))
+        .unwrap_or_default();
+    let speaker_summary_stale = identity.as_ref().is_some_and(|state| {
+        let modified = std::fs::metadata(folder.join(lokalbot_core::library::SUMMARY_FILE))
+            .and_then(|meta| meta.modified())
+            .ok()
+            .map(DateTime::<Utc>::from);
+        lokalbot_core::voice::summary_needs_refresh(state, modified)
+    });
+    let notes_need_refresh = speaker_summary_stale || library.notes_marked_stale(&meeting);
+    let speaker_notice = memory.notice_for(meeting.id);
+    let unmatched_edits = library
+        .outcome_state(&meeting)
+        .map(|state| lokalbot_core::meeting_review::unmatched_edits(&state))
+        .unwrap_or_default();
+    let capture_needs_attention =
+        lokalbot_core::meeting_review::RecordingHealthReport::load(&folder)
+            .is_some_and(|report| report.has_capture_issues());
+    let recovery_needs_attention = lokalbot_core::audio_files::recovery_needs_attention(&folder);
+    let additional_audio = meeting.additional_saved_audio_duration();
+    let screen = library.meeting_screen_context(&meeting);
+    let partial_progress = partial.as_ref().map(|partial| {
+        SharedString::from(lokalbot_i18n::format(
+            "Partial notes · {completed} of {total} parts complete",
+            &[
+                ("completed", partial.completed_parts.to_string()),
+                ("total", partial.total_parts.to_string()),
+            ],
+        ))
+    });
     MeetingDoc {
         unnamed_remote,
+        identity,
+        speaker_notice,
+        recognized,
+        notes_need_refresh,
+        partial_progress,
+        previous_actions,
+        unmatched_edits,
+        capture_needs_attention,
+        recovery_needs_attention,
+        additional_audio,
+        screen,
         meeting,
         folder,
         transcript,

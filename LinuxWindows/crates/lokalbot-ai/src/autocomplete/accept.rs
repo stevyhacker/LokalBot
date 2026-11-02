@@ -15,7 +15,7 @@ use super::text::{
 use super::window;
 
 /// The acceptance settings that shape a press (`Options`). The defaults are
-/// the macOS ones; this port has no settings for the last two.
+/// the macOS ones.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AcceptOptions {
     pub granularity: AcceptGranularity,
@@ -32,6 +32,16 @@ impl Default for AcceptOptions {
             granularity: AcceptGranularity::Word,
             auto_accept_trailing_punctuation: false,
             add_space_after_accept: false,
+        }
+    }
+}
+
+impl AcceptOptions {
+    pub fn from_settings(settings: &lokalbot_core::Settings) -> Self {
+        Self {
+            granularity: settings.cotyping_accept_granularity,
+            auto_accept_trailing_punctuation: settings.cotyping_auto_accept_trailing_punctuation,
+            add_space_after_accept: settings.cotyping_add_space_after_accept,
         }
     }
 }

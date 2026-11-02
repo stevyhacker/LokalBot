@@ -768,12 +768,14 @@ fn is_recent(thread: &ActionThread, today: NaiveDate) -> bool {
     crate::time::local_day(thread.latest().meeting_started_at) >= cutoff
 }
 
+#[allow(clippy::too_many_arguments)]
 fn profile(
     id: String,
     name: String,
     kind: ProjectKind,
     other_names: Vec<String>,
     term_sets: Vec<HashSet<String>>,
+    review_notes: Vec<ReviewNote>,
     context: &Context,
 ) -> ProjectProfile {
     let mut linked: Vec<(&Meeting, Vec<ProjectMention>)> = Vec::new();
@@ -909,6 +911,12 @@ fn profile(
         last_active = Some(last_active.map_or(start, |l| l.max(start)));
     }
     let week_seconds = days.iter().map(|(_, s)| s).sum();
+    for note in &review_notes {
+        if let Ok(date) = NaiveDate::parse_from_str(&note.last_active_day, "%Y-%m-%d") {
+            let start = crate::time::local_day_bounds(date).0;
+            last_active = Some(last_active.map_or(start, |l| l.max(start)));
+        }
+    }
     ProjectProfile {
         id,
         kind,
@@ -932,6 +940,7 @@ fn profile(
         windows,
         last_active,
         summary: None,
+        review_notes,
     }
 }
 
@@ -940,7 +949,15 @@ fn profile(
 pub fn build_people_and_projects(
     library: &Library,
 ) -> Result<(Vec<PersonProfile>, Vec<ProjectProfile>)> {
-    let meetings: Vec<Meeting> = library.list_own_meetings()?;
+    build_people_and_projects_from(library, library.list_own_meetings()?)
+}
+
+/// The same, from only these meetings: what is shared with a paired device
+/// reaches no further than the meetings it may see.
+pub fn build_people_and_projects_from(
+    library: &Library,
+    meetings: Vec<Meeting>,
+) -> Result<(Vec<PersonProfile>, Vec<ProjectProfile>)> {
     let projections: Vec<OutcomeProjection> = meetings
         .iter()
         .filter_map(|m| library.outcome_projection(m).ok().flatten())
@@ -1047,6 +1064,18 @@ pub fn build_people_and_projects(
 
     let project_curation = library.project_curation().unwrap_or_default();
     let saved_summaries = library.project_summaries().unwrap_or_default();
+    // Through the evidence check: a project whose source changed is gone.
+    let review_projects: Vec<crate::dream::MemoryProject> =
+        crate::evidence::read_work_memory(library.paths().root())
+            .and_then(|bytes| serde_json::from_slice::<crate::dream::DreamMemory>(&bytes).ok())
+            .map(|memory| memory.active_projects)
+            .unwrap_or_default();
+    let note_of = |project: &crate::dream::MemoryProject| ReviewNote {
+        name: project.name.clone(),
+        status: project.status.clone(),
+        last_active_day: project.last_active_day.clone(),
+    };
+    let mut attached_review_names: HashSet<&str> = HashSet::new();
     let mut projects: Vec<ProjectProfile> = Vec::new();
     let mut tracked_terms: Vec<HashSet<String>> = Vec::new();
     for project in &project_curation.tracked {
@@ -1055,12 +1084,21 @@ pub fn build_people_and_projects(
             .collect();
         let term_sets: Vec<HashSet<String>> = names.iter().map(|n| significant_terms(n)).collect();
         tracked_terms.extend(term_sets.iter().cloned());
+        let notes: Vec<ReviewNote> = review_projects
+            .iter()
+            .filter(|review| matches(&term_sets, &review.name))
+            .inspect(|review| {
+                attached_review_names.insert(review.name.as_str());
+            })
+            .map(note_of)
+            .collect();
         projects.push(profile(
             format!("tracked:{}", crate::ids::uuid_upper(&project.id)),
             project.name.clone(),
             ProjectKind::Tracked,
             project.other_names.clone(),
             term_sets,
+            notes,
             &context,
         ));
     }
@@ -1098,10 +1136,25 @@ pub fn build_people_and_projects(
         .iter()
         .map(|n| normalized(n))
         .collect();
+    // Overnight review projects nobody tracks yet.
+    let review_suggestions: Vec<&crate::dream::MemoryProject> = review_projects
+        .iter()
+        .filter(|project| {
+            !attached_review_names.contains(project.name.as_str())
+                && !hidden.contains(&normalized(&project.name))
+        })
+        .collect();
+    let review_terms: Vec<HashSet<String>> = review_suggestions
+        .iter()
+        .map(|project| significant_terms(&project.name))
+        .collect();
     let mut topic_profiles: Vec<ProjectProfile> = Vec::new();
     for topic in detect_topics(&meeting_refs, &summaries, &projection_map, &excluded) {
         let key = normalized(&topic.name);
-        if hidden.contains(&key) || tracked_terms.iter().any(|t| t.contains(&key)) {
+        if hidden.contains(&key)
+            || tracked_terms.iter().any(|t| t.contains(&key))
+            || review_terms.iter().any(|t| t.contains(&key))
+        {
             continue;
         }
         topic_profiles.push(profile(
@@ -1110,6 +1163,7 @@ pub fn build_people_and_projects(
             ProjectKind::Suggested,
             Vec::new(),
             vec![HashSet::from([key])],
+            Vec::new(),
             &context,
         ));
     }
@@ -1120,6 +1174,17 @@ pub fn build_people_and_projects(
             .then(b.last_active.cmp(&a.last_active))
     });
     projects.extend(topic_profiles);
+    for project in review_suggestions {
+        projects.push(profile(
+            format!("review:{}", normalized(&project.name)),
+            project.name.clone(),
+            ProjectKind::SuggestedReview,
+            Vec::new(),
+            vec![significant_terms(&project.name)],
+            vec![note_of(project)],
+            &context,
+        ));
+    }
     let live: HashSet<String> = meetings
         .iter()
         .map(|m| crate::ids::uuid_upper(&m.id))
@@ -1142,9 +1207,10 @@ pub fn build_people_and_projects(
         .map(|(id, summary)| (*id, people_mod::summary_lines(summary)))
         .collect();
     for person in &mut people {
-        if let Some((meeting, points)) = people_mod::recent_notes(person, &lines, &applied) {
-            person.notes_meeting = Some(meeting);
-            person.recent_notes = points;
+        if let Some(notes) = people_mod::recent_notes(person, &lines, &applied) {
+            person.notes_meeting = Some(notes.meeting);
+            person.notes_is_latest_meeting = notes.is_latest_meeting;
+            person.recent_notes = notes.points;
         }
         let mut texts: Vec<String> = Vec::new();
         for occasion in people_mod::occasions(&person.meetings)
@@ -1224,6 +1290,25 @@ impl Library {
         all.push(summary);
         write_project_summaries(&self.paths().projects_dir().join("summaries.json"), all)
     }
+
+    /// Drops a project's note when it stops being tracked or is merged away
+    /// (`ProjectStore.removeSummary`).
+    pub fn remove_project_summary(&self, project_id: &str) -> Result<()> {
+        let path = self.paths().projects_dir().join("summaries.json");
+        let mut all = self.project_summaries()?;
+        let before = all.len();
+        all.retain(|s| s.project_id != project_id);
+        if all.len() == before {
+            return Ok(());
+        }
+        if all.is_empty() {
+            return match std::fs::remove_file(&path) {
+                Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err.into()),
+                _ => Ok(()),
+            };
+        }
+        write_project_summaries(&path, all)
+    }
 }
 
 /// Writes `projects/summaries.json` the way macOS reads it (`ProjectStore`):
@@ -1286,6 +1371,69 @@ fn summary_to_disk(mut summary: ProjectSummary) -> Option<ProjectSummary> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn write_memory(library: &Library, names: &[&str]) {
+        let projects: Vec<serde_json::Value> = names
+            .iter()
+            .map(|name| {
+                serde_json::json!({
+                    "name": name, "status": "Waiting on review", "lastActiveDay": "2026-10-19",
+                    "evidence": [], "pinned": false,
+                    "provenance": {"sources": [], "revision": 0, "includesUnattributedContext": false}
+                })
+            })
+            .collect();
+        let path = library.paths().root().join("memory/memory.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            path,
+            serde_json::json!({
+                "version": 2, "updatedAt": "2026-10-20T04:00:00Z", "activeProjects": projects,
+                "workGoals": [], "recurringPatterns": []
+            })
+            .to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn the_overnight_review_feeds_tracked_projects_and_suggests_the_rest() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(crate::LibraryPaths::new(dir.path())).unwrap();
+        library
+            .save_project_curation(&ProjectCuration {
+                tracked: vec![TrackedProject {
+                    id: uuid::Uuid::new_v4(),
+                    name: "Atlas launch".into(),
+                    other_names: Vec::new(),
+                    created_at: Utc::now(),
+                }],
+                hidden_names: vec![normalized("Hidden work")],
+                ..Default::default()
+            })
+            .unwrap();
+        write_memory(
+            &library,
+            &["Atlas launch", "Billing rewrite", "Hidden work"],
+        );
+        let projects = library.projects().unwrap();
+        let tracked = projects.iter().find(|p| p.is_tracked()).unwrap();
+        assert_eq!(tracked.review_notes.len(), 1);
+        assert_eq!(tracked.review_notes[0].status, "Waiting on review");
+        assert!(tracked.last_active.is_some());
+        let suggested: Vec<&ProjectProfile> = projects
+            .iter()
+            .filter(|p| p.kind == ProjectKind::SuggestedReview)
+            .collect();
+        assert_eq!(suggested.len(), 1, "hidden names stay hidden");
+        assert_eq!(suggested[0].name, "Billing rewrite");
+        assert!(suggested[0].id.starts_with("review:"));
+
+        // A pending revocation withholds it all.
+        std::fs::write(dir.path().join(crate::evidence::PENDING_FILE), "[]").unwrap();
+        let projects = library.projects().unwrap();
+        assert!(projects.iter().all(|p| p.review_notes.is_empty()));
+    }
 
     #[test]
     fn project_summaries_are_stored_the_way_macos_reads_them() {

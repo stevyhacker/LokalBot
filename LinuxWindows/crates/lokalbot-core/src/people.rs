@@ -1050,6 +1050,7 @@ pub fn build_people(input: &PeopleInput) -> Vec<PersonProfile> {
             decisions,
             recent_notes: Vec::new(),
             notes_meeting: None,
+            notes_is_latest_meeting: false,
             projects: Vec::new(),
             project_links: Vec::new(),
         });
@@ -1248,6 +1249,17 @@ pub(crate) fn line_is_about(
     person: &PersonProfile,
     applied: Option<&AppliedNames>,
 ) -> bool {
+    note_point(line, Uuid::nil(), person, applied).is_some()
+}
+
+/// A summary line said by the person or naming them, as shown on their page
+/// (`PersonNotes.point`); `None` when the line is about someone else.
+pub fn note_point(
+    line: &SummaryLine,
+    meeting_id: Uuid,
+    person: &PersonProfile,
+    applied: Option<&AppliedNames>,
+) -> Option<NotePoint> {
     let names: Vec<String> = std::iter::once(person.name.clone())
         .chain(person.other_names.iter().cloned())
         .collect();
@@ -1256,13 +1268,37 @@ pub(crate) fn line_is_about(
             .and_then(|a| a.name_for_speaker(label).cloned())
             .or_else(|| (!is_placeholder(label) && !is_user_label(label)).then(|| label.clone()))
     });
+    let point = |speaker: Option<String>| NotePoint {
+        text: line.text.clone(),
+        speaker,
+        meeting_id,
+        seek: line.seek,
+    };
     if speaker_name.as_ref().is_some_and(|s| is_person(s, &names)) {
-        return true;
+        return Some(point(None));
     }
-    names.iter().any(|n| {
+    let named = names.iter().any(|n| {
         let first = n.split(' ').next().unwrap_or(n);
         crate::ids::fold(&line.text).contains(&crate::ids::fold(first)) && is_named(n, &line.text)
-    })
+    });
+    if !named {
+        return None;
+    }
+    let by_user = line.speaker.as_deref().is_some_and(is_user_label);
+    Some(point(if by_user {
+        Some("You".to_string())
+    } else {
+        speaker_name
+    }))
+}
+
+/// What the newest meeting notes about a person say (`PersonProfile.RecentNotes`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct RecentNotes {
+    pub meeting: MeetingRef,
+    /// The notes come from the newest meeting with the person.
+    pub is_latest_meeting: bool,
+    pub points: Vec<NotePoint>,
 }
 
 /// The newest meeting whose notes say something about the person
@@ -1272,26 +1308,34 @@ pub fn recent_notes(
     person: &PersonProfile,
     lines: &HashMap<Uuid, Vec<SummaryLine>>,
     applied: &HashMap<Uuid, AppliedNames>,
-) -> Option<(MeetingRef, Vec<String>)> {
-    for occasion in occasions(&person.meetings)
+) -> Option<RecentNotes> {
+    for (index, occasion) in occasions(&person.meetings)
         .iter()
         .take(MAXIMUM_NOTE_MEETINGS)
+        .enumerate()
     {
         let main = primary(occasion).clone();
         let recordings = std::iter::once(&main).chain(occasion.iter().filter(|m| m.id != main.id));
-        let mut points: Vec<String> = Vec::new();
-        let mut overview: Vec<String> = Vec::new();
+        let mut points: Vec<NotePoint> = Vec::new();
+        let mut overview: Vec<NotePoint> = Vec::new();
         let mut seen: HashSet<String> = HashSet::new();
         for recording in recordings {
             for line in lines.get(&recording.id).into_iter().flatten() {
                 let key = normalized(&line.text);
-                if line_is_about(line, person, applied.get(&recording.id)) {
+                if let Some(point) =
+                    note_point(line, recording.id, person, applied.get(&recording.id))
+                {
                     if seen.insert(key) {
-                        points.push(line.text.clone());
+                        points.push(point);
                     }
                 } else if OVERVIEW_SECTIONS.contains(&line.section.as_str()) && !seen.contains(&key)
                 {
-                    overview.push(line.text.clone());
+                    overview.push(NotePoint {
+                        text: line.text.clone(),
+                        speaker: None,
+                        meeting_id: recording.id,
+                        seek: line.seek,
+                    });
                 }
             }
         }
@@ -1299,15 +1343,95 @@ pub fn recent_notes(
             let mut unique = HashSet::new();
             points = overview
                 .into_iter()
-                .filter(|p| unique.insert(normalized(p)))
+                .filter(|p| unique.insert(normalized(&p.text)))
                 .collect();
         }
         if !points.is_empty() {
             points.truncate(MAXIMUM_NOTE_POINTS);
-            return Some((main, points));
+            return Some(RecentNotes {
+                meeting: main,
+                is_latest_meeting: index == 0,
+                points,
+            });
         }
     }
     None
+}
+
+/// The meetings to offer "Draft Follow-up" for, newest first: each occasion's
+/// main recording when it was small enough to be with this person, rather
+/// than a team call they happened to attend (`followUpMeeting`).
+pub fn follow_up_candidates(person: &PersonProfile) -> Vec<MeetingRef> {
+    occasions(&person.meetings)
+        .iter()
+        .map(|occasion| primary(occasion).clone())
+        .filter(|meeting| meeting.participant_count <= DECISION_MEETING_SIZE)
+        .collect()
+}
+
+/// The "Prepare in Agent…" prompt (`PersonDetailView.preparationPrompt`).
+pub fn preparation_prompt(person: &PersonProfile) -> String {
+    let mut lines = vec![format!(
+        "Help me prepare for my next conversation with {}.",
+        person.name
+    )];
+    if let Some(meeting) = person
+        .notes_meeting
+        .as_ref()
+        .filter(|_| !person.recent_notes.is_empty())
+    {
+        let day = meeting
+            .started_at
+            .with_timezone(&chrono::Local)
+            .format("%b %-d, %Y");
+        lines.push(format!("From my notes of {} on {day}:", meeting.title));
+        for point in &person.recent_notes {
+            let speaker = point
+                .speaker
+                .as_deref()
+                .map(|s| format!("{s}: "))
+                .unwrap_or_default();
+            lines.push(format!("- {speaker}{}", point.text));
+        }
+    }
+    if !person.project_links.is_empty() {
+        let names: Vec<&str> = person
+            .project_links
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        lines.push(format!(
+            "Projects that come up with them: {}",
+            names.join(", ")
+        ));
+    }
+    let thread_line = |thread: &ActionThread| {
+        let due = thread
+            .due
+            .as_deref()
+            .map(|d| format!(" (due {d})"))
+            .unwrap_or_default();
+        format!("- {}{due}", thread.text)
+    };
+    if !person.my_actions.is_empty() {
+        lines.push("What I owe them:".to_string());
+        lines.extend(person.my_actions.iter().take(8).map(thread_line));
+    }
+    if !person.their_actions.is_empty() {
+        lines.push("What they owe me:".to_string());
+        lines.extend(person.their_actions.iter().take(8).map(thread_line));
+    }
+    if !person.decisions.is_empty() {
+        lines.push("Recent decisions together:".to_string());
+        lines.extend(
+            person
+                .decisions
+                .iter()
+                .take(5)
+                .map(|(_, decision)| format!("- {}", decision.display_text())),
+        );
+    }
+    lines.join("\n")
 }
 
 // ---------------------------------------------------------------- library
@@ -1421,6 +1545,196 @@ mod tests {
         assert_eq!(lines[0].seek, Some(96.0));
         assert_eq!(lines[1].speaker.as_deref(), Some("Them 2"));
         assert_eq!(lines[1].text, "Framing stays wide for crops");
+    }
+
+    fn person(name: &str) -> PersonProfile {
+        PersonProfile {
+            id: person_id_for_name(name),
+            name: name.to_string(),
+            other_names: Vec::new(),
+            member_ids: vec![person_id_for_name(name)],
+            meetings: Vec::new(),
+            their_actions: Vec::new(),
+            my_actions: Vec::new(),
+            decisions: Vec::new(),
+            recent_notes: Vec::new(),
+            notes_meeting: None,
+            notes_is_latest_meeting: false,
+            projects: Vec::new(),
+            project_links: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn note_points_name_the_speaker_like_swift() {
+        let ana = person("Ana Petrovic");
+        let id = Uuid::new_v4();
+        let lines = summary_lines(
+            "## Key points\n- **Ana Petrovic:** Launch moves to Tuesday. — [00:01:36]\n- **You:** Ana will own the launch checklist.\n- **Marko:** Ana said the budget is settled.\n- Nobody mentioned the budget again.\n",
+        );
+        // Her own line carries no label, and keeps its moment.
+        let own = note_point(&lines[0], id, &ana, None).unwrap();
+        assert_eq!(own.speaker, None);
+        assert_eq!(own.seek, Some(96.0));
+        assert_eq!(own.meeting_id, id);
+        // The user's line about her says who said it.
+        assert_eq!(
+            note_point(&lines[1], id, &ana, None)
+                .unwrap()
+                .speaker
+                .as_deref(),
+            Some("You")
+        );
+        // So does somebody else's.
+        assert_eq!(
+            note_point(&lines[2], id, &ana, None)
+                .unwrap()
+                .speaker
+                .as_deref(),
+            Some("Marko")
+        );
+        // A line about someone else is not hers.
+        assert!(note_point(&lines[3], id, &ana, None).is_none());
+    }
+
+    #[test]
+    fn recent_notes_say_whether_they_are_from_the_latest_meeting() {
+        let mut ana = person("Ana Petrovic");
+        let meeting = |day: u32, title: &str| MeetingRef {
+            id: Uuid::new_v4(),
+            title: title.to_string(),
+            started_at: chrono::TimeZone::with_ymd_and_hms(&chrono::Utc, 2026, 10, day, 9, 0, 0)
+                .unwrap(),
+            ended_at: None,
+            calendar_event_id: None,
+            participant_count: 6,
+        };
+        let (newer, older) = (meeting(20, "Sync"), meeting(10, "Planning"));
+        ana.meetings = vec![newer.clone(), older.clone()];
+        let mut lines = HashMap::new();
+        lines.insert(
+            older.id,
+            summary_lines("## Key points\n- Ana will own the launch checklist.\n"),
+        );
+        let notes = recent_notes(&ana, &lines, &HashMap::new()).unwrap();
+        assert_eq!(notes.meeting.id, older.id);
+        assert!(!notes.is_latest_meeting, "Last Mentioned, not Last Time");
+        lines.insert(
+            newer.id,
+            summary_lines("## Key points\n- Ana will send the deck by Friday.\n"),
+        );
+        let notes = recent_notes(&ana, &lines, &HashMap::new()).unwrap();
+        assert_eq!(notes.meeting.id, newer.id);
+        assert!(notes.is_latest_meeting);
+    }
+
+    #[test]
+    fn follow_up_skips_team_calls() {
+        let mut ana = person("Ana Petrovic");
+        let meeting = |day: u32, count: usize| MeetingRef {
+            id: Uuid::new_v4(),
+            title: format!("Call {day}"),
+            started_at: chrono::TimeZone::with_ymd_and_hms(&chrono::Utc, 2026, 10, day, 9, 0, 0)
+                .unwrap(),
+            ended_at: None,
+            calendar_event_id: None,
+            participant_count: count,
+        };
+        let (team, small) = (meeting(20, DECISION_MEETING_SIZE + 1), meeting(10, 2));
+        ana.meetings = vec![team, small.clone()];
+        let candidates = follow_up_candidates(&ana);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].id, small.id);
+    }
+
+    #[test]
+    fn preparation_prompt_matches_swift() {
+        let mut ana = person("Ana Petrovic");
+        let started_at =
+            chrono::TimeZone::with_ymd_and_hms(&chrono::Utc, 2026, 10, 8, 12, 0, 0).unwrap();
+        ana.notes_meeting = Some(MeetingRef {
+            id: Uuid::new_v4(),
+            title: "Launch sync".into(),
+            started_at,
+            ended_at: None,
+            calendar_event_id: None,
+            participant_count: 1,
+        });
+        ana.recent_notes = vec![NotePoint {
+            text: "Launch moves to Tuesday.".into(),
+            speaker: Some("You".into()),
+            meeting_id: Uuid::nil(),
+            seek: None,
+        }];
+        ana.project_links = vec![ProjectLink {
+            id: "tracked:A".into(),
+            name: "Atlas".into(),
+            is_tracked: true,
+            mentions: 2,
+        }];
+        let prompt = preparation_prompt(&ana);
+        let day = started_at
+            .with_timezone(&chrono::Local)
+            .format("%b %-d, %Y")
+            .to_string();
+        assert_eq!(
+            prompt,
+            format!(
+                "Help me prepare for my next conversation with Ana Petrovic.\nFrom my notes of Launch sync on {day}:\n- You: Launch moves to Tuesday.\nProjects that come up with them: Atlas"
+            )
+        );
+    }
+
+    /// `people/curation.json` as `PeopleStore` writes it (sorted, pretty keys).
+    #[test]
+    fn curation_reads_and_writes_the_mac_format() {
+        let mac = r#"{
+  "hidden" : [
+    {
+      "id" : "person-00000000000000aa",
+      "name" : "Conference Room"
+    }
+  ],
+  "merges" : [
+    {
+      "sourceID" : "person-0000000000000001",
+      "sourceName" : "Stevan B",
+      "targetID" : "person-0000000000000002"
+    }
+  ],
+  "names" : {
+    "person-0000000000000002" : "Stevan"
+  },
+  "version" : 1
+}"#;
+        let curation: PeopleCuration = serde_json::from_str(mac).unwrap();
+        assert_eq!(curation.merges[0].source_id, "person-0000000000000001");
+        assert_eq!(curation.merges[0].source_name, "Stevan B");
+        assert_eq!(curation.hidden[0].name, "Conference Room");
+        let json = serde_json::to_value(&curation).unwrap();
+        assert_eq!(
+            json,
+            serde_json::from_str::<serde_json::Value>(mac).unwrap()
+        );
+    }
+
+    #[test]
+    fn merging_folds_names_and_offers_separate() {
+        let mut source = person("Stevan B");
+        source.member_ids.push("person-old".into());
+        let target = person("Stevan Bogosavljevic");
+        let mut curation = PeopleCuration::default();
+        curation.names.insert(source.id.clone(), "S".into());
+        curation.names.insert("person-old".into(), "Old".into());
+        assert!(!curation.merge(&source, &source), "not onto itself");
+        assert!(curation.merge(&source, &target));
+        assert!(curation.names.is_empty(), "the source's chosen names go");
+        assert_eq!(curation.merges[0].source_name, "Stevan B");
+        // The folded profile lists both ids, so Separate finds the merge.
+        let mut folded = target.clone();
+        folded.member_ids.push(source.id.clone());
+        assert_eq!(curation.merges_into(&folded).len(), 1);
+        assert!(curation.merges_into(&source).is_empty());
     }
 
     #[test]

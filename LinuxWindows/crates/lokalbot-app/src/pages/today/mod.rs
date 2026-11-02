@@ -3,6 +3,7 @@
 //! `GettingStartedCard.swift`). "Review Actions…" opens the Actions workspace.
 
 mod actions;
+pub(crate) mod brief;
 pub(crate) mod digest;
 pub(crate) mod threads;
 mod upcoming;
@@ -36,7 +37,14 @@ struct TodayModel {
     day: NaiveDate,
     activity: DayActivity,
     digest: Option<DayDigest>,
+    /// The rows shown: at most three.
     attention: Vec<ActionThread>,
+    /// The open threads "Plan in Agent…" lists: at most eight.
+    attention_open: Vec<ActionThread>,
+    /// "Looks done?" suggestions, by thread.
+    hints: std::collections::HashMap<String, lokalbot_core::action_completion::CompletionHint>,
+    /// Yesterday's overnight review.
+    brief: brief::BriefModel,
 }
 
 pub struct TodayPage {
@@ -54,6 +62,9 @@ pub struct TodayPage {
     bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     /// Today's calendar meetings and the next one's preparation.
     upcoming: upcoming::UpcomingState,
+    /// A planted demo library never asks for a GitHub star.
+    seeded_demo_library: bool,
+    brief: brief::BriefState,
     tick: Option<Task<()>>,
     _refresh: Task<()>,
     _subscriptions: Vec<Subscription>,
@@ -71,9 +82,13 @@ impl TodayPage {
             cx.observe(&actions, |_, _, cx| cx.notify()),
             cx.subscribe(&actions, |this, _, _: &actions::BackToToday, cx| {
                 this.showing_actions = false;
+                this.data.update(cx, |data, _| data.actions_open = false);
                 cx.notify();
             }),
         ];
+        let seeded_demo_library = lokalbot_core::github_star::is_seeded_demo_library(
+            data.read(cx).library.paths().root(),
+        );
         // Today re-anchors after midnight and picks up new activity.
         let refresh = cx.spawn(async move |this, cx| {
             loop {
@@ -98,6 +113,8 @@ impl TodayPage {
             actions,
             bounds: Rc::new(Cell::new(None)),
             upcoming: Default::default(),
+            seeded_demo_library,
+            brief: Default::default(),
             tick: None,
             _refresh: refresh,
             _subscriptions: subscriptions,
@@ -114,11 +131,12 @@ impl TodayPage {
             self.pending_actions = true;
             cx.notify();
         }
-        let data = self.data.read(cx);
-        if data.section != Section::Today && self.showing_actions {
-            // Leaving Today closes the Actions workspace, as on macOS.
+        if self.data.read(cx).section != Section::Today && self.showing_actions {
+            // Leaving Today closes the Actions workspace; Back reopens it.
             self.showing_actions = false;
+            self.data.update(cx, |data, _| data.actions_open = false);
         }
+        let data = self.data.read(cx);
         if !data.meetings_loaded {
             return;
         }
@@ -130,7 +148,9 @@ impl TodayPage {
     }
 
     fn reload(&mut self, cx: &mut Context<Self>) {
+        self.record_active_day(cx);
         let library = self.data.read(cx).library.clone();
+        let suggest_done = threads::suggests_completion(&self.data.read(cx).settings);
         let day = Local::now().date_naive();
         self.load_generation += 1;
         let generation = self.load_generation;
@@ -146,15 +166,27 @@ impl TodayPage {
                         log::warn!("digest for {day}: {err:#}");
                         None
                     });
-                    let attention = library.needs_attention(None, 3).unwrap_or_else(|err| {
+                    let attention_open = library.needs_attention(None, 8).unwrap_or_else(|err| {
                         log::warn!("needs attention: {err:#}");
                         Vec::new()
                     });
+                    let attention: Vec<ActionThread> =
+                        attention_open.iter().take(3).cloned().collect();
+                    // Suggestions only, and only from text kept with consent.
+                    let hints = if suggest_done {
+                        library.action_completion_hints(&attention, chrono::Utc::now())
+                    } else {
+                        Default::default()
+                    };
+                    let brief = brief::load(&library, day);
                     TodayModel {
                         day,
                         activity,
                         digest,
                         attention,
+                        attention_open,
+                        hints,
+                        brief,
                     }
                 })
                 .await;
@@ -186,6 +218,7 @@ impl TodayPage {
 
     pub(crate) fn show_actions(&mut self, show: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.showing_actions = show;
+        self.data.update(cx, |data, _| data.actions_open = show);
         if show {
             self.actions
                 .update(cx, |actions, cx| actions.reload(window, cx));
@@ -197,13 +230,92 @@ impl TodayPage {
         self.data.update(cx, |data, cx| {
             data.ask(
                 AskRequest {
-                    question: lokalbot_i18n::tr("What happened today?").into(),
+                    question: String::new(),
                     meeting_ids: Vec::new(),
                     submit: false,
+                    day: Some(Local::now().date_naive()),
                 },
                 cx,
             )
         });
+    }
+
+    /// Today's one-time request for a GitHub star, at the end of the page. It
+    /// appears only when `github_star::should_show` allows, and either button
+    /// retires it for good (`GitHubStarCard`).
+    fn render_github_star(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let data = self.data.read(cx);
+        let settings = &data.settings;
+        if !lokalbot_core::github_star::should_show(
+            settings.github_star_dismissed,
+            settings.github_star_summary_completed,
+            &settings.github_star_active_days,
+            self.seeded_demo_library,
+        ) {
+            return None;
+        }
+        let lb = cx.lb().clone();
+        let (star, later) = (self.data.clone(), self.data.clone());
+        let answer = |data: &Entity<AppData>, cx: &mut App| {
+            data.update(cx, |data, cx| {
+                data.update_settings(|s| s.github_star_dismissed = true, cx)
+            })
+        };
+        Some(
+            ui::grouped_surface(cx)
+                .p(px(14.))
+                .child(
+                    h_flex()
+                        .flex_wrap()
+                        .gap(px(10.))
+                        .items_center()
+                        .child(ui::icon(Ico::Star, px(16.), lb.accent_text))
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w(px(240.))
+                                .text_size(ty::BODY)
+                                .text_color(lb.text)
+                                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                    "LokalBot is free and built by one person. A GitHub star helps others find it.",
+                                ))),
+                        )
+                        .child(
+                            ui::controls::bordered(
+                                "today-github-star",
+                                lokalbot_i18n::tr("Star on GitHub"),
+                            )
+                            .on_click(move |_, _, cx| {
+                                cx.open_url(crate::pages::settings::general::REPOSITORY);
+                                answer(&star, cx);
+                            }),
+                        )
+                        .child(ui::link(
+                            "today-github-star-later",
+                            lokalbot_i18n::tr("Not now"),
+                            move |_, cx| answer(&later, cx),
+                            cx,
+                        )),
+                )
+                .into_any_element(),
+        )
+    }
+
+    /// Counts today once toward asking for a GitHub star.
+    fn record_active_day(&mut self, cx: &mut Context<Self>) {
+        if self.seeded_demo_library {
+            return;
+        }
+        let key = Local::now().date_naive().format("%Y-%m-%d").to_string();
+        let due = lokalbot_core::github_star::should_record_day(
+            &key,
+            &self.data.read(cx).settings.github_star_active_days,
+        );
+        if due {
+            self.data.update(cx, |data, cx| {
+                data.update_settings(|s| s.github_star_active_days.push(key), cx)
+            });
+        }
     }
 
     /// Content width inside the page column, for the task grid.
@@ -303,10 +415,13 @@ impl TodayPage {
         let count = model.attention.len();
         let rows = model.attention.iter().enumerate().map(|(ix, thread)| {
             v_flex()
-                .child(threads::thread_row(
+                .child(threads::thread_row_with(
                     format!("today-thread-{ix}").into(),
                     thread,
-                    false,
+                    threads::RowOptions {
+                        hint: model.hints.get(&thread.id),
+                        ..Default::default()
+                    },
                     &self.data,
                     cx,
                 ))
@@ -314,13 +429,28 @@ impl TodayPage {
                     this.child(div().h(px(1.)).bg(lb.separator))
                 })
         });
+        let plan = lokalbot_core::agent_handoff::agent_prompt_for_plan(&model.attention_open);
+        let plan_data = self.data.clone();
         let content = v_flex().children(rows).child(
-            h_flex().pt(px(8.)).gap(px(8.)).child(
-                ui::controls::bordered("review-actions", lokalbot_i18n::tr("Review Actions…"))
-                    .on_click(
-                        cx.listener(|this, _, window, cx| this.show_actions(true, window, cx)),
-                    ),
-            ),
+            h_flex()
+                .pt(px(8.))
+                .gap(px(8.))
+                .child(
+                    ui::controls::bordered("review-actions", lokalbot_i18n::tr("Review Actions…"))
+                        .on_click(
+                            cx.listener(|this, _, window, cx| this.show_actions(true, window, cx)),
+                        ),
+                )
+                .child(
+                    ui::controls::bordered("plan-in-agent", lokalbot_i18n::tr("Plan in Agent…"))
+                        .tooltip(lokalbot_i18n::tr(
+                            "Open a new Agent task with these action threads",
+                        ))
+                        .on_click(move |_, _, cx| {
+                            let prompt = plan.clone();
+                            plan_data.update(cx, |data, cx| data.open_agent(prompt, cx));
+                        }),
+                ),
         );
         Some(ui::section(lokalbot_i18n::tr("Needs Attention"), content, cx).into_any_element())
     }
@@ -811,6 +941,7 @@ impl Render for TodayPage {
             Some(model) => {
                 sections.extend(self.render_attention(&model, cx));
                 sections.push(self.render_digest(&model, cx));
+                sections.extend(self.render_brief(&model.brief, model.day, cx));
                 self.model = Some(model);
             }
             None => sections.push(
@@ -827,6 +958,7 @@ impl Render for TodayPage {
             ),
         }
         sections.extend(self.render_getting_started(cx));
+        sections.extend(self.render_github_star(cx));
 
         div()
             .id("today-scroll")

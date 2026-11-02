@@ -34,7 +34,7 @@ pub fn mode_detail(mode: ScreenContextMode) -> &'static str {
     }
 }
 
-fn hour_label(hour: u32) -> String {
+pub(super) fn hour_label(hour: u32) -> String {
     chrono::NaiveDate::from_ymd_opt(2000, 1, 1)
         .unwrap()
         .and_hms_opt(hour % 24, 0, 0)
@@ -299,7 +299,18 @@ impl SettingsPage {
             ),
         );
 
-        vec![memory, digest]
+        let coding_agents = self.coding_agents_section(cx);
+        let routines = self.routines_section(cx);
+        let daily_notes = self.daily_note_export_section(cx);
+        let overnight = self.overnight_review_section(cx);
+        vec![
+            memory,
+            digest,
+            overnight,
+            coding_agents,
+            routines,
+            daily_notes,
+        ]
     }
 
     /// What capture can do on this desktop right now (`MemoryHealthSection`).
@@ -461,7 +472,7 @@ impl SettingsPage {
 }
 
 /// `MemoryHealthSection.textSourceLabel`.
-fn text_source_label(source: &str) -> String {
+pub(super) fn text_source_label(source: &str) -> String {
     let base = source.strip_suffix("_redacted");
     let label = match base.unwrap_or(source) {
         "accessibility" => lokalbot_i18n::tr("Accessibility").to_string(),

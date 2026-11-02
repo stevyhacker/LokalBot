@@ -404,24 +404,22 @@ impl Engine {
         format!("{}/messages", versioned_root(&self.base))
     }
 
-    /// One whole reply; transient failures get one replay, and a 400 naming
-    /// an optional field one retry without it.
+    /// One whole reply. A 400 naming an optional field gets one retry without it;
+    /// transient failures replay through the origin's gate, in the caller.
     pub fn complete(&self, request: &ChatRequest) -> Result<Completion> {
         let attempt = |omitted: &BTreeSet<OptionalField>| -> Result<Completion> {
             let (body, fallbacks) = self.body(request, false, omitted)?;
             let headers = self.headers(fallbacks);
-            crate::think::with_retry(|| {
-                let agent = http::agent(&self.base, TIMEOUT);
-                let reply = http::post_json_with(&agent, &self.url(), &headers, &body)?;
-                if !reply.ok() {
-                    return Err(reply.status_error().into());
-                }
-                let completion = parse_message(&reply.json()?)?;
-                if let Some(usage) = &completion.usage {
-                    log_cache(&self.model, usage);
-                }
-                Ok(completion)
-            })
+            let agent = http::agent(&self.base, TIMEOUT);
+            let reply = http::post_json_with(&agent, &self.url(), &headers, &body)?;
+            if !reply.ok() {
+                return Err(reply.status_error().into());
+            }
+            let completion = parse_message(&reply.json()?)?;
+            if let Some(usage) = &completion.usage {
+                log_cache(&self.model, usage);
+            }
+            Ok(completion)
         };
         match attempt(&BTreeSet::new()) {
             Err(err) => {

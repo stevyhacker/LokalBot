@@ -103,4 +103,29 @@ mod tests {
         assert!(EXTENSION_INDEX.contains("before_agent_start"));
         assert!(SKILL.contains("lokalbot-cli"));
     }
+
+    /// The boundary the extension checks is the one pi's tools use. The suite in
+    /// `resources/tests` runs this; here it stays visible without a runtime.
+    #[test]
+    fn the_extension_resolves_paths_against_the_session_folder() {
+        assert!(EXTENSION_INDEX.contains("const toolCwd = ctx.cwd || process.cwd();"));
+        assert!(EXTENSION_INDEX.contains(r#"value.includes("\0")"#));
+        assert!(!EXTENSION_INDEX.contains("resolveReadPath(path, process.cwd())"));
+    }
+
+    #[test]
+    fn the_skill_says_what_this_app_has() {
+        // The page and the command line both exist here.
+        assert!(!SKILL.contains("no About you page"));
+        assert!(!SKILL.contains("that switch is in the Mac app"));
+        assert!(!SKILL.contains("can't read or change LokalBot's settings"));
+        for command in ["config search", "config describe", "status", "doctor"] {
+            assert!(
+                SKILL.contains(&format!("lokalbot-cli {command}")),
+                "{command}"
+            );
+        }
+        assert!(SKILL.contains("[settings_access_disabled]"));
+        assert!(SKILL.contains("Settings → Personal Context"));
+    }
 }

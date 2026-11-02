@@ -4,16 +4,40 @@
 pub mod advanced;
 mod calendar;
 pub mod catalog;
+mod coding_agents;
 mod day_memory;
+mod devices;
 mod dictation;
-mod general;
+mod exports;
+mod files;
+pub(crate) mod general;
+mod health;
 pub mod meetings;
+mod model_browse;
+mod model_checks;
+pub(crate) mod model_options;
+pub(crate) mod model_setup;
 pub mod models;
+mod overnight_review;
+mod overview;
+mod personal_context;
 mod plans;
 mod privacy;
+mod remembered_people;
+mod resource_monitor;
+mod retention_review;
+pub(crate) use retention_review::needs_review as needs_retention_review;
+mod routines;
 pub mod writing;
+mod writing_rehearsal;
+mod writing_server;
+mod writing_stats;
 
+pub use coding_agents::choose as choose_coding_agents;
+use day_memory::hour_label;
 pub use day_memory::mode_detail as day_memory_mode_detail;
+pub(crate) use devices::{history_label, pairing_prompt_changed};
+pub use general::REPOSITORY;
 
 use std::collections::HashSet;
 
@@ -29,6 +53,7 @@ use gpui_kit::{
 };
 use lokalbot_core::Settings;
 use lokalbot_core::access::ScreenScope;
+use lokalbot_platform::shortcuts::Shortcut;
 
 use crate::pages::Page;
 use crate::state::{AppData, SettingsCategory};
@@ -37,25 +62,33 @@ use crate::ui::rule_list::{RuleKind, RuleList, RuleListEvent};
 use crate::ui::shortcut_field::{ShortcutEvent, ShortcutField};
 use crate::ui::{self, Ico, settings_row};
 
-pub const CATEGORIES: [SettingsCategory; 8] = [
+pub const CATEGORIES: [SettingsCategory; 12] = [
+    SettingsCategory::Overview,
     SettingsCategory::General,
     SettingsCategory::Meetings,
     SettingsCategory::DayMemory,
+    SettingsCategory::PersonalContext,
     SettingsCategory::Writing,
     SettingsCategory::Dictation,
+    SettingsCategory::Files,
     SettingsCategory::Models,
+    SettingsCategory::Devices,
     SettingsCategory::Privacy,
     SettingsCategory::Advanced,
 ];
 
 fn category_icon(category: SettingsCategory) -> Ico {
     match category {
+        SettingsCategory::Overview => Ico::LayoutGrid,
         SettingsCategory::General => Ico::Settings,
         SettingsCategory::Meetings => Ico::Users,
         SettingsCategory::DayMemory => Ico::ChartGantt,
+        SettingsCategory::PersonalContext => Ico::CircleUser,
         SettingsCategory::Writing => Ico::Pencil,
         SettingsCategory::Dictation => Ico::Mic,
+        SettingsCategory::Files => Ico::Folder,
         SettingsCategory::Models => Ico::Package,
+        SettingsCategory::Devices => Ico::Smartphone,
         SettingsCategory::Privacy => Ico::Lock,
         SettingsCategory::Advanced => Ico::SlidersHorizontal,
     }
@@ -63,6 +96,9 @@ fn category_icon(category: SettingsCategory) -> Ico {
 
 fn category_subtitle(category: SettingsCategory) -> &'static str {
     match category {
+        SettingsCategory::Overview => {
+            lokalbot_i18n::tr("Every feature LokalBot has, and whether it is on.")
+        }
         SettingsCategory::General => {
             lokalbot_i18n::tr("Startup, appearance, the Ask shortcut, and updates.")
         }
@@ -72,12 +108,21 @@ fn category_subtitle(category: SettingsCategory) -> &'static str {
         SettingsCategory::DayMemory => {
             lokalbot_i18n::tr("Activity, captured screen context, and daily digests.")
         }
+        SettingsCategory::PersonalContext => {
+            lokalbot_i18n::tr("What LokalBot keeps about you, and who can read it.")
+        }
         SettingsCategory::Writing => lokalbot_i18n::tr("Autocomplete and your writing profile."),
         SettingsCategory::Dictation => lokalbot_i18n::tr(
             "The dictation shortcut, Transcribe or Compose, and where the text goes.",
         ),
+        SettingsCategory::Files => {
+            lokalbot_i18n::tr("Search the folders you choose by what is in them.")
+        }
         SettingsCategory::Models => {
             lokalbot_i18n::tr("Choose the models behind Transcribe, Think, and Autocomplete.")
+        }
+        SettingsCategory::Devices => {
+            lokalbot_i18n::tr("Read your work memory on your own iPhone, iPad, or Android device.")
         }
         SettingsCategory::Privacy => {
             lokalbot_i18n::tr("Control retention, exclusions, and remote processing.")
@@ -112,6 +157,8 @@ impl Section {
 }
 
 pub struct SettingsPage {
+    /// The Files grant as last set here; `None` reads the marker.
+    files_access: Option<bool>,
     data: Entity<AppData>,
     search: Entity<InputState>,
     query: String,
@@ -122,6 +169,7 @@ pub struct SettingsPage {
     open_details: HashSet<&'static str>,
     quick_recall_shortcut: Entity<ShortcutField>,
     dictation_shortcut: Entity<ShortcutField>,
+    selection_actions_shortcut: Entity<ShortcutField>,
     digest_prompt: Entity<TextareaState>,
     cotyping_name: Entity<InputState>,
     cotyping_style: Entity<InputState>,
@@ -137,14 +185,50 @@ pub struct SettingsPage {
     cotyping_excluded_sites: Entity<RuleList>,
     debounce_slider: Entity<SliderState>,
     interval_slider: Entity<SliderState>,
+    writing: writing::WritingState,
+    overnight: overnight_review::OvernightState,
+    personal: personal_context::PersonalState,
     /// External-agent markers, read from disk off the main thread.
     meetings_access: Option<bool>,
     screen_access: Option<Option<ScreenScope>>,
     cli_installed: Option<bool>,
+    /// Whether the command's folder is on PATH, and what the last CLI button did.
+    cli_on_path: Option<bool>,
+    cli_message: Option<String>,
+    agent_changes_open: bool,
+    access_generation: u64,
     models: models::ModelsState,
+    resources: resource_monitor::ResourceMonitor,
     calendar: calendar::CalendarState,
+    devices: devices::DevicesState,
+    /// "Never read sessions in these folders".
+    coding_agent_folders: Entity<RuleList>,
+    /// Where the retention slider is while it is being dragged. Nothing changes
+    /// until it is let go and any review is applied.
+    retention_draft: Option<u32>,
+    retention_error: Option<String>,
+    retention_completion: Option<String>,
+    /// The library's size and the free space on its drive, for Memory health.
+    storage: Option<(u64, Option<u64>)>,
+    storage_measured_at: Option<std::time::Instant>,
     last_settings: Settings,
     _subscriptions: Vec<Subscription>,
+}
+
+/// What the Ask and dictation shortcuts share: not selection actions' chord,
+/// and nothing the system or other apps hold (Ctrl+Shift+W closes tabs here).
+fn other_shortcut_problem(candidate: &str, settings: &Settings) -> Option<String> {
+    use lokalbot_platform::shortcuts::ShortcutProblem;
+    if settings.selection_actions_enabled && candidate == settings.selection_actions_shortcut {
+        return Some(
+            lokalbot_i18n::tr(&ShortcutProblem::UsedBySelectionActions.message()).to_string(),
+        );
+    }
+    Shortcut::parse(candidate)
+        .ok()?
+        .selection_actions_problem(None, None)
+        .filter(|problem| *problem == ShortcutProblem::UsedBySystem)
+        .map(|problem| lokalbot_i18n::tr(&problem.message()).to_string())
 }
 
 impl SettingsPage {
@@ -164,10 +248,14 @@ impl SettingsPage {
                 "Ctrl+Shift+Space",
                 |candidate, cx| {
                     let settings = &AppData::global(cx).read(cx).settings;
-                    (candidate == settings.dictation_shortcut).then(|| {
-                        lokalbot_i18n::tr("Dictation already uses this shortcut. Choose another.")
-                            .to_string()
-                    })
+                    let parse = |text: &str| Shortcut::parse(text).ok();
+                    parse(candidate)
+                        .and_then(|shortcut| {
+                            shortcut
+                                .quick_recall_problem(parse(&settings.dictation_shortcut).as_ref())
+                        })
+                        .map(|problem| lokalbot_i18n::tr(&problem.message()).to_string())
+                        .or_else(|| other_shortcut_problem(candidate, settings))
                 },
                 window,
                 cx,
@@ -179,12 +267,31 @@ impl SettingsPage {
                 "Alt+Space",
                 |candidate, cx| {
                     let settings = &AppData::global(cx).read(cx).settings;
-                    (candidate == settings.quick_recall_shortcut).then(|| {
-                        lokalbot_i18n::tr(
-                            "The Ask shortcut already uses this shortcut. Choose another.",
-                        )
-                        .to_string()
-                    })
+                    let parse = |text: &str| Shortcut::parse(text).ok();
+                    parse(candidate)
+                        .and_then(|shortcut| {
+                            shortcut
+                                .dictation_problem(parse(&settings.quick_recall_shortcut).as_ref())
+                        })
+                        .map(|problem| lokalbot_i18n::tr(&problem.message()).to_string())
+                        .or_else(|| other_shortcut_problem(candidate, settings))
+                },
+                window,
+                cx,
+            )
+        });
+        let selection_actions_shortcut = cx.new(|cx| {
+            ShortcutField::new(
+                settings.selection_actions_shortcut.clone(),
+                "Ctrl+Alt+Space",
+                |candidate, cx| {
+                    let settings = &AppData::global(cx).read(cx).settings;
+                    let parse = |text: &str| Shortcut::parse(text).ok();
+                    let problem = parse(candidate)?.selection_actions_problem(
+                        parse(&settings.dictation_shortcut).as_ref(),
+                        parse(&settings.quick_recall_shortcut).as_ref(),
+                    )?;
+                    Some(lokalbot_i18n::tr(&problem.message()).to_string())
                 },
                 window,
                 cx,
@@ -256,7 +363,7 @@ impl SettingsPage {
         let cotyping_excluded_sites = cx.new(|cx| {
             RuleList::new(
                 "Never suggest on these sites",
-                RuleKind::Domains,
+                RuleKind::WritingDomains,
                 &settings.cotyping_excluded_domains,
                 window,
                 cx,
@@ -320,6 +427,23 @@ impl SettingsPage {
                 },
             ),
             cx.subscribe_in(
+                &selection_actions_shortcut,
+                window,
+                |this, _, event: &ShortcutEvent, _, cx| match event {
+                    ShortcutEvent::Changed(value) => {
+                        let value = value.clone();
+                        this.update_settings(move |s| s.selection_actions_shortcut = value, cx);
+                    }
+                    ShortcutEvent::Recording(recording) => {
+                        let recording = *recording;
+                        this.data.update(cx, |data, cx| {
+                            data.shortcut_recording = recording;
+                            cx.notify();
+                        });
+                    }
+                },
+            ),
+            cx.subscribe_in(
                 &digest_prompt,
                 window,
                 |this, input, event: &InputEvent, _, cx| {
@@ -350,11 +474,24 @@ impl SettingsPage {
                 },
             ),
         ];
+        let coding_agent_folders = cx.new(|cx| {
+            RuleList::new(
+                "Never read sessions in these folders",
+                RuleKind::Folders,
+                &settings.coding_agent_excluded_folders,
+                window,
+                cx,
+            )
+        });
         for (list, set) in [
             (
-                &excluded_apps,
-                (|s: &mut Settings, v: String| s.excluded_apps = v) as fn(&mut Settings, String),
+                &coding_agent_folders,
+                (|s: &mut Settings, v: String| s.coding_agent_excluded_folders = v)
+                    as fn(&mut Settings, String),
             ),
+            (&excluded_apps, |s: &mut Settings, v: String| {
+                s.excluded_apps = v
+            }),
             (&excluded_sites, |s: &mut Settings, v: String| {
                 s.excluded_screen_domains = v
             }),
@@ -378,10 +515,17 @@ impl SettingsPage {
         subscriptions.push(cx.subscribe_in(
             &retention_slider,
             window,
-            |this, _, event: &SliderEvent, _, cx| {
-                let (SliderEvent::Change(value) | SliderEvent::Release(value)) = event;
-                let days = value.start().round() as u32;
-                this.update_settings(move |s| s.retention_days = days, cx);
+            |this, _, event: &SliderEvent, window, cx| match event {
+                // Dragging only previews: shortening has to go through the review.
+                SliderEvent::Change(value) => {
+                    this.retention_draft = Some(value.start().round() as u32);
+                    cx.notify();
+                }
+                SliderEvent::Release(value) => {
+                    let days = value.start().round() as u32;
+                    let forever = this.data.read(cx).settings.keep_ocr_text_forever;
+                    this.propose_retention(days, forever, window, cx);
+                }
             },
         ));
         subscriptions.push(cx.subscribe_in(
@@ -413,8 +557,22 @@ impl SettingsPage {
 
         let models = models::ModelsState::new(&settings, window, cx);
         subscriptions.extend(models::ModelsState::subscribe(&models, window, cx));
+        let writing = writing::WritingState::new(&settings, window, cx);
+        subscriptions.extend(writing::WritingState::subscribe(&writing, window, cx));
         let calendar = calendar::CalendarState::new(&settings, window, cx);
         subscriptions.extend(calendar::CalendarState::subscribe(&calendar, window, cx));
+        let devices = devices::DevicesState::new(&settings, window, cx);
+        subscriptions.extend(devices::DevicesState::subscribe(&devices, window, cx));
+        if let Some(host) = crate::control::global(cx) {
+            subscriptions.push(cx.observe(&host, |this, host, cx| {
+                let generation = host.read(cx).access_generation;
+                if generation != this.access_generation {
+                    this.access_generation = generation;
+                    this.reload_access(cx);
+                }
+                cx.notify();
+            }));
+        }
         let mut page = Self {
             data,
             search,
@@ -425,6 +583,7 @@ impl SettingsPage {
             open_details: HashSet::new(),
             quick_recall_shortcut,
             dictation_shortcut,
+            selection_actions_shortcut,
             digest_prompt,
             cotyping_name,
             cotyping_style,
@@ -438,15 +597,36 @@ impl SettingsPage {
             cotyping_excluded_sites,
             debounce_slider,
             interval_slider,
+            overnight: Default::default(),
+            personal: Default::default(),
+            files_access: None,
             meetings_access: None,
             screen_access: None,
             cli_installed: None,
+            cli_on_path: None,
+            cli_message: None,
+            agent_changes_open: false,
+            access_generation: 0,
+            writing,
             models,
+            resources: Default::default(),
             calendar,
+            devices,
+            coding_agent_folders,
+            retention_draft: None,
+            retention_error: None,
+            retention_completion: None,
+            storage: None,
+            storage_measured_at: None,
             last_settings: settings,
             _subscriptions: subscriptions,
         };
         page.reload_access(cx);
+        // Opened from the CLI or tray with its window closed.
+        let focus = page.data.update(cx, |data, _| data.settings_focus.take());
+        if let Some(id) = focus {
+            page.reveal(&id, window, cx);
+        }
         page
     }
 
@@ -462,6 +642,11 @@ impl SettingsPage {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.models.setup.poll(&data, cx);
+        let focus = data.update(cx, |data, _| data.settings_focus.take());
+        if let Some(id) = focus {
+            self.reveal(&id, window, cx);
+        }
         let settings = data.read(cx).settings.clone();
         if settings == self.last_settings {
             cx.notify();
@@ -476,6 +661,11 @@ impl SettingsPage {
         if old.dictation_shortcut != settings.dictation_shortcut {
             self.dictation_shortcut.update(cx, |field, cx| {
                 field.set_value(&settings.dictation_shortcut, cx)
+            });
+        }
+        if old.selection_actions_shortcut != settings.selection_actions_shortcut {
+            self.selection_actions_shortcut.update(cx, |field, cx| {
+                field.set_value(&settings.selection_actions_shortcut, cx)
             });
         }
         sync_text(
@@ -496,17 +686,24 @@ impl SettingsPage {
             window,
             cx,
         );
+        self.writing.sync(&settings, window, cx);
         self.excluded_apps
             .update(cx, |list, cx| list.set_value(&settings.excluded_apps, cx));
         self.excluded_sites.update(cx, |list, cx| {
             list.set_value(&settings.excluded_screen_domains, cx)
         });
-        sync_slider(
-            &self.retention_slider,
-            settings.retention_days as f32,
-            window,
-            cx,
-        );
+        self.coding_agent_folders.update(cx, |list, cx| {
+            list.set_value(&settings.coding_agent_excluded_folders, cx)
+        });
+        // A drag in progress keeps its place.
+        if self.retention_draft.is_none() {
+            sync_slider(
+                &self.retention_slider,
+                settings.retention_days as f32,
+                window,
+                cx,
+            );
+        }
         self.cotyping_excluded_apps.update(cx, |list, cx| {
             list.set_value(&settings.cotyping_excluded_apps, cx)
         });
@@ -532,25 +729,32 @@ impl SettingsPage {
         );
         self.models.sync(&old, &settings, window, cx);
         self.calendar.sync(&old, &settings, window, cx);
+        self.devices.sync(&old, &settings, window, cx);
         cx.notify();
     }
 
     fn reload_access(&mut self, cx: &mut Context<Self>) {
         let paths = self.data.read(cx).library.paths().clone();
         cx.spawn(async move |this, cx| {
-            let (meetings, screen, cli) = cx
+            let (meetings, screen, personal, files, cli, on_path) = cx
                 .background_spawn(async move {
                     (
                         lokalbot_core::access::meetings_access_enabled(&paths),
                         lokalbot_core::access::screen_access_scope(&paths),
+                        lokalbot_core::access::personal_context_enabled(&paths),
+                        lokalbot_core::files::access::is_enabled(&paths),
                         lokalbot_cli::install::installed_for_current_user(),
+                        lokalbot_cli::install::on_path_for_current_user(),
                     )
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 this.meetings_access = Some(meetings);
                 this.screen_access = Some(screen);
+                this.personal.access_on = personal;
+                this.files_access = Some(files);
                 this.cli_installed = Some(cli);
+                this.cli_on_path = Some(on_path);
                 cx.notify();
             });
         })
@@ -582,13 +786,20 @@ impl SettingsPage {
         }
     }
 
-    /// Opens a setting from search: its category, scrolled to and highlighted.
+    /// Opens a setting from search: its category, scrolled to and highlighted. A
+    /// setting that shows only behind a switch opens that switch instead.
     fn jump_to(
         &mut self,
         entry: &'static catalog::Entry,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let settings = self.data.read(cx).settings.clone();
+        let target = catalog::focus_target(entry.id, &settings);
+        let entry = catalog::ENTRIES
+            .iter()
+            .find(|candidate| candidate.id == target)
+            .unwrap_or(entry);
         self.clear_search(window, cx);
         self.focused = Some(entry.id);
         self.pending_scroll = Some(entry.id);
@@ -717,12 +928,27 @@ impl SettingsPage {
         cx: &mut Context<Self>,
     ) -> Vec<Section> {
         match category {
+            // Drawn by `render_overview`, as cards rather than rows.
+            SettingsCategory::Overview => Vec::new(),
             SettingsCategory::General => self.general_sections(cx),
             SettingsCategory::Meetings => self.meetings_sections(cx),
-            SettingsCategory::DayMemory => self.day_memory_sections(cx),
+            SettingsCategory::DayMemory => {
+                let mut sections = self.day_memory_sections(cx);
+                sections.push(self.agent_kind_section(privacy::AgentKind::ScreenMemory, cx));
+                sections
+            }
+            SettingsCategory::PersonalContext => self.personal_context_sections(cx),
             SettingsCategory::Writing => self.writing_sections(cx),
             SettingsCategory::Dictation => self.dictation_sections(cx),
+            SettingsCategory::Files => {
+                let mut sections = self.files_sections(cx);
+                if self.data.read(cx).settings.file_search_enabled {
+                    sections.push(self.agent_kind_section(privacy::AgentKind::Files, cx));
+                }
+                sections
+            }
             SettingsCategory::Models => self.models_sections(window, cx),
+            SettingsCategory::Devices => self.devices_sections(window, cx),
             SettingsCategory::Privacy => self.privacy_sections(cx),
             SettingsCategory::Advanced => self.advanced_sections(cx),
         }
@@ -824,6 +1050,7 @@ impl SettingsPage {
             .into_iter()
             .map(|entry| {
                 let value = (entry.value)(&settings);
+                let prerequisite = catalog::prerequisite(entry.id, &settings);
                 div()
                     .id(SharedString::from(format!("settings-result-{}", entry.id)))
                     .w_full()
@@ -852,7 +1079,15 @@ impl SettingsPage {
                                         "{value} · {}",
                                         catalog::category_title(entry.category)
                                     )),
-                            ),
+                            )
+                            .when_some(prerequisite, |this, prerequisite| {
+                                this.child(
+                                    div()
+                                        .text_size(ty::CAPTION)
+                                        .text_color(lb.text_secondary)
+                                        .child(crate::ui::text::paragraph(prerequisite)),
+                                )
+                            }),
                     )
                     .on_click(
                         cx.listener(move |this, _, window, cx| this.jump_to(entry, window, cx)),
@@ -932,12 +1167,20 @@ impl Render for SettingsPage {
 
         let body = if searching {
             self.render_search_results(cx)
+        } else if category == SettingsCategory::Overview {
+            self.render_overview(cx)
         } else {
             let sections = self.sections(category, window, cx);
             if let Some(target) = self.pending_scroll.take()
                 && let Some(index) = sections.iter().position(|s| s.ids.contains(&target))
             {
                 self.scroll.scroll_to_item(index);
+                // A page drawn for the first time has no layout to scroll in yet.
+                let scroll = self.scroll.clone();
+                window.on_next_frame(move |window, _| {
+                    scroll.scroll_to_item(index);
+                    window.refresh();
+                });
             }
             let children: Vec<AnyElement> = sections
                 .into_iter()

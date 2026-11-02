@@ -3,8 +3,8 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! X11 for autocomplete: `XGrabKey` on Tab and Escape while ghost text shows
-//! (`CotypingInputMonitor`'s consuming tap), the active window for matching a
+//! X11 for autocomplete: `XGrabKey` on the accept keys and Escape while ghost
+//! text shows (`CotypingInputMonitor`'s consuming tap), the active window for matching a
 //! focused field to its window, and moving LokalBot's ghost window.
 //!
 //! The grabs cover the Caps Lock and Num Lock variants, so the key is taken
@@ -31,11 +31,15 @@ use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt as _;
 
 use super::geometry::Rect;
-use super::{InterceptedKey, KeyHandler};
+use super::{AcceptKeys, InterceptedKey, KeyHandler};
 
 const XK_TAB: u32 = 0xff09;
 const XK_ESCAPE: u32 = 0xff1b;
 const XK_NUM_LOCK: u32 = 0xff7f;
+const XK_RIGHT: u32 = 0xff53;
+const XK_GRAVE: u32 = 0x60;
+/// The key left of 1 under the evdev keymap every current X server uses (TLDE).
+const EVDEV_TILDE_KEY: u8 = 49;
 pub(super) const XK_BACKSPACE: u32 = 0xff08;
 pub(super) const XK_DELETE: u32 = 0xffff;
 
@@ -44,11 +48,12 @@ const ACTIVE_POLL: Duration = Duration::from_millis(5);
 
 enum Command {
     Active(bool),
+    Keys(AcceptKeys),
     PassThrough(InterceptedKey),
     Stop,
 }
 
-/// Whether the grabbed Tab is still held. While it is, the keyboard is
+/// Whether a grabbed key is still held. While it is, the keyboard is
 /// grabbed by LokalBot, so XTest typing would come back to LokalBot instead
 /// of reaching the app; the inserter waits for the release.
 #[derive(Default)]
@@ -102,6 +107,10 @@ impl Grabber {
         let _ = self.commands.send(Command::Active(active));
     }
 
+    pub(super) fn set_keys(&self, keys: AcceptKeys) {
+        let _ = self.commands.send(Command::Keys(keys));
+    }
+
     pub(super) fn pass_through(&self, key: InterceptedKey) {
         let _ = self.commands.send(Command::PassThrough(key));
     }
@@ -121,6 +130,8 @@ impl Drop for Grabber {
 struct Keys {
     tab: u8,
     escape: u8,
+    right: Option<u8>,
+    backtick: Option<u8>,
     num_lock: ModMask,
 }
 
@@ -131,6 +142,8 @@ impl Keys {
         Ok(Self {
             tab,
             escape,
+            right: keycode(conn, XK_RIGHT)?,
+            backtick: backtick_keycode(conn)?,
             num_lock: num_lock_mask(conn)?,
         })
     }
@@ -146,12 +159,33 @@ impl Keys {
         ]
     }
 
-    fn code(&self, key: InterceptedKey) -> u8 {
+    fn code(&self, key: InterceptedKey) -> Option<u8> {
         match key {
-            InterceptedKey::Tab => self.tab,
-            InterceptedKey::Escape => self.escape,
+            InterceptedKey::Tab => Some(self.tab),
+            InterceptedKey::Escape => Some(self.escape),
+            InterceptedKey::RightArrow => self.right,
+            InterceptedKey::Backtick => self.backtick,
         }
     }
+}
+
+/// The physical key left of 1. Matching the keysym instead would, on other
+/// layouts, take a letter key that types a backtick on a shifted level. An
+/// X server without the evdev keymap falls back to the key whose first level
+/// is a backtick.
+fn backtick_keycode(conn: &impl Connection) -> anyhow::Result<Option<u8>> {
+    let setup = conn.setup();
+    let (min, max) = (setup.min_keycode, setup.max_keycode);
+    let mapping = conn.get_keyboard_mapping(min, max - min + 1)?.reply()?;
+    let per = usize::from(mapping.keysyms_per_keycode).max(1);
+    let level0 = |code: u8| -> Option<u32> {
+        let index = usize::from(code.checked_sub(min)?) * per;
+        mapping.keysyms.get(index).copied()
+    };
+    if level0(EVDEV_TILDE_KEY).is_some_and(|sym| sym != 0) {
+        return Ok(Some(EVDEV_TILDE_KEY));
+    }
+    Ok((min..=max).find(|code| level0(*code) == Some(XK_GRAVE)))
 }
 
 pub(super) fn keycode(conn: &impl Connection, keysym: u32) -> anyhow::Result<Option<u8>> {
@@ -209,6 +243,25 @@ fn ungrab(conn: &RustConnection, root: Window, keys: &Keys, code: u8) {
     }
 }
 
+/// Takes every key `bindings` names; false when another app holds one.
+fn grab_all(conn: &RustConnection, root: Window, keys: &Keys, bindings: &AcceptKeys) -> bool {
+    bindings
+        .taken()
+        .into_iter()
+        .filter_map(|key| keys.code(key))
+        .fold(true, |all, code| grab(conn, root, keys, code) & all)
+}
+
+fn ungrab_all(conn: &RustConnection, root: Window, keys: &Keys, bindings: &AcceptKeys) {
+    for code in bindings
+        .taken()
+        .into_iter()
+        .filter_map(|key| keys.code(key))
+    {
+        ungrab(conn, root, keys, code);
+    }
+}
+
 fn run(
     conn: RustConnection,
     root: Window,
@@ -217,6 +270,7 @@ fn run(
     handler: KeyHandler,
 ) {
     let mut active = false;
+    let mut bindings = AcceptKeys::default();
     loop {
         let command = if active {
             match commands.recv_timeout(ACTIVE_POLL) {
@@ -234,16 +288,13 @@ fn run(
             Some(Command::Stop) => break,
             Some(Command::Active(on)) if on != active => {
                 if on {
-                    let taken =
-                        grab(&conn, root, &keys, keys.tab) & grab(&conn, root, &keys, keys.escape);
-                    if !taken {
+                    if !grab_all(&conn, root, &keys, &bindings) {
                         log::warn!(
-                            "autocomplete: another app holds Tab or Esc; accepting may not work"
+                            "autocomplete: another app holds an accept key or Esc; accepting may not work"
                         );
                     }
                 } else {
-                    ungrab(&conn, root, &keys, keys.tab);
-                    ungrab(&conn, root, &keys, keys.escape);
+                    ungrab_all(&conn, root, &keys, &bindings);
                     let _ = conn.ungrab_keyboard(x11rb::CURRENT_TIME);
                     release_held();
                 }
@@ -251,8 +302,18 @@ fn run(
                 active = on;
             }
             Some(Command::Active(_)) => {}
+            Some(Command::Keys(next)) => {
+                if active && next != bindings {
+                    ungrab_all(&conn, root, &keys, &bindings);
+                    grab_all(&conn, root, &keys, &next);
+                    let _ = conn.flush();
+                }
+                bindings = next;
+            }
             Some(Command::PassThrough(key)) => {
-                let code = keys.code(key);
+                let Some(code) = keys.code(key) else {
+                    continue;
+                };
                 // Out of the way first, or the replayed key would come back here.
                 ungrab(&conn, root, &keys, code);
                 let _ = conn.ungrab_keyboard(x11rb::CURRENT_TIME);
@@ -277,13 +338,10 @@ fn run(
         loop {
             match conn.poll_for_event() {
                 Ok(Some(Event::KeyPress(event))) => {
-                    let key = if event.detail == keys.tab {
-                        Some(InterceptedKey::Tab)
-                    } else if event.detail == keys.escape {
-                        Some(InterceptedKey::Escape)
-                    } else {
-                        None
-                    };
+                    let key = bindings
+                        .taken()
+                        .into_iter()
+                        .find(|key| keys.code(*key) == Some(event.detail));
                     if let Some(key) = key {
                         log::debug!("autocomplete: {key:?} held for the ghost");
                         *HELD.down.lock() = true;
@@ -300,8 +358,7 @@ fn run(
             }
         }
     }
-    ungrab(&conn, root, &keys, keys.tab);
-    ungrab(&conn, root, &keys, keys.escape);
+    ungrab_all(&conn, root, &keys, &bindings);
     let _ = conn.flush();
 }
 
@@ -582,4 +639,85 @@ pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
         Ok(pixels.iter().sum::<f32>() / pixels.len() as f32)
     })
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Presses a key through XTest, as a user would.
+    fn press(conn: &RustConnection, root: Window, code: u8) {
+        const PRESS: u8 = x11rb::protocol::xproto::KEY_PRESS_EVENT;
+        const RELEASE: u8 = x11rb::protocol::xproto::KEY_RELEASE_EVENT;
+        conn.xtest_fake_input(PRESS, code, x11rb::CURRENT_TIME, root, 0, 0, 0)
+            .unwrap();
+        conn.xtest_fake_input(RELEASE, code, x11rb::CURRENT_TIME, root, 0, 0, 0)
+            .unwrap();
+        conn.sync().unwrap();
+    }
+
+    /// Runs only with an X display, such as under `xvfb-run`.
+    #[test]
+    fn the_bound_keys_are_taken_only_while_active_and_can_change() {
+        if crate::session::desktop() != crate::session::Desktop::X11 {
+            return;
+        }
+        let Ok((conn, screen)) = x11rb::connect(None) else {
+            return;
+        };
+        let root = conn.setup().roots[screen].root;
+        let keys = Keys::read(&conn).unwrap();
+        let (taken, receiver) = unbounded();
+        let handler: KeyHandler = Arc::new(move |key| {
+            let _ = taken.send(key);
+        });
+        let grabber = Grabber::start(handler).unwrap();
+        let next = || receiver.recv_timeout(Duration::from_millis(400)).ok();
+        let settle = || std::thread::sleep(Duration::from_millis(60));
+
+        // Inactive: nothing is held, so nothing is taken.
+        press(&conn, root, keys.tab);
+        assert_eq!(next(), None);
+
+        grabber.set_active(true);
+        settle();
+        // The defaults: Tab, the physical key left of 1, Esc.
+        press(&conn, root, keys.tab);
+        assert_eq!(next(), Some(InterceptedKey::Tab));
+        press(&conn, root, keys.backtick.unwrap());
+        assert_eq!(next(), Some(InterceptedKey::Backtick));
+        press(&conn, root, keys.escape);
+        assert_eq!(next(), Some(InterceptedKey::Escape));
+        press(&conn, root, keys.right.unwrap());
+        assert_eq!(next(), None, "Right Arrow is not bound");
+
+        // New bindings apply at once, even while active.
+        grabber.set_keys(AcceptKeys {
+            accept: InterceptedKey::RightArrow,
+            full: None,
+        });
+        settle();
+        press(&conn, root, keys.right.unwrap());
+        assert_eq!(next(), Some(InterceptedKey::RightArrow));
+        press(&conn, root, keys.tab);
+        assert_eq!(next(), None, "Tab is released");
+        press(&conn, root, keys.backtick.unwrap());
+        assert_eq!(next(), None, "the full-accept key is off");
+
+        grabber.set_active(false);
+        settle();
+        press(&conn, root, keys.right.unwrap());
+        assert_eq!(next(), None);
+    }
+
+    #[test]
+    fn the_physical_key_is_preferred_for_full_accept() {
+        if crate::session::desktop() != crate::session::Desktop::X11 {
+            return;
+        }
+        let Ok((conn, _)) = x11rb::connect(None) else {
+            return;
+        };
+        assert_eq!(backtick_keycode(&conn).unwrap(), Some(EVDEV_TILDE_KEY));
+    }
 }

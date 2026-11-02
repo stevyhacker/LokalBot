@@ -12,24 +12,30 @@
 //!   fallback that backs off while nothing changes. Every snapshot holds the
 //!   app, the window title, the bounded text around the caret, the caret on
 //!   screen, and whether the field is secure or single-line.
-//! - [`KeyInterceptor`] takes plain Tab and Esc only while it is active, which
-//!   the app keeps true exactly while a suggestion is visible: `XGrabKey` on
-//!   X11, a low-level keyboard hook on Windows.
+//! - [`KeyInterceptor`] takes the plain accept keys and Esc only while it is
+//!   active, which the app keeps true exactly while a suggestion is visible:
+//!   `XGrabKey` on X11, a low-level keyboard hook on Windows.
 //! - [`insert`] types an accepted chunk at the caret: AT-SPI `EditableText`
 //!   when the field supports it, else XTest; `SendInput` Unicode keystrokes on
 //!   Windows. Never through the clipboard.
 //!
+//! - [`clipboard`] and [`spell`] read the clipboard for prompt context and
+//!   check words against the system's dictionaries.
+//!
 //! Privacy (`PRIVACY.md`): nothing is read while autocomplete is off, secure
 //! fields and excluded apps are never read (the check runs before any text
-//! is), LokalBot's own windows are skipped, and nothing is kept on disk.
+//! is), LokalBot's own windows are skipped, and nothing read is kept on disk.
 //!
 //! Wayland lets no app take a key from another app or place a window at
 //! another app's caret, so [`support`] reports autocomplete in other apps as
 //! unavailable there; LokalBot's own practice editor still works.
 
+pub mod clipboard;
+pub mod focused;
 pub mod geometry;
 pub mod policy;
 pub mod session;
+pub mod spell;
 pub mod visible;
 
 #[cfg(target_os = "linux")]
@@ -81,6 +87,9 @@ pub struct FieldSnapshot {
     pub field_frame: Option<Rect>,
     /// A one-line input, where Enter usually sends.
     pub single_line: bool,
+    /// An xterm.js surface in an editor or a browser: a DOM class starting
+    /// with "xterm" (`CotypingSurfaceClassifier.isIntegratedTerminal`).
+    pub is_integrated_terminal: bool,
     /// The page address when the app is a browser and it could be read.
     pub url: Option<String>,
     /// Text shown just above the field, read once per field when allowed.
@@ -251,10 +260,75 @@ impl FieldWatcher {
 pub enum InterceptedKey {
     Tab,
     Escape,
+    RightArrow,
+    /// The physical key left of 1, whatever it types on this layout, like the
+    /// Mac's key code 50.
+    Backtick,
 }
 
-/// Takes plain Tab and Esc away from the focused app while active. Inactive
-/// it holds no grab or hook, so the keyboard is untouched.
+/// What the accept keys are bound to. The primary key wins when both are the
+/// same key (`CotypingAcceptHint`, `acceptScope`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AcceptKeys {
+    /// Takes the next word or phrase.
+    pub accept: InterceptedKey,
+    /// Takes the rest of the suggestion, if bound.
+    pub full: Option<InterceptedKey>,
+}
+
+impl Default for AcceptKeys {
+    fn default() -> Self {
+        Self {
+            accept: InterceptedKey::Tab,
+            full: Some(InterceptedKey::Backtick),
+        }
+    }
+}
+
+impl AcceptKeys {
+    pub fn from_settings(settings: &lokalbot_core::Settings) -> Self {
+        use lokalbot_core::settings::{CotypingAcceptKey, CotypingFullAcceptKey};
+        let accept = match settings.cotyping_accept_key {
+            CotypingAcceptKey::Tab => InterceptedKey::Tab,
+            CotypingAcceptKey::RightArrow => InterceptedKey::RightArrow,
+        };
+        let full = match settings.cotyping_full_accept_key {
+            CotypingFullAcceptKey::Backtick => Some(InterceptedKey::Backtick),
+            CotypingFullAcceptKey::RightArrow => Some(InterceptedKey::RightArrow),
+            CotypingFullAcceptKey::Off => None,
+        };
+        Self {
+            accept,
+            full: full.filter(|key| *key != accept),
+        }
+    }
+
+    /// Every key to take while a suggestion shows. Escape is always one.
+    pub fn taken(&self) -> Vec<InterceptedKey> {
+        let mut keys = vec![self.accept, InterceptedKey::Escape];
+        keys.extend(self.full);
+        keys
+    }
+
+    pub fn takes(&self, key: InterceptedKey) -> bool {
+        key == self.accept || key == InterceptedKey::Escape || self.full == Some(key)
+    }
+
+    /// Whether `key` takes the rest of the suggestion rather than the next
+    /// chunk; `None` when it accepts nothing.
+    pub fn is_full(&self, key: InterceptedKey) -> Option<bool> {
+        if key == self.accept {
+            Some(false)
+        } else if self.full == Some(key) {
+            Some(true)
+        } else {
+            None
+        }
+    }
+}
+
+/// Takes the plain accept keys and Esc away from the focused app while
+/// active. Inactive it holds no grab or hook, so the keyboard is untouched.
 pub struct KeyInterceptor {
     #[cfg(target_os = "linux")]
     inner: x11::Grabber,
@@ -287,7 +361,15 @@ impl KeyInterceptor {
         }
     }
 
-    /// Takes Tab and Esc while `true`; releases them at once when `false`.
+    /// Which keys accept, applied at once even while active.
+    pub fn set_keys(&self, keys: AcceptKeys) {
+        #[cfg(any(windows, target_os = "linux"))]
+        self.inner.set_keys(keys);
+        #[cfg(not(any(windows, target_os = "linux")))]
+        let _ = keys;
+    }
+
+    /// Takes the keys while `true`; releases them at once when `false`.
     pub fn set_active(&self, active: bool) {
         #[cfg(any(windows, target_os = "linux"))]
         self.inner.set_active(active);
@@ -441,5 +523,35 @@ pub fn sample_luminance(rect: &Rect) -> Option<f32> {
     {
         let _ = rect;
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_primary_key_wins_and_settings_map_to_keys() {
+        use lokalbot_core::Settings;
+        use lokalbot_core::settings::{CotypingAcceptKey, CotypingFullAcceptKey};
+        let defaults = AcceptKeys::from_settings(&Settings::default());
+        assert_eq!(defaults, AcceptKeys::default());
+        assert_eq!(defaults.is_full(InterceptedKey::Tab), Some(false));
+        assert_eq!(defaults.is_full(InterceptedKey::Backtick), Some(true));
+        assert_eq!(defaults.is_full(InterceptedKey::RightArrow), None);
+        assert!(defaults.takes(InterceptedKey::Escape));
+        assert!(!defaults.takes(InterceptedKey::RightArrow));
+        let same = AcceptKeys::from_settings(&Settings {
+            cotyping_accept_key: CotypingAcceptKey::RightArrow,
+            cotyping_full_accept_key: CotypingFullAcceptKey::RightArrow,
+            ..Settings::default()
+        });
+        assert_eq!(same.is_full(InterceptedKey::RightArrow), Some(false));
+        assert_eq!(same.full, None);
+        let off = AcceptKeys::from_settings(&Settings {
+            cotyping_full_accept_key: CotypingFullAcceptKey::Off,
+            ..Settings::default()
+        });
+        assert_eq!(off.taken(), [InterceptedKey::Tab, InterceptedKey::Escape]);
     }
 }

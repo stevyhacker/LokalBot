@@ -168,6 +168,52 @@ impl SettingsPage {
                 ),
             );
 
+        let selection_help: SharedString = lokalbot_i18n::format("Select text in any app and press {0} to rewrite, translate, summarize, or answer it with your Think model. Actions marked “with my memory” also search your meetings. LokalBot reads the selection only when you press the shortcut, skips excluded apps and password fields, and keeps nothing. Apps that hide their selection from accessibility tools are copied with Ctrl+C, then your clipboard is restored. Terminals are never sent Ctrl+C.", &[("0", settings.selection_actions_shortcut.to_string())])
+        .into();
+        let selection_data = data.clone();
+        let mut selection_actions = Section::new(lokalbot_i18n::tr("Selection actions"))
+            .row(
+                "settings.selectionActionsEnabled",
+                settings_row::row(
+                    "settings.selectionActionsEnabled",
+                    lokalbot_i18n::tr("Enable the selection actions shortcut"),
+                    Some(selection_help),
+                    settings_row::switch(
+                        "settings.selectionActionsEnabled",
+                        settings.selection_actions_enabled,
+                        move |on, _, cx| {
+                            selection_data.update(cx, |data, cx| {
+                                data.update_settings(|s| s.selection_actions_enabled = on, cx)
+                            })
+                        },
+                    ),
+                    self.is_focused("settings.selectionActionsEnabled"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.selectionActionsShortcut",
+                settings_row::row(
+                    "settings.selectionActionsShortcut",
+                    lokalbot_i18n::tr("Selection actions shortcut"),
+                    None,
+                    self.selection_actions_shortcut.clone(),
+                    self.is_focused("settings.selectionActionsShortcut"),
+                    cx,
+                ),
+            );
+        if let Some(limitation) = lokalbot_platform::selection::limitation() {
+            selection_actions = selection_actions.row(
+                "settings.selectionActionsLimitation",
+                settings_row::content_row(
+                    "settings.selectionActionsLimitation",
+                    settings_row::help(lokalbot_i18n::tr(limitation).to_string(), cx),
+                    false,
+                    cx,
+                ),
+            );
+        }
+
         let updates = self.updates_section(&settings, cx);
         let about = Section::new(lokalbot_i18n::tr("About"))
             .row(
@@ -191,7 +237,78 @@ impl SettingsPage {
                 ),
             );
 
-        vec![general, appearance, shortcut, updates, about]
+        let sources = self.ask_sources_section(&settings, cx);
+        vec![
+            general,
+            appearance,
+            shortcut,
+            selection_actions,
+            sources,
+            updates,
+            about,
+        ]
+    }
+
+    /// What Ask can search, each row leading to the page that decides it
+    /// (`askSourcesSection`). Email isn't ported, so it has no row.
+    fn ask_sources_section(
+        &mut self,
+        settings: &lokalbot_core::Settings,
+        cx: &mut Context<Self>,
+    ) -> Section {
+        let on_off = |on: bool| if on { "On" } else { "Off" };
+        let rows = [
+            (
+                "settings.askSources",
+                crate::state::SettingsCategory::Meetings,
+                "Meetings",
+                "On",
+            ),
+            (
+                "settings.askSources.dayMemory",
+                crate::state::SettingsCategory::DayMemory,
+                "Day Memory",
+                on_off(
+                    settings.screen_context_capture_mode
+                        != lokalbot_core::ScreenContextMode::ActivityOnly,
+                ),
+            ),
+            (
+                "settings.askSources.files",
+                crate::state::SettingsCategory::Files,
+                "Files",
+                on_off(settings.file_search_enabled),
+            ),
+            (
+                "settings.askSources.personalContext",
+                crate::state::SettingsCategory::PersonalContext,
+                "Personal Context",
+                on_off(settings.ask_memory_enabled),
+            ),
+        ];
+        let mut section = Section::new(lokalbot_i18n::tr("What Ask can search"));
+        for (id, category, title, value) in rows {
+            let page = cx.entity();
+            section = section.row(
+                id,
+                settings_row::row(
+                    id,
+                    lokalbot_i18n::tr(title),
+                    None,
+                    settings_row::link_button(
+                        id,
+                        lokalbot_i18n::tr(value),
+                        move |window, cx| {
+                            page.update(cx, |page, cx| page.select_category(category, window, cx))
+                        },
+                        cx,
+                    ),
+                    self.is_focused(id),
+                    cx,
+                ),
+            );
+        }
+        section
     }
 
     /// Mirrors macOS Settings → General → Updates: the automatic-check

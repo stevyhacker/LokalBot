@@ -16,9 +16,10 @@ use anyhow::{Context, Result, anyhow};
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use parking_lot::Mutex;
 
+use crate::app_audio::AppAudioTarget;
 use crate::capture::{StreamFlags, open_stream, resolve_input_device};
 use crate::system::SystemCapture;
-use crate::track::{ChunkSink, TrackState, TrackWriter};
+use crate::track::{ChunkSink, TrackState, TrackWriter, WRITE_FAILED};
 
 pub const MIC_FILE: &str = "mic.wav";
 pub const SYSTEM_FILE: &str = "system.wav";
@@ -39,6 +40,9 @@ pub struct RecorderOptions {
     pub mic_device: Option<String>,
     /// Record what the computer plays (`settings.recordSystemAudio`).
     pub capture_system: bool,
+    /// The meeting app to record alone when it can be separated. Without one,
+    /// or when it can't, everything the computer plays is recorded.
+    pub system_app: Option<AppAudioTarget>,
 }
 
 /// Current loudness, 0–1, for the 20-segment meters.
@@ -97,6 +101,22 @@ impl fmt::Display for TrackHealth {
     }
 }
 
+/// What the live capture warnings look at (`CaptureHealth`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CaptureHealth {
+    pub mic_attached: bool,
+    /// Seconds since microphone audio arrived; `None` before the first.
+    pub mic_age: Option<f64>,
+    pub mic_dropped: u64,
+    pub mic_write_error: Option<String>,
+    pub system_attached: bool,
+    pub system_age: Option<f64>,
+    pub system_dropped: u64,
+    pub system_write_error: Option<String>,
+    /// A quiet Windows loopback delivers nothing while nothing plays.
+    pub system_quiet_is_normal: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TrackStatus {
     pub mic: TrackHealth,
@@ -122,6 +142,7 @@ impl RecordingResult {
 
 enum Control {
     Stop,
+    SystemApp(AppAudioTarget),
 }
 
 struct StartReport {
@@ -168,6 +189,7 @@ impl Recorder {
         let system_sink = system.as_ref().map(TrackWriter::sink);
         let thread_warnings = Arc::clone(&warnings);
         let mic_device = options.mic_device.clone();
+        let system_app = options.system_app.clone();
         let control = std::thread::Builder::new()
             .name("lokalbot-recorder".into())
             .spawn(move || {
@@ -175,6 +197,7 @@ impl Recorder {
                     mic_device,
                     mic_sink,
                     system_sink,
+                    system_app,
                     control_rx,
                     report_tx,
                     thread_warnings,
@@ -247,6 +270,12 @@ impl Recorder {
         self.system_state = None;
     }
 
+    /// A call was found during this recording: its app's sound is recorded
+    /// from now on, when it can be separated.
+    pub fn set_system_app(&self, target: AppAudioTarget) {
+        let _ = self.control_tx.send(Control::SystemApp(target));
+    }
+
     /// True when system capture attached at start; false means a mic-only recording.
     pub fn has_system_audio(&self) -> bool {
         self.has_system_audio
@@ -271,6 +300,20 @@ impl Recorder {
         }
     }
 
+    /// How long ago either track last recovered (`latestRecoveryDate`).
+    pub fn since_recovery(&self) -> Option<Duration> {
+        let mic = self.mic_state.since_recovery_ms();
+        let system = self
+            .system_state
+            .as_ref()
+            .and_then(|s| s.since_recovery_ms());
+        match (mic, system) {
+            (Some(mic), Some(system)) => Some(mic.min(system)),
+            (one, other) => one.or(other),
+        }
+        .map(Duration::from_millis)
+    }
+
     pub fn status(&self) -> TrackStatus {
         TrackStatus {
             mic: if self.mic.is_some() {
@@ -282,6 +325,39 @@ impl Recorder {
                 Some(state) => system_health(state),
                 None => TrackHealth::NotAttached,
             },
+        }
+    }
+
+    /// What arrives right now, for live capture warnings.
+    pub fn capture_health(&self) -> CaptureHealth {
+        let age = |state: &TrackState| {
+            state
+                .since_audio_ms()
+                .map(|ms| Duration::from_millis(ms).as_secs_f64())
+        };
+        let degraded = |state: &TrackState| {
+            state
+                .degraded
+                .lock()
+                .clone()
+                .filter(|detail| detail.starts_with(WRITE_FAILED))
+        };
+        CaptureHealth {
+            mic_attached: self.mic.is_some(),
+            mic_age: age(&self.mic_state),
+            mic_dropped: self.mic_state.dropped_buffers(),
+            mic_write_error: degraded(&self.mic_state),
+            system_attached: self.system_state.is_some(),
+            system_age: self.system_state.as_ref().and_then(|s| age(s)),
+            system_dropped: self
+                .system_state
+                .as_ref()
+                .map_or(0, |s| s.dropped_buffers()),
+            system_write_error: self.system_state.as_ref().and_then(|s| degraded(s)),
+            system_quiet_is_normal: self.system_state.as_ref().is_some_and(|s| {
+                s.silent_without_packets.load(Ordering::Relaxed)
+                    && s.running.load(Ordering::Relaxed)
+            }),
         }
     }
 
@@ -484,6 +560,7 @@ impl MicSource {
                 self.attempt = 0;
                 self.next_retry = None;
                 state.recovering_attempt.store(0, Ordering::Relaxed);
+                state.note_recovery();
                 *state.degraded.lock() = None;
                 *opened_at = Instant::now();
             }
@@ -505,6 +582,7 @@ fn run_control(
     mic_device: Option<String>,
     mic_sink: ChunkSink,
     system_sink: Option<ChunkSink>,
+    system_app: Option<AppAudioTarget>,
     control_rx: Receiver<Control>,
     report_tx: Sender<StartReport>,
     warnings: Arc<Mutex<Vec<String>>>,
@@ -522,7 +600,7 @@ fn run_control(
     let mut system = None;
     let system_result = system_sink.map(|sink| {
         let state = Arc::clone(sink.state());
-        match SystemCapture::start(sink, Arc::new(StreamFlags::default())) {
+        match SystemCapture::start(sink, Arc::new(StreamFlags::default()), system_app) {
             Ok(capture) => {
                 state.running.store(true, Ordering::Relaxed);
                 state.attached.store(true, Ordering::Relaxed);
@@ -546,14 +624,28 @@ fn run_control(
     loop {
         match control_rx.recv_timeout(CONTROL_TICK) {
             Ok(Control::Stop) | Err(RecvTimeoutError::Disconnected) => break,
+            Ok(Control::SystemApp(target)) => {
+                if let Some((capture, _)) = system.as_mut() {
+                    capture.set_target(target);
+                }
+            }
             Err(RecvTimeoutError::Timeout) => {}
         }
         if !mic_failed {
             mic.supervise(&warnings, &mut mic_opened_at);
         }
         if let Some((capture, state)) = system.as_mut() {
-            if let Some(note) = capture.follow_default_device() {
+            if let Some(note) = capture.follow() {
                 log::info!("audio: {note}");
+            }
+            if let Some(app) = capture.take_tap_problem() {
+                let warning = format!(
+                    "{app}'s sound could not be recorded on its own, so system audio includes everything this computer plays."
+                );
+                let mut warnings = warnings.lock();
+                if !warnings.contains(&warning) {
+                    warnings.push(warning);
+                }
             }
             let stalled = !state.silent_without_packets.load(Ordering::Relaxed)
                 && state
@@ -568,6 +660,7 @@ fn run_control(
                             log::info!("audio: system audio capture restarted");
                             system_retry = None;
                             state.running.store(true, Ordering::Relaxed);
+                            state.note_recovery();
                         }
                         Err(error) => {
                             log::warn!("audio: system audio restart failed: {error:#}");

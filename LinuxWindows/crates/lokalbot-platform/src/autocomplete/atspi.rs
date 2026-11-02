@@ -35,6 +35,8 @@ use super::policy::{self, FlickerGate, PollBackoff, ReadPolicy, reasons};
 use super::visible::{self, NodeKind, VisibleSource};
 use super::{Capability, Edit, FieldSnapshot, FocusHandler, FocusSnapshot, InsertTarget};
 
+pub(super) mod focused;
+
 const REGISTRY: &str = "org.a11y.atspi.Registry";
 const ROOT_PATH: &str = "/org/a11y/atspi/accessible/root";
 const ACCESSIBLE: &str = "org.a11y.atspi.Accessible";
@@ -516,6 +518,7 @@ struct Fixed {
     /// The object has `EditableText`.
     editable: bool,
     single_line: bool,
+    is_integrated_terminal: bool,
     /// Where the window's content is on screen, when the toolkit can only
     /// report coordinates within its window (GTK 4).
     window_relative: Option<(f32, f32)>,
@@ -710,7 +713,7 @@ impl Reader {
         } else if pid != self.own_pid {
             let (name, _) = self.apps.resolve(pid, None, None);
             *limitation = Some(format!(
-                "{name} does not share its text with accessibility tools, so autocomplete cannot suggest there. Chromium and Electron apps share it when started with --force-renderer-accessibility, Qt apps with QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1."
+                "{name} does not share its text with accessibility tools, so autocomplete cannot suggest there. Chromium and Electron apps share it once system accessibility is on (or when started with --force-renderer-accessibility), after you reopen them. Qt apps need QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1."
             ));
         }
     }
@@ -848,6 +851,7 @@ impl Reader {
             url: None,
             editable: false,
             single_line: false,
+            is_integrated_terminal: false,
             window_relative: None,
             style: None,
             refusal: None,
@@ -915,6 +919,9 @@ impl Reader {
         fixed.single_line = state::has(states, state::SINGLE_LINE)
             || (matches!(role, role::ENTRY | role::COMBO_BOX)
                 && !state::has(states, state::MULTI_LINE));
+        // Chromium reports the DOM's class list as an object attribute.
+        fixed.is_integrated_terminal =
+            policy::is_integrated_terminal(attributes.get("class").map_or("", String::as_str));
         // Window title, file dialogs and the page address from the ancestors.
         let mut cursor = self.bus.parent(obj);
         let mut depth = 0;
@@ -941,7 +948,9 @@ impl Reader {
             cursor = self.bus.parent(&node);
         }
         fixed.window_relative = frame.and_then(|_| self.window_origin(obj, pid));
-        fixed.style = self.style(obj);
+        if self.policy.match_host_style {
+            fixed.style = self.style(obj);
+        }
         Some(fixed)
     }
 
@@ -1091,6 +1100,7 @@ impl Reader {
             caret_exact,
             field_frame,
             single_line: fixed.single_line,
+            is_integrated_terminal: fixed.is_integrated_terminal,
             url: fixed.url.clone(),
             visible_text: None,
             style: fixed.style.clone(),

@@ -11,8 +11,10 @@ use anyhow::Result;
 use serde_json::{Value, json};
 
 use lokalbot_core::Settings;
-use lokalbot_core::settings::DictationIntent;
+use lokalbot_core::settings::{DictationIntent, ReasoningLevel, SummarizerBackend};
 
+use crate::autocomplete::memory::Policy;
+use crate::catalog;
 use crate::json::strip_reasoning;
 use crate::notes::view::normalized_text;
 use crate::prompts::{DICTATION_CLEANUP_SYSTEM, DICTATION_COMPOSE_SYSTEM};
@@ -43,6 +45,13 @@ const ALL_MARKERS: [&str; 6] = [
 pub enum DictationError {
     #[error("The Think model returned no text.")]
     EmptyOutput,
+    #[error(
+        "Dictation context or its permissions changed. Your transcript is still available; compose again with the current context."
+    )]
+    ContextChanged,
+    /// The dictation was cancelled while it was being prepared.
+    #[error("Dictation was cancelled.")]
+    Cancelled,
 }
 
 /// The focused window at the moment dictation finished (never saved).
@@ -78,11 +87,14 @@ pub struct Profile {
 impl Profile {
     pub fn from_settings(settings: &Settings) -> Self {
         let present = |value: &str| (!value.trim().is_empty()).then(|| value.to_string());
+        let languages = settings.cotyping_languages.trim();
+        let notes = settings.cotyping_extended_context.trim();
         Self {
             user_name: present(&settings.cotyping_user_name),
             style_note: present(&settings.cotyping_style_note),
-            language_hint: None,
-            glossary: None,
+            language_hint: (!languages.is_empty())
+                .then(|| format!("The text is usually written in {languages}.")),
+            glossary: (!notes.is_empty()).then(|| notes.to_string()),
         }
     }
 }
@@ -97,6 +109,251 @@ pub struct Prepared {
     pub was_writing_request: bool,
     pub used_screen_context: bool,
     pub used_visible_text: bool,
+    /// What Compose read for this request; `None` for Transcribe.
+    pub context_use: Option<ContextUse>,
+}
+
+/// Which context a Compose request actually used, shown under Last result so
+/// the context settings can be judged by what they contributed.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ContextUse {
+    /// Context is read only for writing requests ("reply…", "draft…").
+    pub was_writing_request: bool,
+    pub focused_window: bool,
+    pub visible_text: bool,
+    pub saved_fact_sources: Vec<String>,
+}
+
+impl ContextUse {
+    /// The line under Last result. `tr` translates a string; `fill` also puts
+    /// its argument in place of `{0}`.
+    pub fn summary(
+        &self,
+        tr: impl Fn(&str) -> String,
+        fill: impl Fn(&str, &str) -> String,
+    ) -> String {
+        if !self.was_writing_request {
+            return tr(
+                "Cleanup only. Context is read only for writing requests such as “reply…” or “draft…”.",
+            );
+        }
+        let mut used = Vec::new();
+        if self.focused_window {
+            used.push(tr("focused window"));
+        }
+        if self.visible_text {
+            used.push(tr("visible text"));
+        }
+        if !self.saved_fact_sources.is_empty() {
+            used.push(fill(
+                "saved facts from {0}",
+                &self.saved_fact_sources.join(", "),
+            ));
+        }
+        if used.is_empty() {
+            return tr("Writing request. No enabled context matched it.");
+        }
+        fill("Used: {0}", &used.join("; "))
+    }
+}
+
+/// `dictationCompositionTextEngineSettings`: a valid separate Compose model
+/// runs on the built-in server; otherwise Compose follows Think. The Think
+/// reasoning level belongs to the Think model, not this one.
+pub fn composition_settings(settings: &Settings) -> Settings {
+    let id = settings.dictation_composition_built_in_model_id.as_str();
+    if id.is_empty() || !catalog::entry(id).is_some_and(|e| e.kind == catalog::ModelKind::Text) {
+        return settings.clone();
+    }
+    let mut composition = settings.clone();
+    composition.summarizer_backend = SummarizerBackend::BuiltIn;
+    composition.built_in_model_id = id.to_string();
+    composition.think_reasoning_level = ReasoningLevel::Automatic;
+    composition
+}
+
+/// The dictation grants for reading saved facts. Autocomplete's grants do not
+/// enable these (`DictationGrounding.memorySettings`).
+pub fn memory_policy(settings: &Settings) -> Policy {
+    let compose = settings.dictation_intent == DictationIntent::Compose;
+    Policy {
+        meetings: compose && settings.dictation_use_meeting_memory,
+        screen_derived: compose && settings.dictation_use_screen_memory,
+    }
+}
+
+/// Whether a composition frozen at the shortcut may still go on: revoked
+/// grants, changed exclusions and changed destinations invalidate it
+/// (`DictationGrounding.permissionsMatch`).
+pub fn permissions_match(frozen: &Settings, current: &Settings) -> bool {
+    frozen.dictation_intent == current.dictation_intent
+        && frozen.dictation_use_screen_context == current.dictation_use_screen_context
+        && frozen.dictation_use_visible_context == current.dictation_use_visible_context
+        && frozen.dictation_use_meeting_memory == current.dictation_use_meeting_memory
+        && frozen.dictation_use_screen_memory == current.dictation_use_screen_memory
+        && frozen.excluded_apps == current.excluded_apps
+        && frozen.excluded_screen_domains == current.excluded_screen_domains
+        && frozen.approved_remote_inference_origins == current.approved_remote_inference_origins
+        && destination_matches(
+            &composition_settings(frozen),
+            &composition_settings(current),
+        )
+}
+
+fn destination_matches(frozen: &Settings, current: &Settings) -> bool {
+    frozen.summarizer_backend == current.summarizer_backend
+        && frozen.built_in_model_id == current.built_in_model_id
+        && frozen.openai_base_url == current.openai_base_url
+        && frozen.ollama_base_url == current.ollama_base_url
+        && !destination_blocked(current)
+}
+
+/// A remote destination without its approval.
+fn destination_blocked(settings: &Settings) -> bool {
+    let approved = &settings.approved_remote_inference_origins;
+    match settings.summarizer_backend {
+        SummarizerBackend::BuiltIn => false,
+        SummarizerBackend::Ollama => {
+            lokalbot_core::access::remote_block_reason(&settings.ollama_base_url, approved)
+                .is_some()
+        }
+        SummarizerBackend::OpenAICompatible => {
+            lokalbot_core::access::remote_block_reason(&settings.openai_base_url, approved)
+                .is_some()
+        }
+        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => !settings
+            .think_plan()
+            .is_some_and(|plan| plan.is_approved(settings)),
+    }
+}
+
+/// The saved facts selected for one request.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SavedFacts {
+    pub text: Option<String>,
+    pub source_titles: Vec<String>,
+}
+
+/// Where one Compose request gets its context and model. Each call is made
+/// only when the request and the frozen settings allow it.
+pub trait ComposeProviders {
+    fn cancelled(&self) -> bool;
+    /// The settings now, to notice revoked grants.
+    fn current_settings(&self) -> Settings;
+    fn screen(&mut self) -> Option<ScreenContext>;
+    fn visible(&mut self) -> Option<String>;
+    fn memory(
+        &mut self,
+        speech: &str,
+        screen: Option<&ScreenContext>,
+        visible: Option<&str>,
+        settings: &Settings,
+    ) -> SavedFacts;
+    /// The facts' sources are unchanged and still allowed.
+    fn memory_is_current(&mut self, facts: &SavedFacts, current: &Settings) -> bool;
+    /// The focused field still shows this nearby text.
+    fn visible_is_current(&mut self, text: &str, current: &Settings) -> bool;
+    /// The same window and field still have focus.
+    fn screen_is_current(&mut self, context: &ScreenContext, current: &Settings) -> bool;
+    fn make_think(&mut self, settings: &Settings) -> Result<ThinkClient>;
+}
+
+/// What [`prepare_checked`] returns.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CheckedPreparation {
+    pub prepared: Prepared,
+    pub facts: SavedFacts,
+}
+
+/// `DictationTextPreparation.prepare`. Context is read only for writing
+/// requests and re-validated around the model call, so a grant revoked or a
+/// source changed meanwhile rejects the composition; the transcript survives.
+pub fn prepare_checked(
+    transcript: &str,
+    settings: &Settings,
+    providers: &mut dyn ComposeProviders,
+) -> Result<CheckedPreparation> {
+    let speech = normalized_text(transcript);
+    if settings.dictation_intent != DictationIntent::Compose || speech.is_empty() {
+        return Ok(CheckedPreparation {
+            prepared: Prepared {
+                text: speech,
+                composition_model: None,
+                was_writing_request: false,
+                used_screen_context: false,
+                used_visible_text: false,
+                context_use: None,
+            },
+            facts: SavedFacts::default(),
+        });
+    }
+    let checkpoint = |providers: &mut dyn ComposeProviders| -> Result<Settings> {
+        if providers.cancelled() {
+            return Err(DictationError::Cancelled.into());
+        }
+        let current = providers.current_settings();
+        if !permissions_match(settings, &current) {
+            return Err(DictationError::ContextChanged.into());
+        }
+        Ok(current)
+    };
+    checkpoint(providers)?;
+    let writing = requests_context(&speech);
+    let screen = (writing && settings.dictation_use_screen_context)
+        .then(|| providers.screen())
+        .flatten();
+    checkpoint(providers)?;
+    let visible = (writing && settings.dictation_use_visible_context)
+        .then(|| providers.visible())
+        .flatten();
+    checkpoint(providers)?;
+    let facts = if writing && memory_policy(settings).enabled() {
+        providers.memory(&speech, screen.as_ref(), visible.as_deref(), settings)
+    } else {
+        SavedFacts::default()
+    };
+    let validate = |providers: &mut dyn ComposeProviders| -> Result<()> {
+        let current = checkpoint(providers)?;
+        if !providers.memory_is_current(&facts, &current) {
+            return Err(DictationError::ContextChanged.into());
+        }
+        if let Some(visible) = &visible
+            && !providers.visible_is_current(visible, &current)
+        {
+            return Err(DictationError::ContextChanged.into());
+        }
+        if let Some(screen) = &screen
+            && !providers.screen_is_current(screen, &current)
+        {
+            return Err(DictationError::ContextChanged.into());
+        }
+        let current = checkpoint(providers)?;
+        if !providers.memory_is_current(&facts, &current) {
+            return Err(DictationError::ContextChanged.into());
+        }
+        Ok(())
+    };
+    validate(providers)?;
+    let think = providers.make_think(&composition_settings(settings))?;
+    validate(providers)?;
+    let mut prepared = prepare_with(
+        &think,
+        &speech,
+        settings,
+        ComposeContext {
+            screen: screen.as_ref(),
+            visible_text: visible.as_deref(),
+            saved_facts: facts.text.as_deref(),
+        },
+    )?;
+    validate(providers)?;
+    prepared.context_use = Some(ContextUse {
+        was_writing_request: writing,
+        focused_window: screen.as_ref().is_some_and(|s| !s.visible_text.is_empty()),
+        visible_text: visible.as_deref().is_some_and(|t| !t.is_empty()),
+        saved_fact_sources: facts.source_titles.clone(),
+    });
+    Ok(CheckedPreparation { prepared, facts })
 }
 
 /// The text to insert for `transcript` under the dictation settings.
@@ -119,6 +376,7 @@ pub fn prepare_with(
             was_writing_request: false,
             used_screen_context: false,
             used_visible_text: false,
+            context_use: None,
         });
     }
     let profile = Profile::from_settings(settings);
@@ -157,6 +415,7 @@ pub fn prepare_with(
         was_writing_request: writing,
         used_screen_context: writing && context.screen.is_some_and(|s| !s.visible_text.is_empty()),
         used_visible_text: writing && context.visible_text.is_some_and(|t| !t.is_empty()),
+        context_use: None,
     })
 }
 
@@ -197,6 +456,14 @@ const COMMAND_WORDS: &[&str] = &[
     "напиши",
     "ответь",
     "переведи",
+    "rispondi",
+    "scrivi",
+    "redigi",
+    "componi",
+    "riscrivi",
+    "riformula",
+    "traduci",
+    "riassumi",
 ];
 const POLITE_PHRASES: &[&[&str]] = &[
     &["please"],
@@ -212,6 +479,7 @@ const POLITE_PHRASES: &[&[&str]] = &[
     &["bitte"],
     &["por", "favor"],
     &["s'il", "te", "plait"],
+    &["per", "favore"],
 ];
 const FILLER_WORDS: &[&str] = &[
     "hey", "ok", "okay", "so", "um", "uh", "alright", "well", "okej", "dobro", "ajde", "hajde",
@@ -596,6 +864,308 @@ mod tests {
             tail.starts_with("…line ") && tail.chars().count() <= WINDOW_TEXT_LIMIT,
             "{tail}"
         );
+    }
+
+    #[test]
+    fn italian_requests_route_like_the_mac() {
+        assert!(requests_context("Per favore riscrivi questo messaggio"));
+        assert!(requests_context("Rispondi a Maya"));
+    }
+
+    #[test]
+    fn the_profile_carries_languages_and_terminology() {
+        let settings = Settings {
+            cotyping_languages: " Serbian and English ".into(),
+            cotyping_extended_context: "\n Orion is the launch project. ".into(),
+            ..Settings::default()
+        };
+        let profile = Profile::from_settings(&settings);
+        assert_eq!(
+            profile.language_hint.as_deref(),
+            Some("The text is usually written in Serbian and English.")
+        );
+        assert_eq!(
+            profile.glossary.as_deref(),
+            Some("Orion is the launch project.")
+        );
+        let prompt = compose_user_prompt("draft it", None, &profile, None, None);
+        assert!(
+            prompt.contains(
+                "Language preference: The text is usually written in Serbian and English."
+            ),
+            "{prompt}"
+        );
+        assert!(
+            prompt.contains("Terminology and background: Orion is the launch project."),
+            "{prompt}"
+        );
+        let empty = Profile::from_settings(&Settings::default());
+        assert_eq!(empty.language_hint, None);
+        assert_eq!(empty.glossary, None);
+    }
+
+    #[test]
+    fn the_summary_says_what_was_used() {
+        let tr = |s: &str| s.to_string();
+        let fill = |s: &str, a: &str| s.replace("{0}", a);
+        let summary = |use_: ContextUse| use_.summary(tr, fill);
+        assert!(summary(ContextUse::default()).starts_with("Cleanup only."));
+        assert_eq!(
+            summary(ContextUse {
+                was_writing_request: true,
+                ..ContextUse::default()
+            }),
+            "Writing request. No enabled context matched it."
+        );
+        assert_eq!(
+            summary(ContextUse {
+                was_writing_request: true,
+                focused_window: true,
+                visible_text: true,
+                saved_fact_sources: vec!["Beta".into(), "Launch".into()],
+            }),
+            "Used: focused window; visible text; saved facts from Beta, Launch"
+        );
+    }
+
+    #[test]
+    fn a_separate_compose_model_runs_on_the_built_in_server() {
+        let think = Settings {
+            summarizer_backend: SummarizerBackend::Ollama,
+            ollama_base_url: "http://127.0.0.1:11434".into(),
+            think_reasoning_level: ReasoningLevel::High,
+            ..Settings::default()
+        };
+        assert_eq!(
+            composition_settings(&think).summarizer_backend,
+            SummarizerBackend::Ollama,
+            "follows Think by default"
+        );
+        let stale = Settings {
+            dictation_composition_built_in_model_id: "gone-model".into(),
+            ..think.clone()
+        };
+        assert_eq!(
+            composition_settings(&stale).summarizer_backend,
+            SummarizerBackend::Ollama,
+            "a stale id follows Think"
+        );
+        let pinned = Settings {
+            dictation_composition_built_in_model_id: catalog::DEFAULT_THINK_ID.into(),
+            ..think
+        };
+        let composition = composition_settings(&pinned);
+        assert_eq!(composition.summarizer_backend, SummarizerBackend::BuiltIn);
+        assert_eq!(composition.built_in_model_id, catalog::DEFAULT_THINK_ID);
+        assert_eq!(composition.think_reasoning_level, ReasoningLevel::Automatic);
+    }
+
+    #[test]
+    fn permissions_cover_every_grant_and_the_destination() {
+        let frozen = Settings::default();
+        assert!(permissions_match(&frozen, &frozen.clone()));
+        let changes: [fn(&mut Settings); 8] = [
+            |s| s.dictation_intent = DictationIntent::Compose,
+            |s| s.dictation_use_screen_context = !s.dictation_use_screen_context,
+            |s| s.dictation_use_visible_context = true,
+            |s| s.dictation_use_meeting_memory = true,
+            |s| s.dictation_use_screen_memory = true,
+            |s| s.excluded_apps = "Slack".into(),
+            |s| s.excluded_screen_domains = "example.com".into(),
+            |s| s.summarizer_backend = SummarizerBackend::Ollama,
+        ];
+        for change in changes {
+            let mut current = frozen.clone();
+            change(&mut current);
+            assert!(!permissions_match(&frozen, &current));
+        }
+        let remote = Settings {
+            summarizer_backend: SummarizerBackend::OpenAICompatible,
+            openai_base_url: "https://api.example.com/v1".into(),
+            ..Settings::default()
+        };
+        assert!(
+            !permissions_match(&remote, &remote.clone()),
+            "an unapproved remote is blocked"
+        );
+    }
+
+    /// Records which context providers run.
+    struct Fake {
+        think: ThinkClient,
+        current: Settings,
+        calls: Vec<&'static str>,
+        cancelled: bool,
+        screen_valid: bool,
+        visible_text: Option<String>,
+        facts: SavedFacts,
+        revoke_on_think: bool,
+    }
+
+    impl Fake {
+        fn new(think: ThinkClient, settings: &Settings) -> Self {
+            Self {
+                think,
+                current: settings.clone(),
+                calls: Vec::new(),
+                cancelled: false,
+                screen_valid: true,
+                visible_text: Some("Maya: can we move the review?".into()),
+                facts: SavedFacts {
+                    text: Some("The review moved to Friday.".into()),
+                    source_titles: vec!["Design review".into()],
+                },
+                revoke_on_think: false,
+            }
+        }
+    }
+
+    impl ComposeProviders for Fake {
+        fn cancelled(&self) -> bool {
+            self.cancelled
+        }
+        fn current_settings(&self) -> Settings {
+            self.current.clone()
+        }
+        fn screen(&mut self) -> Option<ScreenContext> {
+            self.calls.push("screen");
+            Some(ScreenContext {
+                app_name: "Slack".into(),
+                bundle_id: None,
+                window_title: "general".into(),
+                visible_text: "Shown on screen".into(),
+            })
+        }
+        fn visible(&mut self) -> Option<String> {
+            self.calls.push("visible");
+            self.visible_text.clone()
+        }
+        fn memory(
+            &mut self,
+            _: &str,
+            _: Option<&ScreenContext>,
+            _: Option<&str>,
+            _: &Settings,
+        ) -> SavedFacts {
+            self.calls.push("memory");
+            self.facts.clone()
+        }
+        fn memory_is_current(&mut self, _: &SavedFacts, _: &Settings) -> bool {
+            true
+        }
+        fn visible_is_current(&mut self, _: &str, _: &Settings) -> bool {
+            true
+        }
+        fn screen_is_current(&mut self, _: &ScreenContext, _: &Settings) -> bool {
+            self.screen_valid
+        }
+        fn make_think(&mut self, _: &Settings) -> Result<ThinkClient> {
+            self.calls.push("think");
+            if self.revoke_on_think {
+                self.current.dictation_use_screen_memory =
+                    !self.current.dictation_use_screen_memory;
+            }
+            Ok(self.think.clone())
+        }
+    }
+
+    fn compose_settings() -> Settings {
+        Settings {
+            dictation_intent: DictationIntent::Compose,
+            dictation_use_screen_context: true,
+            dictation_use_visible_context: true,
+            dictation_use_meeting_memory: true,
+            ..Settings::default()
+        }
+    }
+
+    #[test]
+    fn writing_requests_read_context_and_direct_speech_reads_none() {
+        let seen = Arc::new(parking_lot::Mutex::new(Vec::<Value>::new()));
+        let sent = seen.clone();
+        let server = StubServer::start(move |request| {
+            sent.lock().push(request.json());
+            chat("Friday works.")
+        });
+        let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
+        let settings = compose_settings();
+
+        let mut direct = Fake::new(think.clone(), &settings);
+        let result = prepare_checked("the meeting moved", &settings, &mut direct).unwrap();
+        assert_eq!(direct.calls, ["think"], "direct speech gets no context");
+        let use_ = result.prepared.context_use.unwrap();
+        assert!(!use_.was_writing_request && use_.saved_fact_sources.is_empty());
+
+        let mut writing = Fake::new(think.clone(), &settings);
+        let result = prepare_checked("reply that friday works", &settings, &mut writing).unwrap();
+        assert_eq!(writing.calls, ["screen", "visible", "memory", "think"]);
+        let use_ = result.prepared.context_use.unwrap();
+        assert!(use_.was_writing_request && use_.focused_window && use_.visible_text);
+        assert_eq!(use_.saved_fact_sources, ["Design review"]);
+        let body = seen.lock()[1].clone();
+        let prompt = body["messages"][1]["content"].as_str().unwrap().to_string();
+        assert!(prompt.contains("Shown on screen"), "{prompt}");
+        assert!(
+            prompt.contains("Current visible text above the field"),
+            "{prompt}"
+        );
+        assert!(prompt.contains("The review moved to Friday."), "{prompt}");
+
+        let mut off = Fake::new(think.clone(), &settings);
+        let transcribe = Settings::default();
+        let result = prepare_checked("reply that friday works", &transcribe, &mut off).unwrap();
+        assert!(off.calls.is_empty(), "Transcribe reads nothing");
+        assert_eq!(result.prepared.context_use, None);
+    }
+
+    #[test]
+    fn grants_are_read_one_by_one() {
+        let server = StubServer::start(|_| chat("ok"));
+        let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
+        let settings = Settings {
+            dictation_intent: DictationIntent::Compose,
+            dictation_use_screen_context: false,
+            dictation_use_visible_context: false,
+            dictation_use_meeting_memory: false,
+            dictation_use_screen_memory: false,
+            ..Settings::default()
+        };
+        let mut fake = Fake::new(think, &settings);
+        prepare_checked("reply yes", &settings, &mut fake).unwrap();
+        assert_eq!(fake.calls, ["think"]);
+    }
+
+    #[test]
+    fn changes_during_composition_reject_it() {
+        let server = StubServer::start(|_| chat("ok"));
+        let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
+        let settings = compose_settings();
+
+        let mut moved = Fake::new(think.clone(), &settings);
+        moved.screen_valid = false;
+        let err = prepare_checked("reply yes", &settings, &mut moved).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<DictationError>(),
+            Some(DictationError::ContextChanged)
+        ));
+        assert!(!moved.calls.contains(&"think"), "nothing is sent");
+
+        let mut revoked = Fake::new(think.clone(), &settings);
+        revoked.revoke_on_think = true;
+        let err = prepare_checked("reply yes", &settings, &mut revoked).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<DictationError>(),
+            Some(DictationError::ContextChanged)
+        ));
+
+        let mut cancelled = Fake::new(think, &settings);
+        cancelled.cancelled = true;
+        let err = prepare_checked("reply yes", &settings, &mut cancelled).unwrap_err();
+        assert!(matches!(
+            err.downcast_ref::<DictationError>(),
+            Some(DictationError::Cancelled)
+        ));
+        assert!(cancelled.calls.is_empty());
     }
 
     #[test]

@@ -119,6 +119,16 @@ pub fn delete(paths: &LibraryPaths) -> std::io::Result<()> {
     Ok(())
 }
 
+/// One recognized line and where it is in the image, in pixels.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OcrLine {
+    pub text: String,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
 /// A loaded recognizer. Loading reads about 12 MB of model weights, so keep
 /// one and reuse it.
 pub struct OcrEngine {
@@ -163,6 +173,42 @@ impl OcrEngine {
     }
 }
 
+impl OcrEngine {
+    /// The lines in an RGBA image with their places, for telling what is near
+    /// a text field.
+    pub fn recognize_lines(&self, rgba: &[u8], width: u32, height: u32) -> Result<Vec<OcrLine>> {
+        use ocrs::TextItem as _;
+        anyhow::ensure!(
+            width > 0 && height > 0 && rgba.len() == width as usize * height as usize * 4,
+            "the image has no pixels"
+        );
+        let source = ocrs::ImageSource::from_bytes(rgba, (width, height))?;
+        let input = self.engine.prepare_input(source)?;
+        let words = self.engine.detect_words(&input)?;
+        let lines = self.engine.find_text_lines(&input, &words);
+        let recognized = self.engine.recognize_text(&input, &lines)?;
+        Ok(recognized
+            .into_iter()
+            .flatten()
+            .filter_map(|line| {
+                let text = line.to_string();
+                let text = text.trim();
+                if text.is_empty() {
+                    return None;
+                }
+                let rect = line.bounding_rect();
+                Some(OcrLine {
+                    text: text.to_string(),
+                    x: rect.left(),
+                    y: rect.top(),
+                    width: rect.width(),
+                    height: rect.height(),
+                })
+            })
+            .collect())
+    }
+}
+
 fn display_name(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().into_owned())
@@ -172,6 +218,40 @@ fn display_name(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// How long one window takes, for judging autocomplete's window text.
+    /// `LOKALBOT_OCR_ROOT` is a scratch library the models download into;
+    /// `LOKALBOT_OCR_IMAGE` is raw RGBA named `<name>-<width>x<height>.rgba`.
+    #[test]
+    #[ignore = "downloads the models; run by hand"]
+    fn recognize_lines_timing() {
+        let root = std::env::var("LOKALBOT_OCR_ROOT").unwrap();
+        let image = std::path::PathBuf::from(std::env::var("LOKALBOT_OCR_IMAGE").unwrap());
+        let paths = LibraryPaths::new(root);
+        download(&paths, &AtomicBool::new(false), &mut |_, _| {}).unwrap();
+        let started = std::time::Instant::now();
+        let engine = OcrEngine::load(&paths).unwrap();
+        println!("load: {} ms", started.elapsed().as_millis());
+        let rgba = std::fs::read(&image).unwrap();
+        let name = image.file_stem().unwrap().to_string_lossy().into_owned();
+        let size = name.rsplit('-').next().unwrap();
+        let (width, height) = size.split_once('x').unwrap();
+        let (width, height): (u32, u32) = (width.parse().unwrap(), height.parse().unwrap());
+        for run in 0..3 {
+            let started = std::time::Instant::now();
+            let lines = engine.recognize_lines(&rgba, width, height).unwrap();
+            println!(
+                "run {run}: {width}x{height}, {} lines in {} ms",
+                lines.len(),
+                started.elapsed().as_millis()
+            );
+            if run == 0 {
+                for line in lines.iter().take(6) {
+                    println!("  ({}, {}) {}", line.x, line.y, line.text);
+                }
+            }
+        }
+    }
 
     #[test]
     fn pins_are_well_formed() {

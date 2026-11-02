@@ -4,8 +4,8 @@
 use crate::i18n::h_flex;
 use chrono::Local;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::menu::PopupMenuItem;
-use gpui_kit::component::popover::Popover;
+use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
+use gpui_kit::component::scroll::ScrollableElement as _;
 use gpui_kit::component::{Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
@@ -13,7 +13,8 @@ use gpui_kit::{
     ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div,
     px,
 };
-use lokalbot_core::{ActionStatus, ActionThread};
+use lokalbot_core::action_completion::CompletionHint;
+use lokalbot_core::{ActionReference, ActionStatus, ActionThread};
 
 use crate::state::{AppData, MeetingTab};
 use crate::theme::{LbThemeExt as _, ty};
@@ -32,6 +33,293 @@ pub(crate) fn open_meeting(
         MeetingTab::Summary
     };
     data.update(cx, |data, cx| data.open_meeting(meeting_id, tab, at, cx));
+}
+
+/// "Looks done?" reads only text kept with consent, and only when asked to
+/// (`refreshActionCompletionHints`).
+pub(crate) fn suggests_completion(settings: &lokalbot_core::Settings) -> bool {
+    settings.suggest_action_completion
+        && settings.tracking_enabled
+        && settings.screen_context_capture_mode != lokalbot_core::ScreenContextMode::ActivityOnly
+}
+
+/// "Looks done?" for `thread`, with Not Yet remembering the dismissal.
+pub(crate) fn hint_line(
+    id: SharedString,
+    thread: &ActionThread,
+    hint: &CompletionHint,
+    data: &Entity<AppData>,
+    cx: &App,
+) -> AnyElement {
+    let library = data.read(cx).library.clone();
+    let dismiss_data = data.clone();
+    let dismissed = hint.clone();
+    completion_hint_line(
+        id,
+        thread,
+        hint,
+        data,
+        move |cx| {
+            if let Err(err) = library.dismiss_completion_hint(&dismissed) {
+                log::warn!("completion hint not dismissed: {err:#}");
+            }
+            dismiss_data.update(cx, |data, cx| data.mark_library_changed(cx));
+        },
+        cx,
+    )
+}
+
+/// "3 weeks ago", as `RelativeDateTimeFormatter` says it for old work.
+fn age_label(days: i64) -> String {
+    let (count, one, many) = match days {
+        ..=0 => return lokalbot_i18n::tr("today").to_string(),
+        1..=6 => (days, "1 day ago", "{count} days ago"),
+        7..=29 => (days / 7, "1 week ago", "{count} weeks ago"),
+        30..=364 => (days / 30, "1 month ago", "{count} months ago"),
+        _ => (days / 365, "1 year ago", "{count} years ago"),
+    };
+    if count == 1 {
+        lokalbot_i18n::tr(one).to_string()
+    } else {
+        lokalbot_i18n::format(many, &[("count", count.to_string())])
+    }
+}
+
+/// "Still open?": open work nobody has mentioned for weeks. Either answer
+/// goes through the normal status path; deferred work stops asking
+/// (`StillOpenLine`).
+pub(crate) fn still_open_line(
+    id: SharedString,
+    thread: &ActionThread,
+    data: &Entity<AppData>,
+    cx: &App,
+) -> AnyElement {
+    let lb = cx.lb().clone();
+    let today = Local::now().date_naive();
+    let age = lokalbot_i18n::format(
+        "Last mentioned {age}",
+        &[("age", age_label(thread.days_since_last_mention(today)))],
+    );
+    let (done_data, defer_data) = (data.clone(), data.clone());
+    let (done_thread, defer_thread) = (thread.clone(), thread.clone());
+    h_flex()
+        .id(id.clone())
+        .gap(px(8.))
+        .pl(px(30.))
+        .pb(px(6.))
+        .items_center()
+        .tooltip(|window, cx| {
+            gpui_kit::component::tooltip::Tooltip::new(lokalbot_i18n::tr(
+                "Nobody has mentioned this in a meeting for a while. Mark it done, or defer it to stop this question.",
+            ))
+            .build(window, cx)
+        })
+        .child(crate::ui::icon(Ico::Clock, px(13.), lb.attention_text))
+        .child(
+            div()
+                .flex_none()
+                .text_size(ty::SECONDARY)
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(lb.attention_text)
+                .child(lokalbot_i18n::tr("Still open?")),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_size(ty::SECONDARY)
+                .text_color(lb.text_secondary)
+                .child(age),
+        )
+        .child(
+            Button::new(SharedString::from(format!("{id}-done")))
+                .ghost()
+                .small()
+                .label(lokalbot_i18n::tr("Mark Done"))
+                .on_click(move |_, window, cx| {
+                    set_thread_status(
+                        done_data.clone(),
+                        done_thread.clone(),
+                        ActionStatus::Done,
+                        window,
+                        cx,
+                    );
+                }),
+        )
+        .child(
+            Button::new(SharedString::from(format!("{id}-defer")))
+                .ghost()
+                .small()
+                .label(lokalbot_i18n::tr("Defer"))
+                .on_click(move |_, window, cx| {
+                    set_thread_status(
+                        defer_data.clone(),
+                        defer_thread.clone(),
+                        ActionStatus::Deferred,
+                        window,
+                        cx,
+                    );
+                }),
+        )
+        .into_any_element()
+}
+
+/// "Open in Agent", then each coding agent installed on this computer.
+pub(crate) fn agent_menu_items_for_thread(
+    menu: PopupMenu,
+    thread: &ActionThread,
+    data: &Entity<AppData>,
+) -> PopupMenu {
+    let prompt = lokalbot_core::agent_handoff::agent_prompt_for_thread(thread);
+    let agent_data = data.clone();
+    let mut menu = menu.item(
+        PopupMenuItem::new(lokalbot_i18n::tr("Open in Agent")).on_click(move |_, _, cx| {
+            let prompt = prompt.clone();
+            agent_data.update(cx, |data, cx| data.open_agent(prompt, cx));
+        }),
+    );
+    for target in crate::agent_handoff::for_actions() {
+        let data = data.clone();
+        let thread = thread.clone();
+        menu = menu.item(
+            PopupMenuItem::new(open_in_label(target)).on_click(move |_, _, cx| {
+                crate::agent_handoff::hand_off_thread(&data, &thread, target, cx)
+            }),
+        );
+    }
+    menu
+}
+
+/// The same for one action.
+pub(crate) fn agent_menu_items_for_reference(
+    menu: PopupMenu,
+    reference: &ActionReference,
+    data: &Entity<AppData>,
+) -> PopupMenu {
+    let prompt = lokalbot_core::agent_handoff::agent_prompt_for_action(reference);
+    let agent_data = data.clone();
+    let mut menu = menu.item(
+        PopupMenuItem::new(lokalbot_i18n::tr("Open in Agent")).on_click(move |_, _, cx| {
+            let prompt = prompt.clone();
+            agent_data.update(cx, |data, cx| data.open_agent(prompt, cx));
+        }),
+    );
+    for target in crate::agent_handoff::for_actions() {
+        let data = data.clone();
+        let reference = reference.clone();
+        menu = menu.item(
+            PopupMenuItem::new(open_in_label(target)).on_click(move |_, _, cx| {
+                crate::agent_handoff::hand_off_reference(&data, &reference, target, cx)
+            }),
+        );
+    }
+    menu
+}
+
+/// "Open in Claude Code".
+pub(crate) fn open_in_label(target: crate::agent_handoff::Target) -> SharedString {
+    lokalbot_i18n::format("Open in {target}", &[("target", target.name().to_string())]).into()
+}
+
+/// "Looks done?": a later capture shows the action's words with a completion
+/// phrase. A suggestion only; nothing changes until Mark Done
+/// (`ActionCompletionHintLine`).
+pub(crate) fn completion_hint_line(
+    id: SharedString,
+    thread: &ActionThread,
+    hint: &lokalbot_core::action_completion::CompletionHint,
+    data: &Entity<AppData>,
+    on_dismiss: impl Fn(&mut App) + 'static,
+    cx: &App,
+) -> AnyElement {
+    let lb = cx.lb().clone();
+    let time = hint
+        .captured_at
+        .with_timezone(&Local)
+        .format("%a %-I:%M %p")
+        .to_string();
+    let title = if hint.title.is_empty() {
+        String::new()
+    } else {
+        format!(" · {}", hint.title)
+    };
+    let evidence = lokalbot_i18n::format(
+        "“{cue}” in {app} · {time}{title}",
+        &[
+            ("cue", hint.cue.clone()),
+            ("app", hint.app.clone()),
+            ("time", time),
+            ("title", title),
+        ],
+    );
+    let help = lokalbot_i18n::format(
+        "A later screen capture shows “{cue}” with this action's words. Nothing changes until you choose Mark Done.",
+        &[("cue", hint.cue.clone())],
+    );
+    let done_data = data.clone();
+    let done_thread = thread.clone();
+    let view_data = data.clone();
+    let (snapshot, at) = (hint.snapshot_id, hint.captured_at);
+    h_flex()
+        .id(id.clone())
+        .gap(px(8.))
+        .pl(px(30.))
+        .pb(px(6.))
+        .items_center()
+        .tooltip(move |window, cx| {
+            gpui_kit::component::tooltip::Tooltip::new(help.clone()).build(window, cx)
+        })
+        .child(crate::ui::icon(Ico::CircleCheck, px(13.), lb.accent_text))
+        .child(
+            div()
+                .flex_none()
+                .text_size(ty::SECONDARY)
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(lb.accent_text)
+                .child(lokalbot_i18n::tr("Looks done?")),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_size(ty::SECONDARY)
+                .text_color(lb.text_secondary)
+                .child(evidence),
+        )
+        .child(
+            Button::new(SharedString::from(format!("{id}-done")))
+                .ghost()
+                .small()
+                .label(lokalbot_i18n::tr("Mark Done"))
+                .on_click(move |_, window, cx| {
+                    set_thread_status(
+                        done_data.clone(),
+                        done_thread.clone(),
+                        ActionStatus::Done,
+                        window,
+                        cx,
+                    );
+                }),
+        )
+        .child(
+            Button::new(SharedString::from(format!("{id}-view")))
+                .ghost()
+                .small()
+                .label(lokalbot_i18n::tr("View"))
+                .on_click(move |_, _, cx| {
+                    view_data.update(cx, |data, cx| data.open_screen_moment(snapshot, at, cx));
+                }),
+        )
+        .child(
+            Button::new(SharedString::from(format!("{id}-not-yet")))
+                .ghost()
+                .small()
+                .label(lokalbot_i18n::tr("Not Yet"))
+                .on_click(move |_, _, cx| on_dismiss(cx)),
+        )
+        .into_any_element()
 }
 
 /// Sets a thread's status, asking first when it spans several meetings.
@@ -172,15 +460,28 @@ fn set_excluded(
     .detach();
 }
 
-/// One `ActionThreadRow`.
-pub(crate) fn thread_row(
+/// What a row adds beyond the action (`ActionThreadRow`'s options).
+#[derive(Clone, Copy, Default)]
+pub(crate) struct RowOptions<'a> {
+    /// Projects show whose work it is when it is someone else's.
+    pub show_owner: bool,
+    /// People show deferred work as deferred and ask about open work nobody
+    /// has mentioned for weeks.
+    pub show_staleness: bool,
+    pub hint: Option<&'a CompletionHint>,
+}
+
+/// `ActionThreadRow` with its options: the row, then a "Looks done?" or
+/// "Still open?" line.
+pub(crate) fn thread_row_with(
     id: SharedString,
     thread: &ActionThread,
-    show_owner: bool,
+    options: RowOptions<'_>,
     data: &Entity<AppData>,
     cx: &App,
 ) -> AnyElement {
     let lb = cx.lb().clone();
+    let show_owner = options.show_owner;
     let today = Local::now().date_naive();
     let status = thread.status();
     let mixed = thread.is_mixed();
@@ -221,14 +522,14 @@ pub(crate) fn thread_row(
             action_row::meta_text(lokalbot_i18n::tr("Mixed status"), lb.text_secondary)
                 .into_any_element(),
         );
-    } else if show_owner && status == ActionStatus::Deferred {
+    } else if options.show_staleness && status == ActionStatus::Deferred {
         meta.push(
             action_row::meta_text(lokalbot_i18n::tr("Deferred"), lb.text_secondary)
                 .into_any_element(),
         );
     }
     if multiple {
-        meta.push(sources_popover(
+        meta.push(sources_link(
             SharedString::from(format!("{id}-sources")),
             thread,
             data,
@@ -313,12 +614,14 @@ pub(crate) fn thread_row(
                         move |_, _, cx| open_meeting(&open_data, latest.meeting_id, None, cx),
                     ),
                 );
-                if thread.meeting_count() > 1 {
+                let menu = if thread.meeting_count() > 1 {
                     let data = data.clone();
-                    let latest = thread.latest().clone();
+                    let thread = thread.clone();
                     menu.item(
                         PopupMenuItem::new(lokalbot_i18n::tr("Review source meetings")).on_click(
-                            move |_, _, cx| open_meeting(&data, latest.meeting_id, None, cx),
+                            move |_, window, cx| {
+                                open_sources(thread.clone(), data.clone(), window, cx)
+                            },
                         ),
                     )
                 } else {
@@ -339,17 +642,46 @@ pub(crate) fn thread_row(
                             cx,
                         )
                     }))
-                }
+                };
+                agent_menu_items_for_thread(menu, &thread, &data)
             },
         )
     };
 
-    action_row::action_row(toggle, thread.text.clone(), done, meta, None, menu, cx)
+    let today = Local::now().date_naive();
+    let line = match options.hint {
+        Some(hint) => Some(hint_line(
+            SharedString::from(format!("{id}-hint")),
+            thread,
+            hint,
+            data,
+            cx,
+        )),
+        None if options.show_staleness && thread.is_stale(today) => Some(still_open_line(
+            SharedString::from(format!("{id}-stale")),
+            thread,
+            data,
+            cx,
+        )),
+        None => None,
+    };
+    v_flex()
+        .w_full()
+        .child(action_row::action_row(
+            toggle,
+            thread.text.clone(),
+            done,
+            meta,
+            None,
+            menu,
+            cx,
+        ))
+        .children(line)
         .into_any_element()
 }
 
 /// "Mentioned in N meetings": a teal link opening the thread's sources.
-fn sources_popover(
+fn sources_link(
     id: SharedString,
     thread: &ActionThread,
     data: &Entity<AppData>,
@@ -362,23 +694,31 @@ fn sources_popover(
     );
     let thread = thread.clone();
     let data = data.clone();
-    let trigger = Button::new(SharedString::from(format!("{id}-trigger")))
+    Button::new(id)
         .text()
         .small()
         .icon(gpui_kit::component::Icon::new(Ico::Link))
         .label(label)
         .text_size(ty::SECONDARY)
-        .text_color(lb.accent_text);
-    Popover::new(id)
-        .trigger(trigger)
-        .content(move |_, _, cx| {
-            let lb = cx.lb().clone();
-            let data = data.clone();
+        .text_color(lb.accent_text)
+        .on_click(move |_, window, cx| open_sources(thread.clone(), data.clone(), window, cx))
+        .into_any_element()
+}
+
+/// Every meeting a thread came up in (`ActionThreadSourcesView`). Each source
+/// stays attached to its meeting, and can be split off the thread.
+fn open_sources(thread: ActionThread, data: Entity<AppData>, window: &mut Window, cx: &mut App) {
+    window.open_dialog(cx, move |dialog, _, cx| {
+        let lb = cx.lb().clone();
+        let data = data.clone();
+        let sources = thread
+            .references
+            .iter()
+            .enumerate()
+            .map(|(ix, reference)| source_row(ix, reference, &data, cx));
+        dialog.w(px(480.)).child(
             v_flex()
-                .w(px(440.))
-                .max_h(px(420.))
                 .gap(px(12.))
-                .p(px(16.))
                 .child(
                     v_flex()
                         .gap(px(3.))
@@ -400,83 +740,157 @@ fn sources_popover(
                         ),
                 )
                 .child(div().h(px(1.)).bg(lb.separator))
-                .children(thread.references.iter().enumerate().map(|(ix, reference)| {
-                    let open_data = data.clone();
-                    let meeting_id = reference.meeting_id;
-                    let mut details = Vec::new();
-                    if let Some(owner) = reference.owner.as_deref() {
-                        details.push(lokalbot_i18n::format(
-                            "Owner: {0}",
-                            &[(
-                                "0",
-                                crate::pages::meetings::model::display_label(
-                                    owner,
-                                    reference.is_for_user,
-                                )
-                                .to_string(),
-                            )],
-                        ));
-                    }
-                    if let Some(due) = reference.due.as_deref() {
-                        details.push(lokalbot_i18n::format(
-                            "Due: {due}",
-                            &[("due", due.to_string())],
-                        ));
-                    }
-                    details.push(lokalbot_i18n::tr(reference.status.label()).to_string());
+                .child(
                     v_flex()
-                        .gap(px(4.))
-                        .child(
-                            h_flex()
-                                .id(("thread-source", ix))
-                                .gap(px(8.))
-                                .cursor_pointer()
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w_0()
-                                        .truncate()
-                                        .text_size(ty::BODY)
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .child(reference.meeting_title.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(lb.text_secondary)
-                                        .child(crate::pages::meetings::model::date_label(
-                                            reference.meeting_started_at,
-                                        )),
-                                )
-                                .on_click(move |_, _, cx| {
-                                    open_meeting(&open_data, meeting_id, None, cx)
-                                }),
-                        )
-                        .child(
-                            div()
-                                .text_size(ty::BODY)
-                                .text_color(lb.text_secondary)
-                                .child(reference.original_text.clone()),
-                        )
-                        .when(reference.text_was_corrected, |this| {
-                            this.child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                        "Corrected to: {0}",
-                                        &[("0", reference.text.to_string())],
-                                    ))),
-                            )
-                        })
-                        .child(
-                            div()
-                                .text_size(ty::SECONDARY)
-                                .text_color(lb.text_tertiary)
-                                .child(details.join("  ")),
-                        )
-                        .into_any_element()
-                }))
+                        .id("thread-sources")
+                        .max_h(px(420.))
+                        .overflow_y_scrollbar()
+                        .gap(px(12.))
+                        .children(sources),
+                ),
+        )
+    });
+}
+
+fn source_row(
+    ix: usize,
+    reference: &ActionReference,
+    data: &Entity<AppData>,
+    cx: &App,
+) -> AnyElement {
+    let lb = cx.lb().clone();
+    let open_data = data.clone();
+    let split_data = data.clone();
+    let meeting_id = reference.meeting_id;
+    let action_id = reference.action_id.clone();
+    let mut details = Vec::new();
+    if let Some(owner) = reference.owner.as_deref() {
+        details.push(lokalbot_i18n::format(
+            "Owner: {0}",
+            &[(
+                "0",
+                crate::pages::meetings::model::display_label(owner, reference.is_for_user)
+                    .to_string(),
+            )],
+        ));
+    }
+    if let Some(due) = reference.due.as_deref() {
+        details.push(lokalbot_i18n::format(
+            "Due: {due}",
+            &[("due", due.to_string())],
+        ));
+    }
+    details.push(lokalbot_i18n::tr(reference.status.label()).to_string());
+    v_flex()
+        .gap(px(4.))
+        .child(
+            h_flex()
+                .id(("thread-source", ix))
+                .gap(px(8.))
+                .cursor_pointer()
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .text_size(ty::BODY)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(reference.meeting_title.clone()),
+                )
+                .child(
+                    div()
+                        .text_size(ty::SECONDARY)
+                        .text_color(lb.text_secondary)
+                        .child(crate::pages::meetings::model::date_label(
+                            reference.meeting_started_at,
+                        )),
+                )
+                .on_click(move |_, window, cx| {
+                    window.close_dialog(cx);
+                    open_meeting(&open_data, meeting_id, None, cx)
+                }),
+        )
+        .child(
+            div()
+                .text_size(ty::BODY)
+                .text_color(lb.text_secondary)
+                .child(reference.original_text.clone()),
+        )
+        .when(reference.text_was_corrected, |this| {
+            this.child(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.text_secondary)
+                    .child(crate::ui::text::paragraph(lokalbot_i18n::format(
+                        "Corrected to: {0}",
+                        &[("0", reference.text.to_string())],
+                    ))),
+            )
         })
+        .child(
+            div()
+                .text_size(ty::SECONDARY)
+                .text_color(lb.text_tertiary)
+                .child(details.join("  ")),
+        )
+        .child(
+            h_flex().child(
+                Button::new(("thread-separate", ix))
+                    .ghost()
+                    .small()
+                    .label(lokalbot_i18n::tr("Keep as separate action"))
+                    .on_click(move |_, window, cx| {
+                        set_excluded(split_data.clone(), meeting_id, action_id.clone(), true, cx);
+                        window.close_dialog(cx);
+                    }),
+            ),
+        )
+        .children(
+            reference
+                .citations
+                .iter()
+                .enumerate()
+                .map(|(cite, citation)| {
+                    let data = data.clone();
+                    let start = citation.start;
+                    h_flex()
+                        .id(SharedString::from(format!("thread-source-{ix}-{cite}")))
+                        .gap(px(6.))
+                        .items_start()
+                        .cursor_pointer()
+                        .text_size(ty::SECONDARY)
+                        .text_color(lb.accent_text)
+                        .child(crate::ui::icon(
+                            Ico::MessageSquareQuote,
+                            px(13.),
+                            lb.accent_text,
+                        ))
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .line_clamp(2)
+                                .child(citation.excerpt.clone()),
+                        )
+                        .on_click(move |_, window, cx| {
+                            window.close_dialog(cx);
+                            open_meeting(&data, meeting_id, Some(start), cx)
+                        })
+                }),
+        )
         .into_any_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_work_says_how_old_like_the_mac() {
+        assert_eq!(age_label(21), "3 weeks ago");
+        assert_eq!(age_label(7), "1 week ago");
+        assert_eq!(age_label(45), "1 month ago");
+        assert_eq!(age_label(90), "3 months ago");
+        assert_eq!(age_label(800), "2 years ago");
+    }
 }

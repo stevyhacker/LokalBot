@@ -22,11 +22,15 @@ use windows::core::{BOOL, Interface};
 
 use super::{CaptureStream, Evidence, EvidenceSource, WindowTitle, browser_family};
 
-pub(super) struct WasapiEvidence;
+pub(super) struct WasapiEvidence {
+    calls: crate::screen::BrowserCallReader,
+}
 
 impl WasapiEvidence {
     pub(super) fn new() -> Self {
-        Self
+        Self {
+            calls: crate::screen::BrowserCallReader::new(),
+        }
     }
 }
 
@@ -38,15 +42,33 @@ impl EvidenceSource for WasapiEvidence {
             .into_iter()
             .map(|pid| stream_for(pid, &processes))
             .collect();
-        let windows = if capturing
+        let browsing = capturing
             .iter()
-            .any(|stream| browser_family(&stream.process_name).is_some())
-        {
+            .any(|stream| browser_family(&stream.process_name).is_some());
+        let windows = if browsing {
             browser_windows(&processes)
         } else {
             Vec::new()
         };
-        Ok(Evidence { capturing, windows })
+        let documents = if browsing {
+            let families: Vec<&'static str> = capturing
+                .iter()
+                .filter_map(|stream| {
+                    std::iter::once(&stream.process_name)
+                        .chain(&stream.ancestors)
+                        .find_map(|name| browser_family(name))
+                })
+                .collect();
+            self.calls
+                .read(&families, |pid| browser_family(&processes.get(&pid)?.name))
+        } else {
+            Vec::new()
+        };
+        Ok(Evidence {
+            capturing,
+            windows,
+            documents,
+        })
     }
 }
 
@@ -124,6 +146,7 @@ fn stream_for(pid: u32, processes: &HashMap<u32, ProcessInfo>) -> CaptureStream 
         .map(|info| info.name.clone())
         .unwrap_or_default();
     let mut ancestors = Vec::new();
+    let mut ancestor_pids = Vec::new();
     let mut current = processes.get(&pid).map(|info| info.parent);
     // WebView2 and Electron helpers sit a few levels below the app.
     while let Some(parent) = current
@@ -135,6 +158,7 @@ fn stream_for(pid: u32, processes: &HashMap<u32, ProcessInfo>) -> CaptureStream 
             break;
         };
         ancestors.push(info.name.clone());
+        ancestor_pids.push(parent);
         current = Some(info.parent).filter(|next| *next != parent);
     }
     CaptureStream {
@@ -142,6 +166,7 @@ fn stream_for(pid: u32, processes: &HashMap<u32, ProcessInfo>) -> CaptureStream 
         process_name,
         app_name: None,
         ancestors,
+        ancestor_pids,
     }
 }
 

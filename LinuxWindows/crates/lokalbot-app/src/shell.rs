@@ -2,7 +2,9 @@
 //! current page. Mirrors `MainWindowView.swift`.
 
 use crate::i18n::h_flex;
-use gpui_kit::component::{TitleBar, v_flex};
+use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::popover::Popover;
+use gpui_kit::component::{Sizable as _, TitleBar, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Entity, FontWeight, Hsla, InteractiveElement as _,
@@ -15,7 +17,7 @@ use crate::pages::{
     Page, agent::AgentPage, ask::AskPage, meetings::MeetingsPage, people::PeoplePage,
     projects::ProjectsPage, settings::SettingsPage, timeline::TimelinePage, today::TodayPage,
 };
-use crate::state::{AppData, BackgroundKind, RecordingState, Section};
+use crate::state::{AppData, BackgroundItem, BackgroundKind, RecordingState, Section};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
@@ -36,6 +38,7 @@ impl Workspace {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
         let subscriptions = vec![cx.observe(&data, |_, _, cx| cx.notify())];
+        crate::agent_handoff::refresh_in_background();
         Self {
             today: cx.new(|cx| TodayPage::new(window, cx)),
             meetings: cx.new(|cx| MeetingsPage::new(window, cx)),
@@ -266,49 +269,56 @@ impl Workspace {
             })
             .when_some(background.first().cloned(), |this, first| {
                 let more = background.len().saturating_sub(1);
+                let all = background.clone();
+                let list_data = data_entity.clone();
                 this.child(
                     ui::grouped_surface(cx)
                         .p(px(10.))
-                        .child(
-                            h_flex()
-                                .gap(px(8.))
-                                .items_center()
-                                .child(ui::icon(
-                                    background_icon(first.kind),
-                                    px(14.),
-                                    lb.accent_text,
-                                ))
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w_0()
-                                        .truncate()
-                                        .text_size(ty::SECONDARY)
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(lb.text)
-                                        .child(first.title.clone()),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .mt(px(2.))
-                                .text_size(ty::CAPTION)
-                                .text_color(lb.text_secondary)
-                                .child(first.detail.clone()),
-                        )
-                        .when_some(first.progress, |this, progress| {
-                            this.child(progress_line(progress, lb.accent_fill, lb.chip_fill))
-                        })
+                        .child(background_row(
+                            "sidebar-background",
+                            &first,
+                            &data_entity,
+                            cx,
+                        ))
                         .when(more > 0, |this| {
                             this.child(
-                                div()
-                                    .mt(px(4.))
-                                    .text_size(ty::CAPTION)
-                                    .text_color(lb.text_secondary)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                        "+{more} more",
-                                        &[("more", format!("{}", more))],
-                                    ))),
+                                Popover::new("sidebar-background-more")
+                                    .anchor(gpui_kit::Anchor::BottomLeft)
+                                    .trigger(
+                                        Button::new("sidebar-background-more-button")
+                                            .text()
+                                            .xsmall()
+                                            .tooltip(lokalbot_i18n::tr("Show all background work"))
+                                            .label(lokalbot_i18n::format(
+                                                "+{more} more",
+                                                &[("more", format!("{}", more))],
+                                            )),
+                                    )
+                                    .content(move |_, _, cx| {
+                                        let lb = cx.lb().clone();
+                                        v_flex()
+                                            .w(px(300.))
+                                            .gap(px(10.))
+                                            .child(
+                                                div()
+                                                    .text_size(ty::SECTION)
+                                                    .font_weight(FontWeight::BOLD)
+                                                    .text_color(lb.text)
+                                                    .child(crate::ui::text::paragraph(
+                                                        lokalbot_i18n::tr("In progress"),
+                                                    )),
+                                            )
+                                            .children(all.iter().enumerate().map(|(ix, item)| {
+                                                background_row(
+                                                    SharedString::from(format!(
+                                                        "sidebar-background-{ix}"
+                                                    )),
+                                                    item,
+                                                    &list_data,
+                                                    cx,
+                                                )
+                                            }))
+                                    }),
                             )
                         }),
                 )
@@ -462,6 +472,109 @@ impl Render for Workspace {
     }
 }
 
+/// One piece of background work; a click opens the screen that owns it
+/// (`BackgroundActivityButton`).
+fn background_row(
+    id: impl Into<gpui_kit::ElementId>,
+    item: &BackgroundItem,
+    data: &Entity<AppData>,
+    cx: &App,
+) -> AnyElement {
+    let lb = cx.lb();
+    let destination = background_destination(item, data.read(cx).digest_running);
+    let data = data.clone();
+    h_flex()
+        .id(id)
+        .w_full()
+        .child(
+            v_flex()
+                .w_full()
+                .child(
+                    h_flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .child(ui::icon(
+                            background_icon(item.kind),
+                            px(14.),
+                            lb.accent_text,
+                        ))
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .truncate()
+                                .text_size(ty::SECONDARY)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(lb.text)
+                                .child(item.title.clone()),
+                        ),
+                )
+                .child(
+                    div()
+                        .mt(px(2.))
+                        .text_size(ty::CAPTION)
+                        .text_color(lb.text_secondary)
+                        .child(item.detail.clone()),
+                )
+                .when_some(item.progress, |this, progress| {
+                    this.child(progress_line(progress, lb.accent_fill, lb.chip_fill))
+                }),
+        )
+        .when_some(destination, |this, destination| {
+            let hover = lb.hover;
+            this.cursor_pointer()
+                .rounded(metric::ROW_RADIUS)
+                .hover(move |s| s.bg(hover))
+                .on_click(move |_, _, cx| {
+                    data.update(cx, |data, cx| open_background(data, destination, cx));
+                })
+        })
+        .into_any_element()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum BackgroundDestination {
+    Meeting(uuid::Uuid),
+    Day(chrono::NaiveDate),
+    Models,
+}
+
+/// The screen that owns a piece of work (`BackgroundActivity.destination`).
+fn background_destination(
+    item: &BackgroundItem,
+    digest_day: Option<chrono::NaiveDate>,
+) -> Option<BackgroundDestination> {
+    match item.kind {
+        BackgroundKind::Meeting => item
+            .id
+            .strip_prefix("meeting:")
+            .and_then(|id| uuid::Uuid::parse_str(id).ok())
+            .map(BackgroundDestination::Meeting),
+        BackgroundKind::Digest => digest_day.map(BackgroundDestination::Day),
+        BackgroundKind::Download => Some(BackgroundDestination::Models),
+        BackgroundKind::Reindex => None,
+    }
+}
+
+fn open_background(
+    data: &mut AppData,
+    destination: BackgroundDestination,
+    cx: &mut Context<AppData>,
+) {
+    match destination {
+        BackgroundDestination::Meeting(id) => {
+            data.open_meeting(id, Default::default(), None, cx);
+        }
+        BackgroundDestination::Day(day) if day == chrono::Local::now().date_naive() => {
+            data.navigate(Section::Today, cx)
+        }
+        BackgroundDestination::Day(day) => data.open_timeline(day, None, cx),
+        BackgroundDestination::Models => {
+            data.open_settings(crate::state::SettingsCategory::Models, cx)
+        }
+    }
+}
+
 fn background_icon(kind: BackgroundKind) -> Ico {
     match kind {
         BackgroundKind::Meeting => Ico::AudioLines,
@@ -498,5 +611,50 @@ pub fn drag_region<
         element.on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
     } else {
         element
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn item(id: &str, kind: BackgroundKind) -> BackgroundItem {
+        BackgroundItem {
+            id: id.into(),
+            kind,
+            title: "t".into(),
+            detail: "d".into(),
+            progress: None,
+        }
+    }
+
+    #[test]
+    fn background_work_opens_its_own_screen() {
+        let id = uuid::Uuid::from_u128(7);
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 10, 2).unwrap();
+        assert_eq!(
+            background_destination(
+                &item(&format!("meeting:{id}"), BackgroundKind::Meeting),
+                None
+            ),
+            Some(BackgroundDestination::Meeting(id))
+        );
+        assert_eq!(
+            background_destination(&item("meeting-queue", BackgroundKind::Meeting), None),
+            None,
+            "the queue has no single meeting"
+        );
+        assert_eq!(
+            background_destination(&item("digest", BackgroundKind::Digest), Some(day)),
+            Some(BackgroundDestination::Day(day))
+        );
+        assert_eq!(
+            background_destination(&item("download:x", BackgroundKind::Download), None),
+            Some(BackgroundDestination::Models)
+        );
+        assert_eq!(
+            background_destination(&item("reindex", BackgroundKind::Reindex), None),
+            None
+        );
     }
 }

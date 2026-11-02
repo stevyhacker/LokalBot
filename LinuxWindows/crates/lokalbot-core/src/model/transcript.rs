@@ -63,6 +63,20 @@ pub struct SpeakerAttribution {
 static MICROPHONE_IS_USER: AtomicBool = AtomicBool::new(true);
 
 impl SpeakerAttribution {
+    /// Whether this speech can be confirmed as one person (`canConfirmIdentity`).
+    pub fn can_confirm_identity(&self) -> bool {
+        matches!(
+            self.method,
+            AttributionMethod::Diarization
+                | AttributionMethod::Confirmation
+                | AttributionMethod::Profile
+        ) || (self.source == AttributionSource::Microphone
+            && matches!(
+                self.method,
+                AttributionMethod::Track | AttributionMethod::Legacy
+            ))
+    }
+
     /// On by default: the personal microphone belongs to this computer's user.
     pub fn microphone_is_user() -> bool {
         MICROPHONE_IS_USER.load(Ordering::Relaxed)
@@ -276,6 +290,84 @@ impl Transcript {
                 (key, name)
             })
             .collect()
+    }
+
+    /// Whether every turn of a speaker may be confirmed as one person
+    /// (`canConfirmSpeaker`): mixed voices and suspected echo never can.
+    pub fn can_confirm_speaker(&self, speaker: &str) -> bool {
+        let key = Self::canonical_speaker_key(speaker);
+        let mut turns = self
+            .segments
+            .iter()
+            .filter(|s| Self::canonical_speaker_key(&s.speaker) == key)
+            .peekable();
+        turns.peek().is_some()
+            && turns.all(|s| Self::resolved_attribution(s).can_confirm_identity())
+    }
+
+    /// Records who a speaker is (`confirmSpeaker`). `None` withdraws a
+    /// confirmation and returns the speaker to its diarization identity.
+    pub fn confirm_speaker(&mut self, speaker: &str, is_user: Option<bool>) {
+        let key = Self::canonical_speaker_key(speaker);
+        for segment in &mut self.segments {
+            if Self::canonical_speaker_key(&segment.speaker) != key {
+                continue;
+            }
+            let mut value = Self::resolved_attribution(segment);
+            if !value.can_confirm_identity() {
+                continue;
+            }
+            value.identity = match is_user {
+                Some(true) => SpeakerIdentity::User,
+                Some(false) => SpeakerIdentity::Other,
+                None => SpeakerIdentity::Unresolved,
+            };
+            value.method = if is_user.is_none() {
+                AttributionMethod::Diarization
+            } else {
+                AttributionMethod::Confirmation
+            };
+            segment.attribution = Some(value);
+        }
+    }
+
+    /// Sets or clears a speaker's name (`setSpeakerAlias`). A name equal to
+    /// the speaker's default is no name.
+    pub fn set_speaker_alias(
+        &mut self,
+        alias: Option<&str>,
+        speaker: &str,
+        calendar_identity_id: Option<&str>,
+    ) {
+        let key = Self::canonical_speaker_key(speaker);
+        if key.is_empty() {
+            return;
+        }
+        let alias = alias
+            .unwrap_or("")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        if alias.is_empty()
+            || alias.to_lowercase() == Self::default_speaker_name(speaker).to_lowercase()
+        {
+            self.speaker_aliases.remove(&key);
+            self.speaker_calendar_identity_ids.remove(&key);
+            return;
+        }
+        self.speaker_aliases.insert(key.clone(), alias);
+        match calendar_identity_id
+            .map(str::trim)
+            .filter(|i| !i.is_empty())
+        {
+            Some(identity) => {
+                self.speaker_calendar_identity_ids
+                    .insert(key, identity.to_string());
+            }
+            None => {
+                self.speaker_calendar_identity_ids.remove(&key);
+            }
+        }
     }
 
     /// Carries the names the user gave speakers in `previous`, an earlier

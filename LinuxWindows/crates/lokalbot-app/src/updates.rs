@@ -35,6 +35,8 @@ const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 /// After a failed automatic check (offline at login, say).
 const RETRY_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const TICK: Duration = Duration::from_secs(60);
+/// An update installed while a stopped recording's details can't be saved yet.
+const REFUSED_RELAUNCH: &str = "The update is installed, but a recording could not be saved. Resolve the storage error, then quit and open LokalBot again.";
 
 pub struct UpdatesHandle(pub Entity<Updates>);
 
@@ -472,15 +474,25 @@ impl Updates {
                 .map(|p| p.display().to_string())
                 .unwrap_or_default()
         );
+        let release_for_refusal = release.clone();
         self.status = Status::Installing(release);
         cx.notify();
         let engine = cx
             .try_global::<crate::bridge::EngineHandle>()
             .map(|e| e.0.clone());
-        cx.spawn(async move |_, cx| {
-            if let Some(engine) = engine {
-                cx.background_spawn(async move { engine.runtime().shutdown() })
-                    .await;
+        let refused_release = release_for_refusal;
+        cx.spawn(async move |this, cx| {
+            if !prepare_to_quit(engine, cx).await {
+                // The new files are in place; this copy just can't go yet.
+                let _ = this.update(cx, |this, cx| {
+                    this.status = Status::InstallFailed {
+                        release: refused_release,
+                        message: lokalbot_i18n::tr(REFUSED_RELAUNCH).into(),
+                    };
+                    cx.notify();
+                });
+                cx.update(crate::desktop::show_main_window);
+                return;
             }
             let args = relaunch_args();
             match install::relaunch(
@@ -539,6 +551,46 @@ fn record_installed_version(dir: &std::path::Path, version: &Version) {
         Ok(false) => {}
         Err(err) => log::warn!("updates: could not update the Installed apps entry: {err}"),
     }
+}
+
+/// Saves any recording, then stops the llama.cpp servers, before a new copy
+/// starts. False when the recording could not be saved: the engine has said why,
+/// and this copy has to stay.
+async fn prepare_to_quit(
+    engine: Option<std::sync::Arc<lokalbot_engine::Engine>>,
+    cx: &gpui_kit::AsyncApp,
+) -> bool {
+    let Some(engine) = engine else {
+        return true;
+    };
+    cx.background_spawn(async move {
+        let saved = engine.prepare_for_quit();
+        if saved {
+            engine.runtime().shutdown();
+        }
+        saved
+    })
+    .await
+}
+
+/// Starts a new copy of this LokalBot and quits this one (`lokalbot-cli restart`).
+pub fn restart(cx: &mut App) {
+    let engine = cx
+        .try_global::<crate::bridge::EngineHandle>()
+        .map(|e| e.0.clone());
+    cx.spawn(async move |cx| {
+        if !prepare_to_quit(engine, cx).await {
+            cx.update(crate::desktop::show_main_window);
+            return;
+        }
+        let started =
+            std::env::current_exe().and_then(|exe| install::relaunch(&exe, &relaunch_args(), &[]));
+        match started {
+            Ok(()) => cx.update(|cx| cx.quit()),
+            Err(err) => log::error!("could not restart LokalBot: {err}"),
+        }
+    })
+    .detach();
 }
 
 /// The library this copy uses, passed on to the new copy.

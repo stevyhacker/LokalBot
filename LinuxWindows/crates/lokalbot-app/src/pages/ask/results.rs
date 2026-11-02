@@ -1,8 +1,9 @@
 //! Keyword results while typing (`AskView.results`).
 
 use crate::i18n::h_flex;
+use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::spinner::Spinner;
-use gpui_kit::component::{Sizable as _, v_flex};
+use gpui_kit::component::{Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
@@ -13,7 +14,7 @@ use super::scope::DateScope;
 use super::search::{Facet, MeetingGroup, ScreenResult};
 use super::{AskPage, history};
 use crate::theme::{LbThemeExt as _, metric, ty};
-use crate::ui::{self, Ico, result_row};
+use crate::ui::{self, Ico, result_row, screen_thumbnail};
 
 /// Rows above the first result in the scroll list (status line, count line).
 pub const HEADER_ROWS: usize = 2;
@@ -22,7 +23,9 @@ impl AskPage {
     pub(super) fn render_results(&mut self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let count = self.results.count();
-        let asks = !self.results.picked_with_keyboard && super::search::is_question(&self.query);
+        let asks =
+            super::search::return_action(&self.query, count, self.results.picked_with_keyboard)
+                == super::search::ReturnAction::Ask;
         let count_text = {
             let base = history::count_label(count, "result");
             let base = if self.results.truncated {
@@ -87,7 +90,10 @@ impl AskPage {
                 "No results for “{0}” in {1} · {2}.",
                 &[
                     ("0", self.query.trim().to_string()),
-                    ("1", self.sources.summary().to_string()),
+                    (
+                        "1",
+                        self.sources.summary(self.files_enabled(cx)).to_string(),
+                    ),
                     ("2", self.date_scope.label().to_string()),
                 ],
             );
@@ -129,6 +135,11 @@ impl AskPage {
             rows.push(column(
                 self.render_screen(index, screen, cx).into_any_element(),
             ));
+        }
+        let files = self.results.files.clone();
+        for (offset, hit) in files.iter().enumerate() {
+            let index = groups.len() + screens.len() + offset;
+            rows.push(column(self.render_file(index, hit, cx).into_any_element()));
         }
         rows.push(div().h(px(12.)).into_any_element());
 
@@ -178,7 +189,8 @@ impl AskPage {
                     title.clone().into(),
                     Some(date.clone().into()),
                     hit.kind_label().into(),
-                    None,
+                    hit.is_semantic
+                        .then(|| lokalbot_i18n::tr("Related by meaning").into()),
                     &hit.snippet,
                     cx,
                 ))
@@ -277,6 +289,12 @@ impl AskPage {
                 &[("0", format!("{}", screen.captures))],
             ));
         }
+        if screen.is_semantic {
+            meta.push_str(" · ");
+            meta.push_str(lokalbot_i18n::tr("Related by meaning"));
+        }
+        let pinned = self.pins.iter().any(|pin| pin.id == moment.id);
+        let pin_moment = moment.clone();
         let data = self.data.clone();
         h_flex()
             .id(("ask-screen", moment.id as u64))
@@ -289,7 +307,10 @@ impl AskPage {
             .cursor_pointer()
             .when(selected, |this| this.bg(lb.accent_wash))
             .when(!selected, |this| this.hover(|s| s.bg(lb.hover)))
-            .child(screen_tile(&moment.app, px(116.), px(72.), cx))
+            .child({
+                let image = self.thumbnails.image(&moment, cx, |page| &page.thumbnails);
+                screen_thumbnail::tile(image, &moment, px(116.), px(72.), cx)
+            })
             .child(
                 v_flex()
                     .flex_1()
@@ -309,7 +330,22 @@ impl AskPage {
                                     .text_color(lb.text)
                                     .child(title),
                             )
-                            .child(result_row::kind_chip(lokalbot_i18n::tr("Screen"), cx)),
+                            .child(result_row::kind_chip(lokalbot_i18n::tr("Screen"), cx))
+                            .child(
+                                Button::new(("ask-pin-screen", moment.id as u64))
+                                    .ghost()
+                                    .xsmall()
+                                    .icon(Icon::new(if pinned { Ico::Check } else { Ico::Plus }))
+                                    .tooltip(if pinned {
+                                        lokalbot_i18n::tr("Remove this screen from the question")
+                                    } else {
+                                        lokalbot_i18n::tr("Attach this screen to the question")
+                                    })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        cx.stop_propagation();
+                                        this.toggle_pin(&pin_moment, cx);
+                                    })),
+                            ),
                     )
                     .child(
                         div()
@@ -330,25 +366,102 @@ impl AskPage {
     }
 }
 
-/// A screen moment's thumbnail stand-in: the app's color with a display glyph.
-pub fn screen_tile(
-    app: &str,
-    width: gpui_kit::Pixels,
-    height: gpui_kit::Pixels,
-    cx: &gpui_kit::App,
-) -> gpui_kit::Div {
-    let lb = cx.lb();
-    let tint = lb.app_color(app);
-    div()
-        .w(width)
-        .h(height)
-        .flex_none()
-        .rounded(metric::ROW_RADIUS)
-        .bg(tint.opacity(0.16))
-        .border_1()
-        .border_color(tint.opacity(0.28))
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(ui::icon(Ico::Monitor, height * 0.4, tint))
+impl AskPage {
+    /// One file in the results: the shared anatomy (name · date · kind, the matched
+    /// words or the folder it lives in).
+    fn render_file(
+        &self,
+        index: usize,
+        hit: &lokalbot_core::files::FileHit,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let lb = cx.lb().clone();
+        let selected = index == self.results.selected;
+        let when = hit
+            .date()
+            .with_timezone(&chrono::Local)
+            .format_localized(
+                lokalbot_i18n::date_pattern("%b %-d, %Y"),
+                lokalbot_i18n::date_locale(),
+            )
+            .to_string();
+        let mut meta = format!("{} · {when}", super::search::file_kind_label(hit));
+        if hit.is_semantic {
+            meta.push_str(" · ");
+            meta.push_str(lokalbot_i18n::tr("Related by meaning"));
+        }
+        let snippet = hit.excerpt.clone().unwrap_or_else(|| hit.folder());
+        let opened = hit.clone();
+        let revealed = hit.path.clone();
+        h_flex()
+            .id(("ask-file", hit.id as u64))
+            .w_full()
+            .gap(px(12.))
+            .items_start()
+            .px(px(10.))
+            .py(px(8.))
+            .rounded(metric::ROW_RADIUS)
+            .cursor_pointer()
+            .when(selected, |this| this.bg(lb.accent_wash))
+            .when(!selected, |this| this.hover(|s| s.bg(lb.hover)))
+            .child(ui::icon(
+                super::search::file_icon(hit.kind),
+                px(24.),
+                lb.text_secondary,
+            ))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(3.))
+                    .child(
+                        h_flex()
+                            .gap(px(6.))
+                            .items_center()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_size(ty::BODY)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(lb.text)
+                                    .child(hit.name()),
+                            )
+                            .child(result_row::kind_chip(lokalbot_i18n::tr("Files"), cx))
+                            .child(
+                                Button::new(("ask-reveal-file", hit.id as u64))
+                                    .ghost()
+                                    .xsmall()
+                                    .icon(Icon::new(Ico::Folder))
+                                    .tooltip(lokalbot_i18n::tr("Show in folder"))
+                                    .on_click(move |_, _, cx| {
+                                        cx.stop_propagation();
+                                        if let Err(err) =
+                                            lokalbot_platform::opener::reveal_in_file_manager(
+                                                std::path::Path::new(&revealed),
+                                            )
+                                        {
+                                            log::warn!("could not show a file: {err:#}");
+                                        }
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.supporting)
+                            .child(meta),
+                    )
+                    .child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .line_height(px(19.))
+                            .text_color(lb.supporting)
+                            .line_clamp(2)
+                            .child(result_row::highlighted(&snippet, lb.text)),
+                    ),
+            )
+            .on_click(move |_, _, _| super::search::open_file(&opened))
+    }
 }

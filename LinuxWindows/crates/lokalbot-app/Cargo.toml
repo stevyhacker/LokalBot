@@ -27,6 +27,7 @@ lokalbot-audio.workspace = true
 lokalbot-engine.workspace = true
 lokalbot-platform.workspace = true
 lokalbot-speech.workspace = true
+unicode-normalization.workspace = true
 lokalbot-update = { workspace = true, features = ["client"] }
 gpui-kit.workspace = true
 anyhow.workspace = true
@@ -44,9 +45,14 @@ async-channel = "2"
 smol = "2"
 # PNG for the tray icon; JPEG for screen images decrypted for display.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+# The code a phone scans to pair.
+qrcode = { version = "0.14", default-features = false }
 
 # The autocomplete probe example presses keys, raises Notepad and grabs the
 # screen through Win32.
+[dev-dependencies]
+tempfile.workspace = true
+
 [target.'cfg(windows)'.dev-dependencies.windows]
 version = "0.62"
 features = [

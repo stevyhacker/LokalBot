@@ -1,10 +1,11 @@
 //! Evidence markers in Ask answers (`ChatCitationParser.swift`).
 //!
 //! The assistant writes `[meeting:<id>@m:ss]`, `[meeting:<id>]` or
-//! `[screen:<n>]` inline. The UI shows them as numbered `[n]` references,
+//! `[screen:<n>]` or `[file:<n>]` inline. The UI shows them as numbered `[n]` references,
 //! deduped in order of first appearance, so a repeated source keeps its number.
 
 use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 
 use chrono::{DateTime, Local, Utc};
 use lokalbot_core::{Meeting, ScreenMoment};
@@ -14,11 +15,36 @@ use uuid::Uuid;
 /// once a moment is known to be gone (deleted or expired).
 pub type ScreenCitations = HashMap<i64, Option<ScreenMoment>>;
 
+/// Files that citations name, loaded off the UI thread; `None` once a file has
+/// left the index. Files never change with a conversation, so one table serves
+/// every answer on screen.
+static FILE_CITATIONS: LazyLock<Mutex<HashMap<i64, Option<lokalbot_core::files::FileHit>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+pub fn known_file_citation(id: i64) -> Option<Option<lokalbot_core::files::FileHit>> {
+    FILE_CITATIONS.lock().ok()?.get(&id).cloned()
+}
+
+pub fn remember_file_citation(id: i64, hit: Option<lokalbot_core::files::FileHit>) {
+    if let Ok(mut known) = FILE_CITATIONS.lock() {
+        known.insert(id, hit);
+    }
+}
+
 /// One cited source. Meeting ids may be full UUIDs or short-id prefixes.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CitationSource {
-    Meeting { id: String, at: Option<f64> },
-    Screen { snapshot_id: i64 },
+    Meeting {
+        id: String,
+        at: Option<f64>,
+    },
+    Screen {
+        snapshot_id: i64,
+    },
+    /// A passage from the folders chosen under Files.
+    File {
+        id: i64,
+    },
 }
 
 impl CitationSource {
@@ -35,6 +61,7 @@ impl CitationSource {
         match self {
             CitationSource::Meeting { id, .. } => format!("meeting:{}", id.to_lowercase()),
             CitationSource::Screen { snapshot_id } => format!("screen:{snapshot_id}"),
+            CitationSource::File { id } => format!("file:{id}"),
         }
     }
 }
@@ -210,6 +237,24 @@ pub fn resolve(
                 is_screen: false,
             },
         },
+        CitationSource::File { id } => match known_file_citation(*id) {
+            Some(Some(hit)) => ResolvedCitation {
+                title: hit.name(),
+                detail: lokalbot_i18n::format("File · {0}", &[("0", hit.folder())]),
+                available: true,
+                is_screen: false,
+            },
+            known => ResolvedCitation {
+                title: lokalbot_i18n::tr("File").into(),
+                detail: if known.is_some() {
+                    lokalbot_i18n::tr("Local source missing").into()
+                } else {
+                    lokalbot_i18n::tr("File · Loading…").into()
+                },
+                available: false,
+                is_screen: false,
+            },
+        },
         CitationSource::Screen { snapshot_id } => match screens.get(snapshot_id) {
             Some(Some(moment)) => {
                 let title = [&moment.window_title, &moment.document_name]
@@ -275,7 +320,10 @@ fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
     let body = text.strip_prefix('[')?;
     let (kind, rest) = match body.strip_prefix("meeting:") {
         Some(rest) => ("meeting", rest),
-        None => ("screen", body.strip_prefix("screen:")?),
+        None => match body.strip_prefix("file:") {
+            Some(rest) => ("file", rest),
+            None => ("screen", body.strip_prefix("screen:")?),
+        },
     };
     let id_len = rest
         .bytes()
@@ -301,7 +349,13 @@ fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
     }
     after.strip_prefix(']')?;
     let consumed = text.len() - after.len() + 1;
-    let source = if kind == "screen" {
+    let source = if kind == "file" {
+        let id: i64 = id.parse().ok().filter(|n| *n > 0)?;
+        if stamp.is_some() {
+            return None;
+        }
+        CitationSource::File { id }
+    } else if kind == "screen" {
         let snapshot_id: i64 = id.parse().ok().filter(|n| *n > 0)?;
         if stamp.is_some() {
             return None;
@@ -440,8 +494,15 @@ mod tests {
             text: None,
             saved_note: None,
             is_saved: false,
+            similarity_group: 0,
         };
         let screens = ScreenCitations::from([(3, Some(moment))]);
+        let (_, files) = split("In the plan [file:12], and again [file:12].");
+        assert_eq!(files, [CitationSource::File { id: 12 }]);
+        assert!(split("Broken [file:abc] and [file:3@00:10]").1.is_empty());
+        remember_file_citation(12, None);
+        let gone = resolve(&files[0], &[], &HashMap::new());
+        assert!(!gone.available);
         let resolved = resolve(&one.citations[0], &[], &screens);
         assert!(resolved.available && resolved.is_screen);
         assert_eq!(resolved.title, "Quarterly plan");

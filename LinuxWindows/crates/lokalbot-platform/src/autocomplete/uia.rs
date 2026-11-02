@@ -63,6 +63,8 @@ use super::policy::{self, FlickerGate, PollBackoff, ReadPolicy, reasons};
 use super::visible::{self, NodeKind, VisibleSource};
 use super::{Capability, FieldSnapshot, FocusHandler, FocusSnapshot, InsertTarget};
 
+pub(super) mod focused;
+
 /// Poll cadence before backoff (`CotypingFocusTracker.defaultIntervalMs`).
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
 /// Events arriving this close together are read once.
@@ -193,6 +195,7 @@ struct Fixed {
     window_title: String,
     url: Option<String>,
     single_line: Option<bool>,
+    is_integrated_terminal: bool,
     style: Option<FieldStyle>,
     refusal: Option<Refusal>,
 }
@@ -461,6 +464,7 @@ impl Reader {
                 window_title: String::new(),
                 url: None,
                 single_line: None,
+                is_integrated_terminal: false,
                 style: None,
                 refusal: None,
             };
@@ -523,14 +527,19 @@ impl Reader {
                 return Some(fixed);
             }
             fixed.single_line = single_line(element, control);
+            // Chromium reports the DOM's class list as the class name.
+            fixed.is_integrated_terminal =
+                policy::is_integrated_terminal(&bstr(element.CurrentClassName()));
             fixed.window_title = foreground_title(pid).unwrap_or_default();
             if crate::privacy::is_browser(&fixed.app_name, &fixed.app_id) {
                 fixed.url = self.document_url(element);
             }
-            fixed.style = text
-                .as_ref()
-                .and_then(|pattern| caret_range(pattern))
-                .and_then(|range| style_near(&range));
+            if self.policy.match_host_style {
+                fixed.style = text
+                    .as_ref()
+                    .and_then(|pattern| caret_range(pattern))
+                    .and_then(|range| style_near(&range));
+            }
             Some(fixed)
         }
     }
@@ -653,6 +662,7 @@ impl Reader {
                 caret_exact,
                 field_frame,
                 single_line,
+                is_integrated_terminal: fixed.is_integrated_terminal,
                 url: fixed.url.clone(),
                 visible_text: None,
                 style: fixed.style.clone(),

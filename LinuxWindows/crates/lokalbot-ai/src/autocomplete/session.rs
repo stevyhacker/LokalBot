@@ -14,6 +14,11 @@ pub enum SuggestionKind {
     Continuation,
     /// Replaces the `:shortcode` before the caret with its glyph.
     Emoji,
+    /// Replaces the `/query` before the caret with the result; `preview` is
+    /// what to draw (`= 10` for an insertion of `10`).
+    Macro { query: String, preview: String },
+    /// Replaces the misspelled word before the caret.
+    Correction { typo: String },
 }
 
 /// An active suggestion: the field text it was made for, the suggestion,

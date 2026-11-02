@@ -185,6 +185,27 @@ pub fn action_row(
     menu: impl IntoElement,
     cx: &App,
 ) -> Div {
+    action_row_with(
+        toggle,
+        div().child(text.into()).into_any_element(),
+        done,
+        meta,
+        extra,
+        menu,
+        cx,
+    )
+}
+
+/// `action_row` with its text already built (Find marks matches in it).
+pub fn action_row_with(
+    toggle: impl IntoElement,
+    text: AnyElement,
+    done: bool,
+    meta: Vec<AnyElement>,
+    extra: Option<AnyElement>,
+    menu: impl IntoElement,
+    cx: &App,
+) -> Div {
     let lb = cx.lb();
     h_flex()
         .w_full()
@@ -203,7 +224,7 @@ pub fn action_row(
                         .line_height(px(20.))
                         .text_color(if done { lb.text_secondary } else { lb.text })
                         .when(done, |this| this.line_through())
-                        .child(text.into()),
+                        .child(text),
                 )
                 .when(!meta.is_empty(), |this| {
                     this.child(

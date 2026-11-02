@@ -605,6 +605,14 @@ pub fn replace_action_items(summary: &str, outcomes: &MeetingOutcomes) -> String
     replace_sections(summary, &[("## Action items", action_section(outcomes))])
 }
 
+/// Replaces `## Action items` with lines an export rendered itself, such as
+/// status-marked items (`MeetingSummaryOutcomeSynchronizer.replacingActionItems`).
+pub fn replace_action_lines(summary: &str, lines: &[String]) -> String {
+    let mut section = vec!["## Action items".to_string(), String::new()];
+    section.extend_from_slice(lines);
+    replace_sections(summary, &[("## Action items", section)])
+}
+
 /// Replaces `## Decisions` (meeting template) and `## Action items`.
 pub fn synchronize_summary(
     summary: &str,

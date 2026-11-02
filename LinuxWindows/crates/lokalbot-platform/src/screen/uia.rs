@@ -11,16 +11,17 @@ use std::collections::{HashSet, VecDeque};
 use std::ffi::c_void;
 use std::time::{Duration, Instant};
 
-use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::System::Com::{
     CLSCTX_INPROC_SERVER, CO_MTA_USAGE_COOKIE, COINIT_MULTITHREADED, CoCreateInstance,
     CoDecrementMTAUsage, CoIncrementMTAUsage, CoInitializeEx, CoUninitialize,
 };
-use windows::Win32::System::Variant::{VT_BOOL, VT_BSTR, VariantClear};
+use windows::Win32::System::Variant::{VARIANT, VT_BOOL, VT_BSTR, VariantClear};
 use windows::Win32::UI::Accessibility::{
     CUIAutomation, CUIAutomation8, IUIAutomation, IUIAutomation2, IUIAutomationCacheRequest,
-    IUIAutomationElement, IUIAutomationTextPattern, IUIAutomationTextRange,
-    TextPatternRangeEndpoint_End, TextPatternRangeEndpoint_Start, UIA_BoundingRectanglePropertyId,
+    IUIAutomationCondition, IUIAutomationElement, IUIAutomationElementArray,
+    IUIAutomationTextPattern, IUIAutomationTextRange, TextPatternRangeEndpoint_End,
+    TextPatternRangeEndpoint_Start, TreeScope_Subtree, UIA_BoundingRectanglePropertyId,
     UIA_ButtonControlTypeId, UIA_CONTROLTYPE_ID, UIA_CheckBoxControlTypeId,
     UIA_ComboBoxControlTypeId, UIA_ControlTypePropertyId, UIA_DataItemControlTypeId,
     UIA_DocumentControlTypeId, UIA_E_TIMEOUT, UIA_EditControlTypeId, UIA_FrameworkIdPropertyId,
@@ -33,14 +34,17 @@ use windows::Win32::UI::Accessibility::{
     UIA_TextControlTypeId, UIA_TextPatternId, UIA_TitleBarControlTypeId, UIA_TreeItemControlTypeId,
     UIA_ValueValuePropertyId, UIA_WindowControlTypeId,
 };
-use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
-use windows::core::{AgileReference, HRESULT, Interface};
+use windows::Win32::UI::WindowsAndMessaging::{
+    EnumWindows, GetForegroundWindow, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+};
+use windows::core::{AgileReference, BOOL, HRESULT, Interface};
 
 use super::privacy::{page_address, sanitized_document_name, settled_focus};
 use super::{
     AccessibleWindow, FocusedWindow, MAX_CHARACTERS, MAX_CHILDREN, MAX_NODES, TextRead, TextReader,
     WindowRect, append_text,
 };
+use crate::meeting::browser::{self, BrowserDocument, DocumentLabels, QuietWindows};
 
 /// How long one call may wait on the target app (UIA waits 20 s by
 /// default), so a hung app holds a read for about this long.
@@ -788,6 +792,187 @@ fn current_string(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> 
         let _ = VariantClear(&mut value);
         text
     }
+}
+
+/// Meet documents in browsers' windows, for meeting detection
+/// (`BrowserMeetingSession.window`). A browser's tree can be slow to answer, so
+/// a window that doesn't answer in time says nothing and its title decides.
+pub(crate) struct BrowserCallReader {
+    reader: UiaReader,
+    quiet: QuietWindows,
+}
+
+impl BrowserCallReader {
+    pub(crate) fn new() -> Self {
+        Self {
+            reader: UiaReader::new(),
+            quiet: QuietWindows::default(),
+        }
+    }
+
+    /// Reads the windows of `families`. `family_of` names a process's browser.
+    pub(crate) fn read(
+        &mut self,
+        families: &[&'static str],
+        family_of: impl Fn(u32) -> Option<&'static str>,
+    ) -> Vec<BrowserDocument> {
+        let _com = ComScope::enter();
+        let Ok(automation) = self.reader.automation() else {
+            return Vec::new();
+        };
+        let Ok(cache) = cache_request(&automation) else {
+            return Vec::new();
+        };
+        let Ok(condition) = call_control_condition(&automation) else {
+            return Vec::new();
+        };
+        let mut windows = top_level_windows();
+        windows.retain(|(_, pid)| family_of(*pid).is_some_and(|family| families.contains(&family)));
+        if windows.len() > browser::MAX_WINDOWS {
+            return Vec::new();
+        }
+        let deadline = Instant::now() + browser::READ_DEADLINE;
+        let mut documents = Vec::new();
+        let mut seen = Vec::new();
+        for (hwnd, pid) in windows {
+            if Instant::now() >= deadline {
+                return documents;
+            }
+            let Some(family) = family_of(pid) else {
+                continue;
+            };
+            // SAFETY: a plain query on a handle from EnumWindows; a stale one fails.
+            if unsafe { IsIconic(hwnd) }.as_bool() {
+                continue;
+            }
+            // SAFETY: UI Automation validates the handle; a stale one fails.
+            let Ok(root) = (unsafe { automation.ElementFromHandleBuildCache(hwnd, &cache) }) else {
+                continue;
+            };
+            let title = cached_name(&root).unwrap_or_default();
+            if crate::privacy::is_private_window(&title) {
+                continue;
+            }
+            let key = format!("{:p}", hwnd.0);
+            seen.push(key.clone());
+            let now = Instant::now();
+            if self.quiet.is_quiet(&key, &title, now) {
+                continue;
+            }
+            // One cross-process call returns every control the check needs.
+            // SAFETY: the condition and request are this function's own.
+            let Ok(found) =
+                (unsafe { root.FindAllBuildCache(TreeScope_Subtree, &condition, &cache) })
+            else {
+                continue;
+            };
+            let Some(labels) = call_labels(&found) else {
+                continue;
+            };
+            self.quiet.record(&key, &title, labels.is_empty(), now);
+            documents.extend(
+                labels
+                    .into_iter()
+                    .filter_map(|labels| labels.into_document(family)),
+            );
+        }
+        self.quiet.keep(&seen);
+        documents
+    }
+}
+
+/// Documents, buttons, links and text, the only controls the check reads.
+fn call_control_condition(
+    automation: &IUIAutomation,
+) -> windows::core::Result<IUIAutomationCondition> {
+    let mut condition = None;
+    for control in [
+        UIA_DocumentControlTypeId,
+        UIA_ButtonControlTypeId,
+        UIA_HyperlinkControlTypeId,
+        UIA_TextControlTypeId,
+    ] {
+        // SAFETY: builds condition objects in this process.
+        unsafe {
+            let next = automation
+                .CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(control.0))?;
+            condition = Some(match condition {
+                Some(previous) => automation.CreateOrCondition(&previous, &next)?,
+                None => next,
+            });
+        }
+    }
+    condition.ok_or_else(windows::core::Error::empty)
+}
+
+/// Groups the controls of one window under their Meet documents, in tree
+/// order. `None` when there are too many to be read as call controls.
+fn call_labels(found: &IUIAutomationElementArray) -> Option<Vec<DocumentLabels>> {
+    // SAFETY: reads the array's own length.
+    let count = unsafe { found.Length() }.ok()?;
+    if count as usize > browser::MAX_NODES {
+        return None;
+    }
+    let mut documents: Vec<DocumentLabels> = Vec::new();
+    for index in 0..count {
+        // SAFETY: the index is inside the array.
+        let Ok(element) = (unsafe { found.GetElement(index) }) else {
+            continue;
+        };
+        let node = Node::cached(&element);
+        if node.control_type == UIA_DocumentControlTypeId {
+            let url = node
+                .value_pattern
+                .then(|| current_string(&element, UIA_ValueValuePropertyId))
+                .flatten()
+                .and_then(|raw| browser::meet_url(&raw));
+            if let Some(url) = url {
+                documents.push(DocumentLabels {
+                    url: Some(url),
+                    ..Default::default()
+                });
+            }
+            continue;
+        }
+        let Some(labels) = documents.last_mut() else {
+            // The browser's own toolbar comes before any document.
+            continue;
+        };
+        let name = cached_name(&element);
+        if node.control_type == UIA_TextControlTypeId {
+            labels.add_message(name);
+        } else {
+            labels.add_button(name);
+        }
+    }
+    Some(documents)
+}
+
+unsafe extern "system" fn visit_top_level(window: HWND, lparam: LPARAM) -> BOOL {
+    // SAFETY: `lparam` is the list `top_level_windows` keeps alive for the
+    // whole enumeration; the rest are plain queries on a handle it supplied.
+    unsafe {
+        let found = &mut *(lparam.0 as *mut Vec<(HWND, u32)>);
+        if IsWindowVisible(window).as_bool() {
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(window, Some(&mut pid));
+            found.push((window, pid));
+        }
+    }
+    BOOL(1)
+}
+
+/// Visible top-level windows with their processes.
+fn top_level_windows() -> Vec<(HWND, u32)> {
+    let mut found: Vec<(HWND, u32)> = Vec::new();
+    // SAFETY: the callback only touches `found`, which outlives the call.
+    let _ = unsafe {
+        EnumWindows(
+            Some(visit_top_level),
+            LPARAM(&mut found as *mut Vec<(HWND, u32)> as isize),
+        )
+    };
+    found
 }
 
 #[cfg(test)]

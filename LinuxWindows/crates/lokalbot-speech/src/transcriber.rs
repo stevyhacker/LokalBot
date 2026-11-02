@@ -3,24 +3,33 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 
 use anyhow::{Context, Result, anyhow};
+use lokalbot_core::model::EchoReport;
+use lokalbot_core::remote_transcription::{TimedWord, WindowTranscription};
+use lokalbot_core::voice::{
+    AudioTurn, TrackClock, TurnAnchor, VoiceSample, label_samples, label_turns,
+};
 use lokalbot_core::{
     AttributionMethod, AttributionSource, LibraryPaths, Segment, TimingPrecision, Transcript,
 };
 use parking_lot::Mutex;
 
 use crate::asr::{Asr, Decoded, max_span_seconds};
-use crate::attribution::{Region, Turn, regions, renumber_speakers, track_attribution};
-use crate::bleed::remove_bleed;
+use crate::attribution::{
+    AlignedSegment, Region, Turn, attribute_words, regions, renumber_speakers, track_attribution,
+};
 use crate::bleed_gate::{BleedGate, envelope};
 use crate::diarize::{CLUSTER_THRESHOLD, Diarizer};
+use crate::echo::{EchoRemoval, echo_disabled, echo_failed, echo_no_reference, remove_echo};
+use crate::language::validate_language;
 use crate::models::{self, SpeechModel};
 use crate::sanitize::sanitize;
 use crate::text::{PromptEcho, join_texts, normalized_text, prompt_terms};
 use crate::vad::{SAMPLE_RATE, Span, Vad, speech_seconds, split};
+use crate::voice::{VoiceExtractor, raw_turns, voice_samples};
 
 /// Shorter recordings are not transcribed (`AudioFileInspector.minimumTranscribableDuration`).
 pub const MIN_AUDIO_SECONDS: f64 = 0.3;
@@ -28,6 +37,73 @@ pub const MIN_AUDIO_SECONDS: f64 = 0.3;
 pub const MIN_SPEECH_SECONDS: f64 = 0.5;
 /// Diarization slivers shorter than this join their neighbour instead of being decoded alone.
 const MIN_PIECE_SECONDS: f64 = 0.8;
+/// `RemoteTranscriptionEngine.lineWindows`: one request and one transcript line
+/// per window, short enough for the speaker-bleed filter to compare.
+const SERVER_WINDOW_SECONDS: f64 = 15.0;
+const SERVER_WINDOW_GAP_SECONDS: f64 = 2.0;
+/// `maximumConcurrentRequests`.
+const SERVER_UPLOADS: usize = 3;
+/// OpenAI rejects audio shorter than 0.1 s, and such slivers hold no words.
+const SERVER_MINIMUM_SAMPLES: usize = SAMPLE_RATE / 10;
+
+/// A speech-to-text server the user chose (`RemoteTranscriptionEngine`). Speech
+/// detection and speaker separation still run on this computer.
+pub trait SpeechServer: Send + Sync {
+    /// The text of one 16 kHz mono clip. `cancel` stops a retry from waiting.
+    fn transcribe(
+        &self,
+        samples: &[f32],
+        language: Option<&str>,
+        prompt: Option<&str>,
+        cancel: &AtomicBool,
+    ) -> Result<String>;
+
+    /// The server times words itself, so its clips can span speaker turns.
+    fn provides_word_timings(&self) -> bool {
+        false
+    }
+
+    /// One clip's text, with word times relative to the clip where it gives them.
+    fn transcribe_timed(
+        &self,
+        samples: &[f32],
+        language: Option<&str>,
+        prompt: Option<&str>,
+        cancel: &AtomicBool,
+    ) -> Result<WindowTranscription> {
+        Ok(WindowTranscription {
+            text: self.transcribe(samples, language, prompt, cancel)?,
+            words: Vec::new(),
+        })
+    }
+}
+
+enum Recognizer {
+    Local {
+        model: &'static SpeechModel,
+        asr: Box<Asr>,
+    },
+    Server {
+        /// Stored as the transcript's `engine`.
+        name: String,
+        server: Arc<dyn SpeechServer>,
+    },
+}
+
+/// What a recognizer reads besides the audio.
+#[derive(Default)]
+struct Vocabulary {
+    /// Terms for a local model that takes them.
+    hotwords: Vec<String>,
+    /// The whole prompt for a server.
+    prompt: Option<String>,
+}
+
+impl Vocabulary {
+    fn is_empty(&self) -> bool {
+        self.hotwords.is_empty() && self.prompt.is_none()
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum SpeechError {
@@ -55,6 +131,14 @@ pub struct TranscribeOptions {
     /// timeline (`Meeting.contentRange`). Audio outside it is left out, and
     /// times stay on the original timeline.
     pub content_range: Option<(f64, f64)>,
+    /// Measure voices for remembering speakers (never for the sample meeting).
+    pub collect_voice_samples: bool,
+    /// Subtract the call from the microphone copy (`echoCancellation`), with
+    /// how the two tracks line up.
+    pub echo: Option<TrackClock>,
+    /// How the two tracks line up, for the echo check on finished rows. It
+    /// runs whether or not `echo` does.
+    pub clock: Option<TrackClock>,
 }
 
 impl Default for TranscribeOptions {
@@ -65,8 +149,22 @@ impl Default for TranscribeOptions {
             microphone_is_user: true,
             vocabulary_prompt: None,
             content_range: None,
+            collect_voice_samples: false,
+            echo: None,
+            clock: None,
         }
     }
+}
+
+/// A transcript with the private voice evidence that goes with it. The
+/// evidence never joins the transcript or anything saved beside it in clear.
+#[derive(Clone, Debug, Default)]
+pub struct DetailedTranscript {
+    pub transcript: Transcript,
+    /// Clean diarizer turns, in the transcript's labels.
+    pub turns: Vec<AudioTurn>,
+    /// Voice vectors, in the transcript's labels.
+    pub samples: Vec<VoiceSample>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -98,16 +196,20 @@ struct TrackPlan {
     path: std::path::PathBuf,
     spans: Vec<Span>,
     regions: Option<Vec<Region>>,
+    /// The diarizer's turns, for attributing a server's timed words.
+    diarized: Vec<Turn>,
     speech: f64,
+    turns: Vec<(String, TurnAnchor)>,
+    samples: Vec<VoiceSample>,
 }
 
 pub struct Transcriber {
-    model: &'static SpeechModel,
-    asr: Asr,
+    recognizer: Recognizer,
     vad: Vad,
     paths: LibraryPaths,
     threads: usize,
     diarizer: Mutex<Option<Arc<Diarizer>>>,
+    voices: Mutex<Option<Arc<VoiceExtractor>>>,
     cancelled: AtomicBool,
 }
 
@@ -124,7 +226,33 @@ impl Transcriber {
         }
         let threads = effective_threads(threads);
         let started = Instant::now();
-        let asr = Asr::load(paths, model, threads)?;
+        let asr = Box::new(Asr::load(paths, model, threads)?);
+        let transcriber = Self::with_recognizer(paths, threads, Recognizer::Local { model, asr });
+        log::info!(
+            "speech: loaded {} in {:.2}s ({threads} threads)",
+            model.display_name,
+            started.elapsed().as_secs_f64()
+        );
+        Ok(transcriber)
+    }
+
+    /// Transcribes through `server`; `name` is stored as the transcript's
+    /// `engine`. The caller has checked that the server may receive audio.
+    pub fn with_server(
+        paths: &LibraryPaths,
+        threads: usize,
+        name: String,
+        server: Arc<dyn SpeechServer>,
+    ) -> Transcriber {
+        let threads = effective_threads(threads);
+        Self::with_recognizer(paths, threads, Recognizer::Server { name, server })
+    }
+
+    fn with_recognizer(
+        paths: &LibraryPaths,
+        threads: usize,
+        recognizer: Recognizer,
+    ) -> Transcriber {
         let vad_model = models::vad_model();
         let vad = if models::is_installed(paths, vad_model) {
             Vad::new(
@@ -138,29 +266,146 @@ impl Transcriber {
             );
             Vad::new(None, threads)
         };
-        log::info!(
-            "speech: loaded {} in {:.2}s ({threads} threads)",
-            model.display_name,
-            started.elapsed().as_secs_f64()
-        );
-        Ok(Transcriber {
-            model,
-            asr,
+        Transcriber {
+            recognizer,
             vad,
             paths: paths.clone(),
             threads,
             diarizer: Mutex::new(None),
+            voices: Mutex::new(None),
             cancelled: AtomicBool::new(false),
-        })
-    }
-
-    pub fn model(&self) -> &'static SpeechModel {
-        self.model
+        }
     }
 
     /// Name stored as the transcript's `engine`.
-    pub fn display_name(&self) -> &'static str {
-        self.model.display_name
+    pub fn display_name(&self) -> &str {
+        match &self.recognizer {
+            Recognizer::Local { model, .. } => model.display_name,
+            Recognizer::Server { name, .. } => name,
+        }
+    }
+
+    fn accepts_prompt(&self) -> bool {
+        match &self.recognizer {
+            Recognizer::Local { model, .. } => model.supports_prompt,
+            Recognizer::Server { .. } => true,
+        }
+    }
+
+    fn max_span(&self) -> f64 {
+        match &self.recognizer {
+            Recognizer::Local { asr, .. } => max_span_seconds(asr.family()),
+            Recognizer::Server { .. } => SERVER_WINDOW_SECONDS,
+        }
+    }
+
+    /// Refuses a language this model can't be told to use, before any audio is read.
+    fn check_language(&self, language: Option<&str>) -> Result<()> {
+        let id = match &self.recognizer {
+            Recognizer::Local { model, .. } => model.id,
+            Recognizer::Server { .. } => lokalbot_core::remote_transcription::MODEL_ID,
+        };
+        validate_language(id, self.display_name(), language)?;
+        Ok(())
+    }
+
+    fn decode(
+        &self,
+        samples: &[f32],
+        language: Option<&str>,
+        vocabulary: &Vocabulary,
+        word_timings: bool,
+    ) -> Result<Decoded> {
+        match &self.recognizer {
+            Recognizer::Local { asr, .. } => asr.decode(samples, language, &vocabulary.hotwords),
+            Recognizer::Server { server, .. } => {
+                if samples.len() < SERVER_MINIMUM_SAMPLES {
+                    return Ok(Decoded::default());
+                }
+                if word_timings {
+                    let reply = server.transcribe_timed(
+                        samples,
+                        language,
+                        vocabulary.prompt.as_deref(),
+                        &self.cancelled,
+                    )?;
+                    return Ok(Decoded {
+                        text: reply.text,
+                        words: reply.words,
+                        ..Default::default()
+                    });
+                }
+                let text = server.transcribe(
+                    samples,
+                    language,
+                    vocabulary.prompt.as_deref(),
+                    &self.cancelled,
+                )?;
+                Ok(Decoded {
+                    text,
+                    ..Default::default()
+                })
+            }
+        }
+    }
+
+    /// Sends every piece to the server, at most three at a time, keeping their
+    /// order. The first failure stops the rest.
+    fn upload_pieces(
+        &self,
+        pieces: &[Piece],
+        samples: &[f32],
+        language: Option<&str>,
+        vocabulary: &Vocabulary,
+        word_timings: bool,
+        advance: &mut dyn FnMut(f64),
+    ) -> Result<Vec<Decoded>> {
+        let next = AtomicUsize::new(0);
+        let failed = AtomicBool::new(false);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut decoded = vec![Decoded::default(); pieces.len()];
+        let mut first_error = None;
+        std::thread::scope(|scope| {
+            for _ in 0..SERVER_UPLOADS.min(pieces.len()) {
+                let (sender, next, failed) = (sender.clone(), &next, &failed);
+                scope.spawn(move || {
+                    loop {
+                        let index = next.fetch_add(1, Ordering::Relaxed);
+                        if index >= pieces.len()
+                            || failed.load(Ordering::Relaxed)
+                            || self.cancelled.load(Ordering::Relaxed)
+                        {
+                            return;
+                        }
+                        let result = self.decode(
+                            pieces[index].span.samples(samples),
+                            language,
+                            vocabulary,
+                            word_timings,
+                        );
+                        failed.fetch_or(result.is_err(), Ordering::Relaxed);
+                        let _ = sender.send((index, result));
+                    }
+                });
+            }
+            drop(sender);
+            for (index, result) in receiver {
+                match result {
+                    Ok(text) => {
+                        decoded[index] = text;
+                        advance(pieces[index].span.duration());
+                    }
+                    Err(error) => {
+                        first_error.get_or_insert(error);
+                    }
+                }
+            }
+        });
+        self.check_cancelled()?;
+        match first_error {
+            Some(error) => Err(error),
+            None => Ok(decoded),
+        }
     }
 
     /// Stops the transcription in progress at the next span; it returns
@@ -183,11 +428,28 @@ impl Transcriber {
             .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case("auto"))
     }
 
-    fn hotwords(&self, prompt: Option<&str>) -> Vec<String> {
-        if self.model.supports_prompt {
-            prompt_terms(prompt)
+    fn vocabulary(&self, prompt: Option<&str>) -> Vocabulary {
+        match &self.recognizer {
+            Recognizer::Local { model, .. } if model.supports_prompt => Vocabulary {
+                hotwords: prompt_terms(prompt),
+                prompt: None,
+            },
+            Recognizer::Local { .. } => Vocabulary::default(),
+            Recognizer::Server { .. } => Vocabulary {
+                hotwords: Vec::new(),
+                prompt: prompt
+                    .map(str::trim)
+                    .filter(|p| !p.is_empty())
+                    .map(str::to_string),
+            },
+        }
+    }
+
+    fn prompt_echo(&self, prompt: Option<&str>) -> Option<PromptEcho> {
+        if self.accepts_prompt() {
+            PromptEcho::new(prompt)
         } else {
-            Vec::new()
+            None
         }
     }
 
@@ -224,27 +486,57 @@ impl Transcriber {
         }
     }
 
-    /// Transcribes 16 kHz mono samples span by span (no speakers).
+    /// The voice model, once. Without it a meeting is still transcribed; only
+    /// its voices aren't measured.
+    fn voice_extractor(&self) -> Option<Arc<VoiceExtractor>> {
+        let mut slot = self.voices.lock();
+        if let Some(extractor) = slot.as_ref() {
+            return Some(Arc::clone(extractor));
+        }
+        match load_voice_extractor(&self.paths, self.threads) {
+            Ok(extractor) => {
+                let extractor = Arc::new(extractor);
+                *slot = Some(Arc::clone(&extractor));
+                Some(extractor)
+            }
+            Err(error) => {
+                log::warn!("speech: {error:#}; voices are not measured");
+                None
+            }
+        }
+    }
+
+    /// Transcribes 16 kHz mono samples span by span (no speakers). `prompt`
+    /// is the user's vocabulary, for the live preview.
     pub fn transcribe_samples(
         &self,
         samples_16k: &[f32],
         language: Option<&str>,
+        prompt: Option<&str>,
     ) -> Result<Vec<RawSegment>> {
         self.cancelled.store(false, Ordering::Relaxed);
+        self.check_language(language)?;
         let spans = self.vad.speech(samples_16k)?;
-        let pieces: Vec<Piece> = split(&spans, max_span_seconds(self.asr.family()))
+        let pieces: Vec<Piece> = split(&spans, self.max_span())
             .into_iter()
             .map(|span| Piece { span, region: None })
             .collect();
         let language = self.language(language);
+        let vocabulary = self.vocabulary(prompt);
+        let echo = self.prompt_echo(prompt);
         let mut out = Vec::new();
         for piece in &pieces {
             self.check_cancelled()?;
-            let decoded = self
-                .asr
-                .decode(piece.span.samples(samples_16k), language, &[])?;
+            let decoded = self.decode(
+                piece.span.samples(samples_16k),
+                language,
+                &vocabulary,
+                false,
+            )?;
             for (start, end, text, _) in self.segments_of(&decoded, piece.span) {
-                out.push(RawSegment { start, end, text });
+                if !echo.as_ref().is_some_and(|e| e.matches(&text)) {
+                    out.push(RawSegment { start, end, text });
+                }
             }
         }
         Ok(out)
@@ -261,16 +553,33 @@ impl Transcriber {
         options: &TranscribeOptions,
         progress: &mut dyn FnMut(TranscribeProgress),
     ) -> Result<Transcript> {
+        self.transcribe_meeting_detailed(mic, system, options, progress)
+            .map(|detailed| detailed.transcript)
+    }
+
+    /// [`Self::transcribe_meeting`] with the turns and voice samples that
+    /// remembering speakers needs.
+    pub fn transcribe_meeting_detailed(
+        &self,
+        mic: Option<&Path>,
+        system: Option<&Path>,
+        options: &TranscribeOptions,
+        progress: &mut dyn FnMut(TranscribeProgress),
+    ) -> Result<DetailedTranscript> {
         self.cancelled.store(false, Ordering::Relaxed);
+        self.check_language(options.language.as_deref())?;
         let started = Instant::now();
         let language = self.language(options.language.as_deref());
         let prompt = options.vocabulary_prompt.as_deref();
-        let hotwords = self.hotwords(prompt);
+        let vocabulary = self.vocabulary(prompt);
         let mut first_error: Option<anyhow::Error> = None;
 
         progress(TranscribeProgress::DetectingSpeech);
-        let gate = match (mic, system) {
-            (Some(mic), Some(system)) => detect_bleed(mic, system),
+        let (cleaned, echo_report) = self.clean_microphone(mic, system, options)?;
+        // A cleaned copy has had the far side subtracted; otherwise fall back
+        // to gating the frames the far side explains.
+        let gate = match (mic, system, &cleaned) {
+            (Some(mic), Some(system), None) => detect_bleed(mic, system),
             _ => None,
         };
         let mut plans = Vec::new();
@@ -279,10 +588,8 @@ impl Transcriber {
             (AttributionSource::System, system),
         ] {
             let Some(path) = path else { continue };
-            let gate = gate
-                .as_ref()
-                .filter(|_| source == AttributionSource::Microphone);
-            match self.plan_track(source, path, options, gate, progress) {
+            let heard = Heard::of(source, gate.as_ref(), cleaned.as_deref());
+            match self.plan_track(source, path, options, heard, progress) {
                 Ok(Some(plan)) => plans.push(plan),
                 Ok(None) => {}
                 Err(error)
@@ -304,18 +611,23 @@ impl Transcriber {
         progress(TranscribeProgress::Transcribing { fraction: 0.0 });
         let mut segments = Vec::new();
         for plan in &plans {
-            let gate = gate
-                .as_ref()
-                .filter(|_| plan.source == AttributionSource::Microphone);
-            match self.decode_track(plan, language, &hotwords, options, gate, &mut |seconds| {
-                done += seconds;
-                let fraction = if total_speech > 0.0 {
-                    (done / total_speech).min(1.0) as f32
-                } else {
-                    1.0
-                };
-                progress(TranscribeProgress::Transcribing { fraction });
-            }) {
+            let heard = Heard::of(plan.source, gate.as_ref(), cleaned.as_deref());
+            match self.decode_track(
+                plan,
+                language,
+                &vocabulary,
+                options,
+                heard,
+                &mut |seconds| {
+                    done += seconds;
+                    let fraction = if total_speech > 0.0 {
+                        (done / total_speech).min(1.0) as f32
+                    } else {
+                        1.0
+                    };
+                    progress(TranscribeProgress::Transcribing { fraction });
+                },
+            ) {
                 Ok(mut track) => {
                     let report = sanitize(&mut track, prompt);
                     if report.changed() {
@@ -349,13 +661,11 @@ impl Transcriber {
             return Err(error);
         }
         segments.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.end.total_cmp(&b.end)));
-        let removed = remove_bleed(&mut segments);
-        if removed > 0 {
-            log::info!("speech: removed {removed} microphone segment(s) repeating system audio");
-        }
+        self.check_for_echo(&mut segments, mic, system, options);
         let mut transcript = Transcript {
             segments,
-            engine: self.model.display_name.to_string(),
+            engine: self.display_name().to_string(),
+            echo_report,
             ..Default::default()
         };
         sanitize(&mut transcript, prompt);
@@ -366,11 +676,98 @@ impl Transcriber {
             .fold(0.0, f64::max);
         log::info!(
             "speech: meeting transcribed engine={} audio={audio:.1}s speech={total_speech:.1}s elapsed={:.1}s segments={}",
-            self.model.display_name,
+            self.display_name(),
             started.elapsed().as_secs_f64(),
             transcript.segments.len()
         );
-        Ok(transcript)
+        // Labeled now because `renumber_speakers` changed them while decoding.
+        let mut turns = Vec::new();
+        let mut samples = Vec::new();
+        for plan in &plans {
+            turns.extend(label_turns(&plan.turns, &transcript, plan.source));
+            samples.extend(label_samples(&plan.samples, &transcript, plan.source));
+        }
+        Ok(DetailedTranscript {
+            transcript,
+            turns,
+            samples,
+        })
+    }
+
+    /// The microphone with the far side subtracted, when that is asked for
+    /// and it passes. Failing here only means the track is used as recorded.
+    /// Words alone only mark a microphone row as possible echo; removing a
+    /// full duplicate also takes matching waveform evidence
+    /// (`EchoWaveformEvidence`, `SpeakerBleedFilter`).
+    fn check_for_echo(
+        &self,
+        segments: &mut Vec<Segment>,
+        mic: Option<&Path>,
+        system: Option<&Path>,
+        options: &TranscribeOptions,
+    ) {
+        let clock = options
+            .clock
+            .as_ref()
+            .or(options.echo.as_ref())
+            .unwrap_or(&TrackClock::Unknown);
+        let analysis = match (mic, system) {
+            (Some(mic), Some(system)) => {
+                crate::echo_evidence::analyze(segments, mic, system, clock, &|| {
+                    self.cancelled.load(Ordering::Relaxed)
+                })
+                .unwrap_or_else(|error| {
+                    log::warn!("speech: the echo check could not read the tracks: {error:#}");
+                    Default::default()
+                })
+            }
+            _ => Default::default(),
+        };
+        for index in &analysis.suspected {
+            segments[*index].attribution = Some(lokalbot_core::speaker_bleed::suspected_echo());
+        }
+        let bleed = lokalbot_core::speaker_bleed::filter_bleed(segments, &analysis.verified);
+        if bleed.changed() {
+            log::info!(
+                "speech: speaker bleed removed={} removed_words={} suspected={}",
+                bleed.removed_segments,
+                bleed.removed_words,
+                bleed.suspected.len()
+            );
+        }
+    }
+
+    fn clean_microphone(
+        &self,
+        mic: Option<&Path>,
+        system: Option<&Path>,
+        options: &TranscribeOptions,
+    ) -> Result<(Option<Vec<f32>>, Option<EchoReport>)> {
+        let Some(mic) = mic else {
+            return Ok((None, None));
+        };
+        let Some(clock) = &options.echo else {
+            return Ok((None, Some(echo_disabled())));
+        };
+        let Some(system) = system else {
+            return Ok((None, Some(echo_no_reference())));
+        };
+        let tracks = lokalbot_audio::read_mono_16k(mic)
+            .and_then(|mic| Ok((mic, lokalbot_audio::read_mono_16k(system)?)));
+        let (mic, system) = match tracks {
+            Ok(tracks) => tracks,
+            Err(error) => {
+                log::warn!("speech: echo cancellation could not read the tracks: {error}");
+                return Ok((None, Some(echo_failed())));
+            }
+        };
+        let removal = remove_echo(&mic, &system, clock, &|| {
+            self.cancelled.load(Ordering::Relaxed)
+        });
+        match removal {
+            Some(EchoRemoval { cleaned, report }) => Ok((cleaned, Some(report))),
+            None => Err(SpeechError::Cancelled.into()),
+        }
     }
 
     fn plan_track(
@@ -378,10 +775,10 @@ impl Transcriber {
         source: AttributionSource,
         path: &Path,
         options: &TranscribeOptions,
-        gate: Option<&BleedGate>,
+        heard: Heard<'_>,
         progress: &mut dyn FnMut(TranscribeProgress),
     ) -> Result<Option<TrackPlan>> {
-        let samples = read_track(path, gate, options.content_range)?;
+        let samples = read_track(path, heard, options.content_range)?;
         let duration = samples.len() as f64 / SAMPLE_RATE as f64;
         if duration < MIN_AUDIO_SECONDS {
             log::info!(
@@ -401,6 +798,9 @@ impl Transcriber {
             return Ok(None);
         }
         let mut track_regions = None;
+        let mut diarized = Vec::new();
+        let mut raw = Vec::new();
+        let mut voices = Vec::new();
         if options.diarize
             && let Some(diarizer) = self.diarizer()
         {
@@ -424,6 +824,15 @@ impl Transcriber {
                             options.microphone_is_user,
                         ));
                     }
+                    raw = raw_turns(&turns);
+                    diarized = turns.clone();
+                    if options.collect_voice_samples
+                        && let Some(extractor) = self.voice_extractor()
+                    {
+                        voices = voice_samples(&extractor, &samples, &turns, source, &|| {
+                            self.cancelled.load(Ordering::Relaxed)
+                        });
+                    }
                 }
                 Err(error) => log::warn!(
                     "speech: speaker separation failed on {}: {error:#}",
@@ -436,7 +845,10 @@ impl Transcriber {
             path: path.to_path_buf(),
             spans,
             regions: track_regions,
+            diarized,
             speech,
+            turns: raw,
+            samples: voices,
         }))
     }
 
@@ -444,45 +856,87 @@ impl Transcriber {
         &self,
         plan: &TrackPlan,
         language: Option<&str>,
-        hotwords: &[String],
+        vocabulary: &Vocabulary,
         options: &TranscribeOptions,
-        gate: Option<&BleedGate>,
+        heard: Heard<'_>,
         advance: &mut dyn FnMut(f64),
     ) -> Result<Transcript> {
         let started = Instant::now();
-        let samples = read_track(&plan.path, gate, options.content_range)?;
-        let pieces = pieces(
-            &plan.spans,
-            plan.regions.as_deref(),
-            max_span_seconds(self.asr.family()),
-        );
+        let samples = read_track(&plan.path, heard, options.content_range)?;
+        let max_span = self.max_span();
+        let uploading = matches!(self.recognizer, Recognizer::Server { .. });
+        // A server that times words hears neighbouring turns together, and its words
+        // say who spoke. Turns don't cut the clips, which stay as short as any other.
+        let word_timed = plan.regions.is_some()
+            && matches!(&self.recognizer, Recognizer::Server { server, .. }
+                if server.provides_word_timings());
+        // Without speaker turns a server gets neighbouring speech in one request.
+        let spans = if uploading && (plan.regions.is_none() || word_timed) {
+            merge_spans(&plan.spans, SERVER_WINDOW_GAP_SECONDS, max_span)
+        } else {
+            plan.spans.clone()
+        };
+        let cut_at = if word_timed {
+            None
+        } else {
+            plan.regions.as_deref()
+        };
+        let pieces = pieces(&spans, cut_at, max_span);
         let fallback = track_attribution(plan.source, options.microphone_is_user);
         let label = crate::attribution::prefix(plan.source);
-        let echo = if self.model.supports_prompt {
-            PromptEcho::new(options.vocabulary_prompt.as_deref())
+        let echo = self.prompt_echo(options.vocabulary_prompt.as_deref());
+        let uploaded = if uploading {
+            Some(self.upload_pieces(&pieces, &samples, language, vocabulary, word_timed, advance)?)
         } else {
             None
         };
+        let duration = samples.len() as f64 / SAMPLE_RATE as f64;
+        if word_timed {
+            let uploaded = uploaded.unwrap_or_default();
+            let aligned = word_timed_clips(&pieces, &uploaded, echo.as_ref());
+            log::info!(
+                "speech: word-timed={}/{} clips",
+                aligned.iter().filter(|clip| !clip.words.is_empty()).count(),
+                aligned.len()
+            );
+            let mut segments = attribute_words(
+                &aligned,
+                duration,
+                &plan.diarized,
+                plan.source,
+                options.microphone_is_user,
+                options.content_range.unwrap_or((0.0, duration)),
+            );
+            renumber_speakers(&mut segments);
+            return Ok(Transcript {
+                segments,
+                engine: self.display_name().to_string(),
+                ..Default::default()
+            });
+        }
         let mut segments = Vec::new();
-        for piece in &pieces {
+        for (index, piece) in pieces.iter().enumerate() {
             self.check_cancelled()?;
-            let decoded = match self
-                .asr
-                .decode(piece.span.samples(&samples), language, hotwords)
-            {
-                Ok(decoded) => decoded,
-                Err(error) if piece.span.duration() < 1.0 => {
-                    // Losing a sliver is better than failing the meeting.
-                    log::warn!(
-                        "speech: skipped a {:.2}s span the model rejected: {error:#}",
-                        piece.span.duration()
-                    );
-                    advance(piece.span.duration());
-                    continue;
-                }
-                Err(error) => return Err(error),
+            let decoded = if let Some(uploaded) = &uploaded {
+                uploaded[index].clone()
+            } else {
+                let decoded =
+                    match self.decode(piece.span.samples(&samples), language, vocabulary, false) {
+                        Ok(decoded) => decoded,
+                        Err(error) if piece.span.duration() < 1.0 => {
+                            // Losing a sliver is better than failing the meeting.
+                            log::warn!(
+                                "speech: skipped a {:.2}s span the model rejected: {error:#}",
+                                piece.span.duration()
+                            );
+                            advance(piece.span.duration());
+                            continue;
+                        }
+                        Err(error) => return Err(error),
+                    };
+                advance(piece.span.duration());
+                decoded
             };
-            advance(piece.span.duration());
             log::debug!(
                 "speech: piece {:.2}-{:.2} text={:?} tokens={} stamps={:?}",
                 piece.span.start,
@@ -517,11 +971,10 @@ impl Transcriber {
         }
         renumber_speakers(&mut segments);
         let elapsed = started.elapsed().as_secs_f64();
-        let duration = samples.len() as f64 / SAMPLE_RATE as f64;
         log::info!(
             "speech: transcription track done track={} engine={} duration={duration:.2}s speech={:.2}s elapsed={elapsed:.2}s rtfx={:.1}x segments={}",
             track_name(plan.source),
-            self.model.display_name,
+            self.display_name(),
             plan.speech,
             if elapsed > 0.0 {
                 duration / elapsed
@@ -532,7 +985,7 @@ impl Transcriber {
         );
         Ok(Transcript {
             segments,
-            engine: self.model.display_name.to_string(),
+            engine: self.display_name().to_string(),
             ..Default::default()
         })
     }
@@ -575,6 +1028,7 @@ impl Transcriber {
         prompt: Option<&str>,
     ) -> Result<String> {
         self.cancelled.store(false, Ordering::Relaxed);
+        self.check_language(language)?;
         if (samples_16k.len() as f64) < MIN_AUDIO_SECONDS * SAMPLE_RATE as f64 {
             return Err(SpeechError::TooShort.into());
         }
@@ -584,16 +1038,15 @@ impl Transcriber {
             return Err(SpeechError::NoSpeech.into());
         }
         // Short dictations decode as one window so pauses keep their context.
-        let windows = merge_spans(&spans, 2.0, max_span_seconds(self.asr.family()));
+        let windows = merge_spans(&spans, 2.0, self.max_span());
         let language = self.language(language);
-        let decode = |hotwords: &[String], echo: Option<&PromptEcho>| -> Result<String> {
+        let decode = |vocabulary: &Vocabulary, echo: Option<&PromptEcho>| -> Result<String> {
             let mut texts = Vec::new();
             for window in &windows {
                 self.check_cancelled()?;
                 let text = normalized_text(
                     &self
-                        .asr
-                        .decode(window.samples(samples_16k), language, hotwords)?
+                        .decode(window.samples(samples_16k), language, vocabulary, false)?
                         .text,
                 );
                 if !text.is_empty() && !echo.is_some_and(|e| e.matches(&text)) {
@@ -602,21 +1055,73 @@ impl Transcriber {
             }
             Ok(join_texts(texts.iter().map(String::as_str)))
         };
-        let hotwords = self.hotwords(prompt);
-        let echo = if self.model.supports_prompt {
-            PromptEcho::new(prompt)
-        } else {
-            None
-        };
-        let mut text = decode(&hotwords, echo.as_ref())?;
-        if text.is_empty() && speech >= 1.0 && !hotwords.is_empty() {
-            text = decode(&[], None)?;
+        let vocabulary = self.vocabulary(prompt);
+        let echo = self.prompt_echo(prompt);
+        let mut text = decode(&vocabulary, echo.as_ref())?;
+        if text.is_empty() && speech >= 1.0 && !vocabulary.is_empty() {
+            text = decode(&Vocabulary::default(), None)?;
         }
         if text.is_empty() {
             return Err(SpeechError::NoSpeech.into());
         }
         Ok(text)
     }
+}
+
+fn load_voice_extractor(paths: &LibraryPaths, threads: usize) -> Result<VoiceExtractor> {
+    let [_, embedding] = models::diarization_models() else {
+        anyhow::bail!("no voice model");
+    };
+    if !models::is_installed(paths, embedding) {
+        anyhow::bail!("the voice model is not installed");
+    }
+    VoiceExtractor::load(
+        &models::model_file(paths, embedding, embedding.files[0]),
+        threads,
+    )
+}
+
+/// Voice samples of a call track that was already transcribed, in `transcript`'s
+/// labels, for learning from saved meetings. Needs no speech model, and never
+/// downloads the voice model: `Err` means analysis can't run now.
+pub fn analyze_call_voices(
+    paths: &LibraryPaths,
+    track: &Path,
+    transcript: &Transcript,
+    threads: usize,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<Vec<VoiceSample>> {
+    let [segmentation, embedding] = models::diarization_models() else {
+        anyhow::bail!("no voice model");
+    };
+    anyhow::ensure!(
+        models::is_installed(paths, segmentation) && models::is_installed(paths, embedding),
+        "the voice model is not installed"
+    );
+    let threads = effective_threads(threads);
+    let samples = read_track(track, Heard::default(), None)?;
+    let diarizer = Diarizer::load(
+        &models::model_file(paths, segmentation, segmentation.files[0]),
+        &models::model_file(paths, embedding, embedding.files[0]),
+        threads,
+        CLUSTER_THRESHOLD,
+    )?;
+    if cancelled() {
+        return Err(SpeechError::Cancelled.into());
+    }
+    let turns = diarizer.turns(&samples)?;
+    let extractor = load_voice_extractor(paths, threads)?;
+    let raw = voice_samples(
+        &extractor,
+        &samples,
+        &turns,
+        AttributionSource::System,
+        cancelled,
+    );
+    if cancelled() {
+        return Err(SpeechError::Cancelled.into());
+    }
+    Ok(label_samples(&raw, transcript, AttributionSource::System))
 }
 
 /// onnxruntime slows down past a few threads: on Linux 4–8 threads were
@@ -627,14 +1132,39 @@ fn effective_threads(requested: usize) -> usize {
     requested.clamp(1, cap)
 }
 
+/// What the models hear of a track: the microphone with the far side
+/// subtracted or gated. The recording itself never changes.
+#[derive(Clone, Copy, Default)]
+struct Heard<'a> {
+    gate: Option<&'a BleedGate>,
+    cleaned: Option<&'a [f32]>,
+}
+
+impl<'a> Heard<'a> {
+    fn of(
+        source: AttributionSource,
+        gate: Option<&'a BleedGate>,
+        cleaned: Option<&'a [f32]>,
+    ) -> Self {
+        if source == AttributionSource::Microphone {
+            Self { gate, cleaned }
+        } else {
+            Self::default()
+        }
+    }
+}
+
 fn read_track(
     path: &Path,
-    gate: Option<&BleedGate>,
+    heard: Heard<'_>,
     content_range: Option<(f64, f64)>,
 ) -> Result<Vec<f32>> {
-    let mut samples = lokalbot_audio::read_mono_16k(path)
-        .with_context(|| format!("could not read {}", path.display()))?;
-    if let Some(gate) = gate {
+    let mut samples = match heard.cleaned {
+        Some(samples) => samples.to_vec(),
+        None => lokalbot_audio::read_mono_16k(path)
+            .with_context(|| format!("could not read {}", path.display()))?,
+    };
+    if let Some(gate) = heard.gate {
         gate.apply(&mut samples);
     }
     if let Some(range) = content_range {
@@ -800,6 +1330,41 @@ fn pieces(spans: &[Span], track_regions: Option<&[Region]>, max: f64) -> Vec<Pie
     out
 }
 
+/// A server's clips with their words moved onto the track's timeline. A clip with
+/// no text, or that only repeats the prompt, is left out.
+fn word_timed_clips(
+    pieces: &[Piece],
+    uploaded: &[Decoded],
+    echo: Option<&PromptEcho>,
+) -> Vec<AlignedSegment> {
+    pieces
+        .iter()
+        .zip(uploaded)
+        .filter_map(|(piece, decoded)| {
+            let text = normalized_text(&decoded.text);
+            if text.is_empty() || echo.is_some_and(|echo| echo.matches(&text)) {
+                return None;
+            }
+            let (start, end) = (piece.span.start, piece.span.end);
+            Some(AlignedSegment {
+                start,
+                end,
+                text,
+                precision: piece.span.precision,
+                words: decoded
+                    .words
+                    .iter()
+                    .map(|word| TimedWord {
+                        text: word.text.clone(),
+                        start: end.min(start + word.start),
+                        end: end.min(start + word.end),
+                    })
+                    .collect(),
+            })
+        })
+        .collect()
+}
+
 /// Rows from token timestamps, or `None` when the tokens do not spell the text.
 fn token_rows(decoded: &Decoded, span: Span) -> Option<Vec<(f64, f64, String, TimingPrecision)>> {
     if decoded.tokens.is_empty() || decoded.tokens.len() != decoded.timestamps.len() {
@@ -845,6 +1410,367 @@ fn token_rows(decoded: &Decoded, span: Span) -> Option<Vec<(f64, f64, String, Ti
         })
         .collect();
     (!rows.is_empty()).then_some(rows)
+}
+
+#[cfg(test)]
+mod server_tests {
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn a_servers_words_move_onto_the_track_timeline_and_stay_inside_their_clip() {
+        let span = |start: f64, end: f64| Span {
+            start,
+            end,
+            precision: TimingPrecision::Span,
+        };
+        let pieces = [
+            Piece {
+                span: span(10.0, 12.0),
+                region: None,
+            },
+            Piece {
+                span: span(20.0, 21.0),
+                region: None,
+            },
+            Piece {
+                span: span(30.0, 31.0),
+                region: None,
+            },
+        ];
+        let timed = |text: &str, start: f64, end: f64| TimedWord {
+            text: text.into(),
+            start,
+            end,
+        };
+        let uploaded = [
+            Decoded {
+                text: "Hello there".into(),
+                words: vec![timed("Hello", 0.5, 1.0), timed("there", 1.5, 9.0)],
+                ..Default::default()
+            },
+            // Nothing heard.
+            Decoded::default(),
+            // No word times: the clip stays whole.
+            Decoded {
+                text: "Plain".into(),
+                ..Default::default()
+            },
+        ];
+        let clips = word_timed_clips(&pieces, &uploaded, None);
+        assert_eq!(clips.len(), 2);
+        assert_eq!(clips[0].words[0].start, 10.5);
+        assert_eq!(clips[0].words[1].end, 12.0);
+        assert_eq!(clips[1].text, "Plain");
+        assert!(clips[1].words.is_empty());
+    }
+
+    /// Samples, language and prompt of one request.
+    type Seen = (usize, Option<String>, Option<String>);
+
+    /// Answers with `reply`, remembering what it was sent.
+    struct FakeServer {
+        reply: String,
+        fail: bool,
+        calls: AtomicUsize,
+        running: AtomicUsize,
+        most_at_once: AtomicUsize,
+        seen: Mutex<Vec<Seen>>,
+    }
+
+    impl FakeServer {
+        fn new(reply: &str, fail: bool) -> Arc<Self> {
+            Arc::new(Self {
+                reply: reply.to_string(),
+                fail,
+                calls: AtomicUsize::new(0),
+                running: AtomicUsize::new(0),
+                most_at_once: AtomicUsize::new(0),
+                seen: Mutex::new(Vec::new()),
+            })
+        }
+    }
+
+    impl SpeechServer for FakeServer {
+        fn transcribe(
+            &self,
+            samples: &[f32],
+            language: Option<&str>,
+            prompt: Option<&str>,
+            _cancel: &AtomicBool,
+        ) -> Result<String> {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            let running = self.running.fetch_add(1, Ordering::Relaxed) + 1;
+            self.most_at_once.fetch_max(running, Ordering::Relaxed);
+            self.seen.lock().push((
+                samples.len(),
+                language.map(str::to_string),
+                prompt.map(str::to_string),
+            ));
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            self.running.fetch_sub(1, Ordering::Relaxed);
+            if self.fail {
+                Err(anyhow!("server refused"))
+            } else {
+                Ok(self.reply.clone())
+            }
+        }
+    }
+
+    /// A tone with long pauses, so the energy detector finds separate spans.
+    fn speech_with_pauses(bursts: usize) -> Vec<f32> {
+        let rate = SAMPLE_RATE;
+        let mut samples = Vec::new();
+        for _ in 0..bursts {
+            samples.extend((0..2 * rate).map(|i| {
+                0.4 * (2.0 * std::f32::consts::PI * 220.0 * i as f32 / rate as f32).sin()
+            }));
+            samples.extend(std::iter::repeat_n(0.0, 3 * rate));
+        }
+        samples
+    }
+
+    fn transcriber(dir: &tempfile::TempDir, server: Arc<FakeServer>) -> Transcriber {
+        Transcriber::with_server(
+            &LibraryPaths::new(dir.path()),
+            2,
+            "whisper-1 (remote https://x.example)".to_string(),
+            server,
+        )
+    }
+
+    /// A server that times words: two words a clip, either side of its middle.
+    struct TimingServer {
+        times_words: bool,
+        clips: Mutex<Vec<usize>>,
+    }
+
+    impl SpeechServer for TimingServer {
+        fn transcribe(
+            &self,
+            samples: &[f32],
+            _language: Option<&str>,
+            _prompt: Option<&str>,
+            _cancel: &AtomicBool,
+        ) -> Result<String> {
+            self.clips.lock().push(samples.len());
+            Ok("First second".to_string())
+        }
+
+        fn provides_word_timings(&self) -> bool {
+            self.times_words
+        }
+
+        fn transcribe_timed(
+            &self,
+            samples: &[f32],
+            _language: Option<&str>,
+            _prompt: Option<&str>,
+            _cancel: &AtomicBool,
+        ) -> Result<WindowTranscription> {
+            self.clips.lock().push(samples.len());
+            let seconds = samples.len() as f64 / SAMPLE_RATE as f64;
+            let word = |text: &str, start: f64, end: f64| TimedWord {
+                text: text.to_string(),
+                start,
+                end,
+            };
+            Ok(WindowTranscription {
+                text: "First second".to_string(),
+                words: vec![
+                    word("First", 0.1, seconds / 2.0 - 0.2),
+                    word("second", seconds / 2.0 + 0.2, seconds - 0.1),
+                ],
+            })
+        }
+    }
+
+    /// Two speakers trade places inside one stretch of speech.
+    fn traded_turns(server: Arc<TimingServer>, dir: &tempfile::TempDir) -> Transcript {
+        let wav = dir.path().join("system.wav");
+        let samples = vec![0.0f32; 20 * SAMPLE_RATE];
+        lokalbot_audio::write_wav_16k(&wav, &samples).unwrap();
+        let turns = vec![
+            Turn {
+                start: 0.0,
+                end: 5.0,
+                speaker: 0,
+            },
+            Turn {
+                start: 5.0,
+                end: 10.0,
+                speaker: 1,
+            },
+        ];
+        let span = Span {
+            start: 0.0,
+            end: 10.0,
+            precision: TimingPrecision::Span,
+        };
+        let plan = TrackPlan {
+            source: AttributionSource::System,
+            path: wav,
+            spans: vec![span],
+            regions: Some(regions(20.0, &turns, AttributionSource::System, false)),
+            diarized: turns,
+            speech: 10.0,
+            turns: Vec::new(),
+            samples: Vec::new(),
+        };
+        Transcriber::with_server(
+            &LibraryPaths::new(dir.path()),
+            2,
+            "server".to_string(),
+            server,
+        )
+        .decode_track(
+            &plan,
+            None,
+            &Vocabulary::default(),
+            &TranscribeOptions::default(),
+            Heard::default(),
+            &mut |_| {},
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_server_that_times_words_hears_turns_together_and_splits_them_by_word() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = Arc::new(TimingServer {
+            times_words: true,
+            clips: Mutex::new(Vec::new()),
+        });
+        let transcript = traded_turns(server.clone(), &dir);
+        // One clip across the turn, no longer than any other.
+        assert_eq!(*server.clips.lock(), [10 * SAMPLE_RATE]);
+        let rows: Vec<(&str, &str)> = transcript
+            .segments
+            .iter()
+            .map(|s| (s.speaker.as_str(), s.text.as_str()))
+            .collect();
+        assert_eq!(rows, [("them 1", "First"), ("them 2", "second")]);
+        assert!(
+            transcript
+                .segments
+                .iter()
+                .all(|s| s.timing_precision == Some(TimingPrecision::Token))
+        );
+        assert_eq!(transcript.segments[0].end, 5.0);
+        assert_eq!(transcript.segments[1].start, 5.0);
+    }
+
+    #[test]
+    fn a_server_that_doesnt_time_words_keeps_clips_cut_at_speaker_turns() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = Arc::new(TimingServer {
+            times_words: false,
+            clips: Mutex::new(Vec::new()),
+        });
+        let transcript = traded_turns(server.clone(), &dir);
+        let mut clips = server.clips.lock().clone();
+        clips.sort_unstable();
+        assert_eq!(clips, [5 * SAMPLE_RATE, 5 * SAMPLE_RATE]);
+        assert_eq!(transcript.segments.len(), 2);
+        assert_eq!(transcript.segments[0].speaker, "them 1");
+        assert_eq!(transcript.segments[1].speaker, "them 2");
+        assert_eq!(
+            transcript.segments[0].timing_precision,
+            Some(TimingPrecision::Span)
+        );
+    }
+
+    #[test]
+    fn a_meeting_goes_to_the_server_three_clips_at_a_time() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("system.wav");
+        lokalbot_audio::write_wav_16k(&wav, &speech_with_pauses(7)).unwrap();
+        let server = FakeServer::new("Hello there", false);
+        let transcript = transcriber(&dir, server.clone())
+            .transcribe_meeting(
+                None,
+                Some(&wav),
+                &TranscribeOptions {
+                    language: Some("de".to_string()),
+                    vocabulary_prompt: Some("  Kubernetes, Ana \n".to_string()),
+                    ..Default::default()
+                },
+                &mut |_| {},
+            )
+            .unwrap();
+        assert_eq!(transcript.engine, "whisper-1 (remote https://x.example)");
+        assert_eq!(server.calls.load(Ordering::Relaxed), 7);
+        assert!(server.most_at_once.load(Ordering::Relaxed) <= SERVER_UPLOADS);
+        assert_eq!(transcript.segments.len(), 7);
+        // In the audio's order, whichever upload finished first.
+        assert!(
+            transcript
+                .segments
+                .windows(2)
+                .all(|pair| pair[0].start < pair[1].start)
+        );
+        assert!(transcript.segments.iter().all(|s| s.text == "Hello there"));
+        for (samples, language, prompt) in server.seen.lock().iter() {
+            // Each request at most 15 s of audio.
+            assert!(*samples <= 15 * SAMPLE_RATE);
+            assert_eq!(language.as_deref(), Some("de"));
+            assert_eq!(prompt.as_deref(), Some("Kubernetes, Ana"));
+        }
+    }
+
+    #[test]
+    fn a_failed_clip_fails_the_track_and_stops_the_rest() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("system.wav");
+        lokalbot_audio::write_wav_16k(&wav, &speech_with_pauses(20)).unwrap();
+        let server = FakeServer::new("", true);
+        let error = transcriber(&dir, server.clone())
+            .transcribe_meeting(None, Some(&wav), &TranscribeOptions::default(), &mut |_| {})
+            .unwrap_err();
+        assert_eq!(error.to_string(), "server refused");
+        assert!(server.calls.load(Ordering::Relaxed) <= SERVER_UPLOADS);
+    }
+
+    #[test]
+    fn replies_that_only_repeat_the_vocabulary_are_dropped() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = FakeServer::new("Kubernetes, Ana.", false);
+        let segments = transcriber(&dir, server.clone())
+            .transcribe_samples(&speech_with_pauses(1), None, Some("Kubernetes, Ana."))
+            .unwrap();
+        assert_eq!(server.calls.load(Ordering::Relaxed), 1);
+        assert!(segments.is_empty());
+    }
+
+    #[test]
+    fn dictation_retries_without_the_vocabulary() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = FakeServer::new("Kubernetes, Ana.", false);
+        let text = transcriber(&dir, server.clone())
+            .transcribe_dictation_with_prompt(
+                &speech_with_pauses(1),
+                Some("en"),
+                Some("Kubernetes, Ana."),
+            )
+            .unwrap();
+        // The first answer echoed the prompt; the second, without it, counts.
+        assert_eq!(text, "Kubernetes, Ana.");
+        let seen = server.seen.lock();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[0].2.as_deref(), Some("Kubernetes, Ana."));
+        assert_eq!(seen[1].2, None);
+    }
+
+    #[test]
+    fn a_server_may_be_told_ukrainian() {
+        let dir = tempfile::tempdir().unwrap();
+        let server = FakeServer::new("Привіт", false);
+        let text = transcriber(&dir, server.clone())
+            .transcribe_dictation_with_prompt(&speech_with_pauses(1), Some("uk"), None)
+            .unwrap();
+        assert_eq!(text, "Привіт");
+        assert_eq!(server.seen.lock()[0].1.as_deref(), Some("uk"));
+    }
 }
 
 #[cfg(test)]
@@ -958,6 +1884,7 @@ mod tests {
                 "▁you?".into(),
             ],
             timestamps: vec![0.0, 0.4, 2.0, 2.2, 2.4],
+            words: Vec::new(),
         };
         let rows = token_rows(&decoded, span(10.0, 13.0)).unwrap();
         assert_eq!(rows.len(), 2);

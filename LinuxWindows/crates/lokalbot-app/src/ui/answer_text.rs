@@ -397,6 +397,9 @@ fn link(rest: &str) -> Option<(&str, &str, usize)> {
 /// Called with the 0-based citation index when a `[n]` is clicked.
 pub type CiteHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 
+/// Called with a link's target when it isn't a web link.
+pub type LinkHandler = Rc<dyn Fn(&str, &mut Window, &mut App)>;
+
 /// Text size and color of a rendered answer.
 #[derive(Clone, Copy)]
 pub struct AnswerStyle {
@@ -423,6 +426,19 @@ pub fn render(
     on_cite: CiteHandler,
     cx: &App,
 ) -> Div {
+    render_linked(id, answer, style, on_cite, None, cx)
+}
+
+/// [`render`], with `on_link` deciding what a non-web link opens. Without it such
+/// a link does nothing.
+pub fn render_linked(
+    id: impl Into<ElementId>,
+    answer: &Answer,
+    style: AnswerStyle,
+    on_cite: CiteHandler,
+    on_link: Option<LinkHandler>,
+    cx: &App,
+) -> Div {
     let id: ElementId = id.into();
     let lb = cx.lb();
     let mut column = v_flex().gap(px(10.)).w_full().min_w_0();
@@ -438,7 +454,14 @@ pub fn render(
                 .text_size(style.size)
                 .line_height(style.line_height)
                 .text_color(style.color)
-                .child(styled(block_id, inline, &answer.links, on_cite.clone(), cx)),
+                .child(styled(
+                    block_id,
+                    inline,
+                    &answer.links,
+                    on_cite.clone(),
+                    on_link.clone(),
+                    cx,
+                )),
             Block::Heading { level, inline } => {
                 let size = match level {
                     1 => style.size + px(4.),
@@ -453,7 +476,14 @@ pub fn render(
                     .line_height(style.line_height + px(2.))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(lb.text)
-                    .child(styled(block_id, inline, &answer.links, on_cite.clone(), cx))
+                    .child(styled(
+                        block_id,
+                        inline,
+                        &answer.links,
+                        on_cite.clone(),
+                        on_link.clone(),
+                        cx,
+                    ))
             }
             Block::Item {
                 marker,
@@ -480,6 +510,7 @@ pub fn render(
                     inline,
                     &answer.links,
                     on_cite.clone(),
+                    on_link.clone(),
                     cx,
                 ))),
             Block::Quote(inline) => div()
@@ -491,7 +522,14 @@ pub fn render(
                 .text_size(style.size)
                 .line_height(style.line_height)
                 .text_color(lb.text_secondary)
-                .child(styled(block_id, inline, &answer.links, on_cite.clone(), cx)),
+                .child(styled(
+                    block_id,
+                    inline,
+                    &answer.links,
+                    on_cite.clone(),
+                    on_link.clone(),
+                    cx,
+                )),
             Block::Code(code) => div()
                 .text_align(gpui_kit::TextAlign::Left)
                 .w_full()
@@ -514,6 +552,7 @@ fn styled(
     inline: &Inline,
     links: &[String],
     on_cite: CiteHandler,
+    on_link: Option<LinkHandler>,
     cx: &App,
 ) -> InteractiveText {
     let lb = cx.lb();
@@ -567,6 +606,11 @@ fn styled(
             Some(Click::Link(url)) if url.starts_with("http://") || url.starts_with("https://") => {
                 cx.open_url(url)
             }
+            Some(Click::Link(url)) => {
+                if let Some(on_link) = &on_link {
+                    on_link(url, window, cx);
+                }
+            }
             _ => {}
         }
     })
@@ -580,6 +624,16 @@ enum Click {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_link_keeps_its_target() {
+        let answer =
+            parse("See [notes](file:///work/app/notes.md) and [site](https://example.com).");
+        assert_eq!(
+            answer.links,
+            ["file:///work/app/notes.md", "https://example.com"]
+        );
+    }
 
     fn text_of(block: &Block) -> &str {
         match block {

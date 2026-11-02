@@ -30,6 +30,61 @@ const SUGGESTIONS: [&str; 3] = [
     "Search my meetings for action items",
 ];
 
+/// Read aloud as it applies to one answer.
+struct AnswerSpeech {
+    /// Reading this answer, or preparing to.
+    reading: bool,
+    preparing: bool,
+    error: Option<SharedString>,
+}
+
+fn speech_key(id: Uuid) -> String {
+    format!("answer:{id}")
+}
+
+fn answer_speech(id: Uuid, cx: &App) -> AnswerSpeech {
+    let speech = &crate::state::AppData::global(cx).read(cx).speech;
+    let key = speech_key(id);
+    let reading = speech.reading.as_deref() == Some(key.as_str());
+    AnswerSpeech {
+        reading,
+        preparing: reading && speech.preparing,
+        error: speech
+            .error
+            .as_ref()
+            .filter(|(failed, _)| *failed == key)
+            .map(|(_, message)| lokalbot_i18n::tr(message).to_string().into()),
+    }
+}
+
+fn toggle_answer_speech(id: Uuid, text: &str, cx: &mut App) {
+    let speech = answer_speech(id, cx);
+    let command = if speech.reading {
+        lokalbot_engine::SpeechCommand::Stop
+    } else {
+        lokalbot_engine::SpeechCommand::Read {
+            key: speech_key(id),
+            text: text.to_string(),
+        }
+    };
+    crate::bridge::send(lokalbot_engine::Command::Speech(command), cx);
+}
+
+/// The answer being read is leaving the screen (`ChatView.onDisappear`).
+pub(crate) fn stop_answer_speech(cx: &mut App) {
+    let speech = &crate::state::AppData::global(cx).read(cx).speech;
+    if speech
+        .reading
+        .as_deref()
+        .is_some_and(|key| key.starts_with("answer:"))
+    {
+        crate::bridge::send(
+            lokalbot_engine::Command::Speech(lokalbot_engine::SpeechCommand::Stop),
+            cx,
+        );
+    }
+}
+
 /// One step of tool activity.
 #[derive(Clone)]
 struct Step {
@@ -47,6 +102,8 @@ enum Turn {
         divider: Option<String>,
         separator: bool,
         latest: bool,
+        /// Shown when the question's scope differs from the one before it.
+        scope: Option<String>,
     },
     Assistant {
         id: Uuid,
@@ -57,6 +114,8 @@ enum Turn {
         status: Option<SharedString>,
         error: Option<SharedString>,
         can_retry: bool,
+        receipt: Option<lokalbot_core::RememberReceipt>,
+        used_claims: Vec<Uuid>,
     },
 }
 
@@ -83,36 +142,46 @@ impl AskPage {
                 .find(|m| m.role == ChatRole::User)
                 .map(|m| m.id)
         };
-        let last_assistant = messages
-            .iter()
-            .rev()
-            .find(|m| m.role == ChatRole::Assistant)
-            .map(|m| m.id);
+        let live_attachments = self
+            .selected
+            .is_some_and(|id| data.attached_asks.contains_key(&id));
         let mut turns = Vec::new();
         let mut previous_user: Option<Option<DateTime<Utc>>> = None;
+        let mut previous_question: Option<&lokalbot_core::ChatMessage> = None;
         for (index, message) in messages.iter().enumerate() {
+            // An older turn dated from its conversation shows no time.
+            let created_at = message
+                .created_at
+                .filter(|_| !message.created_at_is_estimated);
             match message.role {
                 ChatRole::User => {
-                    let divider = date_divider(message.created_at, previous_user, Local::now());
+                    let divider = date_divider(created_at, previous_user, Local::now());
                     turns.push(Turn::User {
                         id: message.id,
                         text: message.text.clone(),
-                        created_at: message.created_at,
+                        created_at,
                         separator: index > 0 && divider.is_none(),
                         divider,
                         latest: Some(message.id) == latest_user,
+                        scope: super::scope::question_scope_changed(message, previous_question)
+                            .then(|| super::scope::question_scope_summary(message))
+                            .flatten(),
                     });
-                    previous_user = Some(message.created_at);
+                    previous_user = Some(created_at);
+                    previous_question = Some(message);
                 }
                 ChatRole::Assistant => turns.push(Turn::Assistant {
                     id: message.id,
                     text: message.text.clone(),
-                    created_at: message.created_at,
+                    created_at,
                     steps: message.activity.iter().map(step).collect(),
                     pending: false,
                     status: None,
-                    error: None,
-                    can_retry: stream.is_none() && Some(message.id) == last_assistant,
+                    error: message.is_error.then(|| message.text.clone().into()),
+                    can_retry: stream.is_none()
+                        && lokalbot_core::can_retry(messages, message.id, live_attachments),
+                    receipt: message.remember_receipt.clone(),
+                    used_claims: message.used_claim_ids.clone().unwrap_or_default(),
                 }),
             }
         }
@@ -130,6 +199,7 @@ impl AskPage {
                     separator: !messages.is_empty() && divider.is_none(),
                     divider,
                     latest: true,
+                    scope: None,
                 });
             } else if let Some(Turn::User { latest, .. }) = turns.last_mut() {
                 *latest = true;
@@ -151,6 +221,8 @@ impl AskPage {
                     })
                     .collect(),
                 pending: answering,
+                receipt: None,
+                used_claims: Vec::new(),
                 status: stream.status.clone(),
                 error: stream.error.clone(),
                 can_retry: false,
@@ -159,7 +231,7 @@ impl AskPage {
         turns
     }
 
-    pub(super) fn render_transcript(
+    pub(crate) fn render_transcript(
         &mut self,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -240,6 +312,7 @@ impl AskPage {
             divider,
             separator,
             latest,
+            scope,
         } = turn
         else {
             return div();
@@ -256,12 +329,15 @@ impl AskPage {
             .child(
                 v_flex()
                     .gap(px(7.))
-                    .child(turn_meta(
-                        Ico::CircleUser,
-                        lokalbot_i18n::tr("You"),
-                        created_at,
-                        cx,
-                    ))
+                    .child(
+                        turn_meta(Ico::CircleUser, lokalbot_i18n::tr("You"), created_at, cx)
+                            .when_some(scope, |this, scope| {
+                                let color = lb.text.opacity(0.68);
+                                this.child(div().text_color(lb.text_tertiary).child("·"))
+                                    .child(ui::icon(Ico::Crosshair, px(13.), color))
+                                    .child(div().min_w_0().truncate().child(scope))
+                            }),
+                    )
                     .child(
                         div()
                             .text_size(ty::QUESTION)
@@ -307,10 +383,15 @@ impl AskPage {
             status,
             error,
             can_retry,
+            receipt,
+            used_claims,
         } = turn
         else {
             return div();
         };
+        if let Some(receipt) = &receipt {
+            return self.render_remember_receipt(id, receipt, &text, cx);
+        }
         let lb = cx.lb().clone();
         let stopped = {
             let normalized = text.trim().to_lowercase();
@@ -322,7 +403,13 @@ impl AskPage {
         if stopped {
             column = column.child(status_row(
                 lokalbot_i18n::tr("Response stopped"),
-                lokalbot_i18n::tr("The response was interrupted. You can try the question again."),
+                if can_retry {
+                    lokalbot_i18n::tr(
+                        "The response was interrupted. You can try the question again.",
+                    )
+                } else {
+                    lokalbot_i18n::tr("This earlier response was not completed.")
+                },
                 Ico::CircleStop,
                 lb.text_secondary,
                 cx,
@@ -367,9 +454,12 @@ impl AskPage {
         }
 
         let copy_text = citations::display_text(&text);
-        let has_text = !copy_text.trim().is_empty() && !stopped;
+        let has_text = !copy_text.trim().is_empty() && !stopped && error.is_none();
         let copied = self.turns.copied == Some(id);
         let responding = self.is_responding(cx);
+        let speech = answer_speech(id, cx);
+        let speech_error = speech.error.clone();
+        let speech_text = copy_text.clone();
         column = column.child(
             h_flex()
                 .gap(px(8.))
@@ -389,6 +479,31 @@ impl AskPage {
                             .tooltip(lokalbot_i18n::tr("Copy this answer"))
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.copy_answer(id, copy_text.clone(), cx)
+                            })),
+                    )
+                    .child(
+                        Button::new(("ask-read-aloud", super::history::element_key(id)))
+                            .outline()
+                            .small()
+                            .icon(Icon::new(if speech.preparing {
+                                Ico::Hourglass
+                            } else if speech.reading {
+                                Ico::Square
+                            } else {
+                                Ico::Volume2
+                            }))
+                            .label(if speech.reading {
+                                lokalbot_i18n::tr("Stop reading")
+                            } else {
+                                lokalbot_i18n::tr("Read aloud")
+                            })
+                            .tooltip(if speech.reading {
+                                lokalbot_i18n::tr("Stop reading aloud")
+                            } else {
+                                lokalbot_i18n::tr("Read this answer aloud")
+                            })
+                            .on_click(cx.listener(move |_, _, _, cx| {
+                                toggle_answer_speech(id, &speech_text, cx)
                             })),
                     )
                 })
@@ -415,10 +530,22 @@ impl AskPage {
                     )
                 }),
         );
+        if let Some(message) = speech_error {
+            column = column.child(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .text_color(cx.lb().attention_text)
+                    .child(crate::ui::text::paragraph(message)),
+            );
+        }
 
         if !answer.citations.is_empty() && !stopped && error.is_none() {
             self.load_screen_citations(&answer.citations, cx);
+            self.load_file_citations(&answer.citations, cx);
             column = column.child(self.render_evidence(id, &answer.citations, cx));
+        }
+        if !used_claims.is_empty() && !stopped && error.is_none() {
+            column = column.child(self.render_used_claims(id, &used_claims, cx));
         }
         column
     }
@@ -429,7 +556,7 @@ impl AskPage {
             .iter()
             .filter_map(|source| match source {
                 CitationSource::Screen { snapshot_id } => Some(*snapshot_id),
-                CitationSource::Meeting { .. } => None,
+                CitationSource::Meeting { .. } | CitationSource::File { .. } => None,
             })
             .filter(|id| {
                 !self.screen_citations.contains_key(id)
@@ -462,6 +589,42 @@ impl AskPage {
         .detach();
     }
 
+    /// Reads the cited files that are not loaded yet, off the UI thread. Nothing
+    /// resolves while Files is off: the index is gone with it.
+    fn load_file_citations(&mut self, sources: &[CitationSource], cx: &mut Context<Self>) {
+        let missing: Vec<i64> = sources
+            .iter()
+            .filter_map(|source| match source {
+                CitationSource::File { id } => Some(*id),
+                _ => None,
+            })
+            .filter(|id| citations::known_file_citation(*id).is_none())
+            .filter(|id| self.loading_file_citations.insert(*id))
+            .collect();
+        if missing.is_empty() {
+            return;
+        }
+        let (root, enabled) = {
+            let data = self.data.read(cx);
+            (
+                data.library.paths().root().to_path_buf(),
+                data.settings.file_search_enabled,
+            )
+        };
+        cx.spawn(async move |this, cx| {
+            cx.background_spawn(async move {
+                let reader = lokalbot_core::files::search::FileReader::shared(&root);
+                for id in missing {
+                    let hit = enabled.then(|| reader.hit(id)).flatten();
+                    citations::remember_file_citation(id, hit);
+                }
+            })
+            .await;
+            let _ = this.update(cx, |_, cx| cx.notify());
+        })
+        .detach();
+    }
+
     fn parsed_answer(&mut self, id: Uuid, text: &str) -> Rc<Answer> {
         let mut hasher = DefaultHasher::new();
         text.hash(&mut hasher);
@@ -477,9 +640,16 @@ impl AskPage {
     }
 
     fn open_citation(&mut self, source: &CitationSource, cx: &mut Context<Self>) {
+        if let CitationSource::File { id } = source {
+            if let Some(Some(hit)) = citations::known_file_citation(*id) {
+                super::search::open_file(&hit);
+            }
+            return;
+        }
         if let CitationSource::Screen { snapshot_id } = source {
             if let Some(Some(moment)) = self.screen_citations.get(snapshot_id) {
                 super::open_screen_moment(&self.data, moment, cx);
+                self.reveal_main_window(cx);
             }
             return;
         }

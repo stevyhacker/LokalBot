@@ -1,10 +1,12 @@
-//! `lokalbot-cli`: read-only access to the LokalBot library and a stdio MCP
-//! server, with the commands, output and errors of the macOS helper
-//! (`CLI/`, `LokalBot/CLISupport/`). It opens the library read-only and never
-//! writes into `meetings/`.
+//! `lokalbot-cli`: read-only access to the LokalBot library, a stdio MCP server
+//! and settings through the running app, with the commands, output and errors
+//! of the macOS helper (`CLI/`, `LokalBot/CLISupport/`). It opens the library
+//! read-only and never writes into `meetings/`.
 
 pub mod ask;
 pub mod briefing;
+pub mod control;
+pub mod files;
 pub mod install;
 pub mod json;
 pub mod mcp;
@@ -26,8 +28,8 @@ pub const MAXIMUM_MEETING_COUNT: usize = 1000;
 #[command(
     name = "lokalbot-cli",
     version,
-    about = "Read-only access to your local LokalBot meeting library.",
-    long_about = "Read-only access to your local LokalBot meeting library.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text."
+    about = "Read your local LokalBot meeting library and inspect app settings.",
+    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → Privacy & Data. setup start asks the person for it."
 )]
 pub struct Cli {
     /// Read another library (same as LOKALBOT_STORAGE_ROOT).
@@ -88,6 +90,38 @@ pub enum Command {
         #[arg(long)]
         table: bool,
     },
+    /// Answer a question from the meeting library with LokalBot's local model.
+    ///
+    /// The same answer as the ask_library MCP tool: the local model reads the
+    /// meetings that match the question and answers, citing the meetings it
+    /// used. Needs the LokalBot app running; the first question after a cold
+    /// start can take up to a minute while the model loads. JSON by default:
+    /// {"status", "text", "sources"}, where status is answered, not_found, or
+    /// error (with "code"). Errors exit with status 1 after printing.
+    Ask {
+        /// The question to answer.
+        question: String,
+        /// Plain text instead of JSON.
+        #[arg(long)]
+        table: bool,
+    },
+    /// Draft a reply to a message from what your meetings say.
+    ///
+    /// The local model reads the meetings that match the message and drafts the
+    /// user's reply from them, without inventing facts the meetings do not
+    /// support. A message no meeting matches gets no draft (status not_found).
+    /// Output and errors work as in `ask`; in JSON, "text" is the draft alone
+    /// and "sources" lists the meetings it drew on.
+    Reply {
+        /// The message to reply to. Omit it to read standard input.
+        message: Option<String>,
+        /// Extra direction for the draft, such as "decline politely".
+        #[arg(long)]
+        instruction: Option<String>,
+        /// Plain text instead of JSON.
+        #[arg(long)]
+        table: bool,
+    },
     /// List meeting action items with saved corrections and status.
     Actions {
         /// active (default), open, deferred, done, or all.
@@ -123,8 +157,32 @@ pub enum Command {
         #[arg(long)]
         table: bool,
     },
+    /// Word search across the folders the user chose under Files: the text
+    /// LokalBot read from documents, PDF pages and screenshots, and file names,
+    /// best match first, with the passage that matched. Works without launching
+    /// the app. Search by meaning stays in LokalBot's Ask.
+    #[command(name = "search-files")]
+    SearchFiles {
+        /// Words to find.
+        query: String,
+        /// Only this kind: screenshot, image, pdf, doc, audio, or video. Repeatable.
+        #[arg(long)]
+        kind: Vec<String>,
+        /// Only files dated on or after this local day (YYYY-MM-DD).
+        #[arg(long)]
+        after: Option<String>,
+        /// Only files dated before this local day (YYYY-MM-DD).
+        #[arg(long)]
+        before: Option<String>,
+        /// Maximum files (1–50).
+        #[arg(long, default_value_t = files::DEFAULT_LIMIT)]
+        limit: i64,
+        /// Plain-text table instead of JSON.
+        #[arg(long)]
+        table: bool,
+    },
     /// Show what the user shared about themselves that is relevant to a task
-    /// (written in the Mac app; read from a library that came from a Mac).
+    /// (chosen in the Personal Context settings).
     #[command(name = "personal-context")]
     PersonalContext {
         /// What you are helping with, in a sentence.
@@ -144,6 +202,87 @@ pub enum Command {
     Path {
         /// Optional meeting ID. Omit to print the library root.
         id: Option<String>,
+    },
+    /// Set LokalBot up for the person, with their approval in the app.
+    ///
+    /// `setup start` asks the person, in LokalBot, to let this agent change
+    /// settings; it is the only way to ask. The rest needs that access.
+    Setup {
+        #[command(subcommand)]
+        command: control::SetupCommand,
+    },
+    /// Inspect and change LokalBot settings.
+    ///
+    /// schema, describe, and search read the built-in settings list and need no
+    /// permission. list, get, set, reset, export, and import use the running
+    /// app and need "Allow external agents to change LokalBot settings" in
+    /// LokalBot → Settings → Privacy & Data. They start LokalBot in the
+    /// background when it is not running; pass --no-launch to fail instead.
+    /// Values use the tokens shown by describe. JSON by default. Changes that
+    /// widen capture or sharing wait for the person's approval in LokalBot;
+    /// request reports the answer.
+    Config {
+        #[command(subcommand)]
+        command: control::ConfigCommand,
+    },
+    /// Save or remove API keys in the system credential store.
+    ///
+    /// Keys are never read back. Setting a key always waits for the person's
+    /// approval in LokalBot, because a key decides whose account receives what
+    /// LokalBot sends. Removing one applies right away.
+    Secret {
+        #[command(subcommand)]
+        command: control::SecretCommand,
+    },
+    /// Check, choose, and download LokalBot's local models.
+    ///
+    /// Downloads take minutes: start one, then poll status until meetingReady
+    /// is true.
+    Models {
+        #[command(subcommand)]
+        command: Option<control::ModelsCommand>,
+        #[command(flatten)]
+        launch: control::LaunchOptions,
+    },
+    /// List what LokalBot needs from this computer and ask the person for it.
+    Permissions {
+        #[command(subcommand)]
+        command: Option<control::PermissionsCommand>,
+        #[command(flatten)]
+        launch: control::LaunchOptions,
+    },
+    /// Show the running app's version, recording state, permissions, and agent access.
+    ///
+    /// Needs "Allow external agents to change LokalBot settings".
+    Status {
+        #[command(flatten)]
+        launch: control::LaunchOptions,
+    },
+    /// Check whether LokalBot is ready, and list the next steps.
+    ///
+    /// Exits 1 while anything blocks a feature the person turned on.
+    Doctor {
+        #[command(flatten)]
+        launch: control::LaunchOptions,
+    },
+    /// Restart LokalBot.
+    ///
+    /// Refused while LokalBot is recording. Waits up to 30 seconds for LokalBot
+    /// to answer again.
+    Restart {
+        #[command(flatten)]
+        launch: control::LaunchOptions,
+    },
+    /// Open LokalBot's Settings, optionally at one setting or section, for what
+    /// only the person can do in the app, or a change they want to make
+    /// themselves.
+    Open {
+        /// What to open. Only settings is supported.
+        target: String,
+        /// Optional setting key or section to show.
+        key: Option<String>,
+        #[command(flatten)]
+        launch: control::LaunchOptions,
     },
     /// Serve the meeting library and optional screen memory over MCP.
     Mcp,
@@ -165,19 +304,29 @@ pub enum Command {
 pub enum CliError {
     Validation(String),
     Failure(String),
+    /// A stable error from the running app, printed as `[code] message`.
+    Control(lokalbot_core::control::protocol::ControlError),
+    /// Prints `stdout` and exits with `code`, for replies a script reads.
+    Exit {
+        code: i32,
+        stdout: String,
+    },
 }
 
 impl CliError {
     pub fn exit_code(&self) -> i32 {
         match self {
             CliError::Validation(_) => 64,
-            CliError::Failure(_) => 1,
+            CliError::Failure(_) | CliError::Control(_) => 1,
+            CliError::Exit { code, .. } => *code,
         }
     }
 
-    pub fn message(&self) -> &str {
+    pub fn message(&self) -> String {
         match self {
-            CliError::Validation(m) | CliError::Failure(m) => m,
+            CliError::Validation(m) | CliError::Failure(m) => m.clone(),
+            CliError::Control(error) => error.to_string(),
+            CliError::Exit { .. } => String::new(),
         }
     }
 }
@@ -211,6 +360,7 @@ fn day_or_error(value: &str, option: &str) -> Result<chrono::NaiveDate, CliError
 /// Runs one command and returns what it prints on stdout.
 pub fn run(cli: Cli) -> Result<String, CliError> {
     let paths = LibraryPaths::resolve(cli.storage_root.as_deref());
+    let client = || control::Client::new(paths.clone(), cli.storage_root.clone());
     // Transcripts label microphone speech as the app does. A Mac library has
     // no settings file here, so it keeps the default.
     lokalbot_core::SpeakerAttribution::set_microphone_is_user(
@@ -374,6 +524,40 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 session::search_json(&hits)
             })
         }
+        Command::Ask { question, table } => {
+            let session = Session::open(paths)?;
+            print_ask_outcome(&ask::answer(&session, &question), table)
+        }
+        Command::Reply {
+            message,
+            instruction,
+            table,
+        } => {
+            let text = match message {
+                Some(message) => message,
+                None => read_message_from_stdin()?,
+            };
+            let session = Session::open(paths)?;
+            print_ask_outcome(
+                &ask::draft_reply(&session, &text, instruction.as_deref()),
+                table,
+            )
+        }
+        Command::Setup { command } => control::run_setup(command, &client()),
+        Command::Config { command } => control::run_config(command, &client()),
+        Command::Secret { command } => control::run_secret(command, &client()),
+        Command::Models { command, launch } => control::run_models(command, launch, &client()),
+        Command::Permissions { command, launch } => {
+            control::run_permissions(command, launch, &client())
+        }
+        Command::Status { launch } => control::run_status(&launch, &client()),
+        Command::Doctor { launch } => control::run_doctor(&launch, &client()),
+        Command::Restart { launch } => control::run_restart(&launch, &client()),
+        Command::Open {
+            target,
+            key,
+            launch,
+        } => control::run_open(&target, key, &launch, &client()),
         Command::Actions {
             status,
             owner,
@@ -453,6 +637,29 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 json::pretty(&summaries, true)
             })
         }
+        Command::SearchFiles {
+            query,
+            kind,
+            after,
+            before,
+            limit,
+            table,
+        } => {
+            let kinds = (!kind.is_empty()).then_some(kind);
+            match files::report(
+                &paths,
+                &query,
+                kinds.as_deref(),
+                after.as_deref(),
+                before.as_deref(),
+                Some(limit),
+            ) {
+                Ok(report) if table => Ok(files::table(&report)),
+                Ok(report) => Ok(json::pretty(&report, false)),
+                Err(files::Failure::Invalid(message)) => Err(validation(message)),
+                Err(failure) => Err(CliError::Failure(failure.message())),
+            }
+        }
         Command::PersonalContext {
             task,
             kind,
@@ -512,10 +719,151 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
     }
 }
 
+/// Prints JSON or text on standard output; failures exit with status 1 so
+/// scripts notice, after the JSON that says why.
+fn print_ask_outcome(outcome: &ask::Outcome, table: bool) -> Result<String, CliError> {
+    if table {
+        let text = outcome.tool_result().text;
+        if outcome.is_failure() {
+            return Err(CliError::Failure(text));
+        }
+        return Ok(text);
+    }
+    let json = outcome.json();
+    if outcome.is_failure() {
+        return Err(CliError::Exit {
+            code: 1,
+            stdout: json,
+        });
+    }
+    Ok(json)
+}
+
+fn read_message_from_stdin() -> Result<String, CliError> {
+    use std::io::Read as _;
+    // The engine checks the character limit; this only bounds memory.
+    let limit = ask::MAXIMUM_QUESTION_CHARACTERS * 4;
+    let mut data = Vec::new();
+    std::io::stdin()
+        .take(limit as u64 + 1)
+        .read_to_end(&mut data)
+        .map_err(|err| CliError::Failure(err.to_string()))?;
+    if data.len() > limit {
+        return Err(validation(format!(
+            "The message is limited to {} characters.",
+            ask::MAXIMUM_QUESTION_CHARACTERS
+        )));
+    }
+    Ok(String::from_utf8_lossy(&data).into_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use clap::error::ErrorKind;
+
+    #[test]
+    fn control_commands_parse_like_the_mac() {
+        for args in [
+            vec!["config", "schema"],
+            vec!["config", "describe", "autoRecordMode"],
+            vec!["config", "search", "dark", "mode", "--table"],
+            vec![
+                "config",
+                "list",
+                "--category",
+                "general",
+                "--changed",
+                "--no-launch",
+            ],
+            vec!["config", "get", "appTheme", "--value"],
+            vec![
+                "config",
+                "set",
+                "appTheme=dark",
+                "--dry-run",
+                "--wait",
+                "120",
+            ],
+            vec!["config", "reset", "appTheme", "--launch-timeout", "5"],
+            vec!["config", "export", "--changed"],
+            vec!["config", "import", "settings.json", "--dry-run"],
+            vec!["config", "request", "ID", "--wait", "120"],
+            vec!["secret", "list"],
+            vec!["secret", "set", "openai-compatible", "--wait", "120"],
+            vec!["secret", "clear", "openai-compatible"],
+            vec![
+                "setup",
+                "start",
+                "--meeting-library",
+                "--screen-memory",
+                "--wait",
+                "300",
+            ],
+            vec!["setup", "plan", "--preset", "lightweight"],
+            vec!["setup", "apply", "plan.json", "--wait", "300"],
+            vec!["setup", "finish"],
+            vec!["setup", "launch-at-login", "on"],
+            vec!["models"],
+            vec!["models", "--no-launch"],
+            vec!["permissions", "--no-launch"],
+            vec!["models", "status"],
+            vec!["models", "preset", "recommended"],
+            vec!["models", "download"],
+            vec!["models", "cancel"],
+            vec!["permissions"],
+            vec!["permissions", "list"],
+            vec!["permissions", "request", "microphone"],
+            vec!["status"],
+            vec!["doctor"],
+            vec!["restart"],
+            vec!["open", "settings", "dictationShortcut"],
+            vec!["ask", "what did we decide?", "--table"],
+            vec!["reply", "--instruction", "decline politely"],
+        ] {
+            let mut full = vec!["lokalbot-cli"];
+            full.extend(args.iter().copied());
+            Cli::try_parse_from(&full).unwrap_or_else(|err| panic!("{args:?}: {err}"));
+        }
+        // A key is never an argument.
+        assert!(
+            Cli::try_parse_from([
+                "lokalbot-cli",
+                "secret",
+                "set",
+                "openai-compatible",
+                "sk-key"
+            ])
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn schema_needs_no_permission() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_str().unwrap();
+        let parse = |args: &[&str]| {
+            let mut full = vec!["lokalbot-cli", "--lokalbot-storage-root", root];
+            full.extend_from_slice(args);
+            Cli::try_parse_from(full).unwrap()
+        };
+        assert!(
+            run(parse(&["config", "schema"]))
+                .unwrap()
+                .contains("autoRecordMode")
+        );
+        let err = run(parse(&["config", "get", "appTheme"])).unwrap_err();
+        assert_eq!(err.exit_code(), 1);
+        assert!(
+            err.message().starts_with("[settings_access_disabled]"),
+            "{}",
+            err.message()
+        );
+        // An unknown key suggests a real one before reaching the app.
+        let err = run(parse(&["config", "describe", "theme"])).unwrap_err();
+        assert_eq!(err.exit_code(), 64);
+        assert!(err.message().contains("appTheme"), "{}", err.message());
+    }
 
     #[test]
     fn version_flags_print_the_version_and_a_command_stays_required() {

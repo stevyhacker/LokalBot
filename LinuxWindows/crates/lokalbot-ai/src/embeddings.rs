@@ -1,17 +1,14 @@
 //! "Search by meaning" for meetings (`Services/EmbeddingIndex.swift`).
 //!
 //! Chunking, storage and brute-force scoring live in `lokalbot_core::embeddings`;
-//! this layer computes the vectors on the local embedder server and fuses
-//! semantic with keyword hits.
+//! this layer computes the vectors on the local embedder server.
 
-use std::collections::{BTreeMap, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use uuid::Uuid;
 
-use lokalbot_core::embeddings::{MEETING_SIMILARITY_FLOOR, MODEL_ID, RRF_K, rrf_fuse};
-use lokalbot_core::search::{MatchMode, SearchHit, SearchQuery};
+use lokalbot_core::embeddings::{MEETING_SIMILARITY_FLOOR, MODEL_ID};
 use lokalbot_core::{Library, Meeting};
 
 use crate::error::AiError;
@@ -106,99 +103,6 @@ pub fn semantic_meeting_hits(
         .collect())
 }
 
-/// A meeting ranked by keyword and meaning together.
-#[derive(Clone, Debug, PartialEq)]
-pub struct HybridMeeting {
-    pub meeting_id: Uuid,
-    /// Reciprocal-rank-fusion score (k = 60).
-    pub score: f64,
-    pub keyword: Vec<SearchHit>,
-    pub semantic: Vec<SemanticHit>,
-}
-
-/// Keyword hits (all words, then any word) fused with semantic hits by
-/// meeting. Without an embedder this is keyword search alone. Scope filters
-/// in `query` apply to both.
-pub fn hybrid_search(
-    library: &Library,
-    embedder: Option<&EmbeddingClient>,
-    query: &SearchQuery,
-) -> Result<Vec<HybridMeeting>> {
-    let mut keyword = library.search(query)?;
-    if keyword.is_empty() {
-        keyword = library.search_with_mode(query, MatchMode::Any)?;
-    }
-    let semantic = match embedder {
-        Some(embedder) => {
-            match semantic_meeting_hits(embedder, library, &query.text, query.limit.max(1) * 3) {
-                Ok(hits) => hits,
-                Err(err) => {
-                    log::warn!("semantic search unavailable: {err:#}");
-                    Vec::new()
-                }
-            }
-        }
-        None => Vec::new(),
-    };
-    let allowed = |id: &Uuid| -> bool {
-        if let Some(ids) = &query.meeting_ids
-            && !ids.contains(id)
-        {
-            return false;
-        }
-        true
-    };
-    let starts: HashMap<Uuid, chrono::DateTime<chrono::Utc>> =
-        if query.since.is_some() || query.until.is_some() {
-            library
-                .list_meetings()?
-                .into_iter()
-                .map(|m| (m.id, m.started_at))
-                .collect()
-        } else {
-            HashMap::new()
-        };
-    let in_range = |id: &Uuid| -> bool {
-        let Some(start) = starts.get(id) else {
-            return query.since.is_none() && query.until.is_none();
-        };
-        query.since.is_none_or(|s| *start >= s) && query.until.is_none_or(|u| *start < u)
-    };
-    let semantic: Vec<SemanticHit> = semantic
-        .into_iter()
-        .filter(|h| allowed(&h.meeting_id) && in_range(&h.meeting_id))
-        .collect();
-    let mut lexical_order: Vec<Uuid> = Vec::new();
-    let mut by_meeting: BTreeMap<Uuid, (Vec<SearchHit>, Vec<SemanticHit>)> = BTreeMap::new();
-    for hit in keyword {
-        if !lexical_order.contains(&hit.meeting_id) {
-            lexical_order.push(hit.meeting_id);
-        }
-        by_meeting.entry(hit.meeting_id).or_default().0.push(hit);
-    }
-    let mut semantic_order: Vec<Uuid> = Vec::new();
-    for hit in semantic {
-        if !semantic_order.contains(&hit.meeting_id) {
-            semantic_order.push(hit.meeting_id);
-        }
-        by_meeting.entry(hit.meeting_id).or_default().1.push(hit);
-    }
-    let fused = rrf_fuse(&lexical_order, &semantic_order, RRF_K);
-    Ok(fused
-        .into_iter()
-        .take(query.limit.max(1))
-        .filter_map(|(meeting_id, score)| {
-            let (keyword, semantic) = by_meeting.remove(&meeting_id)?;
-            Some(HybridMeeting {
-                meeting_id,
-                score,
-                keyword,
-                semantic,
-            })
-        })
-        .collect())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -261,16 +165,6 @@ mod tests {
                 || h.text.to_lowercase().contains("cache")),
             "{:?}",
             hits.iter().map(|h| title(h.meeting_id)).collect::<Vec<_>>()
-        );
-        let fused =
-            hybrid_search(&library, Some(&client), &SearchQuery::new("Redis cache", 5)).unwrap();
-        assert!(!fused.is_empty());
-        assert!(fused.windows(2).all(|w| w[0].score >= w[1].score));
-        let keyword_only =
-            hybrid_search(&library, None, &SearchQuery::new("Northwind SSO", 5)).unwrap();
-        assert_eq!(
-            title(keyword_only[0].meeting_id),
-            "Customer call - Northwind"
         );
     }
 }

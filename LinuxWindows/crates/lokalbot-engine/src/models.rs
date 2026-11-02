@@ -21,6 +21,8 @@ pub const RUNTIME_ID: &str = "llama-runtime";
 pub struct Models {
     shared: Arc<Shared>,
     active: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
+    /// How far each running download is, 0–1.
+    progress: Arc<Mutex<HashMap<String, f32>>>,
 }
 
 enum ModelRef {
@@ -35,6 +37,7 @@ impl Models {
         Self {
             shared,
             active: Arc::new(Mutex::new(HashMap::new())),
+            progress: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -62,10 +65,28 @@ impl Models {
         }
     }
 
+    /// A transcription server has nothing to download; it needs the approval
+    /// [`Self::transcription_server_blocked`] checks.
+    fn transcription_ids(settings: &lokalbot_core::Settings) -> Vec<String> {
+        if lokalbot_speech::models::is_remote(&settings.transcription_model) {
+            Vec::new()
+        } else {
+            vec![settings.transcription_model.clone()]
+        }
+    }
+
+    /// The chosen transcription server isn't set up or may not receive audio yet.
+    pub fn transcription_server_blocked(&self) -> bool {
+        let settings = self.shared.settings();
+        lokalbot_speech::models::is_remote(&settings.transcription_model)
+            && !lokalbot_core::remote_transcription::RemoteTranscription::from_settings(&settings)
+                .is_ready()
+    }
+
     /// Ids the current settings need for meeting processing.
     pub fn meeting_requirements(&self, summarize: bool) -> Vec<String> {
         let settings = self.shared.settings();
-        let mut ids = vec![settings.transcription_model.clone()];
+        let mut ids = Self::transcription_ids(&settings);
         ids.extend(lokalbot_speech::models::supporting_ids(
             settings.multi_speaker_diarization,
         ));
@@ -106,9 +127,33 @@ impl Models {
 
     pub fn dictation_requirements(&self) -> Vec<String> {
         let settings = self.shared.settings();
-        let mut ids = vec![settings.transcription_model.clone()];
+        let mut ids = Self::transcription_ids(&settings);
         ids.extend(lokalbot_speech::models::supporting_ids(false));
         ids
+    }
+
+    /// A download of `id` is running.
+    pub fn is_downloading(&self, id: &str) -> bool {
+        self.active.lock().contains_key(id)
+    }
+
+    /// How far the first running download among `ids` is. `Some(None)` is one
+    /// that hasn't reported yet; `None` means nothing is downloading.
+    pub fn download_progress(&self, ids: &[String]) -> Option<Option<f32>> {
+        let id = ids.iter().find(|id| self.is_downloading(id))?;
+        Some(self.progress.lock().get(id).copied())
+    }
+
+    /// [`Self::ensure`], for a caller that must end with `ids` installed: this
+    /// also waits out a download someone else started, and fails with why not.
+    pub fn ensure_installed(&self, ids: &[String]) -> Result<()> {
+        install_all(
+            ids,
+            |id| self.is_downloading(id),
+            |id| self.is_installed(id),
+            |id| self.download_blocking(id),
+            || std::thread::sleep(std::time::Duration::from_millis(200)),
+        )
     }
 
     pub fn missing(&self, ids: &[String]) -> Vec<String> {
@@ -120,8 +165,7 @@ impl Models {
 
     pub fn publish_status(&self) {
         let settings = self.shared.settings();
-        let mut installed: Vec<String> = lokalbot_ai::catalog::catalog()
-            .iter()
+        let mut installed: Vec<String> = lokalbot_ai::catalog::all_entries()
             .filter(|entry| lokalbot_ai::catalog::is_downloaded(self.shared.library.paths(), entry))
             .map(|entry| entry.id.to_string())
             .collect();
@@ -145,12 +189,18 @@ impl Models {
         }
         let ready = |ids: Vec<String>| ids.iter().all(|id| installed.contains(id));
         let status = ModelStatus {
-            transcription_ready: ready(self.dictation_requirements()),
+            transcription_ready: ready(self.dictation_requirements())
+                && !self.transcription_server_blocked(),
             think_ready: ready(self.think_requirements()),
-            autocomplete_ready: ready(vec![
-                settings.cotyping_built_in_model_id.clone(),
-                RUNTIME_ID.to_string(),
-            ]),
+            // A server needs no download, only its setup finished.
+            autocomplete_ready: match lokalbot_ai::autocomplete::server::route(&settings, None) {
+                lokalbot_ai::autocomplete::server::Route::OnDevice => ready(vec![
+                    settings.cotyping_built_in_model_id.clone(),
+                    RUNTIME_ID.to_string(),
+                ]),
+                lokalbot_ai::autocomplete::server::Route::Server(_) => true,
+                lokalbot_ai::autocomplete::server::Route::Unavailable(_) => false,
+            },
             embeddings_ready: ready(self.embedding_requirements()),
             screen_text_ready,
             runtime_backend,
@@ -181,8 +231,10 @@ impl Models {
         std::thread::spawn(move || {
             for id in missing {
                 if let Err(err) = this.download_blocking(&id) {
-                    this.shared
-                        .error(format!("Downloading {id} failed: {err:#}"));
+                    if !err.to_string().contains("cancelled") {
+                        this.shared
+                            .error(format!("Downloading {id} failed: {err:#}"));
+                    }
                     break;
                 }
             }
@@ -253,6 +305,7 @@ impl Models {
         }
         let result = self.download_inner(id, &cancel);
         self.active.lock().remove(id);
+        self.progress.lock().remove(id);
         self.shared.clear_background(&format!("download:{id}"));
         let error = result.as_ref().err().map(|err| format!("{err:#}"));
         self.shared.emit(EngineEvent::Download(DownloadUpdate {
@@ -277,6 +330,7 @@ impl Models {
         };
         let shared = self.shared.clone();
         let id_owned = id.to_string();
+        let share = self.progress.clone();
         let mut last_emit = std::time::Instant::now() - std::time::Duration::from_secs(1);
         let mut progress = move |done: u64, total: u64| {
             if last_emit.elapsed() < std::time::Duration::from_millis(250) && done < total {
@@ -288,6 +342,7 @@ impl Models {
             } else {
                 0.0
             };
+            share.lock().insert(id_owned.clone(), fraction);
             shared.set_background(BackgroundItem {
                 id: format!("download:{id_owned}"),
                 kind: BackgroundKind::Download,
@@ -335,5 +390,83 @@ impl Models {
             }
             ModelRef::Ocr => lokalbot_ai::ocr::download(&paths, cancel, &mut progress),
         }
+    }
+}
+
+fn install_all(
+    ids: &[String],
+    downloading: impl Fn(&str) -> bool,
+    installed: impl Fn(&str) -> bool,
+    download: impl Fn(&str) -> Result<()>,
+    wait: impl Fn(),
+) -> Result<()> {
+    for id in ids {
+        while downloading(id) {
+            wait();
+        }
+        if !installed(id) {
+            download(id)?;
+        }
+        if !installed(id) {
+            return Err(anyhow!("{id} is not installed"));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::{Cell, RefCell};
+
+    fn ids(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn a_missing_model_downloads_and_an_installed_one_does_not() {
+        let installed = RefCell::new(vec!["vad".to_string()]);
+        let downloads = RefCell::new(Vec::new());
+        install_all(
+            &ids(&["vad", "asr"]),
+            |_| false,
+            |id| installed.borrow().iter().any(|known| known == id),
+            |id| {
+                downloads.borrow_mut().push(id.to_string());
+                installed.borrow_mut().push(id.to_string());
+                Ok(())
+            },
+            || {},
+        )
+        .unwrap();
+        assert_eq!(*downloads.borrow(), ["asr"]);
+    }
+
+    #[test]
+    fn a_download_already_running_is_waited_for_not_repeated() {
+        let waits = Cell::new(0);
+        install_all(
+            &ids(&["asr"]),
+            |_| waits.get() < 3,
+            |_| waits.get() >= 3,
+            |_| panic!("the running download finishes it"),
+            || waits.set(waits.get() + 1),
+        )
+        .unwrap();
+        assert_eq!(waits.get(), 3);
+    }
+
+    #[test]
+    fn a_failed_or_empty_download_is_an_error() {
+        let failed = install_all(
+            &ids(&["asr"]),
+            |_| false,
+            |_| false,
+            |_| Err(anyhow!("no network")),
+            || {},
+        );
+        assert_eq!(failed.unwrap_err().to_string(), "no network");
+        let empty = install_all(&ids(&["asr"]), |_| false, |_| false, |_| Ok(()), || {});
+        assert_eq!(empty.unwrap_err().to_string(), "asr is not installed");
     }
 }
