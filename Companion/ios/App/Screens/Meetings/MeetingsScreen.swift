@@ -16,7 +16,7 @@ struct MeetingsSplit: View {
                         .companionDestinations()
                 } else {
                     ContentUnavailableView("Choose a meeting", systemImage: "waveform.circle",
-                                           description: Text("Summaries, action items and transcripts from your Mac."))
+                                           description: Text("Summaries, action items and transcripts from your computer."))
                 }
             }
             .id(selection)
@@ -68,7 +68,7 @@ struct MeetingsList: View {
         .overlay {
             if model.loaded && model.groups.isEmpty {
                 ContentUnavailableView("No meetings yet", systemImage: "waveform.circle",
-                                       description: Text("Meetings recorded on your Mac appear here after a sync."))
+                                       description: Text("Meetings recorded on your computer appear here after a sync."))
             } else if !model.searchedQuery.isEmpty && model.hits.isEmpty {
                 ContentUnavailableView.search(text: model.searchedQuery)
             }

@@ -1702,7 +1702,7 @@
 "Local network" = "Mạng cục bộ";
 "Pairing code" = "Mã ghép đôi";
 "Scan with LokalBot on your phone or tablet" = "Quét bằng LokalBot trên điện thoại hoặc máy tính bảng của bạn";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Mở LokalBot trên thiết bị, chọn “Ghép đôi với Mac” và hướng camera vào mã này. Sau đó cho phép thiết bị tại đây.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Mở LokalBot trên thiết bị, chọn “Ghép đôi với máy tính của bạn” và hướng camera vào mã này. Sau đó cho phép thiết bị tại đây.";
 "Expires in %@" = "Hết hạn sau %@";
 "This code expired. Cancel and add the device again." = "Mã này đã hết hạn. Hãy hủy và thêm lại thiết bị.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Đọc bộ nhớ công việc trên iPhone, iPad hoặc thiết bị Android của riêng bạn.";

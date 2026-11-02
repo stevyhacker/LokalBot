@@ -1,14 +1,14 @@
 import Foundation
 
 /// An in-memory store over record envelopes. It serves the bundled sample
-/// library ("Try it without a Mac"), previews and tests, and follows the same
+/// library ("Try it without a computer"), previews and tests, and follows the same
 /// rules as the Rust store: upsert by (kind, key) keeping the higher version,
 /// tombstones remove, merged meetings are hidden.
 public actor FixtureStore: CompanionStore {
     public struct Configuration: Sendable {
         /// "Today" for overdue actions and the Ask demo.
         public var now: @Sendable () -> Date
-        /// Status changes stay "waiting for your Mac" instead of applying at once.
+        /// Status changes stay "waiting for your computer" instead of applying at once.
         public var keepsChangesPending: Bool
         /// Present a paired Mac (previews and screenshots); otherwise the
         /// store reports itself as the sample library.
@@ -299,7 +299,7 @@ public actor FixtureStore: CompanionStore {
 
     public func pairedMac() -> PairedMac? {
         guard let paired = configuration.pairedStatus, paired.paired else { return nil }
-        return PairedMac(macName: paired.macName ?? "Mac", macKeyB64: "", addresses: paired.lastAddress.map { [$0] } ?? [],
+        return PairedMac(macName: paired.macName ?? "Computer", macKeyB64: "", addresses: paired.lastAddress.map { [$0] } ?? [],
                          port: 17890, pairedAt: configuration.now().addingTimeInterval(-86_400 * 9))
     }
 

@@ -54,12 +54,12 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSLocalNetworkUsageDescription: >-
-          LokalBot finds your Mac and syncs with it directly over your
+          LokalBot finds your computer and syncs with it directly over your
           network or Tailscale. Nothing goes through a server.
         NSBonjourServices:
           - _lokalbot._tcp
         NSCameraUsageDescription: >-
-          LokalBot uses the camera to scan the pairing code your Mac shows.
+          LokalBot uses the camera to scan the pairing code your computer shows.
           Nothing is recorded or saved.
         NSFaceIDUsageDescription: >-
           LokalBot can ask for Face ID before showing your meetings and

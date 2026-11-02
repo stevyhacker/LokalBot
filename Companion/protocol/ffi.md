@@ -112,7 +112,7 @@ projects() -> [string]
 project(id: string) -> string?
 search(query: string, limit: u32) -> [SearchHit]   // { kind, key, meeting_id?, title, snippet, at?, date? }
 
-// sample library ("Try it without a Mac")
+// sample library ("Try it without a computer")
 import_records(envelopes_json: string) -> u32      // array of envelopes, e.g. fixtures/sample-library.json; marks the store as sample data
 is_sample() -> bool
 ```

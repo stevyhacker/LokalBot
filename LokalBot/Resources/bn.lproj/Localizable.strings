@@ -1702,7 +1702,7 @@
 "Local network" = "স্থানীয় নেটওয়ার্ক";
 "Pairing code" = "পেয়ারিং কোড";
 "Scan with LokalBot on your phone or tablet" = "আপনার ফোন বা ট্যাবলেটের LokalBot দিয়ে স্ক্যান করুন";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "ডিভাইসে LokalBot খুলুন, “Mac-এর সঙ্গে পেয়ার করুন” বেছে নিন এবং ক্যামেরা এই কোডের দিকে ধরুন। তারপর এখানে ডিভাইসটিকে অনুমতি দিন।";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "ডিভাইসে LokalBot খুলুন, “আপনার কম্পিউটারের সঙ্গে পেয়ার করুন” বেছে নিন এবং ক্যামেরা এই কোডের দিকে ধরুন। তারপর এখানে ডিভাইসটিকে অনুমতি দিন।";
 "Expires in %@" = "%@ পরে মেয়াদ শেষ";
 "This code expired. Cancel and add the device again." = "এই কোডের মেয়াদ শেষ হয়েছে। বাতিল করে আবার ডিভাইস যোগ করুন।";
 "Read your work memory on your own iPhone, iPad, or Android device." = "নিজের iPhone, iPad বা Android ডিভাইসে আপনার কাজের স্মৃতি পড়ুন।";

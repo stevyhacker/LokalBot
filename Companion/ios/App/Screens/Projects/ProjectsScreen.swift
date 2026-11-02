@@ -48,7 +48,7 @@ struct ProjectsList: View {
         .overlay {
             if model.loaded && model.projects.isEmpty {
                 ContentUnavailableView("No projects yet", systemImage: "folder",
-                                       description: Text("Projects you track on your Mac appear here."))
+                                       description: Text("Projects you track on your computer appear here."))
             }
         }
         .navigationTitle("Projects")

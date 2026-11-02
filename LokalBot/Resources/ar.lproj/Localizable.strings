@@ -1702,7 +1702,7 @@
 "Local network" = "الشبكة المحلية";
 "Pairing code" = "رمز الإقران";
 "Scan with LokalBot on your phone or tablet" = "امسح الرمز باستخدام LokalBot على هاتفك أو جهازك اللوحي";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "افتح LokalBot على الجهاز، واختر «الإقران مع Mac»، ثم وجّه الكاميرا إلى هذا الرمز. بعد ذلك اسمح للجهاز هنا.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "افتح LokalBot على الجهاز، واختر «الإقران مع الكمبيوتر»، ثم وجّه الكاميرا إلى هذا الرمز. بعد ذلك اسمح للجهاز هنا.";
 "Expires in %@" = "تنتهي الصلاحية خلال %@";
 "This code expired. Cancel and add the device again." = "انتهت صلاحية هذا الرمز. ألغِ العملية ثم أضف الجهاز مرة أخرى.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "اقرأ ذاكرة عملك على جهاز iPhone أو iPad أو Android الخاص بك.";

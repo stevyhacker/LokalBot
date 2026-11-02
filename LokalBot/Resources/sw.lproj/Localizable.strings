@@ -1702,7 +1702,7 @@
 "Local network" = "Mtandao wa karibu";
 "Pairing code" = "Msimbo wa kuoanisha";
 "Scan with LokalBot on your phone or tablet" = "Changanua kwa LokalBot kwenye simu au kompyuta kibao yako";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Fungua LokalBot kwenye kifaa, chagua “Oanisha na Mac”, kisha elekeza kamera kwenye msimbo huu. Kisha ruhusu kifaa hapa.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Fungua LokalBot kwenye kifaa, chagua “Oanisha na kompyuta yako”, kisha elekeza kamera kwenye msimbo huu. Kisha ruhusu kifaa hapa.";
 "Expires in %@" = "Muda unaisha baada ya %@";
 "This code expired. Cancel and add the device again." = "Muda wa msimbo huu umeisha. Ghairi kisha uongeze kifaa tena.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Soma kumbukumbu yako ya kazi kwenye iPhone, iPad au kifaa chako mwenyewe cha Android.";

@@ -94,7 +94,7 @@ impl Payload {
             .map_err(|_| invalid())?;
         Ok(Self {
             mac_name: json.mac_name,
-            mac_key: key_array(&b64url_decode(&json.mac_key)?, "Mac key")?,
+            mac_key: key_array(&b64url_decode(&json.mac_key)?, "computer's key")?,
             addresses: json.addrs,
             port: json.port,
             pairing_id,

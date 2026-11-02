@@ -20,8 +20,8 @@ public struct PairingPayload: Sendable, Hashable {
 
         public var errorDescription: String? {
             switch self {
-            case .notAPairingLink: "This isn't a LokalBot pairing link. On your Mac, open Settings → Phones & tablets → Add a device."
-            case .unreadable: "The pairing link is incomplete. Copy it again from your Mac."
+            case .notAPairingLink: "This isn't a LokalBot pairing link. On your computer, open Settings → Phones & tablets → Add a device."
+            case .unreadable: "The pairing link is incomplete. Scan the code on your computer again."
             case .unsupportedVersion: "This pairing link needs a newer version of LokalBot on this device."
             }
         }

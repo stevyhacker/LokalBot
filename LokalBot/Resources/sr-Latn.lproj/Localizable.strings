@@ -1702,7 +1702,7 @@
 "Local network" = "Lokalna mreža";
 "Pairing code" = "Kod za uparivanje";
 "Scan with LokalBot on your phone or tablet" = "Skenirajte aplikacijom LokalBot na telefonu ili tabletu";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Otvorite LokalBot na uređaju, izaberite „Upari sa Mac-om“ i usmerite kameru ka ovom kodu. Zatim ovde dozvolite uređaj.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Otvorite LokalBot na uređaju, izaberite „Upari sa računarom“ i usmerite kameru ka ovom kodu. Zatim ovde dozvolite uređaj.";
 "Expires in %@" = "Ističe za %@";
 "This code expired. Cancel and add the device again." = "Ovaj kod je istekao. Otkažite i ponovo dodajte uređaj.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Čitajte svoje radno pamćenje na sopstvenom iPhone-u, iPad-u ili Android uređaju.";

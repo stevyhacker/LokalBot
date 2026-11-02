@@ -289,7 +289,7 @@ struct TimelineDayPane: View {
         VStack(alignment: .leading, spacing: LBTokens.Spacing.sectionSpacing) {
             if model.record == nil && model.meetings.isEmpty {
                 ContentUnavailableView("Nothing recorded", systemImage: "calendar",
-                                       description: Text("Your Mac has no shared activity, meetings or digest for \(format.longDay(model.day))."))
+                                       description: Text("Your computer has no shared activity, meetings or digest for \(format.longDay(model.day))."))
                     .padding(.top, 40)
             } else {
                 if let timeline = model.record?.timeline {
@@ -355,13 +355,13 @@ struct TimelineDayPane: View {
                 if let digest = model.record?.digest {
                     VStack(alignment: .leading, spacing: 12) {
                         DayDigestView(digest: digest)
-                        Text((digest.userEdited ? "Edited on your Mac · " : "") + "Written \(format.time(digest.generatedAt, in: model.timeZone))")
+                        Text((digest.userEdited ? "Edited on your computer · " : "") + "Written \(format.time(digest.generatedAt, in: model.timeZone))")
                             .font(LBTokens.Typography.caption)
                             .workspaceSupportingForeground()
                     }
                 } else {
                     Text(model.day == model.today
-                         ? "Today's digest is written on your Mac in the evening."
+                         ? "Today's digest is written on your computer in the evening."
                          : "There's no digest for this day.")
                         .workspaceTextRole(.supporting)
                 }

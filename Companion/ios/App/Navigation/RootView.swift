@@ -163,7 +163,7 @@ struct MoreScreen: View {
     }
 }
 
-/// "Synced with your Mac" at the foot of the sidebar, where the Mac shows
+/// "Synced with your computer" at the foot of the sidebar, where the Mac shows
 /// "Storage: this Mac".
 struct SidebarSyncCard: View {
     @Environment(CompanionSession.self) private var session

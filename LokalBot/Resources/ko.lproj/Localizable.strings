@@ -1702,7 +1702,7 @@
 "Local network" = "로컬 네트워크";
 "Pairing code" = "페어링 코드";
 "Scan with LokalBot on your phone or tablet" = "휴대폰이나 태블릿의 LokalBot으로 스캔하세요";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "기기에서 LokalBot을 열고 “Mac과 페어링”을 선택한 다음 카메라를 이 코드에 맞추세요. 그런 다음 여기에서 기기를 허용하세요.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "기기에서 LokalBot을 열고 “컴퓨터와 페어링”을 선택한 다음 카메라를 이 코드에 맞추세요. 그런 다음 여기에서 기기를 허용하세요.";
 "Expires in %@" = "%@ 후 만료";
 "This code expired. Cancel and add the device again." = "이 코드는 만료되었습니다. 취소하고 기기를 다시 추가하세요.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "내 iPhone, iPad 또는 Android 기기에서 업무 메모리를 읽습니다.";

@@ -116,7 +116,7 @@ struct TodayScreen: View {
                         .font(LBTokens.Typography.caption)
                         .workspaceSupportingForeground()
                 } else {
-                    Text("Your Mac writes the Day Digest from the day's meetings and activity. It shows here after the next sync.")
+                    Text("Your computer writes the Day Digest from the day's meetings and activity. It shows here after the next sync.")
                         .workspaceTextRole(.supporting)
                 }
                 if model.digestRecord != nil, !model.digestIsToday {

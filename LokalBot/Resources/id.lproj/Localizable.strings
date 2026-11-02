@@ -1702,7 +1702,7 @@
 "Local network" = "Jaringan lokal";
 "Pairing code" = "Kode pemasangan";
 "Scan with LokalBot on your phone or tablet" = "Pindai dengan LokalBot di ponsel atau tablet Anda";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Buka LokalBot di perangkat, pilih “Pasangkan dengan Mac”, lalu arahkan kamera ke kode ini. Kemudian izinkan perangkat di sini.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Buka LokalBot di perangkat, pilih “Pasangkan dengan komputer Anda”, lalu arahkan kamera ke kode ini. Kemudian izinkan perangkat di sini.";
 "Expires in %@" = "Kedaluwarsa dalam %@";
 "This code expired. Cancel and add the device again." = "Kode ini sudah kedaluwarsa. Batalkan dan tambahkan perangkat lagi.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Baca memori kerja Anda di iPhone, iPad, atau perangkat Android milik Anda sendiri.";

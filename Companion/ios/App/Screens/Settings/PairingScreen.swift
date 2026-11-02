@@ -45,7 +45,7 @@ struct PairingScreen: View {
                 .frame(maxWidth: 560, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
-            .navigationTitle("Pair with Your Mac")
+            .navigationTitle("Pair with Your Computer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -66,7 +66,7 @@ struct PairingScreen: View {
     // MARK: Steps
 
     @ViewBuilder private var scan: some View {
-        Text("On your Mac, open LokalBot Settings → Phones & tablets → Add a Device, then point the camera at the code.")
+        Text("On your computer, open LokalBot Settings → Phones & tablets → Add a Device, then point the camera at the code.")
             .font(LBTokens.Typography.body)
             .fixedSize(horizontal: false, vertical: true)
         Group {
@@ -96,7 +96,7 @@ struct PairingScreen: View {
         .task { if cameraAllowed == nil { cameraAllowed = await Self.requestCamera() } }
         VStack(alignment: .leading, spacing: 8) {
             Text("Or paste the link").font(LBTokens.Typography.section)
-            Text("On the Mac, choose Copy Link under the code and send it to this device.")
+            Text("If another app read the code for you, paste the link it found.")
                 .font(LBTokens.Typography.secondary)
                 .workspaceSupportingForeground()
             HStack(spacing: 8) {
@@ -131,7 +131,7 @@ struct PairingScreen: View {
                         .lineLimit(2)
                 }
             }
-            Text("This device will receive the meetings, actions, Timeline and digests your Mac shares, end-to-end encrypted. You'll allow it on the Mac next.")
+            Text("This device will receive the meetings, actions, Timeline and digests your computer shares, end-to-end encrypted. You'll allow it on your computer next.")
                 .font(LBTokens.Typography.body)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 6) {
@@ -143,7 +143,7 @@ struct PairingScreen: View {
                     .padding(12)
                     .lbGroupedSurface()
                     .accessibilityLabel("Name this device")
-                Text("Your Mac shows this name when it asks to allow this device, and in its list of devices.")
+                Text("Your computer shows this name when it asks to allow this device, and in its list of devices.")
                     .font(LBTokens.Typography.caption)
                     .workspaceSupportingForeground()
             }
@@ -163,7 +163,7 @@ struct PairingScreen: View {
     private func waiting(_ macName: String) -> some View {
         VStack(spacing: 16) {
             ProgressView().controlSize(.large)
-            Text("Waiting for your Mac").font(LBTokens.Typography.columnTitle)
+            Text("Waiting for your computer").font(LBTokens.Typography.columnTitle)
             Text("On \(macName), click Allow to let “\(DeviceName.current)” read your shared LokalBot library.")
                 .font(LBTokens.Typography.body)
                 .multilineTextAlignment(.center)

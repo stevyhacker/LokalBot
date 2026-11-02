@@ -84,7 +84,7 @@ struct RecordDecodingTests {
         #expect(pricing.timeThisWeekSeconds == 8880)
 
         let manifest = try #require(await store.manifest())
-        #expect(manifest.macName == "Sample Mac" && manifest.dataClasses.windowTitles && manifest.historyDays == 0)
+        #expect(manifest.macName == "Sample Computer" && manifest.dataClasses.windowTitles && manifest.historyDays == 0)
     }
 
     @Test func ignoresUnknownKeysAndKindsAndReadsNewStatusesAsOpen() async throws {

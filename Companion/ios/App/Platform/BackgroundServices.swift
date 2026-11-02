@@ -25,7 +25,7 @@ enum QueuedAnswerNotification {
 
     static func post(question: String, result: AskResult) {
         let content = UNMutableNotificationContent()
-        content.title = "Your Mac answered"
+        content.title = "Your computer answered"
         content.subtitle = question
         content.body = String(AskCitationParser.plainText(result.answer).prefix(180))
         content.sound = .default

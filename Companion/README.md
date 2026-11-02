@@ -70,5 +70,5 @@ It prints the pairing link and a QR code, asks `y`/`n` when a device pairs
 (`--auto-approve` skips that), applies action changes and answers questions
 with a canned reply. Type `pair` for a new code, `devices`, `remove <id>`,
 `publish` or `quit`. `--port`, `--dir` and `--loopback` are optional. Both apps
-also have **Try it without a Mac**, which loads the same sample library on the
+also have **Try it without a computer**, which loads the same sample library on the
 device.

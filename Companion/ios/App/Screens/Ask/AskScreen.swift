@@ -69,11 +69,11 @@ struct ConversationList: View {
                             Text("· \(conversation.turns.count) questions")
                         }
                         if conversation.turns.contains(where: { $0.state == .queued }) {
-                            Label("Waiting for your Mac", systemImage: "clock")
+                            Label("Waiting for your computer", systemImage: "clock")
                                 .labelStyle(.titleAndIcon)
                                 .foregroundStyle(LBTokens.Palette.attentionText)
                         } else if conversation.turns.contains(where: { $0.state == .waiting }) {
-                            Label("Your Mac is answering", systemImage: "arrow.triangle.2.circlepath")
+                            Label("Your computer is answering", systemImage: "arrow.triangle.2.circlepath")
                                 .labelStyle(.titleAndIcon)
                                 .foregroundStyle(LBTokens.Palette.accentText)
                         }
@@ -179,7 +179,7 @@ struct AskEmptyState: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
             if session.manifest?.askEnabled == false {
-                Text("Your Mac isn't answering questions from devices. Turn it on in LokalBot Settings → Phones & tablets on your Mac.")
+                Text("Your computer isn't answering questions from devices. Turn it on in LokalBot Settings → Phones & tablets on your computer.")
                     .workspaceTextRole(.warning)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
@@ -298,9 +298,9 @@ struct AskComposer: View {
     private var statusText: String {
         switch session.presentation {
         case .sample: return "Answers come from the sample library"
-        case .unreachable: return "Mac not reachable · questions can wait for it"
-        case .synced(_, let route): return ["Your Mac answers", route?.label].compactMap { $0 }.joined(separator: " · ")
-        default: return "Your Mac answers"
+        case .unreachable: return "Computer not reachable · questions can wait for it"
+        case .synced(_, let route): return ["Your computer answers", route?.label].compactMap { $0 }.joined(separator: " · ")
+        default: return "Your computer answers"
         }
     }
 

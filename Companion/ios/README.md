@@ -114,7 +114,7 @@ or add them under the scheme's Arguments.
 | `-demoAsk "<question>"` | Asks a question at launch |
 | `-demoWidth <points>` | Narrows the window, to stand in for Split View, Slide Over or a foldable |
 | `-demoSizeClass regular\|compact` | With `-demoWidth`: overrides the horizontal size class |
-| `-demoSample YES` | Loads the sample library through the sync core, as Try It Without a Mac does |
+| `-demoSample YES` | Loads the sample library through the sync core, as Try It Without a Computer does |
 | `-demoPairLink "<link>"` | Pairs at launch; `-demoDeviceName "<name>"` names the device first |
 | `-demoPairingLink "<link>"` | Opens the pairing sheet at its confirm step |
 | `-demoToggleAction <meetingID>/<actionID>` | Marks an action done through the store |

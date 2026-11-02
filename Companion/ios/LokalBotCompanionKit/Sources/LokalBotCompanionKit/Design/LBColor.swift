@@ -49,7 +49,7 @@ extension LBTokens {
         public static let accentWash = Color(Colors.accentWash)
         /// Dots and fills for attention: remote engine, pending changes.
         public static let attention = Color(Colors.attention)
-        /// "Owner unclear", blockers, "Waiting for your Mac".
+        /// "Owner unclear", blockers, "Waiting for your computer".
         public static let attentionText = Color(Colors.attentionText)
         public static let attentionWash = Color(Colors.attentionWash)
         public static let success = Color(Colors.success)

@@ -23,7 +23,7 @@ import me.dotenv.lokalbot.companion.ui.LocalFormats
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** "Synced with your Mac · 2 min ago · Wi-Fi": when this copy was last current, and how. */
+/** "Synced with your computer · 2 min ago · Wi-Fi": when this copy was last current, and how. */
 @Composable
 fun SyncPill(
     state: SyncState,

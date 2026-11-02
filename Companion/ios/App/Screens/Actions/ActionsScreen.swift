@@ -161,7 +161,7 @@ struct ActionDetailScreen: View {
                     .pageColumn(maxWidth: 720)
             } else if loaded {
                 ContentUnavailableView("Action not found", systemImage: "checklist",
-                                       description: Text("It may have changed when the meeting was processed again on your Mac."))
+                                       description: Text("It may have changed when the meeting was processed again on your computer."))
                     .padding(.top, 80)
             }
         }
@@ -207,7 +207,7 @@ struct ActionDetailScreen: View {
 
             if row.pending {
                 Label {
-                    Text("Changed on this device. Waiting for your Mac; it updates on the next sync.")
+                    Text("Changed on this device. Waiting for your computer; it updates on the next sync.")
                 } icon: {
                     Image(systemName: "clock.arrow.2.circlepath")
                 }

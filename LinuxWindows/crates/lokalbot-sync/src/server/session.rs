@@ -319,7 +319,7 @@ impl Worker<'_> {
                     if protocol_version > PROTOCOL_VERSION || schema_version > SCHEMA_VERSION {
                         self.fail(
                             "unsupported_version",
-                            format!("This Mac speaks protocol {PROTOCOL_VERSION} and schema {SCHEMA_VERSION}."),
+                            format!("This computer speaks protocol {PROTOCOL_VERSION} and schema {SCHEMA_VERSION}."),
                         );
                         return Ok(());
                     }
@@ -507,7 +507,7 @@ impl Worker<'_> {
         } else {
             OpOutcome {
                 status: "rejected".into(),
-                message: Some("This Mac does not know this kind of change.".into()),
+                message: Some("This computer does not know this kind of change.".into()),
             }
         };
         self.flush()?;

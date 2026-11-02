@@ -1702,7 +1702,7 @@
 "Local network" = "Локальная сеть";
 "Pairing code" = "Код для создания пары";
 "Scan with LokalBot on your phone or tablet" = "Отсканируйте в LokalBot на телефоне или планшете";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Откройте LokalBot на устройстве, выберите «Создать пару с Mac» и наведите камеру на этот код. Затем разрешите устройство здесь.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Откройте LokalBot на устройстве, выберите «Создать пару с компьютером» и наведите камеру на этот код. Затем разрешите устройство здесь.";
 "Expires in %@" = "Истекает через %@";
 "This code expired. Cancel and add the device again." = "Срок действия кода истёк. Отмените и добавьте устройство снова.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Читайте свою рабочую память на собственном iPhone, iPad или Android-устройстве.";
