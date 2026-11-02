@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -59,12 +60,16 @@ fun LokalBotTheme(
             (context.getSystemService(UiModeManager::class.java)?.contrast ?: 0f) >= 0.5f
     }
     val motion = reduceMotion ?: rememberSystemReducedMotion()
+    val colorScheme = lokalBotColorScheme(palette, darkTheme)
     MaterialTheme(
-        colorScheme = lokalBotColorScheme(palette, darkTheme),
+        colorScheme = colorScheme,
         typography = LokalBotTypography,
         shapes = LokalBotShapes,
     ) {
         CompositionLocalProvider(
+            // Text outside a Surface or Scaffold otherwise falls back to
+            // black, unreadable on the dark window.
+            LocalContentColor provides colorScheme.onBackground,
             LocalLokalBotPalette provides palette,
             LocalIsDarkTheme provides darkTheme,
             LocalIncreasedContrast provides increasedContrast,

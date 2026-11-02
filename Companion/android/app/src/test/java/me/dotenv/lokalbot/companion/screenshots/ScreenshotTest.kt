@@ -134,6 +134,14 @@ class ScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/phone_welcome.png")
     }
 
+    // The welcome screen sits outside any Surface, where text without its own
+    // colour once fell back to black on the dark window.
+    @Test
+    fun phoneWelcomeDark() {
+        compose.setContent { Themed(dark = true) { WelcomeScreen(onPair = {}, onTrySample = {}) } }
+        compose.onRoot().captureRoboImage("src/test/screenshots/phone_welcome_dark.png")
+    }
+
     @Test
     @Config(qualifiers = "en-rGB-w891dp-h411dp-hdpi")
     fun phoneLandscapeMeetings() = show(
