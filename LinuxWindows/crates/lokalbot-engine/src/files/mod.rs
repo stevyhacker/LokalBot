@@ -3,8 +3,8 @@
 //! and choose a folder.
 //!
 //! Indexing happens in passes: at launch, after the folders change, and a few
-//! seconds after something in them changes. A pass reads only new and changed
-//! files, stops at the next file when a meeting starts recording, in battery
+//! seconds after a change in them that can alter the index (`ChangeFilter`). A
+//! pass reads only new and changed files, stops at the next file when a meeting starts recording, in battery
 //! saver, or when the computer is hot, and starts again when that ends. The image
 //! and audio model loads only while a pass has files to read.
 //!
@@ -30,6 +30,7 @@ use anyhow::Result;
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, unbounded};
 use lokalbot_ai::catalog;
 use lokalbot_ai::media_embedder::MediaEmbedder;
+use lokalbot_core::files::change_filter::{Answers, ChangeFacts, ChangeFilter};
 use lokalbot_core::files::costs::{FolderEstimate, MeasuredCosts, Measures};
 use lokalbot_core::files::crawler::{crawl, is_readable_folder};
 use lokalbot_core::files::index::FileIndex;
@@ -321,8 +322,11 @@ impl Control {
             return;
         }
         self.applied = true;
-        if next.folders != previous.folders || self.watcher.is_none() {
-            self.watcher = start_watcher(&next.folders, self.sender.clone());
+        if next.folders != previous.folders
+            || next.includes_media != previous.includes_media
+            || self.watcher.is_none()
+        {
+            self.watcher = start_watcher(&next.folders, next.includes_media, self.sender.clone());
         }
         if next.folders.is_empty() {
             self.stop.store(true, Ordering::Relaxed);
@@ -448,10 +452,11 @@ impl Control {
     }
 }
 
-/// Changes in the chosen folders, reported in batches. Hidden paths are ignored;
-/// everything else asks for a pass, which decides whether there's anything to do.
+/// Changes in the chosen folders. One that can't alter what a pass finds
+/// (`ChangeFilter`) goes no further; any other asks for a pass.
 fn start_watcher(
     folders: &[String],
+    includes_media: bool,
     sender: Sender<Message>,
 ) -> Option<notify::RecommendedWatcher> {
     use notify::{RecursiveMode, Watcher as _};
@@ -459,14 +464,31 @@ fn start_watcher(
     if existing.is_empty() {
         return None;
     }
+    let filter = ChangeFilter::new(
+        folders,
+        IndexOptions::for_settings(includes_media),
+        files::home_dir(),
+    );
+    let mut answers = Answers::default();
+    let mut answers_from = Instant::now();
     let mut watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
         let Ok(event) = event else {
             return;
         };
+        // Reading a file changes nothing.
         if matches!(event.kind, notify::EventKind::Access(_)) {
             return;
         }
-        if event.paths.iter().any(|path| !is_hidden_path(path)) {
+        if answers_from.elapsed() > ANSWERS_LAST {
+            answers = Answers::default();
+            answers_from = Instant::now();
+        }
+        let facts = change_facts(&event);
+        if event
+            .paths
+            .iter()
+            .any(|path| filter.matters(path, facts(path), &mut answers))
+        {
             let _ = sender.send(Message::FoldersChanged);
         }
     })
@@ -480,11 +502,28 @@ fn start_watcher(
     Some(watcher)
 }
 
-fn is_hidden_path(path: &Path) -> bool {
-    path.components().any(|part| match part {
-        std::path::Component::Normal(name) => name.to_string_lossy().starts_with('.'),
-        _ => false,
-    })
+/// How long what a burst of changes learned about folders is trusted.
+const ANSWERS_LAST: Duration = Duration::from_secs(2);
+
+/// What a watcher event says about a path. Where it doesn't say whether that's a
+/// folder, the path still can, unless it's gone.
+fn change_facts(event: &notify::Event) -> impl Fn(&Path) -> ChangeFacts + use<> {
+    use notify::EventKind::{Create, Modify, Remove};
+    use notify::event::{CreateKind, ModifyKind, RemoveKind};
+    let lost_track = event.need_rescan();
+    let (said_folder, came_or_went, arrived_whole) = match event.kind {
+        Create(CreateKind::File) | Remove(RemoveKind::File) => (Some(false), true, false),
+        Create(CreateKind::Folder) | Remove(RemoveKind::Folder) => (Some(true), true, false),
+        Create(_) | Remove(_) => (None, true, false),
+        Modify(ModifyKind::Name(_)) => (None, true, true),
+        _ => (None, false, false),
+    };
+    move |path| ChangeFacts {
+        lost_track,
+        is_folder: said_folder.or_else(|| std::fs::metadata(path).ok().map(|m| m.is_dir())),
+        came_or_went,
+        arrived_whole,
+    }
 }
 
 /// One pass, on its own thread.
@@ -893,9 +932,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hidden_paths_do_not_ask_for_a_pass() {
-        assert!(is_hidden_path(Path::new("/home/me/.cache/x")));
-        assert!(!is_hidden_path(Path::new("/home/me/Documents/x.txt")));
+    fn a_watcher_event_says_what_it_can_and_the_path_says_the_rest() {
+        use notify::event::{CreateKind, EventKind, Flag, ModifyKind, RemoveKind, RenameMode};
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("notes.md");
+        std::fs::write(&file, "x").unwrap();
+        let gone = dir.path().join("gone");
+        let facts = |kind: EventKind, path: &Path| change_facts(&notify::Event::new(kind))(path);
+
+        let made = facts(EventKind::Create(CreateKind::Folder), &gone);
+        assert_eq!((made.is_folder, made.came_or_went), (Some(true), true));
+        assert!(!made.arrived_whole);
+        let removed = facts(EventKind::Remove(RemoveKind::File), &gone);
+        assert_eq!(
+            (removed.is_folder, removed.came_or_went),
+            (Some(false), true)
+        );
+        // Windows says only that something changed: ask the path.
+        let written = facts(EventKind::Modify(ModifyKind::Any), &file);
+        assert_eq!(
+            (written.is_folder, written.came_or_went),
+            (Some(false), false)
+        );
+        let folder = facts(EventKind::Modify(ModifyKind::Any), dir.path());
+        assert_eq!(folder.is_folder, Some(true));
+        // Gone, and nothing says what it was.
+        assert_eq!(
+            facts(EventKind::Remove(RemoveKind::Any), &gone).is_folder,
+            None
+        );
+        let moved = facts(
+            EventKind::Modify(ModifyKind::Name(RenameMode::To)),
+            dir.path(),
+        );
+        assert!(moved.arrived_whole && moved.came_or_went);
+        let dropped = notify::Event::new(EventKind::Other).set_flag(Flag::Rescan);
+        assert!(change_facts(&dropped)(&file).lost_track);
     }
 
     #[test]

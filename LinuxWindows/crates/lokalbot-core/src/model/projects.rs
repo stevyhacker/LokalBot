@@ -265,6 +265,20 @@ mod tests {
     }
 
     #[test]
+    fn other_names_are_cleaned() {
+        let names = vec![
+            "  Atlas ".to_string(),
+            "atlas".to_string(),
+            "Orion".to_string(),
+            "Project X".to_string(),
+        ];
+        assert_eq!(
+            clean_other_names(&names, "Project X"),
+            vec!["Atlas".to_string(), "Orion".to_string()]
+        );
+    }
+
+    #[test]
     fn suggestions_become_other_names() {
         let mut curation = ProjectCuration {
             version: 1,

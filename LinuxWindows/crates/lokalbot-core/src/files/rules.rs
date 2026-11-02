@@ -31,6 +31,12 @@ const SKIPPED_FOLDER_NAMES: &[&str] = &[
     "DerivedData",
     "Pods",
     "Carthage",
+    "tmp",
+    "Tmp",
+    "TMP",
+    "temp",
+    "Temp",
+    "TEMP",
 ];
 
 /// Any of these in a folder makes it a code project, where only screenshots are
@@ -246,12 +252,83 @@ pub fn is_project_root(folder: &Path) -> bool {
     let Ok(entries) = std::fs::read_dir(folder) else {
         return false;
     };
-    entries.flatten().any(|entry| {
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        PROJECT_MARKERS.contains(&name.as_ref())
-            || PROJECT_BUNDLE_EXTENSIONS.contains(&extension_of(Path::new(name.as_ref())).as_str())
+    entries
+        .flatten()
+        .any(|entry| is_project_marker(&entry.file_name().to_string_lossy()))
+}
+
+fn is_project_marker(name: &str) -> bool {
+    PROJECT_MARKERS.contains(&name)
+        || PROJECT_BUNDLE_EXTENSIONS.contains(&extension_of(Path::new(name)).as_str())
+}
+
+/// Whether the crawl walks this far, from a chosen folder that is itself read whole
+/// whatever holds it.
+pub fn is_walked(path: &Path, root: &Path, home: Option<&Path>) -> bool {
+    let Ok(rest) = path.strip_prefix(root) else {
+        return false;
+    };
+    if is_cache_directory(root) {
+        return false;
+    }
+    let mut folder = root.to_path_buf();
+    for part in rest.components() {
+        folder.push(part);
+        let hidden = part.as_os_str().to_string_lossy().starts_with('.');
+        if hidden || skip_reason_for_folder(&folder, home).is_some() {
+            return false;
+        }
+    }
+    true
+}
+
+/// Whether a code project sits between the chosen folder and this path. The chosen
+/// folder itself doesn't count: it's read whole.
+pub fn is_inside_project(path: &Path, root: &Path) -> bool {
+    let Ok(rest) = path.strip_prefix(root) else {
+        return false;
+    };
+    let mut folder = root.to_path_buf();
+    let parts: Vec<_> = rest.components().collect();
+    for part in parts.iter().take(parts.len().saturating_sub(1)) {
+        folder.push(part);
+        if is_project_root(&folder) {
+            return true;
+        }
+    }
+    false
+}
+
+/// A marker that is its folder's only one: its coming or going decides whether the
+/// folder is a project.
+pub fn decides_project(path: &Path) -> bool {
+    let Some(name) = path.file_name().map(|n| n.to_string_lossy()) else {
+        return false;
+    };
+    if !is_project_marker(&name) {
+        return false;
+    }
+    let Some(entries) = path
+        .parent()
+        .and_then(|folder| std::fs::read_dir(folder).ok())
+    else {
+        return true;
+    };
+    !entries.flatten().any(|entry| {
+        let other = entry.file_name();
+        let other = other.to_string_lossy();
+        other != name && is_project_marker(&other)
     })
+}
+
+/// Whether a change here could be something the crawl keeps: not inside a bundle,
+/// and for a file, a type it reads.
+pub fn change_may_matter(path: &Path, is_folder: bool, options: &IndexOptions) -> bool {
+    let start = if is_folder { Some(path) } else { path.parent() };
+    if std::iter::successors(start, |folder| folder.parent()).any(is_package) {
+        return false;
+    }
+    is_folder || matches!(classify(path, options), Classification::Index(_))
 }
 
 const CAMERA_PREFIXES: &[&str] = &[

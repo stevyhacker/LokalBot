@@ -8,6 +8,7 @@
 //! engine's (`lokalbot_engine::files`).
 
 pub mod access;
+pub mod change_filter;
 pub mod costs;
 pub mod crawler;
 pub mod index;
@@ -321,7 +322,7 @@ pub fn abbreviate_home(path: &str) -> String {
     }
 }
 
-pub(crate) fn home_dir() -> Option<PathBuf> {
+pub fn home_dir() -> Option<PathBuf> {
     directories::BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf())
 }
 
