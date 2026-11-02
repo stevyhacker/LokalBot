@@ -118,8 +118,8 @@ LokalBot defaults:
   Its word boxes ran up to 6 pt past the text, so the line's edges, baseline and
   the app's caret are measured from the capture's pixels
   (`CotypingVisualCaretInk`); a line on a picture rather than a flat background
-  stays a popup. The system font follows these fields' Cyrillic poorly (10 pt off
-  Helvetica Neue within 12 letters), so the caret is measured every 4 letters.
+  stays a popup. The system font follows these fields' Cyrillic poorly, so the
+  caret is measured every 4 letters: every 12 left it up to 5.2 pt off.
   Replaying 26 Serbian and Russian messages keystroke by keystroke through the
   real recogniser at 1x and 2x, in three fonts (2026-11-02): inline 0 → 99.5%,
   popups 97% → 0, worst caret error 2.9 pt with none of 9,588 keys past 4 pt.

@@ -80,9 +80,9 @@ nonisolated enum CotypingVisualCaretLocator {
     static let refindAfterCharacters = 12
     /// The same while the field's font has not been measured from a whole
     /// line: a size fitted to a few letters can be far off, and the caret
-    /// moves by it. And always on a Cyrillic line: there the system font
-    /// follows the field's own font worst, 10 pt off Helvetica Neue within
-    /// 12 letters (2026-11-02).
+    /// moves by it. And always on a Cyrillic line, where the system font follows
+    /// the field's own font worst: every 12 letters there left the caret up to
+    /// 5.2 pt off, against 2.9 pt (replayed 2026-11-02).
     static let remeasureAfterCharacters = 4
     /// Recognition found no line shorter than this (one to three typed
     /// characters were never found, measured 2026-10-05).
