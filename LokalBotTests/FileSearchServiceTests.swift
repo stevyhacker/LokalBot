@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreServices
 import DigUpKit
 import SQLite3
 import ImageIO
@@ -13,12 +14,14 @@ final class FileSearchServiceTests: XCTestCase {
     private var root: URL!
     private var chosen: URL!
     private var starts = 0
+    private var passes = 0
 
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("files-\(UUID().uuidString)")
         chosen = root.appendingPathComponent("Chosen", isDirectory: true)
         try FileManager.default.createDirectory(at: chosen, withIntermediateDirectories: true)
         starts = 0
+        passes = 0
     }
 
     override func tearDownWithError() throws {
@@ -74,6 +77,158 @@ final class FileSearchServiceTests: XCTestCase {
 
         XCTAssertEqual(starts, 1, "a pass with nothing new must not load the image and text model")
         XCTAssertEqual(service.state, .ready)
+    }
+
+    func testOnlyAChangeThatCanAlterTheIndexStartsAPass() async throws {
+        try write("notes.txt", String(repeating: "Planning the offsite agenda with the design team. ", count: 8))
+        try makeFolder("node_modules/left-pad")
+        try makeFolder("Site/.git")
+        try makeFolder("Site/dist")
+        let service = makeService()
+        service.changeDelay = .milliseconds(50)
+        // Asked once as each pass begins.
+        service.isRecording = { [weak self] in
+            self?.passes += 1
+            return false
+        }
+        service.apply(.init(enabled: true, folders: [chosen.path]))
+        await service.waitUntilIdle()
+        XCTAssertEqual(passes, 1)
+
+        let text = String(repeating: "The venue for the offsite moved to the harbour. ", count: 8)
+        try write("node_modules/left-pad/readme.md", text)
+        try write("Site/dist/index.html", text)
+        try write("build.log", text)
+        try await Task.sleep(for: .seconds(1))
+        await service.waitUntilIdle()
+        XCTAssertEqual(passes, 1, "these changes can't alter the index")
+
+        try write("venue.txt", text)
+        let deadline = Date().addingTimeInterval(20)
+        while passes < 2, Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
+        await service.waitUntilIdle()
+        XCTAssertEqual(passes, 2)
+        XCTAssertEqual(service.totals.searchable, 2)
+        service.stop()
+    }
+
+    func testTheWatcherPassesOverSkippedChangesToReportOneThatCounts() async throws {
+        try makeFolder("node_modules/left-pad")
+        try makeFolder("Cache.noindex")
+        try makeFolder("Site/.git")
+        try makeFolder("Site/dist")
+        let reported = expectation(description: "a change that counts")
+        let paths = ReportedPaths()
+        let watcher = try XCTUnwrap(FileFolderWatcher(
+            folders: [chosen.path], options: FileSearchService.indexOptions(), latency: 0.1) { path in
+                if paths.append(path) == 1 { reported.fulfill() }
+            })
+        defer { watcher.stop() }
+
+        try write("node_modules/left-pad/readme.md", "skipped folder")
+        try write("Cache.noindex/notes.md", "skipped folder")
+        try write(".notes.md", "hidden")
+        try write("build.log", "a type that is never read")
+        try write("Site/dist/index.html", "inside a code project")
+        try write("Site/Screenshot 2026-11-02 at 10.00.00.png", "the one thing a code project keeps")
+        await fulfillment(of: [reported], timeout: 20)
+
+        XCTAssertEqual(paths.first?.hasSuffix("/Site/Screenshot 2026-11-02 at 10.00.00.png"), true, paths.first ?? "")
+    }
+
+    func testAChangeCountsOnlyWhereTheCrawlWouldKeepIt() throws {
+        try makeFolder("node_modules/left-pad")
+        try makeFolder("Work/Site/.git")
+        try makeFolder("Work/Site/assets")
+        try makeFolder("Work/App")
+        try makeFolder("Work/Notes")
+        try write("Work/App/package.json", "{}")
+        try write("Work/App/plain.png", "")
+        try write("Work/Site/assets/marked.png", "")
+        try write("Work/Site/assets/plain.png", "")
+        XCTAssertEqual(setxattr(chosen.path + "/Work/Site/assets/marked.png",
+                                "com.apple.metadata:kMDItemIsScreenCapture", "1", 1, 0, 0), 0)
+        let file = kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemCreated
+        let folder = kFSEventStreamEventFlagItemIsDir | kFSEventStreamEventFlagItemCreated
+        let moved = kFSEventStreamEventFlagItemIsDir | kFSEventStreamEventFlagItemRenamed
+        let cloned = kFSEventStreamEventFlagItemIsDir | kFSEventStreamEventFlagItemCloned
+        let counts = { (name: String, flags: Int) in self.counts(name, flags) }
+
+        // What can be indexed, here or gone.
+        for name in ["notes.md", "Work/Notes/gone.txt", "report.pdf", "photo.heic", "clip.mov"] {
+            XCTAssertTrue(counts(name, file), name)
+            XCTAssertTrue(counts(name, kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemRemoved), name)
+        }
+        XCTAssertFalse(self.counts("clip.mov", file, includesMedia: false), "recordings and video are off")
+        XCTAssertTrue(self.counts("notes.md", file, includesMedia: false))
+
+        // Where the crawl doesn't go, and what it never reads.
+        for name in [".DS_Store", ".hidden/notes.md", "node_modules/left-pad/readme.md", "Cache.noindex/notes.md",
+                     "Work/Notes/server.log", "Work/Notes/data.json", "Work/Notes/no-extension"] {
+            XCTAssertFalse(counts(name, file), name)
+        }
+
+        // Inside a code project: screenshots, and nothing else.
+        for name in ["Work/Site/readme.md", "Work/Site/assets/plain.png", "Work/Site/assets/gone.png",
+                     "Work/App/plain.png", "Work/Site/Screenshots/notes.md", "Work/Site/report.pdf"] {
+            XCTAssertFalse(counts(name, file), name)
+        }
+        for name in ["Work/Site/assets/marked.png", "Work/Site/Screenshot 2026-11-02 at 10.00.00.png",
+                     "Work/Site/Screenshots/2026-11-02.png"] {
+            XCTAssertTrue(counts(name, file), name)
+        }
+
+        // A folder's only marker decides what's kept around it. Editing it, or another beside it, changes nothing.
+        XCTAssertTrue(counts("Work/App/package.json", kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemRemoved))
+        XCTAssertTrue(counts("Work/Notes/Cargo.toml", file))
+        XCTAssertFalse(counts("Work/App/package.json", kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemModified))
+        XCTAssertFalse(counts("Work/Site/package.json", file), "the folder has .git")
+        XCTAssertFalse(counts("Work/App/sub/Cargo.toml", file), "a project above it already decides")
+
+        // A new folder's contents report themselves; one that moved or was cloned says only this.
+        XCTAssertFalse(counts("Work/Notes/New", folder))
+        XCTAssertFalse(counts("Work/Site/dist", folder))
+        for flags in [moved, cloned] {
+            XCTAssertTrue(counts("Work/Notes/Trip", flags))
+            XCTAssertTrue(counts("Work/Site/Trip", flags), "it could hold screenshots")
+            XCTAssertFalse(counts("node_modules/left-pad/lib", flags))
+        }
+
+        // FSEvents lost track, or the path can't be placed: only a sync can tell.
+        XCTAssertTrue(counts("node_modules/left-pad", kFSEventStreamEventFlagMustScanSubDirs))
+        XCTAssertTrue(counts("Work/Notes", kFSEventStreamEventFlagKernelDropped | kFSEventStreamEventFlagItemIsDir))
+        XCTAssertTrue(counts("Work/Notes/server.log", kFSEventStreamEventFlagNone))
+        let filter = FileChangeFilter(folders: [chosen.path], options: FileSearchService.indexOptions())
+        XCTAssertEqual(filter.firstThatMatters([
+            .init(path: "/Volumes/Elsewhere/server.log", flags: FSEventStreamEventFlags(file)),
+        ]), "/Volumes/Elsewhere/server.log")
+    }
+
+    func testAChosenFolderIsReadWholeWhateverHoldsIt() throws {
+        // Chosen on purpose: its own markers don't make it a project, and a hidden or skipped folder above it doesn't
+        // count. FSEvents reports the real path, /private/var where the chosen one says /var.
+        let inner = chosen.appendingPathComponent(".hidden/node_modules/Repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: inner.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        let flags = FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemCreated)
+        let filter = FileChangeFilter(folders: [inner.path], options: FileSearchService.indexOptions())
+        for spelling in [inner.path, FolderSelection.realPath(inner.path)] {
+            let notes = spelling + "/notes.md"
+            XCTAssertEqual(filter.firstThatMatters([.init(path: notes, flags: flags)]), notes)
+            XCTAssertNil(filter.firstThatMatters([.init(path: spelling + "/server.log", flags: flags)]))
+            XCTAssertNil(filter.firstThatMatters([.init(path: spelling + "/.notes.md", flags: flags)]))
+        }
+
+        // Another chosen folder can still reach what this one skips.
+        let both = FileChangeFilter(folders: [chosen.path, inner.path], options: FileSearchService.indexOptions())
+        XCTAssertNotNil(both.firstThatMatters([.init(path: inner.path + "/notes.md", flags: flags)]))
+        XCTAssertNil(both.firstThatMatters([.init(path: chosen.path + "/node_modules/notes.md", flags: flags)]))
+
+        // Nested folders answer separately within a batch: a project to the outer one is whole to the inner one.
+        let site = chosen.appendingPathComponent("Site", isDirectory: true)
+        try FileManager.default.createDirectory(at: site.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        let nested = FileChangeFilter(folders: [chosen.path, site.path], options: FileSearchService.indexOptions())
+        let notes = site.path + "/notes.md"
+        XCTAssertEqual(nested.firstThatMatters([.init(path: notes, flags: flags)]), notes)
     }
 
     func testARecordingPausesIndexingBeforeTheModelStarts() async throws {
@@ -308,6 +463,16 @@ final class FileSearchServiceTests: XCTestCase {
         try text.write(to: chosen.appendingPathComponent(name), atomically: true, encoding: .utf8)
     }
 
+    private func makeFolder(_ name: String) throws {
+        try FileManager.default.createDirectory(at: chosen.appendingPathComponent(name), withIntermediateDirectories: true)
+    }
+
+    private func counts(_ name: String, _ flags: Int, includesMedia: Bool = true) -> Bool {
+        let path = chosen.appendingPathComponent(name).path
+        let filter = FileChangeFilter(folders: [chosen.path], options: FileSearchService.indexOptions(includesMedia: includesMedia))
+        return filter.firstThatMatters([.init(path: path, flags: FSEventStreamEventFlags(flags))]) == path
+    }
+
     private func writePicture(_ name: String, width: Int, height: Int) throws {
         let rgb = (0..<(width * height * 3)).map { UInt8(($0 / 3) % 251) }
         let image = try XCTUnwrap(CGImage(
@@ -320,6 +485,21 @@ final class FileSearchServiceTests: XCTestCase {
             chosen.appendingPathComponent(name) as CFURL, UTType.png.identifier as CFString, 1, nil))
         CGImageDestinationAddImage(destination, image, nil)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
+    }
+}
+
+private final class ReportedPaths: @unchecked Sendable {
+    private let lock = NSLock()
+    private var paths: [String] = []
+
+    var first: String? { lock.withLock { paths.first } }
+
+    /// How many there are now.
+    func append(_ path: String) -> Int {
+        lock.withLock {
+            paths.append(path)
+            return paths.count
+        }
     }
 }
 

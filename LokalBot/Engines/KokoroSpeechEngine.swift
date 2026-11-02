@@ -68,8 +68,8 @@ actor KokoroSpeechEngine {
     private static let archiveURL = URL(
         string: "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2"
     )!
-    private static let archiveBytes: Int64 = 349_418_188
-    private static let archiveSHA256 = "c133d26353d776da730870dac7da07dbfc9a5e3bc80cc5e8e83ab6e823be7046"
+    private static let archiveBytes: Int64 = 349_886_476
+    private static let archiveSHA256 = "60703707bc05ccd48d60e1eb723f38b07d6e474795a0b6a588d7220400e0f7a4"
 
     nonisolated var displayName: String { "Kokoro 82M" }
 
