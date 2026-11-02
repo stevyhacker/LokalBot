@@ -1,8 +1,14 @@
 {
- "_note": "Moments OCR can't see in run 41470837273: its capture stalled from 52 to 62 s and 122 to 135 s. q2_caught is q2_answer minus the 16 s on the code answer's card. press is where the Start Radar clip from the earlier Retina take starts, appended to film.mp4.",
+ "_note": "Moments OCR can't see in run 41470837273: its capture stalled from 52 to 62 s and 122 to 135 s. q2_caught is q2_answer minus the 16 s on the code answer's card. press is where the Start Radar clip from the earlier Retina take starts, appended to film.mp4. c13 and c14 are the free-tier lines; stall_end is where the capture picks up after the second stall; email_flip and invite_flip are when each approved Follow-through step changes state; press_flip is when the press clip cuts to the call.",
  "live_view": 52,
  "call_open": 62,
  "c08": 105,
  "q2_caught": 126,
- "press": 261.9
+ "press": 261.9,
+ "c13": 110,
+ "c14": 116,
+ "stall_end": 135,
+ "email_flip": 238.6,
+ "invite_flip": 250.7,
+ "press_flip": 266.7
 }

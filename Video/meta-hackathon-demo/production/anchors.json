@@ -26,5 +26,11 @@
  "ft_invite": 245,
  "settings": 41,
  "ft_done": 253,
- "press": 261.9
+ "press": 261.9,
+ "c13": 110,
+ "c14": 116,
+ "stall_end": 135,
+ "email_flip": 238.6,
+ "invite_flip": 250.7,
+ "press_flip": 266.7
 }

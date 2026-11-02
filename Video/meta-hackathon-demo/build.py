@@ -76,9 +76,11 @@ for i, s in enumerate(E['shots']):
     shots_html.append(f'''{speed}
       <div class="card" id="card-{s['id']}" data-layout-allow-overflow>
         <div class="frame" id="frame-{s['id']}" data-layout-allow-overflow>
-          <video id="v-{s['id']}" class="clip footage" src="{E['footage']}" muted playsinline
-            data-start="{s['start']}" data-duration="{dur}" data-media-start="{s['media_start']}"
-            data-track-index="{1 + i % 2}"{rate}></video>
+          <div class="cam" id="cam-{s['id']}" data-layout-allow-overflow>
+            <video id="v-{s['id']}" class="clip footage" src="{E['footage']}" muted playsinline
+              data-start="{s['start']}" data-duration="{dur}" data-media-start="{s['media_start']}"
+              data-track-index="{1 + i % 2}"{rate}></video>
+          </div>
         </div>
       </div>''')
 
@@ -93,6 +95,10 @@ for b in E['beats']:
         {f'<div class="chips">{chips}</div>' if chips else ''}
       </div>''')
 
+rings_html = ''.join(
+    f'<div class="ring" id="ring-{i}" style="left:{r["box"][0]}px;top:{r["box"][1]}px;width:{r["box"][2]}px;height:{r["box"][3]}px"></div>'
+    for i, r in enumerate(E['rings']))
+
 caps_html = '\n'.join(
     f'      <div class="clip cap" id="cap-{i + 1:02d}" data-start="{c["start"]}" data-duration="{c["dur"]}" data-track-index="20">'
     + (f'<span class="who who-{c["speaker"].lower()}">{c["speaker"]}</span>' if c['speaker'] else '')
@@ -101,7 +107,7 @@ caps_html = '\n'.join(
 
 MIX = 'assets/sound/final-mix.wav'
 mix_dur = media_duration(MIX) if (P / MIX).exists() else TOTAL
-config = {'shots': E['shots'], 'beats': E['beats'], 'scenes': E['scenes'], 'total': TOTAL, 'fps': E['fps'], 'canvas': [1920, 1080]}
+config = {'shots': E['shots'], 'beats': E['beats'], 'rings': E['rings'], 'scenes': E['scenes'], 'total': TOTAL, 'fps': E['fps'], 'canvas': [1920, 1080]}
 
 page = f'''<!doctype html>
 <html lang="en">
@@ -130,18 +136,21 @@ page = f'''<!doctype html>
       .card {{ position: absolute; inset: 0; opacity: 0;
         filter: drop-shadow(0 0 1px rgba(47,211,189,0.55)) drop-shadow(0 26px 34px rgba(0,0,0,0.55)); }}
       .frame {{ position: absolute; inset: 0; background: #000; }}
-      .footage {{ position: absolute; left: 0; top: 0; width: {SRC_W}px; height: {SRC_H}px; transform-origin: 0 0; }}
+      .cam {{ position: absolute; left: 0; top: 0; width: {SRC_W}px; height: {SRC_H}px; transform-origin: 0 0; }}
+      .footage {{ position: absolute; left: 0; top: 0; width: {SRC_W}px; height: {SRC_H}px; }}
       .speed {{ position: absolute; z-index: 5; width: 150px; text-align: center; opacity: 0; font-family: "JetBrains Mono", monospace;
         font-size: 18px; font-weight: 700; color: #091216; background: var(--voice); border-radius: 999px; padding: 6px 0; }}
+      .ring {{ position: absolute; z-index: 6; opacity: 0; border: 4px solid var(--voice); border-radius: 12px;
+        box-shadow: 0 0 22px rgba(255,207,92,0.65); }}
       .beat {{ position: absolute; left: 72px; top: 0; height: 930px; opacity: 0; display: flex; flex-direction: column; gap: 22px;
         justify-content: center; }}
       .kicker {{ font-family: "JetBrains Mono", monospace; font-size: 20px; font-weight: 600; letter-spacing: 0.14em;
         text-transform: uppercase; color: var(--teal); }}
-      .headline {{ font-family: "Big Shoulders Display", sans-serif; font-size: 84px; line-height: 0.92; font-weight: 800;
+      .headline {{ font-family: "Big Shoulders Display", sans-serif; font-size: 84px; line-height: 1.02; font-weight: 800;
         text-transform: uppercase; letter-spacing: 0.01em; text-wrap: balance; }}
       .detail {{ font-size: 29px; line-height: 1.4; color: #cfe2de; }}
       .chips {{ display: flex; flex-wrap: wrap; gap: 10px; }}
-      .chip {{ font-family: "JetBrains Mono", monospace; font-size: 17px; font-weight: 600; padding: 9px 14px;
+      .chip {{ font-family: "JetBrains Mono", monospace; font-size: 20px; font-weight: 600; padding: 9px 14px;
         border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: rgba(18,35,42,0.75); }}
       .cap {{ position: absolute; left: 72px; right: 72px; bottom: 40px; display: flex; gap: 16px; align-items: baseline;
         justify-content: center; }}
@@ -183,6 +192,7 @@ page = f'''<!doctype html>
       <div id="grid"></div>
 {''.join(shots_html)}
 {''.join(beats_html)}
+{rings_html}
       <div class="scene" id="title">
         <div class="eyebrow">LokalBot × Meta Muse</div>
         <div class="big">From meeting<br/><span class="to">to done</span></div>
@@ -203,7 +213,7 @@ page = f'''<!doctype html>
       <div class="scene" id="endcard">
         <div class="brand"><img src="assets/brand/lokalbot-mark-brand.svg" alt="" /><div class="word">LokalBot</div></div>
         <div class="line">From meeting to done</div>
-        <div class="url">github.com/stevyhacker/lokalbot</div>
+        <div class="url">github.com/stevyhacker/lokalbot/tree/meta-hackathon</div>
         <div class="note">{html.escape(E['endcard_note'])}</div>
       </div>
 {caps_html}
@@ -227,7 +237,7 @@ page = f'''<!doctype html>
       const place = (s, p, at) => {{
         const [l, t, w, h] = p.box, [cw, ch] = C.canvas;
         tl.set("#frame-" + s.id, {{ clipPath: `inset(${{t.toFixed(3)}}px ${{(cw - l - w).toFixed(3)}}px ${{(ch - t - h).toFixed(3)}}px ${{l.toFixed(3)}}px round 18px)` }}, at);
-        tl.set("#v-" + s.id, {{ x: p.tx, y: p.ty, scale: p.k, force3D: false, transformOrigin: "0 0" }}, at);
+        tl.set("#cam-" + s.id, {{ x: p.tx, y: p.ty, scale: p.k, force3D: false, transformOrigin: "0 0" }}, at);
       }};
       for (const s of C.shots) {{
         const card = "#card-" + s.id;
@@ -260,6 +270,10 @@ page = f'''<!doctype html>
           tl.fromTo(el + " .chip", {{ opacity: 0, y: 8 }}, {{ opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: "power2.out" }}, b.start + 0.4);
         tl.to(el, {{ opacity: 0, y: -10, duration: 0.4, ease: "power1.in" }}, b.end - 0.4);
       }}
+      C.rings.forEach((r, i) => {{
+        tl.fromTo("#ring-" + i, {{ opacity: 0, scale: 1.25 }}, {{ opacity: 1, scale: 1, duration: 0.18, ease: "power2.out" }}, r.start);
+        tl.to("#ring-" + i, {{ opacity: 0, duration: 0.2 }}, r.end - 0.2);
+      }});
       const sc = C.scenes;
       tl.fromTo("#title", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, sc.title.start);
       tl.fromTo("#title .big", {{ y: 40, scale: 1.04 }}, {{ y: 0, scale: 1, duration: 1.2, ease: "expo.out" }}, sc.title.start);

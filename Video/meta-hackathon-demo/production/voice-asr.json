@@ -70,6 +70,16 @@
   ]
  },
  {
+  "file": "c13-s11.mp3",
+  "heard": "and Sales wants the free tier limited to one project.",
+  "missing": []
+ },
+ {
+  "file": "c14-s11.mp3",
+  "heard": "Okay, let's decide that with Ana tomorrow.",
+  "missing": []
+ },
+ {
   "file": "n01-s11.mp3",
   "heard": "Someone asks for a number on a call. LokalBot saw it on my screen earlier and answers before I've found the tab.",
   "missing": []
@@ -86,7 +96,7 @@
  },
  {
   "file": "n04-s11.mp3",
-  "heard": "Muse Voice Transcribe turns each turn into text as it ends. Muse Spark reads it and my commitment lands seconds later.",
+  "heard": "On a live call, Muse Voice Transcribe turns each turn into text as it ends. Muse Spark reads it, and my commitment lands seconds later.",
   "missing": []
  },
  {
@@ -101,11 +111,6 @@
    "dollars",
    "twelve"
   ]
- },
- {
-  "file": "n07-s11.mp3",
-  "heard": "That number was on my screen last week. Spark reads a crop of the dashboard.",
-  "missing": []
  },
  {
   "file": "n08-s11.mp3",
@@ -138,12 +143,30 @@
  },
  {
   "file": "n11-s11.mp3",
-  "heard": "Follow through takes my commitment from there. Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice, and books our talk for tomorrow. Nothing is sent until I approve it.",
+  "heard": "Follow through takes that free tier decision. Wonder reads the meeting finds what we agreed earlier and writes Ana an email that lays out the choice.",
   "missing": []
  },
  {
   "file": "n11-s29.mp3",
   "heard": "Follow-through takes my commitment from there. Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice and books our talk for tomorrow. Nothing is sent until I approve it.",
+  "missing": [
+   "agreed",
+   "decision",
+   "finds",
+   "free",
+   "tier",
+   "we",
+   "what"
+  ]
+ },
+ {
+  "file": "n11b-s11.mp3",
+  "heard": "Nothing is sent until I approve it.",
+  "missing": []
+ },
+ {
+  "file": "n11c-s11.mp3",
+  "heard": "Then it drafts the invite for tomorrow, and that waits for me too.",
   "missing": []
  },
  {
