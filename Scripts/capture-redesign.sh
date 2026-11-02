@@ -25,6 +25,7 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$OUT"
+Scripts/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 xcodebuild -project LokalBot.xcodeproj -scheme "$SCHEME" \
   -configuration Debug -destination 'platform=macOS' build >/dev/null

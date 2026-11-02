@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: October 31, 2026
+Effective: November 1, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -40,7 +40,10 @@ LokalBot can store the following under its Application Support directory:
   their text, and vectors of what they say or show (see [Files you
   choose](#files-you-choose));
 - conversations downloaded from email accounts you connect, encrypted (see
-  **Email** under [Network access](#network-access)); and
+  **Email** under [Network access](#network-access));
+- while you share with phones and tablets, the records your paired devices
+  receive and those devices' public keys (see
+  [Phones and tablets](#phones-and-tablets)); and
 - preferences, diagnostic logs, and encryption keys.
 
 Fresh installs select activity-only day tracking. Visible text and encrypted
@@ -493,6 +496,70 @@ use those requests to track you.
 LokalBot's own automated tests send only synthetic fixture text to remote
 model providers, from the project's CI; they never use a user's library.
 
+LokalBot accepts no incoming network connections apart from the listeners on
+`127.0.0.1` described above and the private control socket under
+[External-agent access](#external-agent-access). The one exception is opt-in:
+while you turn on **Phones & tablets**, the Mac listens for the phones and
+tablets you paired, as described next.
+
+## Phones and tablets
+
+Settings → **Phones & tablets** lets you read your Work Memory on your own
+iPhone, iPad, or Android device. It is off by default and separate from
+**Allow external agents to read your LokalBot data** and the other grants:
+turning one on never turns on another. While it is off, nothing listens and
+no shared copy is built.
+
+- **What is shared.** Only the data classes you leave on, each of which you can
+  turn off: meetings (title, time, app, duration, people's display names,
+  tracked projects, the summary, your notes, action items with your
+  corrections, decisions, and open questions), transcripts (text, times, and
+  speaker display names), Day Digests (with screen citations reduced to their
+  time and without the raw activity log, which quotes screen text), the
+  Timeline (work sessions, apps, time per project, coding-agent sessions, and
+  saved moments, with window titles unless you turn them off), people (display
+  names, open work, decisions, and meetings together), and tracked projects
+  (where they stand, actions, decisions, time, and meetings). You can limit the
+  copy to the last 30, 90, or 365 days; older records are removed from your
+  devices.
+- **What is never shared.** Calendar attendee email addresses, speaker
+  evidence and voice profiles, screenshots and their file paths, captured
+  screen text, the files you chose under Files, email, Personal Context,
+  overnight (Dream) memory, Ask conversations held on the Mac, settings, and
+  API keys. The bundled sample meeting is not shared.
+- **Where it travels.** Directly between your Mac and your devices, over your
+  local network or your Tailscale network. LokalBot operates no server or
+  relay and receives nothing. The Mac listens on one TCP port (17890 unless
+  you change it) and refuses, before any handshake, every connection that does
+  not come from a private network address (RFC 1918, link-local, or IPv6
+  unique local) or a Tailscale address (`100.64.0.0/10`). On the local
+  network it announces itself with Bonjour (`_lokalbot._tcp`) under a neutral
+  name, `LokalBot-` and four characters of its key's fingerprint, unless you
+  turn advertising off.
+- **Encryption and pairing.** Every connection is end-to-end encrypted and
+  mutually authenticated with the Noise Protocol Framework (X25519,
+  ChaChaPoly, BLAKE2s). Your Mac's long-term key is kept in the Keychain and
+  never synchronized. A device pairs only by scanning the code shown under
+  **Add a device**, which expires after five minutes and works once, and only
+  after you allow it in a prompt on the Mac. Afterwards the Mac accepts a
+  connection only from the keys of devices you paired.
+- **Questions from your devices.** With **Answer questions from my devices**
+  on, the Mac answers with your Think model and its existing approvals, from
+  the meetings and Timeline you share; screen memory and your files are never
+  searched for a device. With an approved remote Think server, the question
+  and the context it needs go to that server as they do for Ask on the Mac,
+  and the device shows that a remote engine answered.
+- **Changes from your devices.** A device can mark an action open, done, or
+  deferred. The Mac applies the change as if you made it in Actions.
+- **Storage.** The Mac keeps the shared records and the paired devices' public
+  keys in `companion/companion.sqlite` in the library; deleting it means pairing
+  again. Each device keeps its copy in its app's private storage for offline
+  reading.
+- **Removing a device.** Remove it under Settings → Phones & tablets. It is
+  refused from its next connection, and if it is connected it is told to
+  erase its copy. **Remove this device** in the device's settings erases the
+  copy there.
+
 ## Email from Gmail
 
 This section is LokalBot's disclosure for data it receives from Google APIs.
@@ -639,6 +706,9 @@ grant optional permissions until you approve them:
 - Files and Folders access (Desktop, Documents, Downloads, external and
   network drives), only when a folder you choose under Files lives there;
   macOS asks the first time LokalBot reads it.
+- Local Network when you approve an inference server on your network or turn
+  on **Phones & tablets**. With the macOS firewall on, macOS may also ask
+  whether LokalBot may accept incoming connections for paired devices.
 
 On a fresh install, LokalBot asks through a notification before it records a
 detected meeting. You can switch to automatic recording or turn auto-record
@@ -1184,8 +1254,9 @@ platform differences:
   personal context is read only from a library that came from a Mac, because
   the app has no Personal Context page or setting for it yet.
 - **Mac-only features.** Personal Context, email, Files, selection actions, meeting note export,
-  daily memory notes, spoken summaries and coding-agent sessions are not in the
-  Windows and Linux app yet, so none of their data is collected there.
+  daily memory notes, spoken summaries, coding-agent sessions and sharing with
+  phones and tablets are not in the Windows and Linux app yet, so none of their
+  data is collected there and it listens for no devices.
 - **Network access** is limited to model and runtime downloads you request
   (models from Hugging Face and GitHub, the llama.cpp runtime from GitHub, the
   OCR model from the ocrs project's storage), Agent Mode setup, update checks,

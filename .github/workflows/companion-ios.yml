@@ -1,0 +1,94 @@
+# iPhone and iPad companion: run the kit's unit tests and compile the app for
+# the iOS Simulator and for devices. Signing is off (CODE_SIGNING_ALLOWED=NO);
+# hosted runners hold no Apple Development certificate. No UI tests run here.
+
+name: Companion iOS
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - "Companion/**"
+      - "!Companion/android/**"
+      - "!Companion/**/*.md"
+      - "LinuxWindows/crates/lokalbot-sync/**"
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/rust-toolchain.toml"
+      - "Scripts/build-sync-*"
+      - ".github/actions/lokalbot-sync/**"
+      - ".github/workflows/companion-ios.yml"
+  pull_request:
+    branches: [master, dev]
+    paths:
+      - "Companion/**"
+      - "!Companion/android/**"
+      - "!Companion/**/*.md"
+      - "LinuxWindows/crates/lokalbot-sync/**"
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/rust-toolchain.toml"
+      - "Scripts/build-sync-*"
+      - ".github/actions/lokalbot-sync/**"
+      - ".github/workflows/companion-ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: companion-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  ios:
+    name: Kit tests and app build
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The same pinned Xcode as the Mac build (build.yml); bump together.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.4.1"
+
+      - name: Toolchain info
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      # Rust toolchain, Apple targets and Vendor/lokalbot-sync. The project
+      # references that local package, so it must exist before generation.
+      - name: Build lokalbot-sync
+        uses: ./.github/actions/lokalbot-sync
+
+      - name: Kit unit tests
+        run: swift test --package-path Companion/ios/LokalBotCompanionKit
+
+      # LokalBotCompanion.xcodeproj is generated from Companion/ios/project.yml.
+      - name: Generate project
+        working-directory: Companion/ios
+        run: xcodegen generate
+
+      - name: Build for the iOS Simulator
+        run: |
+          xcodebuild -project Companion/ios/LokalBotCompanion.xcodeproj -scheme LokalBotCompanion \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/companion-ios" \
+            build CODE_SIGNING_ALLOWED=NO
+
+      - name: Build for devices
+        run: |
+          xcodebuild -project Companion/ios/LokalBotCompanion.xcodeproj -scheme LokalBotCompanion \
+            -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/companion-ios" \
+            build CODE_SIGNING_ALLOWED=NO

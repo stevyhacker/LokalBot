@@ -81,7 +81,8 @@ struct SettingsView: View {
                     searchResults
                 } else if app.settingsTab == .overview {
                     SettingsOverview(permissions: permissions, access: app.agentReadAccess,
-                                     email: app.email, personalModel: app.personalModel)
+                                     email: app.email, personalModel: app.personalModel,
+                                     companion: app.companion)
                 } else if app.settingsTab == .models {
                     ModelsView()
                     .settingTarget("settings.models", selected: app.focusedSettingID)
@@ -203,6 +204,8 @@ struct SettingsView: View {
             "Choose the models behind Transcribe, Think, and Autocomplete."
         case .agents:
             "What Claude, Codex, Cursor, and other agents can read or change."
+        case .devices:
+            "Read your work memory on your own iPhone, iPad, or Android device."
         case .general:
             "Startup, appearance, and updates."
         case .privacy:
@@ -247,6 +250,8 @@ struct SettingsView: View {
             DictationView(dictation: app.dictation, embedded: true)
         case .agents:
             agentAccessSection; agentCLISection
+        case .devices:
+            CompanionSettingsSections()
         case .privacy:
             privacySection; permissionsSection; privacyLinksSection
         case .advanced:

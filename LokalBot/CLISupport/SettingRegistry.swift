@@ -7,7 +7,7 @@ enum SettingCategory: String, CaseIterable, Codable {
     case recording, dayMemory, files, email
     case ask, personalContext, daily
     case writing, dictation
-    case models, agents
+    case models, agents, devices
     case privacy, advanced
 }
 
@@ -248,7 +248,7 @@ enum SettingRegistry {
         "automatic", "off", "minimal", "low", "medium", "high", "xhigh", "max",
     ])
 
-    static let all: [SettingSpec] = general + recording + dayMemory + privacy + models + writing + dictation
+    static let all: [SettingSpec] = general + recording + dayMemory + privacy + devices + models + writing + dictation
 
     private static let general: [SettingSpec] = [
         entry("menuBarOnly", .general, "Menu bar only (hide Dock icon)", .bool,
@@ -460,6 +460,49 @@ enum SettingRegistry {
               summary: "Local hour (0–23) at which daily routines run."),
         entry("memoryRoutineWeekday", .daily, "Weekly log day", .integer(1...7),
               summary: "Weekday of the weekly work log: 1 is Sunday, 7 is Saturday."),
+    ]
+
+    private static let devices: [SettingSpec] = [
+        entry("companionSharingEnabled", .devices, "Share with my phones and tablets", .bool, .consent,
+              aliases: "companion iphone ipad android phone tablet sync pair devices tailscale local network",
+              summary: "Listen for paired phones and tablets on the local network and Tailscale, and send them an encrypted copy of the shared data classes."),
+        entry("companionShareMeetings", .devices, "Share meetings", .bool, .consent,
+              aliases: "companion meetings summaries notes actions decisions",
+              summary: "Meeting titles, times, people's display names, projects, summaries, your notes, actions, decisions, and open questions."),
+        entry("companionShareTranscripts", .devices, "Share transcripts", .bool, .consent,
+              aliases: "companion transcript speakers",
+              summary: "Transcript text with times and speaker display names; never speaker evidence or voice profiles."),
+        entry("companionShareDigests", .devices, "Share Day Digests", .bool, .consent,
+              aliases: "companion digest journal daily",
+              summary: "Each day's digest, with screen citations reduced to their time."),
+        entry("companionShareTimeline", .devices, "Share the Timeline", .bool, .consent,
+              aliases: "companion timeline activity apps sessions coding agents saved moments",
+              summary: "Work sessions, apps, time per project, coding-agent sessions, and saved moments."),
+        entry("companionShareWindowTitles", .devices, "Include window titles", .bool, .consent,
+              aliases: "companion timeline window titles",
+              summary: "Window titles in the shared Timeline."),
+        entry("companionSharePeople", .devices, "Share people", .bool, .consent,
+              aliases: "companion people names",
+              summary: "Display names, open work, decisions, and meetings together; never email addresses."),
+        entry("companionShareProjects", .devices, "Share projects", .bool, .consent,
+              aliases: "companion projects tracked where it stands",
+              summary: "Tracked projects with where they stand, actions, decisions, time, and meetings."),
+        entry("companionHistory", .devices, "Shared history",
+              .choice([
+                  .init("days30", stored: 30), .init("days90", stored: 90),
+                  .init("days365", stored: 365), .init("all", stored: 0),
+              ]),
+              .consent, aliases: "companion history days window how far back",
+              summary: "How far back the copy on your devices reaches: 30, 90 or 365 days, or all history."),
+        entry("companionAnswersQuestions", .devices, "Answer questions from my devices", .bool, .consent,
+              aliases: "companion ask questions phone",
+              summary: "Answer questions from paired devices with the Think model and its existing approvals."),
+        entry("companionPort", .devices, "Port", .integer(1024...65535),
+              aliases: "companion port tcp listener",
+              summary: "TCP port the listener uses while sharing is on."),
+        entry("companionAdvertisesOnBonjour", .devices, "Advertise on the local network", .bool, .consent,
+              aliases: "companion bonjour mdns discovery",
+              summary: "Announce the Mac with Bonjour so devices find it on the same network. Off leaves the addresses saved at pairing, such as Tailscale."),
     ]
 
     private static let privacy: [SettingSpec] = [

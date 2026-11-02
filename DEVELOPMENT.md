@@ -28,6 +28,14 @@ A release-identity build run from Xcode build products (any path under `DerivedD
 
 App Sandbox is intentionally disabled because Core Audio process taps do not work in the sandbox. Distribution uses Developer ID signing and notarization. When the user requests reinstallation of the installed app, use `Scripts/reinstall-preserve-permissions.sh` to validate signing identity and update it in place.
 
+Sharing with phones and tablets links the Rust crate `lokalbot-sync` (`LinuxWindows/crates/lokalbot-sync`) as the local Swift package `Vendor/lokalbot-sync` (product `LokalBotSync`). Xcode resolves packages before any build phase runs, so build it before `xcodegen generate` and the first `xcodebuild`:
+
+```bash
+Scripts/build-sync-xcframework.sh
+```
+
+It needs `rustup` and `cargo` (https://rustup.rs); it installs the toolchain `LinuxWindows/rust-toolchain.toml` pins and the Apple targets it builds (arm64 macOS, iOS, and iOS Simulator), and does nothing while the crate, `Cargo.lock`, and the script are unchanged. The app target also runs it as a pre-build phase, so a crate change is picked up by the next build. Every workflow that builds the Mac app runs it first through `.github/actions/lokalbot-sync`.
+
 The first build uses `Scripts/fetch-llama.sh` and `Scripts/fetch-sherpa.sh` to vendor native runtimes. Read their pins and the Swift package versions from the checked-in configuration rather than copying version numbers from prose. Preserve pins unless the requested work needs an update.
 
 The `lokalbot-cli` target shares `LokalBot/CLISupport/` and selected model files by direct source inclusion. It is built before the app and embedded in `Contents/Helpers/`; it is not a shared framework. `project.yml` separately copies `.agents/skills/lokalbot-cli/SKILL.md` into `Contents/Resources/lokalbot-cli/`. Keep that skill self-contained unless its packaging is also updated. `Scripts/build-mcpb.sh` packages the helper for GUI MCP clients.
@@ -348,7 +356,7 @@ Everything lives in **Settings**, one page per feature, so everything that turns
 - **Memory:** **Meetings** (`recording`) — detection, calendar, processing with the Transcribe and Think models and transcription language and vocabulary in sheets over the page, speakers, notes, and per-meeting note export. **Screen & Activity** (`dayMemory`) — app tracking, screen context, retention, capture exclusions, coding agent sessions, and the agent box for screen memory. **Files** and **Email** — their sources, with the agent box for Files.
 - **Assistant:** **Ask** — the opt-in Ask anywhere shortcut (`⌃⇧Space` by default) and the selection actions shortcut, the Think model, search by meaning, and a summary of what Ask can search. **Personal Context** — what you told LokalBot, learning, and the agent box for shared items. **Daily Review** (`daily`) — the day digest, overnight review, routines, and the daily note export.
 - **Writing:** **Autocomplete** (`writing`) — test and tune the Cotyping engine, its model (in a sheet over the page), context, the writing profile, exclusions, extras such as autocorrect, emoji and macros, and statistics. **Dictation** — the shortcut (recordable, including modifier-only chords), trigger style, paste vs. clipboard, Compose with the same writing profile, the speech model, permissions, and a try-it-here rehearsal.
-- **Connections:** **Models** — readiness for the Transcribe, Think, and Autocomplete roles; presets; transcription engines; Main LLM backends (Built-in / Apple Intelligence / Ollama / OpenAI-compatible); the GGUF catalog and Hugging Face browser; embeddings; and Kokoro TTS. **External Agents** (`agents`) — the read switch with its boxes, settings access with recent changes and Undo, and Agent CLI installation.
+- **Connections:** **Models** — readiness for the Transcribe, Think, and Autocomplete roles; presets; transcription engines; Main LLM backends (Built-in / Apple Intelligence / Ollama / OpenAI-compatible); the GGUF catalog and Hugging Face browser; embeddings; and Kokoro TTS. **External Agents** (`agents`) — the read switch with its boxes, settings access with recent changes and Undo, and Agent CLI installation. **Phones & tablets** (`devices`) — off by default; shares an allowlisted, Noise-encrypted copy of the library with paired iPhone, iPad and Android devices over the local network or Tailscale (`LokalBot/Services/Companion/`): the on/off switch, Add a device (a QR code), the paired devices, the data classes and history window, answering questions from devices, the port, and Bonjour advertising. Record builders turn the library into the JSON of `Companion/protocol/records.md`; `CompanionRecordBuilderTests` checks that no record carries attendee emails, speaker evidence, screenshot paths, screen text, or window titles when they are off.
 - **App:** **Privacy & Permissions** (`privacy`) — where data lives, every macOS permission in one list, and the library location. **Diagnostics** (`advanced`) — Memory Health, the live resource monitor, hardware, recent generations, and diagnostics export.
 
 Category switches start at the top rather than inheriting another page's scroll position.
@@ -437,6 +445,7 @@ Debug builds add test-only flags (`LOKALBOT_TEST_HOOKS`; Release never compiles 
 ├── memory/personal-model.json.enc  # Personal Context claims (AES-GCM, chat-key)
 ├── email/                      # connected mail: accounts.json.enc, <account-id>/threads/*.json.enc (AES-GCM, email-key)
 ├── activity/YYYY-MM-DD/shots/  # <epoch>.heic.enc  (AES-GCM sealed)
+├── companion/companion.sqlite  # records shared with paired phones and tablets, their public keys (only while sharing is on)
 ├── models/                     # downloaded GGUFs
 ├── qwen3-asr-models/           # downloaded Qwen3-ASR MLX weights
 └── lokalbotv3.sqlite           # FTS5 (docs) + embeddings + activity_blocks + ocr_fts + screenshots + coding_agent_bursts

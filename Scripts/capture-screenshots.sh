@@ -60,6 +60,7 @@ mkdir -p "$OUT" "$STILLS"
 
 echo "==> Generating Xcode project"
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+Scripts/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 
 echo "==> Building '$SCHEME'"

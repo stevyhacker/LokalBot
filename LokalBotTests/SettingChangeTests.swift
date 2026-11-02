@@ -82,6 +82,7 @@ final class SettingChangeTests: XCTestCase {
             case ("screenContextCaptureMode", _): narrowed = "Activity only"
             case ("openRouterDataPolicy", _): narrowed = "privateOnly"
             case ("modelDownloadSource", _): narrowed = "huggingFace"
+            case ("companionHistory", _): narrowed = 30
             case (_, .bool): narrowed = false
             case (_, .text(.commaSeparated)):
                 // Adding an exclusion narrows; clearing the list would widen.

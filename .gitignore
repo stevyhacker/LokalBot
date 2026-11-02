@@ -87,3 +87,17 @@ lokalbot video ad handoff/
 # Raycast extension generated files and local install
 Distribution/raycast/raycast-env.d.ts
 Distribution/raycast/node_modules/
+
+# iPhone and iPad companion: XcodeGen output (run `xcodegen generate` in
+# Companion/ios) and Xcode's package workspace state.
+Companion/ios/LokalBotCompanion.xcodeproj/
+Companion/ios/LokalBotCompanionKit/.swiftpm/
+
+# Android companion (Companion/android): Gradle and IDE state, build output,
+# and the Rust libraries and UniFFI bindings Scripts/build-sync-android.sh writes.
+Companion/android/.gradle/
+Companion/android/.kotlin/
+Companion/android/.idea/
+Companion/android/local.properties
+Companion/android/**/build/
+Companion/android/sync/build/rust/

@@ -23,11 +23,11 @@ are listed in `THIRD_PARTY_NOTICES.md`.
 
 | License | Crates |
 | --- | ---: |
-| MIT License | 676 |
+| MIT License | 684 |
 | Apache License 2.0 | 42 |
+| Mozilla Public License 2.0 | 24 |
 | Unicode License v3 | 20 |
-| Mozilla Public License 2.0 | 18 |
-| BSD 3-Clause "New" or "Revised" License | 15 |
+| BSD 3-Clause "New" or "Revised" License | 16 |
 | ISC License | 7 |
 | BSD Zero Clause License | 4 |
 | Creative Commons Zero v1.0 Universal | 3 |
@@ -3313,6 +3313,27 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Used by:
 
+- curve25519-dalek 4.1.3 (https://github.com/dalek-cryptography/curve25519-dalek/tree/main/curve25519-dalek). Authors: Isis Lovecruft <isis@patternsinthevoid.net>; Henry de Valence <hdevalence@hdevalence.ca>
+
+````text
+Copyright (c) <year> <owner>. 
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+````
+
+### BSD 3-Clause "New" or "Revised" License
+
+Used by:
+
 - encoding_rs 0.8.42 (https://github.com/hsivonen/encoding_rs)
 
 ````text
@@ -6241,6 +6262,42 @@ DEALINGS IN THE SOFTWARE.
 
 Used by:
 
+- blake2 0.10.6 (https://github.com/RustCrypto/hashes)
+
+````text
+Copyright (c) 2015-2016 The blake2-rfc Developers, Cesar Barros
+Copyright (c) 2017 Artyom Pavlov
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+````
+
+### MIT License
+
+Used by:
+
 - fixedbitset 0.5.7 (https://github.com/petgraph/fixedbitset)
 
 ````text
@@ -6310,6 +6367,41 @@ Used by:
 ````text
 Copyright (c) 2015-2018 Vlad Filippov
 Copyright (c) 2018-2021 RustCrypto Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+````
+
+### MIT License
+
+Used by:
+
+- poly1305 0.8.0 (https://github.com/RustCrypto/universal-hashes)
+
+````text
+Copyright (c) 2015-2019 RustCrypto Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -8504,6 +8596,7 @@ DEALINGS IN THE SOFTWARE.
 Used by:
 
 - aes-gcm 0.10.3 (https://github.com/RustCrypto/AEADs)
+- chacha20poly1305 0.10.1 (https://github.com/RustCrypto/AEADs/tree/master/chacha20poly1305)
 
 ````text
 Copyright (c) 2019 The RustCrypto Project Developers
@@ -8680,6 +8773,41 @@ Used by:
 
 ````text
 Copyright (c) 2019-2023 RustCrypto Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+````
+
+### MIT License
+
+Used by:
+
+- chacha20 0.9.1 (https://github.com/RustCrypto/stream-ciphers)
+
+````text
+Copyright (c) 2019-2023 The RustCrypto Project Developers
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
@@ -10196,6 +10324,24 @@ DEALINGS IN THE SOFTWARE.
 
 Used by:
 
+- if-addrs 0.15.0 (https://github.com/messense/if-addrs)
+
+````text
+Copyright 2018 MaidSafe.net limited.
+Copyright 2020 messense
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+````
+
+### MIT License
+
+Used by:
+
 - nohash-hasher 0.2.0 (https://github.com/paritytech/nohash-hasher)
 
 ````text
@@ -11449,6 +11595,37 @@ SOFTWARE.
 
 Used by:
 
+- snow 0.10.0 (https://github.com/mcginty/snow)
+
+````text
+MIT License
+
+Copyright (c) 2021 Jake McGinty
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+````
+
+### MIT License
+
+Used by:
+
 - rust-i18n 4.2.4 (https://github.com/longbridge/rust-i18n)
 
 ````text
@@ -12397,6 +12574,7 @@ Used by:
 - atomic-waker 1.1.2 (https://github.com/smol-rs/atomic-waker)
 - blocking 1.7.0 (https://github.com/smol-rs/blocking)
 - calcard 0.3.14 (https://github.com/stalwartlabs/calcard)
+- camino 1.2.6 (https://github.com/camino-rs/camino)
 - concurrent-queue 2.5.0 (https://github.com/smol-rs/concurrent-queue)
 - curve25519-dalek-derive 0.1.1 (https://github.com/dalek-cryptography/curve25519-dalek)
 - displaydoc 0.2.7 (https://github.com/yaahc/displaydoc)
@@ -12530,6 +12708,7 @@ DEALINGS IN THE SOFTWARE.
 Used by:
 
 - allocator-api2 0.2.21 (https://github.com/zakarumych/allocator-api2)
+- fs-err 3.3.2 (https://github.com/andrewhickman/fs-err)
 
 ````text
 Permission is hereby granted, free of charge, to any
@@ -15289,6 +15468,12 @@ Used by:
 
 - dwrote 0.11.5 (https://github.com/servo/dwrote-rs). Authors: The Servo Project Developers; Vladimir Vukicevic <vladimir@pobox.com>
 - option-ext 0.2.0 (https://github.com/soc/option-ext.git). Authors: Simon Ochsenreither <simon@ochsenreither.de>
+- uniffi 0.32.2 (https://github.com/mozilla/uniffi-rs)
+- uniffi_core 0.32.2 (https://github.com/mozilla/uniffi-rs)
+- uniffi_internal_macros 0.32.2 (https://github.com/mozilla/uniffi-rs)
+- uniffi_macros 0.32.2 (https://github.com/mozilla/uniffi-rs)
+- uniffi_meta 0.32.2 (https://github.com/mozilla/uniffi-rs)
+- uniffi_pipeline 0.32.2 (https://github.com/mozilla/uniffi-rs)
 
 ````text
 Mozilla Public License Version 2.0

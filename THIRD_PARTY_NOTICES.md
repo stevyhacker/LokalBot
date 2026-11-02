@@ -241,6 +241,29 @@ downloads the companion archive from the same pinned llama.cpp release into its
 own runtime folder. The NVIDIA GPU driver remains installed and managed by the
 user's operating system; it is not included in LokalBot's downloads.
 
+## Phone and tablet companion apps
+
+The Mac app and the iPhone, iPad and Android companion apps in `Companion/`
+compile in `lokalbot-sync`, LokalBot's own Rust crate for pairing and sync
+(`LinuxWindows/crates/lokalbot-sync`). Its Rust crates are listed with their
+licenses and notices in [`LICENSES/rust-crates.md`](LICENSES/rust-crates.md),
+among them snow (Apache-2.0), the UniFFI runtime (MPL-2.0, used unmodified),
+rusqlite with SQLite compiled in (SQLite is in the public domain),
+curve25519-dalek (BSD-3-Clause) and the RustCrypto ChaCha20-Poly1305 and
+BLAKE2 crates (MIT or Apache-2.0). The Rust standard library is compiled in as
+well, under MIT or Apache-2.0.
+
+The iPhone and iPad app otherwise uses only Apple's SDKs. The Android app
+also includes:
+
+| Component | License | Source |
+| --- | --- | --- |
+| Inter 4.001, the interface font | OFL-1.1 | Copyright 2016 The Inter Project Authors, https://github.com/rsms/inter |
+| Jetpack Compose, Material 3 and AndroidX (Activity, Core, Lifecycle, DataStore, WindowManager, WorkManager, Biometric, CameraX) | Apache-2.0 | https://developer.android.com/jetpack/androidx |
+| Kotlin standard library, kotlinx.coroutines and kotlinx.serialization | Apache-2.0 | https://github.com/JetBrains/kotlin |
+| JNA, used under Apache-2.0 (it is also offered under LGPL-2.1) | Apache-2.0 | https://github.com/java-native-access/jna |
+| ML Kit Barcode Scanning, with its bundled model, for scanning the pairing code | ML Kit Terms of Service | https://developers.google.com/ml-kit/terms |
+
 ## MIT License
 
 mlx-audio portions: Copyright (c) 2024 Prince Canuma.

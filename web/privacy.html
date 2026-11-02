@@ -45,7 +45,7 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective October 31, 2026</p>
+      <p class="eyebrow">Effective November 1, 2026</p>
       <h1>Privacy Policy</h1>
       <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service. This page describes the Mac app; <a href="#windows-and-linux">Windows and Linux</a> lists where the Windows and Linux app, an alpha, differs.</p>
     </header>
@@ -62,7 +62,8 @@
         <li>opt-in Agent Mode sessions and runtime files;</li>
         <li>an encrypted Personal Context list of facts, preferences, goals, and principles about you;</li>
         <li>an index of the folders you choose to search under Files: file paths, their text, and vectors of what they say or show (see <a href="#files">Files you choose</a>);</li>
-        <li>conversations downloaded from email accounts you connect, encrypted (see <a href="#email">Email from Gmail</a>); and</li>
+        <li>conversations downloaded from email accounts you connect, encrypted (see <a href="#email">Email from Gmail</a>);</li>
+        <li>while you share with phones and tablets, the records your paired devices receive and those devices' public keys (see <a href="#phones-and-tablets">Phones and tablets</a>); and</li>
         <li>preferences, diagnostic logs, and encryption keys.</li>
       </ul>
       <p>Fresh installs select activity-only day tracking: the app name and window title. Visible text and encrypted screenshots are opt-in and require macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Overnight reviews, the one-line week and month summaries made from them for agents, and the remembered projects and goals are kept after screen text expires; Settings → Overnight review → Clear work memory deletes them. Dictation scratch audio is deleted after transcription by default. Dictated text is kept only as the last 10 results for 7 days, encrypted, so you can copy one again, and briefly for Learn from my dictation (below) while it is on.</p>
@@ -81,6 +82,17 @@
         <li><strong>Optional Agent Mode:</strong> setup downloads its pinned runtime. Commands you approve can access files or the network with your user account's permissions.</li>
       </ul>
       <p>Those services receive ordinary connection metadata such as IP address and request headers. LokalBot adds no advertising identifier and does not use those requests for tracking. A remote server's operator controls its own privacy terms.</p>
+
+      <h2 id="phones-and-tablets">Phones and tablets</h2>
+      <p>Settings → <strong>Phones &amp; tablets</strong> lets you read your Work Memory on your own iPhone, iPad, or Android device. It is off by default and independent of every other grant; while it is off, nothing listens and no shared copy is built.</p>
+      <ul>
+        <li><strong>What is shared:</strong> only the data classes you leave on: meetings (title, time, people's display names, summary, your notes, action items, decisions, open questions), transcripts, Day Digests (without the raw activity log), the Timeline (work sessions, apps, time per project, and window titles unless you turn them off), people, and tracked projects. You can limit the copy to the last 30, 90, or 365 days.</li>
+        <li><strong>What is never shared:</strong> calendar attendee email addresses, speaker evidence and voice profiles, screenshots and their paths, captured screen text, the files you chose under Files, email, Personal Context, overnight memory, Ask conversations held on the Mac, settings, and API keys.</li>
+        <li><strong>Where it travels:</strong> directly between your Mac and your devices, over your local network or your Tailscale network. LokalBot operates no server or relay and receives nothing. The Mac listens on one port and refuses every connection that doesn't come from a private network or Tailscale address. On the local network it announces itself with Bonjour under a neutral name unless you turn that off.</li>
+        <li><strong>Encryption and pairing:</strong> every connection is end-to-end encrypted and mutually authenticated with the Noise Protocol Framework. A device pairs only by scanning a code on the Mac that expires after five minutes and works once, and only after you allow it there. Afterwards the Mac accepts only the keys of devices you paired.</li>
+        <li><strong>Questions and changes from your devices:</strong> with <strong>Answer questions from my devices</strong> on, the Mac answers with your Think model and its existing approvals and never searches screen memory or your files for a device; with an approved remote Think server, the question and its context go there as they do for Ask on the Mac, and the device shows it. A device can mark an action open, done, or deferred.</li>
+        <li><strong>Removing a device:</strong> remove it under Settings → Phones &amp; tablets; it is refused from its next connection. <strong>Remove this device</strong> on the device erases its copy.</li>
+      </ul>
 
       <h2 id="email">Email from Gmail</h2>
       <p>This is LokalBot's disclosure for data it receives from Google APIs. LokalBot's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> and the <a href="https://developers.google.com/workspace/workspace-api-user-data-developer-policy">Google Workspace API User Data and Developer Policy</a>, including the Limited Use requirements.</p>
@@ -103,7 +115,7 @@
       </ul>
 
       <h2>Permissions and consent</h2>
-      <p>Microphone and system-audio permissions enable recording. Calendar access helps detect and title meetings and provides local speaker-name suggestions. Attendee emails remain in meeting metadata, are deleted with the meeting, and are never added to transcripts, exports, or model prompts; once you connect email, they also choose which mail conversations LokalBot downloads. Accessibility enables browser-meeting detection, Cotyping, dictation insertion, and approved agent interaction. Screen Recording enables visual screen context when selected.</p>
+      <p>Microphone and system-audio permissions enable recording. Calendar access helps detect and title meetings and provides local speaker-name suggestions. Attendee emails remain in meeting metadata, are deleted with the meeting, and are never added to transcripts, exports, or model prompts; once you connect email, they also choose which mail conversations LokalBot downloads. Accessibility enables browser-meeting detection, Cotyping, dictation insertion, and approved agent interaction. Screen Recording enables visual screen context when selected. Local Network is requested when you approve an inference server on your network or turn on Phones &amp; tablets.</p>
       <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting. You can switch to automatic recording or turn auto-record off. You are responsible for informing participants and obtaining any consent required before recording other people.</p>
 
       <h2>External-agent access</h2>
@@ -113,7 +125,7 @@
       <p>The Windows and Linux app follows this policy, with these differences:</p>
       <ul>
         <li><strong>Storage:</strong> the library is in <code>%LOCALAPPDATA%\LokalBot</code> on Windows and <code>~/.local/share/LokalBot</code> on Linux. API keys, the ChatGPT sign-in, calendar links, and the screen-image key are kept in the system credential store (Windows Credential Manager, or the Secret Service on Linux).</li>
-        <li><strong>Not collected there yet:</strong> Personal Context, email, Files, coding-agent session records, spoken summaries, daily memory notes, and meeting note export are Mac only for now.</li>
+        <li><strong>Not collected there yet:</strong> Personal Context, email, Files, coding-agent session records, spoken summaries, daily memory notes, meeting note export, and sharing with phones and tablets are Mac only for now.</li>
         <li><strong>System audio</strong> comes from the whole output (WASAPI loopback, or a PulseAudio or PipeWire monitor), so anything else playing during a recording is recorded too. Meeting detection looks at which apps use the microphone and asks with a notification.</li>
         <li><strong>Screen context</strong> reads visible text through accessibility (UI Automation or AT-SPI) and otherwise uses on-device OCR, downloaded only when you ask for it. The same exclusions, redaction, encryption, and 14-day default retention apply.</li>
         <li><strong>Dictation</strong> audio stays in memory and is never written to disk. The text is pasted through the clipboard, and your previous clipboard comes back afterwards. The last 10 results are kept for 7 days, encrypted, so you can copy one again.</li>

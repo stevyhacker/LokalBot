@@ -71,6 +71,13 @@ final class WorkMemoryConnections: ObservableObject {
         compute(input, cache: Caches()).projects
     }
 
+    /// The people and projects one refresh would publish, without caches,
+    /// for builders that run outside the app's views (phones and tablets).
+    nonisolated static func profiles(for input: Input) -> (people: [PersonProfile], projects: [ProjectProfile]) {
+        let result = compute(input, cache: Caches())
+        return (result.people, result.projects)
+    }
+
     private nonisolated static func compute(
         _ input: Input, cache: Caches
     ) -> (people: [PersonProfile], projects: [ProjectProfile], cache: Caches) {
