@@ -49,7 +49,7 @@ packages:
     from: "1.1.0"
   DigUp:
     url: https://github.com/stevyhacker/DigUp  # fork of ARahim3/DigUp
-    revision: ae44ea6e4a04f19e4a23f4fa2a9e22eff3cc4ea9  # DigUpKit only (MIT): file crawling, reading, index and search
+    revision: 3fe62fdc5ae3b1cfbf6e474e327bfcad2c70b2f1  # DigUpKit only (MIT): file crawling, reading, index and search
   # Phones and tablets: the Rust crate LinuxWindows/crates/lokalbot-sync as a
   # local package (static XCFramework + UniFFI Swift), written by
   # Scripts/build-sync-xcframework.sh. Vendor/ is gitignored, and Xcode

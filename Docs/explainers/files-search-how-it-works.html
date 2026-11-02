@@ -321,14 +321,16 @@ tr.muted td { color: var(--ink-faint); }
 <section class="page">
   <div class="eyebrow">Indexing</div>
   <h2>One indexing pass, step by step</h2>
-  <p class="lede">A pass runs at launch, when the folder list changes, and five seconds after something in the folders
-    changes. It reads only what is new or changed, and the image model loads only when there is something to read.</p>
+  <p class="lede">A pass runs at launch, when the folder list changes, and five seconds after a change in the folders
+    that can alter the index. It reads only what is new or changed, and the image model loads only when there is
+    something to read.</p>
 
   <div class="grid2" style="grid-template-columns: 1.08fr 0.92fr; gap: 16px;">
     <ol class="pass">
       <li><span class="n">1</span>
         <h3>Trigger <span>launch · folders · FSEvents + 5 s</span></h3>
-        <p>Changes inside hidden folders are ignored. A burst of changes becomes one pass.</p></li>
+        <p>A change the crawl would leave out is ignored: in a hidden or skipped folder, of a type it never reads, or
+          inside a code project unless it is a screenshot. A burst of changes becomes one pass.</p></li>
       <li class="gate"><span class="n">2</span>
         <h3>Should it wait? <span>checked before each batch</span></h3>
         <p>A meeting is recording, Low Power Mode is on, or the Mac is hot (thermal state serious or critical).
@@ -552,7 +554,7 @@ tr.muted td { color: var(--ink-faint); }
       LokalBot/Views/ FileSearchSettings · FileSearchResultRow (PDF opener) · AskView · QuickRecallView · ChatView (citations)<br>
       LokalBot/Models/ AskRouting (source, result type, tool scope) · RecallWorkspaceState (search)<br>
       LokalBot/Services/Chat/ MeetingChatTools (search_files) · ChatCitation ([file:ID]) · ChatAgent (prompt)<br>
-      LlamaServerRole.mediaEmbedder (17876) · project.yml: DigUp at ae44ea6 · PRIVACY.md “Files you choose”
+      LlamaServerRole.mediaEmbedder (17876) · project.yml: DigUp at 3fe62fd · PRIVACY.md “Files you choose”
     </p>
   </div>
 
