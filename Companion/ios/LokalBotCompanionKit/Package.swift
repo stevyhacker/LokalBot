@@ -15,8 +15,9 @@ let package = Package(
     targets: [
         .target(
             name: "LokalBotCompanionKit",
-            // A link to Companion/protocol/fixtures/sample-library.json, so the
-            // sample library and the protocol fixture never drift apart.
+            // A copy of Companion/protocol/fixtures/sample-library.json: some
+            // SwiftPM versions bundle a symlink as a dangling link. A test
+            // fails when the two differ.
             resources: [.copy("Resources/sample-library.json")]),
         .testTarget(
             name: "LokalBotCompanionKitTests",

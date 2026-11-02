@@ -4,6 +4,16 @@ import Testing
 
 @Suite("Records")
 struct RecordDecodingTests {
+    @Test func bundledSampleLibraryMatchesTheProtocolFixture() throws {
+        // Tests/LokalBotCompanionKitTests/<file> → Companion/
+        var companion = URL(filePath: #filePath)
+        for _ in 0..<5 { companion.deleteLastPathComponent() }
+        let fixture = companion.appending(path: "protocol/fixtures/sample-library.json")
+        let bundled = try #require(SampleLibrary.url)
+        #expect(try Data(contentsOf: bundled) == Data(contentsOf: fixture),
+                "Copy Companion/protocol/fixtures/sample-library.json into the kit's Resources")
+    }
+
     @Test func decodesTheWholeSampleLibrary() async throws {
         let envelopes = try SampleLibrary.envelopes()
         #expect(envelopes.count == 19)
