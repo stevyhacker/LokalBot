@@ -1251,6 +1251,60 @@ final class ActivityStore {
         }
     }
 
+    /// The first recorded activity, for walking the days a library covers.
+    func earliestActivityStart() -> Date? {
+        do {
+            return try requiredDatabase().queryChecked(
+                "SELECT MIN(start) FROM activity_blocks"
+            ) { statement -> Date? in
+                guard sqlite3_column_type(statement, 0) != SQLITE_NULL else { return nil }
+                return Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
+            }.first ?? nil
+        } catch {
+            lokalbotLog("earliest activity lookup failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Whether any activity block overlaps the interval.
+    func hasActivity(in interval: DateInterval) -> Bool {
+        do {
+            return try requiredDatabase().hasRowChecked("""
+                SELECT 1 FROM activity_blocks WHERE end > ?1 AND start < ?2 LIMIT 1
+                """, bind: [interval.start.timeIntervalSince1970, interval.end.timeIntervalSince1970])
+        } catch {
+            lokalbotLog("activity presence lookup failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Saved moments captured inside the interval, oldest first.
+    func savedMoments(in interval: DateInterval) -> [SavedMoment] {
+        do {
+            return try requiredDatabase().queryChecked("""
+                SELECT shot.id, shot.ts, shot.path, shot.app, shot.window_title,
+                       shot.capture_trigger, bookmark.note, bookmark.created_at
+                FROM screen_bookmarks AS bookmark
+                JOIN screenshots AS shot ON shot.id = bookmark.snapshot_id
+                WHERE shot.ts >= ?1 AND shot.ts < ?2
+                ORDER BY shot.ts, shot.id
+                """, bind: [interval.start.timeIntervalSince1970, interval.end.timeIntervalSince1970]) { statement in
+                SavedMoment(
+                    snapshotID: sqlite3_column_int64(statement, 0),
+                    ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                    path: String(cString: sqlite3_column_text(statement, 2)),
+                    app: String(cString: sqlite3_column_text(statement, 3)),
+                    windowTitle: String(cString: sqlite3_column_text(statement, 4)),
+                    trigger: String(cString: sqlite3_column_text(statement, 5)),
+                    note: String(cString: sqlite3_column_text(statement, 6)),
+                    createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 7)))
+            }
+        } catch {
+            lokalbotLog("saved-moment day query failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     func latestActivityEnd() -> Date? {
         do {
             return try requiredDatabase().queryChecked(

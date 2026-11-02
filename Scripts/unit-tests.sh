@@ -36,4 +36,5 @@ if [ "${1:-}" != "" ]; then
   ARGS+=(-only-testing:"LokalBotTests/$FILTER")
 fi
 
+"$ROOT/Scripts/build-sync-xcframework.sh"
 xcodebuild "${ARGS[@]}" test

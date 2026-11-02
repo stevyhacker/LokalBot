@@ -11,6 +11,8 @@ on:
       - "LokalBot/Resources/SampleMeeting/**"
       - "LokalBot/Resources/*.lproj/Localizable.strings"
       - "LokalBot/Models/AppLanguage.swift"
+      # lokalbot-sync's tests and examples read the companion fixture library.
+      - "Companion/protocol/fixtures/**"
       - ".github/workflows/linux-windows.yml"
   pull_request:
     branches: [master, dev]
@@ -22,6 +24,7 @@ on:
       - "LokalBot/Resources/SampleMeeting/**"
       - "LokalBot/Resources/*.lproj/Localizable.strings"
       - "LokalBot/Models/AppLanguage.swift"
+      - "Companion/protocol/fixtures/**"
       - ".github/workflows/linux-windows.yml"
   workflow_dispatch:
 
@@ -187,7 +190,7 @@ jobs:
 
       - name: Archive the Rust workspace
         working-directory: .
-        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting .github/actions LICENSE LICENSES THIRD_PARTY_NOTICES.md
+        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting Companion/protocol/fixtures .github/actions LICENSE LICENSES THIRD_PARTY_NOTICES.md
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

@@ -287,6 +287,70 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true)
     }
 
+    /// 2026-10-16: rereads added new text every few seconds while typing, and
+    /// each one made the next keystroke read the whole prompt again (268 ms
+    /// instead of 41). New text now waits for a pause in typing.
+    func testNewTextWaitsForAPauseInTyping() {
+        let clock = Clock()
+        let reply = Self.chat + [Self.line("Sarah: Thanks, I'll tell Daniel.", y: 760)]
+        let reads = Reads([Self.chat, reply])
+        // The wait never ends on its own here; the test steps the clock.
+        let capture = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in reads.next() },
+                                                sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) })
+        defer { capture.removeAll() }
+        capture.noteTyping()
+        expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+        let first = capture.cachedSnapshot()
+        XCTAssertNotNil(first, "The first text for a field is used at once, even while typing")
+
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        capture.noteTyping()
+        expectUpdate(capture, changes: false) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+        XCTAssertEqual(capture.snapshot(forKey: "a") { nil }, first, "New text never changes the prompt mid-typing")
+
+        clock.now += CotypingWindowTextCapture.typingPause / 2
+        capture.noteTyping()
+        clock.now += CotypingWindowTextCapture.typingPause / 2
+        capture.adoptPendingIfQuiet()
+        XCTAssertEqual(capture.cachedSnapshot(), first, "Each key starts the pause over")
+
+        clock.now += CotypingWindowTextCapture.typingPause
+        expectUpdate(capture) { capture.adoptPendingIfQuiet() }
+        XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true)
+    }
+
+    func testHeldTextIsUsedOnceThePauseComesOrDroppedWhenItIsNoLongerNew() {
+        let clock = Clock()
+        let reply = Self.chat + [Self.line("Sarah: Thanks, I'll tell Daniel.", y: 760)]
+        let reads = Reads([Self.chat, reply])
+        let capture = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in reads.next() },
+                                                sleep: { clock.now += $0 })
+        defer { capture.removeAll() }
+        expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        capture.noteTyping()
+        expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+        XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true,
+                      "The wait for the pause ends on its own")
+
+        // Held text that a later read no longer has is never used.
+        let heldReads = Reads([Self.chat, reply, Self.chat])
+        let held = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in heldReads.next() },
+                                             sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) })
+        defer { held.removeAll() }
+        expectUpdate(held) { _ = held.snapshot(forKey: "a") { Self.request("a") } }
+        let first = held.cachedSnapshot()
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        held.noteTyping()
+        expectUpdate(held, changes: false) { _ = held.snapshot(forKey: "a") { Self.request("a") } }
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        expectUpdate(held, changes: false) { _ = held.snapshot(forKey: "a") { Self.request("a") } }
+        held.adoptPendingIfQuiet()
+        XCTAssertEqual(held.cachedSnapshot(), first)
+        XCTAssertEqual(heldReads.count, 3)
+    }
+
     // MARK: - Grant, settings and prompt
 
     func testWindowTextHasItsOwnGrant() {

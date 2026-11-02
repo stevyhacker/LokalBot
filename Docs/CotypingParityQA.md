@@ -101,6 +101,30 @@ LokalBot defaults:
   it, the side bearing added, a caret bar taken as the caret and a 3× capture
   on the non-Retina display, five suggestions began 0.6–1.0 pt after the
   caret (before: 2–5 pt over the last letter).
+- Fast recognition cannot read Serbian's accented letters: on the 1x display
+  "Čekam" came back as "&kam", "Žao" as "2ao", "Đorđe" as "E)orde", and it
+  often ran words together. Those letters no longer count against a line,
+  spaces are not compared, and one size holds for a field once a whole line
+  has measured it. A new message starts where the field's first line was
+  found, and a miss on a few letters no longer leads to a popup. Replaying
+  14 accented messages keystroke by keystroke through the real recogniser at
+  1x (2026-11-02): inline 72–77% → 98%, popups 5–12% → 0, ghost size
+  12.8–15 pt → 12.9–13.6 pt, worst caret error 13 → 3.6 pt.
+- Fast recognition reads none of Cyrillic ("Сегодня" comes back as "CeroAHA").
+  Taking any Cyrillic line for the typed one put the caret up to 24 pt off, so a
+  caret line in Cyrillic uses accurate recognition instead (20–60 ms on a
+  field's frame on an M4 Max). It compares the letters of Russian and Ukrainian,
+  which it knows, and only excuses those it has no model for (ђ, ј, љ, њ, ћ, џ).
+  Its word boxes ran up to 6 pt past the text, so the line's edges, baseline and
+  the app's caret are measured from the capture's pixels
+  (`CotypingVisualCaretInk`); a line on a picture rather than a flat background
+  stays a popup. The system font follows these fields' Cyrillic poorly, so the
+  caret is measured every 4 letters: every 12 left it up to 5.2 pt off.
+  Replaying 26 Serbian and Russian messages keystroke by keystroke through the
+  real recogniser at 1x and 2x, in three fonts (2026-11-02): inline 0 → 99.5%,
+  popups 97% → 0, worst caret error 2.9 pt with none of 9,588 keys past 4 pt.
+  This is rendered text, with Chrome's own text as a further check at each
+  find; Viber itself has not been typed in.
 
 ## Keystroke latency
 
@@ -118,6 +142,12 @@ more before painting. Nothing else waits on the keystroke:
 - A long draft's context window starts at a sentence or paragraph boundary
   (`CotypingPrefixWindow`), so the model reuses what it already read instead of
   reading about 450 tokens again per keystroke.
+- The focused window's text starts the prompt, so new text from a background
+  reread waits for a one-second pause in typing (`CotypingWindowTextCapture`).
+  Used mid-typing, it made the next key read the whole prompt again: 268 ms
+  instead of 41. Measured live in Chrome on 2026-11-02, over 11 suggestions, the
+  wait from the last key to the ghost went from a median of 180 ms to 123 ms,
+  and the start of the prompt did not change once while typing.
 - Focusing a field reads it as the first keystroke will and prefills that
   prompt, so the first suggestion only adds what was typed.
 - A memory-pressure warning leaves the model loaded while suggestions are being

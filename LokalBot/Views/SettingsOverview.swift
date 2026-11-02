@@ -10,6 +10,8 @@ struct SettingsOverview: View {
     @ObservedObject var access: AgentReadAccess
     @ObservedObject var email: EmailController
     @ObservedObject var personalModel: PersonalModelController
+    /// Observed so the Phones & tablets card follows the listener and pairings.
+    @ObservedObject var companion: CompanionHost
 
     enum Status {
         case on(LocalizedStringKey)
@@ -168,12 +170,29 @@ struct SettingsOverview: View {
                     action: installer.isInstalled || installer.bundledBinary == nil ? nil : Action(title: "Install…") {
                         open(.agents, focus: "settings.agentCLI")
                     }),
+            Feature(id: "devices", group: .connections, title: "Phones & tablets",
+                    icon: AppState.SettingsTab.devices.icon, status: companionStatus(settings),
+                    detail: "Read your work memory on your own iPhone, iPad, or Android device.",
+                    page: .devices, focus: "settings.companionSharingEnabled",
+                    action: settings.companionSharingEnabled ? nil : Action(title: "Set Up…") {
+                        open(.devices, focus: "settings.companionSharingEnabled")
+                    }),
         ]
     }
 
     private func modelsStatus(_ settings: AppSettings) -> Status {
         if case .blocked = InferencePresentation(settings: settings) { return .attention("Needs Attention") }
         return .on(LocalizedStringKey(ModelSettingsPresentation.setupLocation(settings)))
+    }
+
+    /// Sharing turns on on its page, beside its explanation; here only its state.
+    private func companionStatus(_ settings: AppSettings) -> Status {
+        guard settings.companionSharingEnabled else { return .off("Off") }
+        switch companion.status {
+        case .failed: return .attention("Not available")
+        case .listening: return .on("\(companion.devices.count) paired")
+        case .off, .starting: return .on("Starting…")
+        }
     }
 
     /// The title opens the feature's page; the bottom row shows its status and
