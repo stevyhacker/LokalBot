@@ -1,6 +1,7 @@
-# Nightly, non-blocking checks: model drift against the preset remote models,
-# the real-Parakeet day-in-the-life run, and scale/concurrency. Never a
-# required check. Failures open or update an issue.
+# Nightly, non-blocking checks: pinned models against their releases, model
+# drift against the preset remote models, the real-Parakeet day-in-the-life
+# run, and scale/concurrency. Never a required check. Failures open or update
+# an issue.
 name: Nightly
 
 on:
@@ -11,13 +12,14 @@ on:
       jobs:
         description: "Which nightly jobs to run"
         type: choice
-        options: [all, model-drift, day-in-the-life, scale]
+        options: [all, model-pins, model-drift, day-in-the-life, scale]
         default: all
   pull_request:
     paths:
       - "Scripts/ci/model-drift-models.json"
       - "LokalBotTests/Support/SyntheticModelPrompts.swift"
       - "LokalBotTests/ModelRecordingTests.swift"
+      - "Scripts/ci/check-model-pins.py"
       - ".github/workflows/nightly.yml"
 
 concurrency:
@@ -222,3 +224,28 @@ jobs:
           body="Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
           if [[ -n "$number" ]]; then gh issue comment "$number" --body "$body"; else gh issue create --title "$title" --body "$body"; fi
+
+  # A pin stops the download once upstream replaces its asset, so say so.
+  model-pins:
+    name: Model pins
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == 'all' || inputs.jobs == 'model-pins'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Compare the pins with their releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 Scripts/ci/check-model-pins.py --report model-pins.md
+      - name: Open or update the pins issue
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="A pinned model no longer matches its release"
+          number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body-file model-pins.md
+          else
+            gh issue create --title "$title" --body-file model-pins.md
+          fi
