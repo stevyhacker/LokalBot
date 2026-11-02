@@ -118,6 +118,12 @@ more before painting. Nothing else waits on the keystroke:
 - A long draft's context window starts at a sentence or paragraph boundary
   (`CotypingPrefixWindow`), so the model reuses what it already read instead of
   reading about 450 tokens again per keystroke.
+- The focused window's text starts the prompt, so new text from a background
+  reread waits for a one-second pause in typing (`CotypingWindowTextCapture`).
+  Used mid-typing, it made the next key read the whole prompt again: 268 ms
+  instead of 41. Measured live in Chrome on 2026-11-02, over 11 suggestions, the
+  wait from the last key to the ghost went from a median of 180 ms to 123 ms,
+  and the start of the prompt did not change once while typing.
 - Focusing a field reads it as the first keystroke will and prefills that
   prompt, so the first suggestion only adds what was typed.
 - A memory-pressure warning leaves the model loaded while suggestions are being

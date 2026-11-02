@@ -5,7 +5,9 @@ import Foundation
 extension CotypingCoordinator {
     // MARK: - Generation
 
-    func scheduleFocusPrewarm(for focus: CotypingFocus) {
+    /// `withSuggestionShown` also prewarms while a suggestion is on screen and
+    /// nothing is being generated, for a prompt that changed under it.
+    func scheduleFocusPrewarm(for focus: CotypingFocus, withSuggestionShown: Bool = false) {
         guard isRunning,
               !isMeetingRecordingActive(),
               case .supported = focus.capability,
@@ -21,7 +23,7 @@ extension CotypingCoordinator {
 
         focusPrewarmTask?.cancel()
         focusPrewarmTask = nil
-        guard session == nil, state == .idle else {
+        guard withSuggestionShown ? isSettled : session == nil && state == .idle else {
             return
         }
         let settings = settingsProvider()
@@ -54,12 +56,21 @@ extension CotypingCoordinator {
     }
 
     /// A background read of the focused window changed the text the prompt
-    /// starts with. While nothing is pending, the model reads the new prompt
-    /// now, so the next keystroke does not wait for it.
+    /// starts with, which happens once typing pauses. While nothing is being
+    /// generated, including with a suggestion on screen, the model reads the
+    /// new prompt now, so the next keystroke does not wait for it.
     func windowTextDidChange() {
-        guard isRunning, session == nil, state == .idle else { return }
+        guard isRunning, isSettled else { return }
         focusPrewarmFieldIdentity = nil
-        scheduleFocusPrewarm(for: focusTracker.focus)
+        scheduleFocusPrewarm(for: focusTracker.focus, withSuggestionShown: true)
+    }
+
+    /// Nothing is waiting to be generated: idle, or a suggestion on screen.
+    var isSettled: Bool {
+        switch state {
+        case .idle, .ready: true
+        case .debouncing, .generating, .disabled, .failed: false
+        }
     }
 
     func scheduleGeneration(consumedDelayMilliseconds: Int = 0) {
