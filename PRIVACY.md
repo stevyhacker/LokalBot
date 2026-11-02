@@ -59,9 +59,6 @@ downloads EmbeddingGemma 2's image and audio projector (555 MB). A screenshot's
 vector is deleted whenever its pixels are, even when its text is kept forever.
 Activity titles expire on the configured schedule even with that exception;
 app names and duration totals remain. Saved moments remain until you unsave or delete them. Dictation scratch
-audio is deleted after transcription by default. Dictated text is not kept,
-except briefly for learning while **Learn from my dictation** is on (see Personal
-Context below). You can delete an individual
 audio is deleted after transcription by default. Dictated text is kept only as
 the last 10 results for 7 days, encrypted, so you can copy one again (see
 **Recent dictations** below), and briefly for learning while **Learn from my
@@ -1144,7 +1141,11 @@ platform differences:
   `%LOCALAPPDATA%\LokalBot` on Windows, with logs in its `logs` folder. API
   keys, the ChatGPT plan sign-in, and the screen-image key are kept in the
   system credential store (Secret Service on Linux, Windows Credential
-  Manager).
+  Manager). Ask conversations, Personal Context and the dictation learning log
+  are AES-GCM encrypted under a per-install key there too. Without a reachable
+  store, new conversations stay in memory and existing plaintext ones stay as
+  they are until they can be encrypted. A file from another computer can't be
+  opened and is kept as is.
 - **Imported recordings** are read without being changed or moved, as on
   macOS, but their audio is kept as a 16 kHz WAV copy rather than AAC. Merged
   meetings also keep WAV tracks. A Mac reads these tracks too. The bundled
@@ -1165,8 +1166,11 @@ platform differences:
     text, through accessibility.
   - It never reads password fields, terminals, excluded apps or LokalBot's own
     windows.
-  - Nothing it reads is stored. Suggestions come from the local Autocomplete
-    model, and accepted text is typed into the field without the clipboard.
+  - It stores only encrypted examples accepted in identified documents, for 30
+    days, and estimated counts in `cotyping-stats.json` and `cotyping-usage.json`.
+    Suggestions come from the local Autocomplete model or a server you approve,
+    and accepted text is typed into the field without the clipboard.
+  - Window text needs the on-device OCR model, which reads Latin script.
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
@@ -1225,8 +1229,16 @@ platform differences:
   data. The update archive downloads only when you choose Install and
   Relaunch, and is checked against its pinned size, SHA-256 and the release
   signature before it is unpacked.
-- **Dictation** is off until you turn it on. Its audio stays in memory and is
-  never written to disk. The text is pasted through the clipboard, and your
+- **Dictation** is off until you turn it on. **Use the focused window as
+  context** is off on a new install. Its audio stays in memory unless you turn
+  on **Keep dictation audio files**, which saves WAV files in `dictations/` in
+  the library. Where a Wayland desktop reports nothing about focus, dictation
+  still pastes, because the destination cannot be checked. Media pause uses
+  MPRIS on Linux and System Media Transport Controls on Windows, reads each
+  player's status and, on Linux, page address, and stores nothing; Windows
+  can't see a browser session's page, so conference-domain and live-stream
+  exclusions don't apply there. The tray menu shows a preview of recent
+  dictations; on Linux other apps on the session bus can read it. The text is pasted through the clipboard, and your
   previous clipboard comes back about 300 ms later; when pasting isn't
   possible, the text is left on the clipboard instead. **Recent dictations**
   keeps the last 10 results (or the spoken words when Compose fails), with
@@ -1238,13 +1250,16 @@ platform differences:
   quits. A result older than 7 days is dropped when LokalBot starts or saves
   the next dictation, and **Clear** deletes the file. Text dictated into a
   password manager is never kept; password fields in other apps can't be
-  detected there. There is no **Learn from my dictation**.
+  detected there. **Learn from my dictation** works as on macOS once you turn it on.
 - **Meeting detection** looks at which apps are using the microphone
   (PulseAudio source outputs on Linux, WASAPI capture sessions on Windows) and
   by default asks with a notification before recording. System audio comes
-  from the whole output (a PulseAudio or PipeWire monitor, or WASAPI loopback),
-  not from one app, so anything else playing during a recording is recorded
-  too.
+  from the detected meeting app alone where it can be separated (PulseAudio or
+  PipeWire sink-input monitors on Linux, WASAPI process loopback on Windows 10
+  build 20348 or later). Otherwise it comes from the whole output, so anything
+  else playing is recorded too. While a browser holds the microphone, LokalBot
+  reads its accessibility tree for a Google Meet room and its call controls,
+  keeping only the room address; it never turns system accessibility on.
 - **Permissions.** There are no macOS-style permission prompts. Windows uses
   its own microphone privacy setting (Settings → Privacy & security →
   Microphone, "Let desktop apps access your microphone"). On Linux, Wayland
@@ -1252,16 +1267,54 @@ platform differences:
   apps expose their text only once system accessibility is on, and GNOME needs
   the Window Calls extension for app and window activity.
 - **External agents.** The meeting-library and screen-memory toggles in
-  Settings → Privacy & Data work as on macOS. The Windows and Linux CLI has no
-  settings-change access or `setup`, `config` and `secret` commands, and
-  personal context is read only from a library that came from a Mac, because
-  the app has no Personal Context page or setting for it yet.
-- **Mac-only features.** Personal Context, email, Files, selection actions, meeting note export,
-  daily memory notes, spoken summaries, coding-agent sessions and sharing with
-  phones and tablets are not in the Windows and Linux app yet, so none of their
-  data is collected there and it listens for no devices.
+  Settings → Privacy & Data work as on macOS. The same commands work under the
+  same toggle: the socket lives in your private runtime folder, or is a named
+  pipe only your user can open on Windows, and `permissions` reports what the
+  desktop allows instead of showing prompts.
+- **Selection actions** work as on macOS, with Ctrl+C for ⌘C. Terminals are
+  never sent Ctrl+C. On X11 the primary selection is read only when the
+  frontmost app owns it; on Wayland it is not read. Apps without accessibility
+  cannot be checked for a focused password field, so LokalBot relies on toolkits
+  refusing to copy from one; results there are copy-only.
+- **Coding-agent sessions** are read only after you choose it in setup or
+  Settings → Day Memory, even if an earlier version or a Mac saved the setting as
+  on. Until then nothing under `~/.claude` or `~/.codex` is opened, and sessions a
+  Mac recorded in the library aren't used.
+- **Review the day overnight** is under Settings → Day Memory, on by default as
+  on macOS.
+- **Remembered voices.** The key is in the system credential store; without one,
+  names stay on the transcript and no voice is kept. A voice match is only
+  offered: **Apply Names** names the speaker. Sealed voice files are per install:
+  on another computer they stay untouched and voices aren't remembered there. A
+  meeting deleted while voices can't be opened is still deleted, this is reported,
+  and its contributions leave at the next opening.
+- **Files you choose.** Page counts and durations come from the files' own
+  headers. Words in screenshots come from screen text recognition only if it's
+  already downloaded, and matched files open in their default app. A scanned page
+  is read only when its picture is stored as a JPEG or plain raster; JBIG2, CCITT
+  and JPEG 2000 scans stay unread.
+- **Remote servers.** Think and Agent Mode refuse plain HTTP to any non-loopback
+  server, including private and Tailscale addresses, even once approved. A
+  transcription server you approve receives audio and vocabulary: clips of at most
+  15 seconds, asked for text only unless the model is known to return word times,
+  and redirects aren't followed. Without word times, clips are cut at speaker
+  turns; there is no forced aligner.
+- **Agent handoff.** When no `claude://`, `claude-cli://` or `codex://` link is
+  registered, LokalBot starts the installed command-line agent in a new terminal
+  and copies the prompt to the clipboard for you to paste. It never passes the
+  prompt on a command line, and nothing is sent until you send it there.
+- **Phones and tablets.** Settings → Phones & tablets works as described under
+  [Phones and tablets](#phones-and-tablets), with this computer in place of the
+  Mac. The long-term key is kept in Windows Credential Manager or the Secret
+  Service; if neither can be reached, sharing stays off and says why. The local
+  network announcement uses mDNS under the same neutral name, which also replaces
+  the computer's host name in it. Windows Firewall may prompt when sharing starts,
+  and a firewall can block the port on either system; Settings says what to allow.
+- **Mac-only features.** Email is not in the Windows and Linux app yet, so none
+  of its data is collected there.
 - **Network access** is limited to model and runtime downloads you request
-  (models from Hugging Face and GitHub, the llama.cpp runtime from GitHub, the
+  (models from Hugging Face, or HF-Mirror or ModelScope if you choose them, and
+  GitHub, the llama.cpp runtime from GitHub, the
   OCR model from the ocrs project's storage), Agent Mode setup, update checks,
   AI servers and subscription plans you approve, and the calendar links you
   add.
