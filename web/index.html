@@ -73,8 +73,8 @@
           "Day tracking that starts with app and window activity only; screen text and encrypted screenshots are opt-in",
           "System-wide dictation with a hold-to-talk shortcut, with recent dictations kept to copy again",
           "Optional local autocomplete that can draw on the message you are answering and on your meetings",
-          "Selection actions on Mac: rewrite, translate, or draft a reply from what your meetings say",
-          "Personal Context on Mac: facts, preferences, goals, and principles that agents read only when you share them",
+          "Selection actions: rewrite, translate, or draft a reply from what your meetings say",
+          "Personal Context: facts, preferences, goals, and principles that agents read only when you share them",
           "Read-only CLI and MCP access for approved local agents"
         ],
         "downloadUrl": "https://github.com/stevyhacker/lokalbot/releases/latest",
@@ -217,7 +217,7 @@
             "name": "Does a bot join my meetings?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. LokalBot records your microphone and the meeting's audio on separate tracks; on Windows and Linux the second track is everything your computer plays. Let participants know you're recording and get their consent. Read how recording works."
+              "text": "No. LokalBot records your microphone and the meeting's audio on separate tracks; on Windows and Linux the second track is the meeting app where it can be separated, and otherwise everything your computer plays. Let participants know you're recording and get their consent. Read how recording works."
             }
           }
         ]
@@ -398,12 +398,12 @@
         <article class="tile">
           <i class="ph ph-translate tile__icon" aria-hidden="true"></i>
           <h3>Rewrite what you selected</h3>
-          <p>On Mac, select text in any app and press <kbd>⌃⇧ W</kbd> to fix the grammar, shorten it, or translate it. <strong>Draft a reply with my memory</strong> writes a reply that uses what your meetings actually say.</p>
+          <p>Select text in any app and press <kbd>⌃⇧ W</kbd> (<kbd>Ctrl+Alt+Space</kbd> on Windows and Linux) to fix the grammar, shorten it, or translate it. <strong>Draft a reply with my memory</strong> writes a reply that uses what your meetings actually say.</p>
         </article>
         <article class="tile">
           <i class="ph ph-file-text tile__icon" aria-hidden="true"></i>
           <h3>Draft the follow-up</h3>
-          <p>Turn a meeting into a follow-up draft that you review and send. On Mac, also keep a note for every meeting in your Obsidian or Logseq folder and get weekly work logs.</p>
+          <p>Turn a meeting into a follow-up draft that you review and send. Also keep a note for every meeting in your Obsidian or Logseq folder and get weekly work logs.</p>
         </article>
       </div>
     </section>
@@ -412,7 +412,7 @@
       <header class="section__head">
         <p class="eyebrow">Windows and Linux (alpha)</p>
         <h2 class="section__title" id="platforms-title">Not only on Mac.</h2>
-        <p class="section__lead">A native app for Windows 10 and 11 and for Linux has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, dictation, autocomplete, and agent access all work.</p>
+        <p class="section__lead">A native app for Windows 10 and 11 and for Linux has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, sharing with phones and tablets, and agent access all work.</p>
       </header>
       <div class="home-platforms__shots">
         <figure class="home-shot">
@@ -428,7 +428,7 @@
           <figcaption>Today on Windows.</figcaption>
         </figure>
       </div>
-      <p class="home-platforms__note">It's an alpha: the Windows build isn't code-signed yet, Wayland support is partial, and a few Mac features haven't been ported. On Linux, the <code>.deb</code>, and the <code>.rpm</code> on Fedora, add the LokalBot repository, so <code>apt</code> or <code>dnf</code> keeps it updated. <a href="blog/windows-and-linux-alpha">What works and what's missing</a> &middot; <a href="local-ai-meeting-notes-linux">Linux guide</a> &middot; <a href="local-ai-meeting-notes-windows">Windows guide</a></p>
+      <p class="home-platforms__note">It's an alpha: the Windows build isn't code-signed yet, Wayland support is partial, and a few Mac features, such as Gmail in meeting briefs, haven't been ported. On Linux, the <code>.deb</code>, and the <code>.rpm</code> on Fedora, add the LokalBot repository, so <code>apt</code> or <code>dnf</code> keeps it updated. <a href="blog/windows-and-linux-alpha">What works and what's missing</a> &middot; <a href="local-ai-meeting-notes-linux">Linux guide</a> &middot; <a href="local-ai-meeting-notes-windows">Windows guide</a></p>
     </section>
 
     <section class="section home-agents" id="agents" aria-labelledby="agents-title">
@@ -439,7 +439,7 @@
         <ul class="home-agents__facts">
           <li><i class="ph ph-lock-key" aria-hidden="true"></i><span><strong>Read-only.</strong> Agents can search and read your library. They can't change it.</span></li>
           <li><i class="ph ph-shield-check" aria-hidden="true"></i><span><strong>Off until you turn it on</strong> in Settings. Screen memory needs its own permission.</span></li>
-          <li><i class="ph ph-seal-check" aria-hidden="true"></i><span><strong>Personal Context, only if you share it.</strong> On Mac, agents can also read the facts, preferences, goals, and principles you choose to share, under a separate permission.</span></li>
+          <li><i class="ph ph-seal-check" aria-hidden="true"></i><span><strong>Personal Context, only if you share it.</strong> Agents can also read the facts, preferences, goals, and principles you choose to share, under a separate permission.</span></li>
           <li><i class="ph ph-terminal-window" aria-hidden="true"></i><span><strong>Your agent, your provider.</strong> Results go to the agent's model provider, so connect only clients you trust.</span></li>
         </ul>
       </div>
@@ -597,7 +597,7 @@
         </details>
         <details class="qa">
           <summary>Does a bot join my meetings?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. LokalBot records your microphone and the meeting's audio on separate tracks; on Windows and Linux the second track is everything your computer plays. Let participants know you're recording and get their consent. Read <a href="record-both-sides-mac-meeting-without-bot">how recording works</a>.</p>
+          <p>No. LokalBot records your microphone and the meeting's audio on separate tracks; on Windows and Linux the second track is the meeting app where it can be separated, and otherwise everything your computer plays. Let participants know you're recording and get their consent. Read <a href="record-both-sides-mac-meeting-without-bot">how recording works</a>.</p>
         </details>
       </div>
     </section>

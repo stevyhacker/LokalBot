@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Local AI meeting notes on Windows","description":"Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.","datePublished":"2026-10-26","dateModified":"2026-10-26","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-windows","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Windows","item":"https://www.lokalbot.com/local-ai-meeting-notes-windows"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-windows#faq","mainEntity":[{"@type":"Question","name":"Why does Windows warn me before LokalBot opens?","acceptedAnswer":{"@type":"Answer","text":"The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first."}},{"@type":"Question","name":"Does a bot join my Teams or Zoom calls?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot records your microphone and what your PC plays, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording."}},{"@type":"Question","name":"Do I need administrator rights?","acceptedAnswer":{"@type":"Answer","text":"No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Local AI meeting notes on Windows","description":"Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.","datePublished":"2026-10-26","dateModified":"2026-11-02","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-windows","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Windows","item":"https://www.lokalbot.com/local-ai-meeting-notes-windows"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-windows#faq","mainEntity":[{"@type":"Question","name":"Why does Windows warn me before LokalBot opens?","acceptedAnswer":{"@type":"Answer","text":"The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first."}},{"@type":"Question","name":"Does a bot join my Teams or Zoom calls?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot records your microphone and the meeting app's audio, or everything your PC plays when it can't separate the app, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording."}},{"@type":"Question","name":"Do I need administrator rights?","acceptedAnswer":{"@type":"Answer","text":"No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -43,20 +43,26 @@
       <p class="eyebrow">Windows</p>
       <h1>Local AI meeting notes on Windows</h1>
       <p class="guide-hero__lead">LokalBot records both sides of a Teams, Zoom, or Meet call without a bot, transcribes and summarizes it with models on your PC, and keeps every meeting searchable. Here is what works on Windows and how to install it.</p>
-      <p class="guide-byline"><time datetime="2026-10-26">Updated October 26, 2026</time> · 5 min read</p>
+      <p class="guide-byline"><time datetime="2026-11-02">Updated November 2, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article">
 <h2>What works on Windows</h2>
         <p>LokalBot for Windows is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app and reads the same library format, so a library recorded on a Mac opens on Windows. It's an alpha.</p>
         <ul>
-          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your PC's audio through WASAPI loopback, so nothing joins the call. On Windows the second track is everything your PC plays, not one app. When it detects a meeting, it asks with a notification.</li>
-          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3, SenseVoice, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and the meeting app's own audio through WASAPI process loopback on Windows build 20348 or later, which includes Windows 11, so nothing joins the call. On older builds, or when it can't separate the app, the second track is everything your PC plays. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations from Qwen3.5 4B in the built-in llama.cpp, Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
           <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and on-device OCR.</li>
           <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with LFM2.5 1.2B on your PC.</li>
           <li><strong>Calendar.</strong> Private iCal or CalDAV links from Outlook, Google, or another calendar name your recordings and list today's meetings.</li>
           <li><strong>Agents.</strong> A read-only CLI and MCP server for Claude Code, Codex, and other agents, and an optional Agent Mode that works on your files with your approval, in Git Bash or PowerShell.</li>
+          <li><strong>Selection actions.</strong> Turn them on in <strong>Settings → General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
+          <li><strong>Spoken summaries.</strong> Hear summaries and answers read aloud, or export a WAV, with Kokoro 82M on your PC.</li>
+          <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
+          <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
+          <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
+          <li><strong>Phones and tablets.</strong> Share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Install without admin rights</h2>
@@ -69,7 +75,8 @@
         <h2>What's not there yet</h2>
         <ul>
           <li>Code signing, so SmartScreen will warn until it's in place.</li>
-          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>Gmail in meeting briefs, Apple Intelligence, and Granite Speech transcription are Mac only for now.</li>
+          <li>Remembered speakers only suggest. Naming a speaker teaches an encrypted voice profile, and later meetings offer that name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
         </ul>
     </article>
@@ -84,7 +91,7 @@
         </details>
         <details class="qa">
           <summary>Does a bot join my Teams or Zoom calls?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. LokalBot records your microphone and what your PC plays, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording.</p>
+          <p>No. LokalBot records your microphone and the meeting app's audio, or everything your PC plays when it can't separate the app, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording.</p>
         </details>
         <details class="qa">
           <summary>Do I need administrator rights?<i class="ph ph-plus" aria-hidden="true"></i></summary>

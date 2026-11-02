@@ -20,7 +20,7 @@
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Recall vs. restraint: which local models know when not to save a memory" />
   <meta property="article:published_time" content="2026-10-23" />
-  <meta property="article:modified_time" content="2026-10-25" />
+  <meta property="article:modified_time" content="2026-11-02" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Recall vs. Restraint: Testing Which Local Models Know When Not to Save a Memory — LokalBot Blog" />
   <meta name="twitter:description" content="A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano." />
@@ -29,7 +29,7 @@
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark#post","headline":"Recall vs. restraint: which local models know when not to save a memory","description":"A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano.","datePublished":"2026-10-23","dateModified":"2026-10-25","url":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark","mainEntityOfPage":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark","image":"https://www.lokalbot.com/assets/blog/og/recall-vs-restraint-memory-benchmark.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"Recall vs. restraint: which local models know when not to save a memory","item":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark"}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark#post","headline":"Recall vs. restraint: which local models know when not to save a memory","description":"A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano.","datePublished":"2026-10-23","dateModified":"2026-11-02","url":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark","mainEntityOfPage":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark","image":"https://www.lokalbot.com/assets/blog/og/recall-vs-restraint-memory-benchmark.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"Recall vs. restraint: which local models know when not to save a memory","item":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark"}]}]}</script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -47,12 +47,12 @@
       <p class="eyebrow">Benchmark</p>
       <h1>Recall vs. restraint: which local models know when not to save a memory</h1>
       <p class="guide-hero__lead">A memory writer has two jobs: save what is useful, and leave out everything else. Most memory benchmarks only measure the first. This one measures both.</p>
-      <p class="guide-byline"><time datetime="2026-10-23">October 23, 2026</time> · Updated <time datetime="2026-10-25">October 25, 2026</time> · 6 min read</p>
+      <p class="guide-byline"><time datetime="2026-10-23">October 23, 2026</time> · Updated <time datetime="2026-11-02">November 2, 2026</time> · 6 min read</p>
     </header>
 
     <article class="guide-article blog-article">
 <h2>Why restraint matters</h2>
-        <p>On Mac, LokalBot's Personal Context learns facts, preferences, goals, and principles from what you type and say, so that agents you allow can tailor their work to you. A missed memory costs little: the next conversation usually brings it up again. A wrong one is worse. It quietly ends up in the context every agent reads, and nobody notices until an answer is off.</p>
+        <p>LokalBot's Personal Context learns facts, preferences, goals, and principles from what you type and say, so that agents you allow can tailor their work to you. A missed memory costs little: the next conversation usually brings it up again. A wrong one is worse. It quietly ends up in the context every agent reads, and nobody notices until an answer is off.</p>
         <p>So the test asks for both recall and restraint. Three kinds of cases make the difference visible:</p>
         <ul>
           <li><strong>Who said it.</strong> “I live in Valencia” should be saved. “My colleague said, ‘I live in Valencia’” should not.</li>
@@ -101,7 +101,7 @@
         </ul>
 
         <h2>What it means for LokalBot</h2>
-        <p>These results don't change LokalBot's defaults. What they confirm is that a memory writer has to be judged on what it leaves out as much as on what it finds. On Mac, the suggestions Personal Context learns appear under <strong>To review</strong> in Settings → Personal Context, where you keep or dismiss them.</p>
+        <p>These results don't change LokalBot's defaults. What they confirm is that a memory writer has to be judged on what it leaves out as much as on what it finds. The suggestions Personal Context learns appear under <strong>To review</strong> in Settings → Personal Context, where you keep or dismiss them.</p>
 
         <h2>Data</h2>
         <p>Everything needed to check or rerun the comparison is in the repository: the <a href="https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks/MemoryRetention/2026-10-23" target="_blank" rel="noopener">benchmark folder</a> with the cases, prompts, and scorer, the <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/MemoryRetention/2026-10-23/memt-nano/REPORT.md" target="_blank" rel="noopener">MemT report</a> with every failed case, and the raw responses. Other model results are on the <a href="/benchmarks">benchmarks page</a>.</p>

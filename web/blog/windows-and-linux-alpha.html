@@ -20,7 +20,7 @@
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="LokalBot is on Windows and Linux, in alpha" />
   <meta property="article:published_time" content="2026-10-20" />
-  <meta property="article:modified_time" content="2026-10-22" />
+  <meta property="article:modified_time" content="2026-11-02" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="LokalBot for Windows and Linux Is in Alpha — LokalBot Blog" />
   <meta name="twitter:description" content="LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app." />
@@ -29,7 +29,7 @@
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/windows-and-linux-alpha#post","headline":"LokalBot is on Windows and Linux, in alpha","description":"LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.","datePublished":"2026-10-20","dateModified":"2026-10-22","url":"https://www.lokalbot.com/blog/windows-and-linux-alpha","mainEntityOfPage":"https://www.lokalbot.com/blog/windows-and-linux-alpha","image":"https://www.lokalbot.com/assets/blog/og/windows-and-linux-alpha.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"LokalBot is on Windows and Linux, in alpha","item":"https://www.lokalbot.com/blog/windows-and-linux-alpha"}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/windows-and-linux-alpha#post","headline":"LokalBot is on Windows and Linux, in alpha","description":"LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.","datePublished":"2026-10-20","dateModified":"2026-11-02","url":"https://www.lokalbot.com/blog/windows-and-linux-alpha","mainEntityOfPage":"https://www.lokalbot.com/blog/windows-and-linux-alpha","image":"https://www.lokalbot.com/assets/blog/og/windows-and-linux-alpha.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"LokalBot is on Windows and Linux, in alpha","item":"https://www.lokalbot.com/blog/windows-and-linux-alpha"}]}]}</script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -47,12 +47,13 @@
       <p class="eyebrow">Release</p>
       <h1>LokalBot is on Windows and Linux, in alpha</h1>
       <p class="guide-hero__lead">Until version 0.11, LokalBot only ran on Apple Silicon Macs. Now there is a native app for Windows and Linux with the same pages and the same library format, so a library recorded on one computer opens on the others.</p>
-      <p class="guide-byline"><time datetime="2026-10-20">October 20, 2026</time> · Updated <time datetime="2026-10-22">October 22, 2026</time> · 5 min read</p>
+      <p class="guide-byline"><time datetime="2026-10-20">October 20, 2026</time> · Updated <time datetime="2026-11-02">November 2, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article blog-article">
 <h2>What works</h2>
-        <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
+        <p>Updated November 2, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.</p>
+        <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, sharing with phones and tablets, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
         <figure class="blog-figure">
           <img src="/assets/blog/linux-meetings.webp" width="1600" height="1000" alt="LokalBot on Linux showing a meeting's recap, action items with timestamps, and decisions, next to a list of recent meetings." loading="lazy" decoding="async" />
           <figcaption>A meeting's recap and action items on Linux, with fictional demo data.</figcaption>
@@ -61,9 +62,10 @@
         <h2>What's still missing</h2>
         <ul>
           <li><strong>The Windows build isn't code-signed yet.</strong> SmartScreen asks before the first launch: choose <strong>More info → Run anyway</strong>.</li>
-          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps needs X11; on Wayland it works in the practice editor in Settings. For dictation on Wayland, bind <code>lokalbot dictate</code> to a shortcut in your desktop's settings.</li>
-          <li><strong>Meeting audio is the whole computer's.</strong> On Windows and Linux LokalBot records everything the computer plays, not one app as on Mac.</li>
-          <li><strong>Some features are Mac-only for now:</strong> selection actions, meeting note export, Personal Context, spoken summaries, and coding-agent sessions in day memory.</li>
+          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps needs X11; on Wayland it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
+          <li><strong>Meeting audio isn't always one app's.</strong> On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.</li>
+          <li><strong>Remembered speakers only suggest.</strong> Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.</li>
+          <li><strong>A few features are Mac-only for now:</strong> Gmail in meeting briefs, Apple Intelligence, and Granite Speech transcription.</li>
         </ul>
         <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>.</p>
         <figure class="blog-figure">
@@ -73,7 +75,7 @@
 
         <h2>The models</h2>
         <ul>
-          <li><strong>Transcription:</strong> Qwen3-ASR 0.6B through sherpa-onnx, with Parakeet v3, SenseVoice, and Whisper turbo as options.</li>
+          <li><strong>Transcription:</strong> Qwen3-ASR 0.6B through sherpa-onnx, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options.</li>
           <li><strong>Speaker separation:</strong> pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask:</strong> Qwen3.5 4B, the same as on Mac.</li>
           <li><strong>Search:</strong> EmbeddingGemma 2, the same as on Mac.</li>
