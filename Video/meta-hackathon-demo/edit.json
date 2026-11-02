@@ -1,6 +1,6 @@
 {
  "fps": 60,
- "duration": 178.81,
+ "duration": 179.21,
  "footage": "assets/footage/film.mp4",
  "source_size": [
   3200,
@@ -115,19 +115,33 @@
      0,
      [
       500,
-      60,
+      165,
       1370,
-      829
+      600
      ],
      [
       1290,
-      470,
+      462,
       1460
+     ]
+    ],
+    [
+     9.9,
+     [
+      500,
+      165,
+      1370,
+      600
+     ],
+     [
+      1310,
+      470,
+      1420
      ]
     ]
    ],
    "fade_in": 0.5,
-   "fade_out": 0,
+   "fade_out": 0.4,
    "call": false
   },
   {
@@ -209,11 +223,11 @@
    "call": true
   },
   {
-   "id": "commit",
+   "id": "commit-a",
    "start": 46.28,
-   "end": 56.84,
+   "end": 52.36,
    "media_start": 66.8,
-   "rate": 0.2462,
+   "rate": 0.074,
    "cam": [
     [
      0,
@@ -231,6 +245,72 @@
     ],
     [
      2.6,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      2440,
+      88,
+      736
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "commit-b",
+   "start": 52.36,
+   "end": 53.28,
+   "media_start": 67.25,
+   "rate": 0.5978,
+   "cam": [
+    [
+     0,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      2440,
+      88,
+      736
+     ]
+    ],
+    [
+     0.9199999999999999,
+     [
+      1100,
+      110,
+      760,
+      780
+     ],
+     [
+      2440,
+      88,
+      736
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "commit-c",
+   "start": 53.28,
+   "end": 57.34,
+   "media_start": 67.8,
+   "rate": 0.1478,
+   "cam": [
+    [
+     0,
      [
       1100,
       110,
@@ -250,8 +330,8 @@
   },
   {
    "id": "c04",
-   "start": 56.84,
-   "end": 61.52,
+   "start": 57.34,
+   "end": 62.02,
    "media_start": 69.4,
    "rate": 0.6838,
    "cam": [
@@ -290,8 +370,8 @@
   },
   {
    "id": "c05",
-   "start": 61.52,
-   "end": 64.2,
+   "start": 62.02,
+   "end": 64.7,
    "media_start": 72.6,
    "rate": 1.1194,
    "cam": [
@@ -344,8 +424,8 @@
   },
   {
    "id": "q1-look",
-   "start": 64.2,
-   "end": 74.2,
+   "start": 64.7,
+   "end": 74.7,
    "media_start": 75.6,
    "rate": 1.0,
    "cam": [
@@ -370,8 +450,8 @@
   },
   {
    "id": "q1-answer",
-   "start": 74.2,
-   "end": 82.36,
+   "start": 74.7,
+   "end": 82.86,
    "media_start": 85.6,
    "rate": 0.3431,
    "cam": [
@@ -410,8 +490,8 @@
   },
   {
    "id": "c07",
-   "start": 82.36,
-   "end": 88.06,
+   "start": 82.86,
+   "end": 88.56,
    "media_start": 100.6,
    "rate": 0.7368,
    "cam": [
@@ -436,8 +516,8 @@
   },
   {
    "id": "c08",
-   "start": 88.06,
-   "end": 92.16,
+   "start": 88.56,
+   "end": 92.66,
    "media_start": 104.8,
    "rate": 1.0732,
    "cam": [
@@ -490,10 +570,10 @@
   },
   {
    "id": "contra",
-   "start": 92.16,
-   "end": 98.62,
+   "start": 92.66,
+   "end": 99.12,
    "media_start": 109.2,
-   "rate": 0.0774,
+   "rate": 0.2322,
    "cam": [
     [
      0,
@@ -516,8 +596,8 @@
   },
   {
    "id": "c13",
-   "start": 98.62,
-   "end": 102.42,
+   "start": 99.12,
+   "end": 102.92,
    "media_start": 109.7,
    "rate": 1.5526,
    "cam": [
@@ -542,8 +622,8 @@
   },
   {
    "id": "c14",
-   "start": 102.42,
-   "end": 106.06,
+   "start": 102.92,
+   "end": 106.56,
    "media_start": 115.6,
    "rate": 1.2088,
    "cam": [
@@ -596,9 +676,9 @@
   },
   {
    "id": "c09",
-   "start": 106.06,
-   "end": 113.79,
-   "media_start": 120.8,
+   "start": 106.56,
+   "end": 114.29,
+   "media_start": 120.9,
    "rate": 0.2458,
    "cam": [
     [
@@ -622,8 +702,8 @@
   },
   {
    "id": "c10",
-   "start": 113.79,
-   "end": 115.97,
+   "start": 114.29,
+   "end": 116.47,
    "media_start": 135,
    "rate": 1.1009,
    "cam": [
@@ -648,8 +728,8 @@
   },
   {
    "id": "q2-look",
-   "start": 115.97,
-   "end": 121.97,
+   "start": 116.47,
+   "end": 122.47,
    "media_start": 137.4,
    "rate": 0.8167,
    "cam": [
@@ -674,10 +754,10 @@
   },
   {
    "id": "q2-answer",
-   "start": 121.97,
-   "end": 127.37,
+   "start": 122.47,
+   "end": 127.57,
    "media_start": 142.3,
-   "rate": 0.7407,
+   "rate": 0.7843,
    "cam": [
     [
      0,
@@ -699,11 +779,11 @@
    "call": false
   },
   {
-   "id": "board",
-   "start": 127.37,
-   "end": 135.39,
+   "id": "board-a",
+   "start": 127.57,
+   "end": 129.905,
    "media_start": 191.7,
-   "rate": 1.1222,
+   "rate": 0.9208,
    "cam": [
     [
      0,
@@ -725,9 +805,87 @@
    "call": false
   },
   {
+   "id": "board-b",
+   "start": 129.555,
+   "end": 131.98,
+   "media_start": 193.95,
+   "rate": 0.9072,
+   "cam": [
+    [
+     0,
+     [
+      500,
+      60,
+      1370,
+      829
+     ],
+     [
+      100,
+      450,
+      2420
+     ]
+    ]
+   ],
+   "fade_in": 0.35,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "board-c",
+   "start": 131.63,
+   "end": 134.326,
+   "media_start": 196.25,
+   "rate": 0.9273,
+   "cam": [
+    [
+     0,
+     [
+      500,
+      60,
+      1370,
+      829
+     ],
+     [
+      100,
+      450,
+      2420
+     ]
+    ]
+   ],
+   "fade_in": 0.35,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "board-d",
+   "start": 133.976,
+   "end": 135.69,
+   "media_start": 198.85,
+   "rate": 1.0793,
+   "cam": [
+    [
+     0,
+     [
+      500,
+      60,
+      1370,
+      829
+     ],
+     [
+      100,
+      450,
+      2420
+     ]
+    ]
+   ],
+   "fade_in": 0.35,
+   "fade_out": 0.4,
+   "call": false
+  },
+  {
    "id": "ft-a",
-   "start": 135.39,
-   "end": 146.35,
+   "start": 135.69,
+   "end": 146.65,
    "media_start": 222.85,
    "rate": 1.3822,
    "cam": [
@@ -752,8 +910,8 @@
   },
   {
    "id": "ft-b",
-   "start": 146.35,
-   "end": 150.25,
+   "start": 146.65,
+   "end": 150.55,
    "media_start": 237.999,
    "rate": 0.2862,
    "cam": [
@@ -775,13 +933,13 @@
      0.9,
      [
       1100,
-      250,
+      290,
       760,
-      440
+      340
      ],
      [
-      1000,
-      1240,
+      975,
+      1300,
       800
      ]
     ],
@@ -789,13 +947,13 @@
      2.4,
      [
       1100,
-      250,
+      290,
       760,
-      440
+      340
      ],
      [
-      1000,
-      1240,
+      975,
+      1300,
       800
      ]
     ],
@@ -820,8 +978,8 @@
   },
   {
    "id": "ft-c",
-   "start": 150.25,
-   "end": 155.15,
+   "start": 150.55,
+   "end": 155.45,
    "media_start": 239.115,
    "rate": 2.2622,
    "cam": [
@@ -846,8 +1004,8 @@
   },
   {
    "id": "ft-d",
-   "start": 155.15,
-   "end": 157.55,
+   "start": 155.45,
+   "end": 157.85,
    "media_start": 250.2,
    "rate": 0.9167,
    "cam": [
@@ -902,75 +1060,75 @@
   ],
   [
    "c04",
-   56.99
+   57.49
   ],
   [
    "c05",
-   61.67
+   62.17
   ],
   [
    "n05",
-   64.5
+   65.0
   ],
   [
    "n06",
-   74.4
+   74.9
   ],
   [
    "c07",
-   82.36
+   82.86
   ],
   [
    "c08",
-   88.06
+   88.56
   ],
   [
    "n08",
-   92.26
+   92.76
   ],
   [
    "c13",
-   98.67
+   99.17
   ],
   [
    "c14",
-   102.47
+   102.97
   ],
   [
    "c09",
-   106.09
+   106.59
   ],
   [
    "c10",
-   113.79
+   114.29
   ],
   [
    "n09",
-   116.37
+   116.87
   ],
   [
    "n10",
-   127.77
+   127.97
   ],
   [
    "n11",
-   135.89
+   136.19
   ],
   [
    "n11b",
-   146.45
+   146.75
   ],
   [
    "n11c",
-   150.35
+   150.65
   ],
   [
    "n12",
-   157.95
+   158.25
   ],
   [
    "n13",
-   171.91
+   172.01
   ]
  ],
  "beats": [
@@ -990,8 +1148,7 @@
    "chips": [
     "Fast live text",
     "Screen answers",
-    "Live answers",
-    "Floating panel"
+    "Live answers"
    ],
    "width": 400,
    "id": "settings",
@@ -1008,16 +1165,25 @@
    "end": 35.14
   },
   {
-   "kicker": "Voice Transcribe → Muse Spark",
-   "headline": "Caught as it’s said",
-   "detail": "Every item has to quote a line from the call, or it’s dropped.",
+   "kicker": "Muse Voice Transcribe",
+   "headline": "Text as each turn ends",
    "chips": [
     "This take: scripted transcript"
    ],
    "width": 880,
-   "id": "commit",
-   "start": 48.08,
-   "end": 56.74
+   "id": "commit-a",
+   "start": 47.28,
+   "end": 52.26
+  },
+  {
+   "kicker": "Muse Spark",
+   "headline": "Caught as it’s said",
+   "detail": "Every item has to quote a line from the call, or it’s dropped.",
+   "width": 880,
+   "chips": [],
+   "id": "commit-c",
+   "start": 53.28,
+   "end": 57.24
   },
   {
    "kicker": "Live answers · Muse Wonder",
@@ -1026,8 +1192,8 @@
    "width": 880,
    "chips": [],
    "id": "q1-look",
-   "start": 64.5,
-   "end": 74.1
+   "start": 65.0,
+   "end": 74.6
   },
   {
    "kicker": "Quote checked",
@@ -1038,8 +1204,8 @@
    ],
    "width": 880,
    "id": "q1-answer",
-   "start": 74.6,
-   "end": 82.26
+   "start": 75.1,
+   "end": 82.76
   },
   {
    "kicker": "Contradiction · Muse Spark",
@@ -1048,8 +1214,8 @@
    "width": 880,
    "chips": [],
    "id": "contra",
-   "start": 92.36,
-   "end": 98.52
+   "start": 92.86,
+   "end": 99.02
   },
   {
    "kicker": "Commitment · Muse Spark",
@@ -1058,8 +1224,8 @@
    "width": 880,
    "chips": [],
    "id": "c09",
-   "start": 107.96,
-   "end": 113.69
+   "start": 107.56,
+   "end": 111.06
   },
   {
    "kicker": "Live answers · code",
@@ -1068,8 +1234,8 @@
    "width": 880,
    "chips": [],
    "id": "q2-look",
-   "start": 116.27,
-   "end": 121.87
+   "start": 116.77,
+   "end": 122.37
   },
   {
    "kicker": "Quote checked",
@@ -1080,33 +1246,35 @@
    ],
    "width": 880,
    "id": "q2-answer",
-   "start": 122.87,
-   "end": 127.27
+   "start": 123.37,
+   "end": 127.47
   },
   {
    "kicker": "After the call",
    "headline": "All of it, on the board",
    "width": 400,
    "chips": [],
-   "id": "board",
-   "start": 127.67,
-   "end": 135.29
+   "id": "board-a",
+   "start": 127.87,
+   "end": 135.59
   },
   {
    "kicker": "Follow-through · Muse Wonder",
    "headline": "It drafts. I approve.",
-   "detail": "The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.",
+   "detail": "In real use, the email and invitation open as drafts in Mail and Calendar. LokalBot never sends them.",
+   "chips": [
+    "This take: Mail and Calendar stay closed"
+   ],
    "width": 880,
-   "chips": [],
    "id": "ft-a",
-   "start": 135.79,
-   "end": 157.45
+   "start": 136.09,
+   "end": 157.75
   }
  ],
  "rings": [
   {
-   "start": 30.85,
-   "end": 31.45,
+   "start": 30.7,
+   "end": 31.25,
    "box": [
     1473.3,
     224.1,
@@ -1115,18 +1283,18 @@
    ]
   },
   {
-   "start": 148.1,
-   "end": 148.6,
+   "start": 148.25,
+   "end": 148.72,
    "box": [
-    1114.8,
-    380.7,
+    1138.5,
+    363.7,
     204.1,
     63.5
    ]
   },
   {
-   "start": 149.55,
-   "end": 150.25,
+   "start": 149.85,
+   "end": 150.55,
    "box": [
     1712.4,
     294.1,
@@ -1135,8 +1303,8 @@
    ]
   },
   {
-   "start": 155.35,
-   "end": 155.85,
+   "start": 155.5,
+   "end": 155.97,
    "box": [
     1203.6,
     738.6,
@@ -1151,20 +1319,20 @@
    "end": 18.0
   },
   "models": {
-   "start": 157.55,
-   "end": 171.31,
+   "start": 157.85,
+   "end": 171.41,
    "cues": [
-    161.24,
-    162.88,
-    165.32,
-    167.8
+    161.54,
+    163.18,
+    165.62,
+    168.1
    ]
   },
   "endcard": {
-   "start": 171.31,
-   "end": 178.81
+   "start": 171.41,
+   "end": 179.21
   }
  },
- "endcard_note": "Real app on sample data, driven by an automated test. The call and all voices are staged and synthetic, so Voice Transcribe didn’t run in this take. Muse Spark and Muse Wonder replies are live.",
+ "endcard_note": "Real app, sample data, driven by a test. The call and voices are staged and synthetic. In this take, Voice Transcribe didn’t run and Mail and Calendar stay closed. Spark and Wonder replies are live.",
  "anchors_run": 41470837273
 }

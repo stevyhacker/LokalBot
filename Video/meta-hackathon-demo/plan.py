@@ -33,14 +33,38 @@ def voice_len(line_id):
                                 check=True, capture_output=True, text=True).stdout)
 
 
+def word_time(line_id, word):
+    """Seconds into a line's take where a word starts, from the ElevenLabs alignment."""
+    rows = json.loads((P / 'production/voice-generation.json').read_text())['rows']
+    path = TAKES.get(line_id, f'assets/voice/{line_id}-s11.mp3')
+    a = next(r for r in rows if r['file'] == path)['alignment']
+    text = ''.join(a['characters']).lower()
+    return a['character_start_times_seconds'][text.index(word.lower())]
+
+
+# n04's first sentence is about Voice Transcribe, its second about Spark.
+COMMIT_LEN = voice_len('n04') + 0.9
+COMMIT_SPLIT = round(word_time('n04', 'muse spark') + 0.2, 3)
+COMMIT_AT = COMMIT_SPLIT + 0.92
+# Ana's next line starts typing in the strip at film 67.3, so the wait stays short of it while the strip shows.
+COMMIT_HOLD = 0.45
+
+
+def board_len(i):
+    """One stretch of the board's length, in proportion to the footage it shows."""
+    marks = [A['board'] - 0.3, A['board_hop1'], A['board_hop2'], A['board_hop3'], A['board'] + 8.7]
+    return round((voice_len('n10') + 1.0) * (marks[i + 1] - marks[i]) / (marks[4] - marks[0]), 3)
+
+
 # Cameras: [box x, y, w, h on the 1920x1080 canvas], [film x, y, w]; the film rect's height follows the box.
 CALL = [[500, 60, 1370, 829], [0, 62, 3200]]
 PANEL = [[1279, 44, 581, 890], [2440, 88, 736]]
 CARD = [[1100, 110, 760, 780], [2440, 88, 736]]
-SETTINGS = [[500, 60, 1370, 829], [1290, 470, 1460]]
+SETTINGS = [[500, 165, 1370, 600], [1290, 462, 1460]]
+SETTINGS_IN = [[500, 165, 1370, 600], [1310, 470, 1420]]
 BOARD = [[500, 60, 1370, 829], [100, 450, 2420]]
 FT = [[1170, 44, 690, 890], [945, 190, 1310]]
-APPROVE = [[1100, 250, 760, 440], [1000, 1240, 800]]
+APPROVE = [[1100, 290, 760, 340], [975, 1300, 800]]
 # Taller than CARD for the long code answer, and still short of the panel's transcript strip.
 CARD_TALL = [[1100, 60, 760, 870], [2440, 88, 736]]
 
@@ -67,20 +91,25 @@ BEATS = [
          text=dict(at=5.6, kicker='Screen answer · Muse Spark', headline='4.1%, from my screen',
                    detail='Found in screen memory on my Mac, cropped by Apple Vision, read by Spark.', width=880)),
     dict(id='title', scene='title', length=3.2),
-    dict(id='settings', f=('settings', 0, 'settings', 10), length=9.9, cam=cam((0, SETTINGS)),
-         voice=[('n02', 0.3)], fade_in=0.5,
+    dict(id='settings', f=('settings', 0, 'settings', 10), length=9.9, cam=cam((0, SETTINGS), (9.9, SETTINGS_IN)),
+         voice=[('n02', 0.3)], fade_in=0.5, fade_out=0.4,
          text=dict(at=0.4, kicker='Settings · Meta Muse', headline='Three models, each opt-in',
-                   chips=['Fast live text', 'Screen answers', 'Live answers', 'Floating panel'], width=400)),
+                   chips=['Fast live text', 'Screen answers', 'Live answers'], width=400)),
     dict(id='start', f=('press_from', 0, 'press_from', 7.34 * PRESS_RATE), voice_fit='n03', pad=0.3, cam=cam((0, CALL)), voice=[('n03', 0.1)],
-         fade_in=0.5, rings=[ring(PRESS_AT - 0.45, [2292, 464, 186, 50], CALL, hold=0.6)],
+         fade_in=0.5, rings=[ring(PRESS_AT - 0.6, [2292, 464, 186, 50], CALL, hold=0.55)],
          text=dict(at=0.3, kicker='Live Radar', headline='One press, then back to the call', width=400)),
     dict(id='c01', f=('c01', 0, 'c02', -0.4), voice_fit='c01', pad=0.25, cam=cam((0, CALL)), voice=[('c01', 0.1)], call=True),
     dict(id='c02', f=('c02', -0.4, 'commit', -1.2), voice_fit='c02', pad=0.15, cam=cam((0, CALL)), voice=[('c02', 0.05)], call=True),
-    dict(id='commit', f=('commit', -1.2, 'commit_end', 0), voice_fit='n04', pad=0.4, cam=cam((0, CALL), (2.6, CARD)),
-         voice=[('n04', 0.2)],
-         text=dict(at=1.8, kicker='Voice Transcribe → Muse Spark', headline='Caught as it’s said',
-                   detail='Every item has to quote a line from the call, or it’s dropped.',
+    # The transcript strip shows with the first sentence, and the card lands just after Spark is named.
+    dict(id='commit-a', f=('commit', -1.2, 'commit', -1.2 + COMMIT_HOLD), length=COMMIT_SPLIT,
+         cam=cam((0, CALL), (2.6, PANEL)), voice=[('n04', 0.2)],
+         text=dict(at=1.0, kicker='Muse Voice Transcribe', headline='Text as each turn ends',
                    chips=['This take: scripted transcript'], width=880)),
+    dict(id='commit-b', f=('commit', -1.2 + COMMIT_HOLD, 'commit_landed', 0), length=COMMIT_AT - COMMIT_SPLIT,
+         cam=cam((0, PANEL), (COMMIT_AT - COMMIT_SPLIT, CARD))),
+    dict(id='commit-c', f=('commit_landed', 0, 'commit_landed', 0.6), length=COMMIT_LEN - COMMIT_AT, cam=cam((0, CARD)),
+         text=dict(at=0, kicker='Muse Spark', headline='Caught as it’s said',
+                   detail='Every item has to quote a line from the call, or it’s dropped.', width=880)),
     dict(id='c04', f=('c04_from', 0, 'c05', -0.4), voice_fit='c04', pad=0.2, cam=cam((0, CARD), (2.0, CALL)), voice=[('c04', 0.15)],
          call=True),
     dict(id='c05', f=('c05', -0.4, 'c05', 2.6), voice_fit='c05', pad=0.2, cam=cam((0, CALL), (0.3, CALL), (2.9, PANEL)), voice=[('c05', 0.15)],
@@ -97,7 +126,7 @@ BEATS = [
          call=True, fade_in=0.4),
     dict(id='c08', f=('c08', -0.2, 'contra_from', 0), voice_fit='c08', pad=0.1, cam=cam((0, CALL), (0.6, CALL), (3.4, CARD)),
          voice=[('c08', 0.0)], call=True),
-    dict(id='contra', f=('contra_from', 0, 'contra_from', 0.5), voice_fit='n08', pad=0.3, cam=cam((0, CARD)), voice=[('n08', 0.1)],
+    dict(id='contra', f=('contra_from', 0, 'contra_from', 1.5), voice_fit='n08', pad=0.3, cam=cam((0, CARD)), voice=[('n08', 0.1)],
          fade_out=0.4,
          text=dict(at=0.2, kicker='Contradiction · Muse Spark', headline='We agreed on Monday the 3rd',
                    detail='Quoted from the Launch planning meeting, October 25, found by search on my Mac.', width=880)),
@@ -107,44 +136,39 @@ BEATS = [
          voice=[('c14', 0.05)], call=True),
     # The capture stalls from 122 to 135 with Ana's line half typed. The close-up leaves that caption out,
     # the voice's own caption takes over, and the stalled seconds are cut.
-    dict(id='c09', f=('c09', 0.8, 'c09', 2.7), voice_fit='c09', pad=0.05, cam=cam((0, CARD_TALL)), voice=[('c09', 0.03)],
-         text=dict(at=1.9, kicker='Commitment · Muse Spark', headline='Free tier: decide tomorrow',
+    dict(id='c09', f=('c09', 0.9, 'c09', 2.8), voice_fit='c09', pad=0.05, cam=cam((0, CARD_TALL)), voice=[('c09', 0.03)],
+         text=dict(at=1.0, hold_to=4.5, kicker='Commitment · Muse Spark', headline='Free tier: decide tomorrow',
                    detail='Caught from my line, ready for after the call.', width=880)),
     dict(id='c10', f=('stall_end', 0, 'stall_end', 2.4), voice_fit='c10', pad=0.1, cam=cam((0, CARD_TALL)), voice=[('c10', 0.0)]),
     dict(id='q2-look', f=('stall_end', 2.4, 'q2_answer', 0.3), length=6.0, cam=cam((0, CARD_TALL)), voice=[('n09', 0.4)],
          text=dict(at=0.3, kicker='Live answers · code', headline='It reads the repository too',
                    detail='Tracked files only. Never .env files or keys.', width=880)),
-    dict(id='q2-answer', f=('q2_answer', 0.3, 'q2_answer', 4.3), length=5.4, cam=cam((0, CARD_TALL)), fade_out=0.5,
+    dict(id='q2-answer', f=('q2_answer', 0.3, 'q2_answer', 4.3), length=5.1, cam=cam((0, CARD_TALL)), fade_out=0.5,
          text=dict(at=0.9, kicker='Quote checked', headline='Yes, hidden by default',
                    detail='AppSettings.swift, line 176, linked on GitHub at the commit it read.',
                    chips=['caught → answered: {q2} s'], width=880)),
-    dict(id='board', f=('board', -0.3, 'board', 8.7), voice_fit='n10', pad=0.9, cam=cam((0, BOARD)), voice=[('n10', 0.4)],
+    # The board scrolls between captures, so it dissolves across each hop instead of jumping.
+    dict(id='board-a', f=('board', -0.3, 'board_hop1', -0.05), length=board_len(0), cam=cam((0, BOARD)), voice=[('n10', 0.4)],
          fade_in=0.5,
-         text=dict(at=0.3, kicker='After the call', headline='All of it, on the board', width=400)),
+         text=dict(at=0.3, until='board-d', kicker='After the call', headline='All of it, on the board', width=400)),
+    dict(id='board-b', f=('board_hop1', 0.05, 'board_hop2', -0.05), length=board_len(1), cam=cam((0, BOARD)), xfade=0.35),
+    dict(id='board-c', f=('board_hop2', 0.05, 'board_hop3', -0.05), length=board_len(2), cam=cam((0, BOARD)), xfade=0.35),
+    dict(id='board-d', f=('board_hop3', 0.05, 'board', 8.7), length=board_len(3), cam=cam((0, BOARD)), xfade=0.35, fade_out=0.4),
     dict(id='ft-a', f=('ft_open', -0.15, 'email_flip', -APPROVE_AT * APPROVE_RATE), voice_fit='n11', pad=0.8, cam=cam((0, FT)),
          voice=[('n11', 0.5)], fade_in=0.3,
          text=dict(at=0.4, until='ft-d', kicker='Follow-through · Muse Wonder', headline='It drafts. I approve.',
-                   detail='The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.',
-                   width=880)),
+                   detail='In real use, the email and invitation open as drafts in Mail and Calendar. LokalBot never sends them.',
+                   chips=['This take: Mail and Calendar stay closed'], width=880)),
     dict(id='ft-b', f=('approve_from', 0, 'approve_to', 0), length=APPROVE_LEN,
          cam=cam((0, FT), (0.9, APPROVE), (2.4, APPROVE), (3.2, FT)), voice=[('n11b', 0.1)],
-         rings=[ring(APPROVE_AT - 0.35, [1024, 1386, 198, 50], APPROVE, hold=0.5),
+         rings=[ring(APPROVE_AT - 0.5, [1024, 1386, 198, 50], APPROVE, hold=0.47),
                 ring(3.2, [1990, 680, 176, 28], FT, hold=0.7)]),
     dict(id='ft-c', f=('approve_to', 0, 'invite_flip', -0.5), length=4.9, cam=cam((0, FT)), voice=[('n11c', 0.1)]),
     dict(id='ft-d', f=('invite_flip', -0.5, 'invite_flip', 1.7), length=2.4, cam=cam((0, FT)), fade_out=0.6,
-         rings=[ring(0.2, [1024, 1524, 258, 50], FT, hold=0.5)]),
-    dict(id='models', scene='models', voice_fit='n12', pad=0.8, voice=[('n12', 0.4)]),
-    dict(id='endcard', scene='endcard', length=7.5, voice=[('n13', 0.6)]),
+         rings=[ring(0.05, [1024, 1524, 258, 50], FT, hold=0.47)]),
+    dict(id='models', scene='models', voice_fit='n12', pad=0.6, voice=[('n12', 0.4)]),
+    dict(id='endcard', scene='endcard', length=7.8, voice=[('n13', 0.6)]),
 ]
-
-
-def word_time(line_id, word):
-    """Seconds into a line's take where a word starts, from the ElevenLabs alignment."""
-    rows = json.loads((P / 'production/voice-generation.json').read_text())['rows']
-    path = TAKES.get(line_id, f'assets/voice/{line_id}-s11.mp3')
-    a = next(r for r in rows if r['file'] == path)['alignment']
-    text = ''.join(a['characters']).lower()
-    return a['character_start_times_seconds'][text.index(word.lower())]
 
 
 def film(anchor, offset):
@@ -166,11 +190,17 @@ def main():
             length = None
         if 'f' in b:
             f0, f1 = film(*b['f'][:2]), film(*b['f'][2:])
+            if b.get('xfade'):
+                # The shot before stays under this one's fade, ending on its last frame before the hop.
+                prev = shots[-1]
+                held = prev['end'] - prev['start']
+                prev['rate'] = round(prev['rate'] * held / (held + b['xfade']), 4)
+                prev['end'] = round(prev['end'] + b['xfade'], 3)
             if length is None:
                 length = (f1 - f0) / b.get('rate', 1.0)
             rate = round((f1 - f0) / length, 4)
             shots.append({'id': b['id'], 'start': round(t, 3), 'end': round(t + length, 3), 'media_start': f0, 'rate': rate,
-                          'cam': b['cam'], 'fade_in': b.get('fade_in', 0), 'fade_out': b.get('fade_out', 0),
+                          'cam': b['cam'], 'fade_in': b.get('xfade', b.get('fade_in', 0)), 'fade_out': b.get('fade_out', 0),
                           'call': b.get('call', False)})
         else:
             scenes[b['scene']] = {'start': round(t, 3), 'end': round(t + length, 3)}
@@ -180,7 +210,8 @@ def main():
             x = dict(b['text'])
             fill = {'q1': round(A['q1_answer'] - A['q1_caught']), 'q2': round(A['q2_answer'] - A['q2_caught'])}
             x['chips'] = [c.format(**fill) for c in x.get('chips', [])]
-            x.update({'id': b['id'], 'start': round(t + x.pop('at'), 3), 'end': round(t + length - 0.1, 3)})
+            hold_to = x.pop('hold_to', length - 0.1)
+            x.update({'id': b['id'], 'start': round(t + x.pop('at'), 3), 'end': round(t + hold_to, 3)})
             beats.append(x)
         for r in b.get('rings', []):
             rings.append({'start': round(t + r['at'], 3), 'end': round(t + r['at'] + r['hold'], 3), 'box': r['box']})
@@ -195,8 +226,8 @@ def main():
                                 for w in ('realtime', 'fast reading', 'careful', 'search')]
     edit = {'fps': 60, 'duration': round(t, 3), 'footage': 'assets/footage/film.mp4', 'source_size': [3200, 2000],
             'takes': TAKES, 'shots': shots, 'voice': voice, 'beats': beats, 'rings': rings, 'scenes': scenes,
-            'endcard_note': 'Real app on sample data, driven by an automated test. The call and all voices are staged and '
-                            'synthetic, so Voice Transcribe didn’t run in this take. Muse Spark and Muse Wonder replies are live.',
+            'endcard_note': 'Real app, sample data, driven by a test. The call and voices are staged and synthetic. In this take, '
+                            'Voice Transcribe didn’t run and Mail and Calendar stay closed. Spark and Wonder replies are live.',
             'anchors_run': A['run']}
     (P / 'edit.json').write_text(json.dumps(edit, indent=1, ensure_ascii=False) + '\n')
     for s in shots:

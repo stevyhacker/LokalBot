@@ -32,5 +32,9 @@
  "stall_end": 135,
  "email_flip": 238.6,
  "invite_flip": 250.7,
- "press_flip": 266.7
+ "press_flip": 266.7,
+ "commit_landed": 67.8,
+ "board_hop1": 193.9,
+ "board_hop2": 196.2,
+ "board_hop3": 198.8
 }

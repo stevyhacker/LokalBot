@@ -175,6 +175,7 @@ page = f'''<!doctype html>
         display: flex; flex-direction: column; gap: 14px; opacity: 0; }}
       .model .name {{ font-family: "Big Shoulders Display", sans-serif; font-size: 52px; font-weight: 800; text-transform: uppercase; }}
       .model .does {{ font-size: 26px; line-height: 1.4; color: #cfe2de; }}
+      .model .proof {{ font-family: "JetBrains Mono", monospace; font-size: 21px; line-height: 1.4; color: var(--teal); margin-top: 6px; }}
       .model .dot {{ width: 16px; height: 16px; border-radius: 50%; }}
       #models .local {{ margin-top: 34px; font-size: 28px; color: var(--muted); opacity: 0; }}
       #models .local b {{ color: var(--fg); }}
@@ -202,18 +203,21 @@ page = f'''<!doctype html>
         <h2>Three Meta models</h2>
         <div class="row">
           <div class="model" id="m-voice"><div class="dot" style="background:var(--voice)"></div><div class="name">Voice Transcribe</div>
-            <div class="does">Realtime speech to text, turn by turn, for the live transcript.</div></div>
+            <div class="does">Realtime speech to text, turn by turn, for the live transcript.</div>
+            <div class="proof">Tested from audio: 6 of 6 planted items, about 3 s after the speaker finished.</div></div>
           <div class="model" id="m-spark"><div class="dot" style="background:var(--spark)"></div><div class="name">Muse Spark</div>
-            <div class="does">Live Radar every few seconds, and screen answers from crops of earlier captures.</div></div>
+            <div class="does">Live Radar every few seconds, and screen answers from crops of earlier captures.</div>
+            <div class="proof">AMI meetings: 22 of 62 decisions caught. Local notes on the same text: 2.</div></div>
           <div class="model" id="m-wonder"><div class="dot" style="background:var(--wonder)"></div><div class="name">Muse Wonder</div>
-            <div class="does">Live answers from your work, and Follow-through with your approval.</div></div>
+            <div class="does">Live answers from your work, and Follow-through with your approval.</div>
+            <div class="proof">Demo replays: seven answers in 2.5 to 18 s, at most $0.074 each.</div></div>
         </div>
         <div class="local">On your Mac: <b>recording, speaker separation, meeting and screen search.</b></div>
       </div>
       <div class="scene" id="endcard">
         <div class="brand"><img src="assets/brand/lokalbot-mark-brand.svg" alt="" /><div class="word">LokalBot</div></div>
         <div class="line">From meeting to done</div>
-        <div class="url">github.com/stevyhacker/lokalbot/tree/meta-hackathon</div>
+        <div class="url">github.com/stevyhacker/lokalbot/blob/meta-hackathon/HACKATHON.md</div>
         <div class="note">{html.escape(E['endcard_note'])}</div>
       </div>
 {caps_html}
@@ -286,8 +290,8 @@ page = f'''<!doctype html>
       tl.to("#models", {{ opacity: 0, duration: 0.5 }}, sc.models.end - 0.5);
       tl.fromTo("#endcard", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.7 }}, sc.endcard.start);
       tl.fromTo("#endcard .brand", {{ y: 24 }}, {{ y: 0, duration: 1.0, ease: "power3.out" }}, sc.endcard.start);
-      tl.fromTo("#endcard .url", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.6 }}, sc.endcard.start + 1.2);
-      tl.fromTo("#endcard .note", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.6 }}, sc.endcard.start + 1.8);
+      tl.fromTo("#endcard .url", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, sc.endcard.start + 0.7);
+      tl.fromTo("#endcard .note", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.5 }}, sc.endcard.start + 1.0);
       document.querySelectorAll(".cap").forEach(el => {{
         const start = parseFloat(el.dataset.start), dur = parseFloat(el.dataset.duration);
         const parts = el.querySelectorAll(".cap-text, .who");
