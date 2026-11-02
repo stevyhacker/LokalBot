@@ -31,6 +31,13 @@ nonisolated enum CotypingVisualCaretLocator {
         /// garbles the start of a line more than the rest of it, so what
         /// follows still measures the font when the first letters are lost.
         var tailMinX: CGFloat?
+        /// Its edges were measured from the image's pixels rather than from
+        /// what recognition read, so they hold however its letters were read.
+        var edgesAreMeasured = false
+        /// Its ink has more words than were read. Recognition lost one ("Видимо
+        /// се у" for "Видимо се у г"), so the typed text it lacks is drawn, not
+        /// missing from the frame.
+        var inkHasMoreWords = false
     }
 
     /// Characters recognition reads a text caret as.
@@ -73,7 +80,9 @@ nonisolated enum CotypingVisualCaretLocator {
     static let refindAfterCharacters = 12
     /// The same while the field's font has not been measured from a whole
     /// line: a size fitted to a few letters can be far off, and the caret
-    /// moves by it.
+    /// moves by it. And always on a Cyrillic line: there the system font
+    /// follows the field's own font worst, 10 pt off Helvetica Neue within
+    /// 12 letters (2026-11-02).
     static let remeasureAfterCharacters = 4
     /// Recognition found no line shorter than this (one to three typed
     /// characters were never found, measured 2026-10-05).
@@ -95,6 +104,12 @@ nonisolated enum CotypingVisualCaretLocator {
     /// After this many finds in a row came back empty, the field is treated
     /// as one whose caret cannot be found on screen.
     static let maximumFailedFinds = 3
+
+    /// Whether the caret's line is in Cyrillic, which fast recognition cannot
+    /// read at all (its languages are Latin ones).
+    static func caretLineIsCyrillic(_ precedingText: String) -> Bool {
+        caretLine(of: precedingText).core.unicodeScalars.contains { (0x0400...0x052F).contains($0.value) }
+    }
 
     /// Whether a find on this text that came back empty counts against the field.
     static func missCounts(for precedingText: String) -> Bool {
@@ -128,14 +143,25 @@ nonisolated enum CotypingVisualCaretLocator {
     /// their accents in practice, so on a non-Retina display "Č" came back as
     /// "&", "Ž" as "2", "Đ" as "E)" and "Š" not at all (2026-11-02). What it
     /// reads there says nothing about whether the line is the typed one. Not
-    /// other scripts: a line of them would match any text, and the caret went
-    /// up to 24 pt astray in Cyrillic.
+    /// whole scripts: a line of them would match any text, and the caret went
+    /// up to 24 pt astray when all of Cyrillic was treated this way.
     private static func isUnreadable(_ character: Character) -> Bool {
         guard character.isLetter, !character.isASCII,
               let scalar = String(character).precomposedStringWithCanonicalMapping.unicodeScalars.first
         else { return false }
         return (0x00C0...0x024F).contains(scalar.value) || (0x1E00...0x1EFF).contains(scalar.value)
+            || isCyrillicWithoutAModel(character, scalar: scalar)
     }
+
+    /// The Cyrillic letters recognition has no model for: it reads Russian and
+    /// Ukrainian only, so "ђ" comes back as "h" and "њ" as "н" or "нь". The
+    /// rest of a Cyrillic line is compared as usual, which is what keeps a line
+    /// of about the right length from matching.
+    private static func isCyrillicWithoutAModel(_ character: Character, scalar: Unicode.Scalar) -> Bool {
+        (0x0400...0x052F).contains(scalar.value) && !russianAndUkrainianLetters.contains(character.lowercased())
+    }
+
+    private static let russianAndUkrainianLetters = Set("абвгдеёжзийклмнопрстуфхцчшщъыьэюяєіїґ".map(String.init))
 
     private static func typedCharacters(of core: String) -> [TypedCharacter] {
         normalizedCharacters(of: core).map {
@@ -183,9 +209,11 @@ nonisolated enum CotypingVisualCaretLocator {
         let recognizedCount = best.alignment.recognizedCount
         let recognized = start(ofLast: recognizedCount, before: lineEnd, in: typedCharacters)
         let lost = typedCharacters[..<recognized.index].filter { $0.character != " " }.count
-        let lineStart = lost <= 2 ? 0 : recognized.index
+        // A letter without a model can read as none, one or two ("ль" for "љ").
+        let readingSlack = line.edgesAreMeasured ? max(2, typedCharacters.filter(\.isUnreadable).count) : 0
+        let lineStart = lost <= max(2, readingSlack) ? 0 : recognized.index
         let startsParagraph = lineStart == 0
-        let countsAgree = lost == 0 && recognized.unmatched == 0
+        let countsAgree = lost + recognized.unmatched <= readingSlack
         func typedText(_ start: Int) -> String {
             String(core[typedCharacters[start].index..<(
                 lineEnd < typedCharacters.count ? typedCharacters[lineEnd].index : core.endIndex)])
@@ -218,8 +246,19 @@ nonisolated enum CotypingVisualCaretLocator {
         if endsWithCaret, let caretMinX = line.lastCharacterMinX {
             // The app's caret was captured, read as a "|" or an "l": it is
             // where it is drawn, after any spaces typed. Adding those spaces
-            // again put the ghost a space too far right in Viber.
-            caretX = (caretMinX + line.maxX) / 2
+            // again put the ghost a space too far right in Viber. Only what
+            // the frame predates moves it on: letters it lacks, or spaces when
+            // the caret still touches the last letter.
+            let spaces = String(repeating: " ", count: trailingSpaces)
+            var sinceFrame = ""
+            if best.alignment.missing > 0 {
+                sinceFrame = String(core[typedCharacters[lineEnd].index...]) + spaces
+            } else if line.edgesAreMeasured, trailingSpaces > 0,
+                      caretMinX - textMaxX < CotypingInlineGhostLayout.width(of: " ", font: font) / 2 {
+                sinceFrame = spaces
+            }
+            unseenLetters = sinceFrame.contains { !$0.isWhitespace }
+            caretX = (caretMinX + line.maxX) / 2 + advance(of: sinceFrame, after: drawn, font: font)
         } else {
             // What the capture lacks is drawn after the line's last letter,
             // and the caret follows that letter's advance, a little past its
@@ -285,14 +324,19 @@ nonisolated enum CotypingVisualCaretLocator {
         var best: Alignment?
         let recognized = recognizedCharacters(of: line.text)
         let printed = typed.filter { $0.character != " " }
-        // A line longer than the paragraph holds other text too.
-        if recognized.count >= 2, recognized.count <= printed.count + 2 {
+        let missingRange = line.inkHasMoreWords ? 0...0 : missingRange
+        // A line longer than the paragraph holds other text too, past what
+        // two characters read for one letter can explain.
+        let extraReadings = line.edgesAreMeasured ? printed.filter(\.isUnreadable).count + 2 : 0
+        if recognized.count >= 2, recognized.count <= printed.count + max(extraReadings, 2) {
             for missing in missingRange where missing < typed.count {
                 // Spaces are not compared, so a line ends before one, not after.
                 guard typed[typed.count - missing - 1].character != " " else { continue }
                 let drawn = typed.dropLast(missing).filter { $0.character != " " }
                 let length = min(recognized.count, drawn.count, comparedCharacters)
-                let score = similarity(recognized: recognized.suffix(length), typed: drawn.suffix(length))
+                let score = line.edgesAreMeasured
+                    ? similarityToTheEnd(of: drawn.suffix(comparedCharacters), recognized: recognized.suffix(comparedCharacters))
+                    : similarity(recognized: recognized.suffix(length), typed: drawn.suffix(length))
                 if score > (best?.score ?? -1) {
                     best = Alignment(score: score, missing: missing, endsWithCaret: false,
                                      recognizedCount: recognized.count)
@@ -302,11 +346,19 @@ nonisolated enum CotypingVisualCaretLocator {
         let trimmed = line.text.trimmingCharacters(in: .whitespaces)
         if line.lastCharacterMinX != nil, let last = trimmed.last, caretLookalikes.contains(last) {
             let text = recognizedCharacters(of: String(trimmed.dropLast()))
-            if text.count >= 2, text.count <= printed.count {
-                let length = min(text.count, comparedCharacters)
-                let score = similarity(recognized: text.suffix(length), typed: printed.suffix(length))
-                if score > (best?.score ?? -1) {
-                    best = Alignment(score: score, missing: 0, endsWithCaret: true, recognizedCount: text.count)
+            if text.count >= 2, text.count <= printed.count + extraReadings {
+                // A caret measured in a frame from before the last key is still
+                // where it was drawn, and what it lacks follows it.
+                for missing in line.edgesAreMeasured ? missingRange : 0...0 where missing < typed.count {
+                    guard missing == 0 || typed[typed.count - missing - 1].character != " " else { continue }
+                    let drawn = typed.dropLast(missing).filter { $0.character != " " }
+                    let length = min(text.count, drawn.count, comparedCharacters)
+                    let score = line.edgesAreMeasured
+                        ? similarityToTheEnd(of: drawn.suffix(comparedCharacters), recognized: text.suffix(comparedCharacters))
+                        : similarity(recognized: text.suffix(length), typed: drawn.suffix(length))
+                    if score > (best?.score ?? -1) {
+                        best = Alignment(score: score, missing: missing, endsWithCaret: true, recognizedCount: text.count)
+                    }
                 }
             }
         }
@@ -501,8 +553,39 @@ nonisolated enum CotypingVisualCaretLocator {
         case "\u{2013}", "\u{2014}": return "-"
         default:
             let folded = String(character).lowercased().folding(options: .diacriticInsensitive, locale: nil)
-            return folded.count == 1 ? Character(folded) : character
+            guard folded.count == 1, let plain = folded.first else { return character }
+            return latinLookalikes[plain] ?? plain
         }
+    }
+
+    /// Cyrillic letters drawn like Latin ones, in either case. Recognition
+    /// mixes the two within a word ("рекаo", "Бophe" for "Ђорђе"), and what it
+    /// chose says nothing about which letter was typed.
+    private static let latinLookalikes: [Character: Character] = [
+        "а": "a", "в": "b", "е": "e", "і": "i", "ј": "j", "к": "k", "м": "m", "н": "h",
+        "о": "o", "р": "p", "с": "c", "т": "t", "у": "y", "х": "x", "ѕ": "s",
+    ]
+
+    /// `similarity` for a line whose reading may have lost a letter anywhere:
+    /// the typed text may start earlier than the line, and has to end where it
+    /// does. Comparing equal lengths from the end instead counted one lost letter
+    /// as every letter before it shifted, and taking the typed text as ending a
+    /// word later looked better (13 pt astray, measured 2026-11-02).
+    private static func similarityToTheEnd(of typed: some Collection<TypedCharacter>, recognized: some Collection<Character>) -> Double {
+        let a = Array(recognized), b = Array(typed)
+        guard !a.isEmpty, !b.isEmpty else { return 0 }
+        var previous = [Int](repeating: 0, count: b.count + 1)
+        for (i, x) in a.enumerated() {
+            var current = [i + 1] + Array(repeating: 0, count: b.count)
+            for (j, y) in b.enumerated() {
+                current[j + 1] = min(
+                    previous[j + 1] + 1,
+                    current[j] + (y.isUnreadable ? 0 : 1),
+                    previous[j] + (x == y.character || y.isUnreadable ? 0 : 1))
+            }
+            previous = current
+        }
+        return 1 - Double(previous[b.count]) / Double(a.count)
     }
 
     /// 1 minus the edit distance per character. A typed letter recognition
@@ -656,9 +739,11 @@ final class CotypingVisualCaret {
         guard let entry = current(entry, for: field), trackedCaretX(for: field) != nil,
               let change = CotypingVisualCaretLocator.change(
                   from: entry.calibration.precedingText, to: field.precedingText) else { return true }
-        return change.text.count >= (current(measured, for: field) == nil
-            ? CotypingVisualCaretLocator.remeasureAfterCharacters
-            : CotypingVisualCaretLocator.refindAfterCharacters)
+        let isSizeKnown = current(measured, for: field) != nil
+            && !CotypingVisualCaretLocator.caretLineIsCyrillic(field.precedingText)
+        return change.text.count >= (isSizeKnown
+            ? CotypingVisualCaretLocator.refindAfterCharacters
+            : CotypingVisualCaretLocator.remeasureAfterCharacters)
     }
 
     private func find(_ field: CotypingField, in frame: CGRect) {
@@ -670,7 +755,7 @@ final class CotypingVisualCaret {
         pending?.task.cancel()
         let precedingText = field.precedingText
         let task = Task { [weak self] in
-            let lines = await Self.recognizeLines(in: frame)
+            let lines = await Self.recognizeLines(in: frame, precedingText: precedingText)
             guard let self, !Task.isCancelled else { return }
             if let lines, let calibration = CotypingVisualCaretLocator.locate(
                 lines: lines, precedingText: precedingText, fieldFrame: frame) {
@@ -742,11 +827,22 @@ final class CotypingVisualCaret {
 
     /// The field's frame captured larger than its point size, which keeps
     /// small text legible on a non-Retina display, with its lines recognized.
-    private static func recognizeLines(in frame: CGRect) async -> [CotypingVisualCaretLocator.RecognizedLine]? {
+    private static func recognizeLines(
+        in frame: CGRect, precedingText: String
+    ) async -> [CotypingVisualCaretLocator.RecognizedLine]? {
         guard let image = await capture(frame) else { return nil }
         return await Task.detached(priority: .userInitiated) {
-            CotypingVisualCaret.recognize(image, frame: frame)
+            CotypingVisualCaret.recognize(image, frame: frame, precedingText: precedingText)
         }.value
+    }
+
+    /// The field's lines, by the recognition that can read what was typed.
+    nonisolated static func recognize(
+        _ image: CGImage, frame: CGRect, precedingText: String
+    ) -> [CotypingVisualCaretLocator.RecognizedLine] {
+        CotypingVisualCaretLocator.caretLineIsCyrillic(precedingText)
+            ? recognizeCyrillic(image, frame: frame, precedingText: precedingText)
+            : recognize(image, frame: frame)
     }
 
     private static func capture(_ frame: CGRect) async -> CGImage? {
@@ -802,7 +898,7 @@ final class CotypingVisualCaret {
     ) -> [CotypingVisualCaretLocator.RecognizedLine] {
         let request = VNRecognizeTextRequest()
         // Fast recognition gives character boxes within half a point; the
-        // accurate one gives only word boxes and takes far longer.
+        // accurate one gives only word boxes and takes several times longer.
         request.recognitionLevel = .fast
         request.usesLanguageCorrection = false
         guard (try? VNImageRequestHandler(cgImage: image).perform([request])) != nil else { return [] }
@@ -830,6 +926,60 @@ final class CotypingVisualCaret {
                 box: point(observation.boundingBox),
                 lastCharacterMinX: lastBox.minX, characterBeforeLastMaxX: beforeLast?.maxX,
                 tailMinX: tail?.minX)
+        }
+    }
+
+    /// Recognized lines for a field whose caret line is in Cyrillic. Accurate
+    /// recognition reads it where fast recognition reads none of it (20 to 60 ms
+    /// on a field's frame on an M4 Max, against 5), so that decides whether a
+    /// line is the typed one. It gives only word boxes, so the line's edges,
+    /// baseline and the app's caret come from its pixels.
+    private nonisolated static func recognizeCyrillic(
+        _ image: CGImage, frame: CGRect, precedingText: String
+    ) -> [CotypingVisualCaretLocator.RecognizedLine] {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["ru-RU", "uk-UA", "en-US"]
+        request.usesLanguageCorrection = false
+        guard (try? VNImageRequestHandler(cgImage: image).perform([request])) != nil,
+              let bitmap = CotypingVisualCaretInk.Bitmap(image) else { return [] }
+        let pixelsPerPoint = CGFloat(image.width) / frame.width
+        let lastTypedLetter = precedingText.last { !$0.isWhitespace }
+        func pointX(_ column: Int) -> CGFloat { frame.minX + CGFloat(column) / pixelsPerPoint }
+        func pointY(_ row: Int) -> CGFloat { frame.minY + CGFloat(image.height - row) / pixelsPerPoint }
+        return (request.results ?? []).compactMap { observation in
+            guard let candidate = observation.topCandidates(1).first else { return nil }
+            let read = candidate.string
+            func box(_ index: String.Index) -> CGRect? {
+                (try? candidate.boundingBox(for: index..<read.index(after: index)))?.boundingBox
+            }
+            guard let first = read.firstIndex(where: { !$0.isWhitespace }),
+                  let last = read.lastIndex(where: { !$0.isWhitespace }),
+                  let firstWord = box(first), let lastWord = box(last),
+                  let ink = CotypingVisualCaretInk.measure(
+                    bitmap, line: observation.boundingBox, firstWord: firstWord, lastWord: lastWord,
+                    pixelsPerPoint: pixelsPerPoint, lastTypedLetter: lastTypedLetter) else { return nil }
+            // What it read of the app's caret, the pixels say better. Only when
+            // they show one: a last "г" can read as "/", and without it the
+            // typed text looks a word longer than the line.
+            var text = read.trimmingCharacters(in: .whitespaces)
+            if ink.caretColumns != nil, let end = text.last, "|¦ǀ/[]".contains(end) {
+                text = String(text.dropLast()).trimmingCharacters(in: .whitespaces)
+            }
+            let readWords = text.split(whereSeparator: \.isWhitespace).count
+            if ink.caretColumns != nil { text += "|" }
+            let bottom = pointY(ink.rows.upperBound), top = pointY(ink.rows.lowerBound)
+            return CotypingVisualCaretLocator.RecognizedLine(
+                text: text,
+                minX: pointX(ink.columns.lowerBound),
+                maxX: pointX(ink.caretColumns?.upperBound ?? ink.columns.upperBound),
+                baseline: pointY(ink.baselineRow),
+                box: CGRect(x: pointX(ink.columns.lowerBound), y: bottom,
+                            width: pointX(ink.columns.upperBound) - pointX(ink.columns.lowerBound), height: top - bottom),
+                lastCharacterMinX: ink.caretColumns.map { pointX($0.lowerBound) },
+                characterBeforeLastMaxX: ink.caretColumns.map { _ in pointX(ink.columns.upperBound) },
+                edgesAreMeasured: true,
+                inkHasMoreWords: ink.wordCount > readWords)
         }
     }
 }
