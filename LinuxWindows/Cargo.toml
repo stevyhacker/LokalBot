@@ -47,6 +47,15 @@ regex = "1"
 unicode-normalization = "0.1"
 tempfile = "3"
 
+# Companion sync (lokalbot-sync): Noise sessions and the UniFFI bindings the
+# Mac, iOS and Android apps call. Snow uses only the X25519, ChaChaPoly and
+# BLAKE2s primitives the protocol names.
+snow = { version = "0.10", default-features = false, features = ["use-curve25519", "use-chacha20poly1305", "use-blake2", "use-getrandom"] }
+uniffi = { version = "0.32.2", default-features = false }
+if-addrs = "0.15"
+getrandom = "0.3"
+base64 = "0.22"
+
 [profile.dev]
 # Keep debug builds quick and small; GPUI is large.
 debug = "line-tables-only"

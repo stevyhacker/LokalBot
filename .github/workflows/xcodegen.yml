@@ -45,11 +45,12 @@ jobs:
           xcodegen --version
 
       # project.yml lists Vendor/llama-cpp and Vendor/sherpa-onnx as folder
-      # references, and XcodeGen validates those paths exist before it will
-      # generate. Empty dirs satisfy generation — this gate never compiles,
-      # so the vendor contents are not needed here at all.
+      # references and Vendor/lokalbot-sync as a local package, and XcodeGen
+      # validates those paths exist before it will generate. Empty dirs
+      # satisfy generation — this gate never compiles, so the vendor contents
+      # are not needed here at all.
       - name: Create vendor dirs for XcodeGen
-        run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+        run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx Vendor/lokalbot-sync
 
       # xcodegen exits non-zero on an invalid project.yml, so this alone catches
       # most regressions (bad target/source/package references, etc.).

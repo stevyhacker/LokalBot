@@ -263,12 +263,16 @@ lokalbot-cli mcp
 
 ```bash
 brew install xcodegen cmake
+# 手机和平板同步库用 Rust 构建（https://rustup.rs）；仓库固定了工具链，rustup 会在首次使用时安装。
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
 
 git clone https://github.com/stevyhacker/lokalbot.git
 cd lokalbot
 
 # 首次构建获取运行时之前，XcodeGen 需要这些路径存在。
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+# 把手机和平板同步库（Rust）构建为本地 Swift 包。
+Scripts/build-sync-xcframework.sh
 xcodegen generate
 open LokalBot.xcodeproj
 ```

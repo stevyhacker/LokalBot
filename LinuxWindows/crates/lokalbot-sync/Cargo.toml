@@ -1,0 +1,44 @@
+[package]
+name = "lokalbot-sync"
+description = "Companion sync: the Mac's encrypted listener and the phone's local copy, exposed to Swift and Kotlin through UniFFI."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "lokalbot_sync"
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[[bin]]
+# Generates the Swift and Kotlin bindings (Scripts/build-sync-*.sh):
+# cargo run -p lokalbot-sync --features bindgen --bin uniffi-bindgen -- generate …
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli", "uniffi/cargo-metadata"]
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+rusqlite.workspace = true
+sha2.workspace = true
+hex.workspace = true
+snow.workspace = true
+uniffi.workspace = true
+if-addrs.workspace = true
+getrandom.workspace = true
+base64.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+# The example host prints the pairing code as a terminal QR code.
+qrcode = { version = "0.14", default-features = false }

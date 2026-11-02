@@ -129,9 +129,6 @@ jobs:
       - name: Create vendor dirs for XcodeGen
         run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 
-      - name: Generate project
-        run: xcodegen generate
-
       # The pre-build phase Scripts/fetch-llama.sh builds checksum-pinned
       # llama.cpp source for the app's deployment target into Vendor/. GGUF
       # models are user-selected downloads, not bundled in CI artifacts.
@@ -140,6 +137,14 @@ jobs:
         with:
           path: Vendor
           key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+
+      # After the Vendor cache, so a cached copy never replaces the fresh
+      # package; before generation, which needs the package to exist.
+      - name: Build lokalbot-sync
+        uses: ./.github/actions/lokalbot-sync
+
+      - name: Generate project
+        run: xcodegen generate
 
       # Idempotent: a no-op on a cache hit, the real download on a miss. Running
       # it explicitly (rather than only via the xcodebuild pre-build phase) lets

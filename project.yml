@@ -50,6 +50,13 @@ packages:
   DigUp:
     url: https://github.com/stevyhacker/DigUp  # fork of ARahim3/DigUp
     revision: dc2651ad8299160bbe91e972f857e1a1599a8419  # DigUpKit only (MIT): file crawling, reading, index and search
+  # Phones and tablets: the Rust crate LinuxWindows/crates/lokalbot-sync as a
+  # local package (static XCFramework + UniFFI Swift), written by
+  # Scripts/build-sync-xcframework.sh. Vendor/ is gitignored, and Xcode
+  # resolves packages before any build phase, so run the script before
+  # `xcodegen generate` and the first build (DEVELOPMENT.md, every workflow).
+  LokalBotSync:
+    path: Vendor/lokalbot-sync
 
 # Shared application body. Both `LokalBot` (prod) and `LokalBot Dev` build the
 # SAME sources from this template and differ only in identity-bearing settings
@@ -136,6 +143,8 @@ targetTemplates:
         product: LaunchAtLogin
       - package: DigUp
         product: DigUpKit
+      - package: LokalBotSync
+        product: LokalBotSync
       # Embed the self-contained CLI into Contents/Helpers/ and code-sign it
       # on copy (hardened runtime during a notarised archive). It's a target
       # dependency so it's built first; `link: false` because a tool is
@@ -153,6 +162,10 @@ targetTemplates:
         basedOnDependencyAnalysis: false
       - name: Fetch sherpa-onnx vendor
         script: "\"$PROJECT_DIR/Scripts/fetch-sherpa.sh\""
+        basedOnDependencyAnalysis: false
+      # Rebuilds the package when the crate changed since the last build.
+      - name: Build lokalbot-sync
+        script: "\"$PROJECT_DIR/Scripts/build-sync-xcframework.sh\""
         basedOnDependencyAnalysis: false
     postBuildScripts:
       - name: Sign bundled native runtimes
@@ -212,9 +225,15 @@ targetTemplates:
           by what is in them. Files are read on this Mac and never changed or
           uploaded.
         NSLocalNetworkUsageDescription: >-
-          LokalBot connects to inference servers you add on your own network,
-          such as a model server on another computer, only after you approve
-          each one. Nothing is sent to other devices otherwise.
+          LokalBot connects to inference servers you add on your own network
+          after you approve each one. When you turn on Phones & tablets, it
+          also lets the phones and tablets you pair find this Mac and receive
+          an encrypted copy of what you share. Nothing is sent to other devices
+          otherwise.
+        # Bonjour advertisement for paired phones and tablets, only while
+        # Settings → Phones & tablets is on.
+        NSBonjourServices:
+          - _lokalbot._tcp
         # Plain HTTP to an approved server on the user's own network.
         # InferenceEndpointPolicy decides which hosts may be reached at all;
         # these exceptions only let URLSession load the names it allows.

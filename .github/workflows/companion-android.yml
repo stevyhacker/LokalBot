@@ -1,0 +1,97 @@
+name: Companion Android
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - "Companion/**"
+      - "!Companion/ios/**"
+      - "!Companion/**/*.md"
+      - "LinuxWindows/crates/lokalbot-sync/**"
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/rust-toolchain.toml"
+      - "Scripts/build-sync-*"
+      - ".github/workflows/companion-android.yml"
+  pull_request:
+    branches: [master, dev]
+    paths:
+      - "Companion/**"
+      - "!Companion/ios/**"
+      - "!Companion/**/*.md"
+      - "LinuxWindows/crates/lokalbot-sync/**"
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/rust-toolchain.toml"
+      - "Scripts/build-sync-*"
+      - ".github/workflows/companion-android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: companion-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Build, test and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - name: Rust toolchain and Android targets
+        working-directory: LinuxWindows
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-linux-android x86_64-linux-android
+
+      - name: Cache cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/cargo-ndk
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            LinuxWindows/target
+          key: companion-android-cargo-${{ hashFiles('LinuxWindows/Cargo.lock', 'LinuxWindows/rust-toolchain.toml') }}
+          restore-keys: companion-android-cargo-
+
+      - name: Install cargo-ndk
+        run: command -v cargo-ndk || cargo install cargo-ndk --locked
+
+      - name: Build the Rust sync core for Android
+        # The runner image ships the Android SDK and a current NDK.
+        run: |
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          Scripts/build-sync-android.sh
+
+      - name: Build, unit and screenshot tests, lint
+        working-directory: Companion/android
+        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:verifyRoborazziDebug :app:lintDebug
+
+      - name: Upload test, screenshot and lint reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: companion-android-reports
+          path: |
+            Companion/android/app/build/reports
+            Companion/android/app/build/outputs/roborazzi
+            Companion/android/app/build/test-results
+          retention-days: 7
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: LokalBot-Companion-debug
+          path: Companion/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
