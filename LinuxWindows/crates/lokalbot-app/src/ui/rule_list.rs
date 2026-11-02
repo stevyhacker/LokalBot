@@ -518,11 +518,17 @@ mod tests {
 
     #[test]
     fn folders_abbreviate_home() {
-        let home = std::path::Path::new("/home/ana");
-        let rule = |p: &str| abbreviated(std::path::Path::new(p), Some(home));
-        assert_eq!(rule("/home/ana/Code/x"), "~/Code/x");
-        assert_eq!(rule("/home/ana"), "~");
-        assert_eq!(rule("/opt/secret"), "/opt/secret");
+        use std::path::Path;
+        let home = Path::new("/home/ana");
+        let rule = |p: &Path| abbreviated(p, Some(home));
+        // Each platform's own separator: a rule reads like the paths around it.
+        let inside = Path::new("~").join("Code").join("x");
+        assert_eq!(
+            rule(&home.join("Code").join("x")),
+            inside.display().to_string()
+        );
+        assert_eq!(rule(home), "~");
+        assert_eq!(rule(Path::new("/opt/secret")), "/opt/secret");
     }
 
     #[test]
