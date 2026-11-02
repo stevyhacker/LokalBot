@@ -45,7 +45,7 @@ To start over: `Scripts/meta-hackathon-demo.sh reset`, then `setup`. To refresh 
 6. **Start the radar.** The floating Live Radar panel appears in the top-right corner. Press Start Radar in it, then drag it next to the call.
 7. **Run the call script** in [demo-script.md](demo-script.md#the-live-call-about-2-minutes). Pause a moment between turns. Expect:
    - your commitment and Marko's, and the 20% decision, about 3 seconds after each is said;
-   - "trial-to-paid conversion last month" answered "4.1%" with the dashboard crop;
+   - "trial-to-paid conversion in September" answered "4.1%" with the dashboard crop;
    - the Team plan price answered "$12 per seat" from `Northwind pricing v2.xlsx`, about 7 to 13 seconds after the question, with the steps showing while it looks;
    - the radar-panel question answered from `AppSettings.swift`, about 8 seconds after. It answers for the default: hidden. The demo turned hiding off so the recording shows the panel, so say so if you mention it;
    - the launch-date and free-tier contradictions, each with the "Launch planning" quote.

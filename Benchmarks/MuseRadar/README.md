@@ -30,7 +30,7 @@ Both read the key from `META_API_KEY`. `--radar-replay` also takes `--base-url <
 
 `fixtures/synthetic-follow-through.json` is the follow-through case for the user's commitment from that meeting.
 
-`fixtures/synthetic-demo-call.json` is the demo video's call. It swaps the annual-discount question for one the screen can answer ("What was our trial-to-paid conversion last month?"), and asks two that live answers look up: the Team plan price in a pricing sheet, and whether the radar panel is hidden when sharing the screen, from this repository's code. `fixtures/screens/` holds two synthetic captures for `--screens`, a metrics dashboard and a launch plan, with `screens.json` giving each one's app, window title, and capture time.
+`fixtures/synthetic-demo-call.json` is the demo video's call. It swaps the annual-discount question for one the screen can answer ("What was our trial-to-paid conversion in September?"), and asks two that live answers look up: the Team plan price in a pricing sheet, and whether the radar panel is hidden when sharing the screen, from this repository's code. `fixtures/screens/` holds two synthetic captures for `--screens`, a metrics dashboard and a launch plan, with `screens.json` giving each one's app, window title, and capture time.
 
 `fixtures/synthetic-live-answers.json` asks five questions for `--answers`: about this repository's code, the pricing sheet and launch brief in [Docs/meta-hackathon/demo-files](../../Docs/meta-hackathon/demo-files/), an open action, and a pull request. Its `memory` stands in for what LokalBot remembers: a tracked project's note and open actions. `--folders` are read for real, so use only public or synthetic folders.
 

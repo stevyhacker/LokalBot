@@ -27,7 +27,7 @@ You on your microphone, your partner on a Google Meet or Zoom call. Speak natura
 - You: "I'll send the revised pricing deck to Marko by Friday."
 - Partner: "Great. What did we put as the Team plan price in the pricing sheet?"
 - You: "One second, it's in the sheet." *(Wait for the answer.)*
-- Partner: "And what was our trial-to-paid conversion last month, by the way?"
+- Partner: "And what was our trial-to-paid conversion in September, by the way?"
 - You: "Let me think, I saw it on the dashboard."
 - Partner: "Also, the launch is Friday the seventh now, right? Marketing told me Friday."
 - You: "Hm, I thought it was the Monday. Let me check."

@@ -94,24 +94,16 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(3)
 
         // 2. A live meeting: Start Radar, then the transcript arrives line by line.
-        let visionReady = library.appendingPathComponent(".film-vision-ready")
         app = try UITestHarness.relaunch(
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
                           "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
                           "LOKALBOT_UI_TEST_SCREENS": try FilmFixture.screens().path,
                           "LOKALBOT_UI_TEST_CALL": "1",
-                          "LOKALBOT_UI_TEST_VISION_READY": visionReady.path,
                           "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
                 .merging(windowSize) { _, new in new })
         let start = app.buttons["live.radar.start"]
         XCTAssertTrue(film.wait(for: start, timeout: 15), "Live Radar pane did not render")
-        // Questions come within seconds of Start Radar; screen answers need Vision loaded by then.
-        let visionDeadline = Date().addingTimeInterval(240)
-        while !FileManager.default.fileExists(atPath: visionReady.path), Date() < visionDeadline { film.hold(0.5) }
-        let vision = (try? String(contentsOf: visionReady, encoding: .utf8)) ?? "not ready"
-        XCTContext.runActivity(named: "Vision: \(vision)") { _ in }
-        print("Film Vision warm-up: \(vision)")
         film.hold(2)
         start.click()
         let started = Date()
@@ -309,7 +301,7 @@ private enum FilmFixture {
         (7, "local", "I'll send the revised pricing deck to Marko by Friday."),
         (12, "them", "Great. What did we put as the Team plan price in the pricing sheet?"),
         (17, "local", "One second, it's in the sheet."),
-        (34, "them", "And what was our trial-to-paid conversion last month, by the way?"),
+        (34, "them", "And what was our trial-to-paid conversion in September, by the way?"),
         (39, "local", "Let me think, I saw it on the dashboard."),
         (45, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
         (50, "local", "Hm, I thought it was the Monday. Let me check."),
