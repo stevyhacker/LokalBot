@@ -16,9 +16,9 @@ import XCTest
 /// `LOKALBOT_FILM_MUSE=live` and `LOKALBOT_FILM_META_KEY_FILE` naming a file
 /// that holds a Meta Model API key, the host calls Muse Spark and Muse Wonder
 /// on this fixture, and the checks look for kinds of items and approve
-/// whatever steps Follow-through proposes. With `LOKALBOT_FILM_FRAMES` set,
-/// frames and their durations are written there for
-/// `.github/workflows/meta-hackathon-film.yml` to encode.
+/// whatever steps Follow-through proposes. With `LOKALBOT_FILM_FRAMES` set, the
+/// test marks when `.github/workflows/meta-hackathon-film.yml` should film the
+/// screen, a 3200x2000 virtual display, into that folder.
 final class HackathonFilmUITests: XCTestCase {
     private var library: URL!
     private var defaultsSuiteName: String?
@@ -29,11 +29,11 @@ final class HackathonFilmUITests: XCTestCase {
         library = FileManager.default.temporaryDirectory
             .appendingPathComponent("LokalBotFilm-\(UUID().uuidString)", isDirectory: true)
         try FilmFixture.plant(in: library)
-        film = try Film()
+        film = Film()
     }
 
     override func tearDownWithError() throws {
-        film?.finish(in: self)
+        film?.finish()
         XCUIApplication(bundleIdentifier: "me.dotenv.LokalBot.uitesthost").terminate()
         try? FileManager.default.removeItem(at: library)
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
@@ -230,75 +230,37 @@ final class HackathonFilmUITests: XCTestCase {
     }
 }
 
-/// Screen frames with their display durations, for ffmpeg's concat demuxer.
-/// Frames are downscaled JPEGs so a two-minute take stays small.
+/// The test's waits, and the markers that start and stop the screen capture
+/// beside it (`Scripts/film/capture.py`), which writes full-size frames to the
+/// `LOKALBOT_FILM_FRAMES` folder. Taking screenshots here would hold up the test.
 private final class Film {
-    private let folder: URL
-    private var frames: [(name: String, at: Date)] = []
-    private var attached = 0
+    private let folder: URL?
 
-    init() throws {
-        let path = ProcessInfo.processInfo.environment["LOKALBOT_FILM_FRAMES"]
-        folder = path.map { URL(fileURLWithPath: $0, isDirectory: true) }
-            ?? FileManager.default.temporaryDirectory.appendingPathComponent("LokalBotFilm-frames-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    init() {
+        folder = ProcessInfo.processInfo.environment["LOKALBOT_FILM_FRAMES"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        mark(".start")
     }
 
-    func snap() {
-        let image = XCUIScreen.main.screenshot().image
-        let width: CGFloat = 1_440
-        let scale = min(1, width / max(image.size.width, 1))
-        let size = NSSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
-        guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height),
-                                            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
-        image.draw(in: NSRect(origin: .zero, size: size))
-        NSGraphicsContext.restoreGraphicsState()
-        guard let data = bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.82]) else { return }
-        let name = String(format: "%05d.jpg", frames.count)
-        try? data.write(to: folder.appendingPathComponent(name))
-        frames.append((name, Date()))
-    }
-
-    /// Films while waiting, about twice a second.
     func wait(for element: XCUIElement, timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            snap()
             if element.exists { return true }
-            Thread.sleep(forTimeInterval: 0.35)
+            Thread.sleep(forTimeInterval: 0.4)
         } while Date() < deadline
-        snap()
         return element.exists
     }
 
     func hold(_ seconds: TimeInterval) {
-        let deadline = Date().addingTimeInterval(seconds)
-        repeat {
-            snap()
-            Thread.sleep(forTimeInterval: 0.35)
-        } while Date() < deadline
+        Thread.sleep(forTimeInterval: seconds)
     }
 
-    func finish(in test: XCTestCase) {
-        snap()
-        var list = ""
-        for (index, frame) in frames.enumerated() {
-            let next = index + 1 < frames.count ? frames[index + 1].at : frame.at.addingTimeInterval(1)
-            list += "file '\(frame.name)'\nduration \(String(format: "%.3f", max(0.04, next.timeIntervalSince(frame.at))))\n"
-        }
-        if let last = frames.last { list += "file '\(last.name)'\n" }
-        try? list.write(to: folder.appendingPathComponent("frames.txt"), atomically: true, encoding: .utf8)
-        // A few stills travel with the result bundle even without the film.
-        for index in stride(from: 0, to: frames.count, by: max(1, frames.count / 6)) {
-            guard let image = NSImage(contentsOf: folder.appendingPathComponent(frames[index].name)) else { continue }
-            let attachment = XCTAttachment(image: image)
-            attachment.name = "film-\(frames[index].name)"
-            attachment.lifetime = .keepAlways
-            test.add(attachment)
-        }
+    func finish() {
+        mark(".stop")
+    }
+
+    private func mark(_ name: String) {
+        guard let folder else { return }
+        FileManager.default.createFile(atPath: folder.appendingPathComponent(name).path, contents: Data())
     }
 }
 
