@@ -22,7 +22,7 @@ VERIFIED = "2026-10-26"
 
 # When LokalBot's own facts on these pages last changed (not the competitors').
 # It moves dateModified and the sitemap's lastmod, but not "Last verified".
-LOKALBOT_UPDATED = "2026-11-01"
+LOKALBOT_UPDATED = "2026-11-03"
 
 CHECK = '<i class="ph ph-check" aria-hidden="true"></i>'
 CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
@@ -31,7 +31,7 @@ CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
 LB_ASR = "On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac"
 LB_DICTATION = f"{CHECK}Hold ⌥ Space (Alt+Space on Windows and Linux) in any app"
 LB_TIMELINE = f"{CHECK}App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days"
-LB_COTYPING = f"{CHECK}Cotyping, in almost any app (on Linux, X11 only)"
+LB_COTYPING = f"{CHECK}Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, and GNOME)"
 LB_AGENTS = "Read-only CLI and MCP server, off until you enable Agent Access"
 LB_PLATFORM = "macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha"
 # Measured for the Mac engines; the Windows and Linux models differ.
@@ -54,7 +54,7 @@ PAGES = [
             ("Where the AI runs", "On your computer — Qwen3-ASR speech model by default and llama.cpp summaries", "In the cloud, via third-party AI providers"),
             ("Account required", f"{CROSS}None", f"{CHECK}Yes"),
             ("Works offline", f"{CHECK}Fully, after a one-time model download", "Needs a connection for AI notes"),
-            ("Bot-free meeting capture", f"{CHECK}Microphone + system audio (just the selected app on Mac); labels show capture source, not identity", f"{CHECK}Yes — no bot joins your call"),
+            ("Bot-free meeting capture", f"{CHECK}Microphone + system audio (just the selected app on Mac; on Windows and Linux, where it can be separated); labels show capture source, not identity", f"{CHECK}Yes — no bot joins your call"),
             ("Model training on your data", "No LokalBot training pipeline or telemetry; approved remote servers have their own terms", '<span class="dim">Opt-out of model training on every plan</span>'),
             ("Meeting history", "Unlimited, stored on your computer", "Basic: 30 days · Business and Enterprise: unlimited"),
             ("Compliance", "No LokalBot server ever holds your meetings", "SOC 2 Type II; HIPAA workspaces on Enterprise"),
@@ -151,13 +151,13 @@ PAGES = [
         "published": "2026-09-24",
         "lead": "Otter is one of the best-known AI notetakers: its assistant joins Zoom, Microsoft Teams, and Google Meet, transcribes in the cloud, and shares notes with your team. That reach comes with a participant in your call and your conversations on Otter's servers. LokalBot takes the opposite approach: it captures the call from your computer's own audio, transcribes and summarizes locally, and needs no account.",
         "table_rows": [
-            ("How it captures a meeting", f"{CHECK}Microphone + system audio on your computer (just the selected app on Mac); source labels do not identify speakers", "The Otter assistant joins Zoom, Teams, and Google Meet; its apps can also record directly"),
+            ("How it captures a meeting", f"{CHECK}Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); source labels do not identify speakers", "The Otter assistant joins Zoom, Teams, and Google Meet; its apps can also record directly"),
             ("Where transcription runs", LB_ASR, "Otter's cloud"),
             ("Account required", f"{CROSS}None", f"{CHECK}Yes"),
             ("Works offline", f"{CHECK}After a one-time model download", "Needs a connection"),
             ("Transcription languages", LB_LANGUAGES, "English, Spanish, French, German, Japanese, and Chinese"),
             ("Free plan limits", "None — the whole app is free", "300 transcription minutes per month"),
-            ("Team features", "Single-user; on Mac, share by exporting Markdown", "Shared notes, team workspaces, and integrations"),
+            ("Team features", "Single-user; share by exporting Markdown", "Shared notes, team workspaces, and integrations"),
             ("Connect AI tools", LB_AGENTS, "Otter MCP server"),
             ("System-wide dictation", LB_DICTATION, NO),
             ("Day timeline", LB_TIMELINE, NO),
@@ -206,7 +206,7 @@ PAGES = [
             ("Works offline", f"{CHECK}After a one-time model download", "Needs a connection"),
             ("Transcription languages", LB_LANGUAGES, "100+"),
             ("Storage", "Limited only by your disk", "Free: 400 minutes per team · Pro: 8,000 minutes per seat · Business and up: unlimited"),
-            ("Integrations", "A read-only CLI and MCP server; Markdown export and a daily memory note on Mac", "CRMs, project tools, and an API"),
+            ("Integrations", "A read-only CLI and MCP server; Markdown export and a daily memory note", "CRMs, project tools, and an API"),
             ("Compliance", "No LokalBot server ever holds your meetings", "HIPAA compliance and private storage on Enterprise"),
             ("System-wide dictation", LB_DICTATION, NO),
             ("Day timeline", LB_TIMELINE, NO),
@@ -231,7 +231,7 @@ PAGES = [
         ],
         "faq": [
             ("Why not use Fireflies without the bot?", "You can capture without the bot through Fireflies' desktop app for Mac and Windows or its Chrome extension, but Fireflies still creates the transcript and summary and keeps them in its cloud, under your account. LokalBot keeps the audio, transcript, and summary on your computer."),
-            ("Can LokalBot push notes into my CRM?", "Not directly. LokalBot exposes a read-only CLI and MCP server so local tools and agents can read your library, and on Mac it also exports meetings as Markdown and can write a daily memory note to a folder. Anything beyond that is up to you."),
+            ("Can LokalBot push notes into my CRM?", "Not directly. LokalBot exposes a read-only CLI and MCP server so local tools and agents can read your library, and it also exports meetings as Markdown and can write a daily memory note to a folder. Anything beyond that is up to you."),
             ("Will people on the call know LokalBot is recording?", "No — nothing appears in the call, which is why you need to tell participants yourself. On a fresh install, LokalBot asks through a notification before it records a detected meeting."),
         ],
         "cta_title": "Meeting notes that stay on your computer.",
@@ -253,7 +253,7 @@ PAGES = [
             ("Transcription", f"{CHECK}{LB_ASR}", f"{CHECK}On-device models on supported Macs, or a cloud provider you select"),
             ("Summaries and chat", f"{CHECK}llama.cpp built in — works with no keys and no setup", "Your choice: a local server such as Ollama or LM Studio, your own API key, Apple Intelligence, or optional hosted AI"),
             ("Cloud features", "None — no account and no sync service; a remote inference server needs your approval", "Opt-in hosted AI, encrypted CloudSync, and sharing"),
-            ("Notes on disk", "Local SQLite library with full-text and vector search; Markdown export on Mac", "Local SQLite plus plain files; Markdown export"),
+            ("Notes on disk", "Local SQLite library with full-text and vector search; Markdown export", "Local SQLite plus plain files; Markdown export"),
             ("Connect AI tools", LB_AGENTS, "Local CLI and MCP server"),
             ("System-wide dictation", LB_DICTATION, NO),
             ("Day timeline", LB_TIMELINE, NO),
@@ -468,8 +468,8 @@ PAGES = [
             "You want local-by-default behavior you can verify in the code",
         ],
         "faq": [
-            ("Which speech models does LokalBot use?", "On Mac, Qwen3-ASR 1.7B by default, with Parakeet, Granite Speech, and Whisper large-v3 turbo as alternatives. On Windows and Linux, Qwen3-ASR 0.6B by default, with Parakeet, SenseVoice, and Whisper turbo. All of them run on your computer. Dictation reuses the engine and language you picked for meetings and keeps it warm, so transcription starts as soon as you hold the key."),
-            ("Does LokalBot keep my dictation audio?", "No. On Mac, by default it records to a scratch file, transcribes it on-device, pastes the text, deletes the recording, and even pauses your music before it starts listening. On Windows and Linux the audio stays in memory and is never written to disk."),
+            ("Which speech models does LokalBot use?", "On Mac, Qwen3-ASR 1.7B by default, with Parakeet, Granite Speech, and Whisper large-v3 turbo as alternatives. On Windows and Linux, Qwen3-ASR 0.6B by default, with Parakeet, SenseVoice, GigaAM for Russian, and Whisper turbo. All of them run on your computer. Dictation reuses the engine and language you picked for meetings and keeps it warm, so transcription starts as soon as you hold the key."),
+            ("Does LokalBot keep my dictation audio?", "No. On Mac, by default it records to a scratch file, transcribes it on-device, pastes the text, deletes the recording, and even pauses your music before it starts listening. On Windows and Linux the audio stays in memory unless you turn on Keep dictation audio files."),
             ("Can I run both apps?", "Sure — they use different shortcuts. Some people will want Superwhisper for heavy dictation workflows and LokalBot for meetings and everything else. LokalBot is free, so trying the combination costs nothing."),
         ],
         "cta_title": "Speak anywhere. Stays on your computer.",

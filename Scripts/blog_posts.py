@@ -25,7 +25,7 @@ POSTS = [
     {
         "slug": "recall-vs-restraint-memory-benchmark",
         "published": "2026-10-23",
-        "updated": "2026-10-25",
+        "updated": "2026-11-02",
         "title": "Recall vs. Restraint: Testing Which Local Models Know When Not to Save a Memory",
         "description": "A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano.",
         "eyebrow": "Benchmark",
@@ -34,7 +34,7 @@ POSTS = [
         "read_time": "6 min read",
         "body": """
         <h2>Why restraint matters</h2>
-        <p>On Mac, LokalBot's Personal Context learns facts, preferences, goals, and principles from what you type and say, so that agents you allow can tailor their work to you. A missed memory costs little: the next conversation usually brings it up again. A wrong one is worse. It quietly ends up in the context every agent reads, and nobody notices until an answer is off.</p>
+        <p>LokalBot's Personal Context learns facts, preferences, goals, and principles from what you type and say, so that agents you allow can tailor their work to you. A missed memory costs little: the next conversation usually brings it up again. A wrong one is worse. It quietly ends up in the context every agent reads, and nobody notices until an answer is off.</p>
         <p>So the test asks for both recall and restraint. Three kinds of cases make the difference visible:</p>
         <ul>
           <li><strong>Who said it.</strong> “I live in Valencia” should be saved. “My colleague said, ‘I live in Valencia’” should not.</li>
@@ -83,7 +83,7 @@ POSTS = [
         </ul>
 
         <h2>What it means for LokalBot</h2>
-        <p>These results don't change LokalBot's defaults. What they confirm is that a memory writer has to be judged on what it leaves out as much as on what it finds. On Mac, the suggestions Personal Context learns appear under <strong>To review</strong> in Settings → Personal Context, where you keep or dismiss them.</p>
+        <p>These results don't change LokalBot's defaults. What they confirm is that a memory writer has to be judged on what it leaves out as much as on what it finds. The suggestions Personal Context learns appear under <strong>To review</strong> in Settings → Personal Context, where you keep or dismiss them.</p>
 
         <h2>Data</h2>
         <p>Everything needed to check or rerun the comparison is in the repository: the <a href="https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks/MemoryRetention/2026-10-23" target="_blank" rel="noopener">benchmark folder</a> with the cases, prompts, and scorer, the <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/MemoryRetention/2026-10-23/memt-nano/REPORT.md" target="_blank" rel="noopener">MemT report</a> with every failed case, and the raw responses. Other model results are on the <a href="/benchmarks">benchmarks page</a>.</p>
@@ -92,7 +92,7 @@ POSTS = [
     {
         "slug": "windows-and-linux-alpha",
         "published": "2026-10-20",
-        "updated": "2026-10-22",
+        "updated": "2026-11-03",
         "title": "LokalBot for Windows and Linux Is in Alpha",
         "description": "LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.",
         "eyebrow": "Release",
@@ -101,7 +101,8 @@ POSTS = [
         "read_time": "5 min read",
         "body": """
         <h2>What works</h2>
-        <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
+        <p>Updated November 3, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.</p>
+        <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
         <figure class="blog-figure">
           <img src="/assets/blog/linux-meetings.webp" width="1600" height="1000" alt="LokalBot on Linux showing a meeting's recap, action items with timestamps, and decisions, next to a list of recent meetings." loading="lazy" decoding="async" />
           <figcaption>A meeting's recap and action items on Linux, with fictional demo data.</figcaption>
@@ -110,11 +111,13 @@ POSTS = [
         <h2>What's still missing</h2>
         <ul>
           <li><strong>The Windows build isn't code-signed yet.</strong> SmartScreen asks before the first launch: choose <strong>More info → Run anyway</strong>.</li>
-          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps needs X11; on Wayland it works in the practice editor in Settings. For dictation on Wayland, bind <code>lokalbot dictate</code> to a shortcut in your desktop's settings.</li>
-          <li><strong>Meeting audio is the whole computer's.</strong> On Windows and Linux LokalBot records everything the computer plays, not one app as on Mac.</li>
-          <li><strong>Some features are Mac-only for now:</strong> selection actions, meeting note export, Personal Context, spoken summaries, and coding-agent sessions in day memory.</li>
+          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, where you also add LokalBot as an input source. It has only been tried on headless Sway and GNOME with stand-in suggestions, and Hyprland itself hasn't been run (<a href="/explainers/wayland-autocomplete.pdf">how it works</a>). On KDE Plasma and other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
+          <li><strong>Meeting audio isn't always one app's.</strong> On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.</li>
+          <li><strong>Remembered speakers only suggest.</strong> Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.</li>
+          <li><strong>Nothing to pair with phones and tablets yet.</strong> Settings → Phones &amp; tablets is there, off by default, but the iPhone, iPad, and Android apps aren't in the App Store or Play Store yet, and real phones on a network haven't been tried.</li>
+          <li><strong>A few features are Mac-only for now:</strong> Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation.</li>
         </ul>
-        <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>.</p>
+        <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>, and the <a href="/explainers/windows-linux-app.pdf">two-page overview</a> shows what changed.</p>
         <figure class="blog-figure">
           <img src="/assets/blog/windows-today.webp" width="1600" height="900" alt="LokalBot on Windows showing Today, with open actions and the day digest." loading="lazy" decoding="async" />
           <figcaption>Today on Windows, with fictional demo data.</figcaption>
@@ -122,7 +125,7 @@ POSTS = [
 
         <h2>The models</h2>
         <ul>
-          <li><strong>Transcription:</strong> Qwen3-ASR 0.6B through sherpa-onnx, with Parakeet v3, SenseVoice, and Whisper turbo as options.</li>
+          <li><strong>Transcription:</strong> Qwen3-ASR 0.6B through sherpa-onnx, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options.</li>
           <li><strong>Speaker separation:</strong> pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask:</strong> Qwen3.5 4B, the same as on Mac.</li>
           <li><strong>Search:</strong> EmbeddingGemma 2, the same as on Mac.</li>
@@ -142,6 +145,7 @@ POSTS = [
         <pre class="code" aria-label="Hyprland key bindings for LokalBot on Omarchy">o.bind(<span class="c-str">"SUPER + ALT + D"</span>, <span class="c-str">"LokalBot dictation"</span>, <span class="c-str">"lokalbot dictate"</span>)
 o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask LokalBot"</span>, <span class="c-str">"lokalbot quick-recall"</span>)</pre>
         <p>The tray icon appears in Omarchy's bar, and the dictation pill and Quick Recall float instead of tiling.</p>
+        <p>Omarchy runs Fcitx 5 for typing other languages, and a desktop runs one input method at a time, so autocomplete in other apps stays out of its way and Settings says so. If you don't use Fcitx 5, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start. This comes from reading Omarchy's repository; it hasn't been tried on Omarchy.</p>
 
         <h2>Tell us what breaks</h2>
         <p>Most testing so far has been on a handful of personal and rented machines, so reports from real hardware help the most. <a href="https://github.com/stevyhacker/lokalbot/issues/new/choose" target="_blank" rel="noopener">Open an issue</a> with your distribution, desktop, X11 or Wayland, CPU and GPU, and what you tried.</p>

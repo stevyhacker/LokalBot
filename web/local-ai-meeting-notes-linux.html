@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Local AI meeting notes on Linux","description":"Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.","datePublished":"2026-10-26","dateModified":"2026-10-26","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-linux","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Linux","item":"https://www.lokalbot.com/local-ai-meeting-notes-linux"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-linux#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot work on Wayland?","acceptedAnswer":{"@type":"Answer","text":"Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation needs a compositor shortcut bound to lokalbot dictate; and autocomplete in other apps needs X11."}},{"@type":"Question","name":"Do I need an NVIDIA GPU?","acceptedAnswer":{"@type":"Answer","text":"No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."}},{"@type":"Question","name":"Can I move my library between Linux and a Mac?","acceptedAnswer":{"@type":"Answer","text":"Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Local AI meeting notes on Linux","description":"Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.","datePublished":"2026-10-26","dateModified":"2026-11-03","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-linux","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Linux","item":"https://www.lokalbot.com/local-ai-meeting-notes-linux"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-linux#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot work on Wayland?","acceptedAnswer":{"@type":"Answer","text":"Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, but not yet on KDE Plasma or other compositors."}},{"@type":"Question","name":"Do I need an NVIDIA GPU?","acceptedAnswer":{"@type":"Answer","text":"No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."}},{"@type":"Question","name":"Can I move my library between Linux and a Mac?","acceptedAnswer":{"@type":"Answer","text":"Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -43,18 +43,24 @@
       <p class="eyebrow">Linux</p>
       <h1>Local AI meeting notes on Linux</h1>
       <p class="guide-hero__lead">LokalBot records both sides of a call without a bot, transcribes and summarizes it with models on your computer, and keeps every meeting searchable. Here is what works on Linux, what depends on your desktop, and how to install it.</p>
-      <p class="guide-byline"><time datetime="2026-10-26">Updated October 26, 2026</time> · 6 min read</p>
+      <p class="guide-byline"><time datetime="2026-11-03">Updated November 3, 2026</time> · 6 min read</p>
     </header>
 
     <article class="guide-article">
 <h2>What works on Linux</h2>
         <p>LokalBot for Linux is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app (Today, Meetings, Timeline, People, Projects, Ask, and Settings) and reads the same library format, so a library recorded on a Mac opens on Linux. It's an alpha.</p>
         <ul>
-          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your computer's audio through a PulseAudio or PipeWire monitor, so nothing joins the call. On Linux the second track is everything your computer plays, not one app. When it detects a meeting, it asks with a notification.</li>
-          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B through sherpa-onnx by default, with Parakeet v3, SenseVoice, and Whisper turbo as options. Speakers are separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and the meeting app's own audio streams through PulseAudio or PipeWire, so nothing joins the call. When it can't separate the app, the second track comes from the output monitor, so it holds everything your computer plays. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B through sherpa-onnx by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options. Speakers are separated with pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations come from Qwen3.5 4B in the built-in llama.cpp, or from Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
           <li><strong>Search.</strong> Keyword and meaning search across your meetings, with SQLite full-text search and EmbeddingGemma 2, plus Quick Recall from a shortcut.</li>
           <li><strong>Agent access.</strong> A read-only CLI and MCP server lets Claude Code, Codex, and other agents search your meetings, off until you allow it.</li>
+          <li><strong>Selection actions.</strong> Turn them on in <strong>Settings → General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
+          <li><strong>Spoken summaries.</strong> Hear summaries and answers read aloud, or export a WAV, with Kokoro 82M on your computer.</li>
+          <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
+          <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
+          <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
+          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. The apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Your desktop matters</h2>
@@ -66,12 +72,21 @@
               <tr><th scope="row">Day memory (app and window activity)</th><td>Yes</td><td>Hyprland, Sway, and KDE; GNOME with the Window Calls extension</td></tr>
               <tr><th scope="row">Screen context (visible text, optional encrypted screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal when it can capture just the active window</td></tr>
               <tr><th scope="row">Dictation</th><td>Yes</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your compositor</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>Only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Selection actions</th><td>Yes</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your compositor</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>As an input method on Sway, Hyprland, and GNOME; elsewhere only in the practice editor in Settings</td></tr>
               <tr><th scope="row">Tray icon</th><td colspan="2">Yes; GNOME needs the AppIndicator extension</td></tr>
             </tbody>
           </table>
         </div>
         <p>On <a href="/blog/windows-and-linux-alpha">Omarchy and other Hyprland desktops</a>, <code>grim</code>, <code>wtype</code>, <code>wl-clipboard</code>, and PipeWire are already there, and the dictation pill and Quick Recall float instead of tiling.</p>
+        <p>On Wayland, autocomplete in other apps takes part as an input method, the way language input tools do, and shows the suggestion inside the field. Turn it on in <strong>Settings → Writing</strong>. What else it needs depends on your desktop:</p>
+        <ul>
+          <li><strong>Sway and Hyprland:</strong> nothing more. A desktop runs one input method at a time, so if Fcitx or IBus is running, LokalBot stays out of its way and Settings says so. Omarchy runs Fcitx 5; if you don't use it, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start.</li>
+          <li><strong>GNOME:</strong> add LokalBot in GNOME Settings → Keyboard → Input Sources → + → Other, then choose it in the top bar or with <kbd>Super+Space</kbd>. With the <code>.tar.gz</code>, first run the command Settings shows. Either way, log out and back in once. Firefox and Chrome stay quiet without the Window Calls extension.</li>
+          <li><strong>KDE Plasma and other compositors:</strong> not yet. Settings says so and offers the practice editor.</li>
+        </ul>
+        <p>Not every app can take part. Qt 5 apps and X11 apps running through XWayland get no suggestions, though typing in them is unaffected, and older Chromium and Electron apps need <code>--enable-wayland-ime</code>, according to their documentation.</p>
+        <p>This route is new. It has only been tried on headless Sway 1.9 and GNOME Shell 46 with stand-in suggestions, not on real desktops with a real model, and Hyprland itself hasn't been run. The <a href="explainers/wayland-autocomplete.pdf">one-page explainer</a> covers what it reads and keeps, and the <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#autocomplete-on-wayland" target="_blank" rel="noopener">README</a> lists each desktop and app.</p>
 
         <h2>Install and stay updated</h2>
         <ul>
@@ -80,14 +95,15 @@
           <li><strong>Arch and Omarchy:</strong> <code>sudo pacman -U ./LokalBot-&lt;version&gt;-linux-x86_64.pkg.tar.zst</code>. LokalBot tells you when a newer package is out.</li>
           <li><strong>Any distribution:</strong> extract the <code>.tar.gz</code> and run <code>./install.sh</code>. It installs into <code>~/.local/bin</code>, adds LokalBot to your applications menu, and lets the app update itself after checking each download's signature.</li>
         </ul>
-        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. See the <a href="system-requirements">system requirements</a>.</p>
+        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. Reading screen text in scripts other than Latin needs Tesseract (<code>tesseract-ocr</code> on Debian and Ubuntu, <code>tesseract</code> on Fedora and Arch), which the <code>.deb</code> and <code>.rpm</code> recommend. See the <a href="system-requirements">system requirements</a>.</p>
 
         <h2>Models and hardware</h2>
         <p>On first launch LokalBot asks what to remember and downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing, CUDA read a long prompt into Qwen3.5 4B 44% faster than Vulkan on an RTX 3060. Without a capable GPU, notes on the CPU are slow, so you can point notes and Ask at Ollama on another computer or at a server you approve.</p>
 
         <h2>What's not there yet</h2>
         <ul>
-          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation are Mac only for now.</li>
+          <li>Remembered speakers only suggest. Naming a speaker teaches an encrypted voice profile, and later meetings offer that name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li>There's no Flatpak or Snap. An AUR package, <code>lokalbot-bin</code>, is on its way.</li>
           <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
         </ul>
@@ -99,7 +115,7 @@
       <div class="faq__list">
         <details class="qa">
           <summary>Does LokalBot work on Wayland?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation needs a compositor shortcut bound to lokalbot dictate; and autocomplete in other apps needs X11.</p>
+          <p>Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, but not yet on KDE Plasma or other compositors.</p>
         </details>
         <details class="qa">
           <summary>Do I need an NVIDIA GPU?<i class="ph ph-plus" aria-hidden="true"></i></summary>
