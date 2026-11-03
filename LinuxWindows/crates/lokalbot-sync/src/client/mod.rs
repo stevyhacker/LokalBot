@@ -144,7 +144,7 @@ impl SyncClient {
         let payload = Payload::parse(&payload)?;
         if payload.expires_at + EXPIRY_GRACE_SECS < unix_now() {
             return Err(SyncError::PairingExpired(
-                "This code has expired. Show a new one on your Mac.".into(),
+                "This code has expired. Show a new one on your computer.".into(),
             ));
         }
         let tuning = self.tuning();
@@ -161,14 +161,14 @@ impl SyncClient {
             }
         }
         Err(if reached_wrong_mac {
-            SyncError::crypto("The computer that answered is not the Mac in this code.")
+            SyncError::crypto("The computer that answered is not the one in this code.")
         } else if reached_mac {
             SyncError::PairingExpired(
-                "Your Mac did not accept this code. It may have expired or been used; show a new one.".into(),
+                "Your computer did not accept this code. It may have expired or been used; show a new one.".into(),
             )
         } else {
             SyncError::Unreachable(
-                "Couldn't reach your Mac. Check that both are on the same network or Tailscale."
+                "Couldn't reach your computer. Check that both are on the same network or Tailscale."
                     .into(),
             )
         })
@@ -410,7 +410,7 @@ impl SyncClient {
         let mut store = self.store.lock();
         if store.pairing()?.is_some() {
             return Err(SyncError::invalid(
-                "This device is paired with a Mac; unpair it first.",
+                "This device is paired with a computer; unpair it first.",
             ));
         }
         let applied = store.apply(&envelopes)?;
@@ -541,7 +541,7 @@ impl SyncClient {
         // code (a wrong secret, or an offer that is gone).
         let not_accepted = || {
             SyncError::PairingExpired(
-                "Your Mac did not accept this code. It may have expired or been used; show a new one.".into(),
+                "Your computer did not accept this code. It may have expired or been used; show a new one.".into(),
             )
         };
         channel
@@ -562,7 +562,7 @@ impl SyncClient {
                     approved: false, ..
                 }) => {
                     return Err(SyncError::PairingRejected(
-                        "Pairing wasn't allowed on your Mac.".into(),
+                        "Pairing wasn't allowed on your computer.".into(),
                     ));
                 }
                 Ok(Message::Error { message, .. }) => return Err(SyncError::protocol(message)),
@@ -620,7 +620,7 @@ impl SyncClient {
             }
         }
         Err(SyncError::Unreachable(
-            "Couldn't reach your Mac. It may be asleep, or not on this network or Tailscale."
+            "Couldn't reach your computer. It may be asleep, or not on this network or Tailscale."
                 .into(),
         ))
     }
@@ -781,7 +781,7 @@ fn run_ask(
             .map_err(|e| match e {
                 // A lock screen or a Wi-Fi change; the Mac answers anyway.
                 SyncError::Io(_) if asked => SyncError::Interrupted(
-                    "The connection to your Mac dropped while it was answering. \
+                    "The connection to your computer dropped while it was answering. \
                      It keeps working, and the answer arrives when this device reconnects."
                         .into(),
                 ),

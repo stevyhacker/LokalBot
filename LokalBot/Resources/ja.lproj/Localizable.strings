@@ -1702,7 +1702,7 @@
 "Local network" = "ローカルネットワーク";
 "Pairing code" = "ペアリングコード";
 "Scan with LokalBot on your phone or tablet" = "スマートフォンやタブレットのLokalBotでスキャン";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "デバイスでLokalBotを開き、「Macとペアリング」を選んで、カメラをこのコードに向けてください。その後、ここでデバイスを許可します。";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "デバイスでLokalBotを開き、「コンピュータとペアリング」を選んで、カメラをこのコードに向けてください。その後、ここでデバイスを許可します。";
 "Expires in %@" = "あと%@で期限切れ";
 "This code expired. Cancel and add the device again." = "このコードは期限切れです。キャンセルして、もう一度デバイスを追加してください。";
 "Read your work memory on your own iPhone, iPad, or Android device." = "自分のiPhone、iPad、Androidデバイスで仕事の記憶を読めます。";

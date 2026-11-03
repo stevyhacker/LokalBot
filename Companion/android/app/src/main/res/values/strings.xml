@@ -28,13 +28,13 @@
     <!-- Sync status -->
     <string name="route_wifi">Wi-Fi</string>
     <string name="route_tailscale">Tailscale</string>
-    <string name="sync_pill_synced">Synced with your Mac</string>
-    <string name="sync_pill_syncing">Syncing with your Mac…</string>
-    <string name="sync_pill_never">Not synced with your Mac yet</string>
-    <string name="sync_pill_unreachable">Your Mac isn\'t reachable</string>
-    <string name="sync_pill_unreachable_since">Last synced %1$s · Mac not reachable</string>
-    <string name="sync_pill_revoked">This device was removed on your Mac</string>
-    <string name="sync_pill_sample">Sample library · not connected to a Mac</string>
+    <string name="sync_pill_synced">Synced with your computer</string>
+    <string name="sync_pill_syncing">Syncing with your computer…</string>
+    <string name="sync_pill_never">Not synced with your computer yet</string>
+    <string name="sync_pill_unreachable">Your computer isn\'t reachable</string>
+    <string name="sync_pill_unreachable_since">Last synced %1$s · Computer not reachable</string>
+    <string name="sync_pill_revoked">This device was removed on your computer</string>
+    <string name="sync_pill_sample">Sample library · not connected to a computer</string>
 
     <!-- Today -->
     <string name="today_needs_attention">Needs Attention</string>
@@ -55,7 +55,7 @@
 
     <!-- Day Digest -->
     <string name="digest_title">Day Digest</string>
-    <string name="digest_empty">Your digest brings together this day\'s meetings and captured activity. It appears here once your Mac has written it.</string>
+    <string name="digest_empty">Your digest brings together this day\'s meetings and captured activity. It appears here once your computer has written it.</string>
     <string name="digest_updated">Updated %1$s</string>
     <plurals name="digest_blockers">
         <item quantity="one">Blocker</item>
@@ -78,7 +78,7 @@
     <string name="action_overdue">Overdue · %1$s</string>
     <string name="action_overdue_word">overdue</string>
     <string name="action_said">said “%1$s”</string>
-    <string name="action_waiting_for_mac">Waiting for your Mac</string>
+    <string name="action_waiting_for_mac">Waiting for your computer</string>
     <string name="action_detail_owner">Owner</string>
     <string name="action_detail_due">Due</string>
     <string name="action_detail_importance">Importance</string>
@@ -88,9 +88,9 @@
     <string name="action_defer">Defer</string>
     <string name="action_reopen">Mark open</string>
     <string name="action_open_meeting">Open meeting</string>
-    <string name="action_pending_message">Marked %1$s on this device. Waiting for your Mac; it syncs on the next connection.</string>
+    <string name="action_pending_message">Marked %1$s on this device. Waiting for your computer; it syncs on the next connection.</string>
     <string name="action_missing_title">This action is no longer here</string>
-    <string name="action_missing_message">Your Mac may have reprocessed the meeting. Look for it in the meeting\'s action items.</string>
+    <string name="action_missing_message">Your computer may have reprocessed the meeting. Look for it in the meeting\'s action items.</string>
     <string name="actions_filter_mine">Mine</string>
     <string name="actions_filter_others">Others</string>
     <string name="actions_filter_unclear">Owner unclear</string>
@@ -114,7 +114,7 @@
     <string name="meetings_choose_title">Choose a meeting</string>
     <string name="meetings_choose_message">Its summary, transcript and your notes appear here.</string>
     <string name="meetings_empty_title">No meetings yet</string>
-    <string name="meetings_empty_message">Meetings your Mac records appear here after the next sync.</string>
+    <string name="meetings_empty_message">Meetings your computer records appear here after the next sync.</string>
     <string name="meetings_no_results_title">No matching meetings</string>
     <string name="meetings_no_results_message">Try different words, a meeting title, a person or an app.</string>
     <plurals name="meetings_count">
@@ -132,11 +132,11 @@
     <string name="meeting_no_actions">No action items were extracted from this meeting.</string>
     <string name="meeting_no_decisions">No cited decisions were extracted.</string>
     <string name="meeting_notes_title">Your notes</string>
-    <string name="meeting_notes_caption">Notes are written on your Mac and synced here.</string>
+    <string name="meeting_notes_caption">Notes are written on your computer and synced here.</string>
     <string name="meeting_missing_title">This meeting is no longer here</string>
-    <string name="meeting_missing_message">It may have been deleted or merged on your Mac.</string>
+    <string name="meeting_missing_message">It may have been deleted or merged on your computer.</string>
     <string name="transcript_missing_title">No transcript on this device</string>
-    <string name="transcript_missing_message">Your Mac hasn\'t shared this meeting\'s transcript, or it hasn\'t synced yet.</string>
+    <string name="transcript_missing_message">Your computer hasn\'t shared this meeting\'s transcript, or it hasn\'t synced yet.</string>
     <string name="transcript_unknown_speaker">Unknown speaker</string>
 
     <!-- Timeline -->
@@ -146,7 +146,7 @@
     <string name="timeline_next_day">Next day</string>
     <string name="timeline_go_today">Go to today</string>
     <string name="timeline_empty_title">No activity recorded</string>
-    <string name="timeline_empty_message">Your Mac shared nothing for this day.</string>
+    <string name="timeline_empty_message">Your computer shared nothing for this day.</string>
     <string name="timeline_sessions">Sessions</string>
     <string name="timeline_no_sessions">No work sessions on this day.</string>
     <string name="timeline_meetings_title">Meetings</string>
@@ -204,7 +204,7 @@
     <string name="person_decisions_together">Decisions Together</string>
     <string name="person_meetings_together">Meetings Together</string>
     <string name="person_missing_title">This person is no longer here</string>
-    <string name="person_missing_message">They may have been merged or hidden on your Mac.</string>
+    <string name="person_missing_message">They may have been merged or hidden on your computer.</string>
 
     <!-- Projects -->
     <plurals name="projects_count">
@@ -219,11 +219,11 @@
     <string name="projects_choose_title">Choose a project</string>
     <string name="projects_choose_message">Where it stands, your actions and what you\'re waiting on appear here.</string>
     <string name="projects_empty_title">No projects yet</string>
-    <string name="projects_empty_message">Projects you track on your Mac appear here.</string>
+    <string name="projects_empty_message">Projects you track on your computer appear here.</string>
     <string name="project_ask_about">Ask about %1$s</string>
     <string name="project_ask_question">Where does %1$s stand?</string>
     <string name="project_where_it_stands">Where It Stands</string>
-    <string name="project_no_note">No note yet. Your Mac can write one from the project\'s meetings.</string>
+    <string name="project_no_note">No note yet. Your computer can write one from the project\'s meetings.</string>
     <string name="project_your_actions">Your Actions</string>
     <string name="project_waiting_on_others">Waiting on Others</string>
     <string name="project_decisions">Decisions</string>
@@ -231,17 +231,17 @@
     <string name="project_people">People</string>
     <string name="project_meetings">Meetings</string>
     <string name="project_missing_title">This project is no longer here</string>
-    <string name="project_missing_message">It may have been merged or stopped being tracked on your Mac.</string>
+    <string name="project_missing_message">It may have been merged or stopped being tracked on your computer.</string>
 
     <!-- Ask -->
-    <string name="ask_status_mac">Your Mac answers</string>
-    <string name="ask_status_unreachable">Your Mac isn\'t reachable · questions can wait for it</string>
+    <string name="ask_status_mac">Your computer answers</string>
+    <string name="ask_status_unreachable">Your computer isn\'t reachable · questions can wait for it</string>
     <string name="ask_status_sample">Sample library · answers come from the sample data</string>
     <string name="ask_conversations">Conversations</string>
     <string name="ask_new_conversation">New conversation</string>
     <string name="ask_no_conversations">Questions you ask appear here.</string>
     <string name="ask_empty_title">Ask your work memory</string>
-    <string name="ask_empty_message">Your Mac answers from your meetings, actions and Day Digests, with sources you can open.</string>
+    <string name="ask_empty_message">Your computer answers from your meetings, actions and Day Digests, with sources you can open.</string>
     <string name="ask_suggestion_overdue">What\'s overdue?</string>
     <string name="ask_suggestion_yesterday">Summarize yesterday</string>
     <string name="ask_suggestion_maya">What did Maya ask me?</string>
@@ -250,35 +250,35 @@
     <string name="ask_stop">Stop</string>
     <string name="ask_you_at">You · %1$s</string>
     <string name="ask_answering">LokalBot is answering</string>
-    <string name="ask_asking_mac">Asking your Mac…</string>
-    <string name="ask_answered_on_mac">Answered on your Mac with %1$s</string>
-    <string name="ask_answered_remote">Answered by %1$s, a remote engine you approved on your Mac</string>
+    <string name="ask_asking_mac">Asking your computer…</string>
+    <string name="ask_answered_on_mac">Answered on your computer with %1$s</string>
+    <string name="ask_answered_remote">Answered by %1$s, a remote engine you approved on your computer</string>
     <string name="ask_engine_unknown">its Ask engine</string>
     <string name="ask_answered_sample">Answered from the sample library on this device</string>
     <string name="ask_sources">Sources</string>
     <string name="ask_source_number">Source %1$d</string>
-    <string name="ask_unreachable">Your Mac isn\'t reachable right now, so it can\'t answer.</string>
+    <string name="ask_unreachable">Your computer isn\'t reachable right now, so it can\'t answer.</string>
     <string name="ask_search_device">Search this device</string>
-    <string name="ask_when_back">Ask when my Mac is back</string>
+    <string name="ask_when_back">Ask when my computer is back</string>
     <string name="ask_no_local_hits">Nothing on this device matches.</string>
-    <string name="ask_queued">Queued. LokalBot asks your Mac the next time it connects and lets you know when the answer is ready.</string>
-    <string name="ask_waiting">The connection to your Mac dropped, but it\'s still answering. The answer appears here when you come back.</string>
-    <string name="ask_failed_with">Your Mac couldn\'t answer: %1$s</string>
+    <string name="ask_queued">Queued. LokalBot asks your computer the next time it connects and lets you know when the answer is ready.</string>
+    <string name="ask_waiting">The connection to your computer dropped, but it\'s still answering. The answer appears here when you come back.</string>
+    <string name="ask_failed_with">Your computer couldn\'t answer: %1$s</string>
     <string name="ask_stopped">Response stopped.</string>
     <string name="ask_retry">Ask again</string>
 
     <!-- Settings -->
-    <string name="settings_your_mac">Your Mac</string>
+    <string name="settings_your_mac">Your computer</string>
     <string name="settings_reached">Reached over</string>
     <string name="settings_route_wifi">Wi-Fi</string>
     <string name="settings_route_tailscale">Tailscale</string>
     <string name="settings_route_unknown">Not connected yet</string>
     <string name="settings_last_sync">Last synced</string>
     <string name="settings_never">Never</string>
-    <string name="settings_pending">Changes waiting for your Mac</string>
+    <string name="settings_pending">Changes waiting for your computer</string>
     <string name="settings_sync_now">Sync now</string>
     <string name="settings_syncing">Syncing…</string>
-    <string name="settings_tailscale_hint">Away from your Wi-Fi? With Tailscale on this device and your Mac, they stay in sync from anywhere.</string>
+    <string name="settings_tailscale_hint">Away from your Wi-Fi? With Tailscale on this device and your computer, they stay in sync from anywhere.</string>
     <string name="settings_receives">What this device receives</string>
     <string name="data_meetings">Meetings, actions and decisions</string>
     <string name="data_transcripts">Transcripts</string>
@@ -298,51 +298,51 @@
     <string name="settings_app_lock_hint">Unlock with your fingerprint, face or screen lock.</string>
     <string name="settings_app_lock_unavailable">Set up a screen lock on this device to use app lock.</string>
     <string name="settings_remove_title">Remove this device</string>
-    <string name="settings_remove_message">Erases everything LokalBot stored on this device and forgets your Mac. Your Mac is told the next time they connect.</string>
+    <string name="settings_remove_message">Erases everything LokalBot stored on this device and forgets your computer. Your computer is told the next time they connect.</string>
     <string name="settings_remove_button">Remove and erase</string>
     <string name="settings_remove_confirm_title">Remove this device?</string>
-    <string name="settings_remove_confirm_message">Everything synced from your Mac is erased from this device. To use LokalBot here again, pair it again.</string>
+    <string name="settings_remove_confirm_message">Everything synced from your computer is erased from this device. To use LokalBot here again, pair it again.</string>
     <string name="settings_sample_title">Sample library</string>
-    <string name="settings_sample_message">You\'re looking at a built-in sample library. Pair with LokalBot on your Mac to see your own work.</string>
+    <string name="settings_sample_message">You\'re looking at a built-in sample library. Pair with LokalBot on your computer to see your own work.</string>
     <string name="settings_leave_sample">Leave the sample library</string>
     <string name="settings_version">LokalBot %1$s</string>
     <string name="settings_licenses">Open-source licences</string>
 
     <!-- Welcome and pairing -->
     <string name="welcome_title">Your work memory, on your phone</string>
-    <string name="welcome_message">See your meetings, action items, Timeline and Day Digests from LokalBot on your Mac, and ask it questions.</string>
-    <string name="welcome_point_network">Your Mac and this device talk directly, over your Wi-Fi or Tailscale. No cloud in between.</string>
-    <string name="welcome_point_encrypted">Everything is end-to-end encrypted, and only devices you approve on your Mac can connect.</string>
-    <string name="welcome_pair">Pair with your Mac</string>
-    <string name="welcome_removed">This device was removed on your Mac, and its copy was erased.</string>
-    <string name="welcome_try_sample">Try it without a Mac</string>
-    <string name="welcome_requirement">Pairing needs LokalBot on your Mac with Phones &amp; tablets turned on.</string>
-    <string name="pair_title">Pair with your Mac</string>
-    <string name="pair_instructions">On your Mac, open LokalBot Settings → Phones &amp; tablets → Add a device, then point this camera at the code.</string>
+    <string name="welcome_message">See your meetings, action items, Timeline and Day Digests from LokalBot on your computer, and ask it questions.</string>
+    <string name="welcome_point_network">Your computer and this device talk directly, over your Wi-Fi or Tailscale. No cloud in between.</string>
+    <string name="welcome_point_encrypted">Everything is end-to-end encrypted, and only devices you approve on your computer can connect.</string>
+    <string name="welcome_pair">Pair with your computer</string>
+    <string name="welcome_removed">This device was removed on your computer, and its copy was erased.</string>
+    <string name="welcome_try_sample">Try it without a computer</string>
+    <string name="welcome_requirement">Pairing needs LokalBot on your computer with Phones &amp; tablets turned on.</string>
+    <string name="pair_title">Pair with your computer</string>
+    <string name="pair_instructions">On your computer, open LokalBot Settings → Phones &amp; tablets → Add a device, then point this camera at the code.</string>
     <string name="pair_camera_explain">LokalBot uses the camera only to read the pairing code. Nothing is recorded.</string>
     <string name="pair_allow_camera">Allow camera</string>
     <string name="pair_paste_title">Or paste the pairing link</string>
     <string name="pair_continue">Continue</string>
     <string name="pair_problem_not_link">That isn\'t a LokalBot pairing code.</string>
-    <string name="pair_problem_expired">This code has expired. Show a new one on your Mac.</string>
+    <string name="pair_problem_expired">This code has expired. Show a new one on your computer.</string>
     <string name="pair_problem_unsupported">This code is from a newer LokalBot. Update this app and try again.</string>
     <string name="pair_confirm_title">Pair with %1$s?</string>
-    <string name="pair_confirm_message">Your Mac will ask you to allow this device. After that, it syncs your shared work here, newest first.</string>
+    <string name="pair_confirm_message">Your computer will ask you to allow this device. After that, it syncs your shared work here, newest first.</string>
     <string name="pair_button">Pair</string>
-    <string name="pair_device_name">Name shown on your Mac</string>
-    <string name="pair_device_name_hint">Your Mac asks whether to allow this device by this name.</string>
+    <string name="pair_device_name">Name shown on your computer</string>
+    <string name="pair_device_name_hint">Your computer asks whether to allow this device by this name.</string>
     <string name="pair_scan_again">Scan another code</string>
     <string name="pair_waiting_title">Approve this device on %1$s</string>
-    <string name="pair_waiting_message">Your Mac is asking whether to let this device read your shared LokalBot data. Choose Allow there.</string>
+    <string name="pair_waiting_message">Your computer is asking whether to let this device read your shared LokalBot data. Choose Allow there.</string>
     <string name="pair_try_again">Try again</string>
     <string name="pair_done">Paired with %1$s</string>
     <string name="pair_failed_rejected">%1$s didn\'t allow this device.</string>
-    <string name="pair_failed_unreachable">Couldn\'t reach %1$s. Check that this device is on the same Wi-Fi or on Tailscale, and that sharing is on in LokalBot on your Mac.</string>
+    <string name="pair_failed_unreachable">Couldn\'t reach %1$s. Check that this device is on the same Wi-Fi or on Tailscale, and that sharing is on in LokalBot on your computer.</string>
     <string name="pair_failed_other">Pairing didn\'t finish: %1$s</string>
     <string name="pair_failed_core">LokalBot couldn\'t start its sync engine on this device: %1$s</string>
-    <string name="notification_channel_answers">Answers from your Mac</string>
-    <string name="notification_channel_answers_description">When your Mac answers a question you asked while it was away.</string>
-    <string name="notification_answer_title">Your Mac answered</string>
+    <string name="notification_channel_answers">Answers from your computer</string>
+    <string name="notification_channel_answers_description">When your computer answers a question you asked while it was away.</string>
+    <string name="notification_answer_title">Your computer answered</string>
 
     <!-- App lock -->
     <string name="lock_title">LokalBot is locked</string>

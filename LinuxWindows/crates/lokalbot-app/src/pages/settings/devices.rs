@@ -265,7 +265,7 @@ impl SettingsPage {
                         )
                         .child(settings_row::help(
                             lokalbot_i18n::tr(
-                                "Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here.",
+                                "Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here.",
                             ),
                             cx,
                         ))

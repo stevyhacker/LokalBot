@@ -55,7 +55,7 @@ fn the_sample_library_imports_and_is_marked() {
 fn manifest_meetings_and_transcripts() {
     let phone = Phone::sample();
     let manifest: Value = serde_json::from_str(&phone.client.manifest().unwrap().unwrap()).unwrap();
-    assert_eq!(manifest["macName"], "Sample Mac");
+    assert_eq!(manifest["macName"], "Sample Computer");
 
     let meetings = parse(phone.client.meetings(None, None, 0).unwrap());
     assert_eq!(

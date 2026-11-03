@@ -242,7 +242,7 @@ private struct CompanionPairingPanel: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Scan with LokalBot on your phone or tablet")
                     .font(AppFont.scaled(.headline))
-                Text("Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here.")
+                Text("Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here.")
                     .font(AppFont.scaled(.callout)).settingsSecondary()
                     .fixedSize(horizontal: false, vertical: true)
                 TimelineView(.periodic(from: .now, by: 1)) { context in

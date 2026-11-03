@@ -63,7 +63,7 @@ public final class CompanionSession {
     }
 
     public var macName: String {
-        pairedMac?.macName ?? status.macName ?? manifest?.macName ?? "your Mac"
+        pairedMac?.macName ?? status.macName ?? manifest?.macName ?? "your computer"
     }
 
     // MARK: Lifecycle

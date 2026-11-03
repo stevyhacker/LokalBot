@@ -63,12 +63,12 @@ public enum CompanionStoreError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .notPaired: "This device isn't paired with a Mac."
-        case .unreachable: "Your Mac isn't reachable right now. It needs to be awake, with sharing on, on the same Wi-Fi or on Tailscale."
-        case .interrupted: "The connection to your Mac dropped, but it's still answering. The answer appears here when you come back."
-        case .pairingRejected: "Your Mac didn't allow this device."
-        case .pairingExpired: "This pairing code has expired. Show a new one on your Mac."
-        case .revoked: "Your Mac removed this device, so its copy was erased."
+        case .notPaired: "This device isn't paired with a computer."
+        case .unreachable: "Your computer isn't reachable right now. It needs to be awake, with sharing on, on the same Wi-Fi or on Tailscale."
+        case .interrupted: "The connection to your computer dropped, but it's still answering. The answer appears here when you come back."
+        case .pairingRejected: "Your computer didn't allow this device."
+        case .pairingExpired: "This pairing code has expired. Show a new one on your computer."
+        case .revoked: "Your computer removed this device, so its copy was erased."
         case .pairingUnavailable: "Pairing isn't available in this build. Try the sample library instead."
         case .failed(let message): message
         }

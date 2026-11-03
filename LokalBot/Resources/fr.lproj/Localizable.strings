@@ -1702,7 +1702,7 @@
 "Local network" = "Réseau local";
 "Pairing code" = "Code de jumelage";
 "Scan with LokalBot on your phone or tablet" = "Scannez avec LokalBot sur votre téléphone ou votre tablette";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Ouvrez LokalBot sur l’appareil, choisissez « Jumeler avec un Mac », puis pointez l’appareil photo vers ce code. Autorisez ensuite l’appareil ici.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Ouvrez LokalBot sur l’appareil, choisissez « Jumeler avec votre ordinateur », puis pointez l’appareil photo vers ce code. Autorisez ensuite l’appareil ici.";
 "Expires in %@" = "Expire dans %@";
 "This code expired. Cancel and add the device again." = "Ce code a expiré. Annulez et ajoutez à nouveau l’appareil.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Consultez votre mémoire de travail sur votre propre iPhone, iPad ou appareil Android.";

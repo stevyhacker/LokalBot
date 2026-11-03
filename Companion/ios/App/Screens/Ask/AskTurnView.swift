@@ -58,7 +58,7 @@ struct AskTurnView: View {
                     answerText
                 }
                 Label {
-                    Text("The connection to your Mac dropped, but it's still answering. The answer appears here when you come back.")
+                    Text("The connection to your computer dropped, but it's still answering. The answer appears here when you come back.")
                 } icon: {
                     Image(systemName: "arrow.triangle.2.circlepath")
                 }
@@ -70,7 +70,7 @@ struct AskTurnView: View {
             }
         case .queued:
             Label {
-                Text("Waiting for your Mac. It's sent the next time your Mac is reachable, and you'll get a notification with the answer.")
+                Text("Waiting for your computer. It's sent the next time your computer is reachable, and you'll get a notification with the answer.")
             } icon: {
                 Image(systemName: "clock.arrow.2.circlepath")
             }
@@ -196,7 +196,7 @@ struct AskTurnView: View {
         return HStack(spacing: 6) {
             StatusDot(color: remote ? Brand.amber : LBTokens.Palette.accentFill, size: 7)
             Text(remote ? "Answered with an approved remote engine · \(result.engineLabel)"
-                        : "Answered on your Mac · \(result.engineLabel)")
+                        : "Answered on your computer · \(result.engineLabel)")
         }
         .font(LBTokens.Typography.caption.weight(.medium))
         .foregroundStyle(remote ? LBTokens.Palette.attentionText : Brand.teal)
@@ -205,7 +205,7 @@ struct AskTurnView: View {
 
     private var unreachable: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Your Mac isn't reachable", systemImage: "desktopcomputer.trianglebadge.exclamationmark")
+            Label("Your computer isn't reachable", systemImage: "desktopcomputer.trianglebadge.exclamationmark")
                 .font(LBTokens.Typography.body.weight(.semibold))
                 .foregroundStyle(LBTokens.Palette.attentionText)
             Text("It needs to be awake with sharing on, on the same Wi-Fi or on Tailscale. Until then you can search what's on this device, or let the question wait.")
@@ -224,7 +224,7 @@ struct AskTurnView: View {
                         await model.queue(turn.id, session: session)
                     }
                 } label: {
-                    Label("Ask When My Mac Is Back", systemImage: "clock.arrow.2.circlepath")
+                    Label("Ask When My Computer Is Back", systemImage: "clock.arrow.2.circlepath")
                 }
                 .primaryActionButton()
                 Button("Try Again") { Task { await model.retry(turn.id, session: session) } }
@@ -267,7 +267,7 @@ struct LocalResults: View {
             Label("On this device", systemImage: "iphone")
                 .font(LBTokens.Typography.secondary.weight(.semibold))
             if hits.isEmpty {
-                Text("Nothing on this device matches. Try fewer words, or let the question wait for your Mac.")
+                Text("Nothing on this device matches. Try fewer words, or let the question wait for your computer.")
                     .workspaceTextRole(.supporting)
             } else {
                 VStack(spacing: 0) {

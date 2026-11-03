@@ -62,11 +62,11 @@ impl SyncError {
     }
 
     pub(crate) fn not_paired() -> Self {
-        Self::NotPaired("This device is not paired with a Mac.".into())
+        Self::NotPaired("This device is not paired with a computer.".into())
     }
 
     pub(crate) fn revoked() -> Self {
-        Self::Revoked("The Mac removed this device. Its local copy was erased.".into())
+        Self::Revoked("Your computer removed this device. Its local copy was erased.".into())
     }
 }
 

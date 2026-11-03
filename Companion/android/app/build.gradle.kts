@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-// The sample library ("Try it without a Mac") is the protocol fixture itself;
+// The sample library ("Try it without a computer") is the protocol fixture itself;
 // it is copied into the APK's assets at build time instead of into git.
 val sampleLibrary = rootProject.layout.projectDirectory.file("../protocol/fixtures/sample-library.json")
 

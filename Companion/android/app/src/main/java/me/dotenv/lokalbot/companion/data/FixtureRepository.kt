@@ -28,7 +28,7 @@ import me.dotenv.lokalbot.companion.data.model.Transcript
 
 /**
  * The library from record envelopes held in memory: the built-in sample
- * library ("Try it without a Mac"), previews and tests. Status changes stay
+ * library ("Try it without a computer"), previews and tests. Status changes stay
  * on this device and show as waiting for the Mac, since there is none.
  */
 class FixtureRepository(

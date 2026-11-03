@@ -1702,7 +1702,7 @@
 "Local network" = "Cibiyar sadarwa ta gida";
 "Pairing code" = "Lambar haɗawa";
 "Scan with LokalBot on your phone or tablet" = "Duba da LokalBot a wayarka ko kwamfutar hannunka";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "Buɗe LokalBot a na'urar, zaɓi “Haɗa da Mac”, sannan ka nuna kyamara ga wannan lambar. Bayan haka ka ba na'urar izini a nan.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "Buɗe LokalBot a na'urar, zaɓi “Haɗa da kwamfutarka”, sannan ka nuna kyamara ga wannan lambar. Bayan haka ka ba na'urar izini a nan.";
 "Expires in %@" = "Zai ƙare cikin %@";
 "This code expired. Cancel and add the device again." = "Wannan lambar ta ƙare. Soke ka sake ƙara na'urar.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "Karanta ƙwaƙwalwar aikinka a iPhone, iPad, ko na'urar Android ɗinka.";

@@ -1702,7 +1702,7 @@
 "Local network" = "區域網路";
 "Pairing code" = "配對 QR 碼";
 "Scan with LokalBot on your phone or tablet" = "使用手機或平板上的 LokalBot 掃描";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "在裝置上開啟 LokalBot，選擇「與 Mac 配對」，然後將相機對準這個 QR 碼。接著在這裡允許該裝置。";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "在裝置上開啟 LokalBot，選擇「與電腦配對」，然後將相機對準這個 QR 碼。接著在這裡允許該裝置。";
 "Expires in %@" = "%@ 後過期";
 "This code expired. Cancel and add the device again." = "此 QR 碼已過期。請取消並重新加入裝置。";
 "Read your work memory on your own iPhone, iPad, or Android device." = "在你自己的 iPhone、iPad 或 Android 裝置上查看工作記憶。";

@@ -1702,7 +1702,7 @@
 "Local network" = "స్థానిక నెట్‌వర్క్";
 "Pairing code" = "జత చేసే కోడ్";
 "Scan with LokalBot on your phone or tablet" = "మీ ఫోన్ లేదా టాబ్లెట్‌లోని LokalBotతో స్కాన్ చేయండి";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "పరికరంలో LokalBotని తెరిచి, “Macతో జత చేయండి” ఎంచుకుని, కెమెరాను ఈ కోడ్ వైపు చూపండి. ఆపై ఇక్కడ పరికరాన్ని అనుమతించండి.";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "పరికరంలో LokalBotని తెరిచి, “మీ కంప్యూటర్‌తో జత చేయండి” ఎంచుకుని, కెమెరాను ఈ కోడ్ వైపు చూపండి. ఆపై ఇక్కడ పరికరాన్ని అనుమతించండి.";
 "Expires in %@" = "%@లో గడువు ముగుస్తుంది";
 "This code expired. Cancel and add the device again." = "ఈ కోడ్ గడువు ముగిసింది. రద్దు చేసి, పరికరాన్ని మళ్లీ జోడించండి.";
 "Read your work memory on your own iPhone, iPad, or Android device." = "మీ స్వంత iPhone, iPad లేదా Android పరికరంలో మీ పని జ్ఞాపకాన్ని చదవండి.";

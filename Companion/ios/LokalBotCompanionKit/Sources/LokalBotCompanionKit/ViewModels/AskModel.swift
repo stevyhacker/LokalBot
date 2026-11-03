@@ -180,7 +180,7 @@ public final class AskModel {
         }
     }
 
-    /// "Ask when my Mac is back".
+    /// "Ask when my computer is back".
     public func queue(_ turnID: String, session: CompanionSession) async {
         guard let turn = turn(turnID) else { return }
         do {

@@ -256,7 +256,7 @@ struct SessionDetailView: View {
                     }
                 }
             } else if !windowTitlesShared {
-                Text("Window titles aren't shared with this device. You can turn them on in LokalBot Settings → Phones & tablets on your Mac.")
+                Text("Window titles aren't shared with this device. You can turn them on in LokalBot Settings → Phones & tablets on your computer.")
                     .font(LBTokens.Typography.caption)
                     .workspaceSupportingForeground()
             }

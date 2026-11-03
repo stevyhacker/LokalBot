@@ -41,7 +41,7 @@ struct MeetingDetailScreen: View {
                     .pageColumn(maxWidth: 860)
                 } else if model.loaded {
                     ContentUnavailableView("Meeting not on this device", systemImage: "waveform.circle",
-                                           description: Text("It may have been deleted or merged on your Mac."))
+                                           description: Text("It may have been deleted or merged on your computer."))
                         .padding(.top, 80)
                 }
             }
@@ -191,7 +191,7 @@ struct MeetingDetailScreen: View {
             if let notes = meeting.notesMarkdown, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 MarkdownText(notes).padding(.vertical, 6)
             } else {
-                EmptyWorkspaceRow("No notes. Notes you write on your Mac show here.")
+                EmptyWorkspaceRow("No notes. Notes you write on your computer show here.")
             }
         }
     }

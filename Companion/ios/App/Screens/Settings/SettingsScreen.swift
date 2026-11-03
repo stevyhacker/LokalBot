@@ -41,7 +41,7 @@ struct SettingsScreen: View {
                 }
             } footer: {
                 if session.mode == .paired {
-                    Text("Erases everything LokalBot keeps on this device and forgets the pairing. Also remove it on your Mac in Settings → Phones & tablets.")
+                    Text("Erases everything LokalBot keeps on this device and forgets the pairing. Also remove it on your computer in Settings → Phones & tablets.")
                 }
             }
             Section {
@@ -58,7 +58,7 @@ struct SettingsScreen: View {
             }
         } message: {
             Text(session.mode == .sample ? "You'll return to the welcome screen."
-                 : "Meetings, actions and answers on this device are erased. Your Mac keeps everything.")
+                 : "Meetings, actions and answers on this device are erased. Your computer keeps everything.")
         }
         .sheet(isPresented: $showingPairing) { PairingScreen() }
         .task(id: session.revision) {
@@ -104,15 +104,15 @@ struct SettingsScreen: View {
             }
             .disabled(session.isSyncing)
             if localNetworkDenied {
-                Label("Local Network access is off for LokalBot, so it can't find your Mac on this Wi-Fi. Turn it on in Settings → Privacy & Security → Local Network. Tailscale still works.",
+                Label("Local Network access is off for LokalBot, so it can't find your computer on this Wi-Fi. Turn it on in Settings → Privacy & Security → Local Network. Tailscale still works.",
                       systemImage: "wifi.exclamationmark")
                     .font(LBTokens.Typography.secondary)
                     .foregroundStyle(LBTokens.Palette.attentionText)
             }
         } header: {
-            Text("Paired Mac")
+            Text("Paired Computer")
         } footer: {
-            Text("Syncs on the same Wi-Fi, or from anywhere when both devices are on Tailscale. Your Mac needs to be awake with sharing on.")
+            Text("Syncs on the same Wi-Fi, or from anywhere when both devices are on Tailscale. Your computer needs to be awake with sharing on.")
         }
         .task {
             if case .localNetworkDenied = await MacDiscovery().discover(browseSeconds: 1) { localNetworkDenied = true }
@@ -124,7 +124,7 @@ struct SettingsScreen: View {
             VStack(alignment: .leading, spacing: 6) {
                 Label("You're looking at a sample library", systemImage: "shippingbox")
                     .font(LBTokens.Typography.body.weight(.semibold))
-                Text("Pair with LokalBot on your Mac to see your own meetings, actions and days.")
+                Text("Pair with LokalBot on your computer to see your own meetings, actions and days.")
                     .font(LBTokens.Typography.secondary)
                     .workspaceSupportingForeground()
             }
@@ -132,7 +132,7 @@ struct SettingsScreen: View {
             Button {
                 showingPairing = true
             } label: {
-                Label("Pair with Your Mac", systemImage: "qrcode.viewfinder")
+                Label("Pair with Your Computer", systemImage: "qrcode.viewfinder")
             }
         }
     }
@@ -165,7 +165,7 @@ struct SettingsScreen: View {
         } header: {
             Text("This Device Receives")
         } footer: {
-            Text("Chosen on your Mac in Settings → Phones & tablets. Screenshots, screen text, audio, email and API keys never leave the Mac.")
+            Text("Chosen on your computer in Settings → Phones & tablets. Screenshots, screen text, audio, email and API keys never leave your computer.")
         }
     }
 }

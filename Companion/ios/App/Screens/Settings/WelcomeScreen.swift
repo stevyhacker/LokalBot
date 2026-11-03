@@ -20,23 +20,23 @@ struct WelcomeScreen: View {
                     Text("Your work memory, on the go")
                         .font(LBTokens.Typography.pageTitle)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Read your meetings, action items, Timeline and Day Digests from LokalBot on your Mac, and ask it questions.")
+                    Text("Read your meetings, action items, Timeline and Day Digests from LokalBot on your computer, and ask it questions.")
                         .font(LBTokens.Typography.body)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 VStack(alignment: .leading, spacing: 14) {
                     point("lock.shield", "Only between your devices",
-                          "Your Mac sends its shared library straight to this device, end-to-end encrypted. LokalBot runs no server.")
+                          "Your computer sends its shared library straight to this device, end-to-end encrypted. LokalBot runs no server.")
                     point("wifi", "On your Wi-Fi or Tailscale",
                           "Syncs when both are on the same network, or from anywhere with Tailscale on both.")
                     point("checklist", "Mark actions done",
-                          "Changes go back to your Mac on the next sync.")
+                          "Changes go back to your computer on the next sync.")
                 }
                 VStack(spacing: 10) {
                     Button {
                         showingPairing = true
                     } label: {
-                        Label("Pair with Your Mac", systemImage: "qrcode.viewfinder")
+                        Label("Pair with Your Computer", systemImage: "qrcode.viewfinder")
                             .frame(maxWidth: .infinity)
                     }
                     .primaryActionButton()
@@ -50,7 +50,7 @@ struct WelcomeScreen: View {
                             }
                         }
                     } label: {
-                        Text("Try It Without a Mac").frame(maxWidth: .infinity)
+                        Text("Try It Without a Computer").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
@@ -58,7 +58,7 @@ struct WelcomeScreen: View {
                         Text(error).workspaceTextRole(.warning)
                     }
                 }
-                Text("On your Mac, open LokalBot Settings → Phones & tablets → Add a Device to show the pairing code.")
+                Text("On your computer, open LokalBot Settings → Phones & tablets → Add a Device to show the pairing code.")
                     .font(LBTokens.Typography.caption)
                     .workspaceSupportingForeground()
             }

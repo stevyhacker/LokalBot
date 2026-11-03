@@ -31,7 +31,7 @@ class SampleLibraryTest {
     @Test
     fun `manifest and clock come from the library`() = runBlocking {
         val manifest = repository.manifest()!!
-        assertThat(manifest.macName).isEqualTo("Sample Mac")
+        assertThat(manifest.macName).isEqualTo("Sample Computer")
         assertThat(manifest.dataClasses.windowTitles).isTrue()
         assertThat(manifest.historyDays).isEqualTo(0)
         assertThat(repository.zone()).isEqualTo(ZoneOffset.ofHours(1))

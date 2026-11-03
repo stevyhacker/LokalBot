@@ -9,7 +9,7 @@
     "body": {
       "schemaVersion": 1,
       "libraryName": "Sample library",
-      "macName": "Sample Mac",
+      "macName": "Sample Computer",
       "dataClasses": {
         "meetings": true,
         "transcripts": true,

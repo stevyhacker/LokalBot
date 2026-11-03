@@ -120,7 +120,7 @@ impl AskSink {
             }
             _ => self.answer.failed(
                 &self.answers,
-                "The Mac produced an unreadable answer.".into(),
+                "The computer produced an unreadable answer.".into(),
             ),
         }
     }

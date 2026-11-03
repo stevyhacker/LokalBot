@@ -55,6 +55,6 @@ public struct ActionCheck: View {
         .buttonStyle(.plain)
         .lbHoverEffect()
         .accessibilityLabel(isDone ? "Mark as open" : "Mark as done")
-        .accessibilityValue(pending ? "Waiting for your Mac" : "")
+        .accessibilityValue(pending ? "Waiting for your computer" : "")
     }
 }

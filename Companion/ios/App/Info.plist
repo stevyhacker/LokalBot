@@ -33,11 +33,11 @@
 		<string>_lokalbot._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>LokalBot uses the camera to scan the pairing code your Mac shows. Nothing is recorded or saved.</string>
+	<string>LokalBot uses the camera to scan the pairing code your computer shows. Nothing is recorded or saved.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>LokalBot can ask for Face ID before showing your meetings and actions, if you turn on App Lock.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>LokalBot finds your Mac and syncs with it directly over your network or Tailscale. Nothing goes through a server.</string>
+	<string>LokalBot finds your computer and syncs with it directly over your network or Tailscale. Nothing goes through a server.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

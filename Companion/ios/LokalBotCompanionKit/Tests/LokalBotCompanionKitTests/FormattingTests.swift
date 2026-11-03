@@ -89,8 +89,8 @@ struct FormattingTests {
     @Test @MainActor func syncPillText() {
         let now = CompanionJSON.parseInstant("2026-10-31T10:12:00.000Z")!
         let synced = SyncStatusPill(state: .synced(at: now.addingTimeInterval(-120), route: .localNetwork), format: Self.format)
-        #expect(synced.text(now: now) == "Synced with your Mac · 2 min ago · Wi-Fi")
+        #expect(synced.text(now: now) == "Synced with your computer · 2 min ago · Wi-Fi")
         let away = SyncStatusPill(state: .unreachable(lastSync: now.addingTimeInterval(-7200)), format: Self.format)
-        #expect(away.text(now: now) == "Mac not reachable · last synced 2 hr ago")
+        #expect(away.text(now: now) == "Computer not reachable · last synced 2 hr ago")
     }
 }

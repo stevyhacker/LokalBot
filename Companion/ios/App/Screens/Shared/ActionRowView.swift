@@ -3,7 +3,7 @@ import SwiftUI
 
 /// One action item wherever it appears: the round toggle, the text, then
 /// owner, due date, meeting and evidence. A change made here shows "Waiting
-/// for your Mac" until the Mac confirms it.
+/// for your computer" until the computer confirms it.
 struct ActionRowView: View {
     enum Evidence {
         /// Opens the meeting at the cited moment.
@@ -65,7 +65,7 @@ struct ActionRowView: View {
                 }
                 .font(LBTokens.Typography.secondary)
                 if pending {
-                    Label("Waiting for your Mac", systemImage: "clock.arrow.2.circlepath")
+                    Label("Waiting for your computer", systemImage: "clock.arrow.2.circlepath")
                         .font(LBTokens.Typography.caption)
                         .foregroundStyle(LBTokens.Palette.attentionText)
                 }

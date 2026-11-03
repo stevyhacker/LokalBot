@@ -18,7 +18,7 @@ public enum SyncPresentation: Equatable, Sendable {
     }
 }
 
-/// "Synced with your Mac · 2 min ago · Wi-Fi". Teal while fresh, amber when
+/// "Synced with your computer · 2 min ago · Wi-Fi". Teal while fresh, amber when
 /// the Mac couldn't be reached.
 public struct SyncStatusPill: View {
     let state: SyncPresentation
@@ -64,18 +64,18 @@ public struct SyncStatusPill: View {
     nonisolated public func text(now: Date) -> String {
         switch state {
         case .sample:
-            return "Sample library · not connected to a Mac"
+            return "Sample library · not connected to a computer"
         case .notPaired:
-            return "Not paired with a Mac"
+            return "Not paired with a computer"
         case .neverSynced:
-            return "Waiting for the first sync with your Mac"
+            return "Waiting for the first sync with your computer"
         case .syncing:
-            return "Syncing with your Mac…"
+            return "Syncing with your computer…"
         case .synced(let at, let route):
-            return (["Synced with your Mac", format.ago(at, now: now)] + [route?.label].compactMap { $0 })
+            return (["Synced with your computer", format.ago(at, now: now)] + [route?.label].compactMap { $0 })
                 .joined(separator: " · ")
         case .unreachable(let lastSync):
-            return "Mac not reachable" + (lastSync.map { " · last synced \(format.ago($0, now: now))" } ?? "")
+            return "Computer not reachable" + (lastSync.map { " · last synced \(format.ago($0, now: now))" } ?? "")
         case .failed(let message, _):
             return message
         }

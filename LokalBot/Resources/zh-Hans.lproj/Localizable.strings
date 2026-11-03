@@ -1701,7 +1701,7 @@
 "Local network" = "本地网络";
 "Pairing code" = "配对二维码";
 "Scan with LokalBot on your phone or tablet" = "用手机或平板上的 LokalBot 扫描";
-"Open LokalBot on the device, choose Pair with a Mac, and point the camera at this code. Then allow the device here." = "在设备上打开 LokalBot，选择“与 Mac 配对”，然后将相机对准此二维码。之后在这里允许该设备。";
+"Open LokalBot on the device, choose Pair with your computer, and point the camera at this code. Then allow the device here." = "在设备上打开 LokalBot，选择“与电脑配对”，然后将相机对准此二维码。之后在这里允许该设备。";
 "Expires in %@" = "%@ 后过期";
 "This code expired. Cancel and add the device again." = "此二维码已过期。请取消并重新添加设备。";
 "Read your work memory on your own iPhone, iPad, or Android device." = "在你自己的 iPhone、iPad 或 Android 设备上查看工作记忆。";
