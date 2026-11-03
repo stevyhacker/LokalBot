@@ -92,7 +92,7 @@ POSTS = [
     {
         "slug": "windows-and-linux-alpha",
         "published": "2026-10-20",
-        "updated": "2026-11-02",
+        "updated": "2026-11-03",
         "title": "LokalBot for Windows and Linux Is in Alpha",
         "description": "LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.",
         "eyebrow": "Release",
@@ -101,7 +101,7 @@ POSTS = [
         "read_time": "5 min read",
         "body": """
         <h2>What works</h2>
-        <p>Updated November 2, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.</p>
+        <p>Updated November 3, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.</p>
         <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, sharing with phones and tablets, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
         <figure class="blog-figure">
           <img src="/assets/blog/linux-meetings.webp" width="1600" height="1000" alt="LokalBot on Linux showing a meeting's recap, action items with timestamps, and decisions, next to a list of recent meetings." loading="lazy" decoding="async" />
@@ -111,10 +111,10 @@ POSTS = [
         <h2>What's still missing</h2>
         <ul>
           <li><strong>The Windows build isn't code-signed yet.</strong> SmartScreen asks before the first launch: choose <strong>More info → Run anyway</strong>.</li>
-          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps needs X11; on Wayland it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
+          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, where you also add LokalBot as an input source. It has only been tried on headless Sway and GNOME with stand-in suggestions, and Hyprland itself hasn't been run (<a href="/explainers/wayland-autocomplete.pdf">how it works</a>). On KDE Plasma and other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
           <li><strong>Meeting audio isn't always one app's.</strong> On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.</li>
           <li><strong>Remembered speakers only suggest.</strong> Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.</li>
-          <li><strong>A few features are Mac-only for now:</strong> Gmail in meeting briefs, Apple Intelligence, and Granite Speech transcription.</li>
+          <li><strong>A few features are Mac-only for now:</strong> Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation.</li>
         </ul>
         <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>.</p>
         <figure class="blog-figure">
@@ -144,6 +144,7 @@ POSTS = [
         <pre class="code" aria-label="Hyprland key bindings for LokalBot on Omarchy">o.bind(<span class="c-str">"SUPER + ALT + D"</span>, <span class="c-str">"LokalBot dictation"</span>, <span class="c-str">"lokalbot dictate"</span>)
 o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask LokalBot"</span>, <span class="c-str">"lokalbot quick-recall"</span>)</pre>
         <p>The tray icon appears in Omarchy's bar, and the dictation pill and Quick Recall float instead of tiling.</p>
+        <p>Omarchy runs Fcitx 5 for typing other languages, and a desktop runs one input method at a time, so autocomplete in other apps stays out of its way and Settings says so. If you don't use Fcitx 5, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start. This comes from reading Omarchy's repository; it hasn't been tried on Omarchy.</p>
 
         <h2>Tell us what breaks</h2>
         <p>Most testing so far has been on a handful of personal and rented machines, so reports from real hardware help the most. <a href="https://github.com/stevyhacker/lokalbot/issues/new/choose" target="_blank" rel="noopener">Open an issue</a> with your distribution, desktop, X11 or Wayland, CPU and GPU, and what you tried.</p>

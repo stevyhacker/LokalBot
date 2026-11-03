@@ -5,7 +5,7 @@
   <link href="https://www.lokalbot.com/blog/feed.xml" rel="self" type="application/atom+xml" />
   <link href="https://www.lokalbot.com/blog" rel="alternate" type="text/html" />
   <id>https://www.lokalbot.com/blog</id>
-  <updated>2026-11-02T00:00:00Z</updated>
+  <updated>2026-11-03T00:00:00Z</updated>
   <author><name>LokalBot project</name><uri>https://www.lokalbot.com/</uri></author>
   <icon>https://www.lokalbot.com/assets/lokalbot-icon-512.png</icon>
   <entry>
@@ -75,10 +75,10 @@
     <link href="https://www.lokalbot.com/blog/windows-and-linux-alpha" />
     <id>https://www.lokalbot.com/blog/windows-and-linux-alpha</id>
     <published>2026-10-20T00:00:00Z</published>
-    <updated>2026-11-02T00:00:00Z</updated>
+    <updated>2026-11-03T00:00:00Z</updated>
     <summary>LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.</summary>
     <content type="html">&lt;h2&gt;What works&lt;/h2&gt;
-        &lt;p&gt;Updated November 2, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.&lt;/p&gt;
+        &lt;p&gt;Updated November 3, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.&lt;/p&gt;
         &lt;p&gt;The Windows and Linux app is written in Rust with &lt;a href="https://www.gpui.rs" target="_blank" rel="noopener"&gt;GPUI&lt;/a&gt;, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, sharing with phones and tablets, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.&lt;/p&gt;
         &lt;figure class="blog-figure"&gt;
           &lt;img src="https://www.lokalbot.com/assets/blog/linux-meetings.webp" width="1600" height="1000" alt="LokalBot on Linux showing a meeting's recap, action items with timestamps, and decisions, next to a list of recent meetings." loading="lazy" decoding="async" /&gt;
@@ -88,10 +88,10 @@
         &lt;h2&gt;What's still missing&lt;/h2&gt;
         &lt;ul&gt;
           &lt;li&gt;&lt;strong&gt;The Windows build isn't code-signed yet.&lt;/strong&gt; SmartScreen asks before the first launch: choose &lt;strong&gt;More info → Run anyway&lt;/strong&gt;.&lt;/li&gt;
-          &lt;li&gt;&lt;strong&gt;Wayland support is partial.&lt;/strong&gt; Autocomplete in other apps needs X11; on Wayland it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind &lt;code&gt;lokalbot dictate&lt;/code&gt; and &lt;code&gt;lokalbot selection-actions&lt;/code&gt; to shortcuts in your desktop's settings.&lt;/li&gt;
+          &lt;li&gt;&lt;strong&gt;Wayland support is partial.&lt;/strong&gt; Autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, where you also add LokalBot as an input source. It has only been tried on headless Sway and GNOME with stand-in suggestions, and Hyprland itself hasn't been run (&lt;a href="https://www.lokalbot.com/explainers/wayland-autocomplete.pdf"&gt;how it works&lt;/a&gt;). On KDE Plasma and other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind &lt;code&gt;lokalbot dictate&lt;/code&gt; and &lt;code&gt;lokalbot selection-actions&lt;/code&gt; to shortcuts in your desktop's settings.&lt;/li&gt;
           &lt;li&gt;&lt;strong&gt;Meeting audio isn't always one app's.&lt;/strong&gt; On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.&lt;/li&gt;
           &lt;li&gt;&lt;strong&gt;Remembered speakers only suggest.&lt;/strong&gt; Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.&lt;/li&gt;
-          &lt;li&gt;&lt;strong&gt;A few features are Mac-only for now:&lt;/strong&gt; Gmail in meeting briefs, Apple Intelligence, and Granite Speech transcription.&lt;/li&gt;
+          &lt;li&gt;&lt;strong&gt;A few features are Mac-only for now:&lt;/strong&gt; Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation.&lt;/li&gt;
         &lt;/ul&gt;
         &lt;p&gt;The full list is in &lt;a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener"&gt;what works where&lt;/a&gt;.&lt;/p&gt;
         &lt;figure class="blog-figure"&gt;
@@ -121,6 +121,7 @@
         &lt;pre class="code" aria-label="Hyprland key bindings for LokalBot on Omarchy"&gt;o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + D"&lt;/span&gt;, &lt;span class="c-str"&gt;"LokalBot dictation"&lt;/span&gt;, &lt;span class="c-str"&gt;"lokalbot dictate"&lt;/span&gt;)
 o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class="c-str"&gt;"Ask LokalBot"&lt;/span&gt;, &lt;span class="c-str"&gt;"lokalbot quick-recall"&lt;/span&gt;)&lt;/pre&gt;
         &lt;p&gt;The tray icon appears in Omarchy's bar, and the dictation pill and Quick Recall float instead of tiling.&lt;/p&gt;
+        &lt;p&gt;Omarchy runs Fcitx 5 for typing other languages, and a desktop runs one input method at a time, so autocomplete in other apps stays out of its way and Settings says so. If you don't use Fcitx 5, &lt;code&gt;systemctl --user disable --now omarchy-fcitx5.service&lt;/code&gt; lets autocomplete start. This comes from reading Omarchy's repository; it hasn't been tried on Omarchy.&lt;/p&gt;
 
         &lt;h2&gt;Tell us what breaks&lt;/h2&gt;
         &lt;p&gt;Most testing so far has been on a handful of personal and rented machines, so reports from real hardware help the most. &lt;a href="https://github.com/stevyhacker/lokalbot/issues/new/choose" target="_blank" rel="noopener"&gt;Open an issue&lt;/a&gt; with your distribution, desktop, X11 or Wayland, CPU and GPU, and what you tried.&lt;/p&gt;</content>

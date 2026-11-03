@@ -60,8 +60,8 @@ GUIDES = [
     {
         "slug": "local-ai-meeting-notes-linux",
         "published": "2026-10-26",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-03",
+        "updated_label": "November 3, 2026",
         "title": "Local AI Meeting Notes on Linux — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.",
         "eyebrow": "Linux",
@@ -95,12 +95,20 @@ GUIDES = [
               <tr><th scope="row">Screen context (visible text, optional encrypted screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal when it can capture just the active window</td></tr>
               <tr><th scope="row">Dictation</th><td>Yes</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your compositor</td></tr>
               <tr><th scope="row">Selection actions</th><td>Yes</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your compositor</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>Only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>As an input method on Sway, Hyprland, and GNOME; elsewhere only in the practice editor in Settings</td></tr>
               <tr><th scope="row">Tray icon</th><td colspan="2">Yes; GNOME needs the AppIndicator extension</td></tr>
             </tbody>
           </table>
         </div>
         <p>On <a href="/blog/windows-and-linux-alpha">Omarchy and other Hyprland desktops</a>, <code>grim</code>, <code>wtype</code>, <code>wl-clipboard</code>, and PipeWire are already there, and the dictation pill and Quick Recall float instead of tiling.</p>
+        <p>On Wayland, autocomplete in other apps takes part as an input method, the way language input tools do, and shows the suggestion inside the field. Turn it on in <strong>Settings → Writing</strong>. What else it needs depends on your desktop:</p>
+        <ul>
+          <li><strong>Sway and Hyprland:</strong> nothing more. A desktop runs one input method at a time, so if Fcitx or IBus is running, LokalBot stays out of its way and Settings says so. Omarchy runs Fcitx 5; if you don't use it, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start.</li>
+          <li><strong>GNOME:</strong> add LokalBot in GNOME Settings → Keyboard → Input Sources → + → Other, then choose it in the top bar or with <kbd>Super+Space</kbd>. With the <code>.tar.gz</code>, first run the command Settings shows. Either way, log out and back in once. Firefox and Chrome stay quiet without the Window Calls extension.</li>
+          <li><strong>KDE Plasma and other compositors:</strong> not yet. Settings says so and offers the practice editor.</li>
+        </ul>
+        <p>Not every app can take part. Qt 5 apps and X11 apps running through XWayland get no suggestions, though typing in them is unaffected, and older Chromium and Electron apps need <code>--enable-wayland-ime</code>, according to their documentation.</p>
+        <p>This route is new. It has only been tried on headless Sway 1.9 and GNOME Shell 46 with stand-in suggestions, not on real desktops with a real model, and Hyprland itself hasn't been run. The <a href="explainers/wayland-autocomplete.pdf">one-page explainer</a> covers what it reads and keeps, and the <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#autocomplete-on-wayland" target="_blank" rel="noopener">README</a> lists each desktop and app.</p>
 
         <h2>Install and stay updated</h2>
         <ul>
@@ -109,21 +117,21 @@ GUIDES = [
           <li><strong>Arch and Omarchy:</strong> <code>sudo pacman -U ./LokalBot-&lt;version&gt;-linux-x86_64.pkg.tar.zst</code>. LokalBot tells you when a newer package is out.</li>
           <li><strong>Any distribution:</strong> extract the <code>.tar.gz</code> and run <code>./install.sh</code>. It installs into <code>~/.local/bin</code>, adds LokalBot to your applications menu, and lets the app update itself after checking each download's signature.</li>
         </ul>
-        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. See the <a href="system-requirements">system requirements</a>.</p>
+        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. Reading screen text in scripts other than Latin needs Tesseract (<code>tesseract-ocr</code> on Debian and Ubuntu, <code>tesseract</code> on Fedora and Arch), which the <code>.deb</code> and <code>.rpm</code> recommend. See the <a href="system-requirements">system requirements</a>.</p>
 
         <h2>Models and hardware</h2>
         <p>On first launch LokalBot asks what to remember and downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing, CUDA read a long prompt into Qwen3.5 4B 44% faster than Vulkan on an RTX 3060. Without a capable GPU, notes on the CPU are slow, so you can point notes and Ask at Ollama on another computer or at a server you approve.</p>
 
         <h2>What's not there yet</h2>
         <ul>
-          <li>Gmail in meeting briefs, Apple Intelligence, and Granite Speech transcription are Mac only for now.</li>
+          <li>Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation are Mac only for now.</li>
           <li>Remembered speakers only suggest. Naming a speaker teaches an encrypted voice profile, and later meetings offer that name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li>There's no Flatpak or Snap. An AUR package, <code>lokalbot-bin</code>, is on its way.</li>
           <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
         </ul>
         """,
         "faq": [
-            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps needs X11."),
+            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, but not yet on KDE Plasma or other compositors."),
             ("Do I need an NVIDIA GPU?", "No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."),
             ("Can I move my library between Linux and a Mac?", "Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."),
         ],
@@ -132,8 +140,8 @@ GUIDES = [
     {
         "slug": "local-ai-meeting-notes-windows",
         "published": "2026-10-26",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-03",
+        "updated_label": "November 3, 2026",
         "title": "Local AI Meeting Notes on Windows — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.",
         "eyebrow": "Windows",
@@ -147,7 +155,7 @@ GUIDES = [
           <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and the meeting app's own audio through WASAPI process loopback on Windows build 20348 or later, which includes Windows 11, so nothing joins the call. On older builds, or when it can't separate the app, the second track is everything your PC plays. When it detects a meeting, it asks with a notification.</li>
           <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations from Qwen3.5 4B in the built-in llama.cpp, Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
-          <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and on-device OCR.</li>
+          <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and the text recognizer built into Windows, in your app and system languages where Windows has that language pack.</li>
           <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with LFM2.5 1.2B on your PC.</li>
           <li><strong>Calendar.</strong> Private iCal or CalDAV links from Outlook, Google, or another calendar name your recordings and list today's meetings.</li>
           <li><strong>Agents.</strong> A read-only CLI and MCP server for Claude Code, Codex, and other agents, and an optional Agent Mode that works on your files with your approval, in Git Bash or PowerShell.</li>
@@ -169,7 +177,7 @@ GUIDES = [
         <h2>What's not there yet</h2>
         <ul>
           <li>Code signing, so SmartScreen will warn until it's in place.</li>
-          <li>Gmail in meeting briefs, Apple Intelligence, and Granite Speech transcription are Mac only for now.</li>
+          <li>Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation are Mac only for now.</li>
           <li>Remembered speakers only suggest. Naming a speaker teaches an encrypted voice profile, and later meetings offer that name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
         </ul>
@@ -398,8 +406,8 @@ GUIDES = [
     },
     {
         "slug": "system-requirements",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-03",
+        "updated_label": "November 3, 2026",
         "title": "LokalBot System Requirements: Mac, Windows and Linux (alpha)",
         "description": "Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.",
         "eyebrow": "Compatibility",
@@ -458,7 +466,8 @@ GUIDES = [
           <li><strong>Audio:</strong> PulseAudio or PipeWire. LokalBot records the meeting app's own streams where it can, and otherwise the output monitor, which captures everything the computer plays.</li>
           <li><strong>Install:</strong> download <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-asset="linux">the Linux archive</a> from the latest release, extract it, and run <code>./install.sh</code>. It installs LokalBot to <code>~/.local/bin</code> and adds it to your applications menu. The same release also has a <code>.deb</code> (Debian, Ubuntu), an <code>.rpm</code> (Fedora, openSUSE) and an Arch package. Installing the <code>.deb</code>, or the <code>.rpm</code> on Fedora, also adds the LokalBot repository, so <code>sudo apt upgrade</code> or <code>sudo dnf upgrade</code> brings later versions; with the Arch package, LokalBot tells you about updates instead of installing them.</li>
           <li><strong>Disk:</strong> about 4 GB for the default models, plus your recordings. The built-in llama.cpp runs on a Vulkan GPU or on the CPU.</li>
-          <li><strong>GNOME:</strong> the tray icon needs the AppIndicator extension, and day memory needs the Window Calls extension.</li>
+          <li><strong>Screen text in other scripts:</strong> needs Tesseract (<code>tesseract-ocr</code> on Debian and Ubuntu, <code>tesseract</code> on Fedora and Arch), which the <code>.deb</code> and <code>.rpm</code> recommend. Without it, screen text reads Latin letters with ocrs.</li>
+          <li><strong>GNOME:</strong> the tray icon needs the AppIndicator extension, and day memory needs the Window Calls extension. Autocomplete in other apps needs LokalBot added as an input source, and in Firefox and Chrome it also needs Window Calls.</li>
           <li><strong>Library:</strong> <code>~/.local/share/LokalBot</code>.</li>
         </ul>
 
@@ -472,7 +481,7 @@ GUIDES = [
               <tr><th scope="row">Screen context (visible text, optional screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal</td></tr>
               <tr><th scope="row">Dictation</th><td>Hold Alt+Space</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your desktop's settings</td></tr>
               <tr><th scope="row">Selection actions</th><td>Press Ctrl+Alt+Space</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your desktop's settings</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>Yes</td><td>Only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>Yes</td><td>As an input method on Sway, Hyprland, and GNOME, lightly tested so far (see the <a href="local-ai-meeting-notes-linux">Linux guide</a>); elsewhere only in the practice editor in Settings</td></tr>
             </tbody>
           </table>
         </div>
@@ -484,7 +493,7 @@ GUIDES = [
           <li><strong>Speakers:</strong> pyannote segmentation with TitaNet embeddings.</li>
           <li><strong>Autocomplete:</strong> LFM2.5 1.2B.</li>
           <li><strong>Summaries and search:</strong> Qwen3.5 4B and EmbeddingGemma 2, the same as on a Mac.</li>
-          <li><strong>Screen text:</strong> accessibility (UI Automation on Windows, AT-SPI on Linux) plus on-device OCR, downloaded on request.</li>
+          <li><strong>Screen text:</strong> accessibility (UI Automation on Windows, AT-SPI on Linux) plus on-device OCR in your app and system languages: the recognizer built into Windows, or Tesseract on Linux, with ocrs as the fallback for Latin letters. Any download starts only when you ask.</li>
           <li><strong>Spoken summaries:</strong> Kokoro 82M.</li>
         </ul>
         <p>The <a href="benchmarks">benchmarks</a> were measured on a Mac, so these engines have not been benchmarked yet.</p>
@@ -495,6 +504,7 @@ GUIDES = [
           <li>Gmail in meeting briefs</li>
           <li>Apple Intelligence</li>
           <li>Granite Speech transcription</li>
+          <li>Nemotron speaker separation</li>
         </ul>
 
         <h2>What works differently on Windows and Linux</h2>
