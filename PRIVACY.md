@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: November 2, 2026
+Effective: November 3, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -568,7 +568,10 @@ Google APIs will adhere to the [Google API Services User Data
 Policy](https://developers.google.com/terms/api-services-user-data-policy) and
 the [Google Workspace API User Data and Developer
 Policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy),
-including the Limited Use requirements.
+including the Limited Use requirements. The use of raw or derived user data
+received from Google Workspace APIs will adhere to the Google User Data Policy,
+including the Limited Use requirements. That includes the AI models LokalBot
+runs on your Mac.
 
 - **What LokalBot reads.** With the read-only Gmail permission, LokalBot reads
   your Gmail address and its verified "Send mail as" addresses, Gmail's
@@ -591,16 +594,21 @@ including the Limited Use requirements.
     account numbers redacted, and opens it in Gmail when you click it. The
     brief's Think model receives the same excerpts, at most about 3,000
     characters, marked as quoted mail it must not take instructions from.
-    Briefs are generated only by a model on your Mac, never a remote one.
+    Briefs are generated only by a model on your Mac, never a remote one. A
+    generated brief stays in the app's memory and is never saved to disk.
+
+  Conversations you wrote in stay on your Mac so a brief is ready when someone
+  in them joins a later meeting.
 
   Nothing else reads the downloaded mail: not search, Ask, Dream reviews,
   Personal Context learning, exports, or the CLI and MCP. Before another
   feature uses your mail, this policy will describe it and LokalBot will ask
   you.
-- **Where it is kept.** Only on your Mac: each conversation is sealed with
-  AES-GCM, using a key kept in your macOS Keychain, in `email/` in the
-  library, and the sign-in tokens are kept in the Keychain. LokalBot has no
-  server, so nothing is uploaded anywhere.
+- **Where it is kept and how it is protected.** Only on your Mac: each
+  conversation is sealed with AES-GCM, using a key kept in your macOS Keychain,
+  in `email/` in the library, and the sign-in tokens are kept in the Keychain.
+  Mail and tokens travel between Google and your Mac only over HTTPS. LokalBot
+  has no server, so nothing is uploaded anywhere.
 - **Who receives it.** No one. LokalBot doesn't transfer or sell Gmail data to
   the LokalBot project, advertisers, data brokers, AI providers, or anyone
   else; doesn't use it for advertising or to decide credit-worthiness; and
@@ -608,6 +616,10 @@ including the Limited Use requirements.
   train AI or machine-learning models. Text from your mail is not sent to
   remote AI models; if that ever becomes an option, it will be off until you
   turn it on for that feature.
+- **Aggregated or anonymized data.** The only aggregate figures LokalBot makes
+  from Gmail are conversation and message counts, which Settings shows and its
+  log on your Mac records. It makes no anonymized data from your mail, and sends
+  nothing aggregated or anonymized anywhere.
 - **How long it is kept, and deleting it.** Messages older than 90 days are
   deleted automatically, and mail you trash, delete, or that stops
   qualifying is removed at the next check. **Disconnect** deletes that
