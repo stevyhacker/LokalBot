@@ -123,6 +123,8 @@ jobs:
           Set-Content -Path (Join-Path $state 'settings.json') -Value '{ "network": { "downloader": "wininet" } }'
 
       - name: Validate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
           $dirs = Get-ChildItem manifests -Recurse -Filter "$env:PACKAGE.yaml" | ForEach-Object DirectoryName
@@ -130,11 +132,13 @@ jobs:
           foreach ($dir in $dirs) {
             winget validate --manifest $dir --disable-interactivity
             if ($LASTEXITCODE -ne 0) { throw "winget validate failed for $dir" }
-            # The digest must be the one the release published.
+            # The digest must be the one GitHub reports for the release's file.
             $installer = Get-Content (Join-Path $dir "$env:PACKAGE.installer.yaml") -Raw
             $url = [regex]::Match($installer, '(?m)^\s*InstallerUrl:\s*(\S+)').Groups[1].Value
             $sha = [regex]::Match($installer, '(?m)^\s*InstallerSha256:\s*(\S+)').Groups[1].Value
-            $published = ((Invoke-RestMethod "$url.sha256") -split '\s+')[0]
+            $tag, $name = ($url -split '/')[-2, -1]
+            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+            $published = ($release.assets | Where-Object name -eq $name).digest -replace '^sha256:'
             if ($published -ne $sha) { throw "InstallerSha256 $sha is not the release's $published" }
             "$dir is valid; $url has SHA-256 $published"
           }

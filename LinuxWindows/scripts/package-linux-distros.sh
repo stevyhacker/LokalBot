@@ -4,7 +4,7 @@
 #   dist/LokalBot-<version>-linux-amd64.deb          Debian, Ubuntu
 #   dist/LokalBot-<version>-linux-x86_64.rpm         Fedora, openSUSE, RHEL
 #   dist/LokalBot-<version>-linux-x86_64.pkg.tar.zst Arch
-# each with a .sha256 file. Run scripts/package.sh first.
+# Run scripts/package.sh first.
 #
 # NFPM: the nfpm binary to use (default: nfpm on PATH).
 # PACKAGE_VERSION, STAGE, LINUX_REPO_PUBLIC_KEY: another version, staged
@@ -203,9 +203,8 @@ cd "$ROOT/dist"
 for spec in "deb linux-amd64.deb" "rpm linux-x86_64.rpm" "archlinux linux-x86_64.pkg.tar.zst"; do
   set -- $spec
   OUT="LokalBot-$VERSION-$2"
-  rm -f "$OUT" "$OUT.sha256"
+  rm -f "$OUT"
   "$NFPM" package --config "$CONFIG" --packager "$1" --target "$OUT"
-  sha256sum "$OUT" > "$OUT.sha256"
   echo "dist/$OUT"
 done
 rm -f "$CONFIG" "$KEYRING"

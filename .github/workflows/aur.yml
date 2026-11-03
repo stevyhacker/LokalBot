@@ -65,6 +65,7 @@ jobs:
       - name: Point the PKGBUILD at the release
         if: inputs.tag != ''
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
         run: scripts/update-aur.sh "$TAG"
 
