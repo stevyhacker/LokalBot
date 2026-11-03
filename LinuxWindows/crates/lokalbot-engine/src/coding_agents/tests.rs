@@ -805,3 +805,17 @@ fn lines_are_classified_without_decoding_them() {
     assert_eq!(text::timestamp("yesterday"), None);
     assert!(text::Line(b"[1,2]").object().is_none());
 }
+
+#[test]
+fn a_windows_folder_rule_under_home_matches_its_sessions() {
+    let home = Some(r"C:\Users\Ana");
+    let folder = text::standardized_path(r"~\Code\client", home);
+    assert_eq!(folder, "C:/Users/Ana/Code/client");
+    let session = text::standardized_path(r"C:\Users\Ana\Code\client\app", home);
+    assert!(text::is_inside(&session, &folder));
+    // Windows paths compare without case, and a sibling isn't inside.
+    let other_case = text::standardized_path(r"c:\users\ana\code\CLIENT", home);
+    assert!(text::is_inside(&other_case, &folder));
+    let sibling = text::standardized_path(r"C:\Users\Ana\Code\client-two", home);
+    assert!(!text::is_inside(&sibling, &folder));
+}

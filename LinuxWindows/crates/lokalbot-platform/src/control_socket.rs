@@ -40,10 +40,13 @@ impl ControlServer {
 impl Drop for ControlServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // Wake the blocking accept with a connection of our own.
-        let woke = connect(&self.endpoint).is_ok();
+        // Wake the blocking accept with a connection of our own, held open until
+        // the thread has gone: a Windows pipe listener skips a client that has
+        // already left, so closing this one first could leave accept waiting and
+        // the join below waiting on it, for good.
+        let waker = connect(&self.endpoint);
         if let Some(thread) = self.thread.take()
-            && woke
+            && waker.is_ok()
         {
             let _ = thread.join();
         }

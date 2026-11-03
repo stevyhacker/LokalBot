@@ -349,8 +349,13 @@ fn normalized_separators(path: &str) -> String {
 /// gone. Lexical, because a session's folder may no longer exist.
 pub fn standardized_path(path: &str, home: Option<&str>) -> String {
     let path = normalized_separators(path);
+    let home = home.map(normalized_separators);
     let expanded = match (path.strip_prefix('~'), home) {
-        (Some(""), Some(home)) => home.to_string(),
+        (Some(""), Some(home)) => home,
+        // A folder chosen on Windows is saved as `~\Code`.
+        (Some(rest), Some(home)) if is_windows_path(&home) && rest.starts_with(['/', '\\']) => {
+            format!("{home}{}", rest.replace('\\', "/"))
+        }
         (Some(rest), Some(home)) if rest.starts_with('/') => format!("{home}{rest}"),
         _ => path,
     };

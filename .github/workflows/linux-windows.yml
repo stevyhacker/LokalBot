@@ -254,7 +254,8 @@ jobs:
           Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $target "cargo-timings")
 
       - name: Test
-        run: cargo test --workspace --locked --timings
+        # Every crate, so one run shows every failure: this job takes a while.
+        run: cargo test --workspace --locked --timings --no-fail-fast
 
       # One build for the release programs and the desktop-check programs, so
       # they share every library and link side by side. lokalbot-update gets
