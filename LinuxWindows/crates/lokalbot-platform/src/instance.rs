@@ -160,10 +160,13 @@ impl IpcServer {
 impl Drop for IpcServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // Wake the blocking accept with a connection of our own.
-        let woke = connect(&self.endpoint).is_ok();
+        // Wake the blocking accept with a connection of our own, held open until
+        // the thread has gone: a Windows pipe listener skips a client that has
+        // already left, so closing this one first could leave accept waiting and
+        // the join below waiting on it, for good.
+        let waker = connect(&self.endpoint);
         if let Some(thread) = self.thread.take()
-            && woke
+            && waker.is_ok()
         {
             let _ = thread.join();
         }
@@ -393,6 +396,16 @@ mod tests {
         ));
         drop(first);
         acquire_instance(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn stopping_right_after_listening_returns() {
+        let dir = tempfile::tempdir().unwrap();
+        let _guard = acquire_instance(dir.path()).unwrap();
+        // Often enough that a stop lands before the accept has started waiting.
+        for _ in 0..20 {
+            drop(listen(dir.path(), |_| {}).unwrap());
+        }
     }
 
     #[test]

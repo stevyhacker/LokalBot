@@ -408,11 +408,17 @@ mod tests {
             .unwrap()
             .with_timezone(&Local)
             .format("%a %Y-%m-%d %H:%M");
+        // Each platform's own separator, as the agent will need to open them.
+        let folder = std::path::Path::new("/lib/a");
+        let summary = folder.join("summary.md");
+        let summary = summary.display();
+        let transcript = folder.join("transcript.md");
+        let transcript = transcript.display();
         let prompt = action_prompt(&brief(vec![source("Sync", "/lib/a")]), ACTION_PROMPT_LIMIT);
         assert_eq!(
             prompt,
             format!(
-                "Help me with this action item from a meeting I recorded in LokalBot.\n\nAction: Send the deck\nOwner: me\nDue: 2026-10-09 (said “Friday”)\nStatus: Open\n\nMeeting: Sync, {at} (LokalBot meeting ID AB12CD34). It comes up at [00:01:34] in the transcript.\n- Summary: `/lib/a/summary.md`\n- Transcript: `/lib/a/transcript.md`\n\nThese files are LokalBot's records of the meeting. Read them for the full context, but don't edit them."
+                "Help me with this action item from a meeting I recorded in LokalBot.\n\nAction: Send the deck\nOwner: me\nDue: 2026-10-09 (said “Friday”)\nStatus: Open\n\nMeeting: Sync, {at} (LokalBot meeting ID AB12CD34). It comes up at [00:01:34] in the transcript.\n- Summary: `{summary}`\n- Transcript: `{transcript}`\n\nThese files are LokalBot's records of the meeting. Read them for the full context, but don't edit them."
             )
         );
     }
