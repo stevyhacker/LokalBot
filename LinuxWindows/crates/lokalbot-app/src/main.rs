@@ -47,8 +47,8 @@ actions!(
 struct Options {
     storage_root: Option<std::path::PathBuf>,
     section: Option<Section>,
-    /// Screenshot target for the Models settings, including runtime selection.
-    models_settings: bool,
+    /// Screenshot target inside Settings, such as the Models runtime selection.
+    settings_category: Option<state::SettingsCategory>,
     /// `--window quick-recall|onboarding` opens that window at startup.
     window: Option<String>,
     /// `--moment <id>` opens Timeline on that screen moment.
@@ -113,7 +113,7 @@ fn parse_options() -> Options {
         if arg == "--page" {
             if let Some(name) = iter.next() {
                 options.section = section_named(name);
-                options.models_settings = name.eq_ignore_ascii_case("settings-models");
+                options.settings_category = settings_category_named(name);
             }
         } else if arg == "--window" {
             options.window = iter.next().cloned();
@@ -174,7 +174,20 @@ fn section_named(name: &str) -> Option<Section> {
         "projects" => Section::Projects,
         "ask" => Section::Ask,
         "agent" => Section::Agent,
-        "settings" | "settings-models" => Section::Settings,
+        "settings" => Section::Settings,
+        _ => {
+            settings_category_named(name)?;
+            Section::Settings
+        }
+    })
+}
+
+fn settings_category_named(name: &str) -> Option<state::SettingsCategory> {
+    Some(match name.to_ascii_lowercase().as_str() {
+        "settings-models" => state::SettingsCategory::Models,
+        "settings-files" => state::SettingsCategory::Files,
+        "settings-devices" => state::SettingsCategory::Devices,
+        "settings-personal-context" => state::SettingsCategory::PersonalContext,
         _ => return None,
     })
 }
@@ -271,10 +284,8 @@ fn main() {
             if let Some(section) = options.section {
                 data.update(cx, |data, _| data.section = section);
             }
-            if options.models_settings {
-                data.update(cx, |data, cx| {
-                    data.open_settings(state::SettingsCategory::Models, cx)
-                });
+            if let Some(category) = options.settings_category {
+                data.update(cx, |data, cx| data.open_settings(category, cx));
             }
             if let Some(id) = options.moment {
                 let moment = data.read(cx).library.screen_moment(id).ok().flatten();
