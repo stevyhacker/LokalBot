@@ -1,6 +1,6 @@
 # Builds the per-user Windows installer from the folder scripts/package.sh
 # staged in dist/, with Inno Setup 6:
-#   dist/LokalBot-<version>-windows-x86_64-setup.exe (+ .sha256)
+#   dist/LokalBot-<version>-windows-x86_64-setup.exe
 # Run scripts/package.sh first. ISCC: the Inno Setup compiler to use (default:
 # Inno Setup 6 under Program Files, for all users or this user).
 $ErrorActionPreference = 'Stop'
@@ -30,7 +30,4 @@ $dist = Join-Path $root 'dist'
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
 $name = "LokalBot-$version-windows-x86_64-setup.exe"
-$hash = (Get-FileHash (Join-Path $dist $name) -Algorithm SHA256).Hash.ToLowerInvariant()
-# Same format as sha256sum, so every .sha256 in a release reads alike.
-[IO.File]::WriteAllText((Join-Path $dist "$name.sha256"), "$hash  $name`n")
 Write-Output "dist/$name"

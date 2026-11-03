@@ -41,7 +41,6 @@ case "$(uname -s)" in
     cp ../THIRD_PARTY_NOTICES.md "$STAGE/"
     cp -R ../LICENSES "$STAGE/LICENSES"
     tar -C dist -czf "dist/$NAME.tar.gz" "$NAME"
-    (cd dist && sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256")
     echo "dist/$NAME.tar.gz"
     ;;
   MINGW*|MSYS*|CYGWIN*)
@@ -63,7 +62,6 @@ case "$(uname -s)" in
     cp ../THIRD_PARTY_NOTICES.md "$STAGE/"
     cp -R ../LICENSES "$STAGE/LICENSES"
     (cd dist && 7z a -tzip "$NAME.zip" "$NAME" >/dev/null)
-    (cd dist && sha256sum "$NAME.zip" > "$NAME.zip.sha256")
     echo "dist/$NAME.zip"
     ;;
   *) echo "unsupported platform: $(uname -s)"; exit 1 ;;

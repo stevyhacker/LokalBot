@@ -459,7 +459,7 @@ jobs:
             --ed-key-file "$key_file"
           rm -f "$key_file"
 
-      # Upload the DMG, its checksum and the appcast: the Sparkle feed resolves via
+      # Upload the DMG and the appcast: the Sparkle feed resolves via
       # releases/latest/download/appcast.xml, so the appcast must live on the
       # Release next to the DMG it signs. Hyphenated tags (v1.0.0-beta) become
       # pre-releases and never become "latest" (RELEASING.md step 7).
@@ -492,11 +492,10 @@ jobs:
           fi
           # A copy under the published name keeps the signed bytes untouched.
           cp build/LokalBot.dmg "build/$DMG_NAME"
-          (cd build && shasum -a 256 -b "$DMG_NAME" > "$DMG_NAME.sha256")
           gh release upload "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
-            "build/$DMG_NAME" "build/$DMG_NAME.sha256" build/appcast.xml
+            "build/$DMG_NAME" build/appcast.xml
 
       - name: Delete temp keychain
         if: always()
@@ -584,7 +583,7 @@ jobs:
           gh release upload "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
-            dist/*.tar.gz dist/*.zip dist/*-setup.exe dist/*.deb dist/*.rpm dist/*.pkg.tar.zst dist/*.sha256 \
+            dist/*.tar.gz dist/*.zip dist/*-setup.exe dist/*.deb dist/*.rpm dist/*.pkg.tar.zst \
             dist/linux-x86_64.json dist/windows-x86_64.json
 
   # Points the lokalbot-bin AUR package at this release once its Linux archive

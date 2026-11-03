@@ -465,16 +465,14 @@ actually uploads to.
 
 ### 7. Publish the GitHub Release
 
-Upload the DMG under its versioned name, its checksum and the appcast as release
-assets so the feed at `releases/latest/download/appcast.xml` resolves:
+Upload the DMG under its versioned name and the appcast as release assets so the
+feed at `releases/latest/download/appcast.xml` resolves:
 
 ```sh
 cp build/LokalBot.dmg build/LokalBot-1.0.0-macos-arm64.dmg
-(cd build && shasum -a 256 -b LokalBot-1.0.0-macos-arm64.dmg > LokalBot-1.0.0-macos-arm64.dmg.sha256)
 git tag v1.0.0 && git push origin v1.0.0
 gh release create v1.0.0 \
   build/LokalBot-1.0.0-macos-arm64.dmg \
-  build/LokalBot-1.0.0-macos-arm64.dmg.sha256 \
   build/appcast.xml \
   --title "LokalBot 1.0.0" \
   --notes-file Scripts/release-notes/v1.0.0.md
@@ -518,11 +516,15 @@ work), checks each feed against its archive, and attaches to the release:
 
 | Asset | What it is |
 | --- | --- |
-| `LokalBot-<version>-linux-x86_64.tar.gz` (+ `.sha256`) | Linux archive with `install.sh` |
-| `LokalBot-<version>-windows-x86_64.zip` (+ `.sha256`) | Windows archive |
-| `LokalBot-<version>-windows-x86_64-setup.exe` (+ `.sha256`) | per-user Windows installer of the same files (`scripts/package-windows-installer.ps1`, Inno Setup 6): `%LOCALAPPDATA%\Programs\LokalBot`, a Start menu shortcut with the notification app id, and an Installed apps entry, without administrator rights. The release installs and uninstalls it on the Windows runner. Updates replace the files in place from the zip and then write the new version into that Installed apps entry, which winget reads (`lokalbot_update::installed_apps`) |
-| `LokalBot-<version>-linux-amd64.deb`, `LokalBot-<version>-linux-x86_64.rpm`, `LokalBot-<version>-linux-x86_64.pkg.tar.zst` (+ `.sha256`) | Debian/Ubuntu, Fedora/openSUSE and Arch packages of the same binaries (`scripts/package-linux-distros.sh`, nfpm). The release checks each one installs in a clean Ubuntu 24.04, Fedora 41 and Arch container. They install into `/usr/bin`, so LokalBot announces updates for them instead of replacing its files; it recognizes them by the package name `lokalbot`. A `.deb` or `.rpm` that added the LokalBot repository ([Linux package repositories](#linux-package-repositories)) is told to run `sudo apt upgrade` or `sudo dnf upgrade`; the others get the command that installs the new package |
+| `LokalBot-<version>-linux-x86_64.tar.gz` | Linux archive with `install.sh` |
+| `LokalBot-<version>-windows-x86_64.zip` | Windows archive |
+| `LokalBot-<version>-windows-x86_64-setup.exe` | per-user Windows installer of the same files (`scripts/package-windows-installer.ps1`, Inno Setup 6): `%LOCALAPPDATA%\Programs\LokalBot`, a Start menu shortcut with the notification app id, and an Installed apps entry, without administrator rights. The release installs and uninstalls it on the Windows runner. Updates replace the files in place from the zip and then write the new version into that Installed apps entry, which winget reads (`lokalbot_update::installed_apps`) |
+| `LokalBot-<version>-linux-amd64.deb`, `LokalBot-<version>-linux-x86_64.rpm`, `LokalBot-<version>-linux-x86_64.pkg.tar.zst` | Debian/Ubuntu, Fedora/openSUSE and Arch packages of the same binaries (`scripts/package-linux-distros.sh`, nfpm). The release checks each one installs in a clean Ubuntu 24.04, Fedora 41 and Arch container. They install into `/usr/bin`, so LokalBot announces updates for them instead of replacing its files; it recognizes them by the package name `lokalbot`. A `.deb` or `.rpm` that added the LokalBot repository ([Linux package repositories](#linux-package-repositories)) is told to run `sudo apt upgrade` or `sudo dnf upgrade`; the others get the command that installs the new package |
 | `linux-x86_64.json`, `windows-x86_64.json` | update feeds |
+
+Releases attach no separate checksum files. GitHub shows each file's SHA-256 on
+the release page and returns it as `digest` in the API, and the release jobs and
+the Homebrew tap read it there.
 
 A feed names the version, the minimum installed version that may install it
 (default `0.0.0`, any; set `MINIMUM_VERSION` when a release must be installed
@@ -616,8 +618,8 @@ an update, re-upload the previous release's `linux-x86_64.json` and
 
 After the publish job, the `aur` job (`.github/workflows/aur.yml`) points the
 `lokalbot-bin` AUR package (`LinuxWindows/packaging/aur`) at the stable tag's
-Linux archive and its `.sha256`, builds and installs it in a clean Arch
-container with namcap, and pushes `PKGBUILD` and `.SRCINFO` to
+Linux archive and the SHA-256 GitHub reports for it, builds and installs it in
+a clean Arch container with namcap, and pushes `PKGBUILD` and `.SRCINFO` to
 aur.archlinux.org with the `AUR_SSH_PRIVATE_KEY` secret. It pushes only while
 the `AUR_PUBLISH` repository variable is `true` (set it once an AUR account holds
 the key); without the variable or the secret it stops after the checks, and
@@ -666,8 +668,8 @@ temporary keychain exists only while Xcode exports and seals the finished app,
 then is deleted. The DMG uses a separate short-lived keychain that is deleted
 immediately after `codesign`, before notarization. The workflow then notarizes
 and staples, downloads the Sparkle tarball for `sign_update`, runs
-`generate_appcast.py`, and uploads `LokalBot-<version>-macos-arm64.dmg`, its
-`.sha256` and `appcast.xml` to the Release.
+`generate_appcast.py`, and uploads `LokalBot-<version>-macos-arm64.dmg` and
+`appcast.xml` to the Release.
 Jobs beside it build, sign and attach the Linux and Windows archives and feeds
 ([Linux and Windows](#linux-and-windows)); the manual steps above cover macOS
 only.
@@ -727,8 +729,8 @@ package has no repository.
 for stable tags after the packages are attached; pre-release tags never reach
 the repositories. On a GitHub-hosted runner (never a self-hosted one: this key
 decides what every subscribed computer installs as root) it downloads the
-release's `.deb` and `.rpm` and checks their `.sha256`, copies the published
-packages from the R2 bucket `lokalbot-packages`, and runs
+release's `.deb` and `.rpm`, checks them against the SHA-256 GitHub reports,
+copies the published packages from the R2 bucket `lokalbot-packages`, and runs
 `LinuxWindows/scripts/linux-repos.sh`. That adds the release unless its
 version is already published (a published version's bytes never change),
 keeps the newest 3 versions, signs new RPMs with `rpmsign`, rebuilds and signs

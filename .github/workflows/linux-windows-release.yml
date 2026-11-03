@@ -126,10 +126,10 @@ jobs:
         with:
           name: release-linux-x86_64
           path: |
-            LinuxWindows/dist/*.tar.gz*
-            LinuxWindows/dist/*.deb*
-            LinuxWindows/dist/*.rpm*
-            LinuxWindows/dist/*.pkg.tar.zst*
+            LinuxWindows/dist/*.tar.gz
+            LinuxWindows/dist/*.deb
+            LinuxWindows/dist/*.rpm
+            LinuxWindows/dist/*.pkg.tar.zst
           retention-days: 7
           if-no-files-found: error
 
@@ -185,8 +185,8 @@ jobs:
         with:
           name: release-windows-x86_64
           path: |
-            LinuxWindows/dist/*.zip*
-            LinuxWindows/dist/*-setup.exe*
+            LinuxWindows/dist/*.zip
+            LinuxWindows/dist/*-setup.exe
           retention-days: 7
           if-no-files-found: error
 
@@ -234,11 +234,11 @@ jobs:
         with:
           name: dry-run-release-assets
           path: |
-            LinuxWindows/dist/*.tar.gz*
-            LinuxWindows/dist/*.zip*
-            LinuxWindows/dist/*.deb*
-            LinuxWindows/dist/*.rpm*
-            LinuxWindows/dist/*.pkg.tar.zst*
-            LinuxWindows/dist/*-setup.exe*
+            LinuxWindows/dist/*.tar.gz
+            LinuxWindows/dist/*.zip
+            LinuxWindows/dist/*.deb
+            LinuxWindows/dist/*.rpm
+            LinuxWindows/dist/*.pkg.tar.zst
+            LinuxWindows/dist/*-setup.exe
             LinuxWindows/dist/*.json
           retention-days: 7

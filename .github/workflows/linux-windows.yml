@@ -149,7 +149,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: lokalbot-linux-x86_64
-          path: LinuxWindows/dist/*.tar.gz*
+          path: LinuxWindows/dist/*.tar.gz
           retention-days: 14
 
       # Installs the archive with install.sh into a scratch home, then has it
@@ -277,7 +277,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: lokalbot-windows-x86_64
-          path: LinuxWindows/dist/*.zip*
+          path: LinuxWindows/dist/*.zip
           retention-days: 14
 
       - name: Collect the desktop-check programs

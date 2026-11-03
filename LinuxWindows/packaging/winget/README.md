@@ -33,10 +33,10 @@ winget validate --manifest LinuxWindows\packaging\winget\manifests\s\stevyhacker
 ```
 
 On a pull request that changes these files, `.github/workflows/winget.yml` runs
-`winget validate`, compares `InstallerSha256` with the release's `.sha256`
-asset, installs LokalBot from the manifest silently, checks the files and the
-Installed apps version, and uninstalls it silently, all on a GitHub-hosted
-runner. Installing from a local manifest needs `winget settings --enable
+`winget validate`, compares `InstallerSha256` with the SHA-256 GitHub reports
+for the release's installer, installs LokalBot from the manifest silently,
+checks the files and the Installed apps version, and uninstalls it silently, all
+on a GitHub-hosted runner. Installing from a local manifest needs `winget settings --enable
 LocalManifestFiles`, a machine-wide admin setting; that runner is thrown away
 afterwards. winget also marks an installer from a local manifest as an
 Internet download, so SmartScreen holds the unsigned installer at a prompt.
