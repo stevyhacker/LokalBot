@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: Autocomplete on Wayland</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Scripts/render_explainer.py Docs/explainers/wayland-autocomplete.html web/explainers/wayland-autocomplete.pdf
+  One A4 sheet. The field text in the diagram is made up.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12.5px; line-height: 1.46; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 13mm 15mm 9mm; display: flex; flex-direction: column; gap: 11px; background: var(--bg); }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p, ul { margin: 0; }
+h1 { font-size: 31px; line-height: 1.1; letter-spacing: -0.022em; font-weight: 750; }
+ul { padding-left: 15px; display: grid; gap: 3px; }
+.lede { font-size: 14px; color: var(--text-dim); max-width: 62ch; }
+.eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.sec { display: grid; gap: 8px; }
+.flow { display: grid; grid-template-columns: 1fr 26px 1fr 26px 1fr; align-items: center; gap: 4px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; height: 100%; }
+.box h3 { font-size: 12.5px; margin: 0 0 3px; font-weight: 650; }
+.box p { color: var(--text-dim); font-size: 11px; }
+.arrow { text-align: center; color: var(--accent-text); font-size: 15px; }
+.field { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 7px; padding: 9px 12px; font-size: 13.5px; }
+.ghost { color: var(--text-faint); text-decoration: underline; }
+table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+th { text-align: left; color: var(--text-faint); font-weight: 600; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line-strong); }
+td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--text-dim); }
+td:first-child { color: var(--text); white-space: nowrap; }
+.warn { color: var(--warn-text); }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 7px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Linux · Wayland · alpha</div>
+  <h1>Autocomplete in your apps, on Wayland</h1>
+  <p class="lede">Wayland lets no ordinary app read another's keys or type into it, so LokalBot joins as an input method, the way language input tools do. Suggestions appear in the field itself. Tab accepts and Esc dismisses.</p>
+  <div class="field">Thanks for the update. I wanted to follow<span class="ghost"> up on the migration timeline</span></div>
+  <div class="flow">
+    <div class="box"><h3>Your app</h3><p>Tells the desktop the text around the caret, and shows the suggestion in its own style, underlined.</p></div>
+    <div class="arrow">⇄</div>
+    <div class="box"><h3>Your desktop</h3><p>Passes that to the one input method it's running: LokalBot directly on Sway and Hyprland, through IBus on GNOME.</p></div>
+    <div class="arrow">⇄</div>
+    <div class="box"><h3>LokalBot</h3><p>Asks your Autocomplete model, on this computer unless you chose otherwise, and checks your excluded apps first.</p></div>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">Turn it on</div>
+    <table>
+      <tr><th>Desktop</th><th>What to do</th></tr>
+      <tr><td>Sway</td><td>Settings → Writing → turn on autocomplete. That's all.</td></tr>
+      <tr><td>Hyprland, Omarchy</td><td>The same. Omarchy runs Fcitx 5, and only one input method can run, so LokalBot waits and Settings says so. If you don't use Fcitx 5: <code>systemctl --user disable --now omarchy-fcitx5.service</code></td></tr>
+      <tr><td>GNOME</td><td>Turn it on, then GNOME Settings → Keyboard → Input Sources → + → Other → LokalBot. Choose it in the top bar or with Super+Space. With the <code>.tar.gz</code>, first run the one command Settings shows, then log out and back in once.</td></tr>
+      <tr><td>KDE Plasma, others</td><td>Not yet. Settings says so and offers the practice editor.</td></tr>
+    </table>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">Which apps</div>
+    <table>
+      <tr><th>App</th><th>Result</th></tr>
+      <tr><td>GTK 3 and 4</td><td>Work on Sway and GNOME. On GTK 3 a selection isn't reported, so accepting replaces selected text, as typing does.</td></tr>
+      <tr><td>Firefox, Chrome</td><td>Work on Sway. On GNOME they need the Window Calls extension to name the app, and stay quiet without it.</td></tr>
+      <tr><td>Older Chromium, Electron</td><td>Need <code>--enable-wayland-ime</code>, according to their documentation. Not tried.</td></tr>
+      <tr><td>Qt 5, X11 apps</td><td>No suggestions. Typing is unaffected.</td></tr>
+      <tr><td>Terminals, passwords</td><td>Refused.</td></tr>
+    </table>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">What it reads and keeps</div>
+    <ul>
+      <li>While a text field has focus, the desktop hands LokalBot up to 4,000 bytes around the caret. In a password field, a terminal, an excluded app or one it can't name, that text is dropped unused and nothing is suggested.</li>
+      <li>On Sway and Hyprland it sees your keys only while a suggestion shows. On GNOME it's asked about every key in a text field while it's your input source. Neither the keys nor the text are kept or logged.</li>
+      <li>It stores only encrypted examples you accepted in identified documents, for 30 days, and estimated counts. Suggestions come from the local model or a server you approved. Full details are in <code>PRIVACY.md</code>.</li>
+    </ul>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">Limits</div>
+    <ul>
+      <li>Using Fcitx or IBus for Chinese, Japanese or Korean? On Sway and Hyprland only one input method can run, so LokalBot steps aside. On GNOME you switch between input sources.</li>
+      <li class="warn">Tried on headless Sway 1.9 and GNOME Shell 46 with stand-in suggestions, not on real desktops with a real model. Hyprland itself hasn't been run.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>LokalBot · Autocomplete on Wayland</span><span>1 of 1</span></div>
+</section>
+</body>
+</html>

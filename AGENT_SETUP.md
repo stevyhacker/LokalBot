@@ -6,8 +6,9 @@ the terminal. The person still makes the choices that need them, in LokalBot:
 they allow access, approve changes to what LokalBot captures or shares, and
 grant macOS permissions.
 
-The journey below is for the Mac app. The Windows and Linux app (alpha) has no
-agent-driven setup yet; see [Windows and Linux](#windows-and-linux-alpha).
+The journey below is written for the Mac app. On the Windows and Linux app (alpha)
+installing differs and the same commands work afterwards; see
+[Windows and Linux](#windows-and-linux-alpha).
 
 ## Rules
 
@@ -97,9 +98,10 @@ means the person has not allowed access yet; run `setup start`.
 
 ## Windows and Linux (alpha)
 
-The Windows and Linux CLI has the read-only commands and the MCP server, but not
-`setup`, `config`, `secret`, `models`, `permissions`, `status`, `doctor`, `restart`, or
-`open`. The person sets LokalBot up in the app, and you help:
+Once the app is installed and running, the Windows and Linux CLI has the same `setup`,
+`config`, `secret`, `models`, `status`, `doctor`, `restart`, and `open` commands. These
+systems have no permission prompts, so `permissions` says what the desktop allows. You
+and the person work through it like this:
 
 1. **Install.** From the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest),
    take `LokalBot-<version>-linux-x86_64.tar.gz`, extract it, and run `./install.sh`

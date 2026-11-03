@@ -15,9 +15,11 @@ pub mod markdown_view;
 pub mod profile;
 pub mod result_row;
 pub mod rule_list;
+pub mod screen_thumbnail;
 pub mod segmented_tabs;
 pub mod settings_row;
 pub mod shortcut_field;
+pub mod split;
 pub mod text;
 pub mod waveform;
 

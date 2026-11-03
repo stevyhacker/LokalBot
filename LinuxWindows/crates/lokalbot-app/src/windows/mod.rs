@@ -1,9 +1,13 @@
-//! Windows besides the main one: Quick Recall, onboarding and the
-//! full-size screen image.
+//! Windows besides the main one: Quick Recall, selection actions, onboarding
+//! and the full-size screen image.
 
+pub mod agent_setup;
+pub mod command_palette;
 pub mod onboarding;
 pub mod quick_recall;
 pub mod screen_image;
+pub mod selection_actions;
+pub mod settings_approval;
 
 use gpui_kit::{AnyWindowHandle, App, Global, WeakEntity};
 
@@ -12,8 +16,14 @@ use gpui_kit::{AnyWindowHandle, App, Global, WeakEntity};
 struct SecondaryWindows {
     quick_recall: Option<AnyWindowHandle>,
     quick_recall_view: Option<WeakEntity<quick_recall::QuickRecall>>,
+    selection_actions: Option<AnyWindowHandle>,
+    selection_actions_view: Option<WeakEntity<selection_actions::SelectionActions>>,
     onboarding: Option<AnyWindowHandle>,
     screen_image: Option<AnyWindowHandle>,
+    settings_approval: Option<AnyWindowHandle>,
+    agent_setup: Option<AnyWindowHandle>,
+    command_palette: Option<AnyWindowHandle>,
+    command_palette_view: Option<WeakEntity<command_palette::CommandPalette>>,
 }
 
 impl Global for SecondaryWindows {}
@@ -88,14 +98,25 @@ fn activate(handle: Option<AnyWindowHandle>, cx: &mut App) -> bool {
     })
 }
 
+/// Closes the welcome window, if it is open.
+pub fn close_onboarding(cx: &mut App) {
+    if let Some(handle) = secondary(cx).onboarding.take() {
+        let _ = handle.update(cx, |_, window, _| window.remove_window());
+    }
+}
+
 /// Brings the main window forward (the first window that is not a secondary one).
 pub fn activate_main(cx: &mut App) {
     let skip: Vec<_> = {
         let windows = secondary(cx);
         [
             windows.quick_recall,
+            windows.selection_actions,
             windows.onboarding,
             windows.screen_image,
+            windows.settings_approval,
+            windows.agent_setup,
+            windows.command_palette,
         ]
         .into_iter()
         .flatten()

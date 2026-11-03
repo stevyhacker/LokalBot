@@ -125,6 +125,18 @@ pub struct DigestTask {
     pub time_range: Option<String>,
     /// `[screen:N]` source IDs, when present.
     pub screen_sources: Vec<i64>,
+    /// Those sources as they are now, filled by `Library::day_digest`; `None`
+    /// is a moment no longer kept.
+    pub source_moments: Vec<Option<DigestSourceMoment>>,
+}
+
+/// A captured screen a digest task cites (`DayDigestSourceLinks`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct DigestSourceMoment {
+    pub id: i64,
+    pub app: String,
+    pub document_name: String,
+    pub ts: DateTime<Utc>,
 }
 
 /// One row of the `## Time allocation` table.

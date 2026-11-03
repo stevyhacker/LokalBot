@@ -150,6 +150,37 @@ pub fn write_wav_16k(path: &Path, samples: &[f32]) -> io::Result<()> {
     Ok(())
 }
 
+/// Writes mono `samples` at any rate as 16-bit PCM (spoken summaries, 24 kHz).
+/// A file that can't be finished is removed.
+pub fn write_wav(path: &Path, samples: &[f32], sample_rate: u32) -> io::Result<()> {
+    let write = || -> io::Result<()> {
+        let mut file = BufWriter::new(File::create(path)?);
+        let data_bytes = samples.len().saturating_mul(2).min(MAX_DATA_BYTES as usize);
+        file.write_all(&header(sample_rate, data_bytes as u32))?;
+        for &sample in &samples[..data_bytes / 2] {
+            file.write_all(&to_i16(sample).to_le_bytes())?;
+        }
+        file.flush()?;
+        file.get_ref().sync_all()
+    };
+    let result = write();
+    if result.is_err() {
+        let _ = std::fs::remove_file(path);
+    }
+    result
+}
+
+/// Mono `samples` as a 16-bit PCM WAV in memory, for a transcription server.
+pub fn wav_bytes(samples: &[f32], sample_rate: u32) -> Vec<u8> {
+    let data_bytes = samples.len().saturating_mul(2).min(MAX_DATA_BYTES as usize);
+    let mut bytes = Vec::with_capacity(HEADER_LEN as usize + data_bytes);
+    bytes.extend_from_slice(&header(sample_rate, data_bytes as u32));
+    for &sample in &samples[..data_bytes / 2] {
+        bytes.extend_from_slice(&to_i16(sample).to_le_bytes());
+    }
+    bytes
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SampleEncoding {
     Int,
@@ -508,5 +539,19 @@ mod tests {
         assert!((mono.len() as i64 - 16_000).abs() <= 1, "{}", mono.len());
         let rms = (mono[2000..14000].iter().map(|s| s * s).sum::<f32>() / 12_000.0).sqrt();
         assert!((rms - 0.5 / 2f32.sqrt()).abs() < 0.01, "{rms}");
+    }
+
+    #[test]
+    fn a_wav_at_another_rate_declares_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("spoken.wav");
+        write_wav(&path, &[0.5; 2_400], 24_000).unwrap();
+        let info = read_info(&path).unwrap();
+        assert_eq!(info.sample_rate, 24_000);
+        assert_eq!(info.channels, 1);
+        assert_eq!(info.bits_per_sample, 16);
+        assert_eq!(info.encoding, SampleEncoding::Int);
+        assert_eq!(info.data_len, 4_800);
+        assert!((info.duration_seconds() - 0.1).abs() < 1e-9);
     }
 }

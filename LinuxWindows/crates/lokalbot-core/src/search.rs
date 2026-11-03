@@ -8,6 +8,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::{Connection, OptionalExtension as _, params, params_from_iter};
 use uuid::Uuid;
 
+use crate::embeddings::NOTES_CHUNK_MARKER;
 use crate::library::Library;
 use crate::model::*;
 use crate::time::to_epoch;
@@ -592,6 +593,96 @@ impl Library {
         })
     }
 
+    /// The searchable passage behind a meaning match (`semanticPassage`): the
+    /// summary or notes that hold the chunk, else the transcript rows in the two
+    /// minutes it covers. `None` when neither holds a readable passage.
+    pub fn semantic_passage(
+        &self,
+        meeting_id: Uuid,
+        start: f64,
+        text: &str,
+        query: &str,
+    ) -> Result<Option<SearchHit>> {
+        let id = crate::ids::uuid_upper(&meeting_id);
+        let candidates: Vec<(String, DocKind, f64, String)> = self.with_db(|db| {
+            if !table_exists(db, "docs")? {
+                return Ok(Vec::new());
+            }
+            let mut statement = db.prepare(
+                "SELECT text, kind, start, speaker FROM search_document_rows AS source \
+                 JOIN docs ON docs.rowid = source.doc_rowid \
+                 WHERE source.meeting_id = ?1 \
+                   AND (kind IN ('summary', 'notes') OR (kind = 'segment' AND start >= ?2 AND start < ?3)) \
+                   AND NOT EXISTS (SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1) \
+                 LIMIT 100",
+            )?;
+            let rows = statement.query_map(params![id, start, start + 120.0], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<f64>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                ))
+            })?;
+            let mut out = Vec::new();
+            for row in rows {
+                let (body, kind, start, speaker) = row?;
+                if let Some(kind) = DocKind::parse(&kind) {
+                    out.push((body, kind, start.unwrap_or(0.0), speaker.unwrap_or_default()));
+                }
+            }
+            Ok(out)
+        })?;
+        let prefix = |value: &str, count: usize| value.chars().take(count).collect::<String>();
+        let body = text.strip_prefix(NOTES_CHUNK_MARKER).unwrap_or(text);
+        let opening = prefix(body, 100);
+        let fragments: Vec<String> = text
+            .split('\n')
+            .map(|line| line.split_once(": ").map_or(line, |(_, rest)| rest))
+            .filter(|line| !line.is_empty())
+            .map(|line| prefix(line, 80))
+            .collect();
+        let summaries: Vec<_> = candidates
+            .iter()
+            .filter(|(body, kind, ..)| {
+                matches!(kind, DocKind::Summary | DocKind::Notes) && body.contains(&opening)
+            })
+            .collect();
+        let matching = if summaries.is_empty() {
+            candidates
+                .iter()
+                .filter(|(body, kind, ..)| {
+                    *kind == DocKind::Segment
+                        && fragments.iter().any(|fragment| body.contains(fragment))
+                })
+                .collect()
+        } else {
+            summaries
+        };
+        let mut hits: Vec<(usize, f64, SearchHit)> = matching
+            .into_iter()
+            .filter_map(|(body, kind, start, speaker)| {
+                let snippet = crate::screen_search::excerpt(body, query, 320)?;
+                let matched = crate::screen_search::query_match_count(&snippet, query);
+                Some((
+                    matched,
+                    *start,
+                    SearchHit {
+                        meeting_id,
+                        kind: *kind,
+                        start: (*kind == DocKind::Segment).then_some(*start),
+                        speaker: Some(speaker.clone()).filter(|s| !s.is_empty()),
+                        snippet,
+                        text: body.clone(),
+                        rank: 0.0,
+                    },
+                ))
+            })
+            .collect();
+        hits.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.total_cmp(&b.1)));
+        Ok(hits.into_iter().next().map(|(_, _, hit)| hit))
+    }
+
     /// Every meeting with a document matching all terms (Meetings list filter).
     pub fn matching_meeting_ids(&self, text: &str) -> Result<Vec<Uuid>> {
         let Some(expression) = fts_query(text, MatchMode::All) else {
@@ -768,6 +859,111 @@ mod tests {
             Some("\"what\" OR \"is\" OR \"it\"")
         );
         assert_eq!(fts_query("   ", MatchMode::All), None);
+    }
+
+    fn semantic_library() -> (tempfile::TempDir, Library, Meeting) {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(crate::LibraryPaths::new(dir.path())).unwrap();
+        let meeting = library
+            .create_meeting("Design review", "Zoom", crate::time::now_seconds())
+            .unwrap();
+        let segment = |start: f64, text: &str| Segment {
+            start,
+            end: start + 5.0,
+            speaker: "them".into(),
+            text: text.into(),
+            confidence: None,
+            timing_precision: None,
+            attribution: None,
+        };
+        library
+            .save_transcript(
+                &meeting,
+                &Transcript {
+                    segments: vec![
+                        segment(10.0, "We should keep the launch small."),
+                        segment(20.0, "Pricing stays the same until spring."),
+                        segment(400.0, "Pricing comes back in the next call."),
+                    ],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        library
+            .save_summary(
+                &meeting,
+                "We agreed to keep the launch small.\n\nNo new pricing.",
+            )
+            .unwrap();
+        library
+            .save_notes(&meeting, "Remember the launch list")
+            .unwrap();
+        library.reindex_meeting(&meeting).unwrap();
+        (dir, library, meeting)
+    }
+
+    #[test]
+    fn a_meaning_match_finds_the_transcript_rows_it_covers() {
+        let (_dir, library, meeting) = semantic_library();
+        // A transcript chunk: "speaker: text" lines, starting at the first row.
+        let chunk =
+            "them: We should keep the launch small.\nthem: Pricing stays the same until spring.";
+        let hit = library
+            .semantic_passage(meeting.id, 10.0, chunk, "pricing")
+            .unwrap()
+            .unwrap();
+        assert_eq!(hit.kind, DocKind::Segment);
+        // The row with the query's word, of the two the chunk covers.
+        assert_eq!(hit.start, Some(20.0));
+        assert!(hit.snippet.contains("Pricing stays"), "{}", hit.snippet);
+        assert_eq!(hit.meeting_id, meeting.id);
+    }
+
+    #[test]
+    fn a_meaning_match_on_a_summary_or_notes_shows_that_passage() {
+        let (_dir, library, meeting) = semantic_library();
+        let hit = library
+            .semantic_passage(
+                meeting.id,
+                0.0,
+                "We agreed to keep the launch small.",
+                "launch",
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(hit.kind, DocKind::Summary);
+        assert_eq!(hit.start, None);
+        let notes = format!("{NOTES_CHUNK_MARKER}Remember the launch list");
+        let hit = library
+            .semantic_passage(meeting.id, 0.0, &notes, "launch")
+            .unwrap()
+            .unwrap();
+        assert_eq!(hit.kind, DocKind::Notes);
+    }
+
+    #[test]
+    fn a_meaning_match_without_a_passage_or_on_a_deleted_meeting_is_dropped() {
+        let (_dir, library, meeting) = semantic_library();
+        assert!(
+            library
+                .semantic_passage(meeting.id, 10.0, "them: something never said", "x")
+                .unwrap()
+                .is_none()
+        );
+        let text = "We agreed to keep the launch small.";
+        assert!(
+            library
+                .semantic_passage(meeting.id, 0.0, text, "launch")
+                .unwrap()
+                .is_some()
+        );
+        library.delete_meeting(&meeting).unwrap();
+        assert!(
+            library
+                .semantic_passage(meeting.id, 0.0, text, "launch")
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

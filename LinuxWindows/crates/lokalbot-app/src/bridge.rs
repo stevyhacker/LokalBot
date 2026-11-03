@@ -6,13 +6,13 @@ use std::time::{Duration, Instant};
 
 use gpui_kit::{App, Context, Entity, Global, SharedString};
 use lokalbot_engine::{
-    AskUpdate, BackgroundKind as EngineBackgroundKind, Command, DictationCommand, DictationUpdate,
-    Engine, EngineEvent, FollowUpUpdate, RecordingUpdate, Stage,
+    AskUpdate, BackgroundKind as EngineBackgroundKind, Command, CompanionCommand, DictationCommand,
+    DictationUpdate, Engine, EngineEvent, FollowUpUpdate, RecordingUpdate, SpeechCommand, Stage,
 };
 
 use crate::state::{
     AppData, AppEvent, AskStream, BackgroundItem, BackgroundKind, DictationHud, DownloadProgress,
-    FollowUpWriting, ModelStatus, ProcessingStage, RecordingState,
+    FollowUpWriting, ModelStatus, ProcessingStage, RecordingState, Section, SettingsCategory,
 };
 
 pub struct EngineHandle(pub Arc<Engine>);
@@ -35,13 +35,18 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) -> anyhow::Result<()> {
     let engine = Engine::start(library, settings, move |event| {
         let _ = sender.send_blocking(event);
     })?;
+    // Only the app itself shares with phones and tablets.
+    engine.send(Command::Companion(CompanionCommand::Enable));
     cx.set_global(EngineHandle(Arc::new(engine)));
+    cx.observe(data, |data, cx| stop_reading_off_page(&data, cx))
+        .detach();
     let data = data.clone();
     cx.spawn(async move |cx| {
         while let Ok(event) = receiver.recv().await {
             cx.update(|cx| {
                 data.update(cx, |data, cx| apply(data, event, cx));
                 crate::hud::sync(cx);
+                crate::desktop::sync_dictation_cancel_keys(cx);
             });
         }
     })
@@ -49,10 +54,29 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Reading aloud ends when the page it belongs to is left, as on macOS.
+fn stop_reading_off_page(data: &Entity<AppData>, cx: &mut App) {
+    let data = data.read(cx);
+    let Some(key) = data.speech.reading.as_deref() else {
+        return;
+    };
+    let stays = if key.starts_with("meeting:") {
+        data.section == Section::Meetings
+    } else if key.starts_with("answer:") {
+        data.section == Section::Ask
+    } else {
+        data.section == Section::Settings && data.settings_category == SettingsCategory::Models
+    };
+    if !stays {
+        send(Command::Speech(SpeechCommand::Stop), cx);
+    }
+}
+
 /// Turns a page request into an engine command. Returns false for requests
 /// the app handles itself.
 pub fn handle_request(event: &AppEvent, cx: &mut App) -> bool {
     let command = match event {
+        AppEvent::LearnSpeakerVoices => Command::LearnSpeakerVoices,
         AppEvent::StartRecording => Command::StartRecording {
             title: None,
             app_name: None,
@@ -72,16 +96,23 @@ pub fn handle_request(event: &AppEvent, cx: &mut App) -> bool {
             conversation_id,
             question,
             scope,
+            retry_of,
         } => Command::Ask {
             conversation_id: *conversation_id,
             question: question.clone(),
+            retry_of: *retry_of,
             scope: lokalbot_engine::AskScope {
                 meeting_ids: scope.meeting_ids.clone(),
                 include_meetings: scope.include_meetings,
                 include_activity: scope.include_activity,
                 include_screen: scope.include_screen,
+                include_files: scope.include_files,
+                screen_ids: scope.screen_ids.clone(),
+                attached_screens: scope.attached_screens,
+                screen_app: scope.screen_app.clone(),
                 since: scope.since,
                 until: scope.until,
+                saved: scope.saved.clone(),
             },
         },
         AppEvent::StopAnswer => Command::StopAnswer,
@@ -93,7 +124,7 @@ pub fn handle_request(event: &AppEvent, cx: &mut App) -> bool {
         AppEvent::WriteProjectNote(id) => Command::WriteProjectNote(id.clone()),
         AppEvent::WriteFollowUp(meeting_id) => Command::WriteFollowUp(*meeting_id),
         AppEvent::LivePreview(command) => Command::LivePreview(*command),
-        AppEvent::ToggleDictation => Command::Dictation(DictationCommand::Toggle),
+        AppEvent::ToggleDictation => Command::Dictation(DictationCommand::ToggleRehearsal),
         AppEvent::CancelDictation => Command::Dictation(DictationCommand::Cancel),
         AppEvent::CaptureScreenNow => Command::CaptureScreenNow,
         AppEvent::RecordCalendarEvent(event) => Command::RecordCalendarEvent(event.clone()),
@@ -103,6 +134,11 @@ pub fn handle_request(event: &AppEvent, cx: &mut App) -> bool {
             event: event.clone(),
             generate: *generate,
         },
+        AppEvent::RunRoutine(kind) => Command::RunRoutine(*kind),
+        AppEvent::RunRetentionNow => Command::RunRetentionNow,
+        AppEvent::RestartMemoryCapture => Command::RestartMemoryCapture,
+        AppEvent::ReviewNow => Command::ReviewNow,
+        AppEvent::ClearWorkMemory => Command::ClearWorkMemory,
         AppEvent::SettingsChanged => {
             let settings = AppData::global(cx).read(cx).settings.clone();
             Command::UpdateSettings(Box::new(settings))
@@ -127,6 +163,7 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                     mic_level: 0.0,
                     system_level: 0.0,
                 };
+                data.last_audio_recovery = None;
                 data.recording_statuses = Some((
                     "Waiting for audio".into(),
                     if has_system_audio {
@@ -142,8 +179,12 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 system,
                 mic_status,
                 system_status,
+                last_recovery,
                 ..
             } => {
+                if last_recovery.is_some() {
+                    data.last_audio_recovery = last_recovery;
+                }
                 if let RecordingState::Recording {
                     mic_level,
                     system_level,
@@ -155,20 +196,28 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 }
                 data.recording_statuses = Some((mic_status.into(), system_status.into()));
             }
-            RecordingUpdate::Stopped { warnings, .. } => {
-                if let RecordingState::Recording {
-                    meeting, started, ..
-                } = &data.recording
-                {
-                    let minutes = (started.elapsed().as_secs_f64() / 60.0).round().max(1.0) as u64;
-                    crate::desktop::notify_recording_saved(meeting.display_title(), minutes);
+            RecordingUpdate::Stopped {
+                warnings, saved, ..
+            } => {
+                if let Some(saved) = saved {
+                    crate::desktop::notify_recording_saved(saved);
                 }
                 data.recording = RecordingState::Idle;
                 data.recording_statuses = None;
+                data.capture_warnings.clear();
                 if let Some(first) = warnings.first() {
                     data.show_error(first.clone(), cx);
                 }
                 data.reload(cx);
+            }
+            RecordingUpdate::CaptureWarnings { warnings, notify } => {
+                data.capture_warnings = warnings
+                    .iter()
+                    .map(|warning| lokalbot_i18n::tr(warning).to_string().into())
+                    .collect();
+                for message in notify {
+                    crate::desktop::notify_capture_needs_attention(message);
+                }
             }
             RecordingUpdate::Failed { message } => {
                 data.recording = RecordingState::Idle;
@@ -180,7 +229,17 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 data.processing.insert(meeting_id, convert_stage(stage));
             }
             None => {
-                data.processing.remove(&meeting_id);
+                let summarized = matches!(
+                    data.processing.remove(&meeting_id),
+                    Some(ProcessingStage::Summarizing)
+                );
+                // The sample's notes don't count toward asking for a GitHub star.
+                if summarized
+                    && !data.settings.github_star_summary_completed
+                    && data.meeting(meeting_id).is_some_and(|m| !m.is_sample())
+                {
+                    data.update_settings(|s| s.github_star_summary_completed = true, cx);
+                }
             }
         },
         EngineEvent::LibraryChanged => data.reload(cx),
@@ -228,6 +287,14 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
             if update.finished {
                 data.downloads.remove(&update.id);
                 data.sample_models_changed(cx);
+            } else if update
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("cancelled"))
+            {
+                // Cancelling is not a failure, and nothing is left running.
+                data.downloads.remove(&update.id);
+                data.cancelled_downloads.push(update.id);
             } else if let Some(error) = update.error {
                 data.downloads.insert(
                     update.id,
@@ -256,6 +323,7 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 autocomplete_ready: status.autocomplete_ready,
                 embeddings_ready: status.embeddings_ready,
                 screen_text_ready: status.screen_text_ready,
+                screen_text: status.screen_text,
                 runtime_backend: status.runtime_backend.map(SharedString::from),
                 runtime_needs_check: status.runtime_needs_check,
                 runtime_storage: status.runtime_storage,
@@ -301,8 +369,39 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
         }
         EngineEvent::Autocomplete(update) => crate::autocomplete::engine_update(update, cx),
         EngineEvent::LivePreview(preview) => data.live_preview = preview,
+        EngineEvent::Speech(status) => {
+            // Answers and the voice sample show their own failure in place.
+            if status.error != data.speech.error
+                && let Some((key, message)) = &status.error
+                && !key.starts_with("answer:")
+                && key != "sample"
+            {
+                data.show_error(lokalbot_i18n::tr(message).to_string(), cx);
+            }
+            data.speech = status;
+        }
+        EngineEvent::ModelChecks(status) => data.model_checks = status,
+        EngineEvent::ConnectionCheck(check) => data.connection_check = check,
         EngineEvent::Screen(status) => data.screen = status,
+        EngineEvent::ScreenText(status) => {
+            data.models.screen_text_ready = status.is_ready();
+            data.models.screen_text = status;
+        }
+        EngineEvent::Routines(status) => data.routines = *status,
+        EngineEvent::Dream(status) => data.dream = *status,
+        EngineEvent::Retention(status) => data.retention = status,
         EngineEvent::Calendar(snapshot) => data.calendar = snapshot,
+        EngineEvent::Companion(snapshot) => {
+            let before = std::mem::replace(&mut data.companion, *snapshot);
+            if before.approval != data.companion.approval {
+                let request = data.companion.approval.clone();
+                let entity = cx.entity();
+                cx.defer(move |cx| {
+                    crate::pages::settings::pairing_prompt_changed(entity, request, cx)
+                });
+            }
+        }
+        EngineEvent::Files(status) => data.files = status,
         EngineEvent::RecentDictations(entries) => data.recent_dictations = entries,
         EngineEvent::MeetingPreparation(preparation) => {
             data.meeting_preparation = Some(preparation)
@@ -329,22 +428,60 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 } => (meeting_id, FollowUpWriting::Failed(message.into())),
             });
         }
+        EngineEvent::Selection { view, open_panel } => {
+            data.selection_actions = view;
+            if open_panel {
+                cx.defer(crate::windows::selection_actions::open);
+            }
+        }
         EngineEvent::Dictation(update) => {
+            use lokalbot_ai::dictation_preview::LiveTranscript;
             data.dictation = match update {
-                DictationUpdate::Starting => DictationHud::Starting,
+                DictationUpdate::Starting => {
+                    data.dictation_transcript = LiveTranscript::default();
+                    DictationHud::Starting
+                }
                 DictationUpdate::Listening {
                     level,
                     elapsed_seconds,
-                    ..
-                } => DictationHud::Listening {
-                    level,
-                    elapsed: elapsed_seconds,
-                },
+                    preview,
+                    microphone_live,
+                    capture_status,
+                } => {
+                    data.dictation_transcript = LiveTranscript::preview(&preview);
+                    DictationHud::Listening {
+                        level,
+                        elapsed: elapsed_seconds,
+                        microphone_live,
+                        capture_status: capture_status.into(),
+                    }
+                }
                 DictationUpdate::Transcribing => DictationHud::Transcribing,
+                DictationUpdate::Preparing { progress } => DictationHud::Preparing(progress),
+                DictationUpdate::PreparationFailed { message } => {
+                    DictationHud::PreparationFailed(message.into())
+                }
+                DictationUpdate::Spoken { text } => {
+                    data.dictation_transcript = LiveTranscript::final_text(&text);
+                    return cx.notify();
+                }
                 DictationUpdate::Composing => DictationHud::Composing,
-                DictationUpdate::Finished { text, notice, .. } => {
+                DictationUpdate::Finished {
+                    text,
+                    notice,
+                    spoken,
+                    engine,
+                    context,
+                    ..
+                } => {
+                    data.last_dictation_details = Some(crate::state::LastDictationDetails {
+                        spoken: (spoken != text).then(|| spoken.into()),
+                        context: context.map(Into::into),
+                        engine: Some(engine.into()),
+                    });
                     data.last_dictation = Some(text.into());
                     schedule_hud_dismiss(
+                        data,
                         cx,
                         Duration::from_millis(if notice.is_some() { 2600 } else { 0 }),
                     );
@@ -353,8 +490,17 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                         None => DictationHud::Idle,
                     }
                 }
+                DictationUpdate::DeliveryNotice { copied } => {
+                    // Lasts long enough to act on; goes soon after Copy.
+                    schedule_hud_dismiss(
+                        data,
+                        cx,
+                        Duration::from_secs(if copied { 2 } else { 12 }),
+                    );
+                    DictationHud::Undelivered { copied }
+                }
                 DictationUpdate::Failed { message } => {
-                    schedule_hud_dismiss(cx, Duration::from_secs(4));
+                    schedule_hud_dismiss(data, cx, Duration::from_secs(4));
                     DictationHud::Failed(message.into())
                 }
                 DictationUpdate::Cancelled => DictationHud::Idle,
@@ -364,14 +510,20 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
     cx.notify();
 }
 
-fn schedule_hud_dismiss(cx: &mut Context<AppData>, after: Duration) {
+fn schedule_hud_dismiss(data: &mut AppData, cx: &mut Context<AppData>, after: Duration) {
+    data.dictation_notice_serial += 1;
+    let serial = data.dictation_notice_serial;
     cx.spawn(async move |this, cx| {
         smol::Timer::after(after).await;
         let _ = this.update(cx, |data, cx| {
-            if matches!(
-                data.dictation,
-                DictationHud::Notice(_) | DictationHud::Failed(_)
-            ) {
+            if data.dictation_notice_serial == serial
+                && matches!(
+                    data.dictation,
+                    DictationHud::Notice(_)
+                        | DictationHud::Undelivered { .. }
+                        | DictationHud::Failed(_)
+                )
+            {
                 data.dictation = DictationHud::Idle;
                 cx.notify();
             }

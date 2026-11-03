@@ -1,5 +1,4 @@
-//! Meetings: detection, processing, summaries and speakers. Per-meeting note
-//! export is not implemented on Linux and Windows, so its rows are not shown.
+//! Meetings: detection, processing, summaries, speakers and note export.
 
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
@@ -163,7 +162,7 @@ impl SettingsPage {
                 self.toggle(
                     "settings.recordSystemAudio",
                     lokalbot_i18n::tr("Record system audio"),
-                    Some(lokalbot_i18n::tr("Records the other side of calls from your speakers or headset. Without it, only your microphone is recorded.")),
+                    Some(lokalbot_i18n::tr("Records the other side of calls from the meeting app when this computer can separate its sound, otherwise everything it plays. Without it, only your microphone is recorded. Separating an app's sound needs Windows 10 build 20348 or later, or PulseAudio or PipeWire on Linux.")),
                     settings.record_system_audio,
                     |s, v| s.record_system_audio = v,
                     cx,
@@ -303,10 +302,101 @@ impl SettingsPage {
                     |s, v| s.microphone_is_user = v,
                     cx,
                 ),
+            )
+            .row(
+                "settings.rememberSpeakers",
+                settings_row::row(
+                    "settings.rememberSpeakers",
+                    lokalbot_i18n::tr("Remembered people"),
+                    Some(
+                        if settings.multi_speaker_diarization {
+                            lokalbot_i18n::tr("When you name a speaker, LokalBot remembers their voice in an encrypted profile on this computer and suggests their name in later meetings. You apply each suggestion, and suggestions never train profiles.")
+                        } else {
+                            lokalbot_i18n::tr("Turn on “Separate voices by speaker” to collect the voice samples remembering needs.")
+                        }
+                        .into(),
+                    ),
+                    Button::new("settings-remembered-people")
+                        .outline()
+                        .small()
+                        .label(lokalbot_i18n::tr("Manage remembered people…"))
+                        .on_click({
+                            let data = data_entity.clone();
+                            move |_, window, cx| {
+                                super::remembered_people::RememberedPeople::open(
+                                    data.clone(),
+                                    window,
+                                    cx,
+                                );
+                            }
+                        }),
+                    self.is_focused("settings.rememberSpeakers"),
+                    cx,
+                ),
             );
 
+        let echo = Section::new(lokalbot_i18n::tr("Speakers and echo")).row(
+            "settings.echoCancellation",
+            self.toggle(
+                "settings.echoCancellation",
+                lokalbot_i18n::tr("Remove the other side from your microphone track"),
+                Some(lokalbot_i18n::tr("Use on speakers, where the other side reaches your microphone and would be transcribed twice. Also cleans meetings already recorded.")),
+                settings.echo_cancellation,
+                |s, v| s.echo_cancellation = v,
+                cx,
+            ),
+        );
+
+        let mut on_screen = Section::new(lokalbot_i18n::tr("Screen context in meetings")).row(
+            "settings.meetingNotesUseScreenTitles",
+            self.toggle(
+                "settings.meetingNotesUseScreenTitles",
+                lokalbot_i18n::tr("Give notes the titles of documents on screen"),
+                Some(lokalbot_i18n::tr("Adds titles of documents and pages captured during the call, never their captured text. Requires screen context in Settings → Day Memory.")),
+                settings.meeting_notes_use_screen_titles,
+                |s, v| s.meeting_notes_use_screen_titles = v,
+                cx,
+            ),
+        );
+        if settings.screen_context_capture_mode == lokalbot_core::ScreenContextMode::TextAndVisual {
+            on_screen = on_screen.row(
+                "settings.meetingVisualContextEnabled",
+                self.toggle(
+                    "settings.meetingVisualContextEnabled",
+                    lokalbot_i18n::tr("Capture low-frequency visual context during meetings"),
+                    Some(lokalbot_i18n::tr("Off by default. Captures the window in front at most once a minute on meaningful changes and links each frame to the meeting.")),
+                    settings.meeting_visual_context_enabled,
+                    |s, v| s.meeting_visual_context_enabled = v,
+                    cx,
+                ),
+            );
+        }
+        if settings.screen_context_capture_mode != lokalbot_core::ScreenContextMode::ActivityOnly {
+            on_screen = on_screen.row(
+                "settings.suggestActionCompletion",
+                self.toggle(
+                    "settings.suggestActionCompletion",
+                    lokalbot_i18n::tr("Suggest actions that look done"),
+                    Some(lokalbot_i18n::tr("When later captured text shows an action's words with a completion such as “message sent” or “merged”, the action offers Mark Done. Nothing changes until you confirm.")),
+                    settings.suggest_action_completion,
+                    |s, v| s.suggest_action_completion = v,
+                    cx,
+                ),
+            );
+        }
+
         let calendar = self.calendar_section(cx);
-        vec![meetings, calendar, processing, summarization, speakers]
+        let note_export = self.meeting_note_export_section(cx);
+        vec![
+            meetings,
+            calendar,
+            processing,
+            summarization,
+            speakers,
+            note_export,
+            echo,
+            on_screen,
+        ]
     }
 }
 

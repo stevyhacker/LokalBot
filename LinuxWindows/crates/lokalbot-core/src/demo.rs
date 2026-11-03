@@ -1254,6 +1254,9 @@ pub fn seed(paths: &LibraryPaths, now: DateTime<Utc>) -> Result<()> {
     }
     fs::create_dir_all(root)?;
     fs::write(root.join(DEMO_MARKER), "LokalBot synthetic demo library\n")?;
+    // Only this, so everything else keeps following the app's defaults: the
+    // setup wizard would cover the library this exists to show.
+    fs::write(paths.settings_file(), r#"{"onboardingCompleted":true}"#)?;
 
     let library = Library::open(paths.clone())?;
     let clock = Clock::new(now);
@@ -1508,10 +1511,9 @@ fn seed_chats(library: &Library, clock: &Clock, shot_ids: &[i64]) -> Result<()> 
         |id: u128, role: ChatRole, text: String, activity: Vec<ChatActivity>, at: DateTime<Utc>| {
             ChatMessage {
                 id: Uuid::from_u128(id),
-                role,
-                text,
                 activity,
                 created_at: Some(whole_seconds(at)),
+                ..ChatMessage::new(role, text)
             }
         };
     let tool = |id: u128, tool: &str, icon: &str, text: &str| ChatActivity {
@@ -1647,7 +1649,7 @@ fn seed_chats(library: &Library, clock: &Clock, shot_ids: &[i64]) -> Result<()> 
         },
     ];
     for conversation in &conversations {
-        library.save_conversation(conversation)?;
+        library.write_plaintext_conversation(conversation)?;
     }
     Ok(())
 }
@@ -1947,6 +1949,21 @@ mod tests {
         let library = Library::open(paths).unwrap();
         assert_eq!(library.list_meetings().unwrap().len(), 17);
         assert_eq!(library.conversations().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn the_demo_library_opens_without_the_setup_wizard() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = LibraryPaths::new(dir.path().join("lib"));
+        seed(&paths, Utc::now()).unwrap();
+        let settings = crate::Settings::load(&paths.settings_file());
+        assert!(settings.onboarding_completed);
+        // Nothing else was chosen for the person.
+        let defaults = crate::Settings {
+            onboarding_completed: true,
+            ..crate::Settings::default()
+        };
+        assert_eq!(settings, defaults);
     }
 
     #[test]

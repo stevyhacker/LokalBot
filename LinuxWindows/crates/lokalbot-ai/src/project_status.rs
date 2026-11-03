@@ -54,8 +54,7 @@ pub struct Evidence {
     pub meetings: Vec<MeetingEvidence>,
     /// Open actions from meetings older than the ones listed, sorted.
     pub other_actions: Vec<String>,
-    /// Overnight review notes; there is no overnight review on this platform
-    /// yet, so this stays empty unless a caller supplies them.
+    /// The overnight review's notes on this project.
     pub review_notes: Vec<String>,
 }
 
@@ -126,7 +125,16 @@ pub fn evidence(project: &ProjectProfile) -> Evidence {
         other_names: project.other_names.clone(),
         meetings,
         other_actions,
-        review_notes: Vec::new(),
+        review_notes: project
+            .review_notes
+            .iter()
+            .map(|note| {
+                format!(
+                    "{} (last active {}): {}",
+                    note.name, note.last_active_day, note.status
+                )
+            })
+            .collect(),
     }
 }
 

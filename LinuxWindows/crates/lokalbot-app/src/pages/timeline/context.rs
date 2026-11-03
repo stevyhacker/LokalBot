@@ -82,6 +82,12 @@ impl TimelinePage {
             Some(Selection::Moment(id)) => {
                 Some(self.render_moment(model.moments.iter().find(|m| m.id == *id), drawer, cx))
             }
+            Some(Selection::Block(id)) => model
+                .activity
+                .blocks
+                .iter()
+                .find(|b| b.id == *id)
+                .map(|block| self.render_block(model, block, drawer, cx)),
             None => None,
         };
         let content = content.unwrap_or_else(|| {
@@ -113,6 +119,13 @@ impl TimelinePage {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
+        let back_label = match self.selection_trail.last() {
+            Some(Selection::Session(_)) => lokalbot_i18n::tr("Work session"),
+            Some(Selection::RawCapture) => lokalbot_i18n::tr("Raw capture"),
+            Some(Selection::Block(_)) => lokalbot_i18n::tr("Activity"),
+            Some(Selection::Meeting(_)) => lokalbot_i18n::tr("Meeting"),
+            _ => lokalbot_i18n::tr("Day"),
+        };
         v_flex()
             .gap(px(10.))
             .child(
@@ -128,8 +141,8 @@ impl TimelinePage {
                             .text_color(lb.accent_text)
                             .hover(|s| s.underline())
                             .child(ui::icon(Ico::ChevronLeft, px(14.), lb.accent_text))
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Day")))
-                            .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
+                            .child(crate::ui::text::paragraph(back_label))
+                            .on_click(cx.listener(|this, _, _, cx| this.go_back(cx))),
                     )
                     .child(div().flex_1())
                     .when(drawer, |this| {
@@ -206,12 +219,20 @@ impl TimelinePage {
                 ),
             ],
         );
-        let moments: Vec<_> = model
+        let agent_work = self
+            .render_agent_work(&session.agent_bursts, cx)
+            .map(|work| context_section(Ico::Terminal, lokalbot_i18n::tr("Agent work"), work, cx));
+        let moments: Vec<&lokalbot_core::ScreenMoment> = model
             .moments
             .iter()
             .filter(|m| m.ts >= session.start && m.ts <= session.end)
             .collect();
-        let representative: Vec<_> = moments.iter().take(3).collect();
+        let scenes = Self::session_scenes(model, session);
+        let representative = lokalbot_core::timeline::representative(&scenes, 3);
+        let representative_rows: Vec<AnyElement> = representative
+            .iter()
+            .map(|moment| self.moment_row(("session-moment", moment.id as u64), moment, true, cx))
+            .collect();
         let evidence = v_flex()
             .gap(px(9.))
             .when(representative.is_empty(), |this| {
@@ -222,41 +243,12 @@ impl TimelinePage {
                         .child(crate::ui::text::paragraph(lokalbot_i18n::tr("No context moments were captured during this session."))),
                 )
             })
-            .children(representative.iter().map(|moment| {
-                let title = if !moment.document_name.is_empty() {
-                    moment.document_name.clone()
-                } else if !moment.window_title.is_empty() {
-                    moment.window_title.clone()
-                } else {
-                    moment.app.clone()
-                };
-                let id = moment.id;
-                h_flex()
-                    .id(("session-moment", id as u64))
-                    .gap(px(10.))
-                    .items_center()
-                    .cursor_pointer()
-                    .rounded(metric::ROW_RADIUS)
-                    .hover(|s| s.bg(lb.hover))
-                    .on_click(cx.listener(move |this, _, _, cx| this.select(Some(Selection::Moment(id)), cx)))
-                    .child(ui::icon_tile(Ico::ScanText, lb.app_color(&moment.app), px(32.)))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(2.))
-                            .child(div().truncate().text_size(ty::BODY).text_color(lb.text).child(title))
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(format!("{} · {}", moment.app, lokalbot_core::time::clock_time(moment.ts))),
-                            ),
-                    )
-            }))
-            .when(moments.len() > representative.len(), |this| {
-                this.child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::format("Showing {0} representative scenes from {1}. Browse raw capture for every scene.", &[("0", format!("{}", representative.len())), ("1", format!("{}", moments.len()))]))))
+            .children(representative_rows)
+            .when(scenes.len() > representative.len(), |this| {
+                this.child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::format("Showing {0} representative scenes from {1}. Browse raw capture for every scene.", &[("0", format!("{}", representative.len())), ("1", format!("{}", scenes.len()))]))))
             });
+        let browser =
+            (!moments.is_empty()).then(|| self.render_moment_browser(&moments, scenes.len(), cx));
 
         // Window titles with the blocks behind them, most observed first.
         let blocks: Vec<&lokalbot_core::ActivityBlock> = model
@@ -434,6 +426,8 @@ impl TimelinePage {
                 )
             });
         let title = session.title.clone();
+        let session_moments: Vec<lokalbot_core::ScreenMoment> =
+            moments.iter().map(|moment| (*moment).clone()).collect();
         v_flex()
             .gap(px(16.))
             .child(self.panel_header(
@@ -443,12 +437,14 @@ impl TimelinePage {
                 drawer,
                 cx,
             ))
+            .children(agent_work)
             .child(context_section(
                 Ico::ScanText,
                 lokalbot_i18n::tr("Representative evidence"),
                 evidence,
                 cx,
             ))
+            .children(browser)
             .children(documents)
             .child(details)
             .child(
@@ -459,12 +455,12 @@ impl TimelinePage {
                         lokalbot_i18n::tr("Ask about this session"),
                     )
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.ask_day(
+                        this.ask_session(
                             lokalbot_i18n::format(
                                 "What matters from my work session on {title}?",
                                 &[("title", title.to_string())],
                             ),
-                            Vec::new(),
+                            session_moments.clone(),
                             cx,
                         )
                     })),
@@ -481,165 +477,27 @@ impl TimelinePage {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
-        let mut hours: Vec<(String, Vec<&lokalbot_core::ActivityBlock>)> = Vec::new();
-        for block in &model.activity.blocks {
-            let hour = block
-                .start
-                .with_timezone(&chrono::Local)
-                .format_localized(
-                    lokalbot_i18n::date_pattern("%-I:00 %p"),
-                    lokalbot_i18n::date_locale(),
-                )
-                .to_string();
-            match hours.last_mut() {
-                Some((label, blocks)) if *label == hour => blocks.push(block),
-                _ => hours.push((hour, vec![block])),
-            }
-        }
         let empty = model.activity.blocks.is_empty() && model.moments.is_empty();
-        let activity = (!model.activity.blocks.is_empty()).then(|| {
+        let has_track = !model.activity.blocks.is_empty() || !model.meetings.is_empty();
+        let track = has_track.then(|| self.render_track(model, cx));
+        let activity = track.map(|track| {
             context_section(
                 Ico::ChartGantt,
                 lokalbot_i18n::tr("App activity"),
-                v_flex()
-                    .gap(px(12.))
-                    .children(hours.into_iter().map(|(hour, blocks)| {
-                        h_flex()
-                            .items_start()
-                            .gap(px(10.))
-                            .child(
-                                div()
-                                    .w(px(64.))
-                                    .flex_none()
-                                    .pt(px(2.))
-                                    .text_size(ty::CAPTION)
-                                    .text_color(lb.text_secondary)
-                                    .child(hour),
-                            )
-                            .child(v_flex().flex_1().min_w_0().gap(px(6.)).children(
-                                blocks.into_iter().map(|block| {
-                                    let color = lb.app_color(&block.app);
-                                    let title = if block.title.trim().is_empty() {
-                                        block.app.clone()
-                                    } else {
-                                        block.title.clone()
-                                    };
-                                    h_flex()
-                                        .gap(px(8.))
-                                        .items_start()
-                                        .child(
-                                            div()
-                                                .w(px(4.))
-                                                .h(px(34.))
-                                                .flex_none()
-                                                .rounded(px(2.))
-                                                .bg(color.opacity(0.85)),
-                                        )
-                                        .child(
-                                            v_flex()
-                                                .flex_1()
-                                                .min_w_0()
-                                                .gap(px(2.))
-                                                .child(
-                                                    div()
-                                                        .truncate()
-                                                        .text_size(ty::BODY)
-                                                        .text_color(lb.text)
-                                                        .child(title),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .truncate()
-                                                        .text_size(ty::CAPTION)
-                                                        .text_color(lb.text_secondary)
-                                                        .child(format!(
-                                                            "{} · {}–{} · {}",
-                                                            block.app,
-                                                            lokalbot_core::time::clock_time(
-                                                                block.start
-                                                            ),
-                                                            lokalbot_core::time::clock_time(
-                                                                block.end
-                                                            ),
-                                                            crate::pages::today::digest::hm(
-                                                                block.duration_seconds()
-                                                            )
-                                                        )),
-                                                ),
-                                        )
-                                }),
-                            ))
-                    })),
+                track,
                 cx,
             )
         });
+        let moment_rows: Vec<AnyElement> = model
+            .moments
+            .iter()
+            .map(|moment| self.moment_row(("raw-moment", moment.id as u64), moment, true, cx))
+            .collect();
         let moments = (!model.moments.is_empty()).then(|| {
             context_section(
                 Ico::ScanText,
                 lokalbot_i18n::tr("Screen moments"),
-                v_flex()
-                    .gap(px(9.))
-                    .children(model.moments.iter().map(|moment| {
-                        let title = if !moment.document_name.is_empty() {
-                            moment.document_name.clone()
-                        } else if !moment.window_title.is_empty() {
-                            moment.window_title.clone()
-                        } else {
-                            moment.app.clone()
-                        };
-                        let id = moment.id;
-                        h_flex()
-                            .id(("raw-moment", id as u64))
-                            .gap(px(10.))
-                            .items_center()
-                            .cursor_pointer()
-                            .rounded(metric::ROW_RADIUS)
-                            .hover(|s| s.bg(lb.hover))
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.select(Some(Selection::Moment(id)), cx)
-                            }))
-                            .child(ui::icon_tile(
-                                if moment.path.is_empty() {
-                                    Ico::ScanText
-                                } else {
-                                    Ico::Camera
-                                },
-                                lb.app_color(&moment.app),
-                                px(28.),
-                            ))
-                            .child(
-                                v_flex()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .gap(px(2.))
-                                    .child(
-                                        div()
-                                            .truncate()
-                                            .text_size(ty::BODY)
-                                            .text_color(lb.text)
-                                            .child(title),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_size(ty::CAPTION)
-                                            .text_color(lb.text_secondary)
-                                            .child(format!(
-                                                "{} · {}",
-                                                moment.app,
-                                                moment
-                                                    .ts
-                                                    .with_timezone(&chrono::Local)
-                                                    .format_localized(
-                                                        lokalbot_i18n::date_pattern("%-I:%M:%S %p"),
-                                                        lokalbot_i18n::date_locale()
-                                                    )
-                                            )),
-                                    ),
-                            )
-                            .when(moment.is_saved, |this| {
-                                this.child(ui::icon(Ico::Bookmark, px(14.), lb.attention_text))
-                            })
-                    })),
+                v_flex().gap(px(9.)).children(moment_rows),
                 cx,
             )
         });
@@ -647,6 +505,7 @@ impl TimelinePage {
             .gap(px(16.))
             .child(self.panel_header(Ico::Activity, lokalbot_i18n::tr("Raw capture").into(), capture_counts(model), drawer, cx))
             .child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Individual app activity and retained screen moments. Use this for exact evidence or cleanup."))))
+            .children(self.render_range_deletion(&model.moments, cx))
             .when(empty, |this| {
                 this.child(ui::empty_state(
                     Ico::Activity,

@@ -66,13 +66,13 @@ impl InteractionMonitor {
 }
 
 #[cfg(windows)]
-struct ClipboardWatch {
+pub(crate) struct ClipboardWatch {
     sequence: u32,
 }
 
 #[cfg(windows)]
 impl ClipboardWatch {
-    fn new() -> Option<Self> {
+    pub(crate) fn new() -> Option<Self> {
         Some(Self {
             sequence: Self::current(),
         })
@@ -83,7 +83,7 @@ impl ClipboardWatch {
         unsafe { windows::Win32::System::DataExchange::GetClipboardSequenceNumber() }
     }
 
-    fn changed(&mut self) -> bool {
+    pub(crate) fn changed(&mut self) -> bool {
         let current = Self::current();
         let changed = current != 0 && current != self.sequence;
         self.sequence = current;
@@ -94,13 +94,13 @@ impl ClipboardWatch {
 /// X11: XFixes reports every new owner of the CLIPBOARD selection; the
 /// events are drained without reading the selection itself.
 #[cfg(target_os = "linux")]
-struct ClipboardWatch {
+pub(crate) struct ClipboardWatch {
     conn: x11rb::rust_connection::RustConnection,
 }
 
 #[cfg(target_os = "linux")]
 impl ClipboardWatch {
-    fn new() -> Option<Self> {
+    pub(crate) fn new() -> Option<Self> {
         use x11rb::connection::Connection as _;
         use x11rb::protocol::xfixes::{ConnectionExt as _, SelectionEventMask};
         use x11rb::protocol::xproto::ConnectionExt as _;
@@ -127,7 +127,7 @@ impl ClipboardWatch {
         Some(Self { conn })
     }
 
-    fn changed(&mut self) -> bool {
+    pub(crate) fn changed(&mut self) -> bool {
         use x11rb::connection::Connection as _;
         use x11rb::protocol::Event;
 
@@ -142,15 +142,15 @@ impl ClipboardWatch {
 }
 
 #[cfg(not(any(windows, target_os = "linux")))]
-struct ClipboardWatch;
+pub(crate) struct ClipboardWatch;
 
 #[cfg(not(any(windows, target_os = "linux")))]
 impl ClipboardWatch {
-    fn new() -> Option<Self> {
+    pub(crate) fn new() -> Option<Self> {
         None
     }
 
-    fn changed(&mut self) -> bool {
+    pub(crate) fn changed(&mut self) -> bool {
         false
     }
 }

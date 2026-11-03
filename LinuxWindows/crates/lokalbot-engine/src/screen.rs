@@ -41,6 +41,8 @@ use crate::{EngineEvent, ScreenStatus, Shared};
 
 /// Minimum time between event-driven captures (`ScreenCapturePolicy.eventCooldown`).
 const EVENT_COOLDOWN: Duration = Duration::from_secs(20);
+/// Frames during a meeting come at most once a minute.
+const MEETING_CAPTURE_COOLDOWN: Duration = Duration::from_secs(60);
 /// Inactivity after which nothing is captured.
 const IDLE_LIMIT_SECONDS: f64 = 180.0;
 /// The first capture after screen context turns on.
@@ -121,6 +123,11 @@ fn idle_interval(settings: &Settings) -> Duration {
     Duration::from_secs_f64((settings.screenshot_interval_minutes * 60.0).max(60.0))
 }
 
+fn captures_pixels(settings: &Settings) -> bool {
+    settings.tracking_enabled
+        && settings.screen_context_capture_mode == ScreenContextMode::TextAndVisual
+}
+
 fn captures_text(settings: &Settings) -> bool {
     settings.tracking_enabled
         && settings.screen_context_capture_mode != ScreenContextMode::ActivityOnly
@@ -134,6 +141,7 @@ struct Consent {
     mode: ScreenContextMode,
     excluded_apps: Vec<String>,
     excluded_domains: Vec<String>,
+    meeting_visual_context: bool,
 }
 
 impl Consent {
@@ -143,6 +151,7 @@ impl Consent {
             mode: settings.screen_context_capture_mode,
             excluded_apps: settings.excluded_app_list(),
             excluded_domains: settings.excluded_domain_list(),
+            meeting_visual_context: settings.meeting_visual_context_enabled,
         }
     }
 
@@ -306,6 +315,7 @@ fn encode_jpeg(frame: &CapturedImage) -> Result<Vec<u8>> {
 enum Message {
     Boundary { app_changed: bool },
     CaptureNow,
+    Restart,
     Stop,
 }
 
@@ -352,6 +362,12 @@ impl ScreenContext {
         let _ = self.sender.send(Message::CaptureNow);
     }
 
+    /// Closes the capture devices and opens them afresh on the next look, and asks
+    /// the credential store for the image key again.
+    pub(crate) fn restart(&self) {
+        let _ = self.sender.send(Message::Restart);
+    }
+
     pub(crate) fn stop(&self) {
         let _ = self.sender.send(Message::Stop);
     }
@@ -383,6 +399,8 @@ struct Worker {
     paused: Arc<AtomicBool>,
     devices: Option<Devices>,
     ocr: Option<lokalbot_ai::ocr::OcrEngine>,
+    /// What recognition could do when last looked.
+    ocr_status: Option<lokalbot_ai::ocr::OcrStatus>,
     processor: Processor,
     policy: CapturePolicy,
     last_text_fingerprint: Option<[u8; 32]>,
@@ -394,6 +412,8 @@ struct Worker {
     last_interval_tick: Instant,
     manual_until: Option<Instant>,
     last_probe: Option<Instant>,
+    /// When a frame was last kept for the meeting being recorded.
+    last_meeting_capture: Option<Instant>,
 }
 
 impl Worker {
@@ -403,6 +423,7 @@ impl Worker {
             paused,
             devices: None,
             ocr: None,
+            ocr_status: None,
             processor: Processor::default(),
             policy: CapturePolicy::default(),
             last_text_fingerprint: None,
@@ -414,6 +435,7 @@ impl Worker {
             last_interval_tick: Instant::now(),
             manual_until: None,
             last_probe: None,
+            last_meeting_capture: None,
         }
     }
 
@@ -426,6 +448,12 @@ impl Worker {
             };
             if self.shared.is_shutting_down() {
                 break;
+            }
+            if matches!(message, Some(Message::Restart)) {
+                self.release_devices();
+                self.image_key = None;
+                self.status.images_unavailable = None;
+                self.last_probe = None;
             }
             let settings = self.shared.settings();
             self.refresh(&settings);
@@ -487,6 +515,15 @@ impl Worker {
         log::debug!("screen context stopped");
     }
 
+    fn release_devices(&mut self) {
+        self.devices = None;
+        self.ocr = None;
+        self.processor = Processor::default();
+        self.last_text_fingerprint = None;
+        self.manual_until = None;
+        self.enabled_since = None;
+    }
+
     /// Opens or releases the capture devices as screen context turns on or
     /// off, and publishes the status when it changes.
     fn refresh(&mut self, settings: &Settings) {
@@ -509,12 +546,7 @@ impl Worker {
             self.enabled_since = Some(Instant::now());
             self.first_capture_done = false;
         } else if !enabled && self.devices.is_some() {
-            self.devices = None;
-            self.ocr = None;
-            self.processor = Processor::default();
-            self.last_text_fingerprint = None;
-            self.manual_until = None;
-            self.enabled_since = None;
+            self.release_devices();
         }
         // The model files and the backend's limits change rarely.
         if self
@@ -525,7 +557,12 @@ impl Worker {
             if let Some(devices) = &self.devices {
                 self.status.capture_limitation = devices.capture.limitation();
             }
-            self.status.ocr_installed = lokalbot_ai::ocr::is_installed(self.shared.library.paths());
+            let ocr = lokalbot_ai::ocr::status(self.shared.library.paths());
+            self.status.ocr_installed = ocr.is_ready();
+            if self.ocr_status.as_ref() != Some(&ocr) {
+                self.ocr_status = Some(ocr.clone());
+                self.shared.emit(EngineEvent::ScreenText(ocr));
+            }
         }
         self.status.active = enabled && !self.paused.load(Ordering::Relaxed);
         self.status.waiting_for_window = self.manual_until.is_some();
@@ -626,11 +663,21 @@ impl Worker {
         if self.paused.load(Ordering::Relaxed) {
             return Err(Skipped(Skip::Quiet("day memory is paused")));
         }
+        let recording = self.shared.recording_active.load(Ordering::Relaxed);
         if trigger != Trigger::Manual {
-            if self.shared.recording_active.load(Ordering::Relaxed) {
+            // Off by default: low-frequency frames linked to the meeting.
+            if recording && !(settings.meeting_visual_context_enabled && captures_pixels(settings))
+            {
                 return Err(Skipped(Skip::Quiet("a meeting is being recorded")));
             }
-            if self.shared.capture_active.load(Ordering::Relaxed) {
+            if recording
+                && self
+                    .last_meeting_capture
+                    .is_some_and(|last| last.elapsed() < MEETING_CAPTURE_COOLDOWN)
+            {
+                return Err(Skipped(Skip::Quiet("meeting capture cooldown")));
+            }
+            if !recording && self.shared.capture_active.load(Ordering::Relaxed) {
                 return Err(Skipped(Skip::Quiet("dictation has priority")));
             }
         }
@@ -741,7 +788,7 @@ impl Worker {
             None
         };
         let ocr_available = !privacy::has_rich_accessible_text(&accessible_text)
-            && lokalbot_ai::ocr::is_installed(self.shared.library.paths());
+            && lokalbot_ai::ocr::is_ready(self.shared.library.paths());
         let ts = Utc::now();
         let mut capture = ScreenCapture {
             ts,
@@ -751,8 +798,16 @@ impl Worker {
             source_url,
             document_name: document,
             privacy_redactions: prior_redactions as i64,
+            meeting_id: if recording {
+                *self.shared.recording_meeting.lock()
+            } else {
+                None
+            },
             ..Default::default()
         };
+        if recording {
+            self.last_meeting_capture = Some(Instant::now());
+        }
 
         if image_key.is_none() && !ocr_available {
             // Accessibility text only (`storeTextContext`).
@@ -782,6 +837,9 @@ impl Worker {
                 .library
                 .insert_screen_capture(&capture)
                 .map_err(CaptureError::Failed)?;
+            if let Some(vectors) = self.shared.screen_vectors.lock().as_ref() {
+                vectors.captures_arrived();
+            }
             self.last_text_fingerprint = Some(fingerprint);
             self.policy.note_check(now);
             return Ok(Stored {
@@ -886,6 +944,9 @@ impl Worker {
             }
             return Err(CaptureError::Failed(err));
         }
+        if let Some(vectors) = self.shared.screen_vectors.lock().as_ref() {
+            vectors.captures_arrived();
+        }
         self.processor.commit(processed.content_hash);
         self.policy.note_check(now);
         if processed.used_ocr {
@@ -922,12 +983,14 @@ impl Worker {
     }
 }
 
-/// The OCR engine, loaded on first use and kept while screen context is on.
+/// The OCR engine, loaded on first use and kept while screen context is on and
+/// this computer still calls for it.
 fn load_ocr<'a>(
     slot: &'a mut Option<lokalbot_ai::ocr::OcrEngine>,
     paths: &lokalbot_core::LibraryPaths,
 ) -> Option<&'a lokalbot_ai::ocr::OcrEngine> {
-    if slot.is_none() {
+    if slot.as_ref().is_none_or(|engine| !engine.is_current(paths)) {
+        *slot = None;
         match lokalbot_ai::ocr::OcrEngine::load(paths) {
             Ok(engine) => *slot = Some(engine),
             Err(err) => {

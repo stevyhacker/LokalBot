@@ -294,7 +294,9 @@ mod tests {
             library.sample_meeting().unwrap().map(|m| m.id),
             Some(sample.id)
         );
-        let day = lokalbot_core::time::local_day(sample.started_at);
+        // The own meeting's day: the sample starts minutes before now, which just
+        // after midnight is yesterday.
+        let day = lokalbot_core::time::local_day(own.started_at);
         assert_eq!(
             library.day_activity(day).unwrap().meeting_count,
             1,

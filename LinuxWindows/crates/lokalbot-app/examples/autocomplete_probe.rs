@@ -35,7 +35,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use gpui_kit::{App, rgb};
-use lokalbot_core::settings::AcceptGranularity;
 use lokalbot_platform::autocomplete::{
     self as platform, Capability, Edit, FieldSnapshot, FieldWatcher, FocusSnapshot, InterceptedKey,
     KeyInterceptor, ReadPolicy, Rect,
@@ -156,7 +155,10 @@ fn show(
     text: &str,
     cx: &mut App,
 ) -> Option<(Rect, String, String)> {
-    let emphasis = lokalbot_ai::autocomplete::accept_chunk(text, AcceptGranularity::Word);
+    let emphasis = lokalbot_ai::autocomplete::accept_chunk(
+        text,
+        lokalbot_ai::autocomplete::AcceptOptions::default(),
+    );
     let screen = platform::screen_containing(&field.caret);
     let reported = field
         .style
@@ -312,9 +314,11 @@ fn script(
     );
     let plan = lokalbot_ai::autocomplete::plan_acceptance(
         SUGGESTION,
-        AcceptGranularity::Word,
+        &lokalbot_ai::autocomplete::SuggestionKind::Continuation,
+        lokalbot_ai::autocomplete::AcceptScope::Chunk,
         &field.before,
         &field.after,
+        lokalbot_ai::autocomplete::AcceptOptions::default(),
     )
     .ok_or_else(|| anyhow::anyhow!("nothing to accept"))?;
     platform::insert(

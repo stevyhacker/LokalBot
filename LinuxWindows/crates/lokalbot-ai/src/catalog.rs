@@ -16,6 +16,9 @@ pub enum ModelKind {
     Text,
     /// The embedder for "Search by meaning".
     Embedding,
+    /// The embedder's image and audio projector, for Files and pictures of
+    /// saved screens. Not a model anyone picks, so it isn't in the catalog list.
+    Projector,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -42,10 +45,15 @@ pub struct ModelEntry {
     pub request_overrides: &'static [(&'static str, f64)],
     /// The model has no thinking-budget control on llama-server.
     pub no_reasoning_control: bool,
+    /// A custom entry's stored download URL; catalog models build theirs from the pin.
+    pub custom_url: Option<&'static str>,
 }
 
 impl ModelEntry {
     pub fn url(&self) -> String {
+        if let Some(url) = self.custom_url {
+            return url.to_string();
+        }
         format!(
             "https://huggingface.co/{}/resolve/{}/{}",
             self.repo, self.revision, self.file
@@ -113,6 +121,7 @@ const fn text(
         license: None,
         request_overrides: &[],
         no_reasoning_control: false,
+        custom_url: None,
     }
 }
 
@@ -334,13 +343,191 @@ static CATALOG: [ModelEntry; 15] = [
     },
 ];
 
+/// EmbeddingGemma 2's image and audio projector, the one extra file Files needs
+/// (`FileSearchModels`), from the same pinned revision as the embedder.
+pub const PROJECTOR_ID: &str = "embeddinggemma-2-mmproj-q8";
+
+static PROJECTOR: ModelEntry = ModelEntry {
+    kind: ModelKind::Projector,
+    ..text(
+        PROJECTOR_ID,
+        "EmbeddingGemma 2 image and audio projector",
+        "ggml-org/embeddinggemma-2-GGUF",
+        "bfcd298762cc34d0357ece5ebdd31791a3a374d8",
+        "mmproj-embeddinggemma-2-Q8_0.gguf",
+        "Q8_0",
+        554_821_024,
+        "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f",
+        "Search files and saved screens by what they show.",
+        false,
+        false,
+    )
+};
+
+pub fn projector_entry() -> &'static ModelEntry {
+    &PROJECTOR
+}
+
 /// Every downloadable model, text models roughly smallest first, then the embedder.
 pub fn catalog() -> &'static [ModelEntry] {
     &CATALOG
 }
 
+/// Models added from Hugging Face, from `customBuiltInModels`.
+static CUSTOM: parking_lot::RwLock<Vec<&'static ModelEntry>> = parking_lot::RwLock::new(Vec::new());
+/// Every custom entry made so far: entries are handed out as `&'static` like
+/// the catalog's, so one is built once and reused.
+static CUSTOM_MADE: parking_lot::Mutex<Vec<&'static ModelEntry>> =
+    parking_lot::Mutex::new(Vec::new());
+
+/// The Mac's `ModelCatalog.Entry` as `customBuiltInModels` stores it.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredEntry {
+    id: String,
+    display_name: String,
+    file_name: String,
+    url: String,
+    sha256: Option<String>,
+    size_bytes: Option<i64>,
+    #[serde(rename = "sizeGB", default)]
+    size_gb: f64,
+    #[serde(default)]
+    blurb: String,
+}
+
+fn normalized_sha256(candidate: &str) -> Option<String> {
+    let digest = candidate.to_lowercase();
+    (digest.len() == 64 && digest.chars().all(|c| c.is_ascii_hexdigit())).then_some(digest)
+}
+
+fn leaked(text: &str) -> &'static str {
+    Box::leak(text.to_string().into_boxed_str())
+}
+
+/// An entry usable from the stored record. A record with no digest or size
+/// still parses, and the download refuses it with the Mac's message. A file
+/// name that isn't a plain name can't reach the models folder.
+fn custom_entry(stored: StoredEntry) -> Option<ModelEntry> {
+    let name = stored.file_name.trim();
+    if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\\']) {
+        return None;
+    }
+    // Older entries carried the digest in the URL's fragment.
+    let (url, fragment) = stored
+        .url
+        .split_once('#')
+        .map_or((stored.url.as_str(), None), |(url, f)| (url, Some(f)));
+    let sha256 = stored
+        .sha256
+        .as_deref()
+        .and_then(normalized_sha256)
+        .or_else(|| {
+            fragment?
+                .strip_prefix("sha256=")
+                .and_then(normalized_sha256)
+        })
+        .unwrap_or_default();
+    // Entries from an earlier build recover the bytes from the decimal size.
+    let size_bytes = stored
+        .size_bytes
+        .filter(|size| *size > 0)
+        .map(|size| size as u64)
+        .or_else(|| {
+            (!sha256.is_empty() && stored.size_gb.is_finite() && stored.size_gb > 0.0)
+                .then(|| (stored.size_gb * 1e9).round() as u64)
+        })
+        .unwrap_or(0);
+    Some(ModelEntry {
+        id: leaked(&stored.id),
+        display_name: leaked(&stored.display_name),
+        repo: "",
+        revision: "",
+        file: leaked(name),
+        quant: "",
+        size_bytes,
+        sha256: leaked(&sha256),
+        blurb: leaked(&stored.blurb),
+        kind: ModelKind::Text,
+        think: true,
+        autocomplete: true,
+        license: None,
+        request_overrides: &[],
+        no_reasoning_control: false,
+        custom_url: Some(leaked(url)),
+    })
+}
+
+/// Takes the current `customBuiltInModels`; the engine calls it on every change.
+pub fn set_custom(records: &[serde_json::Value]) {
+    let mut made = CUSTOM_MADE.lock();
+    let mut custom = Vec::new();
+    for record in records {
+        let Some(stored) = serde_json::from_value::<StoredEntry>(record.clone()).ok() else {
+            continue;
+        };
+        // A catalog id always means the catalog's own pin.
+        if CATALOG.iter().any(|e| e.id == stored.id) {
+            continue;
+        }
+        let Some(entry) = custom_entry(stored) else {
+            continue;
+        };
+        let known = made.iter().find(|m| ***m == entry).copied();
+        let entry = known.unwrap_or_else(|| {
+            let entry: &'static ModelEntry = Box::leak(Box::new(entry));
+            made.push(entry);
+            entry
+        });
+        custom.push(entry);
+    }
+    *CUSTOM.write() = custom;
+}
+
+/// Models added from Hugging Face.
+pub fn custom_entries() -> Vec<&'static ModelEntry> {
+    CUSTOM.read().clone()
+}
+
+/// The catalog and the custom models.
+pub fn all_entries() -> impl Iterator<Item = &'static ModelEntry> {
+    CATALOG.iter().chain(custom_entries())
+}
+
 pub fn entry(id: &str) -> Option<&'static ModelEntry> {
-    CATALOG.iter().find(|e| e.id == id)
+    if id == PROJECTOR_ID {
+        return Some(&PROJECTOR);
+    }
+    CATALOG
+        .iter()
+        .find(|e| e.id == id)
+        .or_else(|| CUSTOM.read().iter().find(|e| e.id == id).copied())
+}
+
+/// Why a custom model can't leave the list yet (`customModelRemoval`), so it
+/// never orphans a downloaded file or a saved role choice.
+pub fn custom_removal_blocker(
+    id: &str,
+    settings: &lokalbot_core::Settings,
+    downloaded: bool,
+) -> Option<String> {
+    let mut roles = Vec::new();
+    if settings.built_in_model_id == id {
+        roles.push("Think");
+    }
+    if settings.cotyping_built_in_model_id == id {
+        roles.push("Autocomplete");
+    }
+    if settings.dictation_composition_built_in_model_id == id {
+        roles.push("Dictation composition");
+    }
+    if !roles.is_empty() {
+        return Some(format!(
+            "Assigned to {}. Choose another model there first.",
+            roles.join(", ")
+        ));
+    }
+    downloaded.then(|| "Remove its download in Model Storage first.".to_string())
 }
 
 pub fn embedding_entry() -> &'static ModelEntry {
@@ -349,18 +536,18 @@ pub fn embedding_entry() -> &'static ModelEntry {
 
 /// Think picker entries (`mainLLMEntries`).
 pub fn think_entries() -> impl Iterator<Item = &'static ModelEntry> {
-    CATALOG
-        .iter()
-        .filter(|e| e.kind == ModelKind::Text && e.think)
+    all_entries().filter(|e| e.kind == ModelKind::Text && e.think)
 }
 
 /// Autocomplete picker entries (`keystrokeScaleEntries`): under 7 GB and not
-/// an always-reasoning or legacy model. A stored choice stays visible.
+/// an always-reasoning or legacy model, plus every custom model. A stored
+/// choice stays visible.
 pub fn autocomplete_entries(keeping: Option<&str>) -> impl Iterator<Item = &'static ModelEntry> {
     let keeping = keeping.map(str::to_string);
-    CATALOG.iter().filter(move |e| {
+    all_entries().filter(move |e| {
         e.kind == ModelKind::Text
             && (keeping.as_deref() == Some(e.id)
+                || e.custom_url.is_some()
                 || (e.autocomplete && e.size_gb() < KEYSTROKE_SCALE_MAX_GB))
     })
 }
@@ -474,6 +661,106 @@ impl Preset {
             .filter(|e| !is_downloaded(paths, e))
             .map(|e| e.size_bytes)
             .sum()
+    }
+}
+
+#[cfg(test)]
+mod custom_tests {
+    use super::*;
+
+    const DIGEST: &str = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";
+
+    fn record(json: &str) -> Option<ModelEntry> {
+        custom_entry(serde_json::from_str(json).unwrap())
+    }
+
+    /// What `JSONEncoder` writes for `ModelCatalog.Entry` on the Mac.
+    #[test]
+    fn a_mac_record_reads() {
+        let entry = record(&format!(
+            r#"{{"blurb":"Downloaded from o/r.","disablesThinking":false,"displayName":"hf-1-m.gguf","fileName":"hf-1-m.gguf","id":"hf:o/r/m.gguf","sha256":"{DIGEST}","sizeBytes":123,"sizeGB":1.5e-7,"url":"https://huggingface.co/o/r/resolve/0123456789abcdef0123456789abcdef01234567/m.gguf#sha256={DIGEST}"}}"#
+        ))
+        .unwrap();
+        assert_eq!(entry.id, "hf:o/r/m.gguf");
+        assert_eq!(entry.file, "hf-1-m.gguf");
+        assert_eq!(entry.sha256, DIGEST);
+        assert_eq!(entry.size_bytes, 123);
+        assert_eq!(
+            entry.url(),
+            "https://huggingface.co/o/r/resolve/0123456789abcdef0123456789abcdef01234567/m.gguf"
+        );
+        assert_eq!(
+            download::source_refusal(&entry.url(), entry.sha256, false),
+            None
+        );
+    }
+
+    #[test]
+    fn older_records_recover_their_pins() {
+        let entry = record(&format!(
+            r#"{{"displayName":"m","fileName":"m.gguf","id":"hf:o/r/m","sizeGB":2.5,"url":"https://huggingface.co/o/r/resolve/main/m.gguf#sha256={DIGEST}","blurb":"","disablesThinking":false}}"#
+        ))
+        .unwrap();
+        assert_eq!(entry.sha256, DIGEST);
+        assert_eq!(entry.size_bytes, 2_500_000_000);
+        // A branch instead of a commit is refused with the Mac's message.
+        assert_eq!(
+            download::source_refusal(&entry.url(), entry.sha256, false).as_deref(),
+            Some(download::UNPINNED_HUGGING_FACE_MESSAGE)
+        );
+    }
+
+    #[test]
+    fn a_stored_file_name_cant_leave_the_models_folder() {
+        for name in ["../../evil.gguf", "a/b.gguf", "a\\\\b.gguf", "..", " "] {
+            assert_eq!(
+                record(&format!(
+                    r#"{{"displayName":"m","fileName":"{name}","id":"x","url":"https://x.example/m"}}"#
+                )),
+                None,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn custom_models_join_the_pickers_and_catalog_ids_stay_pinned() {
+        let added = serde_json::json!({
+            "id": "hf:o/r/custom.gguf", "displayName": "Custom", "fileName": "custom.gguf",
+            "url": "https://huggingface.co/o/r/resolve/main/custom.gguf",
+            "sizeGB": 9.0, "blurb": "", "disablesThinking": false
+        });
+        let shadow = serde_json::json!({
+            "id": DEFAULT_THINK_ID, "displayName": "Fake", "fileName": "fake.gguf",
+            "url": "https://x.example/fake", "sizeGB": 1.0, "blurb": "", "disablesThinking": false
+        });
+        set_custom(&[added.clone(), shadow]);
+        assert_eq!(entry("hf:o/r/custom.gguf").unwrap().display_name, "Custom");
+        assert_ne!(entry(DEFAULT_THINK_ID).unwrap().display_name, "Fake");
+        assert!(think_entries().any(|e| e.id == "hf:o/r/custom.gguf"));
+        assert!(autocomplete_entries(None).any(|e| e.id == "hf:o/r/custom.gguf"));
+        // Reloading the same record reuses the entry.
+        let first = entry("hf:o/r/custom.gguf").unwrap() as *const ModelEntry;
+        set_custom(&[added]);
+        assert_eq!(
+            entry("hf:o/r/custom.gguf").unwrap() as *const ModelEntry,
+            first
+        );
+        set_custom(&[]);
+        assert_eq!(entry("hf:o/r/custom.gguf"), None);
+    }
+
+    #[test]
+    fn a_model_in_use_stays_listed() {
+        let mut settings = lokalbot_core::Settings::default();
+        assert_eq!(custom_removal_blocker("x", &settings, false), None);
+        assert!(custom_removal_blocker("x", &settings, true).is_some());
+        settings.built_in_model_id = "x".into();
+        settings.cotyping_built_in_model_id = "x".into();
+        assert_eq!(
+            custom_removal_blocker("x", &settings, false).unwrap(),
+            "Assigned to Think, Autocomplete. Choose another model there first."
+        );
     }
 }
 

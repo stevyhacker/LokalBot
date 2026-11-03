@@ -303,25 +303,13 @@ pub(crate) fn digest_controls(
             lokalbot_i18n::tr("Ask About This Day"),
         )
         .on_click(move |_, _, cx| {
-            let question = lokalbot_i18n::format(
-                "What happened on {0}?",
-                &[(
-                    "0",
-                    format!(
-                        "{}",
-                        day.format_localized(
-                            lokalbot_i18n::date_pattern("%A, %B %-d"),
-                            lokalbot_i18n::date_locale()
-                        )
-                    ),
-                )],
-            );
             data.update(cx, |data, cx| {
                 data.ask(
                     crate::state::AskRequest {
-                        question,
+                        question: String::new(),
                         meeting_ids: Vec::new(),
                         submit: false,
+                        day: Some(day),
                     },
                     cx,
                 )
@@ -938,8 +926,50 @@ fn brief_task_row(
                     .text_color(lb.text_secondary)
                     .child(task.summary.clone()),
             )
+            .child(
+                v_flex()
+                    .pl(px(TASK_TEXT_INSET))
+                    .children(source_links(task, ix, cx)),
+            )
         })
         .into_any_element()
+}
+
+/// The screens a task cites, each opening on Timeline (`DayDigestSourceLinks`).
+fn source_links(task: &DigestTask, ix: usize, cx: &App) -> Vec<AnyElement> {
+    let lb = cx.lb();
+    let data = crate::state::AppData::global(cx);
+    task.source_moments
+        .iter()
+        .enumerate()
+        .map(|(source, moment)| match moment {
+            Some(moment) => {
+                let name = if moment.document_name.is_empty() {
+                    &moment.app
+                } else {
+                    &moment.document_name
+                };
+                let label = format!("{name} · {}", lokalbot_core::time::clock_time(moment.ts));
+                let data = data.clone();
+                let (id, ts) = (moment.id, moment.ts);
+                crate::ui::action_row::meta_link(
+                    gpui_kit::SharedString::from(format!("digest-source-{ix}-{source}")),
+                    label,
+                    Some(Ico::ScanText),
+                    move |_, cx| data.update(cx, |data, cx| data.open_screen_moment(id, ts, cx)),
+                    cx,
+                )
+                .into_any_element()
+            }
+            None => div()
+                .text_size(ty::SECONDARY)
+                .text_color(lb.text_secondary)
+                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                    "Source moment unavailable",
+                )))
+                .into_any_element(),
+        })
+        .collect()
 }
 
 /// Finished tasks fold into one line that names them; opening it lists each.
@@ -1218,6 +1248,7 @@ fn task_row(
                             .child(task.summary.clone()),
                     )
                 })
+                .children(source_links(task, ix, cx))
                 .when(collapsible, |this| {
                     this.child(
                         div()

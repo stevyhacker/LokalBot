@@ -71,7 +71,9 @@ fn run(
                 settings.stop_debounce_seconds.clamp(5.0, 120.0),
             ));
             detector.set_calendar(hint(&settings, event.as_ref()));
-            detector.poll()
+            let events = detector.poll();
+            *shared.detected_meeting.lock() = detector.active().cloned();
+            events
         };
         for detected in events {
             match detected {
@@ -223,6 +225,8 @@ mod tests {
             app_name: "Google Meet".into(),
             process_name: "chrome".into(),
             pid: 1,
+            audio_pid: 1,
+            meeting_url: None,
             title_hint: hint.map(str::to_string),
         }
     }

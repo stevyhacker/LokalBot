@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use crate::session::{
     GetOptions, Session, day_bounds, local_day, local_now_day, seconds_from_stamp,
 };
-use crate::{ask, briefing, json as swift_json, personal, reports, screen, search, session};
+use crate::{ask, briefing, files, json as swift_json, personal, reports, screen, search, session};
 
 pub const PROTOCOL_VERSIONS: [&str; 3] = ["2024-11-05", "2025-03-26", "2025-06-18"];
 pub const MAXIMUM_RECORD_BYTES: usize = 1_048_576;
@@ -24,6 +24,8 @@ pub enum ToolErrorCode {
     ScreenAccessDisabled,
     PersonalContextDisabled,
     PersonalContextUnavailable,
+    FilesAccessDisabled,
+    FilesUnavailable,
     ScreenMemoryUnavailable,
     ScreenshotNotFound,
     AppNotRunning,
@@ -42,6 +44,8 @@ impl ToolErrorCode {
             Self::ScreenAccessDisabled => "screen_access_disabled",
             Self::PersonalContextDisabled => "personal_context_disabled",
             Self::PersonalContextUnavailable => "personal_context_unavailable",
+            Self::FilesAccessDisabled => "files_access_disabled",
+            Self::FilesUnavailable => "files_unavailable",
             Self::ScreenMemoryUnavailable => "screen_memory_unavailable",
             Self::ScreenshotNotFound => "screenshot_not_found",
             Self::AppNotRunning => "app_not_running",
@@ -203,6 +207,17 @@ pub fn tools() -> Vec<Value> {
                 "kinds": {"type": "array", "items": {"type": "string", "enum": ["fact", "preference", "goal", "principle"]}, "description": "Optional: only these kinds."},
                 "max_items": {"type": "integer", "description": format!("Maximum items (default {}, maximum {}).", personal::DEFAULT_ITEMS, personal::MAXIMUM_ITEMS)},
             }, "required": ["task"]}),
+        ),
+        tool(
+            files::NAME,
+            "Search the folders the user chose under Files (documents, PDFs, pictures, screenshots, recordings and video on their computer) by words. Returns matching files, best first, with the passage that matched. Requires the separate file-access permission.",
+            json!({"type": "object", "properties": {
+                "query": {"type": "string", "description": "Words to find."},
+                "kinds": {"type": "array", "items": {"type": "string", "enum": files::KINDS}, "description": "Optional: only these kinds of file."},
+                "after": {"type": "string", "description": "Optional local day (YYYY-MM-DD): only files dated on or after it."},
+                "before": {"type": "string", "description": "Optional local day (YYYY-MM-DD): only files dated before it."},
+                "limit": {"type": "integer", "description": format!("Maximum files (default {}, maximum {}).", files::DEFAULT_LIMIT, files::MAXIMUM_LIMIT)},
+            }, "required": ["query"]}),
         ),
     ]
 }
@@ -366,6 +381,7 @@ impl Provider {
             "get_app_usage" => self.app_usage(arguments),
             "get_screenshot_detail" => self.screenshot_detail(arguments),
             personal::NAME => self.personal_context(arguments),
+            files::NAME => self.search_files(arguments),
             briefing::TOOL_NAME => Ok(ToolResult::text(&self.briefing())),
             _ => {
                 let names: Vec<String> = tools()
@@ -779,6 +795,79 @@ impl Provider {
             ));
         }
         Ok(ToolResult::text(&screen_json(&detail)))
+    }
+
+    /// Independent of meeting and screen access, and of Agent Mode capabilities:
+    /// only the Files marker and its folder list.
+    fn search_files(&self, arguments: &Value) -> Result<ToolResult, ToolResult> {
+        let paths = &self.session.paths;
+        if !lokalbot_core::files::access::is_enabled(paths) {
+            return Err(ToolResult::error(
+                ToolErrorCode::FilesAccessDisabled,
+                files::DISABLED_MESSAGE,
+            ));
+        }
+        let Some(query) = arguments.get("query").and_then(Value::as_str) else {
+            return Err(ToolResult::error(
+                ToolErrorCode::InvalidArguments,
+                &format!("{} requires a \"query\" string.", files::NAME),
+            ));
+        };
+        let mut kinds: Option<Vec<String>> = None;
+        if let Some(raw) = arguments.get("kinds").filter(|v| !v.is_null()) {
+            let parsed = raw.as_array().and_then(|values| {
+                values
+                    .iter()
+                    .map(|v| v.as_str().map(str::to_string))
+                    .collect::<Option<Vec<String>>>()
+            });
+            let Some(parsed) = parsed else {
+                return Err(ToolResult::error(
+                    ToolErrorCode::InvalidArguments,
+                    "\"kinds\" must be an array of strings.",
+                ));
+            };
+            kinds = Some(parsed);
+        }
+        let mut days: [Option<&str>; 2] = [None, None];
+        for (slot, field) in days.iter_mut().zip(["after", "before"]) {
+            if let Some(raw) = arguments.get(field).filter(|v| !v.is_null()) {
+                let Some(text) = raw.as_str() else {
+                    return Err(ToolResult::error(
+                        ToolErrorCode::InvalidArguments,
+                        &format!("\"{field}\" must be a day as YYYY-MM-DD."),
+                    ));
+                };
+                *slot = Some(text);
+            }
+        }
+        let mut limit: Option<i64> = None;
+        if let Some(raw) = arguments.get("limit").filter(|v| !v.is_null()) {
+            let Some(value) = raw.as_i64() else {
+                return Err(ToolResult::error(
+                    ToolErrorCode::InvalidArguments,
+                    &format!(
+                        "\"limit\" must be an integer between 1 and {}.",
+                        files::MAXIMUM_LIMIT
+                    ),
+                ));
+            };
+            limit = Some(value);
+        }
+        match files::report(paths, query, kinds.as_deref(), days[0], days[1], limit) {
+            Ok(report) => Ok(ToolResult::text(&swift_json::pretty(&report, false))),
+            Err(files::Failure::Disabled) => Err(ToolResult::error(
+                ToolErrorCode::FilesAccessDisabled,
+                files::DISABLED_MESSAGE,
+            )),
+            Err(files::Failure::Unavailable) => Err(ToolResult::error(
+                ToolErrorCode::FilesUnavailable,
+                files::UNAVAILABLE_MESSAGE,
+            )),
+            Err(files::Failure::Invalid(message)) => {
+                Err(ToolResult::error(ToolErrorCode::InvalidArguments, &message))
+            }
+        }
     }
 
     fn personal_context(&self, arguments: &Value) -> Result<ToolResult, ToolResult> {

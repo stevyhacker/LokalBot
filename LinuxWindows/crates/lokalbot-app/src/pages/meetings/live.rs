@@ -490,6 +490,20 @@ impl MeetingsPage {
                 ),
                 has_system.then_some(system),
             ))
+            .children(self.data.read(cx).capture_warnings.iter().map(|warning| {
+                h_flex()
+                    .gap(px(8.))
+                    .items_start()
+                    .child(ui::icon(Ico::TriangleAlert, px(14.), lb.attention_text))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.attention_text)
+                            .child(warning.clone()),
+                    )
+            }))
     }
 }
 

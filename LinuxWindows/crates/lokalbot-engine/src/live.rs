@@ -306,7 +306,11 @@ impl Inner {
             self.shared
                 .speech
                 .with(&self.shared, &settings.transcription_model, |transcriber| {
-                    transcriber.transcribe_samples(samples, language.as_deref())
+                    transcriber.transcribe_samples(
+                        samples,
+                        language.as_deref(),
+                        Some(&settings.transcription_prompt),
+                    )
                 });
         match result {
             Ok(segments) => {

@@ -4,23 +4,31 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use gpui_kit::{AnyWindowHandle, App, Entity, Global, SharedString};
 use parking_lot::Mutex;
 
 use lokalbot_core::settings::DictationTriggerMode;
-use lokalbot_engine::{Command, DictationCommand};
-use lokalbot_platform::shortcuts::{GlobalShortcuts, Shortcut, ShortcutEvent};
+use lokalbot_engine::{Command, DictationCommand, SelectionCommand};
+use lokalbot_platform::chord::ChordAction;
+use lokalbot_platform::shortcuts::{GlobalShortcuts, Shortcut, ShortcutError, ShortcutEvent};
 use lokalbot_platform::tray::{
-    self, Tray, TrayEvent, TrayMenuState, TrayUpdate, TrayUpdateAction, item_ids,
+    self, Tray, TrayDictation, TrayDictationEntry, TrayEvent, TrayMeeting, TrayMenuState,
+    TrayUpdate, TrayUpdateAction, item_ids,
 };
 use lokalbot_platform::{IpcCommand, IpcServer};
 
-use crate::state::{AppData, MeetingTab, RecordingState, SettingsCategory};
+use crate::state::{AppData, DictationHud, MeetingTab, RecordingState, SettingsCategory};
 
 const DICTATION_ID: &str = "dictation";
 const QUICK_RECALL_ID: &str = "quick-recall";
+const SELECTION_ACTIONS_ID: &str = "selection-actions";
+/// Esc while dictating, plain and with the dictation shortcut's modifiers
+/// still held. Taken only while starting or recording.
+const DICTATION_CANCEL_ID: &str = "dictation-cancel";
+const DICTATION_CANCEL_HELD_ID: &str = "dictation-cancel-held";
 /// A dictation press shorter than this keeps recording until the next tap
 /// ("Tap or hold").
 const TAP_THRESHOLD: Duration = Duration::from_millis(300);
@@ -36,6 +44,50 @@ enum DesktopEvent {
     },
     /// The "LokalBot <version> is available" notification was clicked.
     ShowUpdate,
+    /// What one pass over the shortcuts came to.
+    ShortcutsApplied(Vec<ShortcutOutcome>),
+    /// This desktop has no way to register shortcuts at all.
+    ShortcutsUnavailable,
+    /// The system asked LokalBot to end: logging out, say, or a `kill`.
+    #[cfg(target_os = "linux")]
+    Terminate,
+}
+
+/// One shortcut after trying to register it.
+pub struct ShortcutOutcome {
+    id: &'static str,
+    shortcut: Shortcut,
+    refusal: Option<Refusal>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refusal {
+    /// Against this platform's rules, as a library from a Mac can be: not
+    /// something to change in the settings the Mac reads too.
+    Rule,
+    /// Another app holds it. The Mac's answer is to go back to the shortcut
+    /// that worked, or turn the feature off.
+    Taken,
+}
+
+/// What a refused Ask or selection actions shortcut leads to
+/// (`applyQuickRecallSetting`, `applySelectionActionsSetting`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RefusalAnswer {
+    Leave,
+    Restore(String),
+    TurnOff,
+}
+
+/// The previous shortcut when one worked and it isn't the refused one; else off.
+pub fn refusal_answer(refusal: Refusal, refused: &str, working: Option<&str>) -> RefusalAnswer {
+    match (refusal, working) {
+        (Refusal::Rule, _) => RefusalAnswer::Leave,
+        (Refusal::Taken, Some(working)) if working != refused => {
+            RefusalAnswer::Restore(working.to_string())
+        }
+        (Refusal::Taken, _) => RefusalAnswer::TurnOff,
+    }
 }
 
 /// Handles that must live as long as the app.
@@ -46,12 +98,28 @@ pub struct Desktop {
     _ipc: Option<IpcServer>,
     sender: smol::channel::Sender<DesktopEvent>,
     dictation_pressed_at: Mutex<Option<Instant>>,
+    /// Esc is wanted for cancelling: dictation is starting or recording.
+    dictation_cancel_keys: Arc<AtomicBool>,
     pub main_window: Mutex<Option<AnyWindowHandle>>,
+    /// The shortcut text that last registered, by id.
+    working_shortcuts: Mutex<std::collections::HashMap<&'static str, String>>,
+    /// What was last said about a refused shortcut, so a settings change doesn't
+    /// repeat it.
+    reported_shortcuts: Mutex<std::collections::HashMap<&'static str, String>>,
 }
 
 impl Desktop {
     pub fn has_tray(&self) -> bool {
         self.tray.is_some()
+    }
+
+    /// Whether this desktop let LokalBot register system-wide shortcuts.
+    pub fn shortcuts_ready(&self) -> bool {
+        self.shortcuts.lock().is_some()
+    }
+
+    pub fn main_window_is_set(&self) -> bool {
+        self.main_window.lock().is_some()
     }
 }
 
@@ -73,7 +141,7 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
             Some(icon) => match Tray::new(
                 icon,
                 "LokalBot",
-                tray::standard_items(&tray_state(data.read(cx), tray_update(cx))),
+                tray::standard_items(&tray_state(data.read(cx), tray_update(cx), 0)),
                 Box::new(move |event| {
                     let _ = tx.send_blocking(DesktopEvent::Tray(event));
                 }),
@@ -108,9 +176,20 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
         _ipc: ipc,
         sender: sender.clone(),
         dictation_pressed_at: Mutex::new(None),
+        dictation_cancel_keys: Arc::new(AtomicBool::new(false)),
         main_window: Mutex::new(None),
+        working_shortcuts: Mutex::new(Default::default()),
+        reported_shortcuts: Mutex::new(Default::default()),
     });
     cx.set_global(DesktopHandle(desktop.clone()));
+
+    #[cfg(target_os = "linux")]
+    {
+        let tx = sender.clone();
+        lokalbot_platform::session::on_termination(move || {
+            let _ = tx.send_blocking(DesktopEvent::Terminate);
+        });
+    }
 
     // Shortcuts can block for seconds on Wayland while the desktop asks the
     // user, so they are created off the UI thread.
@@ -174,7 +253,7 @@ fn tray_update(cx: &App) -> Option<TrayUpdate> {
     })
 }
 
-fn tray_state(data: &AppData, update: Option<TrayUpdate>) -> TrayMenuState {
+fn tray_state(data: &AppData, update: Option<TrayUpdate>, approvals: usize) -> TrayMenuState {
     let (recording, timer, subtitle) = match &data.recording {
         RecordingState::Recording {
             meeting, started, ..
@@ -194,8 +273,47 @@ fn tray_state(data: &AppData, update: Option<TrayUpdate>) -> TrayMenuState {
         screen_capture: data.settings.tracking_enabled
             && data.settings.screen_context_capture_mode
                 != lokalbot_core::ScreenContextMode::ActivityOnly,
-        recent_dictation: !data.recent_dictations.is_empty(),
+        recent_dictations: data
+            .recent_dictations
+            .iter()
+            .map(|entry| TrayDictationEntry {
+                id: entry.id.to_string(),
+                preview: entry.preview(),
+                menu_title: entry.menu_title(),
+            })
+            .collect(),
         update,
+        dictation: match &data.dictation {
+            DictationHud::Starting => TrayDictation::Starting,
+            DictationHud::Listening { .. } => TrayDictation::Recording,
+            DictationHud::Transcribing | DictationHud::Preparing(_) => TrayDictation::Transcribing,
+            DictationHud::Composing => TrayDictation::Composing,
+            _ => TrayDictation::Idle,
+        },
+        dictation_enabled: data.settings.dictation_enabled,
+        dictation_shortcut: data.settings.dictation_shortcut.clone(),
+        autocomplete_enabled: data.settings.cotyping_enabled,
+        tracking_enabled: data.settings.tracking_enabled,
+        recent_meetings: data
+            .meetings
+            .iter()
+            .take(2)
+            .map(|meeting| TrayMeeting {
+                id: meeting.id.to_string(),
+                title: meeting.display_title(),
+                detail: format!(
+                    "{} · {}",
+                    meeting.app_name,
+                    lokalbot_core::time::timer(meeting.duration_seconds())
+                ),
+            })
+            .collect(),
+        last_error: data
+            .toast
+            .as_ref()
+            .filter(|toast| toast.is_error)
+            .map(|toast| toast.message.to_string()),
+        approvals_waiting: approvals,
     }
 }
 
@@ -214,20 +332,21 @@ fn refresh_tray(data: &Entity<AppData>, cx: &mut App) {
     let Some(tray) = desktop.tray.as_ref() else {
         return;
     };
-    let state = tray_state(data.read(cx), tray_update(cx));
+    let approvals =
+        crate::control::global(cx).map_or(0, |host| host.read(cx).approvals.pending.len());
+    let state = tray_state(data.read(cx), tray_update(cx), approvals);
     let mut last = desktop.tray_state.lock();
     if last.as_ref() == Some(&state) {
         return;
     }
-    let menu_changed = last.as_ref().is_none_or(|l| {
-        l.recording != state.recording
-            || l.interface_language != state.interface_language
-            || l.subtitle != state.subtitle
-            || l.day_memory_paused != state.day_memory_paused
-            || l.screen_capture != state.screen_capture
-            || l.recent_dictation != state.recent_dictation
-            || l.update != state.update
-    });
+    // Only the timer changes without changing the menu.
+    let without_timer = |state: &TrayMenuState| TrayMenuState {
+        timer: None,
+        ..state.clone()
+    };
+    let menu_changed = last
+        .as_ref()
+        .is_none_or(|l| without_timer(l) != without_timer(&state));
     if menu_changed {
         let _ = tray.set_items(tray::standard_items(&state));
     }
@@ -247,7 +366,24 @@ pub fn sync_shortcuts_later(cx: &mut App) {
     let quick_recall = (data.settings.quick_recall_enabled && !paused)
         .then(|| Shortcut::parse(&data.settings.quick_recall_shortcut).ok())
         .flatten();
+    let selection_actions = (data.settings.selection_actions_enabled && !paused)
+        .then(|| Shortcut::parse(&data.settings.selection_actions_shortcut).ok())
+        .flatten();
+    // A library from a Mac may carry a combination that means something else
+    // here, such as Ctrl+Shift+W, which closes tabs.
+    let breaks_a_rule = [
+        dictation.as_ref().and_then(|s| s.dictation_problem(None)),
+        quick_recall
+            .as_ref()
+            .and_then(|s| s.quick_recall_problem(dictation.as_ref())),
+        selection_actions
+            .as_ref()
+            .and_then(|s| s.selection_actions_problem(dictation.as_ref(), quick_recall.as_ref())),
+    ];
+    let mode = data.settings.dictation_trigger_mode;
     let shortcuts = desktop.shortcuts.clone();
+    let active = desktop.dictation_cancel_keys.clone();
+    let sender = desktop.sender.clone();
     std::thread::spawn(move || {
         // The manager may still be starting (Wayland asks the user first).
         for _ in 0..50 {
@@ -258,20 +394,186 @@ pub fn sync_shortcuts_later(cx: &mut App) {
         }
         let mut guard = shortcuts.lock();
         let Some(manager) = guard.as_mut() else {
+            let _ = sender.send_blocking(DesktopEvent::ShortcutsUnavailable);
             return;
         };
-        for (id, shortcut) in [(DICTATION_ID, dictation), (QUICK_RECALL_ID, quick_recall)] {
+        let mut outcomes = Vec::new();
+        for ((id, shortcut), problem) in [
+            (DICTATION_ID, dictation),
+            (QUICK_RECALL_ID, quick_recall),
+            (SELECTION_ACTIONS_ID, selection_actions),
+        ]
+        .into_iter()
+        .zip(breaks_a_rule)
+        {
             let _ = manager.unregister(id);
-            if let Some(shortcut) = shortcut
-                && let Err(err) = manager.register(id, &shortcut)
-            {
+            let Some(shortcut) = shortcut else { continue };
+            let result = match problem {
+                Some(problem) => Err(ShortcutError::Invalid(problem)),
+                None if shortcut.is_modifier_only() => {
+                    manager.register_chord(id, &shortcut, mode, active.clone())
+                }
+                None => manager.register(id, &shortcut),
+            };
+            let refusal = result.err().map(|err| {
                 log::warn!(
                     "could not register the {id} shortcut {}: {err}",
                     shortcut.label()
                 );
-            }
+                match err {
+                    ShortcutError::Invalid(_) => Refusal::Rule,
+                    _ => Refusal::Taken,
+                }
+            });
+            outcomes.push(ShortcutOutcome {
+                id,
+                shortcut,
+                refusal,
+            });
+        }
+        // While a shortcut is being recorded nothing is registered on purpose.
+        if !paused {
+            let _ = sender.send_blocking(DesktopEvent::ShortcutsApplied(outcomes));
         }
     });
+}
+
+/// Tells the person about shortcuts that didn't register and takes the Mac's
+/// way out for Ask and selection actions.
+fn shortcuts_applied(data: &Entity<AppData>, outcomes: Vec<ShortcutOutcome>, cx: &mut App) {
+    use lokalbot_platform::shortcuts as messages;
+    let Some(desktop) = desktop(cx) else { return };
+    let mut dictation_inactive = false;
+    let mut said = Vec::new();
+    let mut answers = Vec::new();
+    for outcome in &outcomes {
+        let text = outcome.shortcut.label();
+        let Some(refusal) = outcome.refusal else {
+            desktop
+                .working_shortcuts
+                .lock()
+                .insert(outcome.id, text.clone());
+            desktop.reported_shortcuts.lock().remove(outcome.id);
+            continue;
+        };
+        let message = match outcome.id {
+            DICTATION_ID => {
+                dictation_inactive = true;
+                messages::dictation_registration_failed_message(&outcome.shortcut)
+            }
+            QUICK_RECALL_ID => messages::ask_registration_failed_message(&outcome.shortcut),
+            _ => messages::selection_actions_registration_failed_message(&outcome.shortcut),
+        };
+        if desktop
+            .reported_shortcuts
+            .lock()
+            .insert(outcome.id, text.clone())
+            != Some(text.clone())
+        {
+            said.push(message);
+        }
+        if outcome.id != DICTATION_ID {
+            let working = desktop.working_shortcuts.lock().get(outcome.id).cloned();
+            answers.push((
+                outcome.id,
+                refusal_answer(refusal, &text, working.as_deref()),
+            ));
+        }
+    }
+    data.update(cx, |data, cx| {
+        data.dictation_shortcut_inactive = dictation_inactive;
+        for message in said {
+            data.show_error(message, cx);
+        }
+        for (id, answer) in answers {
+            let quick_recall = id == QUICK_RECALL_ID;
+            match answer {
+                RefusalAnswer::Leave => {}
+                RefusalAnswer::Restore(previous) => data.update_settings(
+                    |s| {
+                        if quick_recall {
+                            s.quick_recall_shortcut = previous
+                        } else {
+                            s.selection_actions_shortcut = previous
+                        }
+                    },
+                    cx,
+                ),
+                RefusalAnswer::TurnOff => data.update_settings(
+                    |s| {
+                        if quick_recall {
+                            s.quick_recall_enabled = false
+                        } else {
+                            s.selection_actions_enabled = false
+                        }
+                    },
+                    cx,
+                ),
+            }
+        }
+        cx.notify();
+    });
+}
+
+/// Takes Esc only while dictation is starting or recording, and gives it back
+/// at once. Wayland lets no app take a key, so there the overlay's X cancels.
+pub fn sync_dictation_cancel_keys(cx: &mut App) {
+    let Some(desktop) = desktop(cx) else { return };
+    let data = AppData::global(cx);
+    let data = data.read(cx);
+    let wanted = !lokalbot_platform::session::is_wayland()
+        && matches!(
+            data.dictation,
+            DictationHud::Starting | DictationHud::Listening { .. }
+        );
+    if desktop.dictation_cancel_keys.swap(wanted, Ordering::SeqCst) == wanted {
+        return;
+    }
+    let held = Shortcut::parse(&data.settings.dictation_shortcut)
+        .ok()
+        .map(|shortcut| shortcut.cancel_key());
+    let flag = desktop.dictation_cancel_keys.clone();
+    let shortcuts = desktop.shortcuts.clone();
+    std::thread::spawn(move || {
+        let mut guard = shortcuts.lock();
+        let Some(manager) = guard.as_mut() else {
+            return;
+        };
+        // Quick presses queue here: the latest wish decides, so Esc is never
+        // left taken after dictation ended.
+        if flag.load(Ordering::SeqCst) {
+            let plain = Shortcut::parse("Esc").ok();
+            for (id, key) in [
+                (DICTATION_CANCEL_ID, plain),
+                (
+                    DICTATION_CANCEL_HELD_ID,
+                    held.filter(|key| Some(*key) != plain),
+                ),
+            ] {
+                if let Some(key) = key
+                    && let Err(err) = manager.register(id, &key)
+                {
+                    log::debug!("could not take {} to cancel dictation: {err}", key.label());
+                }
+            }
+        } else {
+            let _ = manager.unregister(DICTATION_CANCEL_ID);
+            let _ = manager.unregister(DICTATION_CANCEL_HELD_ID);
+        }
+    });
+}
+
+/// The selection actions shortcut or command. While the setting is off nothing
+/// is read: the command opens the setting instead.
+pub fn invoke_selection_actions(data: &Entity<AppData>, cx: &mut App) {
+    if data.read(cx).settings.selection_actions_enabled {
+        crate::bridge::send(Command::Selection(SelectionCommand::Invoke), cx);
+    } else {
+        show_main_window(cx);
+        data.update(cx, |data, cx| {
+            data.open_settings(SettingsCategory::General, cx)
+        });
+    }
 }
 
 fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
@@ -294,9 +596,35 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
             item_ids::SETTINGS => {
                 show_main_window(cx);
                 data.update(cx, |data, cx| {
-                    data.open_settings(SettingsCategory::General, cx)
+                    data.open_settings(SettingsCategory::Overview, cx)
                 });
             }
+            item_ids::LIVE_TRANSCRIPT => {
+                show_main_window(cx);
+                data.update(cx, |data, cx| {
+                    if let Some(meeting) = data.recording.meeting().cloned() {
+                        data.open_meeting(meeting.id, MeetingTab::Summary, None, cx);
+                    }
+                });
+            }
+            item_ids::DICTATION_ENABLED => data.update(cx, |data, cx| {
+                data.update_settings(|s| s.dictation_enabled = !s.dictation_enabled, cx)
+            }),
+            item_ids::DICTATION_BUTTON => {
+                crate::bridge::send(Command::Dictation(DictationCommand::ToggleFromMenu), cx)
+            }
+            item_ids::AUTOCOMPLETE_ENABLED => data.update(cx, |data, cx| {
+                data.update_settings(|s| s.cotyping_enabled = !s.cotyping_enabled, cx)
+            }),
+            item_ids::VIEW_ALL_MEETINGS => {
+                show_main_window(cx);
+                data.update(cx, |data, cx| {
+                    data.meeting_focus = None;
+                    data.navigate(crate::state::Section::Meetings, cx);
+                });
+            }
+            item_ids::APPROVALS => crate::windows::settings_approval::open(cx),
+            item_ids::STAR_ON_GITHUB => cx.open_url(crate::pages::settings::REPOSITORY),
             item_ids::PAUSE_DAY_MEMORY | item_ids::RESUME_DAY_MEMORY => {
                 let paused = id == item_ids::PAUSE_DAY_MEMORY;
                 data.update(cx, |data, cx| {
@@ -318,17 +646,50 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
                     data.open_settings(SettingsCategory::General, cx)
                 });
             }
-            item_ids::QUIT => cx.quit(),
-            other => log::debug!("unknown tray item {other}"),
+            item_ids::QUIT => crate::quit::request(cx),
+            other if other.starts_with(item_ids::DICTATION_PREFIX) => {
+                let id = other
+                    .strip_prefix(item_ids::DICTATION_PREFIX)
+                    .and_then(|id| uuid::Uuid::parse_str(id).ok());
+                crate::bridge::send(Command::Dictation(DictationCommand::CopyRecent(id)), cx)
+            }
+            other => match other
+                .strip_prefix(item_ids::MEETING_PREFIX)
+                .and_then(|id| uuid::Uuid::parse_str(id).ok())
+            {
+                Some(id) => {
+                    show_main_window(cx);
+                    data.update(cx, |data, cx| {
+                        data.open_meeting(id, MeetingTab::Summary, None, cx)
+                    });
+                }
+                None => log::debug!("unknown tray item {other}"),
+            },
         },
         DesktopEvent::Shortcut(event) => match event.id.as_str() {
             QUICK_RECALL_ID if event.pressed => crate::windows::quick_recall::open(cx),
-            DICTATION_ID => dictation_shortcut(data, event.pressed, cx),
+            SELECTION_ACTIONS_ID if event.pressed => invoke_selection_actions(data, cx),
+            DICTATION_CANCEL_ID | DICTATION_CANCEL_HELD_ID if event.pressed => {
+                crate::bridge::send(Command::Dictation(DictationCommand::Cancel), cx)
+            }
+            DICTATION_ID => match event.chord {
+                Some(action) => crate::bridge::send(
+                    Command::Dictation(match action {
+                        ChordAction::Start => DictationCommand::Start,
+                        ChordAction::Stop => DictationCommand::Stop,
+                        ChordAction::Toggle => DictationCommand::Toggle,
+                        ChordAction::Cancel => DictationCommand::Cancel,
+                    }),
+                    cx,
+                ),
+                None => dictation_shortcut(data, event.pressed, cx),
+            },
             _ => {}
         },
         DesktopEvent::Ipc(command) => match command {
             IpcCommand::Show => show_main_window(cx),
             IpcCommand::QuickRecall => crate::windows::quick_recall::open(cx),
+            IpcCommand::SelectionActions => invoke_selection_actions(data, cx),
             IpcCommand::ToggleRecording => data.update(cx, |data, cx| data.toggle_recording(cx)),
             IpcCommand::StartDictation => {
                 crate::bridge::send(Command::Dictation(DictationCommand::Start), cx)
@@ -366,6 +727,13 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
                 data.open_settings(SettingsCategory::General, cx)
             });
         }
+        DesktopEvent::ShortcutsApplied(outcomes) => shortcuts_applied(data, outcomes, cx),
+        DesktopEvent::ShortcutsUnavailable => data.update(cx, |data, cx| {
+            data.dictation_shortcut_inactive = data.settings.dictation_enabled;
+            cx.notify();
+        }),
+        #[cfg(target_os = "linux")]
+        DesktopEvent::Terminate => crate::quit::request(cx),
     }
 }
 
@@ -444,20 +812,31 @@ pub fn notify_meeting_detected(app_name: String, title: String, cx: &mut App) {
     });
 }
 
-/// "Recording saved · <title> · N min", like the macOS notification.
-pub fn notify_recording_saved(title: String, minutes: u64) {
+/// "Recording saved · <title> · N min", like the macOS notification. It says
+/// "transcribing…" only when that is what happens next.
+pub fn notify_recording_saved(saved: lokalbot_engine::RecordingSaved) {
     std::thread::spawn(move || {
-        let body = lokalbot_i18n::format(
-            "{title} · {minutes} min · transcribing…",
-            &[
-                ("title", title.to_string()),
-                ("minutes", format!("{}", minutes)),
-            ],
-        );
-        if let Err(err) =
-            lokalbot_platform::notify(lokalbot_i18n::tr("Recording saved"), &body, &[], None)
-        {
+        if let Err(err) = lokalbot_platform::notify(
+            lokalbot_i18n::tr("Recording saved"),
+            &saved.body(),
+            &[],
+            None,
+        ) {
             log::debug!("recording-saved notification failed: {err:#}");
+        }
+    });
+}
+
+/// A capture warning that lasted long enough to interrupt the call for.
+pub fn notify_capture_needs_attention(message: String) {
+    std::thread::spawn(move || {
+        if let Err(err) = lokalbot_platform::notify(
+            lokalbot_i18n::tr("Recording needs attention"),
+            lokalbot_i18n::tr(&message),
+            &[],
+            None,
+        ) {
+            log::debug!("capture warning notification failed: {err:#}");
         }
     });
 }
@@ -485,4 +864,36 @@ pub fn notify_update_available(version: String, body: SharedString, cx: &mut App
             log::debug!("update notification failed: {err:#}");
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_taken_shortcut_goes_back_to_what_worked_or_turns_off() {
+        assert_eq!(
+            refusal_answer(Refusal::Taken, "Ctrl+Alt+K", Some("Ctrl+Shift+Space")),
+            RefusalAnswer::Restore("Ctrl+Shift+Space".into())
+        );
+        // Nothing to go back to, or that one was refused too.
+        assert_eq!(
+            refusal_answer(Refusal::Taken, "Ctrl+Alt+K", None),
+            RefusalAnswer::TurnOff
+        );
+        assert_eq!(
+            refusal_answer(Refusal::Taken, "Ctrl+Alt+K", Some("Ctrl+Alt+K")),
+            RefusalAnswer::TurnOff
+        );
+    }
+
+    /// A library from a Mac may carry what's fine there and not here. The Mac
+    /// reads the same settings, so they stay as they are.
+    #[test]
+    fn breaking_this_platforms_rules_changes_no_settings() {
+        assert_eq!(
+            refusal_answer(Refusal::Rule, "Ctrl+Shift+W", Some("Ctrl+Alt+K")),
+            RefusalAnswer::Leave
+        );
+    }
 }

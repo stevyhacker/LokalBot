@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use lokalbot_core::{LibraryPaths, access, demo};
+#[cfg(unix)]
+use serde_json::Value;
 
 fn seeded() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
@@ -327,9 +329,10 @@ fn mcp_round_trip() {
     assert_eq!(lines[0]["result"]["protocolVersion"], "2025-06-18");
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "lokalbot");
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 14);
+    assert_eq!(tools.len(), 15);
     assert_eq!(tools[0]["name"], "get_briefing");
     assert_eq!(tools[13]["name"], "get_personal_context");
+    assert_eq!(tools[14]["name"], "search_files");
     assert_eq!(lines[2]["result"]["isError"], false);
     let hits: serde_json::Value =
         serde_json::from_str(lines[2]["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
@@ -369,9 +372,73 @@ fn settings_source() -> String {
     source
 }
 
+/// Days in detail, older weeks as a line, but only with both grants, and a line
+/// whose reviews changed is never shown (`Briefing.timeline`).
+#[test]
+fn the_briefing_shows_a_timeline_of_reviews_under_both_grants() {
+    use lokalbot_core::dream::{DreamReport, day_key, rollup};
+
+    let (_dir, root) = seeded();
+    let today = chrono::Local::now().date_naive();
+    let store = lokalbot_core::dream::DreamStore::new(&root);
+    let yesterday = today - chrono::Duration::days(1);
+    let mut report = DreamReport::new(
+        day_key(yesterday),
+        chrono::Utc::now(),
+        "Yesterday went well. It really did. Third sentence.".into(),
+    );
+    report.evidence_provenance = Some(lokalbot_core::evidence::Provenance {
+        revision: store.evidence_revision().unwrap(),
+        ..Default::default()
+    });
+    store.save_report(&report).unwrap();
+    let older = today - chrono::Duration::days(21);
+    let week = rollup::week_containing(older);
+    report.day = week.first_day.clone();
+    store.save_report(&report).unwrap();
+    let reviews = rollup::reviews(&root);
+    let inside = rollup::reviews_in(&week.first_day, &week.last_day, &reviews);
+    rollup::write(
+        &rollup::Rollup {
+            kind: week.kind,
+            key: week.key.clone(),
+            first_day: week.first_day.clone(),
+            last_day: week.last_day.clone(),
+            line: "Shipped the beta.".into(),
+            stamp: rollup::stamp(&inside),
+            generated_at: chrono::Utc::now(),
+        },
+        &root,
+    )
+    .unwrap();
+
+    let paths = LibraryPaths::new(&root);
+    access::set_meetings_access(&paths, true).unwrap();
+    assert!(!stdout(&cli(&root, &["brief"])).contains("## Recent days"));
+    access::set_screen_access(&paths, Some(access::ScreenScope::RetainedHistory)).unwrap();
+    let brief = stdout(&cli(&root, &["brief"]));
+    assert!(
+        brief.contains("## Recent days, then weeks and months"),
+        "{brief}"
+    );
+    assert!(
+        brief.contains("Yesterday went well. It really did."),
+        "{brief}"
+    );
+    assert!(!brief.contains("Third sentence"), "{brief}");
+    assert!(
+        brief.contains(&format!("{}: Shipped the beta.", week.label)),
+        "{brief}"
+    );
+
+    // A regenerated review makes the week's line stale at once.
+    report.generated_at = chrono::Utc::now() + chrono::Duration::hours(1);
+    store.save_report(&report).unwrap();
+    assert!(!stdout(&cli(&root, &["brief"])).contains("Shipped the beta"));
+}
+
 /// Agents relay these hints to the user, so every `Settings → <page> →
-/// "<toggle>"` must exist in this app. The Mac's Personal Context page and its
-/// sharing toggle do not.
+/// "<toggle>"` must exist in this app.
 #[test]
 fn agent_text_names_only_settings_this_app_has() {
     let (_dir, root) = seeded();
@@ -385,13 +452,14 @@ fn agent_text_names_only_settings_this_app_has() {
         lokalbot_cli::personal::UNAVAILABLE_MESSAGE.to_string(),
         access::MEETINGS_DISABLED_MESSAGE.to_string(),
         access::SCREEN_DISABLED_MESSAGE.to_string(),
+        access::SETTINGS_CONTROL_DISABLED_MESSAGE.to_string(),
     ];
     texts.extend(
         lokalbot_cli::mcp::tools()
             .iter()
             .map(|tool| tool["description"].as_str().unwrap().to_string()),
     );
-    // A library from a Mac that shares Personal Context but has no items written.
+    // Sharing is on, but no items have been written yet.
     let control = LibraryPaths::new(&root).control_dir();
     std::fs::create_dir_all(&control).unwrap();
     std::fs::write(control.join(access::PERSONAL_MARKER), b"").unwrap();
@@ -399,17 +467,6 @@ fn agent_text_names_only_settings_this_app_has() {
 
     let settings = settings_source();
     for text in &texts {
-        for mac_only in [
-            "what I shared about myself",
-            "→ Personal Context",
-            "Open LokalBot once",
-            "timeline of recent days",
-            "lokalbot-cli setup",
-            "lokalbot-cli config",
-            "lokalbot-cli doctor",
-        ] {
-            assert!(!text.contains(mac_only), "{mac_only:?} in {text}");
-        }
         for (at, marker) in text.match_indices("Settings → ") {
             let rest = &text[at + marker.len()..];
             let end = rest
@@ -479,4 +536,225 @@ fn copy_dir(from: &Path, to: &Path) {
             std::fs::copy(entry.path(), target).unwrap();
         }
     }
+}
+
+/// A stand-in for the app's control socket: answers each request in turn and
+/// hands back what it was sent.
+#[cfg(unix)]
+struct FakeApp {
+    requests: std::sync::mpsc::Receiver<Value>,
+    _dir: tempfile::TempDir,
+    root: PathBuf,
+}
+
+#[cfg(unix)]
+fn fake_app(replies: Vec<Value>) -> FakeApp {
+    use std::io::{BufRead as _, BufReader, Write as _};
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("library");
+    let paths = LibraryPaths::new(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    access::set_settings_control(&paths, true).unwrap();
+    let endpoint = lokalbot_core::control::socket::endpoint(&root).unwrap();
+    let _ = std::fs::remove_file(&endpoint);
+    let listener = std::os::unix::net::UnixListener::bind(&endpoint).unwrap();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        for reply in replies {
+            let (stream, _) = listener.accept().unwrap();
+            let mut line = String::new();
+            BufReader::new(&stream).read_line(&mut line).unwrap();
+            let _ = tx.send(serde_json::from_str::<Value>(&line).unwrap());
+            let mut writer = &stream;
+            writer.write_all(format!("{reply}\n").as_bytes()).unwrap();
+        }
+        let _ = std::fs::remove_file(&endpoint);
+    });
+    FakeApp {
+        requests: rx,
+        _dir: dir,
+        root,
+    }
+}
+
+#[cfg(unix)]
+fn waiting_request(state: &str) -> Value {
+    serde_json::json!({
+        "id": "ID-1",
+        "state": state,
+        "caller": "test",
+        "changes": [],
+    })
+}
+
+#[cfg(unix)]
+fn needs_approval() -> Value {
+    serde_json::json!({"protocol": 1, "error": {
+        "code": "needs_approval",
+        "message": "It needs the person's approval.",
+        "details": waiting_request("pending"),
+    }})
+}
+
+/// Exit 3 waiting, 0 approved, 4 declined and 5 expired, so a script can tell them apart.
+#[cfg(unix)]
+#[test]
+fn requests_that_need_the_person_exit_by_their_state() {
+    let app = fake_app(vec![needs_approval()]);
+    let output = cli(&app.root, &["config", "set", "trackingEnabled=true"]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let reply: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(reply["error"], "needs_approval");
+    assert_eq!(reply["details"]["id"], "ID-1");
+    let sent = app.requests.recv().unwrap();
+    assert_eq!(sent["method"], "settings.set");
+    assert_eq!(sent["params"]["changes"]["trackingEnabled"], true);
+
+    for (state, code) in [("approved", 0), ("denied", 4), ("expired", 5)] {
+        let app = fake_app(vec![
+            needs_approval(),
+            serde_json::json!({"protocol": 1, "result": waiting_request("pending")}),
+            serde_json::json!({"protocol": 1, "result": waiting_request(state)}),
+        ]);
+        let output = cli(
+            &app.root,
+            &["config", "set", "trackingEnabled=true", "--wait", "30"],
+        );
+        assert_eq!(output.status.code(), Some(code), "{state}: {output:?}");
+        let reply: Value = serde_json::from_str(&stdout(&output)).unwrap();
+        assert_eq!(reply["state"], state);
+    }
+}
+
+/// A key comes from standard input, one line, and never appears in any output.
+#[cfg(unix)]
+#[test]
+fn api_keys_come_from_standard_input_and_never_print() {
+    use std::io::Write as _;
+    let app = fake_app(vec![needs_approval()]);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_lokalbot-cli"))
+        .args(["secret", "set", "openai-compatible"])
+        .env("LOKALBOT_STORAGE_ROOT", &app.root)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"sk-a-very-secret-key\n")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let sent = app.requests.recv().unwrap();
+    assert_eq!(sent["method"], "secret.set");
+    assert_eq!(sent["params"]["value"], "sk-a-very-secret-key");
+    assert!(!stdout(&output).contains("sk-a-very-secret-key"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("sk-a-very-secret-key"));
+
+    // Two lines aren't a key, and nothing reaches the app.
+    let app = fake_app(vec![]);
+    let mut child = Command::new(env!("CARGO_BIN_EXE_lokalbot-cli"))
+        .args(["secret", "set", "openai-compatible"])
+        .env("LOKALBOT_STORAGE_ROOT", &app.root)
+        .stdin(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"line one\nline two\n")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(64), "{output:?}");
+}
+
+/// Stable errors print as `[code] message`, and no grant means no connection.
+#[cfg(unix)]
+#[test]
+fn errors_from_the_app_print_their_code() {
+    let app = fake_app(vec![serde_json::json!({"protocol": 1, "error": {
+        "code": "app_outdated",
+        "message": "Restart LokalBot.",
+    }})]);
+    let output = cli(&app.root, &["status", "--no-launch"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("Error: [app_outdated] Restart LokalBot.")
+    );
+
+    let (_dir, root) = seeded();
+    let output = cli(&root, &["status", "--no-launch"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("[settings_access_disabled]"),
+        "{output:?}"
+    );
+}
+
+/// `--files` asks for Files like the other read access, and asking grants nothing.
+#[cfg(unix)]
+#[test]
+fn setup_start_can_ask_to_search_files() {
+    use lokalbot_core::control::setup::{self, Grant, SetupRequest};
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("library");
+    let paths = LibraryPaths::new(&root);
+    let control = paths.control_dir();
+    std::fs::create_dir_all(&root).unwrap();
+    let lock = std::fs::File::create(paths.instance_lock()).unwrap();
+    lock.lock().unwrap();
+    let output = cli(&root, &["setup", "start", "--files"]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let request: SetupRequest = setup::read(&setup::request_path(&control)).unwrap();
+    assert_eq!(request.grants, [Grant::Settings, Grant::Files]);
+    assert!(!lokalbot_core::files::access::is_enabled(&paths));
+    assert!(!access::settings_control_enabled(&paths));
+
+    // Already on: nothing to ask for that box, and so nothing to ask at all.
+    access::set_settings_control(&paths, true).unwrap();
+    lokalbot_core::files::access::set_enabled(&paths, true).unwrap();
+    std::fs::remove_file(setup::request_path(&control)).unwrap();
+    let output = cli(&root, &["setup", "start", "--files"]);
+    assert!(output.status.success(), "{output:?}");
+    let reply: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(reply["alreadyAllowed"], true);
+    assert!(!setup::request_path(&control).exists());
+}
+
+/// `setup start` leaves a request the app shows, and asking grants nothing.
+#[cfg(unix)]
+#[test]
+fn setup_start_waits_for_the_answer_in_the_control_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("library");
+    let paths = LibraryPaths::new(&root);
+    let control = paths.control_dir();
+    // A running copy finds the request itself, so nothing is launched here.
+    std::fs::create_dir_all(&root).unwrap();
+    let lock = std::fs::File::create(paths.instance_lock()).unwrap();
+    lock.lock().unwrap();
+    let output = cli(&root, &["setup", "start", "--screen-memory"]);
+    assert_eq!(output.status.code(), Some(3), "{output:?}");
+    let reply: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(reply["state"], "pending");
+    let request: lokalbot_core::control::setup::SetupRequest =
+        lokalbot_core::control::setup::read(&lokalbot_core::control::setup::request_path(&control))
+            .unwrap();
+    assert!(request.is_live(chrono::Utc::now()));
+    assert_eq!(
+        request.grants,
+        [
+            lokalbot_core::control::setup::Grant::Settings,
+            lokalbot_core::control::setup::Grant::ScreenMemory
+        ]
+    );
+    // Nothing was granted by asking.
+    assert!(!access::settings_control_enabled(&paths));
+    assert!(access::screen_access_scope(&paths).is_none());
 }

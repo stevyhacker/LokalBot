@@ -21,11 +21,15 @@ pub mod privacy;
 
 #[cfg(target_os = "linux")]
 mod atspi;
+#[cfg(target_os = "linux")]
+pub(crate) use atspi::BrowserCallReader;
 mod events;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(windows)]
 mod uia;
+#[cfg(windows)]
+pub(crate) use uia::BrowserCallReader;
 #[cfg(target_os = "linux")]
 mod wayland;
 #[cfg(windows)]
@@ -33,6 +37,7 @@ mod win32;
 #[cfg(target_os = "linux")]
 mod x11;
 
+pub(crate) use events::ClipboardWatch;
 pub use events::{Interaction, InteractionMonitor};
 
 /// RGBA pixels, 8 bits per channel, rows top to bottom.

@@ -10,6 +10,8 @@ use chrono::{DateTime, NaiveDate, Utc};
 use rusqlite::{OptionalExtension as _, params};
 use uuid::Uuid;
 
+use crate::coding_agents::CodingAgentBurst;
+use crate::coding_agents::attribution::{self, Attribution, Share};
 use crate::library::Library;
 use crate::model::*;
 use crate::time::{from_epoch, to_epoch};
@@ -18,6 +20,12 @@ use crate::time::{from_epoch, to_epoch};
 pub const SESSION_MAXIMUM_GAP_SECONDS: f64 = 5.0 * 60.0;
 /// A session this long starts a new one at the next non-overlapping block.
 pub const SESSION_MAXIMUM_DURATION_SECONDS: f64 = 45.0 * 60.0;
+/// Work that moves to another project for this long starts a session.
+const PROJECT_SWITCH_SECONDS: f64 = 10.0 * 60.0;
+/// A project names the session once it holds this share of its time.
+const PROJECT_TITLE_SHARE: f64 = 0.2;
+/// A burst that overlaps no session joins the nearest one this close.
+const BURST_ATTACH_SECONDS: f64 = 15.0 * 60.0;
 
 /// Shell, lock-screen and login processes that are never "work". The first
 /// five are the macOS list; the rest are their Linux and Windows equivalents.
@@ -183,25 +191,68 @@ fn seconds(delta: chrono::Duration) -> f64 {
 struct Titled<'a> {
     block: &'a ActivityBlock,
     title: Option<String>,
+    /// The block's time per project, empty without agent evidence.
+    shares: Vec<Share>,
+}
+
+impl Titled<'_> {
+    /// The project that holds most of the block's time.
+    fn project(&self) -> Option<&str> {
+        self.shares.first().map(|share| share.project.as_str())
+    }
 }
 
 /// App activity grouped into human-scale sessions (`TimelineWorkSession.sessions`):
 /// system apps dropped, gaps of at most 5 minutes merged, a new session after
 /// 45 minutes or when a sustained unseen title appears after 10 minutes.
 pub fn activity_sessions(source: &[ActivityBlock]) -> Vec<WorkSession> {
+    attributed_sessions(source, None)
+}
+
+/// With coding-agent evidence, sessions end where the work moves to another
+/// project instead of at a fixed length, and take their names from the project
+/// and its agents' tasks.
+pub fn attributed_sessions(
+    source: &[ActivityBlock],
+    attribution: Option<&Attribution>,
+) -> Vec<WorkSession> {
     let mut blocks: Vec<&ActivityBlock> = source
         .iter()
         .filter(|b| b.end > b.start && !is_system_app(&b.app))
         .collect();
     blocks.sort_by(|a, b| a.start.cmp(&b.start).then(a.id.cmp(&b.id)));
-    let titled: Vec<Titled> = blocks
-        .into_iter()
+    let mut titled: Vec<Titled> = blocks
+        .iter()
         .map(|block| Titled {
             block,
             title: cleaned_title(&block.title, &block.app),
+            shares: Vec::new(),
         })
         .collect();
-    let Some(first) = titled.first() else {
+    let Some(attribution) = attribution.filter(|a| !a.bursts.is_empty()) else {
+        return app_groups(titled.iter().collect())
+            .iter()
+            .filter_map(|group| make_session(group))
+            .collect();
+    };
+    let groups = if attribution.is_empty() {
+        app_groups(titled.iter().collect())
+    } else {
+        // Ranked shares, so each block's first share is its project.
+        let shares = attribution.shares_of(&blocks);
+        for (observed, shares) in titled.iter_mut().zip(shares) {
+            observed.shares = shares;
+        }
+        project_groups(titled.iter().collect())
+    };
+    let sessions = groups.iter().filter_map(|g| make_session(g)).collect();
+    assign_agent_work(&attribution.bursts, sessions)
+}
+
+/// Cuts at gaps, after 45 minutes, and where a new document holds attention
+/// for a while.
+fn app_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>>> {
+    let Some(first) = titled.first().copied() else {
         return Vec::new();
     };
 
@@ -209,7 +260,7 @@ pub fn activity_sessions(source: &[ActivityBlock]) -> Vec<WorkSession> {
     let mut current = vec![first];
     let mut current_end = first.block.end;
     let mut seen: HashSet<String> = first.title.iter().map(|t| t.to_lowercase()).collect();
-    for observed in titled.iter().skip(1) {
+    for observed in titled.iter().skip(1).copied() {
         let block = observed.block;
         let title = observed.title.as_ref().map(|t| t.to_lowercase());
         let elapsed = seconds(block.start - current[0].block.start);
@@ -234,7 +285,196 @@ pub fn activity_sessions(source: &[ActivityBlock]) -> Vec<WorkSession> {
         }
     }
     groups.push(current);
-    groups.iter().filter_map(|g| make_session(g)).collect()
+    groups
+}
+
+/// Cuts at gaps and where the work moves to another project for at least ten
+/// minutes. A brief look elsewhere stays inside the session, and a project
+/// session has no length limit. A stretch too short to stand on its own joins
+/// the work that follows it. Stretches no project claims, such as reading or
+/// chat, fall back to the app rules.
+fn project_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>>> {
+    let Some(first) = titled.first().copied() else {
+        return Vec::new();
+    };
+    let mut segments: Vec<(Option<String>, Vec<&Titled>)> = Vec::new();
+    let mut current = vec![first];
+    let mut current_project = first.project().map(str::to_string);
+    let mut current_seconds = first.block.duration_seconds();
+    let mut current_end = first.block.end;
+    // Time each other project (or none) has held since the current one was
+    // last seen, and the index where that run began.
+    let mut pending: HashMap<Option<String>, (usize, f64)> = HashMap::new();
+    for observed in titled.iter().skip(1).copied() {
+        let block = observed.block;
+        let project = observed.project().map(str::to_string);
+        if seconds(block.start - current_end) > SESSION_MAXIMUM_GAP_SECONDS {
+            segments.push((current_project, std::mem::take(&mut current)));
+            current = vec![observed];
+            current_project = project;
+            current_seconds = block.duration_seconds();
+            current_end = block.end;
+            pending.clear();
+            continue;
+        }
+        current.push(observed);
+        current_end = current_end.max(block.end);
+        if project == current_project {
+            current_seconds += block.duration_seconds();
+            pending.clear();
+            continue;
+        }
+        let (run_index, run_seconds) = pending
+            .get(&project)
+            .copied()
+            .unwrap_or((current.len() - 1, 0.0));
+        let total = run_seconds + block.duration_seconds();
+        pending.insert(project.clone(), (run_index, total));
+        if total < PROJECT_SWITCH_SECONDS {
+            continue;
+        }
+        if current_seconds >= PROJECT_SWITCH_SECONDS {
+            // Wait for an edge no earlier block still runs across.
+            let Some(cut) = cut_index(&current, run_index) else {
+                continue;
+            };
+            let rest = current.split_off(cut);
+            segments.push((
+                current_project.clone(),
+                std::mem::replace(&mut current, rest),
+            ));
+        }
+        // A stretch too short to stand alone joins the new project's.
+        current_project = project;
+        current_seconds = total;
+        pending.clear();
+    }
+    segments.push((current_project, current));
+
+    let mut groups = Vec::new();
+    for (project, blocks) in segments {
+        if project.is_none() {
+            groups.extend(app_groups(blocks));
+        } else {
+            groups.push(blocks);
+        }
+    }
+    groups
+}
+
+/// The first index at or after `from` where no earlier block is still running,
+/// so a cut never splits overlapping activity.
+fn cut_index(blocks: &[&Titled], from: usize) -> Option<usize> {
+    if from == 0 || from >= blocks.len() {
+        return None;
+    }
+    let mut running_end = blocks[0].block.end;
+    for (index, observed) in blocks.iter().enumerate().skip(1) {
+        if index >= from && observed.block.start >= running_end {
+            return Some(index);
+        }
+        running_end = running_end.max(observed.block.end);
+    }
+    None
+}
+
+/// Lists each burst under the session it overlaps most, or the nearest one when
+/// the agent worked between sessions, then names project sessions after the
+/// task their agents worked on.
+fn assign_agent_work(
+    bursts: &[CodingAgentBurst],
+    mut sessions: Vec<WorkSession>,
+) -> Vec<WorkSession> {
+    let mut assigned: Vec<Vec<CodingAgentBurst>> = vec![Vec::new(); sessions.len()];
+    for burst in bursts {
+        let mut best: Option<(usize, f64)> = None;
+        let mut nearest: Option<(usize, f64)> = None;
+        for (index, session) in sessions.iter().enumerate() {
+            let overlap = seconds(burst.end.min(session.end) - burst.start.max(session.start));
+            if overlap > 0.0 {
+                if overlap > best.map_or(0.0, |b| b.1) {
+                    best = Some((index, overlap));
+                }
+            } else if -overlap <= BURST_ATTACH_SECONDS
+                && -overlap < nearest.map_or(f64::INFINITY, |n| n.1)
+            {
+                nearest = Some((index, -overlap));
+            }
+        }
+        if let Some((index, _)) = best.or(nearest) {
+            assigned[index].push(burst.clone());
+        }
+    }
+    for (session, listed) in sessions.iter_mut().zip(assigned) {
+        session.agent_bursts = listed;
+        name_after_project(session, bursts);
+    }
+    sessions
+}
+
+/// "bizstats · Rehearse the audit runbook on staging": the busiest project,
+/// then the task of its burst that overlaps the session most. A second project
+/// that also holds a fair share is named too, as in "bizstats, alpha · …", so a
+/// review in the browser beside agent work is not lost.
+fn name_after_project(session: &mut WorkSession, bursts: &[CodingAgentBurst]) {
+    let threshold = (session.active_seconds * PROJECT_TITLE_SHARE).max(60.0);
+    let Some(top) = session.project_shares.first().cloned() else {
+        return;
+    };
+    if top.seconds < threshold {
+        return;
+    }
+    let mut named = vec![top.project.clone()];
+    if let Some(second) = session.project_shares.get(1)
+        && second.seconds >= threshold
+    {
+        named.push(second.project.clone());
+    }
+    let projects = named.join(", ");
+    let on_project =
+        |burst: &&CodingAgentBurst| burst.work_project().as_ref() == Some(&top.project);
+    let listed: Vec<&CodingAgentBurst> = session.agent_bursts.iter().filter(on_project).collect();
+    let candidates: Vec<&CodingAgentBurst> = if listed.is_empty() {
+        bursts.iter().filter(on_project).collect()
+    } else {
+        listed
+    };
+    let mut task = None;
+    let mut longest = 0.0;
+    for burst in candidates {
+        let overlap = seconds(burst.end.min(session.end) - burst.start.max(session.start));
+        if overlap > longest {
+            longest = overlap;
+            task = Some(burst.work_title());
+        }
+    }
+    session.title = if let Some(task) = task {
+        format!("{projects} · {task}")
+    } else if !session.title_names_apps {
+        format!("{projects} · {}", session.title)
+    } else {
+        projects
+    };
+    session.title_names_project = true;
+}
+
+/// The session's time per project, busiest first.
+fn project_shares(group: &[&Titled]) -> Vec<Share> {
+    let mut seconds: HashMap<&str, f64> = HashMap::new();
+    for observed in group {
+        for share in &observed.shares {
+            *seconds.entry(share.project.as_str()).or_default() += share.seconds;
+        }
+    }
+    attribution::ranked(
+        seconds
+            .into_iter()
+            .map(|(project, seconds)| Share {
+                project: project.to_string(),
+                seconds,
+            })
+            .collect(),
+    )
 }
 
 fn make_session(group: &[&Titled]) -> Option<WorkSession> {
@@ -334,6 +574,9 @@ fn make_session(group: &[&Titled]) -> Option<WorkSession> {
         notable_titles: evidence.into_iter().map(|(title, _, _)| title).collect(),
         context_switch_count: switches,
         meeting_id: None,
+        project_shares: project_shares(group),
+        agent_bursts: Vec::new(),
+        title_names_project: false,
     })
 }
 
@@ -417,14 +660,25 @@ pub fn meeting_session(meeting: &Meeting, now: DateTime<Utc>) -> WorkSession {
         notable_titles: Vec::new(),
         context_switch_count: 0,
         meeting_id: Some(meeting.id),
+        project_shares: Vec::new(),
+        agent_bursts: Vec::new(),
+        title_names_project: false,
     }
 }
 
 /// Work sessions from `blocks` interleaved with `meetings`, by start
 /// (`TimelineDayItem.items`). Meeting sessions have `meeting_id` set.
 pub fn work_sessions(blocks: &[ActivityBlock], meetings: &[Meeting]) -> Vec<WorkSession> {
+    interleaved_sessions(blocks, meetings, None)
+}
+
+fn interleaved_sessions(
+    blocks: &[ActivityBlock],
+    meetings: &[Meeting],
+    attribution: Option<&Attribution>,
+) -> Vec<WorkSession> {
     let now = Utc::now();
-    let mut sessions = activity_sessions(blocks);
+    let mut sessions = attributed_sessions(blocks, attribution);
     sessions.extend(meetings.iter().map(|m| meeting_session(m, now)));
     sessions.sort_by_key(|s| s.start);
     sessions
@@ -488,10 +742,21 @@ pub(crate) fn screen_columns(db: &rusqlite::Connection) -> Result<String> {
     } else {
         "NULL"
     };
+    // Libraries opened read-only may predate the column.
+    let has_group: i64 = db.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('screenshots') WHERE name = 'similarity_group'",
+        [],
+        |row| row.get(0),
+    )?;
+    let group = if has_group > 0 {
+        "shot.similarity_group"
+    } else {
+        "0"
+    };
     Ok(format!(
         "shot.id, shot.ts, shot.app, shot.window_title, shot.capture_trigger, shot.path, \
          shot.source_url, shot.document_name, shot.meeting_id, shot.privacy_redactions, {text}, \
-         bookmark.note, bookmark.snapshot_id IS NOT NULL"
+         bookmark.note, bookmark.snapshot_id IS NOT NULL, {group}"
     ))
 }
 
@@ -511,7 +776,71 @@ pub(crate) fn screen_moment_from_row(row: &rusqlite::Row) -> rusqlite::Result<Sc
         text: row.get(10)?,
         saved_note: row.get(11)?,
         is_saved: row.get(12)?,
+        similarity_group: row.get(13)?,
     })
+}
+
+/// Oldest-first visual scenes (`ScreenRewindSequence.frames`): adjacent
+/// captures in one persisted similarity group collapse into one, and the
+/// newest of them stands for the scene.
+pub fn rewind_frames(moments: &[ScreenMoment]) -> Vec<Vec<&ScreenMoment>> {
+    let mut sorted: Vec<&ScreenMoment> = moments.iter().collect();
+    sorted.sort_by_key(|m| m.ts);
+    let mut frames: Vec<Vec<&ScreenMoment>> = Vec::new();
+    for moment in sorted {
+        match frames.last_mut() {
+            Some(frame)
+                if moment.similarity_group > 0
+                    && frame.last().map(|m| m.similarity_group)
+                        == Some(moment.similarity_group) =>
+            {
+                frame.push(moment);
+            }
+            _ => frames.push(vec![moment]),
+        }
+    }
+    frames
+}
+
+/// At most `limit` items, spaced evenly and always keeping the first and last
+/// (`CaptureModel.representativeFrames`).
+pub fn representative<T: Clone>(items: &[T], limit: usize) -> Vec<T> {
+    if limit == 0 || items.len() <= limit {
+        return items.to_vec();
+    }
+    if limit == 1 {
+        return vec![items[items.len() / 2].clone()];
+    }
+    (0..limit)
+        .map(|index| {
+            let at = index as f64 * (items.len() - 1) as f64 / (limit - 1) as f64;
+            items[at.round() as usize].clone()
+        })
+        .collect()
+}
+
+/// A session's moments that match an app and a query, which looks in the
+/// window title, the document name and any retained text
+/// (`SessionMomentBrowser.filtered`).
+pub fn moments_matching<'a>(
+    moments: &[&'a ScreenMoment],
+    app: Option<&str>,
+    query: &str,
+) -> Vec<&'a ScreenMoment> {
+    let needle = query.to_lowercase();
+    moments
+        .iter()
+        .copied()
+        .filter(|m| app.is_none_or(|app| m.app == app))
+        .filter(|m| {
+            needle.is_empty()
+                || m.window_title.to_lowercase().contains(&needle)
+                || m.document_name.to_lowercase().contains(&needle)
+                || m.text
+                    .as_deref()
+                    .is_some_and(|text| text.to_lowercase().contains(&needle))
+        })
+        .collect()
 }
 
 /// A screen moment to store (`ActivityStore.insertScreenshot`). `path` is
@@ -608,13 +937,15 @@ impl Library {
         if self.is_read_only() {
             bail!("the library is open read-only");
         }
-        self.with_db(|db| {
-            db.execute(
-                "INSERT INTO screen_bookmarks (snapshot_id, note, created_at) VALUES (?1, ?2, ?3) \
-                 ON CONFLICT(snapshot_id) DO UPDATE SET note = excluded.note",
-                params![id, note.trim(), to_epoch(Utc::now())],
-            )?;
-            Ok(())
+        self.with_moment_revision(id, || {
+            self.with_db(|db| {
+                db.execute(
+                    "INSERT INTO screen_bookmarks (snapshot_id, note, created_at) VALUES (?1, ?2, ?3) \
+                     ON CONFLICT(snapshot_id) DO UPDATE SET note = excluded.note",
+                    params![id, note.trim(), to_epoch(Utc::now())],
+                )?;
+                Ok(())
+            })
         })
     }
 
@@ -623,10 +954,30 @@ impl Library {
         if self.is_read_only() {
             bail!("the library is open read-only");
         }
-        self.with_db(|db| {
-            db.execute("DELETE FROM screen_bookmarks WHERE snapshot_id = ?1", [id])?;
-            Ok(())
+        self.with_moment_revision(id, || {
+            self.with_db(|db| {
+                db.execute("DELETE FROM screen_bookmarks WHERE snapshot_id = ?1", [id])?;
+                Ok(())
+            })
         })
+    }
+
+    /// Saved moments are evidence: a digest stays but is marked out of date.
+    fn with_moment_revision(&self, id: i64, change: impl FnOnce() -> Result<()>) -> Result<()> {
+        let ts: Option<f64> = self.with_db(|db| {
+            Ok(db
+                .query_row("SELECT ts FROM screenshots WHERE id = ?1", [id], |row| {
+                    row.get(0)
+                })
+                .optional()?)
+        })?;
+        let dates: Vec<DateTime<Utc>> = ts.map(from_epoch).into_iter().collect();
+        crate::evidence::with_screen_mutation(
+            self.paths().root(),
+            &dates,
+            crate::evidence::EvidenceChange::Revision,
+            change,
+        )
     }
 
     /// Moves the end of a growing block forward.
@@ -719,7 +1070,13 @@ impl Library {
             .into_iter()
             .filter(|m| crate::time::local_day(m.started_at) == day)
             .collect();
-        let sessions = work_sessions(&blocks, &meetings);
+        let agent_bursts = self.coding_agent_bursts(start, end).unwrap_or_else(|err| {
+            log::warn!("reading coding-agent sessions: {err:#}");
+            Vec::new()
+        });
+        let attribution = Attribution::new(&agent_bursts);
+        let project_split = attribution.split(&blocks);
+        let sessions = interleaved_sessions(&blocks, &meetings, Some(&attribution));
         let tracked_seconds = sessions
             .iter()
             .filter(|s| s.meeting_id.is_none())
@@ -744,6 +1101,8 @@ impl Library {
             tracked_seconds,
             moment_count,
             meeting_count: meetings.len(),
+            agent_bursts,
+            project_split,
         })
     }
 
@@ -756,6 +1115,39 @@ impl Library {
             let latest: Option<f64> =
                 db.query_row("SELECT MAX(end) FROM activity_blocks", [], |row| row.get(0))?;
             Ok(latest.map(from_epoch))
+        })
+    }
+}
+
+impl Library {
+    /// The oldest activity start (`ActivityStore.earliestActivityStart`).
+    pub fn earliest_activity_start(&self) -> Result<Option<DateTime<Utc>>> {
+        self.with_db(|db| {
+            if !table_exists(db, "activity_blocks")? {
+                return Ok(None);
+            }
+            let earliest: Option<f64> =
+                db.query_row("SELECT MIN(start) FROM activity_blocks", [], |row| {
+                    row.get(0)
+                })?;
+            Ok(earliest.map(from_epoch))
+        })
+    }
+
+    /// Whether any activity block overlaps `[start, end)` (`hasActivity(in:)`).
+    pub fn has_activity(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<bool> {
+        self.with_db(|db| {
+            if !table_exists(db, "activity_blocks")? {
+                return Ok(false);
+            }
+            Ok(db
+                .query_row(
+                    "SELECT 1 FROM activity_blocks WHERE end > ?1 AND start < ?2 LIMIT 1",
+                    params![to_epoch(start), to_epoch(end)],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some())
         })
     }
 }
@@ -775,6 +1167,72 @@ pub(crate) fn table_exists(db: &rusqlite::Connection, name: &str) -> Result<bool
 mod tests {
     use super::*;
     use chrono::TimeZone as _;
+
+    fn scene_moment(id: i64, seconds: i64, group: i64) -> ScreenMoment {
+        ScreenMoment {
+            id,
+            ts: chrono::TimeZone::timestamp_opt(&Utc, 1_800_000_000 + seconds, 0).unwrap(),
+            app: "App".into(),
+            window_title: format!("Window {id}"),
+            capture_trigger: String::new(),
+            path: String::new(),
+            source_url: String::new(),
+            document_name: String::new(),
+            meeting_id: None,
+            privacy_redactions: 0,
+            text: None,
+            saved_note: None,
+            is_saved: false,
+            similarity_group: group,
+        }
+    }
+
+    #[test]
+    fn scenes_collapse_only_adjacent_captures_of_one_group() {
+        let moments = vec![
+            scene_moment(1, 0, 5),
+            scene_moment(2, 1, 5),
+            scene_moment(3, 2, 0),
+            scene_moment(4, 3, 0),
+            scene_moment(5, 4, 5),
+        ];
+        let frames = rewind_frames(&moments);
+        let ids: Vec<Vec<i64>> = frames
+            .iter()
+            .map(|f| f.iter().map(|m| m.id).collect())
+            .collect();
+        assert_eq!(ids, vec![vec![1, 2], vec![3], vec![4], vec![5]]);
+    }
+
+    #[test]
+    fn representatives_span_the_scenes_evenly() {
+        let items: Vec<i32> = (0..10).collect();
+        assert_eq!(representative(&items, 3), vec![0, 5, 9]);
+        assert_eq!(representative(&items, 1), vec![5]);
+        assert_eq!(representative(&items[..2], 3), vec![0, 1]);
+    }
+
+    #[test]
+    fn find_looks_in_titles_documents_and_retained_text() {
+        let mut one = scene_moment(1, 0, 0);
+        one.app = "Docs".into();
+        one.document_name = "Budget.xlsx".into();
+        let mut two = scene_moment(2, 1, 0);
+        two.text = Some("the Quarterly numbers".into());
+        let moments = vec![&one, &two];
+        let ids = |app: Option<&str>, query: &str| -> Vec<i64> {
+            moments_matching(&moments, app, query)
+                .iter()
+                .map(|m| m.id)
+                .collect()
+        };
+        assert_eq!(ids(None, ""), vec![1, 2]);
+        assert_eq!(ids(None, "budget"), vec![1]);
+        assert_eq!(ids(None, "quarterly"), vec![2]);
+        assert_eq!(ids(None, "window 2"), vec![2]);
+        assert_eq!(ids(Some("Docs"), ""), vec![1]);
+        assert_eq!(ids(Some("Docs"), "quarterly"), Vec::<i64>::new());
+    }
 
     fn at(minute: i64) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 10, 15, 9, 0, 0).unwrap() + chrono::Duration::minutes(minute)

@@ -23,6 +23,7 @@ pkgbase = lokalbot-bin
 	optdepends = wtype: dictation on Hyprland and Sway
 	optdepends = ydotool: dictation on other Wayland desktops
 	optdepends = grim: screen context on Hyprland and Sway
+	optdepends = tesseract: read screen text in scripts other than Latin
 	provides = lokalbot=0.11.0
 	conflicts = lokalbot
 	options = !strip

@@ -300,6 +300,40 @@ impl Shortcut {
         self.system_problem()
     }
 
+    /// Why this cannot open selection actions, or `None`. Like Ask it needs a
+    /// key, and it must differ from the other two shortcuts when they are on.
+    pub fn selection_actions_problem(
+        &self,
+        dictation: Option<&Shortcut>,
+        ask: Option<&Shortcut>,
+    ) -> Option<ShortcutProblem> {
+        if self.is_modifier_only() {
+            return Some(ShortcutProblem::NeedsKey);
+        }
+        if let Some(problem) = self.typing_problem() {
+            return Some(problem);
+        }
+        if dictation.is_some_and(|dictation| dictation == self) {
+            return Some(ShortcutProblem::UsedByDictation);
+        }
+        if ask.is_some_and(|ask| ask == self) {
+            return Some(ShortcutProblem::UsedByAsk);
+        }
+        self.system_problem()
+    }
+
+    /// Plain Escape, or Escape with this shortcut's modifiers still held, the
+    /// keys that cancel a dictation (`isEscape(allowing:)`).
+    pub fn cancel_key(&self) -> Shortcut {
+        Shortcut {
+            ctrl: self.ctrl,
+            alt: self.alt,
+            shift: self.shift,
+            logo: self.logo,
+            key: Some(Key::Escape),
+        }
+    }
+
     /// Why this cannot open Ask, or `None`
     /// (`QuickRecallHotKeyController.problem`). Ask always needs a key.
     pub fn quick_recall_problem(&self, dictation: Option<&Shortcut>) -> Option<ShortcutProblem> {
@@ -316,13 +350,16 @@ impl Shortcut {
     }
 
     fn typing_problem(&self) -> Option<ShortcutProblem> {
+        self.typing_problem_where(crate::chord::chords_available())
+    }
+
+    fn typing_problem_where(&self, chords_available: bool) -> Option<ShortcutProblem> {
         let Some(key) = self.key else {
             // One modifier alone fires whenever it is used for anything else.
-            return Some(if self.modifier_count() >= 2 {
-                ShortcutProblem::ModifierOnlyUnsupported
-            } else {
-                ShortcutProblem::NeedsTwoModifiers
-            });
+            if self.modifier_count() < 2 {
+                return Some(ShortcutProblem::NeedsTwoModifiers);
+            }
+            return (!chords_available).then_some(ShortcutProblem::ModifierOnlyUnsupported);
         };
         if key == Key::Escape {
             return Some(ShortcutProblem::ReservedForCancel);
@@ -369,9 +406,15 @@ impl Shortcut {
     }
 }
 
-/// Combinations the system takes before any app sees them.
+/// Combinations the system takes before any app sees them, and Ctrl+Shift+W,
+/// which closes tabs and windows in most apps here (the Mac's default for
+/// selection actions).
 #[cfg(windows)]
 const RESERVED: &[&str] = &[
+    "Ctrl+Shift+W",
+    // Switching the input language, held alone.
+    "Alt+Shift",
+    "Ctrl+Shift",
     "Ctrl+Alt+Delete",
     "Ctrl+Shift+Esc",
     "Ctrl+Esc",
@@ -415,6 +458,7 @@ const RESERVED: &[&str] = &[
 ];
 #[cfg(not(windows))]
 const RESERVED: &[&str] = &[
+    "Ctrl+Shift+W",
     "Ctrl+Alt+Delete",
     "Alt+Tab",
     "Alt+Shift+Tab",
@@ -432,12 +476,13 @@ pub enum ShortcutProblem {
     NeedsModifier,
     CtrlOnly,
     NeedsTwoModifiers,
-    /// Modifier chords (Ctrl+Alt alone) need a keyboard hook that Linux and
-    /// Windows builds do not install.
+    /// Modifier chords (Ctrl+Alt alone) need to read the keyboard's state, which
+    /// Wayland doesn't let an app do.
     ModifierOnlyUnsupported,
     NeedsKey,
     UsedByDictation,
     UsedByAsk,
+    UsedBySelectionActions,
     UsedBySystem,
     Unavailable,
 }
@@ -462,6 +507,9 @@ impl ShortcutProblem {
             Self::NeedsKey => "Hold the modifiers and press a key, like Ctrl+Shift+Space.".into(),
             Self::UsedByDictation => "Dictation already uses this shortcut. Choose another.".into(),
             Self::UsedByAsk => "Ask already uses this shortcut. Choose another.".into(),
+            Self::UsedBySelectionActions => {
+                "Selection actions already use this shortcut. Choose another.".into()
+            }
             Self::UsedBySystem => {
                 if cfg!(windows) {
                     "Windows already uses this shortcut. Choose another.".into()
@@ -484,9 +532,27 @@ impl fmt::Display for ShortcutProblem {
 
 /// Shown when Ask's shortcut fails to register (`QuickRecallHotKeyController`).
 pub fn ask_registration_failed_message(shortcut: &Shortcut) -> String {
-    format!(
-        "The Ask shortcut could not register {}. Another app may already use it.",
-        shortcut.label()
+    lokalbot_i18n::format(
+        "The Ask shortcut could not register {shortcut}. Another app may already use it.",
+        &[("shortcut", shortcut.label())],
+    )
+}
+
+/// Shown when selection actions' shortcut fails to register
+/// (`applySelectionActionsSetting`).
+pub fn selection_actions_registration_failed_message(shortcut: &Shortcut) -> String {
+    lokalbot_i18n::format(
+        "The selection actions shortcut could not register {shortcut}. Another app may already use it.",
+        &[("shortcut", shortcut.label())],
+    )
+}
+
+/// Shown when dictation's shortcut fails to register. The page then says
+/// "Shortcut inactive."
+pub fn dictation_registration_failed_message(shortcut: &Shortcut) -> String {
+    lokalbot_i18n::format(
+        "The dictation shortcut could not register {shortcut}. Another app may already use it.",
+        &[("shortcut", shortcut.label())],
     )
 }
 
@@ -509,6 +575,8 @@ impl FromStr for Shortcut {
 pub struct ShortcutEvent {
     pub id: String,
     pub pressed: bool,
+    /// A chord of modifiers alone decides for itself what the press means.
+    pub chord: Option<crate::chord::ChordAction>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -526,9 +594,9 @@ pub enum ShortcutError {
 }
 
 /// Suggested when a desktop has no way to register shortcuts for apps.
-pub const BIND_COMMAND_HINT: &str = "Add a shortcut in your desktop's keyboard settings that runs “lokalbot dictate --toggle” for dictation or “lokalbot quick-recall” for Ask.";
+pub const BIND_COMMAND_HINT: &str = "Add a shortcut in your desktop's keyboard settings that runs “lokalbot dictate --toggle” for dictation, “lokalbot quick-recall” for Ask or “lokalbot selection-actions” for selection actions.";
 
-type Handler = Arc<dyn Fn(ShortcutEvent) + Send + Sync>;
+pub(crate) type Handler = Arc<dyn Fn(ShortcutEvent) + Send + Sync>;
 
 fn shared_handler(handler: impl Fn(ShortcutEvent) + Send + 'static) -> Handler {
     let handler = Mutex::new(handler);
@@ -538,6 +606,8 @@ fn shared_handler(handler: impl Fn(ShortcutEvent) + Send + 'static) -> Handler {
 /// Registers global shortcuts until dropped. Create one per process.
 pub struct GlobalShortcuts {
     backend: Backend,
+    handler: Handler,
+    chords: std::collections::HashMap<String, crate::chord::Watcher>,
 }
 
 enum Backend {
@@ -555,8 +625,10 @@ impl GlobalShortcuts {
         #[cfg(target_os = "linux")]
         {
             if crate::session::is_wayland() {
-                return portal::Worker::start(handler).map(|worker| Self {
+                return portal::Worker::start(handler.clone()).map(|worker| Self {
                     backend: Backend::Portal(worker),
+                    handler,
+                    chords: Default::default(),
                 });
             }
             if !crate::session::has_x11_display() {
@@ -567,8 +639,10 @@ impl GlobalShortcuts {
         }
         #[cfg(any(windows, target_os = "linux"))]
         {
-            hotkey::Worker::start(handler).map(|worker| Self {
+            hotkey::Worker::start(handler.clone()).map(|worker| Self {
                 backend: Backend::HotKey(worker),
+                handler,
+                chords: Default::default(),
             })
         }
         #[cfg(not(any(windows, target_os = "linux")))]
@@ -590,6 +664,29 @@ impl GlobalShortcuts {
             #[cfg(not(any(windows, target_os = "linux")))]
             Backend::None => "none",
         }
+    }
+
+    /// Starts watching a chord of modifiers alone under `id`. Nothing is taken
+    /// from other apps, so nothing can refuse it except a desktop that doesn't
+    /// let an app read the keyboard. `active` says whether a dictation is
+    /// starting or recording.
+    pub fn register_chord(
+        &mut self,
+        id: &str,
+        shortcut: &Shortcut,
+        mode: lokalbot_core::settings::DictationTriggerMode,
+        active: Arc<std::sync::atomic::AtomicBool>,
+    ) -> Result<(), ShortcutError> {
+        if !crate::chord::chords_available() {
+            return Err(ShortcutError::Invalid(
+                ShortcutProblem::ModifierOnlyUnsupported,
+            ));
+        }
+        self.chords.remove(id);
+        let watcher =
+            crate::chord::Watcher::start(id, shortcut, mode, active, self.handler.clone())?;
+        self.chords.insert(id.to_string(), watcher);
+        Ok(())
     }
 
     /// Registers `shortcut` under `id`, replacing what `id` had. On Wayland
@@ -615,6 +712,7 @@ impl GlobalShortcuts {
     }
 
     pub fn unregister(&mut self, id: &str) -> Result<(), ShortcutError> {
+        self.chords.remove(id);
         match &mut self.backend {
             #[cfg(any(windows, target_os = "linux"))]
             Backend::HotKey(worker) => worker.unregister(id),
@@ -672,6 +770,7 @@ mod hotkey {
                     handler(ShortcutEvent {
                         id,
                         pressed: event.state == HotKeyState::Pressed,
+                        chord: None,
                     });
                 }
             }));
@@ -1088,6 +1187,7 @@ mod portal {
         match id {
             "dictation" => "Start or stop dictation".into(),
             "quick-recall" | "ask" => "Open Ask".into(),
+            "selection-actions" => "Open selection actions".into(),
             other => other.replace(['-', '_'], " "),
         }
     }
@@ -1170,7 +1270,11 @@ mod portal {
             match next {
                 Next::Event(Some((handle, id, pressed))) => {
                     if session.as_ref().and_then(session_path).as_deref() == Some(handle.as_str()) {
-                        handler(ShortcutEvent { id, pressed });
+                        handler(ShortcutEvent {
+                            id,
+                            pressed,
+                            chord: None,
+                        });
                     }
                 }
                 Next::Event(None) => break,
@@ -1304,9 +1408,15 @@ mod tests {
         assert_eq!(s("Ctrl+Space").dictation_problem(None), None);
         assert_eq!(s("Ctrl+Shift+S").dictation_problem(None), None);
         assert_eq!(s("Ctrl").dictation_problem(None), Some(NeedsTwoModifiers));
+        // Two modifiers alone, where the desktop lets an app watch them.
+        assert_eq!(s("Ctrl+Alt").typing_problem_where(true), None);
         assert_eq!(
-            s("Ctrl+Alt").dictation_problem(None),
+            s("Ctrl+Alt").typing_problem_where(false),
             Some(ModifierOnlyUnsupported)
+        );
+        assert_eq!(
+            s("Ctrl").typing_problem_where(true),
+            Some(NeedsTwoModifiers)
         );
         assert_eq!(
             s("Ctrl+Shift+Space").dictation_problem(Some(&Shortcut::QUICK_RECALL_DEFAULT)),
@@ -1333,6 +1443,55 @@ mod tests {
             ask_registration_failed_message(&Shortcut::QUICK_RECALL_DEFAULT),
             "The Ask shortcut could not register Ctrl+Shift+Space. Another app may already use it."
         );
+    }
+
+    #[test]
+    fn selection_actions_rules() {
+        use ShortcutProblem::*;
+        let dictation = Shortcut::DICTATION_DEFAULT;
+        let ask = Shortcut::QUICK_RECALL_DEFAULT;
+        let default = s(lokalbot_core::Settings::default()
+            .selection_actions_shortcut
+            .as_str());
+        assert_eq!(default, s("Ctrl+Alt+Space"));
+        assert_eq!(
+            default.selection_actions_problem(Some(&dictation), Some(&ask)),
+            None,
+            "the default clears every check"
+        );
+        assert_eq!(default.dictation_problem(Some(&ask)), None);
+        assert_eq!(default.quick_recall_problem(Some(&dictation)), None);
+        assert_eq!(
+            s("Ctrl+Shift+W").selection_actions_problem(None, None),
+            Some(UsedBySystem),
+            "the Mac's chord closes tabs and windows here"
+        );
+        assert_eq!(
+            s("Ctrl+Shift+W").quick_recall_problem(None),
+            Some(UsedBySystem)
+        );
+        assert_eq!(
+            s("Alt+Space").selection_actions_problem(Some(&dictation), Some(&ask)),
+            Some(UsedByDictation)
+        );
+        assert_eq!(
+            s("Ctrl+Shift+Space").selection_actions_problem(Some(&dictation), Some(&ask)),
+            Some(UsedByAsk)
+        );
+        assert_eq!(
+            s("Ctrl+Alt").selection_actions_problem(None, None),
+            Some(NeedsKey)
+        );
+        assert_eq!(
+            UsedBySelectionActions.message(),
+            "Selection actions already use this shortcut. Choose another."
+        );
+    }
+
+    #[test]
+    fn the_cancel_key_keeps_the_shortcuts_modifiers() {
+        assert_eq!(s("Ctrl+Alt+Space").cancel_key(), s("Ctrl+Alt+Esc"));
+        assert_eq!(s("F8").cancel_key(), s("Esc"));
     }
 
     #[test]

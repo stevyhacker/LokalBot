@@ -12,7 +12,7 @@ use gpui_kit::component::popover::Popover;
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, Context, Div, ExternalPaths, Focusable as _, FontWeight,
+    AnyElement, App, AppContext as _, Context, Div, ExternalPaths, Focusable as _, FontWeight,
     InteractiveElement as _, IntoElement, ParentElement as _, PathPromptOptions, SharedString,
     StatefulInteractiveElement as _, Styled as _, Window, div, linear_color_stop, linear_gradient,
     px,
@@ -90,12 +90,32 @@ impl AgentPage {
         })
     }
 
+    /// Asks the Think server what the selected model accepts, once per model
+    /// (`AgentComposer`). A task started afterwards offers those levels.
+    fn look_up_reasoning(&mut self, cx: &mut Context<Self>) {
+        let settings = self.data.read(cx).settings.clone();
+        let key = lokalbot_ai::think::reasoning_lookup_key(&settings);
+        if self.reasoning_asked.as_ref() == Some(&key) {
+            return;
+        }
+        self.reasoning_asked = Some(key);
+        cx.spawn(async move |this, cx| {
+            cx.background_spawn(async move {
+                lokalbot_ai::think::refresh_reasoning_choices(&settings);
+            })
+            .await;
+            let _ = this.update(cx, |_, cx| cx.notify());
+        })
+        .detach();
+    }
+
     pub(super) fn render_composer(
         &mut self,
         snapshot: &Snapshot,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        self.look_up_reasoning(cx);
         let Some(view) = self.composer_view(cx) else {
             return div().into_any_element();
         };

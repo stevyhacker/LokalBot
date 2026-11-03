@@ -1,8 +1,8 @@
 //! One LokalBot per library, and the local socket other processes use to
 //! reach it.
 //!
-//! `lokalbot quick-recall`, `lokalbot toggle-recording` and
-//! `lokalbot dictate --toggle` forward to the running app through [`send`];
+//! `lokalbot quick-recall`, `lokalbot selection-actions`,
+//! `lokalbot toggle-recording` and `lokalbot dictate --toggle` forward to the running app through [`send`];
 //! that is also how Wayland users bind compositor shortcuts. The socket is a
 //! Unix socket in the user's runtime directory (mode 0700) or a named pipe on
 //! Windows, named after a hash of the library root so test libraries never
@@ -22,7 +22,6 @@ use interprocess::local_socket::{
     ConnectOptions, GenericFilePath, ListenerOptions, Name, Stream, traits::Stream as StreamTrait,
 };
 use lokalbot_core::LibraryPaths;
-use sha2::{Digest, Sha256};
 
 /// A request from another process (the CLI or a compositor shortcut).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,6 +30,8 @@ pub enum IpcCommand {
     Show,
     /// Open the Ask panel (`quick-recall` window).
     QuickRecall,
+    /// Read the selection in the app in front and open the actions panel.
+    SelectionActions,
     ToggleRecording,
     StartDictation,
     StopDictation,
@@ -46,6 +47,7 @@ impl IpcCommand {
         match self {
             Self::Show => "show".into(),
             Self::QuickRecall => "quick-recall".into(),
+            Self::SelectionActions => "selection-actions".into(),
             Self::ToggleRecording => "toggle-recording".into(),
             Self::StartDictation => "dictation-start".into(),
             Self::StopDictation => "dictation-stop".into(),
@@ -63,6 +65,7 @@ impl IpcCommand {
         Some(match (verb, argument) {
             ("show", None) => Self::Show,
             ("quick-recall", None) => Self::QuickRecall,
+            ("selection-actions", None) => Self::SelectionActions,
             ("toggle-recording", None) => Self::ToggleRecording,
             ("dictation-start", None) => Self::StartDictation,
             ("dictation-stop", None) => Self::StopDictation,
@@ -157,10 +160,13 @@ impl IpcServer {
 impl Drop for IpcServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // Wake the blocking accept with a connection of our own.
-        let woke = connect(&self.endpoint).is_ok();
+        // Wake the blocking accept with a connection of our own, held open until
+        // the thread has gone: a Windows pipe listener skips a client that has
+        // already left, so closing this one first could leave accept waiting and
+        // the join below waiting on it, for good.
+        let waker = connect(&self.endpoint);
         if let Some(thread) = self.thread.take()
-            && woke
+            && waker.is_ok()
         {
             let _ = thread.join();
         }
@@ -328,21 +334,7 @@ fn socket_name(endpoint: &Path) -> std::io::Result<Name<'static>> {
         .into_owned())
 }
 
-/// Short, stable key for a library root and the current user.
-pub(crate) fn endpoint_key(root: &Path) -> String {
-    let resolved = std::fs::canonicalize(root)
-        .or_else(|_| std::path::absolute(root))
-        .unwrap_or_else(|_| root.to_path_buf());
-    let mut text = resolved.to_string_lossy().into_owned();
-    if cfg!(windows) {
-        text = text.to_lowercase();
-    }
-    let user = std::env::var("USER")
-        .or_else(|_| std::env::var("USERNAME"))
-        .unwrap_or_default();
-    let digest = Sha256::digest(format!("{text}\0{user}").as_bytes());
-    hex::encode(&digest[..12])
-}
+pub(crate) use lokalbot_core::control::socket::endpoint_key;
 
 /// Where the socket for `root` lives.
 pub fn endpoint_path(root: &Path) -> std::io::Result<PathBuf> {
@@ -357,36 +349,8 @@ pub fn endpoint_path(root: &Path) -> std::io::Result<PathBuf> {
     }
 }
 
-/// `$XDG_RUNTIME_DIR/lokalbot`, or `/tmp/lokalbot-<uid>` without a runtime
-/// directory. Either is created 0700 and must belong to this user.
 #[cfg(unix)]
-pub(crate) fn private_runtime_dir() -> std::io::Result<PathBuf> {
-    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
-
-    let uid = std::fs::metadata("/proc/self")
-        .map(|meta| meta.uid())
-        .unwrap_or(u32::MAX);
-    let dir = match std::env::var_os("XDG_RUNTIME_DIR").filter(|v| !v.is_empty()) {
-        Some(runtime) => PathBuf::from(runtime).join("lokalbot"),
-        None => std::env::temp_dir().join(format!("lokalbot-{uid}")),
-    };
-    match std::fs::DirBuilder::new().mode(0o700).create(&dir) {
-        Ok(()) => {}
-        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(err) => return Err(err),
-    }
-    let meta = std::fs::symlink_metadata(&dir)?;
-    if !meta.is_dir() || (uid != u32::MAX && meta.uid() != uid) {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            format!("{} is not a private folder of this user", dir.display()),
-        ));
-    }
-    if meta.permissions().mode() & 0o077 != 0 {
-        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
-    }
-    Ok(dir)
-}
+pub(crate) use lokalbot_core::control::socket::private_runtime_dir;
 
 #[cfg(test)]
 mod tests {
@@ -397,6 +361,7 @@ mod tests {
         let all = [
             IpcCommand::Show,
             IpcCommand::QuickRecall,
+            IpcCommand::SelectionActions,
             IpcCommand::ToggleRecording,
             IpcCommand::StartDictation,
             IpcCommand::StopDictation,
@@ -431,6 +396,16 @@ mod tests {
         ));
         drop(first);
         acquire_instance(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn stopping_right_after_listening_returns() {
+        let dir = tempfile::tempdir().unwrap();
+        let _guard = acquire_instance(dir.path()).unwrap();
+        // Often enough that a stop lands before the accept has started waiting.
+        for _ in 0..20 {
+            drop(listen(dir.path(), |_| {}).unwrap());
+        }
     }
 
     #[test]

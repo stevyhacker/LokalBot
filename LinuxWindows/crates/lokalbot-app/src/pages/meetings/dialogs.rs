@@ -3,9 +3,11 @@
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::calendar::{Calendar, CalendarEvent, CalendarState, Date};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
-use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
+use gpui_kit::component::popover::Popover;
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     App, AppContext as _, Context, Entity, FontWeight, IntoElement, ParentElement as _, Render,
@@ -17,6 +19,7 @@ use uuid::Uuid;
 use super::model::{MeetingAction, ReviewSpeaker};
 use crate::state::{AppData, AppEvent, MeetingTab};
 use crate::theme::{LbThemeExt as _, ty};
+use crate::ui::Ico;
 
 /// "Delete N meeting(s)?" with the macOS wording.
 pub(crate) fn confirm_delete(
@@ -133,7 +136,11 @@ pub(crate) struct CorrectionSheet {
     text: Entity<InputState>,
     owner: Entity<InputState>,
     due: Entity<InputState>,
+    /// The Actions workspace's "Resolve date" (`ActionEditorSheet`).
+    resolve: Option<Entity<CalendarState>>,
+    resolved_day: Option<chrono::NaiveDate>,
     error: Option<SharedString>,
+    _subscriptions: Vec<gpui_kit::Subscription>,
 }
 
 impl CorrectionSheet {
@@ -142,6 +149,32 @@ impl CorrectionSheet {
         meeting: Meeting,
         action: MeetingAction,
         speakers: &[ReviewSpeaker],
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        Self::open_sheet(data, meeting, action, speakers, None, window, cx)
+    }
+
+    /// The sheet with a date picker, starting at `resolved` or today.
+    pub(crate) fn open_with_date(
+        data: Entity<AppData>,
+        meeting: Meeting,
+        action: MeetingAction,
+        resolved: Option<chrono::NaiveDate>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let day = resolved.unwrap_or_else(|| chrono::Local::now().date_naive());
+        Self::open_sheet(data, meeting, action, &[], Some(day), window, cx)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn open_sheet(
+        data: Entity<AppData>,
+        meeting: Meeting,
+        action: MeetingAction,
+        speakers: &[ReviewSpeaker],
+        resolve_from: Option<chrono::NaiveDate>,
         window: &mut Window,
         cx: &mut App,
     ) {
@@ -166,6 +199,28 @@ impl CorrectionSheet {
                     .placeholder(crate::i18n::placeholder("Due date as agreed", window, cx))
                     .default_value(action.due.clone().unwrap_or_default())
             });
+            let resolve = resolve_from.map(|day| {
+                cx.new(|cx| {
+                    let mut calendar = CalendarState::new(window, cx);
+                    calendar.set_date(Date::Single(Some(day)), window, cx);
+                    calendar
+                })
+            });
+            let subscriptions = resolve
+                .iter()
+                .map(|calendar| {
+                    cx.subscribe_in(
+                        calendar,
+                        window,
+                        |this: &mut Self, _, event: &CalendarEvent, _, cx| {
+                            if let CalendarEvent::Selected(Date::Single(day)) = event {
+                                this.resolved_day = *day;
+                                cx.notify();
+                            }
+                        },
+                    )
+                })
+                .collect();
             Self {
                 data,
                 meeting,
@@ -174,12 +229,25 @@ impl CorrectionSheet {
                 text,
                 owner,
                 due,
+                resolve,
+                resolved_day: resolve_from,
                 error: None,
+                _subscriptions: subscriptions,
             }
         });
         window.open_dialog(cx, move |dialog, _, _| {
             dialog.w(px(460.)).close_button(false).child(sheet.clone())
         });
+    }
+
+    /// "Use date": the due phrase becomes the chosen day, as `YYYY-MM-DD`.
+    fn use_resolved_date(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(day) = self.resolved_day else {
+            return;
+        };
+        let value = day.format("%Y-%m-%d").to_string();
+        self.due
+            .update(cx, |input, cx| input.set_value(value, window, cx));
     }
 
     fn set_owner(&mut self, owner: &str, window: &mut Window, cx: &mut Context<Self>) {
@@ -310,13 +378,65 @@ impl Render for CorrectionSheet {
                     .child(label(lokalbot_i18n::tr("Due date as agreed")))
                     .child(Input::new(&self.due)),
             )
+            .when_some(self.resolve.clone(), |this, calendar| {
+                let picked = self
+                    .resolved_day
+                    .map(|d| {
+                        d.format_localized(
+                            lokalbot_i18n::date_pattern("%b %-d, %Y"),
+                            lokalbot_i18n::date_locale(),
+                        )
+                        .to_string()
+                    })
+                    .unwrap_or_else(|| lokalbot_i18n::tr("Select date").to_string());
+                this.child(
+                    h_flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .child(
+                            div()
+                                .flex_1()
+                                .child(label(lokalbot_i18n::tr("Resolve date"))),
+                        )
+                        .child(
+                            Popover::new("correction-resolve-date")
+                                .trigger(
+                                    Button::new("correction-resolve-button")
+                                        .outline()
+                                        .small()
+                                        .icon(Icon::new(Ico::Calendar))
+                                        .label(picked),
+                                )
+                                .content(move |_, _, _| {
+                                    Calendar::new(&calendar)
+                                        .small()
+                                        .first_day_of_week(lokalbot_i18n::first_weekday())
+                                }),
+                        )
+                        .child(
+                            Button::new("correction-use-date")
+                                .outline()
+                                .small()
+                                .label(lokalbot_i18n::tr("Use date"))
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.use_resolved_date(window, cx)
+                                })),
+                        ),
+                )
+            })
             .child(
                 div()
                     .text_size(ty::SECONDARY)
                     .text_color(lb.text_secondary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "This correction is stored separately from the extracted source.",
-                    ))),
+                    .child(crate::ui::text::paragraph(if self.resolve.is_some() {
+                        lokalbot_i18n::tr(
+                            "The original action, due phrase and citations stay available.",
+                        )
+                    } else {
+                        lokalbot_i18n::tr(
+                            "This correction is stored separately from the extracted source.",
+                        )
+                    })),
             )
             .when_some(self.error.clone(), |this, error| {
                 this.child(
@@ -358,16 +478,27 @@ pub(crate) struct NameSpeakerSheet {
     speaker: ReviewSpeaker,
     name: Entity<InputState>,
     /// Calendar guests and name hints to choose from.
-    suggestions: super::speaker_suggestions::SpeakerSuggestions,
+    pub(super) suggestions: super::speaker_suggestions::SpeakerSuggestions,
     error: Option<SharedString>,
+    /// The sealed speaker journal, for the review controls.
+    pub(super) identity: Option<lokalbot_core::voice::IdentityState>,
+    pub(super) notice: Option<String>,
+    /// The remembered person chosen from Suggested Names.
+    pub(super) profile_id: Option<uuid::Uuid>,
+    pub(super) busy: bool,
+    pub(super) page: gpui_kit::WeakEntity<super::MeetingsPage>,
 }
 
 impl NameSpeakerSheet {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn open(
         data: Entity<AppData>,
         meeting: Meeting,
         transcript: Transcript,
         speaker: ReviewSpeaker,
+        identity: Option<lokalbot_core::voice::IdentityState>,
+        notice: Option<String>,
+        page: gpui_kit::WeakEntity<super::MeetingsPage>,
         window: &mut Window,
         cx: &mut App,
     ) {
@@ -417,6 +548,11 @@ impl NameSpeakerSheet {
                 name,
                 suggestions,
                 error: None,
+                identity,
+                notice,
+                profile_id: None,
+                busy: false,
+                page,
             }
         });
         window.open_dialog(cx, move |dialog, _, _| {
@@ -425,55 +561,172 @@ impl NameSpeakerSheet {
     }
 
     fn save(&mut self, alias: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
-        let mut transcript = self.transcript.clone();
-        match alias.filter(|a| !a.trim().is_empty()) {
-            Some(alias) => {
-                transcript
-                    .speaker_aliases
-                    .insert(self.speaker.key.clone(), alias.trim().to_string());
-                // The chosen calendar guest's opaque id, never the address.
-                match self.suggestions.identity_for_save() {
-                    Some(identity) => {
-                        transcript
-                            .speaker_calendar_identity_ids
-                            .insert(self.speaker.key.clone(), identity);
-                    }
-                    None => {
-                        transcript
-                            .speaker_calendar_identity_ids
-                            .remove(&self.speaker.key);
-                    }
-                }
-            }
-            None => {
-                transcript.speaker_aliases.remove(&self.speaker.key);
-                transcript
-                    .speaker_calendar_identity_ids
-                    .remove(&self.speaker.key);
-            }
+        use lokalbot_core::voice::{Choice, DecisionAction};
+        let alias = alias.filter(|a| !a.trim().is_empty());
+        if let Some(name) = &alias
+            && lokalbot_core::voice::safe_name(name, &|text| {
+                lokalbot_ai::sanitize::redaction(text).1 > 0
+            })
+            .is_none()
+        {
+            self.error = Some(
+                lokalbot_i18n::tr("Enter a person's name, not an address, link or secret.").into(),
+            );
+            cx.notify();
+            return;
         }
+        let action = if alias.is_some() {
+            DecisionAction::Assign
+        } else {
+            DecisionAction::Reset
+        };
+        let mut choice = Choice::new(&self.speaker.key, alias, action);
+        // The chosen calendar guest's opaque id, never the address.
+        choice.calendar_identity_id = self.suggestions.identity_for_save();
+        // A suggestion's person only while the name still is that suggestion.
+        let chosen = self.profile_id.take();
+        choice.profile_id = chosen.filter(|profile| {
+            self.identity.as_ref().is_some_and(|state| {
+                state
+                    .suggestions
+                    .get(&self.speaker.key)
+                    .is_some_and(|offered| {
+                        offered.iter().any(|m| {
+                            m.profile_id == Some(*profile) && Some(&m.name) == choice.name.as_ref()
+                        })
+                    })
+            })
+        });
+        choice.expected_revision = self.identity.as_ref().map(|state| state.revision);
+        self.perform(choice, window, cx);
+    }
+
+    /// Runs one speaker choice and saves the transcript it gives. Anything
+    /// that changes who spoke closes the sheet and teaches the voice.
+    pub(super) fn perform(
+        &mut self,
+        choice: lokalbot_core::voice::Choice,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.busy {
+            return;
+        }
+        self.busy = true;
+        self.error = None;
+        cx.notify();
         let library = self.data.read(cx).library.clone();
         let meeting = self.meeting.clone();
+        let transcript = self.transcript.clone();
         let data = self.data.clone();
+        let closes = choice.action.changes_attribution();
         cx.spawn_in(window, async move |this, cx| {
             let result = cx
-                .background_spawn(async move { library.save_transcript(&meeting, &transcript) })
+                .background_spawn(async move {
+                    let saved = lokalbot_engine::voice::save_choice(
+                        &library,
+                        &choice,
+                        &meeting,
+                        &transcript,
+                    )?;
+                    let memory = lokalbot_engine::voice::memory(&library);
+                    anyhow::Ok((
+                        saved,
+                        memory.state(&meeting).ok(),
+                        memory.notice_for(meeting.id),
+                    ))
+                })
                 .await;
-            let _ = this.update_in(cx, |this, window, cx| match result {
-                Ok(()) => {
-                    data.update(cx, |data, cx| data.mark_library_changed(cx));
-                    window.close_dialog(cx);
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.busy = false;
+                match result {
+                    Ok((saved, identity, notice)) => {
+                        this.transcript = saved;
+                        this.identity = identity;
+                        this.notice = notice;
+                        data.update(cx, |data, cx| {
+                            data.mark_library_changed(cx);
+                            if closes {
+                                data.request(crate::state::AppEvent::LearnSpeakerVoices, cx);
+                            }
+                        });
+                        if closes {
+                            window.close_dialog(cx);
+                        }
+                    }
+                    Err(err) => {
+                        this.error = Some(
+                            lokalbot_i18n::format(
+                                "Could not save speaker name: {err}",
+                                &[("err", format!("{err:#}"))],
+                            )
+                            .into(),
+                        );
+                    }
                 }
-                Err(err) => {
-                    this.error = Some(
-                        lokalbot_i18n::format(
-                            "The name could not be saved. {err}",
-                            &[("err", format!("{:#}", err))],
-                        )
-                        .into(),
-                    );
-                    cx.notify();
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    pub(super) fn speaker_key(&self) -> &str {
+        &self.speaker.key
+    }
+
+    /// Whether this voice can be confirmed as one person, and whether it
+    /// comes from the personal microphone.
+    pub(super) fn speaker_identity_facts(&self) -> (bool, bool) {
+        let key = &self.speaker.key;
+        let from_microphone = self.transcript.segments.iter().any(|segment| {
+            Transcript::canonical_speaker_key(&segment.speaker) == *key
+                && Transcript::resolved_attribution(segment).source
+                    == lokalbot_core::AttributionSource::Microphone
+        });
+        (
+            self.transcript.can_confirm_speaker(key),
+            self.speaker.is_user && from_microphone,
+        )
+    }
+
+    pub(super) fn typed_name(&self, cx: &App) -> Option<String> {
+        Some(self.name.read(cx).value().trim().to_string()).filter(|name| !name.is_empty())
+    }
+
+    /// Fills the name from a suggested or previously used name.
+    pub(super) fn fill_name(
+        &mut self,
+        name: String,
+        profile_id: Option<uuid::Uuid>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.profile_id = profile_id;
+        self.suggestions.selected = None;
+        self.suggestions.query.clear();
+        self.name
+            .update(cx, |input, cx| input.set_value(name, window, cx));
+        cx.notify();
+    }
+
+    /// `onDeleteEvidence`: names and remembered voices stay.
+    pub(super) fn delete_evidence(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let library = self.data.read(cx).library.clone();
+        let meeting = self.meeting.clone();
+        cx.spawn_in(window, async move |this, cx| {
+            let result = cx
+                .background_spawn(async move {
+                    let memory = lokalbot_engine::voice::memory(&library);
+                    memory.delete_evidence(&meeting)?;
+                    anyhow::Ok(memory.state(&meeting).ok())
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                match result {
+                    Ok(identity) => this.identity = identity,
+                    Err(err) => this.notice = Some(format!("{err:#}")),
                 }
+                cx.notify();
             });
         })
         .detach();
@@ -494,6 +747,7 @@ impl NameSpeakerSheet {
         let name = choice.name.clone().unwrap_or_default();
         self.suggestions.selected = choice.calendar.as_ref().map(|guest| guest.id.clone());
         self.suggestions.query.clear();
+        self.profile_id = None;
         self.name
             .update(cx, |input, cx| input.set_value(name, window, cx));
         cx.notify();
@@ -538,6 +792,7 @@ impl Render for NameSpeakerSheet {
                 let name = self.name.read(cx).value().to_string();
                 self.suggestions.render(&name, cx)
             })
+            .child(self.render_identity_review(cx))
             .child(
                 h_flex()
                     .gap(px(6.))
@@ -548,9 +803,12 @@ impl Render for NameSpeakerSheet {
                             .flex_1()
                             .text_size(ty::CAPTION)
                             .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Names are saved with this meeting."))),
+                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Names you save also teach LokalBot this voice, so it can suggest the person in later meetings. Voices stay encrypted on this computer."))),
                     ),
             )
+            .when_some(self.notice.clone(), |this, notice| {
+                this.child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(lokalbot_i18n::tr(&notice).to_string()))
+            })
             .when_some(self.error.clone(), |this, error| {
                 this.child(div().text_size(ty::SECONDARY).text_color(lb.attention_text).child(error))
             })
