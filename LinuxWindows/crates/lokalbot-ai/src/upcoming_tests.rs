@@ -138,7 +138,13 @@ fn compiler_uses_participant_history_outcomes_and_project_memory() {
             "name": "Atlas",
             "status": "Staged launch awaiting the final checklist",
             "lastActiveDay": "2033-05-17",
-            "evidence": []
+            "evidence": [],
+            "provenance": {
+                "revision": lokalbot_core::evidence::read_state(library.paths().root())
+                    .unwrap()
+                    .revision,
+                "sources": [{"kind": "screenDay", "id": "2033-05-17", "dayKey": "2033-05-17"}],
+            }
         }]),
     );
     let upcoming = event(
@@ -465,4 +471,32 @@ fn remote_main_llm_is_never_eligible_for_pre_meeting_generation() {
     )
     .unwrap();
     assert!(local.is_local());
+}
+
+#[test]
+fn a_project_from_a_meeting_goes_when_that_meeting_changes() {
+    let (_dir, library) = library();
+    let source = library
+        .create_meeting("Atlas kickoff", "Zoom", now() - chrono::Duration::days(3))
+        .unwrap();
+    let provenance = serde_json::json!({
+        "revision": 0,
+        "sources": [{
+            "kind": "meeting",
+            "id": lokalbot_core::ids::uuid_upper(&source.id),
+            "dayKey": "2033-05-15",
+        }],
+    });
+    write_memory(
+        &library,
+        serde_json::json!([
+            {"name": "Atlas", "status": "shipping", "lastActiveDay": "2033-05-15", "provenance": provenance},
+        ]),
+    );
+    assert_eq!(read_projects(&library).len(), 1);
+    // Deleting or correcting the meeting advances the evidence, and work memory
+    // built from it stops counting even before anything rewrites the file.
+    lokalbot_core::evidence::with_meeting_mutation(library.paths().root(), &[&source], || Ok(()))
+        .unwrap();
+    assert!(read_projects(&library).is_empty());
 }

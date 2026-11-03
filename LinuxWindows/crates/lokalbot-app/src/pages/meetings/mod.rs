@@ -4,29 +4,35 @@
 
 mod detail;
 pub(crate) mod dialogs;
-mod follow_up;
-mod list;
+pub(crate) mod follow_up;
+pub(crate) mod list;
 mod live;
 pub mod model;
+mod page_search;
 mod playback;
+mod speaker_identity;
 mod speaker_suggestions;
+mod spoken;
 mod transcript;
 
+use crate::windows::screen_image::ScreenImage;
+use gpui_kit::actions;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::time::Duration;
 
 use crate::i18n::h_flex;
 use gpui_kit::component::Icon;
+use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{InputEvent, InputState, TextareaState};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Bounds, ClipboardItem, Context, Entity, FocusHandle,
-    IntoElement, ListAlignment, ListOffset, ListState, ParentElement as _, Pixels, Render,
-    SharedString, Styled as _, Subscription, Task, Window, anchored, canvas, deferred, div, point,
-    px,
+    Focusable as _, IntoElement, KeyBinding, ListAlignment, ListOffset, ListState,
+    ParentElement as _, Pixels, Render, SharedString, Styled as _, Subscription, Task, Window,
+    anchored, canvas, deferred, div, point, px,
 };
 use lokalbot_core::{ActionStatus, Meeting};
 use uuid::Uuid;
@@ -83,12 +89,16 @@ pub(crate) struct NotesEditor {
 }
 
 pub(crate) struct FindBar {
+    /// The overview's scroll position, moved to bring the current match in view.
+    pub scroll: gpui_kit::ScrollHandle,
+    /// The current match still needs bringing into view.
+    pub reveal: std::rc::Rc<std::cell::Cell<bool>>,
     pub input: Entity<InputState>,
     /// Opened with Find; on the Transcript tab the bar is always shown.
     pub open: bool,
     pub query: String,
-    /// (row, byte range) of every occurrence.
-    pub matches: Vec<(usize, std::ops::Range<usize>)>,
+    /// Every occurrence in reading order.
+    pub matches: Vec<page_search::PageMatch>,
     pub current: usize,
 }
 
@@ -141,11 +151,51 @@ pub struct MeetingsPage {
     poll: Option<Task<()>>,
     page_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     tick: Option<Task<()>>,
+    /// "Apply Names" is saving.
+    applying_names: bool,
+    /// Where each meeting's playback stood, for coming back to it.
+    playback_memory: std::collections::HashMap<Uuid, (f64, f32)>,
+    /// Evidence opened from the Review tab offers the way back.
+    returning_to_review: bool,
+    exporting_audio: bool,
+    unmatched_expanded: bool,
+    /// Small images of what was on screen, by snapshot. Decrypted pixels stay
+    /// in memory for the meeting on the page.
+    screen_thumbnails: Rc<std::cell::RefCell<std::collections::HashMap<i64, Option<ScreenImage>>>>,
+    screen_thumbnails_for: Option<Uuid>,
+    released_thumbnails: Vec<std::sync::Arc<gpui_kit::RenderImage>>,
     _subscriptions: Vec<Subscription>,
+}
+
+actions!(meetings, [FindOnMeetingPage]);
+
+/// Ctrl+F opens Find from anywhere on the meeting page, whatever has focus or
+/// nothing at all (`requestSelectedMeetingSearch`), so it can't live on one
+/// element. A text field hands the shortcut on as its own `Search`.
+fn bind_find(cx: &mut App) {
+    fn request(cx: &mut App) {
+        // Other windows keep the shortcut to themselves.
+        let main = crate::desktop::desktop(cx).and_then(|d| *d.main_window.lock());
+        if let (Some(main), Some(active)) = (main, cx.active_window())
+            && main != active
+        {
+            return;
+        }
+        AppData::global(cx).update(cx, |data, cx| {
+            if data.section == crate::state::Section::Meetings {
+                data.meeting_find_requested = true;
+                cx.notify();
+            }
+        });
+    }
+    cx.bind_keys([KeyBinding::new("ctrl-f", FindOnMeetingPage, None)]);
+    cx.on_action(|_: &FindOnMeetingPage, cx: &mut App| request(cx));
+    cx.on_action(|_: &gpui_kit::component::input::Search, cx: &mut App| request(cx));
 }
 
 impl MeetingsPage {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        bind_find(cx);
         let data = AppData::global(cx);
         let search = cx.new(|cx| {
             InputState::new(window, cx).placeholder(crate::i18n::placeholder(
@@ -249,6 +299,8 @@ impl MeetingsPage {
             speakers_expanded: false,
             transcript_state: ListState::new(0, ListAlignment::Top, px(600.)),
             find: FindBar {
+                scroll: gpui_kit::ScrollHandle::new(),
+                reveal: Default::default(),
                 input: find_input,
                 open: false,
                 query: String::new(),
@@ -283,6 +335,14 @@ impl MeetingsPage {
             poll: None,
             page_bounds: Rc::new(Cell::new(None)),
             tick: None,
+            applying_names: false,
+            playback_memory: Default::default(),
+            returning_to_review: false,
+            exporting_audio: false,
+            unmatched_expanded: false,
+            screen_thumbnails: Default::default(),
+            screen_thumbnails_for: None,
+            released_thumbnails: Vec::new(),
             _subscriptions: subscriptions,
         };
         this.on_data_changed(window, cx);
@@ -292,7 +352,18 @@ impl MeetingsPage {
     // ------------------------------------------------------------ data flow
 
     /// Applies navigation requests and reloads after library changes.
+    /// The palette's "Draft follow-up" opens the sheet once the meeting is showing.
+    fn open_requested_follow_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let wanted = self.data.read(cx).follow_up_request;
+        if wanted.is_some() && wanted == self.doc.as_ref().map(|doc| doc.meeting.id) {
+            self.data
+                .update(cx, |data, _| data.follow_up_request = None);
+            self.open_follow_up(window, cx);
+        }
+    }
+
     fn on_data_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.open_requested_follow_up(window, cx);
         let focus = self.data.update(cx, |data, _| data.meeting_focus.take());
         if let Some(focus) = focus {
             self.tab = focus.tab;
@@ -438,13 +509,20 @@ impl MeetingsPage {
             return;
         }
         self.flush_notes(cx);
+        self.remember_playback();
         self.stop_playback();
+        self.stop_spoken_summary(cx);
         self.selected = Some(id);
+        self.returning_to_review = false;
         self.focus_at = None;
         self.recap_expanded = false;
         self.full_notes_expanded = false;
         self.speakers_expanded = false;
         self.playhead = 0.;
+        self.speed = self
+            .playback_memory
+            .get(&id)
+            .map_or(1., |(_, speed)| *speed);
         self.hover = None;
         self.doc_loading = true;
         self.load_doc(window, cx);
@@ -486,10 +564,43 @@ impl MeetingsPage {
                 if switched || audio_changed {
                     this.open_player(cx);
                 }
+                if switched && doc_has_journal(&this.doc) {
+                    this.recover_saved_names(cx);
+                }
                 this.update_find_matches(false, cx);
                 this.reveal_focus();
                 cx.notify();
             });
+        })
+        .detach();
+    }
+
+    fn remember_playback(&mut self) {
+        if let (Some(id), Some(player)) = (self.selected, self.player.as_ref()) {
+            self.playback_memory
+                .insert(id, (player.position(), self.speed));
+        }
+    }
+
+    /// A name recorded just before a crash still reaches the transcript.
+    fn recover_saved_names(&mut self, cx: &mut Context<Self>) {
+        let Some(doc) = self.doc.clone() else { return };
+        let library = self.data.read(cx).library.clone();
+        let meeting = doc.meeting.clone();
+        let data = self.data.clone();
+        cx.spawn(async move |_, cx| {
+            let changed = cx
+                .background_spawn(async move {
+                    lokalbot_engine::voice::recover_saved_names(&library, &meeting)
+                })
+                .await;
+            match changed {
+                Ok(true) => {
+                    data.update(cx, |data, cx| data.mark_library_changed(cx));
+                }
+                Ok(false) => {}
+                Err(err) => log::info!("speaker names not recovered: {err:#}"),
+            }
         })
         .detach();
     }
@@ -524,6 +635,9 @@ impl MeetingsPage {
         if self.tab == MeetingTab::Transcript && tab != MeetingTab::Transcript && !self.find.open {
             self.find.matches.clear();
         }
+        if tab != MeetingTab::Transcript {
+            self.returning_to_review = false;
+        }
         self.tab = tab;
         self.reveal_focus();
         cx.notify();
@@ -531,6 +645,7 @@ impl MeetingsPage {
 
     /// Opens the transcript at `seconds`, highlighting that passage.
     pub(crate) fn show_evidence(&mut self, seconds: f64, cx: &mut Context<Self>) {
+        self.returning_to_review = self.tab == MeetingTab::Review;
         self.tab = MeetingTab::Transcript;
         self.focus_at = Some(seconds);
         self.pending_reveal = true;
@@ -689,10 +804,11 @@ impl MeetingsPage {
 
     pub(crate) fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.find.open = true;
-        self.tab = MeetingTab::Transcript;
-        self.find
-            .input
-            .update(cx, |input, cx| input.focus(window, cx));
+        self.find.input.update(cx, |input, cx| {
+            input.set_placeholder(lokalbot_i18n::tr("Search this meeting"), window, cx);
+            input.focus(window, cx);
+        });
+        self.update_find_matches(false, cx);
         cx.notify();
     }
 
@@ -700,41 +816,71 @@ impl MeetingsPage {
         self.find.open = false;
         self.find.query.clear();
         self.find.matches.clear();
-        self.find
+        self.notes
             .input
-            .update(cx, |input, cx| input.set_value("", window, cx));
+            .update(cx, |input, cx| input.set_selection_focus(None, cx));
+        self.find.input.update(cx, |input, cx| {
+            input.set_value("", window, cx);
+            input.set_placeholder(lokalbot_i18n::tr("Search Transcript"), window, cx);
+        });
         cx.notify();
     }
 
     fn update_find_matches(&mut self, reveal: bool, cx: &mut Context<Self>) {
-        let needle = self.find.query.trim().to_lowercase();
         self.find.matches.clear();
         self.find.current = 0;
-        if let (false, Some(doc)) = (needle.is_empty(), self.doc.as_ref()) {
-            for (row_ix, row) in doc.rows.iter().enumerate() {
-                let haystack = row.text.to_lowercase();
-                // Lowercasing can change byte lengths for some scripts; only
-                // highlight when the offsets still line up.
-                if haystack.len() != row.text.len() {
-                    if haystack.contains(&needle) {
-                        self.find.matches.push((row_ix, 0..0));
-                    }
-                    continue;
-                }
-                let mut from = 0;
-                while let Some(found) = haystack[from..].find(&needle) {
-                    let start = from + found;
-                    self.find
-                        .matches
-                        .push((row_ix, start..start + needle.len()));
-                    from = start + needle.len().max(1);
-                }
-            }
+        if let Some(doc) = self.doc.clone()
+            && !self.find.query.trim().is_empty()
+        {
+            let stage = self
+                .data
+                .read(cx)
+                .processing
+                .get(&doc.meeting.id)
+                .map(detail::stage_label);
+            let notes = self.notes.input.read(cx).value().to_string();
+            let notes = if self.notes.meeting == Some(doc.meeting.id) {
+                notes
+            } else {
+                doc.notes.clone()
+            };
+            let sources = page_search::sources(&doc, stage, &notes, self.find.open);
+            self.find.matches = page_search::matches(&self.find.query, &sources);
         }
-        if reveal && let Some((row, _)) = self.find.matches.first() {
-            self.transcript_state.scroll_to_reveal_item(row + 1);
+        if reveal {
+            self.reveal_find_match(cx);
         }
         cx.notify();
+    }
+
+    /// Brings the current match into view: its tab, its row in a transcript,
+    /// and its words in the notes. On the overview, its text marks itself and
+    /// scrolls when it paints.
+    fn reveal_find_match(&mut self, cx: &mut Context<Self>) {
+        use page_search::Location;
+        let Some(found) = self.find.matches.get(self.find.current).cloned() else {
+            return;
+        };
+        let location = &found.location;
+        self.tab = location.tab();
+        if location.needs_full_notes() {
+            self.full_notes_expanded = true;
+        }
+        self.find.reveal.set(location.scrolls_overview());
+        if let Some(row) = location.transcript_row() {
+            self.transcript_state.scroll_to_reveal_item(row + 1);
+        } else if self.tab == MeetingTab::Transcript {
+            self.transcript_state.scroll_to_reveal_item(0);
+        } else if *location == Location::Notes {
+            // Native selection lands Find in the editable notes
+            // (`SearchableNotesEditor`). Focus stays in the Find field, and the
+            // selection shows while it does.
+            let find_field = self.find.input.read(cx).focus_handle(cx);
+            self.notes.input.update(cx, |input, cx| {
+                input.set_selection_focus(Some(find_field), cx);
+                input.set_selected_range(found.range.clone(), cx);
+            });
+        }
     }
 
     pub(crate) fn move_find(&mut self, by: isize, cx: &mut Context<Self>) {
@@ -743,9 +889,53 @@ impl MeetingsPage {
             return;
         }
         self.find.current = (self.find.current as isize + by).rem_euclid(count as isize) as usize;
-        let row = self.find.matches[self.find.current].0;
-        self.transcript_state.scroll_to_reveal_item(row + 1);
+        self.reveal_find_match(cx);
         cx.notify();
+    }
+
+    /// `exportAudio`: the tracks mixed into one file. Audio stays on this
+    /// computer until the person saves it somewhere else.
+    fn export_audio(&mut self, cx: &mut Context<Self>) {
+        let Some(doc) = self.doc.clone() else { return };
+        if self.exporting_audio || !doc.has_audio {
+            return;
+        }
+        let name = format!(
+            "{}-audio.wav",
+            lokalbot_core::ids::slugify(&doc.meeting.display_title())
+        );
+        let receiver = cx.prompt_for_new_path(&directories_home(), Some(&name));
+        let data = self.data.clone();
+        let (mic, system) = (doc.mic.clone(), doc.system.clone());
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(path))) = receiver.await else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.exporting_audio = true;
+                cx.notify();
+            });
+            let result = cx
+                .background_spawn(async move {
+                    lokalbot_audio::export_mixed(mic.as_deref(), system.as_deref(), &path)
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.exporting_audio = false;
+                cx.notify();
+            });
+            data.update(cx, |data, cx| match result {
+                Ok(_) => data.show_message(lokalbot_i18n::tr("Audio exported."), cx),
+                Err(err) => data.show_error(
+                    lokalbot_i18n::format(
+                        "Audio export failed: {err}",
+                        &[("err", err.to_string())],
+                    ),
+                    cx,
+                ),
+            });
+        })
+        .detach();
     }
 
     // -------------------------------------------------------------- actions
@@ -795,6 +985,7 @@ impl MeetingsPage {
                     question: lokalbot_i18n::tr("Help me understand this meeting").into(),
                     meeting_ids: vec![meeting_id],
                     submit: false,
+                    day: None,
                 },
                 cx,
             )
@@ -900,6 +1091,10 @@ impl MeetingsPage {
     }
 }
 
+fn doc_has_journal(doc: &Option<Rc<MeetingDoc>>) -> bool {
+    doc.as_ref().is_some_and(|doc| doc.identity.is_some())
+}
+
 /// A toolbar menu symbol with a small chevron, like macOS menu buttons.
 fn menu_glyph(icon: Ico, chevron: bool, cx: &App) -> impl IntoElement {
     use crate::theme::LbThemeExt as _;
@@ -978,6 +1173,9 @@ impl Page for MeetingsPage {
                 )
         });
         let has_transcript = self.doc.as_ref().is_some_and(|d| d.has_transcript());
+        let has_notes = has_summary || has_transcript;
+        let handoff_data = self.data.clone();
+        let handoff_meeting = self.doc.as_ref().map(|d| d.meeting.clone());
         let busy = self
             .doc
             .as_ref()
@@ -986,12 +1184,32 @@ impl Page for MeetingsPage {
             .doc
             .as_ref()
             .is_some_and(|d| d.meeting.is_merged_meeting());
+        let has_audio = self.doc.as_ref().is_some_and(|d| d.has_audio);
+        let exporting_audio = self.exporting_audio;
+        let back = self.data.read(cx).evidence_return;
+        let spoken = self.spoken_menu_items(cx);
         let page = cx.entity().downgrade();
         let export_page = page.clone();
         let more_page = page;
         let toolbar = h_flex()
             .gap_1()
             .items_center()
+            .when_some(back, |this, back| {
+                let data = self.data.clone();
+                this.child(
+                    Button::new("meeting-evidence-back")
+                        .ghost()
+                        .icon(Icon::new(Ico::ChevronLeft))
+                        .label(if back.actions {
+                            lokalbot_i18n::tr("Back to Actions")
+                        } else {
+                            lokalbot_i18n::tr("Back")
+                        })
+                        .on_click(move |_, _, cx| {
+                            data.update(cx, |data, cx| data.return_from_evidence(cx));
+                        }),
+                )
+            })
             .children(self.toolbar_tabs(cx))
             .child(if compact {
                 Button::new("meeting-ask")
@@ -1093,6 +1311,24 @@ impl Page for MeetingsPage {
                             })
                         };
                         let follow_up = p.clone();
+                        let mut menu = menu;
+                        for target in crate::agent_handoff::for_meetings() {
+                            let data = handoff_data.clone();
+                            let meeting = handoff_meeting.clone();
+                            menu = menu.item(
+                                PopupMenuItem::new(crate::pages::today::threads::open_in_label(
+                                    target,
+                                ))
+                                .disabled(!has_notes)
+                                .on_click(move |_, _, cx| {
+                                    if let Some(meeting) = meeting.as_ref() {
+                                        crate::agent_handoff::hand_off_meeting(
+                                            &data, meeting, target, cx,
+                                        );
+                                    }
+                                }),
+                            );
+                        }
                         let menu = menu
                             .item(
                                 PopupMenuItem::new(lokalbot_i18n::tr("Draft follow-up…"))
@@ -1103,6 +1339,7 @@ impl Page for MeetingsPage {
                                     }),
                             )
                             .separator();
+                        let menu = spoken.add(menu, p.clone()).separator();
                         let boundaries = p.clone();
                         let undo = p.clone();
                         let menu = menu
@@ -1151,6 +1388,20 @@ impl Page for MeetingsPage {
                             this.process(false, true, cx)
                         }))
                         .separator()
+                        .when(has_audio, |menu| {
+                            let audio = p.clone();
+                            menu.item(
+                                PopupMenuItem::new(if exporting_audio {
+                                    lokalbot_i18n::tr("Exporting audio...")
+                                } else {
+                                    lokalbot_i18n::tr("Export audio")
+                                })
+                                .disabled(exporting_audio)
+                                .on_click(move |_, _, cx| {
+                                    let _ = audio.update(cx, |this, cx| this.export_audio(cx));
+                                }),
+                            )
+                        })
                         .item(item(lokalbot_i18n::tr("Show in Folder"), |this, _, cx| {
                             if let Some(doc) = this.doc.as_ref() {
                                 cx.reveal_path(&doc.folder);
@@ -1193,7 +1444,17 @@ impl Page for MeetingsPage {
 impl Render for MeetingsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.rebuild_entries(cx);
+        self.release_screen_thumbnails(window, cx);
         let live = self.is_live_selected(cx);
+        // Ctrl+F, from anywhere on the page (`canSearchSelectedMeeting`).
+        if self.data.update(cx, |data, _| {
+            std::mem::take(&mut data.meeting_find_requested)
+        }) && !live
+            && self.doc.is_some()
+            && !window.has_active_dialog(cx)
+        {
+            self.open_find(window, cx);
+        }
         let recording = self.data.read(cx).recording.is_active();
         self.sync_tick(recording, cx);
         if live {
@@ -1213,16 +1474,23 @@ impl Render for MeetingsPage {
         .absolute()
         .size_full();
 
-        h_flex()
-            .size_full()
-            .relative()
-            .child(measure)
-            .child(self.render_list_column(window, cx))
-            .child(div().flex_1().min_w_0().h_full().child(if live {
+        h_flex().size_full().relative().child(measure).child({
+            let list = self.render_list_column(window, cx).into_any_element();
+            let detail = if live {
                 self.render_live(window, cx)
             } else {
                 self.render_detail(window, cx)
-            }))
+            };
+            ui::split::leading(
+                "LokalBot.meetings",
+                crate::theme::metric::CONTENT_COLUMN_WIDTH,
+                ui::split::LIST_RANGE,
+                list,
+                div().size_full().child(detail),
+                &self.data,
+                cx,
+            )
+        })
     }
 }
 

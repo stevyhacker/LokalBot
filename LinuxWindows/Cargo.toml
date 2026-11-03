@@ -22,6 +22,7 @@ lokalbot-engine = { path = "crates/lokalbot-engine" }
 lokalbot-agent = { path = "crates/lokalbot-agent" }
 lokalbot-i18n = { path = "crates/lokalbot-i18n" }
 lokalbot-update = { path = "crates/lokalbot-update", default-features = false }
+lokalbot-sync = { path = "crates/lokalbot-sync" }
 
 # UI. GPUI Kit pins the exact GPUI snapshot it was released against; see
 # docs/dependency-provenance.md before changing either version.

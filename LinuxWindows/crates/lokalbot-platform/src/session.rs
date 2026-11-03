@@ -83,3 +83,37 @@ pub fn desktop() -> Desktop {
     }
     Desktop::Headless
 }
+
+/// Runs `then` once when the system asks this process to end (SIGTERM on
+/// logout or a `kill`, SIGHUP, or Ctrl+C in a terminal), so a recording can be
+/// saved first. A second signal ends the process right away.
+#[cfg(target_os = "linux")]
+pub fn on_termination(then: impl FnOnce() + Send + 'static) {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static ASKED: AtomicBool = AtomicBool::new(false);
+    extern "C" fn asked(signal: libc::c_int) {
+        ASKED.store(true, Ordering::SeqCst);
+        // SAFETY: `signal` is async-signal-safe, and this restores the default.
+        unsafe { libc::signal(signal, libc::SIG_DFL) };
+    }
+    for signal in [libc::SIGTERM, libc::SIGHUP, libc::SIGINT] {
+        // SAFETY: the handler only touches an atomic and `signal`.
+        unsafe {
+            libc::signal(
+                signal,
+                asked as extern "C" fn(libc::c_int) as libc::sighandler_t,
+            )
+        };
+    }
+    let spawned = std::thread::Builder::new()
+        .name("lokalbot-termination".into())
+        .spawn(move || {
+            while !ASKED.load(Ordering::SeqCst) {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            then();
+        });
+    if let Err(err) = spawned {
+        log::warn!("no handling of termination signals: {err}");
+    }
+}

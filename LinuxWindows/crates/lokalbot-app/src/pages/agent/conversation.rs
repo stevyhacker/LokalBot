@@ -645,6 +645,10 @@ impl AgentPage {
                         cite_page.update(cx, |page, cx| page.open_cited_source(&source, cx));
                     }
                 });
+                let link_page = cx.entity();
+                let on_link: answer_text::LinkHandler = Rc::new(move |url, _, cx| {
+                    link_page.update(cx, |page, cx| page.open_answer_link(url, cx));
+                });
                 let copy_key = format!("assistant-{id}");
                 let copied = self.copied.as_deref() == Some(copy_key.as_str());
                 let page = cx.entity();
@@ -657,11 +661,12 @@ impl AgentPage {
                 v_flex()
                     .w_full()
                     .gap(px(10.))
-                    .child(answer_text::render(
+                    .child(answer_text::render_linked(
                         SharedString::from(format!("agent-answer-{id}")),
                         &answer,
                         style,
                         on_cite,
+                        Some(on_link),
                         cx,
                     ))
                     .child(
@@ -817,11 +822,39 @@ impl AgentPage {
                             a.kind == AttachmentKind::Moment
                                 && a.reference == snapshot_id.to_string()
                         }
+                        CitationSource::File { .. } => false,
                     })
                     .cloned()
             });
         if let Some(attachment) = attachment {
             self.preview_source(&attachment, cx);
+        }
+    }
+
+    /// A link in an answer opens the source or tool result it names beside the
+    /// task (`AgentSessionView`'s `openURL`); any other link does nothing.
+    fn open_answer_link(&mut self, url: &str, cx: &mut Context<Self>) {
+        let Some(tab) = self.model(cx).and_then(|m| m.tasks.as_ref()?.selected()) else {
+            return;
+        };
+        let source = tab
+            .session
+            .source_attachments
+            .iter()
+            .find(|attachment| attachment.id == url)
+            .cloned();
+        let results: Vec<ResultPreview> = tab
+            .session
+            .items()
+            .iter()
+            .filter_map(ResultPreview::tool)
+            .collect();
+        let result =
+            lokalbot_agent::tasks::result_for_file_link(url, &results, &tab.session.workspace);
+        if let Some(source) = source {
+            self.preview_source(&source, cx);
+        } else if let Some(result) = result {
+            self.show_preview(result, cx);
         }
     }
 

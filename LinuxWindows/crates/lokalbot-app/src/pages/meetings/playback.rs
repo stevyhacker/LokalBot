@@ -32,6 +32,13 @@ impl MeetingsPage {
                 match opened {
                     Ok(player) => {
                         player.set_speed(this.speed);
+                        // Back where this meeting's playback stood.
+                        if let Some((position, _)) = this.playback_memory.get(&id)
+                            && player.duration() > 0.
+                        {
+                            player.seek(position.clamp(0., player.duration()));
+                            this.playhead = (position / player.duration()).clamp(0., 1.) as f32;
+                        }
                         this.player = Some(Arc::new(player));
                     }
                     Err(err) => log::warn!("could not open audio for {id}: {err:#}"),

@@ -75,16 +75,16 @@ pub struct Personalization {
 }
 
 impl Personalization {
-    /// From the Writing settings this port has; the others keep their macOS
-    /// defaults (app context on, no language hint or notes).
+    /// `AppSettings.cotypingPersonalization`.
     pub fn from_settings(settings: &Settings) -> Self {
         Self {
             user_name: non_empty(&settings.cotyping_user_name),
             style_note: non_empty(&settings.cotyping_style_note),
-            language_hint: None,
-            extended_context: None,
+            language_hint: non_empty(&settings.cotyping_languages)
+                .map(|languages| format!("The text is usually written in {languages}.")),
+            extended_context: non_empty(&settings.cotyping_extended_context),
             multi_line: settings.cotyping_multi_line,
-            app_context: true,
+            app_context: settings.cotyping_use_app_context,
         }
     }
 }
@@ -101,6 +101,8 @@ pub struct Field {
     /// Text visible above the field: the conversation being answered.
     pub visible_text: Option<String>,
     pub single_line: bool,
+    /// An xterm.js surface in an editor or a browser.
+    pub integrated_terminal: bool,
 }
 
 /// One generation (`CotypingRequest`): what the model is asked and what the
@@ -123,8 +125,8 @@ pub struct Request {
     /// The word characters right before the caret ("" at a word boundary).
     pub word_prefix: String,
     /// Whether `word_prefix` is a whole word ("the") rather than a fragment
-    /// ("follo"). Without a spell checker this stays true, as on macOS for a
-    /// language it has no dictionary for.
+    /// ("follo"). True without a dictionary for the text's language, as on
+    /// macOS.
     pub word_prefix_is_valid_word: bool,
     /// The exact hidden preface in `prompt`, so an echo of it is suppressed.
     pub conditioning_preface: Option<String>,
@@ -148,6 +150,10 @@ pub struct Extras {
     pub memory: Option<String>,
     /// Earlier accepted completions in the same document.
     pub learned_examples: Vec<String>,
+    /// A fresh copy related to what is being typed (`CotypingClipboardContext`).
+    pub clipboard: Option<String>,
+    /// The focused window's text, one screen line per line (`CotypingWindowText`).
+    pub window: Option<String>,
     pub word_prefix_is_valid_word: bool,
     /// Build a request for a blank field too, to prefill its prompt.
     pub allows_blank_prefix: bool,
@@ -166,13 +172,23 @@ pub fn build_request(
     }
     let prefix = window::truncated_prefix(&field.before, MAX_PREFIX_CHARACTERS, MAX_PREFIX_WORDS);
     let surface_lines = if personalization.app_context {
-        surface::compose(&field.app_name, &field.app_id, &field.window_title)
-            .map(|s| surface::preface_lines(&s))
-            .unwrap_or_default()
+        surface::compose_field(
+            &field.app_name,
+            &field.app_id,
+            &field.window_title,
+            field.integrated_terminal,
+        )
+        .map(|s| surface::preface_lines(&s))
+        .unwrap_or_default()
     } else {
         Vec::new()
     };
-    let nearby = field.visible_text.as_deref().and_then(nearby_text);
+    // The whole window includes everything the column above the field would add.
+    let window_text = extras.window.as_deref().filter(|t| !t.trim().is_empty());
+    let nearby = window_text
+        .is_none()
+        .then(|| field.visible_text.as_deref().and_then(nearby_text))
+        .flatten();
     let rendered = render(&Context {
         prefix: &prefix,
         surface_lines: &surface_lines,
@@ -180,10 +196,11 @@ pub fn build_request(
         style_note: personalization.style_note.as_deref(),
         language_hint: personalization.language_hint.as_deref(),
         extended_context: personalization.extended_context.as_deref(),
+        clipboard: extras.clipboard.as_deref(),
         memory: extras.memory.as_deref(),
         visible: nearby.as_deref(),
+        window: window_text,
         learned_examples: &extras.learned_examples,
-        ..Context::default()
     });
     let multi_line = personalization.multi_line && !field.single_line;
     Some(Request {

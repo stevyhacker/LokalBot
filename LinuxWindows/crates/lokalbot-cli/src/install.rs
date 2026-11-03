@@ -43,6 +43,15 @@ pub fn command_path_for_current_user() -> Option<PathBuf> {
     directories::BaseDirs::new().map(|d| command_path(d.home_dir()))
 }
 
+/// Whether the command's folder is on PATH or already added to the shell's
+/// startup file, for the PATH button in Settings.
+pub fn on_path_for_current_user() -> bool {
+    directories::BaseDirs::new().is_none_or(|d| {
+        let installer = Installer::new(d.home_dir().to_path_buf(), PathBuf::new());
+        installer.bin_dir_on_path() || installer.path_line_present()
+    })
+}
+
 /// [`Installer::is_installed`] for the current user (the Agent CLI status in
 /// Settings).
 pub fn installed_for_current_user() -> bool {
@@ -239,6 +248,59 @@ impl Installer {
         Ok(())
     }
 
+    /// `~/.zshrc` for zsh and `~/.bashrc` otherwise.
+    fn shell_startup_file(&self) -> PathBuf {
+        let zsh = std::env::var("SHELL").is_ok_and(|shell| shell.ends_with("zsh"));
+        self.home.join(if zsh { ".zshrc" } else { ".bashrc" })
+    }
+
+    fn path_line_present(&self) -> bool {
+        std::fs::read_to_string(self.shell_startup_file())
+            .is_ok_and(|text| text.contains(PATH_EXPORT_LINE))
+    }
+
+    /// Puts the command's folder on PATH (`addLocalBinToPath`) and says where.
+    /// Linux adds a line to the shell's startup file; Windows changes the user's
+    /// PATH, which leaves the system-wide one alone.
+    pub fn add_bin_to_path(&self) -> Result<String> {
+        if cfg!(windows) {
+            let dir = self
+                .bin_link
+                .parent()
+                .context("the command has no folder")?
+                .display()
+                .to_string();
+            let script = format!(
+                "$p=[Environment]::GetEnvironmentVariable('Path','User'); if (($p -split ';') -notcontains '{dir}') {{ [Environment]::SetEnvironmentVariable('Path', ($p.TrimEnd(';') + ';{dir}'), 'User') }}"
+            );
+            let status = std::process::Command::new("powershell")
+                .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+                .status()
+                .context("Could not run PowerShell")?;
+            if !status.success() {
+                bail!("PowerShell could not change your PATH.");
+            }
+            return Ok("your user PATH".to_string());
+        }
+        let file = self.shell_startup_file();
+        let name = file
+            .file_name()
+            .map(|name| format!("~/{}", name.to_string_lossy()))
+            .unwrap_or_default();
+        let existing = std::fs::read_to_string(&file).unwrap_or_default();
+        if !existing.contains(PATH_EXPORT_LINE) {
+            let mut updated = existing;
+            if !updated.is_empty() && !updated.ends_with('\n') {
+                updated.push('\n');
+            }
+            updated.push_str(&format!(
+                "\n# Added by LokalBot / lokalbot-cli\n{PATH_EXPORT_LINE}\n"
+            ));
+            std::fs::write(&file, updated).with_context(|| format!("Could not write to {name}"))?;
+        }
+        Ok(name)
+    }
+
     /// The text `install-skill` prints.
     pub fn installed_message(&self) -> String {
         let mut text = format!(
@@ -309,6 +371,22 @@ fn symlink(target: &Path, link: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn adding_to_path_appends_one_line_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let installer = Installer::new(dir.path().to_path_buf(), PathBuf::new());
+        let file = installer.shell_startup_file();
+        std::fs::write(&file, "alias ll='ls -l'").unwrap();
+        assert!(!installer.path_line_present());
+        installer.add_bin_to_path().unwrap();
+        assert!(installer.path_line_present());
+        installer.add_bin_to_path().unwrap();
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(text.matches(PATH_EXPORT_LINE).count(), 1);
+        assert!(text.starts_with("alias ll='ls -l'\n"));
+    }
 
     /// An installer with every path inside `dir`, so a test never touches the
     /// real home folder or `%LOCALAPPDATA%`.

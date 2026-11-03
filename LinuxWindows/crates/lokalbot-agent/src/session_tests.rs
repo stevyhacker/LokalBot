@@ -732,3 +732,29 @@ fn session_titles_cut_at_a_word() {
         "Prepare a concise stand-up update…"
     );
 }
+
+/// `InferenceEndpointPolicy.validate` before each send: approving a server on the
+/// user's network doesn't stand in for encrypting what goes to it.
+#[test]
+fn a_running_task_stops_sending_to_plain_http_off_this_computer() {
+    let settings = |base: &str| Settings {
+        approved_remote_inference_origins: vec![base.to_string()],
+        ..Settings::default()
+    };
+    for base in [
+        "http://192.168.1.20:8080",
+        "http://100.101.1.2:8080",
+        "http://gpu.tail1234.ts.net",
+    ] {
+        let reason = remote_block(&format!("{base}/v1"), &settings(base));
+        assert!(reason.is_some_and(|r| r.contains("HTTPS")), "{base}");
+    }
+    assert_eq!(
+        remote_block("https://gpu.example/v1", &settings("https://gpu.example")),
+        None
+    );
+    assert_eq!(
+        remote_block("http://127.0.0.1:17872/v1", &Settings::default()),
+        None
+    );
+}

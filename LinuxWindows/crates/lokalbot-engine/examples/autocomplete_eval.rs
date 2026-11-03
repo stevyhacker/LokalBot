@@ -464,6 +464,7 @@ fn context(case: &Case, field_id: u64, before: &str) -> FieldContext {
         visible_text: case.visible.map(String::from),
         url: case.url.map(String::from),
         single_line: case.single_line,
+        ..FieldContext::default()
     }
 }
 
@@ -508,7 +509,7 @@ fn accept_word_by_word(
     for _ in 0..presses {
         let chunk = lokalbot_ai::autocomplete::accept_chunk(
             &ghost,
-            lokalbot_core::settings::AcceptGranularity::Word,
+            lokalbot_ai::autocomplete::AcceptOptions::default(),
         );
         if chunk.is_empty() {
             break;
@@ -519,6 +520,7 @@ fn accept_word_by_word(
         engine.send(Command::Autocomplete(AutocompleteCommand::Accepted {
             field_id,
             text: chunk.clone(),
+            inserted: chunk.clone(),
         }));
         engine.send(Command::Autocomplete(AutocompleteCommand::Context(
             context(case, field_id, &before),
@@ -528,7 +530,9 @@ fn accept_word_by_word(
         let deadline = accepted_at + Duration::from_millis(1_200);
         while let Ok((at, update)) = events.recv_deadline(deadline) {
             match update {
-                AutocompleteUpdate::Suggestion { field_id: id, text } if id == field_id => {
+                AutocompleteUpdate::Suggestion {
+                    field_id: id, text, ..
+                } if id == field_id => {
                     if grew_ms.is_none()
                         && text.len() > expected.len()
                         && text.starts_with(&expected)
@@ -597,7 +601,9 @@ fn run(
         if at < last_key {
             continue;
         }
-        if let AutocompleteUpdate::Suggestion { field_id: id, text } = update
+        if let AutocompleteUpdate::Suggestion {
+            field_id: id, text, ..
+        } = update
             && id == field_id
         {
             result.suggestion = Some(text);

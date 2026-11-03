@@ -67,6 +67,72 @@ fn save_clipboard() -> Saved {
     }
 }
 
+/// The clipboard as it was, to put back after a copy keystroke.
+pub(crate) struct ClipboardSnapshot(Saved);
+
+impl ClipboardSnapshot {
+    pub(crate) fn text(&self) -> Option<String> {
+        match &self.0 {
+            Saved::Text(text) => Some(text.clone()),
+            _ => None,
+        }
+    }
+}
+
+pub(crate) fn snapshot_clipboard() -> ClipboardSnapshot {
+    ClipboardSnapshot(save_clipboard())
+}
+
+/// Puts the clipboard back, marked as generated so clipboard managers skip it.
+pub(crate) fn restore_clipboard(saved: ClipboardSnapshot) {
+    let restored = match saved.0 {
+        Saved::Text(text) => set_generated_text(text),
+        Saved::Image(image) => with_clipboard(|c| c.set_image(image)),
+        Saved::Nothing => with_clipboard(|c| c.clear()),
+    };
+    if let Err(err) = restored {
+        log::debug!("clipboard restore failed: {err:#}");
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn set_generated_text(text: String) -> anyhow::Result<()> {
+    use arboard::SetExtLinux;
+    with_clipboard(|c| c.set().exclude_from_history().text(text))
+}
+
+#[cfg(windows)]
+fn set_generated_text(text: String) -> anyhow::Result<()> {
+    use arboard::SetExtWindows;
+    with_clipboard(|c| {
+        c.set()
+            .exclude_from_history()
+            .exclude_from_cloud()
+            .exclude_from_monitoring()
+            .text(text)
+    })
+}
+
+#[cfg(not(any(windows, target_os = "linux")))]
+fn set_generated_text(text: String) -> anyhow::Result<()> {
+    with_clipboard(|c| c.set_text(text))
+}
+
+pub(crate) fn clipboard_text() -> Option<String> {
+    with_clipboard(|c| c.get_text()).ok()
+}
+
+/// Sends the copy keystroke to the focused app. Refuses terminals, where
+/// Ctrl+C interrupts whatever is running. `Ok(false)` when it was not sent.
+pub(crate) fn send_copy(app_name: &str, app_id: &str) -> anyhow::Result<bool> {
+    if crate::autocomplete::policy::is_terminal_app(app_name, app_id)
+        || paste_combo(crate::activity::focused_app_hint().as_deref()) == PasteCombo::ShiftInsert
+    {
+        return Ok(false);
+    }
+    keys::send_copy()
+}
+
 /// Puts `text` on the system clipboard.
 pub fn copy_to_clipboard(text: &str) -> anyhow::Result<()> {
     with_clipboard(|c| c.set_text(text))
@@ -135,6 +201,35 @@ fn paste(text: &str) -> anyhow::Result<InsertOutcome> {
         primary::restore(text, previous);
     }
     Ok(InsertOutcome::Inserted)
+}
+
+/// One paste at a time across dictation and selection actions.
+static PASTE_QUEUE: Mutex<()> = Mutex::new(());
+
+/// What a checked paste did.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PasteOutcome {
+    Pasted,
+    /// The keystroke could not be sent; the text is on the clipboard.
+    LeftOnClipboard,
+    /// `still_valid` said no after waiting its turn; nothing changed.
+    Skipped,
+}
+
+/// Pastes `text` after `still_valid` confirms the destination, which runs
+/// once an earlier paste has finished (`insertViaPaste(revalidateAfterWaiting:)`).
+pub fn paste_checked(
+    text: &str,
+    still_valid: impl FnOnce() -> bool,
+) -> anyhow::Result<PasteOutcome> {
+    let _turn = PASTE_QUEUE.lock();
+    if !still_valid() {
+        return Ok(PasteOutcome::Skipped);
+    }
+    Ok(match paste(text)? {
+        InsertOutcome::Inserted => PasteOutcome::Pasted,
+        InsertOutcome::CopiedToClipboard => PasteOutcome::LeftOnClipboard,
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -211,6 +306,13 @@ pub fn insertion_limitation() -> Option<String> {
     keys::limitation()
 }
 
+/// The primary selection's text. The caller checks who owns it.
+#[cfg(target_os = "linux")]
+pub(crate) fn primary_text() -> Option<String> {
+    use arboard::{GetExtLinux, LinuxClipboardKind};
+    with_clipboard(|c| c.get().clipboard(LinuxClipboardKind::Primary).text()).ok()
+}
+
 /// Most Linux terminals paste the primary selection on Shift+Insert, so it
 /// carries the text too while pasting.
 #[cfg(target_os = "linux")]
@@ -253,7 +355,7 @@ mod keys {
 
     use windows::Win32::UI::Input::KeyboardAndMouse::{
         GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT,
-        KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, SendInput, VIRTUAL_KEY,
+        KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, SendInput, VIRTUAL_KEY, VK_C,
         VK_CONTROL, VK_INSERT, VK_LWIN, VK_MENU, VK_RETURN, VK_RWIN, VK_SHIFT, VK_TAB, VK_V,
     };
 
@@ -357,6 +459,17 @@ mod keys {
         Ok(true)
     }
 
+    pub(super) fn send_copy() -> anyhow::Result<bool> {
+        release_modifiers()?;
+        send(&[
+            key(VK_CONTROL, false),
+            key(VK_C, false),
+            key(VK_C, true),
+            key(VK_CONTROL, true),
+        ])?;
+        Ok(true)
+    }
+
     pub(super) fn type_text(text: &str) -> anyhow::Result<bool> {
         release_modifiers()?;
         let mut batch: Vec<INPUT> = Vec::new();
@@ -418,6 +531,9 @@ mod keys {
     const XK_CONTROL_L: u32 = 0xffe3;
     const XK_INSERT: u32 = 0xff63;
     const XK_V: u32 = 0x0076;
+    const XK_C: u32 = 0x0063;
+    /// The shortcut's modifiers may still be held; Ctrl+Alt+C is not Copy.
+    const COPY_MODIFIER_WAIT: Duration = Duration::from_millis(400);
 
     pub(super) fn send_paste(combo: PasteCombo) -> anyhow::Result<bool> {
         if crate::session::is_wayland() {
@@ -428,6 +544,37 @@ mod keys {
             PasteCombo::ShiftInsert => (XK_SHIFT_L, XK_INSERT),
         };
         x11_combo(modifier, key)?;
+        Ok(true)
+    }
+
+    pub(super) fn send_copy() -> anyhow::Result<bool> {
+        if crate::session::is_wayland() {
+            // Wayland does not say which keys are held.
+            std::thread::sleep(COPY_MODIFIER_WAIT);
+            return Ok(wayland_copy());
+        }
+        let (conn, screen) = x11rb::connect(None).context("no X11 display")?;
+        let root = conn
+            .setup()
+            .roots
+            .get(screen)
+            .context("no X11 screen")?
+            .root;
+        // Sent with other modifiers held, this would be some other shortcut.
+        let deadline = Instant::now() + COPY_MODIFIER_WAIT;
+        loop {
+            let pointer = conn.query_pointer(root)?.reply()?;
+            let held =
+                KeyButMask::SHIFT | KeyButMask::CONTROL | KeyButMask::MOD1 | KeyButMask::MOD4;
+            if (pointer.mask & held).bits() == 0 {
+                break;
+            }
+            if Instant::now() >= deadline {
+                return Ok(false);
+            }
+            std::thread::sleep(Duration::from_millis(15));
+        }
+        x11_combo(XK_CONTROL_L, XK_C)?;
         Ok(true)
     }
 
@@ -563,6 +710,25 @@ mod keys {
         false
     }
 
+    fn wayland_copy() -> bool {
+        let timeout = Duration::from_secs(3);
+        if let Some(wtype) = find_program("wtype")
+            && run(
+                &wtype,
+                &["-s", WTYPE_SETTLE_MS, "-M", "ctrl", "c", "-m", "ctrl"],
+                timeout,
+            )
+        {
+            return true;
+        }
+        if let Some(ydotool) = find_program("ydotool") {
+            // Ctrl is 29 and C is 46 in Linux input event codes.
+            return run(&ydotool, &["key", "29:1", "46:1", "46:0", "29:0"], timeout)
+                || run(&ydotool, &["key", "ctrl+c"], timeout);
+        }
+        false
+    }
+
     fn wayland_type(text: &str) -> bool {
         let timeout =
             Duration::from_secs(5) + Duration::from_millis(20) * text.chars().count() as u32;
@@ -599,6 +765,10 @@ mod keys {
         Ok(false)
     }
 
+    pub(super) fn send_copy() -> anyhow::Result<bool> {
+        Ok(false)
+    }
+
     pub(super) fn type_text(_: &str) -> anyhow::Result<bool> {
         Ok(false)
     }
@@ -628,6 +798,21 @@ mod tests {
         );
         assert_eq!(paste_combo(Some("firefox")), PasteCombo::CtrlV);
         assert_eq!(paste_combo(None), PasteCombo::CtrlV);
+    }
+
+    #[test]
+    fn terminals_never_get_the_copy_keystroke() {
+        assert!(!send_copy("Terminal", "gnome-terminal-server").unwrap());
+        assert!(!send_copy("Windows Terminal", "windowsterminal.exe").unwrap());
+        assert!(!send_copy("kitty", "kitty").unwrap());
+    }
+
+    #[test]
+    fn a_failed_check_pastes_nothing() {
+        assert_eq!(
+            paste_checked("text", || false).unwrap(),
+            PasteOutcome::Skipped
+        );
     }
 
     #[test]

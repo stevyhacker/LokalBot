@@ -233,6 +233,14 @@ impl Meeting {
     }
 
     /// The reviewed range, when it is usable.
+    /// Audio saved past the reviewed end (`additionalSavedAudioDuration`).
+    pub fn additional_saved_audio_duration(&self) -> f64 {
+        match (&self.content_range, self.recorded_duration) {
+            (Some(range), Some(recorded)) => (recorded - range.end).max(0.0),
+            _ => 0.0,
+        }
+    }
+
     pub fn valid_content_range(&self) -> Option<ContentRange> {
         self.content_range.filter(ContentRange::is_valid)
     }

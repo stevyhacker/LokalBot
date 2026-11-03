@@ -18,6 +18,7 @@ use super::{
     AccessibleWindow, FocusedWindow, MAX_CHARACTERS, MAX_CHILDREN, MAX_NODES, TextRead, TextReader,
     WindowRect, append_text,
 };
+use crate::meeting::browser::{self, BrowserDocument, DocumentLabels, QuietWindows};
 
 /// Each call gives up after this long, so a wedged app costs one timeout.
 const CALL_TIMEOUT: Duration = Duration::from_millis(250);
@@ -102,6 +103,7 @@ mod state {
     pub const EDITABLE: u32 = 7;
     pub const FOCUSED: u32 = 12;
     pub const MULTI_LINE: u32 = 17;
+    pub const ICONIFIED: u32 = 15;
     pub const SHOWING: u32 = 25;
     pub const MANAGES_DESCENDANTS: u32 = 31;
 }
@@ -640,16 +642,8 @@ impl Walk {
         Ok(())
     }
 
-    /// `DocURL` (Firefox, WebKitGTK), else `URI` (Chromium).
     fn document_url(&self, node: &Node) -> Result<Option<String>, CallError> {
-        for attribute in ["DocURL", "URI"] {
-            let value: Option<String> =
-                optional(node.call(&self.bus, DOCUMENT, "GetAttributeValue", &attribute))?;
-            if let Some(value) = value.filter(|value| !value.trim().is_empty()) {
-                return Ok(Some(value));
-            }
-        }
-        Ok(None)
+        document_url(&self.bus, node)
     }
 
     /// `ScreenAccessibilityReader.visibleText`: the characters between the
@@ -1062,6 +1056,190 @@ impl TextReader for AtspiReader {
     fn name(&self) -> &'static str {
         "atspi"
     }
+}
+
+/// A pathological background page must not cost the Meet document its budget.
+/// macOS gives a window 250 ms, but fetches a node's attributes at once where
+/// AT-SPI asks one question per call.
+const CALL_WINDOW_BUDGET: Duration = Duration::from_millis(750);
+
+/// Meet documents in browsers' windows, for meeting detection
+/// (`BrowserMeetingSession.window`). This never turns accessibility on; a
+/// browser with no tree answers nothing and the window title decides.
+pub(crate) struct BrowserCallReader {
+    reader: AtspiReader,
+    quiet: QuietWindows,
+}
+
+impl BrowserCallReader {
+    pub(crate) fn new() -> Self {
+        Self {
+            reader: AtspiReader::new(),
+            quiet: QuietWindows::default(),
+        }
+    }
+
+    /// Reads the windows of `families`' apps. `family_of` names a process's
+    /// browser. An incomplete read of a window says nothing about it.
+    pub(crate) fn read(
+        &mut self,
+        families: &[&'static str],
+        family_of: impl Fn(u32) -> Option<&'static str>,
+    ) -> Vec<BrowserDocument> {
+        let Ok(bus) = self.reader.bus() else {
+            return Vec::new();
+        };
+        match self.read_apps(&bus, families, family_of) {
+            Ok(documents) => documents,
+            Err(err) => {
+                if err == CallError::Disconnected {
+                    self.reader.disconnect();
+                }
+                Vec::new()
+            }
+        }
+    }
+
+    fn read_apps(
+        &mut self,
+        bus: &Connection,
+        families: &[&'static str],
+        family_of: impl Fn(u32) -> Option<&'static str>,
+    ) -> Result<Vec<BrowserDocument>, CallError> {
+        let started = Instant::now();
+        let deadline = started + browser::READ_DEADLINE;
+        let registered: Vec<(String, OwnedObjectPath)> =
+            call(bus, REGISTRY, ROOT, ACCESSIBLE, "GetChildren", &())?;
+        let mut documents = Vec::new();
+        let mut seen = Vec::new();
+        for app in registered.into_iter().filter_map(Node::new) {
+            let pid: Option<u32> = optional(call(
+                bus,
+                "org.freedesktop.DBus",
+                "/org/freedesktop/DBus",
+                "org.freedesktop.DBus",
+                "GetConnectionUnixProcessID",
+                &app.bus.as_str(),
+            ))?;
+            let Some(family) = pid
+                .and_then(&family_of)
+                .filter(|family| families.contains(family))
+            else {
+                continue;
+            };
+            let windows = app.children(bus, false)?;
+            if windows.len() > browser::MAX_WINDOWS {
+                continue;
+            }
+            for window in windows {
+                if Instant::now() >= deadline {
+                    return Ok(documents);
+                }
+                let key = format!("{}{}", window.bus, window.path.as_str());
+                seen.push(key.clone());
+                let title = optional(window.name(bus))?.unwrap_or_default();
+                let states = optional(window.states(bus))?.unwrap_or_default();
+                if crate::privacy::is_private_window(&title)
+                    || has_state(&states, state::ICONIFIED)
+                    || has_state(&states, state::DEFUNCT)
+                {
+                    continue;
+                }
+                let now = Instant::now();
+                if self.quiet.is_quiet(&key, &title, now) {
+                    continue;
+                }
+                let walked = walk_call_window(bus, &window, deadline)?;
+                if let Some(found) = walked {
+                    self.quiet.record(&key, &title, found.is_empty(), now);
+                    documents.extend(
+                        found
+                            .into_iter()
+                            .filter_map(|labels| labels.into_document(family)),
+                    );
+                }
+            }
+        }
+        self.quiet.keep(&seen);
+        Ok(documents)
+    }
+}
+
+/// The Meet documents of one window with their labels, or `None` when the
+/// window couldn't be read completely.
+fn walk_call_window(
+    bus: &Connection,
+    window: &Node,
+    deadline: Instant,
+) -> Result<Option<Vec<DocumentLabels>>, CallError> {
+    let until = deadline.min(Instant::now() + CALL_WINDOW_BUDGET);
+    let mut found: Vec<DocumentLabels> = Vec::new();
+    // Depth first, in reading order. The bool says a Meet document holds it.
+    let mut stack = vec![(window.clone(), 0usize, false)];
+    let mut visited = 0;
+    while let Some((node, depth, inside)) = stack.pop() {
+        visited += 1;
+        if visited > browser::MAX_NODES || depth > browser::MAX_DEPTH || Instant::now() >= until {
+            return Ok(None);
+        }
+        let Some(role) = optional(node.call::<_, u32>(bus, ACCESSIBLE, "GetRole", &()))? else {
+            continue;
+        };
+        let mut in_document = inside;
+        if is_document(role) {
+            if inside {
+                continue;
+            }
+            let url = document_url(bus, &node)?.and_then(|raw| browser::meet_url(&raw));
+            let Some(url) = url else {
+                continue;
+            };
+            found.push(DocumentLabels {
+                url: Some(url),
+                ..Default::default()
+            });
+            in_document = true;
+        }
+        if in_document && let Some(labels) = found.last_mut() {
+            match role {
+                role::PUSH_BUTTON | role::TOGGLE_BUTTON | role::PUSH_BUTTON_MENU | role::LINK => {
+                    // Post-call actions may be links rather than buttons.
+                    labels.add_button(optional(node.name(bus))?);
+                    labels.add_button(optional(node.property(bus, ACCESSIBLE, "Description"))?);
+                }
+                role::STATIC | role::LABEL | role::HEADING => {
+                    labels.add_message(optional(node.name(bus))?);
+                }
+                _ => {}
+            }
+        }
+        let count: i32 = optional(node.property(bus, ACCESSIBLE, "ChildCount"))?.unwrap_or(0);
+        if count as usize > browser::MAX_CHILDREN {
+            return Ok(None);
+        }
+        if count > 0 {
+            let children = node.children(bus, false)?;
+            stack.extend(
+                children
+                    .into_iter()
+                    .rev()
+                    .map(|child| (child, depth + 1, in_document)),
+            );
+        }
+    }
+    Ok(Some(found))
+}
+
+/// `DocURL` (Firefox, WebKitGTK), else `URI` (Chromium).
+fn document_url(bus: &Connection, node: &Node) -> Result<Option<String>, CallError> {
+    for attribute in ["DocURL", "URI"] {
+        let value: Option<String> =
+            optional(node.call(bus, DOCUMENT, "GetAttributeValue", &attribute))?;
+        if let Some(value) = value.filter(|value| !value.trim().is_empty()) {
+            return Ok(Some(value));
+        }
+    }
+    Ok(None)
 }
 
 #[cfg(test)]

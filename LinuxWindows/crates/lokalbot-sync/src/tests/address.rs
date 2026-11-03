@@ -1,6 +1,14 @@
 use std::net::{IpAddr, SocketAddr};
 
 use crate::net::{is_allowed_peer, local_addresses, resolve};
+use crate::server::listen_hosts;
+
+/// A development host asks for loopback and never gets the wildcard.
+#[test]
+fn listen_hosts_follow_the_loopback_choice() {
+    assert_eq!(listen_hosts(true), ("[::1]", "127.0.0.1"));
+    assert_eq!(listen_hosts(false), ("[::]", "0.0.0.0"));
+}
 
 #[test]
 fn address_filter_table() {

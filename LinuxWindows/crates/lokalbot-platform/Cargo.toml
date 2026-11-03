@@ -38,6 +38,7 @@ ureq.workspace = true
 global-hotkey = "0.9"
 
 [target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
 x11rb = { version = "0.13", features = ["screensaver", "res", "xtest", "xfixes", "shape", "randr"] }
 # Same runtime as GPUI's Linux backend (async-io, no tokio).
 zbus = { version = "5", default-features = false, features = ["async-io", "blocking-api"] }
@@ -46,6 +47,10 @@ futures-lite = "2"
 async-channel = "2"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+# Autocomplete on Sway and Hyprland: `zwp_input_method_v2` and `zwp_virtual_keyboard_v1`.
+wayland-protocols-misc = { version = "0.3", features = ["client"] }
+# Which key is Tab or Esc in the keymap the compositor shares.
+xkbcommon = { version = "0.9", default-features = false }
 ksni = { version = "0.3", default-features = false, features = ["async-io", "blocking"] }
 # Unicode typing on X11 (keysym remapping through XTest).
 enigo = { version = "0.6", default-features = false, features = ["x11rb"] }
@@ -53,16 +58,25 @@ arboard = { version = "3.7", features = ["wayland-data-control"] }
 # Screen context on Wayland: the portal's PNG and a request timeout.
 png = "0.18"
 async-io = "2"
+# Autocomplete's spell check over the system's Hunspell dictionaries.
+spellbook = "=0.4.2"
 
 [target.'cfg(windows)'.dependencies]
 tray-icon = { version = "0.26", default-features = false }
+# The control pipe's access list, in the form interprocess takes it.
+widestring = "1"
 # `#[implement]` for UI Automation's event handlers names `windows_core`.
 windows-core = "0.62"
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62"
 features = [
+    # Pausing players around dictation (System Media Transport Controls).
+    "Foundation",
+    "Foundation_Collections",
+    "Media_Control",
     "Win32_Foundation",
+    "Win32_Globalization",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
     "Win32_Media_Audio",
@@ -73,6 +87,8 @@ features = [
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_LibraryLoader",
     "Win32_System_Ole",
+    "Win32_System_Power",
+    "Win32_System_ProcessStatus",
     "Win32_System_Registry",
     "Win32_System_RemoteDesktop",
     "Win32_System_Variant",

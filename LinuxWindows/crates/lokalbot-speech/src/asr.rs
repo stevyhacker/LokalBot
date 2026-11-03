@@ -8,8 +8,9 @@ use anyhow::{Result, anyhow, bail};
 use lokalbot_core::LibraryPaths;
 use parking_lot::Mutex;
 use sherpa_onnx::{
-    OfflineQwen3ASRModelConfig, OfflineRecognizer, OfflineRecognizerConfig,
-    OfflineSenseVoiceModelConfig, OfflineTransducerModelConfig, OfflineWhisperModelConfig,
+    OfflineNemoEncDecCtcModelConfig, OfflineQwen3ASRModelConfig, OfflineRecognizer,
+    OfflineRecognizerConfig, OfflineSenseVoiceModelConfig, OfflineTransducerModelConfig,
+    OfflineWhisperModelConfig,
 };
 
 use crate::models::{Family, SpeechModel, model_file};
@@ -19,7 +20,7 @@ pub fn max_span_seconds(family: Family) -> f64 {
     match family {
         // `QwenASREngine`: spans of at most 15 s.
         Family::Qwen3Asr => 15.0,
-        Family::NemoTransducer | Family::SenseVoice => 30.0,
+        Family::NemoTransducer | Family::SenseVoice | Family::NemoCtc => 30.0,
         Family::Whisper => 28.0,
     }
 }
@@ -30,6 +31,8 @@ pub struct Decoded {
     pub text: String,
     pub tokens: Vec<String>,
     pub timestamps: Vec<f32>,
+    /// Word times from a server that gives them, relative to the clip.
+    pub words: Vec<lokalbot_core::remote_transcription::TimedWord>,
 }
 
 /// Qwen3-ASR's prompt names languages in English (`language English`).
@@ -65,6 +68,9 @@ pub fn qwen_language_name(code: &str) -> Option<&'static str> {
         "hu" => "Hungarian",
         "mk" => "Macedonian",
         "ro" => "Romanian",
+        // Not on the model's list, but on the Mac naming it explicitly measured
+        // 44.3% against 54.2% WER, where detection reads it as Croatian.
+        "sr" => "Serbian",
         _ => return None,
     })
 }
@@ -144,6 +150,13 @@ impl Asr {
                 };
                 config.model_config.tokens = file("turbo-tokens.txt");
             }
+            Family::NemoCtc => {
+                config.model_config.nemo_ctc = OfflineNemoEncDecCtcModelConfig {
+                    model: file("model.int8.onnx"),
+                };
+                config.model_config.tokens = file("tokens.txt");
+                config.model_config.model_type = Some("nemo_ctc".into());
+            }
         }
         let recognizer = create(&config, model)?;
         Ok(Self {
@@ -166,7 +179,7 @@ impl Asr {
                 .filter(|l| self.model.supports_language(l))
                 .map(str::to_string),
             Family::Whisper => language.map(str::to_string),
-            Family::Qwen3Asr | Family::NemoTransducer => None,
+            Family::Qwen3Asr | Family::NemoTransducer | Family::NemoCtc => None,
         };
         let mut current = self.current.lock();
         if current.0 == fixed_language {
@@ -271,6 +284,7 @@ impl Asr {
             .get_result()
             .ok_or_else(|| anyhow!("{} returned no result", self.model.display_name))?;
         Ok(Decoded {
+            words: Vec::new(),
             text: result.text,
             tokens: result.tokens,
             timestamps: result.timestamps.unwrap_or_default(),
@@ -295,7 +309,8 @@ mod tests {
     #[test]
     fn qwen_settings() {
         assert_eq!(qwen_language_name("de"), Some("German"));
-        assert_eq!(qwen_language_name("sr"), None);
+        assert_eq!(qwen_language_name("sr"), Some("Serbian"));
+        assert_eq!(qwen_language_name("uk"), None);
         assert_eq!(qwen_max_new_tokens(16_000), 128);
         assert_eq!(qwen_max_new_tokens(16_000 * 15), 270);
         assert_eq!(qwen_max_new_tokens(16_000 * 60), 768);

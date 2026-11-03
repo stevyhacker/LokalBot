@@ -5,14 +5,19 @@
     windows_subsystem = "windows"
 )]
 
+mod agent_handoff;
 mod assets;
 mod autocomplete;
 mod bridge;
 mod component_i18n;
+mod control;
 mod desktop;
+mod headless;
 mod hud;
 mod i18n;
 mod pages;
+mod palette;
+mod quit;
 mod sample;
 mod shell;
 mod state;
@@ -31,7 +36,10 @@ use lokalbot_core::{Library, LibraryPaths, Settings};
 use crate::state::{AppData, AppEvent, AppHandle, Section};
 use lokalbot_platform::{InstanceError, IpcCommand};
 
-actions!(lokalbot, [Quit, ToggleRecording]);
+actions!(
+    lokalbot,
+    [Quit, ToggleRecording, OpenCommandPalette, OpenSettings]
+);
 
 /// Command-line options. Most users never pass any; they exist for tests,
 /// screenshots and a second library.
@@ -39,15 +47,17 @@ actions!(lokalbot, [Quit, ToggleRecording]);
 struct Options {
     storage_root: Option<std::path::PathBuf>,
     section: Option<Section>,
-    /// Screenshot target for the Models settings, including runtime selection.
-    models_settings: bool,
+    /// Screenshot target inside Settings, such as the Models runtime selection.
+    settings_category: Option<state::SettingsCategory>,
     /// `--window quick-recall|onboarding` opens that window at startup.
     window: Option<String>,
     /// `--moment <id>` opens Timeline on that screen moment.
     moment: Option<i64>,
     /// Started at login: stay in the tray without opening the main window.
     autostart: bool,
-    /// `lokalbot quick-recall`, `toggle-recording`, `dictate --toggle|--start|--stop`,
+    /// Started by `lokalbot-cli setup start`: open only its request window.
+    agent_setup: bool,
+    /// `lokalbot quick-recall`, `selection-actions`, `toggle-recording`, `dictate --toggle|--start|--stop`,
     /// `show`, `install-update`: forwarded to a running LokalBot, or run after
     /// startup. This is how Wayland users bind compositor shortcuts.
     command: Option<IpcCommand>,
@@ -64,6 +74,9 @@ fn parse_options() -> Options {
     options.autostart = args
         .iter()
         .any(|a| a == lokalbot_platform::autostart::AUTOSTART_ARG);
+    options.agent_setup = args
+        .iter()
+        .any(|a| a == lokalbot_core::control::setup::LAUNCH_ARGUMENT);
     options.after_update = args
         .iter()
         .any(|a| a == lokalbot_update::install::AFTER_UPDATE_ARG);
@@ -84,6 +97,7 @@ fn parse_options() -> Options {
     }
     options.command = positional.and_then(|index| match args[index].as_str() {
         "quick-recall" => Some(IpcCommand::QuickRecall),
+        "selection-actions" => Some(IpcCommand::SelectionActions),
         "toggle-recording" => Some(IpcCommand::ToggleRecording),
         "show" => Some(IpcCommand::Show),
         "install-update" => Some(IpcCommand::InstallUpdate),
@@ -99,7 +113,7 @@ fn parse_options() -> Options {
         if arg == "--page" {
             if let Some(name) = iter.next() {
                 options.section = section_named(name);
-                options.models_settings = name.eq_ignore_ascii_case("settings-models");
+                options.settings_category = settings_category_named(name);
             }
         } else if arg == "--window" {
             options.window = iter.next().cloned();
@@ -160,7 +174,20 @@ fn section_named(name: &str) -> Option<Section> {
         "projects" => Section::Projects,
         "ask" => Section::Ask,
         "agent" => Section::Agent,
-        "settings" | "settings-models" => Section::Settings,
+        "settings" => Section::Settings,
+        _ => {
+            settings_category_named(name)?;
+            Section::Settings
+        }
+    })
+}
+
+fn settings_category_named(name: &str) -> Option<state::SettingsCategory> {
+    Some(match name.to_ascii_lowercase().as_str() {
+        "settings-models" => state::SettingsCategory::Models,
+        "settings-files" => state::SettingsCategory::Files,
+        "settings-devices" => state::SettingsCategory::Devices,
+        "settings-personal-context" => state::SettingsCategory::PersonalContext,
         _ => return None,
     })
 }
@@ -180,6 +207,15 @@ fn main() {
     }
     let options = parse_options();
     let paths = LibraryPaths::resolve(options.storage_root.as_deref());
+    if std::env::args().any(|arg| arg == "--ibus-component")
+        && let Some(component) = lokalbot_platform::autocomplete::ibus_component()
+    {
+        print!("{component}");
+        return;
+    }
+    if let Some(command) = headless::parse(&std::env::args().collect::<Vec<_>>()) {
+        std::process::exit(headless::run(&command, &paths));
+    }
     if std::env::args().any(|arg| arg == "--seed-demo") {
         // Writes the fictional demo library used for screenshots, then exits.
         match lokalbot_core::demo::seed(&paths, chrono::Utc::now()) {
@@ -198,6 +234,10 @@ fn main() {
     let instance = match acquire_instance(&paths, options.after_update) {
         Ok(guard) => Some(guard),
         Err(InstanceError::AlreadyRunning) => {
+            // A background launch that finds LokalBot up has nothing to ask of it.
+            if options.command.is_none() && (options.autostart || options.agent_setup) {
+                return;
+            }
             let command = options.command.clone().unwrap_or(IpcCommand::Show);
             if let Err(err) = lokalbot_platform::send(paths.root(), command) {
                 eprintln!("LokalBot is already running but did not respond: {err}");
@@ -238,18 +278,20 @@ fn main() {
         .with_assets(assets::Assets)
         .run(move |cx: &mut App| {
             gpui_kit::init(cx);
+            // The tray keeps LokalBot running with no windows, so nothing here
+            // quits on its own when the last one closes. See `close_last_window`.
+            cx.set_quit_mode(gpui_kit::QuitMode::Explicit);
             i18n::apply(&settings.app_language, cx);
             assets::load_fonts(cx);
             cx.set_app_identity("com.lokalbot.LokalBot", "LokalBot");
 
             let data = cx.new(|_| AppData::new(library, settings));
+            data.update(cx, |data, cx| data.refresh_audio_inputs(cx));
             if let Some(section) = options.section {
                 data.update(cx, |data, _| data.section = section);
             }
-            if options.models_settings {
-                data.update(cx, |data, cx| {
-                    data.open_settings(state::SettingsCategory::Models, cx)
-                });
+            if let Some(category) = options.settings_category {
+                data.update(cx, |data, cx| data.open_settings(category, cx));
             }
             if let Some(id) = options.moment {
                 let moment = data.read(cx).library.screen_moment(id).ok().flatten();
@@ -265,21 +307,42 @@ fn main() {
             desktop::start(&data, paths.root(), cx);
             updates::start(&data, cx);
             autocomplete::start(&data, cx);
+            control::start(&data, cx);
+            quit::finish_recording_on_exit(cx);
+            cx.on_window_closed(|cx, _| close_last_window(cx)).detach();
+            // Requests are handled here, not in the window: a tray-only copy and
+            // one whose window was closed still have to reach the engine.
+            let events = data.clone();
+            cx.subscribe(&data, move |_, event: &AppEvent, cx| {
+                handle_event(&events, event, cx)
+            })
+            .detach();
             let first_launch = !data.read(cx).settings.onboarding_completed;
-            if !options.autostart {
+            let silent = stays_in_tray(
+                options.autostart,
+                options.agent_setup,
+                data.read(cx).settings.run_in_tray,
+                !first_launch,
+                desktop::desktop(cx).is_some_and(|d| d.has_tray()),
+            );
+            if !silent {
                 open_main_window(data.clone(), cx);
             }
             data.update(cx, |data, cx| data.reload(cx));
             match options.window.as_deref() {
                 Some("quick-recall") => windows::quick_recall::open(cx),
+                Some("selection-actions") => windows::selection_actions::open(cx),
                 Some("onboarding") => windows::onboarding::open(cx),
-                _ if first_launch && !options.autostart && options.section.is_none() => {
+                // An agent's setup request replaces the wizard; declining it
+                // opens the wizard instead.
+                _ if first_launch && options.section.is_none() && !control::setup_waiting(cx) => {
                     windows::onboarding::open(cx)
                 }
                 _ => {}
             }
             match options.command.clone() {
                 Some(IpcCommand::QuickRecall) => windows::quick_recall::open(cx),
+                Some(IpcCommand::SelectionActions) => desktop::invoke_selection_actions(&data, cx),
                 Some(IpcCommand::ToggleRecording) => {
                     data.update(cx, |data, cx| data.toggle_recording(cx))
                 }
@@ -330,10 +393,19 @@ fn bind_actions(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("ctrl-q", Quit, None),
         KeyBinding::new("ctrl-shift-r", ToggleRecording, None),
+        KeyBinding::new("ctrl-k", OpenCommandPalette, None),
+        KeyBinding::new("ctrl-,", OpenSettings, None),
     ]);
-    cx.on_action(|_: &Quit, cx: &mut App| cx.quit());
+    cx.on_action(|_: &Quit, cx: &mut App| quit::request(cx));
     cx.on_action(|_: &ToggleRecording, cx: &mut App| {
         AppData::global(cx).update(cx, |data, cx| data.toggle_recording(cx));
+    });
+    cx.on_action(|_: &OpenCommandPalette, cx: &mut App| windows::command_palette::open(cx));
+    cx.on_action(|_: &OpenSettings, cx: &mut App| {
+        desktop::show_main_window(cx);
+        AppData::global(cx).update(cx, |data, cx| {
+            data.open_settings(state::SettingsCategory::Overview, cx)
+        });
     });
 }
 
@@ -370,19 +442,22 @@ pub(crate) fn open_main_window(data: Entity<AppData>, cx: &mut App) {
         let subscribed = data.clone();
         window
             .subscribe(&data, cx, move |_, event: &AppEvent, window, cx| {
-                handle_event(&subscribed, event, window, cx)
+                if matches!(event, AppEvent::AppearanceChanged) {
+                    apply_appearance(&subscribed, window, cx);
+                }
             })
             .detach();
         // Closing the window keeps LokalBot in the tray when that is on and a
-        // tray icon exists; otherwise it quits.
+        // tray icon exists; otherwise it quits, which saves a recording first
+        // and may refuse, so the window stays until it really does.
         let closing = data.clone();
         window.on_window_should_close(cx, move |_, cx| {
             let keep = closing.read(cx).settings.run_in_tray
                 && desktop::desktop(cx).is_some_and(|d| d.has_tray());
             if !keep {
-                cx.quit();
+                quit::request(cx);
             }
-            true
+            keep
         });
         cx.new(|cx| shell::Workspace::new(window, cx))
     });
@@ -394,8 +469,29 @@ pub(crate) fn open_main_window(data: Entity<AppData>, cx: &mut App) {
         }
         Err(err) => {
             log::error!("could not open the main window: {err:#}");
-            cx.quit();
+            quit::request(cx);
         }
+    }
+}
+
+/// Whether this launch opens no window (`lokalbotLaunchesMenuBarOnly`): only a
+/// login start or a command-line agent's, and only for someone who chose to run
+/// in the tray and has finished onboarding. A person opening LokalBot gets its
+/// window, and so does a login start with no tray icon to come back through.
+fn stays_in_tray(
+    autostart: bool,
+    agent_setup: bool,
+    run_in_tray: bool,
+    onboarded: bool,
+    has_tray: bool,
+) -> bool {
+    agent_setup || (autostart && run_in_tray && onboarded && has_tray)
+}
+
+/// With no tray icon, no window left means no way back into the app.
+fn close_last_window(cx: &mut App) {
+    if cx.windows().is_empty() && !desktop::desktop(cx).is_some_and(|d| d.has_tray()) {
+        quit::request(cx);
     }
 }
 
@@ -405,9 +501,10 @@ fn apply_appearance(data: &Entity<AppData>, window: &mut Window, cx: &mut App) {
     theme::apply(dark, settings.text_size.scale(), Some(window), cx);
 }
 
-fn handle_event(data: &Entity<AppData>, event: &AppEvent, window: &mut Window, cx: &mut App) {
+fn handle_event(data: &Entity<AppData>, event: &AppEvent, cx: &mut App) {
     match event {
-        AppEvent::AppearanceChanged => apply_appearance(data, window, cx),
+        // Each window restyles itself.
+        AppEvent::AppearanceChanged => {}
         AppEvent::SettingsChanged => {
             bridge::handle_request(event, cx);
             desktop::sync_shortcuts_later(cx);
@@ -442,6 +539,29 @@ fn handle_event(data: &Entity<AppData>, event: &AppEvent, window: &mut Window, c
             })
             .detach();
         }
+        AppEvent::SaveAutocompleteServerKey(key) => {
+            let key = key.clone();
+            let data = data.clone();
+            cx.spawn(async move |cx| {
+                let result = cx
+                    .background_spawn(async move {
+                        lokalbot_engine::secrets::save_autocomplete_server_api_key(&key)
+                    })
+                    .await;
+                if let Err(err) = result {
+                    data.update(cx, |data, cx| {
+                        data.show_error(
+                            lokalbot_i18n::format(
+                                "The API key was not saved: {err}",
+                                &[("err", format!("{:#}", err))],
+                            ),
+                            cx,
+                        )
+                    });
+                }
+            })
+            .detach();
+        }
         other => {
             if !bridge::handle_request(other, cx) {
                 log::debug!("unhandled request: {other:?}");
@@ -471,7 +591,20 @@ fn apply_launch_at_login(data: &Entity<AppData>, cx: &mut App) {
 
 #[cfg(test)]
 mod tests {
-    use super::wants_version;
+    use super::{stays_in_tray, wants_version};
+
+    #[test]
+    fn only_a_login_start_with_a_tray_stays_out_of_sight() {
+        // autostart, agent setup, run in tray, onboarded, tray icon
+        assert!(stays_in_tray(true, false, true, true, true));
+        assert!(stays_in_tray(false, true, false, false, false));
+        // A person opened it.
+        assert!(!stays_in_tray(false, false, true, true, true));
+        // Chose not to run in the tray, still onboarding, or nothing to click.
+        assert!(!stays_in_tray(true, false, false, true, true));
+        assert!(!stays_in_tray(true, false, true, false, true));
+        assert!(!stays_in_tray(true, false, true, true, false));
+    }
 
     fn args(list: &[&str]) -> Vec<String> {
         list.iter().map(|arg| arg.to_string()).collect()

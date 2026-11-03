@@ -18,7 +18,13 @@ use crate::theme::{LbThemeExt as _, ty};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RuleKind {
     Applications,
+    /// Capture rules: a URL with a path excludes that URL prefix.
     Domains,
+    /// Writing rules: a pasted URL applies to its whole domain.
+    WritingDomains,
+    /// Folders are stored with commas between them, like the other two, so a
+    /// path can't hold one (`ExclusionRulesEditor.folders`).
+    Folders,
 }
 
 pub enum RuleListEvent {
@@ -49,7 +55,10 @@ impl RuleList {
     ) -> Self {
         let placeholder = match kind {
             RuleKind::Applications => "Application name",
-            RuleKind::Domains => "example.com",
+            RuleKind::Domains | RuleKind::WritingDomains => {
+                "example.com or https://example.com/private"
+            }
+            RuleKind::Folders => "~/Code/client-project",
         };
         let input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(crate::i18n::placeholder(
@@ -109,6 +118,56 @@ impl RuleList {
         self.commit(cx);
     }
 
+    /// "Choose App…" and "Choose Folder…": the file picker's choice goes
+    /// through the same checks as typing it, and any failure is shown.
+    fn choose(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let folders = self.kind == RuleKind::Folders;
+        let receiver = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
+            files: !folders,
+            directories: folders,
+            multiple: false,
+            prompt: Some(
+                if folders {
+                    lokalbot_i18n::tr("Choose a folder to exclude")
+                } else {
+                    lokalbot_i18n::tr("Choose an application to exclude")
+                }
+                .into(),
+            ),
+        });
+        cx.spawn_in(window, async move |this, cx| {
+            let chosen = receiver.await;
+            let _ = this.update_in(cx, |this, window, cx| {
+                match chosen {
+                    Ok(Ok(Some(paths))) => {
+                        let Some(path) = paths.first() else { return };
+                        let rule = if folders {
+                            folder_rule(path)
+                        } else {
+                            application_rule(path)
+                        };
+                        this.input
+                            .update(cx, |input, cx| input.set_value(rule, window, cx));
+                        this.add(window, cx);
+                    }
+                    Ok(Ok(None)) => {}
+                    Ok(Err(err)) => {
+                        this.error = Some(
+                            lokalbot_i18n::format(
+                                "The file picker could not open: {err}. Add the rule with +.",
+                                &[("err", format!("{err:#}"))],
+                            )
+                            .into(),
+                        );
+                        cx.notify();
+                    }
+                    Err(_) => {}
+                };
+            });
+        })
+        .detach();
+    }
+
     fn remove_selected(&mut self, cx: &mut Context<Self>) {
         if let Some(index) = self.selected.take()
             && index < self.rules.len()
@@ -124,10 +183,21 @@ pub fn validate(candidate: &str, kind: RuleKind, existing: &[String]) -> Option<
     if candidate.is_empty() || candidate.contains(',') {
         return Some(lokalbot_i18n::tr("Add one rule at a time."));
     }
-    if kind == RuleKind::Domains && !is_domain_rule(candidate) {
+    if matches!(kind, RuleKind::Domains | RuleKind::WritingDomains) && !is_domain_rule(candidate) {
         return Some(lokalbot_i18n::tr(
             "Enter a domain or an HTTP(S) URL prefix. Existing rules remain unchanged.",
         ));
+    }
+    if kind == RuleKind::Folders && !is_folder_rule(candidate) {
+        return Some(if cfg!(windows) {
+            lokalbot_i18n::tr(
+                "Enter a folder path such as C:\\Code\\client or ~\\client. Existing rules remain unchanged.",
+            )
+        } else {
+            lokalbot_i18n::tr(
+                "Enter a folder path starting with / or ~. Existing rules remain unchanged.",
+            )
+        });
     }
     if existing
         .iter()
@@ -136,6 +206,90 @@ pub fn validate(candidate: &str, kind: RuleKind, existing: &[String]) -> Option<
         return Some(lokalbot_i18n::tr("This rule is already excluded."));
     }
     None
+}
+
+/// Rules saved before these checks, or typed into a settings file, stay until
+/// removed, and say so (`ExclusionRulesEditor.isValid`).
+fn is_valid_rule(rule: &str, kind: RuleKind) -> bool {
+    match kind {
+        RuleKind::Applications => true,
+        RuleKind::Folders => is_folder_rule(rule),
+        RuleKind::Domains | RuleKind::WritingDomains => is_domain_rule(rule),
+    }
+}
+
+/// `~/…` for a folder under the home folder, as the Mac abbreviates it.
+fn folder_rule(path: &std::path::Path) -> String {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+        .map(std::path::PathBuf::from);
+    abbreviated(path, home.as_deref())
+}
+
+fn abbreviated(path: &std::path::Path, home: Option<&std::path::Path>) -> String {
+    match home.and_then(|home| path.strip_prefix(home).ok()) {
+        Some(rest) if rest.as_os_str().is_empty() => "~".to_string(),
+        Some(rest) => std::path::Path::new("~").join(rest).display().to_string(),
+        None => path.display().to_string(),
+    }
+}
+
+/// What an excluded app is matched by. A window's name changes with the
+/// language, so a launcher's window class or command wins over it, and a
+/// Windows program is known by its file name.
+fn application_rule(path: &std::path::Path) -> String {
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let extension = path
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    match extension.as_str() {
+        "desktop" => std::fs::read_to_string(path)
+            .ok()
+            .and_then(|text| desktop_entry_rule(&text))
+            .unwrap_or(stem),
+        "exe" => format!("{}.exe", stem.to_lowercase()),
+        _ => stem,
+    }
+}
+
+/// `StartupWMClass`, else the program `Exec` runs.
+fn desktop_entry_rule(text: &str) -> Option<String> {
+    let mut in_entry = false;
+    let mut class = None;
+    let mut exec = None;
+    for line in text.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_entry = line == "[Desktop Entry]";
+            continue;
+        }
+        if !in_entry {
+            continue;
+        }
+        if let Some(value) = line.strip_prefix("StartupWMClass=") {
+            class = Some(value.trim().to_string());
+        } else if let Some(value) = line.strip_prefix("Exec=") {
+            exec = value
+                .split_whitespace()
+                .find(|word| *word != "env" && !word.contains('='))
+                .and_then(|program| program.rsplit('/').next())
+                .map(str::to_string);
+        }
+    }
+    class.or(exec).filter(|rule| !rule.is_empty())
+}
+
+fn is_folder_rule(candidate: &str) -> bool {
+    let bytes = candidate.as_bytes();
+    candidate.starts_with('/')
+        || candidate.starts_with('~')
+        || candidate.starts_with("\\\\")
+        || (bytes.len() >= 3
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && matches!(bytes[2], b'/' | b'\\'))
 }
 
 fn is_domain_rule(candidate: &str) -> bool {
@@ -161,7 +315,10 @@ impl Render for RuleList {
         let lb = cx.lb().clone();
         let (glyph, kind_label) = match self.kind {
             RuleKind::Applications => (Ico::LayoutGrid, lokalbot_i18n::tr("App")),
-            RuleKind::Domains => (Ico::Globe, lokalbot_i18n::tr("Domain / URL")),
+            RuleKind::Domains | RuleKind::WritingDomains => {
+                (Ico::Globe, lokalbot_i18n::tr("Domain / URL"))
+            }
+            RuleKind::Folders => (Ico::Folder, lokalbot_i18n::tr("Folder")),
         };
         let rows: Vec<_> = self
             .rules
@@ -169,6 +326,7 @@ impl Render for RuleList {
             .enumerate()
             .map(|(index, rule)| {
                 let selected = self.selected == Some(index);
+                let valid = is_valid_rule(rule, self.kind);
                 h_flex()
                     .id(("rule", index))
                     .gap(px(8.))
@@ -194,6 +352,14 @@ impl Render for RuleList {
                             .text_color(lb.text_secondary)
                             .child(kind_label),
                     )
+                    .when(!valid, |this| {
+                        this.child(
+                            div()
+                                .text_size(ty::SECONDARY)
+                                .text_color(lb.attention_text)
+                                .child(lokalbot_i18n::tr("Legacy rule · review")),
+                        )
+                    })
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.selected = if this.selected == Some(index) {
                             None
@@ -247,6 +413,25 @@ impl Render for RuleList {
                             .tooltip(lokalbot_i18n::tr("Remove Selected Exclusion"))
                             .disabled(self.selected.is_none())
                             .on_click(cx.listener(|this, _, _, cx| this.remove_selected(cx))),
+                    )
+                    .child(div().flex_1())
+                    .when(
+                        matches!(self.kind, RuleKind::Applications | RuleKind::Folders),
+                        |this| {
+                            this.child(
+                                Button::new("rule-choose")
+                                    .outline()
+                                    .xsmall()
+                                    .label(if self.kind == RuleKind::Folders {
+                                        lokalbot_i18n::tr("Choose Folder…")
+                                    } else {
+                                        lokalbot_i18n::tr("Choose App…")
+                                    })
+                                    .on_click(
+                                        cx.listener(|this, _, window, cx| this.choose(window, cx)),
+                                    ),
+                            )
+                        },
                     ),
             )
             .when(self.adding, |this| {
@@ -275,12 +460,20 @@ impl Render for RuleList {
             .when_some(self.error.clone(), |this, error| {
                 this.child(div().text_size(ty::SECONDARY).text_color(lb.attention_text).child(error))
             })
-            .when(self.kind == RuleKind::Domains, |this| {
+            .when(self.kind == RuleKind::WritingDomains, |this| {
                 this.child(
                     div()
                         .text_size(ty::SECONDARY)
                         .text_color(lb.text_secondary)
                         .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Matches this domain and its subdomains. A pasted URL applies to its whole domain."))),
+                )
+            })
+            .when(self.kind == RuleKind::Domains, |this| {
+                this.child(
+                    div()
+                        .text_size(ty::SECONDARY)
+                        .text_color(lb.text_secondary)
+                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them."))),
                 )
             })
     }
@@ -305,5 +498,56 @@ mod tests {
         assert!(validate("https://mail.example.com/private", RuleKind::Domains, &[]).is_none());
         assert!(validate("localhost", RuleKind::Domains, &[]).is_some());
         assert!(validate("ftp://x.y", RuleKind::Domains, &[]).is_some());
+        assert!(validate("~/work", RuleKind::Folders, &[]).is_none());
+        assert!(validate("/opt/secret", RuleKind::Folders, &[]).is_none());
+        assert!(validate(r"C:\Work", RuleKind::Folders, &[]).is_none());
+        assert!(validate(r"\\server\share", RuleKind::Folders, &[]).is_none());
+        assert!(validate("relative/path", RuleKind::Folders, &[]).is_some());
+        assert!(validate("/a,b", RuleKind::Folders, &[]).is_some());
+    }
+
+    #[test]
+    fn older_rules_are_flagged_not_dropped() {
+        assert!(is_valid_rule("anything", RuleKind::Applications));
+        assert!(is_valid_rule("~/work", RuleKind::Folders));
+        assert!(!is_valid_rule("relative/path", RuleKind::Folders));
+        assert!(is_valid_rule("example.com", RuleKind::Domains));
+        assert!(!is_valid_rule("not a domain", RuleKind::Domains));
+        assert!(!is_valid_rule("localhost", RuleKind::WritingDomains));
+    }
+
+    #[test]
+    fn folders_abbreviate_home() {
+        use std::path::Path;
+        let home = Path::new("/home/ana");
+        let rule = |p: &Path| abbreviated(p, Some(home));
+        // Each platform's own separator: a rule reads like the paths around it.
+        let inside = Path::new("~").join("Code").join("x");
+        assert_eq!(
+            rule(&home.join("Code").join("x")),
+            inside.display().to_string()
+        );
+        assert_eq!(rule(home), "~");
+        assert_eq!(rule(Path::new("/opt/secret")), "/opt/secret");
+    }
+
+    #[test]
+    fn launchers_name_their_window_class_or_program() {
+        let entry = "[Desktop Entry]\nName=Rechner\nExec=env GDK_BACKEND=x11 /usr/bin/gnome-calculator %U\nStartupWMClass=gnome-calculator-win\n[Desktop Action New]\nExec=other\n";
+        assert_eq!(
+            desktop_entry_rule(entry).as_deref(),
+            Some("gnome-calculator-win")
+        );
+        let plain = "[Desktop Entry]\nName=Slack\nExec=/usr/bin/slack --gpu %U\n";
+        assert_eq!(desktop_entry_rule(plain).as_deref(), Some("slack"));
+        assert_eq!(desktop_entry_rule("[Other]\nExec=x\n"), None);
+        assert_eq!(
+            application_rule(std::path::Path::new("C:/Apps/Thing.EXE")),
+            "thing.exe"
+        );
+        assert_eq!(
+            application_rule(std::path::Path::new("/opt/Tool.AppImage")),
+            "Tool"
+        );
     }
 }

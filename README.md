@@ -54,7 +54,7 @@ One search across your meeting transcripts and, if you turn it on, what you saw 
 
 ### Finish the sentence
 
-As you type in other apps, gray text suggests how your sentence ends. Press **Tab** to take the next word, **\`** to take the rest on Mac, or keep typing.
+As you type in other apps, gray text suggests how your sentence ends. Press **Tab** to take the next word, **\`** to take the rest, or keep typing.
 
 <div align="center"><img src="Assets/screenshots/autocomplete-memory.gif" alt="Typing an update in TextEdit after a call with John: after &quot;the Harbor beta ships&quot;, autocomplete suggests &quot;Thursday morning, after the accessibility review.&quot; and Tab accepts it word by word" width="920" /></div>
 
@@ -88,13 +88,13 @@ Turn on Dictation in **Settings → Dictation**, then hold **⌥ Space** (**Alt+
 
 ### Rewrite what you selected
 
-Turn on selection actions in **Settings → General**, select text in any app, and press **⌃⇧ W**. Fix the grammar, make it shorter, translate it, summarize it, or type your own instruction, then replace the selection or copy the result. **Draft a reply with my memory** also searches your meetings, so the reply can use what was actually agreed, and lists the meetings it used. It runs on your Think model, which stays on your Mac unless you chose and approved a server. Selection actions are on Mac only for now.
+Turn on selection actions in **Settings → General**, select text in any app, and press **⌃⇧ W**. Fix the grammar, make it shorter, translate it, summarize it, or type your own instruction, then replace the selection or copy the result. **Draft a reply with my memory** also searches your meetings, so the reply can use what was actually agreed, and lists the meetings it used. It runs on your Think model, which stays on your computer unless you chose and approved a server. On Windows and Linux the shortcut is **Ctrl+Alt+Space**, because ⌃⇧ W closes tabs and windows there; on Wayland, bind `lokalbot selection-actions` to a shortcut in your desktop's settings.
 
 ### And more
 
 | Ask, then check the source | Follow through | Bring your own agent |
 | --- | --- | --- |
-| Ask about your meeting library and follow the answer's citations back to the transcript or audio. Generated notes are a starting point, not a substitute for the discussion. | Prepare local follow-up drafts. On Mac, also keep a note for every meeting in your Obsidian or Logseq folder, and get daily briefs and weekly work logs. You review and send them yourself. | Give Claude Code or any MCP client read-only access to your meeting library through the bundled `lokalbot-cli`. It stays off until you enable it. |
+| Ask about your meeting library and follow the answer's citations back to the transcript or audio. Generated notes are a starting point, not a substitute for the discussion. | Prepare local follow-up drafts. Also keep a note for every meeting in your Obsidian or Logseq folder, and get daily briefs and weekly work logs. You review and send them yourself. | Give Claude Code or any MCP client read-only access to your meeting library through the bundled `lokalbot-cli`. It stays off until you enable it. |
 
 <sub>Screenshots are unedited captures of the Mac app with fictional demo data. They show the interface, not a live inference benchmark. The Autocomplete clip is a cropped, real-time recording of live suggestions. Click an image for full resolution; see the <a href="Assets/screenshots/README.md">capture notes</a> for provenance.</sub>
 
@@ -102,7 +102,7 @@ Turn on selection actions in **Settings → General**, select text in any app, a
 
 ### Also on Windows and Linux (alpha)
 
-A native Windows and Linux app, written in Rust, has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, calendar, Agent Mode, and the CLI and MCP server all work. It's an alpha: the Windows build isn't code-signed yet, some features depend on your Linux desktop (Wayland support is partial), and a few Mac features haven't been ported. See [what works where](LinuxWindows/README.md#what-works-where) and [screenshots](LinuxWindows/docs/screenshots).
+A native Windows and Linux app, written in Rust, has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, sharing with phones and tablets, calendar, Agent Mode, and the CLI and MCP server all work. It's an alpha: the Windows build isn't code-signed yet, some features depend on your Linux desktop (Wayland support is partial), and Gmail in meeting briefs hasn't been ported. See [what works where](LinuxWindows/README.md#what-works-where) and [screenshots](LinuxWindows/docs/screenshots).
 
 ## How it compares
 
@@ -180,7 +180,7 @@ Let meeting participants know before recording and get their consent.
 <details>
 <summary><strong>Does a bot join my meetings?</strong></summary>
 
-No. LokalBot records your microphone and the meeting app's audio on your computer. On Windows and Linux it records everything the computer plays, not one app. Audio sources are separate from individual speaker identification. When system-audio capture is unavailable, the app warns that recording is microphone-only. Always record with participants' consent.
+No. LokalBot records your microphone and the meeting app's audio on your computer. On Windows and Linux it records the meeting app alone where it can, and otherwise everything the computer plays. Audio sources are separate from individual speaker identification. When system-audio capture is unavailable, the app warns that recording is microphone-only. Always record with participants' consent.
 
 </details>
 
@@ -194,14 +194,14 @@ No. New installs use activity-only tracking, which you can turn off. Saving visi
 <details>
 <summary><strong>Can I take my notes elsewhere?</strong></summary>
 
-Yes. On Mac, turn on **Meeting note export** to keep a Markdown note for every meeting in a folder you choose, such as an Obsidian vault or a Logseq graph: the summary, action items, the people and projects involved, and the transcript. You can also export a single meeting, write a daily memory note, or let local routines save drafts. These are ordinary, unencrypted files; any service you sync them with has its own privacy settings. See [Meeting transcripts in Obsidian](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown). Note export isn't on Windows and Linux yet.
+Yes. Turn on **Meeting note export** to keep a Markdown note for every meeting in a folder you choose, such as an Obsidian vault or a Logseq graph: the summary, action items, the people and projects involved, and the transcript. You can also export a single meeting, write a daily memory note, or let local routines save drafts. These are ordinary, unencrypted files; any service you sync them with has its own privacy settings. See [Meeting transcripts in Obsidian](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown). Note export isn't on Windows and Linux yet.
 
 </details>
 
 <details>
 <summary><strong>Does it run on Windows or Linux?</strong></summary>
 
-Yes, as an alpha. The Windows and Linux app is a native Rust app with the same pages, the same models for summaries and search, and the same library format, so a library moves between computers. Selection actions, meeting note export, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now, and on Wayland some features depend on your desktop. See [what works where](LinuxWindows/README.md#what-works-where).
+Yes, as an alpha. The Windows and Linux app is a native Rust app with the same pages, the same models for summaries and search, and the same library format, so a library moves between computers. Gmail in meeting briefs is Mac only for now, and on Wayland some features depend on your desktop. See [what works where](LinuxWindows/README.md#what-works-where).
 
 </details>
 
@@ -221,7 +221,7 @@ Different jobs use different models. These are the Mac defaults on a fresh insta
 
 Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include Parakeet, Granite Speech, Whisper large-v3 turbo, SenseVoice for Chinese, Japanese, and Korean, and GigaAM for Russian; Pyannote Community-1 remains available for diarization. The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Model choices can vary by release; Settings shows the active selections and available presets. Speed and memory use depend on your computer, model, context length, and other workloads.
 
-On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3, SenseVoice, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses LFM2.5 1.2B by default. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
+On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses LFM2.5 1.2B by default. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
 
 [Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/EmbeddingIndex.swift) · [Model and runtime details](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
 

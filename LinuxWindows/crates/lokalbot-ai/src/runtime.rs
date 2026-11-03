@@ -183,10 +183,18 @@ pub enum Role {
     Main,
     Embedder,
     Autocomplete,
+    /// The embedder plus its image and audio projector, started for a Files
+    /// pass or for pictures of saved screens (`LlamaServerRole.mediaEmbedder`).
+    MediaEmbedder,
 }
 
 impl Role {
-    pub const ALL: [Role; 3] = [Role::Main, Role::Embedder, Role::Autocomplete];
+    pub const ALL: [Role; 4] = [
+        Role::Main,
+        Role::Embedder,
+        Role::Autocomplete,
+        Role::MediaEmbedder,
+    ];
 
     /// The ports the CLI and MCP clients rely on; they never move.
     pub fn release_port(self) -> u16 {
@@ -194,6 +202,7 @@ impl Role {
             Role::Main => 17_872,
             Role::Embedder => 17_873,
             Role::Autocomplete => 17_874,
+            Role::MediaEmbedder => 17_875,
         }
     }
 
@@ -206,7 +215,7 @@ impl Role {
     pub fn context_tokens(self) -> u32 {
         match self {
             Role::Main => 32_768,
-            Role::Embedder => 2_048,
+            Role::Embedder | Role::MediaEmbedder => 2_048,
             Role::Autocomplete => 4_096,
         }
     }
@@ -215,6 +224,8 @@ impl Role {
         match self {
             Role::Main | Role::Embedder => Duration::from_secs(600),
             Role::Autocomplete => Duration::from_secs(900),
+            // Stopped two minutes after the last pass (`FileMediaEmbedderRuntime`).
+            Role::MediaEmbedder => Duration::from_secs(120),
         }
     }
 
@@ -223,6 +234,7 @@ impl Role {
             Role::Main => "main",
             Role::Embedder => "embedder",
             Role::Autocomplete => "autocomplete",
+            Role::MediaEmbedder => "media-embedder",
         }
     }
 
@@ -231,6 +243,22 @@ impl Role {
     /// that is already installed.
     fn downloads_runtime(self) -> bool {
         self != Role::Autocomplete
+    }
+
+    /// With images resized for their budget before they are sent, the token
+    /// limits keep llama.cpp from rescaling them.
+    fn projector_args(self, projector: &Path) -> Vec<String> {
+        if self != Role::MediaEmbedder {
+            return Vec::new();
+        }
+        vec![
+            "--mmproj".into(),
+            projector.to_string_lossy().into_owned(),
+            "--image-min-tokens".into(),
+            "1".into(),
+            "--image-max-tokens".into(),
+            "1120".into(),
+        ]
     }
 
     /// Role arguments, keeping only flags this build understands.
@@ -248,7 +276,7 @@ impl Role {
             }
             // EmbeddingGemma carries its own pooling; as a bidirectional
             // encoder each input must fit one micro-batch.
-            Role::Embedder => {
+            Role::Embedder | Role::MediaEmbedder => {
                 args.extend(
                     [
                         "--embeddings",
@@ -1559,6 +1587,10 @@ impl ServerInner {
     ) -> Result<Running> {
         let paths = &self.installer.paths;
         let mut extra_args = self.role.extra_args(&record.flags);
+        extra_args.extend(
+            self.role
+                .projector_args(&catalog::model_path(paths, catalog::projector_entry())),
+        );
         let context = self.role.context_tokens();
         if backend == LlamaBackend::Cuda {
             // Reuse a healthy, already-offloaded helper before creating another
@@ -1936,7 +1968,7 @@ fn same_file(a: &Path, b: &Path) -> bool {
 
 struct Shared {
     installer: Arc<Installer>,
-    servers: [LlamaServer; 3],
+    servers: [LlamaServer; 4],
     reaper: std::sync::Once,
 }
 
@@ -2005,6 +2037,7 @@ impl RuntimeManager {
             server(Role::Main),
             server(Role::Embedder),
             server(Role::Autocomplete),
+            server(Role::MediaEmbedder),
         ];
         Self {
             shared: Arc::new(Shared {
@@ -2213,6 +2246,15 @@ impl RuntimeManager {
         self.lease(Role::Embedder, catalog::embedding_entry())
     }
 
+    /// Leases the embedder with its projector, which must be downloaded.
+    pub fn media_embedder_server(&self) -> Result<Lease> {
+        let projector = catalog::projector_entry();
+        if !catalog::verify_downloaded(self.paths(), projector)? {
+            return Err(AiError::ModelMissing(projector.display_name.into()).into());
+        }
+        self.lease(Role::MediaEmbedder, catalog::embedding_entry())
+    }
+
     pub fn autocomplete_server(&self, model: &ModelEntry) -> Result<Lease> {
         self.lease(Role::Autocomplete, model)
     }
@@ -2232,6 +2274,24 @@ mod tests {
         assert_eq!(Role::Main.release_port(), 17_872);
         assert_eq!(Role::Embedder.release_port(), 17_873);
         assert_eq!(Role::Autocomplete.release_port(), 17_874);
+        assert_eq!(Role::MediaEmbedder.release_port(), 17_875);
+        assert_eq!(Role::MediaEmbedder.context_tokens(), 2_048);
+        assert_eq!(
+            Role::MediaEmbedder.projector_args(Path::new("/m/p.gguf")),
+            [
+                "--mmproj",
+                "/m/p.gguf",
+                "--image-min-tokens",
+                "1",
+                "--image-max-tokens",
+                "1120"
+            ]
+        );
+        assert!(
+            Role::Embedder
+                .projector_args(Path::new("/m/p.gguf"))
+                .is_empty()
+        );
         let all: Vec<String> = CONDITIONAL_FLAGS.iter().map(|f| f.to_string()).collect();
         assert_eq!(
             Role::Main.extra_args(&all),

@@ -13,6 +13,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// The relaunched copy waits for the old one to release the library.
 pub const AFTER_UPDATE_ARG: &str = "--after-update";
@@ -227,6 +228,10 @@ impl Targets {
     }
 }
 
+/// Windows' answer when another handle doesn't allow the rename.
+const ERROR_SHARING_VIOLATION: i32 = 32;
+const BUSY_PATIENCE: Duration = Duration::from_secs(30);
+
 #[derive(Debug, thiserror::Error)]
 pub enum InstallError {
     #[error("the update is missing {0}")]
@@ -429,11 +434,11 @@ fn swap(replacement: &mut Replacement, style: SwapStyle) -> io::Result<()> {
                     fs::copy(&replacement.target, &backup)?;
                 }
             }
-            SwapStyle::Windows => fs::rename(&replacement.target, &backup)?,
+            SwapStyle::Windows => rename_when_free(&replacement.target, &backup)?,
         }
         replacement.backup = Some(backup);
     }
-    if let Err(err) = fs::rename(&replacement.staged, &replacement.target) {
+    if let Err(err) = rename_when_free(&replacement.staged, &replacement.target) {
         // The target was not replaced. On Unix it is still the old file (and
         // renaming a hard link onto its twin would do nothing).
         if let Some(backup) = replacement.backup.take() {
@@ -447,6 +452,35 @@ fn swap(replacement: &mut Replacement, style: SwapStyle) -> io::Result<()> {
         return Err(err);
     }
     Ok(())
+}
+
+/// Renames, waiting while something on Windows holds the file for a moment.
+/// Antivirus does after a new file, and so does anything reading a running
+/// executable's version details, as LokalBot does to name the focused app.
+fn rename_when_free(from: &Path, to: &Path) -> io::Result<()> {
+    let started = Instant::now();
+    loop {
+        match fs::rename(from, to) {
+            Err(err)
+                if err.raw_os_error() == Some(ERROR_SHARING_VIOLATION)
+                    && cfg!(windows)
+                    && started.elapsed() < BUSY_PATIENCE =>
+            {
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            result => {
+                #[cfg(feature = "client")]
+                if result.is_ok() && started.elapsed() >= Duration::from_millis(200) {
+                    log::info!(
+                        "waited {:?} for {} to be free",
+                        started.elapsed(),
+                        from.display()
+                    );
+                }
+                return result;
+            }
+        }
+    }
 }
 
 /// Undoes a completed swap.
@@ -464,7 +498,7 @@ fn restore(replacement: &mut Replacement, style: SwapStyle) {
 }
 
 fn put_back(backup: &Path, target: &Path) {
-    if let Err(err) = fs::rename(backup, target) {
+    if let Err(err) = rename_when_free(backup, target) {
         let message = format!(
             "could not restore {} from {}: {err}",
             target.display(),
@@ -1002,6 +1036,38 @@ mod tests {
                 Some(PathBuf::from("/home/a/.local/share"))
             );
         }
+    }
+
+    /// The update's end-to-end check failed this way on a real Windows desktop:
+    /// `lokalbot.exe` was held for a moment, and the whole update gave up.
+    #[cfg(windows)]
+    #[test]
+    fn windows_waits_for_a_file_held_for_a_moment() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        const FILE_SHARE_READ: u32 = 1;
+        let temp = tempfile::tempdir().unwrap();
+        let staged = update(temp.path());
+        let folder = temp.path().join("LokalBot");
+        write(&folder.join(APP_BINARY), "old app");
+        write(&folder.join(CLI_BINARY), "old cli");
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(folder.join(APP_BINARY))
+            .unwrap();
+        assert_eq!(
+            fs::rename(folder.join(APP_BINARY), folder.join("moved"))
+                .unwrap_err()
+                .raw_os_error(),
+            Some(ERROR_SHARING_VIOLATION)
+        );
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(1));
+            drop(held);
+        });
+        install(&staged, &targets(&folder), SwapStyle::Windows).unwrap();
+        release.join().unwrap();
+        assert_eq!(read(&folder.join(APP_BINARY)), "new app");
     }
 
     /// The real Windows case: the CLI is running (as an MCP server would be)

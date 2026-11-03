@@ -14,7 +14,8 @@ use gpui_kit::{
     IntoElement, ParentElement as _, Render, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
 };
-use lokalbot_core::{ProjectCuration, ProjectProfile, TrackedProject};
+use lokalbot_core::action_completion::CompletionHint;
+use lokalbot_core::{ProjectCuration, ProjectProfile, TrackedProject, clean_other_names};
 use uuid::Uuid;
 
 use crate::pages::Page;
@@ -37,6 +38,11 @@ pub struct ProjectsPage {
     name_input: Entity<InputState>,
     other_names_input: Entity<InputState>,
     show_older: bool,
+    /// "Looks done?" suggestions, by thread.
+    hints: std::collections::HashMap<String, CompletionHint>,
+    /// The tracked project and library revision last offered an automatic note,
+    /// so one is asked for when the project or its evidence changes.
+    note_considered: Option<(String, Option<u64>)>,
     detail_scroll: ScrollHandle,
     _subscriptions: Vec<Subscription>,
 }
@@ -75,6 +81,8 @@ impl ProjectsPage {
             name_input,
             other_names_input,
             show_older: false,
+            hints: Default::default(),
+            note_considered: None,
             detail_scroll: ScrollHandle::new(),
             _subscriptions: subscriptions,
         };
@@ -83,19 +91,30 @@ impl ProjectsPage {
     }
 
     fn reload(&mut self, cx: &mut Context<Self>) {
+        crate::agent_handoff::refresh_in_background();
         let library = self.data.read(cx).library.clone();
+        let suggest_done =
+            crate::pages::today::threads::suggests_completion(&self.data.read(cx).settings);
         self.loaded_revision = Some(self.data.read(cx).revision);
         cx.spawn(async move |this, cx| {
             let loaded = cx
-                .background_spawn(async move { (library.projects(), library.project_curation()) })
+                .background_spawn(async move {
+                    let projects = library.projects();
+                    let hints = match &projects {
+                        Ok(projects) if suggest_done => hints_for(&library, projects),
+                        _ => Default::default(),
+                    };
+                    (projects, library.project_curation(), hints)
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 match loaded {
-                    (Ok(projects), curation) => {
+                    (Ok(projects), curation, hints) => {
                         this.projects = projects;
                         this.curation = curation.unwrap_or_default();
+                        this.hints = hints;
                     }
-                    (Err(err), _) => log::warn!("loading projects failed: {err:#}"),
+                    (Err(err), _, _) => log::warn!("loading projects failed: {err:#}"),
                 }
                 this.loaded = true;
                 cx.notify();
@@ -144,12 +163,7 @@ impl ProjectsPage {
             return;
         }
         let key = lokalbot_core::people::normalized(&cleaned);
-        if let Some(existing) = self
-            .curation
-            .tracked
-            .iter()
-            .find(|p| lokalbot_core::people::normalized(&p.name) == key)
-        {
+        if let Some(existing) = self.curation.tracked_named(&cleaned) {
             self.selected = Some(format!(
                 "tracked:{}",
                 lokalbot_core::ids::uuid_upper(&existing.id)
@@ -193,6 +207,35 @@ impl ProjectsPage {
         curation.tracked.retain(|p| p.id != id);
         self.selected = None;
         self.save_curation(curation, None, cx);
+        self.remove_note(id, cx);
+    }
+
+    /// `ProjectStore.merge`: the source's names move to the target, and its
+    /// note is discarded.
+    fn merge(&mut self, source: Uuid, target: Uuid, cx: &mut Context<Self>) {
+        let mut curation = self.curation.clone();
+        if curation.merge(source, target) {
+            self.save_curation(curation, Some(selection_id(target)), cx);
+            self.remove_note(source, cx);
+        }
+    }
+
+    /// `ProjectStore.addName`: a suggestion becomes a name of a tracked project.
+    fn add_name(&mut self, name: &str, target: Uuid, cx: &mut Context<Self>) {
+        let mut curation = self.curation.clone();
+        if curation.add_name(name, target) {
+            self.save_curation(curation, Some(selection_id(target)), cx);
+        }
+    }
+
+    fn remove_note(&mut self, id: Uuid, cx: &mut Context<Self>) {
+        let library = self.data.read(cx).library.clone();
+        cx.background_spawn(async move {
+            if let Err(err) = library.remove_project_summary(&selection_id(id)) {
+                log::warn!("project note not removed: {err:#}");
+            }
+        })
+        .detach();
     }
 
     fn hide_suggestion(&mut self, name: &str, cx: &mut Context<Self>) {
@@ -296,6 +339,23 @@ impl ProjectsPage {
                     .contains(&lokalbot_core::people::normalized(&p.name))
             })
             .collect()
+    }
+
+    /// Opening a tracked project writes or refreshes its note when that is due
+    /// (`writeProjectSummary(for:automatic:)`). The engine decides.
+    fn consider_note(&mut self, cx: &App) {
+        let Some(id) = self
+            .selected_project()
+            .filter(|project| project.is_tracked())
+            .map(|project| project.id.clone())
+        else {
+            return;
+        };
+        let current = (id.clone(), self.loaded_revision);
+        if self.note_considered.as_ref() != Some(&current) {
+            self.note_considered = Some(current);
+            crate::bridge::send(lokalbot_engine::Command::ProjectOpened(id), cx);
+        }
     }
 
     fn selected_project(&self) -> Option<&ProjectProfile> {
@@ -427,11 +487,7 @@ impl ProjectsPage {
         }
         let page = cx.entity();
         v_flex()
-            .w(metric::CONTENT_COLUMN_WIDTH)
-            .flex_none()
-            .h_full()
-            .border_r_1()
-            .border_color(lb.separator)
+            .size_full()
             .child(
                 h_flex()
                     .gap(px(8.))
@@ -492,6 +548,7 @@ impl ProjectsPage {
         let id = project.id.clone();
         let page = cx.entity();
         let menu_project = project.clone();
+        let tracked = self.curation.tracked.clone();
         h_flex()
             .id(SharedString::from(format!("project-{}", project.id)))
             .mx(px(8.))
@@ -532,7 +589,9 @@ impl ProjectsPage {
                     .set_offset(gpui_kit::point(px(0.), px(0.)));
                 cx.notify();
             }))
-            .context_menu(move |menu, _, _| project_menu(menu, &page, &menu_project))
+            .context_menu(move |menu, window, cx| {
+                project_menu(menu, &page, &menu_project, &tracked, window, cx)
+            })
             .into_any_element()
     }
 
@@ -550,6 +609,7 @@ impl ProjectsPage {
         let meeting_ids: Vec<Uuid> = project.meetings.iter().map(|m| m.id).collect();
         let menu_page = page.clone();
         let menu_project = project.clone();
+        let menu_tracked = self.curation.tracked.clone();
         sections.push(
             v_flex()
                 .gap(px(14.))
@@ -637,6 +697,7 @@ impl ProjectsPage {
                                         question: question.clone(),
                                         meeting_ids: meeting_ids.clone(),
                                         submit: false,
+                                        day: None,
                                     };
                                     ask_data.update(cx, |data, cx| data.ask(request, cx));
                                 }),
@@ -647,8 +708,15 @@ impl ProjectsPage {
                                     .ghost()
                                     .icon(Icon::new(Ico::Ellipsis))
                                     .label(lokalbot_i18n::tr("More"))
-                                    .dropdown_menu(move |menu, _, _| {
-                                        project_menu(menu, &menu_page, &menu_project)
+                                    .dropdown_menu(move |menu, window, cx| {
+                                        project_menu(
+                                            menu,
+                                            &menu_page,
+                                            &menu_project,
+                                            &menu_tracked,
+                                            window,
+                                            cx,
+                                        )
                                     }),
                             )
                         }),
@@ -668,7 +736,11 @@ impl ProjectsPage {
                     .child(
                         v_flex()
                             .gap(px(10.))
-                            .child(div().text_size(ty::BODY).text_color(lb.text).child(crate::ui::text::paragraph(lokalbot_i18n::format("{0} came up in {1}. Track it to keep a note on where it stands, or hide it if it is not a project.", &[("0", project.name.to_string()), ("1", profile::count(count, "meeting").to_string())]))))
+                            .child(div().text_size(ty::BODY).text_color(lb.text).child(crate::ui::text::paragraph(if project.kind == lokalbot_core::ProjectKind::SuggestedReview {
+                                lokalbot_i18n::tr("The overnight review saw work on this. Track it to keep its meetings, actions, and a note on where it stands together.").to_string()
+                            } else {
+                                lokalbot_i18n::format("{0} came up in {1}. Track it to keep a note on where it stands, or hide it if it is not a project.", &[("0", project.name.to_string()), ("1", profile::count(count, "meeting").to_string())])
+                            })))
                             .child(
                                 h_flex()
                                     .gap(px(8.))
@@ -681,33 +753,51 @@ impl ProjectsPage {
                                     .child(Button::new("project-hide").outline().label(lokalbot_i18n::tr("Not a Project")).on_click(move |_, _, cx| {
                                         let name = hide_name.clone();
                                         hide_page.update(cx, |page, cx| page.hide_suggestion(&name, cx))
-                                    })),
+                                    }))
+                                    .when(!self.curation.tracked.is_empty(), |this| {
+                                        let add_page = page.clone();
+                                        let add_name = project.name.clone();
+                                        let tracked = self.curation.tracked.clone();
+                                        this.child(
+                                            Button::new("project-add-name")
+                                                .outline()
+                                                .label(lokalbot_i18n::tr("Add as a Name Of"))
+                                                .dropdown_caret(true)
+                                                .dropdown_menu(move |menu, _, _| {
+                                                    add_name_items(menu, &add_page, &add_name, &tracked)
+                                                }),
+                                        )
+                                    }),
                             ),
                     )
                     .into_any_element(),
             );
         }
 
-        let action_rows =
-            |threads: &[lokalbot_core::ActionThread], prefix: &str, cx: &mut Context<Self>| {
-                let rows: Vec<AnyElement> = threads
-                    .iter()
-                    .map(|thread| {
-                        let page = page.clone();
-                        profile::action_row(
-                            SharedString::from(format!("{prefix}-{}", thread.id)),
-                            thread,
-                            move |id, at, _, cx| {
-                                page.update(cx, |page, cx| page.open_meeting(id, at, cx))
-                            },
-                            cx,
-                        )
-                    })
-                    .collect();
-                profile::divided(rows, cx)
-            };
+        let action_rows = |threads: &[lokalbot_core::ActionThread],
+                           prefix: &str,
+                           show_owner: bool,
+                           cx: &mut Context<Self>| {
+            let rows: Vec<AnyElement> = threads
+                .iter()
+                .map(|thread| {
+                    crate::pages::today::threads::thread_row_with(
+                        SharedString::from(format!("{prefix}-{}", thread.id)),
+                        thread,
+                        crate::pages::today::threads::RowOptions {
+                            show_owner,
+                            hint: self.hints.get(&thread.id),
+                            ..Default::default()
+                        },
+                        &self.data,
+                        cx,
+                    )
+                })
+                .collect();
+            profile::divided(rows, cx)
+        };
         if !project.my_actions.is_empty() {
-            let rows = action_rows(&project.my_actions, "project-mine", cx);
+            let rows = action_rows(&project.my_actions, "project-mine", false, cx);
             sections.push(
                 profile::section(Ico::ListChecks, lokalbot_i18n::tr("Your Actions"), rows, cx)
                     .into_any_element(),
@@ -724,13 +814,19 @@ impl ProjectsPage {
                     cx,
                 ));
             } else {
-                content = content.child(action_rows(&project.others_actions, "project-others", cx));
+                content = content.child(action_rows(
+                    &project.others_actions,
+                    "project-others",
+                    true,
+                    cx,
+                ));
             }
             if !project.older_others_actions.is_empty() {
                 if self.show_older {
                     content = content.child(action_rows(
                         &project.older_others_actions,
                         "project-older",
+                        true,
                         cx,
                     ));
                 }
@@ -806,6 +902,48 @@ impl ProjectsPage {
                 profile::section(
                     Ico::BadgeCheck,
                     lokalbot_i18n::tr("Decisions"),
+                    profile::divided(rows, cx),
+                    cx,
+                )
+                .into_any_element(),
+            );
+        }
+        if !project.review_notes.is_empty() {
+            let rows = project
+                .review_notes
+                .iter()
+                .map(|note| {
+                    v_flex()
+                        .gap(px(3.))
+                        .py(px(4.))
+                        .when(note.name != project.name, |this| {
+                            this.child(
+                                div()
+                                    .text_size(ty::BODY)
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(lb.text)
+                                    .child(note.name.clone()),
+                            )
+                        })
+                        .child(
+                            div()
+                                .text_size(ty::BODY)
+                                .text_color(lb.text)
+                                .child(crate::ui::text::paragraph(note.status.clone())),
+                        )
+                        .child(
+                            div()
+                                .text_size(ty::SECONDARY)
+                                .text_color(lb.text_secondary)
+                                .child(profile::day_key_label(&note.last_active_day)),
+                        )
+                        .into_any_element()
+                })
+                .collect::<Vec<_>>();
+            sections.push(
+                profile::section(
+                    Ico::Sparkle,
+                    lokalbot_i18n::tr("From Overnight Review"),
                     profile::divided(rows, cx),
                     cx,
                 )
@@ -967,7 +1105,11 @@ impl ProjectsPage {
                 .child(if project.is_tracked() {
                     lokalbot_i18n::tr("Linked on this PC wherever one of the project's names appears in meeting titles, summaries, transcripts, actions, decisions, and window titles.")
                 } else {
-                    lokalbot_i18n::tr("Suggested because the name recurs in meeting titles, summaries, actions, and decisions. People, apps, and generic terms are left out.")
+                    if project.kind == lokalbot_core::ProjectKind::SuggestedReview {
+                        lokalbot_i18n::tr("Suggested because the overnight review named this work and no tracked project covers it.")
+                    } else {
+                        lokalbot_i18n::tr("Suggested because the name recurs in meeting titles, summaries, actions, and decisions. People, apps, and generic terms are left out.")
+                    }
                 })
                 .into_any_element(),
         );
@@ -1091,24 +1233,90 @@ impl ProjectsPage {
     }
 }
 
+/// `tracked:<UUID>`, the selection and summary id of a tracked project.
+fn selection_id(id: Uuid) -> String {
+    format!("tracked:{}", lokalbot_core::ids::uuid_upper(&id))
+}
+
+/// "Looks done?" for the open work of yours on each project, only with consent.
+fn hints_for(
+    library: &lokalbot_core::Library,
+    projects: &[ProjectProfile],
+) -> std::collections::HashMap<String, CompletionHint> {
+    let mut threads: Vec<lokalbot_core::ActionThread> = Vec::new();
+    for thread in projects.iter().flat_map(|p| p.my_actions.iter()) {
+        if thread.status() == lokalbot_core::ActionStatus::Open
+            && !threads.iter().any(|t| t.id == thread.id)
+        {
+            threads.push(thread.clone());
+        }
+    }
+    library.action_completion_hints(&threads, Utc::now())
+}
+
+/// "Add as a Name Of": one item per tracked project.
+fn add_name_items(
+    menu: gpui_kit::component::menu::PopupMenu,
+    page: &Entity<ProjectsPage>,
+    name: &str,
+    tracked: &[TrackedProject],
+) -> gpui_kit::component::menu::PopupMenu {
+    let mut menu = menu;
+    for target in tracked {
+        let page = page.clone();
+        let name = name.to_string();
+        let id = target.id;
+        menu = menu.item(
+            PopupMenuItem::new(target.name.clone())
+                .on_click(move |_, _, cx| page.update(cx, |page, cx| page.add_name(&name, id, cx))),
+        );
+    }
+    menu
+}
+
 fn project_menu(
     menu: gpui_kit::component::menu::PopupMenu,
     page: &Entity<ProjectsPage>,
     project: &ProjectProfile,
+    tracked: &[TrackedProject],
+    window: &mut Window,
+    cx: &mut Context<gpui_kit::component::menu::PopupMenu>,
 ) -> gpui_kit::component::menu::PopupMenu {
     let page = page.clone();
     if let Some(id) = project.tracked_id() {
         let rename_page = page.clone();
         let stop_page = page.clone();
         let (name, others) = (project.name.clone(), project.other_names.clone());
-        menu.item(PopupMenuItem::new(lokalbot_i18n::tr("Rename…")).on_click(
+        let others_tracked: Vec<TrackedProject> =
+            tracked.iter().filter(|t| t.id != id).cloned().collect();
+        let mut menu = menu.item(PopupMenuItem::new(lokalbot_i18n::tr("Rename…")).on_click(
             move |_, window, cx| {
                 let editing = Some((id, name.clone(), others.clone()));
                 rename_page.update(cx, |page, cx| page.open_name_sheet(editing, window, cx))
             },
-        ))
-        .separator()
-        .item(
+        ));
+        if !others_tracked.is_empty() {
+            let merge_page = page.clone();
+            menu = menu.submenu(
+                lokalbot_i18n::tr("Merge Into"),
+                window,
+                cx,
+                move |submenu, _, _| {
+                    let mut submenu = submenu;
+                    for target in &others_tracked {
+                        let page = merge_page.clone();
+                        let target_id = target.id;
+                        submenu = submenu.item(PopupMenuItem::new(target.name.clone()).on_click(
+                            move |_, _, cx| {
+                                page.update(cx, |page, cx| page.merge(id, target_id, cx))
+                            },
+                        ));
+                    }
+                    submenu
+                },
+            );
+        }
+        menu.separator().item(
             PopupMenuItem::new(lokalbot_i18n::tr("Stop Tracking")).on_click(move |_, _, cx| {
                 stop_page.update(cx, |page, cx| page.stop_tracking(id, cx))
             }),
@@ -1117,7 +1325,7 @@ fn project_menu(
         let track_page = page.clone();
         let hide_page = page.clone();
         let (track_name, hide_name) = (project.name.clone(), project.name.clone());
-        menu.item(
+        let mut menu = menu.item(
             PopupMenuItem::new(lokalbot_i18n::format(
                 "Track {0}",
                 &[("0", project.name.to_string())],
@@ -1126,9 +1334,19 @@ fn project_menu(
                 let name = track_name.clone();
                 track_page.update(cx, |page, cx| page.track(&name, Vec::new(), cx))
             }),
-        )
-        .separator()
-        .item(
+        );
+        if !tracked.is_empty() {
+            let add_page = page.clone();
+            let add_name = project.name.clone();
+            let tracked: Vec<TrackedProject> = tracked.to_vec();
+            menu = menu.submenu(
+                lokalbot_i18n::tr("Add as a Name Of"),
+                window,
+                cx,
+                move |submenu, _, _| add_name_items(submenu, &add_page, &add_name, &tracked),
+            );
+        }
+        menu.separator().item(
             PopupMenuItem::new(lokalbot_i18n::tr("Not a Project")).on_click(move |_, _, cx| {
                 let name = hide_name.clone();
                 hide_page.update(cx, |page, cx| page.hide_suggestion(&name, cx))
@@ -1162,6 +1380,11 @@ fn summary(project: &ProjectProfile, long: bool) -> String {
     let meetings = profile::count(project.meetings.len(), "meeting");
     let mut parts: Vec<String> = Vec::new();
     if project.is_tracked() {
+        if !project.meetings.is_empty() {
+            parts.push(meetings);
+        }
+    } else if project.kind == lokalbot_core::ProjectKind::SuggestedReview {
+        parts.push(lokalbot_i18n::tr("Overnight review").to_string());
         if !project.meetings.is_empty() {
             parts.push(meetings);
         }
@@ -1219,20 +1442,6 @@ fn written_when(at: chrono::DateTime<Utc>) -> String {
     }
 }
 
-fn clean_other_names(names: &[String], excluding: &str) -> Vec<String> {
-    let excluded = lokalbot_core::people::normalized(excluding);
-    let mut seen = std::collections::HashSet::new();
-    names
-        .iter()
-        .map(|n| n.split_whitespace().collect::<Vec<_>>().join(" "))
-        .filter(|n| !n.is_empty())
-        .filter(|n| {
-            let key = lokalbot_core::people::normalized(n);
-            key != excluded && seen.insert(key)
-        })
-        .collect()
-}
-
 impl Page for ProjectsPage {
     fn title(&self, _cx: &App) -> SharedString {
         lokalbot_i18n::tr("Projects").into()
@@ -1242,6 +1451,9 @@ impl Page for ProjectsPage {
 impl Render for ProjectsPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
+        if self.loaded {
+            self.consider_note(cx);
+        }
         let detail = match self.selected_project().cloned() {
             Some(project) => self.render_detail(&project, cx),
             None => div()
@@ -1258,29 +1470,15 @@ impl Render for ProjectsPage {
                 })
                 .into_any_element(),
         };
-        h_flex()
-            .size_full()
-            .bg(lb.window)
-            .child(self.render_list(cx))
-            .child(div().flex_1().min_w_0().h_full().child(detail))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn other_names_are_cleaned() {
-        let names = vec![
-            "  Atlas ".to_string(),
-            "atlas".to_string(),
-            "Orion".to_string(),
-            "Project X".to_string(),
-        ];
-        assert_eq!(
-            clean_other_names(&names, "Project X"),
-            vec!["Atlas".to_string(), "Orion".to_string()]
-        );
+        let list = self.render_list(cx);
+        div().size_full().bg(lb.window).child(ui::split::leading(
+            "LokalBot.projects",
+            metric::CONTENT_COLUMN_WIDTH,
+            ui::split::LIST_RANGE,
+            list,
+            div().size_full().child(detail),
+            &self.data,
+            cx,
+        ))
     }
 }

@@ -4,125 +4,25 @@
 
 use std::collections::HashSet;
 
-use chrono::{DateTime, Local, Utc};
+use chrono::Local;
 use lokalbot_core::LibraryPaths;
-use lokalbot_core::access::{PERSONAL_PROJECTION, personal_context_enabled};
-use serde::{Deserialize, Serialize};
+use lokalbot_core::access::personal_context_enabled;
+use lokalbot_core::personal::ContextItem;
+pub use lokalbot_core::personal::access::{Projection, SharedClaim as Claim, read_projection};
+use serde::Serialize;
 
 pub const NAME: &str = "get_personal_context";
 pub const DEFAULT_ITEMS: usize = 8;
 pub const MAXIMUM_ITEMS: usize = 12;
 pub const MAXIMUM_TASK_CHARACTERS: usize = 500;
 
-// The Windows and Linux app has no Personal Context page or personal-context
-// setting: the marker and the shared items arrive only with a library that
-// came from a Mac.
-pub const DISABLED_MESSAGE: &str = "Personal context access is off. The Windows and Linux app has no Personal Context page: the user writes and shares these items in the Mac app, so here they can be read only from a library that came from a Mac.";
-pub const UNAVAILABLE_MESSAGE: &str = "Personal context access is on, but this library holds no shared items. Only the Mac app writes them; opening LokalBot on the Mac this library came from prepares them.";
+pub const DISABLED_MESSAGE: &str = "Personal context access is off. The user can turn it on in LokalBot → Settings → Personal Context → \"What I shared about myself\", then choose items to share on that page.";
+pub const UNAVAILABLE_MESSAGE: &str = "Personal context access is on, but LokalBot hasn't written the shared items yet. Open LokalBot once so it can prepare them.";
 pub const NOTE: &str = "The user chose to share these with agents. \"stated\" items are the user's own words; \"learned\" items were picked up from what the user said in meetings and may be out of date. Use them only when they bear on the task. Items not listed are unknown, not false. Never cite them as meeting or screen evidence.";
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Claim {
-    pub id: uuid::Uuid,
-    pub kind: String,
-    pub text: String,
-    #[serde(default)]
-    pub always_use: bool,
-    pub source: String,
-    #[serde(with = "lokalbot_core::time::iso_seconds")]
-    pub created_at: DateTime<Utc>,
-    #[serde(with = "lokalbot_core::time::iso_seconds")]
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Projection {
-    #[serde(default = "one")]
-    pub version: u32,
-    pub claims: Vec<Claim>,
-}
-
-fn one() -> u32 {
-    1
-}
-
-/// The shared claims, or `None` when the grant is off or nothing readable was written.
-pub fn read_projection(paths: &LibraryPaths) -> Option<Projection> {
-    if !personal_context_enabled(paths) {
-        return None;
-    }
-    let bytes = std::fs::read(paths.control_dir().join(PERSONAL_PROJECTION)).ok()?;
-    serde_json::from_slice::<Projection>(&bytes)
-        .ok()
-        .filter(|p| p.version <= 1)
-}
-
-const STOPWORDS: &[&str] = &[
-    "the", "and", "for", "are", "but", "not", "you", "your", "with", "that", "this", "have", "has",
-    "had", "was", "were", "will", "would", "should", "could", "what", "when", "where", "which",
-    "who", "whom", "why", "how", "about", "from", "into", "than", "then", "them", "they", "their",
-    "there", "these", "those", "our", "out", "can", "did", "does", "doing", "just", "like", "more",
-    "most", "some", "such", "only", "also", "very", "too", "any", "all", "its", "it's", "i'm",
-    "myself", "mine", "me", "my", "his", "her", "him", "she", "one", "get", "got", "let", "make",
-    "made", "want", "need", "tell", "know", "think", "remember", "please", "always", "never",
-];
-
-fn content_words(text: &str) -> HashSet<String> {
-    lokalbot_core::ids::fold(text)
-        .split(|c: char| !c.is_alphanumeric() && c != '\'')
-        .map(|w| w.trim_matches('\''))
-        .filter(|w| w.chars().count() >= 3 && !STOPWORDS.contains(w))
-        .map(str::to_string)
-        .collect()
-}
-
-/// Always-use items, then principles and preferences, then facts and goals
-/// sharing words with the query, then the rest; newest first within each.
+/// `PersonalContextSelection.ordered`, shared with the app.
 pub fn ordered<'a>(claims: &'a [Claim], query: &str) -> Vec<&'a Claim> {
-    let query_words = content_words(query);
-    let mut newest: Vec<&Claim> = claims.iter().collect();
-    newest.sort_by(|a, b| {
-        b.updated_at
-            .cmp(&a.updated_at)
-            .then_with(|| a.id.to_string().cmp(&b.id.to_string()))
-    });
-    let mut placed: HashSet<uuid::Uuid> = HashSet::new();
-    let mut out: Vec<&Claim> = Vec::new();
-    let mut place = |claim: &'a Claim, out: &mut Vec<&'a Claim>| {
-        if placed.insert(claim.id) {
-            out.push(claim);
-        }
-    };
-    for claim in newest.iter().filter(|c| c.always_use) {
-        place(claim, &mut out);
-    }
-    for claim in newest
-        .iter()
-        .filter(|c| c.kind == "principle" || c.kind == "preference")
-    {
-        place(claim, &mut out);
-    }
-    let mut matches: Vec<(&Claim, usize)> = newest
-        .iter()
-        .filter(|c| !out.iter().any(|o| o.id == c.id))
-        .map(|c| {
-            (
-                *c,
-                content_words(&c.text).intersection(&query_words).count(),
-            )
-        })
-        .filter(|(_, score)| *score > 0)
-        .collect();
-    matches.sort_by_key(|m| std::cmp::Reverse(m.1));
-    for (claim, _) in matches {
-        place(claim, &mut out);
-    }
-    for claim in newest {
-        place(claim, &mut out);
-    }
-    out
+    lokalbot_core::personal::ordered(claims, query, &[])
 }
 
 #[derive(Serialize)]
@@ -224,7 +124,7 @@ pub fn report(
                 _ => ("LokalBot saw this in the user's work for weeks; the user confirmed it", "learned"),
             };
             ReportItem {
-                id: claim.id.hyphenated().to_string(),
+                id: ContextItem::id(claim).hyphenated().to_string(),
                 kind: claim.kind.clone(),
                 text: claim.text.clone(),
                 authority: authority.into(),

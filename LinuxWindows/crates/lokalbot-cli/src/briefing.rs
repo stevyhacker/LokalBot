@@ -2,12 +2,6 @@
 //! of an agent session. Every section sits under the permission covering its
 //! data; with nothing granted it only lists the permissions.
 //!
-//! The overnight-review timeline (`dreams/`) is not produced on Linux and
-//! Windows yet, so that section is omitted. Neither are Personal Context items,
-//! projects and goals, or coding-agent sessions: only a library that came
-//! from a Mac carries them, so the text says that instead of pointing at
-//! settings this app lacks.
-
 use std::collections::{BTreeSet, HashMap};
 
 use chrono::{DateTime, Local, Utc};
@@ -31,7 +25,7 @@ pub enum Vocabulary {
     Cli,
 }
 pub const MAXIMUM_CHARACTERS: usize = 12_000;
-pub const DESCRIPTION: &str = "Call this first in every session. Returns what LokalBot knows that this session may use: which sources are available and the user's open action items. A library that came from a Mac also carries what the user shared about themselves, current projects and goals, and recent coding-agent work. Check it, and search LokalBot, before asking the user about past work or decisions.";
+pub const DESCRIPTION: &str = "Call this first in every session. Returns what LokalBot knows that this session may use: which sources are available, what the user shared about themselves, their open action items, current projects and goals, recent coding-agent work, and a timeline of recent days, weeks, and months. Check it, and search LokalBot, before asking the user about past work or decisions.";
 
 fn clean(text: &str, limit: usize) -> String {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -138,12 +132,35 @@ pub fn render(
                 }
             )),
             None => lines.push(
-                "- Personal Context: on, but this library holds no shared items. Only the Mac app writes them."
+                "- Personal Context: on, but LokalBot hasn't written the shared items yet. Open LokalBot once so it can prepare them."
                     .into(),
             ),
         }
     } else {
-        lines.push("- Personal Context: off. The Windows and Linux app has no Personal Context page; shared items come only from a library that came from a Mac.".into());
+        lines.push("- Personal Context: off. The user can turn on Settings → Personal Context → \"What I shared about myself\".".into());
+    }
+    if lokalbot_core::files::access::is_enabled(&session.paths) {
+        match lokalbot_core::files::access::read_projection(&session.paths) {
+            Some(files) => lines.push(format!(
+                "- Files: on, {} {}, searched by words. {}",
+                files.folders.len(),
+                if files.folders.len() == 1 {
+                    "folder"
+                } else {
+                    "folders"
+                },
+                if cli {
+                    "Command: search-files."
+                } else {
+                    "Tool: search_files."
+                }
+            )),
+            None => {
+                lines.push("- Files: on, but Files is off in LokalBot or has no folder yet.".into())
+            }
+        }
+    } else {
+        lines.push("- Files: off. The user can turn it on in Settings → Privacy & Data → \"Allow external agents to search your files\".".into());
     }
     sections.push(lines.join("\n"));
 
@@ -211,6 +228,13 @@ pub fn render(
         && let Some(agents) = agent_work(session, cutoff, now)
     {
         sections.push(agents);
+    }
+    if !revocation_pending
+        && meeting_access
+        && scope.is_some()
+        && let Some(timeline) = timeline(session, now, cutoff_day.as_deref())
+    {
+        sections.push(timeline);
     }
     sections.push(if cli {
         "For more, run lokalbot-cli: search and get for what was said, list --include summary for several meetings' summaries at once, actions for commitments, personal-context --task for what the user shared about themselves. Cite meetings by title and date from command results, not from this briefing.".into()
@@ -311,7 +335,7 @@ fn work_memory(
         return None;
     }
     let mut lines =
-        vec!["## Current projects and goals (from the Mac app's overnight reviews)".to_string()];
+        vec!["## Current projects and goals (from LokalBot's overnight reviews)".to_string()];
     for project in projects.into_iter().take(8) {
         lines.push(format!(
             "- {}: {} (last active {})",
@@ -327,6 +351,80 @@ fn work_memory(
             clean(&goal.horizon, 40)
         ));
     }
+    Some(lines.join("\n"))
+}
+
+/// Recent days in detail, older weeks and months as one line each, all inside the
+/// screen-memory history window. A line whose reviews changed is never shown.
+fn timeline(session: &Session, now: DateTime<Utc>, cutoff_day: Option<&str>) -> Option<String> {
+    use lokalbot_core::dream::rollup::{self, Kind};
+    use lokalbot_core::dream::{day_from_key, day_key as key_of};
+
+    let root = session.paths.root();
+    let reviews = rollup::reviews(root);
+    let today = now.with_timezone(&Local).date_naive();
+    let mut lines: Vec<String> = Vec::new();
+    for offset in 0..7 {
+        let day = today - chrono::Duration::days(offset);
+        let key = key_of(day);
+        if cutoff_day.is_some_and(|cutoff| key.as_str() < cutoff) {
+            break;
+        }
+        let Some(review) = reviews.get(&key) else {
+            continue;
+        };
+        let detail = if offset < 2 {
+            rollup::sentences(&review.narrative, 2, 320)
+        } else {
+            rollup::sentences(&review.narrative, 1, 200)
+        };
+        lines.push(format!(
+            "- {}: {}",
+            day.format("%a %b %-d"),
+            clean(&detail, 320)
+        ));
+    }
+    let recent_start = key_of(today - chrono::Duration::days(6));
+    let lines_kept: Vec<rollup::Rollup> = rollup::rollups(root)
+        .into_iter()
+        .filter(|line| rollup::is_valid(line, &reviews))
+        .filter(|line| cutoff_day.is_none_or(|cutoff| line.first_day.as_str() >= cutoff))
+        .collect();
+    let mut weeks: Vec<&rollup::Rollup> = lines_kept
+        .iter()
+        .filter(|line| line.kind == Kind::Week && line.last_day < recent_start)
+        .collect();
+    weeks.sort_by(|a, b| b.first_day.cmp(&a.first_day));
+    weeks.truncate(6);
+    let months_end = weeks
+        .last()
+        .map(|week| week.first_day.clone())
+        .unwrap_or(recent_start);
+    let mut months: Vec<&rollup::Rollup> = lines_kept
+        .iter()
+        .filter(|line| line.kind == Kind::Month && line.last_day < months_end)
+        .collect();
+    months.sort_by(|a, b| b.first_day.cmp(&a.first_day));
+    months.truncate(6);
+    for week in weeks {
+        let label = day_from_key(&week.first_day)
+            .map(|day| rollup::week_containing(day).label)
+            .unwrap_or_else(|| week.key.clone());
+        lines.push(format!("- {label}: {}", clean(&week.line, 240)));
+    }
+    for month in months {
+        let label = day_from_key(&month.first_day)
+            .map(|day| rollup::month_containing(day).label)
+            .unwrap_or_else(|| month.key.clone());
+        lines.push(format!("- {label}: {}", clean(&month.line, 240)));
+    }
+    if lines.is_empty() {
+        return None;
+    }
+    lines.insert(
+        0,
+        "## Recent days, then weeks and months (from LokalBot's overnight reviews)".to_string(),
+    );
     Some(lines.join("\n"))
 }
 

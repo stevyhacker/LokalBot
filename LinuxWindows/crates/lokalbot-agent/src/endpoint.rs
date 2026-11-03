@@ -509,8 +509,7 @@ mod tests {
         assert!(
             matches!(resolve(&unapproved, None), Resolution::Unsupported(r) if r.contains("Approve"))
         );
-        // Approved but plain HTTP on a private network: Think may use it,
-        // Agent Mode may not.
+        // Approved but plain HTTP on a private network: refused, as for Think.
         let http = settings(|s| {
             s.summarizer_backend = SummarizerBackend::OpenAICompatible;
             s.openai_base_url = "http://192.168.1.20:8080/v1".into();

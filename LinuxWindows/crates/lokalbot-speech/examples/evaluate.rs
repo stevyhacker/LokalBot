@@ -87,6 +87,9 @@ fn main() -> Result<()> {
         microphone_is_user: true,
         vocabulary_prompt: prompt.then(|| scenario.vocabulary.clone()),
         content_range: None,
+        collect_voice_samples: false,
+        echo: None,
+        clock: None,
     };
     let mic = fixture.join(&mic_name);
     let system = fixture.join("system.wav");

@@ -45,6 +45,8 @@ pub(crate) struct Options {
     pub max_concurrent_parts: usize,
     /// Tests serve files from a plain-HTTP loopback stub.
     pub allow_loopback_http: bool,
+    /// Where Hugging Face files come from; the settings' choice when `None`.
+    pub source: Option<lokalbot_core::settings::ModelDownloadSource>,
 }
 
 impl Default for Options {
@@ -54,6 +56,7 @@ impl Default for Options {
             part_bytes: PART_BYTES,
             max_concurrent_parts: MAX_CONCURRENT_PARTS,
             allow_loopback_http: false,
+            source: None,
         }
     }
 }
@@ -95,6 +98,32 @@ pub(crate) fn download_with(
         progress(spec.size, spec.size);
         return Ok(());
     }
+    crate::download_source::try_candidates(
+        &spec.url,
+        &spec.sha256,
+        spec.size,
+        options
+            .source
+            .unwrap_or_else(crate::download_source::current),
+        cancel,
+        &mut crate::download_source::model_scope_listing,
+        &mut |url| {
+            let attempt = DownloadSpec {
+                url: url.to_string(),
+                ..spec.clone()
+            };
+            download_from(&attempt, cancel, progress, options)
+        },
+    )
+}
+
+/// Fetches one source's copy, checks it against the pin and installs it.
+fn download_from(
+    spec: &DownloadSpec,
+    cancel: &AtomicBool,
+    progress: &mut dyn FnMut(u64, u64),
+    options: &Options,
+) -> Result<()> {
     let dir = spec
         .dest
         .parent()
@@ -970,6 +999,7 @@ mod tests {
             part_bytes: 300,
             max_concurrent_parts: 3,
             allow_loopback_http: true,
+            source: None,
         }
     }
 

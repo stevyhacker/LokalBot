@@ -27,6 +27,8 @@ pub enum Family {
     SenseVoice,
     /// Whisper encoder/decoder; language fixed per recognizer, 30 s windows.
     Whisper,
+    /// NeMo CTC (GigaAM); one language, no options.
+    NemoCtc,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,6 +37,8 @@ pub enum ModelKind {
     VoiceActivity,
     SpeakerSegmentation,
     SpeakerEmbedding,
+    /// Reads text aloud.
+    SpeechSynthesis,
 }
 
 /// One pinned download.
@@ -94,7 +98,7 @@ const PARAKEET_V3_LANGUAGES: &[&str] = &[
 const SENSE_VOICE_LANGUAGES: &[&str] = &["zh", "en", "ja", "ko", "yue"];
 /// Whisper covers ~100 languages; these are the ones the language picker offers.
 const WHISPER_LANGUAGES: &[&str] = &[
-    "en", "de", "es", "fr", "it", "nl", "pt", "pl", "sv", "da", "no", "tr", "ru", "sr", "zh",
+    "en", "de", "es", "fr", "it", "nl", "pt", "pl", "sv", "da", "no", "tr", "ru", "uk", "sr", "zh",
     "yue", "ja", "ko", "ar", "hi", "th", "vi",
 ];
 
@@ -102,8 +106,9 @@ pub const DEFAULT_TRANSCRIPTION_MODEL: &str = "qwen3-asr-0.6b";
 pub const VAD_MODEL: &str = "silero-vad";
 pub const SEGMENTATION_MODEL: &str = "pyannote-segmentation-3.0";
 pub const EMBEDDING_MODEL: &str = "speaker-titanet-small";
+pub const KOKORO_MODEL: &str = "kokoro-82m";
 
-static MODELS: [SpeechModel; 7] = [
+static MODELS: [SpeechModel; 10] = [
     SpeechModel {
         id: DEFAULT_TRANSCRIPTION_MODEL,
         display_name: "Qwen3-ASR 0.6B",
@@ -185,6 +190,43 @@ static MODELS: [SpeechModel; 7] = [
         supports_prompt: false,
     },
     SpeechModel {
+        id: "parakeet-v2",
+        display_name: "Parakeet TDT 0.6B v2",
+        kind: ModelKind::Transcription(Family::NemoTransducer),
+        languages: &["en"],
+        archive: DownloadInfo {
+            url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2",
+            sha256: "157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad",
+            size: 482_468_385,
+            archive_root: Some("sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"),
+        },
+        files: &[
+            "encoder.int8.onnx",
+            "decoder.int8.onnx",
+            "joiner.int8.onnx",
+            "tokens.txt",
+        ],
+        summary: "English only, slightly higher recall.",
+        license: "CC-BY-4.0",
+        supports_prompt: false,
+    },
+    SpeechModel {
+        id: "gigaam-russian",
+        display_name: "GigaAM (Russian)",
+        kind: ModelKind::Transcription(Family::NemoCtc),
+        languages: &["ru"],
+        archive: DownloadInfo {
+            url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16.tar.bz2",
+            sha256: "e1291d704460cab4a01716081170c86c12f6b15338a1534f71cc5956922adb52",
+            size: 163_286_197,
+            archive_root: Some("sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16"),
+        },
+        files: &["model.int8.onnx", "tokens.txt"],
+        summary: "Russian only.",
+        license: "MIT",
+        supports_prompt: false,
+    },
+    SpeechModel {
         id: VAD_MODEL,
         display_name: "Silero VAD",
         kind: ModelKind::VoiceActivity,
@@ -234,6 +276,29 @@ static MODELS: [SpeechModel; 7] = [
         license: "Apache-2.0",
         supports_prompt: false,
     },
+    SpeechModel {
+        id: KOKORO_MODEL,
+        display_name: "Kokoro 82M",
+        kind: ModelKind::SpeechSynthesis,
+        languages: &[],
+        archive: DownloadInfo {
+            url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2",
+            sha256: "60703707bc05ccd48d60e1eb723f38b07d6e474795a0b6a588d7220400e0f7a4",
+            size: 349_886_476,
+            archive_root: Some("kokoro-multi-lang-v1_0"),
+        },
+        files: &[
+            "model.onnx",
+            "voices.bin",
+            "tokens.txt",
+            "lexicon-us-en.txt",
+            "lexicon-zh.txt",
+            "espeak-ng-data/phontab",
+        ],
+        summary: "Reads summaries and answers aloud.",
+        license: "Apache-2.0",
+        supports_prompt: false,
+    },
 ];
 
 /// Pinned after downloading the release asset (GitHub publishes no digest for it).
@@ -246,20 +311,36 @@ pub fn all() -> &'static [SpeechModel] {
 }
 
 pub fn transcription_models() -> &'static [SpeechModel] {
-    &MODELS[..4]
+    &MODELS[..6]
 }
 
 pub fn vad_model() -> &'static SpeechModel {
-    &MODELS[4]
+    &MODELS[6]
 }
 
 /// Segmentation and speaker-embedding models used for "Separate speakers".
 pub fn diarization_models() -> &'static [SpeechModel] {
-    &MODELS[5..7]
+    &MODELS[7..9]
+}
+
+/// The voice model behind Read aloud.
+pub fn kokoro_model() -> &'static SpeechModel {
+    &MODELS[9]
 }
 
 pub fn find(id: &str) -> Option<&'static SpeechModel> {
     MODELS.iter().find(|m| m.id == id)
+}
+
+/// Audio goes to the user's transcription server, so nothing downloads for it.
+pub fn is_remote(id: &str) -> bool {
+    id == lokalbot_core::remote_transcription::MODEL_ID
+}
+
+/// `acceptsVocabularyPrompt`: the model reads names and terms. Whisper does on
+/// the Mac; sherpa-onnx gives it no way to.
+pub fn accepts_vocabulary(id: &str) -> bool {
+    is_remote(id) || find(id).is_some_and(|model| model.supports_prompt)
 }
 
 /// Models a transcription needs besides the transcription model itself.
@@ -449,6 +530,7 @@ mod tests {
                 .all(SpeechModel::is_transcription)
         );
         assert_eq!(vad_model().kind, ModelKind::VoiceActivity);
+        assert_eq!(kokoro_model().kind, ModelKind::SpeechSynthesis);
         assert_eq!(
             find(DEFAULT_TRANSCRIPTION_MODEL).unwrap().display_name,
             "Qwen3-ASR 0.6B"
