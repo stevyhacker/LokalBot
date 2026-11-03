@@ -1,6 +1,6 @@
 # Google sign-in and verification for Gmail
 
-Updated: 2026-10-27. Owner: the LokalBot Google Cloud project's owner.
+Updated: 2026-11-03. Owner: the LokalBot Google Cloud project's owner.
 
 LokalBot signs in to Gmail with its own Google OAuth client and the read-only Gmail scope, `gmail.readonly`. Google classifies that scope as restricted.
 
@@ -10,13 +10,20 @@ LokalBot signs in to Gmail with its own Google OAuth client and the read-only Gm
 
 This document covers the one-time setup, the answers to give in Google's submission, and what the app must keep true to stay verified.
 
+## Review status
+
+- **Submitted:** October 29, 2026.
+- **Google's reply:** on November 2, 2026, Google emailed its standard checklist, naming no specific failure. The review continues after a reply to that email or an updated request in Cloud Console.
+- **Corrected since then:** the scope answer below no longer mentions Personal Context suggestions from sent mail, which were planned but never built. If the submitted text still has that sentence, correct it.
+- **Settings moved:** Email has been at Settings → Email since November 1, so a video recorded before then shows the earlier location.
+
 ## Client choice
 
 Google requires the **iOS** client type for macOS apps ([Google Sign-In for iOS and macOS](https://developers.google.com/identity/sign-in/ios/start-integrating)). That client type has no client secret. Its sign-in returns through the client's own URL scheme, `com.googleusercontent.apps.<id>`.
 
 LokalBot shows Google's page in `ASWebAuthenticationSession`, Apple's sign-in sheet, which is what Google's own SDK uses on macOS. The sheet returns only redirects in that scheme (`GoogleSignInSheet`). A client ID is public, so it lives in the source as `GmailOAuth.builtInClientID`.
 
-People who want their own Google Cloud project can still import a Desktop-app client under Settings → Personal Context → Email → Use your own Google OAuth client. That path uses the loopback redirect.
+People who want their own Google Cloud project can still import a Desktop-app client under Settings → Email → Use your own Google OAuth client. That path uses the loopback redirect.
 
 ## One-time setup in Google Cloud
 
@@ -70,16 +77,22 @@ Before submitting:
 
 **How LokalBot uses the scope:**
 
-> LokalBot is a local-first macOS app that prepares people for their meetings. When a person connects a Gmail account, LokalBot downloads, onto their own Mac, the conversations they wrote in and the conversations that involve the people on their calendar. It uses those conversations to show, before each meeting, what is still open with those people: questions they were asked, promises made, and dates agreed. With the person's approval, it also suggests facts for their Personal Context page from mail they sent themselves. All processing happens on the person's Mac. LokalBot has no server; mail and tokens never leave the device, and mail is not sent to any AI provider.
+> LokalBot is a local-first macOS app that prepares people for their meetings. When a person connects a Gmail account, LokalBot downloads, onto their own Mac, the conversations they wrote in and the conversations that involve the people on their calendar. It uses those conversations to show, before each meeting, what is still open with those people: questions they were asked, promises made, and dates agreed. All processing happens on the person's Mac. LokalBot has no server; mail and tokens never leave the device, and mail is not sent to any AI provider.
 
 **Why `gmail.readonly` and not a narrower scope:**
 
 > The briefs need the text of messages, which `gmail.metadata` doesn't return; metadata alone can't tell what was asked or agreed. LokalBot never changes mail, so it doesn't request `gmail.modify`, `gmail.compose`, `gmail.send`, or the full `https://mail.google.com/` scope. `gmail.readonly` is the narrowest scope that returns message bodies.
 
+**Approved use case:**
+
+> LokalBot enhances the email experience for productivity purposes, one of the approved uses of Gmail scopes in Google's Workspace policy, which gives generative AI summaries as an example. It is not an integration platform.
+
 **Data handling answers:**
 
 - **Stored on servers?** No. Data is stored only on the user's device, encrypted with AES-GCM under a key in the macOS Keychain. Tokens are in the Keychain.
 - **Shared with third parties?** No. There are no transfers, no advertising, no human access, and no AI or machine-learning training.
+- **Aggregated or anonymized data?** Only conversation and message counts, shown in Settings and written to the log on the Mac. Nothing aggregated or anonymized leaves the Mac.
+- **Why keep conversations the person wrote in?** So a brief is ready when someone in them joins a later meeting. Only conversations with a meeting's attendees reach the brief.
 - **Retention:** a rolling 90-day window. Disconnect deletes the account's mail and tokens immediately and revokes the grant at Google.
 
 ## Demo video
@@ -88,7 +101,7 @@ Record in English, at 1080p or higher, as one continuous take, and upload it to 
 
 1. **The client.** Open the Google Cloud console's **Clients** page with the `LokalBot for Mac` client ID visible. Then show the same ID in the source (`GmailOAuth.builtInClientID` on GitHub). The macOS sign-in sheet shows the page's host but not the full URL, so this proves which client is being reviewed.
 2. **The app's home page and privacy page.** Scroll to **Email from Gmail**.
-3. **The notice.** In LokalBot, open **Settings → Personal Context → Email → Add Gmail Account…** and show the notice that explains what is read.
+3. **The notice.** In LokalBot, open **Settings → Email → Add Gmail Account…** and show the notice that explains what is read.
 4. **The consent screen.** Click **Continue**. Google's consent screen appears in the sign-in sheet. Show all of it, with the language set to English at the bottom left and the read-only Gmail permission listed.
 5. **The first check.** After sign-in, show the account in Settings and the "Checked … · N conversations" line.
 6. **The feature.** Open **Today** before a meeting with someone you have emailed, and show the brief's email section citing those threads. This shot can only be filmed once that feature exists.
@@ -96,9 +109,9 @@ Record in English, at 1080p or higher, as one continuous take, and upload it to 
 
 ## Security assessment
 
-Google's restricted-scope pages say a security assessment (CASA) is the final step of the review. The assessment is at assurance level AL1 or AL2 and is renewed every year ([Security Assessment](https://support.google.com/cloud/answer/13465431)). Google's pages describe the requirement for apps that can reach restricted data "from or through a third-party server".
+Google's restricted-scope pages say a security assessment (CASA) is the final step of the review. The assessment is at assurance level AL1 or AL2 and is renewed every year ([Security Assessment](https://support.google.com/cloud/answer/13465431)). Google's pages disagree on who needs it. The restricted-scope page describes the requirement for apps that can reach restricted data "from or through a third-party server". The Security Assessment help page and the November 2 checklist apply it to apps requesting restricted scopes, without mentioning servers.
 
-LokalBot has no server, so it may be exempt. Google decides during the review, so plan for an assessment anyway.
+LokalBot has no server, so it may be exempt. Ask Google to confirm in the reply. Google decides during the review, so plan for an assessment anyway.
 
 Keep these true; they are also what an assessment looks for:
 
@@ -118,7 +131,8 @@ These come from Google's [User Data Policy](https://developers.google.com/terms/
 | Show a timely disclosure in the product | The **Connect a Gmail account?** notice before Google's page opens (`EmailSettingsSection`). |
 | Use data only for features people can see | The Settings account list, and the meeting brief's "From email" rows and excerpts (`EmailMeetingContext`). Every new use updates the privacy policy first and asks the person. |
 | No transfers, no ads, no human reading | Mail never leaves the Mac. Nothing sends it anywhere. |
-| No AI or ML model training | LokalBot trains no models. Personal Context suggestions are the user's own, kept on their Mac, and wait for their review. |
+| Keep mail out of other features | Only the Today card and Settings read the mailbox. Automatic screen capture skips LokalBot's own windows (`shouldSkipAutomaticSelfCapture`), so the brief's rows don't enter screen memory. Only the developer `--shot-test` command can bypass that; a user-facing Capture Now would have to keep skipping these windows. |
+| No AI or ML model training | LokalBot trains no models, and mail-derived text goes only to models on the user's Mac. |
 | Encrypt data and tokens at rest | `EmailStore` (AES-GCM, `email-key` in the Keychain); tokens in the Keychain (`KeychainEmailSecretStore`). |
 | Honor deletion | Disconnect deletes locally first, then revokes (`EmailController.disconnect`). Mail older than 90 days ages out. |
 | Protect against prompt injection | The brief's prompt marks mail as quoted evidence (`EmailMeetingContext.promptSection`). Its system prompt forbids following instructions in mail and says only lines marked "you" are the user's words. The brief generator has no tools, generation refuses remote models, and mail never reaches Agent Mode. |
