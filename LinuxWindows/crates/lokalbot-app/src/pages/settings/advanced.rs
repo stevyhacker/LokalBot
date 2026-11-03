@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::{Icon, Sizable as _, v_flex};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{AppContext as _, Context, ParentElement as _, SharedString, Styled as _, px};
 
 use super::{Section, SettingsPage};
@@ -136,7 +137,65 @@ pub fn platform_line() -> String {
     format!("{os} · {}", std::env::consts::ARCH)
 }
 
+/// The folder the command lives in, as the PATH button names it.
+fn cli_bin_label() -> String {
+    if cfg!(windows) {
+        cli_install_path()
+            .parent()
+            .map(|dir| dir.display().to_string())
+            .unwrap_or_default()
+    } else {
+        "~/.local/bin".to_string()
+    }
+}
+
 impl SettingsPage {
+    /// Removes only what the installer created.
+    fn uninstall_cli(&mut self, cx: &mut Context<Self>) {
+        self.cli_message = None;
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move {
+                    lokalbot_cli::install::Installer::for_current_user()?.uninstall()
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.cli_message = Some(match result {
+                    Ok(()) => {
+                        lokalbot_i18n::tr("Removed the lokalbot-cli links and skill.").to_string()
+                    }
+                    Err(err) => {
+                        lokalbot_i18n::format("Uninstall failed: {0}", &[("0", format!("{err:#}"))])
+                    }
+                });
+                this.reload_access(cx);
+            });
+        })
+        .detach();
+    }
+
+    /// Adds the command's folder to the shell's or the user's PATH.
+    fn add_cli_to_path(&mut self, cx: &mut Context<Self>) {
+        self.cli_message = None;
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move {
+                    lokalbot_cli::install::Installer::for_current_user()?.add_bin_to_path()
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.cli_message = Some(match result {
+                    Ok(place) => {
+                        lokalbot_i18n::format("Added to {0}. Open a new terminal.", &[("0", place)])
+                    }
+                    Err(err) => format!("{err:#}"),
+                });
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
     /// Runs the bundled `lokalbot-cli install-skill`, which installs the CLI
     /// and the agent skill, then refreshes the Agent CLI status.
     fn install_cli(&mut self, cx: &mut Context<Self>) {
@@ -224,17 +283,44 @@ impl SettingsPage {
                     v_flex()
                         .gap(px(8.))
                         .child(
-                            h_flex().gap(px(8.)).child(
-                                Button::new("settings-install-cli")
-                                    .outline()
-                                    .small()
-                                    .icon(Icon::new(Ico::Terminal))
-                                    .label(if installed == Some(true) { lokalbot_i18n::tr("Reinstall…") } else { lokalbot_i18n::tr("Install for your coding agent…") })
-                                    .on_click(cx.listener(|this, _, _, cx| this.install_cli(cx))),
-                            ),
+                            h_flex()
+                                .gap(px(8.))
+                                .flex_wrap()
+                                .child(
+                                    Button::new("settings-install-cli")
+                                        .outline()
+                                        .small()
+                                        .icon(Icon::new(Ico::Terminal))
+                                        .label(if installed == Some(true) { lokalbot_i18n::tr("Reinstall…") } else { lokalbot_i18n::tr("Install for your coding agent…") })
+                                        .on_click(cx.listener(|this, _, _, cx| this.install_cli(cx))),
+                                )
+                                .when(installed == Some(true), |this| {
+                                    this.child(
+                                        Button::new("settings-uninstall-cli")
+                                            .outline()
+                                            .small()
+                                            .label(lokalbot_i18n::tr("Uninstall"))
+                                            .on_click(cx.listener(|this, _, _, cx| this.uninstall_cli(cx))),
+                                    )
+                                })
+                                .when(self.cli_on_path == Some(false), |this| {
+                                    this.child(
+                                        Button::new("settings-cli-path")
+                                            .outline()
+                                            .small()
+                                            .label(lokalbot_i18n::format(
+                                                "Add {0} to PATH",
+                                                &[("0", cli_bin_label())],
+                                            ))
+                                            .on_click(cx.listener(|this, _, _, cx| this.add_cli_to_path(cx))),
+                                    )
+                                }),
                         )
+                        .when_some(self.cli_message.clone(), |this, message| {
+                            this.child(settings_row::help(message, cx))
+                        })
                         .child(settings_row::help(
-                            lokalbot_i18n::format("Installs lokalbot-cli at {0} and the LokalBot skill into ~/.agents/skills and ~/.claude/skills. Read-only by design.", &[("0", format!("{}", path.display()))]),
+                            lokalbot_i18n::format("Installs lokalbot-cli at {0} and the LokalBot skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own switch in Privacy & Data.", &[("0", format!("{}", path.display()))]),
                             cx,
                         )),
                     false,
@@ -331,6 +417,32 @@ impl SettingsPage {
                 ),
             );
 
-        vec![setup, cli, diagnostics, system]
+        let power = lokalbot_platform::power::current();
+        let power_notice = if power.saving_power {
+            Some(lokalbot_i18n::tr(
+                "Power saving is on — summaries may run slower.",
+            ))
+        } else if power.on_battery {
+            Some(lokalbot_i18n::tr("Running on battery."))
+        } else {
+            None
+        };
+        let system = match power_notice {
+            Some(notice) => system.row(
+                "settings.powerNotice",
+                settings_row::content_row(
+                    "settings.powerNotice",
+                    settings_row::help(notice, cx),
+                    false,
+                    cx,
+                ),
+            ),
+            None => system,
+        };
+
+        let resources = self.resource_monitor_section(cx);
+        let mut sections = self.memory_health_sections(cx);
+        sections.extend([setup, cli, diagnostics, resources, system]);
+        sections
     }
 }

@@ -22,6 +22,7 @@ pub struct DayMemory {
     shared: Arc<Shared>,
     paused: Arc<AtomicBool>,
     stop: Arc<AtomicBool>,
+    restart: Arc<AtomicBool>,
 }
 
 struct Current {
@@ -44,13 +45,15 @@ impl DayMemory {
             shared,
             paused: Arc::new(AtomicBool::new(false)),
             stop: Arc::new(AtomicBool::new(false)),
+            restart: Arc::new(AtomicBool::new(false)),
         };
         let shared = memory.shared.clone();
         let paused = memory.paused.clone();
         let stop = memory.stop.clone();
+        let restart = memory.restart.clone();
         std::thread::Builder::new()
             .name("lokalbot-day-memory".into())
-            .spawn(move || run(shared, paused, stop, detector, on_boundary))
+            .spawn(move || run(shared, paused, stop, restart, detector, on_boundary))
             .expect("spawning the day memory thread");
         memory
     }
@@ -72,22 +75,36 @@ impl DayMemory {
     pub fn stop(&self) {
         self.stop.store(true, Ordering::Relaxed);
     }
+
+    /// Closes the current block and opens the activity source afresh.
+    pub fn restart(&self) {
+        self.restart.store(true, Ordering::Relaxed);
+    }
 }
 
 fn run(
     shared: Arc<Shared>,
     paused: Arc<AtomicBool>,
     stop: Arc<AtomicBool>,
+    restart: Arc<AtomicBool>,
     detector: Arc<Mutex<MeetingDetector>>,
     on_boundary: impl Fn(bool),
 ) {
-    let mut source = lokalbot_platform::activity_source();
-    if let Some(limitation) = source.limitation() {
-        log::warn!("day memory: {limitation}");
-    }
+    let open_source = || {
+        let source = lokalbot_platform::activity_source();
+        if let Some(limitation) = source.limitation() {
+            log::warn!("day memory: {limitation}");
+        }
+        source
+    };
+    let mut source = open_source();
     let mut current: Option<Current> = None;
     while !stop.load(Ordering::Relaxed) {
         std::thread::sleep(SAMPLE_INTERVAL);
+        if restart.swap(false, Ordering::Relaxed) {
+            close(&shared, &mut current);
+            source = open_source();
+        }
         let settings = shared.settings();
         if !settings.tracking_enabled || paused.load(Ordering::Relaxed) {
             close(&shared, &mut current);

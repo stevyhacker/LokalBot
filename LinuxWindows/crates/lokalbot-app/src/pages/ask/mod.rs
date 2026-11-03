@@ -4,9 +4,11 @@
 
 mod composer;
 mod history;
+mod remember;
 
 pub use composer::inference as composer_inference;
 pub(crate) use history::row_timestamp;
+pub(crate) use transcript::stop_answer_speech;
 mod results;
 pub mod scope;
 pub mod search;
@@ -26,15 +28,16 @@ use gpui_kit::{
     ParentElement as _, Render, ScrollHandle, SharedString, Styled as _, Subscription, Task,
     Window, actions, div,
 };
-use lokalbot_core::{ChatRole, Conversation};
+use lokalbot_core::{Conversation, QuestionScope};
 use uuid::Uuid;
 
-use self::scope::{DateScope, Sources};
+use self::scope::{DateScope, Evidence, Sources};
 use self::search::{Facet, MeetingGroup, ScreenResult};
 use crate::pages::Page;
 use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, Section};
 use crate::theme::LbThemeExt as _;
 use crate::ui::answer_text::Answer;
+use crate::ui::screen_thumbnail::ScreenThumbnails;
 
 actions!(ask, [NewConversation]);
 
@@ -56,6 +59,7 @@ struct Results {
     running: bool,
     meetings: Vec<MeetingGroup>,
     screens: Vec<ScreenResult>,
+    files: Vec<lokalbot_core::files::FileHit>,
     truncated: bool,
     selected: usize,
     /// Arrow keys picked a row, so Return opens it even for a question.
@@ -64,9 +68,9 @@ struct Results {
 }
 
 impl Results {
-    /// Meeting groups and screen moments, in list order.
+    /// Meeting groups, screen moments and files, in list order.
     fn count(&self) -> usize {
-        self.meetings.len() + self.screens.len()
+        self.meetings.len() + self.screens.len() + self.files.len()
     }
 }
 
@@ -94,11 +98,19 @@ struct TurnState {
 
 pub struct AskPage {
     data: Entity<AppData>,
+    /// Only the conversation, inside Quick Recall: it leaves navigation requests
+    /// and the keyboard to the Ask page.
+    embedded: bool,
     conversations: Vec<Conversation>,
     conversations_loaded: bool,
+    /// Why saved conversations couldn't all be opened or saved.
+    conversations_problem: Option<String>,
+    remember: remember::RememberState,
     loaded_revision: Option<u64>,
     /// The conversation on screen; `None` is a new, empty conversation.
     selected: Option<Uuid>,
+    /// Selected before it was loaded: its scope is restored once it is.
+    pending_restore: Option<Uuid>,
     history_input: Entity<InputState>,
     history_query: String,
     composer: Entity<TextareaState>,
@@ -108,6 +120,21 @@ pub struct AskPage {
     facet: Facet,
     /// Evidence boundary from "Ask This Meeting" or from asking about results.
     meeting_scope: Option<Vec<Uuid>>,
+    /// The screen moments among the results a question was asked about, or a work
+    /// session's moments from Timeline.
+    screen_scope: Option<Vec<i64>>,
+    /// The sources to go back to when a session's boundary is cleared.
+    sources_before_evidence: Option<Sources>,
+    /// Asked about results: a selected Activity source stays, and Files with file rows.
+    scope_from_results: bool,
+    scope_had_files: bool,
+    /// Screens attached to the next question as primary evidence.
+    pins: Vec<lokalbot_core::ScreenMoment>,
+    thumbnails: ScreenThumbnails,
+    /// Limit screen results and the assistant's screen search to one app.
+    screen_app: Option<String>,
+    /// The apps in the last results, for the filter.
+    screen_apps: Vec<String>,
     /// A question asked while its search was still running.
     pending_question: Option<String>,
     /// The "Answer sources" disclosure above the composer.
@@ -120,6 +147,7 @@ pub struct AskPage {
     /// Screen moments the answers cite, loaded on demand.
     screen_citations: crate::ui::citations::ScreenCitations,
     loading_screen_citations: HashSet<i64>,
+    loading_file_citations: HashSet<i64>,
     transcript_scroll: ScrollHandle,
     results_scroll: ScrollHandle,
     history_scroll: ScrollHandle,
@@ -140,6 +168,22 @@ enum Phase {
 
 impl AskPage {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let mut page = Self::build(false, window, cx);
+        if page.last_section == Section::Ask {
+            page.take_request(window, cx);
+            page.focus_composer(window, cx);
+        }
+        page
+    }
+
+    /// One conversation's transcript, for Quick Recall to show.
+    pub fn embedded(conversation: Uuid, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let mut page = Self::build(true, window, cx);
+        page.selected = Some(conversation);
+        page
+    }
+
+    fn build(embedded: bool, window: &mut Window, cx: &mut Context<Self>) -> Self {
         bind_keys(cx);
         let data = AppData::global(cx);
         let history_input = cx.new(|cx| {
@@ -200,10 +244,14 @@ impl AskPage {
         let section = data.read(cx).section;
         let mut page = Self {
             data,
+            embedded,
             conversations: Vec::new(),
             conversations_loaded: false,
+            conversations_problem: None,
+            remember: Default::default(),
             loaded_revision: None,
             selected: None,
+            pending_restore: None,
             history_input,
             history_query: String::new(),
             composer,
@@ -212,6 +260,14 @@ impl AskPage {
             date_scope: DateScope::AnyTime,
             facet: Facet::All,
             meeting_scope: None,
+            screen_scope: None,
+            sources_before_evidence: None,
+            scope_from_results: false,
+            scope_had_files: false,
+            pins: Vec::new(),
+            thumbnails: ScreenThumbnails::default(),
+            screen_app: None,
+            screen_apps: Vec::new(),
             pending_question: None,
             sources_expanded: false,
             date_picker,
@@ -221,6 +277,7 @@ impl AskPage {
             turns: TurnState::default(),
             screen_citations: Default::default(),
             loading_screen_citations: HashSet::new(),
+            loading_file_citations: HashSet::new(),
             transcript_scroll: ScrollHandle::new(),
             results_scroll: ScrollHandle::new(),
             history_scroll: ScrollHandle::new(),
@@ -230,10 +287,6 @@ impl AskPage {
             _subscriptions: subscriptions,
         };
         page.reload_conversations(cx);
-        if section == Section::Ask {
-            page.take_request(window, cx);
-            page.focus_composer(window, cx);
-        }
         page
     }
 
@@ -256,7 +309,7 @@ impl AskPage {
         if self.loaded_revision != Some(revision) {
             self.reload_conversations(cx);
         }
-        if section == Section::Ask {
+        if section == Section::Ask && !self.embedded {
             self.take_request(window, cx);
             if self.last_section != Section::Ask {
                 self.focus_composer(window, cx);
@@ -276,15 +329,34 @@ impl AskPage {
         let library = self.data.read(cx).library.clone();
         self.loaded_revision = Some(self.data.read(cx).revision);
         cx.spawn(async move |this, cx| {
-            let loaded = cx
-                .background_spawn(async move { library.conversations() })
+            let (loaded, claims) = cx
+                .background_spawn(async move {
+                    let loaded = library.load_conversations();
+                    // Only conversations that used it wake the credential store.
+                    let uses_claims = loaded.conversations.iter().any(|c| {
+                        c.messages
+                            .iter()
+                            .any(|m| m.remember_receipt.is_some() || m.used_claim_ids.is_some())
+                    });
+                    let claims = if uses_claims {
+                        library.personal().claims()
+                    } else {
+                        Vec::new()
+                    };
+                    (loaded, claims)
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                match loaded {
-                    Ok(conversations) => this.conversations = conversations,
-                    Err(err) => log::warn!("reading Ask conversations failed: {err:#}"),
-                }
+                this.conversations_problem = loaded.problem();
+                this.conversations = loaded.conversations;
+                this.remember.claims = claims.into_iter().map(|c| (c.id, c)).collect();
                 this.conversations_loaded = true;
+                if let Some(id) = this.pending_restore
+                    && this.conversation(id).is_some()
+                {
+                    this.pending_restore = None;
+                    this.restore_question_scope(id);
+                }
                 cx.notify();
             });
         })
@@ -299,11 +371,30 @@ impl AskPage {
         self.selected.and_then(|id| self.conversation(id))
     }
 
+    /// What a follow-up in this conversation asks within: its latest question's
+    /// scope. `None` until the conversation is known, rather than a wider guess.
+    pub fn follow_up_scope(&self, id: Uuid) -> Option<crate::state::AskScope> {
+        let saved = QuestionScope::current(&self.conversation(id)?.messages)?;
+        Some(scope::scope_for(&saved))
+    }
+
     fn delete_conversation(&mut self, id: Uuid, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
+        self.data.update(cx, |data, cx| {
+            data.attached_asks.remove(&id);
+            // An answer still being written doesn't bring it back.
+            if data
+                .ask_stream
+                .as_ref()
+                .is_some_and(|s| s.conversation_id == id)
+            {
+                data.request(AppEvent::StopAnswer, cx);
+            }
+        });
         self.conversations.retain(|c| c.id != id);
         if self.selected == Some(id) {
             self.selected = None;
+            self.reset_scope();
         }
         cx.notify();
         let data = self.data.clone();
@@ -331,6 +422,12 @@ impl AskPage {
 
     /// Consumes a question handed over by another page (`navigationHandoff`).
     fn take_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(id) = self
+            .data
+            .update(cx, |data, _| data.ask_open_conversation.take())
+        {
+            self.select_conversation(id, window, cx);
+        }
         let Some(request) = self.data.update(cx, |data, _| data.ask_request.take()) else {
             return;
         };
@@ -338,12 +435,28 @@ impl AskPage {
             question,
             meeting_ids,
             submit,
+            day,
         } = request;
         self.selected = None;
-        self.date_scope = DateScope::AnyTime;
+        self.date_scope = day.map_or(DateScope::AnyTime, DateScope::Day);
         self.facet = Facet::All;
         self.pending_question = None;
         self.meeting_scope = (!meeting_ids.is_empty()).then_some(meeting_ids);
+        self.screen_scope = None;
+        self.restore_sources();
+        self.scope_from_results = false;
+        self.scope_had_files = false;
+        // A single moment is an attachment, not a retrieval boundary.
+        self.pins.clear();
+        if let Some(moment) = self.data.update(cx, |data, _| data.ask_screen.take()) {
+            self.pins.push(moment);
+        }
+        // A session's moments are a boundary: never copied into the prompt.
+        if let Some(ids) = self.data.update(cx, |data, _| data.ask_screens.take()) {
+            self.sources_before_evidence = Some(self.sources);
+            self.sources = scope::evidence_sources(self.meeting_scope.as_deref(), &ids);
+            self.screen_scope = Some(ids);
+        }
         self.set_composer_text(&question, window, cx);
         if submit {
             self.submit(true, window, cx);
@@ -351,11 +464,57 @@ impl AskPage {
         self.focus_composer(window, cx);
     }
 
-    fn new_conversation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.selected = None;
+    /// `clearEvidence`: a session's boundary narrowed the sources; this undoes it.
+    fn restore_sources(&mut self) {
+        if let Some(sources) = self.sources_before_evidence.take() {
+            self.sources = sources;
+        }
+    }
+
+    /// `resetAskScope`: everything open again, for a new question.
+    fn reset_scope(&mut self) {
         self.meeting_scope = None;
+        self.screen_scope = None;
+        self.sources_before_evidence = None;
+        self.scope_from_results = false;
+        self.scope_had_files = false;
+        self.pins.clear();
+        self.screen_app = None;
         self.date_scope = DateScope::AnyTime;
         self.sources = Sources::default();
+    }
+
+    /// `restoreAskScope`: the composer goes back to what the conversation's latest
+    /// question asked within, so what's asked next can't reach further unnoticed.
+    fn restore_question_scope(&mut self, id: Uuid) {
+        let Some(saved) = self
+            .conversation(id)
+            .and_then(|conversation| QuestionScope::current(&conversation.messages))
+        else {
+            self.reset_scope();
+            return;
+        };
+        let restored = scope::restore(&saved);
+        self.pins.clear();
+        if restored.evidence.meetings.is_some() || restored.evidence.screens.is_some() {
+            self.sources_before_evidence.get_or_insert(self.sources);
+        } else {
+            self.restore_sources();
+        }
+        self.sources = restored.sources;
+        self.date_scope = restored.date;
+        self.meeting_scope = restored.evidence.meetings;
+        self.screen_scope = restored.evidence.screens;
+        self.scope_from_results = restored.evidence.from_results;
+        self.scope_had_files = restored.evidence.had_file_results;
+        self.screen_app = restored.evidence.screen_app;
+    }
+
+    fn new_conversation(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        transcript::stop_answer_speech(cx);
+        self.selected = None;
+        self.pending_restore = None;
+        self.reset_scope();
         self.facet = Facet::All;
         self.pending_question = None;
         self.set_composer_text("", window, cx);
@@ -364,7 +523,14 @@ impl AskPage {
     }
 
     fn select_conversation(&mut self, id: Uuid, window: &mut Window, cx: &mut Context<Self>) {
+        transcript::stop_answer_speech(cx);
         self.selected = Some(id);
+        if self.conversation(id).is_some() {
+            self.pending_restore = None;
+            self.restore_question_scope(id);
+        } else {
+            self.pending_restore = Some(id);
+        }
         self.pending_question = None;
         self.follow_stream = true;
         self.set_composer_text("", window, cx);
@@ -381,6 +547,14 @@ impl AskPage {
         };
         self.data
             .update(cx, |data, cx| data.open_meeting(meeting_id, tab, at, cx));
+        self.reveal_main_window(cx);
+    }
+
+    /// Inside Quick Recall, what a citation opens is in the main window.
+    fn reveal_main_window(&self, cx: &mut App) {
+        if self.embedded {
+            crate::windows::activate_main(cx);
+        }
     }
 
     // ------------------------------------------------------------ composer
@@ -426,20 +600,30 @@ impl AskPage {
             .is_some_and(|s| s.error.is_none())
     }
 
-    /// Return asks a question or opens the selected result; Ctrl+Return
-    /// always asks (`AskReturnAction`).
+    /// Return asks a question, saves a "Remember …" or opens the selected result;
+    /// Ctrl+Return always asks (`AskReturnAction`).
     fn submit(&mut self, force_ask: bool, window: &mut Window, cx: &mut Context<Self>) {
         let question = self.query.trim().to_string();
         if question.is_empty() || self.is_responding(cx) {
             return;
         }
         if !force_ask {
-            let asks = !self.results.picked_with_keyboard && search::is_question(&question);
-            if !asks {
-                if self.results.query == self.query && !self.results.running {
-                    self.open_selected_result(cx);
+            let action = search::return_action(
+                &question,
+                self.results.count(),
+                self.results.picked_with_keyboard,
+            );
+            match action {
+                search::ReturnAction::Ask => {}
+                search::ReturnAction::OpenResult | search::ReturnAction::Nothing => {
+                    if action == search::ReturnAction::OpenResult
+                        && self.results.query == self.query
+                        && !self.results.running
+                    {
+                        self.open_selected_result(cx);
+                    }
+                    return;
                 }
-                return;
             }
         }
         if self.results.running || self.results.query != self.query {
@@ -452,21 +636,31 @@ impl AskPage {
 
     fn ask(&mut self, question: String, window: &mut Window, cx: &mut Context<Self>) {
         self.pending_question = None;
-        if !self.results.meetings.is_empty() {
+        // A "Remember …" statement is saved as is: Ask isn't narrowed to the
+        // results its words happened to match.
+        let remembers = self.data.read(cx).settings.ask_memory_enabled
+            && lokalbot_core::personal::remember_statement(&question).is_some();
+        if self.results.count() > 0 && self.pins.is_empty() && !remembers {
+            // "Ask about results" bounds meetings and screen moments to the rows.
             self.meeting_scope = Some(self.results.meetings.iter().map(|g| g.meeting.id).collect());
+            self.screen_scope = Some(self.results.screens.iter().map(|s| s.moment.id).collect());
+            self.scope_from_results = true;
+            self.scope_had_files = !self.results.files.is_empty();
         }
         let conversation_id = *self.selected.get_or_insert_with(Uuid::new_v4);
-        let scope = scope::ask_scope(self.sources, self.date_scope, self.meeting_scope.as_deref());
+        let scope = scope::ask_scope(self.sources, self.date_scope, &self.evidence());
+        // What it attached stays the boundary for the questions after it; only
+        // the captured text leaves (`clearPins(restoringScope: false)`).
+        if !self.pins.is_empty() {
+            self.screen_scope = Some(self.pins.iter().map(|pin| pin.id).collect());
+            self.sources.screen = true;
+            self.scope_from_results = true;
+            self.scope_had_files = self.sources.files;
+            self.pins.clear();
+        }
         self.follow_stream = true;
         self.data.update(cx, |data, cx| {
-            data.request(
-                AppEvent::AskQuestion {
-                    conversation_id,
-                    question,
-                    scope,
-                },
-                cx,
-            )
+            data.ask_question(conversation_id, question, scope, None, cx)
         });
         self.set_composer_text("", window, cx);
         self.transcript_scroll.scroll_to_bottom();
@@ -487,39 +681,35 @@ impl AskPage {
             .update(cx, |data, cx| data.request(AppEvent::StopAnswer, cx));
     }
 
-    /// Asks the question behind `assistant_id` again in the same conversation.
+    /// `ChatViewModel.retry`: asks the question behind a failed turn again, within
+    /// the scope it was asked in, not whatever the composer holds now.
     fn retry(&mut self, assistant_id: Uuid, cx: &mut Context<Self>) {
         let Some(conversation) = self.selected_conversation() else {
             return;
         };
         let conversation_id = conversation.id;
-        let Some(index) = conversation
-            .messages
-            .iter()
-            .position(|m| m.id == assistant_id)
+        let live = self
+            .data
+            .read(cx)
+            .attached_asks
+            .get(&conversation_id)
+            .cloned();
+        if !lokalbot_core::can_retry(&conversation.messages, assistant_id, live.is_some()) {
+            return;
+        }
+        let Some((question, saved)) =
+            lokalbot_core::retry_question(&conversation.messages, assistant_id)
         else {
             return;
         };
-        let Some(question) = conversation.messages[..index]
-            .iter()
-            .rev()
-            .find(|m| m.role == ChatRole::User)
-            .map(|m| m.text.clone())
-        else {
-            return;
+        let scope = match live {
+            Some(live) if !saved.attached_screen_day_keys.is_empty() => live,
+            _ => scope::scope_for(&saved),
         };
         self.results = Results::default();
-        let scope = scope::ask_scope(self.sources, self.date_scope, self.meeting_scope.as_deref());
         self.follow_stream = true;
         self.data.update(cx, |data, cx| {
-            data.request(
-                AppEvent::AskQuestion {
-                    conversation_id,
-                    question,
-                    scope,
-                },
-                cx,
-            )
+            data.ask_question(conversation_id, question, scope, Some(assistant_id), cx)
         });
         self.transcript_scroll.scroll_to_bottom();
     }
@@ -554,22 +744,50 @@ impl AskPage {
         cx.notify();
     }
 
+    fn evidence(&self) -> Evidence {
+        Evidence {
+            meetings: self.meeting_scope.clone(),
+            screens: self.screen_scope.clone(),
+            from_results: self.scope_from_results,
+            had_file_results: self.scope_had_files,
+            pins: self.pins.iter().map(|moment| moment.id).collect(),
+            pin_days: scope::pin_days(&self.pins),
+            screen_app: self.screen_app.clone(),
+        }
+    }
+
+    /// Files is on with a folder, so it can be offered and searched.
+    fn files_enabled(&self, cx: &App) -> bool {
+        self.data.read(cx).settings.file_search_enabled
+    }
+
     fn run_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.query.trim().to_string();
         self.results.query = self.query.clone();
         self.results.meetings.clear();
         self.results.screens.clear();
+        self.results.files.clear();
         self.results.truncated = false;
         self.results.expanded.clear();
-        if text.is_empty() || !(self.sources.meetings || self.sources.screen) {
+        let files_enabled = self.files_enabled(cx);
+        let searches_files = self.sources.files && files_enabled;
+        if text.is_empty() || !(self.sources.meetings || self.sources.screen || searches_files) {
             self.results.running = false;
             self.search_task = None;
             return;
         }
         self.results.running = true;
-        let (library, meetings) = {
+        let (library, meetings, file_folders) = {
             let data = self.data.read(cx);
-            (data.library.clone(), data.meetings.clone())
+            (
+                data.library.clone(),
+                data.meetings.clone(),
+                if searches_files {
+                    data.settings.file_search_folders.clone()
+                } else {
+                    Vec::new()
+                },
+            )
         };
         let bounds = self.date_scope.bounds();
         let query = search::Query {
@@ -577,25 +795,34 @@ impl AskPage {
             facet: self.facet,
             meetings: self.sources.meetings,
             screen: self.sources.screen,
+            file_folders,
+            screen_app: self.screen_app.clone(),
+            screen_ids: self.screen_scope.clone(),
             meeting_ids: self.meeting_scope.clone(),
             since: bounds.map(|(since, _)| since),
             until: bounds.map(|(_, until)| until),
-            limit: 50,
+            limit: search::DISPLAY_LIMIT,
         };
         let for_query = self.query.clone();
         self.search_task = Some(cx.spawn_in(window, async move |this, cx| {
             cx.background_executor()
                 .timer(Duration::from_millis(160))
                 .await;
-            let found = cx
-                .background_spawn(async move { search::run(&library, &meetings, &query) })
+            let (lexical_library, lexical_query, lexical_meetings) =
+                (library.clone(), query.clone(), meetings.clone());
+            let mut found = cx
+                .background_spawn(async move {
+                    search::run(&lexical_library, &lexical_meetings, &lexical_query)
+                })
                 .await;
             let _ = this.update_in(cx, |this, window, cx| {
                 if this.query != for_query {
                     return;
                 }
-                this.results.meetings = found.meetings;
-                this.results.screens = found.screens;
+                this.screen_apps = search::screen_apps(&found.screens, this.screen_app.as_deref());
+                this.results.meetings = found.meetings.clone();
+                this.results.screens = found.screens.clone();
+                this.results.files = found.files.clone();
                 this.results.truncated = found.truncated;
                 this.results.running = false;
                 this.results.selected = this
@@ -606,6 +833,37 @@ impl AskPage {
                 if this.pending_question.as_deref() == Some(for_query.as_str()) {
                     this.ask(for_query.trim().to_string(), window, cx);
                 }
+            });
+            if !query.wants_meaning() {
+                return;
+            }
+            // Meaning second, so words show at once.
+            let refined = cx
+                .background_spawn(async move {
+                    let vector = lokalbot_engine::query_vector(query.text.trim())?;
+                    search::refine(&library, &query, &vector, &mut found);
+                    search::fuse_meetings(&library, &meetings, &query, &vector, &mut found);
+                    Some(found)
+                })
+                .await;
+            let Some(refined) = refined else {
+                return;
+            };
+            let _ = this.update(cx, |this, cx| {
+                if this.query != for_query {
+                    return;
+                }
+                this.screen_apps =
+                    search::screen_apps(&refined.screens, this.screen_app.as_deref());
+                this.results.meetings = refined.meetings;
+                this.results.screens = refined.screens;
+                this.results.files = refined.files;
+                this.results.truncated = refined.truncated;
+                this.results.selected = this
+                    .results
+                    .selected
+                    .min(this.results.count().saturating_sub(1));
+                cx.notify();
             });
         }));
     }
@@ -623,7 +881,24 @@ impl AskPage {
         {
             let moment = screen.moment.clone();
             open_screen_moment(&self.data, &moment, cx);
+        } else if let Some(hit) = self
+            .results
+            .files
+            .get(selected - self.results.meetings.len() - self.results.screens.len())
+        {
+            search::open_file(hit);
         }
+    }
+
+    /// Attaches a screen moment to the next question, or takes it off. Attached
+    /// moments outside the chosen dates are dropped as the dates change.
+    fn toggle_pin(&mut self, moment: &lokalbot_core::ScreenMoment, cx: &mut Context<Self>) {
+        if let Some(at) = self.pins.iter().position(|pin| pin.id == moment.id) {
+            self.pins.remove(at);
+        } else {
+            self.pins.push(moment.clone());
+        }
+        cx.notify();
     }
 
     fn move_selection(&mut self, delta: isize, cx: &mut Context<Self>) {
@@ -642,6 +917,7 @@ impl AskPage {
 
     fn clear_filters(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.facet = Facet::All;
+        self.screen_app = None;
         self.date_scope = DateScope::AnyTime;
         self.run_search(window, cx);
         cx.notify();
@@ -649,6 +925,9 @@ impl AskPage {
 
     /// Re-runs the search after a source, date or facet change.
     fn scope_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some((since, until)) = self.date_scope.bounds() {
+            self.pins.retain(|pin| pin.ts >= since && pin.ts < until);
+        }
         self.results.selected = 0;
         self.run_search(window, cx);
         cx.notify();
@@ -663,6 +942,7 @@ impl Page for AskPage {
 
 impl Render for AskPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.thumbnails.drop_released(window, cx);
         let phase = self.phase(cx);
         let body = match phase {
             Phase::Idle => self.render_empty_state(cx).into_any_element(),
@@ -701,14 +981,28 @@ impl Render for AskPage {
                 ))
             })
             .bg(cx.lb().window)
-            .child(self.render_history(window, cx))
-            .child(
+            .child(crate::ui::split::leading(
+                "LokalBot.ask",
+                crate::theme::metric::CONTENT_COLUMN_WIDTH,
+                crate::ui::split::LIST_RANGE,
+                self.render_history(window, cx),
                 v_flex()
-                    .flex_1()
+                    .size_full()
                     .min_w_0()
-                    .h_full()
+                    .when_some(self.conversations_problem.clone(), |this, problem| {
+                        this.child(
+                            div()
+                                .px(gpui_kit::px(16.))
+                                .py(gpui_kit::px(8.))
+                                .text_size(crate::theme::ty::SECONDARY)
+                                .text_color(cx.lb().attention_text)
+                                .child(crate::ui::text::paragraph(problem)),
+                        )
+                    })
                     .child(div().flex_1().min_h_0().child(body))
                     .child(self.render_dock(window, cx)),
-            )
+                &self.data,
+                cx,
+            ))
     }
 }

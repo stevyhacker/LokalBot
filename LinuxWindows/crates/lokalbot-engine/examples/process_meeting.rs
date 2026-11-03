@@ -187,6 +187,7 @@ fn ask(
             include_meetings: true,
             ..Default::default()
         },
+        retry_of: None,
     });
     let mut first_text = None;
     loop {

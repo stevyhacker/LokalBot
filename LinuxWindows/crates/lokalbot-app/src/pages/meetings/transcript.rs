@@ -26,11 +26,13 @@ impl MeetingsPage {
         } else if total == 0 {
             Some(lokalbot_i18n::tr("No matches").to_string())
         } else {
+            let section = self.find.matches[self.find.current].location.section();
             Some(lokalbot_i18n::format(
-                "{0} of {total} · Transcript",
+                "{0} of {total} · {section}",
                 &[
                     ("0", format!("{}", self.find.current + 1)),
                     ("total", format!("{}", total)),
+                    ("section", lokalbot_i18n::tr(section.label()).to_string()),
                 ],
             ))
         };
@@ -160,18 +162,40 @@ impl MeetingsPage {
         };
         let lb = cx.lb().clone();
         if ix == 0 {
-            let engine = doc
-                .transcript
-                .as_ref()
-                .map(|t| t.engine.clone())
-                .unwrap_or_default();
+            let engine_line = super::page_search::engine_line(&doc);
+            let marked_engine = engine_line.as_ref().map(|line| {
+                self.find_marked(
+                    super::page_search::Location::TranscriptEngine,
+                    line,
+                    line.clone(),
+                    false,
+                    cx,
+                )
+            });
             return v_flex()
                 .px(metric::DETAIL_PADDING)
                 .pt(px(4.))
                 .pb(px(4.))
                 .gap(px(12.))
                 .children(self.render_status(&doc, cx))
-                .when(!engine.is_empty() && engine != "merged", |this| {
+                .when(self.returning_to_review, |this| {
+                    this.child(
+                        h_flex().child(
+                            Button::new("back-to-review")
+                                .ghost()
+                                .small()
+                                .icon(Icon::new(Ico::ChevronLeft))
+                                .label(lokalbot_i18n::tr("Back to speaker and action review"))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.set_tab(crate::state::MeetingTab::Review, cx)
+                                })),
+                        ),
+                    )
+                })
+                .when(!doc.screen.is_empty(), |this| {
+                    this.child(self.render_on_screen_now(&doc, cx))
+                })
+                .when_some(marked_engine, |this, marked_engine| {
                     this.child(
                         h_flex()
                             .max_w(metric::CONTENT_MAX_WIDTH)
@@ -184,10 +208,7 @@ impl MeetingsPage {
                             .text_size(ty::SECONDARY)
                             .text_color(lb.text_secondary)
                             .child(ui::icon(Ico::AudioLines, px(14.), lb.accent_text))
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                "Transcribed with {engine}",
-                                &[("engine", engine.to_string())],
-                            ))),
+                            .child(marked_engine),
                     )
                 })
                 .into_any_element();
@@ -198,15 +219,17 @@ impl MeetingsPage {
         };
         let focused_row = self.focused_row;
         let current_match = self.find.matches.get(self.find.current).cloned();
+        let row_location = super::page_search::Location::Row(row_ix);
         let highlights: Vec<_> = self
             .find
             .matches
             .iter()
-            .filter(|(r, range)| *r == row_ix && !range.is_empty())
-            .map(|(_, range)| {
-                let is_current = current_match
-                    .as_ref()
-                    .is_some_and(|(r, cr)| *r == row_ix && cr == range);
+            .filter(|found| found.location == row_location)
+            .map(|found| {
+                let range = &found.range;
+                let is_current = current_match.as_ref().is_some_and(|current| {
+                    current.location == row_location && current.range == *range
+                });
                 let color = if is_current {
                     lb.attention.opacity(0.55)
                 } else {
@@ -224,10 +247,24 @@ impl MeetingsPage {
         let is_focused = focused_row == Some(row_ix)
             || current_match
                 .as_ref()
-                .is_some_and(|(r, range)| *r == row_ix && range.is_empty());
+                .is_some_and(|current| current.location.transcript_row() == Some(row_ix));
         let start = row.start;
         let speaker_key = row.speaker.clone();
         let stamp = lokalbot_core::time::stamp(start);
+        let marked_stamp = self.find_marked(
+            super::page_search::Location::RowTime(row_ix),
+            &stamp,
+            stamp.clone(),
+            false,
+            cx,
+        );
+        let marked_name = self.find_marked(
+            super::page_search::Location::RowSpeaker(row_ix),
+            &row.name,
+            row.name.clone(),
+            false,
+            cx,
+        );
         let color = super::speaker_color(row.color, cx);
         let hover = lb.accent_wash;
 
@@ -243,7 +280,7 @@ impl MeetingsPage {
             .text_size(ty::SECONDARY)
             .text_color(lb.accent_text)
             .child(crate::ui::waveform::play_glyph(px(9.), lb.accent_text))
-            .child(stamp.clone())
+            .child(marked_stamp)
             .tooltip(move |window, cx| {
                 gpui_kit::component::tooltip::Tooltip::new(lokalbot_i18n::format(
                     "Play from {stamp}",
@@ -279,7 +316,7 @@ impl MeetingsPage {
                         .font_weight(FontWeight::BOLD)
                         .text_color(lb.text)
                         .hover(|s| s.underline())
-                        .child(row.name.clone()),
+                        .child(marked_name),
                 )
                 .tooltip({
                     let name = row.name.clone();

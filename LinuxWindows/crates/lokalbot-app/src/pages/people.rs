@@ -2,7 +2,7 @@
 //! open work first, and each person's open work, notes, projects,
 //! decisions and shared meetings.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::i18n::h_flex;
 use chrono::{Duration, Local, Utc};
@@ -17,7 +17,8 @@ use gpui_kit::{
     IntoElement, ParentElement as _, Render, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
 };
-use lokalbot_core::{HiddenPerson, MeetingRef, PeopleCuration, PersonProfile};
+use lokalbot_core::action_completion::CompletionHint;
+use lokalbot_core::{HiddenPerson, Meeting, MeetingRef, PeopleCuration, PersonProfile};
 use uuid::Uuid;
 
 use crate::pages::Page;
@@ -38,6 +39,10 @@ pub struct PeoplePage {
     search: Entity<InputState>,
     query: String,
     rename_input: Entity<InputState>,
+    /// "Looks done?" suggestions, by thread.
+    hints: HashMap<String, CompletionHint>,
+    /// The newest small meeting with outcomes for each person, for "Draft Follow-up".
+    follow_ups: HashMap<String, Meeting>,
     expanded_series: HashSet<String>,
     list_scroll: ScrollHandle,
     detail_scroll: ScrollHandle,
@@ -83,6 +88,8 @@ impl PeoplePage {
             search,
             query: String::new(),
             rename_input,
+            hints: HashMap::new(),
+            follow_ups: HashMap::new(),
             expanded_series: HashSet::new(),
             list_scroll: ScrollHandle::new(),
             detail_scroll: ScrollHandle::new(),
@@ -93,19 +100,35 @@ impl PeoplePage {
     }
 
     fn reload(&mut self, cx: &mut Context<Self>) {
+        crate::agent_handoff::refresh_in_background();
         let library = self.data.read(cx).library.clone();
+        let suggest_done =
+            crate::pages::today::threads::suggests_completion(&self.data.read(cx).settings);
+        let meetings = self.data.read(cx).meetings.clone();
         self.loaded_revision = Some(self.data.read(cx).revision);
         cx.spawn(async move |this, cx| {
             let loaded = cx
-                .background_spawn(async move { (library.people(), library.people_curation()) })
+                .background_spawn(async move {
+                    let people = library.people();
+                    let (hints, follow_ups) = match &people {
+                        Ok(people) => (
+                            hints_for(&library, people, suggest_done),
+                            follow_up_meetings(&library, people, &meetings),
+                        ),
+                        Err(_) => Default::default(),
+                    };
+                    (people, library.people_curation(), hints, follow_ups)
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 match loaded {
-                    (Ok(people), curation) => {
+                    (Ok(people), curation, hints, follow_ups) => {
                         this.people = people;
                         this.curation = curation.unwrap_or_default();
+                        this.hints = hints;
+                        this.follow_ups = follow_ups;
                     }
-                    (Err(err), _) => log::warn!("loading people failed: {err:#}"),
+                    (Err(err), _, _, _) => log::warn!("loading people failed: {err:#}"),
                 }
                 this.loaded = true;
                 cx.notify();
@@ -155,6 +178,22 @@ impl PeoplePage {
         if !lokalbot_core::people::normalized(&cleaned).is_empty() {
             curation.names.insert(person_id.to_string(), cleaned);
         }
+        self.save_curation(curation, cx);
+    }
+
+    /// `PeopleStore.merge`: the target keeps its name, and the selection
+    /// follows the person the source joined.
+    fn merge(&mut self, source: &PersonProfile, target: &PersonProfile, cx: &mut Context<Self>) {
+        let mut curation = self.curation.clone();
+        if curation.merge(source, target) {
+            self.selected = Some(target.id.clone());
+            self.save_curation(curation, cx);
+        }
+    }
+
+    fn separate(&mut self, merge: &lokalbot_core::PersonMerge, cx: &mut Context<Self>) {
+        let mut curation = self.curation.clone();
+        curation.merges.retain(|m| m != merge);
         self.save_curation(curation, cx);
     }
 
@@ -226,6 +265,82 @@ impl PeoplePage {
                     ),
             )
         });
+    }
+
+    /// Folds one person into another (`PersonMergeSheet`).
+    fn open_merge(&mut self, person: &PersonProfile, window: &mut Window, cx: &mut Context<Self>) {
+        let mut candidates: Vec<PersonProfile> = self
+            .people
+            .iter()
+            .filter(|p| p.id != person.id)
+            .cloned()
+            .collect();
+        candidates.sort_by_key(|p| p.name.to_lowercase());
+        let page = cx.entity();
+        let person = person.clone();
+        let sheet = cx.new(|cx| MergeSheet::new(page, person, candidates, window, cx));
+        window.open_dialog(cx, move |dialog, _, _| {
+            dialog.w(px(440.)).child(sheet.clone())
+        });
+    }
+
+    /// Rename, merge, separate and hide, shared by a row's context menu and
+    /// the detail page's More menu (`PersonMenuItems`).
+    fn person_menu_items(
+        page: &Entity<Self>,
+        merges: Vec<lokalbot_core::PersonMerge>,
+        person: PersonProfile,
+        menu: gpui_kit::component::menu::PopupMenu,
+        window: &mut Window,
+        cx: &mut Context<gpui_kit::component::menu::PopupMenu>,
+    ) -> gpui_kit::component::menu::PopupMenu {
+        let rename_page = page.clone();
+        let merge_page = page.clone();
+        let hide_page = page.clone();
+        let rename_person = person.clone();
+        let merge_person = person.clone();
+        let hide_person = person;
+        let mut menu = menu
+            .item(PopupMenuItem::new(lokalbot_i18n::tr("Rename…")).on_click(
+                move |_, window, cx| {
+                    let person = rename_person.clone();
+                    rename_page.update(cx, |page, cx| page.open_rename(&person, window, cx));
+                },
+            ))
+            .item(
+                PopupMenuItem::new(lokalbot_i18n::tr("Merge Into…")).on_click(
+                    move |_, window, cx| {
+                        let person = merge_person.clone();
+                        merge_page.update(cx, |page, cx| page.open_merge(&person, window, cx));
+                    },
+                ),
+            );
+        if !merges.is_empty() {
+            let separate_page = page.clone();
+            menu = menu.submenu(
+                lokalbot_i18n::tr("Separate"),
+                window,
+                cx,
+                move |submenu, _, _| {
+                    let mut submenu = submenu;
+                    for merge in merges.clone() {
+                        let page = separate_page.clone();
+                        let label = merge.source_name.clone();
+                        submenu =
+                            submenu.item(PopupMenuItem::new(label).on_click(move |_, _, cx| {
+                                page.update(cx, |page, cx| page.separate(&merge, cx))
+                            }));
+                    }
+                    submenu
+                },
+            );
+        }
+        menu.separator().item(
+            PopupMenuItem::new(lokalbot_i18n::tr("Not a Person")).on_click(move |_, _, cx| {
+                let person = hide_person.clone();
+                hide_page.update(cx, |page, cx| page.hide(&person, cx));
+            }),
+        )
     }
 
     fn filtered(&self) -> Vec<&PersonProfile> {
@@ -398,11 +513,7 @@ impl PeoplePage {
             );
         }
         v_flex()
-            .w(metric::CONTENT_COLUMN_WIDTH)
-            .flex_none()
-            .h_full()
-            .border_r_1()
-            .border_color(lb.separator)
+            .size_full()
             .child(
                 v_flex()
                     .gap(px(10.))
@@ -467,6 +578,7 @@ impl PeoplePage {
         let context = row_context(person);
         let page = cx.entity();
         let menu_person = person.clone();
+        let merges = self.curation.merges_into(person);
         h_flex()
             .id(SharedString::from(format!("person-{}", person.id)))
             .mx(px(8.))
@@ -534,25 +646,14 @@ impl PeoplePage {
                     .set_offset(gpui_kit::point(px(0.), px(0.)));
                 cx.notify();
             }))
-            .context_menu(move |menu, _, _| {
-                let rename_page = page.clone();
-                let hide_page = page.clone();
-                let rename_person = menu_person.clone();
-                let hide_person = menu_person.clone();
-                menu.item(PopupMenuItem::new(lokalbot_i18n::tr("Rename…")).on_click(
-                    move |_, window, cx| {
-                        let person = rename_person.clone();
-                        rename_page.update(cx, |page, cx| page.open_rename(&person, window, cx));
-                    },
-                ))
-                .separator()
-                .item(
-                    PopupMenuItem::new(lokalbot_i18n::tr("Not a Person")).on_click(
-                        move |_, _, cx| {
-                            let person = hide_person.clone();
-                            hide_page.update(cx, |page, cx| page.hide(&person, cx));
-                        },
-                    ),
+            .context_menu(move |menu, window, cx| {
+                Self::person_menu_items(
+                    &page,
+                    merges.clone(),
+                    menu_person.clone(),
+                    menu,
+                    window,
+                    cx,
                 )
             })
             .into_any_element()
@@ -573,6 +674,11 @@ impl PeoplePage {
         let meeting_ids: Vec<Uuid> = person.meetings.iter().map(|m| m.id).collect();
         let page = cx.entity();
         let menu_person = person.clone();
+        let merges = self.curation.merges_into(person);
+        let prepare_data = self.data.clone();
+        let prepare_prompt = lokalbot_core::people::preparation_prompt(person);
+        let follow_up = self.follow_ups.get(&person.id).cloned();
+        let follow_up_data = self.data.clone();
         sections.push(
             v_flex()
                 .gap(px(14.))
@@ -634,6 +740,7 @@ impl PeoplePage {
                                         question: question.clone(),
                                         meeting_ids: meeting_ids.clone(),
                                         submit: false,
+                                        day: None,
                                     };
                                     ask_data.update(cx, |data, cx| data.ask(request, cx));
                                 }),
@@ -643,29 +750,42 @@ impl PeoplePage {
                                 .ghost()
                                 .icon(Icon::new(Ico::Ellipsis))
                                 .label(lokalbot_i18n::tr("More"))
-                                .dropdown_menu(move |menu, _, _| {
-                                    let rename_page = page.clone();
-                                    let hide_page = page.clone();
-                                    let rename_person = menu_person.clone();
-                                    let hide_person = menu_person.clone();
-                                    menu.item(
-                                        PopupMenuItem::new(lokalbot_i18n::tr("Rename…")).on_click(
-                                            move |_, window, cx| {
-                                                let person = rename_person.clone();
-                                                rename_page.update(cx, |page, cx| {
-                                                    page.open_rename(&person, window, cx)
-                                                });
-                                            },
-                                        ),
-                                    )
-                                    .separator()
-                                    .item(
-                                        PopupMenuItem::new(lokalbot_i18n::tr("Not a Person"))
+                                .dropdown_menu(move |menu, window, cx| {
+                                    let prepare_data = prepare_data.clone();
+                                    let prompt = prepare_prompt.clone();
+                                    let mut menu = menu.item(
+                                        PopupMenuItem::new(lokalbot_i18n::tr("Prepare in Agent…"))
                                             .on_click(move |_, _, cx| {
-                                                let person = hide_person.clone();
-                                                hide_page
-                                                    .update(cx, |page, cx| page.hide(&person, cx));
+                                                let prompt = prompt.clone();
+                                                prepare_data.update(cx, |data, cx| {
+                                                    data.open_agent(prompt, cx)
+                                                });
                                             }),
+                                    );
+                                    if let Some(meeting) = follow_up.clone() {
+                                        let data = follow_up_data.clone();
+                                        let label = lokalbot_i18n::format(
+                                            "Draft Follow-up for {title}…",
+                                            &[("title", meeting.display_title())],
+                                        );
+                                        menu = menu.item(PopupMenuItem::new(label).on_click(
+                                            move |_, window, cx| {
+                                                crate::pages::meetings::follow_up::FollowUpSheet::open(
+                                                    data.clone(),
+                                                    meeting.clone(),
+                                                    window,
+                                                    cx,
+                                                );
+                                            },
+                                        ));
+                                    }
+                                    Self::person_menu_items(
+                                        &page,
+                                        merges.clone(),
+                                        menu_person.clone(),
+                                        menu.separator(),
+                                        window,
+                                        cx,
                                     )
                                 }),
                         ),
@@ -680,13 +800,15 @@ impl PeoplePage {
                 let rows: Vec<AnyElement> = threads
                     .iter()
                     .map(|thread| {
-                        let page = page.clone();
-                        profile::action_row(
+                        crate::pages::today::threads::thread_row_with(
                             SharedString::from(format!("{prefix}-{}", thread.id)),
                             thread,
-                            move |id, at, _, cx| {
-                                page.update(cx, |page, cx| page.open_meeting(id, at, cx))
+                            crate::pages::today::threads::RowOptions {
+                                show_staleness: true,
+                                hint: self.hints.get(&thread.id),
+                                ..Default::default()
                             },
+                            &self.data,
                             cx,
                         )
                     })
@@ -741,13 +863,10 @@ impl PeoplePage {
 
         // Last time.
         if !person.recent_notes.is_empty() {
-            let latest = person.meetings.iter().map(|m| m.id).next();
-            let title = match (&person.notes_meeting, latest) {
-                (Some(meeting), Some(latest)) if meeting.id == latest => {
-                    lokalbot_i18n::tr("Last Time")
-                }
-                (Some(_), _) => lokalbot_i18n::tr("Last Mentioned"),
-                _ => lokalbot_i18n::tr("Last Time"),
+            let title = if person.notes_is_latest_meeting {
+                lokalbot_i18n::tr("Last Time")
+            } else {
+                lokalbot_i18n::tr("Last Mentioned")
             };
             let mut content = v_flex().gap(px(8.));
             if let Some(meeting) = person.notes_meeting.clone() {
@@ -765,21 +884,8 @@ impl PeoplePage {
                     cx,
                 ));
             }
-            for note in &person.recent_notes {
-                content = content.child(
-                    h_flex()
-                        .gap(px(8.))
-                        .items_start()
-                        .child(div().text_color(lb.text_secondary).child("•"))
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_w_0()
-                                .text_size(ty::BODY)
-                                .text_color(lb.text)
-                                .child(note.clone()),
-                        ),
-                );
+            for (index, note) in person.recent_notes.iter().enumerate() {
+                content = content.child(self.render_note_point(index, note, cx));
             }
             sections.push(profile::section(Ico::Quote, title, content, cx).into_any_element());
         }
@@ -925,6 +1031,51 @@ impl PeoplePage {
             .into_any_element()
     }
 
+    /// One line from meeting notes, with who said it when that is not the
+    /// person, and the moment in the call (`NotePointRow`).
+    fn render_note_point(
+        &self,
+        index: usize,
+        point: &lokalbot_core::NotePoint,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let page = cx.entity();
+        let meeting_id = point.meeting_id;
+        h_flex()
+            .gap(px(8.))
+            .items_start()
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .flex_wrap()
+                    .gap_x(px(4.))
+                    .text_size(ty::BODY)
+                    .text_color(lb.text)
+                    .when_some(point.speaker.clone(), |this, speaker| {
+                        this.child(
+                            div()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(format!("{speaker}:")),
+                        )
+                    })
+                    .child(point.text.clone()),
+            )
+            .children(point.seek.map(|seek| {
+                crate::ui::action_row::evidence_pill(
+                    ("person-note", index),
+                    seek,
+                    Some(lokalbot_i18n::tr("Open the meeting at this moment").into()),
+                    move |_, cx| {
+                        page.update(cx, |page, cx| page.open_meeting(meeting_id, Some(seek), cx))
+                    },
+                    cx,
+                )
+            }))
+            .into_any_element()
+    }
+
     fn render_series(
         &self,
         title: &str,
@@ -1029,6 +1180,220 @@ impl PeoplePage {
             }))
             .into_any_element()
     }
+}
+
+/// Folds one person into another: for a name heard wrong, a nickname, or
+/// someone who joined from two addresses.
+struct MergeSheet {
+    page: Entity<PeoplePage>,
+    person: PersonProfile,
+    candidates: Vec<PersonProfile>,
+    search: Entity<InputState>,
+    selection: Option<String>,
+    _search_changed: Subscription,
+}
+
+impl MergeSheet {
+    fn new(
+        page: Entity<PeoplePage>,
+        person: PersonProfile,
+        candidates: Vec<PersonProfile>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let search = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(crate::i18n::placeholder(
+                "Search people",
+                window,
+                cx,
+            ))
+        });
+        search.update(cx, |input, cx| input.focus(window, cx));
+        let search_changed = cx.subscribe(&search, |_, _, event: &InputEvent, cx| {
+            if matches!(event, InputEvent::Change) {
+                cx.notify();
+            }
+        });
+        Self {
+            page,
+            person,
+            candidates,
+            search,
+            selection: None,
+            _search_changed: search_changed,
+        }
+    }
+
+    fn merge(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let target = self
+            .selection
+            .as_deref()
+            .and_then(|id| self.candidates.iter().find(|c| c.id == id))
+            .cloned();
+        if let Some(target) = target {
+            let source = self.person.clone();
+            self.page
+                .update(cx, |page, cx| page.merge(&source, &target, cx));
+        }
+        window.close_dialog(cx);
+    }
+}
+
+impl Render for MergeSheet {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let lb = cx.lb().clone();
+        let needle = self.search.read(cx).value().trim().to_lowercase();
+        let name = self.person.name.clone();
+        let rows: Vec<AnyElement> = self
+            .candidates
+            .iter()
+            .filter(|c| {
+                needle.is_empty()
+                    || std::iter::once(&c.name)
+                        .chain(c.other_names.iter())
+                        .any(|n| n.to_lowercase().contains(&needle))
+            })
+            .map(|candidate| {
+                let selected = self.selection.as_deref() == Some(candidate.id.as_str());
+                let id = candidate.id.clone();
+                h_flex()
+                    .id(SharedString::from(format!("merge-{}", candidate.id)))
+                    .px(px(8.))
+                    .py(px(5.))
+                    .gap(px(8.))
+                    .items_center()
+                    .rounded(metric::ROW_RADIUS)
+                    .cursor_pointer()
+                    .when(selected, |this| this.bg(lb.sidebar_selection))
+                    .when(!selected, |this| this.hover(|s| s.bg(lb.hover)))
+                    .child(ui::avatar(
+                        profile::initials(&candidate.name),
+                        profile::name_tint(&candidate.name, cx),
+                        px(22.),
+                    ))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .truncate()
+                            .text_size(ty::BODY)
+                            .text_color(lb.text)
+                            .child(candidate.name.clone()),
+                    )
+                    .child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.text_secondary)
+                            .child(profile::count(candidate.meeting_count(), "meeting")),
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.selection = Some(id.clone());
+                        cx.notify();
+                    }))
+                    .into_any_element()
+            })
+            .collect();
+        v_flex()
+            .gap(px(12.))
+            .child(
+                div()
+                    .text_size(ty::QUESTION)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(lb.text)
+                    .child(lokalbot_i18n::format(
+                        "Merge {name} Into…",
+                        &[("name", name.clone())],
+                    )),
+            )
+            .child(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.text_secondary)
+                    .child(crate::ui::text::paragraph(lokalbot_i18n::format(
+                        "Choose who {name} really is. Their meetings, open work, and decisions move to that person, and {name} becomes another name. Separate them again from that person's More menu.",
+                        &[("name", name)],
+                    ))),
+            )
+            .child(Input::new(&self.search).cleanable(true))
+            .child(
+                v_flex()
+                    .id("people-merge-list")
+                    .h(px(240.))
+                    .overflow_y_scroll()
+                    .rounded(metric::GROUP_RADIUS)
+                    .border_1()
+                    .border_color(lb.group_stroke)
+                    .p(px(4.))
+                    .children(rows),
+            )
+            .child(
+                h_flex()
+                    .gap(px(8.))
+                    .pt(px(4.))
+                    .child(div().flex_1().min_w_0())
+                    .child(
+                        Button::new("people-merge-cancel")
+                            .outline()
+                            .label(lokalbot_i18n::tr("Cancel"))
+                            .on_click(|_, window, cx| window.close_dialog(cx)),
+                    )
+                    .child(
+                        Button::new("people-merge-save")
+                            .primary()
+                            .label(lokalbot_i18n::tr("Merge"))
+                            .disabled(self.selection.is_none())
+                            .on_click(cx.listener(|this, _, window, cx| this.merge(window, cx))),
+                    ),
+            )
+    }
+}
+
+/// "Looks done?" for each person's open work of yours, only with consent.
+fn hints_for(
+    library: &lokalbot_core::Library,
+    people: &[PersonProfile],
+    suggest_done: bool,
+) -> HashMap<String, CompletionHint> {
+    if !suggest_done {
+        return HashMap::new();
+    }
+    let mut threads: Vec<lokalbot_core::ActionThread> = Vec::new();
+    for thread in people.iter().flat_map(|p| p.my_actions.iter()) {
+        if thread.status() == lokalbot_core::ActionStatus::Open
+            && !threads.iter().any(|t| t.id == thread.id)
+        {
+            threads.push(thread.clone());
+        }
+    }
+    library.action_completion_hints(&threads, Utc::now())
+}
+
+/// The newest meeting with outcomes that was small enough to be with each
+/// person, rather than a team call they happened to attend (`followUpMeeting`).
+fn follow_up_meetings(
+    library: &lokalbot_core::Library,
+    people: &[PersonProfile],
+    meetings: &[Meeting],
+) -> HashMap<String, Meeting> {
+    let mut has_outcomes: HashMap<Uuid, bool> = HashMap::new();
+    let mut result = HashMap::new();
+    for person in people {
+        for candidate in lokalbot_core::people::follow_up_candidates(person) {
+            let Some(meeting) = meetings.iter().find(|m| m.id == candidate.id) else {
+                continue;
+            };
+            let usable = *has_outcomes.entry(candidate.id).or_insert_with(|| {
+                library
+                    .outcomes(meeting)
+                    .is_ok_and(|outcomes| outcomes.is_some_and(|o| !o.is_empty()))
+            });
+            if usable {
+                result.insert(person.id.clone(), meeting.clone());
+                break;
+            }
+        }
+    }
+    result
 }
 
 /// What sets this person apart: projects named around them, else the
@@ -1137,10 +1502,15 @@ impl Render for PeoplePage {
                 })
                 .into_any_element(),
         };
-        h_flex()
-            .size_full()
-            .bg(lb.window)
-            .child(self.render_list(cx))
-            .child(div().flex_1().min_w_0().h_full().child(detail))
+        let list = self.render_list(cx);
+        div().size_full().bg(lb.window).child(ui::split::leading(
+            "LokalBot.people",
+            metric::CONTENT_COLUMN_WIDTH,
+            ui::split::LIST_RANGE,
+            list,
+            div().size_full().child(detail),
+            &self.data,
+            cx,
+        ))
     }
 }

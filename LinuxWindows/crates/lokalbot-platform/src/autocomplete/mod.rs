@@ -12,28 +12,38 @@
 //!   fallback that backs off while nothing changes. Every snapshot holds the
 //!   app, the window title, the bounded text around the caret, the caret on
 //!   screen, and whether the field is secure or single-line.
-//! - [`KeyInterceptor`] takes plain Tab and Esc only while it is active, which
-//!   the app keeps true exactly while a suggestion is visible: `XGrabKey` on
-//!   X11, a low-level keyboard hook on Windows.
+//! - [`KeyInterceptor`] takes the plain accept keys and Esc only while it is
+//!   active, which the app keeps true exactly while a suggestion is visible:
+//!   `XGrabKey` on X11, a low-level keyboard hook on Windows.
 //! - [`insert`] types an accepted chunk at the caret: AT-SPI `EditableText`
 //!   when the field supports it, else XTest; `SendInput` Unicode keystrokes on
 //!   Windows. Never through the clipboard.
 //!
+//! - [`clipboard`] and [`spell`] read the clipboard for prompt context and
+//!   check words against the system's dictionaries.
+//!
 //! Privacy (`PRIVACY.md`): nothing is read while autocomplete is off, secure
 //! fields and excluded apps are never read (the check runs before any text
-//! is), LokalBot's own windows are skipped, and nothing is kept on disk.
+//! is), LokalBot's own windows are skipped, and nothing read is kept on disk.
 //!
 //! Wayland lets no app take a key from another app or place a window at
-//! another app's caret, so [`support`] reports autocomplete in other apps as
-//! unavailable there; LokalBot's own practice editor still works.
+//! another app's caret, so there autocomplete takes part as the desktop's
+//! input method where it can (`input_method`), and the field draws the ghost
+//! itself ([`InlineGhost`]). Where it cannot, [`support`] says so; LokalBot's
+//! own practice editor still works.
 
+pub mod clipboard;
+pub mod focused;
 pub mod geometry;
 pub mod policy;
 pub mod session;
+pub mod spell;
 pub mod visible;
 
 #[cfg(target_os = "linux")]
 mod atspi;
+#[cfg(target_os = "linux")]
+mod input_method;
 #[cfg(windows)]
 mod uia;
 #[cfg(windows)]
@@ -81,6 +91,9 @@ pub struct FieldSnapshot {
     pub field_frame: Option<Rect>,
     /// A one-line input, where Enter usually sends.
     pub single_line: bool,
+    /// An xterm.js surface in an editor or a browser: a DOM class starting
+    /// with "xterm" (`CotypingSurfaceClassifier.isIntegratedTerminal`).
+    pub is_integrated_terminal: bool,
     /// The page address when the app is a browser and it could be read.
     pub url: Option<String>,
     /// Text shown just above the field, read once per field when allowed.
@@ -97,6 +110,9 @@ pub struct InsertTarget {
     #[cfg(target_os = "linux")]
     pub(crate) editable: Option<(String, String)>,
     pub(crate) pid: u32,
+    /// The field is reached through the desktop's input method.
+    #[cfg(target_os = "linux")]
+    pub(crate) input_method: bool,
 }
 
 /// The watcher's view of focus (`CotypingFocus`).
@@ -156,7 +172,7 @@ pub fn support() -> Support {
     #[cfg(target_os = "linux")]
     {
         if crate::session::is_wayland() {
-            return Support::Unavailable(WAYLAND_LIMITATION.into());
+            return input_method::support();
         }
         if !crate::session::has_x11_display() {
             return Support::Unavailable(
@@ -175,8 +191,38 @@ pub fn support() -> Support {
     }
 }
 
-/// The exact Wayland behavior, worded for Settings.
-pub const WAYLAND_LIMITATION: &str = "Autocomplete in other apps needs an X11 session. Wayland does not let an app take the Tab key from other apps or show text at their cursor, so on this desktop suggestions appear only in the practice editor below.";
+/// The file that makes LokalBot one of GNOME's input sources, for installs
+/// that no package put it in place for (`lokalbot --ibus-component`).
+pub fn ibus_component() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        Some(input_method::ibus_component())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// What the user does to use autocomplete on this desktop, for Settings.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InputSourceSteps {
+    pub text: String,
+    /// A command to run once in a terminal first, to copy.
+    pub command: Option<String>,
+}
+
+/// The steps where autocomplete goes through the desktop's input method.
+/// `None` elsewhere: nothing to do beyond turning it on.
+pub fn input_source_steps() -> Option<InputSourceSteps> {
+    #[cfg(target_os = "linux")]
+    {
+        if crate::session::is_wayland() {
+            return input_method::input_source_steps();
+        }
+    }
+    None
+}
 
 type FocusHandler = Arc<dyn Fn(FocusSnapshot) + Send + Sync>;
 type KeyHandler = Arc<dyn Fn(InterceptedKey) + Send + Sync>;
@@ -186,9 +232,15 @@ type KeyHandler = Arc<dyn Fn(InterceptedKey) + Send + Sync>;
 /// the UI thread.
 pub struct FieldWatcher {
     #[cfg(target_os = "linux")]
-    inner: atspi::Watcher,
+    inner: LinuxWatcher,
     #[cfg(windows)]
     inner: uia::Watcher,
+}
+
+#[cfg(target_os = "linux")]
+enum LinuxWatcher {
+    Accessibility(atspi::Watcher),
+    InputMethod(input_method::Watcher),
 }
 
 impl FieldWatcher {
@@ -203,7 +255,11 @@ impl FieldWatcher {
                 anyhow::bail!(reason);
             }
             Ok(Self {
-                inner: atspi::Watcher::start(policy, handler)?,
+                inner: if crate::session::is_wayland() {
+                    LinuxWatcher::InputMethod(input_method::Watcher::start(policy, handler)?)
+                } else {
+                    LinuxWatcher::Accessibility(atspi::Watcher::start(policy, handler)?)
+                },
             })
         }
         #[cfg(windows)]
@@ -221,7 +277,12 @@ impl FieldWatcher {
 
     /// Applies new exclusions at once; the next snapshot follows them.
     pub fn set_policy(&self, policy: ReadPolicy) {
-        #[cfg(any(windows, target_os = "linux"))]
+        #[cfg(target_os = "linux")]
+        match &self.inner {
+            LinuxWatcher::Accessibility(watcher) => watcher.set_policy(policy),
+            LinuxWatcher::InputMethod(watcher) => watcher.handle().set_policy(policy),
+        }
+        #[cfg(windows)]
         self.inner.set_policy(policy);
         #[cfg(not(any(windows, target_os = "linux")))]
         let _ = policy;
@@ -229,13 +290,25 @@ impl FieldWatcher {
 
     /// Reads the field again now instead of at the next event or poll.
     pub fn refresh_now(&self) {
-        #[cfg(any(windows, target_os = "linux"))]
+        #[cfg(target_os = "linux")]
+        match &self.inner {
+            LinuxWatcher::Accessibility(watcher) => watcher.refresh_now(),
+            LinuxWatcher::InputMethod(watcher) => watcher.handle().refresh_now(),
+        }
+        #[cfg(windows)]
         self.inner.refresh_now();
     }
 
     /// What the backend cannot do on this desktop, worded for Settings.
     pub fn limitation(&self) -> Option<String> {
-        #[cfg(any(windows, target_os = "linux"))]
+        #[cfg(target_os = "linux")]
+        {
+            match &self.inner {
+                LinuxWatcher::Accessibility(watcher) => watcher.limitation(),
+                LinuxWatcher::InputMethod(watcher) => watcher.handle().limitation(),
+            }
+        }
+        #[cfg(windows)]
         {
             self.inner.limitation()
         }
@@ -244,6 +317,59 @@ impl FieldWatcher {
             None
         }
     }
+
+    /// The way to draw the ghost where the field draws it itself, as on a
+    /// Wayland input method. `None` where LokalBot's own overlay does.
+    pub fn inline_ghost(&self) -> Option<InlineGhost> {
+        #[cfg(target_os = "linux")]
+        {
+            match &self.inner {
+                LinuxWatcher::Accessibility(_) => None,
+                LinuxWatcher::InputMethod(watcher) => Some(InlineGhost {
+                    inner: watcher.handle(),
+                }),
+            }
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            None
+        }
+    }
+}
+
+/// A suggestion the field draws itself, and accepts that go in with what
+/// remains of it. Non-blocking.
+#[derive(Clone)]
+pub struct InlineGhost {
+    #[cfg(target_os = "linux")]
+    inner: input_method::Handle,
+}
+
+impl InlineGhost {
+    /// Shows `text` after the caret in `field`; empty shows nothing.
+    pub fn show(&self, field: &FieldSnapshot, text: &str) {
+        #[cfg(target_os = "linux")]
+        self.inner.show(field, text);
+        #[cfg(not(target_os = "linux"))]
+        let _ = (field, text);
+    }
+
+    /// Makes `edit` at the caret and shows `next` as what is left, in one
+    /// step. `before` and `after` are the field's text around the caret as
+    /// the edit expects it.
+    pub fn accept(
+        &self,
+        field: &FieldSnapshot,
+        before: &str,
+        after: &str,
+        edit: &Edit,
+        next: &str,
+    ) {
+        #[cfg(target_os = "linux")]
+        self.inner.accept(field, before, after, edit, next);
+        #[cfg(not(target_os = "linux"))]
+        let _ = (field, before, after, edit, next);
+    }
 }
 
 /// A key taken while a suggestion shows.
@@ -251,15 +377,86 @@ impl FieldWatcher {
 pub enum InterceptedKey {
     Tab,
     Escape,
+    RightArrow,
+    /// The physical key left of 1, whatever it types on this layout, like the
+    /// Mac's key code 50.
+    Backtick,
 }
 
-/// Takes plain Tab and Esc away from the focused app while active. Inactive
-/// it holds no grab or hook, so the keyboard is untouched.
+/// What the accept keys are bound to. The primary key wins when both are the
+/// same key (`CotypingAcceptHint`, `acceptScope`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AcceptKeys {
+    /// Takes the next word or phrase.
+    pub accept: InterceptedKey,
+    /// Takes the rest of the suggestion, if bound.
+    pub full: Option<InterceptedKey>,
+}
+
+impl Default for AcceptKeys {
+    fn default() -> Self {
+        Self {
+            accept: InterceptedKey::Tab,
+            full: Some(InterceptedKey::Backtick),
+        }
+    }
+}
+
+impl AcceptKeys {
+    pub fn from_settings(settings: &lokalbot_core::Settings) -> Self {
+        use lokalbot_core::settings::{CotypingAcceptKey, CotypingFullAcceptKey};
+        let accept = match settings.cotyping_accept_key {
+            CotypingAcceptKey::Tab => InterceptedKey::Tab,
+            CotypingAcceptKey::RightArrow => InterceptedKey::RightArrow,
+        };
+        let full = match settings.cotyping_full_accept_key {
+            CotypingFullAcceptKey::Backtick => Some(InterceptedKey::Backtick),
+            CotypingFullAcceptKey::RightArrow => Some(InterceptedKey::RightArrow),
+            CotypingFullAcceptKey::Off => None,
+        };
+        Self {
+            accept,
+            full: full.filter(|key| *key != accept),
+        }
+    }
+
+    /// Every key to take while a suggestion shows. Escape is always one.
+    pub fn taken(&self) -> Vec<InterceptedKey> {
+        let mut keys = vec![self.accept, InterceptedKey::Escape];
+        keys.extend(self.full);
+        keys
+    }
+
+    pub fn takes(&self, key: InterceptedKey) -> bool {
+        key == self.accept || key == InterceptedKey::Escape || self.full == Some(key)
+    }
+
+    /// Whether `key` takes the rest of the suggestion rather than the next
+    /// chunk; `None` when it accepts nothing.
+    pub fn is_full(&self, key: InterceptedKey) -> Option<bool> {
+        if key == self.accept {
+            Some(false)
+        } else if self.full == Some(key) {
+            Some(true)
+        } else {
+            None
+        }
+    }
+}
+
+/// Takes the plain accept keys and Esc away from the focused app while
+/// active. Inactive it holds no grab or hook, so the keyboard is untouched.
 pub struct KeyInterceptor {
     #[cfg(target_os = "linux")]
-    inner: x11::Grabber,
+    inner: LinuxKeys,
     #[cfg(windows)]
     inner: win32::Hook,
+}
+
+#[cfg(target_os = "linux")]
+enum LinuxKeys {
+    X11(x11::Grabber),
+    InputMethod(input_method::Handle),
 }
 
 impl KeyInterceptor {
@@ -271,7 +468,11 @@ impl KeyInterceptor {
                 anyhow::bail!(reason);
             }
             Ok(Self {
-                inner: x11::Grabber::start(handler)?,
+                inner: if crate::session::is_wayland() {
+                    LinuxKeys::InputMethod(input_method::attach_keys(handler)?)
+                } else {
+                    LinuxKeys::X11(x11::Grabber::start(handler)?)
+                },
             })
         }
         #[cfg(windows)]
@@ -287,9 +488,27 @@ impl KeyInterceptor {
         }
     }
 
-    /// Takes Tab and Esc while `true`; releases them at once when `false`.
+    /// Which keys accept, applied at once even while active.
+    pub fn set_keys(&self, keys: AcceptKeys) {
+        #[cfg(target_os = "linux")]
+        match &self.inner {
+            LinuxKeys::X11(grabber) => grabber.set_keys(keys),
+            LinuxKeys::InputMethod(handle) => handle.set_keys(keys),
+        }
+        #[cfg(windows)]
+        self.inner.set_keys(keys);
+        #[cfg(not(any(windows, target_os = "linux")))]
+        let _ = keys;
+    }
+
+    /// Takes the keys while `true`; releases them at once when `false`.
     pub fn set_active(&self, active: bool) {
-        #[cfg(any(windows, target_os = "linux"))]
+        #[cfg(target_os = "linux")]
+        match &self.inner {
+            LinuxKeys::X11(grabber) => grabber.set_active(active),
+            LinuxKeys::InputMethod(handle) => handle.set_active(active),
+        }
+        #[cfg(windows)]
         self.inner.set_active(active);
         #[cfg(not(any(windows, target_os = "linux")))]
         let _ = active;
@@ -299,7 +518,12 @@ impl KeyInterceptor {
     /// Tab pressed as a suggestion went away still moves focus (macOS fails
     /// open the same way).
     pub fn pass_through(&self, key: InterceptedKey) {
-        #[cfg(any(windows, target_os = "linux"))]
+        #[cfg(target_os = "linux")]
+        match &self.inner {
+            LinuxKeys::X11(grabber) => grabber.pass_through(key),
+            LinuxKeys::InputMethod(handle) => handle.pass_through(key),
+        }
+        #[cfg(windows)]
         self.inner.pass_through(key);
         #[cfg(not(any(windows, target_os = "linux")))]
         let _ = key;
@@ -336,7 +560,11 @@ pub fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     };
     #[cfg(target_os = "linux")]
     {
-        atspi::insert(field, &edit)
+        if field.target.input_method {
+            input_method::insert(field, &edit)
+        } else {
+            atspi::insert(field, &edit)
+        }
     }
     #[cfg(windows)]
     {
@@ -441,5 +669,35 @@ pub fn sample_luminance(rect: &Rect) -> Option<f32> {
     {
         let _ = rect;
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_primary_key_wins_and_settings_map_to_keys() {
+        use lokalbot_core::Settings;
+        use lokalbot_core::settings::{CotypingAcceptKey, CotypingFullAcceptKey};
+        let defaults = AcceptKeys::from_settings(&Settings::default());
+        assert_eq!(defaults, AcceptKeys::default());
+        assert_eq!(defaults.is_full(InterceptedKey::Tab), Some(false));
+        assert_eq!(defaults.is_full(InterceptedKey::Backtick), Some(true));
+        assert_eq!(defaults.is_full(InterceptedKey::RightArrow), None);
+        assert!(defaults.takes(InterceptedKey::Escape));
+        assert!(!defaults.takes(InterceptedKey::RightArrow));
+        let same = AcceptKeys::from_settings(&Settings {
+            cotyping_accept_key: CotypingAcceptKey::RightArrow,
+            cotyping_full_accept_key: CotypingFullAcceptKey::RightArrow,
+            ..Settings::default()
+        });
+        assert_eq!(same.is_full(InterceptedKey::RightArrow), Some(false));
+        assert_eq!(same.full, None);
+        let off = AcceptKeys::from_settings(&Settings {
+            cotyping_full_accept_key: CotypingFullAcceptKey::Off,
+            ..Settings::default()
+        });
+        assert_eq!(off.taken(), [InterceptedKey::Tab, InterceptedKey::Escape]);
     }
 }

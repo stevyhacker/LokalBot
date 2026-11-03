@@ -576,15 +576,20 @@ impl ServerInner {
     }
 }
 
+/// What a host binds, IPv6 first.
+pub(crate) fn listen_hosts(loopback_only: bool) -> (&'static str, &'static str) {
+    if loopback_only {
+        ("[::1]", "127.0.0.1")
+    } else {
+        ("[::]", "0.0.0.0")
+    }
+}
+
 /// Listeners for IPv6 and IPv4, IPv6 first. Where `[::]` is dual-stack
 /// (Linux, macOS) the IPv4 bind may fail with "address in use" and the IPv6
 /// listener serves both; where IPv6 is missing, IPv4 alone serves.
 fn bind(port: u16, loopback_only: bool) -> Result<Vec<TcpListener>> {
-    let (v6, v4) = if loopback_only {
-        ("[::1]", "127.0.0.1")
-    } else {
-        ("[::]", "0.0.0.0")
-    };
+    let (v6, v4) = listen_hosts(loopback_only);
     let mut listeners = Vec::new();
     let mut errors = Vec::new();
     match TcpListener::bind(format!("{v6}:{port}")) {

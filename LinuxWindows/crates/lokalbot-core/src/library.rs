@@ -4,6 +4,7 @@
 //! to call from a background task; the UI must not call them on its main
 //! thread for whole-library operations (lists, search, rebuilds).
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -63,6 +64,11 @@ CREATE INDEX IF NOT EXISTS idx_screen_bookmarks_created ON screen_bookmarks(crea
 CREATE TABLE IF NOT EXISTS coding_agent_bursts (id TEXT PRIMARY KEY, agent TEXT NOT NULL,
     start REAL NOT NULL, end REAL NOT NULL, payload TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_coding_agent_bursts_start ON coding_agent_bursts(start);
+CREATE TABLE IF NOT EXISTS memory_routine_runs (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL, run_token TEXT NOT NULL UNIQUE, started_at REAL NOT NULL,
+    completed_at REAL, status TEXT NOT NULL, output_path TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '', meeting_id TEXT NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS idx_memory_routine_runs_started ON memory_routine_runs(started_at DESC);
 CREATE VIRTUAL TABLE IF NOT EXISTS ocr_fts USING fts5(
     text, window_title, ts UNINDEXED, app UNINDEXED,
     text_source UNINDEXED, snapshot_id UNINDEXED,
@@ -73,6 +79,10 @@ CREATE TABLE IF NOT EXISTS screen_embeddings (
     FOREIGN KEY(snapshot_id) REFERENCES screenshots(id) ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS idx_screen_embeddings_ts ON screen_embeddings(ts);
 CREATE INDEX IF NOT EXISTS idx_screen_embeddings_app_ts ON screen_embeddings(app, ts);
+CREATE INDEX IF NOT EXISTS idx_screen_embeddings_model ON screen_embeddings(model_id);
+CREATE TABLE IF NOT EXISTS screen_image_embeddings (
+    snapshot_id INTEGER PRIMARY KEY, vec BLOB NOT NULL, model_id TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(snapshot_id) REFERENCES screenshots(id) ON DELETE CASCADE);
 
 CREATE TABLE IF NOT EXISTS pipeline_jobs (meeting_id TEXT PRIMARY KEY, transcribe INTEGER NOT NULL,
     transcription_completed INTEGER NOT NULL DEFAULT 0, summarize INTEGER NOT NULL,
@@ -90,6 +100,11 @@ struct Inner {
     paths: LibraryPaths,
     db: Mutex<Connection>,
     read_only: bool,
+    /// The `chat-key`, once the engine has installed its source.
+    chat_keys: parking_lot::RwLock<Option<crate::sealed::KeySource>>,
+    /// Conversations that couldn't be saved, kept for this run.
+    unsaved_chats: Mutex<HashMap<Uuid, Conversation>>,
+    personal: Mutex<crate::personal::controller::State>,
 }
 
 /// The two audio tracks of a meeting, if present on disk.
@@ -109,6 +124,18 @@ pub enum MeetingLookup {
 }
 
 impl Library {
+    pub(crate) fn chat_key_slot(&self) -> &parking_lot::RwLock<Option<crate::sealed::KeySource>> {
+        &self.inner.chat_keys
+    }
+
+    pub(crate) fn unsaved_chats(&self) -> &Mutex<HashMap<Uuid, Conversation>> {
+        &self.inner.unsaved_chats
+    }
+
+    pub(crate) fn personal_state(&self) -> &Mutex<crate::personal::controller::State> {
+        &self.inner.personal
+    }
+
     /// Opens (creating if needed) the library and its SQLite schema.
     pub fn open(paths: LibraryPaths) -> Result<Self> {
         // Owner-only (0700 on Unix), which also repairs an older library
@@ -131,6 +158,9 @@ impl Library {
                 paths,
                 db: Mutex::new(db),
                 read_only: false,
+                chat_keys: Default::default(),
+                unsaved_chats: Default::default(),
+                personal: Default::default(),
             }),
         })
     }
@@ -153,6 +183,9 @@ impl Library {
                 paths,
                 db: Mutex::new(db),
                 read_only: true,
+                chat_keys: Default::default(),
+                unsaved_chats: Default::default(),
+                personal: Default::default(),
             }),
         })
     }
@@ -257,7 +290,7 @@ impl Library {
         let dir = self.meeting_dir(&updated);
         let transcript = self.transcript(meeting)?;
         // Withdraw what was built from the old range even when no segment survives.
-        crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
+        crate::evidence::with_meeting_removal(self.paths().root(), &[meeting], || {
             invalidate_generated_notes(&dir)?;
             if let Some(mut transcript) = transcript {
                 range.apply(&mut transcript);
@@ -400,10 +433,9 @@ impl Library {
 
     pub fn audio(&self, meeting: &Meeting) -> MeetingAudio {
         let dir = self.meeting_dir(meeting);
-        let pick = |names: &[&str]| names.iter().map(|n| dir.join(n)).find(|p| p.is_file());
         MeetingAudio {
-            mic: pick(&[MIC_TRACK, "mic.flac", "mic.m4a"]),
-            system: pick(&[SYSTEM_TRACK, "system.flac", "system.m4a"]),
+            mic: crate::audio_files::track_file(&dir, crate::audio_files::Track::Mic),
+            system: crate::audio_files::track_file(&dir, crate::audio_files::Track::System),
         }
     }
 
@@ -417,7 +449,7 @@ impl Library {
         }
         let order = self.deletion_order(meeting)?;
         let affected: Vec<&Meeting> = order.iter().collect();
-        crate::evidence::with_meeting_mutation(self.paths().root(), &affected, || {
+        crate::evidence::with_meeting_removal(self.paths().root(), &affected, || {
             for meeting in &order {
                 self.remove_meeting(meeting)?;
             }
@@ -427,7 +459,7 @@ impl Library {
 
     /// Descendants before their merged meeting. A source that doesn't point
     /// back at its merged meeting, or a cycle, means the markers are corrupt.
-    fn deletion_order(&self, meeting: &Meeting) -> Result<Vec<Meeting>> {
+    pub fn deletion_order(&self, meeting: &Meeting) -> Result<Vec<Meeting>> {
         let all: std::collections::HashMap<Uuid, Meeting> = self
             .list_all_meetings()?
             .into_iter()
@@ -626,47 +658,6 @@ impl Library {
         entry.updated_at = Utc::now();
         entry.user_edited = true;
         self.save_outcome_state(meeting, &state)
-    }
-
-    // ---------------------------------------------------------------- chats
-
-    pub fn conversations(&self) -> Result<Vec<Conversation>> {
-        let dir = self.paths().chats_dir();
-        let mut out = Vec::new();
-        let Ok(entries) = fs::read_dir(&dir) else {
-            return Ok(out);
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|e| e == "json") {
-                match read_json::<Conversation>(&path) {
-                    Ok(Some(conversation)) => out.push(conversation),
-                    Ok(None) => {}
-                    Err(err) => log::warn!("skipping unreadable chat {}: {err:#}", path.display()),
-                }
-            }
-        }
-        out.sort_by_key(|c| std::cmp::Reverse(c.updated_at));
-        Ok(out)
-    }
-
-    pub fn save_conversation(&self, conversation: &Conversation) -> Result<()> {
-        let path = self
-            .paths()
-            .chats_dir()
-            .join(format!("{}.json", conversation.id.hyphenated()));
-        write_json(&path, conversation)
-    }
-
-    pub fn delete_conversation(&self, id: Uuid) -> Result<()> {
-        let path = self
-            .paths()
-            .chats_dir()
-            .join(format!("{}.json", id.hyphenated()));
-        match fs::remove_file(path) {
-            Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err.into()),
-            _ => Ok(()),
-        }
     }
 
     // --------------------------------------------------------------- digest
@@ -874,7 +865,7 @@ pub fn write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<()> {
     Ok(())
 }
 
-fn sort_keys(value: serde_json::Value) -> serde_json::Value {
+pub(crate) fn sort_keys(value: serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {
             let sorted: std::collections::BTreeMap<String, serde_json::Value> =

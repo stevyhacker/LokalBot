@@ -1,6 +1,6 @@
 [package]
 name = "lokalbot-cli"
-description = "Read-only command-line and MCP access to the LokalBot library."
+description = "Command-line and MCP access to the LokalBot library, and settings through the running app."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

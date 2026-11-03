@@ -53,6 +53,9 @@ pub struct ScreenMoment {
     pub text: Option<String>,
     pub saved_note: Option<String>,
     pub is_saved: bool,
+    /// Adjacent captures in one group look alike; 0 is no group.
+    #[serde(default)]
+    pub similarity_group: i64,
 }
 
 /// Work sessions computed on the fly from activity blocks
@@ -80,6 +83,15 @@ pub struct WorkSession {
     pub context_switch_count: usize,
     /// Set when the session is a recorded meeting rather than app activity.
     pub meeting_id: Option<Uuid>,
+    /// Tracked time per project, busiest first. Empty without coding-agent
+    /// evidence for the day.
+    pub project_shares: Vec<crate::coding_agents::attribution::Share>,
+    /// The agent bursts listed under this session. Each belongs to the one
+    /// session it overlaps most, so its outcomes are counted once.
+    pub agent_bursts: Vec<crate::coding_agents::CodingAgentBurst>,
+    /// The title names the session's project and its agents' task, instead of
+    /// a window or its apps.
+    pub title_names_project: bool,
 }
 
 impl WorkSession {
@@ -109,6 +121,10 @@ pub struct DayActivity {
     pub tracked_seconds: f64,
     pub moment_count: usize,
     pub meeting_count: usize,
+    /// The day's stored coding-agent work, scheduled runs included.
+    pub agent_bursts: Vec<crate::coding_agents::CodingAgentBurst>,
+    /// The day's tracked time by project; empty without agent evidence.
+    pub project_split: crate::coding_agents::attribution::DaySplit,
 }
 
 /// How much screen context day memory keeps (`screenContextCaptureMode`).

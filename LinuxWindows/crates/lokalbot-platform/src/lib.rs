@@ -9,16 +9,25 @@
 //! window-information extension).
 
 pub mod activity;
+pub mod agent_links;
 pub mod autocomplete;
 pub mod autostart;
 pub mod calendar;
+pub mod chord;
+pub mod control_socket;
+pub mod disk;
+pub mod focus;
 pub mod insert;
 pub mod instance;
+pub mod media;
 pub mod meeting;
 pub mod notify;
 pub mod opener;
+pub mod power;
 pub mod privacy;
+pub mod process_usage;
 pub mod screen;
+pub mod selection;
 pub mod session;
 pub mod shortcuts;
 pub mod tray;
@@ -34,17 +43,22 @@ pub const APP_ID: &str = "com.lokalbot.LokalBot";
 
 pub use activity::{ActivitySource, activity_source};
 pub use autostart::{launch_at_login_enabled, set_launch_at_login};
-pub use insert::{InsertMethod, InsertOutcome, copy_to_clipboard, insert_text};
+pub use focus::{DeliveryCheck, DeliveryTarget, FocusRead, FocusSnapshot, FrontApp, Frontmost};
+pub use insert::{InsertMethod, InsertOutcome, PasteOutcome, copy_to_clipboard, insert_text};
 pub use instance::{
     InstanceError, InstanceGuard, IpcCommand, IpcError, IpcServer, acquire_instance, listen, send,
 };
-pub use meeting::{CalendarHint, DetectedMeeting, DetectorEvent, MeetingDetector};
+pub use meeting::{CalendarHint, DetectedMeeting, DetectorEvent, MeetingDetector, meet_url};
 pub use notify::{NotificationHandle, notify, notify_with_timeout};
 pub use opener::{open_path, open_url, reveal_in_file_manager};
 pub use privacy::{PRIVATE_APP, SampleDisposition, disposition, redact};
+pub use selection::{SelectionCapture, SelectionIssue};
 pub use session::{Desktop, desktop};
 pub use shortcuts::{
     GlobalShortcuts, Key, Shortcut, ShortcutError, ShortcutEvent, ShortcutParseError,
     ShortcutProblem,
 };
-pub use tray::{Tray, TrayEvent, TrayItem, TrayMenuState, TrayUpdate, TrayUpdateAction};
+pub use tray::{
+    Tray, TrayDictation, TrayEvent, TrayItem, TrayMeeting, TrayMenuState, TrayUpdate,
+    TrayUpdateAction,
+};

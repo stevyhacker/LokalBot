@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the ignored Wayland live tests inside a headless Sway session with a
-# private runtime folder and D-Bus session. Needs sway, foot, wtype and
+# private runtime folder and D-Bus session. Needs sway, foot, wtype, Python with GTK 3 and
 # dbus-run-session.
 # Usage: crates/lokalbot-platform/scripts/live-sway.sh
 set -euo pipefail
@@ -26,4 +26,4 @@ WAYLAND_DISPLAY="$(cd "$runtime" && compgen -G 'wayland-*' | grep -v lock | head
 [ -n "$SWAYSOCK" ] && [ -n "$WAYLAND_DISPLAY" ] || { cat "$runtime/sway.log" >&2; exit 1; }
 export SWAYSOCK WAYLAND_DISPLAY XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=sway
 
-cargo test -p lokalbot-platform --test live_wayland -- --ignored --test-threads=1 --nocapture
+cargo test -p lokalbot-platform --test live_wayland --test live_input_method -- --ignored --test-threads=1 --nocapture

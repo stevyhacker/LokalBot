@@ -21,7 +21,7 @@ use super::scope::{DateScope, Source};
 use super::search::Facet;
 use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
-use crate::ui::{self, Ico};
+use crate::ui::{self, Ico, screen_thumbnail};
 
 /// Where answers are computed (`InferencePresentation`).
 pub struct Inference {
@@ -103,13 +103,23 @@ impl AskPage {
         if let Some(filters) = self.render_filter_chips(cx) {
             rows.push(filters.into_any_element());
         }
-        if let Some(scope) = &self.meeting_scope {
-            let label = lokalbot_i18n::format(
-                "{0} · All screens",
-                &[(
-                    "0",
-                    super::history::count_label(scope.len(), "meeting").to_string(),
-                )],
+        if !self.pins.is_empty() {
+            rows.push(self.render_pins(cx).into_any_element());
+        }
+        if self.meeting_scope.is_some() || self.screen_scope.is_some() {
+            let label = format!(
+                "{} · {}",
+                self.meeting_scope.as_ref().map_or_else(
+                    || lokalbot_i18n::tr("All meetings").to_string(),
+                    |scope| super::history::count_label(scope.len(), "meeting"),
+                ),
+                self.screen_scope.as_ref().map_or_else(
+                    || lokalbot_i18n::tr("All screens").to_string(),
+                    |scope| lokalbot_i18n::format(
+                        "{0} screens",
+                        &[("0", lokalbot_i18n::number(scope.len()))],
+                    ),
+                ),
             );
             rows.push(
                 h_flex()
@@ -122,6 +132,10 @@ impl AskPage {
                             .tooltip(lokalbot_i18n::tr("Clear the selected evidence boundary"))
                             .on_click(cx.listener(|this, _, window, cx| {
                                 this.meeting_scope = None;
+                                this.screen_scope = None;
+                                this.restore_sources();
+                                this.scope_from_results = false;
+                                this.scope_had_files = false;
                                 this.scope_changed(window, cx);
                             })),
                     )
@@ -165,12 +179,76 @@ impl AskPage {
             )
     }
 
+    /// Screens attached to the next question, each with its way off.
+    /// `pinnedContextRow`: what each attached screen is, by its picture.
+    fn render_pins(&self, cx: &mut Context<Self>) -> Div {
+        let lb = cx.lb().clone();
+        let mut row = h_flex().gap(px(8.)).flex_wrap();
+        for (index, pin) in self.pins.iter().enumerate() {
+            let title = if pin.window_title.trim().is_empty() {
+                pin.app.clone()
+            } else {
+                pin.window_title.clone()
+            };
+            let id = pin.id;
+            let image = self.thumbnails.image(pin, cx, |page| &page.thumbnails);
+            row = row.child(
+                h_flex()
+                    .gap(px(6.))
+                    .items_center()
+                    .p(px(4.))
+                    .rounded(metric::ROW_RADIUS)
+                    .bg(lb.chip_fill)
+                    .child(screen_thumbnail::tile(image, pin, px(54.), px(34.), cx))
+                    .child(
+                        v_flex()
+                            .max_w(px(160.))
+                            .child(
+                                div()
+                                    .truncate()
+                                    .text_size(ty::SECONDARY)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(lb.text)
+                                    .child(title),
+                            )
+                            .child(
+                                div()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(lb.text_secondary)
+                                    .child(
+                                        pin.ts
+                                            .with_timezone(&chrono::Local)
+                                            .format_localized(
+                                                lokalbot_i18n::date_pattern("%-I:%M %p"),
+                                                lokalbot_i18n::date_locale(),
+                                            )
+                                            .to_string(),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        Button::new(("ask-pin", index))
+                            .ghost()
+                            .xsmall()
+                            .icon(Icon::new(Ico::CircleX))
+                            .tooltip(lokalbot_i18n::tr("Remove this screen from the question"))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.pins.retain(|pin| pin.id != id);
+                                cx.notify();
+                            })),
+                    ),
+            );
+        }
+        row
+    }
+
     fn render_filter_chips(&self, cx: &mut Context<Self>) -> Option<Div> {
-        if self.facet == Facet::All {
+        if self.facet == Facet::All && self.screen_app.is_none() {
             return None;
         }
-        Some(
-            h_flex().gap(px(8.)).child(
+        let mut row = h_flex().gap(px(8.)).flex_wrap();
+        if self.facet != Facet::All {
+            row = row.child(
                 Button::new("ask-filter-result-type")
                     .outline()
                     .small()
@@ -184,8 +262,28 @@ impl AskPage {
                         this.facet = Facet::All;
                         this.scope_changed(window, cx);
                     })),
-            ),
-        )
+            );
+        }
+        if let Some(app) = &self.screen_app {
+            row = row.child(
+                Button::new("ask-filter-screen-app")
+                    .outline()
+                    .small()
+                    .icon(Icon::new(Ico::CircleX))
+                    .label(lokalbot_i18n::format(
+                        "Screen app: {0}",
+                        &[("0", app.clone())],
+                    ))
+                    .tooltip(lokalbot_i18n::tr(
+                        "Clear the screen-app filter; it does not filter meetings or activity",
+                    ))
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.screen_app = None;
+                        this.scope_changed(window, cx);
+                    })),
+            );
+        }
+        Some(row)
     }
 
     /// "Answer sources: 3 meetings · 0 screen moments" with the list on demand.
@@ -193,10 +291,11 @@ impl AskPage {
         let lb = cx.lb().clone();
         let count = self.results.meetings.len();
         let screens = self.results.screens.len();
+        let files = self.results.files.len();
         let label = if self.results.running {
             lokalbot_i18n::tr("Finding sources…").to_string()
-        } else if count + screens > 0 {
-            lokalbot_i18n::format(
+        } else if count + screens + files > 0 {
+            let mut label = lokalbot_i18n::format(
                 "Answer sources: {0} · {1}",
                 &[
                     (
@@ -208,12 +307,20 @@ impl AskPage {
                         super::history::count_label(screens, "screen moment").to_string(),
                     ),
                 ],
-            )
+            );
+            if files > 0 {
+                label.push_str(" · ");
+                label.push_str(&super::history::count_label(files, "file"));
+            }
+            label
         } else {
             lokalbot_i18n::format(
                 "Answer sources: {0} · {1}",
                 &[
-                    ("0", self.sources.summary().to_string()),
+                    (
+                        "0",
+                        self.sources.summary(self.files_enabled(cx)).to_string(),
+                    ),
                     ("1", self.date_scope.label().to_string()),
                 ],
             )
@@ -221,7 +328,7 @@ impl AskPage {
         let expanded = self.sources_expanded;
         let mut details: Vec<AnyElement> = Vec::new();
         if expanded {
-            if count + screens > 0 {
+            if count + screens + files > 0 {
                 details.push(
                     div()
                         .text_color(lb.supporting)
@@ -274,6 +381,21 @@ impl AskPage {
                                         super::history::count_label(screen.captures, "moment")
                                             .to_string(),
                                     ),
+                                ],
+                            )))
+                            .into_any_element(),
+                    );
+                }
+                for hit in &self.results.files {
+                    details.push(
+                        div()
+                            .truncate()
+                            .text_color(lb.text_secondary)
+                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
+                                "File · {0} · {1}",
+                                &[
+                                    ("0", hit.name()),
+                                    ("1", super::search::file_kind_label(hit)),
                                 ],
                             )))
                             .into_any_element(),
@@ -421,25 +543,28 @@ impl AskPage {
         let page = cx.entity();
         let sources = self.sources;
         let facet = self.facet;
+        let files_enabled = self.files_enabled(cx);
+        let screen_app = self.screen_app.clone();
+        let screen_apps = self.screen_apps.clone();
         Button::new("ask-sources")
             .ghost()
             .small()
-            .label(sources.summary())
+            .label(sources.summary(files_enabled))
             .font_weight(FontWeight::SEMIBOLD)
             .dropdown_caret(true)
             .tooltip(lokalbot_i18n::tr("Choose sources and result filters"))
             .dropdown_menu(move |menu, window, cx| {
                 let mut menu = menu.min_w(px(220.));
-                for source in Source::ALL {
+                for source in Source::available(files_enabled) {
                     let page = page.clone();
                     let checked = sources.contains(source);
                     menu = menu.item(
                         PopupMenuItem::new(lokalbot_i18n::tr(source.label()))
                             .checked(checked)
-                            .disabled(checked && sources.count() == 1)
+                            .disabled(checked && sources.count(files_enabled) == 1)
                             .on_click(move |_, window, cx| {
                                 page.update(cx, |page, cx| {
-                                    page.sources.toggle(source);
+                                    page.sources.toggle(source, files_enabled);
                                     page.scope_changed(window, cx);
                                 })
                             }),
@@ -447,7 +572,10 @@ impl AskPage {
                 }
                 let facet_page = page.clone();
                 let facets = PopupMenu::build(window, cx, move |mut menu, _, _| {
-                    for option in Facet::ALL {
+                    for option in Facet::ALL
+                        .into_iter()
+                        .filter(|option| *option != Facet::Files || files_enabled)
+                    {
                         let page = facet_page.clone();
                         menu = menu.item(
                             PopupMenuItem::new(lokalbot_i18n::tr(option.label()))
@@ -463,21 +591,60 @@ impl AskPage {
                     menu
                 });
                 let settings_page = page.clone();
-                menu.separator()
-                    .item(PopupMenuItem::submenu(
-                        lokalbot_i18n::tr("Result type"),
-                        facets,
-                    ))
-                    .separator()
-                    .item(
-                        PopupMenuItem::new(lokalbot_i18n::tr("Manage source permissions…"))
-                            .on_click(move |_, _, cx| {
-                                let data = settings_page.read(cx).data.clone();
-                                data.update(cx, |data, cx| {
-                                    data.open_settings(SettingsCategory::Privacy, cx)
-                                });
+                let app_page = page.clone();
+                let apps_selected = screen_app.clone();
+                let apps_list = screen_apps.clone();
+                let apps = PopupMenu::build(window, cx, move |mut menu, _, _| {
+                    let all_page = app_page.clone();
+                    menu = menu.item(
+                        PopupMenuItem::new(lokalbot_i18n::tr("All apps"))
+                            .checked(apps_selected.is_none())
+                            .on_click(move |_, window, cx| {
+                                all_page.update(cx, |page, cx| {
+                                    page.screen_app = None;
+                                    page.scope_changed(window, cx);
+                                })
                             }),
-                    )
+                    );
+                    for name in &apps_list {
+                        let page = app_page.clone();
+                        let chosen = name.clone();
+                        menu = menu.item(
+                            PopupMenuItem::new(SharedString::from(name.clone()))
+                                .checked(apps_selected.as_deref() == Some(name.as_str()))
+                                .on_click(move |_, window, cx| {
+                                    let chosen = chosen.clone();
+                                    page.update(cx, |page, cx| {
+                                        page.screen_app = Some(chosen);
+                                        page.scope_changed(window, cx);
+                                    })
+                                }),
+                        );
+                    }
+                    menu
+                });
+                let menu = menu.separator().item(PopupMenuItem::submenu(
+                    lokalbot_i18n::tr("Result type"),
+                    facets,
+                ));
+                let menu = if sources.screen {
+                    menu.item(PopupMenuItem::submenu(
+                        lokalbot_i18n::tr("Screen app"),
+                        apps,
+                    ))
+                } else {
+                    menu
+                };
+                menu.separator().item(
+                    PopupMenuItem::new(lokalbot_i18n::tr("Manage source permissions…")).on_click(
+                        move |_, _, cx| {
+                            let data = settings_page.read(cx).data.clone();
+                            data.update(cx, |data, cx| {
+                                data.open_settings(SettingsCategory::Privacy, cx)
+                            });
+                        },
+                    ),
+                )
             })
     }
 

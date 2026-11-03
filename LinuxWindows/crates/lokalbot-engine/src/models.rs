@@ -1,8 +1,8 @@
 //! Which models are installed, and downloading the ones a feature needs.
 //!
 //! Ids are shared with the UI: GGUF catalog ids (`qwen3.5-4b`), speech model
-//! ids (`qwen3-asr-0.6b`), `llama-runtime` for the llama.cpp binaries and
-//! `ocrs-text` for the screen text recognition models.
+//! ids (`qwen3-asr-0.6b`), `llama-runtime` for the llama.cpp binaries, and
+//! `ocrs-text` and `tesseract-languages` for screen text recognition.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,6 +21,8 @@ pub const RUNTIME_ID: &str = "llama-runtime";
 pub struct Models {
     shared: Arc<Shared>,
     active: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
+    /// How far each running download is, 0–1.
+    progress: Arc<Mutex<HashMap<String, f32>>>,
 }
 
 enum ModelRef {
@@ -28,6 +30,7 @@ enum ModelRef {
     Speech(&'static lokalbot_speech::models::SpeechModel),
     Runtime,
     Ocr,
+    OcrLanguages,
 }
 
 impl Models {
@@ -35,6 +38,7 @@ impl Models {
         Self {
             shared,
             active: Arc::new(Mutex::new(HashMap::new())),
+            progress: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -44,6 +48,9 @@ impl Models {
         }
         if id == lokalbot_ai::ocr::OCR_MODEL_ID {
             return Some(ModelRef::Ocr);
+        }
+        if id == lokalbot_ai::ocr::OCR_LANGUAGES_ID {
+            return Some(ModelRef::OcrLanguages);
         }
         if let Some(entry) = lokalbot_ai::catalog::entry(id) {
             return Some(ModelRef::Gguf(entry));
@@ -58,14 +65,35 @@ impl Models {
             Some(ModelRef::Speech(model)) => lokalbot_speech::models::is_installed(paths, model),
             Some(ModelRef::Runtime) => self.shared.runtime.usable_backend().is_some(),
             Some(ModelRef::Ocr) => lokalbot_ai::ocr::is_installed(paths),
+            Some(ModelRef::OcrLanguages) => lokalbot_ai::ocr::status(paths)
+                .download
+                .is_none_or(|download| download.id != lokalbot_ai::ocr::OCR_LANGUAGES_ID),
             None => false,
         }
+    }
+
+    /// A transcription server has nothing to download; it needs the approval
+    /// [`Self::transcription_server_blocked`] checks.
+    fn transcription_ids(settings: &lokalbot_core::Settings) -> Vec<String> {
+        if lokalbot_speech::models::is_remote(&settings.transcription_model) {
+            Vec::new()
+        } else {
+            vec![settings.transcription_model.clone()]
+        }
+    }
+
+    /// The chosen transcription server isn't set up or may not receive audio yet.
+    pub fn transcription_server_blocked(&self) -> bool {
+        let settings = self.shared.settings();
+        lokalbot_speech::models::is_remote(&settings.transcription_model)
+            && !lokalbot_core::remote_transcription::RemoteTranscription::from_settings(&settings)
+                .is_ready()
     }
 
     /// Ids the current settings need for meeting processing.
     pub fn meeting_requirements(&self, summarize: bool) -> Vec<String> {
         let settings = self.shared.settings();
-        let mut ids = vec![settings.transcription_model.clone()];
+        let mut ids = Self::transcription_ids(&settings);
         ids.extend(lokalbot_speech::models::supporting_ids(
             settings.multi_speaker_diarization,
         ));
@@ -94,21 +122,49 @@ impl Models {
         ]
     }
 
-    /// Screen context reads text with OCR when accessibility has little.
+    /// Screen context reads text with OCR when accessibility has little. What
+    /// that takes depends on this computer: maybe nothing at all.
     pub fn screen_requirements(&self) -> Vec<String> {
         let settings = self.shared.settings();
         if settings.screen_context_capture_mode == lokalbot_core::ScreenContextMode::ActivityOnly {
-            Vec::new()
-        } else {
-            vec![lokalbot_ai::ocr::OCR_MODEL_ID.to_string()]
+            return Vec::new();
         }
+        lokalbot_ai::ocr::status(self.shared.library.paths())
+            .download
+            .map(|download| download.id.to_string())
+            .into_iter()
+            .collect()
     }
 
     pub fn dictation_requirements(&self) -> Vec<String> {
         let settings = self.shared.settings();
-        let mut ids = vec![settings.transcription_model.clone()];
+        let mut ids = Self::transcription_ids(&settings);
         ids.extend(lokalbot_speech::models::supporting_ids(false));
         ids
+    }
+
+    /// A download of `id` is running.
+    pub fn is_downloading(&self, id: &str) -> bool {
+        self.active.lock().contains_key(id)
+    }
+
+    /// How far the first running download among `ids` is. `Some(None)` is one
+    /// that hasn't reported yet; `None` means nothing is downloading.
+    pub fn download_progress(&self, ids: &[String]) -> Option<Option<f32>> {
+        let id = ids.iter().find(|id| self.is_downloading(id))?;
+        Some(self.progress.lock().get(id).copied())
+    }
+
+    /// [`Self::ensure`], for a caller that must end with `ids` installed: this
+    /// also waits out a download someone else started, and fails with why not.
+    pub fn ensure_installed(&self, ids: &[String]) -> Result<()> {
+        install_all(
+            ids,
+            |id| self.is_downloading(id),
+            |id| self.is_installed(id),
+            |id| self.download_blocking(id),
+            || std::thread::sleep(std::time::Duration::from_millis(200)),
+        )
     }
 
     pub fn missing(&self, ids: &[String]) -> Vec<String> {
@@ -120,8 +176,7 @@ impl Models {
 
     pub fn publish_status(&self) {
         let settings = self.shared.settings();
-        let mut installed: Vec<String> = lokalbot_ai::catalog::catalog()
-            .iter()
+        let mut installed: Vec<String> = lokalbot_ai::catalog::all_entries()
             .filter(|entry| lokalbot_ai::catalog::is_downloaded(self.shared.library.paths(), entry))
             .map(|entry| entry.id.to_string())
             .collect();
@@ -139,20 +194,30 @@ impl Models {
         if self.shared.runtime.usable_backend().is_some() {
             installed.push(RUNTIME_ID.to_string());
         }
-        let screen_text_ready = lokalbot_ai::ocr::is_installed(self.shared.library.paths());
-        if screen_text_ready {
+        let screen_text = lokalbot_ai::ocr::status(self.shared.library.paths());
+        if lokalbot_ai::ocr::is_installed(self.shared.library.paths()) {
             installed.push(lokalbot_ai::ocr::OCR_MODEL_ID.to_string());
+        }
+        if lokalbot_ai::ocr::has_language_data(self.shared.library.paths()) {
+            installed.push(lokalbot_ai::ocr::OCR_LANGUAGES_ID.to_string());
         }
         let ready = |ids: Vec<String>| ids.iter().all(|id| installed.contains(id));
         let status = ModelStatus {
-            transcription_ready: ready(self.dictation_requirements()),
+            transcription_ready: ready(self.dictation_requirements())
+                && !self.transcription_server_blocked(),
             think_ready: ready(self.think_requirements()),
-            autocomplete_ready: ready(vec![
-                settings.cotyping_built_in_model_id.clone(),
-                RUNTIME_ID.to_string(),
-            ]),
+            // A server needs no download, only its setup finished.
+            autocomplete_ready: match lokalbot_ai::autocomplete::server::route(&settings, None) {
+                lokalbot_ai::autocomplete::server::Route::OnDevice => ready(vec![
+                    settings.cotyping_built_in_model_id.clone(),
+                    RUNTIME_ID.to_string(),
+                ]),
+                lokalbot_ai::autocomplete::server::Route::Server(_) => true,
+                lokalbot_ai::autocomplete::server::Route::Unavailable(_) => false,
+            },
             embeddings_ready: ready(self.embedding_requirements()),
-            screen_text_ready,
+            screen_text_ready: screen_text.is_ready(),
+            screen_text,
             runtime_backend,
             runtime_needs_check: self.shared.runtime.runtime_needs_check(),
             runtime_storage: self.shared.runtime.storage(),
@@ -181,8 +246,10 @@ impl Models {
         std::thread::spawn(move || {
             for id in missing {
                 if let Err(err) = this.download_blocking(&id) {
-                    this.shared
-                        .error(format!("Downloading {id} failed: {err:#}"));
+                    if !err.to_string().contains("cancelled") {
+                        this.shared
+                            .error(format!("Downloading {id} failed: {err:#}"));
+                    }
                     break;
                 }
             }
@@ -234,6 +301,9 @@ impl Models {
             Some(ModelRef::Speech(model)) => lokalbot_speech::models::uninstall(&paths, model),
             Some(ModelRef::Runtime) => self.shared.runtime.uninstall(),
             Some(ModelRef::Ocr) => lokalbot_ai::ocr::delete(&paths).map_err(anyhow::Error::from),
+            Some(ModelRef::OcrLanguages) => {
+                lokalbot_ai::ocr::delete_languages(&paths).map_err(anyhow::Error::from)
+            }
             None => Err(anyhow!("unknown model {id}")),
         };
         if let Err(err) = result {
@@ -253,6 +323,7 @@ impl Models {
         }
         let result = self.download_inner(id, &cancel);
         self.active.lock().remove(id);
+        self.progress.lock().remove(id);
         self.shared.clear_background(&format!("download:{id}"));
         let error = result.as_ref().err().map(|err| format!("{err:#}"));
         self.shared.emit(EngineEvent::Download(DownloadUpdate {
@@ -274,9 +345,11 @@ impl Models {
             ModelRef::Speech(model) => model.display_name.to_string(),
             ModelRef::Runtime => "the llama.cpp runtime".to_string(),
             ModelRef::Ocr => lokalbot_ai::ocr::OCR_DISPLAY_NAME.to_string(),
+            ModelRef::OcrLanguages => lokalbot_ai::ocr::OCR_LANGUAGES_DISPLAY_NAME.to_string(),
         };
         let shared = self.shared.clone();
         let id_owned = id.to_string();
+        let share = self.progress.clone();
         let mut last_emit = std::time::Instant::now() - std::time::Duration::from_secs(1);
         let mut progress = move |done: u64, total: u64| {
             if last_emit.elapsed() < std::time::Duration::from_millis(250) && done < total {
@@ -288,6 +361,7 @@ impl Models {
             } else {
                 0.0
             };
+            share.lock().insert(id_owned.clone(), fraction);
             shared.set_background(BackgroundItem {
                 id: format!("download:{id_owned}"),
                 kind: BackgroundKind::Download,
@@ -334,6 +408,87 @@ impl Models {
                     .ensure_runtime(&settings, cancel, &mut progress)
             }
             ModelRef::Ocr => lokalbot_ai::ocr::download(&paths, cancel, &mut progress),
+            ModelRef::OcrLanguages => {
+                lokalbot_ai::ocr::download_languages(&paths, cancel, &mut progress)
+            }
         }
+    }
+}
+
+fn install_all(
+    ids: &[String],
+    downloading: impl Fn(&str) -> bool,
+    installed: impl Fn(&str) -> bool,
+    download: impl Fn(&str) -> Result<()>,
+    wait: impl Fn(),
+) -> Result<()> {
+    for id in ids {
+        while downloading(id) {
+            wait();
+        }
+        if !installed(id) {
+            download(id)?;
+        }
+        if !installed(id) {
+            return Err(anyhow!("{id} is not installed"));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::{Cell, RefCell};
+
+    fn ids(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn a_missing_model_downloads_and_an_installed_one_does_not() {
+        let installed = RefCell::new(vec!["vad".to_string()]);
+        let downloads = RefCell::new(Vec::new());
+        install_all(
+            &ids(&["vad", "asr"]),
+            |_| false,
+            |id| installed.borrow().iter().any(|known| known == id),
+            |id| {
+                downloads.borrow_mut().push(id.to_string());
+                installed.borrow_mut().push(id.to_string());
+                Ok(())
+            },
+            || {},
+        )
+        .unwrap();
+        assert_eq!(*downloads.borrow(), ["asr"]);
+    }
+
+    #[test]
+    fn a_download_already_running_is_waited_for_not_repeated() {
+        let waits = Cell::new(0);
+        install_all(
+            &ids(&["asr"]),
+            |_| waits.get() < 3,
+            |_| waits.get() >= 3,
+            |_| panic!("the running download finishes it"),
+            || waits.set(waits.get() + 1),
+        )
+        .unwrap();
+        assert_eq!(waits.get(), 3);
+    }
+
+    #[test]
+    fn a_failed_or_empty_download_is_an_error() {
+        let failed = install_all(
+            &ids(&["asr"]),
+            |_| false,
+            |_| false,
+            |_| Err(anyhow!("no network")),
+            || {},
+        );
+        assert_eq!(failed.unwrap_err().to_string(), "no network");
+        let empty = install_all(&ids(&["asr"]), |_| false, |_| false, |_| Ok(()), || {});
+        assert_eq!(empty.unwrap_err().to_string(), "asr is not installed");
     }
 }

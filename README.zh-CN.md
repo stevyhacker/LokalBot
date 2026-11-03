@@ -54,7 +54,7 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 
 ### 帮你把句子写完
 
-在其他应用里打字时，灰色文字会提示这句话可以怎么结尾。按 **Tab** 接受下一个词，在 Mac 上按 **\`** 接受剩下的全部，或者继续打字忽略它。
+在其他应用里打字时，灰色文字会提示这句话可以怎么结尾。按 **Tab** 接受下一个词，按 **\`** 接受剩下的全部，或者继续打字忽略它。
 
 <div align="center"><img src="Assets/screenshots/autocomplete-memory.gif" alt="在 TextEdit 中写和 John 通话后的进展，自动补全根据会议内容补出了发布时间和前提条件（英文演示）" width="920" /></div>
 
@@ -90,7 +90,7 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 
 | 提问，并核对出处 | 跟进落实 | 接入你自己的智能体 |
 | --- | --- | --- |
-| 向会议记录库提问，顺着回答里的引用回到原始转写或录音。生成的纪要只是起点，不能代替原本的讨论。 | 生成本地跟进草稿。在 Mac 上，还可以导出纪要，并在你选择的文件夹里生成每日简报和每周工作日志。都由你检查后自己发送。 | 通过内置的 `lokalbot-cli`，让 Claude Code 或任何 MCP 客户端只读访问你的会议记录库。默认关闭，需要你手动开启。 |
+| 向会议记录库提问，顺着回答里的引用回到原始转写或录音。生成的纪要只是起点，不能代替原本的讨论。 | 生成本地跟进草稿。还可以导出纪要，并在你选择的文件夹里生成每日简报和每周工作日志。都由你检查后自己发送。 | 通过内置的 `lokalbot-cli`，让 Claude Code 或任何 MCP 客户端只读访问你的会议记录库。默认关闭，需要你手动开启。 |
 
 <sub>截图都是 Mac 应用的真实截图，未经编辑。除中文会议截图外，其余截图和动图使用英文虚构演示数据。</sub>
 
@@ -98,7 +98,7 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 
 ### Windows 和 Linux 版（alpha）
 
-用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），还有少数 Mac 功能没有移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
+用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、与手机和平板共享、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
 
 <a id="chinese"></a>
 
@@ -202,14 +202,14 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 <details>
 <summary><strong>我的笔记可以导出到别处吗？</strong></summary>
 
-可以。在 Mac 上，你可以导出会议内容，或者开启 Markdown、Obsidian、Logseq 记忆导出。本地例程也可以把草稿保存到你选择的文件夹。这些 Markdown 文件是普通的未加密文件；如果用其他服务同步它们，请留意对方的隐私设置。Windows 和 Linux 版暂时还不支持导出。
+可以。你可以导出会议内容，或者开启 Markdown、Obsidian、Logseq 记忆导出。本地例程也可以把草稿保存到你选择的文件夹。这些 Markdown 文件是普通的未加密文件；如果用其他服务同步它们，请留意对方的隐私设置。Windows 和 Linux 版暂时还不支持导出。
 
 </details>
 
 <details>
 <summary><strong>能在 Windows 或 Linux 上使用吗？</strong></summary>
 
-可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。选择文字操作、纪要导出、个人上下文（Personal Context）、语音朗读摘要，以及工作记录中的编程智能体会话，目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
+可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。会议简报中的 Gmail 目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
 
 </details>
 

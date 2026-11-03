@@ -28,6 +28,7 @@ pub(crate) struct Reply {
     pub body: Vec<u8>,
     pub retry_after: Option<Duration>,
     pub request_id: Option<String>,
+    pub content_type: Option<String>,
 }
 
 impl Reply {
@@ -103,6 +104,7 @@ fn finish(
     };
     let retry_after = header("retry-after").and_then(|v| retry_after(&v));
     let request_id = header("x-request-id").or_else(|| header("request-id"));
+    let content_type = header("content-type");
     let body = response
         .body_mut()
         .with_config()
@@ -114,6 +116,7 @@ fn finish(
         body,
         retry_after,
         request_id,
+        content_type,
     })
 }
 
@@ -160,6 +163,20 @@ pub(crate) fn post_json_with(
         request = request.header(*name, value.as_str());
     }
     finish(url, request.send(&bytes[..]))
+}
+
+/// A POST of ready-made bytes (a multipart form) with explicit headers.
+pub(crate) fn post_bytes_with(
+    agent: &ureq::Agent,
+    url: &str,
+    headers: &[(&str, String)],
+    body: &[u8],
+) -> Result<Reply> {
+    let mut request = agent.post(url);
+    for (name, value) in headers {
+        request = request.header(*name, value.as_str());
+    }
+    finish(url, request.send(body))
 }
 
 /// A GET with explicit headers.

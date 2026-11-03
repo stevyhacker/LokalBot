@@ -10,7 +10,6 @@ use gpui_kit::{
     ParentElement as _, Pixels, SharedString, Stateful, StatefulInteractiveElement as _,
     Styled as _, Window, div, px,
 };
-use lokalbot_core::ActionThread;
 
 use super::{Ico, icon};
 use crate::theme::{LbThemeExt as _, metric, ty};
@@ -149,72 +148,6 @@ pub fn link(
         .hover(|s| s.underline())
         .child(label.into())
         .on_click(move |_, window, cx| on_click(window, cx))
-}
-
-/// One open action: text, then owner, due date and where it was said.
-/// `open` receives the meeting and transcript moment to show.
-pub fn action_row(
-    id: impl Into<ElementId>,
-    thread: &ActionThread,
-    open: impl Fn(uuid::Uuid, Option<f64>, &mut Window, &mut App) + 'static,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let latest = thread.latest();
-    let today = Local::now().date_naive();
-    let mut meta: Vec<String> = Vec::new();
-    if let Some(owner) = thread.owner.as_deref().filter(|o| !o.trim().is_empty()) {
-        meta.push(owner.to_string());
-    }
-    if let Some(due) = thread.due.as_deref().filter(|d| !d.trim().is_empty()) {
-        meta.push(lokalbot_i18n::format(
-            "due {due}",
-            &[("due", due.to_string())],
-        ));
-    }
-    meta.push(latest.meeting_title.clone());
-    if thread.meeting_count() > 1 {
-        meta.push(count(thread.meeting_count(), "meeting"));
-    }
-    let overdue = thread.is_overdue(today);
-    let meeting_id = latest.meeting_id;
-    let at = latest.first_citation().map(|c| c.start);
-    h_flex()
-        .id(id)
-        .w_full()
-        .gap(px(10.))
-        .items_start()
-        .py(px(8.))
-        .cursor_pointer()
-        .child(
-            div()
-                .pt(px(2.))
-                .child(icon(Ico::Circle, px(15.), lb.text_tertiary)),
-        )
-        .child(
-            v_flex()
-                .flex_1()
-                .min_w_0()
-                .gap(px(3.))
-                .child(
-                    div()
-                        .text_size(ty::BODY)
-                        .text_color(lb.text)
-                        .child(thread.text.clone()),
-                )
-                .child(
-                    div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(if overdue {
-                            lb.attention_text
-                        } else {
-                            lb.text_secondary
-                        })
-                        .child(meta.join(" · ")),
-                ),
-        )
-        .on_click(move |_, window, cx| open(meeting_id, at, window, cx))
-        .into_any_element()
 }
 
 /// Rows separated by hairlines.

@@ -751,13 +751,15 @@ fn plan_consent(data: Entity<AppData>, plan: SubscriptionPlan, cx: &App) -> Div 
                     },
                 )),
         )
-        .child(settings_row::help(
-            lokalbot_i18n::format(
-                "Think may send meeting transcripts, Ask questions with their sources, and dictation requests to {provider} when you use those features. Scheduled daily summaries also run there without a prompt each time. {provider}'s terms for your account apply, and requests count toward your plan's usage limits.",
-                &[("provider", provider)],
-            ),
-            cx,
-        ))
+        .child(settings_row::help(plan_consent_notice(&provider), cx))
+}
+
+/// What approving a plan covers (`SubscriptionPlanConsentSection`).
+fn plan_consent_notice(provider: &str) -> String {
+    lokalbot_i18n::format(
+        "Think sends meeting transcripts, screen text, and dictation requests to {provider} when you use those features. Scheduled daily summaries and overnight review also run there without asking each time, including activity titles, meeting evidence, and retained Dream memory. {provider}'s terms for your account apply, and requests count toward your plan's usage limits.",
+        &[("provider", provider.to_string())],
+    )
 }
 
 fn labelled(title: &'static str, content: impl gpui_kit::IntoElement, cx: &App) -> Div {
@@ -888,4 +890,18 @@ pub(super) fn anthropic_note(cx: &App) -> Div {
             lokalbot_i18n::tr("Think uses Anthropic's Messages API with prompt caching: Anthropic keeps the system prompt and shared context for about five minutes so repeated requests cost less. Agent Mode uses Anthropic's OpenAI-compatible endpoint."),
             cx,
         ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_plan_approval_names_what_is_sent() {
+        let notice = plan_consent_notice("OpenAI");
+        for sent in ["screen text", "overnight review", "retained Dream memory"] {
+            assert!(notice.contains(sent), "{sent}");
+        }
+        assert!(notice.contains("OpenAI's terms"));
+    }
 }

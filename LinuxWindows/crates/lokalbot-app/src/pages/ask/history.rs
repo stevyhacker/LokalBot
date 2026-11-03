@@ -120,23 +120,16 @@ impl AskPage {
             }
         }
 
-        v_flex()
-            .w(metric::CONTENT_COLUMN_WIDTH)
-            .flex_none()
-            .h_full()
-            .border_r_1()
-            .border_color(lb.separator)
-            .child(header)
-            .child(
-                div()
-                    .id("ask-history")
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .track_scroll(&self.history_scroll)
-                    .pb(px(12.))
-                    .children(rows),
-            )
+        v_flex().size_full().child(header).child(
+            div()
+                .id("ask-history")
+                .flex_1()
+                .min_h_0()
+                .overflow_y_scroll()
+                .track_scroll(&self.history_scroll)
+                .pb(px(12.))
+                .children(rows),
+        )
     }
 
     fn render_history_row(

@@ -31,7 +31,8 @@ case "$(uname -s)" in
     STAGE="dist/$NAME"
     rm -rf "$STAGE" && mkdir -p "$STAGE/icons"
     cp "$TARGET/release/lokalbot" "$TARGET/release/lokalbot-cli" "$STAGE/"
-    cp packaging/linux/com.lokalbot.LokalBot.desktop packaging/linux/install.sh "$STAGE/"
+    cp packaging/linux/com.lokalbot.LokalBot.desktop packaging/linux/com.lokalbot.LokalBot.xml \
+      packaging/linux/install.sh "$STAGE/"
     cp packaging/icons/lokalbot-*.png "$STAGE/icons/"
     cp ../LICENSE "$STAGE/LICENSE" 2>/dev/null || true
     # The third-party notices and every license text they name (including

@@ -8,6 +8,7 @@
 pub mod budget;
 pub mod evidence;
 pub mod ownership;
+pub mod partial;
 pub mod render;
 pub mod view;
 
@@ -74,7 +75,8 @@ const PARTIAL_FILES: [&str; 5] = [
     "notes.partial.json",
 ];
 
-/// Removes the checkpoint and partial files after the final notes are saved.
+/// Removes the checkpoint and partial files. Call it after the final notes are
+/// saved, so a crash between the two can't lose the finished parts.
 pub fn remove_checkpoint(folder: &Path) {
     for name in PARTIAL_FILES {
         let _ = std::fs::remove_file(folder.join(name));
@@ -163,8 +165,11 @@ pub fn generate_meeting_notes_with(
     let _hold = think.hold()?;
     let template = settings.note_template;
     let language = language::prompt_language(&settings.summary_language, transcript);
+    // Likely echo repeats a remote participant; the remote row carries those
+    // words, so the echo is never shown or cited as evidence.
+    let marked = transcript.marking_suspected_echo();
     let evidence = Evidence::new(
-        View::new(transcript, settings.microphone_is_user),
+        View::new(&marked, settings.microphone_is_user),
         meeting.id,
         language::is_mostly_english(transcript),
     );
@@ -284,9 +289,6 @@ pub fn generate_meeting_notes_with(
     let (claims, outcomes, body) = merged(&checkpoint, &evidence, template, &revision);
     let header = header(meeting, transcript, settings, language.as_deref(), think);
     let claims_value = json!({"version": 1, "transcriptRevision": revision, "claims": claims});
-    if let Some(dir) = &options.checkpoint_dir {
-        remove_checkpoint(dir);
-    }
     progress("Notes ready");
     Ok(MeetingNotes {
         summary_markdown: format!("{header}{body}"),
@@ -1487,6 +1489,7 @@ fn save_checkpoint(
         write("summary.claims.partial.json", &bytes);
     }
     let partial = json!({
+        "version": 1,
         "transcriptRevision": revision,
         "summary": body,
         "outcomes": outcomes,

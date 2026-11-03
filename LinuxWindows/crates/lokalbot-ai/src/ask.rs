@@ -18,6 +18,7 @@ use regex::Regex;
 use uuid::Uuid;
 
 use lokalbot_core::embeddings::{RRF_K, rrf_fuse};
+use lokalbot_core::files::FileHit;
 use lokalbot_core::model::{ChatActivity, ChatMessage, ChatRole, Meeting, Transcript};
 use lokalbot_core::search::{DocKind, MatchMode, SearchQuery};
 use lokalbot_core::{Library, ids};
@@ -38,6 +39,48 @@ pub struct AskScope {
     pub include_screen: bool,
     /// Time spent in apps (the tool loop's `activity_summary`).
     pub include_activity: bool,
+    /// What Personal Context gives this question; empty when none applies.
+    pub personal_context: String,
+    /// The overnight review's work memory; empty for restricted questions.
+    pub work_memory: String,
+    /// Search by meaning is on: vectors take part. Off, it's words alone.
+    pub search_by_meaning: bool,
+    /// The folders chosen under Files, searched through `search_files`.
+    pub include_files: bool,
+    /// Those folders; empty while Files is off, and then the tool isn't offered.
+    pub file_folders: Vec<String>,
+    /// Screens this question is bound to (attached or from the results).
+    pub screen_ids: Vec<i64>,
+    /// Limit screen search to one app.
+    pub screen_app: Option<String>,
+    /// Screens the person attached, as primary evidence for the model
+    /// (`ScreenAskContext.prompt`); the conversation shows only their question.
+    pub attached_context: Option<String>,
+    /// The words at a file's matched moment, when transcription is available.
+    pub moments: MomentWords,
+}
+
+/// The words at a matched moment, or `None` when they can't be had.
+pub type HearMoment = std::sync::Arc<dyn Fn(&FileHit) -> Option<String> + Send + Sync>;
+
+/// Transcribes a recording's or video's matched moment, for the assistant to read.
+#[derive(Clone, Default)]
+pub struct MomentWords(pub Option<HearMoment>);
+
+impl std::fmt::Debug for MomentWords {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(if self.0.is_some() {
+            "MomentWords(on)"
+        } else {
+            "MomentWords(off)"
+        })
+    }
+}
+
+impl PartialEq for MomentWords {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.is_some() == other.0.is_some()
+    }
 }
 
 impl Default for AskScope {
@@ -49,8 +92,33 @@ impl Default for AskScope {
             include_meetings: true,
             include_screen: false,
             include_activity: false,
+            personal_context: String::new(),
+            work_memory: String::new(),
+            search_by_meaning: true,
+            include_files: false,
+            file_folders: Vec::new(),
+            screen_ids: Vec::new(),
+            screen_app: None,
+            attached_context: None,
+            moments: MomentWords::default(),
         }
     }
+}
+
+/// `ChatPrompt`'s ambient blocks, for the end of the system prompt.
+pub(crate) fn ambient_block(scope: &AskScope) -> String {
+    let mut block = String::new();
+    if !scope.personal_context.is_empty() {
+        block.push_str("\n\n");
+        block.push_str(&scope.personal_context);
+    }
+    if !scope.work_memory.is_empty() {
+        block.push_str("\n\n");
+        block.push_str(prompts::ASK_WORK_MEMORY_HEADER);
+        block.push('\n');
+        block.push_str(&scope.work_memory);
+    }
+    block
 }
 
 /// Progress of one answer, for the conversation view.
@@ -105,6 +173,8 @@ pub(crate) struct Sources {
     /// Whole seconds of every moment marker handed to the model, per meeting.
     pub(crate) moments: HashMap<Uuid, BTreeSet<u64>>,
     pub(crate) screens: BTreeSet<i64>,
+    /// Passages from the folders chosen under Files.
+    pub(crate) files: BTreeSet<i64>,
     /// Source labels ("M1", "S2") and the markers they stand for.
     pub(crate) labels: HashMap<String, String>,
 }
@@ -127,6 +197,7 @@ impl Sources {
             self.moments.entry(*id).or_default().extend(seconds);
         }
         self.screens.extend(&other.screens);
+        self.files.extend(&other.files);
     }
 }
 
@@ -163,6 +234,67 @@ fn retrieval_text(question: &str, history: &[ChatMessage]) -> String {
     question.to_string()
 }
 
+/// Attached screens are citable while they exist and fall inside the question's
+/// dates (`attachedScreenEvidence`).
+pub(crate) fn attached_screen_sources(library: &Library, scope: &AskScope) -> Sources {
+    let mut evidence = Sources::default();
+    if scope.include_screen {
+        for id in &scope.screen_ids {
+            let Ok(Some(moment)) = library.screen_moment(*id) else {
+                continue;
+            };
+            if scope.since.is_none_or(|s| moment.ts >= s)
+                && scope.until.is_none_or(|u| moment.ts < u)
+            {
+                evidence.screens.insert(*id);
+            }
+        }
+    }
+    evidence
+}
+
+/// Keyword hits and, with search by meaning, the screen's text and picture vectors
+/// ranked with them, within the question's dates, app and attached screens
+/// (`ScreenSearch`). With no vectors yet the keyword results stay.
+pub(crate) fn scoped_screen_hits(
+    library: &Library,
+    embedder: Option<&crate::think::EmbeddingClient>,
+    scope: &AskScope,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<lokalbot_core::search::ScreenHit>> {
+    use lokalbot_core::screen_search::{ScreenFilter, note_searched_by_meaning};
+    let filter = ScreenFilter {
+        since: scope.since,
+        until: scope.until,
+        app: scope.screen_app.clone(),
+        snapshot_ids: (!scope.screen_ids.is_empty())
+            .then(|| scope.screen_ids.iter().copied().collect()),
+    };
+    let (keyword, matched_all) = library.keyword_screen_hits(query, &filter, 40)?;
+    let vector = embedder
+        .filter(|_| scope.search_by_meaning)
+        .and_then(|embedder| {
+            note_searched_by_meaning(library.paths().root());
+            embedder.embed_query(query).ok()
+        });
+    let meanings = match &vector {
+        Some(vector) => library
+            .screen_meanings(vector, &crate::media_embedder::picture_model_id(), &filter)
+            .unwrap_or_default(),
+        None => Default::default(),
+    };
+    if meanings.is_empty() {
+        return Ok(keyword.into_iter().take(limit).collect());
+    }
+    let shares = library.screen_coverage(query, &keyword, matched_all);
+    Ok(library
+        .ranked_screen_hits(query, keyword, &shares, &meanings, limit)
+        .into_iter()
+        .map(|(hit, _)| hit)
+        .collect())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn gather(
     think: &ThinkClient,
@@ -173,8 +305,11 @@ fn gather(
     on_event: &mut dyn FnMut(AskEvent),
     activity: &mut Vec<ChatActivity>,
 ) -> Result<Sources> {
-    let mut sources = Sources::default();
+    let mut sources = attached_screen_sources(library, scope);
     let mut blocks: Vec<String> = Vec::new();
+    if let Some(context) = &scope.attached_context {
+        blocks.push(context.clone());
+    }
     let query_text = retrieval_text(question, history);
     let shown_query = sanitize::prefix(question.trim(), 80);
     let in_scope = |meeting: &Meeting| {
@@ -353,15 +488,13 @@ fn gather(
     }
     if scope.include_screen {
         on_event(AskEvent::Status("Searching screen memory…".into()));
-        let hits = library.search_screen_hits(&query_text, None, None, 20)?;
-        let hits: Vec<_> = hits
-            .into_iter()
-            .filter(|h| {
-                scope.since.is_none_or(|s| h.moment.ts >= s)
-                    && scope.until.is_none_or(|u| h.moment.ts < u)
-            })
-            .take(MAX_SCREENS)
-            .collect();
+        let hits = scoped_screen_hits(
+            library,
+            think.embedder().as_ref(),
+            scope,
+            &query_text,
+            MAX_SCREENS,
+        )?;
         record(
             activity,
             on_event,
@@ -399,6 +532,69 @@ fn gather(
             );
         }
     }
+    if scope.include_activity {
+        // Time in apps needs no search: the chosen dates, or today.
+        let now = Utc::now();
+        let (since, until) = match (scope.since, scope.until) {
+            (Some(since), Some(until)) => (since, until),
+            _ => lokalbot_core::time::local_day_bounds(lokalbot_core::time::local_day(now)),
+        };
+        let tracked = library.activity_blocks(since, until)?;
+        if !tracked.is_empty() {
+            let mut lines = vec!["App activity in the chosen period:".to_string()];
+            for usage in lokalbot_core::timeline::app_usage(&tracked)
+                .into_iter()
+                .take(12)
+            {
+                lines.push(format!(
+                    "- {}: {} min",
+                    usage.app,
+                    (usage.seconds / 60.0).round() as i64
+                ));
+            }
+            blocks.push(lines.join("\n"));
+        }
+    }
+    if scope.include_files && !scope.file_folders.is_empty() {
+        on_event(AskEvent::Status("Searching your files…".into()));
+        let vector = think
+            .embedder()
+            .filter(|_| scope.search_by_meaning)
+            .and_then(|embedder| embedder.embed_query(&query_text).ok());
+        let interval = lokalbot_core::files::search::FileInterval {
+            since: scope.since,
+            until: scope.until,
+        };
+        let hits = lokalbot_core::files::search::FileReader::shared(library.paths().root()).search(
+            &query_text,
+            vector.as_deref(),
+            &scope.file_folders,
+            interval,
+            8,
+        );
+        let reader = lokalbot_core::files::search::FileReader::shared(library.paths().root());
+        for (number, hit) in hits.iter().enumerate() {
+            let body: String = reader
+                .passage(hit.id)
+                .or_else(|| hit.excerpt.clone())
+                .unwrap_or_default()
+                .chars()
+                .take(700)
+                .collect();
+            blocks.push(format!(
+                "[F{}] {} ({}) · [file:{}]\n{}",
+                number + 1,
+                hit.name(),
+                hit.kind_label(),
+                hit.id,
+                sanitize::single_line(&body, 700)
+            ));
+            sources.files.insert(hit.id);
+            sources
+                .labels
+                .insert(format!("F{}", number + 1), format!("[file:{}]", hit.id));
+        }
+    }
     sources.text = blocks.join("\n\n");
     Ok(sources)
 }
@@ -423,7 +619,7 @@ fn record(
 /// The Mac chat system prompt (`ChatAgent.systemPrompt`) without its tool
 /// catalogue: sources are retrieved up front and supplied in the user
 /// message, so one model turn answers.
-fn system_prompt(think: &ThinkClient, include_screen: bool) -> String {
+fn system_prompt(think: &ThinkClient, include_screen: bool, include_files: bool) -> String {
     let (context, screen) = if include_screen {
         (
             ", and about their workday context — text seen on screen and time spent in apps",
@@ -436,18 +632,23 @@ fn system_prompt(think: &ThinkClient, include_screen: bool) -> String {
         "You are LokalBot's assistant. You answer questions about the user's on-device meeting recordings, transcripts and summaries{context}. The source library is stored on this PC. {} Be concise and specific, and cite meetings by their title and date. Never invent content — answer only from the sources in the user message, and if they hold nothing relevant, reply exactly: {NOT_FOUND}
 
 Citing sources:
-• When part of your final answer comes from a specific meeting, append a citation marker right after that sentence: [meeting:ID], or [meeting:ID@HH:MM:SS] to point at a moment in the transcript. Use the exact meeting id a source shows — never invent one. Use only a timestamp explicitly shown in a source. The app renders markers as links; don't explain them.{screen}",
-        think.inference_privacy()
+• When part of your final answer comes from a specific meeting, append a citation marker right after that sentence: [meeting:ID], or [meeting:ID@HH:MM:SS] to point at a moment in the transcript. Use the exact meeting id a source shows — never invent one. Use only a timestamp explicitly shown in a source. The app renders markers as links; don't explain them.{screen}{files}",
+        think.inference_privacy(),
+        files = if include_files {
+            "\n• When part of your final answer comes from a file, append the exact [file:ID] marker that source shows. The app links it to the file on this PC. Never invent a file id."
+        } else {
+            ""
+        }
     )
 }
 
 static CITATION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(meeting|screen):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]")
+    Regex::new(r"\[(meeting|screen|file):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]")
         .expect("valid regex")
 });
 
 static LABEL: LazyLock<Regex> = LazyLock::new(|| {
-    let one = r"[MS]\d{1,2}(?:@\d{1,2}(?::\d{2}){1,2})?";
+    let one = r"[MSF]\d{1,2}(?:@\d{1,2}(?::\d{2}){1,2})?";
     Regex::new(&format!(r"\[({one}(?:\s*[,;]\s*{one})*)\]")).expect("valid regex")
 });
 
@@ -542,6 +743,14 @@ pub(crate) fn verified(text: &str, sources: &Sources) -> String {
                     _ => "(source not verified)".into(),
                 };
             }
+            if &caps[1] == "file" {
+                return match id.parse::<i64>() {
+                    Ok(passage) if sources.files.contains(&passage) => {
+                        format!("[file:{passage}]")
+                    }
+                    _ => "(source not verified)".into(),
+                };
+            }
             let lowered = id.to_lowercase();
             let meeting = sources.meetings.iter().map(|(m, _)| *m).find(|m| {
                 let full = m.hyphenated().to_string();
@@ -595,11 +804,8 @@ fn history_block(history: &[ChatMessage]) -> String {
 
 pub(crate) fn assistant(text: String, activity: Vec<ChatActivity>) -> ChatMessage {
     ChatMessage {
-        id: Uuid::new_v4(),
-        role: ChatRole::Assistant,
-        text,
         activity,
-        created_at: Some(lokalbot_core::time::now_seconds()),
+        ..ChatMessage::new(ChatRole::Assistant, text)
     }
 }
 
@@ -644,7 +850,16 @@ pub fn answer(
         sources.text,
         question.trim()
     );
-    let request = ChatRequest::new(system_prompt(think, scope.include_screen), user)
+    let system = format!(
+        "{}{}",
+        system_prompt(
+            think,
+            scope.include_screen,
+            scope.include_files && !scope.file_folders.is_empty(),
+        ),
+        ambient_block(scope)
+    );
+    let request = ChatRequest::new(system, user)
         .max_tokens(1_024)
         .temperature(0.2)
         .reasoning_budget(0)
@@ -875,6 +1090,20 @@ pub fn ask_library(think: &ThinkClient, library: &Library, question: &str) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn personal_context_and_work_memory_join_the_system_prompt_only_when_given() {
+        assert_eq!(ambient_block(&AskScope::default()), "");
+        let scope = AskScope {
+            personal_context: "What LokalBot knows about the user.".into(),
+            work_memory: "# Work memory".into(),
+            ..AskScope::default()
+        };
+        let block = ambient_block(&scope);
+        assert!(block.starts_with("\n\nWhat LokalBot knows about the user."));
+        assert!(block.contains("may lag reality, so verify with tools"));
+        assert!(block.ends_with("# Work memory"));
+    }
     use crate::http::testing::{Reply, StubServer};
     use serde_json::json;
     use std::sync::Arc;

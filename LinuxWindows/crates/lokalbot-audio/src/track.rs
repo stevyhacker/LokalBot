@@ -86,6 +86,8 @@ pub(crate) struct TrackState {
     pub attached: AtomicBool,
     /// 0 while healthy; otherwise the current reconnection attempt.
     pub recovering_attempt: AtomicU32,
+    /// When a lost source last came back.
+    recovered_at_ms: AtomicU64,
     /// WASAPI loopback delivers no packets while nothing plays; a quiet but
     /// healthy stream then reads as silent rather than stalled.
     pub silent_without_packets: AtomicBool,
@@ -106,6 +108,7 @@ impl TrackState {
             running: AtomicBool::new(false),
             attached: AtomicBool::new(false),
             recovering_attempt: AtomicU32::new(0),
+            recovered_at_ms: AtomicU64::new(NEVER),
             silent_without_packets: AtomicBool::new(false),
             degraded: Mutex::new(None),
         }
@@ -117,6 +120,17 @@ impl TrackState {
 
     pub fn now_ms(&self) -> u64 {
         self.ms(Instant::now())
+    }
+
+    /// A lost source came back.
+    pub fn note_recovery(&self) {
+        self.recovered_at_ms.store(self.now_ms(), Ordering::Relaxed);
+    }
+
+    /// How long ago a lost source last came back.
+    pub fn since_recovery_ms(&self) -> Option<u64> {
+        let at = self.recovered_at_ms.load(Ordering::Relaxed);
+        (at != NEVER).then(|| self.now_ms().saturating_sub(at))
     }
 
     pub fn level(&self) -> f32 {
@@ -399,6 +413,8 @@ impl LevelMeter {
     }
 }
 
+pub(crate) const WRITE_FAILED: &str = "Could not write audio";
+
 fn run_writer(
     mut writer: WavWriter,
     rx: Receiver<TrackMessage>,
@@ -424,7 +440,7 @@ fn run_writer(
                             "audio track {}: write failed: {error}",
                             writer.path().display()
                         );
-                        *state.degraded.lock() = Some(format!("Could not write audio: {error}"));
+                        *state.degraded.lock() = Some(format!("{WRITE_FAILED}: {error}"));
                     }
                 }
             }
