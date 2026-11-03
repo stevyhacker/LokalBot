@@ -93,21 +93,25 @@ final class FileSearchServiceTests: XCTestCase {
         }
         service.apply(.init(enabled: true, folders: [chosen.path]))
         await service.waitUntilIdle()
-        XCTAssertEqual(passes, 1)
+        // FSEvents can still report what was written just before its stream began, and notes.txt does start a pass.
+        // Outlast the watcher's latency, so that only the writes below can start another.
+        try await Task.sleep(for: .seconds(3))
+        await service.waitUntilIdle()
+        let settled = passes
 
         let text = String(repeating: "The venue for the offsite moved to the harbour. ", count: 8)
         try write("node_modules/left-pad/readme.md", text)
         try write("Site/dist/index.html", text)
         try write("build.log", text)
-        try await Task.sleep(for: .seconds(1))
+        try await Task.sleep(for: .seconds(3))
         await service.waitUntilIdle()
-        XCTAssertEqual(passes, 1, "these changes can't alter the index")
+        XCTAssertEqual(passes, settled, "these changes can't alter the index")
 
         try write("venue.txt", text)
         let deadline = Date().addingTimeInterval(20)
-        while passes < 2, Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
+        while passes == settled, Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
         await service.waitUntilIdle()
-        XCTAssertEqual(passes, 2)
+        XCTAssertGreaterThan(passes, settled)
         XCTAssertEqual(service.totals.searchable, 2)
         service.stop()
     }
@@ -362,10 +366,14 @@ final class FileSearchServiceTests: XCTestCase {
 
         service.apply(.init(enabled: false, folders: [other.path]))
         await service.waitUntilIdle()
-        try await Task.sleep(for: .milliseconds(300))
         XCTAssertEqual(service.state, .off)
-        XCTAssertFalse(FileManager.default.fileExists(
-            atPath: root.appendingPathComponent(FileSearchService.indexFolderName).path))
+        // The index goes once the reader and the worker have let go of it, on their own queues.
+        let index = root.appendingPathComponent(FileSearchService.indexFolderName).path
+        let deadline = Date().addingTimeInterval(20)
+        while FileManager.default.fileExists(atPath: index), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: index))
     }
 
     func testTheDateScopeFiltersByTheFilesDate() async throws {
