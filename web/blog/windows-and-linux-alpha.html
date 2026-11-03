@@ -53,7 +53,7 @@
     <article class="guide-article blog-article">
 <h2>What works</h2>
         <p>Updated November 3, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.</p>
-        <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, sharing with phones and tablets, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
+        <p>The Windows and Linux app is written in Rust with <a href="https://www.gpui.rs" target="_blank" rel="noopener">GPUI</a>, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.</p>
         <figure class="blog-figure">
           <img src="/assets/blog/linux-meetings.webp" width="1600" height="1000" alt="LokalBot on Linux showing a meeting's recap, action items with timestamps, and decisions, next to a list of recent meetings." loading="lazy" decoding="async" />
           <figcaption>A meeting's recap and action items on Linux, with fictional demo data.</figcaption>
@@ -65,9 +65,10 @@
           <li><strong>Wayland support is partial.</strong> Autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, where you also add LokalBot as an input source. It has only been tried on headless Sway and GNOME with stand-in suggestions, and Hyprland itself hasn't been run (<a href="/explainers/wayland-autocomplete.pdf">how it works</a>). On KDE Plasma and other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
           <li><strong>Meeting audio isn't always one app's.</strong> On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.</li>
           <li><strong>Remembered speakers only suggest.</strong> Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.</li>
+          <li><strong>Nothing to pair with phones and tablets yet.</strong> Settings → Phones &amp; tablets is there, off by default, but the iPhone, iPad, and Android apps aren't in the App Store or Play Store yet, and real phones on a network haven't been tried.</li>
           <li><strong>A few features are Mac-only for now:</strong> Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation.</li>
         </ul>
-        <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>.</p>
+        <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>, and the <a href="/explainers/windows-linux-app.pdf">two-page overview</a> shows what changed.</p>
         <figure class="blog-figure">
           <img src="/assets/blog/windows-today.webp" width="1600" height="900" alt="LokalBot on Windows showing Today, with open actions and the day digest." loading="lazy" decoding="async" />
           <figcaption>Today on Windows, with fictional demo data.</figcaption>
