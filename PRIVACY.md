@@ -1172,6 +1172,21 @@ platform differences:
     text, through accessibility.
   - It never reads password fields, terminals, excluded apps or LokalBot's own
     windows.
+  - On Wayland it works as the desktop's input method instead: on Sway and
+    Hyprland when you turn it on, and on GNOME when you also choose LokalBot as
+    an input source. While a text field has focus, the desktop gives LokalBot the
+    field's kind and up to 4,000 bytes of the text around the caret, without
+    LokalBot asking the app. In a password field, a terminal, an excluded app,
+    LokalBot's own windows or an app it cannot name, that text is dropped unused
+    as soon as the field is identified, and nothing is suggested. Nearby visible
+    text still comes through accessibility.
+  - Keys on Wayland: on Sway and Hyprland, LokalBot sees your keys only while a
+    suggestion shows, and passes on every one but the accept keys and Esc. On
+    GNOME, while LokalBot is the chosen input source, the desktop asks it about
+    every key press in a text field except in password fields, where GNOME takes it
+    out of the way. It compares the key to the accept keys when a suggestion shows,
+    and answers. Neither keys nor the text around the caret are kept or logged, and
+    choosing another input source or turning autocomplete off ends all of this.
   - It stores only encrypted examples accepted in identified documents, for 30
     days, and estimated counts in `cotyping-stats.json` and `cotyping-usage.json`.
     Suggestions come from the local Autocomplete model or a server you approve,

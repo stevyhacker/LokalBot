@@ -47,6 +47,10 @@ futures-lite = "2"
 async-channel = "2"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+# Autocomplete on Sway and Hyprland: `zwp_input_method_v2` and `zwp_virtual_keyboard_v1`.
+wayland-protocols-misc = { version = "0.3", features = ["client"] }
+# Which key is Tab or Esc in the keymap the compositor shares.
+xkbcommon = { version = "0.9", default-features = false }
 ksni = { version = "0.3", default-features = false, features = ["async-io", "blocking"] }
 # Unicode typing on X11 (keysym remapping through XTest).
 enigo = { version = "0.6", default-features = false, features = ["x11rb"] }

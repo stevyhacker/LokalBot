@@ -17,9 +17,9 @@ use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Context, Entity, FontWeight, InteractiveElement as _,
-    IntoElement, KeyDownEvent, ParentElement as _, SharedString, Styled as _, Subscription, Window,
-    canvas, div, px,
+    AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, FontWeight,
+    InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, SharedString,
+    Styled as _, Subscription, Window, canvas, div, px,
 };
 use lokalbot_ai::autocomplete::memory;
 use lokalbot_ai::autocomplete::server::{self, Route};
@@ -634,6 +634,55 @@ impl SettingsPage {
                     false,
                     cx,
                 ),
+            );
+        }
+        // Where autocomplete reaches other apps as an input method, say what
+        // that means on this desktop, before it is turned on too.
+        if let Some(steps) = lokalbot_platform::autocomplete::input_source_steps() {
+            let mut content = v_flex().w_full().gap(px(6.)).child(notice(
+                Ico::Info,
+                steps.text,
+                lb.text_secondary,
+                cx,
+            ));
+            if let Some(command) = steps.command {
+                let copy = command.clone();
+                let copied = self.data.clone();
+                let mono = {
+                    use gpui_kit::component::ActiveTheme as _;
+                    cx.theme().mono_font_family.clone()
+                };
+                content = content.child(
+                    h_flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .text_size(ty::SECONDARY)
+                                .font_family(mono)
+                                .text_color(lb.text_secondary)
+                                .child(command),
+                        )
+                        .child(
+                            Button::new("settings-input-source-copy")
+                                .ghost()
+                                .xsmall()
+                                .icon(Icon::new(Ico::Copy))
+                                .label(lokalbot_i18n::tr("Copy"))
+                                .on_click(move |_, _, cx| {
+                                    cx.write_to_clipboard(ClipboardItem::new_string(copy.clone()));
+                                    copied.update(cx, |data, cx| {
+                                        data.show_message(lokalbot_i18n::tr("Copied."), cx)
+                                    });
+                                }),
+                        ),
+                );
+            }
+            home = home.row(
+                "settings.autocompleteInputSource",
+                settings_row::content_row("settings.autocompleteInputSource", content, false, cx),
             );
         }
         // Where autocomplete cannot follow the user into other apps, say so.

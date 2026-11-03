@@ -41,6 +41,9 @@ pub mod reasons {
     pub const EXCLUDED_APP: &str = "Disabled in this app.";
     pub const EXCLUDED_SITE: &str = "Disabled on this site.";
     pub const UNVERIFIABLE_SITE: &str = "Cannot verify this browser site — autocomplete paused.";
+    pub const NOT_PROSE: &str = "A field for numbers, dates or addresses.";
+    pub const NO_SURROUNDING_TEXT: &str = "This app does not share the text around the caret.";
+    pub const UNKNOWN_APP: &str = "Cannot tell which app this field belongs to.";
 }
 
 /// Who may be read at all. App exclusions authorize the read itself, before

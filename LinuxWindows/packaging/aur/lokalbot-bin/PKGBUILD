@@ -49,6 +49,10 @@ package() {
   cd "LokalBot-$pkgver-linux-$CARCH"
   install -Dm755 lokalbot lokalbot-cli -t "$pkgdir/usr/bin/"
   install -Dm644 com.lokalbot.LokalBot.desktop -t "$pkgdir/usr/share/applications/"
+  # Lists LokalBot as an input source on GNOME. Archives after 0.12.0 have it.
+  if [ -f com.lokalbot.LokalBot.xml ]; then
+    install -Dm644 com.lokalbot.LokalBot.xml -t "$pkgdir/usr/share/ibus/component/"
+  fi
   local size
   for size in 16 24 32 48 64 128 256 512; do
     install -Dm644 "icons/lokalbot-$size.png" \

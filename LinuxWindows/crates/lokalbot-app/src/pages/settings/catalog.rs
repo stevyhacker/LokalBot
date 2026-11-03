@@ -638,7 +638,7 @@ pub const ENTRIES: &[Entry] = &[
         id: "settings.cotypingEnabled",
         title: "Enable autocomplete",
         category: Writing,
-        aliases: "cotyping suggestions autocomplete typing ghost inline completion",
+        aliases: "cotyping suggestions autocomplete typing ghost inline completion input method input source wayland fcitx ibus",
         value: |s| on_off(s.cotyping_enabled),
     },
     Entry {

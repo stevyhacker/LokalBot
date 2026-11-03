@@ -14,6 +14,10 @@
 //! ghost's next characters, or the app showing what an accept typed, shortens
 //! it at once; anything else leaves it behind.
 //!
+//! On a Wayland input method the field draws the ghost itself, in preedit, and
+//! an accept goes in together with what is left of it; LokalBot's overlay stays
+//! closed.
+//!
 //! Autocomplete stays quiet while dictation runs or a meeting records, in a
 //! field for ten seconds after Esc, in LokalBot's own windows (the practice
 //! editor in Settings → Writing feeds the engine itself), and whenever
@@ -40,11 +44,11 @@ use lokalbot_engine::{
 use lokalbot_platform::autocomplete::geometry::RenderMode;
 use lokalbot_platform::autocomplete::policy::{self, EscapePause, ReadPolicy};
 use lokalbot_platform::autocomplete::session::{
-    GhostSession, Reconcile, SentContexts, drop_graphemes,
+    GhostSession, Reconcile, SentContexts, drop_graphemes, inline_text,
 };
 use lokalbot_platform::autocomplete::{
     self as platform, AcceptKeys, Capability, Edit, FieldSnapshot, FieldWatcher, FocusSnapshot,
-    InterceptedKey, KeyInterceptor, Rect, Support,
+    InlineGhost, InterceptedKey, KeyInterceptor, Rect, Support,
 };
 
 use crate::state::{AppData, DictationHud};
@@ -222,6 +226,10 @@ pub struct Autocomplete {
     watcher: Option<FieldWatcher>,
     keys: Option<Arc<KeyInterceptor>>,
     inserter: Option<Inserter>,
+    /// Set where the field draws the ghost instead of the overlay.
+    inline: Option<InlineGhost>,
+    /// The field is drawing a ghost right now.
+    inline_shown: bool,
     running: bool,
     paused: bool,
     policy: ReadPolicy,
@@ -285,6 +293,8 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             watcher: None,
             keys: None,
             inserter: None,
+            inline: None,
+            inline_shown: false,
             running: false,
             paused: false,
             policy: ReadPolicy::default(),
@@ -419,6 +429,7 @@ impl Autocomplete {
         });
         match (watcher, keys) {
             (Ok(watcher), Ok(keys)) => {
+                self.inline = watcher.inline_ghost();
                 self.watcher = Some(watcher);
                 keys.set_keys(self.accept_keys);
                 self.keys = Some(Arc::new(keys));
@@ -449,6 +460,8 @@ impl Autocomplete {
         if let Some(keys) = self.keys.take() {
             keys.set_active(false);
         }
+        self.inline = None;
+        self.inline_shown = false;
         self.inserter = None;
         self.keys_active = false;
         self.running = false;
@@ -807,6 +820,27 @@ impl Autocomplete {
             self.clear_session(cx);
             return;
         };
+        if let Some(inline) = self.inline.clone() {
+            let Some(shown) = inline_text(&remaining, whole) else {
+                self.clear_session(cx);
+                return;
+            };
+            // Accept never takes words the user could not see.
+            if !whole
+                && shown.len() < remaining.len()
+                && let Some(session) = self.session.as_mut()
+            {
+                session.remaining = shown.clone();
+            }
+            log::debug!(
+                "autocomplete: showing {} characters in the field",
+                shown.chars().count()
+            );
+            inline.show(&field, &shown);
+            self.inline_shown = true;
+            self.set_keys_active(true);
+            return;
+        }
         let caret = self.predicted_caret.unwrap_or(field.caret);
         let screen = platform::screen_containing(&caret);
         let sampled = self.background_luminance(&field, caret);
@@ -922,7 +956,7 @@ impl Autocomplete {
             }
             let session = self.session.as_ref()?;
             let current = self.current.as_ref()?;
-            if session.field_id != current.id || !self.overlay.is_visible() {
+            if session.field_id != current.id || !self.ghost_visible() {
                 return None;
             }
             // The field must read as the ghost expects, or an accept is on its way.
@@ -951,12 +985,22 @@ impl Autocomplete {
             return;
         };
         let field_id = session.field_id;
-        if let Some(inserter) = &self.inserter {
+        let around = (session.anchor.clone(), self.session_after.clone());
+        if self.inline.is_none()
+            && let Some(inserter) = &self.inserter
+        {
             let _ = inserter
                 .jobs
                 .send((field_id, current.field.clone(), plan.edit.clone()));
         }
         session.accept(&plan.chunk, &plan.edit.text, plan.edit.backward);
+        if let Some(inline) = &self.inline {
+            // What is left goes in with the accept, so the field never shows
+            // the accepted words twice.
+            let (drawn, _) = drawn_ghost(session, &self.session_kind, &settings);
+            let next = inline_text(&drawn, false).unwrap_or_default();
+            inline.accept(&current.field, &around.0, &around.1, &plan.edit, &next);
+        }
         // The rest of a word the caret was inside of goes with the insert.
         self.session_after = drop_graphemes(&self.session_after, plan.edit.forward);
         crate::bridge::send(
@@ -1031,7 +1075,7 @@ impl Autocomplete {
         let Some(keys) = self.keys.clone() else {
             return;
         };
-        if self.session.is_none() || !self.overlay.is_visible() {
+        if self.session.is_none() || !self.ghost_visible() {
             keys.pass_through(InterceptedKey::Escape);
             return;
         }
@@ -1066,7 +1110,18 @@ impl Autocomplete {
         self.session_guard = None;
         self.predicted_caret = None;
         self.overlay.hide(cx);
+        if self.inline_shown {
+            self.inline_shown = false;
+            if let (Some(inline), Some(current)) = (&self.inline, &self.current) {
+                inline.show(&current.field, "");
+            }
+        }
         self.set_keys_active(false);
+    }
+
+    /// Whether a ghost is on screen, by whichever way this desktop draws it.
+    fn ghost_visible(&self) -> bool {
+        self.inline_shown || self.overlay.is_visible()
     }
 
     fn set_keys_active(&mut self, active: bool) {

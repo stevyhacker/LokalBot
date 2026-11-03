@@ -33,7 +33,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | `lokalbot-cli` + MCP for coding agents | ✓ | ✓ | Library access is read-only and off until you allow it in Settings → Privacy & Data. Changing settings needs its own switch there, and anything that widens capture or sharing waits for your approval in the app. |
 | Signed automatic updates | ✓ (installed with `install.sh`, or run from the extracted folder) | ✓ (installed with the installer, or run from the extracted folder) | Checks GitHub daily; installs only when you choose Install and Relaunch. Package installs are told how to update with the package manager; other copies under `/usr`, `/opt` or Program Files are pointed at the download. On Windows, Installed apps (and winget) then shows the new version. |
 | Live transcript preview while recording | ✓ | ✓ | Opt-in from the live meeting view. Each track is transcribed in 4–12 s chunks cut at a pause, as Me and Remote speaker; the full transcript replaces it after the meeting. |
-| Autocomplete in other apps | X11 (GTK; Qt, Chromium/Electron and Firefox once system accessibility is on); Wayland: the practice editor in Settings only | ✓ (apps whose fields support UI Automation) | Off until you turn it on in Settings → Writing. LFM2.5 1.2B on this computer by default, about 250 ms to a suggestion on CPU. Accept keys are configurable; Esc dismisses. It can also use a server you approve. Password fields, terminals and excluded apps are never read, and text is stored only as encrypted learned examples, with local counts. |
+| Autocomplete in other apps | X11 (GTK; Qt, Chromium/Electron and Firefox once system accessibility is on); on Wayland as an input method on Sway, Hyprland and GNOME, see [below](#autocomplete-on-wayland); elsewhere the practice editor in Settings only | ✓ (apps whose fields support UI Automation) | Off until you turn it on in Settings → Writing. LFM2.5 1.2B on this computer by default, about 250 ms to a suggestion on CPU. Accept keys are configurable; Esc dismisses. It can also use a server you approve. Password fields, terminals and excluded apps are never read, and text is stored only as encrypted learned examples, with local counts. |
 | Agent Mode | ✓ | ✓ (Git Bash, or PowerShell without it) | Runs the pi coding agent with your Think model. Setup downloads Bun and pi (pinned and checksum-verified, about 65 MB on Linux and 70 MB on Windows). File changes and commands need your approval. |
 | Import recordings, merge meetings, meeting boundaries | ✓ | ✓ | Import an audio or video file from the Meetings header or by dropping it on the list: MP3, M4A/AAC, MP4/MOV, WAV, AIFF, CAF, FLAC, Ogg Vorbis and MKV (not Opus). Every audio track is mixed into the meeting's `system.wav`. Ctrl-click or Shift-click meetings to merge them into one timeline, with Undo; **Meeting boundaries…** keeps part of a recording and rebuilds its notes. A Mac reads the WAV tracks these write. |
 | Calendar | ✓ (private iCal/CalDAV links; Evolution Data Server, including GNOME Online Accounts) | ✓ (private iCal/CalDAV links) | Off until you turn it on in Settings → Meetings. Titles and stamps recordings like macOS, backs browser calls with the event's meeting link, splits back-to-back meetings, suggests attendee names for speakers, and lists today's meetings on Today with Join, Record and a pre-meeting brief from the local Think model. Links are kept in the system credential store. |
@@ -208,8 +208,59 @@ o.bind("SUPER + ALT + A", "Ask LokalBot", "lokalbot quick-recall")
 
 After `./install.sh`, write `~/.local/bin/lokalbot` instead of `lokalbot`, because Hyprland may not have
 `~/.local/bin` on its PATH. On Hyprland without Omarchy, the same commands go in `hyprland.conf`, for example
-`bind = SUPER ALT, A, exec, lokalbot quick-recall`. Autocomplete in other apps needs X11, so on Hyprland it
-works in the practice editor in Settings only.
+`bind = SUPER ALT, A, exec, lokalbot quick-recall`.
+
+Omarchy runs Fcitx 5 for typing other languages, and a desktop runs one input method at a time, so autocomplete
+in other apps stays out of its way and Settings says so. If you don't use Fcitx 5, stop it with
+`systemctl --user disable --now omarchy-fcitx5.service`, and autocomplete starts by itself. Omarchy also sets
+`QT_IM_MODULE=fcitx`, which sends Qt apps around LokalBot until it is gone from your session's environment. This
+comes from reading Omarchy's repository; it has not been tried on Omarchy. See
+[Autocomplete on Wayland](#autocomplete-on-wayland).
+
+### Autocomplete on Wayland
+
+Wayland lets no ordinary app take a key from another app, show text at its caret or type into it, so LokalBot
+takes part as an input method there, the way language input tools do. It sees the text around the caret, and
+shows a suggestion inline in the field, in the app's own text style with its usual underline for text not yet
+entered. What it sees and keeps is in [PRIVACY.md](../PRIVACY.md).
+
+| Desktop | How | Tried on |
+| --- | --- | --- |
+| Sway | `zwp_input_method_v2`. Turning on autocomplete is all there is to do. | Headless Sway 1.9 |
+| Hyprland, Omarchy | The same protocol. | Not yet run on Hyprland |
+| GNOME | An IBus engine: add LokalBot in GNOME Settings → Keyboard → Input Sources → + → Other, and choose it in the top bar or with Super+Space. | Headless GNOME Shell 46 |
+| KDE Plasma | Not yet: KWin runs only an input method it starts itself (`input-method-v1`, System Settings → Virtual Keyboard), usually Fcitx 5, whose engines are C++ plugins. Settings says so and offers the practice editor. | Not run |
+| Other compositors | Not yet: LokalBot cannot tell which app has the focus there, and it needs to, to honor your exclusions. | Not run |
+
+The Linux `.deb`, `.rpm` and Arch packages put the file that lists LokalBot as an input source in
+`/usr/share/ibus/component`. With the `.tar.gz`, Settings shows the one command that does the same
+(`lokalbot --ibus-component | sudo tee /usr/share/ibus/component/com.lokalbot.LokalBot.xml`). Either way, log out
+and back in once so IBus reads it. Changing input source to LokalBot starts it if it isn't running. While
+autocomplete is off the source does nothing, and typing is unaffected.
+
+| App | Sway | GNOME |
+| --- | --- | --- |
+| GTK 3 and GTK 4 | Suggestions, accepts and Esc, run here | Suggestions, accepts and Esc, run here |
+| Firefox 159 (Wayland) | Suggestions, accepts and Esc, run here | Stays quiet without the Window Calls extension, which names the app. Works with a stand-in for it, run here; the extension itself has not been tried |
+| Chrome 156 (Wayland) | Suggestions, accepts and Esc, run here, with no flags | As Firefox |
+| Older Chromium and Electron | From their documentation, they need `--enable-wayland-ime` before they use an input method at all. Not run | Same |
+| Qt 6 | From its documentation, it has text-input-v3. Not run | Same |
+| Qt 5 (Kate) | No input method reaches it, so no suggestions; typing is unaffected. Run here | Not run |
+| X11 apps through XWayland | No suggestions: the protocols are Wayland-only. Not run | Same |
+| Terminals, password fields | Refused | Refused; GNOME also switches input sources off in password fields |
+
+On GNOME the app's name comes from the Window Calls extension where installed, else from accessibility, which
+GTK apps publish and browsers usually don't. An app LokalBot can't name gets no suggestions, and its typing is
+untouched. Window text (OCR) isn't used on this route; visible text through accessibility is, where the app
+publishes it. On GTK 3 a selection isn't reported, so accepting replaces selected text, as typing does.
+
+**Chinese, Japanese and Korean input.** On Sway and Hyprland only one input method can run. If Fcitx or IBus is
+running, or the compositor says another client holds the seat, LokalBot takes no part, says why in Settings and
+looks again every few seconds. One that starts later makes LokalBot let go at once; if it started while
+LokalBot held the seat it may need restarting. A session that has only just started gets 20 seconds first, so
+that one starting alongside LokalBot wins. On GNOME your input sources stay separate and you switch between them.
+If your session sets `GTK_IM_MODULE` or `QT_IM_MODULE` to another input method, those apps bypass LokalBot, and
+Settings says that too.
 
 ### Updates
 

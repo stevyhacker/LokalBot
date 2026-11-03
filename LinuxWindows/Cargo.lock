@@ -4810,10 +4810,12 @@ dependencies = [
  "url",
  "wayland-client",
  "wayland-protocols",
+ "wayland-protocols-misc",
  "widestring",
  "windows 0.62.2",
  "windows-core 0.62.2",
  "x11rb",
+ "xkbcommon 0.9.0",
  "zbus 5.19.0",
 ]
 
@@ -9559,6 +9561,19 @@ dependencies = [
  "bitflags 2.13.2",
  "wayland-backend",
  "wayland-client",
+ "wayland-scanner",
+]
+
+[[package]]
+name = "wayland-protocols-misc"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e9567599ef23e09b8dad6e429e5738d4509dfc46b3b21f32841a304d16b29c8"
+dependencies = [
+ "bitflags 2.13.2",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
  "wayland-scanner",
 ]
 

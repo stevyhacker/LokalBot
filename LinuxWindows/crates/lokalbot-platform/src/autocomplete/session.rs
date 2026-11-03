@@ -180,6 +180,24 @@ pub fn replaced_bytes(
     (back, ahead)
 }
 
+/// The part of a suggestion a field can draw inline, in preedit: its first
+/// line, up to what an input method's protocol carries. `None` when `whole`
+/// suggestions (which show entire or not at all) do not fit.
+pub fn inline_text(text: &str, whole: bool) -> Option<String> {
+    /// Below the 4000 bytes of `zwp_input_method_v2`, on a character boundary.
+    const LIMIT: usize = 3900;
+    let line = text.split('\n').next().unwrap_or("").trim_end_matches('\r');
+    let mut end = line.len().min(LIMIT);
+    while !line.is_char_boundary(end) {
+        end -= 1;
+    }
+    let shown = &line[..end];
+    if shown.is_empty() || (whole && shown.len() < text.len()) {
+        return None;
+    }
+    Some(shown.to_string())
+}
+
 /// Contexts recently sent for one field, newest last, so a suggestion that
 /// arrives after more typing can be fitted to the field's current text.
 #[derive(Clone, Debug, Default)]
@@ -343,6 +361,26 @@ mod tests {
             Reconcile::Advanced { typed: " ".into() }
         );
         assert_eq!(ghost.remaining, "more words");
+    }
+
+    #[test]
+    fn inline_text_is_one_line_and_whole_suggestions_stay_whole() {
+        assert_eq!(
+            inline_text(" up on it", false).as_deref(),
+            Some(" up on it")
+        );
+        assert_eq!(
+            inline_text(" first\nsecond", false).as_deref(),
+            Some(" first")
+        );
+        assert_eq!(inline_text(" first\nsecond", true), None);
+        assert_eq!(inline_text("🚀", true).as_deref(), Some("🚀"));
+        assert_eq!(inline_text("\nsecond", false), None);
+        assert_eq!(inline_text("", false), None);
+        let long = "é".repeat(4000);
+        let shown = inline_text(&long, false).unwrap();
+        assert!(shown.len() <= 3900);
+        assert_eq!(inline_text(&long, true), None);
     }
 
     #[test]

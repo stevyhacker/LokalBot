@@ -200,6 +200,49 @@ impl AppResolver {
     }
 }
 
+/// The window in front, named by day memory's rules.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FrontWindow {
+    pub title: String,
+    pub pid: Option<u32>,
+    pub name: String,
+    pub id: String,
+}
+
+/// Asks the compositor which window is in front, for autocomplete's input
+/// method, which is told about a text field but not whose it is.
+pub(crate) struct FrontWindows {
+    probe: Box<dyn WindowProbe>,
+    names: AppNames,
+}
+
+impl FrontWindows {
+    /// `None` where the compositor has no way to say, or cannot be reached.
+    pub(crate) fn connect() -> Option<Self> {
+        let probe: Box<dyn WindowProbe> = match crate::session::desktop() {
+            Desktop::Hyprland => Box::new(super::wayland::Hyprland::new().ok()?),
+            Desktop::Sway => Box::new(super::wayland::Sway::new().ok()?),
+            Desktop::Gnome => Box::new(super::wayland::Gnome::new().ok()?),
+            _ => return None,
+        };
+        Some(Self {
+            probe,
+            names: AppNames::new(),
+        })
+    }
+
+    pub(crate) fn read(&mut self) -> Option<FrontWindow> {
+        let window = self.probe.focused().ok()??;
+        let app = self.names.resolve(&window);
+        Some(FrontWindow {
+            title: window.title,
+            pid: window.pid,
+            name: app.name,
+            id: app.id,
+        })
+    }
+}
+
 pub(super) fn focused_app_hint() -> Option<String> {
     let window = match crate::session::desktop() {
         Desktop::X11 => super::x11::X11Probe::connect().ok()?.focused().ok()??,

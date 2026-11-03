@@ -194,6 +194,12 @@ fn main() {
     }
     let options = parse_options();
     let paths = LibraryPaths::resolve(options.storage_root.as_deref());
+    if std::env::args().any(|arg| arg == "--ibus-component")
+        && let Some(component) = lokalbot_platform::autocomplete::ibus_component()
+    {
+        print!("{component}");
+        return;
+    }
     if let Some(command) = headless::parse(&std::env::args().collect::<Vec<_>>()) {
         std::process::exit(headless::run(&command, &paths));
     }

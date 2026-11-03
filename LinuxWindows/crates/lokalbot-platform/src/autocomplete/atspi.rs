@@ -1107,6 +1107,7 @@ impl Reader {
             target: InsertTarget {
                 editable: fixed.editable.then(|| (obj.bus.clone(), obj.path.clone())),
                 pid: fixed.pid,
+                input_method: false,
             },
         })
     }

@@ -23,7 +23,7 @@ are listed in `THIRD_PARTY_NOTICES.md`.
 
 | License | Crates |
 | --- | ---: |
-| MIT License | 703 |
+| MIT License | 704 |
 | Apache License 2.0 | 42 |
 | Mozilla Public License 2.0 | 26 |
 | Unicode License v3 | 20 |
@@ -5779,6 +5779,7 @@ Used by:
 - wayland-backend 0.3.17 (https://github.com/smithay/wayland-rs)
 - wayland-client 0.31.15 (https://github.com/smithay/wayland-rs)
 - wayland-cursor 0.31.14 (https://github.com/smithay/wayland-rs)
+- wayland-protocols-misc 0.3.12 (https://github.com/smithay/wayland-rs)
 - wayland-protocols-plasma 0.3.12 (https://github.com/smithay/wayland-rs)
 - wayland-protocols-wlr 0.3.12 (https://github.com/smithay/wayland-rs)
 - wayland-protocols 0.32.13 (https://github.com/smithay/wayland-rs)

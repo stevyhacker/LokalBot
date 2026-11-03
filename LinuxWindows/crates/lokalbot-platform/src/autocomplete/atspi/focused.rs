@@ -167,6 +167,68 @@ pub(in crate::autocomplete) fn read_field(pid: Option<u32>) -> FieldRead {
     }
 }
 
+/// What accessibility adds to an input method's view of a field, when the app
+/// publishes it. Metadata only: no text of the field is read.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::autocomplete) struct Surroundings {
+    pub key: String,
+    pub secure: bool,
+    pub terminal: bool,
+    pub search: bool,
+    pub file_dialog: bool,
+    pub single_line: bool,
+    pub integrated_terminal: bool,
+    pub title: String,
+    pub url: Option<String>,
+}
+
+/// The focused object of `pid` and where it sits. `None` when the app says
+/// nothing, which leaves only the input method's own hints.
+pub(in crate::autocomplete) fn surroundings(pid: u32) -> Option<Surroundings> {
+    let bus = Bus::connect().ok()?;
+    let Located::Focused(obj, _) = locate(&bus, Some(pid)) else {
+        return None;
+    };
+    let described = describe(&bus, &obj, pid);
+    let mut found = Surroundings {
+        key: described.key,
+        secure: described.secure,
+        terminal: described.terminal,
+        ..Surroundings::default()
+    };
+    if found.secure {
+        return Some(found);
+    }
+    let attributes = bus.attributes(&obj);
+    let role_name = bus.role_name(&obj).unwrap_or_default();
+    let aria = attributes.get("xml-roles").map_or("", String::as_str);
+    let input_type = attributes.get("text-input-type").map_or("", String::as_str);
+    found.search = policy::is_search_field([aria, input_type, role_name.as_str()]);
+    let states = bus.states(&obj).unwrap_or(0);
+    found.single_line = state::has(states, state::SINGLE_LINE)
+        || (matches!(bus.role(&obj).unwrap_or(0), role::ENTRY | role::COMBO_BOX)
+            && !state::has(states, state::MULTI_LINE));
+    found.integrated_terminal =
+        policy::is_integrated_terminal(attributes.get("class").map_or("", String::as_str));
+    let mut cursor = bus.parent(&obj);
+    for _ in 0..48 {
+        let Some(node) = cursor else { break };
+        let node_role = bus.role(&node).unwrap_or(0);
+        if node_role == role::FILE_CHOOSER {
+            found.file_dialog = true;
+        }
+        if found.url.is_none() && matches!(node_role, role::DOCUMENT_WEB | role::DOCUMENT_FRAME) {
+            found.url = document_url(&bus, &node);
+        }
+        if matches!(node_role, role::FRAME | role::WINDOW | role::DIALOG) {
+            found.title = bus.name(&node);
+            break;
+        }
+        cursor = bus.parent(&node);
+    }
+    Some(found)
+}
+
 /// The process whose window is active, for a Wayland desktop that does not
 /// report it another way.
 pub(in crate::autocomplete) fn active_pid() -> Option<u32> {

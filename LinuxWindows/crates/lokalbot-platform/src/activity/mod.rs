@@ -23,7 +23,7 @@ mod win32;
 mod x11;
 
 #[cfg(target_os = "linux")]
-pub(crate) use linux::{AppResolver, WindowLister};
+pub(crate) use linux::{AppResolver, FrontWindow, FrontWindows, WindowLister};
 #[cfg(windows)]
 pub(crate) use win32::{app_for_pid, foreground_pid};
 
