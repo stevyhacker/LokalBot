@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-11111111-1",
+      "schemaVersion": 2,
+      "text": "Draft the eviction-policy document by Thursday",
+      "citations": [
+        {
+          "meetingID": "11111111-1111-4111-8111-111111111111",
+          "segmentID": "segment-0002-0000026000-0000038000",
+          "start": 26,
+          "end": 38,
+          "speaker": "me",
+          "excerpt": "I'll draft the eviction-policy doc by Thursday."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    },
+    {
+      "id": "demo-action-11111111-2",
+      "schemaVersion": 2,
+      "text": "Benchmark failover latency before committing to cluster mode",
+      "citations": [
+        {
+          "meetingID": "11111111-1111-4111-8111-111111111111",
+          "segmentID": "segment-0003-0000038000-0000052000",
+          "start": 38,
+          "end": 52,
+          "speaker": "them",
+          "excerpt": "Please benchmark failover latency before we commit to a cluster."
+        }
+      ],
+      "owner": "Them",
+      "isForUser": false
+    }
+  ],
+  "decisionRecords": [
+    {
+      "id": "demo-decision-11111111-1",
+      "schemaVersion": 2,
+      "text": "Adopt Redis for the caching layer (pub-sub support won the comparison).",
+      "citations": [
+        {
+          "meetingID": "11111111-1111-4111-8111-111111111111",
+          "segmentID": "segment-0000-0000000000-0000012000",
+          "start": 0,
+          "end": 12,
+          "speaker": "me",
+          "excerpt": "Let's lock the caching layer. I propose Redis for the pub-sub support."
+        }
+      ]
+    },
+    {
+      "id": "demo-decision-11111111-2",
+      "schemaVersion": 2,
+      "text": "Session store stays in Postgres for now; one migration at a time.",
+      "citations": [
+        {
+          "meetingID": "11111111-1111-4111-8111-111111111111",
+          "segmentID": "segment-0006-0000082000-0000096000",
+          "start": 82,
+          "end": 96,
+          "speaker": "me",
+          "excerpt": "Stay in Postgres for now. One migration at a time."
+        }
+      ]
+    }
+  ],
+  "openQuestions": [
+    "Do we need Redis cluster mode at launch, or can it wait?"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 20,
+      "speaker": "me",
+      "text": "Scope for Q3 SSO: SAML and OIDC, SCIM provisioning explicitly out."
+    },
+    {
+      "start": 20,
+      "end": 40,
+      "speaker": "them",
+      "text": "Then the security overview doc needs the session-lifetime table updated before it goes to customers."
+    }
+  ]
+}
