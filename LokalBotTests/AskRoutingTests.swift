@@ -238,6 +238,15 @@ final class AskRoutingTests: XCTestCase {
         let named = ScopedChatToolRunner(base: base, scopes: [.meetings], dayScopeKey: dates.storageKey,
                                          meetingIDs: [UUID()], meetingScope: "the meeting “Standup”")
         XCTAssertEqual(named.limit, "what happened \(dates.phrase), and to the meeting “Standup”")
+
+        // Where a device's question started is a focus, never a limit.
+        let focused = ScopedChatToolRunner(base: base, scopes: [.meetings], focus: "the day 4 Nov 2026")
+        XCTAssertNil(focused.limit)
+        XCTAssertTrue(focused.questionScope().hasPrefix(
+            "The user started this conversation from the day 4 Nov 2026, so a question"), focused.questionScope())
+        let listed = await focused.run(.init(name: "list_meetings", arguments: [:]))
+        XCTAssertEqual(listed.text, "ok")
+        XCTAssertNil(base.lastCall?.string("_lokalbot_day_scope"))
     }
 
     func testInvalidDateScopeNeverReachesRetrievalTools() async {

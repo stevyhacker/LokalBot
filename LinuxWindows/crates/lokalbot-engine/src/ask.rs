@@ -354,6 +354,13 @@ fn ask_model(
         screen_app: scope.screen_app.clone(),
         attached_context: None,
         moments: moment_words(shared),
+        limit: lokalbot_ai::ask::QuestionLimit::new(
+            scope.since,
+            scope.until,
+            (!scope.meeting_ids.is_empty())
+                .then(|| lokalbot_ai::ask::QuestionLimit::chosen_meetings(scope.meeting_ids.len())),
+        ),
+        focus: None,
     };
     let attached = attached_screens.then(|| attached_screen_context(library, &scope));
     let scope = lokalbot_ai::ask::AskScope {

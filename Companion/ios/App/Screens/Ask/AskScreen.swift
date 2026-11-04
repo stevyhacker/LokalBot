@@ -217,29 +217,9 @@ struct AskComposer: View {
     let model: AskModel
     var focused: FocusState<Bool>.Binding
 
-    private let format = LBFormat.current
-
     var body: some View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 8) {
-            if let scope = model.scope {
-                HStack(spacing: 6) {
-                    Image(systemName: "scope")
-                    Text(scope.label(format: format, today: session.today)).lineLimit(1)
-                    Button {
-                        model.scope = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Ask about everything")
-                }
-                .font(LBTokens.Typography.caption.weight(.medium))
-                .foregroundStyle(Brand.teal)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(LBTokens.Palette.accentWash, in: Capsule())
-            }
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Ask your work memory", text: $model.draft, axis: .vertical)
                     .font(LBTokens.Typography.body)
@@ -307,16 +287,5 @@ struct AskComposer: View {
     private func send() {
         guard model.canSubmit else { return }
         Task { await model.submit(session) }
-    }
-}
-
-extension AskRequest.Scope {
-    /// "About today", "About Monday", "About this meeting": the composer's
-    /// chip and the tag on each question it limited, so an answer that only
-    /// saw one day says which day.
-    func label(format: LBFormat, today: DayKey) -> String {
-        if let day = day.flatMap(DayKey.init) { return "About \(format.dayTitle(day, today: today).lowercasedFirstWordIfRelative)" }
-        if meetingId != nil { return "About this meeting" }
-        return "About everything"
     }
 }

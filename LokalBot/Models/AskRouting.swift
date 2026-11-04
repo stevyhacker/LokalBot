@@ -128,15 +128,19 @@ final class ScopedChatToolRunner: ChatToolRunner {
     /// Says which meetings `meetingIDs` holds, e.g. "meetings from the last
     /// 30 days"; without it, "the meetings chosen for it".
     private let meetingScope: String?
+    /// What the question was asked about, e.g. "the day 4 Nov 2026": where
+    /// the answer starts, never a limit on the tools.
+    private let focus: String?
     private let screenSnapshotIDs: Set<Int64>?
 
     init(base: ChatToolRunner, scopes: Set<AskSourceScope>, dayScope: Date? = nil,
          dayScopeKey: String? = nil, meetingIDs: Set<UUID>? = nil, meetingScope: String? = nil,
-         screenSnapshotIDs: Set<Int64>? = nil) {
+         focus: String? = nil, screenSnapshotIDs: Set<Int64>? = nil) {
         self.base = base
         self.scopes = scopes
         self.meetingIDs = meetingIDs
         self.meetingScope = meetingScope
+        self.focus = focus
         self.screenSnapshotIDs = screenSnapshotIDs
         self.dayScopeKey = dayScopeKey ?? dayScope.map { AskDayScope.key(for: $0) }
     }
@@ -173,8 +177,10 @@ final class ScopedChatToolRunner: ChatToolRunner {
     }
 
     func questionScope() -> String {
-        guard let limit else { return "" }
-        return ChatPrompt.questionScope(limit: limit, datesCanBeRemoved: dayScopeKey != nil)
+        [
+            limit.map { ChatPrompt.questionScope(limit: $0, datesCanBeRemoved: dayScopeKey != nil) },
+            focus.map(ChatPrompt.questionFocus),
+        ].compactMap { $0 }.joined(separator: "\n")
     }
 
     private static func chosenMeetings(_ count: Int) -> String {

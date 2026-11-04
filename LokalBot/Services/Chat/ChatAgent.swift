@@ -151,6 +151,17 @@ enum ChatPrompt {
         """ + (datesCanBeRemoved ? ", and that they can remove the date limit to ask about other days." : ".")
     }
 
+    /// Where a question asked from a day or a meeting starts. It must not
+    /// read as a limit: the tools still reach the whole library.
+    static func questionFocus(_ subject: String) -> String {
+        """
+        The user started this conversation from \(subject), so a question that names no other time, \
+        meeting or topic is about that. It is a starting point, not a limit: the tools reach the rest of \
+        the library too. Use them whenever the user asks about anything else, and never describe it as \
+        everything the user has.
+        """
+    }
+
     static func systemPrompt(tools: [ChatToolSpec], libraryOverview: String,
                              questionScope: String = "",
                              personalContext: String = "",

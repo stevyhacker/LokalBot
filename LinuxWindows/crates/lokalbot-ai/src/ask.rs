@@ -58,6 +58,111 @@ pub struct AskScope {
     pub attached_context: Option<String>,
     /// The words at a file's matched moment, when transcription is available.
     pub moments: MomentWords,
+    /// What `meeting_ids`, `since` and `until` hold, for the model; `None`
+    /// when the question may look at everything.
+    pub limit: Option<QuestionLimit>,
+    /// The day or meeting a device's question was asked about: where the
+    /// answer starts, never a limit.
+    pub focus: Option<QuestionFocus>,
+}
+
+/// Where a question asked from a day or a meeting starts. "Ask About Today"
+/// on a tablet once held the question to that day, and the answer said the
+/// library had only one meeting.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct QuestionFocus {
+    /// "the day 4 Nov 2026", "the meeting “Standup” [1a2b3c4d] on 4 Nov 2026".
+    pub subject: String,
+    /// The meetings it names, which the single-turn answer reads first.
+    pub meeting_ids: Vec<Uuid>,
+}
+
+impl QuestionFocus {
+    /// Its part of the Question scope section (`ChatPrompt.questionFocus`).
+    pub fn prompt(&self) -> String {
+        format!(
+            "The user started this conversation from {}, so a question that names no other time, meeting or topic is about that. It is a starting point, not a limit: the tools reach the rest of the library too. Use them whenever the user asks about anything else, and never describe it as everything the user has.",
+            self.subject
+        )
+    }
+}
+
+/// What a limited question can see, in words for the model
+/// (`ScopedChatToolRunner.limit`). Without it, the one meeting a question
+/// limited to today could find read as the whole library.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct QuestionLimit {
+    /// Completes "limited to", e.g. "what happened on 4 Nov 2026".
+    pub words: String,
+    /// The person chose the date limit, and can remove it.
+    pub removable_dates: bool,
+}
+
+impl QuestionLimit {
+    /// The dates from `since` to `until` (exclusive) as local days, and the
+    /// meetings the question was held to; `None` when neither applies.
+    pub fn new(
+        since: Option<DateTime<Utc>>,
+        until: Option<DateTime<Utc>>,
+        meetings: Option<String>,
+    ) -> Option<Self> {
+        let dates = dates_phrase(since, until);
+        let removable_dates = dates.is_some();
+        let parts: Vec<String> = dates
+            .map(|dates| format!("what happened {dates}"))
+            .into_iter()
+            .chain(meetings)
+            .collect();
+        (!parts.is_empty()).then(|| Self {
+            words: parts.join(", and to "),
+            removable_dates,
+        })
+    }
+
+    /// "the one meeting chosen for it", "the 3 meetings chosen for it".
+    pub fn chosen_meetings(count: usize) -> String {
+        match count {
+            0 => "no meetings".into(),
+            1 => "the one meeting chosen for it".into(),
+            _ => format!("the {count} meetings chosen for it"),
+        }
+    }
+
+    /// The Question scope section of the system prompt
+    /// (`ChatPrompt.questionScope`).
+    pub fn prompt(&self) -> String {
+        let limit = &self.words;
+        format!(
+            "This question is limited to {limit}. The tools return only what falls inside that limit, and the user's library holds more that this question cannot see. Never describe what the tools return as the whole library, and never say the user has no other meetings or activity. When the user asks about anything outside the limit, say plainly that this question is limited to {limit}{}",
+            if self.removable_dates {
+                ", and that they can remove the date limit to ask about other days."
+            } else {
+                "."
+            }
+        )
+    }
+
+    /// The first line of a meeting list held to this limit.
+    pub fn note(&self) -> String {
+        format!(
+            "Limited to {} for this question; nothing outside that limit is shown.",
+            self.words
+        )
+    }
+}
+
+/// "on 4 Nov 2026", "from 1 Sep 2026 to 7 Sep 2026", "since 6 Oct 2026",
+/// "before 1 Sep 2026", in local days; `until` is exclusive.
+fn dates_phrase(since: Option<DateTime<Utc>>, until: Option<DateTime<Utc>>) -> Option<String> {
+    let day = |at: DateTime<Utc>| at.with_timezone(&Local).format("%-d %b %Y").to_string();
+    let last = until.map(|until| until - chrono::Duration::seconds(1));
+    match (since, last) {
+        (Some(first), Some(last)) if day(first) == day(last) => Some(format!("on {}", day(first))),
+        (Some(first), Some(last)) => Some(format!("from {} to {}", day(first), day(last))),
+        (Some(first), None) => Some(format!("since {}", day(first))),
+        (None, Some(_)) => until.map(|until| format!("before {}", day(until))),
+        (None, None) => None,
+    }
 }
 
 /// The words at a matched moment, or `None` when they can't be had.
@@ -101,6 +206,8 @@ impl Default for AskScope {
             screen_app: None,
             attached_context: None,
             moments: MomentWords::default(),
+            limit: None,
+            focus: None,
         }
     }
 }
@@ -108,6 +215,17 @@ impl Default for AskScope {
 /// `ChatPrompt`'s ambient blocks, for the end of the system prompt.
 pub(crate) fn ambient_block(scope: &AskScope) -> String {
     let mut block = String::new();
+    let notes: Vec<String> = [
+        scope.limit.as_ref().map(QuestionLimit::prompt),
+        scope.focus.as_ref().map(QuestionFocus::prompt),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    if !notes.is_empty() {
+        block.push_str("\n\nQuestion scope:\n");
+        block.push_str(&notes.join("\n"));
+    }
     if !scope.personal_context.is_empty() {
         block.push_str("\n\n");
         block.push_str(&scope.personal_context);
@@ -368,6 +486,13 @@ fn gather(
             .collect();
         if !scope.meeting_ids.is_empty() && scope.meeting_ids.len() <= MAX_MEETINGS {
             first.extend(scope.meeting_ids.iter().filter(|id| allowed.contains(id)));
+        }
+        if let Some(focus) = &scope.focus {
+            for id in focus.meeting_ids.iter().take(MAX_MEETINGS) {
+                if allowed.contains(id) && !first.contains(id) {
+                    first.push(*id);
+                }
+            }
         }
         let mut lexical: Vec<Uuid> = Vec::new();
         for hit in &keyword {
@@ -1103,6 +1228,75 @@ mod tests {
         assert!(block.starts_with("\n\nWhat LokalBot knows about the user."));
         assert!(block.contains("may lag reality, so verify with tools"));
         assert!(block.ends_with("# Work memory"));
+    }
+
+    #[test]
+    fn a_question_limit_names_its_dates_and_meetings() {
+        use lokalbot_core::time::local_day_bounds;
+        let day = |d| chrono::NaiveDate::from_ymd_opt(2026, 9, d).unwrap();
+        let (start, _) = local_day_bounds(day(1));
+        let (_, end) = local_day_bounds(day(7));
+        assert_eq!(QuestionLimit::new(None, None, None), None);
+
+        let week = QuestionLimit::new(Some(start), Some(end), None).unwrap();
+        assert_eq!(week.words, "what happened from 1 Sep 2026 to 7 Sep 2026");
+        assert!(week.removable_dates);
+        assert_eq!(
+            QuestionLimit::new(Some(start), None, None).unwrap().words,
+            "what happened since 1 Sep 2026"
+        );
+
+        let window =
+            QuestionLimit::new(None, None, Some("meetings from the last 30 days".into())).unwrap();
+        assert!(
+            !window.removable_dates,
+            "a device can't widen what is shared"
+        );
+        assert!(
+            window
+                .prompt()
+                .starts_with("This question is limited to meetings from the last 30 days. ")
+        );
+        assert!(
+            window
+                .prompt()
+                .ends_with("this question is limited to meetings from the last 30 days.")
+        );
+
+        let both = QuestionLimit::new(
+            Some(start),
+            Some(end),
+            Some(QuestionLimit::chosen_meetings(2)),
+        )
+        .unwrap();
+        assert_eq!(
+            both.words,
+            "what happened from 1 Sep 2026 to 7 Sep 2026, and to the 2 meetings chosen for it"
+        );
+        assert_eq!(
+            QuestionLimit::chosen_meetings(1),
+            "the one meeting chosen for it"
+        );
+    }
+
+    #[test]
+    fn a_focus_is_a_starting_point_not_a_limit() {
+        let scope = AskScope {
+            focus: Some(QuestionFocus {
+                subject: "the day 4 Nov 2026".into(),
+                meeting_ids: Vec::new(),
+            }),
+            ..AskScope::default()
+        };
+        let block = ambient_block(&scope);
+        assert!(
+            block.starts_with(
+                "\n\nQuestion scope:\nThe user started this conversation from the day 4 Nov 2026, so a question"
+            ),
+            "{block}"
+        );
+        assert!(block.contains("It is a starting point, not a limit"));
+        assert!(!block.contains("This question is limited to"));
     }
     use crate::http::testing::{Reply, StubServer};
     use serde_json::json;

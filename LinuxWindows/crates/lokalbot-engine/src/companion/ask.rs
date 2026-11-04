@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use chrono::{DateTime, Local, Utc};
-use lokalbot_ai::ask::{AskEvent, AskScope};
+use lokalbot_ai::ask::{AskEvent, AskScope, QuestionFocus, QuestionLimit};
 use lokalbot_core::model::{ChatMessage, ChatRole};
 use lokalbot_core::{Library, Meeting};
 use lokalbot_sync::AskSink;
@@ -26,7 +26,7 @@ use uuid::Uuid;
 
 use super::library::{is_shared, read_all_meetings};
 use super::records::{self, AskCitation, AskRequest, AskResult, encode, instant};
-use super::sharing::{DataClasses, Sharing, parse_day_key};
+use super::sharing::{DataClasses, HistoryWindow, Sharing, parse_day_key};
 
 /// Where an answer for a phone goes: `AskSink` from the sync host.
 pub trait AskOutput: Send + Sync {
@@ -403,29 +403,53 @@ impl AskResponder {
             .filter(|meeting| is_shared(meeting, sharing.history, now))
             .collect();
         let mut meeting_ids: Vec<Uuid> = meetings.iter().map(|meeting| meeting.id).collect();
+        // The history window is the only limit: it is what the computer shares.
+        let held_to = (sharing.history != HistoryWindow::All).then(|| {
+            format!(
+                "meetings from the last {} days, the history the user shares with this device",
+                sharing.history.days()
+            )
+        });
+        // The day or meeting a question was asked about is where the answer
+        // starts, never a limit: "Ask About Today" on a tablet once answered
+        // "the library has only one meeting".
+        let day_label =
+            |at: DateTime<Utc>| at.with_timezone(&Local).format("%-d %b %Y").to_string();
+        let mut subjects: Vec<String> = Vec::new();
+        let mut focus_ids: Vec<Uuid> = Vec::new();
         let request_scope = request.scope.clone().unwrap_or_default();
         if let Some(raw) = &request_scope.meeting_id {
-            match Uuid::parse_str(raw) {
-                Ok(id) if meeting_ids.contains(&id) => meeting_ids = vec![id],
-                _ => {
-                    output.failed("That meeting is not shared with this device.".into());
-                    return;
-                }
-            }
+            let found = Uuid::parse_str(raw)
+                .ok()
+                .and_then(|id| meetings.iter().find(|meeting| meeting.id == id));
+            let Some(meeting) = found else {
+                output.failed("That meeting is not shared with this device.".into());
+                return;
+            };
+            subjects.push(format!(
+                "the meeting “{}” [{}] on {}",
+                meeting.display_title(),
+                meeting.short_id(),
+                day_label(meeting.started_at)
+            ));
+            focus_ids.push(meeting.id);
         }
         // An empty list means "all meetings" to Ask, and here nothing is
         // shared: an id no meeting has keeps the tools empty-handed.
         if meeting_ids.is_empty() {
             meeting_ids.push(Uuid::nil());
         }
-        let mut since = sharing.history.start(now);
-        let mut until = None;
         if let Some(key) = &request_scope.day {
             match parse_day_key(key).filter(|day| sharing.history.contains_day(*day, now)) {
                 Some(day) => {
                     let (start, end) = lokalbot_core::time::local_day_bounds(day);
-                    since = Some(start);
-                    until = Some(end);
+                    subjects.push(format!("the day {}", day_label(start)));
+                    for meeting in &meetings {
+                        let on_day = meeting.started_at >= start && meeting.started_at < end;
+                        if on_day && !focus_ids.contains(&meeting.id) {
+                            focus_ids.push(meeting.id);
+                        }
+                    }
                 }
                 None => {
                     output.failed("That day is not shared with this device.".into());
@@ -433,10 +457,14 @@ impl AskResponder {
                 }
             }
         }
+        let focus = (!subjects.is_empty()).then(|| QuestionFocus {
+            subject: subjects.join(" and "),
+            meeting_ids: focus_ids,
+        });
         let scope = AskScope {
             meeting_ids,
-            since,
-            until,
+            since: sharing.history.start(now),
+            until: None,
             include_meetings,
             include_screen: false,
             include_activity,
@@ -453,6 +481,10 @@ impl AskResponder {
             screen_app: None,
             attached_context: None,
             moments: Default::default(),
+            // The window is named with the meetings, not as a date the
+            // person could remove.
+            limit: QuestionLimit::new(None, None, held_to),
+            focus,
         };
         let history = history_messages(&request);
         let cancel = Arc::new(AtomicBool::new(false));
