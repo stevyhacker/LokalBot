@@ -56,6 +56,7 @@ interrupted catch-up repeats safely.
                    "projects": true },
   "historyDays": 0,
   "askEnabled": true,
+  "recordingsEnabled": true,
   "generatedAt": "2026-10-31T10:12:00.000Z"
 }
 ```

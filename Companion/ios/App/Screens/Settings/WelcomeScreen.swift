@@ -11,6 +11,7 @@ struct WelcomeScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
+                HeldRecordingsNotice()
                 Image("LokalBotMark")
                     .resizable()
                     .frame(width: 72, height: 72)

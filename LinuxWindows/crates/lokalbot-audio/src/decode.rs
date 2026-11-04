@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::errors::Error;
 use symphonia::core::formats::probe::Hint;
+use symphonia::core::formats::well_known::FORMAT_ID_ADTS;
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo, TrackType};
 use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
@@ -467,7 +468,12 @@ impl Stream {
             let decoder = symphonia::default::get_codecs()
                 .make_audio_decoder(params, &AudioDecoderOptions::default())
                 .map_err(invalid)?;
-            (track.id, rate, track.num_frames, decoder)
+            // ADTS doesn't say how long it is. Symphonia's figure is a guess
+            // from a few hundred frames, and reading stops where the length says.
+            let total = track
+                .num_frames
+                .filter(|_| format.format_info().format != FORMAT_ID_ADTS);
+            (track.id, rate, total, decoder)
         };
         Ok(Self {
             format,

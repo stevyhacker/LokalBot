@@ -22,7 +22,9 @@ extension CompanionServerFactory {
 final class CompanionSyncServer: CompanionServer, @unchecked Sendable {
     private let server: SyncServer
 
-    init(configuration: CompanionServerFactory.Configuration, events: CompanionServerEvents) throws {
+    /// `loopbackOnly` is for tests, where it keeps the firewall out of it.
+    init(configuration: CompanionServerFactory.Configuration, events: CompanionServerEvents,
+         loopbackOnly: Bool = false) throws {
         server = try SyncServer(
             config: ServerConfig(
                 dbPath: configuration.databasePath,
@@ -30,6 +32,7 @@ final class CompanionSyncServer: CompanionServer, @unchecked Sendable {
                 staticPrivateKey: configuration.staticPrivateKey,
                 port: UInt16(clamping: configuration.port)),
             delegate: CompanionSyncDelegate(events: events))
+        server.setLoopbackOnly(loopbackOnly: loopbackOnly)
     }
 
     func start() throws { try server.start() }
@@ -107,6 +110,15 @@ private final class CompanionSyncDelegate: ServerDelegate, @unchecked Sendable {
 
     func devicesChanged() {
         events.devicesChanged()
+    }
+
+    func acceptsRecordings() -> Bool {
+        events.acceptsRecordings()
+    }
+
+    func receiveRecording(recordingJson: String, filePath: String) -> UploadOutcome {
+        let outcome = events.receiveRecording(recordingJson, fileURL: URL(fileURLWithPath: filePath))
+        return UploadOutcome(status: outcome.status.rawValue, meetingId: outcome.meetingID, message: outcome.message)
     }
 }
 

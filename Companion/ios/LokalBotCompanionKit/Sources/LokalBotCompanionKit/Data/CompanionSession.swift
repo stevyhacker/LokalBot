@@ -26,6 +26,11 @@ public final class CompanionSession {
     public private(set) var lastSyncError: String?
     /// One-off messages for the user, such as being removed by the Mac.
     public var notice: String?
+    /// Recordings on this device or just sent, newest first.
+    public private(set) var recordings: [RecordingItem] = []
+    public private(set) var isUploading = false
+    /// How far each recording being sent has got, from 0 to 1.
+    public private(set) var uploadProgress: [String: Double] = [:]
     /// Request ids being asked right now, so a queued one isn't asked twice at once.
     var askingIDs: Set<String> = []
 
@@ -33,6 +38,8 @@ public final class CompanionSession {
     public var discoverAddresses: @MainActor () async -> [String] = { [] }
     /// Called when a queued question is answered after the Mac comes back.
     public var onQueuedAnswer: @MainActor (AskRequest, AskResult) -> Void = { _, _ in }
+    /// Asks the system for time to finish an upload; the result gives it back.
+    public var holdWhileUploading: @MainActor () -> (@MainActor () -> Void) = { {} }
 
     public init(store: any CompanionStore) {
         self.store = store
@@ -70,6 +77,8 @@ public final class CompanionSession {
 
     /// Reads pairing and sample state; call at launch.
     public func start() async {
+        // Nothing can be recording yet, so anything marked so was cut short.
+        try? await store.recoverRecordings()
         await refresh()
     }
 
@@ -77,6 +86,7 @@ public final class CompanionSession {
         status = (try? await store.status()) ?? .unpaired
         pairedMac = try? await store.pairedMac()
         manifest = try? await store.manifest()
+        recordings = (try? await store.recordings()) ?? []
         if status.paired {
             mode = .paired
         } else if await store.isSample() {
@@ -113,6 +123,7 @@ public final class CompanionSession {
             lastSyncError = nil
             await refresh()
             await answerQueuedQuestions(addresses: addresses)
+            Task { await uploadRecordings() }
         } catch CompanionStoreError.unreachable {
             macUnreachable = true
             status = (try? await store.status()) ?? status
@@ -135,6 +146,59 @@ public final class CompanionSession {
             onQueuedAnswer(request, result)
         }
         revision += 1
+    }
+
+    // MARK: Recordings
+
+    /// Sends what's waiting. Whatever doesn't get through stays waiting for
+    /// the next sync, so failing here needs no message beyond the row's own.
+    public func uploadRecordings() async {
+        guard mode == .paired, !isUploading, recordings.contains(where: { $0.state == .waiting }) else { return }
+        isUploading = true
+        let release = holdWhileUploading()
+        defer {
+            isUploading = false
+            uploadProgress = [:]
+            release()
+        }
+        let addresses = await discoverAddresses()
+        var uploaded = 0
+        do {
+            let report = try await store.uploadRecordings(extraAddresses: addresses) { id, sent, total in
+                Task { @MainActor [weak self] in
+                    // A report can land after the pass that sent it has ended.
+                    guard let self, self.isUploading else { return }
+                    self.uploadProgress[id] = total > 0 ? Double(sent) / Double(total) : 0
+                }
+            }
+            uploaded = report.uploaded
+        } catch CompanionStoreError.revoked {
+            notice = CompanionStoreError.revoked.errorDescription
+            await refresh()
+            return
+        } catch {
+            // Unreachable, or the connection dropped: the next sync resumes it.
+        }
+        await recordingsDidChange()
+        // The Mac makes a meeting of it; fetch that as soon as it's published.
+        if uploaded > 0 { await syncNow() }
+    }
+
+    /// Reloads the list after a change the store can't announce.
+    public func recordingsDidChange() async {
+        recordings = (try? await store.recordings()) ?? recordings
+        revision += 1
+    }
+
+    public func retryRecording(id: String) async {
+        try? await store.retryRecording(id: id)
+        await recordingsDidChange()
+        await uploadRecordings()
+    }
+
+    public func discardRecording(id: String) async {
+        try? await store.discardRecording(id: id)
+        await recordingsDidChange()
     }
 
     // MARK: Changes
@@ -161,8 +225,9 @@ public final class CompanionSession {
         await refresh()
     }
 
-    /// Erases the local copy and the pairing. This is local only (ffi.md
-    /// `unpair`), so the device also needs removing from the Mac's list.
+    /// Erases the local copy, recordings that haven't arrived and the pairing.
+    /// This is local only (ffi.md `unpair`), so the device also needs removing
+    /// from the Mac's list.
     public func removeThisDevice() async {
         try? await store.unpair()
         macUnreachable = false

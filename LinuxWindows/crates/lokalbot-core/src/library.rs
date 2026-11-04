@@ -406,11 +406,12 @@ impl Library {
         let mut n = 2;
         loop {
             let dir = self.paths().meeting_dir(&relative);
-            let made = match dir.parent() {
-                Some(parent) => fs::create_dir_all(parent).and_then(|()| fs::create_dir(&dir)),
-                None => fs::create_dir(&dir),
-            };
-            match made {
+            // Outside the match: a file where a parent folder belongs also says
+            // AlreadyExists, and no other name gets past that.
+            if let Some(parent) = dir.parent() {
+                fs::create_dir_all(parent).with_context(|| format!("creating {relative}"))?;
+            }
+            match fs::create_dir(&dir) {
                 Ok(()) => return Ok(relative),
                 Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
                     relative = format!("{base}-{n}");
@@ -910,6 +911,32 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// That says AlreadyExists, like a taken name, and trying more names never
+    /// ended. On its own thread so this fails instead of hanging the test run.
+    #[test]
+    fn a_file_where_a_month_folder_belongs_is_an_error() {
+        let (sender, answer) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let dir = tempfile::tempdir().unwrap();
+            let library = Library::open(LibraryPaths::new(dir.path().join("library"))).unwrap();
+            let started_at = Utc::now();
+            let local = started_at.with_timezone(&Local);
+            let month = library.paths().meeting_dir(&format!(
+                "meetings/{:04}/{:02}",
+                local.year(),
+                local.month()
+            ));
+            fs::create_dir_all(month.parent().unwrap()).unwrap();
+            fs::write(&month, b"").unwrap();
+            let reserved = library.reserve_meeting_folder("Standup", started_at);
+            sender.send(reserved.is_err()).unwrap();
+        });
+        let refused = answer
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .expect("it kept trying other names");
+        assert!(refused);
+    }
 
     fn fixture_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))

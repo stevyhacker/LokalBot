@@ -12,6 +12,7 @@ final class CompanionSettingsTests: XCTestCase {
         XCTAssertEqual(sharing.dataClasses, .all)
         XCTAssertEqual(sharing.history, .all)
         XCTAssertTrue(sharing.answersQuestions)
+        XCTAssertTrue(sharing.acceptsRecordings)
         XCTAssertEqual(sharing.port, 17890)
         XCTAssertTrue(sharing.advertisesOnBonjour)
     }
@@ -23,6 +24,7 @@ final class CompanionSettingsTests: XCTestCase {
         settings.companionShareWindowTitles = false
         settings.companionHistory = .days90
         settings.companionAnswersQuestions = false
+        settings.companionAcceptsRecordings = false
         settings.companionPort = 18000
         settings.companionAdvertisesOnBonjour = false
         let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))

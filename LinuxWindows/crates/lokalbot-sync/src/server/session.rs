@@ -2,7 +2,7 @@
 //!
 //! A session has two threads. The reader turns packets into events; the
 //! worker (this connection's thread) handles events one at a time: hello,
-//! catch-up, ops, questions, live pushes, pings and revocation.
+//! catch-up, ops, questions, recordings, live pushes, pings and revocation.
 
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
@@ -11,7 +11,9 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-use super::{AskSink, OpOutcome, ServerInner};
+use super::store::DeviceRow;
+use super::uploads::{self, Append, Begin, Incoming};
+use super::{AskSink, OpOutcome, ServerInner, UploadOutcome};
 use crate::error::{Result, SyncError};
 use crate::keys::KEY_LEN;
 use crate::messages::{Envelope, Message};
@@ -194,17 +196,18 @@ fn serve_session(
         channel.close();
         return Ok(());
     };
-    run_session(inner, channel, inbox, device.device_id, peer, tuning)
+    run_session(inner, channel, inbox, device, peer, tuning)
 }
 
 fn run_session(
     inner: &Arc<ServerInner>,
     channel: Arc<Channel>,
     mut inbox: Inbox,
-    device_id: String,
+    device: DeviceRow,
     peer: SocketAddr,
     tuning: &Tuning,
 ) -> Result<()> {
+    let device_id = device.device_id.clone();
     let (events, received) = mpsc::channel();
     let session_id = inner.register(&device_id, events.clone(), Arc::clone(&channel));
     // `stop` closes the sessions it finds; one that finished its handshake
@@ -231,7 +234,7 @@ fn run_session(
     };
     let mut worker = Worker {
         inner,
-        device_id: device_id.clone(),
+        device,
         channel: Arc::clone(&channel),
         events,
         received,
@@ -239,6 +242,8 @@ fn run_session(
         sent_seq: 0,
         syncing: false,
         asked: false,
+        uploading: false,
+        incoming: None,
     };
     let result = worker.run();
     channel.close();
@@ -293,7 +298,7 @@ fn linger_inbox(channel: &Channel, inbox: &mut Inbox, tuning: &Tuning) {
 
 struct Worker<'a> {
     inner: &'a Arc<ServerInner>,
-    device_id: String,
+    device: DeviceRow,
     channel: Arc<Channel>,
     events: Sender<Event>,
     received: Receiver<Event>,
@@ -302,6 +307,9 @@ struct Worker<'a> {
     sent_seq: u64,
     syncing: bool,
     asked: bool,
+    uploading: bool,
+    /// The recording this session is receiving.
+    incoming: Option<Incoming>,
 }
 
 impl Worker<'_> {
@@ -360,6 +368,7 @@ impl Worker<'_> {
                 self.catch_up(cursor)?;
             }
             "ask" => {}
+            "upload" => self.uploading = true,
             other => {
                 self.fail(
                     "unsupported_purpose",
@@ -373,6 +382,22 @@ impl Worker<'_> {
                 Some(Event::Message(message)) => match message {
                     Message::Op { op } if self.syncing => self.apply(op)?,
                     Message::Ask { request } if !self.syncing && !self.asked => self.ask(request),
+                    Message::UploadBegin {
+                        upload_id,
+                        byte_count,
+                        sha256,
+                        recording,
+                    } if self.uploading => {
+                        self.upload_begin(&upload_id, byte_count, &sha256, recording)?;
+                    }
+                    Message::UploadChunk {
+                        upload_id,
+                        offset,
+                        data,
+                    } if self.uploading => self.upload_chunk(&upload_id, offset, &data)?,
+                    Message::UploadFinish { upload_id } if self.uploading => {
+                        self.upload_finish(&upload_id)?;
+                    }
                     Message::Bye => return Ok(()),
                     _ => {}
                 },
@@ -539,13 +564,126 @@ impl Worker<'_> {
         }
         // Asking again for an answer the Mac is writing or kept attaches to it.
         let answers = &self.inner.answers;
-        let (answer, new) =
-            answers.begin(&self.device_id, &request_id, self.tuning.answer_retention);
+        let (answer, new) = answers.begin(
+            &self.device.device_id,
+            &request_id,
+            self.tuning.answer_retention,
+        );
         answer.attach(&self.channel, &self.events);
         if new {
             let sink = AskSink::new(answer, Arc::clone(answers));
             self.inner.delegate.ask(request.to_string(), Arc::new(sink));
         }
+    }
+
+    fn upload_begin(
+        &mut self,
+        upload_id: &str,
+        byte_count: u64,
+        sha256: &str,
+        recording: Value,
+    ) -> Result<()> {
+        // Starting another recording lets go of the last one, kept for later.
+        self.incoming = None;
+        let begun = uploads::begin(
+            self.inner,
+            &self.device.device_id,
+            upload_id,
+            byte_count,
+            sha256,
+            recording,
+        );
+        match begun {
+            Begin::Done(outcome) => self.send_upload_done(upload_id, outcome),
+            Begin::Ready(incoming) => {
+                let ready = Message::UploadReady {
+                    upload_id: incoming.id().to_owned(),
+                    offset: incoming.offset(),
+                };
+                self.incoming = Some(incoming);
+                self.channel.send(&ready)
+            }
+        }
+    }
+
+    fn upload_chunk(&mut self, upload_id: &str, offset: u64, data: &str) -> Result<()> {
+        let Some(incoming) = self.incoming.as_mut().filter(|i| i.matches(upload_id)) else {
+            return self.send_upload_done(upload_id, UploadOutcome::deferred(uploads::NOT_BEGUN));
+        };
+        match incoming.append(offset, data) {
+            Append::Written(offset) => self.channel.send(&Message::UploadAck {
+                upload_id: upload_id.to_owned(),
+                offset,
+            }),
+            Append::Elsewhere(offset) => self.channel.send(&Message::UploadReady {
+                upload_id: upload_id.to_owned(),
+                offset,
+            }),
+            Append::Failed(outcome) => {
+                self.incoming = None;
+                self.send_upload_done(upload_id, outcome)
+            }
+        }
+    }
+
+    /// Checks the recording and hands it to the Mac on its own thread, so
+    /// the connection keeps pinging meanwhile. A phone that disconnects
+    /// doesn't stop it; it hears the outcome when it sends the recording
+    /// again.
+    fn upload_finish(&mut self, upload_id: &str) -> Result<()> {
+        let Some(incoming) = self.incoming.take().filter(|i| i.matches(upload_id)) else {
+            return self.send_upload_done(upload_id, UploadOutcome::deferred(uploads::NOT_BEGUN));
+        };
+        if !incoming.is_whole() {
+            let ready = Message::UploadReady {
+                upload_id: upload_id.to_owned(),
+                offset: incoming.offset(),
+            };
+            self.incoming = Some(incoming);
+            return self.channel.send(&ready);
+        }
+        let (answer, answered) = mpsc::channel();
+        let inner = Arc::clone(self.inner);
+        let device = self.device.clone();
+        let spawned = std::thread::Builder::new()
+            .name("lokalbot-sync-recording".into())
+            .spawn(move || {
+                let _ = answer.send(uploads::complete(&inner, incoming, &device));
+            });
+        if spawned.is_err() {
+            return self.send_upload_done(
+                upload_id,
+                UploadOutcome::deferred("This computer is busy. It will try again."),
+            );
+        }
+        loop {
+            match answered.recv_timeout(self.tuning.tick()) {
+                Ok(outcome) => return self.send_upload_done(upload_id, outcome),
+                Err(RecvTimeoutError::Disconnected) => {
+                    return self.send_upload_done(
+                        upload_id,
+                        UploadOutcome::deferred("This computer couldn't finish the recording."),
+                    );
+                }
+                Err(RecvTimeoutError::Timeout) => {
+                    if self.channel.is_closed() {
+                        return Ok(());
+                    }
+                    if self.channel.since_last_sent() >= self.tuning.ping_interval {
+                        self.channel.send(&Message::Ping)?;
+                    }
+                }
+            }
+        }
+    }
+
+    fn send_upload_done(&self, upload_id: &str, outcome: UploadOutcome) -> Result<()> {
+        self.channel.send(&Message::UploadDone {
+            upload_id: upload_id.to_owned(),
+            status: outcome.status,
+            meeting_id: outcome.meeting_id,
+            message: outcome.message,
+        })
     }
 
     fn fail(&self, code: &str, message: String) {

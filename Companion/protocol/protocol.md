@@ -106,9 +106,12 @@ Client → host:
 
 | type | fields | meaning |
 | --- | --- | --- |
-| `hello` | `protocolVersion` (1), `schemaVersion` (1), `deviceId`, `cursor` (u64), `purpose` (`"sync"` or `"ask"`) | First message of every session |
+| `hello` | `protocolVersion` (1), `schemaVersion` (1), `deviceId`, `cursor` (u64), `purpose` (`"sync"`, `"ask"` or `"upload"`) | First message of every session |
 | `op` | `op` (see records.md, Ops) | A change made on the phone |
 | `ask` | `request` (see records.md, Ask) | A question for the Mac |
+| `uploadBegin` | `uploadId` (UUID), `byteCount`, `sha256` (hex), `recording` | A recording this device wants to send |
+| `uploadChunk` | `uploadId`, `offset`, `data` (standard base64) | The next bytes of it |
+| `uploadFinish` | `uploadId` | All the bytes have been acknowledged |
 | `ping` | — | Keep-alive |
 | `bye` | — | Clean close |
 
@@ -122,6 +125,9 @@ Host → client:
 | `askDelta` | `requestId`, `text` | Next part of the answer |
 | `askDone` | `requestId`, `result` (see records.md, Ask) | Final answer |
 | `askFailed` | `requestId`, `message` | The Mac could not answer |
+| `uploadReady` | `uploadId`, `offset` | Send from this byte |
+| `uploadAck` | `uploadId`, `offset` | Bytes up to here are written |
+| `uploadDone` | `uploadId`, `status` (`accepted`, `deferred`, `rejected`), `meetingId`?, `message`? | What became of the recording |
 | `revoked` | — | This device was removed; erase local data |
 | `error` | `code`, `message` | Protocol error; the host closes |
 | `ping` | — | Keep-alive |
@@ -148,6 +154,50 @@ host is answering or kept for this device asks the Mac nothing new: the host
 sends the text so far as one `askDelta`, then the rest as it arrives, or
 `askDone` at once. A failed answer is not kept, so asking again after
 `askFailed` asks the Mac again.
+
+Flow for `purpose: "upload"`: `hello` → `welcome`, then for each recording:
+
+1. `uploadBegin` → `uploadReady` with the `offset` to send from. The Mac keeps
+   a partial file per recording, and its length is that offset, so a dropped
+   connection resumes where it stopped.
+2. `uploadChunk` → `uploadAck`, one at a time, at most 1 MiB of audio each
+   (the crate sends 256 KiB). A chunk for any other position gets `uploadReady`
+   with the right one.
+3. `uploadFinish` → `uploadDone`. The Mac checks the size and SHA-256 and
+   makes a meeting of it, pinging meanwhile.
+
+`uploadDone` can also answer any earlier step:
+
+- `accepted`: the Mac stored the meeting, and the phone deletes its copy. It
+  also answers an `uploadBegin` for a recording that already arrived, so a phone
+  that lost the confirmation makes no second meeting, even if the person
+  deleted the first.
+- `deferred`: not now (recordings turned off, a full disk, damage on the way,
+  or the same recording arriving on another connection). The phone keeps it and
+  tries again later. A checked, whole file stays on the Mac, so that costs no
+  second transfer.
+- `rejected`: it can't be used (for example, no audio). The phone keeps it until
+  the person retries or discards it.
+
+`recording` is a JSON object:
+
+```json
+{ "format": "aac-adts", "startedAt": "2026-11-04T09:30:00.000Z",
+  "title": "Site visit", "durationSeconds": 1834.2 }
+```
+
+`format` is the only container so far: ADTS AAC, whose frames each carry a
+header, so a recorder that dies leaves a readable file. `title` is omitted when
+the person didn't name it, and `durationSeconds` when the app stopped before
+finishing; the Mac measures the audio either way. `uploadId` becomes the
+meeting's id. Phones and tablets learn from the manifest's `recordingsEnabled`
+whether the Mac takes recordings now. A Mac from before uploads existed answers
+`hello` with `welcome`, then `error` code `unsupported_purpose`, and the phone
+keeps its recordings. A device removed from the Mac keeps recordings that hadn't
+arrived, because they exist nowhere else, and sends them if it pairs again. To
+keep a device from exhausting the Mac, at most 8 recordings arrive at once and a
+device holds at most 16 unfinished files there; past that, `uploadDone` is
+`deferred`.
 
 A removed device that completes a session handshake gets `revoked` and the
 connection closes. (A device whose key the host never knew is dropped during

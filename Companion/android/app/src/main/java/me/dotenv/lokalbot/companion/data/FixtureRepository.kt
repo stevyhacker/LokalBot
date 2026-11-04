@@ -167,6 +167,27 @@ class FixtureRepository(
     /** The sample library has no Mac to reach; syncing just finishes. */
     override suspend fun sync(): SyncOutcome = SyncOutcome.Synced(received = 0, deleted = 0, address = null)
 
+    /** There is no computer to send a recording to, so the sample library doesn't offer it. */
+    override val canRecord: Boolean = false
+
+    override val recordings: StateFlow<List<DeviceRecording>> = MutableStateFlow<List<DeviceRecording>>(emptyList()).asStateFlow()
+
+    override val uploadProgress: StateFlow<UploadProgress?> = MutableStateFlow<UploadProgress?>(null).asStateFlow()
+
+    override suspend fun beginRecording(title: String?): DeviceRecording? = null
+
+    override suspend fun finishRecording(id: String, durationSeconds: Double): Boolean = false
+
+    override suspend fun recoverRecordings(): Int = 0
+
+    override suspend fun discardRecording(id: String) = Unit
+
+    override suspend fun setRecordingTitle(id: String, title: String) = Unit
+
+    override suspend fun retryRecording(id: String) = Unit
+
+    override suspend fun uploadRecordings(): UploadOutcome = UploadOutcome.Finished(uploaded = 0, waiting = 0, failed = 0)
+
     private fun withLocalStatus(meeting: Meeting): Meeting {
         val overrides = synchronized(lock) { localStatus.filterKeys { it.first == meeting.id } }
         if (overrides.isEmpty()) return meeting

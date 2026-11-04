@@ -68,6 +68,35 @@ interface CompanionRepository {
 
     /** Connects to the Mac, sends queued changes and catches up. */
     suspend fun sync(): SyncOutcome
+
+    /** Whether recordings can start here: they need a paired computer to go to. */
+    val canRecord: Boolean
+
+    /** Recordings on this device or just sent, newest first. */
+    val recordings: StateFlow<List<DeviceRecording>>
+
+    /** How far the recording being sent right now has got. */
+    val uploadProgress: StateFlow<UploadProgress?>
+
+    /** Adds a recording and says where the recorder writes; null when this library can't record. */
+    suspend fun beginRecording(title: String? = null): DeviceRecording?
+
+    /** The recorder stopped, so it can go. False when the file was empty, which leaves no recording. */
+    suspend fun finishRecording(id: String, durationSeconds: Double): Boolean
+
+    /** Keeps what an app that died while recording wrote. Never call it while recording. Returns how many. */
+    suspend fun recoverRecordings(): Int
+
+    /** Deletes the recording and its file, whatever its state. */
+    suspend fun discardRecording(id: String)
+
+    suspend fun setRecordingTitle(id: String, title: String)
+
+    /** A recording the computer refused goes round again. */
+    suspend fun retryRecording(id: String)
+
+    /** Sends every waiting recording; when any arrive, syncs so their meetings do too. */
+    suspend fun uploadRecordings(): UploadOutcome
 }
 
 data class ActionFilter(
@@ -77,6 +106,30 @@ data class ActionFilter(
     val status: ActionStatus? = ActionStatus.Open,
     val dueBefore: String? = null,
 )
+
+enum class RecordingState { Recording, Waiting, Failed, Uploaded }
+
+/** A recording on this device or just sent (`RecordingInfo` in Companion/protocol/ffi.md). */
+data class DeviceRecording(
+    val id: String,
+    /** Empty until the person names it; the computer then picks one. */
+    val title: String,
+    val state: RecordingState,
+    val startedAt: String,
+    val durationSeconds: Double? = null,
+    val byteCount: Long = 0,
+    val sentBytes: Long = 0,
+    /** What's holding it up, or what went wrong. */
+    val message: String? = null,
+    val filePath: String = "",
+)
+
+data class UploadProgress(val recordingId: String, val sentBytes: Long, val totalBytes: Long)
+
+sealed interface UploadOutcome {
+    data class Finished(val uploaded: Int, val waiting: Int, val failed: Int) : UploadOutcome
+    data class Failed(val reason: SyncFailure, val message: String) : UploadOutcome
+}
 
 enum class SearchHitKind { Meeting, Action, Decision, Transcript, Digest }
 

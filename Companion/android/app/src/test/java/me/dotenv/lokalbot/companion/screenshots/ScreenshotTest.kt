@@ -17,14 +17,26 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.window.core.layout.WindowSizeClass
 import androidx.window.core.layout.computeWindowSizeClass
 import com.github.takahirom.roborazzi.captureRoboImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import me.dotenv.lokalbot.companion.FakeCapture
+import me.dotenv.lokalbot.companion.PairedTestLibrary
 import me.dotenv.lokalbot.companion.TestLibrary
+import me.dotenv.lokalbot.companion.data.CompanionRepository
+import me.dotenv.lokalbot.companion.data.DeviceRecording
 import me.dotenv.lokalbot.companion.data.FixtureRepository
+import me.dotenv.lokalbot.companion.data.RecordingState
+import me.dotenv.lokalbot.companion.data.UploadProgress
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
+import me.dotenv.lokalbot.companion.recording.MeetingRecorder
+import me.dotenv.lokalbot.companion.recording.RecorderProblem
+import me.dotenv.lokalbot.companion.recording.RecorderState
 import me.dotenv.lokalbot.companion.ui.LokalBotApp
 import me.dotenv.lokalbot.companion.ui.navigation.AppNavigator
 import me.dotenv.lokalbot.companion.ui.navigation.Destination
 import me.dotenv.lokalbot.companion.ui.onboarding.WelcomeScreen
+import me.dotenv.lokalbot.companion.ui.recording.RecordingContent
 import me.dotenv.lokalbot.companion.ui.settings.SettingsActions
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import org.junit.Rule
@@ -59,13 +71,15 @@ class ScreenshotTest {
         dark: Boolean = false,
         posture: Posture = Posture(),
         rtl: Boolean = false,
+        library: CompanionRepository = repository,
+        recorder: MeetingRecorder? = null,
         before: () -> Unit = {},
     ) {
         compose.setContent {
             val direction = if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
             CompositionLocalProvider(LocalLayoutDirection provides direction) {
                 Themed(dark) {
-                    LokalBotApp(repository, SettingsActions(versionName = "0.1.0"), adaptiveInfo = windowInfo(widthDp, heightDp, posture), navigator = navigator)
+                    LokalBotApp(library, SettingsActions(versionName = "0.1.0"), adaptiveInfo = windowInfo(widthDp, heightDp, posture), navigator = navigator, recorder = recorder)
                 }
             }
         }
@@ -157,6 +171,85 @@ class ScreenshotTest {
 
     @Test
     fun phoneRightToLeft() = show("phone_actions_rtl", AppNavigator(Destination.Actions).apply { openAction(TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c") }, rtl = true)
+
+    // Recording on this device
+
+    /** One recording in each state the list can show. */
+    private fun pairedLibrary() = PairedTestLibrary(
+        rows = listOf(
+            deviceRecording("recording", RecordingState.Recording, minutesAgo = 12, durationSeconds = null),
+            deviceRecording("waiting", RecordingState.Waiting, minutesAgo = 90, title = "Site visit"),
+            deviceRecording("held-up", RecordingState.Waiting, minutesAgo = 150, message = "This computer isn't accepting recordings. Turn on \"Accept recordings from my devices\" in its settings."),
+            deviceRecording("sending", RecordingState.Waiting, minutesAgo = 240),
+            deviceRecording("processing", RecordingState.Uploaded, minutesAgo = 300, title = "Call with the builders"),
+            deviceRecording("failed", RecordingState.Failed, minutesAgo = 1500, message = "This recording has no audio in it."),
+        ),
+    ).apply { uploadProgress.value = UploadProgress("sending", 42, 100) }
+
+    /** Offers recording, which is all it does here. */
+    private fun recorder(library: CompanionRepository) =
+        MeetingRecorder(CoroutineScope(Dispatchers.Unconfined), library = { library }, newCapture = { FakeCapture() }, elapsedMillis = { 0 })
+
+    private fun deviceRecording(id: String, state: RecordingState, minutesAgo: Long, title: String = "", durationSeconds: Double? = 1834.0, message: String? = null) =
+        DeviceRecording(id, title, state, TestLibrary.now.minusSeconds(minutesAgo * 60).toString(), durationSeconds, message = message)
+
+    @Test
+    fun phoneMeetingsFromThisDevice() {
+        val library = pairedLibrary()
+        show("phone_meetings_from_this_device", AppNavigator(Destination.Meetings), library = library, recorder = recorder(library))
+    }
+
+    @Test
+    fun phoneMeetingsFromThisDeviceDark() {
+        val library = pairedLibrary()
+        show("phone_meetings_from_this_device_dark", AppNavigator(Destination.Meetings), dark = true, library = library, recorder = recorder(library))
+    }
+
+    @Test
+    @Config(qualifiers = "en-rGB-w1280dp-h800dp-mdpi")
+    fun tabletMeetingsFromThisDevice() {
+        val library = pairedLibrary()
+        show(
+            "tablet_meetings_from_this_device",
+            AppNavigator(Destination.Meetings).apply { openMeeting(TestLibrary.STANDUP) },
+            1280,
+            800,
+            library = library,
+            recorder = recorder(library),
+        )
+    }
+
+    private fun showRecording(name: String, state: RecorderState = RecorderState.Recording("r", "", 0), elapsedSeconds: Long = 754, dark: Boolean = false) {
+        compose.setContent {
+            Themed(dark) {
+                RecordingContent(state, elapsedSeconds, level = 0.62f, onTitleChange = {}, onStop = {}, onDiscard = {}, onHide = {}, onDismissProblem = {})
+            }
+        }
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+    }
+
+    @Test
+    fun phoneRecording() = showRecording("phone_recording")
+
+    @Test
+    fun phoneRecordingDark() = showRecording("phone_recording_dark", dark = true)
+
+    @Test
+    fun phoneRecordingProblem() = showRecording("phone_recording_problem", RecorderState.Failed(RecorderProblem.CouldNotStart))
+
+    @Test
+    @Config(qualifiers = "en-rGB-w891dp-h411dp-hdpi")
+    fun phoneLandscapeRecording() = showRecording("phone_landscape_recording")
+
+    // A recording past the hour at large text: the digits must not wrap.
+    @Test
+    @Config(qualifiers = "en-rGB-w411dp-h891dp-hdpi", fontScale = 1.6f)
+    fun phoneRecordingLargeText() = showRecording("phone_recording_large_text", elapsedSeconds = 7384)
+
+    @Test
+    @Config(qualifiers = "en-rGB-w1280dp-h800dp-mdpi")
+    fun tabletRecording() = showRecording("tablet_recording")
 
     // Unfolded foldable or small tablet (medium)
 

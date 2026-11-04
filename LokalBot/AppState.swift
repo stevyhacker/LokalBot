@@ -1158,6 +1158,23 @@ final class AppState: ObservableObject {
                 },
                 tools: { [unowned self] in self.libraryTools },
                 meetings: { [weak self] in self?.meetings ?? [] })),
+            recordingReceiver: CompanionRecordingReceiver(dependencies: .init(
+                meetingExists: { [weak self] id in
+                    guard let self else { return false }
+                    if self.meetings.contains(where: { $0.id == id }) { return true }
+                    let root = self.storage.rootURL
+                    return await Task.detached {
+                        let all = try? SessionLookup.loadAllMeetings(root: root, includeMergedSources: true)
+                        return all?.contains { $0.id == id } == true
+                    }.value
+                },
+                language: { [weak self] in self?.settings.appLanguage ?? .system },
+                importRecording: { [weak self] url, origin in
+                    guard let self else { throw CancellationError() }
+                    return try await MeetingImportService.importDeviceRecording(
+                        from: url, origin: origin, storage: self.storage)
+                },
+                didImport: { [weak self] meeting in self?.addDeviceRecording(meeting) })),
             language: { [weak self] in self?.settings.appLanguage ?? .system })
         companionHost = host
         return host
@@ -1170,6 +1187,7 @@ final class AppState: ObservableObject {
         guard settings.companionSharingEnabled else {
             companionHost?.stop()
             companionCurationObserver = nil
+            CompanionHost.discardUploads(root: storage.rootURL)
             return
         }
         let host = companion
@@ -2049,6 +2067,24 @@ final class AppState: ObservableObject {
                 }
             }
             if !failures.isEmpty { self.lastError = failures.joined(separator: "\n") }
+        }
+    }
+
+    /// A recording from a paired device arrived as a meeting. It joins the
+    /// list and the processing queue like a recording finished on this Mac,
+    /// which waits for missing models rather than downloading them with nobody
+    /// here to see it. The person may be doing something else, so nothing opens
+    /// and no error shows.
+    func addDeviceRecording(_ meeting: Meeting) {
+        meetings.append(meeting)
+        meetings.sort { $0.startedAt > $1.startedAt }
+        lokalbotLog("device recording received meeting=\(meeting.id)")
+        let queued = pipeline.enqueue(meeting, transcribe: true, summarize: settings.autoSummarize, origin: .automatic)
+        switch queued {
+        case .enqueued, .coalesced, .updatedActive:
+            break
+        case .alreadyProcessing, .persistenceFailed, .revoked:
+            lokalbotLog("device recording not queued meeting=\(meeting.id) reason=\(queued)")
         }
     }
 

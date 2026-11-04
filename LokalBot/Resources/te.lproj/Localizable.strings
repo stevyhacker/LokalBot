@@ -1673,6 +1673,10 @@
 "Last year" = "గత 12 నెలలు";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "ఎప్పుడూ పంచుకోనివి: హాజరైనవారి ఇమెయిల్ చిరునామాలు, వక్తల ఆధారాలు, స్వర ప్రొఫైల్‌లు, స్క్రీన్‌షాట్‌లు, స్క్రీన్ వచనం, ఇమెయిల్, వ్యక్తిగత సందర్భం, రాత్రి సమీక్ష జ్ఞాపకం, సెట్టింగ్‌లు, కీలు.";
 "Answer questions from my devices" = "నా పరికరాల నుండి వచ్చే ప్రశ్నలకు సమాధానం ఇవ్వండి";
+"Recordings" = "రికార్డింగ్‌లు";
+"Accept recordings from my devices" = "నా పరికరాల నుండి రికార్డింగ్‌లను అంగీకరించు";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "జత చేసిన పరికరం తాను రికార్డ్ చేసిన మీటింగ్‌లను ఈ Macకి పంపగలదు. అవి ఇక్కడ మీటింగ్‌లుగా మారి, ఇతర రికార్డింగ్‌ల వలెనే ప్రాసెస్ అవుతాయి; ఆ తర్వాత పరికరం తన కాపీని తొలగిస్తుంది.";
+"Recording from %@" = "%@ నుండి రికార్డింగ్";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "మీరు పంచుకునే సమావేశాలు, కాలరేఖ ఆధారంగా ఈ Mac మీ ఆలోచన మోడల్, దాని అనుమతులతో సమాధానం ఇస్తుంది. ఏ పరికరం కోసమూ స్క్రీన్ జ్ఞాపకాన్ని ఎప్పుడూ శోధించదు.";
 "Answers are written on this Mac." = "సమాధానాలు ఈ Macలోనే రాయబడతాయి.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "మీ పరికరాల నుండి వచ్చే ప్రశ్నలు, వాటికి అవసరమైన సందర్భం మీరు ఆమోదించిన ఆలోచన సర్వర్‌కు (%@) పంపబడతాయి.";

@@ -2,8 +2,9 @@
 //! computer's static key, the listener, the mDNS announcement, the publisher
 //! that keeps records current, and the device list Settings shows.
 
+use std::collections::HashSet;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -13,13 +14,15 @@ use anyhow::Result;
 use chrono::{DateTime, NaiveDate, Utc};
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, bounded};
 use lokalbot_core::{Library, Settings};
-use lokalbot_sync::{AskSink, OpOutcome, ServerConfig, ServerDelegate, SyncServer};
+use lokalbot_sync::{AskSink, OpOutcome, ServerConfig, ServerDelegate, SyncServer, UploadOutcome};
 use parking_lot::{Mutex, RwLock};
+use uuid::Uuid;
 
 use super::advertise::{Advertiser, MdnsAdvertiser};
 use super::ask::{AskEngine, AskResponder};
 use super::ops;
 use super::publisher::{Context, Publisher, RecordSink};
+use super::recordings;
 use super::sharing::{Sharing, today};
 use super::{
     CompanionCommand, CompanionDevice, CompanionPairing, CompanionSnapshot, CompanionStatus,
@@ -64,10 +67,14 @@ pub(super) trait Environment: Send + Sync {
     /// Whether the local network announcement may run at all.
     fn announces(&self) -> bool;
     fn advertiser(&self) -> Box<dyn Advertiser>;
+    /// A device's recording is now this meeting: queue it for processing and
+    /// show it, wherever the person is in the app.
+    fn recording_stored(&self, meeting_id: Uuid);
 }
 
 pub(super) struct LiveEnvironment {
     pub shared: Arc<crate::Shared>,
+    pub pipeline: crate::pipeline::Pipeline,
 }
 
 impl Environment for LiveEnvironment {
@@ -100,6 +107,16 @@ impl Environment for LiveEnvironment {
 
     fn advertiser(&self) -> Box<dyn Advertiser> {
         Box::new(MdnsAdvertiser::default())
+    }
+
+    /// Queued like a recording finished on this computer, which waits for
+    /// missing models rather than downloading them with nobody here to see it.
+    fn recording_stored(&self, meeting_id: Uuid) {
+        let summarize = self.shared.settings().auto_summarize;
+        if !self.pipeline.enqueue(meeting_id, true, summarize, false) {
+            log::warn!("device recording not queued meeting={meeting_id}");
+        }
+        self.shared.emit(crate::EngineEvent::LibraryChanged);
     }
 }
 
@@ -169,6 +186,9 @@ struct Bridge {
     publisher: RwLock<Option<Arc<Publisher>>>,
     approval: Mutex<Option<(u64, Sender<bool>)>>,
     next_approval: AtomicU64,
+    /// Outlives the sync host, which restarts when sharing is switched off and
+    /// on while an import goes on.
+    importing: Mutex<HashSet<String>>,
 }
 
 impl Bridge {
@@ -209,7 +229,7 @@ impl Bridge {
     }
 }
 
-struct Delegate {
+pub(super) struct Delegate {
     bridge: Weak<Bridge>,
 }
 
@@ -259,6 +279,55 @@ impl ServerDelegate for Delegate {
             let _ = bridge.host.send(HostMessage::DevicesChanged);
         }
     }
+
+    fn accepts_recordings(&self) -> bool {
+        self.bridge.upgrade().is_some_and(|bridge| {
+            let sharing = Sharing::new(&bridge.environment.settings());
+            bridge.publisher.read().is_some() && sharing.enabled && sharing.accepts_recordings
+        })
+    }
+
+    fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome {
+        // The sync host keeps a whole file, so waiting costs no second transfer.
+        let turned_off = || {
+            recordings::deferred("Sharing with phones and tablets is turned off on your computer.")
+        };
+        let Some(bridge) = self.bridge.upgrade() else {
+            return turned_off();
+        };
+        let Some(publisher) = bridge.publisher.read().clone() else {
+            return turned_off();
+        };
+        let sharing = Sharing::new(&bridge.environment.settings());
+        if !sharing.enabled {
+            return turned_off();
+        }
+        if !sharing.accepts_recordings {
+            return recordings::deferred(
+                "This computer isn't accepting recordings. Turn on \"Accept recordings from my devices\" in its settings.",
+            );
+        }
+        let id = serde_json::from_str::<serde_json::Value>(&recording_json)
+            .ok()
+            .and_then(|recording| recording["id"].as_str().map(str::to_owned))
+            .unwrap_or_default();
+        if !bridge.importing.lock().insert(id.clone()) {
+            return recordings::deferred("This computer is already importing this recording.");
+        }
+        let received = recordings::receive(
+            &bridge.library,
+            &recording_json,
+            Path::new(&file_path),
+            Utc::now(),
+        );
+        bridge.importing.lock().remove(&id);
+        if let Some(meeting_id) = received.new_meeting {
+            bridge.environment.recording_stored(meeting_id);
+            // Its record is there for the sync that follows the upload.
+            publisher.republish_now(meeting_id, REPUBLISH_TIMEOUT);
+        }
+        received.outcome
+    }
 }
 
 struct Running {
@@ -301,6 +370,7 @@ impl Host {
             publisher: RwLock::new(None),
             approval: Mutex::new(None),
             next_approval: AtomicU64::new(1),
+            importing: Mutex::new(HashSet::new()),
         });
         Self {
             library,
@@ -364,6 +434,9 @@ impl Host {
     pub fn apply(&mut self, sharing: Sharing) {
         if !sharing.enabled {
             self.stop();
+            // Nothing can finish arriving, so audio on its way has no reason to
+            // stay. The devices still have their copies.
+            let _ = std::fs::remove_dir_all(self.uploads_dir());
             return;
         }
         let Some(running) = &mut self.running else {
@@ -472,12 +545,24 @@ impl Host {
         })
     }
 
+    fn uploads_dir(&self) -> PathBuf {
+        self.database_path().with_file_name("uploads")
+    }
+
     fn database_path(&self) -> PathBuf {
         self.library
             .paths()
             .root()
             .join("companion")
             .join("companion.sqlite")
+    }
+
+    /// What the sync host calls, for tests of the answers themselves.
+    #[cfg(test)]
+    pub fn delegate(&self) -> Delegate {
+        Delegate {
+            bridge: Arc::downgrade(&self.bridge),
+        }
     }
 
     /// Today's record while there is activity, and a full reconcile once a

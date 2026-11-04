@@ -1,5 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
+import UIKit
 
 @main
 struct LokalBotCompanionApp: App {
@@ -13,6 +14,7 @@ struct LokalBotCompanionApp: App {
                 .environment(environment.session)
                 .environment(environment.navigator)
                 .environment(environment.appLock)
+                .environment(environment.recording)
                 .task { await environment.start() }
         }
         .commands { CompanionCommands() }
@@ -33,6 +35,23 @@ struct LokalBotCompanionApp: App {
     }
 }
 
+/// A background task that ends once, whichever comes first: the upload
+/// finishing or iOS running out of patience.
+@MainActor
+private final class BackgroundHold {
+    var task = UIBackgroundTaskIdentifier.invalid
+
+    nonisolated func end() {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                guard self.task != .invalid else { return }
+                UIApplication.shared.endBackgroundTask(self.task)
+                self.task = .invalid
+            }
+        }
+    }
+}
+
 /// Everything the scenes share: the store and session, navigation, discovery
 /// and the app lock.
 @MainActor
@@ -40,12 +59,25 @@ final class AppEnvironment {
     let session: CompanionSession
     let navigator = AppNavigator()
     let appLock = AppLock()
+    let recording: RecordingModel
     let discovery = MacDiscovery()
     private var started = false
     private var foregroundSync: Task<Void, Never>?
 
     init(session: CompanionSession) {
         self.session = session
+        recording = RecordingModel(session: session, capture: DemoLaunch.capture())
+        // Sending goes on for a while after the screen locks. What doesn't
+        // finish in that time resumes on the next sync.
+        session.holdWhileUploading = {
+            let application = UIApplication.shared
+            let hold = BackgroundHold()
+            // iOS ends an app that overruns this, and the upload resumes anyway.
+            hold.task = application.beginBackgroundTask(withName: "Send recording") { hold.end() }
+            return { hold.end() }
+        }
+        recording.onInterrupted = { RecordingPausedNotification.post() }
+        recording.onResumed = { RecordingPausedNotification.clear() }
         session.discoverAddresses = { [discovery, weak session] in
             let fingerprint = session?.pairedMac.flatMap { KeyFingerprint.fingerprint(base64Key: $0.macKeyB64) }
             return await discovery.addresses(preferringFingerprint: fingerprint)
@@ -75,6 +107,8 @@ final class AppEnvironment {
         appLock.scenePhaseChanged(phase)
         switch phase {
         case .active:
+            // A call may have ended while recording couldn't restart by itself.
+            recording.resume()
             foregroundSync?.cancel()
             foregroundSync = Task { [session] in
                 while !Task.isCancelled {

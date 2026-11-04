@@ -1673,6 +1673,10 @@
 "Last year" = "過去1年間";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "共有しないもの：参加者のメールアドレス、話者の根拠と声のプロフィール、スクリーンショットと画面のテキスト、メール、パーソナルコンテキスト、夜間レビューの記憶、設定、キー。";
 "Answer questions from my devices" = "デバイスからの質問に回答";
+"Recordings" = "録音";
+"Accept recordings from my devices" = "自分のデバイスからの録音を受け入れる";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "ペアリング済みのデバイスは、録音したミーティングをこのMacに送信できます。録音はここでミーティングになり、他の録音と同じように処理されます。その後、デバイスは自身のコピーを削除します。";
+"Recording from %@" = "%@ からの録音";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "このMacが、共有している会議とタイムラインをもとに、思考モデルとその承認設定を使って回答します。デバイスのために画面の記憶が検索されることはありません。";
 "Answers are written on this Mac." = "回答はこのMac上で作成されます。";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "デバイスからの質問と、回答に必要なコンテキストは、承認済みの思考サーバー（%@）に送信されます。";

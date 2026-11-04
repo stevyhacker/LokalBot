@@ -68,6 +68,9 @@ public struct Manifest: Codable, Sendable, Hashable {
     /// 0 is all history; otherwise 30, 90 or 365.
     public var historyDays: Int
     public var askEnabled: Bool
+    /// Whether the Mac takes recordings from this device now. Absent from a
+    /// Mac that predates them.
+    public var recordingsEnabled: Bool?
     public var generatedAt: Date
 
     public struct DataClasses: Codable, Sendable, Hashable {
@@ -84,13 +87,14 @@ public struct Manifest: Codable, Sendable, Hashable {
 
     public init(schemaVersion: Int = 1, libraryName: String, macName: String,
                 dataClasses: DataClasses = .init(), historyDays: Int = 0,
-                askEnabled: Bool = true, generatedAt: Date) {
+                askEnabled: Bool = true, recordingsEnabled: Bool? = nil, generatedAt: Date) {
         self.schemaVersion = schemaVersion
         self.libraryName = libraryName
         self.macName = macName
         self.dataClasses = dataClasses
         self.historyDays = historyDays
         self.askEnabled = askEnabled
+        self.recordingsEnabled = recordingsEnabled
         self.generatedAt = generatedAt
     }
 }

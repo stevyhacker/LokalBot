@@ -32,6 +32,22 @@ public protocol CompanionStore: Sendable {
     func queuedQuestions() async throws -> [AskRequest]
     func askHistory(limit: Int) async throws -> [AskExchange]
 
+    // Recordings made on this device
+    /// Starts a recording; the result says where the recorder writes.
+    func beginRecording(title: String?) async throws -> RecordingItem
+    /// The recorder stopped. An empty file leaves no recording and throws.
+    func finishRecording(id: String, durationSeconds: Double) async throws -> RecordingItem
+    /// Keeps what an app that stopped mid-recording wrote. Never while recording.
+    func recoverRecordings() async throws
+    func discardRecording(id: String) async throws
+    func setRecordingTitle(id: String, title: String) async throws
+    func retryRecording(id: String) async throws
+    func recordings() async throws -> [RecordingItem]
+    /// Sends what's waiting, resuming earlier attempts, and blocks until done.
+    /// What doesn't get through stays waiting.
+    func uploadRecordings(extraAddresses: [String],
+                          onProgress: @escaping @Sendable (_ id: String, _ sent: Int64, _ total: Int64) -> Void) async throws -> UploadReport
+
     // Pairing and sync
     func pair(payload: String) async throws -> PairedMac
     func pairedMac() async throws -> PairedMac?

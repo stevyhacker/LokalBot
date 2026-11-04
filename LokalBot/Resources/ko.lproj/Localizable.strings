@@ -1673,6 +1673,10 @@
 "Last year" = "지난 1년";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "공유하지 않는 항목: 참석자 이메일 주소, 화자 근거 및 음성 프로필, 스크린샷 및 화면 텍스트, 이메일, 개인 맥락, 야간 검토 메모리, 설정, 키.";
 "Answer questions from my devices" = "내 기기의 질문에 답변";
+"Recordings" = "녹음";
+"Accept recordings from my devices" = "내 기기의 녹음 받기";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "페어링된 기기는 녹음한 회의를 이 Mac으로 보낼 수 있습니다. 녹음은 여기에서 회의가 되어 다른 녹음과 똑같이 처리되며, 그 후 기기는 자신의 사본을 삭제합니다.";
+"Recording from %@" = "%@의 녹음";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "이 Mac이 공유하는 회의와 타임라인을 바탕으로 사고 모델과 그 승인 설정을 사용해 답변합니다. 기기를 위해 화면 메모리를 검색하는 일은 없습니다.";
 "Answers are written on this Mac." = "답변은 이 Mac에서 작성됩니다.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "기기에서 보낸 질문과 답변에 필요한 맥락은 승인된 사고 서버(%@)로 전송됩니다.";

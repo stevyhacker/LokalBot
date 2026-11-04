@@ -14,7 +14,9 @@ iPhone, iPad or Android phone, tablet or foldable:
 Data moves only between the person's own devices, over their local network or
 their Tailscale network, end-to-end encrypted. No LokalBot server or other
 third party is involved. The Mac stays the place where everything is recorded,
-processed and decided. The companion apps never record or transcribe.
+processed and decided. The companion apps never transcribe. (Revised 2026-11-04:
+they can now record a meeting and send it to the Mac, which processes it; see
+[protocol.md](../Companion/protocol/protocol.md), Flow for `purpose: "upload"`.)
 
 Anyone can have one Mac and any number of paired phones and tablets. The first
 test devices are the owner's iPad and Android phone. The apps ship through the

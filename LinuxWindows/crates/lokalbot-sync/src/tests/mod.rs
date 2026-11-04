@@ -6,6 +6,7 @@ mod client_queries;
 mod host_store;
 mod keys;
 mod pairing;
+mod recordings;
 mod search;
 mod session;
 mod wire;
@@ -21,6 +22,7 @@ use tempfile::TempDir;
 use crate::wire::Tuning;
 use crate::{
     AskSink, ClientConfig, OpOutcome, ServerConfig, ServerDelegate, SyncClient, SyncServer,
+    UploadOutcome,
 };
 
 pub(crate) const FIXTURE: &str =
@@ -96,11 +98,14 @@ pub(crate) fn fast_tuning() -> Tuning {
         answer_retention: Duration::from_secs(60),
         offer_lifetime_secs: 300,
         batch_bytes: 512 * 1024,
+        upload_chunk_bytes: 1024,
+        upload_finish_timeout: Duration::from_secs(5),
     }
 }
 
 type OpHandler = Box<dyn Fn(&SyncServer, Value) -> OpOutcome + Send + Sync>;
 type AskHandler = Box<dyn Fn(Value, Arc<AskSink>) + Send + Sync>;
+type RecordingHandler = Box<dyn Fn(&Value, &str) -> UploadOutcome + Send + Sync>;
 
 /// A scriptable Mac app.
 pub(crate) struct TestDelegate {
@@ -111,6 +116,10 @@ pub(crate) struct TestDelegate {
     pub ops: Mutex<Vec<Value>>,
     on_op: Mutex<Option<OpHandler>>,
     on_ask: Mutex<Option<AskHandler>>,
+    pub accepts_recordings: AtomicBool,
+    /// Each recording the Mac was handed: its description and bytes.
+    pub recordings: Mutex<Vec<(Value, Vec<u8>)>>,
+    on_recording: Mutex<Option<RecordingHandler>>,
     server: OnceLock<Weak<SyncServer>>,
 }
 
@@ -121,6 +130,13 @@ impl TestDelegate {
 
     pub fn on_ask(&self, handler: impl Fn(Value, Arc<AskSink>) + Send + Sync + 'static) {
         *self.on_ask.lock() = Some(Box::new(handler));
+    }
+
+    pub fn on_recording(
+        &self,
+        handler: impl Fn(&Value, &str) -> UploadOutcome + Send + Sync + 'static,
+    ) {
+        *self.on_recording.lock() = Some(Box::new(handler));
     }
 }
 
@@ -163,6 +179,24 @@ impl ServerDelegate for SharedDelegate {
     fn devices_changed(&self) {
         self.0.device_changes.fetch_add(1, Ordering::SeqCst);
     }
+
+    fn accepts_recordings(&self) -> bool {
+        self.0.accepts_recordings.load(Ordering::SeqCst)
+    }
+
+    fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome {
+        let recording: Value = serde_json::from_str(&recording_json).expect("recordings are JSON");
+        let bytes = std::fs::read(&file_path).expect("the recording's file exists");
+        self.0.recordings.lock().push((recording.clone(), bytes));
+        match &*self.0.on_recording.lock() {
+            Some(handler) => handler(&recording, &file_path),
+            None => UploadOutcome {
+                status: "accepted".into(),
+                meeting_id: recording["id"].as_str().map(str::to_owned),
+                message: None,
+            },
+        }
+    }
 }
 
 pub(crate) struct Host {
@@ -197,6 +231,9 @@ impl Host {
             ops: Mutex::new(Vec::new()),
             on_op: Mutex::new(None),
             on_ask: Mutex::new(None),
+            accepts_recordings: AtomicBool::new(true),
+            recordings: Mutex::new(Vec::new()),
+            on_recording: Mutex::new(None),
             server: OnceLock::new(),
         });
         let server = SyncServer::new(
@@ -222,6 +259,10 @@ impl Host {
             delegate,
             _dir: dir,
         }
+    }
+
+    pub fn uploads_dir(&self) -> std::path::PathBuf {
+        self._dir.path().join("companion/uploads")
     }
 
     pub fn offer(&self) -> String {

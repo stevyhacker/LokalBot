@@ -61,6 +61,9 @@ targets:
         NSCameraUsageDescription: >-
           LokalBot uses the camera to scan the pairing code your computer shows.
           Nothing is recorded or saved.
+        NSMicrophoneUsageDescription: >-
+          LokalBot records meetings when you ask it to, and sends them only to
+          your own computer, which transcribes them.
         NSFaceIDUsageDescription: >-
           LokalBot can ask for Face ID before showing your meetings and
           actions, if you turn on App Lock.
@@ -68,6 +71,7 @@ targets:
           - me.dotenv.LokalBot.companion.refresh
         UIBackgroundModes:
           - fetch
+          - audio
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.dotenv.LokalBot.companion

@@ -44,6 +44,8 @@ data class Manifest(
     val dataClasses: DataClasses = DataClasses(),
     val historyDays: Int = 0,
     val askEnabled: Boolean = false,
+    /** Absent on a computer from before recordings; false while its setting is off. */
+    val recordingsEnabled: Boolean? = null,
     val generatedAt: String? = null,
 )
 

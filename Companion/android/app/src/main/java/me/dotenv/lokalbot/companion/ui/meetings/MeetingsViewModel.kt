@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -18,6 +20,8 @@ import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.data.model.Transcript
 import me.dotenv.lokalbot.companion.ui.common.LibraryViewModel
+import me.dotenv.lokalbot.companion.ui.recording.RecordingRowState
+import me.dotenv.lokalbot.companion.ui.recording.recordingStatus
 
 data class MeetingDay(val day: String, val meetings: List<Meeting>)
 
@@ -37,8 +41,32 @@ class MeetingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
         .mapLatest(::load)
         .stateIn(viewModelScope, SharingStarted.Eagerly, MeetingsState(repository.today()))
 
+    /** "From this device". The manifest can be stale, so it only explains; it never blocks recording. */
+    val recordings: StateFlow<List<RecordingRowState>> = combine(
+        repository.recordings,
+        repository.uploadProgress,
+        repository.revision.mapLatest { repository.manifest()?.recordingsEnabled == false },
+    ) { recordings, progress, turnedOff ->
+        recordings.map { RecordingRowState(it, recordingStatus(it, progress, turnedOff)) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val computerName: StateFlow<String?> = repository.syncState.map { it.status.macName }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, repository.syncState.value.status.macName)
+
     fun setQuery(value: String) {
         _query.value = value
+    }
+
+    fun retryRecording(id: String) {
+        viewModelScope.launch { repository.retryRecording(id) }
+    }
+
+    fun deleteRecording(id: String) {
+        viewModelScope.launch { repository.discardRecording(id) }
+    }
+
+    fun renameRecording(id: String, title: String) {
+        viewModelScope.launch { repository.setRecordingTitle(id, title) }
     }
 
     private suspend fun load(query: String): MeetingsState {
