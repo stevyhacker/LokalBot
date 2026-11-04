@@ -1,0 +1,11 @@
+{"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [700, 540], "settle": 1.5, "pre": 0.6, "post": 1.2,
+ "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true}],
+ "actions":[
+  {"wait": 1.0},
+  {"mark": "today"},
+  {"click": {"contains": "Book the photo studio", "role": "AXButton"}, "duration": 0.7, "optional": true},
+  {"wait": 1.4},
+  {"mark": "checked"},
+  {"scroll": {"at": [480, 340]}, "dy": -300, "duration": 0.6},
+  {"wait": 1.4},
+  {"mark": "digest"}]}

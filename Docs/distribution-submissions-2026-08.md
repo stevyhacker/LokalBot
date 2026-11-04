@@ -52,9 +52,9 @@ notarized, Sparkle updates.
 - Recap demo GIF: `Assets/screenshots/recap.gif`
 - Search GIF: `Assets/screenshots/search.gif`
 - Screens: `Assets/screenshots/timeline.png`, `Assets/screenshots/meetings-summary.png`, `Assets/screenshots/meetings-transcript.png`, `Assets/screenshots/chat.png`, `Assets/screenshots/dictation.png`, `Assets/screenshots/cotyping.png`
-- Video: `web/assets/feature-demo.mp4` (poster: `web/assets/feature-demo-poster.jpg`)
+- Video: `web/assets/demos/meetings-wide-light.mp4` (poster: `web/assets/demos/meetings-wide-light.webp`)
 
-Upload order suggestion: hero.gif first (thumbnail), then feature-demo.mp4, then the five strongest screens.
+Upload order suggestion: hero.gif first (thumbnail), then the meetings clip, then the five strongest screens.
 
 **Maker comment draft (post as the first comment right after launch goes live):**
 
@@ -158,7 +158,7 @@ Sparkle updates.
 - `Assets/screenshots/meetings-transcript.png`
 - `Assets/screenshots/dictation.png`
 - `Assets/screenshots/cotyping.png`
-- Video (if a video field is offered): `web/assets/feature-demo.mp4`
+- Video (if a video field is offered): `web/assets/demos/meetings-wide-light.mp4`
 
 **Launch-day comment draft (post as maker first thing on launch day):**
 

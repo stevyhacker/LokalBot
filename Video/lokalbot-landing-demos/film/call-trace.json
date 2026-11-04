@@ -1,0 +1,78 @@
+{
+ "header": {
+  "schemaVersion": 1,
+  "macOSVersion": "26.0",
+  "origin": "reconstructed",
+  "scenario": "landing-call",
+  "scrubberVersion": 1,
+  "recordedAt": "2026-11-04T00:00:00Z"
+ },
+ "events": [
+  {
+   "t": 0,
+   "query": "runningApps",
+   "apps": [
+    {
+     "processIdentifier": 501,
+     "bundleIdentifier": "com.google.Chrome",
+     "localizedName": "Google Chrome"
+    }
+   ]
+  },
+  {
+   "t": 0,
+   "query": "frontmost",
+   "app": {
+    "processIdentifier": 501,
+    "bundleIdentifier": "com.google.Chrome",
+    "localizedName": "Google Chrome"
+   }
+  },
+  {
+   "t": 0,
+   "query": "idleSeconds",
+   "seconds": 1
+  },
+  {
+   "t": 0,
+   "query": "audioProcesses",
+   "processes": []
+  },
+  {
+   "t": 3,
+   "query": "audioProcesses",
+   "processes": [
+    {
+     "id": 502,
+     "name": "Google Chrome Helper",
+     "bundleID": "com.google.Chrome.helper",
+     "objectID": 90,
+     "isRunningOutput": true
+    }
+   ]
+  },
+  {
+   "t": 3,
+   "query": "browserSnapshot",
+   "processID": 501,
+   "browser": {
+    "url": "https://meet.google.com/bcd-fghj-klm",
+    "state": "inCall"
+   }
+  },
+  {
+   "t": 1800,
+   "query": "browserSnapshot",
+   "processID": 501,
+   "browser": {
+    "url": "https://meet.google.com/bcd-fghj-klm",
+    "state": "ended"
+   }
+  },
+  {
+   "t": 1800,
+   "query": "audioProcesses",
+   "processes": []
+  }
+ ]
+}
