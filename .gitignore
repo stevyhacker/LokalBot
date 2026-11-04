@@ -15,6 +15,7 @@ Vendor/
 .DS_Store
 .build/
 Scripts/**/__pycache__/
+Companion/e2e/__pycache__/
 
 # Vercel CLI local link
 .vercel/

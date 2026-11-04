@@ -81,3 +81,29 @@ folder. Type `pair` for a new code, `devices`, `remove <id>`,
 `publish` or `quit`. `--port`, `--dir` and `--loopback` are optional. Both apps
 also have **Try it without a computer**, which loads the same sample library on the
 device.
+
+## End-to-end tests
+
+`Companion/e2e/` runs each app against that development host, and CI runs each
+one when that app or the sync core changes. No desktop app or real phone is
+involved.
+
+- **Android** (`android_trip.py`) installs the shrunk release build on an emulator,
+  opens the QR scanner, pairs, syncs, opens every screen, asks a question and
+  records, including a recording cut off by a force-stop and one made while the
+  host is away. It pairs through the link, so no QR code gets decoded. The
+  emulator's microphone is silent, so it proves the recorder, its service and the
+  upload, not how speech sounds.
+- **iOS** (`ios_trip.py`) runs a Debug build in the Simulator: it pairs, syncs,
+  changes an action item and sends a fixture queued with `-demoQueueRecording`,
+  including one queued while the host is away. It never starts the recorder,
+  because the Simulator's microphone is the Mac's.
+
+The top of each script has the command to run it. When the Android test fails in
+CI, the job's reports hold a screenshot, the UI tree, logcat, the host's log and
+the R8 mapping that decodes a stack trace. iOS keeps a screenshot, the app's log
+and the host's log.
+
+Check these on a real phone before a store release, because the tests can't: real
+speech, recording with the screen locked, a phone call interrupting a recording,
+and a phone recording transcribed on each desktop app.

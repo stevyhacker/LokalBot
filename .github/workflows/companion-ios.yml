@@ -1,6 +1,8 @@
-# iPhone and iPad companion: run the kit's unit tests and compile the app for
-# the iOS Simulator and for devices. Signing is off (CODE_SIGNING_ALLOWED=NO);
-# hosted runners hold no Apple Development certificate. No UI tests run here.
+# iPhone and iPad companion: run the kit's unit tests, compile the app for the
+# iOS Simulator and for devices, and run the Simulator build against a stand-in
+# computer. Hosted runners hold no Apple Development certificate, so the device
+# build is unsigned and the Simulator build is ad-hoc signed, because the Keychain
+# refuses an app with no entitlements. No UI tests run here.
 
 name: Companion iOS
 
@@ -44,7 +46,7 @@ defaults:
 
 jobs:
   ios:
-    name: Kit tests and app build
+    name: Kit tests, app build and end-to-end test
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -55,6 +57,13 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.4.1"
+
+      # A cold Simulator took about 5 minutes to boot, so it boots beside the
+      # builds. The end-to-end test waits for it and reports any failure.
+      - name: Boot the Simulator
+        background: true
+        continue-on-error: true
+        run: python3 Companion/e2e/ios_trip.py --boot
 
       - name: Toolchain info
         run: |
@@ -85,10 +94,30 @@ jobs:
         run: |
           xcodebuild -project Companion/ios/LokalBotCompanion.xcodeproj -scheme LokalBotCompanion \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/companion-ios" \
-            build CODE_SIGNING_ALLOWED=NO
+            build CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
+
+      - name: Build the stand-in computer
+        working-directory: LinuxWindows
+        run: cargo build -p lokalbot-sync --example companion_host
+
+      - name: End-to-end test in the iOS Simulator
+        run: |
+          python3 Companion/e2e/ios_trip.py \
+            --app "$RUNNER_TEMP/companion-ios/Build/Products/Debug-iphonesimulator/LokalBot.app" \
+            --host LinuxWindows/target/debug/examples/companion_host \
+            --clip LinuxWindows/crates/lokalbot-audio/tests/data/tone-440-adts.aac \
+            --out "$RUNNER_TEMP/ios-e2e"
 
       - name: Build for devices
         run: |
           xcodebuild -project Companion/ios/LokalBotCompanion.xcodeproj -scheme LokalBotCompanion \
             -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/companion-ios" \
             build CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload what the end-to-end test saw
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: companion-ios-e2e
+          path: ${{ runner.temp }}/ios-e2e
+          retention-days: 7
