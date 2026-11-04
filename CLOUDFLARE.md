@@ -12,6 +12,10 @@ The website can be deployed as Cloudflare Workers static assets using `wrangler.
 - Extensionless article URLs are preserved. Workers `_redirects` files cannot
   match a source hostname, so the canonical redirect belongs in the zone rules.
 - `.assetsignore` excludes Markdown instructions from public assets.
+- Workers static assets answer byte-range requests with the whole file, and Safari
+  won't play video without ranges. Media requests run through
+  `cloudflare/media-ranges.js` first (`run_worker_first`); everything else is served
+  by the assets directly.
 - No runtime secret is needed; downloads remain on GitHub Releases.
 
 Before switching DNS, verify the Workers URL, article links, CSS, JavaScript,

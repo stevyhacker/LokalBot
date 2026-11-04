@@ -7,12 +7,15 @@ loop without exposing a real library or overstating the privacy boundary.
 
 | Asset | Length | Purpose | Source |
 | --- | ---: | --- | --- |
-| Product promo | 29.973 s | Fast website/README overview | `Video/lokalbot-promo/` |
+| Website demo clips | 5–10 s each | Home page hero and feature cards, light and dark, wide and phone cuts | `Video/lokalbot-landing-demos/` |
+| Product promo | 29.973 s | Fast listing or social overview | `Video/lokalbot-promo/` |
 | Bot-free meeting proof | 40–50 s | Real capture → cited outcomes | consenting test call |
 | Built-in processing proof | 45–60 s | Reproducible network boundary | fresh test call + `nettop` |
 
-The 30-second promo is the canonical website cut. The longer
-`Video/hero-demo/` project is preserved as a legacy feature showcase.
+The home page plays the short clips from `Video/lokalbot-landing-demos/`; see
+its README for filming and cutting them. The 30-second promo is a standalone
+cut for listings and social posts. The longer `Video/hero-demo/` project is
+preserved as a legacy feature showcase.
 
 ## Shared preflight
 
@@ -28,7 +31,7 @@ The 30-second promo is the canonical website cut. The longer
 - Recording consent and workplace policy remain the operator's responsibility;
   bot-free capture does not remove that obligation.
 
-## Canonical 30-second promo
+## 30-second promo
 
 The project uses six scenes: pop quiz, cited recall, bot-free capture, Dictation
 and Autocomplete, a scoped built-in network check, and the CTA. Generated voice,
@@ -43,14 +46,15 @@ npm run dev
 ```
 
 Inspect the Studio preview and contact sheet. Only after the cut is approved,
-render and promote the public aliases from the repository root:
+render it from the repository root. The site no longer links these files, so
+upload the result where it is needed rather than committing it:
 
 ```sh
 Scripts/render-hero-video-short.sh
 ```
 
-The script writes the website MP4, poster, production manifest, and the README
-MP4 alias atomically.
+The script writes the MP4, poster and production manifest under `web/assets/`
+atomically.
 
 ## Demo A: bot-free meeting to cited outcomes
 

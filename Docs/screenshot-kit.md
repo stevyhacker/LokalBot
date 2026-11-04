@@ -81,27 +81,17 @@ frame.
 
 ## Website set
 
-The homepage screenshots in `web/assets/screens/` use the studio library
-(`Scripts/seed_demo_library.py --profile studio`): Apple-app, non-coding
-examples with a different topic in each frame. No script captures this set
-yet. Seed the library into a temporary directory, then run the host once per
-frame in each appearance with the environment from `capture()` in
-`Scripts/capture-screenshots.sh`, plus `LOKALBOT_DISMISS_ONBOARDING=1` and
-`LOKALBOT_CAPTURE_APPEARANCE=light` or `dark`:
+The home page shows real recordings, not stills: `web/assets/demos/` holds every
+clip and poster, in light and dark, filmed and cut by
+`Video/lokalbot-landing-demos/` (see its README). Update the clips' `aria-label`s
+and captions in `web/index.html` when a clip's content changes.
 
-| Files | Settings |
+`web/assets/screens/` holds only:
+
+| Files | Source |
 | --- | --- |
-| `quick-recall.png`, `quick-recall-light.png` | `LOKALBOT_UI_TEST_WINDOW=quick-recall LOKALBOT_QUICK_RECALL_QUERY="demo presentation" LOKALBOT_CAPTURE_SIZE=660x512 LOKALBOT_CAPTURE_SCALE=4` |
-| `screen-search.png`, `screen-search-light.png` | the same with `LOKALBOT_QUICK_RECALL_QUERY=captions` |
-| `meetings-summary.png`, `meetings-summary-light.png` | `LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=0 LOKALBOT_DETAIL_TAB=summary LOKALBOT_CAPTURE_SIZE=1400x932` |
-| `today.png`, `today-light.png` | `LOKALBOT_INITIAL_SECTION=today LOKALBOT_CAPTURE_SIZE=1400x932` |
-
-Cut each `*-phone*.png` from its 4× Quick Recall capture with
-`sips -c 1370 1600 --cropOffset 120 0`. Capture the whole set from one seeded
-library during the day: today's meetings and screen moments are placed
-relative to the current time, so a run soon after midnight files them under
-Yesterday. Update the homepage alt text and captions when a frame's content
-changes.
+| `linux-meetings.webp`, `linux-meetings-dark.webp`, `windows-today.webp`, `windows-today-dark.webp` | The Linux and Windows screenshots from the CI artifact of a `master` run, converted to WebP |
+| `meetings-summary-light.png` | The `stills` take of `Video/lokalbot-landing-demos/film/film.sh`; the source for `web/assets/og-home.png` (`Assets/social-preview/og-home.html`) |
 
 ## Review before commit
 

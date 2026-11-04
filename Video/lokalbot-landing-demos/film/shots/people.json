@@ -1,0 +1,11 @@
+{"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [700, 540], "settle": 1.5, "pre": 0.6, "post": 1.2,
+ "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true}, {"click": {"contains": "Maya,"}, "duration": 0.2, "optional": true}],
+ "actions":[
+  {"wait": 1.0},
+  {"mark": "maya"},
+  {"scroll": {"at": [600, 400]}, "dy": -220, "duration": 0.5},
+  {"wait": 1.2},
+  {"mark": "scrolled"},
+  {"click": {"contains": "Leo,"}, "duration": 0.7, "optional": true},
+  {"wait": 1.6},
+  {"mark": "leo"}]}
