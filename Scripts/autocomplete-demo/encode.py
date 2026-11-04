@@ -39,7 +39,8 @@ def main():
         "-pix_fmt", "yuv444p", "-movflags", "+faststart", str(out),
     ], check=True)
     events = out.with_suffix(".json")
-    events.write_text(json.dumps({k: meta[k] for k in ("rect", "scale", "background", "end", "events")}, indent=2))
+    events.write_text(json.dumps({k: meta[k] for k in ("rect", "scale", "background", "end", "events", "pointer")
+                                  if k in meta}, indent=2))
     print(f"{out} ({len(frames)} frames, {meta['end']:.1f}s)")
 
 

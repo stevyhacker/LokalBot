@@ -1,0 +1,3 @@
+{"bundle":"me.dotenv.LokalBot.uitesthost","size":[960,600],"settle":1.5,"cursor":false,"park":[700,540],"pre":0.6,"post":1.2,
+ "setup":[{"press":{"label":"Hide Sidebar"},"optional":true}],
+ "actions":[{"wait":0.8},{"mark":"people"}]}

@@ -1,0 +1,8 @@
+{"bundle":"me.dotenv.LokalBot.uitesthost","size":[960,600],"settle":2.0,"cursor":false,"park":[700,540],"pre":0.6,"post":1.2,
+ "setup":[{"press":{"label":"Hide Sidebar"},"optional":true}],
+ "actions":[{"wait":0.8},{"mark":"before"},
+  {"click":{"id":"toolbar.record"},"duration":0.7},{"wait":1.5},{"mark":"recording"},
+  {"click":{"id":"live.startPreview"},"duration":0.6,"optional":true},{"wait":1.0},{"mark":"preview"},
+  {"until":{"contains":"studio"},"timeout":90,"optional":true},{"mark":"words"},
+  {"wait":30},{"mark":"more-words"},
+  {"click":{"id":"live.stop"},"duration":0.7,"optional":true},{"wait":2.0},{"mark":"stopped"}]}

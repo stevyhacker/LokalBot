@@ -1,0 +1,208 @@
+# Films the website's demo clips (Video/lokalbot-landing-demos) on a hosted Mac:
+# the real app on fictional libraries, at 2x on a virtual Retina display. Never a
+# required check; no secrets are used.
+#
+# The apps are built once and kept as the `landing-apps` artifact. To film again
+# without rebuilding, put that run's id in film/apps-run.txt. film/takes.txt names
+# the takes and film/appearances.txt the appearances a push films.
+# The footage, stills, probes and logs are the `landing-demos-footage` artifact.
+name: Landing page demos
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/lokalbot-landing-demos*"
+    paths:
+      - ".github/workflows/landing-demos.yml"
+      - "Video/lokalbot-landing-demos/film/**"
+      - "Scripts/readme-gif/rig.swift"
+
+concurrency:
+  group: landing-demos-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  plan:
+    name: Decide what to build
+    runs-on: ubuntu-latest
+    outputs:
+      apps-run: ${{ steps.read.outputs.apps-run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - id: read
+        run: echo "apps-run=$(tr -d '[:space:]' < Video/lokalbot-landing-demos/film/apps-run.txt 2>/dev/null)" | tee -a "$GITHUB_OUTPUT"
+
+  # LokalBot.app (Debug) for the autocomplete take.
+  build:
+    needs: plan
+    if: needs.plan.outputs.apps-run == ''
+    uses: ./.github/workflows/build.yml
+    with:
+      cache_mode: warm
+      products_only: true
+
+  host:
+    name: Build the UI Test Host
+    needs: plan
+    if: needs.plan.outputs.apps-run == ''
+    runs-on: macos-26
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.4.1"
+      - name: Install build tools
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          command -v cmake >/dev/null || brew install cmake
+      - name: Create vendor dirs for XcodeGen
+        run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+      - name: Generate project
+        run: xcodegen generate
+      - name: Cache native vendors
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: Vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+      - name: Fetch llama.cpp vendor
+        run: bash Scripts/fetch-llama.sh
+      - name: Cache Swift packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/SourcePackages
+          key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.4.1-${{ hashFiles('**/Package.resolved') }}
+      - name: Identify compatible compiler cache
+        id: compiler-key
+        run: python3 Scripts/ci/compiler-cache.py key ui
+      - name: Restore compiler cache
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/compilation-cache
+          key: ${{ steps.compiler-key.outputs.key }}
+          restore-keys: ${{ steps.compiler-key.outputs.prefix }}
+      - name: Build the UI Test Host
+        env:
+          COMPILER_CACHE_MODE: warm
+          CODE_SIGNING_ALLOWED: "NO"
+        run: Scripts/ui-tests.sh --build-only
+      - name: Package the UI Test Host
+        run: ditto -c -k --keepParent ".build/dd/Build/Products/Debug/LokalBot UI Test Host.app" .build/ui-host.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: landing-ui-host
+          path: .build/ui-host.zip
+          retention-days: 2
+          compression-level: 0
+
+  film:
+    name: Film the landing demos
+    needs: [plan, build, host]
+    if: ${{ !cancelled() && (needs.plan.outputs.apps-run != '' || (needs.build.result == 'success' && needs.host.result == 'success')) }}
+    runs-on: macos-26
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.4.1"
+      - name: Download the apps from the earlier run
+        if: needs.plan.outputs.apps-run != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: landing-apps
+          path: .build/apps
+          run-id: ${{ needs.plan.outputs.apps-run }}
+          github-token: ${{ github.token }}
+      - name: Download this run's Debug app
+        if: needs.plan.outputs.apps-run == ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: unit-products
+          path: .build/transfer
+      - name: Download this run's UI Test Host
+        if: needs.plan.outputs.apps-run == ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: landing-ui-host
+          path: .build/ui-host
+      - name: Gather the apps
+        if: needs.plan.outputs.apps-run == ''
+        run: |
+          mkdir -p .build/apps
+          tar -xf .build/transfer/unit.tar -C .build/apps ./Debug/LokalBot.app
+          ditto -c -k --keepParent .build/apps/Debug/LokalBot.app .build/apps/LokalBot.zip
+          rm -rf .build/apps/Debug .build/transfer
+          cp .build/ui-host/ui-host.zip .build/apps/ui-host.zip
+      - name: Keep the apps for later takes
+        if: needs.plan.outputs.apps-run == ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: landing-apps
+          path: .build/apps
+          retention-days: 14
+          compression-level: 0
+      - name: Unpack the apps
+        run: |
+          ditto -x -k .build/apps/LokalBot.zip .build/unpacked
+          ditto -x -k .build/apps/ui-host.zip .build/unpacked
+          ls .build/unpacked
+      - name: Install ffmpeg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: command -v ffmpeg || brew install ffmpeg
+      - name: Film
+        env:
+          UI_HOST_APP: ${{ github.workspace }}/.build/unpacked/LokalBot UI Test Host.app
+          LOKALBOT_APP: ${{ github.workspace }}/.build/unpacked/LokalBot.app
+        run: |
+          takes=$(tr '\n' ' ' < Video/lokalbot-landing-demos/film/takes.txt)
+          export APPEARANCES=$(tr '\n' ' ' < Video/lokalbot-landing-demos/film/appearances.txt)
+          export PROBE=$(tr -d '[:space:]' < Video/lokalbot-landing-demos/film/probe.txt)
+          # shellcheck disable=SC2086
+          bash Video/lokalbot-landing-demos/film/film.sh .build/landing-film $takes
+      - name: Gather the results
+        if: ${{ !cancelled() }}
+        run: |
+          OUT=.build/landing-film
+          PUB=.build/landing-film-publish
+          rm -rf "$PUB"
+          mkdir -p "$PUB"
+          [[ -d "$OUT" ]] || exit 0
+          cp -R "$OUT/clips" "$OUT/stills" "$OUT/probes" "$OUT/logs" "$OUT/recorded" "$PUB/" 2>/dev/null || true
+          if [[ -d "$OUT/autocomplete" ]]; then
+            mkdir -p "$PUB/autocomplete"
+            cp -R "$OUT/autocomplete/logs" "$PUB/autocomplete/" 2>/dev/null || true
+          fi
+          {
+            echo "# Landing page demo footage"
+            echo
+            echo "Filmed by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} from ${GITHUB_SHA}."
+            echo "Hardware: $(sysctl -n machdep.cpu.brand_string), $(($(sysctl -n hw.memsize) / 1073741824)) GB."
+            echo "macOS: $(sw_vers -productVersion)."
+          } > "$PUB/README.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ !cancelled() }}
+        with:
+          name: landing-demos-footage
+          path: .build/landing-film-publish
+          retention-days: 14
+          if-no-files-found: ignore
