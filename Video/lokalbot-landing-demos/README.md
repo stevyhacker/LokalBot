@@ -13,6 +13,7 @@ and retimed here. Nothing inside a window is redrawn.
 | `ask` | Hero | `ask`, `ask-tall` |
 | `agents` | Hero | `agents/`, a terminal recording |
 | `today`, `files`, `timeline`, `people` | Feature cards | The take of the same name |
+| `projects` | Feature card | `projects`, then `projects-note` |
 
 Hero clips come as `wide` (16:10, 1920×1200) and `tall` (4:5, 1080×1350), in `light`
 and `dark`, as `web/assets/demos/<clip>-<cut>-<appearance>.mp4` with a `.webp` poster.
@@ -23,15 +24,15 @@ running off its edge.
 ## What is real
 
 - **The app:** a Debug build of `master` at the commit in the apps run, the same build
-  on every Mac. `meetings`, `search`, `today`, `timeline`, `people`, `ask` and `dictation`
-  run the UI Test Host; `files` and `autocomplete` run `LokalBot.app`, because the host
-  never reads folders.
+  on every Mac. `meetings`, `search`, `today`, `timeline`, `people`, `projects`, `ask` and
+  `dictation` run the UI Test Host; `files` and `autocomplete` run `LokalBot.app`, because
+  the host never reads folders.
 - **The Macs:** `meetings` and `ask` on an M4 Max MacBook on macOS 27 (`film-local.sh`),
   the rest on GitHub's hosted Macs on macOS 26.
 - **The models:** Parakeet, Qwen3.5 4B, Gemma 4 E2B and EmbeddingGemma 2, on the
   filming Mac. The live transcript, the `Spring campaign` notes, the Ask answer, the
-  dictated message, the autocomplete suggestion and the Files results are what they
-  produced. Nothing reaches a remote model.
+  notes in `projects`, the dictated message, the autocomplete suggestion and the Files
+  results are what they produced. Nothing reaches a remote model.
 - **The input:** real pointer and key events from `Scripts/readme-gif/rig.swift`. The
   pointer, click ripples and keycaps in the clips are drawn by `compose.py` at the
   times and points the rig logged.
@@ -49,6 +50,9 @@ running off its edge.
   each clip. Typing is sped up in some clips.
 - **The seeded screens are seeded.** `search`, `today`, `timeline`, `people` and the
   meetings behind them are written by `Scripts/seed_demo_library.py`, not generated.
+  `film/stage.py track` sets the projects `projects` opens with. The take tracks the
+  suggested one and the model writes its note. That's two takes of one launch, since
+  recording slows a hosted Mac's model too much, and the clip dissolves across the wait.
 - **One title is typed by hand.** `film/stage.py polish` names the recorded call
   `Spring campaign`, as a person would after the meeting.
 
@@ -68,6 +72,10 @@ It leaves system settings and other apps alone; its header says what it needs.
 Local models vary from take to take. An Ask answer without a citation fails the take, and
 so does dictation that writes the window's title into the message, and both are filmed
 again. Check the notes on a contact sheet before cutting.
+
+Hosted Macs vary too, by about 3x. The app gives a model request 10 minutes, which a slow
+Mac can miss, so a take that needs the model can go on several lines of `film/takes.txt`.
+The first Mac to finish is enough, and the run can then be cancelled.
 
 Capture leaves other apps' windows out, so a system dialog never shows in a take but
 still catches its clicks. `UserNotificationCenter` is the one seen so far. On hosted Macs
