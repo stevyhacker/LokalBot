@@ -1,0 +1,12 @@
+{"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [700, 540], "settle": 1.5, "pre": 0.6, "post": 1.2,
+ "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true},
+          {"until": {"contains": "Where It Stands"}, "timeout": 30}],
+ "actions":[
+  {"wait": 2.4},
+  {"mark": "first"},
+  {"scroll": {"at": [640, 420]}, "dy": -170, "duration": 0.6},
+  {"wait": 1.8},
+  {"mark": "scrolled"},
+  {"click": {"contains": "Holiday shoot,"}, "duration": 0.7, "optional": true},
+  {"wait": 2.6},
+  {"mark": "second"}]}

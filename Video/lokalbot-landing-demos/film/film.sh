@@ -9,7 +9,7 @@
 #
 # Takes (shots/*.json):
 #   search today timeline people notes notes-tall stills   the host on seeded data
-#   live ask ask-tall dictation                 the host's background mode: real pipelines
+#   live ask ask-tall dictation projects        the host's background mode: real pipelines
 #                                               and local models, with WAV files for the
 #                                               microphone and the call's system audio
 #   files                                       the Debug app, which reads the chosen folders; the host never does
@@ -32,7 +32,7 @@ DEBUG_APP=${LOKALBOT_APP:-}
 DEBUG_BIN=${DEBUG_APP:+$DEBUG_APP/Contents/MacOS/LokalBot}
 OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
-if [[ $# -eq 0 ]]; then set -- search today timeline people notes stills live ask dictation files autocomplete; fi
+if [[ $# -eq 0 ]]; then set -- search today timeline people notes stills live ask dictation projects files autocomplete; fi
 APPEARANCES=${APPEARANCES:-light dark}
 PROBE=${PROBE:-0}
 WORK=$(cd "$(mktemp -d "${RUNNER_TEMP:-/tmp}/landing-film.XXXXXX")" && pwd -P)
@@ -138,7 +138,7 @@ say -v '?' | grep -E '^(Samantha|Daniel)' > "$OUT/logs/voices.txt" || true
 cp "$WORK"/call/*.wav "$OUT/logs/" 2>/dev/null || true
 
 needs_models=0
-for take in "$@"; do case ${take%@*} in live|ask|ask-tall|dictation|files) needs_models=1;; esac; done
+for take in "$@"; do case ${take%@*} in live|ask|ask-tall|dictation|projects|files) needs_models=1;; esac; done
 if [[ $needs_models -eq 1 ]]; then
   echo "== models =="
   python3 "$HERE/stage.py" models "$WORK/models" "$WORK/studio" "$WORK/pricing" "$WORK/empty" || exit 1
@@ -361,6 +361,35 @@ for take in "$@"; do
           [[ $status -eq 0 ]] || failed+=("$shot/$appearance")
         done
       done
+      ;;
+    projects)
+      echo "== projects =="
+      # The notes are the model's own. The page writes one for the project it opens on, so
+      # each project takes a turn at the top of the list, and the takes film what it wrote.
+      library="$WORK/noted"
+      rm -rf "$library"
+      cp -cR "$WORK/studio" "$library" 2>/dev/null || cp -R "$WORK/studio" "$library"
+      for project in "Holiday shoot" Northwind; do
+        python3 "$HERE/stage.py" track "$library" "$project" || exit 1
+        status=1
+        for attempt in 1 2; do
+          launch_host "${APPEARANCES%% *}" "$library" ask LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1 || continue
+          python3 "$HERE/stage.py" wait-note "$LAST_RUN" "$project" "${NOTE_TIMEOUT:-2700}" | tee -a "$OUT/logs/project-notes.txt"
+          status=${PIPESTATUS[0]}
+          sleep 2
+          keep_logs "projects-note"
+          quit_host
+          [[ $status -eq 0 ]] && break
+          echo "the note on $project, attempt $attempt failed"
+        done
+        if [[ $status -eq 0 ]]; then
+          rm -rf "$library"
+          cp -cR "$LAST_RUN" "$library" 2>/dev/null || cp -R "$LAST_RUN" "$library"
+        else
+          failed+=("projects-note/$project")
+        fi
+      done
+      film_seeded projects "$library" LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1
       ;;
     files)
       echo "== files =="

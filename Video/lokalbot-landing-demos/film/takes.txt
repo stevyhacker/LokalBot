@@ -1,5 +1,1 @@
-search today timeline people stills autocomplete
-live notes notes-tall
-dictation files
-ask
-ask-tall
+projects

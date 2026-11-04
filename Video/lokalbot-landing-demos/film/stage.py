@@ -8,6 +8,8 @@
     stage.py files <dir>                          write the folder the Files take searches
     stage.py wait-notes <library> <seeded-library> <seconds>   wait for a recorded meeting's notes, print its folder
     stage.py polish <meeting-folder>              title a recorded meeting, as a person would afterwards
+    stage.py track <library> <project>            track the projects, with <project> first
+    stage.py wait-note <library> <project> <seconds>   wait for the model's note on a tracked project, print it
     stage.py timezone                             print a zone where it is early afternoon now
 
 Everything here is invented. Only the fixed model files leave the network; the
@@ -22,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 import wave
 from datetime import datetime, timezone
 from pathlib import Path
@@ -95,6 +98,13 @@ PROFILES = {
     },
 }
 
+# Tracked projects and their other names. Meetings join a project by these words.
+PROJECTS = {
+    "Northwind": [],
+    "Holiday shoot": ["holiday"],
+    "Mac refresh": [],
+    "Brand refresh": [],
+}
 CALL = [
     ("me", "Okay, let's lock the spring campaign. Are we shooting the video on location or in the studio?"),
     ("them", "The studio. It's half the budget, and we keep the whole crew."),
@@ -316,9 +326,44 @@ def polish(folder):
     print(folder)
 
 
+def project_id(name):
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"https://www.lokalbot.com/film/{name}")).upper()
+
+
+def track(library_root, first):
+    """The Projects page opens on the first project and writes its note."""
+    folder = Path(library_root) / "projects"
+    folder.mkdir(parents=True, exist_ok=True)
+    created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    tracked = [{"id": project_id(name), "name": name, "otherNames": PROJECTS[name], "createdAt": created}
+               for name in [first, *(name for name in PROJECTS if name != first)]]
+    (folder / "tracked.json").write_text(json.dumps({"version": 1, "tracked": tracked, "hiddenNames": []}, indent=2))
+
+
+def wait_note(library_root, name, seconds):
+    root = Path(library_root)
+    deadline = time.time() + float(seconds)
+    while time.time() < deadline:
+        try:
+            notes = json.loads((root / "projects/summaries.json").read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            notes = []
+        for note in notes:
+            if note["projectID"].upper() == project_id(name):
+                print(json.dumps(note, indent=2))
+                return
+        # The app doesn't try a project again until it next launches.
+        log = root / "debug.log"
+        if log.exists() and "did not become healthy" in log.read_text(errors="replace"):
+            raise SystemExit("the model server did not start")
+        time.sleep(5)
+    raise SystemExit(f"no note on {name} within {seconds}s")
+
+
 def main():
     commands = {"library": library, "models": models, "settings": settings, "audio": audio, "files": files,
-                "wait-notes": wait_notes, "polish": polish, "timezone": timezone_now}
+                "wait-notes": wait_notes, "polish": polish, "track": track, "wait-note": wait_note,
+                "timezone": timezone_now}
     if len(sys.argv) < 2 or sys.argv[1] not in commands:
         raise SystemExit(__doc__)
     commands[sys.argv[1]](*sys.argv[2:])
