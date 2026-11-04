@@ -39,7 +39,7 @@ WORK=$(cd "$(mktemp -d "${RUNNER_TEMP:-/tmp}/landing-film.XXXXXX")" && pwd -P)
 RIG="$WORK/rig"
 DISPLAY_SIZE=${DISPLAY_SIZE:-1400x1000}
 mkdir -p "$OUT/logs" "$OUT/clips" "$OUT/takes" "$OUT/trees" "$OUT/stills" "$OUT/recorded"
-export FILM_FILES="$WORK/files"
+export FILM_FILES="$HOME/Files"  # the path Files results show
 
 quit_host() {
   pkill -f "$HOST_BIN" 2>/dev/null || true
@@ -62,6 +62,7 @@ cleanup() {
   for suite in "$WORK"/suite.*; do
     [[ -e "$suite" ]] && defaults delete "${suite##*/suite.}" >/dev/null 2>&1 || true
   done
+  if [[ -n "${STRAYS_PID:-}" ]]; then kill "$STRAYS_PID" 2>/dev/null || true; fi
   if [[ -n "${DISPLAY_PID:-}" ]]; then kill "$DISPLAY_PID" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
@@ -95,6 +96,8 @@ defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false
 defaults write -g NSAutomaticTextCompletionEnabled -bool false
 defaults write -g AppleShowScrollBars -string WhenScrolling
 defaults write com.apple.dock autohide -bool true; killall Dock 2>/dev/null || true
+defaults write com.apple.CrashReporter DialogType -string none
+defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool false
 
 echo "== display =="
 swift "$ROOT/Scripts/autocomplete-demo/display.swift" > "$OUT/logs/main-display.txt" 2>&1 || true
@@ -116,26 +119,38 @@ else
   echo "no 2x display; filming at 1x on the main display"
 fi
 
+# A take's capture leaves other apps' windows out, so a system dialog never shows
+# in the footage but catches clicks. One stayed up through most of a pass.
+( while :; do "$RIG" windows kill >> "$OUT/logs/windows.txt" 2>&1; sleep 4; done ) &
+STRAYS_PID=$!
+
 FILM_TZ=$(python3 "$HERE/stage.py" timezone)
 export TZ=$FILM_TZ
 echo "== libraries (TZ=$FILM_TZ, $(date)) =="
 python3 "$HERE/stage.py" library studio "$WORK/studio" || exit 1
 python3 "$HERE/stage.py" library pricing "$WORK/pricing" || exit 1
+python3 "$HERE/stage.py" library empty "$WORK/empty" || exit 1
 python3 "$HERE/stage.py" audio "$WORK/call" call || exit 1
 python3 "$HERE/stage.py" audio "$WORK/spoken" dictation || exit 1
-python3 "$HERE/stage.py" files "$WORK/files" || exit 1
+rm -rf "$FILM_FILES"
+python3 "$HERE/stage.py" files "$FILM_FILES" || exit 1
 say -v '?' | grep -E '^(Samantha|Daniel)' > "$OUT/logs/voices.txt" || true
 cp "$WORK"/call/*.wav "$OUT/logs/" 2>/dev/null || true
 
 needs_models=0
-for take in "$@"; do case $take in live|ask|dictation|files) needs_models=1;; esac; done
+for take in "$@"; do case ${take%@*} in live|ask|dictation|files) needs_models=1;; esac; done
 if [[ $needs_models -eq 1 ]]; then
   echo "== models =="
-  python3 "$HERE/stage.py" models "$WORK/models" "$WORK/studio" "$WORK/pricing" || exit 1
+  python3 "$HERE/stage.py" models "$WORK/models" "$WORK/studio" "$WORK/pricing" "$WORK/empty" || exit 1
   ls -la "$WORK/models"
 fi
 
 background() { [[ $1 == dark ]] && echo "#0E1720" || echo "#E6F0EF"; }
+
+set_appearance() {  # set_appearance <appearance>: for the apps launched next
+  if [[ $1 == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
+  "$RIG" appearance "$1" || true
+}
 
 # launch_host <appearance> <library> <profile> [ENV=VALUE ...]: the host on a fresh copy of a library.
 launch_host() {
@@ -148,7 +163,7 @@ launch_host() {
   touch "$WORK/suite.$suite"
   python3 "$HERE/stage.py" settings "$suite" "$profile" || return 1
   defaults write "$HOST_ID" lokalbotv3.onboarding.shown -bool YES
-  if [[ $appearance == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
+  set_appearance "$appearance"
   local -a envs=(--env LOKALBOT_UI_TEST=1 --env "TZ=$FILM_TZ" --env "LOKALBOT_STORAGE_ROOT=$run" --env "LOKALBOT_DEFAULTS_SUITE=$suite"
                  --env "LOKALBOT_CAPTURE_APPEARANCE=$appearance" --env LOKALBOT_DISMISS_ONBOARDING=1
                  --env LOKALBOT_SCREEN_MEMORY_DEMO=1 --env LOKALBOT_RESET_SPLIT_VIEWS=1)
@@ -176,7 +191,7 @@ launch_debug() {
   touch "$WORK/suite.$suite"
   python3 "$HERE/stage.py" settings "$suite" "$profile" || return 1
   defaults write me.dotenv.LokalBot lokalbotv3.onboarding.shown -bool YES
-  if [[ $appearance == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
+  set_appearance "$appearance"
   "$DEBUG_BIN" --lokalbot-storage-root "$run" --lokalbot-defaults-suite "$suite" -ApplePersistenceIgnoreState YES \
     -AppleLanguages "(en)" -AppleLocale en_US >> "$OUT/logs/debug-app.log" 2>&1 &
   for _ in $(seq 120); do pgrep -f "$DEBUG_BIN" >/dev/null && break; sleep 0.5; done
@@ -189,6 +204,7 @@ rig_take() {
   local appearance=$1 take=$2 shot=$3 dest="$OUT/takes/$1/$2" status=0 trees=
   rm -rf "$dest"; mkdir -p "$dest"
   [[ $PROBE == 1 ]] && trees="$OUT/trees/$take"
+  { echo "== $appearance/$take"; "$RIG" windows list; } >> "$OUT/logs/windows.txt" 2>&1
   RIG_TREE_DIR=$trees RIG_BACKGROUND=$(background "$appearance") "$RIG" take "$shot" "$dest" 2>&1 | tee -a "$OUT/logs/rig-$take.log"
   status=${PIPESTATUS[0]}
   if [[ $status -eq 0 && -s "$dest/take.json" ]]; then
@@ -217,8 +233,30 @@ film_seeded() {  # film_seeded <take> <library> ENV...: filmed on seeded data in
   done
 }
 
+film_dictation() {  # film_dictation <appearance> <take>: into TextEdit with the host's overlay; 0 on success
+  local appearance=$1 take=$2 doc status=0
+  launch_host "$appearance" "$WORK/pricing" dictation LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/spoken" || return 1
+  sleep 10
+  doc="$WORK/Team update.txt"; : > "$doc"
+  textedit=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSize 38 -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO
+            -SmartQuotes NO -SmartDashes NO -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
+  [[ $appearance == dark ]] && textedit+=(-AppleInterfaceStyle Dark)
+  pkill -x TextEdit 2>/dev/null || true; sleep 0.5
+  open -a TextEdit "$doc" --args "${textedit[@]}"
+  sleep 2
+  rig_take "$appearance" "$take" "$HERE/shots/$take.json" || status=$?
+  pkill -x TextEdit 2>/dev/null || true
+  keep_logs "$take-$appearance"
+  quit_host
+  return $status
+}
+
+# A take written "ask@dark" films in that appearance only.
+ALL_APPEARANCES=$APPEARANCES
 for take in "$@"; do
-  case $take in
+  APPEARANCES=$ALL_APPEARANCES
+  [[ $take == *@* ]] && APPEARANCES=${take#*@}
+  case ${take%@*} in
     search) film_seeded search "$WORK/studio" LOKALBOT_UI_TEST_WINDOW=quick-recall ;;
     today) film_seeded today "$WORK/studio" LOKALBOT_INITIAL_SECTION=today ;;
     timeline) film_seeded timeline "$WORK/studio" LOKALBOT_INITIAL_SECTION=timeline ;;
@@ -249,7 +287,7 @@ for take in "$@"; do
         [[ $status -eq 0 ]] || failed+=("live/$appearance")
         if [[ $first == 1 ]]; then
           echo "waiting for the recorded call's notes"
-          if folder=$(python3 "$HERE/stage.py" wait-notes "$LAST_RUN" "$WORK/studio" "${NOTES_TIMEOUT:-1500}"); then
+          if folder=$(python3 "$HERE/stage.py" wait-notes "$LAST_RUN" "$WORK/studio" "${NOTES_TIMEOUT:-3000}"); then
             python3 "$HERE/stage.py" polish "$folder"
             cp -R "$folder" "$OUT/recorded/"
             sleep 3
@@ -275,29 +313,25 @@ for take in "$@"; do
       ;;
     dictation)
       echo "== dictation =="
+      # The first dictation downloads and checks the speech model, which isn't what to show.
+      film_dictation "${APPEARANCES%% *}" dictation-warmup || true
+      rm -f "$OUT"/clips/*-dictation-warmup.*
       for appearance in $APPEARANCES; do
         for take in dictation dictation-tall; do
-          launch_host "$appearance" "$WORK/pricing" dictation LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/spoken" || continue
-          sleep 10
-          doc="$WORK/Team update.txt"; : > "$doc"
-          textedit=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSize 38 -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO
-                    -SmartQuotes NO -SmartDashes NO -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
-          [[ $appearance == dark ]] && textedit+=(-AppleInterfaceStyle Dark)
-          pkill -x TextEdit 2>/dev/null || true; sleep 0.5
-          open -a TextEdit "$doc" --args "${textedit[@]}"
-          sleep 2
-          status=0; rig_take "$appearance" "$take" "$HERE/shots/$take.json" || status=$?
+          status=1
+          for attempt in 1 2; do
+            film_dictation "$appearance" "$take" && { status=0; break; }
+            echo "$take/$appearance attempt $attempt failed"
+          done
           [[ $status -eq 0 ]] || failed+=("$take/$appearance")
-          pkill -x TextEdit 2>/dev/null || true
-          keep_logs "$take-$appearance"
-          quit_host
         done
       done
       ;;
     files)
       echo "== files =="
       for appearance in $APPEARANCES; do
-        library="$WORK/pricing"
+        # No meetings to outrank the files this take is about.
+        library="$WORK/empty"
         [[ -d "$WORK/indexed" ]] && library="$WORK/indexed"
         launch_debug "$appearance" "$library" files || { failed+=("files/$appearance"); continue; }
         if [[ ! -d "$WORK/indexed" ]]; then

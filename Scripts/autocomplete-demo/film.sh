@@ -100,6 +100,7 @@ background() { [[ $1 == dark ]] && echo "${BACKGROUND_DARK:-#1E1E1E}" || echo "$
 launch_app() {  # launch_app <appearance>
   stop_app
   if [[ $1 == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
+  "$RIG" appearance "$1" || true
   local args=(--lokalbot-storage-root "$LIB" --lokalbot-defaults-suite "$SUITE" --lokalbot-film-ghost
               -ApplePersistenceIgnoreState YES -AppleLanguages "(en)" -AppleLocale en_US)
   if [[ $LAUNCH == open ]]; then

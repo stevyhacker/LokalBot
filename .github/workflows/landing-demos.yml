@@ -3,9 +3,10 @@
 # required check; no secrets are used.
 #
 # The apps are built once and kept as the `landing-apps` artifact. To film again
-# without rebuilding, put that run's id in film/apps-run.txt. film/takes.txt names
-# the takes and film/appearances.txt the appearances a push films.
-# The footage, stills, probes and logs are the `landing-demos-footage` artifact.
+# without rebuilding, put that run's id in film/apps-run.txt. Each line of
+# film/takes.txt names the takes one Mac films (`ask@dark` for one appearance
+# only), and film/appearances.txt the appearances the rest are filmed in.
+# Each Mac's footage, stills, probes and logs are a `landing-demos-footage-<n>` artifact.
 name: Landing page demos
 
 on:
@@ -35,10 +36,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       apps-run: ${{ steps.read.outputs.apps-run }}
+      macs: ${{ steps.read.outputs.macs }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - id: read
-        run: echo "apps-run=$(tr -d '[:space:]' < Video/lokalbot-landing-demos/film/apps-run.txt 2>/dev/null)" | tee -a "$GITHUB_OUTPUT"
+        run: |
+          echo "apps-run=$(tr -d '[:space:]' < Video/lokalbot-landing-demos/film/apps-run.txt 2>/dev/null)" | tee -a "$GITHUB_OUTPUT"
+          echo "macs=$(seq "$(grep -c . Video/lokalbot-landing-demos/film/takes.txt)" | jq -cs .)" | tee -a "$GITHUB_OUTPUT"
 
   # LokalBot.app (Debug) for the autocomplete take.
   build:
@@ -111,8 +115,12 @@ jobs:
           compression-level: 0
 
   film:
-    name: Film the landing demos
+    name: Film the landing demos (${{ matrix.mac }})
     needs: [plan, build, host]
+    strategy:
+      fail-fast: false
+      matrix:
+        mac: ${{ fromJSON(needs.plan.outputs.macs) }}
     if: ${{ !cancelled() && (needs.plan.outputs.apps-run != '' || (needs.build.result == 'success' && needs.host.result == 'success')) }}
     runs-on: macos-26
     timeout-minutes: 240
@@ -154,7 +162,7 @@ jobs:
           rm -rf .build/apps/Debug .build/transfer
           cp .build/ui-host/ui-host.zip .build/apps/ui-host.zip
       - name: Keep the apps for later takes
-        if: needs.plan.outputs.apps-run == ''
+        if: needs.plan.outputs.apps-run == '' && matrix.mac == 1
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: landing-apps
@@ -175,8 +183,9 @@ jobs:
         env:
           UI_HOST_APP: ${{ github.workspace }}/.build/unpacked/LokalBot UI Test Host.app
           LOKALBOT_APP: ${{ github.workspace }}/.build/unpacked/LokalBot.app
+          MAC: ${{ matrix.mac }}
         run: |
-          takes=$(tr '\n' ' ' < Video/lokalbot-landing-demos/film/takes.txt)
+          takes=$(sed -n "${MAC}p" Video/lokalbot-landing-demos/film/takes.txt)
           export APPEARANCES=$(tr '\n' ' ' < Video/lokalbot-landing-demos/film/appearances.txt)
           export PROBE=$(tr -d '[:space:]' < Video/lokalbot-landing-demos/film/probe.txt)
           # shellcheck disable=SC2086
@@ -204,7 +213,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: ${{ !cancelled() }}
         with:
-          name: landing-demos-footage
+          name: landing-demos-footage-${{ matrix.mac }}
           path: .build/landing-film-publish
           retention-days: 14
           if-no-files-found: ignore

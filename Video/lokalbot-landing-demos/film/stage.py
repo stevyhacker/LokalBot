@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stage what the landing demo takes film: fictional libraries, settings, audio, files, models.
 
-    stage.py library <studio|pricing> <new-dir>   seed a fictional library
+    stage.py library <studio|pricing|empty> <new-dir>   seed a fictional library
     stage.py models <dir> [<library>...]          fetch the local models into <dir>, link them into each library
     stage.py settings <suite> <profile>           write the throwaway settings suite for a take
     stage.py audio <dir> <call|dictation>         write mic.wav (and system.wav) that stand in for a microphone and a call
@@ -66,6 +66,8 @@ PROFILES = {
         "autoRecordMode": "Ask via notification",
         "trackingEnabled": True,
         "screenContextCaptureMode": "Text context",
+        # This CPU-only Mac needs longer than the default budget's 10 minutes.
+        "generationBudgetPreset": "unlimited",
     },
     "ask": {},
     "dictation": {
@@ -136,6 +138,8 @@ def library(kind, root):
         run(sys.executable, ROOT / "Video/lokalbot-readme-hero/filming/seed_filming_library.py", root, stdout=subprocess.DEVNULL)
     elif kind == "pricing":
         run(sys.executable, ROOT / "Scripts/readme-gif/seed_library.py", root, stdout=subprocess.DEVNULL)
+    elif kind == "empty":
+        Path(root).mkdir(parents=True, exist_ok=True)
     else:
         raise SystemExit(f"unknown library {kind}")
     print(root)

@@ -10,7 +10,7 @@
   {"mark": "typed"},
   {"key": "return"},
   {"mark": "asked"},
-  {"until": {"label": "Read aloud"}, "timeout": 1500, "optional": true},
+  {"until": {"label": "Read aloud"}, "timeout": 2400, "optional": true},
   {"mark": "streaming"},
   {"until": {"contains": "Evidence, "}, "timeout": 900, "optional": true},
   {"wait": 1.5},

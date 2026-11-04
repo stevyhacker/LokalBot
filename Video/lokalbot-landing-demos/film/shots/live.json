@@ -10,6 +10,8 @@
   {"wait": 0.8},
   {"mark": "detail"},
   {"click": {"id": "live.previewFromBeginning"}, "duration": 0.6, "optional": true},
+  {"wait": 0.5},
+  {"press": {"id": "live.previewFromBeginning"}, "optional": true},
   {"mark": "preview"},
   {"until": {"contains": "Lisbon"}, "timeout": 120, "optional": true},
   {"mark": "words"},

@@ -13,6 +13,8 @@
 //                                     (the accessibility tree) and <prefix>.png (one frame)
 //   rig idle  <seconds>               wait until nobody has touched an input device that long
 //   rig key   <name> [mod...]         press one key, e.g. a system-wide shortcut: rig key space control shift
+//   rig windows list|kill             other apps' windows on the filming display; kill ends their owners
+//   rig appearance light|dark         set the system appearance, which the apps launched next read
 //
 // take.json also tracks the pointer at 60 Hz (`pointer`: [t, x, y] in capture
 // seconds and window-relative points), so an edit can draw or follow it when
@@ -639,7 +641,10 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
     func guardHuman() {
         guard capture != nil else { return }
         if touchedSince(startedAt) { die("human input during the take; aborted", code: 3) }
-        if !subject.isFrontmost { die("another app came to the front; aborted", code: 3) }
+        if !subject.isFrontmost {
+            let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "unknown"
+            die("another app (\(front)) came to the front; aborted", code: 3)
+        }
     }
     for action in actions {
         guardHuman()
@@ -840,11 +845,58 @@ func screenshot(_ shot: Shot, subject: Subject, display: Display, out: URL) asyn
     }
 }
 
-let usage = "usage: rig take|still|ax|probe <shot.json> [out] | rig idle <seconds> | rig key <name> [mod...]"
+/// A take's capture leaves other apps' windows out, so a dialog never shows in
+/// the footage but still catches the rig's clicks. Lists what is on the filming
+/// display; with `kill`, ends the owners of windows that aren't part of a take
+/// or of the desktop.
+func strayWindows(kill shouldKill: Bool) {
+    let keep: Set<String> = ["Window Server", "Dock", "Control Center", "SystemUIServer", "Notification Center",
+                             "Wallpaper", "WindowManager", "Spotlight", "Finder", "loginwindow",
+                             "TextEdit", "LokalBot", "LokalBot UI Test Host"]
+    let display = ProcessInfo.processInfo.environment["RIG_DISPLAY"].flatMap { UInt32($0) } ?? CGMainDisplayID()
+    let bounds = CGDisplayBounds(display)
+    let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+    guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return }
+    let stamp = ISO8601DateFormatter().string(from: Date())
+    for window in windows {
+        let owner = window[kCGWindowOwnerName as String] as? String ?? "?"
+        let pid = window[kCGWindowOwnerPID as String] as? pid_t ?? 0
+        let layer = window[kCGWindowLayer as String] as? Int ?? 0
+        let info = window[kCGWindowBounds as String] as? [String: CGFloat] ?? [:]
+        let rect = CGRect(x: info["X"] ?? 0, y: info["Y"] ?? 0, width: info["Width"] ?? 0, height: info["Height"] ?? 0)
+        guard rect.intersects(bounds) else { continue }
+        let stray = !keep.contains(owner) && layer >= 0 && rect.width > 100 && rect.height > 60 && pid != getpid()
+        if !shouldKill {
+            print("\(stamp) \(stray ? "stray" : "window") \(owner) pid=\(pid) layer=\(layer) \(rect)")
+        } else if stray {
+            print("\(stamp) closing \(owner) pid=\(pid) layer=\(layer) \(rect)")
+            Darwin.kill(pid, SIGTERM)
+        }
+    }
+}
+
+/// Apps read the WindowServer's theme, which the `AppleInterfaceStyle` default
+/// doesn't always reach by itself.
+func setSystemAppearance(dark: Bool) {
+    typealias SetTheme = @convention(c) (Bool) -> Void
+    guard let framework = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY),
+          let symbol = dlsym(framework, "SLSSetAppearanceThemeLegacy") else { die("no appearance call in SkyLight") }
+    unsafeBitCast(symbol, to: SetTheme.self)(dark)
+}
+
+let usage = "usage: rig take|still|ax|probe <shot.json> [out] | rig idle <seconds> | rig key <name> [mod...] | rig windows list|kill | rig appearance light|dark"
 let args = CommandLine.arguments
 guard args.count >= 3 else { die(usage) }
 if args[1] == "idle", let seconds = Double(args[2]) {
     waitForHumanIdle(seconds)
+    exit(0)
+}
+if args[1] == "windows" {
+    strayWindows(kill: args[2] == "kill")
+    exit(0)
+}
+if args[1] == "appearance" {
+    setSystemAppearance(dark: args[2] == "dark")
     exit(0)
 }
 if args[1] == "key" {
