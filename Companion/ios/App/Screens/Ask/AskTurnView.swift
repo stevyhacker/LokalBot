@@ -246,11 +246,6 @@ struct AskTurnView: View {
                 Text("·").foregroundStyle(.tertiary)
                 Text(format.time(time)).monospacedDigit()
             }
-            if turn.request.scope != nil, title == "You" {
-                Text("·").foregroundStyle(.tertiary)
-                Image(systemName: "scope")
-                Text(turn.request.scope?.day != nil ? "One day" : "One meeting").lineLimit(1)
-            }
         }
         .font(LBTokens.Typography.secondary)
         .foregroundStyle(Color.primary.opacity(0.68))

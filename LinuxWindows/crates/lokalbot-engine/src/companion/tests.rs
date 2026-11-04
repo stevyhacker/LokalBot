@@ -1372,6 +1372,10 @@ fn answer_streams_and_finishes_with_mapped_citations() {
     for hidden in [&fixture.sample, &fixture.live, &fixture.merged_source] {
         assert!(!scope.meeting_ids.contains(&hidden.id), "{}", hidden.title);
     }
+    assert_eq!(
+        scope.limit, None,
+        "all history and no scope: nothing to name"
+    );
 }
 
 #[test]
@@ -1446,7 +1450,7 @@ fn out_of_window_scope_is_refused() {
 }
 
 #[test]
-fn the_window_and_the_day_limit_what_the_agent_may_read() {
+fn the_window_limits_what_the_agent_may_read_and_the_day_only_focuses_it() {
     let fixture = fixture();
     let engine = Arc::new(FakeEngine::default());
     let mut window = sharing();
@@ -1458,6 +1462,13 @@ fn the_window_and_the_day_limit_what_the_agent_may_read() {
     assert!(!scope.meeting_ids.contains(&fixture.older.id));
     assert_eq!(scope.since, window.history.start(Utc::now()));
     assert_eq!(scope.until, None);
+    // The model is told the window is the limit, not a date to remove.
+    let limit = scope.limit.unwrap();
+    assert_eq!(
+        limit.words,
+        "meetings from the last 30 days, the history the user shares with this device"
+    );
+    assert!(!limit.removable_dates);
 
     let output = Arc::new(RecordingOutput::default());
     let chosen =
@@ -1465,10 +1476,26 @@ fn the_window_and_the_day_limit_what_the_agent_may_read() {
     asking(&fixture, engine.clone()).answer(&question(chosen), window, output.clone());
     output.wait().unwrap();
     let scope = engine.scope.lock().clone().unwrap();
-    assert_eq!(scope.meeting_ids, [fixture.design_review.id]);
-    let (start, end) =
-        lokalbot_core::time::local_day_bounds(lokalbot_core::time::local_day(fixture.day));
-    assert_eq!((scope.since, scope.until), (Some(start), Some(end)));
+    // "Ask About Today" on a tablet once held the question to that day and
+    // answered "the library has only one meeting": the day and the meeting
+    // are where the answer starts, and only the window limits it.
+    assert!(scope.meeting_ids.len() > 1, "{:?}", scope.meeting_ids);
+    assert!(scope.meeting_ids.contains(&fixture.design_review.id));
+    assert_eq!(scope.since, window.history.start(Utc::now()));
+    assert_eq!(scope.until, None);
+    let focus = scope.focus.unwrap();
+    assert!(
+        focus.subject.starts_with(&format!(
+            "the meeting “{}” [{}] on ",
+            fixture.design_review.display_title(),
+            fixture.design_review.short_id()
+        )),
+        "{}",
+        focus.subject
+    );
+    assert!(focus.subject.contains(" and the day "), "{}", focus.subject);
+    assert_eq!(focus.meeting_ids[0], fixture.design_review.id);
+    assert!(!scope.limit.unwrap().removable_dates);
 }
 
 /// To Ask an empty list means every meeting, and to a device it must mean none.

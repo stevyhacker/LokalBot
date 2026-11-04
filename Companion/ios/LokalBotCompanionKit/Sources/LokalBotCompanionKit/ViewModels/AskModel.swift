@@ -46,7 +46,8 @@ public final class AskModel {
     public private(set) var conversations: [Conversation] = []
     public var currentID: String?
     public var draft = ""
-    /// Narrows the next question to a day or a meeting.
+    /// The day or meeting "Ask About…" started from. The computer answers
+    /// from there but still reads everything shared, so it shows no chip.
     public var scope: AskRequest.Scope?
     public private(set) var loaded = false
 

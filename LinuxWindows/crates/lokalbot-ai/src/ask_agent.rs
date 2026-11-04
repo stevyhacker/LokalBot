@@ -615,14 +615,18 @@ impl<'a> Tools<'a> {
         if !self.scope.include_meetings {
             return String::new();
         }
-        if self.meetings.is_empty() {
-            return "The user has no recorded meetings yet.".into();
-        }
         let count = self.meetings.len();
-        let mut lines = vec![format!(
-            "The user has {count} recorded meeting{}. Most recent:",
-            if count == 1 { "" } else { "s" }
-        )];
+        let plural = if count == 1 { "" } else { "s" };
+        // Within a limit the count is only what the limit lets through.
+        let header = match (&self.scope.limit, count) {
+            (Some(_), 0) => return "No meetings are inside this question's limit.".into(),
+            (Some(_), _) => {
+                format!("Inside this question's limit: {count} meeting{plural}. Most recent:")
+            }
+            (None, 0) => return "The user has no recorded meetings yet.".into(),
+            (None, _) => format!("The user has {count} recorded meeting{plural}. Most recent:"),
+        };
+        let mut lines = vec![header];
         for meeting in self.meetings.iter().take(12) {
             lines.push(format!(
                 "- [{}] {} — {}, {}",
@@ -652,13 +656,30 @@ impl<'a> Tools<'a> {
                 "unknown tool",
             )),
         };
-        result.unwrap_or_else(|err| {
+        let result = result.unwrap_or_else(|err| {
             log::warn!("Ask tool {} failed: {err:#}", call.name);
             ToolResult::plain(
                 format!("The tool failed: {err:#}"),
                 format!("{} failed", call.name),
             )
-        })
+        });
+        // A short list read as the whole library ("the only one in your
+        // library"), so the meeting lists say what they were held to.
+        match &self.scope.limit {
+            Some(limit)
+                if self.scope.include_meetings
+                    && matches!(
+                        call.name.as_str(),
+                        "search_meetings" | "list_meetings" | "get_action_items"
+                    ) =>
+            {
+                ToolResult {
+                    text: format!("{}\n{}", limit.note(), result.text),
+                    ..result
+                }
+            }
+            _ => result,
+        }
     }
 
     fn resolve(&self, reference: &str) -> Option<&Meeting> {
@@ -2239,6 +2260,76 @@ mod tests {
         });
         assert_eq!(listed.summary, "1 meeting");
         assert!(listed.text.contains(&one.short_id()));
+    }
+
+    /// A question limited to one day once answered "the library has only one
+    /// meeting": the overview and the meeting lists now say what they were
+    /// held to, and the prompt names the limit.
+    #[test]
+    fn a_limited_question_names_its_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let (start, end) =
+            time::local_day_bounds(chrono::NaiveDate::from_ymd_opt(2026, 11, 4).unwrap());
+        for (title, at) in [
+            ("Product Standup", start + Duration::hours(12)),
+            ("Planning", start - Duration::days(3)),
+        ] {
+            let mut meeting = library.create_meeting(title, "Chrome", at).unwrap();
+            meeting.ended_at = Some(at + Duration::minutes(29));
+            library.save_meeting(&meeting).unwrap();
+        }
+        let list = ToolCall {
+            name: "list_meetings".into(),
+            arguments: BTreeMap::new(),
+        };
+
+        let everything = Tools::new(&library, None, AskScope::default(), end).unwrap();
+        let overview = everything.library_overview();
+        assert!(
+            overview.starts_with("The user has 2 recorded meetings."),
+            "{overview}"
+        );
+        assert!(!everything.run(&list).text.starts_with("Limited to"));
+        assert!(!crate::ask::ambient_block(&AskScope::default()).contains("Question scope"));
+
+        let limit = crate::ask::QuestionLimit::new(Some(start), Some(end), None).unwrap();
+        assert_eq!(limit.words, "what happened on 4 Nov 2026");
+        let scope = AskScope {
+            since: Some(start),
+            until: Some(end),
+            limit: Some(limit),
+            ..AskScope::default()
+        };
+        let today = Tools::new(&library, None, scope.clone(), end).unwrap();
+        let overview = today.library_overview();
+        assert!(
+            overview.starts_with("Inside this question's limit: 1 meeting. Most recent:"),
+            "{overview}"
+        );
+        let listed = today.run(&list).text;
+        assert!(
+            listed.starts_with(
+                "Limited to what happened on 4 Nov 2026 for this question; nothing outside that limit is shown.\n"
+            ),
+            "{listed}"
+        );
+        assert!(
+            listed.contains("Product Standup") && !listed.contains("Planning"),
+            "{listed}"
+        );
+        let block = crate::ask::ambient_block(&scope);
+        assert!(
+            block.starts_with(
+                "\n\nQuestion scope:\nThis question is limited to what happened on 4 Nov 2026. "
+            ),
+            "{block}"
+        );
+        assert!(block.contains("Never describe what the tools return as the whole library"));
+        assert!(
+            block.ends_with("remove the date limit to ask about other days."),
+            "{block}"
+        );
     }
 
     fn files_scope(folder: &str) -> AskScope {
