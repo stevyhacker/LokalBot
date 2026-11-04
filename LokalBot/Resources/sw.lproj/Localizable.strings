@@ -1673,6 +1673,10 @@
 "Last year" = "Miezi 12 iliyopita";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Hazishirikiwi kamwe: anwani za barua pepe za waliohudhuria, ushahidi wa wazungumzaji na wasifu wa sauti, picha za skrini na maandishi ya skrini, barua pepe, Muktadha binafsi, kumbukumbu ya tathmini ya usiku, mipangilio na funguo.";
 "Answer questions from my devices" = "Jibu maswali kutoka kwa vifaa vyangu";
+"Recordings" = "Rekodi";
+"Accept recordings from my devices" = "Kubali rekodi kutoka kwa vifaa vyangu";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "Kifaa kilichooanishwa kinaweza kutuma kwa Mac hii mikutano kilichorekodi. Hapa hugeuka kuwa mikutano na kuchakatwa kama rekodi nyingine yoyote; kisha kifaa hufuta nakala yake.";
+"Recording from %@" = "Rekodi kutoka %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "Mac hii hujibu kwa modeli yako ya Fikiri na idhini zake, kutokana na mikutano na Mfuatano wa Matukio unaoshiriki. Kumbukumbu ya skrini haitafutwi kamwe kwa ajili ya kifaa.";
 "Answers are written on this Mac." = "Majibu huandikwa kwenye Mac hii.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Maswali kutoka kwa vifaa vyako na muktadha unaohitajika hutumwa kwa seva yako ya Fikiri iliyoidhinishwa (%@).";

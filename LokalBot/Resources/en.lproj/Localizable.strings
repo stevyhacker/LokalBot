@@ -1672,6 +1672,10 @@
 "Last year" = "Last year";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys.";
 "Answer questions from my devices" = "Answer questions from my devices";
+"Recordings" = "Recordings";
+"Accept recordings from my devices" = "Accept recordings from my devices";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy.";
+"Recording from %@" = "Recording from %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device.";
 "Answers are written on this Mac." = "Answers are written on this Mac.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Questions from your devices and the context they need go to your approved Think server (%@).";

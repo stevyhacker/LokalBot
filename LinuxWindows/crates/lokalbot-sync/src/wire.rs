@@ -49,6 +49,10 @@ pub(crate) struct Tuning {
     /// Seconds a pairing offer stays valid.
     pub offer_lifetime_secs: i64,
     pub batch_bytes: usize,
+    /// Bytes of a recording in one `uploadChunk`, before base64.
+    pub upload_chunk_bytes: usize,
+    /// How long a phone waits for the Mac to confirm a recording it has whole.
+    pub upload_finish_timeout: Duration,
 }
 
 impl Default for Tuning {
@@ -63,6 +67,8 @@ impl Default for Tuning {
             answer_retention: Duration::from_secs(24 * 60 * 60),
             offer_lifetime_secs: 5 * 60,
             batch_bytes: 512 * 1024,
+            upload_chunk_bytes: 256 * 1024,
+            upload_finish_timeout: Duration::from_secs(600),
         }
     }
 }

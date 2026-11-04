@@ -1673,6 +1673,10 @@
 "Last year" = "Последние 12 месяцев";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Никогда не передаются: адреса электронной почты участников, материалы о говорящих и голосовые профили, снимки экрана и текст с экрана, почта, Личный контекст, память ночного обзора, настройки и ключи.";
 "Answer questions from my devices" = "Отвечать на вопросы с моих устройств";
+"Recordings" = "Записи";
+"Accept recordings from my devices" = "Принимать записи с моих устройств";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "Сопряжённое устройство может отправлять на этот Mac записанные им встречи. Здесь они становятся встречами и обрабатываются как любая другая запись, после чего устройство удаляет свою копию.";
+"Recording from %@" = "Запись с устройства %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "Этот Mac отвечает с помощью вашей модели Думать и её разрешений, на основе встреч и Хронологии, которыми вы делитесь. Память экрана никогда не используется для ответа устройству.";
 "Answers are written on this Mac." = "Ответы составляются на этом Mac.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Вопросы с ваших устройств и нужный для ответа контекст отправляются на ваш одобренный сервер модели Думать (%@).";

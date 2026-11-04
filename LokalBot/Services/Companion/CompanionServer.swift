@@ -23,6 +23,39 @@ protocol CompanionServerEvents: AnyObject {
     /// May return before the answer is finished; the output outlives the call.
     func ask(_ requestJSON: String, output: CompanionAskOutput)
     func devicesChanged()
+    /// While false a device keeps its recordings and sends no audio.
+    func acceptsRecordings() -> Bool
+    /// Blocks until the recording is a stored meeting or can't become one.
+    /// The file belongs to the host and is only read.
+    func receiveRecording(_ json: String, fileURL: URL) -> CompanionUploadOutcome
+}
+
+/// What became of a recording a device sent (protocol.md, `uploadDone`).
+struct CompanionUploadOutcome: Equatable, Sendable {
+    enum Status: String, Sendable {
+        /// The Mac keeps it; the device deletes its copy.
+        case accepted
+        /// Not now; the device keeps it and tries again.
+        case deferred
+        /// It can't be used; the device keeps it until the person decides.
+        case rejected
+    }
+
+    var status: Status
+    var meetingID: String?
+    var message: String?
+
+    static func accepted(meetingID: UUID) -> Self {
+        Self(status: .accepted, meetingID: meetingID.uuidString)
+    }
+
+    static func deferred(_ message: String) -> Self {
+        Self(status: .deferred, message: message)
+    }
+
+    static func rejected(_ message: String) -> Self {
+        Self(status: .rejected, message: message)
+    }
 }
 
 struct CompanionPairingOffer: Equatable, Sendable {

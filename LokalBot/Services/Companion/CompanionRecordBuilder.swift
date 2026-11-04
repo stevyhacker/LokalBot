@@ -57,6 +57,7 @@ struct CompanionRecordBuilder {
             dataClasses: sharing.dataClasses.effective,
             historyDays: sharing.history.rawValue,
             askEnabled: sharing.answersQuestions,
+            recordingsEnabled: sharing.acceptsRecordings,
             generatedAt: CompanionJSON.instant(now)))
     }
 

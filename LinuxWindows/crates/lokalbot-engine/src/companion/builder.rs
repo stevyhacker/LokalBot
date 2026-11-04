@@ -774,6 +774,7 @@ pub fn manifest(sharing: &Sharing, mac_name: &str, now: DateTime<Utc>) -> Option
         data_classes: sharing.data_classes.effective(),
         history_days: sharing.history.days(),
         ask_enabled: sharing.answers_questions,
+        recordings_enabled: sharing.accepts_recordings,
         generated_at: instant(now),
     })
 }

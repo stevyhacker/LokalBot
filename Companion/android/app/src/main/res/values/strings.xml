@@ -138,6 +138,48 @@
     <string name="transcript_missing_title">No transcript on this device</string>
     <string name="transcript_missing_message">Your computer hasn\'t shared this meeting\'s transcript, or it hasn\'t synced yet.</string>
     <string name="transcript_unknown_speaker">Unknown speaker</string>
+    <string name="meetings_from_this_device">From this device</string>
+
+    <!-- Recording -->
+    <string name="record_button">Record a meeting</string>
+    <string name="record_menu_item">Record</string>
+    <string name="recording_now">Recording</string>
+    <string name="recording_starting">Starting…</string>
+    <string name="recording_hide">Back to LokalBot. It keeps recording.</string>
+    <string name="recording_level">Microphone level</string>
+    <string name="recording_title_field">Title (optional)</string>
+    <string name="recording_stop">Stop</string>
+    <string name="recording_discard">Discard</string>
+    <string name="recording_caption">Let everyone know you\'re recording.</string>
+    <string name="recording_discard_title">Discard this recording?</string>
+    <string name="recording_discard_message">What you\'ve recorded so far is deleted and won\'t reach your computer.</string>
+    <string name="recording_problem_start">The microphone didn\'t start. Another app may be using it.</string>
+    <string name="recording_problem_empty">Nothing was recorded.</string>
+    <string name="recording_problem_interrupted">The microphone stopped working, so the recording ended. What was recorded is kept and goes to your computer.</string>
+    <string name="recording_mic_explain_title">Allow the microphone</string>
+    <string name="recording_mic_explain_message">LokalBot needs the microphone to record a meeting. The recording goes only to your computer.</string>
+    <string name="recording_mic_allow">Allow</string>
+    <string name="recording_mic_blocked_title">The microphone is off for LokalBot</string>
+    <string name="recording_mic_blocked_message">To record a meeting, turn on the microphone for LokalBot in your device\'s settings.</string>
+    <string name="recording_mic_open_settings">Open settings</string>
+    <string name="recording_default_title">Phone recording</string>
+    <string name="recording_status_recording">Recording</string>
+    <string name="recording_status_waiting">Waiting for %1$s</string>
+    <string name="recording_status_waiting_unnamed">Waiting for your computer</string>
+    <string name="recording_status_sending">Sending… %1$d%%</string>
+    <string name="recording_status_processing">Processing on %1$s</string>
+    <string name="recording_status_processing_unnamed">Processing on your computer</string>
+    <string name="recording_status_failed">Couldn\'t send this recording</string>
+    <string name="recording_turned_off">This computer isn\'t accepting recordings. Turn on \"Accept recordings from my devices\" in its settings.</string>
+    <string name="recording_retry">Retry</string>
+    <string name="recording_delete">Delete</string>
+    <string name="recording_rename">Rename</string>
+    <string name="recording_more">More for this recording</string>
+    <string name="recording_delete_title">Delete this recording?</string>
+    <string name="recording_delete_message">It hasn\'t reached your computer, so this is the only copy. Deleting it can\'t be undone.</string>
+    <string name="recording_rename_title">Rename this recording</string>
+    <string name="recording_rename_field">Title</string>
+    <string name="recording_save">Save</string>
 
     <!-- Timeline -->
     <string name="timeline_pick_day">Choose a day</string>
@@ -302,6 +344,10 @@
     <string name="settings_remove_button">Remove and erase</string>
     <string name="settings_remove_confirm_title">Remove this device?</string>
     <string name="settings_remove_confirm_message">Everything synced from your computer is erased from this device. To use LokalBot here again, pair it again.</string>
+    <plurals name="settings_remove_confirm_recordings">
+        <item quantity="one">%1$d recording hasn\'t reached your computer and will be deleted.</item>
+        <item quantity="other">%1$d recordings haven\'t reached your computer and will be deleted.</item>
+    </plurals>
     <string name="settings_sample_title">Sample library</string>
     <string name="settings_sample_message">You\'re looking at a built-in sample library. Pair with LokalBot on your computer to see your own work.</string>
     <string name="settings_leave_sample">Leave the sample library</string>
@@ -343,10 +389,25 @@
     <string name="notification_channel_answers">Answers from your computer</string>
     <string name="notification_channel_answers_description">When your computer answers a question you asked while it was away.</string>
     <string name="notification_answer_title">Your computer answered</string>
+    <string name="notification_channel_recording">Recording</string>
+    <string name="notification_channel_recording_description">Shows while LokalBot is recording a meeting on this device.</string>
+    <string name="notification_recording_title">Recording a meeting</string>
+    <string name="notification_recording_text">Tap to open LokalBot.</string>
 
     <!-- App lock -->
     <string name="lock_title">LokalBot is locked</string>
     <string name="lock_unlock">Unlock</string>
     <string name="lock_prompt_title">Unlock LokalBot</string>
     <string name="lock_prompt_subtitle">Your work memory stays locked until you confirm it\'s you.</string>
+    <string name="pair_failed_recording">Stop the recording first, then pair again.</string>
+    <string name="notification_recording_stopped_title">Recording stopped</string>
+    <string name="notification_recording_stopped_text">The microphone stopped working. What was recorded is saved.</string>
+    <plurals name="welcome_held_recordings_title">
+        <item quantity="one">%d recording hasn\'t reached a computer</item>
+        <item quantity="other">%d recordings haven\'t reached a computer</item>
+    </plurals>
+    <string name="welcome_held_recordings_message">Pair with your computer to send what\'s waiting. Until then it stays on this device.</string>
+    <string name="welcome_held_recordings_delete">Delete</string>
+    <string name="welcome_held_recordings_confirm_title">Delete these recordings?</string>
+    <string name="welcome_held_recordings_confirm_message">They haven\'t reached a computer, so they can\'t be recovered.</string>
 </resources>

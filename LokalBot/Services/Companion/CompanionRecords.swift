@@ -56,6 +56,7 @@ struct CompanionManifestBody: Codable, Equatable, Sendable {
     var dataClasses: CompanionSharing.DataClasses
     var historyDays: Int
     var askEnabled: Bool
+    var recordingsEnabled: Bool
     var generatedAt: String
 }
 

@@ -1673,6 +1673,10 @@
 "Last year" = "آخر 12 شهر";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "عمره ما بيتشارك: عناوين البريد الإلكتروني للحضور، وأدلة المتحدثين وملفات الأصوات، ولقطات الشاشة ونص الشاشة، والبريد الإلكتروني، والسياق الشخصي، وذاكرة المراجعة الليلية، والإعدادات، والمفاتيح.";
 "Answer questions from my devices" = "جاوب على الأسئلة اللي جاية من أجهزتي";
+"Recordings" = "التسجيلات";
+"Accept recordings from my devices" = "اقبل التسجيلات من أجهزتي";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "الجهاز المقترن يقدر يبعت للـMac ده الاجتماعات اللي سجّلها. بتتحول هنا لاجتماعات وبتتعالج زي أي تسجيل تاني، وبعدها الجهاز بيمسح نسخته.";
+"Recording from %@" = "تسجيل من %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "الـ Mac ده بيجاوب بنموذج التفكير بتاعك وموافقاته، من الاجتماعات والخط الزمني اللي بتشاركهم. عمره ما بيدوّر في ذاكرة الشاشة علشان أي جهاز.";
 "Answers are written on this Mac." = "الإجابات بتتكتب على الـ Mac ده.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "الأسئلة اللي جاية من أجهزتك والسياق اللي محتاجاه بتروح لخادم التفكير اللي وافقت عليه (%@).";

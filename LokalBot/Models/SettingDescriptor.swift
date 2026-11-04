@@ -192,6 +192,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.companionShareProjects", title: "Share projects", category: .devices, aliases: "companion projects"),
         .init(id: "settings.companionHistory", title: "Shared history", category: .devices, aliases: "companion history days how far back"),
         .init(id: "settings.companionAnswersQuestions", title: "Answer questions from my devices", category: .devices, aliases: "companion ask questions phone"),
+        .init(id: "settings.companionAcceptsRecordings", title: "Accept recordings from my devices", category: .devices, aliases: "companion record recording phone audio upload"),
         .init(id: "settings.companionPort", title: "Port", category: .devices, aliases: "companion port tcp listener"),
         .init(id: "settings.companionAdvertisesOnBonjour", title: "Advertise on the local network", category: .devices, aliases: "companion bonjour mdns discovery"),
         .init(id: "settings.cotypingExcludedApps", title: "Never suggest in these apps", category: .writing, aliases: "exclude autocomplete applications"),

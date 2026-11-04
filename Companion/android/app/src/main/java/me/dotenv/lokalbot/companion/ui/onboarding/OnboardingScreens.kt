@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Wifi
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,15 +45,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -73,7 +77,14 @@ fun AppMark(modifier: Modifier = Modifier) {
 
 /** First run: pair with a Mac, or look around the built-in sample library. */
 @Composable
-fun WelcomeScreen(onPair: () -> Unit, onTrySample: () -> Unit, removedByMac: Boolean = false, onDismissRemoved: () -> Unit = {}) {
+fun WelcomeScreen(
+    onPair: () -> Unit,
+    onTrySample: () -> Unit,
+    removedByMac: Boolean = false,
+    onDismissRemoved: () -> Unit = {},
+    heldRecordings: Int = 0,
+    onDeleteHeldRecordings: () -> Unit = {},
+) {
     val palette = LokalBotTheme.palette
     Box(Modifier.fillMaxSize().background(palette.window).safeDrawingPadding(), contentAlignment = Alignment.Center) {
         Column(
@@ -92,6 +103,7 @@ fun WelcomeScreen(onPair: () -> Unit, onTrySample: () -> Unit, removedByMac: Boo
                     }
                 }
             }
+            if (heldRecordings > 0) HeldRecordings(heldRecordings, onDeleteHeldRecordings)
             AppMark()
             Text(stringResource(R.string.welcome_title), style = LokalBotType.pageTitle, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
             Text(stringResource(R.string.welcome_message), style = LokalBotType.body, color = LokalBotTheme.supportingText, textAlign = TextAlign.Center)
@@ -109,6 +121,39 @@ fun WelcomeScreen(onPair: () -> Unit, onTrySample: () -> Unit, removedByMac: Boo
             }
             Text(stringResource(R.string.welcome_requirement), style = LokalBotType.caption, color = LokalBotTheme.supportingText, textAlign = TextAlign.Center)
         }
+    }
+}
+
+/** Recordings kept after the Mac removed this device. Pairing again sends them. */
+@Composable
+private fun HeldRecordings(count: Int, onDelete: () -> Unit) {
+    val palette = LokalBotTheme.palette
+    var confirming by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().groupedSurface().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            pluralStringResource(R.plurals.welcome_held_recordings_title, count, count),
+            style = LokalBotType.body.copy(fontWeight = FontWeight.SemiBold),
+        )
+        Text(stringResource(R.string.welcome_held_recordings_message), style = LokalBotType.secondary, color = LokalBotTheme.supportingText)
+        TextButton(onClick = { confirming = true }) {
+            Text(stringResource(R.string.welcome_held_recordings_delete), color = palette.recordingText)
+        }
+    }
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(R.string.welcome_held_recordings_confirm_title)) },
+            text = { Text(stringResource(R.string.welcome_held_recordings_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    onDelete()
+                }) { Text(stringResource(R.string.welcome_held_recordings_delete), color = palette.recordingText) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 }
 
@@ -186,7 +231,11 @@ fun PairingScreen(viewModel: PairingViewModel, initialLink: String?, onDone: () 
                     }
                 }
                 is PairingStep.Paired -> {
-                    LaunchedEffect(Unit) { onDone() }
+                    // The view model outlives this screen, and pairing again starts over.
+                    LaunchedEffect(Unit) {
+                        viewModel.restart()
+                        onDone()
+                    }
                     Text(stringResource(R.string.pair_done, current.macName), style = LokalBotType.question)
                 }
             }

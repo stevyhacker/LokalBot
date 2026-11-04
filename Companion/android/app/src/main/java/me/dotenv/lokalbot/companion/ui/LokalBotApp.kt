@@ -3,6 +3,7 @@ package me.dotenv.lokalbot.companion.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.CompanionRepository
+import me.dotenv.lokalbot.companion.recording.MeetingRecorder
 import me.dotenv.lokalbot.companion.ui.actions.ActionsScreen
 import me.dotenv.lokalbot.companion.ui.adaptive.LocalWindowLayout
 import me.dotenv.lokalbot.companion.ui.adaptive.WidthClass
@@ -48,6 +50,9 @@ import me.dotenv.lokalbot.companion.ui.navigation.Destination
 import me.dotenv.lokalbot.companion.ui.navigation.rememberAppNavigator
 import me.dotenv.lokalbot.companion.ui.people.PeopleScreen
 import me.dotenv.lokalbot.companion.ui.projects.ProjectsScreen
+import me.dotenv.lokalbot.companion.ui.recording.LocalRecordAction
+import me.dotenv.lokalbot.companion.ui.recording.RecordIconButton
+import me.dotenv.lokalbot.companion.ui.recording.RecordingHost
 import me.dotenv.lokalbot.companion.ui.settings.SettingsActions
 import me.dotenv.lokalbot.companion.ui.settings.SettingsScreen
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
@@ -69,8 +74,11 @@ fun LokalBotApp(
     modifier: Modifier = Modifier,
     adaptiveInfo: WindowAdaptiveInfo = currentWindowAdaptiveInfoV2(),
     navigator: AppNavigator = rememberAppNavigator(),
+    recorder: MeetingRecorder? = null,
 ) {
     val layout = remember(adaptiveInfo) { WindowLayout.from(adaptiveInfo) }
+    // Only a paired library can record; the sample library doesn't offer it at all.
+    val libraryRecorder = recorder?.takeIf { repository.canRecord }
     val heightDp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     val suiteType = when {
         layout.widthClass == WidthClass.Compact -> NavigationSuiteType.NavigationBar
@@ -116,40 +124,42 @@ fun LokalBotApp(
         LocalOverflowDestinations provides overflow,
         LocalAppNavigator provides navigator,
     ) {
-        NavigationSuiteScaffold(
-            modifier = modifier,
-            layoutType = suiteType,
-            containerColor = palette.window,
-            navigationSuiteColors = NavigationSuiteDefaults.colors(
-                navigationBarContainerColor = palette.sidebar,
-                navigationRailContainerColor = palette.sidebar,
-                navigationDrawerContainerColor = palette.sidebar,
-            ),
-            navigationSuiteItems = {
-                shown.forEach { destination ->
-                    item(
-                        selected = navigator.destination == destination,
-                        onClick = { navigator.go(destination) },
-                        icon = { Icon(destination.icon, contentDescription = null) },
-                        label = { NavLabel(stringResource(destination.label)) },
-                        colors = itemColors,
-                    )
-                }
-            },
-        ) {
-            // Each destination keeps its scroll and pane state while you move between them.
-            val saveableState = rememberSaveableStateHolder()
-            Box(Modifier.fillMaxSize()) {
-                saveableState.SaveableStateProvider(navigator.destination.name) {
-                    when (navigator.destination) {
-                        Destination.Today -> TodayScreen(repository)
-                        Destination.Meetings -> MeetingsScreen(repository)
-                        Destination.Actions -> ActionsScreen(repository)
-                        Destination.Timeline -> TimelineScreen(repository)
-                        Destination.People -> PeopleScreen(repository)
-                        Destination.Projects -> ProjectsScreen(repository)
-                        Destination.Ask -> AskScreen(repository)
-                        Destination.Settings -> SettingsScreen(repository, settingsActions)
+        RecordingHost(libraryRecorder) {
+            NavigationSuiteScaffold(
+                modifier = modifier,
+                layoutType = suiteType,
+                containerColor = palette.window,
+                navigationSuiteColors = NavigationSuiteDefaults.colors(
+                    navigationBarContainerColor = palette.sidebar,
+                    navigationRailContainerColor = palette.sidebar,
+                    navigationDrawerContainerColor = palette.sidebar,
+                ),
+                navigationSuiteItems = {
+                    shown.forEach { destination ->
+                        item(
+                            selected = navigator.destination == destination,
+                            onClick = { navigator.go(destination) },
+                            icon = { Icon(destination.icon, contentDescription = null) },
+                            label = { NavLabel(stringResource(destination.label)) },
+                            colors = itemColors,
+                        )
+                    }
+                },
+            ) {
+                // Each destination keeps its scroll and pane state while you move between them.
+                val saveableState = rememberSaveableStateHolder()
+                Box(Modifier.fillMaxSize()) {
+                    saveableState.SaveableStateProvider(navigator.destination.name) {
+                        when (navigator.destination) {
+                            Destination.Today -> TodayScreen(repository)
+                            Destination.Meetings -> MeetingsScreen(repository)
+                            Destination.Actions -> ActionsScreen(repository)
+                            Destination.Timeline -> TimelineScreen(repository)
+                            Destination.People -> PeopleScreen(repository)
+                            Destination.Projects -> ProjectsScreen(repository)
+                            Destination.Ask -> AskScreen(repository)
+                            Destination.Settings -> SettingsScreen(repository, settingsActions)
+                        }
                     }
                 }
             }
@@ -169,11 +179,19 @@ private fun NavLabel(text: String) {
     )
 }
 
-/** The "More" button for destinations the bottom bar leaves out. */
+/**
+ * The "More" button for destinations the bottom bar leaves out, and a way to
+ * record from any page unless [offerRecord] says the page has its own. With
+ * nothing left out, recording is the only thing to offer.
+ */
 @Composable
-fun OverflowDestinationsButton() {
+fun OverflowDestinationsButton(offerRecord: Boolean = true) {
     val overflow = LocalOverflowDestinations.current
-    if (overflow.isEmpty()) return
+    val record = LocalRecordAction.current?.takeIf { offerRecord }
+    if (overflow.isEmpty()) {
+        record?.let { RecordIconButton(it) }
+        return
+    }
     val navigator = LocalAppNavigator.current
     var open by remember { mutableStateOf(false) }
     Box {
@@ -181,6 +199,16 @@ fun OverflowDestinationsButton() {
             Icon(Icons.Outlined.MoreHoriz, contentDescription = stringResource(R.string.nav_more))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            record?.let {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.record_menu_item)) },
+                    leadingIcon = { Icon(Icons.Outlined.Mic, contentDescription = null, tint = LokalBotTheme.palette.accentText) },
+                    onClick = {
+                        open = false
+                        it()
+                    },
+                )
+            }
             overflow.forEach { destination ->
                 DropdownMenuItem(
                     text = { Text(stringResource(destination.label)) },

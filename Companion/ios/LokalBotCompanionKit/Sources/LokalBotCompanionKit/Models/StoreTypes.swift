@@ -117,6 +117,63 @@ public struct SyncReport: Sendable, Hashable {
     }
 }
 
+/// Mirrors ffi.md `RecordingInfo`: a recording this device holds or just sent.
+public struct RecordingItem: Sendable, Hashable, Identifiable {
+    public enum State: String, Sendable, Hashable {
+        /// A recorder is writing it, or was when the app last stopped.
+        case recording
+        /// On its way to the Mac as soon as it can be reached.
+        case waiting
+        /// The Mac refused it; it stays until retried or discarded.
+        case failed
+        /// The Mac has it; the audio left this device.
+        case uploaded
+    }
+
+    /// A UUID; the Mac's meeting has the same id.
+    public var id: String
+    /// Empty until the person names it.
+    public var title: String
+    public var state: State
+    public var startedAt: Date
+    public var durationSeconds: Double?
+    public var byteCount: Int64
+    public var sentBytes: Int64
+    /// Why it hasn't reached the Mac, or what went wrong.
+    public var message: String?
+    /// Where the recorder writes.
+    public var filePath: String
+
+    public init(id: String, title: String = "", state: State, startedAt: Date, durationSeconds: Double? = nil,
+                byteCount: Int64 = 0, sentBytes: Int64 = 0, message: String? = nil, filePath: String = "") {
+        self.id = id
+        self.title = title
+        self.state = state
+        self.startedAt = startedAt
+        self.durationSeconds = durationSeconds
+        self.byteCount = byteCount
+        self.sentBytes = sentBytes
+        self.message = message
+        self.filePath = filePath
+    }
+
+    /// Still only on this device, so deleting it loses it.
+    public var isOnlyCopy: Bool { state != .uploaded }
+}
+
+/// Mirrors ffi.md `UploadReport`.
+public struct UploadReport: Sendable, Hashable {
+    public var uploaded: Int
+    public var waiting: Int
+    public var failed: Int
+
+    public init(uploaded: Int = 0, waiting: Int = 0, failed: Int = 0) {
+        self.uploaded = uploaded
+        self.waiting = waiting
+        self.failed = failed
+    }
+}
+
 /// Mirrors ffi.md `PairedMac`.
 public struct PairedMac: Sendable, Hashable {
     public var macName: String

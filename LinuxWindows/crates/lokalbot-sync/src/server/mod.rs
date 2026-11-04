@@ -4,8 +4,9 @@
 mod answers;
 mod session;
 pub(crate) mod store;
+mod uploads;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -70,6 +71,17 @@ pub struct OpOutcome {
     pub message: Option<String>,
 }
 
+/// What became of a recording a device sent.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct UploadOutcome {
+    /// `accepted` (the Mac keeps it; the device may delete its copy),
+    /// `deferred` (try again later) or `rejected` (it can't be used).
+    pub status: String,
+    /// The meeting it became, when accepted.
+    pub meeting_id: Option<String>,
+    pub message: Option<String>,
+}
+
 /// Implemented by the Mac app. Called on background threads.
 #[uniffi::export(callback_interface)]
 pub trait ServerDelegate: Send + Sync {
@@ -84,6 +96,16 @@ pub trait ServerDelegate: Send + Sync {
     fn ask(&self, request_json: String, sink: Arc<AskSink>);
     /// A device paired, was removed, connected or disconnected.
     fn devices_changed(&self);
+    /// Whether this Mac takes recordings from devices right now. While false
+    /// a device keeps them and tries again later, sending no audio.
+    fn accepts_recordings(&self) -> bool;
+    /// A device's recording arrived whole and matches its checksum. Reads
+    /// `file_path` (an ADTS AAC stream the crate owns and deletes) and makes
+    /// a meeting from it. May block for as long as that takes; return only
+    /// once the meeting is safely stored, because the device then deletes
+    /// its copy. `recording_json` is protocol.md's recording plus `deviceId`,
+    /// `deviceName` and `platform`, which come from the pairing.
+    fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome;
 }
 
 /// Streams one answer to the phone that asked. The Mac finishes it even if
@@ -181,6 +203,9 @@ pub(crate) struct ServerInner {
     next_session: AtomicU64,
     connections: AtomicUsize,
     answers: Arc<Answers>,
+    uploads_dir: PathBuf,
+    /// Recordings a session is receiving or the Mac is importing.
+    active_uploads: Mutex<HashSet<String>>,
 }
 
 /// The Mac's listener and record database.
@@ -195,7 +220,9 @@ impl SyncServer {
     pub fn new(config: ServerConfig, delegate: Box<dyn ServerDelegate>) -> Result<Arc<Self>> {
         let private_key = keys::key_array(&config.static_private_key, "static private key")?;
         let public_key = keys::public_key(&private_key)?;
-        let store = HostStore::open(&PathBuf::from(&config.db_path))?;
+        let db_path = PathBuf::from(&config.db_path);
+        let store = HostStore::open(&db_path)?;
+        let uploads_dir = db_path.with_file_name(uploads::DIRECTORY);
         Ok(Arc::new(Self {
             inner: Arc::new(ServerInner {
                 mac_name: config.mac_name,
@@ -212,6 +239,8 @@ impl SyncServer {
                 next_session: AtomicU64::new(1),
                 connections: AtomicUsize::new(0),
                 answers: Arc::default(),
+                uploads_dir,
+                active_uploads: Mutex::new(HashSet::new()),
             }),
         }))
     }
@@ -234,6 +263,14 @@ impl SyncServer {
     /// The port actually bound while running, else the configured one.
     pub fn bound_port(&self) -> u16 {
         self.inner.port()
+    }
+
+    /// Listens on 127.0.0.1 and ::1 only, for development hosts and tests.
+    /// Takes effect at the next `start`.
+    pub fn set_loopback_only(&self, loopback_only: bool) {
+        self.inner
+            .loopback_only
+            .store(loopback_only, Ordering::SeqCst);
     }
 
     /// Publishes a record body. Returns true when it changed (a new version
@@ -330,6 +367,7 @@ impl SyncServer {
             .lock()
             .remove_device(&device_id, &now_iso())?;
         self.inner.answers.forget_device(&device_id);
+        uploads::forget_device(&self.inner.uploads_dir, &device_id);
         let sessions: Vec<Sender<session::Event>> = self
             .inner
             .sessions
@@ -359,16 +397,6 @@ impl SyncServer {
         ids.sort();
         ids.dedup();
         ids
-    }
-}
-
-/// Rust-only control for development hosts.
-impl SyncServer {
-    /// Listens on 127.0.0.1 and ::1 only. Takes effect at the next `start`.
-    pub fn set_loopback_only(&self, loopback_only: bool) {
-        self.inner
-            .loopback_only
-            .store(loopback_only, Ordering::SeqCst);
     }
 }
 
@@ -440,6 +468,7 @@ impl ServerInner {
             this.loopback_only.load(Ordering::SeqCst),
         )?;
         let port = listeners[0].local_addr()?.port();
+        uploads::remove_stale(&this.uploads_dir);
         let stop = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
         for listener in listeners {
@@ -487,7 +516,12 @@ impl ServerInner {
     }
 
     fn accept_loop(self: &Arc<Self>, listener: &TcpListener, stop: &AtomicBool) {
+        let mut swept = std::time::Instant::now();
         while !stop.load(Ordering::SeqCst) {
+            if swept.elapsed() >= uploads::SWEEP_EVERY {
+                uploads::remove_stale(&self.uploads_dir);
+                swept = std::time::Instant::now();
+            }
             match listener.accept() {
                 Ok((stream, peer)) => self.accept(stream, peer),
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {

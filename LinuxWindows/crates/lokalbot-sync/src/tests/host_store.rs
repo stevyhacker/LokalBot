@@ -278,4 +278,16 @@ impl crate::ServerDelegate for NoDelegate {
     }
 
     fn devices_changed(&self) {}
+
+    fn accepts_recordings(&self) -> bool {
+        false
+    }
+
+    fn receive_recording(&self, _: String, _: String) -> crate::UploadOutcome {
+        crate::UploadOutcome {
+            status: "rejected".into(),
+            meeting_id: None,
+            message: None,
+        }
+    }
 }

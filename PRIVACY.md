@@ -42,7 +42,7 @@ LokalBot can store the following under its Application Support directory:
 - conversations downloaded from email accounts you connect, encrypted (see
   **Email** under [Network access](#network-access));
 - while you share with phones and tablets, the records your paired devices
-  receive and those devices' public keys (see
+  receive, those devices' public keys, and recordings on their way from them (see
   [Phones and tablets](#phones-and-tablets)); and
 - preferences, diagnostic logs, and encryption keys.
 
@@ -502,7 +502,8 @@ tablets you paired, as described next.
 ## Phones and tablets
 
 Settings → **Phones & tablets** lets you read your Work Memory on your own
-iPhone, iPad, or Android device. It is off by default and separate from
+iPhone, iPad, or Android device, and record meetings there for your Mac to
+process. It is off by default and separate from
 **Allow external agents to read your LokalBot data** and the other grants:
 turning one on never turns on another. While it is off, nothing listens and
 no shared copy is built.
@@ -551,14 +552,36 @@ no shared copy is built.
   device can collect it when it reconnects.
 - **Changes from your devices.** A device can mark an action open, done, or
   deferred. The Mac applies the change as if you made it in Actions.
-- **Storage.** The Mac keeps the shared records and the paired devices' public
-  keys in `companion/companion.sqlite` in the library; deleting it means pairing
-  again. Each device keeps its copy in its app's private storage for offline
-  reading.
+- **Recordings from your devices.** A paired device can record a meeting. It
+  records only after you tap Record, keeps recording with the screen locked or
+  the app in the background, and shows the system's recording indicator
+  meanwhile. It's up to you to let people know they're being recorded, and to
+  follow the law where you are. The device keeps the audio in its app's private
+  storage, left out of device backups, until it can reach your Mac. It then sends
+  it directly, over the same encrypted connection, and deletes its copy once your
+  Mac confirms it has stored the meeting. The Mac only accepts recordings from
+  devices you paired, and only while **Accept recordings from my devices** is on;
+  with that off, the device keeps its recordings and sends no audio. The recording
+  becomes a meeting with that audio as its microphone track, so your speech
+  counts as yours while **My microphone is me** is on and other voices are treated
+  as this Mac's microphone would treat them. It takes no screen context, because
+  you weren't at the Mac. From then on it is processed, stored, and deleted like
+  any other meeting, with your transcription and Think models, including any remote
+  server you approved. The Mac keeps a partial upload in `companion/uploads/` in
+  the library until it arrives, for at most 14 days without progress, and deletes
+  them when you turn sharing off. The phone's microphone is never used for
+  anything else, and no audio ever goes from the Mac to a device.
+- **Storage.** The Mac keeps the shared records, the paired devices' public
+  keys, and the ids of recordings that arrived in `companion/companion.sqlite` in
+  the library; deleting it means pairing again. Each device keeps its copy in its
+  app's private storage for offline reading.
 - **Removing a device.** Remove it under Settings → Phones & tablets. It is
   refused from its next connection, and if it is connected it is told to
-  erase its copy. **Remove this device** in the device's settings erases the
-  copy there.
+  erase its copy. Recordings that haven't reached your Mac are not a copy of
+  anything, so they stay on the device until you pair it again, which sends them,
+  or delete them there. The Mac deletes any partial upload from it. **Remove this
+  device** in the device's settings erases its copy and those recordings, and says
+  first how many would be lost.
 
 ## Email from Gmail
 

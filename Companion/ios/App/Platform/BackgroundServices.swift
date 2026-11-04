@@ -3,6 +3,7 @@ import LocalAuthentication
 import LokalBotCompanionKit
 import Observation
 import SwiftUI
+import UIKit
 import UserNotifications
 
 /// Background refresh: iOS decides when; each run syncs if the Mac is reachable.
@@ -32,6 +33,25 @@ enum QueuedAnswerNotification {
         content.threadIdentifier = result.requestId
         let request = UNNotificationRequest(identifier: result.requestId, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
+    }
+}
+
+/// Recording can stop for a call with the phone locked and nothing on screen to
+/// say so, and iOS may not let it restart until the app is open.
+enum RecordingPausedNotification {
+    private static let identifier = "recording-paused"
+
+    static func post() {
+        guard UIApplication.shared.applicationState != .active else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Recording paused"
+        content.body = "Another app is using the microphone. Open LokalBot to carry on. What's recorded so far is saved."
+        content.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+    }
+
+    static func clear() {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
     }
 }
 

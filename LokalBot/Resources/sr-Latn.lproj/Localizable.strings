@@ -1673,6 +1673,10 @@
 "Last year" = "Poslednjih 12 meseci";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Nikada se ne deli: adrese e-pošte učesnika, dokazi o govornicima i glasovni profili, snimci ekrana i tekst sa ekrana, e-pošta, Lični kontekst, pamćenje iz noćne analize, podešavanja i ključevi.";
 "Answer questions from my devices" = "Odgovaraj na pitanja sa mojih uređaja";
+"Recordings" = "Snimci";
+"Accept recordings from my devices" = "Prihvataj snimke sa mojih uređaja";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "Upareni uređaj može ovom Mac-u da pošalje sastanke koje je snimio. Ovde postaju sastanci i obrađuju se kao svaki drugi snimak; uređaj zatim briše svoju kopiju.";
+"Recording from %@" = "Snimak sa uređaja %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "Ovaj Mac odgovara pomoću vašeg modela za Razmišljanje i njegovih odobrenja, na osnovu sastanaka i Vremenske linije koje delite. Pamćenje ekrana se nikada ne pretražuje za uređaj.";
 "Answers are written on this Mac." = "Odgovori se pišu na ovom Mac-u.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Pitanja sa vaših uređaja i kontekst koji im je potreban šalju se vašem odobrenom serveru za Razmišljanje (%@).";

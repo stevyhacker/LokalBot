@@ -48,12 +48,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.data.MacRoute
+import me.dotenv.lokalbot.companion.data.RecordingState
 import me.dotenv.lokalbot.companion.data.SyncState
 import me.dotenv.lokalbot.companion.data.model.Manifest
 import me.dotenv.lokalbot.companion.ui.LocalFormats
@@ -84,6 +88,11 @@ class SettingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
     val syncState: StateFlow<SyncState> = repository.syncState
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
+
+    /** Recordings that haven't reached the computer, which removing this device deletes. */
+    val unsentRecordings: StateFlow<Int> = repository.recordings
+        .map { rows -> rows.count { it.state != RecordingState.Uploaded } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
     val isSample: Boolean get() = repository.isSample
     fun now() = repository.now()
 
@@ -102,6 +111,7 @@ fun SettingsScreen(repository: CompanionRepository, actions: SettingsActions) {
     val manifest by viewModel.manifest.collectAsStateWithLifecycle()
     val sync by viewModel.syncState.collectAsStateWithLifecycle()
     val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+    val unsentRecordings by viewModel.unsentRecordings.collectAsStateWithLifecycle()
     val formats = LocalFormats.current
     val palette = LokalBotTheme.palette
     val context = LocalContext.current
@@ -226,7 +236,17 @@ fun SettingsScreen(repository: CompanionRepository, actions: SettingsActions) {
         AlertDialog(
             onDismissRequest = { confirmRemove = false },
             title = { Text(stringResource(R.string.settings_remove_confirm_title)) },
-            text = { Text(stringResource(R.string.settings_remove_confirm_message)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.settings_remove_confirm_message))
+                    if (unsentRecordings > 0) {
+                        Text(
+                            pluralStringResource(R.plurals.settings_remove_confirm_recordings, unsentRecordings, unsentRecordings),
+                            color = palette.recordingText,
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = { confirmRemove = false; actions.onRemoveLibrary() }) {
                     Text(stringResource(R.string.settings_remove_button), color = palette.recordingText)

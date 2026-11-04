@@ -21,6 +21,7 @@ struct TodayScreen: View {
         .navigationTitle("Today")
         .refreshable { await session.syncNow() }
         .toolbar {
+            RecordToolbarItem()
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     navigator.ask(about: .init(day: session.today.description))

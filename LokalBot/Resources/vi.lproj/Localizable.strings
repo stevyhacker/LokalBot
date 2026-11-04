@@ -1673,6 +1673,10 @@
 "Last year" = "12 tháng qua";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Không bao giờ chia sẻ: địa chỉ email của người tham dự, bằng chứng người nói và hồ sơ giọng nói, ảnh chụp màn hình và văn bản màn hình, email, Ngữ cảnh cá nhân, bộ nhớ từ đánh giá qua đêm, cài đặt và khóa.";
 "Answer questions from my devices" = "Trả lời câu hỏi từ thiết bị của tôi";
+"Recordings" = "Bản ghi";
+"Accept recordings from my devices" = "Nhận bản ghi từ thiết bị của tôi";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "Thiết bị đã ghép nối có thể gửi các cuộc họp đã ghi đến máy Mac này. Chúng trở thành cuộc họp tại đây và được xử lý như mọi bản ghi khác; sau đó thiết bị xóa bản sao của nó.";
+"Recording from %@" = "Bản ghi từ %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "Mac này trả lời bằng mô hình Suy nghĩ của bạn cùng các phê duyệt của nó, dựa trên cuộc họp và Dòng thời gian bạn chia sẻ. Bộ nhớ màn hình không bao giờ được tìm kiếm cho thiết bị.";
 "Answers are written on this Mac." = "Câu trả lời được viết trên Mac này.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Câu hỏi từ thiết bị của bạn và ngữ cảnh cần thiết sẽ được gửi đến máy chủ Suy nghĩ mà bạn đã phê duyệt (%@).";

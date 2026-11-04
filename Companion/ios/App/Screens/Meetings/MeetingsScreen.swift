@@ -47,6 +47,7 @@ struct MeetingsList: View {
         @Bindable var model = model
         List(selection: $selection) {
             if model.query.trimmingCharacters(in: .whitespaces).isEmpty {
+                DeviceRecordingsSection()
                 ForEach(model.groups) { group in
                     Section {
                         ForEach(group.meetings) { meeting in
@@ -66,7 +67,7 @@ struct MeetingsList: View {
         .listStyle(.plain)
         .tint(Brand.tealFill)
         .overlay {
-            if model.loaded && model.groups.isEmpty {
+            if model.loaded && model.groups.isEmpty && session.recordings.isEmpty {
                 ContentUnavailableView("No meetings yet", systemImage: "waveform.circle",
                                        description: Text("Meetings recorded on your computer appear here after a sync."))
             } else if !model.searchedQuery.isEmpty && model.hits.isEmpty {
@@ -74,6 +75,7 @@ struct MeetingsList: View {
             }
         }
         .navigationTitle("Meetings")
+        .toolbar { RecordToolbarItem() }
         .searchable(text: $model.query, isPresented: $searchFocused, prompt: "Meetings, transcripts, digests")
         .refreshable { await session.syncNow() }
         .task(id: session.revision) { await model.load(session) }

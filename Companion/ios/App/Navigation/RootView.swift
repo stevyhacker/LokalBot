@@ -4,8 +4,10 @@ import SwiftUI
 struct RootView: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppLock.self) private var appLock
+    @Environment(RecordingModel.self) private var recording
 
     var body: some View {
+        @Bindable var recording = recording
         Group {
             switch session.mode {
             case .loading:
@@ -17,6 +19,8 @@ struct RootView: View {
             }
         }
         .brandTinted()
+        .fullScreenCover(isPresented: $recording.isPresented) { RecordingScreen().brandTinted() }
+        .onChange(of: session.mode) { recording.sessionModeChanged() }
         .overlay {
             if appLock.isLocked || appLock.isObscured {
                 LockCover()

@@ -133,6 +133,7 @@ impl SettingsPage {
             sections.push(self.devices_section(&snapshot, cx));
             sections.push(self.shared_data_section(&settings, cx));
             sections.push(self.questions_section(&settings, cx));
+            sections.push(self.recordings_section(&settings, cx));
             sections.push(self.network_section(&settings, &snapshot, cx));
         } else {
             // A code held after sharing stopped would be a dead picture.
@@ -523,6 +524,22 @@ impl SettingsPage {
             );
         }
         section
+    }
+
+    fn recordings_section(&self, settings: &Settings, cx: &mut Context<Self>) -> Section {
+        Section::new(lokalbot_i18n::tr("Recordings")).row(
+            "settings.companionAcceptsRecordings",
+            self.toggle(
+                "settings.companionAcceptsRecordings",
+                lokalbot_i18n::tr("Accept recordings from my devices"),
+                Some(lokalbot_i18n::tr(
+                    "A paired device can send this computer meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy.",
+                )),
+                settings.companion_accepts_recordings,
+                |s, on| s.companion_accepts_recordings = on,
+                cx,
+            ),
+        )
     }
 
     fn network_section(

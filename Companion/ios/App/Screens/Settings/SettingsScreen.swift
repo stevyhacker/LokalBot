@@ -57,13 +57,20 @@ struct SettingsScreen: View {
                 Task { await session.removeThisDevice() }
             }
         } message: {
-            Text(session.mode == .sample ? "You'll return to the welcome screen."
-                 : "Meetings, actions and answers on this device are erased. Your computer keeps everything.")
+            Text(session.mode == .sample ? "You'll return to the welcome screen." : removalMessage)
         }
         .sheet(isPresented: $showingPairing) { PairingScreen() }
         .task(id: session.revision) {
             storageBytes = CompanionStorage.usedBytes()
         }
+    }
+
+    /// Recordings that haven't arrived exist nowhere else, so this says so.
+    private var removalMessage: String {
+        let unsent = session.recordings.filter(\.isOnlyCopy).count
+        let base = "Meetings, actions and answers on this device are erased. Your computer keeps everything."
+        guard unsent > 0 else { return base }
+        return "\(base) \(unsent) recording\(unsent == 1 ? " hasn't" : "s haven't") reached your computer and will be lost."
     }
 
     private var macSection: some View {

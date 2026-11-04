@@ -24,6 +24,7 @@
   "A built-in model just for Compose. Same as Think follows your Think model and connection.": "僅供撰寫使用的內建模型。「與思考模型相同」會沿用你的思考模型和連線。",
   "A later screen capture shows “{cue}” with this action's words. Nothing changes until you choose Mark Done.": "之後的螢幕擷取顯示了「{cue}」，與此行動項的用詞相符。在你選擇「標記為完成」之前不會有任何變更。",
   "A local coding and file agent powered by your selected Think model. Setup downloads about {0} and uses about {1} after installation. {inference} Session history stays local; commands you approve run with your account’s permissions on this PC and may access files or the network.": "由您选择的 Think 型号提供支持的本地编码和文件代理。安装程序会下载有关 {0} 的信息并在安装后使用有关 {1} 的信息。 {inference} 会话历史记录保留在本地；您批准的命令在此电脑上使用您的帐户权限运行，并且可以访问文件或网络。",
+  "A paired device can send this computer meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy.": "已配對的裝置可以將錄製的會議傳送到這台電腦。這些錄音會在這裡成為會議，並像其他錄音一樣處理；之後裝置會刪除自己的副本。",
   "A password field has focus. LokalBot does not read or paste into password fields.": "目前焦點在密碼欄位。LokalBot 不會讀取密碼欄位，也不會在其中貼上內容。",
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "私密的 iCal 或 CalDAV 連結，例如 Google 日曆的 iCal 格式私密網址或已發佈的 Outlook 行事曆。連結會保存在系統憑證儲存中，每五分鐘讀取一次；只顯示行事曆的主機。",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "行動項串聯會把不同會議中的同一行動項歸為一組。變更其狀態會同步更新所有相關的會議。",

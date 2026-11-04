@@ -35,6 +35,7 @@ public actor FixtureStore: CompanionStore {
     private var queue: [AskRequest] = []
     private var history: [AskExchange] = []
     private var syncStatus: SyncStatus
+    private var recordingItems: [RecordingItem] = []
 
     public init(envelopes: [RecordEnvelope], configuration: Configuration = .init()) {
         self.configuration = configuration
@@ -317,7 +318,90 @@ public actor FixtureStore: CompanionStore {
         return SyncReport(opsApplied: applied, cursor: syncStatus.cursor, address: syncStatus.lastAddress, finishedAt: configuration.now())
     }
 
+    // MARK: Recordings
+
+    /// Sets the list directly, for previews and screenshots.
+    public func setRecordings(_ items: [RecordingItem]) {
+        recordingItems = items
+    }
+
+    public func beginRecording(title: String?) throws -> RecordingItem {
+        guard syncStatus.paired else { throw CompanionStoreError.notPaired }
+        let id = UUID().uuidString.lowercased()
+        let item = RecordingItem(id: id, title: title ?? "", state: .recording, startedAt: configuration.now(),
+                                 filePath: FileManager.default.temporaryDirectory.appendingPathComponent("\(id).aac").path)
+        recordingItems.insert(item, at: 0)
+        return item
+    }
+
+    public func finishRecording(id: String, durationSeconds: Double) throws -> RecordingItem {
+        guard let index = recordingItems.firstIndex(where: { $0.id == id }) else {
+            throw CompanionStoreError.failed("There is no such recording.")
+        }
+        let path = recordingItems[index].filePath
+        let size = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
+        guard size > 0 else {
+            recordingItems.remove(at: index)
+            throw CompanionStoreError.failed("Nothing was recorded.")
+        }
+        recordingItems[index].state = .waiting
+        recordingItems[index].durationSeconds = durationSeconds
+        recordingItems[index].byteCount = size
+        return recordingItems[index]
+    }
+
+    public func recoverRecordings() {
+        for index in recordingItems.indices where recordingItems[index].state == .recording {
+            recordingItems[index].state = .waiting
+        }
+    }
+
+    public func discardRecording(id: String) {
+        recordingItems.removeAll { $0.id == id }
+    }
+
+    public func setRecordingTitle(id: String, title: String) {
+        guard let index = recordingItems.firstIndex(where: { $0.id == id }) else { return }
+        recordingItems[index].title = title
+    }
+
+    public func retryRecording(id: String) {
+        guard let index = recordingItems.firstIndex(where: { $0.id == id && $0.state == .failed }) else { return }
+        recordingItems[index].state = .waiting
+        recordingItems[index].message = nil
+    }
+
+    public func recordings() -> [RecordingItem] { recordingItems }
+
+    public func uploadRecordings(extraAddresses: [String],
+                                 onProgress: @escaping @Sendable (String, Int64, Int64) -> Void) throws -> UploadReport {
+        let waiting = recordingItems.filter { $0.state == .waiting }
+        guard !waiting.isEmpty else { return report(uploaded: 0) }
+        guard configuration.macReachable else { throw CompanionStoreError.unreachable }
+        for item in waiting {
+            onProgress(item.id, item.byteCount, item.byteCount)
+            guard let index = recordingItems.firstIndex(where: { $0.id == item.id }) else { continue }
+            recordingItems[index].state = .uploaded
+            recordingItems[index].sentBytes = item.byteCount
+            try? FileManager.default.removeItem(atPath: item.filePath)
+        }
+        return report(uploaded: waiting.count)
+    }
+
+    private func report(uploaded: Int) -> UploadReport {
+        UploadReport(uploaded: uploaded, waiting: recordingItems.filter { $0.state == .waiting }.count,
+                     failed: recordingItems.filter { $0.state == .failed }.count)
+    }
+
+    /// What the core does when the Mac removes this device.
+    public func forgetPairingKeepingRecordings() {
+        let kept = recordingItems
+        unpair()
+        recordingItems = kept
+    }
+
     public func unpair() {
+        recordingItems = []
         records = [:]
         pendingActions = []
         queue = []

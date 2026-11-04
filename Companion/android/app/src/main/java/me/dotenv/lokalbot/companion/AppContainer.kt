@@ -16,11 +16,15 @@ import kotlinx.coroutines.withContext
 import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.data.FixtureRepository
 import me.dotenv.lokalbot.companion.data.RustRepository
+import me.dotenv.lokalbot.companion.data.UploadOutcome
 import me.dotenv.lokalbot.companion.pairing.PairingPayload
+import me.dotenv.lokalbot.companion.recording.MediaRecorderCapture
+import me.dotenv.lokalbot.companion.recording.MeetingRecorder
 import me.dotenv.lokalbot.companion.security.DeviceKeyVault
 import me.dotenv.lokalbot.companion.sync.AnswerNotifier
 import me.dotenv.lokalbot.companion.sync.MacDiscovery
 import me.dotenv.lokalbot.companion.sync.SyncWorker
+import me.dotenv.lokalbot.companion.sync.UploadWorker
 import me.dotenv.lokalbot.sync.ClientConfig
 import me.dotenv.lokalbot.sync.SyncClient
 import me.dotenv.lokalbot.sync.SyncException
@@ -38,12 +42,17 @@ class AppContainer(private val app: Application) {
     val discovery by lazy { MacDiscovery(app) }
     val keyVault = DeviceKeyVault(File(app.noBackupFilesDir, "device-key.bin"))
     val databaseFile = File(app.noBackupFilesDir, "companion.sqlite")
+
+    /** Where the core keeps recordings: beside the database (Companion/protocol/ffi.md). */
+    private val recordingsDir = File(app.noBackupFilesDir, "recordings")
     private val notifier by lazy { AnswerNotifier(app) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val _repository = MutableStateFlow<CompanionRepository?>(null)
     val repository: StateFlow<CompanionRepository?> = _repository.asStateFlow()
+
+    val recorder = MeetingRecorder(scope, library = { _repository.value }, newCapture = { MediaRecorderCapture(app) })
 
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
@@ -56,19 +65,42 @@ class AppContainer(private val app: Application) {
         _removedByMac.value = false
     }
 
+    /**
+     * Recordings kept after the Mac removed this device. They exist nowhere else,
+     * and the welcome screen says so. Pairing again sends them.
+     */
+    private val _heldRecordings = MutableStateFlow(0)
+    val heldRecordings: StateFlow<Int> = _heldRecordings.asStateFlow()
+
+    /** Deletes the recordings the welcome screen is holding, with what's left of the store. */
+    suspend fun discardHeldRecordings() {
+        withContext(Dispatchers.IO) { eraseFiles() }
+        _heldRecordings.value = 0
+    }
+
     init {
         scope.launch {
-            _repository.value = when (preferences.mode.first()) {
+            val mode = preferences.mode.first()
+            _repository.value = when (mode) {
                 LibraryMode.Sample -> loadSample()
                 LibraryMode.Paired -> openPaired()
                 LibraryMode.None -> null
+            }
+            if (mode != LibraryMode.Paired && databaseFile.exists()) {
+                _heldRecordings.value = withContext(Dispatchers.IO) {
+                    runCatching { openClient(deviceName()) }.getOrNull()?.let { client ->
+                        unsentRecordings(client).also { client.close() }
+                    } ?: 0
+                }
             }
             _ready.value = true
         }
     }
 
-    /** Bytes the synced library takes on this device. */
-    fun storageBytes(): Long = listOf("", "-wal", "-shm").sumOf { File(databaseFile.path + it).length() }
+    /** Bytes the synced library and recordings waiting to go take on this device. */
+    fun storageBytes(): Long =
+        listOf("", "-wal", "-shm").sumOf { File(databaseFile.path + it).length() } +
+            (recordingsDir.listFiles()?.sumOf { it.length() } ?: 0)
 
     suspend fun openSample() {
         _removedByMac.value = false
@@ -83,6 +115,8 @@ class AppContainer(private val app: Application) {
     /** Pairs with the Mac in [link] as [deviceName]; blocks until the person answers on the Mac. */
     suspend fun pair(link: String, payload: PairingPayload, deviceName: String): PairOutcome = withContext(Dispatchers.IO) {
         _removedByMac.value = false
+        // The recorder holds the current library, which pairing is about to close.
+        if (recorder.isActive) return@withContext PairOutcome.Failed(app.getString(R.string.pair_failed_recording))
         val name = deviceName.trim().ifEmpty { defaultDeviceName() }
         preferences.setDeviceName(name)
         val client = try {
@@ -95,9 +129,14 @@ class AppContainer(private val app: Application) {
             close(_repository.value)
             val library = paired(client)
             _repository.value = library
+            _heldRecordings.value = 0
             preferences.setMode(LibraryMode.Paired)
             SyncWorker.schedule(app)
-            scope.launch { library.sync() }
+            scope.launch {
+                library.sync()
+                // Whatever was held since the Mac removed this device.
+                UploadWorker.enqueue(app)
+            }
             PairOutcome.Paired(mac.macName)
         } catch (e: SyncException) {
             client.close()
@@ -107,14 +146,18 @@ class AppContainer(private val app: Application) {
 
     /** Leaves the sample library, or erases the synced copy and forgets the Mac. */
     suspend fun removeLibrary() {
+        // The microphone stops before the core erases the file it writes to.
+        recorder.abort()
         val current = _repository.value
         _repository.value = null
         withContext(Dispatchers.IO) {
             if (current is RustRepository) runCatching { current.unpairAndClose() }
-            listOf("", "-wal", "-shm").forEach { File(databaseFile.path + it).delete() }
-            keyVault.erase()
+            // Leaving the sample library isn't removing this device: what's held stays.
+            if (current is RustRepository || _heldRecordings.value == 0) eraseFiles()
         }
+        if (current is RustRepository) _heldRecordings.value = 0
         SyncWorker.cancel(app)
+        UploadWorker.cancel(app)
         preferences.setMode(LibraryMode.None)
     }
 
@@ -123,8 +166,20 @@ class AppContainer(private val app: Application) {
         scope.launch { repository.sync() }
     }
 
+    /** Finishes only when any waiting recording has gone too, which keeps a worker's process alive for it. */
     suspend fun syncInBackground() {
-        _repository.value?.takeUnless { it.isSample }?.sync()
+        val repository = library()?.takeUnless { it.isSample } ?: return
+        repository.sync()
+        repository.uploadRecordings()
+    }
+
+    suspend fun uploadInBackground(): UploadOutcome =
+        library()?.uploadRecordings() ?: UploadOutcome.Finished(uploaded = 0, waiting = 0, failed = 0)
+
+    /** The library once it's loaded: a worker can be what started this process. */
+    private suspend fun library(): CompanionRepository? {
+        ready.first { it }
+        return _repository.value
     }
 
     private suspend fun loadSample(): CompanionRepository = withContext(Dispatchers.IO) {
@@ -135,12 +190,13 @@ class AppContainer(private val app: Application) {
     private suspend fun openPaired(): CompanionRepository? = withContext(Dispatchers.IO) {
         val client = runCatching { openClient(deviceName()) }.getOrNull() ?: return@withContext null
         if (client.pairedMac() == null) {
+            _heldRecordings.value = unsentRecordings(client)
             client.close()
             preferences.setMode(LibraryMode.None)
             return@withContext null
         }
         SyncWorker.schedule(app)
-        paired(client)
+        paired(client).also { recorder.recoverIfIdle(it) }
     }
 
     private fun paired(client: SyncClient): RustRepository {
@@ -150,22 +206,41 @@ class AppContainer(private val app: Application) {
             discover = { fingerprint -> discovery.addresses(fingerprint) },
             onQueuedAnswer = notifier::announce,
             onRevoked = { scope.launch { forget(library) } },
+            onRecordingsWaiting = { UploadWorker.enqueue(app) },
         )
         return library
     }
 
-    /** The Mac removed this device and the core erased its copy: back to the welcome screen. */
+    /**
+     * The Mac removed this device and the core erased its copy, but not what
+     * hadn't reached the Mac: back to the welcome screen, which holds onto that.
+     */
     private suspend fun forget(library: RustRepository) {
         if (_repository.value !== library) return
+        recorder.abort()
         _repository.value = null
         withContext(Dispatchers.IO) {
+            val held = library.heldAfterRevocation()
             library.close()
-            listOf("", "-wal", "-shm").forEach { File(databaseFile.path + it).delete() }
-            keyVault.erase()
+            _heldRecordings.value = held
+            if (held == 0) eraseFiles()
         }
         SyncWorker.cancel(app)
+        UploadWorker.cancel(app)
         preferences.setMode(LibraryMode.None)
         _removedByMac.value = true
+    }
+
+    /** Recordings that exist only here. Nothing can be recording while this runs. */
+    private fun unsentRecordings(client: SyncClient): Int {
+        runCatching { client.recoverRecordings() }
+        return runCatching { client.recordings().count { it.state != "uploaded" } }.getOrDefault(0)
+    }
+
+    private fun eraseFiles() {
+        listOf("", "-wal", "-shm").forEach { File(databaseFile.path + it).delete() }
+        recordingsDir.deleteRecursively()
+        keyVault.erase()
     }
 
     private suspend fun openClient(deviceName: String): SyncClient = SyncClient(

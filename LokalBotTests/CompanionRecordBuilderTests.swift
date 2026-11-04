@@ -57,7 +57,7 @@ final class CompanionRecordBuilderTests: XCTestCase {
     }
 
     func testManifestReportsWhatDevicesReceive() throws {
-        var sharing = CompanionSharing(history: .days90, answersQuestions: false)
+        var sharing = CompanionSharing(history: .days90, answersQuestions: false, acceptsRecordings: false)
         sharing.dataClasses.meetings = false
         let json = try XCTUnwrap(CompanionRecordBuilder.manifest(sharing: sharing, macName: "Test Mac"))
         let manifest = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
@@ -65,6 +65,7 @@ final class CompanionRecordBuilderTests: XCTestCase {
         XCTAssertEqual(manifest["macName"] as? String, "Test Mac")
         XCTAssertEqual(manifest["historyDays"] as? Int, 90)
         XCTAssertEqual(manifest["askEnabled"] as? Bool, false)
+        XCTAssertEqual(manifest["recordingsEnabled"] as? Bool, false)
         let classes = try XCTUnwrap(manifest["dataClasses"] as? [String: Bool])
         XCTAssertEqual(classes["meetings"], false)
         // A transcript needs its meeting.

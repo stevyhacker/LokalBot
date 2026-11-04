@@ -600,6 +600,13 @@ pub const ENTRIES: &[Entry] = &[
         value: |s| on_off(s.companion_answers_questions),
     },
     Entry {
+        id: "settings.companionAcceptsRecordings",
+        title: "Accept recordings from my devices",
+        category: Devices,
+        aliases: "phone tablet record recording audio upload",
+        value: |s| on_off(s.companion_accepts_recordings),
+    },
+    Entry {
         id: "settings.companionPort",
         title: "Port",
         category: Devices,

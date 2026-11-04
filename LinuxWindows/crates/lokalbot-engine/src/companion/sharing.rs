@@ -127,6 +127,7 @@ pub struct Sharing {
     pub data_classes: DataClasses,
     pub history: HistoryWindow,
     pub answers_questions: bool,
+    pub accepts_recordings: bool,
     pub port: u16,
     pub advertises: bool,
 }
@@ -146,6 +147,7 @@ impl Sharing {
             },
             history: HistoryWindow::from_days(settings.companion_history),
             answers_questions: settings.companion_answers_questions,
+            accepts_recordings: settings.companion_accepts_recordings,
             port: clamped_port(settings.companion_port),
             advertises: settings.companion_advertises_on_bonjour,
         }

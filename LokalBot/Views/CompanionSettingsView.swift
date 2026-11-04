@@ -23,6 +23,7 @@ struct CompanionSettingsSections: View {
                 .settingTarget("settings.companionDevices", selected: app.focusedSettingID)
             sharedDataSection
             questionsSection
+            recordingsSection
             networkSection
         }
     }
@@ -92,6 +93,16 @@ struct CompanionSettingsSections: View {
                         format: language.localized("Questions from your devices and the context they need go to your approved Think server (%@)."),
                         app.settings.summarizerBackend.displayName))
             }
+        }
+    }
+
+    private var recordingsSection: some View {
+        Section("Recordings") {
+            Toggle(isOn: $app.settings.companionAcceptsRecordings) {
+                SettingsLabel("Accept recordings from my devices",
+                              help: "A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy.")
+            }
+            .settingTarget("settings.companionAcceptsRecordings", selected: app.focusedSettingID)
         }
     }
 
