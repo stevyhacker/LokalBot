@@ -416,6 +416,9 @@ struct AppSettings: Codable, Equatable {
     /// Answer questions sent from paired devices with the Think model and its
     /// existing approvals.
     var companionAnswersQuestions: Bool = true
+    /// Make meetings from recordings paired devices send, processed like any
+    /// other recording.
+    var companionAcceptsRecordings: Bool = true
     /// The one TCP port the listener binds while sharing is on.
     var companionPort: Int = CompanionSharing.defaultPort
     /// Advertise `_lokalbot._tcp` on the local network. Off leaves the Mac
@@ -982,6 +985,7 @@ struct AppSettings: Codable, Equatable {
         case companionShareProjects
         case companionHistory
         case companionAnswersQuestions
+        case companionAcceptsRecordings
         case companionPort
         case companionAdvertisesOnBonjour
         case askMemoryEnabled
@@ -1206,6 +1210,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(companionShareProjects, forKey: .companionShareProjects)
         try c.encode(companionHistory, forKey: .companionHistory)
         try c.encode(companionAnswersQuestions, forKey: .companionAnswersQuestions)
+        try c.encode(companionAcceptsRecordings, forKey: .companionAcceptsRecordings)
         try c.encode(CompanionSharing.clampedPort(companionPort), forKey: .companionPort)
         try c.encode(companionAdvertisesOnBonjour, forKey: .companionAdvertisesOnBonjour)
         try c.encode(askMemoryEnabled, forKey: .askMemoryEnabled)
@@ -1422,6 +1427,7 @@ struct AppSettings: Codable, Equatable {
         companionShareProjects = decode(.companionShareProjects, defaults.companionShareProjects)
         companionHistory = decode(.companionHistory, defaults.companionHistory)
         companionAnswersQuestions = decode(.companionAnswersQuestions, defaults.companionAnswersQuestions)
+        companionAcceptsRecordings = decode(.companionAcceptsRecordings, defaults.companionAcceptsRecordings)
         companionPort = CompanionSharing.clampedPort(decode(.companionPort, defaults.companionPort))
         companionAdvertisesOnBonjour = decode(
             .companionAdvertisesOnBonjour, defaults.companionAdvertisesOnBonjour)

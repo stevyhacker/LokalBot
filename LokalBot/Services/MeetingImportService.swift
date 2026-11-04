@@ -6,7 +6,9 @@ import UniformTypeIdentifiers
 /// audio becomes the meeting's system track, so it is diarized like call audio
 /// and, like any remote participant's, its voices are never enrolled or matched
 /// against voice profiles. The original file is only read; the meeting keeps
-/// its own AAC copy, and the normal processing pipeline does the rest.
+/// its own AAC copy, and the normal processing pipeline does the rest. A
+/// recording from a paired phone or tablet takes the same path, except that it
+/// becomes the microphone track: see `importDeviceRecording`.
 enum MeetingImportService {
 
     /// Shown where a recorded meeting shows its meeting app.
@@ -43,13 +45,91 @@ enum MeetingImportService {
         return type?.conforms(to: .audiovisualContent) == true
     }
 
+    /// A recording a paired phone or tablet made.
+    struct DeviceOrigin: Equatable, Sendable {
+        /// The device chose it, so the meeting keeps it and a resend finds it.
+        var id: UUID
+        var title: String
+        /// When the device started recording. The device's clock decides, but
+        /// the meeting never ends in the future.
+        var startedAt: Date?
+        var deviceName: String
+    }
+
     /// `sample` marks the import as LokalBot's sample meeting: it is titled in
     /// its own language, dated now, and carries its id.
     static func importRecording(from url: URL, storage: StorageManager,
                                 now: Date = Date(),
                                 sample: SampleMeeting.Recording? = nil) async throws -> Meeting {
-        let name = url.lastPathComponent
-        let asset = AVURLAsset(url: url)
+        try await makeMeeting(from: url, storage: storage, now: now, plan: Plan(
+            name: url.lastPathComponent, id: UUID(), title: sample?.title ?? Self.title(for: url),
+            appName: appName, importedFileName: url.lastPathComponent, track: .system,
+            sampleID: sample?.id, datedNow: sample != nil))
+    }
+
+    /// Makes a meeting of a recording from a paired device. It is the device's
+    /// microphone, the person's own, so it becomes the microphone track: their
+    /// speech counts as theirs under "My microphone is me", and other voices
+    /// in the room are treated as the Mac's microphone treats them, not as call
+    /// participants. Like any import it takes no screen context, because the
+    /// person wasn't at this Mac.
+    static func importDeviceRecording(from url: URL, origin: DeviceOrigin, storage: StorageManager,
+                                      now: Date = Date()) async throws -> Meeting {
+        try await makeMeeting(from: url, storage: storage, now: now, plan: Plan(
+            name: origin.title, id: origin.id, title: origin.title, appName: origin.deviceName,
+            importedFileName: "\(origin.id.uuidString).aac", track: .mic, statedStart: origin.startedAt,
+            wholeDuration: adtsDuration(of: url), isOnlyCopy: true))
+    }
+
+    /// How long an ADTS stream really is: its frames counted, 1024 samples each.
+    /// Stops at a frame cut short or damage, so it never overstates. Nil when
+    /// it doesn't start with a frame.
+    static func adtsDuration(of url: URL) -> TimeInterval? {
+        guard let data = try? Data(contentsOf: url, options: .alwaysMapped) else { return nil }
+        let sampleRates: [Double] = [96_000, 88_200, 64_000, 48_000, 44_100, 32_000, 24_000, 22_050, 16_000, 12_000, 11_025, 8_000, 7_350]
+        return data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> TimeInterval? in
+            var offset = 0
+            var seconds: TimeInterval = 0
+            while offset + 7 <= bytes.count, bytes[offset] == 0xFF, bytes[offset + 1] & 0xF0 == 0xF0 {
+                let rateIndex = Int(bytes[offset + 2] >> 2) & 0xF
+                let length = (Int(bytes[offset + 3]) & 0x3) << 11 | Int(bytes[offset + 4]) << 3 | Int(bytes[offset + 5]) >> 5
+                guard rateIndex < sampleRates.count, length >= 7, offset + length <= bytes.count else { break }
+                // Each ADTS frame holds 1 to 4 raw blocks of 1024 samples.
+                seconds += Double(Int(bytes[offset + 6] & 0x3) + 1) * 1_024 / sampleRates[rateIndex]
+                offset += length
+            }
+            return offset > 0 ? seconds : nil
+        }
+    }
+
+    /// What differs between kinds of import.
+    private struct Plan {
+        /// How errors name the recording.
+        var name: String
+        var id: UUID
+        var title: String
+        var appName: String
+        var importedFileName: String
+        var track: MeetingAudioFiles.Track
+        var sampleID: String?
+        /// Outranks what the file itself says about when it began.
+        var statedStart: Date?
+        /// Recorded just now, whatever the file says.
+        var datedNow = false
+        /// What the conversion must keep, when that can be known.
+        var wholeDuration: TimeInterval?
+        /// The sender deletes its file once this returns, so the meeting has to
+        /// be on the disk by then rather than in its cache.
+        var isOnlyCopy = false
+    }
+
+    private static func makeMeeting(from url: URL, storage: StorageManager, now: Date,
+                                    plan: Plan) async throws -> Meeting {
+        let name = plan.name
+        // Without precise timing AVFoundation guesses the length of a file with
+        // no index (ADTS, some MP3s) from its first frames, and the export stops
+        // there: 27 minutes that started loud and went quiet came out as 3.5.
+        let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         let audioTracks: [AVAssetTrack]
         do {
             audioTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -70,11 +150,15 @@ enum MeetingImportService {
             throw ImportError.cannotCreateMeeting(name, error.localizedDescription)
         }
         defer { try? FileManager.default.removeItem(at: staging) }
-        let converted = staging.appendingPathComponent(MeetingAudioFiles.Track.system.primaryFileName)
+        let converted = staging.appendingPathComponent(plan.track.primaryFileName)
         try await exportAudio(from: audioTracks, to: converted, name: name)
         guard let duration = AudioFileInspector.duration(at: converted),
               duration >= AudioFileInspector.minimumTranscribableDuration else {
             throw ImportError.noAudio(name)
+        }
+        if let whole = plan.wholeDuration, duration < whole - 2 {
+            lokalbotLog("import kept \(Int(duration)) s of \(Int(whole)) s")
+            throw ImportError.conversionFailed(name, "only part of the audio could be read")
         }
 
         let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
@@ -84,32 +168,37 @@ enum MeetingImportService {
         } else {
             metadataDate = nil
         }
-        // The sample was "recorded" just now, whatever its bundled file says.
-        let startedAt = sample != nil ? now.addingTimeInterval(-duration) : recordingStart(
-            metadataDate: metadataDate, fileCreated: values?.creationDate,
+        let startedAt = plan.datedNow ? now.addingTimeInterval(-duration) : recordingStart(
+            metadataDate: plan.statedStart ?? metadataDate, fileCreated: values?.creationDate,
             fileModified: values?.contentModificationDate, duration: duration, now: now)
 
         // The meeting appears in the library only once its metadata is
         // written, which is last, so a library scan never sees it half-made.
-        let meetingTitle = sample?.title ?? Self.title(for: url)
         let relativePath: String
         do {
-            relativePath = try storage.reserveMeetingFolder(title: meetingTitle, startedAt: startedAt)
+            relativePath = try storage.reserveMeetingFolder(title: plan.title, startedAt: startedAt)
         } catch {
             throw ImportError.cannotCreateMeeting(name, error.localizedDescription)
         }
-        var meeting = Meeting(id: UUID(), title: meetingTitle, appName: appName,
+        var meeting = Meeting(id: plan.id, title: plan.title, appName: plan.appName,
                               startedAt: startedAt, endedAt: startedAt.addingTimeInterval(duration),
                               relativePath: relativePath)
         meeting.recordedDuration = duration
-        meeting.hasSystemTrack = true
-        meeting.importedFileNames = [name]
-        meeting.sampleID = sample?.id
+        meeting.hasSystemTrack = plan.track == .system
+        meeting.importedFileNames = [plan.importedFileName]
+        meeting.sampleID = plan.sampleID
         let folder = meeting.folderURL(in: storage)
         do {
-            try FileManager.default.moveItem(
-                at: converted, to: MeetingAudioFiles.primaryURL(for: .system, in: folder))
+            let audio = MeetingAudioFiles.primaryURL(for: plan.track, in: folder)
+            try FileManager.default.moveItem(at: converted, to: audio)
             try storage.saveMeta(meeting)
+            if plan.isOnlyCopy {
+                for file in [audio, folder.appendingPathComponent("meta.json")] {
+                    let handle = try FileHandle(forUpdating: file)
+                    defer { try? handle.close() }
+                    try handle.synchronize()
+                }
+            }
         } catch {
             try? FileManager.default.removeItem(at: folder)
             throw ImportError.cannotCreateMeeting(name, error.localizedDescription)

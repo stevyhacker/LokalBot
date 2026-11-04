@@ -78,7 +78,37 @@ jobs:
         working-directory: Companion/android
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:verifyRoborazziDebug :app:lintDebug
 
-      - name: Upload test, screenshot and lint reports
+      - name: Tests of the end-to-end helpers
+        run: python3 -m unittest discover -s Companion/e2e
+
+      # The shrunk release build, because that's what ships and what the debug
+      # build above can't prove works.
+      - name: Build the release app and the stand-in computer
+        run: |
+          (cd Companion/android && ./gradlew :app:assembleRelease)
+          (cd LinuxWindows && cargo build -p lokalbot-sync --example companion_host)
+
+      - name: Let the emulator use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: End-to-end test on an emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          emulator-options: -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: >-
+            python3 Companion/e2e/android_trip.py
+            --apk Companion/android/app/build/outputs/apk/release/app-release-unsigned.apk
+            --host LinuxWindows/target/debug/examples/companion_host
+            --out "$RUNNER_TEMP/android-e2e"
+
+      - name: Upload test, screenshot, lint and end-to-end reports
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -87,6 +117,8 @@ jobs:
             Companion/android/app/build/reports
             Companion/android/app/build/outputs/roborazzi
             Companion/android/app/build/test-results
+            Companion/android/app/build/outputs/mapping/release/mapping.txt
+            ${{ runner.temp }}/android-e2e
           retention-days: 7
 
       - name: Upload debug APK

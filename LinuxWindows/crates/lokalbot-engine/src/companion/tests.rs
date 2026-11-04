@@ -3,6 +3,7 @@
 //! host run end to end against the protocol's own client, on loopback only.
 
 use std::collections::{BTreeMap, HashMap};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
@@ -19,7 +20,9 @@ use lokalbot_core::model::{
 };
 use lokalbot_core::timeline::NewScreenMoment;
 use lokalbot_core::{Library, LibraryPaths, Meeting, Settings};
-use lokalbot_sync::{AskListener, ClientConfig, SyncClient, SyncError};
+use lokalbot_sync::{
+    AskListener, ClientConfig, ServerDelegate, SyncClient, SyncError, UploadListener, UploadOutcome,
+};
 use parking_lot::Mutex;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -31,6 +34,7 @@ use super::host::{self, Environment, Host, HostMessage};
 use super::library::CompanionLibrary;
 use super::ops;
 use super::publisher::{Context, Publisher, RecordSink};
+use super::recordings;
 use super::records::{self, *};
 use super::sharing::*;
 use super::*;
@@ -96,6 +100,7 @@ fn sharing() -> Sharing {
         data_classes: DataClasses::ALL,
         history: HistoryWindow::All,
         answers_questions: true,
+        accepts_recordings: true,
         port: 0,
         advertises: true,
     }
@@ -490,6 +495,7 @@ fn manifest_reports_what_devices_receive() {
     let mut chosen = sharing();
     chosen.history = HistoryWindow::Days90;
     chosen.answers_questions = false;
+    chosen.accepts_recordings = false;
     chosen.data_classes.meetings = false;
     let json = builder::manifest(&chosen, "Test Computer", Utc::now()).unwrap();
     let manifest: Value = serde_json::from_str(&json).unwrap();
@@ -498,11 +504,16 @@ fn manifest_reports_what_devices_receive() {
     assert_eq!(manifest["libraryName"], "LokalBot");
     assert_eq!(manifest["historyDays"], 90);
     assert_eq!(manifest["askEnabled"], false);
+    assert_eq!(manifest["recordingsEnabled"], false);
     assert_eq!(manifest["dataClasses"]["meetings"], false);
     // A transcript needs its meeting.
     assert_eq!(manifest["dataClasses"]["transcripts"], false);
     assert_eq!(manifest["dataClasses"]["windowTitles"], true);
     assert!(!json.contains(":null"), "optional fields are omitted");
+
+    let json = builder::manifest(&sharing(), "Test Computer", Utc::now()).unwrap();
+    let manifest: Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(manifest["recordingsEnabled"], true);
 }
 
 // ----------------------------------------------------------------- meetings
@@ -967,7 +978,7 @@ fn built_records_are_accepted_by_the_sync_host() {
 
 struct RefuseEverything;
 
-impl lokalbot_sync::ServerDelegate for RefuseEverything {
+impl ServerDelegate for RefuseEverything {
     fn approve_pairing(&self, _: String, _: String) -> bool {
         false
     }
@@ -981,6 +992,12 @@ impl lokalbot_sync::ServerDelegate for RefuseEverything {
         sink.failed("no".into());
     }
     fn devices_changed(&self) {}
+    fn accepts_recordings(&self) -> bool {
+        false
+    }
+    fn receive_recording(&self, _: String, _: String) -> UploadOutcome {
+        recordings::deferred("no")
+    }
 }
 
 #[test]
@@ -996,6 +1013,7 @@ fn the_macs_settings_keys_decode_into_sharing() {
         "companionShareProjects": true,
         "companionHistory": 90,
         "companionAnswersQuestions": false,
+        "companionAcceptsRecordings": false,
         "companionPort": 80,
         "companionAdvertisesOnBonjour": false,
     }))
@@ -1006,6 +1024,7 @@ fn the_macs_settings_keys_decode_into_sharing() {
     assert!(!sharing.data_classes.shares_window_titles());
     assert_eq!(sharing.history, HistoryWindow::Days90);
     assert!(!sharing.answers_questions);
+    assert!(!sharing.accepts_recordings);
     assert_eq!(sharing.port, LOWEST_PORT, "clamped");
     assert!(!sharing.advertises);
 }
@@ -1017,6 +1036,7 @@ fn sharing_is_off_by_default_with_generous_classes() {
     assert_eq!(sharing.data_classes, DataClasses::ALL);
     assert_eq!(sharing.history, HistoryWindow::All);
     assert!(sharing.answers_questions);
+    assert!(sharing.accepts_recordings);
     assert_eq!(sharing.port, DEFAULT_PORT);
     assert!(sharing.advertises);
 }
@@ -1352,6 +1372,10 @@ fn answer_streams_and_finishes_with_mapped_citations() {
     for hidden in [&fixture.sample, &fixture.live, &fixture.merged_source] {
         assert!(!scope.meeting_ids.contains(&hidden.id), "{}", hidden.title);
     }
+    assert_eq!(
+        scope.limit, None,
+        "all history and no scope: nothing to name"
+    );
 }
 
 #[test]
@@ -1426,7 +1450,7 @@ fn out_of_window_scope_is_refused() {
 }
 
 #[test]
-fn the_window_and_the_day_limit_what_the_agent_may_read() {
+fn the_window_limits_what_the_agent_may_read_and_the_day_only_focuses_it() {
     let fixture = fixture();
     let engine = Arc::new(FakeEngine::default());
     let mut window = sharing();
@@ -1438,6 +1462,13 @@ fn the_window_and_the_day_limit_what_the_agent_may_read() {
     assert!(!scope.meeting_ids.contains(&fixture.older.id));
     assert_eq!(scope.since, window.history.start(Utc::now()));
     assert_eq!(scope.until, None);
+    // The model is told the window is the limit, not a date to remove.
+    let limit = scope.limit.unwrap();
+    assert_eq!(
+        limit.words,
+        "meetings from the last 30 days, the history the user shares with this device"
+    );
+    assert!(!limit.removable_dates);
 
     let output = Arc::new(RecordingOutput::default());
     let chosen =
@@ -1445,10 +1476,26 @@ fn the_window_and_the_day_limit_what_the_agent_may_read() {
     asking(&fixture, engine.clone()).answer(&question(chosen), window, output.clone());
     output.wait().unwrap();
     let scope = engine.scope.lock().clone().unwrap();
-    assert_eq!(scope.meeting_ids, [fixture.design_review.id]);
-    let (start, end) =
-        lokalbot_core::time::local_day_bounds(lokalbot_core::time::local_day(fixture.day));
-    assert_eq!((scope.since, scope.until), (Some(start), Some(end)));
+    // "Ask About Today" on a tablet once held the question to that day and
+    // answered "the library has only one meeting": the day and the meeting
+    // are where the answer starts, and only the window limits it.
+    assert!(scope.meeting_ids.len() > 1, "{:?}", scope.meeting_ids);
+    assert!(scope.meeting_ids.contains(&fixture.design_review.id));
+    assert_eq!(scope.since, window.history.start(Utc::now()));
+    assert_eq!(scope.until, None);
+    let focus = scope.focus.unwrap();
+    assert!(
+        focus.subject.starts_with(&format!(
+            "the meeting “{}” [{}] on ",
+            fixture.design_review.display_title(),
+            fixture.design_review.short_id()
+        )),
+        "{}",
+        focus.subject
+    );
+    assert!(focus.subject.contains(" and the day "), "{}", focus.subject);
+    assert_eq!(focus.meeting_ids[0], fixture.design_review.id);
+    assert!(!scope.limit.unwrap().removable_dates);
 }
 
 /// To Ask an empty list means every meeting, and to a device it must mean none.
@@ -1609,6 +1656,7 @@ fn changing_only_the_manifest_rebuilds_nothing() {
     publisher.flush();
     let mut chosen = sharing();
     chosen.answers_questions = false;
+    chosen.accepts_recordings = false;
     publisher.update(Context {
         sharing: chosen,
         mac_name: "Test Computer".into(),
@@ -1617,6 +1665,7 @@ fn changing_only_the_manifest_rebuilds_nothing() {
     let manifests = sink.manifests.lock();
     assert_eq!(manifests.len(), 2);
     assert!(manifests[1].contains("\"askEnabled\":false"));
+    assert!(manifests[1].contains("\"recordingsEnabled\":false"));
 }
 
 #[test]
@@ -1917,6 +1966,26 @@ struct TestEnvironment {
     key_failure: AtomicBool,
     advertisements: AdvertiserLog,
     addresses: Mutex<Vec<String>>,
+    recordings_stored: Mutex<Vec<Uuid>>,
+}
+
+impl TestEnvironment {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            settings: Mutex::new(Settings {
+                companion_sharing_enabled: true,
+                ..Settings::default()
+            }),
+            key: lokalbot_sync::generate_static_key()
+                .private_key
+                .try_into()
+                .unwrap(),
+            key_failure: AtomicBool::new(false),
+            advertisements: AdvertiserLog::default(),
+            addresses: Mutex::new(vec!["127.0.0.1".into()]),
+            recordings_stored: Mutex::new(Vec::new()),
+        })
+    }
 }
 
 impl Environment for TestEnvironment {
@@ -1951,6 +2020,10 @@ impl Environment for TestEnvironment {
     fn advertiser(&self) -> Box<dyn Advertiser> {
         Box::new(FakeAdvertiser(self.advertisements.clone()))
     }
+
+    fn recording_stored(&self, meeting_id: Uuid) {
+        self.recordings_stored.lock().push(meeting_id);
+    }
 }
 
 struct Harness {
@@ -1970,20 +2043,7 @@ impl Harness {
         let fixture = fixture();
         let (host, messages) = unbounded();
         let (snapshots_in, snapshots) = unbounded();
-        let key: [u8; 32] = lokalbot_sync::generate_static_key()
-            .private_key
-            .try_into()
-            .unwrap();
-        let environment = Arc::new(TestEnvironment {
-            settings: Mutex::new(Settings {
-                companion_sharing_enabled: true,
-                ..Settings::default()
-            }),
-            key,
-            key_failure: AtomicBool::new(false),
-            advertisements: AdvertiserLog::default(),
-            addresses: Mutex::new(vec!["127.0.0.1".into()]),
-        });
+        let environment = TestEnvironment::new();
         let engine = Arc::new(FakeEngine::default());
         let running = Host::new(
             fixture.library.clone(),
@@ -2212,6 +2272,366 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
     harness.apply(off);
     harness.wait(|s| s.status == CompanionStatus::Off);
     assert!(std::net::TcpStream::connect(address(port)).is_err());
+    harness.finish();
+}
+
+// --------------------------------------------------------------- recordings
+
+const ADTS_TONE: &[u8] = include_bytes!("../../../lokalbot-audio/tests/data/tone-440-adts.aac");
+
+/// A recording as the sync host describes it, with `changes` on top.
+fn recording_json(id: Uuid, changes: Value) -> String {
+    let mut recording = json!({
+        "id": id.to_string(), "title": "Hallway chat", "format": "aac-adts",
+        "startedAt": "2026-10-01T09:30:00.000Z", "durationSeconds": 1.0,
+        "byteCount": ADTS_TONE.len(), "deviceId": "device-pixel",
+        "deviceName": "pixel", "platform": "android",
+    });
+    for (field, value) in changes.as_object().unwrap() {
+        recording[field] = value.clone();
+    }
+    recording.to_string()
+}
+
+/// A host nobody is connected to, for what its delegate answers.
+fn idle_host(fixture: &Fixture) -> (Host, Arc<TestEnvironment>) {
+    let environment = TestEnvironment::new();
+    let (messages, _) = unbounded();
+    let host = Host::new(
+        fixture.library.clone(),
+        environment.clone(),
+        Arc::new(FakeEngine::default()),
+        messages,
+        Box::new(|_| {}),
+    );
+    (host, environment)
+}
+
+/// An upload, as the sync host keeps it.
+struct UploadedFile(tempfile::TempDir);
+
+impl UploadedFile {
+    fn new(bytes: &[u8]) -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("upload.aac"), bytes).unwrap();
+        Self(dir)
+    }
+
+    fn path(&self) -> String {
+        self.0
+            .path()
+            .join("upload.aac")
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+#[test]
+fn a_recording_becomes_a_meeting_and_is_queued_once() {
+    let fixture = fixture();
+    let (mut host, environment) = idle_host(&fixture);
+    host.apply(sharing());
+    let delegate = host.delegate();
+    assert!(delegate.accepts_recordings());
+    let file = UploadedFile::new(ADTS_TONE);
+    let id = Uuid::new_v4();
+
+    let outcome = delegate.receive_recording(recording_json(id, json!({})), file.path());
+    assert_eq!(
+        outcome,
+        UploadOutcome {
+            status: "accepted".into(),
+            meeting_id: Some(id.to_string()),
+            message: None,
+        }
+    );
+    let meeting = fixture.library.meeting(id).unwrap().unwrap();
+    assert_eq!(meeting.title, "Hallway chat");
+    assert_eq!(meeting.app_name, "pixel");
+    assert!(fixture.library.audio(&meeting).mic.is_some());
+    assert_eq!(*environment.recordings_stored.lock(), vec![id]);
+    assert_eq!(
+        std::fs::read(file.path()).unwrap(),
+        ADTS_TONE,
+        "the file belongs to the sync host"
+    );
+
+    // The device never heard: it sends it again, and asks for nothing new.
+    let again = delegate.receive_recording(recording_json(id, json!({})), file.path());
+    assert_eq!(again, outcome);
+    assert_eq!(*environment.recordings_stored.lock(), vec![id]);
+    host.stop();
+}
+
+#[test]
+fn a_device_name_is_bounded_like_the_pairing_prompt() {
+    let fixture = fixture();
+    let id = Uuid::new_v4();
+    let file = UploadedFile::new(ADTS_TONE);
+    let long = format!("Pixel\n{}", "x".repeat(100));
+    recordings::receive(
+        &fixture.library,
+        &recording_json(id, json!({ "deviceName": long, "title": null })),
+        Path::new(&file.path()),
+        Utc::now(),
+    );
+    let meeting = fixture.library.meeting(id).unwrap().unwrap();
+    assert_eq!(meeting.app_name.chars().count(), 60);
+    assert!(meeting.app_name.starts_with("Pixelxxx"));
+    assert_eq!(
+        meeting.title,
+        format!("Recording from {}", meeting.app_name)
+    );
+}
+
+#[test]
+fn a_recording_that_cant_be_used_is_rejected() {
+    let fixture = fixture();
+    let (mut host, environment) = idle_host(&fixture);
+    host.apply(sharing());
+    let delegate = host.delegate();
+    let before = fixture.library.list_all_meetings().unwrap().len();
+    let good = UploadedFile::new(ADTS_TONE);
+    let garbage = UploadedFile::new(b"not audio at all");
+    let short = UploadedFile::new(&ADTS_TONE[..ADTS_TONE.len() / 10]);
+    let id = Uuid::new_v4;
+    for (json, file, expected) in [
+        ("not json".to_string(), &good, "could not be read"),
+        (
+            json!({ "id": id().to_string() }).to_string(),
+            &good,
+            "could not be read",
+        ),
+        (
+            recording_json(id(), json!({ "format": "opus-ogg" })),
+            &good,
+            "“opus-ogg”",
+        ),
+        (
+            recording_json(id(), json!({ "id": "not-a-uuid" })),
+            &good,
+            "could not be read",
+        ),
+        (recording_json(id(), json!({})), &garbage, "no audio"),
+        (recording_json(id(), json!({})), &short, "no audio"),
+    ] {
+        let outcome = delegate.receive_recording(json.clone(), file.path());
+        assert_eq!(outcome.status, "rejected", "{json}");
+        assert_eq!(outcome.meeting_id, None, "{json}");
+        let message = outcome.message.unwrap();
+        assert!(message.contains(expected), "{json}: {message}");
+    }
+    assert!(environment.recordings_stored.lock().is_empty());
+    assert_eq!(fixture.library.list_all_meetings().unwrap().len(), before);
+    host.stop();
+}
+
+#[test]
+fn trouble_on_this_computer_defers_a_recording() {
+    let dir = tempfile::tempdir().unwrap();
+    let library = Library::open(LibraryPaths::new(dir.path().join("library"))).unwrap();
+    // No meeting folder can be made under a file.
+    let meetings = library.paths().meetings_dir();
+    std::fs::remove_dir_all(&meetings).ok();
+    std::fs::write(&meetings, b"").unwrap();
+    let file = UploadedFile::new(ADTS_TONE);
+    let received = recordings::receive(
+        &library,
+        &recording_json(Uuid::new_v4(), json!({})),
+        Path::new(&file.path()),
+        Utc::now(),
+    );
+    assert_eq!(received.new_meeting, None);
+    assert_eq!(received.outcome.status, "deferred");
+    assert_eq!(received.outcome.meeting_id, None);
+    assert!(
+        received.outcome.message.unwrap().contains("Hallway chat"),
+        "says which recording"
+    );
+
+    use crate::library_ops::ImportFailure;
+    let status = |failure| recordings::failure_outcome(&failure, "Hallway chat").status;
+    assert_eq!(
+        status(ImportFailure::Conversion("no space".into())),
+        "deferred"
+    );
+    assert_eq!(
+        status(ImportFailure::CannotCreateMeeting("no space".into())),
+        "deferred"
+    );
+    assert_eq!(status(ImportFailure::Unreadable), "rejected");
+    assert_eq!(status(ImportFailure::NoAudio), "rejected");
+    assert_eq!(status(ImportFailure::InvalidId), "rejected");
+}
+
+#[test]
+fn recordings_wait_while_sharing_or_the_setting_is_off() {
+    let fixture = fixture();
+    let (mut host, environment) = idle_host(&fixture);
+    let delegate = host.delegate();
+    let file = UploadedFile::new(ADTS_TONE);
+    let id = Uuid::new_v4();
+    let send = || delegate.receive_recording(recording_json(id, json!({})), file.path());
+    let waits = |outcome: UploadOutcome, says: &str| {
+        assert_eq!(outcome.status, "deferred");
+        assert_eq!(outcome.meeting_id, None);
+        let message = outcome.message.unwrap();
+        assert!(message.contains(says), "{message}");
+    };
+
+    // The listener isn't up yet.
+    assert!(!delegate.accepts_recordings());
+    waits(send(), "turned off");
+
+    host.apply(sharing());
+    environment.settings.lock().companion_accepts_recordings = false;
+    assert!(!delegate.accepts_recordings());
+    waits(send(), "Accept recordings from my devices");
+
+    {
+        let mut settings = environment.settings.lock();
+        settings.companion_accepts_recordings = true;
+        settings.companion_sharing_enabled = false;
+    }
+    assert!(!delegate.accepts_recordings());
+    waits(send(), "turned off");
+
+    assert!(fixture.library.meeting(id).unwrap().is_none());
+    assert!(environment.recordings_stored.lock().is_empty());
+    assert!(Path::new(&file.path()).is_file());
+
+    environment.settings.lock().companion_sharing_enabled = true;
+    assert!(delegate.accepts_recordings());
+    assert_eq!(send().status, "accepted");
+
+    host.stop();
+    assert!(!delegate.accepts_recordings());
+    waits(send(), "turned off");
+    drop(host);
+    assert!(!delegate.accepts_recordings());
+    waits(send(), "turned off");
+}
+
+/// Queued like a recording finished on this computer, which waits for missing
+/// models, and the Meetings list and the publisher hear of it from the one event.
+#[test]
+fn a_stored_recording_is_queued_like_a_finished_one_and_shown() {
+    use crate::{EngineEvent, Stage};
+
+    for auto_summarize in [true, false] {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(LibraryPaths::new(dir.path().join("library"))).unwrap();
+        let settings = Settings {
+            auto_transcribe: false,
+            auto_summarize,
+            ..Settings::default()
+        };
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let log = events.clone();
+        let shared = crate::Shared::for_tests(library.clone(), settings, move |event| {
+            log.lock().push(event);
+        });
+        let models = crate::models::Models::new(shared.clone());
+        let pipeline = crate::pipeline::Pipeline::start(shared.clone(), models);
+        // Running the job isn't what this test is about.
+        pipeline.stop();
+        let environment = host::LiveEnvironment {
+            shared,
+            pipeline: pipeline.clone(),
+        };
+        let id = Uuid::new_v4();
+        let mut meeting = library
+            .create_meeting("Hallway chat", "pixel", Utc::now())
+            .unwrap();
+        meeting.id = id;
+        meeting.ended_at = Some(Utc::now());
+        library.save_meeting(&meeting).unwrap();
+
+        environment.recording_stored(id);
+
+        let job = library.job(id).unwrap().unwrap();
+        assert!(job.transcribe);
+        assert_eq!(job.summarize, auto_summarize);
+        assert!(job.summary_follows_setting, "nobody asked for it here");
+        assert!(pipeline.is_processing(id));
+        let events = events.lock();
+        assert!(events.iter().any(|event| matches!(
+            event,
+            EngineEvent::Processing { meeting_id, stage: Some(Stage::Queued) } if *meeting_id == id
+        )));
+        assert!(
+            events
+                .iter()
+                .any(|event| matches!(event, EngineEvent::LibraryChanged))
+        );
+    }
+}
+
+struct IgnoreProgress;
+
+impl UploadListener for IgnoreProgress {
+    fn on_progress(&self, _: String, _: u64, _: u64) {}
+}
+
+#[test]
+fn a_phone_sends_a_recording_and_gets_its_meeting_back() {
+    let mut harness = Harness::start();
+    harness.apply(sharing());
+    let port = harness.listening_port();
+    let phone = harness.phone("pixel");
+    harness.pair(&phone, true).unwrap();
+    harness.wait(|s| s.devices.len() == 1);
+
+    let draft = phone.begin_recording(Some("Hallway chat".into())).unwrap();
+    std::fs::write(&draft.file_path, ADTS_TONE).unwrap();
+    let finished = phone.finish_recording(draft.id.clone(), 1.0).unwrap();
+    assert_eq!(finished.state, "waiting");
+    let id = Uuid::parse_str(&draft.id).unwrap();
+    let send = || {
+        phone
+            .upload_recordings(vec![address(port)], Box::new(IgnoreProgress))
+            .unwrap()
+    };
+
+    // Turned off, the phone keeps it and says why.
+    harness
+        .environment
+        .settings
+        .lock()
+        .companion_accepts_recordings = false;
+    let report = send();
+    assert_eq!((report.uploaded, report.waiting), (0, 1));
+    let row = phone.recordings().unwrap().remove(0);
+    assert_eq!(row.state, "waiting");
+    assert!(row.message.unwrap().contains("isn't accepting"));
+    assert!(harness.fixture.library.meeting(id).unwrap().is_none());
+
+    harness
+        .environment
+        .settings
+        .lock()
+        .companion_accepts_recordings = true;
+    let report = send();
+    assert_eq!((report.uploaded, report.waiting), (1, 0));
+    assert_eq!(*harness.environment.recordings_stored.lock(), vec![id]);
+    let meeting = harness.fixture.library.meeting(id).unwrap().unwrap();
+    assert_eq!(meeting.title, "Hallway chat");
+    assert_eq!(meeting.app_name, "pixel");
+    assert!(!meeting.has_system_track);
+    assert!(harness.fixture.library.audio(&meeting).mic.is_some());
+    assert!(
+        !Path::new(&draft.file_path).exists(),
+        "the phone deleted its copy"
+    );
+
+    // The next sync brings the meeting, and the phone's row makes way for it.
+    phone.sync(vec![address(port)]).unwrap();
+    let synced: Value =
+        serde_json::from_str(&phone.meeting(records::id(id)).unwrap().unwrap()).unwrap();
+    assert_eq!(synced["title"], "Hallway chat");
+    assert!(phone.recordings().unwrap().is_empty());
+    let manifest: Value = serde_json::from_str(&phone.manifest().unwrap().unwrap()).unwrap();
+    assert_eq!(manifest["recordingsEnabled"], true);
     harness.finish();
 }
 

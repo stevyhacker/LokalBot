@@ -73,16 +73,18 @@ struct CompanionSharing: Equatable, Sendable {
     var dataClasses: DataClasses
     var history: CompanionHistoryWindow
     var answersQuestions: Bool
+    var acceptsRecordings: Bool
     var port: Int
     var advertisesOnBonjour: Bool
 
     init(enabled: Bool = true, dataClasses: DataClasses = .all,
          history: CompanionHistoryWindow = .all, answersQuestions: Bool = true,
-         port: Int = defaultPort, advertisesOnBonjour: Bool = true) {
+         acceptsRecordings: Bool = true, port: Int = defaultPort, advertisesOnBonjour: Bool = true) {
         self.enabled = enabled
         self.dataClasses = dataClasses
         self.history = history
         self.answersQuestions = answersQuestions
+        self.acceptsRecordings = acceptsRecordings
         self.port = Self.clampedPort(port)
         self.advertisesOnBonjour = advertisesOnBonjour
     }
@@ -100,6 +102,7 @@ struct CompanionSharing: Equatable, Sendable {
                 projects: settings.companionShareProjects),
             history: settings.companionHistory,
             answersQuestions: settings.companionAnswersQuestions,
+            acceptsRecordings: settings.companionAcceptsRecordings,
             port: settings.companionPort,
             advertisesOnBonjour: settings.companionAdvertisesOnBonjour)
     }

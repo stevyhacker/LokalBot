@@ -56,6 +56,7 @@ interrupted catch-up repeats safely.
                    "projects": true },
   "historyDays": 0,
   "askEnabled": true,
+  "recordingsEnabled": true,
   "generatedAt": "2026-10-31T10:12:00.000Z"
 }
 ```
@@ -192,7 +193,10 @@ Request:
   "scope": { "day": "2026-10-30", "meetingId": "…" } }
 ```
 
-`scope` and both of its fields are optional. Result:
+`scope` and both of its fields are optional. They name the day or meeting
+the question was asked from: the computer answers from there, but its tools
+still read everything shared with the device. Only the shared history window
+limits an answer. Result:
 
 ```json
 { "requestId": "…", "answer": "You agreed to cut onboarding to three steps [1] …",

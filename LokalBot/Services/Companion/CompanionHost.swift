@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import os
 import SystemConfiguration
 
 /// Owns the sync host while Settings → Phones & tablets is on: the Mac's
@@ -33,6 +34,7 @@ final class CompanionHost: ObservableObject {
     private let factory: CompanionServerFactory?
     private let opApplier: CompanionOpApplier
     private let askResponder: CompanionAskResponder
+    private let recordingReceiver: CompanionRecordingReceiver
     private let language: () -> AppLanguage
     /// Every blocking call into the host runs here, never on the main thread.
     private let serverQueue = DispatchQueue(label: "me.dotenv.LokalBot.companion-server", qos: .userInitiated)
@@ -45,12 +47,14 @@ final class CompanionHost: ObservableObject {
 
     init(root: URL, activityDatabaseURL: URL, factory: CompanionServerFactory?,
          opApplier: CompanionOpApplier, askResponder: CompanionAskResponder,
+         recordingReceiver: CompanionRecordingReceiver,
          language: @escaping () -> AppLanguage) {
         self.root = root
         self.activityDatabaseURL = activityDatabaseURL
         self.factory = factory
         self.opApplier = opApplier
         self.askResponder = askResponder
+        self.recordingReceiver = recordingReceiver
         self.language = language
     }
 
@@ -85,6 +89,14 @@ final class CompanionHost: ObservableObject {
         }
         if status == .starting { stop() }
         start(sharing)
+    }
+
+    /// With sharing off nothing can finish arriving, so audio on its way has no
+    /// reason to stay. The devices still have their copies.
+    nonisolated static func discardUploads(root: URL) {
+        let uploads = root.appendingPathComponent("companion", isDirectory: true)
+            .appendingPathComponent("uploads", isDirectory: true)
+        DispatchQueue.global(qos: .utility).async { try? FileManager.default.removeItem(at: uploads) }
     }
 
     func stop() {
@@ -291,6 +303,15 @@ final class CompanionHost: ObservableObject {
         askResponder.answer(json, output: output)
     }
 
+    fileprivate var acceptsRecordings: Bool { running?.sharing.acceptsRecordings == true }
+
+    fileprivate func receiveRecording(_ json: String, fileURL: URL) async -> CompanionUploadOutcome {
+        guard acceptsRecordings else {
+            return .deferred("This Mac isn't accepting recordings. Turn on \"Accept recordings from my devices\" in its settings.")
+        }
+        return await recordingReceiver.receive(json, fileURL: fileURL)
+    }
+
     fileprivate var promptLanguage: AppLanguage { language() }
 
     /// The host's callbacks arrive on its own threads. Each one hops to the
@@ -336,6 +357,24 @@ final class CompanionHost: ObservableObject {
             DispatchQueue.main.async { [weak host] in
                 MainActor.assumeIsolated { host?.refreshDevices() }
             }
+        }
+
+        func acceptsRecordings() -> Bool {
+            DispatchQueue.main.sync { MainActor.assumeIsolated { host?.acceptsRecordings == true } }
+        }
+
+        /// The crate calls this on a thread of its own and waits, so blocking
+        /// here holds up nothing but this recording.
+        func receiveRecording(_ json: String, fileURL: URL) -> CompanionUploadOutcome {
+            let finished = DispatchSemaphore(value: 0)
+            let outcome = OSAllocatedUnfairLock<CompanionUploadOutcome?>(initialState: nil)
+            Task { @MainActor [weak host] in
+                let result = await host?.receiveRecording(json, fileURL: fileURL)
+                outcome.withLock { $0 = result }
+                finished.signal()
+            }
+            finished.wait()
+            return outcome.withLock { $0 } ?? .deferred("Sharing with phones and tablets is turned off on your Mac.")
         }
     }
 }

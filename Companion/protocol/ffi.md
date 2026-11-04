@@ -31,6 +31,7 @@ start()                         // bind 0.0.0.0:port and [::]:port, apply the ad
 stop()                          // close the listener and every session
 is_running() -> bool
 bound_port() -> u16
+set_loopback_only(loopback_only: bool)   // 127.0.0.1 and ::1 only, for development hosts and tests; applies at the next start()
 
 publish(kind: string, key: string, body_json: string) -> bool   // true if the record changed (new version + seq), pushed live to connected clients
 remove(kind: string, key: string) -> bool                       // tombstone; true if it existed
@@ -49,15 +50,30 @@ callback interface ServerDelegate {
   apply_op(op_json: string) -> OpOutcome                          // { status: "applied"|"unmatched"|"rejected", message? }; the Mac republishes affected records before returning
   ask(request_json: string, sink: AskSink)                        // run the question; stream through sink; may return before finishing
   devices_changed()                                               // pairing, removal, connect, disconnect
+  accepts_recordings() -> bool                                    // false: a device keeps its recordings and sends no audio
+  receive_recording(recording_json: string, file_path: string) -> UploadOutcome   // { status: "accepted"|"deferred"|"rejected", meeting_id?, message? }; see below
 }
 
 object AskSink { delta(text: string); done(result_json: string); failed(message: string) }
 ```
 
 The host's database (`db_path`, under `<library>/companion/companion.sqlite`)
-holds the published records, the change counter and paired devices. It is
-derived data plus device public keys: deleting it means re-pairing and a full
-re-sync, nothing else.
+holds the published records, the change counter, paired devices and the ids of
+recordings that arrived. It is derived data plus device public keys: deleting
+it means re-pairing and a full re-sync, nothing else.
+
+`receive_recording` runs on its own thread once a recording is whole and its
+checksum matches, and may take as long as it needs. `file_path` is an ADTS AAC
+file the crate owns: read it, don't move it. Return `accepted` only once the
+meeting is safely stored, because the device then deletes its copy. Use the
+`id` in `recording_json` as the meeting's id, and answer `accepted` if that
+meeting already exists, so a retry after a crash makes no duplicate.
+`recording_json` is protocol.md's `recording` plus `id`, `byteCount`,
+`deviceId`, `deviceName` and `platform`; the last three come from the pairing.
+Partial files live in `uploads/` beside the database. They go when a device is
+removed, or after 14 days without progress. The crate looks for those at `start`
+and hourly while running; with sharing off it isn't running, so the app removes
+the folder when sharing is off. The devices still have their copies.
 
 ## Client (phone/tablet): `SyncClient`
 
@@ -69,11 +85,21 @@ constructor SyncClient.new(config: ClientConfig) -> SyncClient
 pair(payload: string) -> PairedMac     // blocks until the person answers on the Mac; PairedMac { mac_name, mac_key_b64, addresses, port, paired_at }
 paired_mac() -> PairedMac?
 sync(extra_addresses: [string]) -> SyncReport   // connect, send queued ops, catch up, close. SyncReport { received, deleted, ops_applied, cursor, address, finished_at }
-unpair()                                // erase the store and pairing (local only)
+unpair()                                // erase the store, recordings and pairing (local only); see Recordings
 status() -> SyncStatus                  // { paired, last_sync_at?, last_address?, cursor, pending_ops, mac_name? }
 
 // changes from the phone
 set_action_status(meeting_id, action_id, status: string)   // queues an action.setStatus op and applies it to the local copy as pending
+
+// recordings (see below)
+begin_recording(title: string?) -> RecordingInfo      // the row and where the recorder writes; needs a paired Mac
+finish_recording(id, duration_seconds: f64) -> RecordingInfo  // ready to send; an empty file removes it and fails with InvalidInput
+recover_recordings() -> u32                           // at launch, never while recording: keeps what a dead app wrote; returns how many
+discard_recording(id)                                 // deletes the row and the file, whatever its state
+set_recording_title(id, title)
+retry_recording(id)                                   // failed -> waiting
+recordings() -> [RecordingInfo]                       // newest first
+upload_recordings(extra_addresses: [string], listener: UploadListener) -> UploadReport   // { uploaded, waiting, failed }
 
 // questions
 ask(request_json: string, extra_addresses: [string], listener: AskListener) -> string   // blocks; returns the result JSON; saves it to ask history
@@ -82,7 +108,30 @@ queued_questions() -> [string]          // request JSON, oldest first
 ask_history(limit: u32) -> [string]     // [{ request, result }] newest first
 
 callback interface AskListener { on_delta(text: string) }
+callback interface UploadListener { on_progress(recording_id: string, sent_bytes: u64, total_bytes: u64) }
 ```
+
+`RecordingInfo { id, title, state, started_at, duration_seconds?, byte_count,
+sent_bytes, message?, file_path }`. `state` is `recording`, `waiting`, `failed`
+or `uploaded`.
+
+The platform records: an ADTS AAC stream, written straight to `file_path` so
+that a crash loses only the last moments. The crate owns the rest of the trip:
+`upload_recordings` sends every `waiting` recording oldest first, resuming where
+an earlier attempt stopped, and deletes each file once the Mac confirms it. It
+holds no lock that `sync` or `ask` need, and it returns at once when nothing
+waits or another pass is running. It fails with `Unreachable` when no address
+answers and `Io` when the connection drops; either way the recordings stay
+`waiting`. `message` says what's holding one up. An `uploaded` row stays listed
+until its meeting arrives in a sync, or for 7 days if it never does. `id` is
+the UUID of that meeting.
+
+`unpair` erases recordings with everything else while paired. Being revoked
+erases the library and the pairing but keeps recordings that haven't reached a
+Mac, because they exist nowhere else, and `pair` keeps them too, so pairing again
+sends them. With no pairing `unpair` leaves them as well, and the app offers to
+discard them. A row deleted during an upload stops it, and the Mac makes no
+meeting of what it got. Files live in `recordings/` beside the database.
 
 Queued questions leave the queue only through `ask`: once the Mac answers
 (`askDone`), `ask` saves the answer to the history and removes the queued

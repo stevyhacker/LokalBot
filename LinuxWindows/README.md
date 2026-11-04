@@ -44,7 +44,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | Overnight review and Personal Context | ✓ | ✓ | As on macOS. Reviews wait for mains power. |
 | Files: search chosen folders by words and meaning | ✓ | ✓ | Off until turned on after a notice. Scanned PDF pages are read only when stored as JPEG or plain raster; .doc and RAW aren't read. Video frames, HEIC and AVIF need ffmpeg. Results open in their default app. |
 | Actions review, People and Projects curation, agent handoff | ✓ | ✓ | Threads, filters and batch status; merge people and projects; Open in Agent, Claude Code or Codex fills the prompt and never sends it. |
-| Sharing with phones and tablets | ✓ | ✓ | Off until you turn it on in Settings → Phones & tablets. A firewall must allow TCP port 17890. |
+| Sharing with phones and tablets | ✓ | ✓ | Off until you turn it on in Settings → Phones & tablets. A firewall must allow TCP port 17890. Paired devices can also send their recordings here, where they become meetings. |
 | Gmail in meeting briefs | — | — | macOS only for now: it needs a Google OAuth client registered for desktop apps. |
 
 ## Think providers

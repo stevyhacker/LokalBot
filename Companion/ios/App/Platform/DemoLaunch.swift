@@ -13,22 +13,76 @@ enum DemoLaunch {
     @MainActor
     static func store() -> (any CompanionStore)? {
         #if DEBUG
+        if defaults.bool(forKey: "demoHeldRecordings") {
+            let store = FixtureStore(envelopes: [])
+            let held = RecordingItem(id: "demo-held", title: "Site visit", state: .waiting, startedAt: Date(), durationSeconds: 1_834)
+            Task { await store.setRecordings([held]) }
+            return store
+        }
         guard defaults.bool(forKey: "demoPaired") else { return nil }
         let now = SampleLibrary.referenceDate
         let status = SyncStatus(paired: true, lastSyncAt: now.addingTimeInterval(-120),
                                 lastAddress: defaults.bool(forKey: "demoTailscale") ? "100.101.102.103:17890" : "192.168.1.20:17890",
                                 cursor: 19, macName: "Stevan's MacBook Pro")
-        return try? FixtureStore.sampleLibrary(configuration: .init(
+        let store = try? FixtureStore.sampleLibrary(configuration: .init(
             now: { now }, keepsChangesPending: true, pairedStatus: status,
             macReachable: !defaults.bool(forKey: "demoUnreachable")))
+        if defaults.bool(forKey: "demoRecordings"), let store {
+            // With -demoUnreachable the waiting ones stay as they are.
+            let waiting = RecordingItem(id: "demo-waiting", title: "Site visit", state: .waiting,
+                                        startedAt: now.addingTimeInterval(-3_000), durationSeconds: 1_834)
+            let held = RecordingItem(id: "demo-held", state: .waiting, startedAt: now.addingTimeInterval(-9_000),
+                                     durationSeconds: 612,
+                                     message: "This computer isn't accepting recordings. Turn on \"Accept recordings from my devices\" in its settings.")
+            let refused = RecordingItem(id: "demo-failed", title: "Hallway chat", state: .failed,
+                                        startedAt: now.addingTimeInterval(-20_000), durationSeconds: 4,
+                                        message: "This recording has no audio your Mac can transcribe.")
+            let sent = RecordingItem(id: "demo-sent", title: "Budget review", state: .uploaded,
+                                     startedAt: now.addingTimeInterval(-1_200), durationSeconds: 2_410)
+            Task { await store.setRecordings([sent, waiting, held, refused]) }
+        }
+        return store
         #else
         return nil
         #endif
     }
 
+    /// The microphone, or with `-demoPaired` a stand-in that writes a few bytes
+    /// and shows a moving level, so screenshots never record anyone.
+    @MainActor
+    static func capture() -> AudioCapture {
+        #if DEBUG
+        if defaults.bool(forKey: "demoPaired") { return DemoCapture() }
+        #endif
+        return AudioRecorderCapture()
+    }
+
+    #if DEBUG
+    @MainActor
+    private final class DemoCapture: AudioCapture {
+        var onEvent: ((AudioCaptureEvent) -> Void)?
+        private var started: Date?
+        var currentTime: TimeInterval { (started.map { Date().timeIntervalSince($0) } ?? 0) + 754 }
+        var level: Float { 0.55 + 0.25 * Float(sin(currentTime * 4)) }
+
+        func requestPermission() async -> Bool { true }
+
+        func start(url: URL) throws {
+            try Data([0xFF, 0xF1, 0x50, 0x80]).write(to: url)
+            started = Date()
+        }
+
+        func resume() throws {}
+
+        func stop() -> TimeInterval { currentTime }
+    }
+    #endif
+
     /// Exercises the real store end to end against a test host:
-    /// `-demoPairLink <lokalbot://pair?d=…>` pairs at launch, and
-    /// `-demoToggleAction <meetingID>/<actionID>` marks an action done.
+    /// `-demoPairLink <lokalbot://pair?d=…>` pairs at launch,
+    /// `-demoToggleAction <meetingID>/<actionID>` marks an action done, and
+    /// `-demoQueueRecording <path>` queues a file as if it had just been
+    /// recorded, which sends it without touching the microphone.
     @MainActor
     static func exercise(_ environment: AppEnvironment) async {
         #if DEBUG
@@ -56,6 +110,20 @@ enum DemoLaunch {
                 try? await session.setActionStatus(.done, meetingID: parts[0], actionID: parts[1])
             }
         }
+        if let path = defaults.string(forKey: "demoQueueRecording") {
+            do {
+                let item = try await session.store.beginRecording(title: defaults.string(forKey: "demoRecordingTitle"))
+                try FileManager.default.createDirectory(
+                    at: URL(fileURLWithPath: item.filePath).deletingLastPathComponent(), withIntermediateDirectories: true)
+                try FileManager.default.copyItem(atPath: path, toPath: item.filePath)
+                _ = try await session.store.finishRecording(id: item.id, durationSeconds: 20)
+                await session.recordingsDidChange()
+                await session.uploadRecordings()
+            } catch {
+                session.notice = "Queueing the recording failed: \(error.localizedDescription)"
+            }
+        }
+        if defaults.bool(forKey: "demoRecordingScreen") { await environment.recording.begin() }
         #endif
     }
 

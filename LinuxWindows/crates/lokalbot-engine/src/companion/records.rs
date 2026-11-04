@@ -76,6 +76,7 @@ pub struct ManifestBody {
     pub data_classes: DataClasses,
     pub history_days: u32,
     pub ask_enabled: bool,
+    pub recordings_enabled: bool,
     pub generated_at: String,
 }
 

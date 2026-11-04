@@ -4,8 +4,9 @@
 //!
 //! `lokalbot-sync` holds the listener, Noise sessions and pairing. This module
 //! decides what is shared: `builder` turns the library into allowlisted
-//! records, `publisher` keeps them current, `ask` answers questions and `ops`
-//! applies action changes. `host` runs the lifecycle.
+//! records, `publisher` keeps them current, `ask` answers questions, `ops`
+//! applies action changes and `recordings` makes meetings of what devices send.
+//! `host` runs the lifecycle.
 
 mod advertise;
 mod ask;
@@ -14,6 +15,7 @@ mod host;
 mod library;
 mod ops;
 mod publisher;
+mod recordings;
 mod records;
 mod sharing;
 #[cfg(test)]
@@ -31,6 +33,7 @@ use parking_lot::Mutex;
 
 use crate::Shared;
 use crate::models::Models;
+use crate::pipeline::Pipeline;
 
 pub use sharing::{HistoryWindow, clamped_port};
 
@@ -226,10 +229,11 @@ impl Companion {
 }
 
 /// Starts the host thread, idle until `CompanionCommand::Enable`.
-pub(crate) fn start(shared: Arc<Shared>, models: Models) {
+pub(crate) fn start(shared: Arc<Shared>, models: Models, pipeline: Pipeline) {
     let (sender, receiver) = unbounded();
     let environment = Arc::new(host::LiveEnvironment {
         shared: shared.clone(),
+        pipeline,
     });
     let emit = {
         let shared = Arc::downgrade(&shared);

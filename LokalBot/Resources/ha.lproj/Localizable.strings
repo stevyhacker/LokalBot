@@ -1673,6 +1673,10 @@
 "Last year" = "Watanni 12 na ƙarshe";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Ba a taɓa rabawa ba: adiresoshin imel na mahalarta, shaidar masu magana da bayanan murya, hotunan allo da rubutun allo, imel, Mahallin kai, ƙwaƙwalwar bitar dare, saituna, da maɓallai.";
 "Answer questions from my devices" = "Amsa tambayoyi daga na'urorina";
+"Recordings" = "Rikodi";
+"Accept recordings from my devices" = "Karɓi rikodi daga na'urorina";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "Na'urar da aka haɗa za ta iya aika wa wannan Mac tarurrukan da ta yi rikodin su. A nan suna zama tarurruka kuma ana sarrafa su kamar kowane rikodi; sannan na'urar ta goge kwafinta.";
+"Recording from %@" = "Rikodi daga %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "Wannan Mac yana amsawa da Samfurin Tunani ɗinka da amincewarsa, daga tarukan da Layin lokaci da kake rabawa. Ba a taɓa bincika ƙwaƙwalwar allo don wata na'ura ba.";
 "Answers are written on this Mac." = "Ana rubuta amsoshi a wannan Mac.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Ana aika tambayoyi daga na'urorinka da mahallin da suke buƙata zuwa sabar Tunani da ka amince da ita (%@).";

@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import me.dotenv.lokalbot.companion.recording.RecordingService
 import me.dotenv.lokalbot.companion.ui.CompanionRoot
 import me.dotenv.lokalbot.companion.ui.LockScreen
 import me.dotenv.lokalbot.companion.ui.RootActions
@@ -43,6 +44,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         locked = savedInstanceState?.getBoolean(KEY_LOCKED) ?: true
         pairingLink = savedInstanceState?.getString(KEY_LINK) ?: pairingLinkFrom(intent)
+        if (savedInstanceState == null) showRecorderIfAsked(intent)
 
         lifecycleScope.launch {
             appLockEnabled = container.preferences.appLockEnabled.first()
@@ -82,6 +84,7 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         pairingLinkFrom(intent)?.let { pairingLink = it }
+        showRecorderIfAsked(intent)
     }
 
     override fun onStart() {
@@ -126,6 +129,11 @@ class MainActivity : FragmentActivity() {
                 .setAllowedAuthenticators(AUTHENTICATORS)
                 .build(),
         )
+    }
+
+    /** The recording notification opens the recording screen. */
+    private fun showRecorderIfAsked(intent: Intent?) {
+        if (intent?.getBooleanExtra(RecordingService.EXTRA_SHOW_RECORDER, false) == true) container.recorder.showScreen()
     }
 
     private fun pairingLinkFrom(intent: Intent?): String? =

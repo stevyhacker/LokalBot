@@ -445,7 +445,7 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
     dreaming::start(shared.clone(), models.clone());
     health_check::start(shared.clone());
     let voices = voice::VoiceWorker::start(shared.clone(), pipeline.clone());
-    companion::start(shared.clone(), models.clone());
+    companion::start(shared.clone(), models.clone(), pipeline.clone());
 
     while let Ok(command) = receiver.recv() {
         // Autocomplete's commands carry typed text, which is never logged.

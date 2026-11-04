@@ -1,5 +1,6 @@
 //! The phone's local copy: records, a full-text index, the pairing, the
-//! cursor, queued ops and questions, and Ask history.
+//! cursor, queued ops and questions, Ask history and recordings on their way
+//! to the Mac.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -65,6 +66,17 @@ CREATE TABLE IF NOT EXISTS ask_history (
     result TEXT NOT NULL,
     answered_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS recordings (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    duration_seconds REAL,
+    byte_count INTEGER NOT NULL DEFAULT 0,
+    sent_bytes INTEGER NOT NULL DEFAULT 0,
+    message TEXT,
+    uploaded_at TEXT
+);
 CREATE TABLE IF NOT EXISTS doc_meta (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     record_kind TEXT NOT NULL,
@@ -102,6 +114,40 @@ impl Pairing {
             "computer's key",
         )
     }
+}
+
+/// A recording as stored; the file's path comes from its id.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct RecordingRow {
+    pub id: String,
+    pub title: String,
+    pub state: String,
+    pub started_at: String,
+    pub duration_seconds: Option<f64>,
+    pub byte_count: u64,
+    pub sent_bytes: u64,
+    pub message: Option<String>,
+}
+
+pub(crate) const RECORDING_ACTIVE: &str = "recording";
+pub(crate) const RECORDING_WAITING: &str = "waiting";
+pub(crate) const RECORDING_FAILED: &str = "failed";
+pub(crate) const RECORDING_UPLOADED: &str = "uploaded";
+
+const RECORDING_COLUMNS: &str =
+    "id, title, state, started_at, duration_seconds, byte_count, sent_bytes, message";
+
+fn recording_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RecordingRow> {
+    Ok(RecordingRow {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        state: row.get(2)?,
+        started_at: row.get(3)?,
+        duration_seconds: row.get(4)?,
+        byte_count: row.get::<_, i64>(5)? as u64,
+        sent_bytes: row.get::<_, i64>(6)? as u64,
+        message: row.get(7)?,
+    })
 }
 
 /// A queued op waiting for the Mac.
@@ -201,7 +247,15 @@ impl ClientStore {
     }
 
     /// Erases everything: records, index, pairing, queues and history.
+    /// Empties everything, recordings included. The caller deletes their files.
     pub fn wipe(&self) -> Result<()> {
+        self.db.execute("DELETE FROM recordings", [])?;
+        self.wipe_library()
+    }
+
+    /// Empties everything that came from a Mac, and the pairing. Recordings
+    /// stay: they exist nowhere else until they reach a computer.
+    pub fn wipe_library(&self) -> Result<()> {
         self.db.execute_batch(
             "BEGIN;
              DELETE FROM records; DELETE FROM meta; DELETE FROM ops; DELETE FROM action_overrides;
@@ -213,6 +267,128 @@ impl ClientStore {
         // of the WAL into the main file and empty the WAL.
         self.db
             .execute_batch("VACUUM; PRAGMA wal_checkpoint(TRUNCATE);")?;
+        Ok(())
+    }
+
+    // Recordings
+
+    pub fn insert_recording(&self, id: &str, title: &str, started_at: &str) -> Result<()> {
+        self.db.execute(
+            "INSERT INTO recordings (id, title, state, started_at) VALUES (?1, ?2, ?3, ?4)",
+            params![id, title, RECORDING_ACTIVE, started_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn recording(&self, id: &str) -> Result<Option<RecordingRow>> {
+        Ok(self
+            .db
+            .query_row(
+                &format!("SELECT {RECORDING_COLUMNS} FROM recordings WHERE id = ?1"),
+                [id],
+                recording_row,
+            )
+            .optional()?)
+    }
+
+    /// Everything still worth showing, newest first. A recording that reached
+    /// the Mac leaves once its meeting arrived, or after `prune_before` when
+    /// the Mac doesn't share it back.
+    pub fn recordings(&self, prune_before: &str) -> Result<Vec<RecordingRow>> {
+        self.db.execute(
+            "DELETE FROM recordings WHERE state = ?1 AND (uploaded_at < ?2 OR lower(id) IN \
+             (SELECT lower(key) FROM records WHERE kind = 'meeting' AND deleted = 0))",
+            params![RECORDING_UPLOADED, prune_before],
+        )?;
+        self.recordings_where("1 = 1", "started_at DESC")
+    }
+
+    /// What can go to the Mac now, oldest first.
+    pub fn recordings_waiting(&self) -> Result<Vec<RecordingRow>> {
+        self.recordings_where(&format!("state = '{RECORDING_WAITING}'"), "started_at ASC")
+    }
+
+    /// Recordings a recorder was writing when the app last stopped.
+    pub fn recordings_active(&self) -> Result<Vec<RecordingRow>> {
+        self.recordings_where(&format!("state = '{RECORDING_ACTIVE}'"), "started_at ASC")
+    }
+
+    fn recordings_where(&self, filter: &str, order: &str) -> Result<Vec<RecordingRow>> {
+        let mut statement = self.db.prepare(&format!(
+            "SELECT {RECORDING_COLUMNS} FROM recordings WHERE {filter} ORDER BY {order}"
+        ))?;
+        let rows = statement
+            .query_map([], recording_row)?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows)
+    }
+
+    /// The recorder stopped: the recording can go to the Mac.
+    pub fn finish_recording(
+        &self,
+        id: &str,
+        duration_seconds: Option<f64>,
+        byte_count: u64,
+    ) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET state = ?2, duration_seconds = ?3, byte_count = ?4 WHERE id = ?1",
+            params![id, RECORDING_WAITING, duration_seconds, byte_count as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_recording(&self, id: &str) -> Result<()> {
+        self.db
+            .execute("DELETE FROM recordings WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    pub fn set_recording_title(&self, id: &str, title: &str) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET title = ?2 WHERE id = ?1",
+            params![id, title],
+        )?;
+        Ok(())
+    }
+
+    pub fn set_recording_progress(&self, id: &str, sent_bytes: u64, byte_count: u64) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET sent_bytes = ?2, byte_count = ?3 WHERE id = ?1",
+            params![id, sent_bytes as i64, byte_count as i64],
+        )?;
+        Ok(())
+    }
+
+    /// Stays waiting; `message` says why it hasn't gone yet.
+    pub fn set_recording_message(&self, id: &str, message: Option<&str>) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET message = ?2 WHERE id = ?1",
+            params![id, message],
+        )?;
+        Ok(())
+    }
+
+    pub fn fail_recording(&self, id: &str, message: Option<&str>) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET state = ?2, message = ?3 WHERE id = ?1",
+            params![id, RECORDING_FAILED, message],
+        )?;
+        Ok(())
+    }
+
+    pub fn retry_recording(&self, id: &str) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET state = ?2, message = NULL, sent_bytes = 0 WHERE id = ?1 AND state = ?3",
+            params![id, RECORDING_WAITING, RECORDING_FAILED],
+        )?;
+        Ok(())
+    }
+
+    pub fn mark_recording_uploaded(&self, id: &str, now: &str) -> Result<()> {
+        self.db.execute(
+            "UPDATE recordings SET state = ?2, message = NULL, sent_bytes = byte_count, uploaded_at = ?3 WHERE id = ?1",
+            params![id, RECORDING_UPLOADED, now],
+        )?;
         Ok(())
     }
 

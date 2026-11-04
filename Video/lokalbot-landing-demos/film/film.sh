@@ -291,7 +291,8 @@ film_dictation() {  # film_dictation <appearance> <take>: into TextEdit with the
   local appearance=$1 take=$2 doc status=0
   launch_host "$appearance" "$WORK/pricing" dictation LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/spoken" || return 1
   sleep 10
-  doc="$WORK/Team update.txt"; : > "$doc"
+  # A name the model has no reason to repeat: it can write the window's title into the message.
+  doc="$WORK/Notes.txt"; : > "$doc"
   textedit=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSize 38 -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO
             -SmartQuotes NO -SmartDashes NO -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
   [[ $appearance == dark ]] && textedit+=(-AppleInterfaceStyle Dark)

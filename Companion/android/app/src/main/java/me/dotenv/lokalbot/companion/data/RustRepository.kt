@@ -5,6 +5,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,8 +35,10 @@ import me.dotenv.lokalbot.companion.data.model.Project
 import me.dotenv.lokalbot.companion.data.model.RecordJson
 import me.dotenv.lokalbot.companion.data.model.Transcript
 import me.dotenv.lokalbot.sync.AskListener
+import me.dotenv.lokalbot.sync.RecordingInfo
 import me.dotenv.lokalbot.sync.SyncClient
 import me.dotenv.lokalbot.sync.SyncException
+import me.dotenv.lokalbot.sync.UploadListener
 import me.dotenv.lokalbot.sync.keyFingerprint
 import me.dotenv.lokalbot.sync.ActionFilter as RustActionFilter
 
@@ -50,11 +53,16 @@ class RustRepository(
     private val onQueuedAnswer: (AskRequest, AskResult) -> Unit = { _, _ -> },
     /** The Mac removed this device; the core has already erased its copy. */
     private val onRevoked: () -> Unit = {},
+    /** Recordings are ready to go; they should still go if this process dies first. */
+    private val onRecordingsWaiting: () -> Unit = {},
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : CompanionRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + io)
     private val syncLock = Mutex()
+
+    /** One upload pass at a time. Apart from [syncLock], so a long upload holds up neither syncing nor Ask. */
+    private val uploadLock = Mutex()
 
     /** Request ids being asked right now, so a queued one isn't asked twice at once. */
     private val asking: MutableSet<String> = ConcurrentHashMap.newKeySet()
@@ -69,11 +77,33 @@ class RustRepository(
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle(statusInfo()))
     override val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
+    override val canRecord: Boolean = !isSample && macKey != null
+
+    private val _recordings = MutableStateFlow(loadRecordings())
+    override val recordings: StateFlow<List<DeviceRecording>> = _recordings.asStateFlow()
+
+    private val _uploadProgress = MutableStateFlow<UploadProgress?>(null)
+    override val uploadProgress: StateFlow<UploadProgress?> = _uploadProgress.asStateFlow()
+
     override fun now(): Instant = Instant.now()
 
     override fun zone(): ZoneId = ZoneId.systemDefault()
 
-    private suspend fun <T> core(block: () -> T): T = withContext(io) { block() }
+    /** Set before the core closes, so a call that loses the race can tell. */
+    @Volatile
+    private var closed = false
+
+    private suspend fun <T> core(block: () -> T): T = withContext(io) { alive(block) }
+
+    /**
+     * A screen can be reading as the library closes, for instance when the Mac
+     * removes this device. Whoever asked is going away with it, so it ends quietly.
+     */
+    private inline fun <T> alive(block: () -> T): T = try {
+        block()
+    } catch (e: IllegalStateException) {
+        if (closed) throw CancellationException("The library closed.", e) else throw e
+    }
 
     private fun <T> String.decode(serializer: KSerializer<T>): T = RecordJson.decodeFromString(serializer, this)
 
@@ -194,7 +224,13 @@ class RustRepository(
             is SyncOutcome.Synced -> SyncState.Idle(statusInfo())
             is SyncOutcome.Failed -> SyncState.Failed(statusInfo(), outcome.reason, outcome.message)
         }
-        if (outcome is SyncOutcome.Synced) askQueuedQuestions()
+        // A meeting that just arrived ends its recording's time in the list.
+        refreshRecordings()
+        if (outcome is SyncOutcome.Synced) {
+            // The computer answered, so whatever waits can go, without holding this sync up.
+            scope.launch { uploadRecordings() }
+            askQueuedQuestions()
+        }
         if (outcome is SyncOutcome.Failed && outcome.reason == SyncFailure.Revoked) onRevoked()
         outcome
     }
@@ -222,6 +258,124 @@ class RustRepository(
         }
     }
 
+    override suspend fun beginRecording(title: String?): DeviceRecording? {
+        val recording = try {
+            core { client.beginRecording(title) }
+        } catch (e: SyncException) {
+            Log.w(TAG, "begin recording failed: ${e::class.simpleName}: ${e.message}")
+            return null
+        }
+        recordingsChanged()
+        return deviceRecording(recording)
+    }
+
+    override suspend fun finishRecording(id: String, durationSeconds: Double): Boolean {
+        val kept = try {
+            core { client.finishRecording(id, durationSeconds) }
+            true
+        } catch (_: SyncException.InvalidInput) {
+            false
+        }
+        recordingsChanged()
+        if (kept) sendWaitingRecordings()
+        return kept
+    }
+
+    override suspend fun recoverRecordings(): Int {
+        val kept = core { client.recoverRecordings() }.toInt()
+        recordingsChanged()
+        if (kept > 0) sendWaitingRecordings()
+        return kept
+    }
+
+    override suspend fun discardRecording(id: String) {
+        core { client.discardRecording(id) }
+        recordingsChanged()
+    }
+
+    override suspend fun setRecordingTitle(id: String, title: String) {
+        core { client.setRecordingTitle(id, title) }
+        recordingsChanged()
+    }
+
+    override suspend fun retryRecording(id: String) {
+        core { client.retryRecording(id) }
+        recordingsChanged()
+        sendWaitingRecordings()
+    }
+
+    override suspend fun uploadRecordings(): UploadOutcome {
+        val outcome = uploadLock.withLock { uploadWaiting() }
+        when {
+            outcome is UploadOutcome.Finished && outcome.uploaded > 0 -> sync()
+            outcome is UploadOutcome.Failed && outcome.reason == SyncFailure.Revoked -> onRevoked()
+        }
+        return outcome
+    }
+
+    private suspend fun uploadWaiting(): UploadOutcome {
+        val rows = core { loadRecordings() }
+        if (rows.none { it.state == RecordingState.Waiting }) {
+            return UploadOutcome.Finished(uploaded = 0, waiting = 0, failed = rows.count { it.state == RecordingState.Failed })
+        }
+        val listener = object : UploadListener {
+            override fun onProgress(recordingId: String, sentBytes: ULong, totalBytes: ULong) {
+                // The one before it has arrived.
+                if (_uploadProgress.value?.recordingId != recordingId) scope.launch { refreshRecordings() }
+                _uploadProgress.value = UploadProgress(recordingId, sentBytes.toLong(), totalBytes.toLong())
+            }
+        }
+        val outcome = try {
+            val addresses = discover(fingerprint())
+            val report = core { client.uploadRecordings(addresses, listener) }
+            UploadOutcome.Finished(report.uploaded.toInt(), report.waiting.toInt(), report.failed.toInt())
+        } catch (e: SyncException) {
+            Log.w(TAG, "upload failed: ${e::class.simpleName}: ${e.message}")
+            UploadOutcome.Failed(failureOf(e), e.message.orEmpty())
+        } finally {
+            _uploadProgress.value = null
+        }
+        // On revocation the library is about to close, so nothing should reload from it.
+        if (outcome !is UploadOutcome.Failed || outcome.reason != SyncFailure.Revoked) recordingsChanged()
+        return outcome
+    }
+
+    /** Sends them now if the computer answers. If it doesn't, the app's worker keeps trying. */
+    private fun sendWaitingRecordings() {
+        onRecordingsWaiting()
+        scope.launch { uploadRecordings() }
+    }
+
+    private suspend fun refreshRecordings() {
+        _recordings.value = core { loadRecordings() }
+    }
+
+    private suspend fun recordingsChanged() {
+        refreshRecordings()
+        changed()
+    }
+
+    private fun loadRecordings(): List<DeviceRecording> =
+        runCatching { client.recordings().map(::deviceRecording) }.getOrDefault(emptyList())
+
+    private fun deviceRecording(info: RecordingInfo) = DeviceRecording(
+        id = info.id,
+        title = info.title,
+        state = RecordingState.entries.firstOrNull { it.name.equals(info.state, ignoreCase = true) } ?: RecordingState.Waiting,
+        startedAt = info.startedAt,
+        durationSeconds = info.durationSeconds,
+        byteCount = info.byteCount.toLong(),
+        sentBytes = info.sentBytes.toLong(),
+        message = info.message,
+        filePath = info.filePath,
+    )
+
+    /** What the core kept after revocation: the rows left recording are done now. */
+    fun heldAfterRevocation(): Int {
+        runCatching { client.recoverRecordings() }
+        return runCatching { client.recordings().count { it.state != "uploaded" } }.getOrDefault(0)
+    }
+
     /** Erases the store and the pairing on this device, then closes the core. */
     fun unpairAndClose() {
         client.unpair()
@@ -229,6 +383,7 @@ class RustRepository(
     }
 
     fun close() {
+        closed = true
         scope.cancel()
         client.close()
     }
@@ -238,7 +393,7 @@ class RustRepository(
     private fun fingerprint(): String? = macKey?.let { keyFingerprint(it) }
 
     private fun statusInfo(): SyncStatusInfo {
-        val status = client.status()
+        val status = alive { client.status() }
         return SyncStatusInfo(
             paired = status.paired,
             macName = status.macName,

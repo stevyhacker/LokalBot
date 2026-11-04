@@ -42,12 +42,20 @@ CREATE TABLE IF NOT EXISTS revoked_keys (
     device_id TEXT NOT NULL,
     revoked_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS received_uploads (
+    upload_id TEXT PRIMARY KEY,
+    device_id TEXT NOT NULL,
+    meeting_id TEXT,
+    received_at TEXT NOT NULL
+);
 ";
 
 /// A paired device as the session code needs it.
 #[derive(Clone, Debug)]
 pub(crate) struct DeviceRow {
     pub device_id: String,
+    pub name: String,
+    pub platform: String,
 }
 
 pub(crate) struct HostStore {
@@ -270,11 +278,13 @@ impl HostStore {
         Ok(self
             .db
             .query_row(
-                "SELECT device_id FROM devices WHERE public_key = ?1",
+                "SELECT device_id, name, platform FROM devices WHERE public_key = ?1",
                 [public_key],
                 |row| {
                     Ok(DeviceRow {
                         device_id: row.get(0)?,
+                        name: row.get(1)?,
+                        platform: row.get(2)?,
                     })
                 },
             )
@@ -342,6 +352,35 @@ impl HostStore {
         )?;
         tx.commit()?;
         Ok(true)
+    }
+
+    /// Whether this recording already arrived, and the meeting it became.
+    /// Answers a device that never saw the confirmation, even after the
+    /// person deleted the meeting.
+    pub fn received_upload(&self, upload_id: &str) -> Result<Option<Option<String>>> {
+        Ok(self
+            .db
+            .query_row(
+                "SELECT meeting_id FROM received_uploads WHERE upload_id = ?1",
+                [upload_id],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn record_received_upload(
+        &self,
+        upload_id: &str,
+        device_id: &str,
+        meeting_id: Option<&str>,
+        now: &str,
+    ) -> Result<()> {
+        self.db.execute(
+            "INSERT OR REPLACE INTO received_uploads (upload_id, device_id, meeting_id, received_at) \
+             VALUES (?1, ?2, ?3, ?4)",
+            params![upload_id, device_id, meeting_id, now],
+        )?;
+        Ok(())
     }
 
     pub fn touch_device(&self, device_id: &str, now: &str, address: Option<&str>) -> Result<()> {

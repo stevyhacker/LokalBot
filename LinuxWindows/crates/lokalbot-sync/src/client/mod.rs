@@ -1,7 +1,8 @@
 //! The phone's end: `SyncClient` pairs with a Mac, keeps a local copy of
-//! its records, and asks it questions.
+//! its records, asks it questions and sends it recordings.
 
 mod queries;
+mod recordings;
 mod search;
 mod store;
 
@@ -26,6 +27,7 @@ use crate::wire::{
 };
 
 pub use self::queries::ActionFilter;
+pub use self::recordings::{RecordingInfo, UploadListener, UploadReport};
 pub use self::search::SearchHit;
 #[cfg(test)]
 pub(crate) use self::search::cjk as search_cjk;
@@ -97,6 +99,11 @@ pub struct SyncClient {
     store: Mutex<ClientStore>,
     /// One pairing or sync at a time.
     sync_lock: Mutex<()>,
+    /// One upload pass at a time. Separate, so a long upload holds up neither
+    /// syncing nor Ask.
+    upload_lock: Mutex<()>,
+    /// Where recordings live: `recordings/` beside the database.
+    recordings_dir: PathBuf,
     tuning: Mutex<Tuning>,
 }
 
@@ -123,7 +130,9 @@ impl SyncClient {
                 "The platform must be ios, ipados or android.",
             ));
         }
-        let store = ClientStore::open(&PathBuf::from(&config.db_path))?;
+        let db_path = PathBuf::from(&config.db_path);
+        let store = ClientStore::open(&db_path)?;
+        let recordings_dir = db_path.with_file_name(recordings::DIRECTORY);
         Ok(Arc::new(Self {
             device_id: config.device_id,
             device_name: config.device_name,
@@ -131,6 +140,8 @@ impl SyncClient {
             private_key,
             store: Mutex::new(store),
             sync_lock: Mutex::new(()),
+            upload_lock: Mutex::new(()),
+            recordings_dir,
             tuning: Mutex::new(Tuning::default()),
         }))
     }
@@ -138,7 +149,8 @@ impl SyncClient {
     // Pairing and connection
 
     /// Pairs with the Mac in a scanned code. Blocks until the person answers
-    /// on the Mac. Replaces any earlier pairing and local data.
+    /// on the Mac. Replaces any earlier pairing and local data, apart from
+    /// recordings that haven't reached a Mac yet.
     pub fn pair(&self, payload: String) -> Result<PairedMac> {
         let _sync = self.sync_lock.lock();
         let payload = Payload::parse(&payload)?;
@@ -203,10 +215,20 @@ impl SyncClient {
         self.finish(result)
     }
 
-    /// Erases the local copy and the pairing. The Mac is not told.
+    /// Erases the local copy, recordings that haven't reached the Mac and the
+    /// pairing. The Mac is not told. With no pairing, as when closing the sample
+    /// library, it erases the copy alone: recordings kept after the Mac removed
+    /// this device stay until they are discarded one by one or sent.
     pub fn unpair(&self) -> Result<()> {
         let _sync = self.sync_lock.lock();
-        self.store.lock().wipe()
+        let paired = self.store.lock().pairing()?.is_some();
+        if paired {
+            self.store.lock().wipe()?;
+            recordings::delete_all_files(&self.recordings_dir);
+            Ok(())
+        } else {
+            self.store.lock().wipe_library()
+        }
     }
 
     pub fn status(&self) -> Result<SyncStatus> {
@@ -430,6 +452,17 @@ impl SyncClient {
         *self.tuning.lock() = tuning;
     }
 
+    /// Points this phone at a computer without pairing, for hosts a test fakes.
+    pub(crate) fn pair_with_key(&self, mac_key: &[u8; KEY_LEN], port: u16) -> Result<()> {
+        self.store.lock().set_pairing(&Pairing {
+            mac_name: "Old Mac".into(),
+            mac_key: keys::b64url(mac_key),
+            addresses: vec!["127.0.0.1".into()],
+            port,
+            paired_at: now_iso(),
+        })
+    }
+
     pub(crate) fn actions_on(&self, filter: &ActionFilter, today: &str) -> Result<Vec<String>> {
         self.store.lock().actions(filter, today)
     }
@@ -484,10 +517,12 @@ impl SyncClient {
         self.tuning.lock().clone()
     }
 
-    /// Wipes the local copy when the Mac revoked this device.
+    /// Wipes the local copy when the Mac revoked this device. Recordings that
+    /// haven't reached it stay: they exist nowhere else, and removing a device is
+    /// often the first step of pairing it again.
     fn finish<T>(&self, result: Result<T>) -> Result<T> {
         if let Err(SyncError::Revoked(_)) = &result {
-            self.store.lock().wipe()?;
+            self.store.lock().wipe_library()?;
         }
         result
     }
@@ -590,7 +625,7 @@ impl SyncClient {
             paired_at: now_iso(),
         };
         let store = self.store.lock();
-        store.wipe()?;
+        store.wipe_library()?;
         store.set_pairing(&pairing)?;
         store.set_last_address(&socket.to_string())?;
         Ok(PairedMac {

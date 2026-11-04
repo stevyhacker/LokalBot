@@ -119,6 +119,25 @@ adb reverse tcp:17890 tcp:17890
 adb shell am start -a android.intent.action.VIEW -d "lokalbot://pair?d=…" me.dotenv.lokalbot.companion
 ```
 
+## Recording
+
+A person can record a meeting on the phone for their paired computer. The Rust
+core owns the queue, the upload and the deleting (`Companion/protocol/ffi.md`).
+The app owns the microphone:
+
+- `recording/MeetingRecorder` is the one recording in progress, for the whole
+  process. Screens read their state from it.
+- `recording/RecordingService` is the microphone foreground service that keeps it
+  going with the screen off.
+- `recording/MediaRecorderCapture` writes ADTS AAC straight to the core's file, so a
+  dead process leaves a readable file. The next launch recovers it.
+- `sync/UploadWorker` keeps trying until the computer is back.
+
+To try it, start the stand-in host, pair, and tap the microphone on Meetings. It
+prints `recording: {...}` and `Kept N bytes`, and keeps the audio in its `--dir`
+under `uploads/` as `received-<id>.aac`. The stand-in makes no meeting, so the row stays at
+"Processing on …". On a real computer it leaves when the meeting syncs back.
+
 ## Release
 
 - **Builds.** Release builds use R8; the JNA and UniFFI keep rules are in
@@ -129,7 +148,9 @@ adb shell am start -a android.intent.action.VIEW -d "lokalbot://pair?d=…" me.d
   send them to **Try it without a computer** on the first screen, and explain the
   Mac app, the local network and Tailscale.
 - **Data safety.** LokalBot collects nothing; data stays on the person's own
-  devices.
+  devices. Recordings go only to the paired computer.
+- **Foreground service.** Recording declares `FOREGROUND_SERVICE_MICROPHONE`, which
+  Play asks to have explained and shown in a video.
 - **targetSdk 37.** At 37, local network access needs the runtime permission
   `ACCESS_LOCAL_NETWORK` (in the Nearby devices group). Declare it, and
   request it before discovery and connecting (or use NSD's system picker),

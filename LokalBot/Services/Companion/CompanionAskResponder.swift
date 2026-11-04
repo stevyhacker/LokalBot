@@ -114,28 +114,38 @@ final class CompanionAskResponder {
             return
         }
         let now = dependencies.now()
+        // The history window is the only limit: it is what the Mac shares.
         var meetingIDs: Set<UUID>?
+        var meetingScope: String?
         if sharing.history != .all {
             meetingIDs = Set(dependencies.meetings()
                 .filter { CompanionLibrary.isShared($0, history: sharing.history, now: now, calendar: .current) }
                 .map(\.id))
+            meetingScope = "meetings from the \(sharing.history.displayName.lowercased()), "
+                + "the history the user shares with this device"
         }
+        // The day or meeting a question was asked about is where the answer
+        // starts, never a limit: "Ask About Today" on a tablet once answered
+        // "the library has only one meeting".
+        var focus: [String] = []
         if let raw = request.scope?.meetingId {
-            guard let id = UUID(uuidString: raw), meetingIDs?.contains(id) ?? true else {
+            guard let id = UUID(uuidString: raw), meetingIDs?.contains(id) ?? true,
+                  let meeting = dependencies.meetings().first(where: { $0.id == id }) else {
                 output.failed("That meeting is not shared with this device.")
                 return
             }
-            meetingIDs = [id]
+            focus.append("the meeting “\(meeting.displayTitle)” [\(SessionLookup.shortID(meeting.id))] "
+                + "on \(meeting.startedAt.formatted(date: .abbreviated, time: .omitted))")
         }
-        var dayKey: String?
         if let day = request.scope?.day {
-            guard AskDayScope.isCanonicalKey(day), let date = AskDayScope.date(for: day),
-                  sharing.history.contains(date, now: now) else {
+            guard let dates = AskDateScope(storageKey: day), dates.firstDay == dates.lastDay,
+                  let date = AskDayScope.date(for: day), sharing.history.contains(date, now: now) else {
                 output.failed("That day is not shared with this device.")
                 return
             }
-            dayKey = day
+            focus.append("the day \(dates.dateLabel)")
         }
+        let startingPoint = focus.isEmpty ? nil : focus.joined(separator: " and ")
         let history = (request.history ?? []).compactMap { turn in
             ChatRole(rawValue: turn.role).map { ChatAgent.Turn(role: $0, text: turn.text) }
         }
@@ -149,7 +159,8 @@ final class CompanionAskResponder {
                 let engine = try await dependencies.makeEngine()
                 try Task.checkCancellation()
                 let runner = ScopedChatToolRunner(base: dependencies.tools(), scopes: scopes,
-                                                  dayScopeKey: dayKey, meetingIDs: meetingIDs)
+                                                  meetingIDs: meetingIDs, meetingScope: meetingScope,
+                                                  focus: startingPoint)
                 var agent = ChatAgent(engine: engine, runner: runner)
                 agent.adaptLimits(to: engine)
                 let stream = CompanionAnswerStream()

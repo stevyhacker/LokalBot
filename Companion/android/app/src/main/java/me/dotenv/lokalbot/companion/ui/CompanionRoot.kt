@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import me.dotenv.lokalbot.companion.AppContainer
 import me.dotenv.lokalbot.companion.R
+import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.ui.onboarding.AppMark
 import me.dotenv.lokalbot.companion.ui.onboarding.PairingScreen
 import me.dotenv.lokalbot.companion.ui.onboarding.PairingViewModel
@@ -55,6 +56,7 @@ fun CompanionRoot(container: AppContainer, actions: RootActions) {
     val ready by container.ready.collectAsStateWithLifecycle()
     val repository by container.repository.collectAsStateWithLifecycle()
     val removedByMac by container.removedByMac.collectAsStateWithLifecycle()
+    val heldRecordings by container.heldRecordings.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var pairing by rememberSaveable { mutableStateOf(false) }
     val palette = LokalBotTheme.palette
@@ -82,10 +84,12 @@ fun CompanionRoot(container: AppContainer, actions: RootActions) {
             onTrySample = { scope.launch { container.openSample() } },
             removedByMac = removedByMac,
             onDismissRemoved = container::dismissRemovedNotice,
+            heldRecordings = heldRecordings,
+            onDeleteHeldRecordings = { scope.launch { container.discardHeldRecordings() } },
         )
         else -> {
             val library = repository!!
-            LibraryScope(library.id) {
+            LibraryScope(library) {
                 LokalBotApp(
                     repository = library,
                     settingsActions = SettingsActions(
@@ -97,20 +101,25 @@ fun CompanionRoot(container: AppContainer, actions: RootActions) {
                         storageBytes = container.storageBytes(),
                         versionName = actions.versionName,
                     ),
+                    recorder = container.recorder,
                 )
             }
         }
     }
 }
 
-/** Keeps one library's view models together, and drops them when the library changes. */
+/**
+ * Keeps one library's view models together, and drops them when the library
+ * changes. Pairing again with the same computer is a new library with the same
+ * id, and view models of the old one would keep using its closed store.
+ */
 class LibraryScopes : ViewModel() {
-    private var current: Pair<String, ViewModelStore>? = null
+    private var current: Pair<CompanionRepository, ViewModelStore>? = null
 
-    fun storeFor(id: String): ViewModelStore {
-        current?.takeIf { it.first == id }?.let { return it.second }
+    fun storeFor(library: CompanionRepository): ViewModelStore {
+        current?.takeIf { it.first === library }?.let { return it.second }
         current?.second?.clear()
-        return ViewModelStore().also { current = id to it }
+        return ViewModelStore().also { current = library to it }
     }
 
     override fun onCleared() {
@@ -119,9 +128,9 @@ class LibraryScopes : ViewModel() {
 }
 
 @Composable
-fun LibraryScope(id: String, content: @Composable () -> Unit) {
+fun LibraryScope(library: CompanionRepository, content: @Composable () -> Unit) {
     val scopes: LibraryScopes = viewModel()
-    val store = scopes.storeFor(id)
+    val store = scopes.storeFor(library)
     val owner = remember(store) { object : ViewModelStoreOwner { override val viewModelStore = store } }
     CompositionLocalProvider(LocalViewModelStoreOwner provides owner, content = content)
 }

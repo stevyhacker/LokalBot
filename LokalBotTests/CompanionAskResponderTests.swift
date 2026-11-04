@@ -98,6 +98,91 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertEqual(output.deltas.joined(), result.answer)
     }
 
+    /// "Ask About Today" on an iPad once held the question to that day, and
+    /// the answer said "the library has only one meeting". The day is now
+    /// where the answer starts: the tools still read everything shared.
+    func testDayFromADeviceIsAStartingPointNotALimit() async throws {
+        let engine = CompanionScriptedEngine([
+            #"{"tool": "list_meetings", "arguments": {}}"#,
+            "FINAL_ANSWER:\nYes, there are more.",
+        ])
+        let runner = CompanionFakeRunner(evidence: ChatEvidence())
+        var settings = AppSettings()
+        settings.companionSharingEnabled = true
+        let responder = CompanionAskResponder(dependencies: .init(
+            settings: { settings }, makeEngine: { engine }, tools: { runner }, meetings: { [] }))
+        let day = AskDayScope.key(for: Date())
+        let label = try XCTUnwrap(AskDateScope(storageKey: day)).dateLabel
+        let output = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r4", question: "Do you see other meetings in the library?",
+            scope: .init(day: day))), output: output)
+        await fulfillment(of: [output.finished], timeout: 10)
+
+        XCTAssertNil(output.failure)
+        XCTAssertEqual(runner.calls, ["list_meetings"])
+        XCTAssertNil(runner.arguments.first?["_lokalbot_day_scope"], "the day must not limit the tools")
+        let system = try XCTUnwrap(engine.systems.first)
+        XCTAssertTrue(system.contains("Question scope:\nThe user started this conversation from the day \(label),"), system)
+        XCTAssertTrue(system.contains("It is a starting point, not a limit"), system)
+        XCTAssertFalse(system.contains("This question is limited to"), system)
+        let observation = try XCTUnwrap(engine.contexts.last?.last)
+        XCTAssertFalse(observation.contains("Limited to"), observation)
+    }
+
+    func testMeetingFromADeviceIsAStartingPointNotALimit() async throws {
+        let engine = CompanionScriptedEngine([
+            #"{"tool": "search_meetings", "arguments": {"query": "onboarding"}}"#,
+            "FINAL_ANSWER:\nThree steps.",
+        ])
+        let runner = CompanionFakeRunner(evidence: ChatEvidence())
+        var settings = AppSettings()
+        settings.companionSharingEnabled = true
+        let meeting = meeting
+        let responder = CompanionAskResponder(dependencies: .init(
+            settings: { settings }, makeEngine: { engine }, tools: { runner }, meetings: { [meeting] }))
+        let output = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r6", question: "What did we decide?",
+            scope: .init(meetingId: meeting.id.uuidString.lowercased()))), output: output)
+        await fulfillment(of: [output.finished], timeout: 10)
+
+        XCTAssertNil(output.failure)
+        XCTAssertNil(runner.arguments.first?["_lokalbot_meeting_ids"], "the meeting must not limit the tools")
+        let system = try XCTUnwrap(engine.systems.first)
+        XCTAssertTrue(system.contains(
+            "The user started this conversation from the meeting “Design review — onboarding” [\(shortID)] on "),
+                      system)
+
+        let unknown = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r7", question: "What did we decide?",
+            scope: .init(meetingId: UUID().uuidString))), output: unknown)
+        await fulfillment(of: [unknown.finished], timeout: 1)
+        XCTAssertEqual(unknown.failure, "That meeting is not shared with this device.")
+    }
+
+    func testSharedHistoryWindowIsNamedAsTheLimit() async throws {
+        let engine = CompanionScriptedEngine(["FINAL_ANSWER:\nOnly the last 30 days are shared."])
+        var settings = AppSettings()
+        settings.companionSharingEnabled = true
+        settings.companionHistory = .days30
+        let responder = CompanionAskResponder(dependencies: .init(
+            settings: { settings }, makeEngine: { engine },
+            tools: { CompanionFakeRunner(evidence: ChatEvidence()) }, meetings: { [] }))
+        let output = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r5", question: "How many meetings do I have?")), output: output)
+        await fulfillment(of: [output.finished], timeout: 10)
+
+        XCTAssertNil(output.failure)
+        let system = try XCTUnwrap(engine.systems.first)
+        XCTAssertTrue(system.contains(
+            "This question is limited to meetings from the last 30 days, the history the user shares with this device."),
+                      system)
+        XCTAssertFalse(system.contains("remove the date limit"), "the device cannot widen what the Mac shares")
+    }
+
     func testAnsweringOffFailsWithoutRunningTheModel() async throws {
         var settings = AppSettings()
         settings.companionSharingEnabled = true
@@ -134,6 +219,8 @@ final class CompanionAskResponderTests: XCTestCase {
 
 private final class CompanionScriptedEngine: TextEngine {
     private var outputs: [String]
+    private(set) var systems: [String] = []
+    private(set) var contexts: [[String]] = []
 
     init(_ outputs: [String]) { self.outputs = outputs }
 
@@ -146,6 +233,8 @@ private final class CompanionScriptedEngine: TextEngine {
     func generateStreaming(system: String, prompt: String, context: [String],
                            options: TextGenerationOptions,
                            onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
+        systems.append(system)
+        contexts.append(context)
         let output = outputs.isEmpty ? "" : outputs.removeFirst()
         // Stream in three growing prefixes, as a server would.
         for fraction in [0.4, 0.7, 1.0] {
@@ -160,11 +249,12 @@ private final class CompanionScriptedEngine: TextEngine {
 private final class CompanionFakeRunner: ChatToolRunner {
     let evidence: ChatEvidence
     private(set) var calls: [String] = []
+    private(set) var arguments: [[String: String]] = []
 
     init(evidence: ChatEvidence) { self.evidence = evidence }
 
     var specs: [ChatToolSpec] {
-        ["search_meetings", "activity_summary", "search_screen"].map {
+        ["search_meetings", "list_meetings", "activity_summary", "search_screen"].map {
             ChatToolSpec(name: $0, summary: "test", arguments: [])
         }
     }
@@ -173,6 +263,7 @@ private final class CompanionFakeRunner: ChatToolRunner {
 
     func run(_ call: ChatToolCall) async -> ChatToolResult {
         calls.append(call.name)
+        arguments.append(call.arguments)
         return ChatToolResult(text: "Design review: three steps agreed @ 00:12:04", summary: "1 hit", evidence: evidence)
     }
 }

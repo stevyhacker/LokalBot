@@ -217,29 +217,9 @@ struct AskComposer: View {
     let model: AskModel
     var focused: FocusState<Bool>.Binding
 
-    private let format = LBFormat.current
-
     var body: some View {
         @Bindable var model = model
         VStack(alignment: .leading, spacing: 8) {
-            if let scope = model.scope {
-                HStack(spacing: 6) {
-                    Image(systemName: "scope")
-                    Text(scopeLabel(scope)).lineLimit(1)
-                    Button {
-                        model.scope = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Ask about everything")
-                }
-                .font(LBTokens.Typography.caption.weight(.medium))
-                .foregroundStyle(Brand.teal)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(LBTokens.Palette.accentWash, in: Capsule())
-            }
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Ask your work memory", text: $model.draft, axis: .vertical)
                     .font(LBTokens.Typography.body)
@@ -302,12 +282,6 @@ struct AskComposer: View {
         case .synced(_, let route): return ["Your computer answers", route?.label].compactMap { $0 }.joined(separator: " · ")
         default: return "Your computer answers"
         }
-    }
-
-    private func scopeLabel(_ scope: AskRequest.Scope) -> String {
-        if let day = scope.day.flatMap(DayKey.init) { return "About \(format.dayTitle(day, today: session.today).lowercasedFirstWordIfRelative)" }
-        if scope.meetingId != nil { return "About this meeting" }
-        return "About everything"
     }
 
     private func send() {

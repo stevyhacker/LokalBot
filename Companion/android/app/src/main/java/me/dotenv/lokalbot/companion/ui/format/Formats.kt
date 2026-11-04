@@ -89,6 +89,23 @@ class Formats(
     fun meetingMeta(meeting: Meeting): String =
         listOfNotNull(meeting.appName, meetingTime(meeting), meetingDuration(meeting.durationSeconds)).joinToString(" · ")
 
+    /** "Today · 10:30 · 42 min", in this device's time. */
+    fun recordingMeta(startedAt: String, durationSeconds: Double?, today: LocalDate): String {
+        val start = parseInstant(startedAt)?.atZone(zone)
+        val date = start?.toLocalDate()
+        return listOfNotNull(
+            date?.let {
+                when (it) {
+                    today -> words.today
+                    today.minusDays(1) -> words.yesterday
+                    else -> shortDay(it)
+                }
+            },
+            start?.let { time(it.toInstant()) },
+            durationSeconds?.let(::meetingDuration),
+        ).joinToString(" · ")
+    }
+
     /** "just now", "2 min ago", "3 h ago", "Yesterday", "Thu 30 Oct". */
     fun ago(then: Instant, now: Instant): String {
         val elapsed = Duration.between(then, now)

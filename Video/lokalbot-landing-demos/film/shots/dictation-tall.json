@@ -1,4 +1,4 @@
-{"bundle": "com.apple.TextEdit", "title": "Team update", "size": [540, 675], "bottom": 0, "settle": 1.2, "cursor": false, "ownInput": true, "park": [-240, -160], "pre": 0.6, "post": 2.0, "also": ["me.dotenv.LokalBot.uitesthost"],
+{"bundle": "com.apple.TextEdit", "title": "Notes", "size": [540, 675], "bottom": 0, "settle": 1.2, "cursor": false, "ownInput": true, "park": [-240, -160], "pre": 0.6, "post": 2.0, "also": ["me.dotenv.LokalBot.uitesthost"],
  "setup":[{"key": "down", "mods": ["cmd"]}],
  "actions":[
   {"wait": 0.6},
@@ -8,4 +8,5 @@
   {"until": {"contains": "$15"}, "timeout": 420, "optional": true},
   {"mark": "written"},
   {"wait": 1.5},
-  {"reject": "update.txt"}]}
+  {"reject": "Notes.txt"},
+  {"reject": "**"}]}

@@ -3,7 +3,8 @@
 //! The Mac (the host, [`SyncServer`]) publishes allowlisted JSON records and
 //! serves paired devices over the local network or Tailscale; phones and
 //! tablets (the clients, [`SyncClient`]) keep an end-to-end encrypted copy,
-//! search it, change action status and ask the Mac questions. The wire
+//! search it, change action status, ask the Mac questions and send it
+//! recordings made on the device. The wire
 //! contract is `Companion/protocol/protocol.md`, the records
 //! `Companion/protocol/records.md`, and this crate's foreign API
 //! `Companion/protocol/ffi.md`; Swift and Kotlin call it through UniFFI.
@@ -24,8 +25,8 @@ mod wire;
 mod tests;
 
 pub use client::{
-    ActionFilter, AskListener, ClientConfig, PairedMac, SearchHit, SyncClient, SyncReport,
-    SyncStatus,
+    ActionFilter, AskListener, ClientConfig, PairedMac, RecordingInfo, SearchHit, SyncClient,
+    SyncReport, SyncStatus, UploadListener, UploadReport,
 };
 pub use error::SyncError;
 pub use keys::StaticKey;
@@ -33,6 +34,7 @@ pub use net::is_allowed_peer;
 pub use pairing::PairingInfo;
 pub use server::{
     AskSink, OpOutcome, PairedDevice, PairingOffer, ServerConfig, ServerDelegate, SyncServer,
+    UploadOutcome,
 };
 
 /// A new random X25519 static key pair.

@@ -1,8 +1,8 @@
 # LokalBot for iPhone and iPad
 
 The companion app reads the library the Mac shares (meetings, actions, the
-Timeline and Day Digests, people and projects) and asks the Mac questions.
-It syncs only with the paired Mac, over the local network or Tailscale,
+Timeline and Day Digests, people and projects), asks the Mac questions and
+records meetings for it to process. It syncs only with the paired Mac, over the local network or Tailscale,
 end-to-end encrypted. See
 [the plan](../../Docs/companion-apps-plan-2026-10-30.md) and
 [the protocol](../protocol/).
@@ -118,6 +118,10 @@ or add them under the scheme's Arguments.
 | `-demoPairLink "<link>"` | Pairs at launch; `-demoDeviceName "<name>"` names the device first |
 | `-demoPairingLink "<link>"` | Opens the pairing sheet at its confirm step |
 | `-demoToggleAction <meetingID>/<actionID>` | Marks an action done through the store |
+| `-demoRecordings YES` | With `-demoPaired`: one recording in each state in Meetings |
+| `-demoHeldRecordings YES` | The welcome screen with a recording kept after the Mac removed this device |
+| `-demoRecordingScreen YES` | Starts a recording at launch. With `-demoPaired` a stand-in writes a few bytes and no microphone is touched; without it, this uses the real microphone |
+| `-demoQueueRecording <path>` | Queues an ADTS AAC file as if just recorded, then sends it; `-demoRecordingTitle "<name>"` names it |
 
 ## Releasing
 
@@ -128,7 +132,8 @@ or add them under the scheme's Arguments.
 - App Review can't pair with a Mac. Point the review notes to **Try It
   Without a Mac** on the welcome screen, which opens the built-in sample
   library. Explain there that the app syncs with LokalBot on the person's
-  Mac over the local network or Tailscale.
+  Mac over the local network or Tailscale, and that recording needs a paired
+  Mac, so the microphone and background audio are only used once paired.
 - Export compliance is **still open**. Sync traffic is encrypted (Noise:
   X25519, ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is not
   set yet. Until it is decided, App Store Connect asks on every upload.

@@ -53,6 +53,21 @@ pub(crate) enum Message {
     Ask {
         request: Value,
     },
+    UploadBegin {
+        upload_id: String,
+        byte_count: u64,
+        sha256: String,
+        recording: Value,
+    },
+    UploadChunk {
+        upload_id: String,
+        offset: u64,
+        /// Standard base64.
+        data: String,
+    },
+    UploadFinish {
+        upload_id: String,
+    },
     Bye,
     PairRequest {
         device_id: String,
@@ -88,6 +103,22 @@ pub(crate) enum Message {
     AskFailed {
         request_id: String,
         message: String,
+    },
+    UploadReady {
+        upload_id: String,
+        offset: u64,
+    },
+    UploadAck {
+        upload_id: String,
+        offset: u64,
+    },
+    UploadDone {
+        upload_id: String,
+        status: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        meeting_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
     },
     Revoked,
     Error {

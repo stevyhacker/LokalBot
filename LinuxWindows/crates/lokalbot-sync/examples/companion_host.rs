@@ -18,7 +18,7 @@ use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 use std::time::Duration;
 
-use lokalbot_sync::{AskSink, OpOutcome, ServerConfig, ServerDelegate, SyncServer};
+use lokalbot_sync::{AskSink, OpOutcome, ServerConfig, ServerDelegate, SyncServer, UploadOutcome};
 use serde_json::{Value, json};
 
 const LIBRARY: &str = include_str!("../../../../Companion/protocol/fixtures/sample-library.json");
@@ -229,6 +229,34 @@ impl ServerDelegate for Delegate {
     fn devices_changed(&self) {
         println!("Devices changed:");
         self.0.print_devices();
+    }
+
+    fn accepts_recordings(&self) -> bool {
+        true
+    }
+
+    /// Keeps the audio beside the database and reports it; the stand-in has
+    /// no pipeline to send it through.
+    fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome {
+        println!("recording: {recording_json}");
+        let recording: Value = serde_json::from_str(&recording_json).unwrap_or_default();
+        let id = recording["id"].as_str().unwrap_or("recording");
+        let kept = std::path::Path::new(&file_path).with_file_name(format!("received-{id}.aac"));
+        match std::fs::copy(&file_path, &kept) {
+            Ok(bytes) => {
+                println!("Kept {bytes} bytes at {}", kept.display());
+                UploadOutcome {
+                    status: "accepted".into(),
+                    meeting_id: Some(id.to_owned()),
+                    message: None,
+                }
+            }
+            Err(e) => UploadOutcome {
+                status: "deferred".into(),
+                meeting_id: None,
+                message: Some(e.to_string()),
+            },
+        }
     }
 }
 

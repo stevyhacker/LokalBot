@@ -219,6 +219,7 @@ pub struct Settings {
     /// Days of history shared; 0 is all of it (the Mac's raw values: 0, 30, 90, 365).
     pub companion_history: u32,
     pub companion_answers_questions: bool,
+    pub companion_accepts_recordings: bool,
     pub companion_port: u16,
     pub companion_advertises_on_bonjour: bool,
 
@@ -417,6 +418,7 @@ impl Default for Settings {
             companion_share_projects: true,
             companion_history: 0,
             companion_answers_questions: true,
+            companion_accepts_recordings: true,
             companion_port: 17890,
             companion_advertises_on_bonjour: true,
             remote_transcription_base_url: String::new(),
@@ -1228,6 +1230,22 @@ mod tests {
         assert_eq!(back, Settings::default());
         assert!(json.contains("\"autoRecordMode\":\"Ask via notification\""));
         assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b\""));
+    }
+
+    #[test]
+    fn accepting_recordings_is_on_by_default_and_round_trips_with_the_mac_key() {
+        // A settings file from before the setting existed.
+        let older: Settings = serde_json::from_str("{}").unwrap();
+        assert!(older.companion_accepts_recordings);
+
+        let off = Settings {
+            companion_accepts_recordings: false,
+            ..Settings::default()
+        };
+        let json = serde_json::to_value(&off).unwrap();
+        assert_eq!(json["companionAcceptsRecordings"], false);
+        let back: Settings = serde_json::from_value(json).unwrap();
+        assert!(!back.companion_accepts_recordings);
     }
 
     #[test]

@@ -1672,6 +1672,10 @@
 "Last year" = "最近一年";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "绝不共享：参会者邮箱地址、说话人证据和声纹档案、屏幕截图和屏幕文字、邮件、个人上下文、夜间回顾记忆、设置和密钥。";
 "Answer questions from my devices" = "回答来自我设备的问题";
+"Recordings" = "录音";
+"Accept recordings from my devices" = "接受来自我设备的录音";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "已配对的设备可以将录制的会议发送到这台 Mac。这些录音会在这里成为会议，并像其他录音一样处理；之后设备会删除自己的副本。";
+"Recording from %@" = "来自 %@ 的录音";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "这台 Mac 会使用你的思考模型及其授权，根据你共享的会议和时间线来回答。绝不会为设备搜索屏幕记忆。";
 "Answers are written on this Mac." = "回答在这台 Mac 上生成。";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "来自你设备的问题及其所需的上下文会发送到你已授权的思考服务器（%@）。";

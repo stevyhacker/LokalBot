@@ -6,13 +6,15 @@ import UIKit
 /// The device's copy of the Mac's library, kept by the Rust sync core
 /// (Companion/protocol/ffi.md). Its calls block, so reads and local changes
 /// run on one serial queue and network calls (pairing, sync, Ask) on another,
-/// so a slow Mac never holds up the screens.
+/// so a slow Mac never holds up the screens. Uploads get a queue of their own,
+/// because sending a long recording mustn't hold up syncing or Ask.
 final class RustStore: CompanionStore, @unchecked Sendable {
     /// The name the Mac shows when it asks to allow this device.
     let deviceName: String
     private let client: SyncClient
     private let local = DispatchQueue(label: "me.dotenv.LokalBot.companion.store", qos: .userInitiated)
     private let network = DispatchQueue(label: "me.dotenv.LokalBot.companion.network", qos: .utility)
+    private let uploads = DispatchQueue(label: "me.dotenv.LokalBot.companion.uploads", qos: .utility)
 
     init(client: SyncClient, deviceName: String) {
         self.client = client
@@ -169,6 +171,53 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         try await read { Self.decodeAll(AskExchange.self, try $0.askHistory(limit: Self.limit(limit))) }
     }
 
+    // MARK: Recordings
+
+    private static func converted(_ info: RecordingInfo) -> RecordingItem {
+        RecordingItem(id: info.id, title: info.title, state: RecordingItem.State(rawValue: info.state) ?? .waiting,
+                      startedAt: CompanionJSON.parseInstant(info.startedAt) ?? Date(),
+                      durationSeconds: info.durationSeconds, byteCount: Int64(info.byteCount),
+                      sentBytes: Int64(info.sentBytes), message: info.message, filePath: info.filePath)
+    }
+
+    func beginRecording(title: String?) async throws -> RecordingItem {
+        try await read { Self.converted(try $0.beginRecording(title: title)) }
+    }
+
+    func finishRecording(id: String, durationSeconds: Double) async throws -> RecordingItem {
+        try await read { Self.converted(try $0.finishRecording(id: id, durationSeconds: durationSeconds)) }
+    }
+
+    func recoverRecordings() async throws {
+        _ = try await read { try $0.recoverRecordings() }
+    }
+
+    func discardRecording(id: String) async throws {
+        try await read { try $0.discardRecording(id: id) }
+    }
+
+    func setRecordingTitle(id: String, title: String) async throws {
+        try await read { try $0.setRecordingTitle(id: id, title: title) }
+    }
+
+    func retryRecording(id: String) async throws {
+        try await read { try $0.retryRecording(id: id) }
+    }
+
+    func recordings() async throws -> [RecordingItem] {
+        try await read { try $0.recordings().map(Self.converted) }
+    }
+
+    func uploadRecordings(extraAddresses: [String],
+                          onProgress: @escaping @Sendable (String, Int64, Int64) -> Void) async throws -> LokalBotCompanionKit.UploadReport {
+        let listener = ProgressListener(onProgress)
+        return try await run(on: uploads) { client in
+            let report = try client.uploadRecordings(extraAddresses: extraAddresses, listener: listener)
+            return LokalBotCompanionKit.UploadReport(uploaded: Int(report.uploaded), waiting: Int(report.waiting),
+                                                     failed: Int(report.failed))
+        }
+    }
+
     // MARK: Pairing and sync
 
     func pair(payload: String) async throws -> LokalBotCompanionKit.PairedMac {
@@ -217,6 +266,19 @@ final class RustStore: CompanionStore, @unchecked Sendable {
 
     func isSample() async -> Bool {
         (try? await read { try $0.isSample() }) ?? false
+    }
+}
+
+/// Forwards upload progress from the core.
+private final class ProgressListener: UploadListener, @unchecked Sendable {
+    private let handler: @Sendable (String, Int64, Int64) -> Void
+
+    init(_ handler: @escaping @Sendable (String, Int64, Int64) -> Void) {
+        self.handler = handler
+    }
+
+    func onProgress(recordingId: String, sentBytes: UInt64, totalBytes: UInt64) {
+        handler(recordingId, Int64(sentBytes), Int64(totalBytes))
     }
 }
 

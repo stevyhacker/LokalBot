@@ -1673,6 +1673,10 @@
 "Last year" = "12 derniers mois";
 "Never shared: attendee email addresses, speaker evidence and voice profiles, screenshots and screen text, email, Personal Context, overnight memory, settings, and keys." = "Jamais partagés : adresses e-mail des participants, éléments d’identification et profils vocaux des intervenants, captures et texte d’écran, e-mails, Contexte personnel, mémoire de l’analyse nocturne, réglages et clés.";
 "Answer questions from my devices" = "Répondre aux questions de mes appareils";
+"Recordings" = "Enregistrements";
+"Accept recordings from my devices" = "Accepter les enregistrements de mes appareils";
+"A paired device can send this Mac meetings it recorded. They become meetings here and are processed like any other recording; the device then deletes its copy." = "Un appareil jumelé peut envoyer à ce Mac les réunions qu’il a enregistrées. Elles deviennent ici des réunions et sont traitées comme tout autre enregistrement ; l’appareil supprime ensuite sa copie.";
+"Recording from %@" = "Enregistrement de %@";
 "This Mac answers with your Think model and its approvals, from the meetings and Timeline you share. Screen memory is never searched for a device." = "Ce Mac répond avec votre modèle de réflexion et ses approbations, à partir des réunions et de la chronologie que vous partagez. La mémoire d’écran n’est jamais consultée pour un appareil.";
 "Answers are written on this Mac." = "Les réponses sont rédigées sur ce Mac.";
 "Questions from your devices and the context they need go to your approved Think server (%@)." = "Les questions de vos appareils et le contexte nécessaire sont envoyés à votre serveur de réflexion approuvé (%@).";

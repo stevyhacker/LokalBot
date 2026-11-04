@@ -70,8 +70,8 @@ runner for within about 15 minutes, so rerun those.
 It leaves system settings and other apps alone; its header says what it needs.
 
 Local models vary from take to take. An Ask answer without a citation fails the take, and
-so does dictation that writes the window's title into the message, and both are filmed
-again. Check the notes on a contact sheet before cutting.
+so does dictation that writes the window's title or raw markdown into the message, and
+both are filmed again. Check the notes on a contact sheet before cutting.
 
 Hosted Macs vary too, by about 3x. The app gives a model request 10 minutes, which a slow
 Mac can miss, so a take that needs the model can go on several lines of `film/takes.txt`.

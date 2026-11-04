@@ -33,6 +33,127 @@ final class MeetingImportServiceTests: XCTestCase {
         try file.write(from: buffer)
     }
 
+    /// An ADTS AAC stream, the way the phone apps write recordings: the file
+    /// type follows the `.aac` extension.
+    private func writeADTS(to url: URL, seconds: Double, silentAfter: Double? = nil) throws {
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
+        let frames = AVAudioFrameCount(44_100 * seconds)
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames))
+        buffer.frameLength = frames
+        let samples = try XCTUnwrap(buffer.floatChannelData)[0]
+        var noise = SystemRandomNumberGenerator()
+        for index in 0..<Int(frames) {
+            if let silentAfter {
+                // Noise costs the encoder far more bytes than silence does.
+                samples[index] = Double(index) / 44_100 < silentAfter ? Float.random(in: -0.4...0.4, using: &noise) : 0
+            } else {
+                samples[index] = 0.2 * sinf(Float(index) * 2 * .pi * 220 / 44_100)
+            }
+        }
+        let file = try AVAudioFile(forWriting: url, settings: [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: 44_100,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderBitRateKey: 64_000,
+        ])
+        try file.write(from: buffer)
+    }
+
+    private func deviceOrigin(id: UUID = UUID(), startedAt: Date?) -> MeetingImportService.DeviceOrigin {
+        .init(id: id, title: "Site visit", startedAt: startedAt, deviceName: "Stevan's iPad")
+    }
+
+    func testDeviceRecordingBecomesAMicrophoneMeetingWithTheDevicesIdAndTime() async throws {
+        let storage = StorageManager(rootURL: try temporaryDirectory("DeviceLibrary"))
+        let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
+        try writeADTS(to: source, seconds: 2)
+        let bytes = try Data(contentsOf: source)
+        XCTAssertEqual(bytes[0], 0xFF, "ADTS frames start with a sync word")
+        XCTAssertEqual(bytes[1] & 0xF0, 0xF0, "ADTS frames start with a sync word")
+        let id = UUID()
+        let started = Date(timeIntervalSince1970: 1_780_000_000)
+
+        let meeting = try await MeetingImportService.importDeviceRecording(
+            from: source, origin: deviceOrigin(id: id, startedAt: started), storage: storage,
+            now: started.addingTimeInterval(3_600))
+
+        XCTAssertEqual(meeting.id, id)
+        XCTAssertEqual(meeting.title, "Site visit")
+        XCTAssertEqual(meeting.appName, "Stevan's iPad")
+        XCTAssertEqual(meeting.startedAt, started)
+        XCTAssertTrue(meeting.isImported, "the person wasn't at this Mac, so no screen context")
+        XCTAssertFalse(meeting.hasSystemTrack)
+        XCTAssertEqual(try XCTUnwrap(meeting.recordedDuration), 2, accuracy: 0.2)
+        let folder = meeting.folderURL(in: storage)
+        XCTAssertNotNil(MeetingAudioFiles.transcribableURL(for: .mic, in: folder))
+        XCTAssertNil(MeetingAudioFiles.transcribableURL(for: .system, in: folder))
+        XCTAssertEqual(try Data(contentsOf: source), bytes, "the host owns the file; it is only read")
+        let saved = try XCTUnwrap(storage.loadMeetings().first { $0.id == id })
+        XCTAssertEqual(saved.title, "Site visit")
+    }
+
+    func testRecordingCutOffByACrashStillImports() async throws {
+        let storage = StorageManager(rootURL: try temporaryDirectory("DeviceLibrary"))
+        let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
+        try writeADTS(to: source, seconds: 4)
+        // A killed recorder stops mid-frame.
+        let whole = try Data(contentsOf: source)
+        try whole.prefix(whole.count / 2 + 7).write(to: source)
+
+        let meeting = try await MeetingImportService.importDeviceRecording(
+            from: source, origin: deviceOrigin(startedAt: nil), storage: storage)
+
+        XCTAssertEqual(try XCTUnwrap(meeting.recordedDuration), 2, accuracy: 0.5)
+    }
+
+    func testARecordingThatStartsLoudAndGoesQuietImportsWhole() async throws {
+        let storage = StorageManager(rootURL: try temporaryDirectory("DeviceLibrary"))
+        let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
+        try writeADTS(to: source, seconds: 120, silentAfter: 5)
+
+        let meeting = try await MeetingImportService.importDeviceRecording(
+            from: source, origin: deviceOrigin(startedAt: nil), storage: storage)
+
+        // The phone deletes its copy after this, so all of it has to be here.
+        XCTAssertEqual(try XCTUnwrap(meeting.recordedDuration), 120, accuracy: 0.5)
+    }
+
+    func testADTSLengthComesFromCountingFrames() throws {
+        let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
+        try writeADTS(to: source, seconds: 30, silentAfter: 2)
+        XCTAssertEqual(try XCTUnwrap(MeetingImportService.adtsDuration(of: source)), 30, accuracy: 0.1)
+
+        let whole = try Data(contentsOf: source)
+        try whole.prefix(whole.count / 2 + 3).write(to: source)
+        XCTAssertLessThan(try XCTUnwrap(MeetingImportService.adtsDuration(of: source)), 30)
+
+        try Data("not a stream at all".utf8).write(to: source)
+        XCTAssertNil(MeetingImportService.adtsDuration(of: source))
+    }
+
+    func testALongTitleInAnyAlphabetStillMakesAFolder() async throws {
+        let storage = StorageManager(rootURL: try temporaryDirectory("DeviceLibrary"))
+        let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
+        try writeADTS(to: source, seconds: 2)
+        let title = String(repeating: "会議の記録", count: 40)
+        let meeting = try await MeetingImportService.importDeviceRecording(
+            from: source, origin: .init(id: UUID(), title: title, startedAt: nil, deviceName: "iPad"), storage: storage)
+        XCTAssertEqual(meeting.title, title)
+        XCTAssertLessThanOrEqual(meeting.folderURL(in: storage).lastPathComponent.utf8.count, 255)
+    }
+
+    func testDeviceRecordingWithAClockAheadStillEndsInThePast() async throws {
+        let storage = StorageManager(rootURL: try temporaryDirectory("DeviceLibrary"))
+        let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
+        try writeADTS(to: source, seconds: 2)
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+
+        let meeting = try await MeetingImportService.importDeviceRecording(
+            from: source, origin: deviceOrigin(startedAt: now.addingTimeInterval(600)), storage: storage, now: now)
+
+        XCTAssertLessThanOrEqual(try XCTUnwrap(meeting.endedAt), now.addingTimeInterval(0.001))
+    }
+
     func testImportedFileBecomesASystemTrackMeetingDatedFromTheFile() async throws {
         let storage = StorageManager(rootURL: try temporaryDirectory("ImportLibrary"))
         let source = try temporaryDirectory("ImportSource").appendingPathComponent("Design review.wav")

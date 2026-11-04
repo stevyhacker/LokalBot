@@ -2,7 +2,8 @@
 
 iPhone, iPad and Android apps that show what LokalBot on your Mac remembers:
 meetings, action items, the Timeline and Day Digests (including earlier days),
-People and Projects. They also send questions for your Mac to answer.
+People and Projects. They also send questions for your Mac to answer, and
+record meetings for it to process.
 
 The Mac stays the source of truth. A phone or tablet holds an end-to-end
 encrypted, allowlisted copy that it gets straight from the Mac over your
@@ -33,6 +34,13 @@ cloud in between. The plan and its decisions are in
 4. Questions asked on the phone are answered by the Mac's Ask agent with your
    engine and approvals. When the Mac can't be reached, the phone searches its
    own copy or queues the question.
+5. **Record** on the phone captures a meeting, carrying on with the screen
+   locked. The file goes to the Mac as soon as it's reachable, resuming if the
+   connection drops, and leaves the phone once the Mac has stored it. The Mac
+   makes a meeting of it and processes it like any other, and it comes back to
+   the phone with its transcript and summary. The audio is an ADTS AAC stream,
+   so a crash or a dead battery costs only the last moments; a recording cut
+   short goes to the Mac like any other at the next launch.
 
 ## Building
 
@@ -67,8 +75,35 @@ cargo run -p lokalbot-sync --example companion_host -- --name "Dev Mac"
 ```
 
 It prints the pairing link and a QR code, asks `y`/`n` when a device pairs
-(`--auto-approve` skips that), applies action changes and answers questions
-with a canned reply. Type `pair` for a new code, `devices`, `remove <id>`,
+(`--auto-approve` skips that), applies action changes, answers questions
+with a canned reply and keeps the recordings devices send in its `uploads/`
+folder. Type `pair` for a new code, `devices`, `remove <id>`,
 `publish` or `quit`. `--port`, `--dir` and `--loopback` are optional. Both apps
 also have **Try it without a computer**, which loads the same sample library on the
 device.
+
+## End-to-end tests
+
+`Companion/e2e/` runs each app against that development host, and CI runs each
+one when that app or the sync core changes. No desktop app or real phone is
+involved.
+
+- **Android** (`android_trip.py`) installs the shrunk release build on an emulator,
+  opens the QR scanner, pairs, syncs, opens every screen, asks a question and
+  records, including a recording cut off by a force-stop and one made while the
+  host is away. It pairs through the link, so no QR code gets decoded. The
+  emulator's microphone is silent, so it proves the recorder, its service and the
+  upload, not how speech sounds.
+- **iOS** (`ios_trip.py`) runs a Debug build in the Simulator: it pairs, syncs,
+  changes an action item and sends a fixture queued with `-demoQueueRecording`,
+  including one queued while the host is away. It never starts the recorder,
+  because the Simulator's microphone is the Mac's.
+
+The top of each script has the command to run it. When the Android test fails in
+CI, the job's reports hold a screenshot, the UI tree, logcat, the host's log and
+the R8 mapping that decodes a stack trace. iOS keeps a screenshot, the app's log
+and the host's log.
+
+Check these on a real phone before a store release, because the tests can't: real
+speech, recording with the screen locked, a phone call interrupting a recording,
+and a phone recording transcribed on each desktop app.

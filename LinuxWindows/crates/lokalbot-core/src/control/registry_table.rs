@@ -735,6 +735,15 @@ pub(super) fn table() -> Vec<SettingSpec> {
             "Answer questions from paired devices with the Think model and its existing approvals.",
         ),
         e(
+            "companionAcceptsRecordings",
+            Devices,
+            "Accept recordings from my devices",
+            Bool,
+            Consent,
+            "companion record recording phone audio upload",
+            "Make meetings from recordings sent by paired devices, processed like any recording on this computer.",
+        ),
+        e(
             "companionPort",
             Devices,
             "Port",
