@@ -1,0 +1,27 @@
+{
+  "clips": {
+    "search": {
+      "take": "search",
+      "segments": [["type:0-0.25", "key:0+0.0", 1.0], ["key:0", "selected+0.9", 1.0]],
+      "margin": 60,
+      "radius": 22,
+      "pointer": false,
+      "cuts": {
+        "wide": {"camera": [[0, 330, 256, 860], [2.2, 330, 256, 860], [3.4, 330, 300, 760], [8, 330, 300, 760]], "poster": 3.2},
+        "tall": {"camera": [[0, 300, 180, 480], [2.2, 300, 180, 480], [3.2, 300, 290, 520], [8, 300, 290, 520]], "poster": 3.2}
+      }
+    },
+    "autocomplete": {
+      "take": "autocomplete",
+      "segments": [["type:0-0.2", "type:1-0.3", 3.0], ["type:1-0.3", "type:2-0.2", 3.0], ["type:2-0.2", "typed+0.5", 1.0], ["ghost:0-0.25", "key:0", 1.0], ["key:0", "accepted:0+1.1", 1.0]],
+      "radius": 20,
+      "pointer": false,
+      "tap_events": [{"kind": "key", "key": "tab", "label": "Tab"}],
+      "keys": [["key:0-0.3", "key:5+0.3", "Tab"]],
+      "cuts": {
+        "wide": {"camera": [[0, 480, 300, 1016]], "poster": "accepted:0+0.5"},
+        "tall": {"camera": [[0, 300, 120, 500], ["typed", 430, 180, 480], ["key:0", 430, 180, 480], ["accepted:0", 250, 170, 480]], "poster": "accepted:0+0.5"}
+      }
+    }
+  }
+}

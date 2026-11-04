@@ -243,12 +243,13 @@ for take in "$@"; do
       echo "== live =="
       first=1
       for appearance in $APPEARANCES; do
-        launch_host "$appearance" "$WORK/studio" meeting LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/call" || continue
+        launch_host "$appearance" "$WORK/studio" meeting LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_UI_TEST_BACKGROUND=1 \
+          "LOKALBOT_UI_TEST_AUDIO=$WORK/call" "LOKALBOT_UI_TEST_TRACE=$HERE/call-trace.json" || continue
         status=0; rig_take "$appearance" live "$HERE/shots/live.json" || status=$?
         [[ $status -eq 0 ]] || failed+=("live/$appearance")
         if [[ $first == 1 ]]; then
           echo "waiting for the recorded call's notes"
-          if folder=$(python3 "$HERE/stage.py" wait-notes "$LAST_RUN" "${NOTES_TIMEOUT:-1500}"); then
+          if folder=$(python3 "$HERE/stage.py" wait-notes "$LAST_RUN" "$WORK/studio" "${NOTES_TIMEOUT:-1500}"); then
             python3 "$HERE/stage.py" polish "$folder"
             cp -R "$folder" "$OUT/recorded/"
             sleep 3
@@ -275,26 +276,28 @@ for take in "$@"; do
     dictation)
       echo "== dictation =="
       for appearance in $APPEARANCES; do
-        launch_host "$appearance" "$WORK/pricing" dictation LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/spoken" || continue
-        sleep 10
-        doc="$WORK/Team update.txt"; : > "$doc"
-        textedit=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSize 30 -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO
-                  -SmartQuotes NO -SmartDashes NO -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
-        [[ $appearance == dark ]] && textedit+=(-AppleInterfaceStyle Dark)
-        pkill -x TextEdit 2>/dev/null || true; sleep 0.5
-        open -a TextEdit "$doc" --args "${textedit[@]}"
-        sleep 2
-        status=0; rig_take "$appearance" dictation "$HERE/shots/dictation.json" || status=$?
-        [[ $status -eq 0 ]] || failed+=("dictation/$appearance")
-        pkill -x TextEdit 2>/dev/null || true
-        keep_logs "dictation-$appearance"
-        quit_host
+        for take in dictation dictation-tall; do
+          launch_host "$appearance" "$WORK/pricing" dictation LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/spoken" || continue
+          sleep 10
+          doc="$WORK/Team update.txt"; : > "$doc"
+          textedit=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSize 38 -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO
+                    -SmartQuotes NO -SmartDashes NO -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
+          [[ $appearance == dark ]] && textedit+=(-AppleInterfaceStyle Dark)
+          pkill -x TextEdit 2>/dev/null || true; sleep 0.5
+          open -a TextEdit "$doc" --args "${textedit[@]}"
+          sleep 2
+          status=0; rig_take "$appearance" "$take" "$HERE/shots/$take.json" || status=$?
+          [[ $status -eq 0 ]] || failed+=("$take/$appearance")
+          pkill -x TextEdit 2>/dev/null || true
+          keep_logs "$take-$appearance"
+          quit_host
+        done
       done
       ;;
     files)
       echo "== files =="
       for appearance in $APPEARANCES; do
-        library="$WORK/studio"
+        library="$WORK/pricing"
         [[ -d "$WORK/indexed" ]] && library="$WORK/indexed"
         launch_debug "$appearance" "$library" files || { failed+=("files/$appearance"); continue; }
         if [[ ! -d "$WORK/indexed" ]]; then
@@ -320,13 +323,16 @@ for take in "$@"; do
     autocomplete)
       echo "== autocomplete =="
       status=0
-      APPEARANCES="$APPEARANCES" SHOTS="$HERE/shots-autocomplete" FONT_SIZE=34 \
+      APPEARANCES="$APPEARANCES" SHOTS="$HERE/shots-autocomplete" FONT_SIZE=38 \
         BACKGROUND_LIGHT="$(background light)" BACKGROUND_DARK="$(background dark)" \
         LOKALBOT_APP="${LOKALBOT_APP:?set LOKALBOT_APP to a Debug LokalBot.app}" \
-        bash "$ROOT/Scripts/autocomplete-demo/film.sh" "$OUT/autocomplete" memory || status=$?
+        bash "$ROOT/Scripts/autocomplete-demo/film.sh" "$OUT/autocomplete" memory memory-tall || status=$?
       for appearance in $APPEARANCES; do
-        cp "$OUT/autocomplete/clips/$appearance-memory.mp4" "$OUT/clips/$appearance-autocomplete.mp4" 2>/dev/null || status=1
-        cp "$OUT/autocomplete/clips/$appearance-memory.json" "$OUT/clips/$appearance-autocomplete.json" 2>/dev/null || status=1
+        for take in memory memory-tall; do
+          name=autocomplete${take#memory}
+          cp "$OUT/autocomplete/clips/$appearance-$take.mp4" "$OUT/clips/$appearance-$name.mp4" 2>/dev/null || status=1
+          cp "$OUT/autocomplete/clips/$appearance-$take.json" "$OUT/clips/$appearance-$name.json" 2>/dev/null || status=1
+        done
       done
       [[ $status -eq 0 ]] || failed+=("autocomplete")
       ;;

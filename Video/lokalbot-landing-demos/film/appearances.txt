@@ -1,1 +1,1 @@
-light
+light dark

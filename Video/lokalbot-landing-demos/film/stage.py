@@ -6,7 +6,7 @@
     stage.py settings <suite> <profile>           write the throwaway settings suite for a take
     stage.py audio <dir> <call|dictation>         write mic.wav (and system.wav) that stand in for a microphone and a call
     stage.py files <dir>                          write the folder the Files take searches
-    stage.py wait-notes <library> <seconds>       wait for a recorded meeting's notes, print its folder
+    stage.py wait-notes <library> <seeded-library> <seconds>   wait for a recorded meeting's notes, print its folder
     stage.py polish <meeting-folder>              name the other speaker in a recorded meeting
     stage.py timezone                             print a zone where it is early afternoon now
 
@@ -60,7 +60,13 @@ BASE = {
 }
 PROFILES = {
     "fixture": {},
-    "meeting": {},
+    # A detected call, so the recording binds the call's audio as well as the
+    # microphone. Ask via notification is the app's default.
+    "meeting": {
+        "autoRecordMode": "Ask via notification",
+        "trackingEnabled": True,
+        "screenContextCaptureMode": "Text context",
+    },
     "ask": {},
     "dictation": {
         "dictationEnabled": True,
@@ -86,13 +92,15 @@ PROFILES = {
 }
 
 CALL = [
-    (0.0, "me", "Okay, let's lock the spring campaign. Are we shooting the video in Lisbon or in the studio?"),
-    (6.5, "them", "The studio. It's half the budget, and we keep the whole crew."),
-    (11.5, "me", "Agreed. The studio it is. Can you book it for the twelfth?"),
-    (16.5, "them", "I'll book it today, and I'll send the shot list by Friday."),
-    (21.5, "me", "Great. I'll get the final script to the client by Wednesday."),
-    (26.5, "them", "One open question. Do we need a second camera for the interviews?"),
+    ("me", "Okay, let's lock the spring campaign. Are we shooting the video in Lisbon or in the studio?"),
+    ("them", "The studio. It's half the budget, and we keep the whole crew."),
+    ("me", "Agreed. The studio it is. Can you book it for the twelfth?"),
+    ("them", "Yes. I'll book it today, and I'll send the shot list to the crew by Friday."),
+    ("me", "Great. I'll get the final script to the client by Wednesday."),
+    ("them", "One open question. Do we need a second camera for the interviews?"),
+    ("me", "Let's decide that after the test shoot on Monday."),
 ]
+VOICES = {"me": "Samantha", "them": "Daniel"}
 DICTATION = "Write a short team update with the launch pricing."
 LEASE_PAGES = [
     "HARBOR STREET STUDIO LEASE\n\nThis lease is between Harbor Street Properties and Northwind Studio.\nThe term runs for twenty-four months from the first of March.\n\n1. Premises\nThe second floor of 18 Harbor Street, including the loading bay.",
@@ -219,24 +227,25 @@ def write_wav(path, samples):
         writer.writeframes(bytes(samples))
 
 
-def track(lines, who, voice, length):
-    samples = bytearray(int(length * RATE) * 2)
-    for start, speaker, text in lines:
-        if speaker != who:
-            continue
-        speech = say(text, voice)
-        offset = int(start * RATE) * 2
-        samples[offset:offset + len(speech)] = speech
-    return samples
+def conversation(lines, gap=0.5, tail=8.0):
+    """One sample buffer per speaker, each line starting after the one before it ends."""
+    spoken = [(who, say(text, VOICES[who])) for who, text in lines]
+    length = sum(len(speech) for _, speech in spoken) + (int(gap * RATE) * 2) * len(spoken) + int(tail * RATE) * 2
+    tracks = {who: bytearray(length) for who in VOICES}
+    offset = 0
+    for who, speech in spoken:
+        tracks[who][offset:offset + len(speech)] = speech
+        offset += len(speech) + int(gap * RATE) * 2
+    return tracks
 
 
 def audio(directory, kind):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     if kind == "call":
-        length = CALL[-1][0] + 8
-        write_wav(directory / "mic.wav", track(CALL, "me", "Samantha", length))
-        write_wav(directory / "system.wav", track(CALL, "them", "Daniel", length))
+        tracks = conversation(CALL)
+        write_wav(directory / "mic.wav", tracks["me"])
+        write_wav(directory / "system.wav", tracks["them"])
     else:
         write_wav(directory / "mic.wav", bytes(int(0.5 * RATE) * 2) + say(DICTATION, "Samantha") + bytes(int(3 * RATE) * 2))
     print(directory)
@@ -261,15 +270,17 @@ def files(directory):
     print(directory)
 
 
-def wait_notes(library_root, seconds):
+def wait_notes(library_root, seeded_root, seconds):
     deadline = time.time() + float(seconds)
-    root = Path(library_root)
+    root, seeded = Path(library_root), Path(seeded_root)
+    known = {m.parent.relative_to(seeded) for m in seeded.rglob("meta.json")}
     before = None
     while time.time() < deadline:
-        folders = [m.parent for m in root.rglob("meta.json") if "demo" not in m.parent.name and is_new(m)]
+        folders = [m.parent for m in root.rglob("meta.json") if m.parent.relative_to(root) not in known]
         for folder in folders:
             summary = folder / "summary.md"
             if summary.exists() and summary.stat().st_size > 40 and (folder / "transcript.json").exists():
+                time.sleep(20)  # the pipeline writes its last files after the summary
                 print(folder)
                 return
         state = [(f.name, sorted(p.name for p in f.iterdir())) for f in folders]
@@ -280,14 +291,6 @@ def wait_notes(library_root, seconds):
     raise SystemExit(f"no notes within {seconds}s")
 
 
-def is_new(meta):
-    """A meeting the take recorded, not one the seed wrote."""
-    try:
-        return "recording" in meta.parent.name or json.loads(meta.read_text()).get("appName") in (None, "", "Manual")
-    except (OSError, ValueError):
-        return False
-
-
 def polish(folder):
     path = Path(folder) / "transcript.json"
     data = json.loads(path.read_text())
@@ -295,8 +298,7 @@ def polish(folder):
     path.write_text(json.dumps(data, indent=2))
     meta_path = Path(folder) / "meta.json"
     meta = json.loads(meta_path.read_text())
-    if meta.get("title") in (None, "", "Manual recording"):
-        meta["title"] = "Spring campaign"
+    meta["title"] = "Spring campaign"
     meta_path.write_text(json.dumps(meta, indent=2))
     print(folder)
 

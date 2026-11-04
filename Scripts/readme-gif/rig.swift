@@ -97,6 +97,7 @@ struct Shot: Decodable {
     var also: [String]?               // bundle ids whose windows are captured too, e.g. an overlay
     var title: String?                // capture the window whose title contains this; default: the widest
     var cursor: Bool?                 // false leaves the pointer out of the recording; default true
+    var ownInput: Bool?               // the app posts input itself, such as a paste; don't read it as a person's
 }
 
 func loadShot(_ path: String) -> Shot {
@@ -295,8 +296,12 @@ func hidIdle() -> Double { CGEventSource.secondsSinceLastEventType(.hidSystemSta
 /// When this tool last posted an event.
 var lastPost = Date.distantPast
 
+/// False while filming an app that posts input itself.
+nonisolated(unsafe) var guardsInput = true
+
 /// True when input arrived after `start` that this tool did not post.
 func touchedSince(_ start: Date) -> Bool {
+    guard guardsInput else { return false }
     let quiet = min(Date().timeIntervalSince(start), Date().timeIntervalSince(lastPost))
     return hidIdle() + 0.05 < quiet
 }
@@ -763,6 +768,7 @@ func firstFrame(_ capture: Capture) -> Bool { capture.started.wait(timeout: .now
 
 func take(_ shot: Shot, out: URL) async {
     overlayBundles = shot.also ?? []
+    guardsInput = shot.ownInput != true
     waitForHumanIdle(shot.idle ?? 4)
     let (subject, display) = prepare(shot)
     var log: [[String: Any]] = []
