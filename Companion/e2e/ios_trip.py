@@ -14,6 +14,9 @@ Keychain refuses an app with no entitlements and pairing needs it:
         --host LinuxWindows/target/debug/examples/companion_host \
         --clip LinuxWindows/crates/lokalbot-audio/tests/data/tone-440-adts.aac \
         --out /tmp/ios-e2e
+
+A cold Simulator can take minutes to boot, so CI runs this with --boot beside its
+builds. The test waits for a boot that's still going.
 """
 
 import argparse
@@ -64,8 +67,12 @@ class Simulator:
         self.bundle_id = info["CFBundleIdentifier"]
         self.executable = info["CFBundleExecutable"]
 
+    @staticmethod
+    def boot_device(udid):
+        simctl("bootstatus", udid, "-b", timeout=600)
+
     def boot(self):
-        simctl("bootstatus", self.udid, "-b", timeout=600)
+        self.boot_device(self.udid)
 
     def install(self):
         simctl("uninstall", self.udid, self.bundle_id, check_result=False)
@@ -194,11 +201,18 @@ def assert_no_crashes(executable, since):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--app", type=Path, required=True)
-    parser.add_argument("--host", type=Path, required=True)
-    parser.add_argument("--clip", type=Path, required=True)
-    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--boot", action="store_true", help="only boot the Simulator the test will use")
+    parser.add_argument("--app", type=Path)
+    parser.add_argument("--host", type=Path)
+    parser.add_argument("--clip", type=Path)
+    parser.add_argument("--out", type=Path)
     args = parser.parse_args()
+
+    if args.boot:
+        Simulator.boot_device(newest_iphone()["udid"])
+        return 0
+    if not (args.app and args.host and args.clip and args.out):
+        parser.error("the test needs --app, --host, --clip and --out")
 
     shutil.rmtree(args.out, ignore_errors=True)
     args.out.mkdir(parents=True)

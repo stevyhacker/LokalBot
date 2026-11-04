@@ -58,6 +58,13 @@ jobs:
         with:
           xcode-version: "26.4.1"
 
+      # A cold Simulator took about 5 minutes to boot, so it boots beside the
+      # builds. The end-to-end test waits for it and reports any failure.
+      - name: Boot the Simulator
+        background: true
+        continue-on-error: true
+        run: python3 Companion/e2e/ios_trip.py --boot
+
       - name: Toolchain info
         run: |
           xcodebuild -version
