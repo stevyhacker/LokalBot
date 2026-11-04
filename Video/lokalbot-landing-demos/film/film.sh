@@ -364,32 +364,31 @@ for take in "$@"; do
       ;;
     projects)
       echo "== projects =="
-      # The notes are the model's own. The page writes one for the project it opens on, so
-      # each project takes a turn at the top of the list, and the takes film what it wrote.
+      # The take tracks a suggestion, and the model writes its note in the take. The page opens
+      # on the first tracked project and writes that project's note if it has none, so that
+      # one is written first, and nothing else is using the model during the take.
       library="$WORK/noted"
       rm -rf "$library"
       cp -cR "$WORK/studio" "$library" 2>/dev/null || cp -R "$WORK/studio" "$library"
-      for project in "Holiday shoot" Northwind; do
-        python3 "$HERE/stage.py" track "$library" "$project" || exit 1
-        status=1
-        for attempt in 1 2; do
-          launch_host "${APPEARANCES%% *}" "$library" ask LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1 || continue
-          python3 "$HERE/stage.py" wait-note "$LAST_RUN" "$project" "${NOTE_TIMEOUT:-2700}" | tee -a "$OUT/logs/project-notes.txt"
-          status=${PIPESTATUS[0]}
-          sleep 2
-          keep_logs "projects-note"
-          quit_host
-          [[ $status -eq 0 ]] && break
-          echo "the note on $project, attempt $attempt failed"
-        done
-        if [[ $status -eq 0 ]]; then
-          rm -rf "$library"
-          cp -cR "$LAST_RUN" "$library" 2>/dev/null || cp -R "$LAST_RUN" "$library"
-        else
-          failed+=("projects-note/$project")
-        fi
+      python3 "$HERE/stage.py" track "$library" || exit 1
+      status=1
+      for attempt in 1 2; do
+        launch_host "${APPEARANCES%% *}" "$library" ask LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1 || continue
+        python3 "$HERE/stage.py" wait-note "$LAST_RUN" "Holiday shoot" "${NOTE_TIMEOUT:-2700}" | tee -a "$OUT/logs/project-notes.txt"
+        status=${PIPESTATUS[0]}
+        sleep 2
+        keep_logs "projects-note"
+        quit_host
+        [[ $status -eq 0 ]] && break
+        echo "the first note, attempt $attempt failed"
       done
-      film_seeded projects "$library" LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1
+      if [[ $status -eq 0 ]]; then
+        rm -rf "$library"
+        cp -cR "$LAST_RUN" "$library" 2>/dev/null || cp -R "$LAST_RUN" "$library"
+        film_seeded projects "$library" LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1
+      else
+        failed+=("projects-note")
+      fi
       ;;
     files)
       echo "== files =="

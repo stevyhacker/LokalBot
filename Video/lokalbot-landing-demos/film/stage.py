@@ -8,7 +8,7 @@
     stage.py files <dir>                          write the folder the Files take searches
     stage.py wait-notes <library> <seeded-library> <seconds>   wait for a recorded meeting's notes, print its folder
     stage.py polish <meeting-folder>              title a recorded meeting, as a person would afterwards
-    stage.py track <library> <project>            track the projects, with <project> first
+    stage.py track <library>                      track the projects the Projects take opens with
     stage.py wait-note <library> <project> <seconds>   wait for the model's note on a tracked project, print it
     stage.py timezone                             print a zone where it is early afternoon now
 
@@ -99,12 +99,14 @@ PROFILES = {
 }
 
 # Tracked projects and their other names. Meetings join a project by these words.
+# Northwind stays out of the list for the take to track it from the suggestions.
 PROJECTS = {
-    "Northwind": [],
     "Holiday shoot": ["holiday"],
     "Mac refresh": [],
     "Brand refresh": [],
 }
+# "SSD" comes up in enough meetings to be suggested, but it's a drive, not a project.
+HIDDEN_SUGGESTIONS = ["ssd"]
 CALL = [
     ("me", "Okay, let's lock the spring campaign. Are we shooting the video on location or in the studio?"),
     ("them", "The studio. It's half the budget, and we keep the whole crew."),
@@ -330,14 +332,14 @@ def project_id(name):
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"https://www.lokalbot.com/film/{name}")).upper()
 
 
-def track(library_root, first):
-    """The Projects page opens on the first project and writes its note."""
+def track(library_root):
     folder = Path(library_root) / "projects"
     folder.mkdir(parents=True, exist_ok=True)
     created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    tracked = [{"id": project_id(name), "name": name, "otherNames": PROJECTS[name], "createdAt": created}
-               for name in [first, *(name for name in PROJECTS if name != first)]]
-    (folder / "tracked.json").write_text(json.dumps({"version": 1, "tracked": tracked, "hiddenNames": []}, indent=2))
+    tracked = [{"id": project_id(name), "name": name, "otherNames": others, "createdAt": created}
+               for name, others in PROJECTS.items()]
+    curation = {"version": 1, "tracked": tracked, "hiddenNames": HIDDEN_SUGGESTIONS}
+    (folder / "tracked.json").write_text(json.dumps(curation, indent=2))
 
 
 def wait_note(library_root, name, seconds):
