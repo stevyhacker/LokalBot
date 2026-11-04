@@ -67,13 +67,15 @@ jobs:
           command -v cmake >/dev/null || brew install cmake
       - name: Create vendor dirs for XcodeGen
         run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
-      - name: Generate project
-        run: xcodegen generate
       - name: Cache native vendors
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: Vendor
           key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+      - name: Build lokalbot-sync
+        uses: ./.github/actions/lokalbot-sync
+      - name: Generate project
+        run: xcodegen generate
       - name: Fetch llama.cpp vendor
         run: bash Scripts/fetch-llama.sh
       - name: Cache Swift packages
