@@ -18,6 +18,7 @@ on:
       - ".github/workflows/landing-demos.yml"
       - "Video/lokalbot-landing-demos/film/**"
       - "Scripts/readme-gif/rig.swift"
+      - "Scripts/autocomplete-demo/**"
 
 concurrency:
   group: landing-demos-${{ github.ref }}

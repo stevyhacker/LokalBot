@@ -25,10 +25,13 @@ def main():
         raise SystemExit(f"{take}: no frames")
     listing = take / "frames.ffconcat"
     lines = ["ffconcat version 1.0"]
-    for i, (index, at) in enumerate(frames):
-        until = frames[i + 1][1] if i + 1 < len(frames) else max(meta["end"], at + 1 / 30)
+    # Whole microseconds, each from the last: rounded durations add up, and over a
+    # long take of steady frames the video drifted seconds from its events.
+    stamps = [round(at * 1_000_000) for _, at in frames]
+    stamps.append(round(max(meta["end"], frames[-1][1] + 1 / 30) * 1_000_000))
+    for i, (index, _) in enumerate(frames):
         lines.append(f"file 'frames/{int(index):05d}.png'")
-        lines.append(f"duration {max(until - at, 0.001):.4f}")
+        lines.append(f"duration {max(stamps[i + 1] - stamps[i], 1000) / 1_000_000:.6f}")
     # The concat demuxer needs the last file twice for its duration to count.
     lines.append(f"file 'frames/{int(frames[-1][0]):05d}.png'")
     listing.write_text("\n".join(lines) + "\n")
