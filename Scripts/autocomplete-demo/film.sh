@@ -4,9 +4,8 @@
 #
 #   LOKALBOT_APP=<Debug LokalBot.app> Scripts/autocomplete-demo/film.sh <out-dir> [take...]
 #
-# Takes are Scripts/autocomplete-demo/shots/*.json (default: all but warmup;
-# SHOTS names another folder, which needs its own warmup.json), filmed once
-# per appearance (APPEARANCES, default "light"). Each take is
+# Takes are Scripts/autocomplete-demo/shots/*.json (default: all but warmup),
+# filmed once per appearance (APPEARANCES, default "light"). Each take is
 # typed by Scripts/readme-gif/rig.swift with real key events and recorded at
 # 30 fps with ScreenCaptureKit: TextEdit's window plus LokalBot's suggestion
 # panel, which the Debug build shows to capture with --lokalbot-film-ghost.
@@ -36,7 +35,6 @@ shift
 if [[ $# -eq 0 ]]; then set -- memory midword email german french spanish; fi
 APPEARANCES=${APPEARANCES:-light}
 ATTEMPTS=${ATTEMPTS:-3}
-SHOTS=$(cd "${SHOTS:-$HERE/shots}" && pwd)
 WORK=$(cd "$(mktemp -d "${RUNNER_TEMP:-/tmp}/autocomplete-demo.XXXXXX")" && pwd -P)
 LIB="$WORK/library"
 DOCS="$WORK/docs"
@@ -95,12 +93,11 @@ TEXTEDIT_ARGS=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSiz
                -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO -SmartQuotes NO -SmartDashes NO
                -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
 
-background() { [[ $1 == dark ]] && echo "${BACKGROUND_DARK:-#1E1E1E}" || echo "${BACKGROUND_LIGHT:-#FFFFFF}"; }
+background() { [[ $1 == dark ]] && echo "#1E1E1E" || echo "#FFFFFF"; }
 
 launch_app() {  # launch_app <appearance>
   stop_app
   if [[ $1 == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
-  "$RIG" appearance "$1" || true
   local args=(--lokalbot-storage-root "$LIB" --lokalbot-defaults-suite "$SUITE" --lokalbot-film-ghost
               -ApplePersistenceIgnoreState YES -AppleLanguages "(en)" -AppleLocale en_US)
   if [[ $LAUNCH == open ]]; then
@@ -116,7 +113,7 @@ launch_app() {  # launch_app <appearance>
 
 # film <appearance> <take> <dest>: one attempt; the rig's exit code
 film() {
-  local shot="$SHOTS/$2.json" doc status=0
+  local shot="$HERE/shots/$2.json" doc status=0
   pkill -x TextEdit 2>/dev/null || true
   sleep 0.5
   rm -rf "$3"

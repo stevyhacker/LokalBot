@@ -6,10 +6,10 @@ set -eu
 REPO_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 PROJECT_DIR="$REPO_ROOT/Video/lokalbot-promo"
 MASTER="$PROJECT_DIR/renders/video.mp4"
-FINAL_TMP="$REPO_ROOT/.build/hero-demo/hero-demo.production.mp4"
-FINAL="$REPO_ROOT/.build/hero-demo/hero-demo.mp4"
-POSTER_TMP="$REPO_ROOT/.build/hero-demo/hero-poster.production.jpg"
-POSTER="$REPO_ROOT/.build/hero-demo/hero-poster.jpg"
+FINAL_TMP="$REPO_ROOT/web/assets/hero-demo.production.mp4"
+FINAL="$REPO_ROOT/web/assets/hero-demo.mp4"
+POSTER_TMP="$REPO_ROOT/web/assets/hero-poster.production.jpg"
+POSTER="$REPO_ROOT/web/assets/hero-poster.jpg"
 MODE=${1:-}
 
 case "$MODE" in
@@ -38,7 +38,7 @@ if [ -z "$HYPERFRAMES_VERSION" ]; then
   exit 1
 fi
 
-mkdir -p "$PROJECT_DIR/renders" "$REPO_ROOT/.build/hero-demo"
+mkdir -p "$PROJECT_DIR/renders" "$REPO_ROOT/web/assets"
 
 if [ "$MODE" != "--postprocess-only" ]; then
   for asset in \
@@ -168,23 +168,23 @@ write_manifest() {
   mv "$temp" "$manifest"
 }
 
-write_manifest "$FINAL" "$REPO_ROOT/.build/hero-demo/hero-demo.manifest.json"
+write_manifest "$FINAL" "$REPO_ROOT/web/assets/hero-demo.manifest.json"
 
 # Keep the previous public aliases aligned with the canonical website cut.
 for alias in hero-demo-short feature-demo; do
-  alias_tmp="$REPO_ROOT/.build/hero-demo/$alias.production.mp4"
-  alias_final="$REPO_ROOT/.build/hero-demo/$alias.mp4"
+  alias_tmp="$REPO_ROOT/web/assets/$alias.production.mp4"
+  alias_final="$REPO_ROOT/web/assets/$alias.mp4"
   cp "$FINAL" "$alias_tmp"
   mv "$alias_tmp" "$alias_final"
 done
 
-cp "$POSTER" "$REPO_ROOT/.build/hero-demo/hero-poster-short.production.jpg"
-mv "$REPO_ROOT/.build/hero-demo/hero-poster-short.production.jpg" \
-  "$REPO_ROOT/.build/hero-demo/hero-poster-short.jpg"
-write_manifest "$REPO_ROOT/.build/hero-demo/hero-demo-short.mp4" \
-  "$REPO_ROOT/.build/hero-demo/hero-demo-short.manifest.json"
+cp "$POSTER" "$REPO_ROOT/web/assets/hero-poster-short.production.jpg"
+mv "$REPO_ROOT/web/assets/hero-poster-short.production.jpg" \
+  "$REPO_ROOT/web/assets/hero-poster-short.jpg"
+write_manifest "$REPO_ROOT/web/assets/hero-demo-short.mp4" \
+  "$REPO_ROOT/web/assets/hero-demo-short.manifest.json"
 
 echo "Rendered  $FINAL"
 echo "Poster    $POSTER"
-echo "Manifest  $REPO_ROOT/.build/hero-demo/hero-demo.manifest.json"
-echo "Aliases   .build/hero-demo/hero-demo-short.mp4, .build/hero-demo/feature-demo.mp4"
+echo "Manifest  $REPO_ROOT/web/assets/hero-demo.manifest.json"
+echo "Aliases   web/assets/hero-demo-short.mp4, web/assets/feature-demo.mp4"

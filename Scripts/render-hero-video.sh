@@ -8,10 +8,10 @@ VENV_DIR="$PROJECT_DIR/.venv"
 HYPERFRAMES_VERSION="0.7.42"
 NARRATION_PROVIDER=${NARRATION_PROVIDER:-elevenlabs}
 MASTER="$PROJECT_DIR/renders/lokalbot-hero-demo-master.mp4"
-FINAL_TMP="$REPO_ROOT/.build/hero-demo/hero-demo-long.production.mp4"
-FINAL="$REPO_ROOT/.build/hero-demo/hero-demo-long.mp4"
-POSTER="$REPO_ROOT/.build/hero-demo/hero-poster-long.jpg"
-MANIFEST="$REPO_ROOT/.build/hero-demo/hero-demo-long.manifest.json"
+FINAL_TMP="$REPO_ROOT/web/assets/hero-demo-long.production.mp4"
+FINAL="$REPO_ROOT/web/assets/hero-demo-long.mp4"
+POSTER="$REPO_ROOT/web/assets/hero-poster-long.jpg"
+MANIFEST="$REPO_ROOT/web/assets/hero-demo-long.manifest.json"
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "error: uv is required to prepare the local narration environment" >&2
@@ -23,7 +23,7 @@ if [ ! -x "$VENV_DIR/bin/python" ]; then
 fi
 uv pip install --python "$VENV_DIR/bin/python" kokoro-onnx soundfile
 
-mkdir -p "$PROJECT_DIR/assets" "$PROJECT_DIR/renders" "$REPO_ROOT/.build/hero-demo"
+mkdir -p "$PROJECT_DIR/assets" "$PROJECT_DIR/renders"
 if [ ! -f "$PROJECT_DIR/assets/narration.wav" ] || [ "$PROJECT_DIR/script.txt" -nt "$PROJECT_DIR/assets/narration.wav" ]; then
   case "$NARRATION_PROVIDER" in
     elevenlabs)
