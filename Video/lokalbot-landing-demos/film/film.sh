@@ -9,14 +9,16 @@
 #
 # Takes (shots/*.json):
 #   search today timeline people notes stills   the host on seeded data
-#   live ask dictation files                    the host's background mode: real pipelines
+#   live ask dictation                          the host's background mode: real pipelines
 #                                               and local models, with WAV files for the
 #                                               microphone and the call's system audio
+#   files                                       the Debug app, which reads the chosen folders; the host never does
 #   autocomplete                                the Debug app in TextEdit (Scripts/autocomplete-demo/film.sh)
 #
 # Writes <out>/clips/<appearance>-<take>.mp4 (30 fps, 4:4:4) with <take>.json (rect,
-# scale, events, pointer path), <out>/probes/ (the accessibility tree and a frame at
-# each `mark`), <out>/stills/ and <out>/logs/. A take that fails is reported and skipped.
+# scale, events, pointer path), <out>/stills/ and <out>/logs/; with PROBE=1 also
+# <out>/trees/<take>/ (the accessibility tree at each `mark`). A take that fails is
+# reported and skipped.
 #
 # CI only: it grants the rig's TCC permissions with sudo.
 set -uo pipefail
@@ -26,6 +28,8 @@ ROOT=$(cd "$HERE/../../.." && pwd)
 HOST_APP=$(cd "${UI_HOST_APP:?set UI_HOST_APP to a built LokalBot UI Test Host.app}" && pwd)
 HOST_BIN="$HOST_APP/Contents/MacOS/"
 HOST_ID=me.dotenv.LokalBot.uitesthost
+DEBUG_APP=${LOKALBOT_APP:-}
+DEBUG_BIN=${DEBUG_APP:+$DEBUG_APP/Contents/MacOS/LokalBot}
 OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
 if [[ $# -eq 0 ]]; then set -- search today timeline people notes stills live ask dictation files autocomplete; fi
@@ -34,7 +38,7 @@ PROBE=${PROBE:-0}
 WORK=$(cd "$(mktemp -d "${RUNNER_TEMP:-/tmp}/landing-film.XXXXXX")" && pwd -P)
 RIG="$WORK/rig"
 DISPLAY_SIZE=${DISPLAY_SIZE:-1400x1000}
-mkdir -p "$OUT/logs" "$OUT/clips" "$OUT/takes" "$OUT/probes" "$OUT/stills" "$OUT/recorded"
+mkdir -p "$OUT/logs" "$OUT/clips" "$OUT/takes" "$OUT/trees" "$OUT/stills" "$OUT/recorded"
 export FILM_FILES="$WORK/files"
 
 quit_host() {
@@ -44,8 +48,17 @@ quit_host() {
   pkill -f llama-server 2>/dev/null || true
   sleep 0.5
 }
+quit_debug() {
+  [[ -n "$DEBUG_BIN" ]] || return 0
+  pkill -f "$DEBUG_BIN" 2>/dev/null || true
+  for _ in $(seq 40); do pgrep -f "$DEBUG_BIN" >/dev/null || break; sleep 0.25; done
+  pkill -9 -f "$DEBUG_BIN" 2>/dev/null || true
+  pkill -f llama-server 2>/dev/null || true
+  sleep 0.5
+}
 cleanup() {
   quit_host
+  quit_debug
   for suite in "$WORK"/suite.*; do
     [[ -e "$suite" ]] && defaults delete "${suite##*/suite.}" >/dev/null 2>&1 || true
   done
@@ -70,12 +83,17 @@ grant() {  # grant <client> <client_type: 0 bundle id, 1 path>
 }
 grant "$RIG" 1
 grant "$HOST_ID" 0
-grant "$HOST_BIN/LokalBot UI Test Host" 1
+grant "${HOST_BIN}LokalBot UI Test Host" 1
+if [[ -n "$DEBUG_BIN" ]]; then
+  grant me.dotenv.LokalBot 0
+  grant "$DEBUG_BIN" 1
+fi
 
 echo "== text defaults =="
 defaults write -g NSAutomaticInlinePredictionEnabled -bool false
 defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false
 defaults write -g NSAutomaticTextCompletionEnabled -bool false
+defaults write -g AppleShowScrollBars -string WhenScrolling
 defaults write com.apple.dock autohide -bool true; killall Dock 2>/dev/null || true
 
 echo "== display =="
@@ -146,11 +164,32 @@ keep_logs() {  # keep_logs <name>
   [[ -n "${LAST_RUN:-}" && -f "$LAST_RUN/debug.log" ]] && cp "$LAST_RUN/debug.log" "$OUT/logs/debug-$1.log" || true
 }
 
+# launch_debug <appearance> <library> <profile>: the Debug app on a fresh copy of a library,
+# a child of this shell so macOS holds the runner responsible for its permissions.
+launch_debug() {
+  local appearance=$1 source=$2 profile=$3 run suite
+  quit_host
+  quit_debug
+  run=$(mktemp -d "$WORK/run.XXXXXX")
+  cp -cR "$source/." "$run/" 2>/dev/null || cp -R "$source/." "$run/"
+  suite="lokalbot.landing-film.$(uuidgen)"
+  touch "$WORK/suite.$suite"
+  python3 "$HERE/stage.py" settings "$suite" "$profile" || return 1
+  defaults write me.dotenv.LokalBot lokalbotv3.onboarding.shown -bool YES
+  if [[ $appearance == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
+  "$DEBUG_BIN" --lokalbot-storage-root "$run" --lokalbot-defaults-suite "$suite" -ApplePersistenceIgnoreState YES \
+    -AppleLanguages "(en)" -AppleLocale en_US >> "$OUT/logs/debug-app.log" 2>&1 &
+  for _ in $(seq 120); do pgrep -f "$DEBUG_BIN" >/dev/null && break; sleep 0.5; done
+  sleep 6
+  LAST_RUN=$run
+}
+
 # rig_take <appearance> <take> <shot>: records and encodes; 0 on success
 rig_take() {
-  local appearance=$1 take=$2 shot=$3 dest="$OUT/takes/$1/$2" status=0
+  local appearance=$1 take=$2 shot=$3 dest="$OUT/takes/$1/$2" status=0 trees=
   rm -rf "$dest"; mkdir -p "$dest"
-  RIG_BACKGROUND=$(background "$appearance") "$RIG" take "$shot" "$dest" 2>&1 | tee -a "$OUT/logs/rig-$take.log"
+  [[ $PROBE == 1 ]] && trees="$OUT/trees/$take"
+  RIG_TREE_DIR=$trees RIG_BACKGROUND=$(background "$appearance") "$RIG" take "$shot" "$dest" 2>&1 | tee -a "$OUT/logs/rig-$take.log"
   status=${PIPESTATUS[0]}
   if [[ $status -eq 0 && -s "$dest/take.json" ]]; then
     python3 "$ROOT/Scripts/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$appearance-$take.mp4" || status=1
@@ -159,28 +198,12 @@ rig_take() {
   return $status
 }
 
-# probes <appearance> <take> <library> <profile> [ENV...]: the tree and a frame at each mark
-probes() {
-  local appearance=$1 take=$2 library=$3 profile=$4 probe name
-  shift 4
-  [[ $PROBE == 1 ]] || return 0
-  for probe in $(python3 "$HERE/probes.py" "$HERE/shots/$take.json" "$WORK/probes"); do
-    name=$(basename "$probe" .json)
-    launch_host "$appearance" "$library" "$profile" "$@" || continue
-    RIG_BACKGROUND=$(background "$appearance") "$RIG" probe "$probe" "$OUT/probes/$name" 2>&1 | tee -a "$OUT/logs/probes.log" || true
-    quit_host
-  done
-}
-
 failed=()
 film_seeded() {  # film_seeded <take> <library> ENV...: filmed on seeded data in each appearance
   local take=$1 library=$2 appearance attempt status
   shift 2
   echo "== $take =="
-  first=1
   for appearance in $APPEARANCES; do
-    [[ $first == 1 ]] && probes "$appearance" "$take" "$library" fixture "$@"
-    first=0
     status=1
     for attempt in 1 2; do
       launch_host "$appearance" "$library" fixture "$@" || continue
@@ -273,22 +296,25 @@ for take in "$@"; do
       for appearance in $APPEARANCES; do
         library="$WORK/studio"
         [[ -d "$WORK/indexed" ]] && library="$WORK/indexed"
-        launch_host "$appearance" "$library" files LOKALBOT_UI_TEST_BACKGROUND=1 LOKALBOT_UI_TEST_WINDOW=quick-recall || continue
+        launch_debug "$appearance" "$library" files || { failed+=("files/$appearance"); continue; }
         if [[ ! -d "$WORK/indexed" ]]; then
           echo "waiting for Files to read the folder"
-          for _ in $(seq 180); do
-            db=$(find "$LAST_RUN/files-index.noindex" -name '*.sqlite*' -size +100k 2>/dev/null | head -1)
-            [[ -n "$db" ]] && grep -q "file pass finished\|pass finished\|index up to date" "$LAST_RUN/debug.log" 2>/dev/null && break
-            sleep 5
+          for _ in $(seq "${FILES_TIMEOUT:-1200}"); do
+            grep -q "file search: read" "$LAST_RUN/debug.log" 2>/dev/null && break
+            sleep 1
           done
-          ls -la "$LAST_RUN/files-index.noindex" 2>/dev/null || true
-          grep -iE "file|digup" "$LAST_RUN/debug.log" 2>/dev/null | tail -20 || true
+          grep -E "file search|embedder" "$LAST_RUN/debug.log" 2>/dev/null | tail -12 || true
+          sleep 5
+          quit_debug
           cp -cR "$LAST_RUN" "$WORK/indexed" 2>/dev/null || cp -R "$LAST_RUN" "$WORK/indexed"
+          launch_debug "$appearance" "$WORK/indexed" files || { failed+=("files/$appearance"); continue; }
         fi
+        "$RIG" key space control shift
+        sleep 3
         status=0; rig_take "$appearance" files "$HERE/shots/files.json" || status=$?
         [[ $status -eq 0 ]] || failed+=("files/$appearance")
         keep_logs "files-$appearance"
-        quit_host
+        quit_debug
       done
       ;;
     autocomplete)

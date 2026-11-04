@@ -1,3 +1,14 @@
-{"bundle":"me.dotenv.LokalBot.uitesthost","size":[960,600],"settle":1.5,"cursor":false,"park":[700,540],"pre":0.6,"post":1.2,
- "setup":[{"press":{"label":"Hide Sidebar"},"optional":true}],
- "actions":[{"wait":0.8},{"mark":"timeline"}]}
+{"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [700, 540], "settle": 1.5, "pre": 0.6, "post": 1.2,
+ "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true}],
+ "actions":[
+  {"wait": 1.0},
+  {"mark": "timeline"},
+  {"click": {"id": "timeline.session.3"}, "duration": 0.7, "optional": true},
+  {"wait": 1.6},
+  {"mark": "session"},
+  {"click": {"id": "timeline.session.1"}, "duration": 0.6, "optional": true},
+  {"wait": 1.6},
+  {"mark": "session-2"},
+  {"scroll": {"at": [300, 400]}, "dy": -220, "duration": 0.5},
+  {"wait": 1.2},
+  {"mark": "scrolled"}]}

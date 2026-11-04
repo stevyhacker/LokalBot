@@ -80,6 +80,8 @@ PROFILES = {
         "fileSearchEnabled": True,
         "fileSearchIncludesMedia": True,
         "fileSearchReadsOnBattery": True,
+        "quickRecallEnabled": True,
+        "menuBarOnly": True,
     },
 }
 
@@ -293,8 +295,8 @@ def polish(folder):
     path.write_text(json.dumps(data, indent=2))
     meta_path = Path(folder) / "meta.json"
     meta = json.loads(meta_path.read_text())
-    meta["title"] = "Spring campaign"
-    meta["appName"] = "FaceTime"
+    if meta.get("title") in (None, "", "Manual recording"):
+        meta["title"] = "Spring campaign"
     meta_path.write_text(json.dumps(meta, indent=2))
     print(folder)
 

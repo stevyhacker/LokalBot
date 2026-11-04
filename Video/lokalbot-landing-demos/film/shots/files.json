@@ -1,4 +1,12 @@
-{"bundle":"me.dotenv.LokalBot.uitesthost","size":[660,480],"settle":1.2,"cursor":false,"park":[600,440],"pre":0.5,"post":1.4,
- "setup":[{"focus":{"id":"quickRecall.input"},"optional":true}],
- "actions":[{"wait":0.3},{"type":"the clause about pets in the lease","cps":12},{"wait":2.5},{"mark":"typed"},
-  {"focus":{"id":"quickRecall.input"},"optional":true},{"key":"a","mods":["command"]},{"type":"where they talk about sleep","cps":12},{"wait":2.5},{"mark":"sleep"}]}
+{"bundle": "me.dotenv.LokalBot", "title": "Ask", "size": [660, 480], "settle": 1.2, "cursor": false, "park": [600, 440], "pre": 0.5, "post": 1.4,
+ "setup":[{"focus": {"id": "quickRecall.input"}, "optional": true}],
+ "actions":[
+  {"wait": 0.3},
+  {"type": "the clause about pets in the lease", "cps": 12},
+  {"wait": 6.0},
+  {"mark": "lease"},
+  {"focus": {"id": "quickRecall.input"}, "optional": true},
+  {"key": "a", "mods": ["cmd"]},
+  {"type": "where they talk about sleep", "cps": 12},
+  {"wait": 6.0},
+  {"mark": "sleep"}]}

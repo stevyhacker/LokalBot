@@ -12,11 +12,13 @@
 //   rig probe <shot.json> <out-prefix> place the window, run the setup, save <prefix>.txt
 //                                     (the accessibility tree) and <prefix>.png (one frame)
 //   rig idle  <seconds>               wait until nobody has touched an input device that long
+//   rig key   <name> [mod...]         press one key, e.g. a system-wide shortcut: rig key space control shift
 //
 // take.json also tracks the pointer at 60 Hz (`pointer`: [t, x, y] in capture
 // seconds and window-relative points), so an edit can draw or follow it when
 // the shot leaves it out of the recording (`"cursor": false`). RIG_DISPLAY
-// names the display to film on by its CGDirectDisplayID.
+// names the display to film on by its CGDirectDisplayID. RIG_TREE_DIR saves the
+// window's accessibility tree at each `mark`, as <dir>/<mark>.txt.
 //
 // Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
 // timed out, 6 the focused field does not end with an `expect` text (keys
@@ -346,6 +348,11 @@ let namedKeys: [String: CGKeyCode] = [
     "return": 36, "tab": 48, "space": 49, "delete": 51, "escape": 53,
     "left": 123, "right": 124, "down": 125, "up": 126,
 ]
+
+/// A key by name, or a single character such as "a".
+func keyCode(_ name: String) -> CGKeyCode? {
+    namedKeys[name] ?? (name.count == 1 ? keyCodes[Character(name)] : nil)
+}
 
 func flags(_ mods: [String]) -> CGEventFlags {
     var f: CGEventFlags = []
@@ -680,7 +687,7 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
                     + "not \(expected.debugDescription)", code: 6)
             }
         } else if let name = action.key {
-            guard let code = namedKeys[name] else { die("unknown key \(name)") }
+            guard let code = keyCode(name) else { die("unknown key \(name)") }
             record("key", nil, ["key": name])
             key(code, text: nil, flags: flags(action.mods ?? []))
         } else if let target = action.scroll {
@@ -713,6 +720,13 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
             do { try process.run() } catch { die("cannot run \(tool): \(error)") }
         } else if let mark = action.mark {
             record("mark", nil, ["name": mark])
+            if let dir = ProcessInfo.processInfo.environment["RIG_TREE_DIR"] {
+                var lines: [String] = []
+                axDump(subject.window, origin: subject.frame.origin) { lines.append($0) }
+                try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+                FileManager.default.createFile(atPath: "\(dir)/\(mark).txt",
+                                               contents: Data((lines.joined(separator: "\n") + "\n").utf8))
+            }
         } else if let target = action.until {
             let waited = Date()
             let limit = action.timeout ?? 60
@@ -820,11 +834,16 @@ func screenshot(_ shot: Shot, subject: Subject, display: Display, out: URL) asyn
     }
 }
 
-let usage = "usage: rig take|still|ax|probe <shot.json> [out] | rig idle <seconds>"
+let usage = "usage: rig take|still|ax|probe <shot.json> [out] | rig idle <seconds> | rig key <name> [mod...]"
 let args = CommandLine.arguments
 guard args.count >= 3 else { die(usage) }
 if args[1] == "idle", let seconds = Double(args[2]) {
     waitForHumanIdle(seconds)
+    exit(0)
+}
+if args[1] == "key" {
+    guard let code = keyCode(args[2]) else { die("unknown key \(args[2])") }
+    key(code, text: nil, flags: flags(Array(args.dropFirst(3))))
     exit(0)
 }
 let shot = loadShot(args[2])

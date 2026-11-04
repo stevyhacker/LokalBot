@@ -189,7 +189,7 @@ jobs:
           rm -rf "$PUB"
           mkdir -p "$PUB"
           [[ -d "$OUT" ]] || exit 0
-          cp -R "$OUT/clips" "$OUT/stills" "$OUT/probes" "$OUT/logs" "$OUT/recorded" "$PUB/" 2>/dev/null || true
+          cp -R "$OUT/clips" "$OUT/stills" "$OUT/trees" "$OUT/logs" "$OUT/recorded" "$PUB/" 2>/dev/null || true
           if [[ -d "$OUT/autocomplete" ]]; then
             mkdir -p "$PUB/autocomplete"
             cp -R "$OUT/autocomplete/logs" "$PUB/autocomplete/" 2>/dev/null || true
