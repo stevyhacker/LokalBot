@@ -2,25 +2,586 @@
   "clips": {
     "search": {
       "take": "search",
-      "segments": [["type:0-0.25", "key:0+0.0", 1.0], ["key:0", "selected+0.9", 1.0]],
-      "margin": 60,
+      "segments": [
+        [
+          "type:0-0.2",
+          "typed+0.8",
+          1.0
+        ],
+        [
+          "key:0-0.1",
+          "selected+1.0",
+          1.0
+        ]
+      ],
+      "margin": 130,
       "radius": 22,
       "pointer": false,
       "cuts": {
-        "wide": {"camera": [[0, 330, 256, 860], [2.2, 330, 256, 860], [3.4, 330, 300, 760], [8, 330, 300, 760]], "poster": 3.2},
-        "tall": {"camera": [[0, 300, 180, 480], [2.2, 300, 180, 480], [3.2, 300, 290, 520], [8, 300, 290, 520]], "poster": 3.2}
+        "wide": {
+          "camera": [
+            [
+              0,
+              330,
+              256,
+              900
+            ]
+          ],
+          "poster": "key:0"
+        },
+        "tall": {
+          "margin": 70,
+          "camera": [
+            [
+              0,
+              268,
+              256,
+              500
+            ]
+          ],
+          "poster": "key:0"
+        }
+      }
+    },
+    "today": {
+      "take": "today",
+      "segments": [
+        [
+          "today-0.5",
+          "digest+0.9",
+          1.0
+        ]
+      ],
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              372,
+              222,
+              800
+            ],
+            [
+              "click:0+0.9",
+              372,
+              222,
+              800
+            ],
+            [
+              "scroll:0+0.5",
+              372,
+              300,
+              800
+            ]
+          ],
+          "poster": "digest"
+        }
+      }
+    },
+    "timeline": {
+      "take": "timeline",
+      "segments": [
+        [
+          "timeline-0.5",
+          "session-2+1.0",
+          1.0
+        ]
+      ],
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              590,
+              330,
+              740
+            ],
+            [
+              "click:0",
+              590,
+              330,
+              740
+            ],
+            [
+              "click:0+0.9",
+              480,
+              320,
+              960
+            ]
+          ],
+          "poster": "session"
+        }
+      }
+    },
+    "people": {
+      "take": "people",
+      "segments": [
+        [
+          "maya-0.5",
+          "leo+1.0",
+          1.0
+        ]
+      ],
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              372,
+              280,
+              800
+            ]
+          ],
+          "poster": "scrolled"
+        }
+      }
+    },
+    "files": {
+      "take": "files",
+      "segments": [
+        [
+          "type:0-0.2",
+          "typed-lease",
+          1.6
+        ],
+        [
+          "typed-lease",
+          "typed-lease+0.5",
+          1.0
+        ],
+        [
+          "lease-1.7",
+          "lease",
+          1.0
+        ],
+        [
+          "lease",
+          "key:0",
+          1.0
+        ],
+        [
+          "key:0",
+          "typed-sleep",
+          1.6
+        ],
+        [
+          "typed-sleep",
+          "typed-sleep+0.5",
+          1.0
+        ],
+        [
+          "sleep-1.7",
+          "sleep+0.6",
+          1.0
+        ]
+      ],
+      "margin": 130,
+      "radius": 22,
+      "pointer": false,
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              330,
+              213,
+              720
+            ]
+          ],
+          "poster": "lease"
+        }
+      }
+    },
+    "ask": {
+      "take": "ask",
+      "segments": [
+        [
+          "before-0.3",
+          "typed",
+          3.0
+        ],
+        [
+          "typed",
+          "asked+0.8",
+          1.0
+        ],
+        [
+          "streaming-0.3",
+          "answered",
+          "=3.4"
+        ],
+        [
+          "answered",
+          "click:1",
+          "=1.8"
+        ],
+        [
+          "click:1",
+          "opened+0.4",
+          "=2.6"
+        ]
+      ],
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              601,
+              340,
+              718
+            ],
+            [
+              "asked",
+              601,
+              340,
+              718
+            ],
+            [
+              "streaming",
+              601,
+              250,
+              718
+            ],
+            [
+              "click:1",
+              601,
+              300,
+              718
+            ],
+            [
+              "click:1+1.1",
+              626,
+              262,
+              668
+            ]
+          ],
+          "poster": "answered"
+        },
+        "tall": {
+          "take": "ask-tall",
+          "margin": 0,
+          "radius": 0,
+          "camera": [
+            [
+              0,
+              450,
+              315,
+              420
+            ]
+          ],
+          "poster": "answered"
+        }
       }
     },
     "autocomplete": {
       "take": "autocomplete",
-      "segments": [["type:0-0.2", "type:1-0.3", 3.0], ["type:1-0.3", "type:2-0.2", 3.0], ["type:2-0.2", "typed+0.5", 1.0], ["ghost:0-0.25", "key:0", 1.0], ["key:0", "accepted:0+1.1", 1.0]],
+      "segments": [
+        [
+          "type:0-0.2",
+          "type:1-0.3",
+          3.0
+        ],
+        [
+          "type:1-0.3",
+          "type:2-0.2",
+          3.0
+        ],
+        [
+          "type:2-0.2",
+          "typed+0.5",
+          1.0
+        ],
+        [
+          "ghost:0-0.25",
+          "key:0",
+          1.0
+        ],
+        [
+          "key:0",
+          "accepted:0+1.1",
+          1.0
+        ]
+      ],
       "radius": 20,
       "pointer": false,
-      "tap_events": [{"kind": "key", "key": "tab", "label": "Tab"}],
-      "keys": [["key:0-0.3", "key:5+0.3", "Tab"]],
+      "tap_events": [
+        {
+          "kind": "key",
+          "key": "tab",
+          "label": "Tab"
+        }
+      ],
+      "keys": [
+        [
+          "key:0-0.3",
+          "accepted:0",
+          "Tab"
+        ]
+      ],
       "cuts": {
-        "wide": {"camera": [[0, 480, 300, 1016]], "poster": "accepted:0+0.5"},
-        "tall": {"camera": [[0, 300, 120, 500], ["typed", 430, 180, 480], ["key:0", 430, 180, 480], ["accepted:0", 250, 170, 480]], "poster": "accepted:0+0.5"}
+        "wide": {
+          "camera": [
+            [
+              0,
+              480,
+              300,
+              1016
+            ]
+          ],
+          "poster": "accepted:0+0.6"
+        },
+        "tall": {
+          "take": "autocomplete-tall",
+          "margin": 0,
+          "radius": 0,
+          "camera": [
+            [
+              0,
+              270,
+              337,
+              540
+            ]
+          ],
+          "poster": "accepted:0+0.6"
+        }
+      }
+    },
+    "dictation": {
+      "take": "dictation",
+      "segments": [
+        [
+          "hold:0-0.4",
+          "release:0",
+          1.25
+        ],
+        [
+          "release:0",
+          "release:0+1.0",
+          1.0
+        ],
+        [
+          "written-0.3",
+          "written+1.6",
+          1.0
+        ]
+      ],
+      "radius": 20,
+      "pointer": false,
+      "keys": [
+        [
+          "hold:0",
+          "release:0",
+          "\u2325 Space",
+          true
+        ]
+      ],
+      "cuts": {
+        "wide": {
+          "key_at": [
+            0.5,
+            0.42
+          ],
+          "camera": [
+            [
+              0,
+              480,
+              300,
+              1016
+            ]
+          ],
+          "poster": "written+0.6"
+        },
+        "tall": {
+          "take": "dictation-tall",
+          "margin": 0,
+          "radius": 0,
+          "key_at": [
+            0.5,
+            0.42
+          ],
+          "camera": [
+            [
+              0,
+              270,
+              337,
+              540
+            ]
+          ],
+          "poster": "written+0.6"
+        }
+      }
+    },
+    "meetings": {
+      "parts": [
+        {
+          "take": "live",
+          "segments": [
+            [
+              "before-0.3",
+              "click:1+0.3",
+              1.3
+            ],
+            [
+              "click:1+0.3",
+              "preview+0.2",
+              1.2
+            ],
+            [
+              "words-0.4",
+              "more-words+0.3",
+              "=4.0"
+            ]
+          ]
+        },
+        {
+          "take": "notes",
+          "segments": [
+            [
+              "scrolled-0.2",
+              "click:0",
+              "=2.4"
+            ],
+            [
+              "click:0",
+              "evidence+0.9",
+              1.0
+            ]
+          ]
+        }
+      ],
+      "fade": 0.4,
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              480,
+              300,
+              1016
+            ],
+            [
+              "click:1",
+              480,
+              300,
+              1016
+            ],
+            [
+              "preview",
+              605,
+              320,
+              710
+            ],
+            [
+              "words",
+              605,
+              372,
+              710
+            ],
+            [
+              "more-words",
+              605,
+              372,
+              710
+            ],
+            [
+              "scrolled",
+              610,
+              278,
+              710
+            ],
+            [
+              "evidence",
+              610,
+              278,
+              710
+            ]
+          ],
+          "poster": "scrolled+0.3"
+        },
+        "tall": {
+          "camera": [
+            [
+              0,
+              200,
+              200,
+              460
+            ],
+            [
+              "click:1",
+              200,
+              200,
+              460
+            ],
+            [
+              "preview",
+              490,
+              300,
+              480
+            ],
+            [
+              "words",
+              495,
+              370,
+              470
+            ],
+            [
+              "more-words",
+              495,
+              340,
+              480
+            ],
+            [
+              "scrolled",
+              450,
+              315,
+              420
+            ],
+            [
+              "evidence",
+              450,
+              315,
+              420
+            ]
+          ],
+          "poster": "scrolled+0.3",
+          "parts": [
+            {
+              "take": "live",
+              "segments": [
+                [
+                  "before-0.3",
+                  "click:1+0.3",
+                  1.3
+                ],
+                [
+                  "click:1+0.3",
+                  "preview+0.2",
+                  1.2
+                ],
+                [
+                  "words-0.4",
+                  "more-words+0.3",
+                  "=4.0"
+                ]
+              ]
+            },
+            {
+              "take": "notes-tall",
+              "segments": [
+                [
+                  "scrolled-0.2",
+                  "click:0",
+                  "=2.4"
+                ],
+                [
+                  "click:0",
+                  "evidence+0.9",
+                  1.0
+                ]
+              ]
+            }
+          ]
+        }
       }
     }
   }

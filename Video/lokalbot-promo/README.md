@@ -1,6 +1,6 @@
 # LokalBot 30-second promo
 
-This is the canonical 16:9 source for the website hero video. The preserved
+This is the 16:9 source for a standalone product film for listings and social posts; the website itself plays the clips from `Video/lokalbot-landing-demos/`. The preserved
 `Video/hero-demo/` project remains the longer legacy showcase; derived square
 and vertical experiments are local working material.
 
@@ -40,5 +40,5 @@ Scripts/render-hero-video-short.sh
 ```
 
 That command validates the composition, renders the master, normalizes delivery
-audio, creates the poster and manifest, then atomically promotes the website and
-README MP4 aliases.
+audio, creates the poster and manifest, and writes the MP4 aliases to
+`.build/hero-demo/`.

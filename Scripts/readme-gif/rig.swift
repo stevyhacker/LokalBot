@@ -24,7 +24,8 @@
 //
 // Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
 // timed out, 6 the focused field does not end with an `expect` text (keys
-// were lost on the way). Film the take again for any of them.
+// were lost on the way) or holds a `reject` text. Film the take again for any
+// of them.
 //
 // Build: swiftc -O -swift-version 5 rig.swift -o rig
 import AppKit
@@ -77,8 +78,10 @@ struct Action: Decodable {
     var ghost: Double?        // wait this long at most for an `also` app's floating window, e.g. a suggestion
     var accept: Int?          // press `key` (default tab) up to this many times while that window shows
     var expect: String?       // the focused field's text must end with this, else exit 6
+    var reject: String?       // the focused field's text must not contain this, else exit 6
     var optional: Bool?       // skip this action, with a note, when its element is not found
     var until: Target?        // wait for this element to appear, up to `timeout` seconds (default 60)
+    var gone: Bool?           // with `until`: wait for it to go away instead
     var timeout: Double?
 }
 
@@ -696,6 +699,10 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
                 die("the field ends with \(String(text.suffix(expected.count + 12)).debugDescription), "
                     + "not \(expected.debugDescription)", code: 6)
             }
+        } else if let rejected = action.reject {
+            let focused: AXUIElement? = axValue(subject.element, kAXFocusedUIElementAttribute)
+            let text = focused.flatMap { axValue($0, kAXValueAttribute) as String? } ?? ""
+            guard !text.contains(rejected) else { die("the field has \(rejected.debugDescription) in it", code: 6) }
         } else if let name = action.key {
             guard let code = keyCode(name) else { die("unknown key \(name)") }
             record("key", nil, ["key": name])
@@ -740,7 +747,7 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
         } else if let target = action.until {
             let waited = Date()
             let limit = action.timeout ?? 60
-            while subject.find(target) == nil {
+            while (subject.find(target) == nil) != (action.gone == true) {
                 guardHuman()
                 if Date().timeIntervalSince(waited) > limit {
                     guard action.optional == true else { die("no element for \(target) within \(limit)s", code: 5) }

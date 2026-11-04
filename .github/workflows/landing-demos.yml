@@ -1,6 +1,6 @@
-# Films the website's demo clips (Video/lokalbot-landing-demos) on a hosted Mac:
+# Films the website's demo clips (Video/lokalbot-landing-demos) on hosted Macs:
 # the real app on fictional libraries, at 2x on a virtual Retina display. Never a
-# required check; no secrets are used.
+# required check; no secrets are used. Started by hand, since a pass takes hours.
 #
 # The apps are built once and kept as the `landing-apps` artifact. To film again
 # without rebuilding, put that run's id in film/apps-run.txt. Each line of
@@ -11,14 +11,6 @@ name: Landing page demos
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - "claude/lokalbot-landing-demos*"
-    paths:
-      - ".github/workflows/landing-demos.yml"
-      - "Video/lokalbot-landing-demos/film/**"
-      - "Scripts/readme-gif/rig.swift"
-      - "Scripts/autocomplete-demo/**"
 
 concurrency:
   group: landing-demos-${{ github.ref }}

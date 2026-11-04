@@ -7,14 +7,16 @@
     stage.py audio <dir> <call|dictation>         write mic.wav (and system.wav) that stand in for a microphone and a call
     stage.py files <dir>                          write the folder the Files take searches
     stage.py wait-notes <library> <seeded-library> <seconds>   wait for a recorded meeting's notes, print its folder
-    stage.py polish <meeting-folder>              name the other speaker in a recorded meeting
+    stage.py polish <meeting-folder>              title a recorded meeting, as a person would afterwards
     stage.py timezone                             print a zone where it is early afternoon now
 
 Everything here is invented. Only the fixed model files leave the network; the
 takes run with no account and no remote model.
 """
+import array
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -94,11 +96,13 @@ PROFILES = {
 }
 
 CALL = [
-    ("me", "Okay, let's lock the spring campaign. Are we shooting the video in Lisbon or in the studio?"),
+    ("me", "Okay, let's lock the spring campaign. Are we shooting the video on location or in the studio?"),
     ("them", "The studio. It's half the budget, and we keep the whole crew."),
-    ("me", "Agreed. The studio it is. Can you book it for the twelfth?"),
+    ("me", "Agreed. Decision made: we shoot in the studio. Can you book it for the twelfth?"),
     ("them", "Yes. I'll book it today, and I'll send the shot list to the crew by Friday."),
     ("me", "Great. I'll get the final script to the client by Wednesday."),
+    ("them", "Are we keeping the launch date on the twentieth?"),
+    ("me", "Yes. We decided the launch stays on the twentieth."),
     ("them", "One open question. Do we need a second camera for the interviews?"),
     ("me", "Let's decide that after the test shoot on Monday."),
 ]
@@ -240,7 +244,16 @@ def conversation(lines, gap=0.5, tail=8.0):
     for who, speech in spoken:
         tracks[who][offset:offset + len(speech)] = speech
         offset += len(speech) + int(gap * RATE) * 2
-    return tracks
+    return {who: room_tone(track) for who, track in tracks.items()}
+
+
+def room_tone(track):
+    """Faint noise under a track: speech recognition writes stray periods into digital silence."""
+    samples = array.array("h", bytes(track))
+    noise = random.Random(7)
+    for index, sample in enumerate(samples):
+        samples[index] = max(-32768, min(32767, sample + noise.randint(-6, 6)))
+    return bytearray(samples.tobytes())
 
 
 def audio(directory, kind):
@@ -296,10 +309,6 @@ def wait_notes(library_root, seeded_root, seconds):
 
 
 def polish(folder):
-    path = Path(folder) / "transcript.json"
-    data = json.loads(path.read_text())
-    data["speakerAliases"] = {"them": "Maya"}
-    path.write_text(json.dumps(data, indent=2))
     meta_path = Path(folder) / "meta.json"
     meta = json.loads(meta_path.read_text())
     meta["title"] = "Spring campaign"

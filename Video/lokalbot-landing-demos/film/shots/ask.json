@@ -1,6 +1,7 @@
 {"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [700, 540], "settle": 2.0, "pre": 0.6, "post": 1.5,
- "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true}, {"click": {"id": "chat.new"}, "duration": 0.2}],
+ "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true}, {"wait": 3}, {"click": {"id": "chat.new"}, "duration": 0.2}],
  "actions":[
+  {"until": {"contains": "What did we decide in my last meeting"}, "timeout": 15},
   {"wait": 0.6},
   {"mark": "before"},
   {"click": {"id": "search.field"}, "duration": 0.6, "optional": true},
@@ -12,9 +13,11 @@
   {"mark": "asked"},
   {"until": {"label": "Read aloud"}, "timeout": 2400, "optional": true},
   {"mark": "streaming"},
-  {"until": {"contains": "Evidence, "}, "timeout": 900, "optional": true},
+  {"until": {"id": "chat.answer.stop"}, "gone": true, "timeout": 1200, "optional": true},
+  {"until": {"contains": "Evidence, "}, "timeout": 30, "optional": true},
   {"wait": 1.5},
   {"mark": "answered"},
-  {"click": {"contains": ", Meeting"}, "duration": 0.7, "optional": true},
-  {"wait": 2.4},
+  {"click": {"contains": ", Meeting"}, "duration": 0.7},
+  {"until": {"contains": "Recap"}, "timeout": 180, "optional": true},
+  {"wait": 1.2},
   {"mark": "opened"}]}

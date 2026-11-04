@@ -1,4 +1,5 @@
-live notes
+search today timeline people stills autocomplete
+live notes notes-tall
 dictation files
-autocomplete@dark ask@dark
-ask@dark
+ask
+ask-tall

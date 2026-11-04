@@ -8,8 +8,8 @@
 #     film.sh <out-dir> [take...]
 #
 # Takes (shots/*.json):
-#   search today timeline people notes stills   the host on seeded data
-#   live ask dictation                          the host's background mode: real pipelines
+#   search today timeline people notes notes-tall stills   the host on seeded data
+#   live ask ask-tall dictation                 the host's background mode: real pipelines
 #                                               and local models, with WAV files for the
 #                                               microphone and the call's system audio
 #   files                                       the Debug app, which reads the chosen folders; the host never does
@@ -138,11 +138,27 @@ say -v '?' | grep -E '^(Samantha|Daniel)' > "$OUT/logs/voices.txt" || true
 cp "$WORK"/call/*.wav "$OUT/logs/" 2>/dev/null || true
 
 needs_models=0
-for take in "$@"; do case ${take%@*} in live|ask|dictation|files) needs_models=1;; esac; done
+for take in "$@"; do case ${take%@*} in live|ask|ask-tall|dictation|files) needs_models=1;; esac; done
 if [[ $needs_models -eq 1 ]]; then
   echo "== models =="
   python3 "$HERE/stage.py" models "$WORK/models" "$WORK/studio" "$WORK/pricing" "$WORK/empty" || exit 1
   ls -la "$WORK/models"
+  # On a Mac that has just booted, the first load of the model can miss the app's two-minute
+  # limit for its server to start, which fails the answer or the notes. Load it once here.
+  server=$(find "$HOST_APP/Contents/Resources" -type f -name llama-server | head -1)
+  if [[ -x "$server" ]]; then
+    started=$SECONDS
+    "$server" -m "$WORK/models/Qwen3.5-4B-Q4_K_M.gguf" --host 127.0.0.1 --port 17990 -c 4096 -ngl 99 --no-webui > "$OUT/logs/warm-model.log" 2>&1 &
+    server_pid=$!
+    for _ in $(seq 900); do
+      curl -fs -o /dev/null http://127.0.0.1:17990/health && break
+      kill -0 "$server_pid" 2>/dev/null || break
+      sleep 1
+    done
+    echo "the model took $((SECONDS - started))s to load"
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+  fi
 fi
 
 background() { [[ $1 == dark ]] && echo "#0E1720" || echo "#E6F0EF"; }
@@ -214,6 +230,19 @@ rig_take() {
   return $status
 }
 
+# ask_take <appearance> <take>: rig_take, stopped as soon as the app reports a failed answer,
+# since the take would otherwise wait out every timeout for an answer that isn't coming.
+ask_take() {
+  local status=0 watcher
+  ( until grep -q "chat response failed" "$LAST_RUN/debug.log" 2>/dev/null; do sleep 5; done
+    grep "chat response failed" "$LAST_RUN/debug.log" | cut -c1-200
+    pkill -f "$RIG take" ) &
+  watcher=$!
+  rig_take "$1" "$2" "$HERE/shots/$2.json" || status=$?
+  kill "$watcher" 2>/dev/null || true
+  return $status
+}
+
 failed=()
 film_seeded() {  # film_seeded <take> <library> ENV...: filmed on seeded data in each appearance
   local take=$1 library=$2 appearance attempt status
@@ -261,11 +290,11 @@ for take in "$@"; do
     today) film_seeded today "$WORK/studio" LOKALBOT_INITIAL_SECTION=today ;;
     timeline) film_seeded timeline "$WORK/studio" LOKALBOT_INITIAL_SECTION=timeline ;;
     people) film_seeded people "$WORK/studio" LOKALBOT_INITIAL_SECTION=people ;;
-    notes)
+    notes|notes-tall)
       # The recorded call's real notes when the live take made them, else the seeded holiday shoot.
       library="$WORK/studio"
       [[ -d "$WORK/recorded" ]] && library="$WORK/recorded"
-      film_seeded notes "$library" LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=0 LOKALBOT_DETAIL_TAB=summary
+      film_seeded "${take%@*}" "$library" LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=0 LOKALBOT_DETAIL_TAB=summary
       ;;
     stills)
       echo "== stills =="
@@ -301,14 +330,20 @@ for take in "$@"; do
         quit_host
       done
       ;;
-    ask)
-      echo "== ask =="
+    ask|ask-tall)
+      name=${take%@*}
+      echo "== $name =="
       for appearance in $APPEARANCES; do
-        launch_host "$appearance" "$WORK/studio" ask LOKALBOT_INITIAL_SECTION=ask LOKALBOT_UI_TEST_BACKGROUND=1 || continue
-        status=0; rig_take "$appearance" ask "$HERE/shots/ask.json" || status=$?
-        [[ $status -eq 0 ]] || failed+=("ask/$appearance")
-        keep_logs "ask-$appearance"
-        quit_host
+        status=1
+        for attempt in 1 2 3; do
+          launch_host "$appearance" "$WORK/studio" ask LOKALBOT_INITIAL_SECTION=ask LOKALBOT_UI_TEST_BACKGROUND=1 || continue
+          status=0; ask_take "$appearance" "$name" || status=$?
+          keep_logs "$name-$appearance"
+          quit_host
+          [[ $status -eq 0 ]] && break
+          echo "$name/$appearance attempt $attempt failed ($status)"
+        done
+        [[ $status -eq 0 ]] || failed+=("$name/$appearance")
       done
       ;;
     dictation)
@@ -317,13 +352,13 @@ for take in "$@"; do
       film_dictation "${APPEARANCES%% *}" dictation-warmup || true
       rm -f "$OUT"/clips/*-dictation-warmup.*
       for appearance in $APPEARANCES; do
-        for take in dictation dictation-tall; do
+        for shot in dictation dictation-tall; do
           status=1
-          for attempt in 1 2; do
-            film_dictation "$appearance" "$take" && { status=0; break; }
-            echo "$take/$appearance attempt $attempt failed"
+          for attempt in 1 2 3; do
+            film_dictation "$appearance" "$shot" && { status=0; break; }
+            echo "$shot/$appearance attempt $attempt failed"
           done
-          [[ $status -eq 0 ]] || failed+=("$take/$appearance")
+          [[ $status -eq 0 ]] || failed+=("$shot/$appearance")
         done
       done
       ;;
@@ -362,10 +397,10 @@ for take in "$@"; do
         LOKALBOT_APP="${LOKALBOT_APP:?set LOKALBOT_APP to a Debug LokalBot.app}" \
         bash "$ROOT/Scripts/autocomplete-demo/film.sh" "$OUT/autocomplete" memory memory-tall || status=$?
       for appearance in $APPEARANCES; do
-        for take in memory memory-tall; do
-          name=autocomplete${take#memory}
-          cp "$OUT/autocomplete/clips/$appearance-$take.mp4" "$OUT/clips/$appearance-$name.mp4" 2>/dev/null || status=1
-          cp "$OUT/autocomplete/clips/$appearance-$take.json" "$OUT/clips/$appearance-$name.json" 2>/dev/null || status=1
+        for shot in memory memory-tall; do
+          name=autocomplete${shot#memory}
+          cp "$OUT/autocomplete/clips/$appearance-$shot.mp4" "$OUT/clips/$appearance-$name.mp4" 2>/dev/null || status=1
+          cp "$OUT/autocomplete/clips/$appearance-$shot.json" "$OUT/clips/$appearance-$name.json" 2>/dev/null || status=1
         done
       done
       [[ $status -eq 0 ]] || failed+=("autocomplete")

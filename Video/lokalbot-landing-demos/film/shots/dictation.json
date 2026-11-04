@@ -7,4 +7,5 @@
   {"mark": "released"},
   {"until": {"contains": "$15"}, "timeout": 420, "optional": true},
   {"mark": "written"},
-  {"wait": 1.5}]}
+  {"wait": 1.5},
+  {"reject": "update.txt"}]}
