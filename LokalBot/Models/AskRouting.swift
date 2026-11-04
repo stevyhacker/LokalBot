@@ -125,14 +125,18 @@ final class ScopedChatToolRunner: ChatToolRunner {
     private let scopes: Set<AskSourceScope>
     private let dayScopeKey: String?
     private let meetingIDs: Set<UUID>?
+    /// Says which meetings `meetingIDs` holds, e.g. "meetings from the last
+    /// 30 days"; without it, "the meetings chosen for it".
+    private let meetingScope: String?
     private let screenSnapshotIDs: Set<Int64>?
 
     init(base: ChatToolRunner, scopes: Set<AskSourceScope>, dayScope: Date? = nil,
-         dayScopeKey: String? = nil, meetingIDs: Set<UUID>? = nil,
+         dayScopeKey: String? = nil, meetingIDs: Set<UUID>? = nil, meetingScope: String? = nil,
          screenSnapshotIDs: Set<Int64>? = nil) {
         self.base = base
         self.scopes = scopes
         self.meetingIDs = meetingIDs
+        self.meetingScope = meetingScope
         self.screenSnapshotIDs = screenSnapshotIDs
         self.dayScopeKey = dayScopeKey ?? dayScope.map { AskDayScope.key(for: $0) }
     }
@@ -153,6 +157,32 @@ final class ScopedChatToolRunner: ChatToolRunner {
         // meeting titles outside the exact scope enforced by the tools below.
         guard scopes.contains(.meetings), dayScopeKey == nil, meetingIDs == nil else { return "" }
         return base.libraryOverview()
+    }
+
+    /// The dates and meetings the tools below are held to, in words that
+    /// complete "limited to"; nil when nothing narrows the library.
+    var limit: String? {
+        var parts: [String] = []
+        if let dayScopeKey, let dates = AskDateScope(storageKey: dayScopeKey) {
+            parts.append("what happened \(dates.phrase)")
+        }
+        if let meetingIDs {
+            parts.append(meetingScope ?? Self.chosenMeetings(meetingIDs.count))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ", and to ")
+    }
+
+    func questionScope() -> String {
+        guard let limit else { return "" }
+        return ChatPrompt.questionScope(limit: limit, datesCanBeRemoved: dayScopeKey != nil)
+    }
+
+    private static func chosenMeetings(_ count: Int) -> String {
+        switch count {
+        case 0: "no meetings"
+        case 1: "the one meeting chosen for it"
+        default: "the \(count) meetings chosen for it"
+        }
     }
 
     func run(_ call: ChatToolCall) async -> ChatToolResult {
@@ -189,7 +219,15 @@ final class ScopedChatToolRunner: ChatToolRunner {
         if arguments != call.arguments {
             scopedCall = ChatToolCall(name: call.name, arguments: arguments)
         }
-        return await base.run(scopedCall)
+        let result = await base.run(scopedCall)
+        // A short list read as the whole library ("the only one in your
+        // library"), so the meeting lists say what they were held to.
+        guard let limit, ["search_meetings", "list_meetings", "get_action_items"].contains(call.name) else {
+            return result
+        }
+        return ChatToolResult(
+            text: "Limited to \(limit) for this question; nothing outside that limit is shown.\n\(result.text)",
+            summary: result.summary, evidence: result.evidence)
     }
 
     private func allows(_ tool: String) -> Bool {

@@ -225,7 +225,7 @@ struct AskComposer: View {
             if let scope = model.scope {
                 HStack(spacing: 6) {
                     Image(systemName: "scope")
-                    Text(scopeLabel(scope)).lineLimit(1)
+                    Text(scope.label(format: format, today: session.today)).lineLimit(1)
                     Button {
                         model.scope = nil
                     } label: {
@@ -304,14 +304,19 @@ struct AskComposer: View {
         }
     }
 
-    private func scopeLabel(_ scope: AskRequest.Scope) -> String {
-        if let day = scope.day.flatMap(DayKey.init) { return "About \(format.dayTitle(day, today: session.today).lowercasedFirstWordIfRelative)" }
-        if scope.meetingId != nil { return "About this meeting" }
-        return "About everything"
-    }
-
     private func send() {
         guard model.canSubmit else { return }
         Task { await model.submit(session) }
+    }
+}
+
+extension AskRequest.Scope {
+    /// "About today", "About Monday", "About this meeting": the composer's
+    /// chip and the tag on each question it limited, so an answer that only
+    /// saw one day says which day.
+    func label(format: LBFormat, today: DayKey) -> String {
+        if let day = day.flatMap(DayKey.init) { return "About \(format.dayTitle(day, today: today).lowercasedFirstWordIfRelative)" }
+        if meetingId != nil { return "About this meeting" }
+        return "About everything"
     }
 }

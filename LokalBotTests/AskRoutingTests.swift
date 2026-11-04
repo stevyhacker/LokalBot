@@ -206,6 +206,40 @@ final class AskRoutingTests: XCTestCase {
         XCTAssertEqual(runner.libraryOverview(), "")
     }
 
+    func testLimitedQuestionNamesItsLimitToTheModel() async throws {
+        let base = RecordingToolRunner()
+        let everything = ScopedChatToolRunner(base: base, scopes: AskSourceScope.defaults)
+        XCTAssertEqual(everything.questionScope(), "")
+        XCTAssertFalse(ChatPrompt.systemPrompt(tools: everything.specs, libraryOverview: everything.libraryOverview(),
+                                               questionScope: everything.questionScope()).contains("Question scope:"))
+        let unlimited = await everything.run(.init(name: "list_meetings", arguments: [:]))
+        XCTAssertEqual(unlimited.text, "ok")
+
+        let dates = try XCTUnwrap(AskDateScope(storageKey: "2026-11-04"))
+        let day = ScopedChatToolRunner(base: base, scopes: AskSourceScope.defaults, dayScopeKey: dates.storageKey)
+        XCTAssertEqual(day.limit, "what happened \(dates.phrase)")
+        let scope = day.questionScope()
+        XCTAssertTrue(scope.hasPrefix("This question is limited to what happened \(dates.phrase). "), scope)
+        XCTAssertTrue(scope.hasSuffix("remove the date limit to ask about other days."), scope)
+        XCTAssertTrue(ChatPrompt.systemPrompt(tools: day.specs, libraryOverview: day.libraryOverview(),
+                                              questionScope: scope).contains("Question scope:\n\(scope)"))
+        for tool in ["list_meetings", "search_meetings", "get_action_items"] {
+            let result = await day.run(.init(name: tool, arguments: ["query": "standup"]))
+            XCTAssertEqual(result.text, "Limited to what happened \(dates.phrase) for this question; "
+                + "nothing outside that limit is shown.\nok", tool)
+            XCTAssertEqual(result.summary, "ok", "the visible tool summary stays as it was")
+        }
+        let screen = await day.run(.init(name: "search_screen", arguments: ["query": "standup"]))
+        XCTAssertEqual(screen.text, "ok")
+
+        let chosen = ScopedChatToolRunner(base: base, scopes: [.meetings], meetingIDs: [UUID(), UUID()])
+        XCTAssertEqual(chosen.limit, "the 2 meetings chosen for it")
+        XCTAssertTrue(chosen.questionScope().hasSuffix("this question is limited to the 2 meetings chosen for it."))
+        let named = ScopedChatToolRunner(base: base, scopes: [.meetings], dayScopeKey: dates.storageKey,
+                                         meetingIDs: [UUID()], meetingScope: "the meeting “Standup”")
+        XCTAssertEqual(named.limit, "what happened \(dates.phrase), and to the meeting “Standup”")
+    }
+
     func testInvalidDateScopeNeverReachesRetrievalTools() async {
         let base = RecordingToolRunner()
         let runner = ScopedChatToolRunner(base: base, scopes: AskSourceScope.defaults, dayScopeKey: "invalid")

@@ -93,12 +93,17 @@ protocol ChatToolRunner: AnyObject {
     /// Compact, always-available context (e.g. recent meeting titles) folded into
     /// the system prompt so simple questions can be answered without a tool call.
     func libraryOverview() -> String
+    /// What this question is limited to, written for the model (see
+    /// `ChatPrompt.questionScope`). Empty when it may look at everything.
+    func questionScope() -> String
     func run(_ call: ChatToolCall) async -> ChatToolResult
     /// Which screens the user attached to the question the answer may cite.
     func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence
 }
 
 extension ChatToolRunner {
+    func questionScope() -> String { "" }
+
     /// A runner without a screen store can't check attachments; keep them all.
     func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence {
         ChatEvidence(screenIDs: ids)
@@ -133,7 +138,21 @@ enum ChatPrompt {
             + "Resolve relative dates such as \"yesterday\" or \"last Tuesday\" from it."
     }
 
+    /// What a limited question can see. Without it the model took the one
+    /// meeting a question limited to today could find for the whole library
+    /// ("the only one in your library"). `limit` completes "limited to", e.g.
+    /// "what happened on 4 Nov 2026".
+    static func questionScope(limit: String, datesCanBeRemoved: Bool) -> String {
+        """
+        This question is limited to \(limit). The tools return only what falls inside that limit, \
+        and the user's library holds more that this question cannot see. Never describe what the tools \
+        return as the whole library, and never say the user has no other meetings or activity. When the \
+        user asks about anything outside the limit, say plainly that this question is limited to \(limit)
+        """ + (datesCanBeRemoved ? ", and that they can remove the date limit to ask about other days." : ".")
+    }
+
     static func systemPrompt(tools: [ChatToolSpec], libraryOverview: String,
+                             questionScope: String = "",
                              personalContext: String = "",
                              workMemory: String = "",
                              inferencePrivacy: String = "Inference uses the selected backend, which may be local or remote. Do not claim that all processing stays on this Mac.") -> String {
@@ -197,6 +216,11 @@ enum ChatPrompt {
             [file:ID] marker that search_files returned. The app links it to the file on this Mac. \
             Never invent a file id.
             """)
+        }
+        if !questionScope.isEmpty {
+            lines.append("")
+            lines.append("Question scope:")
+            lines.append(questionScope)
         }
         if !libraryOverview.isEmpty {
             lines.append("")
@@ -618,6 +642,7 @@ struct ChatAgent {
         let toolNames = Set(runner.specs.map(\.name))
         let system = ChatPrompt.systemPrompt(tools: runner.specs,
                                              libraryOverview: runner.libraryOverview(),
+                                             questionScope: runner.questionScope(),
                                              personalContext: personalContext,
                                              workMemory: workMemory,
                                              inferencePrivacy: ChatPrompt.inferencePrivacy(for: engine))

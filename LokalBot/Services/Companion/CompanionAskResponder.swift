@@ -115,10 +115,15 @@ final class CompanionAskResponder {
         }
         let now = dependencies.now()
         var meetingIDs: Set<UUID>?
+        // Tells the model which meetings `meetingIDs` holds, so a narrow
+        // result is never described as the whole library.
+        var meetingScope: String?
         if sharing.history != .all {
             meetingIDs = Set(dependencies.meetings()
                 .filter { CompanionLibrary.isShared($0, history: sharing.history, now: now, calendar: .current) }
                 .map(\.id))
+            meetingScope = "meetings from the \(sharing.history.displayName.lowercased()), "
+                + "the history the user shares with this device"
         }
         if let raw = request.scope?.meetingId {
             guard let id = UUID(uuidString: raw), meetingIDs?.contains(id) ?? true else {
@@ -126,6 +131,9 @@ final class CompanionAskResponder {
                 return
             }
             meetingIDs = [id]
+            meetingScope = dependencies.meetings().first { $0.id == id }.map {
+                "the meeting “\($0.displayTitle)” on \($0.startedAt.formatted(date: .abbreviated, time: .omitted))"
+            } ?? "the one meeting the user asked about"
         }
         var dayKey: String?
         if let day = request.scope?.day {
@@ -149,7 +157,8 @@ final class CompanionAskResponder {
                 let engine = try await dependencies.makeEngine()
                 try Task.checkCancellation()
                 let runner = ScopedChatToolRunner(base: dependencies.tools(), scopes: scopes,
-                                                  dayScopeKey: dayKey, meetingIDs: meetingIDs)
+                                                  dayScopeKey: dayKey, meetingIDs: meetingIDs,
+                                                  meetingScope: meetingScope)
                 var agent = ChatAgent(engine: engine, runner: runner)
                 agent.adaptLimits(to: engine)
                 let stream = CompanionAnswerStream()

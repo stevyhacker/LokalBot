@@ -27,6 +27,15 @@ final class AskDateScopeTests: XCTestCase {
         }
     }
 
+    func testPhraseReadsAsPartOfASentence() throws {
+        let day = try XCTUnwrap(AskDateScope(storageKey: "2026-11-04"))
+        XCTAssertEqual(day.phrase, "on \(day.dateLabel)")
+        let week = try XCTUnwrap(AskDateScope(storageKey: "2026-09-01...2026-09-07"))
+        let first = try XCTUnwrap(AskDayScope.date(for: "2026-09-01")).formatted(date: .abbreviated, time: .omitted)
+        let last = try XCTUnwrap(AskDayScope.date(for: "2026-09-07")).formatted(date: .abbreviated, time: .omitted)
+        XCTAssertEqual(week.phrase, "from \(first) to \(last)")
+    }
+
     func testInvalidOrReversedDatesAreRejected() {
         for key in ["2026-02-30", "2026-09-07...2026-09-01", "today", "2026-09-01...", "2026-09-01...2026-09-02...2026-09-03"] {
             XCTAssertNil(AskDateScope(storageKey: key), key)
