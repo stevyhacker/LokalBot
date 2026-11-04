@@ -350,14 +350,23 @@ def wait_note(library_root, name, seconds):
             notes = json.loads((root / "projects/summaries.json").read_text())
         except (FileNotFoundError, json.JSONDecodeError):
             notes = []
+        # A project tracked during a take has an id the app chose, so look it up by name.
+        try:
+            tracked = json.loads((root / "projects/tracked.json").read_text())["tracked"]
+        except (FileNotFoundError, json.JSONDecodeError):
+            tracked = []
+        ids = {project["id"].upper() for project in tracked if project["name"] == name}
         for note in notes:
-            if note["projectID"].upper() == project_id(name):
+            if note["projectID"].upper() in ids:
                 print(json.dumps(note, indent=2))
                 return
         # The app doesn't try a project again until it next launches.
         log = root / "debug.log"
-        if log.exists() and "did not become healthy" in log.read_text(errors="replace"):
-            raise SystemExit("the model server did not start")
+        if log.exists():
+            text = log.read_text(errors="replace")
+            for failure in ("did not become healthy", "managed inference recovery failed"):
+                if failure in text:
+                    raise SystemExit(f"no note on {name}: {failure}")
         time.sleep(5)
     raise SystemExit(f"no note on {name} within {seconds}s")
 

@@ -262,6 +262,31 @@ film_seeded() {  # film_seeded <take> <library> ENV...: filmed on seeded data in
   done
 }
 
+film_projects() {  # film_projects <library>: two takes of one launch, the model writing between them
+  local library=$1 appearance attempt status
+  for appearance in $APPEARANCES; do
+    status=1
+    for attempt in 1 2; do
+      launch_host "$appearance" "$library" ask LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1 || continue
+      status=0; rig_take "$appearance" projects "$HERE/shots/projects.json" || status=$?
+      if [[ $status -eq 0 ]]; then
+        # Nothing records during the wait. The rig saving frames slows the model on a hosted
+        # Mac enough that the note runs past the app's 10 minute limit on a request.
+        python3 "$HERE/stage.py" wait-note "$LAST_RUN" Northwind "${NOTE_TIMEOUT:-2700}" | tee -a "$OUT/logs/project-notes.txt"
+        status=${PIPESTATUS[0]}
+      fi
+      if [[ $status -eq 0 ]]; then
+        rig_take "$appearance" projects-note "$HERE/shots/projects-note.json" || status=$?
+      fi
+      keep_logs "projects-$appearance"
+      quit_host
+      [[ $status -eq 0 ]] && break
+      echo "projects/$appearance attempt $attempt failed ($status)"
+    done
+    [[ $status -eq 0 ]] || failed+=("projects/$appearance")
+  done
+}
+
 film_dictation() {  # film_dictation <appearance> <take>: into TextEdit with the host's overlay; 0 on success
   local appearance=$1 take=$2 doc status=0
   launch_host "$appearance" "$WORK/pricing" dictation LOKALBOT_UI_TEST_BACKGROUND=1 "LOKALBOT_UI_TEST_AUDIO=$WORK/spoken" || return 1
@@ -364,9 +389,9 @@ for take in "$@"; do
       ;;
     projects)
       echo "== projects =="
-      # The take tracks a suggestion, and the model writes its note in the take. The page opens
-      # on the first tracked project and writes that project's note if it has none, so that
-      # one is written first, and nothing else is using the model during the take.
+      # The take tracks a suggestion, and the model writes its note. The page opens on the first
+      # tracked project and writes that project's note if it has none, so that one is written
+      # first, and nothing else is using the model when the take asks for the second.
       library="$WORK/noted"
       rm -rf "$library"
       cp -cR "$WORK/studio" "$library" 2>/dev/null || cp -R "$WORK/studio" "$library"
@@ -385,7 +410,7 @@ for take in "$@"; do
       if [[ $status -eq 0 ]]; then
         rm -rf "$library"
         cp -cR "$LAST_RUN" "$library" 2>/dev/null || cp -R "$LAST_RUN" "$library"
-        film_seeded projects "$library" LOKALBOT_INITIAL_SECTION=projects LOKALBOT_UI_TEST_BACKGROUND=1
+        film_projects "$library"
       else
         failed+=("projects-note")
       fi
