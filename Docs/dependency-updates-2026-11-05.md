@@ -2,7 +2,7 @@
 
 | Priority | Component | Update | User impact |
 | --- | --- | --- | --- |
-| Medium | [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0) | v0.7.0 (build b11669) → v0.9.0 (build b12110) | Updates local chat, structured output, tool calls, embeddings and autocomplete on every platform. Gemma 4 E2B, the default autocomplete model, reads prompts about 3.1× faster on an M4 Max. ggml moves from 0.27.0 to 0.29.0. Chat, JSON output, tool calls and text embeddings are unchanged in the probes below, and existing search indexes stay valid. On Linux and Windows the new runtime now downloads on its own after updating (see Upgrade behavior). |
+| Medium | [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0) | v0.7.0 (build b11669) → v0.9.0 (build b12110) | Updates local chat, structured output, tool calls, embeddings and autocomplete on every platform. Gemma 4 E2B, the default autocomplete model, reads prompts about 3.1× faster on an M4 Max and about 10% faster with CUDA on an RTX 3060. ggml moves from 0.27.0 to 0.29.0. Chat, JSON output, tool calls and text embeddings are unchanged in the probes below, and existing search indexes stay valid. On Linux and Windows the new runtime now downloads on its own after updating (see Upgrade behavior). |
 
 ## llama.cpp v0.9.0
 
@@ -73,4 +73,21 @@ Upstream changes that were checked, across both v0.8.0 and v0.9.0:
 - **Upgrade fix, the real app.** On the Ubuntu box under Xvfb, with a throwaway home folder holding a real b11669 CPU install and its `backend.json`. Without anyone touching Settings, the app replaced it with b12110 and removed the old folder 2 s after launch, without fetching the Vulkan build, and the new server reports build 12110. This ran on CPU only. It was not run on Windows, and neither the retry after a failed download nor the CUDA message was seen in the app; tests cover those.
 - **Upgrade fix, Windows** (PC, Radeon RX 6600 XT). `runtime::` ran 36 passed and `models::` 7 passed; the tests that need a fake server script run only on Linux. The real-download `an_update_replaces_the_runtime_an_older_version_installed` passed on Vulkan: it fetched `win-vulkan-x64` and removed the older folder.
 - **Test reliability.** The runtime tests run freshly written fake servers, and Linux refuses to run a file while a process forked by another thread still holds it open. This failed 13 of 300 runs of the `runtime::` tests before this change, and 0 of 300 after it. `check_loads` now waits this out too, since a real install can hit the same race.
-- **Not run.** CUDA has not run on an NVIDIA GPU with this build: the archives were checked by hash, layout, `--version`, `--help` and library dependencies only. Linux Vulkan was not run on a GPU. No UI tests ran locally; they and the full unit and Windows workspace suites run in CI. No summary replay was run on a private meeting, and nothing was installed or released.
+- **CUDA and Vulkan on NVIDIA GPUs** (rented on vast.ai, Ubuntu 24.04, release binaries of this branch). Details are in [cuda-validation.md](../LinuxWindows/docs/cuda-validation.md). `cuda::select` picked the expected build on both machines, with each one's companion libraries downloaded and checked against their pins.
+
+  | GPU (compute capability) | Driver (CUDA) | Build picked | Runtime test | Layers on GPU |
+  | --- | --- | --- | --- | --- |
+  | RTX 3060 (8.6) | 615.71.09 (13.4) | CUDA 13.4 | passed | 25/25 |
+  | Titan Xp (6.1) | 580.173.02 (13.0) | CUDA 12.8 | passed; first reply 40 s while the driver compiled kernels, then 1.2 s to load | 25/25 |
+
+  On both, chat, JSON-schema output, a tool call and `/completion` worked at the app's CUDA log verbosity of 4, and a marker word in prompts stayed out of the log. `an_update_replaces_the_runtime_an_older_version_installed`, starting from an older CUDA folder under Automatic, chose Vulkan on the real GPU and removed that folder. The Vulkan runtime test also passed on the RTX 3060.
+
+  Speed on the RTX 3060 with CUDA 13.4, about 1,600 prompt tokens and 128 generated tokens, three alternating runs per build, medians:
+
+  | Model | Prefill b11669 → b12110 (tok/s) | Decode b11669 → b12110 (tok/s) |
+  | --- | ---: | ---: |
+  | Gemma 4 E2B | 4,146 → 4,556 | 100 → 106 |
+  | Qwen3.5 0.8B | 9,582 → 9,995 | 221 → 242 |
+
+  `autocomplete_eval` with LFM2.5 1.2B, one run per backend, including the 160 ms debounce: CUDA p50 222 ms and p95 272 ms, Vulkan p50 362 ms and p95 2,371 ms, with 19 of 20 suggestions on both.
+- **Not run.** CUDA on Windows with this build: those archives were checked by hash, layout and imports only. CUDA selected in the real app during an update: that path, including the message asking to set CUDA up again, is covered by unit tests only. No UI tests ran locally; they and the full unit and Windows workspace suites run in CI. No summary replay was run on a private meeting, and nothing was installed or released.
