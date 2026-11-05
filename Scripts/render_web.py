@@ -53,7 +53,7 @@ ORGANIZATION = {
 # Hand-written pages outside the generator, with the date each last changed.
 # Bump a date when you edit that page so the sitemap's lastmod stays honest.
 STATIC_PAGES = {
-    "": "2026-11-03",
+    "": "2026-11-05",
     "privacy": "2026-11-03",
     "terms": "2026-10-26",
     "support": "2026-11-02",
@@ -401,13 +401,13 @@ def post_byline(post: dict) -> str:
     return " · ".join(parts)
 
 
-def render_post_cards(posts: list[dict]) -> str:
+def render_post_cards(posts: list[dict], with_description: bool = True) -> str:
     return "\n".join(
         f'        <a class="guide-card blog-card" href="/blog/{post["slug"]}">\n'
         f'          <span class="guide-card__eyebrow"><time datetime="{post["published"]}">{long_date(post["published"])}</time> · {post["eyebrow"]}</span>\n'
         f'          <strong>{post["h1"]}</strong>\n'
-        f'          <span>{post["description"]}</span>\n'
-        f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
+        + (f'          <span>{post["description"]}</span>\n' if with_description else "")
+        + f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
         "        </a>"
         for post in posts
     )
@@ -512,7 +512,7 @@ def render_home(index: str) -> str:
     start, end = index.find(LATEST_POSTS_START), index.find(LATEST_POSTS_END)
     if start == -1 or end < start:
         raise SystemExit("web/index.html is missing the LATEST-POSTS markers.")
-    cards = render_post_cards(POSTS[:3])
+    cards = render_post_cards(POSTS[:3], with_description=False)
     return index[: start + len(LATEST_POSTS_START)] + "\n" + cards + "\n        " + index[end:]
 
 
