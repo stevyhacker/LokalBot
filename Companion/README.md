@@ -101,7 +101,9 @@ involved.
   including one queued while the host is away. It never starts the recorder,
   because the Simulator's microphone is the Mac's.
 
-The top of each script has the command to run it. When the Android test fails in
+The top of each script has the command to run it. On a machine other people use
+at the same time, wrap the Android test in `own_emulator.py`, which boots an
+emulator and adb server nobody else's adb can see. When the Android test fails in
 CI, the job's reports hold a screenshot, the UI tree, logcat, the host's log and
 the R8 mapping that decodes a stack trace. iOS keeps a screenshot, the app's log
 and the host's log.

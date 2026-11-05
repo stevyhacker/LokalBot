@@ -1,10 +1,11 @@
-# Self-hosted runners for the Linux & Windows workflow
+# Self-hosted runners
 
 The "Linux & Windows" workflow (`.github/workflows/linux-windows.yml`) runs
 its Linux and Windows jobs on the maintainer's own machines when they are
-online and idle, and on GitHub's runners otherwise. A self-hosted runner keeps
-a warm cargo target directory between jobs, so a run there rebuilds only what
-changed instead of restoring a cache.
+online and idle, and on GitHub's runners otherwise. "Companion Android"
+(`.github/workflows/companion-android.yml`) does the same on the Linux machine.
+A self-hosted runner keeps a warm cargo target directory between jobs, so a run
+there rebuilds only what changed instead of restoring a cache.
 
 ## How a run picks its runners
 
@@ -15,7 +16,10 @@ else goes to `ubuntu-24.04` and `windows-2025`:
 
 - pull requests from forks, always;
 - runs where the `SELF_HOSTED_RUNNERS` repository variable is `off`;
-- runs without the `RUNNER_STATUS_TOKEN` secret, or when listing fails.
+- runs without the `RUNNER_STATUS_TOKEN` secret, or when listing fails;
+- for Companion Android, every run with a `tag` input: `release.yml` and manual
+  dry runs. That job builds the APK the release signs with the real key, so it
+  always runs on `ubuntu-latest`, and it fails if it ever lands anywhere else.
 
 Listing runners needs more than the workflow's own token can do:
 `RUNNER_STATUS_TOKEN` is a fine-grained personal access token with access to
@@ -30,6 +34,14 @@ the maintainer's PC. When the Windows job runs there, it uploads
 checks** job runs them on GitHub's Windows runner. On GitHub's runner, the
 Windows job runs the checks itself (`.github/actions/windows-desktop-checks`).
 
+On the Linux machine, Companion Android keeps `~/.gradle` and `~/.m2` between
+runs, and never writes to GitHub's caches, so nothing from that machine reaches
+a hosted run. Other people run emulators on it, so its emulator test goes
+through `Companion/e2e/own_emulator.py` instead of `android-emulator-runner`:
+the action only takes the ports every adb server scans. Its own adb server and
+emulator ports stay out of everyone else's way, and `android_trip.py` picks a
+free port for the stand-in computer.
+
 ## Isolation
 
 Runner jobs run code from the repository's branches and pull requests. The
@@ -39,7 +51,7 @@ The machines are set up so a bad job can do little:
 
 | | Linux (`setup-linux-runner.sh`) | Windows (`setup-windows-runner.ps1`) |
 |---|---|---|
-| Account | `ghrunner`: no sudo, no docker, private home | NETWORK SERVICE; `C:\gh` limited to SYSTEM, Administrators and that account |
+| Account | `ghrunner`: no sudo, no docker, private home, `kvm` group for the service only | NETWORK SERVICE; `C:\gh` limited to SYSTEM, Administrators and that account |
 | Tailscale network | Blocked by `IPAddressDeny` on the systemd unit | Blocked by an outbound firewall rule for the runner service (unrestricted service SID) |
 | Sharing the host | `CPUWeight=50`, `MemoryMax=32G`, private `/tmp`, its own X display (`:240`) | Steps run at below-normal priority, on the CPU's performance cores |
 | State between jobs | Warm target in `~ghrunner/target`; XDG folders per job | Warm target in `C:\gh\t`; workspace synced per job (`sync-sources.ps1`) |
@@ -63,7 +75,14 @@ gh api -X POST repos/stevyhacker/LokalBot/actions/runners/registration-token --j
   ssh WINDOWS_HOST 'powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows-runner.ps1 -Url https://github.com/stevyhacker/LokalBot'
 ```
 
-The Linux script needs Ubuntu 24.04 and a user with sudo. The Windows script
+For Companion Android, give the Linux runner an Android SDK as well. Run this
+again to update what it installs:
+
+```bash
+ssh LINUX_HOST 'bash setup-linux-android-sdk.sh'
+```
+
+The Linux scripts need Ubuntu 24.04 and a user with sudo. The Windows script
 needs an elevated shell, Visual Studio Build Tools with the C++ workload, Git
 for Windows, 7-Zip and CMake. It installs PowerShell 7 machine-wide if it's
 missing.

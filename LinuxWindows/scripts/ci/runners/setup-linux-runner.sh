@@ -75,7 +75,9 @@ sudo tee "/etc/systemd/system/$UNIT.d/lokalbot.conf" >/dev/null <<'EOF'
 [Service]
 # CI jobs run code from pull requests. Keep them off the Tailscale network
 # (IPv4 CGNAT range and Tailscale's IPv6 prefix), out of other users' /tmp and
-# X displays, and from crowding out interactive work on the host.
+# X displays, and from crowding out interactive work on the host. The Android
+# job's emulator needs KVM.
+SupplementaryGroups=kvm
 IPAddressDeny=100.64.0.0/10 fd7a:115c:a1e0::/48
 PrivateTmp=true
 NoNewPrivileges=true

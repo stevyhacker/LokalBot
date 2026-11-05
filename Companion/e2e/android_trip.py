@@ -25,10 +25,9 @@ import time
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
-from harness import Failure, StandInHost, check, read_adts, sample_library, step, wait_until
+from harness import Failure, StandInHost, check, free_port, read_adts, sample_library, step, wait_until
 
 PACKAGE = "me.dotenv.lokalbot.companion"
-PORT = 17891
 RECORDING_SECONDS = 12
 
 
@@ -264,7 +263,7 @@ def main():
 
     shutil.rmtree(args.out, ignore_errors=True)
     args.out.mkdir(parents=True)
-    host = StandInHost(args.host, args.out / "host", PORT)
+    host = StandInHost(args.host, args.out / "host", free_port())
     try:
         apk = signed(args.apk, args.out)
         host.start()
