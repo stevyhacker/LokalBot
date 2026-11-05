@@ -133,6 +133,8 @@ jobs:
             exit 1
           fi
           echo "ANDROID_HOME=$HOME/android-sdk" >>"$GITHUB_ENV"
+          # When a job is cancelled, its test can restart adb after the runner's cleanup.
+          pkill -u "$(id -u)" -x adb || true
 
       - name: Check the tag names the app's version
         if: inputs.tag != ''
