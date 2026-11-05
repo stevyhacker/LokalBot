@@ -74,28 +74,24 @@
 
 <table>
   <tr>
-    <td width="50%" valign="top">
-      <strong>我还有什么要做？</strong><br />
-      <b>Today</b> 显示当天的摘要和所有未完成的待办，每一条都链接到它来自的会议。每天早上，夜间回顾还会加上一段对昨天的回看。<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/today-dark.gif" /><img src="Assets/readme/today-light.gif" width="420" alt="Today 页面列出需要处理的待办，每一条都链接到对应的会议；勾掉一条后，下方是每日回顾（英文演示数据）" /></picture>
-    </td>
-    <td width="50%" valign="top">
-      <strong>这一天都去哪了？</strong><br />
-      <b>Timeline</b> 按工作时段回溯你的一天。默认只记录应用和窗口活动；屏幕文字和截图需要单独开启。如果你用 Claude Code 或 Codex，它还能按项目命名这些工作，并显示相关的 Pull Request 和提交。<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/timeline-dark.gif" /><img src="Assets/readme/timeline-light.gif" width="420" alt="Timeline 页面显示记录时长和当天的工作时段；点击一个时段会打开它的证据以及背后的文档和窗口（英文演示数据）" /></picture>
-    </td>
+    <td width="50%" valign="top"><strong>我还有什么要做？</strong><br />
+      <b>Today</b> 显示当天的摘要和所有未完成的待办，每一条都链接到它来自的会议。每天早上，夜间回顾还会加上一段对昨天的回看。</td>
+    <td width="50%" valign="top"><strong>这一天都去哪了？</strong><br />
+      <b>Timeline</b> 按工作时段回溯你的一天。默认只记录应用和窗口活动；屏幕文字和截图需要单独开启。如果你用 Claude Code 或 Codex，它还能按项目命名这些工作，并显示相关的 Pull Request 和提交。</td>
   </tr>
   <tr>
-    <td width="50%" valign="top">
-      <strong>和 Maya 还有什么没谈完？</strong><br />
-      <b>People</b> 显示等你处理的事和你们一起做的决定。给发言人命名一次，LokalBot 之后的会议里就能认出这个声音。<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/people-dark.gif" /><img src="Assets/readme/people-light.gif" width="420" alt="People 页面显示 Maya 的页面：等你处理的待办、建议的项目，以及带会议链接的共同决定（英文演示数据）" /></picture>
-    </td>
-    <td width="50%" valign="top">
-      <strong>我把它存哪了？</strong><br />
-      <b>Files</b> 按内容搜索你选择的文件夹：文档、PDF 页面、图片，以及录音和视频中的片段。<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/files-dark.gif" /><img src="Assets/readme/files-light.gif" width="420" alt="搜索租约里关于宠物的条款，找到 PDF 的一页；搜索谈到睡眠的地方，找到播客录音中的片段（英文演示数据）" /></picture>
-    </td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/today-dark.gif" /><img src="Assets/readme/today-light.gif" width="420" alt="Today 页面列出需要处理的待办，每一条都链接到对应的会议；勾掉一条后，下方是每日回顾（英文演示数据）" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/timeline-dark.gif" /><img src="Assets/readme/timeline-light.gif" width="420" alt="Timeline 页面显示记录时长和当天的工作时段；点击一个时段会打开它的证据以及背后的文档和窗口（英文演示数据）" /></picture></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><strong>和 Maya 还有什么没谈完？</strong><br />
+      <b>People</b> 显示等你处理的事和你们一起做的决定。给发言人命名一次，LokalBot 之后的会议里就能认出这个声音。</td>
+    <td width="50%" valign="top"><strong>我把它存哪了？</strong><br />
+      <b>Files</b> 按内容搜索你选择的文件夹：文档、PDF 页面、图片，以及录音和视频中的片段。</td>
+  </tr>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/people-dark.gif" /><img src="Assets/readme/people-light.gif" width="420" alt="People 页面显示 Maya 的页面：等你处理的待办、建议的项目，以及带会议链接的共同决定（英文演示数据）" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/files-dark.gif" /><img src="Assets/readme/files-light.gif" width="420" alt="搜索租约里关于宠物的条款，找到 PDF 的一页；搜索谈到睡眠的地方，找到播客录音中的片段（英文演示数据）" /></picture></td>
   </tr>
   <tr>
     <td colspan="2" align="center">

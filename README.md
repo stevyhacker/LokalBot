@@ -69,28 +69,24 @@ Turn it on in **Settings → Autocomplete**, where you can try it on a sample co
 
 <table>
   <tr>
-    <td width="50%" valign="top">
-      <strong>What do I still need to do?</strong><br />
-      Today shows the day's summary and every open action, each linked to the meeting it came from. Each morning the overnight review adds a look back at yesterday.<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/today-dark.gif" /><img src="Assets/readme/today-light.gif" width="420" alt="Today listing the actions that need attention, each linked to its meeting; ticking one off leaves the rest, then the day digest scrolls in" /></picture>
-    </td>
-    <td width="50%" valign="top">
-      <strong>Where did the day go?</strong><br />
-      Retrace your day session by session. Tracking starts with app and window activity; screen text and screenshots are opt-in. If you use Claude Code or Codex, it can name the work by project and show related pull requests and commits.<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/timeline-dark.gif" /><img src="Assets/readme/timeline-light.gif" width="420" alt="Timeline showing the hours tracked and the day's sessions; clicking a session opens its evidence and the documents and windows behind it" /></picture>
-    </td>
+    <td width="50%" valign="top"><strong>What do I still need to do?</strong><br />
+      Today shows the day's summary and every open action, each linked to the meeting it came from. Each morning the overnight review adds a look back at yesterday.</td>
+    <td width="50%" valign="top"><strong>Where did the day go?</strong><br />
+      Retrace your day session by session. Tracking starts with app and window activity; screen text and screenshots are opt-in. If you use Claude Code or Codex, it can name the work by project and show related pull requests and commits.</td>
   </tr>
   <tr>
-    <td width="50%" valign="top">
-      <strong>What's open with Maya?</strong><br />
-      See what's waiting on you and what you decided together. Name a speaker once, and LokalBot recognizes their voice in later meetings.<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/people-dark.gif" /><img src="Assets/readme/people-light.gif" width="420" alt="People showing Maya's page: an action waiting on you, a suggested project, and decisions made together with links to the meeting" /></picture>
-    </td>
-    <td width="50%" valign="top">
-      <strong>Where did I save that?</strong><br />
-      Search the folders you choose by what's in them: documents, PDF pages, pictures, and moments in recordings and video.<br /><br />
-      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/files-dark.gif" /><img src="Assets/readme/files-light.gif" width="420" alt="Searching for the clause about pets in the lease finds a page of a PDF, and searching for where they talk about sleep finds a moment in a podcast recording" /></picture>
-    </td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/today-dark.gif" /><img src="Assets/readme/today-light.gif" width="420" alt="Today listing the actions that need attention, each linked to its meeting; ticking one off leaves the rest, then the day digest scrolls in" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/timeline-dark.gif" /><img src="Assets/readme/timeline-light.gif" width="420" alt="Timeline showing the hours tracked and the day's sessions; clicking a session opens its evidence and the documents and windows behind it" /></picture></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><strong>What's open with Maya?</strong><br />
+      See what's waiting on you and what you decided together. Name a speaker once, and LokalBot recognizes their voice in later meetings.</td>
+    <td width="50%" valign="top"><strong>Where did I save that?</strong><br />
+      Search the folders you choose by what's in them: documents, PDF pages, pictures, and moments in recordings and video.</td>
+  </tr>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/people-dark.gif" /><img src="Assets/readme/people-light.gif" width="420" alt="People showing Maya's page: an action waiting on you, a suggested project, and decisions made together with links to the meeting" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/files-dark.gif" /><img src="Assets/readme/files-light.gif" width="420" alt="Searching for the clause about pets in the lease finds a page of a PDF, and searching for where they talk about sleep finds a moment in a podcast recording" /></picture></td>
   </tr>
   <tr>
     <td colspan="2" align="center">
