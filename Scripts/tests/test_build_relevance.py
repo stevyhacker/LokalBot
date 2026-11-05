@@ -18,7 +18,14 @@ class BuildRelevanceTests(unittest.TestCase):
             "README.md", "AGENTS.md", "DEVELOPMENT.md", "RELEASING.md", "Docs/plan.md", "web/index.html",
             "Assets/lokalbot-icon.svg", "Video/demo/index.html", "Distribution/homebrew/README.md",
             ".github/PULL_REQUEST_TEMPLATE.md", "cloudflare/worker.ts", "wrangler.jsonc",
+            "Scripts/render_web.py", "Scripts/serve-web.py", "Scripts/blog_posts.py",
         ]))
+
+    def test_docs_only_matches_whole_folders_and_exact_files(self):
+        for path in ["website/index.html", "web", "Docs", "README.md.swift", "LokalBot/README.md",
+                     "Scripts/render_web.sh", "Scripts/ci/render_web.py"]:
+            with self.subTest(path=path):
+                self.assertFalse(build.docs_only(path))
 
     def test_bundled_files_benchmarks_code_and_ci_build(self):
         for path in ["PRIVACY.md", "LICENSE", "LICENSES/AGPL-3.0.txt", "THIRD_PARTY_NOTICES.md",
