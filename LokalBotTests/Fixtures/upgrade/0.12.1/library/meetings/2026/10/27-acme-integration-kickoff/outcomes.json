@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000010-1",
+      "schemaVersion": 2,
+      "text": "Send export schema + sandbox key",
+      "citations": [
+        {
+          "meetingID": "00000010-0000-4000-8000-000000000010",
+          "segmentID": "segment-0001-0000020000-0000040000",
+          "start": 20,
+          "end": 40,
+          "speaker": "me",
+          "excerpt": "The export API covers it. I'll share the schema and a sandbox key today."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}

@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 20,
+      "speaker": "me",
+      "text": "Headline: onboarding conversion is up four points since the new first-run flow."
+    },
+    {
+      "start": 20,
+      "end": 40,
+      "speaker": "them",
+      "text": "Reminder that Q3 planning docs are due to leadership Friday."
+    }
+  ]
+}
