@@ -80,9 +80,17 @@ emulator -avd lokalbot-pixel -no-window -no-audio -gpu swiftshader_indirect &
 
 ## Install on a phone
 
-Turn on USB or wireless debugging, then run
-`adb install -r app/build/outputs/apk/debug/app-debug.apk`. The APK carries
-arm64-v8a and x86_64 only.
+**From a release.** Open `LokalBot-<version>-android.apk` from the
+[latest release](https://github.com/stevyhacker/lokalbot/releases/latest) on the
+phone, and allow your browser or file manager to install it when Android asks.
+It needs Android 10 or later. To update, install the next release's APK over it:
+the app doesn't check for updates, and your pairing and library stay.
+
+**From a build.** Turn on USB or wireless debugging, then run
+`adb install -r app/build/outputs/apk/debug/app-debug.apk`. A debug build and a
+release have different signing keys, so uninstall one before installing the other.
+
+Either way, the APK carries arm64-v8a and x86_64 only.
 
 ## Pair
 
@@ -142,7 +150,11 @@ under `uploads/` as `received-<id>.aac`. The stand-in makes no meeting, so the r
 
 - **Builds.** Release builds use R8; the JNA and UniFFI keep rules are in
   `sync/consumer-rules.pro`. Signing configuration stays out of the repository.
-  Build with `./gradlew :app:bundleRelease`.
+  Build with `./gradlew :app:bundleRelease` for Play.
+- **Direct download.** Every LokalBot release attaches the signed APK. The tag
+  builds it and `Scripts/sign-android-release.sh` signs it. `versionName` and
+  `versionCode` follow the desktop release (`Scripts/bump-version.py`). See the
+  Android section of [RELEASING.md](../../RELEASING.md#android).
 - **Testing.** Ship through Play internal testing first, then production.
 - **Play review.** Reviewers can't pair with a Mac. The review notes should
   send them to **Try it without a computer** on the first screen, and explain the

@@ -15,6 +15,7 @@ def git(root, *args):
 PORT_MANIFEST = "LinuxWindows/Cargo.toml"
 PORT_LOCKFILE = "LinuxWindows/Cargo.lock"
 PORT_UPDATE_KEY = "LinuxWindows/crates/lokalbot-update/src/lib.rs"
+ANDROID_BUILD = "Companion/android/app/build.gradle.kts"
 
 # Releases after this one link an explainer for their major features
 # (RELEASING.md, "Explainers for major features").
@@ -71,6 +72,16 @@ def validate_port_version(root, version):
                          "run Scripts/bump-version.py or cargo update --workspace")
 
 
+def validate_android_version(root, version, build):
+    """The Android app ships from the same tag. Android refuses to install a lower
+    versionCode over a higher one, so it follows the Mac's increasing build number."""
+    source = (root / ANDROID_BUILD).read_text()
+    declared = (re.findall(r'^\s+versionName\s*=\s*"([^"]+)"', source, re.MULTILINE),
+                re.findall(r'^\s+versionCode\s*=\s*(\d+)', source, re.MULTILINE))
+    if declared != ([version], [build]):
+        raise ValueError(f"{ANDROID_BUILD} and Info.plist disagree on the version; run Scripts/bump-version.py")
+
+
 def validate_port_update_key(root, info):
     """Linux and Windows updates verify against the macOS app's Sparkle key."""
     source = (root / PORT_UPDATE_KEY).read_text()
@@ -98,6 +109,7 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
             raise ValueError(f"project.yml and Info.plist disagree on {key}")
     validate_port_version(root, actual)
     validate_port_update_key(root, info)
+    validate_android_version(root, actual, build)
     if metadata_only:
         return actual, build, None
     notes_path = f"Scripts/release-notes/v{actual}.md"
@@ -133,7 +145,7 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
         if not fixture.exists():
             raise ValueError(f"Add the upgrade fixture for {base} (Scripts/upgrade-fixtures/add.sh {base[1:]}) before releasing")
     if staged:
-        required = {"project.yml", "LokalBot/Info.plist", PORT_MANIFEST, PORT_LOCKFILE, notes_path}
+        required = {"project.yml", "LokalBot/Info.plist", PORT_MANIFEST, PORT_LOCKFILE, ANDROID_BUILD, notes_path}
         changed = set(git(root, "diff", "--cached", "--name-only").splitlines())
         if changed != required:
             raise ValueError(f"Stage only the release metadata together: {', '.join(sorted(required))}")

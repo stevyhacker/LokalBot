@@ -39,8 +39,10 @@ android {
         applicationId = "me.dotenv.lokalbot.companion"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // One tag ships every platform; Scripts/bump-version.py sets these.
+        // versionCode is the Mac build number, which only ever goes up.
+        versionCode = 63
+        versionName = "0.12.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // The Rust sync core is built for these two ABIs only.
         ndk { abiFilters += setOf("arm64-v8a", "x86_64") }

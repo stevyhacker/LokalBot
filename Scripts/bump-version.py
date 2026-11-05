@@ -3,8 +3,8 @@
 
 Usage: Scripts/bump-version.py 0.10.11 55
 
-Writes the marketing version and build number to LokalBot/Info.plist and
-project.yml, and the marketing version to the Linux and Windows workspace
+Writes the marketing version and build number to LokalBot/Info.plist, project.yml
+and the Android app, and the marketing version to the Linux and Windows workspace
 (LinuxWindows/Cargo.toml and its workspace crates in Cargo.lock). Nothing is
 staged, committed or tagged.
 """
@@ -48,6 +48,9 @@ def bump(root, version, build):
             blocks[index] = re.sub(r'^(version = ")[^"]*(")', lambda m: m[1] + version + m[2],
                                    block, count=1, flags=re.MULTILINE)
     lock.write_text("[[package]]".join(blocks))
+    android = root / preflight.ANDROID_BUILD
+    replace(android, r'^(\s+versionName\s*=\s*")[^"]*(")', version)
+    replace(android, r'^(\s+versionCode\s*=\s*)\d+()', build)
     return preflight.validate(root, version=version, metadata_only=True)
 
 
@@ -57,7 +60,7 @@ def main():
     parser.add_argument("build")
     args = parser.parse_args()
     version, build, _ = bump(ROOT, args.version, args.build)
-    print(f"Set {version} ({build}) in Info.plist, project.yml, LinuxWindows/Cargo.toml and Cargo.lock")
+    print(f"Set {version} ({build}) in Info.plist, project.yml, the Android app, LinuxWindows/Cargo.toml and Cargo.lock")
 
 
 if __name__ == "__main__":
