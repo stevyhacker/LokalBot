@@ -19,9 +19,12 @@ else goes to `ubuntu-24.04` and `windows-2025`:
 - runs without the `RUNNER_STATUS_TOKEN` secret, or when listing fails;
 - for Companion Android, every run with a `tag` input: `release.yml` and manual
   dry runs. That job builds the APK the release signs with the real key, so it
-  always runs on `ubuntu-latest`, and it fails if it ever lands anywhere else;
-- for Companion Android, a commit that also has a Linux & Windows run going. With
-  one runner, one job would wait for the other, and Linux gains more from it.
+  always runs on `ubuntu-latest`, and it fails if it ever lands anywhere else.
+
+A commit that starts both workflows can pick the Linux runner for both, and then
+one job waits for the other. Most Android changes do start both, because they
+touch the sync core. The wait is about the length of the other job, 5 minutes for
+either, which is still quicker than a hosted Android build of changed app code.
 
 Listing runners needs more than the workflow's own token can do:
 `RUNNER_STATUS_TOKEN` is a fine-grained personal access token with access to

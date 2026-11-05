@@ -59,10 +59,10 @@ jobs:
   # The owner's Ubuntu box runs this when it's online and idle, like the Linux job
   # of linux-windows.yml, and GitHub's runners do otherwise. A release always builds
   # on GitHub, because that APK gets signed with the real key. So do pull requests
-  # from forks, and commits that also start Linux & Windows, which needs the runner
-  # more: most Android changes touch the sync core, and there's one runner. Listing
-  # runners needs RUNNER_STATUS_TOKEN; without it, or with the SELF_HOSTED_RUNNERS
-  # variable set to "off", the job runs on GitHub. See LinuxWindows/scripts/ci/runners.
+  # from forks. Listing runners needs RUNNER_STATUS_TOKEN; without it, or with the
+  # SELF_HOSTED_RUNNERS variable set to "off", the job runs on GitHub. A commit that
+  # also starts Linux & Windows can pick the runner for both, and one job waits for
+  # the other. See LinuxWindows/scripts/ci/runners.
   pick:
     name: Pick a runner
     runs-on: ubuntu-24.04
@@ -76,8 +76,6 @@ jobs:
           GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
           FROM_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
           SWITCH: ${{ vars.SELF_HOSTED_RUNNERS }}
-          WORKFLOW_TOKEN: ${{ github.token }}
-          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           runner='"ubuntu-latest"'
           if [ -n "$TAG" ]; then
@@ -88,9 +86,6 @@ jobs:
             why="SELF_HOSTED_RUNNERS is off"
           elif [ -z "$GH_TOKEN" ]; then
             why="no RUNNER_STATUS_TOKEN secret"
-          elif linux=$(GH_TOKEN=$WORKFLOW_TOKEN gh api "repos/$GITHUB_REPOSITORY/actions/workflows/linux-windows.yml/runs?head_sha=$COMMIT" \
-              --jq '[.workflow_runs[] | select(.status != "completed")] | length' 2>&1) && [ "$linux" != 0 ]; then
-            why="Linux & Windows is running for this commit too, and one job would wait for the other"
           elif ! idle=$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
               --jq '[.runners[] | select(.status == "online" and (.busy | not)) | .labels[].name]' 2>&1); then
             why="couldn't list runners: $idle"
