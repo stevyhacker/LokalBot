@@ -29,8 +29,8 @@ use crate::process;
 mod cuda;
 
 /// The llama.cpp release every platform runs. macOS builds the same commit
-/// from its `v0.7.0` tag.
-pub const LLAMA_BUILD: &str = "b11669";
+/// from its `v0.9.0` tag.
+pub const LLAMA_BUILD: &str = "b12110";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -94,16 +94,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "win-vulkan-x64",
-        name: "llama-b11669-bin-win-vulkan-x64.zip",
-        size: 32_182_350,
-        sha256: "2c07574e7bde71321cb785282b20cc821e951132149eeceeea32ddebdbf0598e",
+        name: "llama-b12110-bin-win-vulkan-x64.zip",
+        size: 37_661_146,
+        sha256: "9732a5e48887ca54d0bfe4af4324dc85fd56cd8cda19b52df3542fa6ebe6874f",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "win-cpu-x64",
-        name: "llama-b11669-bin-win-cpu-x64.zip",
-        size: 19_537_886,
-        sha256: "37b3efcf962847ca869745fd4ccf7f5e7e8dacfeff9fa3523b4ca8cdc66d632b",
+        name: "llama-b12110-bin-win-cpu-x64.zip",
+        size: 24_708_445,
+        sha256: "98901e327c252875accaf2d1bf364e10e868843b0b63468baad1aa945cdc5da2",
     },
 ];
 
@@ -114,16 +114,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "ubuntu-vulkan-x64",
-        name: "llama-b11669-bin-ubuntu-vulkan-x64.tar.gz",
-        size: 30_497_889,
-        sha256: "e8709e5ba6c1b093dea7f3de57f4aba842f9a188fba6b465782d65d6fcfa4d9f",
+        name: "llama-b12110-bin-ubuntu-vulkan-x64.tar.gz",
+        size: 35_858_360,
+        sha256: "a5d741940956ec62e8783aee7e5a4c7c761af867d6f027c3277a51e1a3ac59b0",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "ubuntu-x64",
-        name: "llama-b11669-bin-ubuntu-x64.tar.gz",
-        size: 17_851_611,
-        sha256: "cf07c1c112d709bd67e522017471de57ed0ec8bea031d732c5422351c07f65ac",
+        name: "llama-b12110-bin-ubuntu-x64.tar.gz",
+        size: 23_051_958,
+        sha256: "368227edcc229be5f9bed16a2223d79b5e41d0ac2e19bcf5825e82291c060e55",
     },
 ];
 
@@ -1943,7 +1943,7 @@ fn valid_cuda_device_id(id: &str) -> bool {
 }
 
 fn cuda_launch_args(device: &str) -> Vec<String> {
-    // b11669 hides offload evidence at verbosity 3. Preserve plain startup logs.
+    // b12110 hides offload evidence at verbosity 3. Preserve plain startup logs.
     [
         "--device",
         device,
@@ -2331,7 +2331,7 @@ mod tests {
             assert!(
                 asset
                     .url()
-                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b11669/")
+                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12110/")
             );
             assert!(asset.name.contains(asset.tag));
         }
