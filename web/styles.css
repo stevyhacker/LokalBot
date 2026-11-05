@@ -1349,7 +1349,6 @@ kbd {
 .home-card h3 { margin-top: 18px; font-size: clamp(1.25rem, 2vw, 1.5rem); letter-spacing: -0.025em; }
 .home-card p { margin-top: 8px; max-width: 54ch; color: var(--text-dim); }
 .home-text-link { display: inline-flex; gap: 8px; align-items: center; margin-top: 24px; color: var(--accent-text); }
-.home-demo-note { margin: 24px 0 0; color: var(--text-faint); font-size: 0.84rem; }
 .home-writing__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .home-writing__grid .tile { padding: 28px; }
 .home-writing__lead {
@@ -1567,7 +1566,6 @@ kbd {
 .demo-note kbd { font-size: 0.86em; }
 .demo-note a { color: var(--accent-text); white-space: nowrap; }
 .demo-note a:hover { text-decoration: underline; text-underline-offset: 3px; }
-.home .demo-proof { flex: none; color: var(--text-faint); font-size: 0.82rem; white-space: nowrap; }
 /* without the script every clip's line still reads, under the first clip's controls */
 .demo-stage:not(.is-ready) .demo-note { display: block; margin-bottom: 6px; }
 .demo-stage:not(.is-ready) .demo-notes { display: block; }
@@ -1649,7 +1647,6 @@ kbd {
   .demo-tab { flex: 0 0 auto; padding: 7px 12px; font-size: 0.86rem; }
   .demo-tabs { margin-inline: -20px; padding-inline: 20px; }
   .demo-notes { display: block; }
-  .home .demo-proof { margin-top: 6px; }
 }
 @media (max-width: 480px) {
   .home-badge { display: none; }
