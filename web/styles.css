@@ -532,8 +532,8 @@ kbd {
 
 /* hero demo video — the real app tour inside the same glass slab */
 .hero__diagram--demo { padding: clamp(14px, 2.6vw, 24px); width: min(880px, 100%); }
-/* A playing loop keeps its controls for pausing, out of the way until wanted. */
-.home-loop.is-looping:not(:hover):not(:focus-visible)::-webkit-media-controls { display: none; }
+/* A loop behaves like a GIF: where Low Power Mode refuses to play it, it stays a still with no play button. */
+.home-loop::-webkit-media-controls-start-playback-button { display: none; -webkit-appearance: none; }
 .hero__demo, .home-loop {
   display: block;
   width: 100%;
@@ -1361,9 +1361,8 @@ kbd {
   align-items: start;
   margin-bottom: 16px;
 }
-.home-writing__video { margin: 0; min-width: 0; }
+.home-writing__still { margin: 0; min-width: 0; }
 .home-loop { aspect-ratio: 16 / 9; object-fit: contain; }
-.home-writing__video figcaption a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
 .home-writing__grid .tile .home-text-link { margin-top: 16px; }
 .home-platforms__shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
 .home-platforms__note { max-width: 72ch; margin-top: 28px; color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; }
