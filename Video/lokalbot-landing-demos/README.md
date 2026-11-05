@@ -21,6 +21,11 @@ Cards are wide only. The page picks the file for the viewer's width and appearan
 The `-tall` takes film a narrow window, so text wraps to the phone cut instead of
 running off its edge.
 
+The root README's GIFs and stills are cut from the finished clips by `readme_gifs.py`, since a
+README can't autoplay video. It takes `web/assets/demos` and writes files for
+`Assets/hero/` and `Assets/readme/`; [Assets/hero/README.md](../../Assets/hero/README.md)
+lists them. Rerun it after replacing a clip.
+
 ## What is real
 
 - **The app:** a Debug build of `master` at the commit in the apps run, the same build

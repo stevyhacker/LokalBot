@@ -6,9 +6,17 @@
 
 **Your personal context engine.**
 
-Private meeting notes, workday recall, dictation, and autocomplete—with AI that runs on your computer.<br />
-Your AI agents can search it too, from Claude Code, Codex, or any MCP client.<br />
-Free and open source. No account. Nothing joins your calls.
+Notes from every call with no bot. One search for everything you saw and heard.<br />
+Autocomplete and dictation in any app. Local by default.<br />
+Your AI agents can search it too, from Claude Code, Codex, or any MCP client.
+
+<a id="see-it-in-action"></a>
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" /><img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot in use, in six looping scenes with fictional demo data, each under a caption. Notes from every call, with no bot: a Google Chrome call is recorded, its live transcript fills in, the notes appear, and clicking an action item's citation opens the transcript at that line. One search for everything you saw and heard: typing &quot;demo pres&quot; finds a Keynote deck and a Mail reply seen on screen, and two meetings. Autocomplete that knows what your meetings decided: in TextEdit, it finishes &quot;the Team plan will be $15&quot; with &quot;per seat, billed annually.&quot; and Tab accepts it. Say what you need, and it writes at your cursor: holding Option-Space writes a short team update into an empty document. Ask your own work, then check the source: an answer about a holiday shoot cites a meeting, and clicking the citation opens it. Your AI agents can search it too: in a terminal, Claude Code calls LokalBot and lists what a design review decided and what is still owed." /></picture>
+
+<sub>The real app on fictional data. Waits are cut and some typing is sped up.</sub>
+
+**Free and open source. No account.**
 
 [![Download LokalBot for macOS](https://img.shields.io/badge/%E2%80%82Download%20for%20macOS%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![Download LokalBot for Windows (alpha)](https://img.shields.io/badge/%E2%80%82Download%20for%20Windows%E2%80%82-alpha-0969da?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNiAxNic%2BPHBhdGggZmlsbD0nd2hpdGUnIGQ9J00wIDBoNy41djcuNUgwek04LjUgMEgxNnY3LjVIOC41ek0wIDguNWg3LjVWMTZIMHpNOC41IDguNUgxNlYxNkg4LjV6Jy8%2BPC9zdmc%2B)](https://github.com/stevyhacker/lokalbot/releases/latest)
@@ -24,33 +32,23 @@ Free and open source. No account. Nothing joins your calls.
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Features](#features) · [Windows & Linux](#windows-and-linux) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Agents & CLI](#for-developers--agents) · [Website](https://www.lokalbot.com/)
-
-<img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot in use, in seven looping scenes with fictional demo data. A Quick Recall search for &quot;demo presentation&quot; finds a Keynote deck and a Mail reply seen on screen, and two meetings. In a meeting summary, clicking an action item's citation opens the transcript at the line where it was said. An Ask answer about a holiday shoot links each claim to its source. In TextEdit, autocomplete finishes &quot;the Team plan will be $15&quot; with &quot;per seat, billed annually.&quot; from a meeting, and Tab accepts it. Holding Option-Space for the spoken request &quot;Write a short team update with the launch pricing&quot; writes the update into TextEdit. Timeline opens a work session with its evidence, and People shows what is open with Maya and with Leo. The loop ends on the tagline &quot;Your personal context engine.&quot;" />
-
-<sub>The real app, recorded with fictional demo data.</sub>
+[Features](#features) · [Agents & CLI](#for-developers--agents) · [Windows & Linux](#windows-and-linux) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Website](https://www.lokalbot.com/)
 
 </div>
-
-<a id="see-it-in-action"></a>
-
-https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
-
-<div align="center"><sub>45 seconds: why LokalBot keeps what you heard and saw, which local models do the work, then the real app in use. Fictional demo data.</sub></div>
 
 ## Features
 
 ### Remember what was agreed
 
-Record microphone and meeting-app audio without a bot joining. Get local transcripts, recaps, decisions, and action items, with citations back to the discussion.
+Record microphone and meeting-app audio without a bot joining. Get local transcripts, recaps, decisions, and action items, with citations back to the discussion. You can also import audio and video files as meetings.
 
-<div align="center"><a href="Assets/screenshots/meetings-summary.png"><img src="Assets/screenshots/meetings-summary.png" alt="Meeting workspace with a recap, decisions, action items, source citations, and audio playback" width="920" /></a></div>
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/meetings-dark.png" /><img src="Assets/readme/meetings-light.png" width="800" alt="A recorded call's notes: audio playback, a recap of what was decided, and action items, each with the time it was said" /></picture></div>
 
 ### Find something you saw
 
 One search across your meeting transcripts and, if you turn it on, what you saw on screen. Search by keyword or by meaning, then open the matching passage or screen moment instead of hunting through apps. The same window (**⌃⇧ Space**, or **Ctrl+Shift+Space** on Windows and Linux, once you turn on the shortcut in **Settings → General**) also runs app commands such as **Record now** or **Start dictation** from whatever app you're in.
 
-<div align="center"><a href="Assets/screenshots/quick-recall.png"><img src="Assets/screenshots/quick-recall.png" alt="Quick Recall finding a delivery checklist seen in Pages and three meetings where captions came up" width="560" /></a></div>
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/search-dark.png" /><img src="Assets/readme/search-light.png" width="640" alt="Quick Recall finding a Keynote deck and a Mail reply seen on screen, and two meetings that mention the demo presentation" /></picture></div>
 
 ### Finish the sentence
 
@@ -69,40 +67,108 @@ Turn it on in **Settings → Autocomplete**, where you can try it on a sample co
 
 ### Pick up where you left off
 
-Today brings your day digest and open meeting actions together. Timeline groups captured activity into work sessions, with the underlying context available to inspect. Correct actions, mark them done, and trace each one to its source.
-
 <table>
   <tr>
-    <td width="50%"><a href="Assets/screenshots/today.png"><img src="Assets/screenshots/today.png" alt="Today showing the day digest and outstanding meeting actions" width="400" /></a></td>
-    <td width="50%"><a href="Assets/screenshots/timeline.png"><img src="Assets/screenshots/timeline.png" alt="Timeline showing work sessions, meetings, and access to captured context" width="400" /></a></td>
+    <td width="50%" valign="top"><strong>What do I still need to do?</strong><br />
+      Today shows the day's summary and every open action, each linked to the meeting it came from. Each morning the overnight review adds a look back at yesterday.</td>
+    <td width="50%" valign="top"><strong>Where did the day go?</strong><br />
+      Retrace your day session by session. Tracking starts with app and window activity; screen text and screenshots are opt-in. If you use Claude Code or Codex, it can name the work by project and show related pull requests and commits.</td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Today</b>: your digest and open actions</sub></td>
-    <td align="center"><sub><b>Timeline</b>: work sessions and their context</sub></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/today-dark.gif" /><img src="Assets/readme/today-light.gif" width="420" alt="Today listing the actions that need attention, each linked to its meeting; ticking one off leaves the rest, then the day digest scrolls in" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/timeline-dark.gif" /><img src="Assets/readme/timeline-light.gif" width="420" alt="Timeline showing the hours tracked and the day's sessions; clicking a session opens its evidence and the documents and windows behind it" /></picture></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><strong>What's open with Maya?</strong><br />
+      See what's waiting on you and what you decided together. Name a speaker once, and LokalBot recognizes their voice in later meetings.</td>
+    <td width="50%" valign="top"><strong>Where did I save that?</strong><br />
+      Search the folders you choose by what's in them: documents, PDF pages, pictures, and moments in recordings and video.</td>
+  </tr>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/people-dark.gif" /><img src="Assets/readme/people-light.gif" width="420" alt="People showing Maya's page: an action waiting on you, a suggested project, and decisions made together with links to the meeting" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/files-dark.gif" /><img src="Assets/readme/files-light.gif" width="420" alt="Searching for the clause about pets in the lease finds a page of a PDF, and searching for where they talk about sleep finds a moment in a podcast recording" /></picture></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <strong>Where does this project stand?</strong><br />
+      Track a project, and LokalBot gathers the meetings, actions, and decisions that name it. Open it for a short note on where it stands, with links back to the meetings behind it. Not sure what to track? It suggests names that keep coming up in your meetings.<br /><br />
+      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/projects-dark.gif" /><img src="Assets/readme/projects-light.gif" width="640" alt="Projects suggesting Northwind, which came up in four meetings; tracking it starts a note, which then says where the holiday cut stands with a link back to each meeting" /></picture>
+    </td>
   </tr>
 </table>
 
+### Ask, then check the source
+
+Ask your own work a question. Answers cite their sources, and say so when one can't be verified. Follow a citation back to the transcript or audio. Generated notes are a starting point, not a substitute for the discussion.
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/ask-dark.gif" /><img src="Assets/readme/ask-light.gif" width="720" alt="Asking what was decided about the shoot: the answer streams in with numbered citations and an evidence list, and clicking the source opens the Holiday shoot planning meeting" /></picture></div>
+
 ### Talk instead of typing
 
-Turn on Dictation in **Settings → Dictation**, then hold **⌥ Space** (**Alt+Space** on Windows and Linux, or a shortcut you choose there), speak, and release to insert text at your cursor in any app. Transcription runs on your computer. On Wayland, bind `lokalbot dictate` to a shortcut in your desktop's settings.
+Turn on Dictation in **Settings → Dictation**, then hold **⌥ Space** (**Alt+Space** on Windows and Linux, or a shortcut you choose there), speak, and release to insert text at your cursor in any app. Transcription runs on your computer, and your recent dictations are kept so you can copy one again. In Compose mode, say what you need and LokalBot writes it at your cursor, from your meetings if you let it. On Wayland, bind `lokalbot dictate` to a shortcut in your desktop's settings.
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/dictation-dark.gif" /><img src="Assets/readme/dictation-light.gif" width="720" alt="Holding Option-Space to dictate into an empty document: a small panel listens, then a short team update with the launch pricing appears at the cursor" /></picture></div>
 
 ### Rewrite what you selected
 
 Turn on selection actions in **Settings → General**, select text in any app, and press **⌃⇧ W**. Fix the grammar, make it shorter, translate it, summarize it, or type your own instruction, then replace the selection or copy the result. **Draft a reply with my memory** also searches your meetings, so the reply can use what was actually agreed, and lists the meetings it used. It runs on your Think model, which stays on your computer unless you chose and approved a server. On Windows and Linux the shortcut is **Ctrl+Alt+Space**, because ⌃⇧ W closes tabs and windows there; on Wayland, bind `lokalbot selection-actions` to a shortcut in your desktop's settings.
 
-### And more
+### It remembers how you work
 
-| Ask, then check the source | Follow through | Bring your own agent |
-| --- | --- | --- |
-| Ask about your meeting library and follow the answer's citations back to the transcript or audio. Generated notes are a starting point, not a substitute for the discussion. | Prepare local follow-up drafts. Also keep a note for every meeting in your Obsidian or Logseq folder, and get daily briefs and weekly work logs. You review and send them yourself. | Give Claude Code or any MCP client read-only access to your meeting library through the bundled `lokalbot-cli`. It stays off until you enable it. |
+Personal Context is an encrypted list of your facts, preferences, goals, and principles. Tell Ask "Remember I want the agenda the day before," add items in Settings, or let the overnight review pick up facts and preferences from your own words in meetings. Ask uses what it holds, so answers fit your work.
 
-<sub>Screenshots are unedited captures of the Mac app with fictional demo data. They show the interface, not a live inference benchmark. The Autocomplete clip is a cropped, real-time recording of live suggestions. Click an image for full resolution; see the <a href="Assets/screenshots/README.md">capture notes</a> for provenance.</sub>
+- **Only your own words.** It learns from your lines, never other speakers'. The model that reads them stays on your computer unless you approve a server.
+- **You see where it came from.** Every learned item shows the line behind it. Preferences, and anything from what you typed, wait for you to keep or dismiss them. Facts and goals from meetings are saved directly.
+- **Yours to turn off.** Learning is on by default, at up to three items a night. One switch in Settings stops it.
+- **Private from agents.** Agents read only the items you choose to share, under a separate permission.
+
+### Draft the follow-up
+
+Prepare local follow-up drafts. Also keep a note for every meeting in your Obsidian or Logseq folder, and get daily briefs and weekly work logs. You review and send them yourself.
+
+<sub>The clips show the real Mac app on fictional data, with waits cut and some typing sped up. Search, Today, Timeline and People use a seeded library; the notes, Ask answers, dictation, autocomplete and Files results come from the on-device models. <a href="Video/lokalbot-landing-demos/README.md">How they were made</a>.</sub>
 
 <a id="windows-and-linux"></a>
 
 ### Also on Windows and Linux (alpha)
 
 A native Windows and Linux app, written in Rust, has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, calendar, Agent Mode, and the CLI and MCP server all work. It's an alpha: the Windows build isn't code-signed yet, some features depend on your Linux desktop (Wayland support is partial), and Gmail in meeting briefs hasn't been ported. See [what works where](LinuxWindows/README.md#what-works-where) and [screenshots](LinuxWindows/docs/screenshots).
+
+## For developers & agents
+
+Claude Code, Codex, or any MCP client can search your meetings through the bundled **`lokalbot-cli`** or its stdio **Model Context Protocol (MCP)** server. Ask what was decided, who owns an action item, or where a topic came up. Agents can read your library but can't change it.
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/agents-dark.gif" /><img src="Assets/readme/agents-light.gif" width="720" alt="In a terminal, Claude Code is asked what today's design review decided about caching and what is still owed; it calls LokalBot twice and lists the decisions and the open actions" /></picture></div>
+
+Connect Claude Code with one command, or install the [Claude Code plugin](Distribution/claude-plugin/README.md):
+
+```bash
+# macOS
+claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
+# Windows and Linux, with lokalbot-cli on your PATH
+claude mcp add lokalbot -- lokalbot-cli mcp
+```
+
+Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, turn on meeting-library access in **Settings → Privacy & Data**. Then install the CLI from **Settings → Advanced → Agent CLI**.
+
+**Ready to act on a meeting?** Open any action item in Claude Code or Codex, and the prompt is already typed in with the task and where it came from, for you to review and send.
+
+Or use the CLI from any shell or agent:
+
+```bash
+lokalbot-cli search "database decision"
+lokalbot-cli get latest --include metadata,summary
+lokalbot-cli search-files "lease renewal" --kind pdf   # Mac, with Files ticked
+lokalbot-cli mcp
+```
+
+Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. There the CLI has the read-only commands and every MCP tool except `search_files`; `ask`, `reply`, `search-files`, and the setup and configuration commands are Mac only.
+
+Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. On a Mac, `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs the Files box and never changes your files. External clients may send results to their own model providers.
+
+The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
+
+[CLI examples](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code plugin](Distribution/claude-plugin/README.md) · [MCP architecture](DEVELOPMENT.md#agent-cli--mcp)
 
 ## How it compares
 
@@ -224,36 +290,6 @@ Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include P
 On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses LFM2.5 1.2B by default. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
 
 [Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/EmbeddingIndex.swift) · [Model and runtime details](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
-
-## For developers & agents
-
-The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, turn on meeting-library access in **Settings → Privacy & Data**. Then install the CLI from **Settings → Advanced → Agent CLI**.
-
-<div align="center"><img src="Assets/cli-demo.svg" alt="Animated terminal session: lokalbot-cli lists meetings as a table, searches transcripts for redis and returns JSON, then prints the latest meeting summary" width="720" /></div>
-
-```bash
-lokalbot-cli search "database decision"
-lokalbot-cli get latest --include metadata,summary
-lokalbot-cli search-files "lease renewal" --kind pdf   # Mac, with Files ticked
-lokalbot-cli mcp
-```
-
-Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. There the CLI has the read-only commands and every MCP tool except `search_files`; `ask`, `reply`, `search-files`, and the setup and configuration commands are Mac only.
-
-Connect Claude Code with one command, or install the [Claude Code plugin](Distribution/claude-plugin/README.md):
-
-```bash
-# macOS
-claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
-# Windows and Linux, with lokalbot-cli on your PATH
-claude mcp add lokalbot -- lokalbot-cli mcp
-```
-
-Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. On a Mac, `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs the Files box and never changes your files. External clients may send results to their own model providers.
-
-The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
-
-[CLI examples](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code plugin](Distribution/claude-plugin/README.md) · [MCP architecture](DEVELOPMENT.md#agent-cli--mcp)
 
 ## Build from source
 
