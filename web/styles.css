@@ -1349,7 +1349,6 @@ kbd {
 .home-card h3 { margin-top: 18px; font-size: clamp(1.25rem, 2vw, 1.5rem); letter-spacing: -0.025em; }
 .home-card p { margin-top: 8px; max-width: 54ch; color: var(--text-dim); }
 .home-text-link { display: inline-flex; gap: 8px; align-items: center; margin-top: 24px; color: var(--accent-text); }
-.home-demo-note { margin: 24px 0 0; color: var(--text-faint); font-size: 0.84rem; }
 .home-writing__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .home-writing__grid .tile { padding: 28px; }
 .home-writing__lead {
