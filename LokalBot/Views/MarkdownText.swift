@@ -1,5 +1,52 @@
 import SwiftUI
 
+/// Answers arrive a few tokens at a time, so the text on screen often stops
+/// inside an emphasis or code span. Closing the span lets it render as it
+/// will once complete, instead of showing its raw markers until it does.
+enum StreamingMarkdown {
+    static func displayable(_ text: String) -> String {
+        var lines = text.components(separatedBy: "\n")
+        guard let last = lines.last else { return text }
+        var fenced = false
+        for line in lines.dropLast() where line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+            fenced.toggle()
+        }
+        guard !fenced, !last.trimmingCharacters(in: .whitespaces).hasPrefix("```") else { return text }
+        lines[lines.count - 1] = closingOpenSpans(last)
+        return lines.joined(separator: "\n")
+    }
+
+    private static func closingOpenSpans(_ line: String) -> String {
+        var line = line
+        // Markers still arriving, with nothing yet inside them to style.
+        while let marker = line.last, marker == "*" || marker == "`" {
+            let run = line.reversed().prefix { $0 == marker }.count
+            let before = line.dropLast(run).last
+            let closesASpan = before.map { !$0.isWhitespace } ?? false
+                && line.filter { $0 == marker }.count.isMultiple(of: 2)
+            if closesASpan { break }
+            line.removeLast(run)
+        }
+        if !line.filter({ $0 == "`" }).count.isMultiple(of: 2) { return line + "`" }
+        var closing = line.components(separatedBy: "**").count.isMultiple(of: 2) ? "**" : ""
+        if !openingAsterisks(in: line.replacingOccurrences(of: "**", with: "")).isMultiple(of: 2) {
+            closing = "*" + closing
+        }
+        return line + closing
+    }
+
+    /// Asterisks that touch text. "2 * 3" and a "* item" bullet open nothing.
+    private static func openingAsterisks(in line: String) -> Int {
+        let characters = Array(line)
+        return characters.indices.filter { index in
+            guard characters[index] == "*" else { return false }
+            let touchesNext = index + 1 < characters.count && !characters[index + 1].isWhitespace
+            let touchesPrevious = index > 0 && !characters[index - 1].isWhitespace
+            return touchesNext || touchesPrevious
+        }.count
+    }
+}
+
 /// A selectable Markdown renderer backed by one SwiftUI `Text`. Keeping the
 /// whole document in one attributed string gives macOS one continuous
 /// selection range, so users can drag across lines and copy only the portion

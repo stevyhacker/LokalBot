@@ -175,7 +175,10 @@ struct MeetingNotesEvidence {
                   speaker: segment.speaker, excerpt: String(visible.prefix(600)))
         }
 
-        for item in notes.prefix(maximumNotes) {
+        let statedDecisions: [[String: Any]] = template == .meeting && isEnglishMeeting
+            ? ExplicitDecisions.missing(from: notes, in: visible.mapValues { $0.map(\.text).joined(separator: " ") })
+            : []
+        for item in Array(notes.prefix(maximumNotes)) + statedDecisions {
             guard let (id, segment, visible) = evidence(item) else { reject(item, "unknown_source"); continue }
             guard let text = text(item, expectedSpeaker: units.first { $0.source == item["source"] as? String }?.speaker),
                   let section = item["section"] as? String,
@@ -403,5 +406,63 @@ struct MeetingNotesEvidence {
                 && section.caseInsensitiveCompare("Action items") != .orderedSame
         }
         return Self.sections(template).contains(section)
+    }
+}
+
+/// Decisions a speaker states outright ("Decision made: we shoot in the
+/// studio", "we decided the launch stays on the 20th"). Small models can file
+/// these under Key points, which leaves a meeting with no cited decisions, so
+/// a stated decision the model did not list is taken from its row. English
+/// only, like the other wording checks.
+enum ExplicitDecisions {
+    /// One note per stated decision the model's Decisions notes don't cover.
+    static func missing(from notes: [[String: Any]], in rows: [String: String]) -> [[String: Any]] {
+        let listed = notes.filter { $0["section"] as? String == "Decisions" }
+        let listedTexts = listed.compactMap { $0["text"] as? String }
+        let listedSources = Set(listed.compactMap { $0["source"] as? String })
+        var added: [[String: Any]] = []
+        for source in rows.keys.sorted() where !listedSources.contains(source) {
+            for decision in statements(in: rows[source] ?? "") {
+                let known = listedTexts + added.compactMap { $0["text"] as? String }
+                guard !known.contains(where: { OutcomeTextSimilarity.isSimilar($0, decision, threshold: 0.5) }) else { continue }
+                added.append(["section": "Decisions", "text": decision, "source": source])
+            }
+        }
+        return added
+    }
+
+    static func statements(in text: String) -> [String] {
+        var found: [String] = []
+        text.enumerateSubstrings(in: text.startIndex..., options: [.bySentences, .localized]) { sentence, _, _, _ in
+            if let sentence, let decision = statement(in: sentence.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                found.append(decision)
+            }
+        }
+        return found
+    }
+
+    private static func statement(in sentence: String) -> String? {
+        // A request after the decision is an action, not part of it.
+        let request = #",\s*(?:can|could|would|will) you\b.*$"#
+        let clause = sentence.replacingOccurrences(of: request, with: "", options: [.regularExpression, .caseInsensitive])
+        guard !clause.hasSuffix("?") else { return nil }
+        let past = #"\b(?:last (?:year|quarter|month|week)|years? ago|months? ago|back then|previously)\b"#
+        guard clause.range(of: past, options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
+        var decision: String?
+        var opening = clause.startIndex..<clause.startIndex
+        if let marker = clause.range(of: #"\bdecision(?: is| was)?(?: made)?\s*[:,–—-]\s*"#, options: [.regularExpression, .caseInsensitive]) {
+            opening = clause.startIndex..<marker.lowerBound
+            decision = String(clause[marker.upperBound...])
+        } else if let subject = clause.range(of: #"\b(?:we|we've|we have|the team|the team has) (?:decided|agreed)\b"#, options: [.regularExpression, .caseInsensitive]) {
+            opening = clause.startIndex..<subject.lowerBound
+            decision = String(clause[subject.lowerBound...])
+        }
+        // "If we decided…", "what we decided…", "no decision, …" settle nothing.
+        let unsettledOpening = #"\b(?:if|whether|once|when|unless|until|before|after|what|did|have|had|no)\b"#
+        guard clause[opening].range(of: unsettledOpening, options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
+        guard var text = decision?.trimmingCharacters(in: CharacterSet.whitespaces.union(.punctuationCharacters)),
+              text.split(whereSeparator: \.isWhitespace).count >= 3 else { return nil }
+        text = text.prefix(1).uppercased() + text.dropFirst() + "."
+        return text.count <= 280 ? text : nil
     }
 }

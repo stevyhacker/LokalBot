@@ -82,6 +82,14 @@ struct ProjectProfile: Identifiable, Equatable, Sendable {
     var openActionCount: Int { myActions.count + othersActions.count }
     var trackedSeconds: TimeInterval { days.reduce(0) { $0 + $1.seconds } }
     var meetingIDs: Set<UUID> { Set(meetings.map(\.id)) }
+
+    /// This suggestion as the tracked project it just became.
+    func tracked(as trackedID: UUID, selectionID: String) -> ProjectProfile {
+        ProjectProfile(id: selectionID, name: name, kind: .tracked(trackedID), otherNames: otherNames,
+                       meetings: meetings, myActions: myActions, othersActions: othersActions,
+                       olderOthersActions: olderOthersActions, decisions: decisions, reviewNotes: reviewNotes,
+                       days: days, windows: windows, people: people, lastActive: lastActive)
+    }
 }
 
 enum ProjectLinks {

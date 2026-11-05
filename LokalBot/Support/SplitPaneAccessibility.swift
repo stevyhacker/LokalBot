@@ -34,6 +34,29 @@ struct HeldPaneWidth {
     }
 }
 
+/// Tells a divider drag from every other resize by the mouse event being
+/// handled. The resize notification can't: from macOS 26 at least, plain layout
+/// passes name a divider too, so a re-division looked like a drag and the pane
+/// kept the width SwiftUI gave it. A click is not a drag, so selecting a row
+/// never counts, and the drag's own last step can land on its mouse-up.
+struct DividerDragDetector {
+    private var dragging = false
+
+    mutating func isDrag(currentEvent: NSEvent.EventType?) -> Bool {
+        switch currentEvent {
+        case .leftMouseDragged:
+            dragging = true
+            return true
+        case .leftMouseUp where dragging:
+            dragging = false
+            return true
+        default:
+            dragging = false
+            return false
+        }
+    }
+}
+
 /// SwiftUI labels a column's content, but macOS also exposes the native split
 /// item's hosting view as a separate group. Name that boundary without
 /// replacing the native split view, its children, or its keyboard behavior.
@@ -72,6 +95,7 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
         private var initialWidthAttempts = 0
         private static let maximumInitialWidthAttempts = 12
         private var held = HeldPaneWidth()
+        private var dividerDrag = DividerDragDetector()
         private weak var observedSplit: NSSplitView?
         private var resizeObserver: NSObjectProtocol?
         private var restoringHeldWidth = false
@@ -172,17 +196,20 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             split.setPosition(position, ofDividerAt: 0)
         }
 
-        /// NSSplitView names the divider in the notification only when the
-        /// user dragged it; every other resize is a re-division to undo.
+        /// Only a divider drag chooses a width; every other resize is a
+        /// re-division to undo.
         private func observeResizes(of split: NSSplitView, pane: NSView) {
             guard observedSplit !== split else { return }
             if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
             observedSplit = split
             resizeObserver = NotificationCenter.default.addObserver(
                 forName: NSSplitView.didResizeSubviewsNotification, object: split, queue: .main
-            ) { [weak self, weak pane] note in
-                let byUser = note.userInfo?["NSSplitViewDividerIndex"] != nil
-                MainActor.assumeIsolated { self?.splitDidResize(pane: pane, byUser: byUser) }
+            ) { [weak self, weak pane] _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    let byUser = self.dividerDrag.isDrag(currentEvent: NSApp.currentEvent?.type)
+                    self.splitDidResize(pane: pane, byUser: byUser)
+                }
             }
         }
 

@@ -84,7 +84,7 @@ final class ProjectStatusGeneratorTests: XCTestCase {
             """
         let summary = try await ProjectStatusGenerator.generate(
             evidence: evidence, projectID: projectID, engine: StubEngine(reply: reply),
-            location: "this Mac", now: now)
+            location: "this Mac", now: now, finishedAt: { self.now })
 
         XCTAssertEqual(summary.projectID, projectID)
         XCTAssertEqual(summary.overview, "The pilot passed review; pricing is still open.")

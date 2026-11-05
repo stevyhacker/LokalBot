@@ -44,6 +44,35 @@ final class RedesignUITests: XCTestCase {
         snapshot("saved-audio-review-and-capture-warning")
     }
 
+    /// Filmed on 2026-11-05: opening Projects showed the first project with no
+    /// row highlighted, and selecting a row widened the list column to its maximum.
+    func testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth() throws {
+        let projects = fixture.root.appendingPathComponent("projects", isDirectory: true)
+        try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
+        let tracked: [String: Any] = ["version": 1, "hiddenNames": [String](), "tracked": ["Atlas", "Borealis"].map { name in
+            ["id": UUID().uuidString, "name": name, "otherNames": [String](), "createdAt": "2026-11-01T09:00:00Z"] as [String: Any]
+        }]
+        try JSONSerialization.data(withJSONObject: tracked).write(to: projects.appendingPathComponent("tracked.json"))
+        try launch(["LOKALBOT_INITIAL_SECTION": "projects", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
+
+        let list = app.outlines["projects.list"]
+        XCTAssertTrue(list.waitForExistence(timeout: 8))
+        let selected = list.outlineRows.matching(NSPredicate(format: "selected == true"))
+        XCTAssertTrue(UITestHarness.waitUntil { selected.count == 1 },
+                      "The project the page opens on must be selected in the list; selected rows: \(selected.count)")
+        let width = list.frame.width
+        let other = list.outlineRows
+            .matching(NSPredicate(format: "selected == false"))
+            .containing(NSPredicate(format: "label CONTAINS 'Atlas' OR label CONTAINS 'Borealis'")).firstMatch
+        XCTAssertTrue(other.waitForExistence(timeout: 5))
+        other.click()
+        XCTAssertTrue(UITestHarness.waitUntil { other.isSelected && selected.count == 1 })
+        // A re-division lands on the next layout pass, so give it one.
+        usleep(800_000)
+        XCTAssertEqual(list.frame.width, width, accuracy: 2, "Selecting a project must not move the divider")
+        snapshot("projects-selection")
+    }
+
     func testWorkspaceVisualMatrix() throws {
         // Collect route assertion failures across the matrix for review. Any
         // failed assertion still fails this test and the aggregate release gate.
