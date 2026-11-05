@@ -35,9 +35,11 @@ trap 'rm -rf "$work"' EXIT
 
 "$build_tools/zipalign" -c -P 16 4 "$work/signed.apk"
 report=$("$build_tools/apksigner" verify --verbose --print-certs "$work/signed.apk")
-digest=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' <<<"$report")
-if [[ -z "$digest" ]]; then
-  echo "sign-android-release: apksigner reported no certificate digest" >&2
+# Build-tools 36 prints "Signer #1 certificate ..." and 37 "V3.0 Signer: certificate ...".
+digest=$(sed -n -E 's/^.*Signer.* certificate SHA-256 digest: ([0-9a-f]{64})$/\1/p' <<<"$report" | sort -u)
+if [[ ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "sign-android-release: expected one certificate digest from apksigner, in:" >&2
+  echo "$report" >&2
   exit 1
 fi
 if [[ -n "$expected" && "$digest" != "$expected" ]]; then
