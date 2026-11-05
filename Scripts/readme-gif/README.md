@@ -4,9 +4,9 @@ Records the LokalBot UI Test Host and builds the looping hero GIFs in
 `Assets/hero/` (light and dark). What the published files show and which
 revision they came from is in [Assets/hero/README.md](../../Assets/hero/README.md).
 
-The published hero is now composed by
-[Video/lokalbot-readme-hero](../../Video/lokalbot-readme-hero/README.md), which
-reuses the live autocomplete and dictation scenes from the loop this pipeline
+The published hero is now cut by
+[Video/lokalbot-landing-demos](../../Video/lokalbot-landing-demos/README.md). Before that,
+[Video/lokalbot-readme-hero](../../Video/lokalbot-readme-hero/README.md) composed it, reusing the live autocomplete and dictation scenes from the loop this pipeline
 built at `43d72b9`. Running `build.sh` here replaces
 `Assets/hero/lokalbot-demo-light.gif` with this pipeline's own five-scene loop.
 
