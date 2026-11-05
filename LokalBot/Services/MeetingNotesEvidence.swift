@@ -133,6 +133,26 @@ struct MeetingNotesEvidence {
         ])
     }
 
+    /// Decisions a speaker stated outright that no finished part listed, as
+    /// source-linked notes. Run once the whole meeting is scanned: a page or
+    /// repair still in progress may yet list them.
+    func statedDecisions(after claims: [SummaryClaimEvidence.Claim], template: NoteTemplate,
+                         meetingID: UUID) -> Validated? {
+        guard template == .meeting, isEnglishMeeting else { return nil }
+        let listed = claims.filter { $0.section == "Decisions" }
+        let citedSegments = Set(listed.map(\.segmentID))
+        let citations = transcript.summaryCitationSources
+        let rows = Dictionary(grouping: units, by: \.source)
+            .filter { source, _ in citations[source].map { !citedSegments.contains($0) } ?? false }
+            .mapValues { $0.map(\.text).joined(separator: " ") }
+        let notes = ExplicitDecisions.missing(listedTexts: listed.map(\.text), in: rows)
+        guard !notes.isEmpty, let data = try? JSONSerialization.data(withJSONObject: [
+            "notes": notes, "actions": [[String: Any]](), "has_more": false,
+        ] as [String: Any]) else { return nil }
+        return validate(String(decoding: data, as: UTF8.self), units: units, template: template,
+                        meetingID: meetingID, maximumNotes: notes.count, maximumActions: 0)
+    }
+
     func validate(_ output: String, units: [Unit], template: NoteTemplate,
                   meetingID: UUID, maximumNotes: Int, maximumActions: Int) -> Validated {
         let parsed = CompleteJSONRecords.parse(output, keys: ["notes", "actions"])
@@ -175,10 +195,7 @@ struct MeetingNotesEvidence {
                   speaker: segment.speaker, excerpt: String(visible.prefix(600)))
         }
 
-        let statedDecisions: [[String: Any]] = template == .meeting && isEnglishMeeting
-            ? ExplicitDecisions.missing(from: notes, in: visible.mapValues { $0.map(\.text).joined(separator: " ") })
-            : []
-        for item in Array(notes.prefix(maximumNotes)) + statedDecisions {
+        for item in notes.prefix(maximumNotes) {
             guard let (id, segment, visible) = evidence(item) else { reject(item, "unknown_source"); continue }
             guard let text = text(item, expectedSpeaker: units.first { $0.source == item["source"] as? String }?.speaker),
                   let section = item["section"] as? String,
@@ -415,16 +432,15 @@ struct MeetingNotesEvidence {
 /// a stated decision the model did not list is taken from its row. English
 /// only, like the other wording checks.
 enum ExplicitDecisions {
-    /// One note per stated decision the model's Decisions notes don't cover.
-    static func missing(from notes: [[String: Any]], in rows: [String: String]) -> [[String: Any]] {
-        let listed = notes.filter { $0["section"] as? String == "Decisions" }
-        let listedTexts = listed.compactMap { $0["text"] as? String }
-        let listedSources = Set(listed.compactMap { $0["source"] as? String })
+    /// One note per stated decision that isn't already listed. `rows` holds
+    /// the rows no Decisions note cites.
+    static func missing(listedTexts: [String], in rows: [String: String]) -> [[String: Any]] {
+        var known = listedTexts
         var added: [[String: Any]] = []
-        for source in rows.keys.sorted() where !listedSources.contains(source) {
+        for source in rows.keys.sorted() {
             for decision in statements(in: rows[source] ?? "") {
-                let known = listedTexts + added.compactMap { $0["text"] as? String }
                 guard !known.contains(where: { OutcomeTextSimilarity.isSimilar($0, decision, threshold: 0.5) }) else { continue }
+                known.append(decision)
                 added.append(["section": "Decisions", "text": decision, "source": source])
             }
         }

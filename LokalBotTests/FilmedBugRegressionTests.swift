@@ -55,29 +55,27 @@ final class FilmedBugRegressionTests: XCTestCase {
         }
     }
 
-    func testValidatedNotesGainAStatedDecisionTheModelFiledElsewhere() throws {
+    func testAStatedDecisionTheModelFiledElsewhereIsAddedOnceTheScanIsDone() throws {
         let transcript = Transcript(segments: [
             .init(start: 0, end: 5, speaker: "Me", text: "Are we shooting on location or in the studio?"),
             .init(start: 6, end: 10, speaker: "Them", text: "The studio, it's half the budget."),
             .init(start: 11, end: 15, speaker: "Me", text: "Agreed. Decision made, we shoot in the studio."),
         ], engine: "test")
         let evidence = MeetingNotesEvidence(transcript: transcript)
-        let keyPoint: [String: Any] = ["section": "Key points", "text": "The studio costs half as much.",
-                                       "source": evidence.units[1].source]
-        let output = String(decoding: try JSONSerialization.data(withJSONObject: [
-            "notes": [keyPoint], "actions": [[String: Any]](), "has_more": false,
-        ] as [String: Any]), as: UTF8.self)
-        let result = evidence.validate(output, units: evidence.units, template: .meeting, meetingID: UUID(),
-                                       maximumNotes: 12, maximumActions: 10)
-        XCTAssertEqual(result.outcomes.decisionRecords.map(\.text), ["We shoot in the studio."])
-        XCTAssertEqual(result.outcomes.decisionRecords.first?.citations.first?.excerpt,
+        let stated = try XCTUnwrap(evidence.statedDecisions(after: [], template: .meeting, meetingID: UUID()))
+        XCTAssertEqual(stated.outcomes.decisionRecords.map(\.text), ["We shoot in the studio."])
+        XCTAssertEqual(stated.outcomes.decisionRecords.first?.citations.first?.excerpt,
                        "Agreed. Decision made, we shoot in the studio.")
+        XCTAssertEqual(stated.claims.map(\.section), ["Decisions"])
+        XCTAssertNil(evidence.statedDecisions(after: stated.claims, template: .meeting, meetingID: UUID()),
+                     "a decision already listed is not added again")
+        XCTAssertNil(evidence.statedDecisions(after: [], template: .lecture, meetingID: UUID()),
+                     "only meetings make decisions")
     }
 
-    func testAModelDecisionOnTheSameFactIsNotDoubled() throws {
-        let rows = ["s1": "Decision made, we shoot in the studio."]
-        let notes: [[String: Any]] = [["section": "Decisions", "text": "We shoot in the studio", "source": "s0"]]
-        XCTAssertTrue(ExplicitDecisions.missing(from: notes, in: rows).isEmpty)
+    func testAModelDecisionOnTheSameFactIsNotDoubled() {
+        XCTAssertTrue(ExplicitDecisions.missing(listedTexts: ["We shoot in the studio"],
+                                                in: ["s1": "Decision made, we shoot in the studio."]).isEmpty)
     }
 
     // MARK: - Ask streaming
