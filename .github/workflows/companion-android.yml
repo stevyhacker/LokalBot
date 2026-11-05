@@ -60,9 +60,9 @@ jobs:
   # of linux-windows.yml, and GitHub's runners do otherwise. A release always builds
   # on GitHub, because that APK gets signed with the real key. So do pull requests
   # from forks. Listing runners needs RUNNER_STATUS_TOKEN; without it, or with the
-  # SELF_HOSTED_RUNNERS variable set to "off", the job runs on GitHub. A commit that
-  # also starts Linux & Windows can pick the runner for both, and one job waits for
-  # the other. See LinuxWindows/scripts/ci/runners.
+  # SELF_HOSTED_RUNNERS variable set to "off", the job runs on GitHub. On a commit
+  # that also starts Linux & Windows, the picker that looks second usually finds the
+  # runner busy and uses GitHub. See LinuxWindows/scripts/ci/runners.
   pick:
     name: Pick a runner
     runs-on: ubuntu-24.04

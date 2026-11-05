@@ -21,10 +21,10 @@ else goes to `ubuntu-24.04` and `windows-2025`:
   dry runs. That job builds the APK the release signs with the real key, so it
   always runs on `ubuntu-latest`, and it fails if it ever lands anywhere else.
 
-A commit that starts both workflows can pick the Linux runner for both, and then
-one job waits for the other. Most Android changes do start both, because they
-touch the sync core. The wait is about the length of the other job, 5 minutes for
-either, which is still quicker than a hosted Android build of changed app code.
+Most Android changes also start "Linux & Windows", because they touch the sync
+core. There's one Linux runner, so the picker that looks second usually finds it
+busy and uses GitHub's runners. If both look before either job has started, both
+pick it and one job waits for the other, about 5 minutes.
 
 Listing runners needs more than the workflow's own token can do:
 `RUNNER_STATUS_TOKEN` is a fine-grained personal access token with access to
