@@ -11,7 +11,7 @@ use std::time::Instant;
 
 use lokalbot_ai::catalog;
 use lokalbot_ai::think::dot;
-use lokalbot_ai::{ChatRequest, EmbeddingClient, RuntimeManager, ThinkClient, download};
+use lokalbot_ai::{ChatRequest, EmbeddingClient, RuntimeManager, ThinkClient, download, runtime};
 use lokalbot_core::{LibraryPaths, Settings};
 
 pub fn e2e_root() -> PathBuf {
@@ -192,6 +192,60 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
             std::fs::copy(entry.path(), target).unwrap();
         }
     }
+}
+
+/// A library set up by a version pinned to another llama.cpp build, on this
+/// platform's real archives.
+#[test]
+#[ignore = "needs the runtime from installs_runtime_downloads_models_and_answers"]
+fn an_update_replaces_the_runtime_an_older_version_installed() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+    let source = e2e_root().join("runtimes/llama-cpp");
+    let dir = tempfile::tempdir().unwrap();
+    let paths = LibraryPaths::new(dir.path());
+    let root = paths.runtimes_dir().join("llama-cpp");
+    std::fs::create_dir_all(&root).unwrap();
+    let mut older = Vec::new();
+    for entry in std::fs::read_dir(&source).unwrap().flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if let Some(tag) = name.strip_prefix(&format!("{}-", runtime::LLAMA_BUILD)) {
+            let folder = root.join(format!("b11669-{tag}"));
+            copy_dir(&entry.path(), &folder);
+            older.push(folder);
+        }
+    }
+    assert!(!older.is_empty(), "run the install test first");
+    std::fs::write(
+        root.join("backend.json"),
+        br#"{"build":"b11669","backend":"vulkan"}"#,
+    )
+    .unwrap();
+
+    let settings = Settings {
+        llama_backend: "auto".into(),
+        ..Settings::default()
+    };
+    let manager = RuntimeManager::new(paths, &settings);
+    assert!(manager.update_pending());
+    assert_eq!(manager.usable_backend(), None);
+
+    manager
+        .install_for_built_in_models(&settings, &AtomicBool::new(false), &mut progress("update"))
+        .unwrap();
+
+    assert!(!manager.update_pending());
+    let backend = manager.usable_backend().unwrap();
+    let version = manager.installed_version().unwrap();
+    eprintln!("updated to {backend}: {version}");
+    assert!(version.contains(runtime::LLAMA_BUILD.trim_start_matches('b')));
+    assert!(!manager.remove_other_builds());
+    for folder in older {
+        assert!(!folder.exists(), "{}", folder.display());
+    }
+    assert!(!manager.has_other_builds());
 }
 
 /// The macOS upgrade fixture, copied so nothing writes into it.

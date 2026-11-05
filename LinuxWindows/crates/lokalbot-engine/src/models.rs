@@ -23,6 +23,8 @@ pub struct Models {
     active: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     /// How far each running download is, 0–1.
     progress: Arc<Mutex<HashMap<String, f32>>>,
+    /// [`Self::finish_runtime_update`] is at work, including between retries.
+    runtime_updating: Arc<AtomicBool>,
 }
 
 enum ModelRef {
@@ -39,6 +41,7 @@ impl Models {
             shared,
             active: Arc::new(Mutex::new(HashMap::new())),
             progress: Arc::new(Mutex::new(HashMap::new())),
+            runtime_updating: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -279,10 +282,64 @@ impl Models {
         if !allow_download {
             return Ok(false);
         }
+        // Nobody asked to set up CUDA here, so built-in models get what they
+        // run on until they do.
         for id in missing {
-            self.download_blocking(&id)?;
+            self.download_tracked(&id, false)?;
         }
         Ok(true)
+    }
+
+    /// Run at launch. An app update can move to another llama.cpp build, and
+    /// every feature counts the runtime as missing until it's there. Someone
+    /// who had set it up shouldn't have to find that out, so this fetches the
+    /// new build in the background, keeps trying when that fails, and removes
+    /// what the older versions installed once it's there. CUDA stays an
+    /// explicit download; built-in models run on Vulkan or CPU until then.
+    pub fn finish_runtime_update(&self) {
+        if !self.shared.runtime.has_other_builds() {
+            return;
+        }
+        self.runtime_updating.store(true, Ordering::Release);
+        let this = self.clone();
+        let spawned = std::thread::Builder::new()
+            .name("lokalbot-runtime-update".into())
+            .spawn(move || {
+                this.update_runtime();
+                this.runtime_updating.store(false, Ordering::Release);
+            });
+        if let Err(err) = spawned {
+            self.runtime_updating.store(false, Ordering::Release);
+            log::warn!("could not start the llama.cpp update: {err}");
+        }
+    }
+
+    /// [`Self::finish_runtime_update`] may still bring the runtime. For work
+    /// that checks for it once per launch.
+    pub fn runtime_updating(&self) -> bool {
+        self.runtime_updating.load(Ordering::Acquire)
+    }
+
+    fn update_runtime(&self) {
+        let runtime = &self.shared.runtime;
+        let pending = || runtime.update_pending() && !self.shared.is_shutting_down();
+        retry_runtime_update(
+            pending,
+            || self.download_tracked(RUNTIME_ID, false),
+            |delay| {
+                let started = std::time::Instant::now();
+                while started.elapsed() < delay && pending() {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                }
+            },
+        );
+        if runtime.remove_other_builds() {
+            self.shared.message(
+                "LokalBot updated llama.cpp. Set up CUDA again in Settings → Models. \
+                 Built-in models use Vulkan or CPU until then.",
+            );
+        }
+        self.publish_status();
     }
 
     pub fn cancel(&self, id: &str) {
@@ -313,6 +370,12 @@ impl Models {
     }
 
     fn download_blocking(&self, id: &str) -> Result<()> {
+        self.download_tracked(id, true)
+    }
+
+    /// With `explicit` false, the llama.cpp runtime is what built-in models
+    /// run on, never CUDA.
+    fn download_tracked(&self, id: &str, explicit: bool) -> Result<()> {
         let cancel = Arc::new(AtomicBool::new(false));
         {
             let mut active = self.active.lock();
@@ -321,7 +384,7 @@ impl Models {
             }
             active.insert(id.to_string(), cancel.clone());
         }
-        let result = self.download_inner(id, &cancel);
+        let result = self.download_inner(id, &cancel, explicit);
         self.active.lock().remove(id);
         self.progress.lock().remove(id);
         self.shared.clear_background(&format!("download:{id}"));
@@ -337,7 +400,7 @@ impl Models {
         result
     }
 
-    fn download_inner(&self, id: &str, cancel: &AtomicBool) -> Result<()> {
+    fn download_inner(&self, id: &str, cancel: &AtomicBool, explicit: bool) -> Result<()> {
         let paths = self.shared.library.paths().clone();
         let model = Self::resolve(id).with_context(|| format!("unknown model {id}"))?;
         let name = match &model {
@@ -403,9 +466,12 @@ impl Models {
             }
             ModelRef::Runtime => {
                 let settings = self.shared.settings();
-                self.shared
-                    .runtime
-                    .ensure_runtime(&settings, cancel, &mut progress)
+                let runtime = &self.shared.runtime;
+                if explicit {
+                    runtime.ensure_runtime(&settings, cancel, &mut progress)
+                } else {
+                    runtime.install_for_built_in_models(&settings, cancel, &mut progress)
+                }
             }
             ModelRef::Ocr => lokalbot_ai::ocr::download(&paths, cancel, &mut progress),
             ModelRef::OcrLanguages => {
@@ -436,6 +502,36 @@ fn install_all(
     Ok(())
 }
 
+/// How long to wait after a failed runtime update. Offline at launch is the
+/// usual reason, and an app can stay open for days.
+fn runtime_update_delay(failures: u32) -> std::time::Duration {
+    std::time::Duration::from_secs(match failures {
+        0 | 1 => 60,
+        2 => 5 * 60,
+        3 => 15 * 60,
+        _ => 60 * 60,
+    })
+}
+
+/// Tries until nothing is pending. Cancelling in Settings ends it for this
+/// launch; a failure is only logged, since nobody asked for this download.
+fn retry_runtime_update(
+    pending: impl Fn() -> bool,
+    mut fetch: impl FnMut() -> Result<()>,
+    mut wait: impl FnMut(std::time::Duration),
+) {
+    let mut failures = 0;
+    while pending() {
+        match fetch() {
+            Ok(()) => return,
+            Err(err) if format!("{err:#}").contains("cancelled") => return,
+            Err(err) => log::warn!("updating the llama.cpp runtime failed: {err:#}"),
+        }
+        failures += 1;
+        wait(runtime_update_delay(failures));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,6 +539,185 @@ mod tests {
 
     fn ids(names: &[&str]) -> Vec<String> {
         names.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn a_failed_runtime_update_is_tried_again_later() {
+        let attempts = Cell::new(0);
+        let mut waits = Vec::new();
+        retry_runtime_update(
+            || true,
+            || {
+                attempts.set(attempts.get() + 1);
+                if attempts.get() < 5 {
+                    Err(anyhow!("network unreachable"))
+                } else {
+                    Ok(())
+                }
+            },
+            |delay| waits.push(delay.as_secs()),
+        );
+        assert_eq!(attempts.get(), 5);
+        assert_eq!(waits, [60, 300, 900, 3600]);
+    }
+
+    #[test]
+    fn cancelling_a_runtime_update_ends_it_for_this_launch() {
+        let attempts = Cell::new(0);
+        retry_runtime_update(
+            || true,
+            || {
+                attempts.set(attempts.get() + 1);
+                Err(anyhow!("download cancelled"))
+            },
+            |_| panic!("waited after a cancel"),
+        );
+        assert_eq!(attempts.get(), 1);
+    }
+
+    #[test]
+    fn a_runtime_update_stops_once_nothing_is_pending() {
+        let attempts = Cell::new(0);
+        retry_runtime_update(
+            || attempts.get() < 2,
+            || {
+                attempts.set(attempts.get() + 1);
+                Err(anyhow!("network unreachable"))
+            },
+            |_| {},
+        );
+        assert_eq!(attempts.get(), 2, "someone set it up meanwhile, or quit");
+    }
+
+    /// A library an older LokalBot used, with this build's CPU archive already
+    /// in the download folder, so these tests fetch nothing.
+    #[cfg(unix)]
+    fn updated_library(
+        backend: &str,
+        older: &str,
+    ) -> (
+        tempfile::TempDir,
+        Models,
+        std::path::PathBuf,
+        Arc<Mutex<Vec<EngineEvent>>>,
+    ) {
+        let dir = tempfile::tempdir().unwrap();
+        let library =
+            lokalbot_core::Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let settings = lokalbot_core::Settings {
+            llama_backend: backend.into(),
+            ..Default::default()
+        };
+        let root = library.paths().runtimes_dir().join("llama-cpp");
+        let folder = root.join(older);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("install.json"), b"{}").unwrap();
+        std::fs::write(
+            root.join("backend.json"),
+            br#"{"build":"b11669","backend":"cpu"}"#,
+        )
+        .unwrap();
+
+        let asset = lokalbot_ai::runtime::asset(lokalbot_ai::runtime::LlamaBackend::Cpu).unwrap();
+        let downloads = root.join(".downloads");
+        std::fs::create_dir_all(&downloads).unwrap();
+        let archive = downloads.join(asset.name);
+        let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
+            std::fs::File::create(&archive).unwrap(),
+            flate2::Compression::fast(),
+        ));
+        let script = b"#!/bin/sh\necho 'version: test'\n";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(script.len() as u64);
+        header.set_mode(0o755);
+        builder
+            .append_data(&mut header, "upstream/llama-server", script.as_slice())
+            .unwrap();
+        let file = builder.into_inner().unwrap().finish().unwrap();
+        file.set_len(asset.size).unwrap();
+        lokalbot_ai::download::write_sidecar(&archive, asset.sha256).unwrap();
+
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let seen = events.clone();
+        let shared = Shared::for_tests(library, settings, move |event| seen.lock().push(event));
+        (dir, Models::new(shared), folder, events)
+    }
+
+    #[cfg(unix)]
+    fn wait_for_update(models: &Models) {
+        let started = std::time::Instant::now();
+        while models.runtime_updating() {
+            assert!(started.elapsed().as_secs() < 60, "the update never ended");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    #[cfg(unix)]
+    fn messages(events: &Mutex<Vec<EngineEvent>>) -> Vec<String> {
+        events
+            .lock()
+            .iter()
+            .filter_map(|event| match event {
+                EngineEvent::Message { text, .. } => Some(text.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The upgrade check: without [`Models::finish_runtime_update`], think,
+    /// search and on-device autocomplete all stay unavailable after an update.
+    #[test]
+    #[cfg(unix)]
+    fn launching_after_an_update_brings_the_runtime_back() {
+        let (_dir, models, older, events) = updated_library("auto", "b11669-ubuntu-x64");
+        assert!(!models.is_installed(RUNTIME_ID));
+
+        models.finish_runtime_update();
+        wait_for_update(&models);
+
+        assert!(models.is_installed(RUNTIME_ID));
+        assert!(!older.exists());
+        assert!(!models.shared.runtime.has_other_builds());
+        assert_eq!(messages(&events), Vec::<String>::new());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn an_update_tells_someone_on_cuda_to_set_it_up_again() {
+        let (_dir, models, older, events) = updated_library("cuda", "b11669-ubuntu-cuda-13.4-x64");
+
+        models.finish_runtime_update();
+        wait_for_update(&models);
+
+        assert!(models.is_installed(RUNTIME_ID), "built-in models work");
+        assert_eq!(models.shared.runtime.installed_backend(), None);
+        assert!(!older.exists());
+        let told = messages(&events);
+        assert_eq!(told.len(), 1, "{told:?}");
+        assert!(told[0].contains("Set up CUDA again"), "{told:?}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn background_work_never_starts_a_cuda_download() {
+        let (_dir, models, _older, _events) = updated_library("cuda", "b11669-ubuntu-x64");
+
+        // Only the CPU archive is there; a CUDA download would fail this.
+        assert!(models.ensure(&ids(&[RUNTIME_ID]), true).unwrap());
+
+        assert!(models.is_installed(RUNTIME_ID));
+        assert_eq!(models.shared.runtime.installed_backend(), None);
+    }
+
+    #[test]
+    fn nothing_starts_at_launch_without_an_older_runtime() {
+        let dir = tempfile::tempdir().unwrap();
+        let library =
+            lokalbot_core::Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let shared = Shared::for_tests(library, Default::default(), |_| {});
+        let models = Models::new(shared);
+        models.finish_runtime_update();
+        assert!(!models.runtime_updating());
     }
 
     #[test]

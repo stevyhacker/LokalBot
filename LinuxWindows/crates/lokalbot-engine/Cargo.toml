@@ -51,5 +51,7 @@ keyring = { version = "3", features = ["windows-native"] }
 windows-sys = { version = "0.61", features = ["Win32_System_Threading"] }
 
 [dev-dependencies]
+flate2 = "1"
+tar = "0.4"
 tempfile.workspace = true
 env_logger.workspace = true

@@ -405,6 +405,7 @@ fn calendar_settings_changed(old: &Settings, new: &Settings) -> bool {
 
 fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<Command>) {
     let models = models::Models::new(shared.clone());
+    models.finish_runtime_update();
     let pipeline = pipeline::Pipeline::start(shared.clone(), models.clone());
     let recording = recording::Recording::new(shared.clone(), pipeline.clone());
     let ask = ask::AskWorker::new(shared.clone(), models.clone());

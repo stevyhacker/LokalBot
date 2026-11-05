@@ -87,6 +87,16 @@ impl RuntimeAsset {
     }
 }
 
+/// The build in a runtime folder or archive name: `b12110-ubuntu-x64`,
+/// `llama-b12110-bin-ubuntu-x64.tar.gz`, `cudart-llama-b12110-bin-….tar.gz`.
+fn build_in_name(name: &str) -> Option<&str> {
+    let name = name.strip_prefix("cudart-").unwrap_or(name);
+    let name = name.strip_prefix("llama-").unwrap_or(name);
+    let (build, _) = name.split_once('-')?;
+    let number = build.strip_prefix('b')?;
+    (!number.is_empty() && number.bytes().all(|byte| byte.is_ascii_digit())).then_some(build)
+}
+
 #[cfg(windows)]
 const ASSETS: &[RuntimeAsset] = &[
     cuda::SERVERS[0],
@@ -431,9 +441,40 @@ impl Installer {
     }
 
     fn saved_choice(&self) -> Option<BackendChoice> {
-        let choice: BackendChoice =
-            serde_json::from_slice(&std::fs::read(self.root().join("backend.json")).ok()?).ok()?;
-        (choice.build == LLAMA_BUILD).then_some(choice)
+        self.remembered_choice()
+            .filter(|choice| choice.build == LLAMA_BUILD)
+    }
+
+    /// The last auto-detection, even by an older LokalBot.
+    fn remembered_choice(&self) -> Option<BackendChoice> {
+        serde_json::from_slice(&std::fs::read(self.root().join("backend.json")).ok()?).ok()
+    }
+
+    /// Folders an earlier LokalBot installed for another llama.cpp build.
+    fn other_builds(&self) -> Vec<PathBuf> {
+        let Ok(entries) = std::fs::read_dir(self.root()) else {
+            return Vec::new();
+        };
+        entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.is_dir()
+                    && path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .and_then(build_in_name)
+                        .is_some_and(|build| build != LLAMA_BUILD)
+            })
+            .collect()
+    }
+
+    /// Someone set up llama.cpp under another build. An interrupted install
+    /// leaves only a staging folder, and removing the runtime leaves nothing.
+    fn other_build_installed(&self) -> bool {
+        self.other_builds()
+            .iter()
+            .any(|folder| folder.join("install.json").is_file())
     }
 
     fn save_choice(&self, backend: LlamaBackend, device: Option<String>) {
@@ -725,31 +766,73 @@ impl Installer {
         progress: &mut dyn FnMut(u64, u64),
     ) -> Result<(LlamaBackend, InstallRecord, PathBuf)> {
         let _guard = self.lock.lock();
-        let get = |backend: LlamaBackend,
-                   progress: &mut dyn FnMut(u64, u64)|
-         -> Result<(InstallRecord, PathBuf)> {
-            if allow_download {
-                self.install(backend, cancel, progress)
-            } else {
-                self.record(backend).ok_or_else(|| {
-                    AiError::Unavailable("The local model runtime isn't installed yet. Download it under Settings → Models.".into()).into()
-                })
-            }
-        };
-        let preference = self.preference();
         // Explicit setup installs CUDA. Until it succeeds, background starts
-        // keep the automatic choice below instead of failing.
-        if preference == "cuda" && (allow_download || self.cuda_ready()) {
-            let (record, binary) = get(LlamaBackend::Cuda, progress)?;
+        // keep the automatic choice instead of failing.
+        if self.preference() == "cuda" && (allow_download || self.cuda_ready()) {
+            let (record, binary) =
+                self.installed_or_fetched(LlamaBackend::Cuda, allow_download, cancel, progress)?;
             *self.active.lock() = Some(LlamaBackend::Cuda);
             return Ok((LlamaBackend::Cuda, record, binary));
         }
+        self.resolve_without_cuda(allow_download, cancel, progress)
+    }
+
+    fn installed_or_fetched(
+        &self,
+        backend: LlamaBackend,
+        allow_download: bool,
+        cancel: &AtomicBool,
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<(InstallRecord, PathBuf)> {
+        if allow_download {
+            self.install(backend, cancel, progress)
+        } else {
+            self.record(backend).ok_or_else(|| {
+                AiError::Unavailable("The local model runtime isn't installed yet. Download it under Settings → Models.".into()).into()
+            })
+        }
+    }
+
+    /// Installs what built-in models run on without anyone asking: a selected
+    /// Vulkan or CPU, else the automatic choice. CUDA's download of up to 800 MB
+    /// stays an explicit step in Settings.
+    fn install_for_built_in_models(
+        &self,
+        cancel: &AtomicBool,
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<()> {
+        let _guard = self.lock.lock();
+        // An older build already looked for a GPU and found none, so don't
+        // fetch the Vulkan build to look again.
+        if self.automatic()
+            && self
+                .remembered_choice()
+                .is_some_and(|choice| choice.backend == LlamaBackend::Cpu)
+        {
+            self.install(LlamaBackend::Cpu, cancel, progress)?;
+            self.save_choice(LlamaBackend::Cpu, None);
+            *self.active.lock() = Some(LlamaBackend::Cpu);
+            return Ok(());
+        }
+        self.resolve_without_cuda(true, cancel, progress)
+            .map(|_| ())
+    }
+
+    /// [`Self::resolve`] past its CUDA branch. The caller holds `lock`.
+    fn resolve_without_cuda(
+        &self,
+        allow_download: bool,
+        cancel: &AtomicBool,
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<(LlamaBackend, InstallRecord, PathBuf)> {
+        let preference = self.preference();
         let active = *self.active.lock();
         if let Some(active) = active
             && active != LlamaBackend::Cuda
             && self.accepts_backend(active)
         {
-            let (record, binary) = get(active, progress)?;
+            let (record, binary) =
+                self.installed_or_fetched(active, allow_download, cancel, progress)?;
             return Ok((active, record, binary));
         }
         let backend = match preference.as_str() {
@@ -799,7 +882,8 @@ impl Installer {
                 }
             },
         };
-        let (record, binary) = get(backend, progress)?;
+        let (record, binary) =
+            self.installed_or_fetched(backend, allow_download, cancel, progress)?;
         *self.active.lock() = Some(backend);
         Ok((backend, record, binary))
     }
@@ -966,14 +1050,34 @@ fn missing_library_for(binary: &Path, code: Option<i32>, output: &str) -> Option
 /// Fails with what to install when the system cannot load `binary`, so setup
 /// never records a runtime that cannot start.
 fn check_loads(binary: &Path) -> Result<()> {
-    let mut command = server_command(binary);
-    command.arg("--version");
-    let out = process::run_capture(command, Duration::from_secs(20))?;
+    // Just unpacked, it can't run while a process forked by another thread
+    // still holds the file open from when it was being written.
+    let started = std::time::Instant::now();
+    let out = loop {
+        let mut command = server_command(binary);
+        command.arg("--version");
+        match process::run_capture(command, Duration::from_secs(20)) {
+            Err(error) if text_file_busy(&error) && started.elapsed().as_secs() < 2 => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            result => break result?,
+        }
+    };
     let output = format!("{}\n{}", out.stdout, out.stderr);
     match missing_library_for(binary, out.status.and_then(|s| s.code()), &output) {
         Some(message) => Err(AiError::ServerStart(message).into()),
         None => Ok(()),
     }
+}
+
+#[cfg(unix)]
+fn text_file_busy(error: &std::io::Error) -> bool {
+    error.raw_os_error() == Some(libc::ETXTBSY)
+}
+
+#[cfg(not(unix))]
+fn text_file_busy(_: &std::io::Error) -> bool {
+    false
 }
 
 /// `--version` and the conditional flags `--help` lists.
@@ -2094,6 +2198,82 @@ impl RuntimeManager {
         Ok(())
     }
 
+    /// An update moved LokalBot to another llama.cpp build: one was set up
+    /// before, and nothing built-in models can run on now is installed.
+    pub fn update_pending(&self) -> bool {
+        self.usable_backend().is_none() && self.shared.installer.other_build_installed()
+    }
+
+    /// Whether earlier versions left runtime folders behind.
+    pub fn has_other_builds(&self) -> bool {
+        !self.shared.installer.other_builds().is_empty()
+    }
+
+    /// Installs what built-in models run on, for work nobody explicitly asked
+    /// to set up. Unlike [`Self::ensure_runtime`], it never downloads CUDA.
+    pub fn install_for_built_in_models(
+        &self,
+        settings: &Settings,
+        cancel: &AtomicBool,
+        progress: &mut dyn FnMut(u64, u64),
+    ) -> Result<()> {
+        self.set_backend_preference(&settings.llama_backend);
+        check_cancelled(cancel)?;
+        self.shared
+            .installer
+            .install_for_built_in_models(cancel, progress)
+    }
+
+    /// Removes what earlier versions installed for other llama.cpp builds, and
+    /// their interrupted downloads, once built-in models can run without them.
+    /// A folder a helper still runs from stays until a later launch, and so
+    /// does one Windows won't delete yet. Returns whether this took away a
+    /// CUDA setup that's still selected, which has to be repeated.
+    pub fn remove_other_builds(&self) -> bool {
+        if self.usable_backend().is_none() {
+            return false;
+        }
+        let installer = &self.shared.installer;
+        let _guard = installer.lock.lock();
+        let helpers: Vec<PathBuf> = Role::ALL
+            .iter()
+            .filter_map(|role| read_marker(&installer.paths, role.port()))
+            .filter(|marker| process::pid_alive(marker.pid))
+            .map(|marker| PathBuf::from(marker.binary_path))
+            .collect();
+        let mut removed_cuda = false;
+        for folder in installer.other_builds() {
+            if helpers.iter().any(|binary| binary.starts_with(&folder)) {
+                log::info!("llama.cpp: {} is still running", folder.display());
+                continue;
+            }
+            let cuda = folder
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().contains("-cuda-"));
+            match std::fs::remove_dir_all(&folder) {
+                Ok(()) => {
+                    log::info!("llama.cpp: removed {}", folder.display());
+                    removed_cuda |= cuda;
+                }
+                Err(error) => {
+                    log::warn!("llama.cpp: could not remove {}: {error}", folder.display());
+                }
+            }
+        }
+        if let Ok(entries) = std::fs::read_dir(installer.root().join(".downloads")) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                if build_in_name(&name.to_string_lossy()).is_some_and(|build| build != LLAMA_BUILD)
+                {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+        removed_cuda
+            && LlamaBackend::preference(&installer.preference()) == Some(LlamaBackend::Cuda)
+            && !installer.cuda_ready()
+    }
+
     /// The selected backend when installed. Auto considers Vulkan and CPU;
     /// an explicit choice must have its own complete installation, and CUDA
     /// a setup whose device check succeeded.
@@ -2581,12 +2761,31 @@ mod tests {
         )
     }
 
+    /// A script that was just written can't run while a process another test
+    /// forked meanwhile still holds it open.
+    #[cfg(unix)]
+    fn wait_until_runnable(path: &Path) {
+        for _ in 0..500 {
+            let run = std::process::Command::new(path)
+                .arg("--version")
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+            if !run.as_ref().is_err_and(text_file_busy) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     #[cfg(unix)]
     fn fake_gpu_server(dir: &Path, exit: u8) -> PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
         let binary = dir.join("probe-server");
         std::fs::write(&binary, probe_script(exit)).unwrap();
         std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+        wait_until_runnable(&binary);
         binary
     }
 
@@ -2612,6 +2811,186 @@ mod tests {
         let file = builder.into_inner().unwrap().finish().unwrap();
         file.set_len(asset.size).unwrap();
         download::write_sidecar(&path, asset.sha256).unwrap();
+    }
+
+    /// What an earlier LokalBot left: the install record of another build.
+    fn older_install(root: &Path, tag: &str) -> PathBuf {
+        let folder = root.join(format!("b11669-{tag}"));
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("install.json"), b"{}").unwrap();
+        folder
+    }
+
+    fn manager_with(dir: &Path, backend: &str) -> RuntimeManager {
+        let settings = Settings {
+            llama_backend: backend.into(),
+            ..Settings::default()
+        };
+        RuntimeManager::new(LibraryPaths::new(dir), &settings)
+    }
+
+    #[test]
+    fn folder_and_archive_names_give_their_build() {
+        for (name, build) in [
+            ("b12110-ubuntu-x64", Some("b12110")),
+            ("b11669-win-cuda-13.4-x64", Some("b11669")),
+            ("llama-b11669-bin-ubuntu-x64.tar.gz", Some("b11669")),
+            ("llama-b11669-bin-ubuntu-x64.tar.gz.part", Some("b11669")),
+            (
+                "cudart-llama-b11669-bin-ubuntu-cuda-13.4-x64.tar.gz",
+                Some("b11669"),
+            ),
+            // Windows' library archives keep their name across builds.
+            ("cudart-llama-bin-win-cuda-13.4-x64.zip", None),
+            (".downloads", None),
+            (".staging-0123", None),
+            ("backend.json", None),
+            ("b-ubuntu-x64", None),
+        ] {
+            assert_eq!(build_in_name(name), build, "{name}");
+        }
+    }
+
+    #[test]
+    fn only_an_older_install_makes_an_update_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        for backend in ["auto", "cpu", "vulkan", "cuda"] {
+            let manager = manager_with(dir.path(), backend);
+            assert!(!manager.update_pending(), "nothing installed: {backend}");
+        }
+
+        let manager = manager_with(dir.path(), "auto");
+        let root = manager.shared.installer.root();
+        // Not an install: staging, downloads, and a folder with no record.
+        for name in [".staging-1", ".downloads", "b11669-ubuntu-x64"] {
+            std::fs::create_dir_all(root.join(name)).unwrap();
+        }
+        assert!(!manager.update_pending());
+        assert!(manager.has_other_builds());
+
+        older_install(&root, "ubuntu-x64");
+        for backend in ["auto", "cpu", "vulkan", "cuda"] {
+            let manager = manager_with(dir.path(), backend);
+            assert!(manager.update_pending(), "older install: {backend}");
+        }
+
+        // Removing the runtime in Settings means it doesn't come back.
+        manager.uninstall().unwrap();
+        assert!(!manager.update_pending());
+    }
+
+    #[test]
+    fn a_failed_update_keeps_the_older_install() {
+        let dir = tempfile::tempdir().unwrap();
+        let manager = manager_with(dir.path(), "auto");
+        let older = older_install(&manager.shared.installer.root(), "ubuntu-x64");
+        let error = manager
+            .install_for_built_in_models(
+                &Settings::default(),
+                &AtomicBool::new(true),
+                &mut |_, _| {},
+            )
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("ancel"), "{error:#}");
+        assert!(!manager.remove_other_builds());
+        assert!(older.join("install.json").is_file());
+        assert!(manager.update_pending());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn an_update_replaces_the_older_runtime_and_leaves_cuda_to_setup() {
+        let dir = tempfile::tempdir().unwrap();
+        let settings = Settings {
+            llama_backend: "cuda".into(),
+            ..Settings::default()
+        };
+        let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &settings);
+        let installer = &manager.shared.installer;
+        let root = installer.root();
+        let older = older_install(&root, "ubuntu-cuda-13.4-x64");
+        std::fs::write(
+            root.join("backend.json"),
+            br#"{"build":"b11669","backend":"cpu"}"#,
+        )
+        .unwrap();
+        let downloads = root.join(".downloads");
+        // Only the CPU build is seeded, so any other download would fail here.
+        let cpu = asset(LlamaBackend::Cpu).unwrap();
+        let server = probe_script(0);
+        seed_archive(&downloads, cpu, &[(SERVER_BINARY, server.as_bytes())]);
+        // Left by an interrupted download of the older build, and of this one.
+        let interrupted =
+            downloads.join("cudart-llama-b11669-bin-ubuntu-cuda-13.4-x64.tar.gz.part");
+        std::fs::write(&interrupted, b"partial").unwrap();
+        let resumable = downloads.join(format!("{}.part", cuda::BUILDS[0].libraries.name));
+        std::fs::write(&resumable, b"partial").unwrap();
+        assert!(manager.update_pending());
+
+        manager
+            .install_for_built_in_models(&settings, &AtomicBool::new(false), &mut |_, _| {})
+            .unwrap();
+
+        assert_eq!(manager.usable_backend().as_deref(), Some("CPU"));
+        assert!(!manager.update_pending());
+        assert_eq!(manager.installed_backend(), None, "CUDA still needs setup");
+        assert!(installer.record(LlamaBackend::Cuda).is_none());
+        assert_eq!(installer.saved_choice().unwrap().backend, LlamaBackend::Cpu);
+
+        assert!(
+            manager.remove_other_builds(),
+            "a selected CUDA setup was taken away"
+        );
+        assert!(!older.exists());
+        assert!(!interrupted.exists());
+        assert!(resumable.exists());
+        assert!(installer.folder(cpu).join("install.json").is_file());
+        assert!(!manager.has_other_builds());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn removing_other_builds_skips_a_folder_a_helper_runs_from() {
+        let dir = tempfile::tempdir().unwrap();
+        let manager = manager_with(dir.path(), "cpu");
+        let installer = &manager.shared.installer;
+        let root = installer.root();
+        let cpu = asset(LlamaBackend::Cpu).unwrap();
+        let server = probe_script(0);
+        seed_archive(
+            &root.join(".downloads"),
+            cpu,
+            &[(SERVER_BINARY, server.as_bytes())],
+        );
+        installer
+            .install(LlamaBackend::Cpu, &AtomicBool::new(false), &mut |_, _| {})
+            .unwrap();
+        let busy = older_install(&root, "ubuntu-x64");
+        let idle = older_install(&root, "ubuntu-vulkan-x64");
+        let marker = marker_path(&installer.paths, Role::Main.port());
+        std::fs::create_dir_all(marker.parent().unwrap()).unwrap();
+        // This test process stands in for the old helper.
+        std::fs::write(
+            &marker,
+            serde_json::to_vec(&ServerMarker {
+                pid: std::process::id(),
+                port: Role::Main.port(),
+                binary_path: busy.join("llama-server").to_string_lossy().into(),
+                model_path: "m.gguf".into(),
+                context_tokens: 2048,
+                extra_args: Vec::new(),
+                authentication_token: "t".into(),
+                owner_pid: Some(std::process::id()),
+                gpu_offloaded: false,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(read_marker(&installer.paths, Role::Main.port()).is_some());
+
+        assert!(!manager.remove_other_builds());
+        assert!(busy.exists());
+        assert!(!idle.exists());
     }
 
     #[test]
@@ -2675,6 +3054,7 @@ mod tests {
         );
         assert!(!installer.cuda_ready());
         std::fs::write(&binary, probe_script(0)).unwrap();
+        wait_until_runnable(&binary);
         retry(&manager).unwrap();
         assert!(installer.cuda_ready());
         assert_eq!(manager.installed_backend().as_deref(), Some("CUDA"));
@@ -2853,6 +3233,7 @@ mod tests {
         let binary = dir.path().join(SERVER_BINARY);
         std::fs::write(&binary, MISSING_GOMP_SERVER).unwrap();
         std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+        wait_until_runnable(&binary);
         let record = InstallRecord {
             build: LLAMA_BUILD.into(),
             asset: "test".into(),
