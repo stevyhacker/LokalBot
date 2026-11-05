@@ -1,0 +1,7 @@
+{"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [760, 560], "settle": 1.5, "pre": 0.6, "post": 1.5,
+ "setup":[{"until": {"contains": "Written "}, "timeout": 60}],
+ "actions":[
+  {"wait": 1.0},
+  {"mark": "written"},
+  {"wait": 4.0},
+  {"mark": "read"}]}

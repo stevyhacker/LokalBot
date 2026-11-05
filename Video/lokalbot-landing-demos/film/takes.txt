@@ -3,3 +3,4 @@ live notes notes-tall
 dictation files
 ask
 ask-tall
+projects

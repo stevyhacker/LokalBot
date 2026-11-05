@@ -136,6 +136,77 @@
         }
       }
     },
+    "projects": {
+      "parts": [
+        {
+          "take": "projects",
+          "segments": [
+            [
+              "suggested-0.8",
+              "suggested+0.2",
+              1.0
+            ],
+            [
+              "suggested+0.2",
+              "click:0",
+              "=1.0"
+            ],
+            [
+              "click:0",
+              "click:0+0.25",
+              1.0
+            ],
+            [
+              "click:0+0.25",
+              "tracked",
+              "=0.45"
+            ],
+            [
+              "tracked",
+              "writing+0.6",
+              "=1.6"
+            ]
+          ]
+        },
+        {
+          "take": "projects-note",
+          "pointer_from": "end",
+          "segments": [
+            [
+              "written-0.5",
+              "read+0.8",
+              1.0
+            ]
+          ]
+        }
+      ],
+      "fade": 0.4,
+      "cuts": {
+        "wide": {
+          "camera": [
+            [
+              0,
+              480,
+              300,
+              960
+            ],
+            [
+              "written",
+              480,
+              300,
+              960
+            ],
+            [
+              "written+0.9",
+              650,
+              368,
+              620
+            ]
+          ],
+          "poster": "read"
+        }
+      }
+    },
     "files": {
       "take": "files",
       "segments": [
