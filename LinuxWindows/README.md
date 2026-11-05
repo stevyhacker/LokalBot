@@ -101,6 +101,13 @@ preserve installed files. Device probes are cached for the session, and healthy
 helpers are reused before probing. Model Storage lists runtime folders even
 after switching backends.
 
+An app update can move to a new llama.cpp build. If you had installed the
+runtime, the new build then downloads in the background, trying again later if
+that fails, and the older build's folders are removed once it's in place. CUDA's
+larger download stays explicit: built-in models use the Vulkan or CPU runtime
+Automatic would choose, and a message asks you to set CUDA up again. Removing
+the runtime in Settings stops this.
+
 For native NVIDIA validation, run the ignored runtime test with
 `LOKALBOT_E2E_BACKEND=cuda` and a separate `LOKALBOT_E2E_ROOT`, and run the
 `lokalbot-engine` `autocomplete_eval` example with `--backend cuda`. The runtime

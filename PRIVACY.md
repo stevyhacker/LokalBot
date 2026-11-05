@@ -1375,7 +1375,11 @@ platform differences:
   OCR model from the ocrs project's storage, Tesseract's language data from
   GitHub), Agent Mode setup, update checks,
   AI servers and subscription plans you approve, and the calendar links you
-  add.
+  add. If you already installed the llama.cpp runtime and an app update moves
+  to a new build, LokalBot downloads that build from GitHub on its own, checks
+  it against its pinned size and SHA-256, and removes the old one. CUDA is the
+  exception: it waits until you set it up again. Removing the runtime in
+  Settings stops this.
 
 ## Security and changes
 
