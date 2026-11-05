@@ -22,9 +22,10 @@ else goes to `ubuntu-24.04` and `windows-2025`:
   always runs on `ubuntu-latest`, and it fails if it ever lands anywhere else.
 
 Most Android changes also start "Linux & Windows", because they touch the sync
-core. There's one Linux runner, so the picker that looks second usually finds it
-busy and uses GitHub's runners. If both look before either job has started, both
-pick it and one job waits for the other, about 5 minutes.
+core, and there's one Linux runner. When the two pickers run within seconds of
+each other, both pick it and one job waits for the other, about 4 to 6 minutes.
+When one runs after the other's job has started, it finds the runner busy and uses
+GitHub's runners.
 
 Listing runners needs more than the workflow's own token can do:
 `RUNNER_STATUS_TOKEN` is a fine-grained personal access token with access to
