@@ -61,12 +61,16 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { selected.count == 1 },
                       "The project the page opens on must be selected in the list; selected rows: \(selected.count)")
         let width = list.frame.width
-        let other = list.outlineRows
+        let unselected = list.outlineRows
             .matching(NSPredicate(format: "selected == false"))
-            .containing(NSPredicate(format: "value CONTAINS 'Atlas' OR value CONTAINS 'Borealis'")).firstMatch
-        XCTAssertTrue(other.waitForExistence(timeout: 5))
+            .containing(NSPredicate(format: "value BEGINSWITH 'Atlas' OR value BEGINSWITH 'Borealis'")).firstMatch
+        XCTAssertTrue(unselected.waitForExistence(timeout: 5))
+        // Named once: the query above stops matching a row as soon as it's selected.
+        let otherName = (unselected.staticTexts.firstMatch.value as? String ?? "").hasPrefix("Atlas") ? "Atlas" : "Borealis"
+        let other = list.outlineRows.containing(NSPredicate(format: "value BEGINSWITH %@", otherName)).firstMatch
         other.click()
-        XCTAssertTrue(UITestHarness.waitUntil { other.isSelected && selected.count == 1 })
+        XCTAssertTrue(UITestHarness.waitUntil { other.isSelected && selected.count == 1 },
+                      "Clicking \(otherName) must select it and only it")
         // A re-division lands on the next layout pass, so give it one.
         usleep(800_000)
         XCTAssertEqual(list.frame.width, width, accuracy: 2, "Selecting a project must not move the divider")
