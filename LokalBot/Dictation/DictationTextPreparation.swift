@@ -80,9 +80,11 @@ enum DictationTextPreparation {
         let output = try await engine.generate(system: system, prompt: prompt, context: [],
                                                options: Self.composeOptions)
         try await validate()
-        let text = cleansAsData
-            ? DictationCleanupPromptText.normalizedOutput(output, spokenText: speech)
-            : DictationComposePrompt.normalizedOutput(output)
+        let text = DictationComposePrompt.insertableText(
+            cleansAsData
+                ? DictationCleanupPromptText.normalizedOutput(output, spokenText: speech)
+                : DictationComposePrompt.normalizedOutput(output),
+            spokenText: speech, context: context)
         guard !text.isEmpty else { throw DictationComposeError.emptyOutput }
         let contextUse = DictationContextUse(
             wasWritingRequest: usesContext,

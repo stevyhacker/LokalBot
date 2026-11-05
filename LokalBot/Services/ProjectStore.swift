@@ -124,11 +124,26 @@ final class ProjectStore: ObservableObject {
 
     func writeSummary(for project: ProjectProfile, automatic: Bool, location: String,
                       makeEngine: @escaping @MainActor () async throws -> TextEngine) async {
-        guard let id = project.trackedID, !writing.contains(id) else { return }
+        await startWritingSummary(for: project, automatic: automatic, location: location, makeEngine: makeEngine)?.value
+    }
+
+    /// Marks the project as being written before returning, so a page opening
+    /// it draws "Writing…" in its first frame instead of "No note yet".
+    @discardableResult
+    func startWritingSummary(for project: ProjectProfile, automatic: Bool, location: String,
+                             makeEngine: @escaping @MainActor () async throws -> TextEngine) -> Task<Void, Never>? {
+        guard let id = project.trackedID, !writing.contains(id) else { return nil }
         let evidence = ProjectStatusGenerator.evidence(for: project)
         if automatic { automaticAttempts.insert(id.uuidString + ProjectStatusGenerator.fingerprint(evidence)) }
         writing.insert(id)
         errors[id] = nil
+        return Task { [weak self] in
+            await self?.finishWritingSummary(id: id, evidence: evidence, location: location, makeEngine: makeEngine)
+        }
+    }
+
+    private func finishWritingSummary(id: UUID, evidence: ProjectStatusGenerator.Evidence, location: String,
+                                      makeEngine: @MainActor () async throws -> TextEngine) async {
         defer { writing.remove(id) }
         do {
             let engine = try await makeEngine()

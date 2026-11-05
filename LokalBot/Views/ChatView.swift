@@ -335,7 +335,7 @@ private struct EditorialTurn: View {
                 if !parsed.display.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Group {
                         if message.isPending {
-                            Text(verbatim: parsed.display).textSelection(.enabled)
+                            SelectableDigestText(StreamingMarkdown.displayable(parsed.display), style: .editorial)
                         } else {
                             SelectableDigestText(ChatCitationParser.extract(message.text, linked: true).display, style: .editorial)
                                 .environment(\.openURL, OpenURLAction { url in

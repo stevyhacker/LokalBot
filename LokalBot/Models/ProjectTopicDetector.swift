@@ -197,6 +197,9 @@ enum ProjectTopicDetector {
         "urls", "http", "https", "sql", "csv", "pdf", "ids", "okr", "okrs", "kpi", "kpis", "gpu",
         "cpu", "ram", "eod", "eow", "fyi", "tbd", "utc", "cet", "cest", "usd", "eur", "moe", "qa",
         "faq", "etc", "asap", "cto", "ceo", "cfo", "dev", "devs", "ops", "repo", "repos", "doc",
+        // Hardware and network terms.
+        "ssd", "ssds", "hdd", "hdds", "nvme", "usb", "hdmi", "wifi", "wi-fi", "lan", "wan", "vpn", "dns",
+        "ssh", "tcp", "udp", "oled", "lcd", "ghz", "mhz", "html", "css", "xml", "yaml",
         // Company suffixes ("Corvid Labs") name no project on their own.
         "labs", "inc", "ltd", "llc",
     ]

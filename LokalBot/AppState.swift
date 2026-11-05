@@ -497,9 +497,7 @@ final class AppState: ObservableObject {
     func writeProjectSummary(for project: ProjectProfile, automatic: Bool) {
         guard project.isTracked else { return }
         if automatic {
-            guard settings.allowsAutomaticMainInference,
-                  ModelReadinessSnapshot.thinkReady(settings, storage: storage),
-                  projectStore.shouldWriteAutomatically(project) else { return }
+            guard writesProjectSummariesAutomatically, projectStore.shouldWriteAutomatically(project) else { return }
         }
         let provenance = DreamInferenceProvenance(settings: settings)
         let location: String
@@ -508,15 +506,17 @@ final class AppState: ObservableObject {
         } else {
             location = provenance.origin.flatMap { URL(string: $0)?.host } ?? provenance.origin ?? "a server"
         }
-        Task { [weak self] in
-            guard let self else { return }
-            await self.projectStore.writeSummary(for: project, automatic: automatic, location: location) { [weak self] in
-                guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
-                if automatic && !self.settings.allowsAutomaticMainInference { throw CancellationError() }
-                return try await self.thinkExecution.makeTextEngine(
-                    self.settings, priority: automatic ? .background : .interactive, purpose: "project summary")
-            }
+        projectStore.startWritingSummary(for: project, automatic: automatic, location: location) { [weak self] in
+            guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+            if automatic && !self.settings.allowsAutomaticMainInference { throw CancellationError() }
+            return try await self.thinkExecution.makeTextEngine(
+                self.settings, priority: automatic ? .background : .interactive, purpose: "project summary")
         }
+    }
+
+    /// Whether opening a project with no current note starts writing one.
+    var writesProjectSummariesAutomatically: Bool {
+        settings.allowsAutomaticMainInference && ModelReadinessSnapshot.thinkReady(settings, storage: storage)
     }
     private static let typeTabDefaultsKey = "lokalbotv3.type.selectedTab"
     private static var navigationDefaults: UserDefaults {
