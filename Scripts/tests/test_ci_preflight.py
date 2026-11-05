@@ -19,7 +19,7 @@ bump_spec = importlib.util.spec_from_file_location("bump_version", SOURCE / "Scr
 bump_version = importlib.util.module_from_spec(bump_spec)
 bump_spec.loader.exec_module(bump_version)
 STAGED = ("project.yml\nLokalBot/Info.plist\nLinuxWindows/Cargo.toml\nLinuxWindows/Cargo.lock\n"
-          "Scripts/release-notes/v0.8.1.md")
+          "Companion/android/app/build.gradle.kts\nScripts/release-notes/v0.8.1.md")
 PORT_LOCK = """version = 4
 
 [[package]]
@@ -55,6 +55,14 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.notes.write_text('- Faster releases.\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n')
         (self.root / "LinuxWindows").mkdir()
         self.write_port("0.8.1")
+        self.write_android("0.8.1", "31")
+
+    def write_android(self, version, build):
+        source = self.root / "Companion/android/app/build.gradle.kts"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("android {\n    defaultConfig {\n"
+                          f'        versionCode = {build}\n        versionName = "{version}"\n'
+                          "    }\n}\n")
 
     def write_port(self, version, lock_version=None):
         (self.root / "LinuxWindows/Cargo.toml").write_text(
@@ -124,6 +132,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         (self.root / "project.yml").write_text(
             f'        CFBundleShortVersionString: "{version}"\n        CFBundleVersion: "31"\n')
         self.write_port(version)
+        self.write_android(version, "31")
         (self.root / f"Scripts/release-notes/v{version}.md").write_text(
             f"{notes}\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.11.5...v{version}\n")
 
@@ -258,6 +267,13 @@ class ReleaseMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Cargo.lock disagrees .*lokalbot-app, lokalbot-core"):
             preflight.validate(self.root, metadata_only=True)
 
+    def test_android_version_must_match(self):
+        for version, build in [("0.8.0", "31"), ("0.8.1", "30")]:
+            with self.subTest(version=version, build=build):
+                self.write_android(version, build)
+                with self.assertRaisesRegex(ValueError, "build.gradle.kts and Info.plist disagree"):
+                    preflight.validate(self.root, metadata_only=True)
+
     def test_port_update_key_must_match_sparkle(self):
         self.write_update_key("b3RoZXI=")
         with self.assertRaisesRegex(ValueError, "SUPublicEDKey"):
@@ -273,6 +289,9 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual((info["CFBundleShortVersionString"], info["CFBundleVersion"]), ("0.9.0", "32"))
         self.assertIn('version = "1.0.228"', (self.root / "LinuxWindows/Cargo.lock").read_text())
         self.assertIn('serde = { version = "1" }', (self.root / "LinuxWindows/Cargo.toml").read_text())
+        android = (self.root / "Companion/android/app/build.gradle.kts").read_text()
+        self.assertIn('versionName = "0.9.0"', android)
+        self.assertIn("versionCode = 32\n", android)
         with self.assertRaisesRegex(ValueError, "form"):
             bump_version.bump(self.root, "1.0", "33")
 

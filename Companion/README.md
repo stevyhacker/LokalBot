@@ -62,7 +62,9 @@ node Companion/design/generate.mjs
 ```
 
 The iOS and Android READMEs in their folders cover building and installing
-each app.
+each app. Each LokalBot release also attaches the signed Android APK
+([RELEASING.md](../RELEASING.md#android)). The iPhone and iPad app has no download,
+because iOS installs apps only through the App Store or TestFlight.
 
 ## Trying it without the Mac app
 

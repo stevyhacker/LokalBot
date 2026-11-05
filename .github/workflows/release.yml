@@ -7,7 +7,9 @@
 # sign the DMG, render appcast.xml, and upload DMG + appcast to the GitHub
 # Release for the tag. In parallel, linux-windows-release.yml builds the Linux
 # and Windows archives; once the macOS release exists, their update feeds are
-# signed with the same Sparkle key and attached to it.
+# signed with the same Sparkle key and attached to it. companion-android.yml
+# builds and tests the Android app the same way; once the macOS release exists,
+# its APK is signed and attached too.
 #
 # Required repo secrets (see RELEASING.md "CI release"):
 #   MACOS_CERTIFICATE      base64 of the Developer ID Application .p12
@@ -29,6 +31,10 @@
 #   WINGET_TOKEN           classic token (public_repo) of the account whose
 #                          microsoft/winget-pkgs fork wingetcreate pushes to
 #                          (winget.yml). Without it nothing goes to winget.
+#   ANDROID_KEYSTORE_BASE64   base64 of the PKCS12 keystore that signs the Android
+#   ANDROID_KEYSTORE_PASSWORD app, and its password. Optional only until
+#                             Companion/android/release-certificate.sha256 is
+#                             committed; then a missing secret fails the job.
 
 name: Release
 
@@ -515,6 +521,67 @@ jobs:
       tag: ${{ github.ref_name }}
     permissions:
       contents: read
+
+  # The Android app builds and passes its end-to-end test while the macOS job
+  # runs, from the same tag, without any secret.
+  android:
+    name: Android app
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/companion-android.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+
+  # Runs only after the macOS job published the release (so its release gates
+  # passed), signs the APK with the key every earlier version was signed with,
+  # and attaches it. GitHub-hosted, like every job that sees a secret.
+  android-publish:
+    name: Sign and attach the Android app
+    if: github.event_name == 'push'
+    needs: [release, android]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # upload release assets
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: release-android
+          path: ${{ runner.temp }}/android
+
+      - name: Sign the app
+        id: sign
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          certificate=Companion/android/release-certificate.sha256
+          if [[ ! -f "$certificate" ]]; then
+            echo "::notice::No Android signing certificate is committed yet, so this release has no APK (RELEASING.md, Android)."
+            exit 0
+          fi
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" ]]; then
+            echo "::error::$certificate is committed, but ANDROID_KEYSTORE_BASE64 or ANDROID_KEYSTORE_PASSWORD is missing." >&2
+            exit 1
+          fi
+          umask 077
+          keystore="$RUNNER_TEMP/android-release.p12"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          apk="$RUNNER_TEMP/LokalBot-${GITHUB_REF_NAME#v}-android.apk"
+          Scripts/sign-android-release.sh \
+            "$RUNNER_TEMP/android/apk/release/app-release-unsigned.apk" "$apk" "$keystore" "$(cat "$certificate")"
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
+
+      - name: Attach to the release
+        if: steps.sign.outputs.apk != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.sign.outputs.apk }}
+        run: gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "$APK"
 
   # Adds a stable release's .deb and .rpm to the apt and dnf repositories at
   # pkg.lokalbot.com once they are attached (linux-repos.yml, which lists its
