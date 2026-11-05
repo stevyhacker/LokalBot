@@ -72,7 +72,7 @@
     demos.forEach(function (video) { demoIO.observe(video); });
   }
 
-  /* ---------- muted loops: play while on screen, never under reduced motion or Save-Data, and stay paused once the visitor pauses one ---------- */
+  /* ---------- silent loops: GIFs in all but file format, so no controls; stills under reduced motion or Save-Data ---------- */
   var loops = $$(".home-loop");
   /* a clip with both appearances follows the visitor's */
   if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
@@ -87,33 +87,20 @@
   if (loops.length && !reduce && !saveData && "IntersectionObserver" in window) {
     var loopIO = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
-        var video = e.target;
-        if (e.isIntersecting && !video.dataset.held) {
-          var p = video.play();
+        if (e.isIntersecting) {
+          var p = e.target.play();
           if (p && p.catch) p.catch(function () {});
-        } else if (!e.isIntersecting && !video.paused) {
-          video.dataset.scrolledAway = "1";
-          video.pause();
+        } else {
+          e.target.pause();
         }
       });
     }, { threshold: 0.4 });
-    loops.forEach(function (video) {
-      video.addEventListener("pause", function () {
-        video.classList.remove("is-looping");
-        if (!video.dataset.scrolledAway) video.dataset.held = "1";
-        delete video.dataset.scrolledAway;
-      });
-      video.addEventListener("play", function () {
-        video.classList.add("is-looping");
-        delete video.dataset.held;
-      });
-      loopIO.observe(video);
-    });
+    loops.forEach(function (video) { loopIO.observe(video); });
   }
 
-  /* ---------- home hero: short clips of the real app, one after another ---------- */
-  /* Plays muted while on screen. With reduced motion or Save-Data nothing starts by itself:
-     the tabs choose a clip and the browser's own controls play it. */
+  /* ---------- home hero: one short film, and the tabs are its chapters ---------- */
+  /* Loops muted while on screen. With reduced motion or Save-Data nothing starts by itself:
+     the tabs choose where the film starts and the browser's own controls play it. */
   var demoStage = $("[data-demo-stage]");
   if (demoStage) {
     var demoTabs = $$(".demo-tab", demoStage);
@@ -122,23 +109,26 @@
     var demoTabList = $(".demo-tabs", demoStage);
     var demoToggle = $(".demo-toggle", demoStage);
     var demoProof = $(".demo-proof", demoStage);
-    var demoFirst = $("video", demoFrame);
+    var demoVideo = $("video", demoFrame);
     var demoPhone = window.matchMedia("(max-width: 640px)");
     var demoDark = window.matchMedia("(prefers-color-scheme: dark)");
     var demoAuto = !reduce && !(navigator.connection && navigator.connection.saveData);
-    var demoVideos = [demoFirst];
-    var demoFront = 0;
-    var demoIndex = 0;
+    var demoStarts = demoTabs.map(function (tab) { return parseFloat(tab.getAttribute("data-start")) || 0; });
+    var demoIndex = -1;
     var demoHeld = false;
     var demoOnScreen = true;
     var demoTicking = false;
-    var demoSwap = null;
 
-    var demoFile = function (index, extension) {
-      return "assets/demos/" + demoTabs[index].getAttribute("data-demo") + "-" +
-        (demoPhone.matches ? "tall" : "wide") + "-" + (demoDark.matches ? "dark" : "light") + extension;
+    var demoFile = function (name, extension) {
+      return "assets/demos/" + name + "-" + (demoPhone.matches ? "tall" : "wide") + "-" + (demoDark.matches ? "dark" : "light") + extension;
+    };
+    var demoChapter = function (time) {
+      var index = 0;
+      demoStarts.forEach(function (start, i) { if (time >= start) { index = i; } });
+      return index;
     };
     var demoMark = function (index) {
+      if (index === demoIndex) { return; }
       demoIndex = index;
       demoTabs.forEach(function (tab, i) {
         tab.classList.toggle("is-active", i === index);
@@ -146,6 +136,7 @@
         tab.style.removeProperty("--demo-progress");
       });
       var name = demoTabs[index].getAttribute("data-demo");
+      demoVideo.setAttribute("aria-label", demoTabs[index].getAttribute("data-label"));
       if (demoProof) { demoProof.textContent = demoTabs[index].getAttribute("data-proof") || demoProof.textContent; }
       demoNotes.forEach(function (note) {
         note.classList.toggle("is-active", note.getAttribute("data-demo-note") === name);
@@ -156,46 +147,49 @@
         demoTabList.scrollTo({ left: tab.offsetLeft - (demoTabList.clientWidth - tab.offsetWidth) / 2, behavior: reduce ? "auto" : "smooth" });
       }
     };
-    var demoLoad = function (video, index) {
-      var src = demoFile(index, ".mp4");
-      video.setAttribute("aria-label", demoTabs[index].getAttribute("data-label"));
-      if (video.getAttribute("src") !== src) {
-        video.setAttribute("src", src);
-        video.load();
+    /* a new file for the viewer's width and appearance, from the same point in the film */
+    var demoLoad = function (time) {
+      var src = demoFile("full", ".mp4");
+      if (demoVideo.getAttribute("src") !== src) {
+        demoVideo.setAttribute("src", src);
+        demoVideo.load();
       }
+      if (time) { demoVideo.currentTime = time; }
     };
+    var demoRecut;
 
     if (!demoAuto) {
       var demoStill = function (index) {
         demoMark(index);
-        demoFirst.setAttribute("poster", demoFile(index, ".webp"));
-        demoFirst.setAttribute("preload", "none");
-        demoLoad(demoFirst, index);
+        demoVideo.setAttribute("poster", demoFile(demoTabs[index].getAttribute("data-demo"), ".webp"));
+        demoLoad(demoStarts[index]);
       };
       demoTabs.forEach(function (tab, index) {
         tab.addEventListener("click", function () { demoStill(index); });
       });
+      demoVideo.addEventListener("timeupdate", function () { demoMark(demoChapter(demoVideo.currentTime)); });
       demoStill(0);
+      demoRecut = function () { demoStill(demoIndex); };
     } else {
       var demoTick = function () {
-        var video = demoVideos[demoFront];
-        if (video.duration) {
-          demoTabs[demoIndex].style.setProperty("--demo-progress", (video.currentTime / video.duration).toFixed(3));
+        var time = demoVideo.currentTime;
+        var index = demoChapter(time);
+        var end = index + 1 < demoStarts.length ? demoStarts[index + 1] : demoVideo.duration;
+        demoMark(index);
+        if (end > demoStarts[index]) {
+          demoTabs[index].style.setProperty("--demo-progress", ((time - demoStarts[index]) / (end - demoStarts[index])).toFixed(3));
         }
         if (demoTicking) { requestAnimationFrame(demoTick); }
-      };
-      var demoStartTicking = function () {
-        if (!demoTicking) { demoTicking = true; requestAnimationFrame(demoTick); }
       };
       var demoShowHeld = function () {
         var glyph = $("i.ph", demoToggle);
         demoFrame.classList.toggle("is-held", demoHeld);
-        demoToggle.setAttribute("aria-label", demoHeld ? "Play the demos" : "Pause the demos");
+        demoToggle.setAttribute("aria-label", demoHeld ? "Play the demo" : "Pause the demo");
         if (glyph) { glyph.className = "ph " + (demoHeld ? "ph-play" : "ph-pause"); }
       };
       var demoResume = function () {
         if (demoHeld || !demoOnScreen || document.hidden) { return; }
-        var p = demoVideos[demoFront].play();
+        var p = demoVideo.play();
         if (p && p.catch) {
           /* Low Power Mode and some browsers refuse: leave the still up with a play button */
           p.catch(function (error) {
@@ -203,77 +197,24 @@
           });
         }
       };
-      /* the next clip waits, buffered, in the second video, so the change is a soft fade */
-      var demoPrepareNext = function () {
-        demoLoad(demoVideos[1 - demoFront], (demoIndex + 1) % demoTabs.length);
-      };
-      var demoGo = function (index) {
-        demoMark(index);
-        var incoming = demoVideos[1 - demoFront];
-        var outgoing = demoVideos[demoFront];
-        /* a second click before this clip starts replaces the change still waiting */
-        if (demoSwap) { incoming.removeEventListener("playing", demoSwap); }
-        demoLoad(incoming, index);
-        try { incoming.currentTime = 0; } catch (_) {}
-        var swap = function () {
-          incoming.removeEventListener("playing", swap);
-          incoming.classList.add("is-front");
-          outgoing.classList.remove("is-front");
-          outgoing.pause();
-          demoFront = 1 - demoFront;
-          demoFrame.classList.add("is-playing");
-          /* after the fade: reloading now would blank the outgoing clip */
-          setTimeout(demoPrepareNext, 400);
-        };
-        demoSwap = swap;
-        incoming.addEventListener("playing", swap);
-        var p = incoming.play();
-        if (p && p.catch) {
-          p.catch(function (error) {
-            incoming.removeEventListener("playing", swap);
-            if (error && error.name === "NotAllowedError") {
-              /* still show the chosen clip's first frame */
-              incoming.classList.add("is-front");
-              outgoing.classList.remove("is-front");
-              outgoing.pause();
-              demoFront = 1 - demoFront;
-              demoHeld = true;
-              demoShowHeld();
-            }
-          });
-        }
-      };
 
-      var demoSecond = demoFirst.cloneNode(false);
-      demoSecond.classList.remove("is-front");
-      demoSecond.removeAttribute("src");
-      demoSecond.removeAttribute("poster");
-      demoFirst.removeAttribute("poster");
-      demoFirst.removeAttribute("controls");
-      demoSecond.removeAttribute("controls");
-      demoFirst.parentNode.insertBefore(demoSecond, demoFirst.nextSibling);
-      demoVideos.push(demoSecond);
-      demoVideos.forEach(function (video) {
-        video.muted = true;
-        video.setAttribute("preload", "auto");
-        video.addEventListener("ended", function () {
-          if (video === demoVideos[demoFront]) { demoGo((demoIndex + 1) % demoTabs.length); }
-        });
-        video.addEventListener("playing", function () {
-          if (video === demoVideos[demoFront]) { demoFrame.classList.add("is-playing"); }
-          demoStartTicking();
-        });
-        video.addEventListener("pause", function () {
-          if (video === demoVideos[demoFront]) { demoTicking = false; }
-        });
+      demoVideo.removeAttribute("poster");
+      demoVideo.removeAttribute("controls");
+      demoVideo.muted = true;
+      demoVideo.loop = true;
+      demoVideo.setAttribute("preload", "auto");
+      demoVideo.addEventListener("playing", function () {
+        demoFrame.classList.add("is-playing");
+        if (!demoTicking) { demoTicking = true; requestAnimationFrame(demoTick); }
       });
+      demoVideo.addEventListener("pause", function () { demoTicking = false; });
 
       demoFrame.classList.add("is-animated");
       demoToggle.hidden = false;
       var demoToggleHold = function () {
         demoHeld = !demoHeld;
         demoShowHeld();
-        if (demoHeld) { demoVideos[demoFront].pause(); } else { demoResume(); }
+        if (demoHeld) { demoVideo.pause(); } else { demoResume(); }
       };
       demoToggle.addEventListener("click", function (e) { e.stopPropagation(); demoToggleHold(); });
       demoFrame.addEventListener("click", demoToggleHold);
@@ -281,35 +222,37 @@
         tab.addEventListener("click", function () {
           demoHeld = false;
           demoShowHeld();
-          if (index === demoIndex && demoFrame.classList.contains("is-playing")) {
-            demoVideos[demoFront].currentTime = 0;
-            demoResume();
-          } else {
-            demoGo(index);
-          }
+          demoVideo.currentTime = demoStarts[index];
+          demoMark(index);
+          demoResume();
         });
       });
 
       if ("IntersectionObserver" in window) {
         new IntersectionObserver(function (entries) {
           demoOnScreen = entries[0].isIntersecting;
-          if (demoOnScreen) { demoResume(); } else { demoVideos[demoFront].pause(); }
+          if (demoOnScreen) { demoResume(); } else { demoVideo.pause(); }
         }, { threshold: 0.25 }).observe(demoFrame);
       }
       document.addEventListener("visibilitychange", function () {
-        if (document.hidden) { demoVideos[demoFront].pause(); } else { demoResume(); }
+        if (document.hidden) { demoVideo.pause(); } else { demoResume(); }
       });
 
       demoMark(0);
-      demoLoad(demoFirst, 0);
-      demoPrepareNext();
+      demoLoad(0);
       demoResume();
+      demoRecut = function () {
+        var time = demoVideo.currentTime;
+        demoLoad(0);
+        demoVideo.addEventListener("loadedmetadata", function restore() {
+          demoVideo.removeEventListener("loadedmetadata", restore);
+          demoVideo.currentTime = time;
+        });
+        demoResume();
+      };
     }
 
     /* a different appearance or a phone rotated past the breakpoint needs its own cut */
-    var demoRecut = function () {
-      if (demoAuto) { demoFrame.classList.remove("is-playing"); demoGo(demoIndex); } else { demoStill(demoIndex); }
-    };
     [demoPhone, demoDark].forEach(function (query) {
       if (query.addEventListener) { query.addEventListener("change", demoRecut); } else if (query.addListener) { query.addListener(demoRecut); }
     });

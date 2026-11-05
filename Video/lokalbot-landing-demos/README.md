@@ -1,8 +1,8 @@
 # Landing page demos
 
-The short clips at the top of the home page and in its feature cards. Each one is
-the real app doing the real thing on a fictional library, filmed on a Mac, then framed
-and retimed here. Nothing inside a window is redrawn.
+The film at the top of the home page and the short loops in its feature cards. Each
+clip is the real app doing the real thing on a fictional library, filmed on a Mac, then
+framed and retimed here. Nothing inside a window is redrawn.
 
 | Clip | Where | Take |
 | --- | --- | --- |
@@ -20,6 +20,14 @@ and `dark`, as `web/assets/demos/<clip>-<cut>-<appearance>.mp4` with a `.webp` p
 Cards are wide only. The page picks the file for the viewer's width and appearance.
 The `-tall` takes film a narrow window, so text wraps to the phone cut instead of
 running off its edge.
+
+The hero plays one film of 43 seconds, `web/assets/demos/full-<cut>-<appearance>.mp4`,
+and its tabs are chapters in it. `full_demo.py` joins the six hero clips with short fades,
+trims them, and speeds up typing and waits. It prints the chapter times, which go in
+`data-start` on the tabs in `web/index.html`. Rerun it after replacing a hero clip. The
+page plays only the film, but the clips stay in place as its source and the README's. The
+cards play as silent loops with no controls, like GIFs: a real GIF of `today` is 2.6 times
+the bytes of its MP4 at half the width. Reduced motion and Save-Data get stills.
 
 The root README's GIFs and stills are cut from the finished clips by `readme_gifs.py`, since a
 README can't autoplay video. It takes `web/assets/demos` and writes files for

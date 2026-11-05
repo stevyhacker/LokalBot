@@ -401,13 +401,14 @@ def post_byline(post: dict) -> str:
     return " · ".join(parts)
 
 
-def render_post_cards(posts: list[dict]) -> str:
+def render_post_cards(posts: list[dict], summaries: bool = True) -> str:
+    """Cards linking to posts. The home page leaves the summaries out to stay short."""
     return "\n".join(
         f'        <a class="guide-card blog-card" href="/blog/{post["slug"]}">\n'
         f'          <span class="guide-card__eyebrow"><time datetime="{post["published"]}">{long_date(post["published"])}</time> · {post["eyebrow"]}</span>\n'
         f'          <strong>{post["h1"]}</strong>\n'
-        f'          <span>{post["description"]}</span>\n'
-        f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
+        + (f'          <span>{post["description"]}</span>\n' if summaries else "")
+        + f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
         "        </a>"
         for post in posts
     )
@@ -512,7 +513,7 @@ def render_home(index: str) -> str:
     start, end = index.find(LATEST_POSTS_START), index.find(LATEST_POSTS_END)
     if start == -1 or end < start:
         raise SystemExit("web/index.html is missing the LATEST-POSTS markers.")
-    cards = render_post_cards(POSTS[:3])
+    cards = render_post_cards(POSTS[:3], summaries=False)
     return index[: start + len(LATEST_POSTS_START)] + "\n" + cards + "\n        " + index[end:]
 
 

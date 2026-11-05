@@ -532,8 +532,8 @@ kbd {
 
 /* hero demo video — the real app tour inside the same glass slab */
 .hero__diagram--demo { padding: clamp(14px, 2.6vw, 24px); width: min(880px, 100%); }
-/* A playing loop keeps its controls for pausing, out of the way until wanted. */
-.home-loop.is-looping:not(:hover):not(:focus-visible)::-webkit-media-controls { display: none; }
+/* A loop behaves like a GIF: where Low Power Mode refuses to play it, it stays a still with no play button. */
+.home-loop::-webkit-media-controls-start-playback-button { display: none; -webkit-appearance: none; }
 .hero__demo, .home-loop {
   display: block;
   width: 100%;
@@ -1343,13 +1343,11 @@ kbd {
 .home .section { padding-top: 64px; padding-bottom: 64px; }
 .home .section__head { margin-bottom: 28px; }
 .home .home-examples { padding-top: 24px; padding-bottom: 24px; }
-.home-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(28px, 3.4vw, 44px) clamp(20px, 2.4vw, 32px); }
+.home-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(28px, 3.4vw, 44px) clamp(20px, 2.4vw, 32px); }
 .home-card { min-width: 0; }
 .home-card .home-loop { aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--radius); border-color: var(--line-strong); }
 .home-card h3 { margin-top: 18px; font-size: clamp(1.25rem, 2vw, 1.5rem); letter-spacing: -0.025em; }
 .home-card p { margin-top: 8px; max-width: 54ch; color: var(--text-dim); }
-.home-card--wide { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: clamp(20px, 2.4vw, 32px); align-items: center; }
-.home-card--wide h3 { margin-top: 0; }
 .home-text-link { display: inline-flex; gap: 8px; align-items: center; margin-top: 24px; color: var(--accent-text); }
 .home-demo-note { margin: 24px 0 0; color: var(--text-faint); font-size: 0.84rem; }
 .home-writing__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -1361,9 +1359,8 @@ kbd {
   align-items: start;
   margin-bottom: 16px;
 }
-.home-writing__video { margin: 0; min-width: 0; }
+.home-writing__still { margin: 0; min-width: 0; }
 .home-loop { aspect-ratio: 16 / 9; object-fit: contain; }
-.home-writing__video figcaption a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
 .home-writing__grid .tile .home-text-link { margin-top: 16px; }
 .home-platforms__shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
 .home-platforms__note { max-width: 72ch; margin-top: 28px; color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; }
@@ -1622,8 +1619,6 @@ kbd {
   .home .hero__meta { order: 4; }
   .home-requirements { order: 5; }
   .home-cards { grid-template-columns: minmax(0, 1fr); }
-  .home-card--wide { grid-template-columns: minmax(0, 1fr); }
-  .home-card--wide h3 { margin-top: 18px; }
   .home-writing__grid, .home-writing__lead { grid-template-columns: 1fr; }
   .home-platforms__shots { grid-template-columns: 1fr; }
   .home .home-privacy, .home .home-faq { grid-template-columns: 1fr; gap: 28px; }
