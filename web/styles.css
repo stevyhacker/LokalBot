@@ -1566,7 +1566,6 @@ kbd {
 .demo-note kbd { font-size: 0.86em; }
 .demo-note a { color: var(--accent-text); white-space: nowrap; }
 .demo-note a:hover { text-decoration: underline; text-underline-offset: 3px; }
-.home .demo-proof { flex: none; color: var(--text-faint); font-size: 0.82rem; white-space: nowrap; }
 /* without the script every clip's line still reads, under the first clip's controls */
 .demo-stage:not(.is-ready) .demo-note { display: block; margin-bottom: 6px; }
 .demo-stage:not(.is-ready) .demo-notes { display: block; }
@@ -1648,7 +1647,6 @@ kbd {
   .demo-tab { flex: 0 0 auto; padding: 7px 12px; font-size: 0.86rem; }
   .demo-tabs { margin-inline: -20px; padding-inline: 20px; }
   .demo-notes { display: block; }
-  .home .demo-proof { margin-top: 6px; }
 }
 @media (max-width: 480px) {
   .home-badge { display: none; }

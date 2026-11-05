@@ -108,7 +108,6 @@
     var demoFrame = $(".demo-frame", demoStage);
     var demoTabList = $(".demo-tabs", demoStage);
     var demoToggle = $(".demo-toggle", demoStage);
-    var demoProof = $(".demo-proof", demoStage);
     var demoVideo = $("video", demoFrame);
     var demoPhone = window.matchMedia("(max-width: 640px)");
     var demoDark = window.matchMedia("(prefers-color-scheme: dark)");
@@ -137,7 +136,6 @@
       });
       var name = demoTabs[index].getAttribute("data-demo");
       demoVideo.setAttribute("aria-label", demoTabs[index].getAttribute("data-label"));
-      if (demoProof) { demoProof.textContent = demoTabs[index].getAttribute("data-proof") || demoProof.textContent; }
       demoNotes.forEach(function (note) {
         note.classList.toggle("is-active", note.getAttribute("data-demo-note") === name);
       });
