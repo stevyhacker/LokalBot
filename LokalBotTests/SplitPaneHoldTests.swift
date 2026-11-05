@@ -96,6 +96,20 @@ final class SplitPaneHoldTests: XCTestCase {
         }
         print("SPLIT-WIDTHS", widths, resizes)
         XCTAssertLessThan(resizes, 200, "putting the width back must not fight SwiftUI's layout")
+        // At rest the split stays at rest, or audits and tooltips never settle.
+        let atRest = resizes
+        await settle(1.5)
+        XCTAssertEqual(resizes, atRest, "the split kept re-laying out while idle")
+        // A window resize moves the sibling pane, and settles too.
+        window.setContentSize(NSSize(width: 1_200, height: 700))
+        await settle()
+        XCTAssertEqual(splitView.arrangedSubviews[0].frame.width, opening, accuracy: 1)
+        window.setContentSize(NSSize(width: 800, height: 600))
+        await settle()
+        XCTAssertEqual(splitView.arrangedSubviews[0].frame.width, opening, accuracy: 1)
+        let afterResize = resizes
+        await settle(1.5)
+        XCTAssertEqual(resizes, afterResize, "the split kept re-laying out after a window resize")
         XCTAssertEqual(opening, LBTokens.Metric.contentColumnWidth, accuracy: 1)
         for width in widths { XCTAssertEqual(width, opening, accuracy: 1, "\(widths)") }
     }

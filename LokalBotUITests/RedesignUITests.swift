@@ -63,7 +63,7 @@ final class RedesignUITests: XCTestCase {
         let width = list.frame.width
         let other = list.outlineRows
             .matching(NSPredicate(format: "selected == false"))
-            .containing(NSPredicate(format: "label CONTAINS 'Atlas' OR label CONTAINS 'Borealis'")).firstMatch
+            .containing(NSPredicate(format: "value CONTAINS 'Atlas' OR value CONTAINS 'Borealis'")).firstMatch
         XCTAssertTrue(other.waitForExistence(timeout: 5))
         other.click()
         XCTAssertTrue(UITestHarness.waitUntil { other.isSelected && selected.count == 1 })
