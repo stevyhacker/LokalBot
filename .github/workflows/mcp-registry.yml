@@ -1,0 +1,211 @@
+# Lists LokalBot's MCP bundle (LokalBot.mcpb) in the official MCP Registry
+# (registry.modelcontextprotocol.io) as io.github.stevyhacker/lokalbot.
+#
+# Release (release.yml) calls it for every stable tag once the macOS job has
+# published the release. While the MCP_REGISTRY_PUBLISH repository variable is
+# `true`, it attaches LokalBot.mcpb when the release doesn't have it yet
+# (Scripts/build-mcpb.sh at the tag), writes the bundle's URL and SHA-256 into
+# Distribution/mcp-registry/server.json, and publishes that version. The
+# registry's GitHub OIDC sign-in proves the io.github.stevyhacker namespace, so
+# there is no secret. Without the variable it says so and succeeds. A version
+# the registry already has is skipped: published versions can't be changed.
+#
+#   gh workflow run mcp-registry.yml -f tag=v0.12.2   (publish a release by hand)
+#
+# On a pull request that changes the entry, it checks server.json against the
+# registry's schema and the release it names, and publishes nothing.
+
+name: MCP Registry
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.12.2
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v0.12.2
+        required: true
+        type: string
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/mcp-registry.yml"
+      - "Distribution/mcp-registry/**"
+      - "Scripts/build-mcpb.sh"
+
+concurrency:
+  # Publishing runs one at a time; pull request checks replace older ones.
+  group: mcp-registry-${{ github.event_name == 'pull_request' && github.head_ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  SERVER_JSON: Distribution/mcp-registry/server.json
+  # The registry's publisher (its README's mcp-publisher), built from the Go
+  # module proxy, which checks the module against sum.golang.org. v1.8.6 was
+  # published on 2026-10-27, more than seven days before it was pinned here.
+  PUBLISHER_MODULE: github.com/modelcontextprotocol/registry/cmd/publisher
+  PUBLISHER_VERSION: v1.8.6
+
+jobs:
+  check:
+    name: Check the registry entry
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check server.json against the schema it names
+        run: |
+          schema=$(jq -r '."$schema"' "$SERVER_JSON")
+          curl -fsSL "$schema" -o "$RUNNER_TEMP/server.schema.json"
+          python3 -m venv "$RUNNER_TEMP/venv"
+          # 4.23.0 was published in 2024.
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet 'jsonschema==4.23.0'
+          "$RUNNER_TEMP/venv/bin/python" - "$SERVER_JSON" "$RUNNER_TEMP/server.schema.json" <<'PY'
+          import json, sys, jsonschema
+          entry, schema = (json.load(open(path)) for path in sys.argv[1:3])
+          jsonschema.validate(entry, schema)
+          print(f"{sys.argv[1]} matches {entry['$schema']}")
+          PY
+
+      - name: Check the bundle it names
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(jq -r .version "$SERVER_JSON")
+          url=$(jq -r '.packages[0].identifier' "$SERVER_JSON")
+          sha=$(jq -r '.packages[0].fileSha256' "$SERVER_JSON")
+          expected="https://github.com/$GITHUB_REPOSITORY/releases/download/v$version/LokalBot.mcpb"
+          [ "$url" = "$expected" ] || { echo "::error::identifier is $url, not $expected"; exit 1; }
+          digest=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" \
+            --jq '.assets[] | select(.name == "LokalBot.mcpb") | .digest')
+          [ "$digest" = "sha256:$sha" ] || { echo "::error::fileSha256 $sha is not the release's ${digest:-missing bundle}"; exit 1; }
+          echo "$url has SHA-256 $sha"
+
+  bundle:
+    name: Attach LokalBot.mcpb
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # attach LokalBot.mcpb when the release lacks it
+    outputs:
+      publish: ${{ steps.gate.outputs.publish }}
+      sha256: ${{ steps.asset.outputs.sha256 }}
+    steps:
+      - name: Check the tag and the switch
+        id: gate
+        env:
+          TAG: ${{ inputs.tag }}
+          MCP_REGISTRY_PUBLISH: ${{ vars.MCP_REGISTRY_PUBLISH }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a stable release tag"
+            exit 1
+          fi
+          if [ "$MCP_REGISTRY_PUBLISH" != "true" ]; then
+            echo "::notice::The MCP_REGISTRY_PUBLISH repository variable is not true, so $TAG was not listed in the MCP Registry."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.publish == 'true'
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+          sparse-checkout: |
+            project.yml
+            Scripts/build-mcpb.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Find or attach the bundle
+        id: asset
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=${TAG#v}
+          digest() {
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+              --jq '.assets[] | select(.name == "LokalBot.mcpb") | .digest'
+          }
+          if [ -z "$(digest)" ]; then
+            ./Scripts/build-mcpb.sh
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" dist/LokalBot.mcpb
+            echo "Attached a LokalBot.mcpb built from $TAG"
+          fi
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern LokalBot.mcpb --dir "$RUNNER_TEMP"
+          bundled=$(unzip -p "$RUNNER_TEMP/LokalBot.mcpb" manifest.json | jq -r .version)
+          if [ "$bundled" != "$version" ]; then
+            echo "::error::$TAG's LokalBot.mcpb says version $bundled, not $version"
+            exit 1
+          fi
+          sha=$(digest)
+          sha=${sha#sha256:}
+          [ "$(sha256sum "$RUNNER_TEMP/LokalBot.mcpb" | cut -d' ' -f1)" = "$sha" ] || { echo "::error::the download doesn't match GitHub's digest $sha"; exit 1; }
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish to the MCP Registry
+    needs: bundle
+    if: needs.bundle.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # the registry's GitHub OIDC sign-in for io.github.stevyhacker
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: Distribution/mcp-registry
+
+      - name: Write this version's server.json
+        id: entry
+        env:
+          TAG: ${{ inputs.tag }}
+          SHA256: ${{ needs.bundle.outputs.sha256 }}
+        run: |
+          version=${TAG#v}
+          mkdir -p "$RUNNER_TEMP/registry"
+          jq --arg version "$version" \
+             --arg url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/LokalBot.mcpb" \
+             --arg sha "$SHA256" \
+             '.version = $version | .packages[0].identifier = $url | .packages[0].fileSha256 = $sha' \
+             "$SERVER_JSON" > "$RUNNER_TEMP/registry/server.json"
+          cat "$RUNNER_TEMP/registry/server.json"
+          name=$(jq -r .name "$RUNNER_TEMP/registry/server.json")
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "https://registry.modelcontextprotocol.io/v0/servers/${name//\//%2F}/versions/$version")
+          case "$status" in
+            200) echo "::notice::The MCP Registry already has $name $version."
+                 echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            404) echo "skip=false" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "::error::The MCP Registry answered $status for $name $version"; exit 1 ;;
+          esac
+
+      - name: Install the registry's publisher
+        if: steps.entry.outputs.skip == 'false'
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+        run: go install "$PUBLISHER_MODULE@$PUBLISHER_VERSION"
+
+      - name: Publish
+        if: steps.entry.outputs.skip == 'false'
+        working-directory: ${{ runner.temp }}/registry
+        run: |
+          "$RUNNER_TEMP/bin/publisher" login github-oidc
+          "$RUNNER_TEMP/bin/publisher" publish
