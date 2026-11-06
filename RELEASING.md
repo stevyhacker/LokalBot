@@ -675,6 +675,8 @@ tag check fails when `versionName` does not name the tag's version. It builds th
 shrunk release APK and runs the unit, screenshot and lint checks. It then signs
 the APK with a throwaway key through `Scripts/sign-android-release.sh` and runs
 the end-to-end test on that copy against the stand-in computer, on an emulator.
+The tag keeps this job on GitHub's runners; CI's other runs may use the self-hosted
+Android runner on the Linux machine.
 
 After the macOS job has published the release (so its release gates passed),
 `android-publish` signs the same unsigned APK with `ANDROID_KEYSTORE_BASE64` and

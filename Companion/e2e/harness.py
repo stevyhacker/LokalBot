@@ -3,6 +3,7 @@ ADTS recordings, and the checks that narrate a run in the CI log."""
 
 import json
 import re
+import socket
 import subprocess
 import time
 from dataclasses import dataclass
@@ -57,6 +58,14 @@ def wait_until(description, probe, timeout, every=1.0):
         if time.monotonic() >= deadline:
             raise Failure(f"Timed out after {timeout:.0f} s waiting for {description}.")
         time.sleep(every)
+
+
+def free_port():
+    """A TCP port nothing is using now, because this test may run next to another
+    copy of itself on a shared machine."""
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
 
 
 def sample_library(root=Path(__file__).resolve().parents[1]):

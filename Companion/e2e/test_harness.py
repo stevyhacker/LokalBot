@@ -4,6 +4,7 @@ emulator's sake, so it has to leave the app's own failures alone."""
 
 import contextlib
 import io
+import socket
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,7 +12,8 @@ from unittest import mock
 
 import android_trip
 import harness
-from harness import Failure, read_adts, tap_until
+import own_emulator
+from harness import Failure, free_port, read_adts, tap_until
 
 CLIP = Path(__file__).resolve().parents[2] / "LinuxWindows/crates/lokalbot-audio/tests/data/tone-440-adts.aac"
 
@@ -52,6 +54,36 @@ class ReadAdtsTests(unittest.TestCase):
     def test_an_empty_file_is_refused(self):
         with self.assertRaises(ValueError):
             self.read(b"")
+
+
+class PortTests(unittest.TestCase):
+    def test_a_free_port_can_be_taken(self):
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", free_port()))
+
+    def test_a_taken_port_is_not_free(self):
+        with socket.socket() as server:
+            server.bind(("127.0.0.1", 0))
+            server.listen()
+            self.assertFalse(own_emulator.is_free(server.getsockname()[1]))
+
+    def test_other_adb_servers_never_look_at_the_emulator_ports(self):
+        # adb servers scan up to 5585; the emulator refuses anything above 5682.
+        self.assertGreater(min(own_emulator.CONSOLE_PORTS), 5585)
+        self.assertLess(max(own_emulator.CONSOLE_PORTS) + 1, 5682)
+        self.assertTrue(all(port % 2 == 0 for port in own_emulator.CONSOLE_PORTS))
+
+    def test_a_console_port_needs_its_adb_port_free_too(self):
+        with (
+            mock.patch.object(own_emulator, "CONSOLE_PORTS", (5600, 5602)),
+            mock.patch.object(own_emulator, "is_free", lambda port: port != 5601),
+        ):
+            self.assertEqual(own_emulator.free_console_port(), 5602)
+
+    def test_no_free_console_port_is_a_failure_that_says_so(self):
+        with mock.patch.object(own_emulator, "is_free", lambda port: False):
+            with self.assertRaisesRegex(own_emulator.Failure, "console port"):
+                own_emulator.free_console_port()
 
 
 class Clock:
