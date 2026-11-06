@@ -52,6 +52,11 @@ concurrency:
   group: companion-android-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The emulator's data partition, the AVD's default for pixel_7 on API 36. The
+  # emulator won't start without 1.2 times this free next to the AVD.
+  EMULATOR_DATA_PARTITION_MB: 6144
+
 permissions:
   contents: read
 
@@ -74,6 +79,21 @@ jobs:
             echo "::error::Tag $TAG does not match the Android versionName $version. Run Scripts/bump-version.py first." >&2
             exit 1
           fi
+
+      # How much disk GitHub's runners leave free varies a lot by machine, and a
+      # release build once left the emulator too little. These toolchains are the
+      # image's largest that this job never uses: .NET, Haskell, Swift, PowerShell
+      # and CodeQL, about 16 GB, gone in about 20 s.
+      - name: Free disk space
+        if: runner.environment == 'github-hosted'
+        run: |
+          df -h /
+          for dir in /usr/share/dotnet /usr/local/.ghcup /opt/ghc /usr/share/swift /usr/local/share/boost \
+              /usr/local/share/powershell "$RUNNER_TOOL_CACHE/CodeQL"; do
+            sudo rm -rf "$dir" &
+          done
+          wait
+          df -h /
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -154,6 +174,21 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Short of disk, the emulator exits at once, and the next step waits out its
+      # 10-minute boot timeout. Say so here instead. The next step first installs
+      # the system image, which takes 4.3 GB.
+      - name: Check the disk has room for the emulator
+        if: runner.environment == 'github-hosted'
+        run: |
+          df -h /
+          need=$(( EMULATOR_DATA_PARTITION_MB * 12 / 10 + 5 * 1024 ))
+          free=$(df -Pm "$HOME" | awk 'NR == 2 { print $4 }')
+          echo "$free MB free, the emulator needs $need MB"
+          if (( free < need )); then
+            echo "::error::Only $free MB of disk is free, and the emulator needs $need MB. Free more in the step \"Free disk space\"." >&2
+            exit 1
+          fi
+
       - name: End-to-end test on an emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
@@ -161,6 +196,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_7
+          disk-size: ${{ env.EMULATOR_DATA_PARTITION_MB }}M
           emulator-options: -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect
           script: >-
             python3 Companion/e2e/android_trip.py
