@@ -56,14 +56,13 @@ permissions:
   contents: read
 
 jobs:
-  # The owner's Ubuntu box runs this when it's online and idle, like the Linux job
-  # of linux-windows.yml, and GitHub's runners do otherwise. A release always builds
-  # on GitHub, because that APK gets signed with the real key. So do pull requests
-  # from forks. Listing runners needs RUNNER_STATUS_TOKEN; without it, or with the
-  # SELF_HOSTED_RUNNERS variable set to "off", the job runs on GitHub. On a commit
-  # that also starts Linux & Windows, one job waits for the other on the runner, or
-  # goes to GitHub if its picker finds the runner busy. See
-  # LinuxWindows/scripts/ci/runners.
+  # The owner's Ubuntu box runs this when it's online and idle, on a runner of its
+  # own (lokalbot-android) beside the one for the Linux job of linux-windows.yml, so
+  # a commit that starts both workflows runs them at the same time. GitHub's runners
+  # run it otherwise. A release always builds on GitHub, because that APK gets
+  # signed with the real key. So do pull requests from forks. Listing runners needs
+  # RUNNER_STATUS_TOKEN; without it, or with the SELF_HOSTED_RUNNERS variable set to
+  # "off", the job runs on GitHub. See LinuxWindows/scripts/ci/runners.
   pick:
     name: Pick a runner
     runs-on: ubuntu-24.04
@@ -93,7 +92,7 @@ jobs:
             echo "::warning::$why"
           else
             why="labels of idle self-hosted runners: $idle"
-            if jq -e 'index("lokalbot-linux")' <<<"$idle" >/dev/null; then runner='["self-hosted","lokalbot-linux"]'; fi
+            if jq -e 'index("lokalbot-android")' <<<"$idle" >/dev/null; then runner='["self-hosted","lokalbot-android"]'; fi
           fi
           echo "runner=$runner" >>"$GITHUB_OUTPUT"
           echo "$runner: $why"
@@ -123,7 +122,7 @@ jobs:
       - name: Check the self-hosted runner
         if: runner.environment == 'self-hosted'
         run: |
-          LinuxWindows/scripts/ci/runners/check-runner.sh
+          LinuxWindows/scripts/ci/runners/check-runner.sh --gradle
           if [ ! -x "$HOME/android-sdk/emulator/emulator" ]; then
             echo "::error::This runner has no Android SDK. Run setup-linux-android-sdk.sh on it." >&2
             exit 1
