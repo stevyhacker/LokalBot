@@ -83,8 +83,10 @@ frame.
 
 The home page shows real recordings, not stills: `web/assets/demos/` holds every
 clip and poster, in light and dark, filmed and cut by
-`Video/lokalbot-landing-demos/` (see its README). Update the clips' `aria-label`s
-and captions in `web/index.html` when a clip's content changes.
+`Video/lokalbot-landing-demos/` (see its README). The hero plays one film cut from
+the hero clips by `full_demo.py`. Update the `aria-label`s and captions in
+`web/index.html` when a clip's content changes. `autocomplete-ghost-<appearance>.webp`
+are single frames of the `autocomplete` clip, 7.6 seconds in.
 
 `web/assets/screens/` holds only:
 

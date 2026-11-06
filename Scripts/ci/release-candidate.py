@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Fail-closed release gates and trusted, exact-commit archive preparation reuse."""
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
 import plistlib
 import subprocess
 import sys
+
+spec = importlib.util.spec_from_file_location('build_relevance', Path(__file__).with_name('build-relevance.py'))
+relevance = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(relevance)
 
 GATES = {
     'build.yml': ['xcodebuild (macOS)', 'xcodebuild test (macOS)'],
@@ -23,6 +28,8 @@ GATE_EVENTS = {'ui-tests.yml': ('push', 'workflow_dispatch')}
 # tested this exact tree (merged_pull_request_ui). `UI build (macOS)` runs only
 # when the suite does, so a draft or UI-irrelevant pass doesn't count.
 PULL_REQUEST_UI_JOBS = ['UI build (macOS)']
+# GitHub's comparison lists at most this many files, so a list this long may be cut short.
+COMPARE_FILE_LIMIT = 300
 
 
 def command(*args):
@@ -45,10 +52,35 @@ def checkout_identity():
                 lock=hashlib.sha256(lock.read_bytes()).hexdigest(), repository=os.environ['GITHUB_REPOSITORY'])
 
 
-def trusted_tip():
+def paths_changed_since(sha, tip):
+    """The paths master changed after the candidate, or a ValueError if the candidate
+    isn't an ancestor of master or the list can't show that all of them are harmless."""
+    comparison = api(f'compare/{sha}...{tip}')
+    if comparison.get('status') != 'ahead' or comparison.get('behind_by') != 0:
+        raise ValueError('Release candidate is neither the master tip nor an ancestor of it')
+    files = comparison.get('files') or []
+    if not files or len(files) >= COMPARE_FILE_LIMIT:
+        raise ValueError(f'Cannot read what master changed after the candidate ({len(files)} files listed)')
+    # A rename names both ends: moving a file out of the app changes the app.
+    paths = [path for file in files for path in (file['filename'], file.get('previous_filename')) if path]
+    blocking = [path for path in paths if not relevance.docs_only(path)]
+    if blocking:
+        raise ValueError('Master has moved past the release candidate with changes a release could ship: '
+                         + ', '.join(blocking[:5]))
+    return paths
+
+
+def trusted_candidate():
+    """The commit being released: the master tip, or an ancestor of it when master has
+    changed only website and docs files since. The release builds from this commit's own
+    checkout, and every gate stays bound to this commit, so those later files can't reach
+    an artifact, and leaving them out loses nothing the app would have shipped."""
     sha = command('git', 'rev-parse', 'HEAD')
-    if api('git/ref/heads/master')['object']['sha'] != sha:
-        raise ValueError('Release candidate is not the current trusted master commit')
+    tip = api('git/ref/heads/master')['object']['sha']
+    if tip != sha:
+        paths = paths_changed_since(sha, tip)
+        print(f'Master is at {tip}, past this candidate by {len(paths)} website or docs files: '
+              + ', '.join(paths[:5]))
     return sha
 
 
@@ -108,7 +140,7 @@ def merged_pull_request_ui(sha):
 
 
 def gates():
-    sha = trusted_tip()
+    sha = trusted_candidate()
     for workflow, required in GATES.items():
         events = GATE_EVENTS.get(workflow, ('push',))
         runs = [run for event in events
@@ -127,8 +159,18 @@ def gates():
 def ui_covered():
     """For prepare-release.sh: succeed when the merged pull request's UI run
     already covers the candidate, so no exact-commit run is needed."""
-    run_id = merged_pull_request_ui(trusted_tip())
+    run_id = merged_pull_request_ui(trusted_candidate())
     print(f'UI Tests run {run_id} of the merged pull request tested this exact tree.')
+
+
+def check_candidate():
+    """For prepare-release.sh: refuse a commit the tag gates could never accept, before
+    an hour of CI goes on it. A push of only website and docs files starts no Build."""
+    sha = trusted_candidate()
+    changed = command('git', 'diff', '--name-only', f'{sha}^', sha).splitlines()
+    if changed and all(relevance.docs_only(path) for path in changed):
+        raise ValueError('This commit changes only website and docs files, so Build and XcodeGen never run on it. '
+                         'Release from the last commit on master that changed anything else.')
 
 
 def digest(path):
@@ -142,7 +184,7 @@ def validate_prepared(saved, current, run_id, archive, attempt):
 
 
 def prepare():
-    trusted_tip()
+    trusted_candidate()
     if os.environ['GITHUB_EVENT_NAME'] != 'workflow_dispatch' or os.environ['GITHUB_REF'] != 'refs/heads/master':
         raise ValueError('Archive preparation requires an explicit dispatch on master')
     subprocess.run(['python3', 'Scripts/release-preflight.py', '--candidate', '--version', os.environ['CANDIDATE_VERSION']], check=True)
@@ -195,6 +237,6 @@ def restore():
 if __name__ == '__main__':
     try:
         {'gates': gates, 'prepare': prepare, 'pack': pack, 'restore': restore, 'verify-app': verify_app,
-         'ui-covered': ui_covered}[sys.argv[1]]()
+         'ui-covered': ui_covered, 'candidate': check_candidate}[sys.argv[1]]()
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         sys.exit(str(error))

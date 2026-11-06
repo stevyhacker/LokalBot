@@ -299,9 +299,11 @@ artifacts from the preceding attempt. UI Tests runs on pull requests that are
 ready for review, weekly on `master`, and for a release candidate that its
 merged pull request's run doesn't cover, when `Scripts/prepare-release.sh`
 dispatches it with the candidate's SHA; it no longer runs on every `master`
-push. Build, Lint and XcodeGen still do. Build skips its
-macOS jobs on pull requests that change only docs, the website, assets, video
-or distribution notes (`Scripts/ci/build-relevance.py`).
+push. Lint runs on every push, and Build and XcodeGen on every push except one
+of only docs, the website and the scripts that generate it, assets, video or
+distribution notes (`DOCS_ONLY` in `Scripts/ci/build-relevance.py`, mirrored by
+their `paths-ignore`). Build also skips its macOS jobs on pull requests that
+change only those paths.
 
 ### Optional: prepare the signed archive while CI validates
 
@@ -322,14 +324,29 @@ UI Tests run it dispatched and the Build, Lint and XcodeGen push runs on the
 exact commit before creating the release tag. Merge the release pull request
 only once it contains the current `master`, so that its run covers the merge.
 
+A dispatch always runs on `master`'s tip. If website or docs commits have
+already landed after the candidate, the script can't prepare the archive or
+dispatch UI Tests for it: it succeeds when the merged pull request's run covers
+the candidate, and the tag run then builds the archive itself. Without that
+coverage, it refuses, and the release needs a new candidate. The script also
+refuses a commit that changes only `DOCS_ONLY` paths, because Build and XcodeGen
+never run on one.
+
 Build and unit execution are separate jobs in `build.yml`, sharing one compile.
 The UI aggregate checks smoke, Reduce Motion, both functional shards, all three
 visual sizes and every capture. Filtered or legacy-comparison runs cannot replace
 the complete UI gate. All UI execution remains on hosted runners.
 
-On a tag push, Release requires the candidate to remain the current `master` tip
-and verifies successful **push** runs for Build (both jobs), Lint and XcodeGen,
-and a successful UI Tests run on that exact SHA, either a push run or the
+On a tag push, Release requires the candidate to be the current `master` tip, or
+an ancestor of it when every file `master` has changed since matches `DOCS_ONLY`.
+Website and docs merges therefore don't restart a release: **tag the candidate's
+exact SHA, not the tip**. The artifacts build from the candidate's own checkout,
+so the later files aren't in the release. A change to anything else, a rename
+from outside those paths, or a file list GitHub cuts short (300 files) refuses
+the tag, and the release then needs a new candidate.
+
+Release also verifies successful **push** runs for Build (both jobs), Lint and
+XcodeGen, and a successful UI Tests run on that exact SHA, either a push run or the
 exact-SHA dispatch from `prepare-release.sh`; only a full run reports
 `XCUITest (macOS)`. When no UI Tests run exists on that SHA, the merged pull
 request's newest run counts instead, if the candidate merges a pull request

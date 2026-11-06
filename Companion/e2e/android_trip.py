@@ -25,9 +25,22 @@ import time
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
-from harness import Failure, StandInHost, check, free_port, read_adts, sample_library, step, wait_until
+from harness import (
+    Failure,
+    StandInHost,
+    check,
+    free_port,
+    read_adts,
+    sample_library,
+    step,
+    tap_until,
+    wait_until,
+)
 
 PACKAGE = "me.dotenv.lokalbot.companion"
+APP_NAME = "LokalBot"
+# The title of the dialog Android shows when an app or process stops answering.
+NOT_RESPONDING = re.compile(r"(.+) isn['’]t responding")
 RECORDING_SECONDS = 12
 
 
@@ -81,20 +94,72 @@ def nodes():
     return found
 
 
-def find(text, contains=False):
-    for label, bounds in nodes():
+def screen():
+    """What's on screen, as nodes() reads it. A busy emulator can stop System
+    UI answering for a while, and Android then covers the app with a dialog
+    offering to close it; this presses Wait and reports an empty screen, so the
+    caller looks again."""
+    found = nodes()
+    return [] if answered_not_responding(found, press) else found
+
+
+def answered_not_responding(found, press):
+    """Presses Wait on Android's "... isn't responding" dialog when it names
+    something other than the app, and fails the run when it names the app."""
+    title = next(filter(None, (NOT_RESPONDING.fullmatch(label) for label, _ in found)), None)
+    wait = match(found, "Wait")
+    if title is None or wait is None or match(found, "Close app") is None:
+        return False
+    if title[1] == APP_NAME:
+        raise Failure(f'Android shows "{title[0]}": the app stopped answering.')
+    press(wait)
+    print(f'    pressed Wait on "{title[0]}"', flush=True)
+    return True
+
+
+def match(found, text, contains=False):
+    for label, bounds in found:
         if label == text or (contains and text in label):
             return bounds
     return None
 
 
+def find(text, contains=False):
+    return match(screen(), text, contains)
+
+
 def wait_for(text, contains=False, timeout=45):
-    return wait_until(f'"{text}" on screen', lambda: find(text, contains), timeout)
+    """The whole screen, once it shows the text."""
+
+    def probe():
+        found = screen()
+        return found if match(found, text, contains) else None
+
+    return wait_until(f'"{text}" on screen', probe, timeout)
 
 
-def tap(text, contains=False, timeout=45):
-    left, top, right, bottom = wait_for(text, contains, timeout)
+def press(bounds):
+    left, top, right, bottom = bounds
     shell(f"input tap {(left + right) // 2} {(top + bottom) // 2}")
+
+
+def tap(text, contains=False, then=None, then_contains=False, timeout=45):
+    """Taps the text. Given `then`, the text the tap brings up, it waits for
+    that too, and taps again while the screen is exactly as it was before the
+    tap, which means the emulator dropped it."""
+    before = wait_for(text, contains, timeout)
+    bounds = match(before, text, contains)
+    if then is None:
+        press(bounds)
+        return
+    tap_until(
+        f'"{then}" on screen after tapping "{text}"',
+        lambda: press(bounds),
+        screen,
+        arrived=lambda found: match(found, then, then_contains),
+        unchanged=lambda found: found == before,
+        timeout=timeout,
+    )
 
 
 def launch():
@@ -119,8 +184,7 @@ def ready_the_app(apk):
 def open_the_scanner():
     step("Open the QR scanner")
     launch()
-    tap("Pair with your computer")
-    wait_for("Or paste the pairing link")
+    tap("Pair with your computer", then="Or paste the pairing link")
     # The camera and ML Kit start after the screen appears.
     time.sleep(5)
     assert_no_crashes()
@@ -141,7 +205,7 @@ def pair_and_sync(host):
     }
     title = wait_until(
         "a meeting from the computer",
-        lambda: next((label for label, _ in nodes() if label in titles), None),
+        lambda: next((label for label, _ in screen() if label in titles), None),
         60,
     )
     check(True, f'the synced library shows "{title}"')
@@ -150,15 +214,14 @@ def pair_and_sync(host):
 
 def go_to(section):
     if not find(section):
-        tap("More")
+        tap("More", then=section)
     tap(section)
 
 
 def open_every_screen(meeting_title):
     step("Open every screen, because code shrinking can break any of them")
-    tap(meeting_title)
-    tap("Transcript")
-    wait_for("Quick round", contains=True)
+    tap(meeting_title, then="Transcript")
+    tap("Transcript", then="Quick round", then_contains=True)
     shell("input keyevent 4")
     for section in ("Today", "Actions", "Timeline", "People", "Projects", "Settings"):
         go_to(section)
@@ -169,7 +232,8 @@ def open_every_screen(meeting_title):
 
 def ask_a_question():
     step("Ask a question and read the streamed answer")
-    tap("Ask")
+    tap("Ask", then="What's overdue?")
+    # Once only: a second tap would ask twice while the first answer streams.
     tap("What's overdue?")
     wait_for("cut onboarding to three steps", contains=True, timeout=60)
     check(True, "the computer's answer arrived")
@@ -183,8 +247,7 @@ class Take:
 
     def __init__(self):
         self.earliest_start = time.monotonic()
-        tap("Record a meeting")
-        wait_for("Stop")
+        tap("Record a meeting", then="Stop")
         self.latest_start = time.monotonic()
 
     def end(self, action):
