@@ -25,6 +25,29 @@ def check(condition, message):
     print(f"    ok: {message}", flush=True)
 
 
+def tap_until(description, tap, look, arrived, unchanged, timeout, again_after=5.0, every=1.0, taps=3):
+    """Taps, then waits until `arrived` finds what the tap brings up on the
+    screen `look` returns. An emulator under load can drop a tap, which leaves
+    the screen as it was, so while `unchanged` says it still is, this taps again
+    every `again_after` seconds, `taps` times in all. A screen that changed in
+    any other way is left alone, so a tap the app gets wrong still fails."""
+    tap()
+    tapped = [time.monotonic()]
+
+    def probe():
+        screen = look()
+        found = arrived(screen)
+        if found:
+            return found
+        if len(tapped) < taps and time.monotonic() - tapped[-1] >= again_after and unchanged(screen):
+            print(f"    the screen hasn't changed {time.monotonic() - tapped[-1]:.0f} s after the tap; tapping again", flush=True)
+            tap()
+            tapped.append(time.monotonic())
+        return None
+
+    return wait_until(description, probe, timeout, every)
+
+
 def wait_until(description, probe, timeout, every=1.0):
     deadline = time.monotonic() + timeout
     while True:
