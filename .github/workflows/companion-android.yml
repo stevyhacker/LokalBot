@@ -56,12 +56,80 @@ permissions:
   contents: read
 
 jobs:
+  # The owner's Ubuntu box runs this when it's online and idle, on a runner of its
+  # own (lokalbot-android) beside the one for the Linux job of linux-windows.yml, so
+  # a commit that starts both workflows runs them at the same time. GitHub's runners
+  # run it otherwise. A release always builds on GitHub, because that APK gets
+  # signed with the real key. So do pull requests from forks. Listing runners needs
+  # RUNNER_STATUS_TOKEN; without it, or with the SELF_HOSTED_RUNNERS variable set to
+  # "off", the job runs on GitHub. See LinuxWindows/scripts/ci/runners.
+  pick:
+    name: Pick a runner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          FROM_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          SWITCH: ${{ vars.SELF_HOSTED_RUNNERS }}
+        run: |
+          runner='"ubuntu-latest"'
+          if [ -n "$TAG" ]; then
+            why="a release build, for $TAG"
+          elif [ "$FROM_FORK" = true ]; then
+            why="pull request from a fork"
+          elif [ "$SWITCH" = off ]; then
+            why="SELF_HOSTED_RUNNERS is off"
+          elif [ -z "$GH_TOKEN" ]; then
+            why="no RUNNER_STATUS_TOKEN secret"
+          elif ! idle=$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
+              --jq '[.runners[] | select(.status == "online" and (.busy | not)) | .labels[].name]' 2>&1); then
+            why="couldn't list runners: $idle"
+            echo "::warning::$why"
+          else
+            why="labels of idle self-hosted runners: $idle"
+            if jq -e 'index("lokalbot-android")' <<<"$idle" >/dev/null; then runner='["self-hosted","lokalbot-android"]'; fi
+          fi
+          echo "runner=$runner" >>"$GITHUB_OUTPUT"
+          echo "$runner: $why"
+          {
+            echo "Runner: \`$runner\`"
+            echo
+            echo "Why: $why"
+          } >>"$GITHUB_STEP_SUMMARY"
+
   android:
     name: Build, test and lint
-    runs-on: ubuntu-latest
+    needs: pick
+    runs-on: ${{ fromJSON(needs.pick.outputs.runner) }}
     timeout-minutes: 60
     steps:
+      - name: Refuse to build a release off GitHub's runners
+        if: inputs.tag != '' && runner.environment != 'github-hosted'
+        run: |
+          echo "::error::A release APK gets signed with the real key, so it must be built on GitHub's runners." >&2
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The runner keeps a warm target directory, ~/.gradle and ~/.m2 in place of the
+      # caches. Keeping ~/.m2 also spares it Maven Central's 429s for the Robolectric
+      # downloads. Nothing from this machine reaches GitHub's cache.
+      - name: Check the self-hosted runner
+        if: runner.environment == 'self-hosted'
+        run: |
+          LinuxWindows/scripts/ci/runners/check-runner.sh --gradle
+          if [ ! -x "$HOME/android-sdk/emulator/emulator" ]; then
+            echo "::error::This runner has no Android SDK. Run setup-linux-android-sdk.sh on it." >&2
+            exit 1
+          fi
+          echo "ANDROID_HOME=$HOME/android-sdk" >>"$GITHUB_ENV"
+          # When a job is cancelled, its test can restart adb after the runner's cleanup.
+          pkill -u "$(id -u)" -x adb || true
 
       - name: Check the tag names the app's version
         if: inputs.tag != ''
@@ -83,7 +151,7 @@ jobs:
       # Release builds start clean: no compiled output is restored from a cache.
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
-          cache-disabled: ${{ inputs.tag != '' }}
+          cache-disabled: ${{ inputs.tag != '' || runner.environment == 'self-hosted' }}
 
       - name: Rust toolchain and Android targets
         working-directory: LinuxWindows
@@ -92,7 +160,7 @@ jobs:
           rustup target add aarch64-linux-android x86_64-linux-android
 
       - name: Cache cargo
-        if: inputs.tag == ''
+        if: inputs.tag == '' && runner.environment == 'github-hosted'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -110,7 +178,8 @@ jobs:
           CARGO_NDK_VERSION: "4.1.2"
 
       - name: Build the Rust sync core for Android
-        # The runner image ships the Android SDK and a current NDK.
+        # GitHub's image ships the Android SDK and a current NDK. On the self-hosted
+        # runner, the script finds the NDK under ANDROID_HOME.
         run: |
           export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
           Scripts/build-sync-android.sh
@@ -149,12 +218,14 @@ jobs:
           rm -f "$keystore"
 
       - name: Let the emulator use KVM
+        if: runner.environment == 'github-hosted'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
       - name: End-to-end test on an emulator
+        if: runner.environment == 'github-hosted'
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 36
@@ -167,6 +238,16 @@ jobs:
             --apk "$RUNNER_TEMP/app-release-signed.apk"
             --host LinuxWindows/target/debug/examples/companion_host
             --out "$RUNNER_TEMP/android-e2e"
+
+      # Other people use this machine and its emulators at the same time.
+      - name: End-to-end test on an emulator of its own
+        if: runner.environment == 'self-hosted'
+        run: >-
+          python3 Companion/e2e/own_emulator.py --
+          python3 Companion/e2e/android_trip.py
+          --apk "$RUNNER_TEMP/app-release-signed.apk"
+          --host "$CARGO_TARGET_DIR/debug/examples/companion_host"
+          --out "$RUNNER_TEMP/android-e2e"
 
       - name: Upload test, screenshot, lint and end-to-end reports
         if: failure()

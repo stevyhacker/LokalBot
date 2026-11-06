@@ -25,13 +25,22 @@ import time
 import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
-from harness import Failure, StandInHost, check, read_adts, sample_library, step, tap_until, wait_until
+from harness import (
+    Failure,
+    StandInHost,
+    check,
+    free_port,
+    read_adts,
+    sample_library,
+    step,
+    tap_until,
+    wait_until,
+)
 
 PACKAGE = "me.dotenv.lokalbot.companion"
 APP_NAME = "LokalBot"
 # The title of the dialog Android shows when an app or process stops answering.
 NOT_RESPONDING = re.compile(r"(.+) isn['’]t responding")
-PORT = 17891
 RECORDING_SECONDS = 12
 
 
@@ -317,7 +326,7 @@ def main():
 
     shutil.rmtree(args.out, ignore_errors=True)
     args.out.mkdir(parents=True)
-    host = StandInHost(args.host, args.out / "host", PORT)
+    host = StandInHost(args.host, args.out / "host", free_port())
     try:
         apk = signed(args.apk, args.out)
         host.start()
