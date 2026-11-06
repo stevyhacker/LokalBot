@@ -17,7 +17,10 @@ on:
     branches: [master, dev]
 
 concurrency:
-  group: lint-${{ github.ref }}
+  # Lint checks the generated website, so it runs on website pushes too. Each
+  # master commit keeps its own run, so one of those can't cancel the Lint of a
+  # release candidate. This job is cheap: it doesn't use a macOS runner.
+  group: lint-${{ github.ref == 'refs/heads/master' && github.sha || github.ref }}
   cancel-in-progress: true
 
 jobs:

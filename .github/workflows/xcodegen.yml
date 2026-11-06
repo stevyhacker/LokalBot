@@ -17,6 +17,35 @@ on:
     branches: [master, dev]
   push:
     branches: [master, dev]
+    # A website or docs push has nothing to check here, and starting a run would
+    # cancel the XcodeGen run of a release candidate that is still validating.
+    # Mirrors DOCS_ONLY in Scripts/ci/build-relevance.py; a test keeps them equal.
+    paths-ignore:
+      - "Docs/**"
+      - "web/**"
+      - "Video/**"
+      - "Assets/**"
+      - "Distribution/**"
+      - "cloudflare/**"
+      - "wrangler.jsonc"
+      - "vercel.json"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - "DEVELOPMENT.md"
+      - "RELEASING.md"
+      - "SECURITY.md"
+      - "SUPPORT.md"
+      - "CLOUDFLARE.md"
+      - "Scripts/render_web.py"
+      - "Scripts/serve-web.py"
+      - "Scripts/comparison_pages.py"
+      - "Scripts/guide_pages.py"
+      - "Scripts/blog_posts.py"
+      - "Scripts/render_social_images.py"
 
 concurrency:
   group: xcodegen-${{ github.ref }}
