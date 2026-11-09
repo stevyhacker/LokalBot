@@ -20,6 +20,6 @@ Give the user a short, cited catch-up on their own work from their local LokalBo
 ## Guardrails
 
 - Items the briefing doesn't list are unknown, not false. Don't fill gaps with guesses.
-- Retrieve only what the catch-up needs, and summarize rather than quoting transcripts at length. LokalBot itself uploads nothing, but Claude Code processes tool inputs and results under Anthropic's terms.
+- Retrieve only what the catch-up needs, and summarize rather than quoting transcripts at length. LokalBot sends library content off this computer only to a remote model server the user approved, but Claude Code processes tool inputs and results under Anthropic's terms.
 - Each kind of data has its own permission in LokalBot. When a source is off, the briefing and the error code (`[access_disabled]`, `[screen_access_disabled]`, `[files_access_disabled]`, `[personal_context_disabled]`) say which one and where to turn it on. Tell the user, and don't work around it.
 - If `lokalbot-cli` isn't on PATH, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on a Mac, `~/.local/bin/lokalbot-cli` on Linux, or `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows.

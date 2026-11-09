@@ -163,7 +163,7 @@ Changing settings:
 
 ## Setting up LokalBot
 
-When the user wants LokalBot installed or set up, follow [AGENT_SETUP.md](https://github.com/stevyhacker/lokalbot/blob/master/AGENT_SETUP.md). On Windows and Linux, once the app is installed, the same commands work; Windows and Linux have no system permission prompts, so `permissions` says what the desktop allows.
+When the user wants LokalBot set up, run these steps in order; `lokalbot-cli <command> --help` describes each command. If LokalBot isn't installed yet, install it first: on a Mac with `brew install --cask stevyhacker/tap/lokalbot`, and on Windows and Linux from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest), after which the user picks what LokalBot remembers in the app. On Windows and Linux the same commands work once the app is running; those systems have no permission prompts, so `permissions` says what the desktop allows.
 
 ```bash
 lokalbot-cli setup start --wait 300        # the user clicks Allow in LokalBot; the only way to get access
@@ -176,7 +176,7 @@ lokalbot-cli doctor                        # exit 0 when ready; nextSteps otherw
 ```
 
 - Ask before adding `--meeting-library`, `--screen-memory`, or `--files` to `setup start`, and before requesting any setting in the plan's `notes.needsApproval`.
-- Exit 3 means the user hasn't answered yet, 4 means they declined (don't ask again unless they say so), and 5 means the request expired.
+- Exit 3 means the user hasn't answered yet, 4 means they declined (don't ask again unless they say so), and 5 means the request expired. `[settings_access_disabled]` means the user hasn't allowed access yet: run `setup start`.
 - For permissions, tell the user exactly what to click, then poll `permissions` until it shows the grant.
 - Never install by removing the quarantine attribute, and never write LokalBot's preferences or files in `control/` yourself.
 
