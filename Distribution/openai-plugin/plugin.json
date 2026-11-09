@@ -1,0 +1,59 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lokalbot",
+  "version": "0.2.1",
+  "description": "Your personal context engine. Reads your local LokalBot library on macOS, Windows, or Linux: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself, each behind its own permission in LokalBot.",
+  "author": {
+    "name": "stevyhacker",
+    "url": "https://github.com/stevyhacker"
+  },
+  "homepage": "https://www.lokalbot.com",
+  "repository": "https://github.com/stevyhacker/lokalbot",
+  "license": "GPL-3.0",
+  "keywords": [
+    "meetings",
+    "transcription",
+    "meeting-notes",
+    "action-items",
+    "personal-context",
+    "local-first",
+    "privacy"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "onboardingSkill": "./skills/lokalbot-setup/SKILL.md",
+      "interface": {
+        "displayName": "LokalBot",
+        "shortDescription": "Your personal context engine",
+        "longDescription": "LokalBot is a private work-memory app that records, transcribes, and summarizes your meetings on your own computer, and remembers your workday. This plugin lets ChatGPT and Codex read that library through LokalBot's command-line tool, lokalbot-cli, which runs on your computer.\n\nAsk what was decided in a meeting, what you owe and to whom, everything about one person, or where a topic came up, and get answers cited by meeting title and date. It can also search the folders you chose under Files (documents, PDFs, screenshots, and pictures), read what you shared about yourself before giving personal advice, give a short catch-up on your recent work, and draft a reply from what your meetings say.\n\nWith a separate permission, it can check and change LokalBot's settings. Anything that widens what LokalBot captures, reads, records, or sends, and every API key, waits for your approval in the LokalBot app. The setup skill installs LokalBot and sets it up with you on a Mac, and walks you through it on Windows and Linux.\n\nLimitations: desktop only, because it runs lokalbot-cli on your computer, and it needs the LokalBot app installed (macOS on Apple Silicon; Windows and Linux in alpha). Each kind of data is off until you turn it on in LokalBot. The plugin never changes your meetings or files. Screen memory needs LokalBot's MCP server, which this plugin doesn't include. LokalBot itself uploads nothing; ChatGPT processes what the plugin retrieves under OpenAI's terms.",
+        "developerName": "LokalBot",
+        "category": "Productivity",
+        "capabilities": [
+          "Search your recorded meetings and quote them with citations",
+          "List action items: what you owe, what others owe you, and what is overdue",
+          "Summarize everything about one person across your meetings",
+          "Search the folders you chose under Files: documents, PDFs, screenshots, and pictures",
+          "Catch you up on your recent work and open commitments",
+          "Install and set up LokalBot with your approval"
+        ],
+        "websiteURL": "https://www.lokalbot.com",
+        "supportURL": "https://www.lokalbot.com/support",
+        "privacyPolicyURL": "https://www.lokalbot.com/privacy",
+        "termsOfServiceURL": "https://www.lokalbot.com/terms",
+        "defaultPrompt": [
+          "What did we decide in my last meeting?",
+          "What do I owe people this week?",
+          "Catch me up on what I worked on this week."
+        ],
+        "brandColor": "#0E9F86",
+        "brandColorDark": "#3EE0C4",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "publication": {
+        "release_notes": "First release: the lokalbot-cli skill for meetings, action items, people, Files, Personal Context, and settings; a catch-up skill; a recall skill that picks the right source and cites it; and a setup skill that installs LokalBot with your approval."
+      }
+    }
+  }
+}
