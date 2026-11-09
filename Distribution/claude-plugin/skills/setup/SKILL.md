@@ -35,5 +35,5 @@ Installing differs, and the same commands work once the app is running. Work thr
 
 - Exit code 3 means the user hasn't answered yet, 4 that they declined (don't ask again unless they say so), and 5 that the request expired (ask before trying again).
 - Never use `defaults write`, and never create or edit files in LokalBot's `control/` folder.
-- Pass API keys only on standard input (`printf %s "$KEY" | $CLI secret set <name>`), and only when the user gives you one for that purpose. Never echo one back.
+- Pass an API key only on standard input to `$CLI secret set <name>`, and only when the user gives you one for that purpose. Never put it on the command line or echo it back.
 - Change only what the user agreed to.

@@ -62,7 +62,11 @@ class ClaudePluginTests(unittest.TestCase):
         self.assertNotIn("version", self.entry)
 
     def test_listing_icon_is_a_square_png_in_range(self):
-        icon = PLUGIN / self.manifest["icon"]
+        # Found by its path; naming it in the manifest or README puts the
+        # submission on a policy hold ("image the plugin's code could run").
+        self.assertNotIn("icon", self.manifest)
+        self.assertNotIn("icon.png", (PLUGIN / "README.md").read_text(encoding="utf-8"))
+        icon = PLUGIN / ".claude-plugin" / "icon.png"
         data = icon.read_bytes()
         self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
         width = int.from_bytes(data[16:20], "big")
@@ -87,11 +91,22 @@ class ClaudePluginTests(unittest.TestCase):
                 self.assertTrue(fields.get("description"))
                 self.assertEqual(fields.get("disable-model-invocation"), "true")
 
-    def test_skills_link_nowhere_outside_the_plugin(self):
-        for skill in sorted(PLUGIN.glob("skills/*/SKILL.md")):
-            text = skill.read_text(encoding="utf-8")
-            with self.subTest(skill=skill.parent.name):
+    def test_nothing_links_outside_the_plugin(self):
+        # Installs and the plugin's own repository (stevyhacker/lokalbot-claude-plugin)
+        # hold only this folder, so a relative link above it breaks there.
+        for doc in [PLUGIN / "README.md", *sorted(PLUGIN.glob("skills/*/SKILL.md"))]:
+            text = doc.read_text(encoding="utf-8")
+            with self.subTest(doc=str(doc.relative_to(PLUGIN))):
                 self.assertNotRegex(text, r"\]\(\.\./")
+
+    def test_sync_workflow_copies_this_folder(self):
+        workflow = (ROOT / ".github" / "workflows" / "claude-plugin-sync.yml").read_text(
+            encoding="utf-8")
+        self.assertIn('"Distribution/claude-plugin/**"', workflow)
+        self.assertIn("rsync -a --delete --exclude .git Distribution/claude-plugin/", workflow)
+        self.assertIn("git@github.com:stevyhacker/lokalbot-claude-plugin.git", workflow)
+        # The deploy key must never reach a self-hosted runner.
+        self.assertEqual(re.findall(r"runs-on: (.+)", workflow), ["ubuntu-24.04"])
 
     def test_readme_lists_every_mcp_tool(self):
         readme = (PLUGIN / "README.md").read_text(encoding="utf-8")
