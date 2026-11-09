@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.stevyhacker/lokalbot",
+  "title": "LokalBot Meetings",
+  "description": "Private meeting notes your AI agents can search, from the LokalBot app on your Mac.",
+  "version": "0.12.2",
+  "websiteUrl": "https://www.lokalbot.com",
+  "repository": {
+    "url": "https://github.com/stevyhacker/LokalBot",
+    "source": "github",
+    "id": "1277774640"
+  },
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/stevyhacker/LokalBot/releases/download/v0.12.2/LokalBot.mcpb",
+      "fileSha256": "10f71a3338e5ac14c02d8d1ef9c07ddd85655358f78e5904a3606971410a66a4",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

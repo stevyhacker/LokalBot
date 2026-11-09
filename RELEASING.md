@@ -663,6 +663,20 @@ by hand: `gh workflow run winget.yml -f tag=v<version>`. The first version
 and the token are set up once; see
 [LinuxWindows/packaging/winget/README.md](LinuxWindows/packaging/winget/README.md).
 
+## MCP Registry
+
+For a stable tag, the `mcp-registry` job (`.github/workflows/mcp-registry.yml`)
+runs after the macOS job publishes the release. While the
+`MCP_REGISTRY_PUBLISH` repository variable is `true`, it attaches
+`LokalBot.mcpb` (built from the tag) when the release lacks it, writes the
+bundle's URL and SHA-256 into `Distribution/mcp-registry/server.json`, and
+publishes `io.github.stevyhacker/lokalbot` `<version>` to the official MCP
+Registry with GitHub OIDC, so there is no secret. Without the variable, or when
+the registry already has the version, it says so and succeeds. Don't replace a
+release's `LokalBot.mcpb` after the registry has it. To publish by hand:
+`gh workflow run mcp-registry.yml -f tag=v<version>`. See
+[Distribution/mcp-registry/README.md](Distribution/mcp-registry/README.md).
+
 ## Android
 
 The tag that releases macOS also attaches the Android app, as
@@ -788,6 +802,10 @@ Required repo secrets:
 Optional: `AUR_SSH_PRIVATE_KEY`, the AUR account's SSH key that lets the
 release push the `lokalbot-bin` AUR package once the `AUR_PUBLISH` repository
 variable is `true` ([AUR package](#aur-package)).
+
+Optional, with no secret: the `MCP_REGISTRY_PUBLISH` repository variable set to
+`true` lists each stable release's `LokalBot.mcpb` in the official MCP Registry
+([MCP Registry](#mcp-registry)).
 
 `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` sign the Android APK.
 A release has no APK until its key is set up, and a missing secret fails the

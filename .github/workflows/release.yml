@@ -35,6 +35,11 @@
 #   ANDROID_KEYSTORE_PASSWORD app, and its password. Optional only until
 #                             Companion/android/release-certificate.sha256 is
 #                             committed; then a missing secret fails the job.
+#
+# Optional repository variable (no secret):
+#   MCP_REGISTRY_PUBLISH   `true` lists each stable release's LokalBot.mcpb in
+#                          the official MCP Registry (mcp-registry.yml), which
+#                          signs in with GitHub OIDC.
 
 name: Release
 
@@ -685,6 +690,22 @@ jobs:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
     permissions:
       contents: read
+
+  # Lists this version's MCP bundle in the official MCP Registry once the
+  # macOS job has published the release, attaching LokalBot.mcpb first when the
+  # release lacks it. Only while the MCP_REGISTRY_PUBLISH repository variable is
+  # true; it signs in with GitHub OIDC, so there is no secret. Pre-releases stay
+  # off the registry.
+  mcp-registry:
+    name: MCP Registry
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: release
+    uses: ./.github/workflows/mcp-registry.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: write # attach LokalBot.mcpb when the release lacks it
+      id-token: write # the registry's GitHub OIDC sign-in
 
   # Builds this release's upgrade fixture on a clean hosted Mac once the DMG
   # is published and keeps it for 90 days, so the next release adds it with

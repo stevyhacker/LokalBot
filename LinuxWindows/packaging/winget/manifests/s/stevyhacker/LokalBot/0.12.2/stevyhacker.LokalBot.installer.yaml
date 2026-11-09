@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 
 PackageIdentifier: stevyhacker.LokalBot
-PackageVersion: 0.11.0
+PackageVersion: 0.12.2
 Platform:
 - Windows.Desktop
 MinimumOSVersion: 10.0.0.0
@@ -13,14 +13,14 @@ InstallModes:
 - silentWithProgress
 UpgradeBehavior: install
 ProductCode: '{CFF062EB-30DC-4ED9-8586-AB0B54B52A85}_is1'
-ReleaseDate: 2026-10-20
+ReleaseDate: 2026-11-05
 AppsAndFeaturesEntries:
 - DisplayName: LokalBot
   Publisher: LokalBot project
   ProductCode: '{CFF062EB-30DC-4ED9-8586-AB0B54B52A85}_is1'
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/stevyhacker/LokalBot/releases/download/v0.11.0/LokalBot-0.11.0-windows-x86_64-setup.exe
-  InstallerSha256: 8B845939DFF8ABDAFC01878D5490AD80443F9F316AF96C9E0A714686DAC7BE05
+  InstallerUrl: https://github.com/stevyhacker/LokalBot/releases/download/v0.12.2/LokalBot-0.12.2-windows-x86_64-setup.exe
+  InstallerSha256: 2D5ADCEE2E69B69280FEEDC90FE97E92727CD659ACCD38E0F2761F18740242B6
 ManifestType: installer
 ManifestVersion: 1.12.0
