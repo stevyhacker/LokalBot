@@ -252,8 +252,9 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         let image: CGImage
     }
 
-    private static let recognitionQueue = DispatchQueue(
-        label: "me.dotenv.LokalBot.cotyping.window-text", qos: .utility)
+    /// How long a read waits for its lines. Of 22,000 reads in one Mac's log,
+    /// 99.9% took under 5 s with the capture included.
+    static let recognitionLimit: TimeInterval = 10
 
     /// The last lines recognized for the field in use, outside the field, with
     /// the fingerprint of the image they came from. Held and cleared with the
@@ -325,7 +326,10 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
                 return lines
             }
             let generation = recognized.generation
-            let lines = await recognizeLines(in: image, windowFrame: window.frame)
+            guard let lines = await recognizeLines(in: image, windowFrame: window.frame) else {
+                log("text recognition did not answer")
+                return nil
+            }
             if let fingerprint {
                 // The draft is never prompt context, so it is not kept either.
                 let field = request.target.fieldFrame.insetBy(
@@ -340,27 +344,28 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         }
     }
 
-    static func recognizeLines(in image: CGImage, windowFrame: CGRect) async -> [CotypingWindowText.Line] {
-        await recognize(Image(image: image), windowFrame: windowFrame)
+    /// The window's lines, or nil when recognition gave no answer in time.
+    static func recognizeLines(in image: CGImage, windowFrame: CGRect) async -> [CotypingWindowText.Line]? {
+        let input = Image(image: image)
+        return await TextRecognitionQueue.shared.run(
+            "autocomplete window text", urgency: .interactive, within: recognitionLimit
+        ) {
+            recognize(input, windowFrame: windowFrame)
+        }
     }
 
     /// The same recognizer as screen memory and Compose: `.fast` drops every
     /// accent and all Cyrillic, and the en-US default cannot read CJK.
-    private static func recognize(_ input: Image, windowFrame: CGRect) async -> [CotypingWindowText.Line] {
-        await withCheckedContinuation { continuation in
-            recognitionQueue.async {
-                let request = VNRecognizeTextRequest()
-                request.recognitionLevel = .accurate
-                request.usesLanguageCorrection = false
-                request.automaticallyDetectsLanguage = true
-                try? VNImageRequestHandler(cgImage: input.image).perform([request])
-                let lines = (request.results ?? []).compactMap { observation -> CotypingWindowText.Line? in
-                    guard let text = observation.topCandidates(1).first?.string else { return nil }
-                    return .init(text: text, frame: CotypingWindowText.frame(
-                        ofNormalized: observation.boundingBox, in: windowFrame))
-                }
-                continuation.resume(returning: lines)
-            }
+    private static func recognize(_ input: Image, windowFrame: CGRect) -> [CotypingWindowText.Line] {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        request.automaticallyDetectsLanguage = true
+        try? VNImageRequestHandler(cgImage: input.image).perform([request])
+        return (request.results ?? []).compactMap { observation -> CotypingWindowText.Line? in
+            guard let text = observation.topCandidates(1).first?.string else { return nil }
+            return .init(text: text, frame: CotypingWindowText.frame(
+                ofNormalized: observation.boundingBox, in: windowFrame))
         }
     }
 }

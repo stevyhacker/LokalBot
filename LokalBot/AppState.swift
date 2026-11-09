@@ -177,6 +177,11 @@ final class AppState: ObservableObject {
     @Published private(set) var importingRecordings: [String] = []
     private var recordingImportTask: Task<Void, Never>?
     @Published var lastError: String?
+    /// Text recognition has stopped answering (`TextRecognitionQueue`). Until
+    /// it answers or the app restarts, a window whose text Accessibility
+    /// cannot read is kept without its pixels, or not at all. Cleared when it
+    /// answers, or when the user dismisses it.
+    @Published var textRecognitionStalled = false
     /// A recording or dictation start was refused because microphone access
     /// is denied at the system level. Cleared when the user opens System
     /// Settings from the recovery toast or dismisses it.
@@ -2583,10 +2588,22 @@ final class AppState: ObservableObject {
             try self.withScheduledRetention(on: days, mutation)
         }
         screenshots.onTextStored = { [weak self] in self?.screenTextDidArrive() }
+        TextRecognitionQueue.shared.observeStalls { [weak self] stall in
+            Task { @MainActor in self?.textRecognitionDidChange(stalled: stall != nil) }
+        }
         sampler.excludedApps = { [weak self] in self?.settings.excludedAppList ?? [] }
         sampler.excludedDomains = { [weak self] in self?.settings.excludedScreenDomainList ?? [] }
         if settings.trackingEnabled { sampler.start() } else { sampler.stop() }
         screenshots.restart()
+    }
+
+    private func textRecognitionDidChange(stalled: Bool) {
+        textRecognitionStalled = stalled
+        // Files reads screenshots with the same recognizer, outside the queue.
+        // When it is the one that never came back, the log says so.
+        if stalled, let seconds = FileSearchService.secondsOnCurrentFile, seconds >= 60 {
+            lokalbotLog("text recognition: Files has been reading one file for \(Int(seconds)) s")
+        }
     }
 
     /// `previous` is the shortcut to fall back to when a newly chosen one is

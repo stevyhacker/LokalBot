@@ -76,6 +76,7 @@ struct MainWindowView: View {
                 // yields its space in the same motion.
                 .animation(bottomFeedbackAnimation, value: app.lastError)
                 .animation(bottomFeedbackAnimation, value: app.micRecoveryNeeded)
+                .animation(bottomFeedbackAnimation, value: app.textRecognitionStalled)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Workspace content")
                 .splitPaneAccessibilityLabel("Workspace content")
@@ -96,6 +97,12 @@ struct MainWindowView: View {
                 .transition(WorkspaceMotion.bottomEdgeTransition(reduceMotion: reduceMotion))
         } else if let error = app.lastError {
             ErrorToast(message: error) { app.lastError = nil }
+                .transition(WorkspaceMotion.bottomEdgeTransition(reduceMotion: reduceMotion))
+        } else if app.textRecognitionStalled {
+            ErrorToast(
+                message: "Text recognition stopped answering. Screen memory is incomplete until LokalBot restarts.",
+                actionTitle: "Relaunch",
+                action: { PermissionManager.relaunch() }) { app.textRecognitionStalled = false }
                 .transition(WorkspaceMotion.bottomEdgeTransition(reduceMotion: reduceMotion))
         }
     }
