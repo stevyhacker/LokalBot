@@ -8,12 +8,12 @@ disable-model-invocation: true
 
 The user's focus, if any: $ARGUMENTS
 
-Give the user a short, cited catch-up on their own work from their local LokalBot library. The `lokalbot-cli` skill has the full command reference; the plugin's `lokalbot` MCP server offers the same tools (`get_briefing` is the MCP form of `brief`).
+Give the user a short, cited catch-up on their own work from their local LokalBot library. The `lokalbot-cli` skill has the full command reference.
 
 ## Steps
 
 1. Run `lokalbot-cli brief`. It says which LokalBot sources are on, then gives what each covers: what the user shared about themselves, open action items, current projects and goals, recent Claude Code and Codex work by project, and a timeline of recent days.
-2. Fill in the evidence behind what matters most. Without a focus, cover the next few days: `lokalbot-cli actions --owner me` for what the user owes (overdue and soon-due first), and `lokalbot-cli list --since <date a week ago> --include summary` for what recent meetings decided. With a focus, search for it: `lokalbot-cli search "<focus>"`, `lokalbot-cli people "<name>"` for a person, or the screen-memory MCP tools (`get_timeline`, `search_screen`) for what happened on screen.
+2. Fill in the evidence behind what matters most. Without a focus, cover the next few days: `lokalbot-cli actions --owner me` for what the user owes (overdue and soon-due first), and `lokalbot-cli list --since <date a week ago> --include summary` for what recent meetings decided. With a focus, search for it: `lokalbot-cli search "<focus>"`, or `lokalbot-cli people "<name>"` for a person. If LokalBot's MCP server is connected, its screen-memory tools (`get_timeline`, `search_screen`) show what happened on screen.
 3. Report in a few short sections: what's in flight, what the user owes and to whom, decisions and open questions, and anything that looks stuck. Cite meetings by title and date from `get`, `search`, `list`, or `actions` results, not from the briefing's summary lines.
 4. End with which sources were off, if any, so the user knows what the catch-up couldn't see.
 

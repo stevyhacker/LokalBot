@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 The user's question: $ARGUMENTS
 
-Answer from the user's local LokalBot library, with real evidence and a citation for every claim. The `lokalbot-cli` skill has the full command reference; the plugin's `lokalbot` MCP server offers the same tools.
+Answer from the user's local LokalBot library, with real evidence and a citation for every claim. The `lokalbot-cli` skill has the full command reference.
 
 ## Choose the source
 
@@ -17,7 +17,7 @@ Pick the source that fits the question, and try the next one when it comes back 
 - **Something said in a meeting**: `lokalbot-cli search "<words>" --limit 10`, then `lokalbot-cli get <id> --include metadata,summary` for the top hits. Add `transcript` only when the summary doesn't settle the question. For what a stretch of meetings covered, use `lokalbot-cli list --since <YYYY-MM-DD> --include summary` instead of reading transcripts one by one.
 - **A commitment** (what the user owes, what is overdue, one meeting's next steps): `lokalbot-cli actions`, with `--owner me`, `--owner <name>`, `--status all`, or `--meeting <id>`.
 - **A person** (what they owe the user, what the user owes them, decisions made together): `lokalbot-cli people "<name>"`.
-- **Something seen on screen** (a page, an error, an app the user was in): the MCP tools `search_screen`, `get_timeline`, `get_recent_activity`, and `get_app_usage`. They return text and metadata, never screenshots.
+- **Something seen on screen** (a page, an error, an app the user was in): screen memory is reachable only through LokalBot's MCP server (`search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`), which this plugin doesn't start. Use those tools when they are available; they return text and metadata, never screenshots. Otherwise, tell the user they can connect the server with `claude mcp add lokalbot -- lokalbot-cli mcp`.
 - **A document, PDF, screenshot, or picture in the user's folders**: `lokalbot-cli search-files "<words>"`, with `--kind` and `--after`/`--before` to narrow it.
 - **Advice that depends on the user's own goals or preferences**: `lokalbot-cli personal-context --task "<the task>"`.
 

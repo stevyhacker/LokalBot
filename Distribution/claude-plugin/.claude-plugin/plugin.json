@@ -1,8 +1,8 @@
 {
   "name": "lokalbot",
   "displayName": "LokalBot",
-  "version": "0.2.1",
-  "description": "Your personal context engine. Claude Code reads your local LokalBot library on macOS, Windows, or Linux: meetings and their action items, the people in them, screen memory, the folders you chose under Files, and what you shared about yourself, each behind its own permission in LokalBot. Adds /lokalbot:brief, /lokalbot:recall, and /lokalbot:setup, the lokalbot-cli skill, and a stdio MCP server. With a separate permission, Claude can also check and change LokalBot's settings; changes that widen what LokalBot captures wait for your approval in the app.",
+  "version": "0.3.0",
+  "description": "Your personal context engine. Claude Code reads your local LokalBot library on macOS, Windows, or Linux through lokalbot-cli: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself, each behind its own permission in LokalBot. Adds /lokalbot:brief, /lokalbot:recall, and /lokalbot:setup and the lokalbot-cli skill. With a separate permission, Claude can also check and change LokalBot's settings; changes that widen what LokalBot captures wait for your approval in the app.",
   "author": {
     "name": "stevyhacker",
     "url": "https://github.com/stevyhacker"
@@ -15,22 +15,12 @@
     "transcription",
     "meeting-notes",
     "action-items",
-    "screen-memory",
     "personal-context",
     "local-first",
-    "privacy",
-    "mcp"
+    "privacy"
   ],
   "documentationUrl": "https://github.com/stevyhacker/lokalbot/blob/master/Distribution/claude-plugin/README.md",
   "supportUrl": "https://www.lokalbot.com/support",
   "privacyPolicyUrl": "https://www.lokalbot.com/privacy",
-  "termsOfServiceUrl": "https://www.lokalbot.com/terms",
-  "mcpServers": {
-    "lokalbot": {
-      "command": "lokalbot-cli",
-      "args": [
-        "mcp"
-      ]
-    }
-  }
+  "termsOfServiceUrl": "https://www.lokalbot.com/terms"
 }
