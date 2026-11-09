@@ -1,0 +1,130 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 1712.43,
+          "excerpt" : "So we we can check into the financial feasibility of incorporating this.",
+          "meetingID" : "8BA7DE62-6ABB-5235-9793-2B505C4EFA45",
+          "segmentID" : "segment-0340-0001708980-0001712430",
+          "speaker" : "them 3",
+          "start" : 1708.98
+        }
+      ],
+      "id" : "ac74930a6d74910f",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Check financial feasibility of incorporating voice recognition for remote location finding."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll wait until you're all um hooked up.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2.03,
+          "excerpt" : "I'll wait until you're all um hooked up.",
+          "meetingID" : "8BA7DE62-6ABB-5235-9793-2B505C4EFA45",
+          "segmentID" : "segment-0000-0000000020-0000002030",
+          "speaker" : "them 1",
+          "start" : 0.02
+        }
+      ],
+      "id" : "76192424cbd884c1",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Wait until participants are hooked up."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "Okay, well I'll move on. my second part of my findings uh the most current remotes use this silicone uh P_C_B_ board which printed circuit board, which basically has these contacts that are really close together and then when you press down on the rubber button, it'll connect the circuit and each each switch is connected to two uh different legs on the chip and so sends a different message and that then uh gets translated by the chip into a code and then it's fired out of this L_E_D_ in the sequence of on and off bursts.",
+        "resolution" : "other",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 873.29,
+          "excerpt" : "Okay, well I'll move on.",
+          "meetingID" : "8BA7DE62-6ABB-5235-9793-2B505C4EFA45",
+          "segmentID" : "segment-0160-0000872200-0000873290",
+          "speaker" : "them 4",
+          "start" : 872.2
+        }
+      ],
+      "id" : "77f0fa0bf88460b0",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 4",
+      "schemaVersion" : 4,
+      "text" : "Move on to the next topic."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll just raise another point while it occurs to me, it kind of applies to both our designers here, so I'm not sure how it would fit in. If we flip open, now you know how you've got some mirrors in nightclubs that are mirrors when you turn to them and you turn away and it gives like an advertising display, you seen those?",
+        "resolution" : "other",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1427.95,
+          "excerpt" : "I'll just raise another point while it occurs to me, it kind of applies to both our designers here, so I'm not sure how it would fit in. If we flip open, now you know how you've got some mirrors in nightclubs that are mirrors when you turn to them and you turn away and it gives like an advertising display, you seen those?",
+          "meetingID" : "8BA7DE62-6ABB-5235-9793-2B505C4EFA45",
+          "segmentID" : "segment-0272-0001413280-0001427950",
+          "speaker" : "them 2",
+          "start" : 1413.28
+        }
+      ],
+      "id" : "751a129d3d1f4f82",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 2",
+      "schemaVersion" : 4,
+      "text" : "Will raise a point regarding how a new feature applies to both designers."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 2141.02,
+          "excerpt" : "And finally the body should be retouchable, maybe you can change the body or the case casing the case outside, it should be moulded it with the design in such a way you can change it every time.",
+          "meetingID" : "8BA7DE62-6ABB-5235-9793-2B505C4EFA45",
+          "segmentID" : "segment-0446-0002130840-0002141020",
+          "speaker" : "them 3",
+          "start" : 2130.84
+        }
+      ],
+      "id" : "004dc3d32fda18e5",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Design the remote body\/casing to be retouchable or changeable to allow design updates."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "1a94ff46cc1aeaa71d109c60a68416c24d43775101c8ddbbe07a2ff62b356d49"
+}

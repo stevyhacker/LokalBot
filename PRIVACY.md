@@ -17,6 +17,7 @@ LokalBot can store the following under its Application Support directory:
 
 - meeting microphone and system-audio tracks, and an AAC copy of the audio
   in recordings you import;
+- Live Radar findings (`radar.json`) for recordings where you started it;
 - transcripts, summaries, notes, search indexes, and meeting metadata,
   including attendee names and emails for calendar-matched meetings and,
   only when you turn on **Use invitation agendas**, the invitation's agenda
@@ -363,7 +364,7 @@ The app may make these outbound connections:
   invited participants' names, titles of documents on screen during the call,
   and, when enabled, the invitation agenda; each has its own setting.
   Follow-up drafts and pre-meeting briefs are written only by an on-device
-  Think model. A tracked project's "Where it stands" note uses the Think model
+  Think model; Follow-through, below, is a separate feature you start yourself. A tracked project's "Where it stands" note uses the Think model
   you chose: **Write Note** or **Update** sends the project's names, the lines
   of its ten most recent meetings that name it, the decisions and open actions
   that name it, and its overnight review notes.
@@ -374,6 +375,91 @@ The app may make these outbound connections:
   the note is missing or older than its evidence. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
+- **Optional Meta Muse (Live Radar, fast live text, screen answers, live answers, and Follow-through):** off until you add a
+  Meta Model API key and turn on "Allow sending meeting text to
+  https://api.meta.ai" in Settings → Meetings → Meta Muse. That switch adds
+  the origin to the same approved-server list Think uses, so revoking it in
+  either place stops both. Even then, nothing is sent until you start it:
+  - **Live Radar** runs only after you press Start Radar during a recording,
+    for that recording, and turns on the live transcript preview if it is
+    off. About every 20 seconds (or after each turn with fast live text) it
+    sends Muse Spark (or the model you choose) the preview lines that arrived
+    since the previous request, up to 24
+    earlier lines of the same meeting, the meeting title, invited names from
+    the calendar, what it already found, and up to six passages from your
+    earlier meetings that local search found for the new lines. Speaker
+    separation and the search itself stay on this Mac, audio does too unless
+    fast live text is on, and calendar
+    email addresses are never sent. What it finds is saved to `radar.json` in
+    the meeting folder and deleted with the meeting. It stops when the
+    recording ends, after one last request for lines it had not sent.
+  - **Fast live text** is a separate switch in the same section, off by
+    default. While it is on and the live transcript preview runs, the
+    microphone and call audio stream to Muse Voice Transcribe
+    (`wss://api.meta.ai/v1/asr/realtime`), which returns each turn's text,
+    and the preview shows that text instead of transcribing on this Mac.
+    Streaming starts at most three seconds before you start the preview and
+    stops when you pause or stop it or the recording ends. Your name from
+    Settings → Writing is sent as a spelling hint. Who said what still comes
+    from which track the audio is on, not from Muse. The full transcript is
+    still made on this Mac after the meeting, and the recording is never
+    uploaded as a file.
+  - **The floating Live Radar panel** shows the radar's items over other
+    apps while a recording runs. It sends nothing itself. It is left out of
+    screen sharing and screen recordings unless you turn that off in the
+    same section, so others in the call don't see it when you share your
+    screen.
+  - **Screen answers** is another separate switch, off by default. While it
+    is on and Live Radar catches a question, LokalBot searches your screen
+    memory on this Mac for earlier captures whose text matches the question,
+    leaving out LokalBot's own windows. Vision on this Mac crops each match to
+    a full-width band around the lines that mention the question's words, and
+    up to three crops go to Muse Spark with their app name, window title, and
+    capture time. Whole screenshots, the search, and the rest of screen memory
+    stay on this Mac, and what screen memory never captured (excluded apps
+    and sites, private windows) can't be sent. An answer is kept only when the
+    quote Muse gives is in the crop's own text, as read on this Mac; its crop
+    is saved in the meeting folder (`radar-answers/`) and deleted with the
+    meeting.
+  - **Live answers** is another separate switch, off by default. While it is
+    on and Live Radar catches a question, or a problem that needs facts,
+    Muse Wonder (or the model you choose) looks for the answer in your work.
+    It is sent the question, the meeting title and date, the last ten
+    preview lines, and what LokalBot remembers that bears on it: the "Where
+    it stands" notes of up to two tracked projects that share words with the
+    question, your open actions from the last 30 days, what you told LokalBot
+    about yourself (only while Ask may use it), and work memory. It may then
+    make read-only lookups, within six requests and a minute per question,
+    and is sent what they return: meeting
+    search results, meeting summaries or transcript windows, action items,
+    and screen-memory text (never screenshots); and from the folders you add
+    in the same section, the names and dates of matching files, the parts of
+    documents and sheets that match its query, matching code lines and the
+    file lines it asks for, recent commit messages with their authors, and
+    pull requests and issues, read with the GitHub CLI and your own sign-in.
+    In those folders it never reads hidden files or folders,
+    `node_modules`, or secret-looking files such as `.env` files and keys,
+    and in a git repository the code tools read only files git tracks. An
+    answer is shown only when every source it cites contains the words it
+    quotes, and it is saved with its sources in `radar.json`.
+  - **Follow-through** runs only when you choose Follow Through with Muse on
+    one action. It sends Muse Wonder (or the model you choose) the action, its
+    quoted source lines, the meeting title, date, invited names, the meeting
+    summary, that meeting's Live Radar items, and the name from Settings →
+    Writing, then whatever its read tools return: meeting search results,
+    meeting summaries or transcript windows, and action items. It cannot read
+    screen memory. Every step it proposes (an email draft, a calendar
+    invitation, a task for Claude Code or Codex, marking the action done)
+    waits for your approval, can be edited first, and opens as a draft in
+    your mail app, Calendar, or coding agent; LokalBot never sends mail or
+    invitations itself. Email addresses are filled in from the meeting's
+    calendar invitation on this Mac and are not sent to Meta. An approved
+    email is also saved as the meeting's follow-up draft.
+  Requests go only to `https://api.meta.ai`, through the same per-origin
+  rate gate and redirect rule as Think, with the key kept in the Keychain.
+  Meta's terms for your Model API account apply. Content sent while you use
+  free credits may be used to improve Meta's products; Contributor models,
+  which grant Meta training rights for a discount, are not offered.
 - **Optional autocomplete server:** Autocomplete runs on this Mac unless you
   choose Think's server or another OpenAI-compatible server under Settings →
   Models → Autocomplete. A server on a loopback address keeps your typing on

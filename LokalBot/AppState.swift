@@ -415,6 +415,8 @@ final class AppState: ObservableObject {
 
     /// The meeting whose follow-up draft sheet is open, from any entry point.
     @Published var followUpDraftMeeting: Meeting?
+    /// The open Follow-through run (Muse plans one action; each step waits for approval).
+    @Published var followThroughSession: FollowThroughSession?
     /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
     @Published var showsSampleSetup = false
 
@@ -1091,6 +1093,45 @@ final class AppState: ObservableObject {
     private(set) lazy var liveTranscriber = LiveMeetingTranscriber(
         storageRoot: storage.rootURL,
         settings: { [store = settingsStore] in store.current })
+    /// Live Radar reads the live transcript with Muse while recording; it
+    /// runs only after the person starts it for that meeting.
+    private(set) lazy var meetingRadar = MeetingRadar(
+        transcriber: liveTranscriber,
+        evidenceSource: LibraryRadarEvidenceSource(
+            meetings: { [weak self] in self?.meetings ?? [] },
+            searchIndex: searchIndex,
+            embeddingIndex: embeddingIndex,
+            settings: { [store = settingsStore] in store.current }),
+        screenSource: Self.radarScreenSource(store: activityStore),
+        answerEnvironment: AppLiveAnswerEnvironment(app: self),
+        settings: { [store = settingsStore] in store.current })
+
+    /// The floating Live Radar window, for checking the radar from the
+    /// meeting app.
+    private(set) lazy var liveRadarPanel = LiveRadarPanelController(app: self)
+
+    /// Starts Live Radar for the meeting being recorded and brings up the
+    /// floating panel, so the person can go back to the call.
+    func startLiveRadar(for meeting: Meeting) {
+        meetingRadar.start(meeting: meeting, folder: meeting.folderURL(in: storage))
+        if meetingRadar.isActive, settings.liveRadarPanelEnabled { liveRadarPanel.show() }
+#if LOKALBOT_UI_TEST_HOST
+        if meetingRadar.isActive { FilmCall.show(app: self, title: meeting.displayTitle) }
+#endif
+    }
+
+    /// Screen memory for screen answers. The UI-test host can use a folder of
+    /// synthetic captures instead (`LOKALBOT_UI_TEST_SCREENS`), as the radar
+    /// replay's `--screens` does.
+    private static func radarScreenSource(store: ActivityStore) -> RadarScreenSource {
+#if LOKALBOT_UI_TEST_HOST
+        if let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_SCREENS"],
+           let screens = try? MeetingRadarReplay.FixtureScreens(folder: URL(fileURLWithPath: path, isDirectory: true)) {
+            return screens
+        }
+#endif
+        return LibraryRadarScreenSource(store: store)
+    }
 
     @MainActor
     func prepareRecommendedCotypingModel() {
@@ -1319,10 +1360,20 @@ final class AppState: ObservableObject {
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
         }
+        // The radar keeps its own copy of the live lines, so its last pass can
+        // run after the preview is cleared.
+        if meetingRadar.meetingID != nil, meetingRadar.meetingID != recording.currentMeeting?.id {
+            Task { await meetingRadar.finish() }
+        }
         if active, let meeting = recording.currentMeeting {
             liveTranscriber.prepare(folder: meeting.folderURL(in: storage))
+            // With Meta Muse set up, the panel offers Start Radar over the call.
+            if settings.liveRadarPanelEnabled, MeetingRadar.unavailableReason(settings) == nil {
+                liveRadarPanel.show()
+            }
         } else {
             liveTranscriber.stop(preservingHandoff: recording.isSplittingForCalendarHandoff)
+            if !recording.isSplittingForCalendarHandoff { liveRadarPanel.hide() }
         }
     }
 
@@ -1330,6 +1381,10 @@ final class AppState: ObservableObject {
     /// in-progress recording selected, so the detail pane shows the live
     /// transcript and notes.
     func showLiveMeeting() {
+#if LOKALBOT_UI_TEST_HOST
+        // The film's stand-in call covers the LokalBot window; closing it is the way back.
+        if FilmCall.close() { return }
+#endif
         guard let live = currentMeeting else { return }
         navSection = .meetings
         selectedMeetingIDs = [live.id]

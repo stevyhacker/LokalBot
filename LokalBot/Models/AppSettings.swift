@@ -157,6 +157,31 @@ struct AppSettings: Codable, Equatable {
     /// Offers "Looks done?" on open actions when later retained screen text
     /// shows a matching completion (sent, merged, submitted). Never auto-completes.
     var suggestActionCompletion: Bool = true
+    /// Meta Model API models for Live Radar (while recording) and
+    /// Follow-through (after a meeting). Sending also needs a key and the
+    /// api.meta.ai origin in `approvedRemoteInferenceOrigins`.
+    var museRadarModel: String = MetaModelAPI.museSpark.id
+    var museFollowThroughModel: String = MetaModelAPI.museWonder.id
+    /// Off by default: the live transcript preview streams meeting audio to
+    /// Muse Voice Transcribe for text within a second of each turn, instead
+    /// of transcribing chunks on this Mac. Also needs the api.meta.ai approval.
+    var museLiveTextEnabled: Bool = false
+    /// Off by default: when Live Radar catches a question, crops of earlier
+    /// screen captures that mention it are sent to Muse Spark for the answer.
+    var museScreenAnswersEnabled: Bool = false
+    /// The floating Live Radar panel opens when a recording starts (once
+    /// Meta Muse is set up) and when the radar starts.
+    var liveRadarPanelEnabled: Bool = true
+    /// Leaves the panel out of screen sharing and screen recordings.
+    var liveRadarPanelHiddenFromCapture: Bool = true
+    /// Off by default: when Live Radar catches a question or problem, Muse
+    /// looks for the answer in the person's work, memory first, then their
+    /// meetings, screen text, and `liveAnswerFolders`.
+    var liveAnswersEnabled: Bool = false
+    var liveAnswersModel: String = MetaModelAPI.museWonder.id
+    /// Folders live answers may read: documents anywhere in them, and code,
+    /// commits, pull requests, and issues in git repositories.
+    var liveAnswerFolders: [String] = []
     /// Meeting notes may use the calendar title and invited names, and the
     /// titles of documents on screen during the call, as secondary context.
     var meetingNotesUseCalendarContext: Bool = true
@@ -589,6 +614,31 @@ struct AppSettings: Codable, Equatable {
         }
     }
 
+    var metaModelAPIKey: String {
+        get { KeychainSecrets.string(account: MetaModelAPI.apiKeyAccount) ?? "" }
+        set { KeychainSecrets.setString(newValue, account: MetaModelAPI.apiKeyAccount) }
+    }
+
+    /// Meta's own key, else Think's key when Think already points at
+    /// api.meta.ai, so one key serves both.
+    var effectiveMetaModelAPIKey: String {
+#if LOKALBOT_UI_TEST_HOST
+        // The film's key (or none for scripted replies) wins over what the
+        // test typed into Settings, and a runner's Keychain never decides the run.
+        if let key = MuseUITestTransport.apiKey { return key }
+#endif
+        let own = metaModelAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !own.isEmpty { return own }
+        guard let think = URL(string: openAIBaseURL),
+              RemoteInferenceGate.origin(for: think) == MetaModelAPI.origin else { return "" }
+        return openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Live Radar and Follow-through may send meeting text to api.meta.ai.
+    var metaModelAPIApproved: Bool {
+        InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins)
+    }
+
     // MARK: - Summarisation shape
 
     /// Which set of section headings the summariser uses (meeting, lecture,
@@ -925,6 +975,15 @@ struct AppSettings: Codable, Equatable {
         case transcriptionPrompt
         case autoTranscriptionVocabulary
         case suggestActionCompletion
+        case museRadarModel
+        case museFollowThroughModel
+        case museLiveTextEnabled
+        case museScreenAnswersEnabled
+        case liveRadarPanelEnabled
+        case liveRadarPanelHiddenFromCapture
+        case liveAnswersEnabled
+        case liveAnswersModel
+        case liveAnswerFolders
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
         case useCalendarAgenda
@@ -1143,6 +1202,15 @@ struct AppSettings: Codable, Equatable {
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
+        try c.encode(museRadarModel, forKey: .museRadarModel)
+        try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
+        try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
+        try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
+        try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
+        try c.encode(liveRadarPanelHiddenFromCapture, forKey: .liveRadarPanelHiddenFromCapture)
+        try c.encode(liveAnswersEnabled, forKey: .liveAnswersEnabled)
+        try c.encode(liveAnswersModel, forKey: .liveAnswersModel)
+        try c.encode(liveAnswerFolders, forKey: .liveAnswerFolders)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
@@ -1341,6 +1409,15 @@ struct AppSettings: Codable, Equatable {
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
+        museRadarModel = decode(.museRadarModel, defaults.museRadarModel)
+        museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
+        museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
+        museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
+        liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)
+        liveRadarPanelHiddenFromCapture = decode(.liveRadarPanelHiddenFromCapture, defaults.liveRadarPanelHiddenFromCapture)
+        liveAnswersEnabled = decode(.liveAnswersEnabled, defaults.liveAnswersEnabled)
+        liveAnswersModel = decode(.liveAnswersModel, defaults.liveAnswersModel)
+        liveAnswerFolders = decode(.liveAnswerFolders, defaults.liveAnswerFolders)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)

@@ -1,0 +1,12 @@
+assets/fonts/
+assets/footage/
+assets/sound/
+assets/voice/
+assets/bgm/
+renders/
+snapshots/
+production/*.log
+production/ocr/
+production/look/
+production/anchors-*.json
+!production/anchors-manual.json

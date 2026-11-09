@@ -1,0 +1,81 @@
+{
+ "id": "synthetic-live-answers",
+ "title": "Launch sync",
+ "date": "2026-10-29T10:00:00Z",
+ "attendees": [
+  "Ana Petrović",
+  "Marko Ilić"
+ ],
+ "lines": [
+  {
+   "time": 2,
+   "speaker": "them",
+   "text": "Quick one before the launch stuff: is the radar panel hidden when I share my screen? I'm demoing it on Friday."
+  },
+  {
+   "time": 11,
+   "speaker": "local",
+   "text": "Good question, let me see."
+  },
+  {
+   "time": 18,
+   "speaker": "them",
+   "text": "And what did we put as the Team plan price in the pricing sheet?"
+  },
+  {
+   "time": 27,
+   "speaker": "them",
+   "text": "What's the target for paying teams by the end of Q1 in the launch brief?"
+  },
+  {
+   "time": 37,
+   "speaker": "local",
+   "text": "Who's reviewing the onboarding emails again?"
+  },
+  {
+   "time": 46,
+   "speaker": "them",
+   "text": "Did the fix for the speaker labels in the desktop app get merged yet?"
+  },
+  {
+   "time": 56,
+   "speaker": "local",
+   "text": "Okay, thanks. Let's go through the launch checklist next."
+  }
+ ],
+ "earlier": [
+  {
+   "title": "Launch planning",
+   "date": "2026-10-19T10:00:00Z",
+   "time": 740,
+   "speaker": "Ana",
+   "text": "So we agreed: the launch is Monday, November 3rd, and the pricing page ships the Friday before."
+  },
+  {
+   "title": "Launch planning",
+   "date": "2026-10-19T10:00:00Z",
+   "time": 905,
+   "speaker": "Me",
+   "text": "The free tier keeps three projects, that's settled."
+  },
+  {
+   "title": "Weekly 1:1",
+   "date": "2026-10-22T09:00:00Z",
+   "time": 312,
+   "speaker": "Marko",
+   "text": "I can review the onboarding emails once the copy is final."
+  }
+ ],
+ "memory": [
+  {
+   "kind": "project",
+   "title": "Project Northwind 2.0 launch: where it stands, 27 Oct",
+   "text": "The launch is planned for Monday, November 3, and the pricing page ships the Friday before. The free tier keeps three projects.\n- Pricing deck being revised (Launch planning)\nStill open: annual-plan discount"
+  },
+  {
+   "kind": "action",
+   "title": "Open actions from the last 30 days",
+   "text": "- Review the onboarding emails once the copy is final. Owner: Marko. From Launch planning, 23 Oct\n- Send Marko the final onboarding copy by Thursday. Owner: Me. From Launch planning, 23 Oct"
+  }
+ ]
+}

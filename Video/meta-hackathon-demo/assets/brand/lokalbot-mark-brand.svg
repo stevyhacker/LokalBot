@@ -1,0 +1,25 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- LokalBot mark in its brand colors, from Assets/lokalbot-icon.svg with the
+       dark app-icon plate removed so it sits on the light page. Geometry is
+       unchanged from the icon (and from lokalbot-mark-cobalt.svg). -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ef2dc"/>
+      <stop offset="1" stop-color="#23c4ae"/>
+    </linearGradient>
+  </defs>
+  <rect x="372" y="206" width="36" height="86" rx="18" fill="#3a7d72"/>
+  <circle cx="390" cy="186" r="42" fill="#fbbf24"/>
+  <rect x="268" y="276" width="244" height="484" rx="62" fill="url(#body)"/>
+  <rect x="268" y="592" width="492" height="168" rx="62" fill="url(#body)"/>
+  <rect x="312" y="326" width="156" height="118" rx="38" fill="#0e141c"/>
+  <circle cx="390" cy="385" r="34" fill="#6ef2dc"/>
+  <circle cx="402" cy="373" r="10" fill="#eafffa"/>
+  <rect x="206" y="430" width="44" height="180" rx="22" fill="#3a7d72"/>
+  <g fill="#0e141c">
+    <rect x="556" y="646" width="26" height="60" rx="13"/>
+    <rect x="602" y="624" width="26" height="104" rx="13"/>
+    <rect x="648" y="638" width="26" height="76" rx="13"/>
+    <rect x="694" y="654" width="26" height="44" rx="13"/>
+  </g>
+</svg>

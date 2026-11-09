@@ -1,0 +1,36 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I think so, I think so, I'll be able to um pull it up, or I could put it in the shared folder or something.",
+        "resolution" : "other",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 595.93,
+          "excerpt" : "I think so, I think so, I'll be able to um pull it up, or I could put it in the shared folder or something.",
+          "meetingID" : "C614F9F8-8A39-5D2E-8843-FFF0489F50BE",
+          "segmentID" : "segment-0115-0000590980-0000595930",
+          "speaker" : "them 2",
+          "start" : 590.98
+        }
+      ],
+      "id" : "f80109dc8a2373a0",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 2",
+      "schemaVersion" : 4,
+      "text" : "Sarah will store meeting notes in a shared folder or pull them up later."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "a9cdc33a258290d32bdf429b7bea36c83bb95a8e7b8e5555e100b8b5d9c636fa"
+}

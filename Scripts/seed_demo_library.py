@@ -22,6 +22,11 @@ Usage:
 non-coding examples for the website and README hero images, with a different
 topic for each surface (see Docs/screenshot-kit.md).
 
+``--profile meta-hackathon`` seeds the Meta hackathon demo's history: the
+"Launch planning" call that Live Radar contradicts during the recorded call,
+and two unrelated meetings, with no chats or screen moments, so screen answers
+only see what is really captured (see Docs/meta-hackathon/recording-checklist.md).
+
 By default the destination must be new or empty. ``--reset`` is accepted only
 for a directory previously marked as a LokalBot demo library.
 
@@ -840,6 +845,64 @@ def seed_large(root):
                               "## TL;DR\nSynthetic meeting.\n"))
 
 
+def build_meta_hackathon(now):
+    """The Meta hackathon demo's earlier meetings. "Launch planning" holds
+    what the demo call contradicts (the launch date and the free tier); the
+    other two only make the library look used and avoid both topics."""
+    def ago(days, hour, minute=0):
+        base = now - timedelta(days=days)
+        return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    return [
+        m(NORTHWIND, "Launch planning", "Google Meet", ago(6, 10), 4, True, [
+            seg(0, 9, "them", "Okay, let's lock the launch plan. So we agreed: the launch is Monday, November 3rd, "
+                "and the pricing page ships the Friday before."),
+            seg(10, 15, "me", "Monday the third works. And the free tier keeps three projects, that's settled."),
+            seg(16, 24, "them", "Good. Annual plans, do we discount them? I'd like to see the numbers first."),
+            seg(25, 30, "me", "Let's leave the annual discount open until the pricing deck is ready."),
+            seg(31, 38, "them", "Marko can review the onboarding emails once the copy is final."),
+            seg(39, 45, "me", "I'll send Marko the final copy on Thursday."),
+            seg(46, 53, "them", "Great. So: launch Monday, November 3rd, free tier three projects, "
+                "and the pricing page the Friday before."),
+        ], "## TL;DR\nThe launch is Monday, November 3rd, and the pricing page ships the Friday before. "
+           "The free tier keeps three projects. The annual-plan discount stays open until the pricing deck is ready.\n\n"
+           "## Decisions\n"
+           "- The launch is Monday, November 3rd; the pricing page ships the Friday before\n"
+           "- The free tier keeps three projects\n\n"
+           "## Action items\n"
+           "- Send Marko the final onboarding copy by Thursday — Me\n"
+           "- Review the onboarding emails once the copy is final — Them\n\n"
+           "## Open questions\n"
+           "- Do annual plans get a discount?\n"),
+        m(mid(901), "Pricing deck review", "Google Meet", ago(3, 14), 3, True, [
+            seg(0, 8, "them", "The deck reads well. Can we move the customer quotes before the plan comparison?"),
+            seg(9, 15, "me", "Yes, and I'll tighten the comparison table to four rows."),
+            seg(16, 23, "them", "Let's add a slide on how the annual plans would look once we decide the discount."),
+            seg(24, 30, "me", "Sounds good, I'll leave that slide as a placeholder for now."),
+        ], "## TL;DR\nThe pricing deck gets customer quotes earlier, a shorter comparison table, and a placeholder "
+           "slide for annual plans.\n\n"
+           "## Action items\n"
+           "- Tighten the plan comparison table to four rows — Me\n"
+           "- Add a placeholder slide for annual plans — Me\n"),
+        m(mid(902), "Weekly team sync", "Zoom", ago(2, 9, 30), 3, True, [
+            seg(0, 7, "them", "Support volume is down a bit this week, mostly password reset questions."),
+            seg(8, 14, "me", "Nice. The new help article on resets went live on Monday."),
+            seg(15, 22, "them", "Interviews for the designer role continue Thursday and Friday."),
+            seg(23, 28, "me", "I'll join the Friday one."),
+        ], "## TL;DR\nSupport volume dropped after the password-reset article. Designer interviews continue on "
+           "Thursday and Friday.\n\n"
+           "## Action items\n"
+           "- Join Friday's designer interview — Me\n"),
+    ]
+
+
+def seed_meta_hackathon(root):
+    meetings = build_meta_hackathon(datetime.now(timezone.utc))
+    for mm in meetings:
+        write_meeting(root, mm)
+    return len(meetings)
+
+
 def build_studio(now):
     """A small video studio's meetings: FaceTime calls and Apple apps instead of
     engineering work. Each captured surface gets its own topic: the holiday
@@ -1347,10 +1410,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reset", action="store_true",
                         help="replace an existing directory created by this script")
-    parser.add_argument("--profile", choices=["demo", "studio", "full-day", "large"], default="demo",
+    parser.add_argument("--profile", choices=["demo", "studio", "full-day", "large", "meta-hackathon"], default="demo",
                         help="demo (default): the screenshot library; studio: the website and README "
                              "hero library; full-day: one untranscribed 9-hour day; large: 180 days "
-                             "for scale checks")
+                             "for scale checks; meta-hackathon: the Meta hackathon demo's earlier meetings")
     parser.add_argument("--day", help="YYYY-MM-DD for full-day (default: yesterday)")
     parser.add_argument("storage_root")
     args = parser.parse_args()
@@ -1376,6 +1439,9 @@ def main():
     if args.profile == "large":
         seed_large(root)
         print(f"Seeded large library at {root}")
+        return
+    if args.profile == "meta-hackathon":
+        print(f"Seeded Meta hackathon demo library at {root} ({seed_meta_hackathon(root)} meetings)")
         return
     if args.profile == "studio":
         meetings, moments = seed_studio(root)

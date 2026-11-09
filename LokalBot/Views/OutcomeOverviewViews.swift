@@ -245,6 +245,7 @@ struct ActionThreadRow: View {
                 ForEach(ActionAgentAvailability.installed) { target in
                     Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
                 }
+                Button("Follow Through with Muse…") { app.followThrough(thread.latestReference) }
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 28, height: 24)
@@ -518,6 +519,7 @@ struct OutcomeOverviewActionRow: View {
                 ForEach(ActionAgentAvailability.installed) { target in
                     Button("Open in \(target.rawValue)") { app.handOff(reference, to: target) }
                 }
+                Button("Follow Through with Muse…") { app.followThrough(reference) }
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 28, height: 24)
