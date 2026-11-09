@@ -105,7 +105,7 @@ lokalbot-cli personal-context --task "Evaluate a job offer in Berlin"
 lokalbot-cli personal-context --task "Plan next quarter" --kind goal --kind principle --limit 5
 ```
 
-Items are the user's own statements (`authority: "stated"`), shared by them for agents. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, so don't infer the user's values from their absence. They are not evidence about meetings or other people. A `[personal_context_disabled]` error means the user hasn't ticked What I shared about myself (see [When access is off](#when-access-is-off)). Explain that, and don't work around it. The Windows and Linux app has no such setting or About you page yet, so there personal context is on only in a library that came from a Mac.
+Items are the user's own statements (`authority: "stated"`), shared by them for agents. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, so don't infer the user's values from their absence. They are not evidence about meetings or other people. A `[personal_context_disabled]` error means the user hasn't ticked What I shared about myself (see [When access is off](#when-access-is-off)). Explain that, and don't work around it. The user marks the items agents may read with **Share with Agents** in Settings → Personal Context.
 
 ## Files
 
@@ -197,7 +197,7 @@ LokalBot itself does not upload library content. An external agent or MCP client
 
 ## When access is off
 
-Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → External Agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, meetings and screen memory have their own toggles in Settings → Privacy & Data: "Allow external agents to read your meeting library" and "Allow external agents to read screen memory".
+Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → External Agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in Settings → Privacy & Data: "Allow external agents to read your meeting library", "Allow external agents to read screen memory", "What I shared about myself", and "Allow external agents to search your files".
 
 `[access_disabled]` means meetings are off, `[screen_access_disabled]` screen memory, `[personal_context_disabled]` what the user shared, and `[files_access_disabled]` Files; the message names the place. Tell the user which one it is and let them choose. Don't change consent markers or work around disabled access.
 

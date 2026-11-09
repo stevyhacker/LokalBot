@@ -112,8 +112,8 @@ and the person work through it like this:
 2. **Onboarding.** The person chooses what LokalBot remembers and which models to
    download, in the app.
 3. **Access.** If the person wants you to read their library, they turn on "Allow
-   external agents to read your meeting library" in Settings → Privacy & Data, and
-   screen memory separately. Never create LokalBot's `control/` files yourself.
+   external agents to read your meeting library" in Settings → Privacy & Data. Screen
+   memory, files, and what they shared about themselves each have their own switch there. Never create LokalBot's `control/` files yourself.
 4. **CLI and skill.** Run `lokalbot-cli install-skill`, or have the person click
    **Install for your coding agent…** in Settings → Advanced → Agent CLI. The CLI goes
    to `~/.local/bin` on Linux and `%LOCALAPPDATA%\Programs\LokalBot\bin` on Windows;

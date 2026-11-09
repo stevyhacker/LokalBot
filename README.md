@@ -132,7 +132,7 @@ Prepare local follow-up drafts. Also keep a note for every meeting in your Obsid
 
 ### Also on Windows and Linux (alpha)
 
-A native Windows and Linux app, written in Rust, has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, calendar, Agent Mode, and the CLI and MCP server all work. It's an alpha: the Windows build isn't code-signed yet, some features depend on your Linux desktop (Wayland support is partial), and Gmail in meeting briefs hasn't been ported. See [what works where](LinuxWindows/README.md#what-works-where) and [screenshots](LinuxWindows/docs/screenshots).
+A native Windows and Linux app, written in Rust, has the same pages and reads the same library, so a library moves between computers. Encrypted items, such as Ask history, Personal Context, screenshots, and remembered voices, open only on the computer that saved them. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, calendar, Agent Mode, and the CLI and MCP server all work. It's an alpha: the Windows build isn't code-signed yet, some features depend on your Linux desktop (Wayland support is partial), and Gmail in meeting briefs hasn't been ported. See [what works where](LinuxWindows/README.md#what-works-where) and [screenshots](LinuxWindows/docs/screenshots).
 
 ## For developers & agents
 
@@ -149,7 +149,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, turn on meeting-library access in **Settings → Privacy & Data**. Then install the CLI from **Settings → Advanced → Agent CLI**.
+Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in **Settings → Privacy & Data**: meeting library, files, screen memory, and What I shared about myself. Then install the CLI from **Settings → Advanced → Agent CLI**.
 
 **Ready to act on a meeting?** Open any action item in Claude Code or Codex, and the prompt is already typed in with the task and where it came from, for you to review and send.
 
@@ -158,13 +158,13 @@ Or use the CLI from any shell or agent:
 ```bash
 lokalbot-cli search "database decision"
 lokalbot-cli get latest --include metadata,summary
-lokalbot-cli search-files "lease renewal" --kind pdf   # Mac, with Files ticked
+lokalbot-cli search-files "lease renewal" --kind pdf   # with Files access on
 lokalbot-cli mcp
 ```
 
-Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. There the CLI has the read-only commands and every MCP tool except `search_files`; `ask`, `reply`, `search-files`, and the setup and configuration commands are Mac only.
+Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. The commands and MCP tools are the same on every platform.
 
-Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. On a Mac, `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs the Files box and never changes your files. External clients may send results to their own model providers.
+Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs Files access and never changes your files. External clients may send results to their own model providers.
 
 The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
 
@@ -267,7 +267,7 @@ Yes. Turn on **Meeting note export** to keep a Markdown note for every meeting i
 <details>
 <summary><strong>Does it run on Windows or Linux?</strong></summary>
 
-Yes, as an alpha. The Windows and Linux app is a native Rust app with the same pages, the same models for summaries and search, and the same library format, so a library moves between computers. Gmail in meeting briefs is Mac only for now, and on Wayland some features depend on your desktop. See [what works where](LinuxWindows/README.md#what-works-where).
+Yes, as an alpha. The Windows and Linux app is a native Rust app with the same pages, the same models for summaries and search, and the same library format, so a library moves between computers. Encrypted items, such as Ask history, Personal Context, screenshots, and remembered voices, open only on the computer that saved them. Gmail in meeting briefs is Mac only for now, and on Wayland some features depend on your desktop. See [what works where](LinuxWindows/README.md#what-works-where).
 
 </details>
 
