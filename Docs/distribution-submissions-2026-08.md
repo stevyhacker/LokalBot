@@ -263,6 +263,19 @@ and Linux x86_64 apps in alpha; no account, no telemetry, no LokalBot
 cloud; latest release v0.12.2 (2026-11-05).
 ```
 
+### 4c. OpenAI plugin directory (ChatGPT and Codex)
+
+Verified 2026-11-09 from OpenAI's [submission guide](https://developers.openai.com/plugins/deploy/submission): ChatGPT and Codex share one plugin directory, and plugins are submitted as a ZIP at https://platform.openai.com/plugins under a verified developer identity (individual or business verification in organization settings). Local (stdio) MCP servers are accepted only from approved partners, after an OpenAI representative allowlists the organization, so LokalBot submits a skills-only package marked Desktop only (`requires_local_executor`). Skills-only plugins need no reviewer account, test cases, or demo video, but "may be subject to additional eligibility requirements". The relay-based ChatGPT plugin from the closed PR 224 (`mcp.lokalbot.com`) is not part of this.
+
+Submission steps (owner-only because of the login and identity):
+
+1. `bash Scripts/build-openai-plugin.sh` builds `dist/lokalbot-openai-plugin-<version>.zip` from `Distribution/openai-plugin/` after its test passes.
+2. Sign in at https://platform.openai.com/plugins and pick the organization and project. Complete identity verification first if the portal asks for it.
+3. **Upload new or existing plugin** → choose the verified **Developer identity** → **Upload plugin** with the ZIP.
+4. Resolve the **Metadata & Skills** findings (upload a corrected ZIP for any change), then **Submit for review** and accept the attestations. After approval, **Publish plugin**.
+
+Listing text, prompts, capabilities, release notes and icon all come from `Distribution/openai-plugin/plugin.json`, so the portal needs nothing typed in beyond the identity and attestations.
+
 ### Non-registries checked and ruled out
 
 - **skills.sh**: no manual submissions possible — covered above via install-driven indexing.
