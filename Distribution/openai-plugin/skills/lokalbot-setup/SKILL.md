@@ -5,13 +5,13 @@ description: Install LokalBot and set it up with the user, who approves access a
 
 # Set up LokalBot
 
-Install LokalBot and set it up for the user, following [AGENT_SETUP.md](https://github.com/stevyhacker/lokalbot/blob/master/AGENT_SETUP.md). The user approves access and changes to what LokalBot captures, reads, or sends, in LokalBot; you do the rest from the terminal. If LokalBot is already installed and set up, run `lokalbot-cli doctor` and report what is ready and anything left.
+Install LokalBot and set it up for the user with the steps below; `lokalbot-cli <command> --help` describes each command. The user approves access and changes to what LokalBot captures, reads, or sends, in LokalBot; you do the rest from the terminal. If LokalBot is already installed and set up, run `lokalbot-cli doctor` and report what is ready and anything left.
 
 ## On a Mac
 
 Until `lokalbot-cli` is on PATH, run it by its full path, `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`. The steps write it as `lokalbot-cli`.
 
-1. If `/Applications/LokalBot.app` is missing, run `brew install --cask stevyhacker/tap/lokalbot`. Never remove the quarantine attribute.
+1. If `/Applications/LokalBot.app` is missing, run `brew install --cask stevyhacker/tap/lokalbot`. If macOS asks the user to confirm opening it the first time, they confirm it. Never remove the quarantine attribute.
 2. Run `lokalbot-cli setup start --wait 300` and tell the user to click Allow in LokalBot. Add `--meeting-library`, `--screen-memory`, or `--files` only if they want you to read their meetings or screen memory, or search the folders they chose under Files.
 3. Run `lokalbot-cli setup plan` and talk it through with the user: automatic recording, calendar, notes language, Day Memory detail, dictation, autocomplete, and launch at login. Explain each setting listed in `notes.needsApproval` before asking for it. Use `lokalbot-cli config describe <key>` for the choices.
 4. Save the agreed plan and run `lokalbot-cli setup apply plan.json --wait 300`. Tell the user one approval card is waiting for them in LokalBot.
@@ -32,7 +32,7 @@ Installing differs, and the same commands work once the app is running. Work thr
 
 ## Guardrails
 
-- Exit code 3 means the user hasn't answered yet, 4 that they declined (don't ask again unless they say so), and 5 that the request expired (ask before trying again).
+- Exit code 3 means the user hasn't answered yet, 4 that they declined (don't ask again unless they say so), and 5 that the request expired (ask before trying again). Other errors exit 1 with a `[code]` message; `[settings_access_disabled]` means the user hasn't allowed access yet, so run `setup start`.
 - Never use `defaults write`, and never create or edit files in LokalBot's `control/` folder.
 - Pass an API key only on standard input to `lokalbot-cli secret set <name>`, and only when the user gives you one for that purpose. Never put it on the command line or echo it back.
 - Change only what the user agreed to.

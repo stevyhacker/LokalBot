@@ -119,6 +119,22 @@ class OpenAIPluginTests(unittest.TestCase):
                 self.assertNotRegex(text, r"\$[A-Za-z_({]")
                 self.assertNotRegex(text, r"\]\(\.\./")
 
+    def test_skills_need_no_instructions_from_outside_the_package(self):
+        # OpenAI's submission rules: keep supporting files and their references
+        # inside the plugin. Download pages are fine; repository docs are not.
+        for skill in sorted(PLUGIN.glob("skills/*/SKILL.md")):
+            text = skill.read_text(encoding="utf-8")
+            with self.subTest(skill=skill.parent.name):
+                self.assertNotIn("github.com/stevyhacker/lokalbot/blob/", text)
+                self.assertNotIn("github.com/stevyhacker/lokalbot/tree/", text)
+                self.assertNotIn("AGENT_SETUP", text)
+
+    def test_listing_does_not_promise_nothing_leaves_the_computer(self):
+        # Remote model servers the user approves do receive library content.
+        manifest = json.loads((PLUGIN / "plugin.json").read_text(encoding="utf-8"))
+        listing = manifest["extensions"]["com.openai"]["interface"]["longDescription"]
+        self.assertNotIn("uploads nothing", listing)
+
     def test_codex_marketplace_points_at_the_plugin(self):
         marketplace = json.loads(
             (ROOT / ".agents" / "plugins" / "marketplace.json").read_text(encoding="utf-8"))
