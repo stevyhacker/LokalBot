@@ -46,7 +46,8 @@ ashpd = { version = "0.13", default-features = false, features = ["async-io", "g
 futures-lite = "2"
 async-channel = "2"
 wayland-client = "0.31"
-wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+# `unstable`: `zwp_input_method_v1`, which KDE Plasma offers the input method it starts.
+wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
 # Autocomplete on Sway and Hyprland: `zwp_input_method_v2` and `zwp_virtual_keyboard_v1`.
 wayland-protocols-misc = { version = "0.3", features = ["client"] }
 # Which key is Tab or Esc in the keymap the compositor shares.

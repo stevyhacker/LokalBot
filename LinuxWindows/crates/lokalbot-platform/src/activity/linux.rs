@@ -223,6 +223,7 @@ impl FrontWindows {
             Desktop::Hyprland => Box::new(super::wayland::Hyprland::new().ok()?),
             Desktop::Sway => Box::new(super::wayland::Sway::new().ok()?),
             Desktop::Gnome => Box::new(super::wayland::Gnome::new().ok()?),
+            Desktop::Kde => Box::new(super::wayland::Kwin::new().ok()?),
             _ => return None,
         };
         Some(Self {

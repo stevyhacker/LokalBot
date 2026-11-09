@@ -244,36 +244,36 @@ fn run(
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct Modifiers {
-    depressed: u32,
-    latched: u32,
-    locked: u32,
-    group: u32,
+pub(super) struct Modifiers {
+    pub depressed: u32,
+    pub latched: u32,
+    pub locked: u32,
+    pub group: u32,
 }
 
 impl Modifiers {
     /// Caps Lock and Num Lock are locks, not held: a plain key stays plain.
-    fn plain(&self) -> bool {
+    pub(super) fn plain(&self) -> bool {
         self.depressed == 0 && self.latched == 0
     }
 }
 
 /// What the current keymap's keys mean to this route.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct Keymap {
+pub(super) struct Keymap {
     /// Scancodes for the keys that can be taken.
     tab: Option<u32>,
     escape: Option<u32>,
     right: Option<u32>,
     backtick: Option<u32>,
-    modifiers: HashSet<u32>,
+    pub modifiers: HashSet<u32>,
 }
 
 impl Keymap {
     /// Reads a keymap the compositor shared. Which keys are which depends on
     /// it (Caps Lock can be Escape), except the full-accept key, which is the
     /// physical key left of 1 whatever it types, like the Mac's key code 50.
-    fn read(fd: &OwnedFd, size: usize) -> anyhow::Result<Self> {
+    pub(super) fn read(fd: &OwnedFd, size: usize) -> anyhow::Result<Self> {
         anyhow::ensure!(size <= MAX_KEYMAP, "implausibly large keymap");
         let file = File::from(fd.try_clone()?);
         let mut bytes = vec![0; size];
@@ -331,7 +331,7 @@ impl Keymap {
         Ok(found)
     }
 
-    fn key(&self, scancode: u32) -> Option<InterceptedKey> {
+    pub(super) fn key(&self, scancode: u32) -> Option<InterceptedKey> {
         let scancode = Some(scancode);
         if scancode == self.tab {
             Some(InterceptedKey::Tab)
@@ -346,7 +346,7 @@ impl Keymap {
         }
     }
 
-    fn scancode(&self, key: InterceptedKey) -> Option<u32> {
+    pub(super) fn scancode(&self, key: InterceptedKey) -> Option<u32> {
         match key {
             InterceptedKey::Tab => self.tab,
             InterceptedKey::Escape => self.escape,
@@ -669,7 +669,7 @@ impl State {
 }
 
 /// `text` cut to what the protocol carries.
-fn clipped(text: &str) -> &str {
+pub(super) fn clipped(text: &str) -> &str {
     if text.len() <= MAX_STRING {
         return text;
     }

@@ -70,6 +70,9 @@ contents:
   - src: $ROOT/packaging/linux/$APP_ID.xml
     dst: /usr/share/ibus/component/$APP_ID.xml
     file_info: {mode: 0644}
+  - src: $ROOT/packaging/linux/$APP_ID.InputMethod.desktop
+    dst: /usr/share/applications/$APP_ID.InputMethod.desktop
+    file_info: {mode: 0644}
   - src: $STAGE/LICENSE
     dst: /usr/share/doc/lokalbot/copyright
     packager: deb

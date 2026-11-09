@@ -205,6 +205,21 @@ fn main() {
         println!("LokalBot {}", env!("CARGO_PKG_VERSION"));
         return;
     }
+    // KDE Plasma starts this for autocomplete, with its own Wayland connection
+    // in WAYLAND_SOCKET. It opens no window and never touches the library.
+    if std::env::args().any(|arg| arg == "--kwin-input-method") {
+        env_logger::Builder::from_env(
+            env_logger::Env::default().default_filter_or("info,zbus=warn,tracing=warn"),
+        )
+        .init();
+        std::process::exit(lokalbot_platform::autocomplete::run_kwin_input_method());
+    }
+    if std::env::args().any(|arg| arg == "--kwin-input-method-entry")
+        && let Some(entry) = lokalbot_platform::autocomplete::kwin_input_method_entry()
+    {
+        print!("{entry}");
+        return;
+    }
     let options = parse_options();
     let paths = LibraryPaths::resolve(options.storage_root.as_deref());
     if std::env::args().any(|arg| arg == "--ibus-component")
