@@ -45,6 +45,11 @@ impl AiError {
         }
     }
 
+    /// The server, or a provider behind a router, is rate limiting this key.
+    pub fn is_rate_limit(&self) -> bool {
+        matches!(self, AiError::HttpStatus { code: 429, .. })
+    }
+
     pub fn retry_after(&self) -> Option<Duration> {
         match self {
             AiError::HttpStatus { retry_after, .. } => *retry_after,

@@ -26,6 +26,7 @@ private struct QuickRecallContent: View {
 #endif
     @State private var meetingHits: [SearchIndex.Hit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
+    @State private var fileHits: [FileSearchHit] = []
     @State private var savedMoments: [ActivityStore.SavedMoment] = []
     @State private var selection = 0
     @State private var showingConversation = false
@@ -266,6 +267,7 @@ private struct QuickRecallContent: View {
             QuickRecallSection(id: "commands", title: "Commands", rows: commandRows),
             QuickRecallSection(id: "screen", title: "Screens", rows: screens),
             QuickRecallSection(id: "meetings", title: "Meetings", rows: meetings),
+            QuickRecallSection(id: "files", title: "Files", rows: fileHits.map(QuickRecallRowModel.file)),
         ].filter { !$0.rows.isEmpty }
     }
 
@@ -328,11 +330,13 @@ private struct QuickRecallContent: View {
         guard !showingConversation, !currentQuery.isEmpty else {
             meetingHits = []
             screenGroups = []
+            fileHits = []
             isSearching = false
             return
         }
         meetingHits = []
         screenGroups = []
+        fileHits = []
         isSearching = true
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(120))
@@ -341,6 +345,7 @@ private struct QuickRecallContent: View {
             guard !Task.isCancelled, currentQuery == trimmedQuery else { return }
             screenGroups = result.screens
             meetingHits = result.meetings.map(\.primary)
+            fileHits = result.files
             selection = 0
             isSearching = false
         }
@@ -368,6 +373,11 @@ private struct QuickRecallContent: View {
             app.openScreenSnapshot(snapshotID)
         case .meeting(let hit):
             app.openSearchHit(hit)
+        case .file(let hit):
+            // Files open in their own window or app, not in LokalBot's main window.
+            FileSearchOpener.open(hit, query: trimmedQuery)
+            dismiss()
+            return
         case .command(let id):
             runCommand(id)
             return

@@ -124,6 +124,20 @@ struct TimelineContextPanel: View {
                     onDismiss: onDismiss)
                     .accessibilityIdentifier("timeline.sessionPreview")
 
+                if !session.agentBursts.isEmpty {
+                    TimelineContextSection(title: "Agent work", icon: "terminal") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("What you asked Claude Code and Codex during this session, and what they recorded doing.")
+                                .workspaceTextRole(.supporting)
+                            ForEach(TimelineAgentTask.tasks(from: session.agentBursts)) { task in
+                                TimelineAgentTaskRow(task: task)
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("timeline.session.agentWork")
+                    }
+                }
+
                 TimelineContextSection(
                     title: "Representative evidence",
                     icon: "rectangle.and.text.magnifyingglass") {
@@ -589,12 +603,114 @@ private struct TimelineContextSection<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: icon)
+            Label(LocalizedStringKey(title), systemImage: icon)
                 .font(AppFont.scaled(.headline))
             content
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .lbGroupedSurface()
+    }
+}
+
+/// One agent task in a work session: what it was, where and when it ran, the
+/// request that started it, and the pull requests and commits it recorded.
+/// Recorded actions come from the commands the agent ran; its own report is
+/// left out because it is only a claim.
+private struct TimelineAgentTaskRow: View {
+    let task: TimelineAgentTask
+
+    private struct PullRequestLink: Hashable {
+        let label: String
+        let url: URL
+    }
+
+    var body: some View {
+        let outcomes = TimelineAgentOutcomes(task.bursts)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(verbatim: task.title)
+                .font(AppFont.scaled(.body).weight(.semibold))
+                .lineLimit(2)
+                .textSelection(.enabled)
+            Text(verbatim: metadata)
+                .workspaceTextRole(.metadata)
+                .lineLimit(1)
+            if let request = task.request {
+                Text(verbatim: request)
+                    .workspaceTextRole(.supporting)
+                    .lineLimit(2)
+                    .textSelection(.enabled)
+            }
+            ForEach(Array(outcomes.openedPullRequests.enumerated()), id: \.offset) { _, title in
+                Label {
+                    Text(verbatim: title).lineLimit(2)
+                } icon: {
+                    Image(systemName: "arrow.triangle.pull")
+                        .foregroundStyle(LBTokens.Palette.accentText)
+                }
+                .font(AppFont.scaled(.callout))
+            }
+            ForEach(Array(mergedNumbers.enumerated()), id: \.offset) { _, number in
+                Label {
+                    if let number { Text("Merged #\(number)") } else { Text("Merged a pull request") }
+                } icon: {
+                    Image(systemName: "arrow.triangle.merge")
+                        .foregroundStyle(LBTokens.Palette.accentText)
+                }
+                .font(AppFont.scaled(.callout))
+            }
+            if outcomes.commits > 0 {
+                Label {
+                    Text(outcomes.commits == 1 ? "\(outcomes.commits) commit" : "\(outcomes.commits) commits")
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(.secondary)
+                }
+                .font(AppFont.scaled(.callout))
+            }
+            if !links.isEmpty {
+                HStack(spacing: 10) {
+                    ForEach(links, id: \.url) { link in
+                        Link(destination: link.url) {
+                            Text(verbatim: link.label)
+                        }
+                        .font(AppFont.scaled(.callout))
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("timeline.agentTask.\(task.id)")
+    }
+
+    /// "bizstats · Claude Code · 09:06–09:32"
+    private var metadata: String {
+        let range = "\(task.start.formatted(date: .omitted, time: .shortened))–\(task.end.formatted(date: .omitted, time: .shortened))"
+        var parts: [String] = []
+        if let project = task.project { parts.append(project) }
+        parts.append(task.agent.displayName)
+        parts.append(range)
+        return parts.joined(separator: " · ")
+    }
+
+    private var mergedNumbers: [Int?] {
+        task.actions.compactMap { action in
+            if case .mergedPullRequest(let number) = action { return .some(number) }
+            return nil
+        }
+    }
+
+    /// The pull requests the agent session linked, at most three, as
+    /// "repository #number".
+    private var links: [PullRequestLink] {
+        var result: [PullRequestLink] = []
+        for raw in task.pullRequests {
+            guard result.count < 3, let reference = CodingAgentPullRequest(url: raw),
+                  let url = URL(string: raw), url.scheme == "https",
+                  !result.contains(where: { $0.url == url }) else { continue }
+            result.append(PullRequestLink(label: "\(reference.repository) #\(reference.number)", url: url))
+        }
+        return result
     }
 }

@@ -28,7 +28,7 @@
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AboutPage","@id":"https://www.lokalbot.com/about#page","url":"https://www.lokalbot.com/about","name":"About LokalBot","description":"What LokalBot is, what it runs, and what it does not do: a free, open-source app for Mac, Windows and Linux for bot-free meeting notes, local transcription, and search.","dateModified":"2026-10-20","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"mainEntity":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"About","item":"https://www.lokalbot.com/about"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/about#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot free?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot is free and open source under the GNU General Public License v3. There is no account, subscription, or paid tier."}},{"@type":"Question","name":"Does LokalBot send my meetings to the cloud?","acceptedAnswer":{"@type":"Answer","text":"No, not by default. Recording, transcription, summaries, and search run on your computer. Network access is limited to model downloads, update checks, and any remote AI server you configure; a non-local server must be explicitly approved before it receives meeting or workday context."}},{"@type":"Question","name":"Does LokalBot join my calls as a bot?","acceptedAnswer":{"@type":"Answer","text":"No. It records your microphone and the meeting's audio on your computer as separate tracks, so nothing joins the call. You are responsible for telling participants and getting any consent the law requires."}},{"@type":"Question","name":"Which computers does LokalBot support?","acceptedAnswer":{"@type":"Answer","text":"Apple Silicon Macs (M1 or later) running macOS 15.0 or later, plus Windows 10 and 11 (x64) and Linux (x86_64) in alpha. Intel Macs, iOS, Android, and web browsers are not supported."}},{"@type":"Question","name":"Can I import existing audio files?","acceptedAnswer":{"@type":"Answer","text":"Not currently. LokalBot transcribes meetings it records itself."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AboutPage","@id":"https://www.lokalbot.com/about#page","url":"https://www.lokalbot.com/about","name":"About LokalBot","description":"What LokalBot is, what it runs, and what it does not do: a free, open-source app for Mac, Windows and Linux for bot-free meeting notes, local transcription, and search.","dateModified":"2026-11-09","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"mainEntity":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"About","item":"https://www.lokalbot.com/about"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/about#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot free?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot is free and open source under the GNU General Public License v3. There is no account, subscription, or paid tier."}},{"@type":"Question","name":"Does LokalBot send my meetings to the cloud?","acceptedAnswer":{"@type":"Answer","text":"No, not by default. Recording, transcription, summaries, and search run on your computer. Network access is limited to model downloads, update checks, and any remote AI server you configure; a non-local server must be explicitly approved before it receives meeting or workday context."}},{"@type":"Question","name":"Does LokalBot join my calls as a bot?","acceptedAnswer":{"@type":"Answer","text":"No. It records your microphone and the meeting's audio on your computer as separate tracks, so nothing joins the call. You are responsible for telling participants and getting any consent the law requires."}},{"@type":"Question","name":"Which computers does LokalBot support?","acceptedAnswer":{"@type":"Answer","text":"Apple Silicon Macs (M1 or later) running macOS 15.0 or later, plus Windows 10 and 11 (x64) and Linux (x86_64) in alpha. Intel Macs, iOS, Android, and web browsers are not supported."}},{"@type":"Question","name":"Can I import existing audio files?","acceptedAnswer":{"@type":"Answer","text":"Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -46,7 +46,7 @@
       <p class="eyebrow">Fact sheet</p>
       <h1>About LokalBot</h1>
       <p class="guide-hero__lead">Your personal context engine. Free, open-source meeting notes, transcription, and search that run locally on your computer.</p>
-      <p class="guide-byline"><time datetime="2026-10-20">Updated October 20, 2026</time></p>
+      <p class="guide-byline"><time datetime="2026-11-09">Updated November 9, 2026</time></p>
     </header>
 
     <article class="guide-article">
@@ -67,7 +67,7 @@
               <tr><td>Updates</td><td>Signed in-app updates from GitHub Releases (Sparkle on Mac), installed only when you choose</td></tr>
               <tr><td>Where data lives</td><td>On your computer: LokalBot's Application Support folder on a Mac, <code>%LOCALAPPDATA%\LokalBot</code> on Windows, <code>~/.local/share/LokalBot</code> on Linux</td></tr>
               <tr><td>Default speech model</td><td>Qwen3-ASR 1.7B on Mac (52 languages and dialects), since version 0.8.1; Qwen3-ASR 0.6B on Windows and Linux</td></tr>
-              <tr><td>Other speech models</td><td>Parakeet TDT, Whisper large-v3 turbo, SenseVoice, and on Mac, IBM Granite Speech</td></tr>
+              <tr><td>Other speech models</td><td>Parakeet TDT, Whisper large-v3 turbo, SenseVoice, GigaAM for Russian, and on Mac, IBM Granite Speech</td></tr>
               <tr><td>Summaries and chat</td><td>Qwen3.5 4B on llama.cpp, bundled on Mac and downloaded on first use on Windows and Linux</td></tr>
               <tr><td>Search</td><td>Keyword plus semantic search with EmbeddingGemma 2 embeddings</td></tr>
               <tr><td>Optional AI backends</td><td>Ollama, OpenAI-compatible servers, your ChatGPT or Claude plan, and Apple Intelligence on Mac (macOS 26+); remote servers and plans need approval</td></tr>
@@ -79,7 +79,7 @@
         <h2>What it does</h2>
         <ul>
           <li><strong>Bot-free meeting recording.</strong> It records your microphone and the meeting app's audio on separate tracks. On a fresh install, it asks through a notification before recording a detected meeting.</li>
-          <li><strong>Local transcripts and recaps.</strong> Transcripts, speaker separation, summaries, decisions, and action items are generated on-device, with citations back to the discussion.</li>
+          <li><strong>Local transcripts and recaps.</strong> Transcripts, speaker separation, summaries, decisions, and action items are generated on-device, with citations back to the discussion. Audio and video files you import become meetings too.</li>
           <li><strong>One search.</strong> Search meetings and any saved screen text by keyword or meaning, then jump to the matching passage.</li>
           <li><strong>Optional workday memory.</strong> Day tracking starts with app names and window titles only. Saving visible text and encrypted screenshots is a separate opt-in; screenshots are deleted after 14 days by default.</li>
           <li><strong>Dictation and autocomplete.</strong> Hold <strong>⌥ Space</strong> (<strong>Alt+Space</strong> on Windows and Linux) to dictate into any app. Optional local autocomplete suggests the rest of a sentence as you type.</li>
@@ -90,7 +90,6 @@
         <ul>
           <li>It does not join calls, upload recordings, or require an account.</li>
           <li>It does not run on Intel Macs, iOS, Android, or the web. The Windows and Linux app is an alpha and doesn't have every Mac feature yet.</li>
-          <li>It does not import existing audio files; it transcribes meetings it records.</li>
           <li>It does not sync between devices. Any sync you set up for exported Markdown is under your control.</li>
         </ul>
 
@@ -123,7 +122,7 @@
         </details>
         <details class="qa">
           <summary>Can I import existing audio files?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Not currently. LokalBot transcribes meetings it records itself.</p>
+          <p>Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded.</p>
         </details>
       </div>
     </section>

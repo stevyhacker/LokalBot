@@ -6,8 +6,9 @@ the terminal. The person still makes the choices that need them, in LokalBot:
 they allow access, approve changes to what LokalBot captures or shares, and
 grant macOS permissions.
 
-The journey below is for the Mac app. The Windows and Linux app (alpha) has no
-agent-driven setup yet; see [Windows and Linux](#windows-and-linux-alpha).
+The journey below is written for the Mac app. On the Windows and Linux app (alpha)
+installing differs and the same commands work afterwards; see
+[Windows and Linux](#windows-and-linux-alpha).
 
 ## Rules
 
@@ -32,8 +33,9 @@ brew install --cask stevyhacker/tap/lokalbot
 CLI=/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli
 
 # 2. Ask for access. LokalBot opens a request window; the person clicks Allow.
-#    Add --meeting-library or --screen-memory only if the person wants you to
-#    read those too. They appear as separate boxes, off by default.
+#    Add --meeting-library, --screen-memory, or --files only if the person wants
+#    you to read their meetings or screen memory, or search the folders they
+#    chose under Files. Each appears as a separate box, off by default.
 $CLI setup start --wait 300
 
 # 3. Agree a plan with the person, then apply it.
@@ -75,7 +77,12 @@ means the person has not allowed access yet; run `setup start`.
 ## What the person does
 
 1. **Gatekeeper.** The first-open confirmation, if macOS shows one.
-2. **Access.** One Allow in LokalBot for `setup start`.
+2. **Access.** One Allow in LokalBot for `setup start`, ticking the read
+   boxes they agreed to. Later they can change what agents read in Settings →
+   External Agents: **Allow external agents to read your LokalBot data**, with
+   a box each for Meetings, Screen memory, What I shared about myself, and
+   Files. The Screen & Activity, Personal Context, and Files pages show the same
+   box for their kind. What I shared about myself is turned on only in the app.
 3. **Consent review.** One card for the consent changes in the plan, such as
    capture level, calendar, automatic recording, or a remote server.
 4. **macOS permissions.** Allow in the Microphone and Calendar prompts, and
@@ -91,9 +98,10 @@ means the person has not allowed access yet; run `setup start`.
 
 ## Windows and Linux (alpha)
 
-The Windows and Linux CLI has the read-only commands and the MCP server, but not
-`setup`, `config`, `secret`, `models`, `permissions`, `status`, `doctor`, `restart`, or
-`open`. The person sets LokalBot up in the app, and you help:
+Once the app is installed and running, the Windows and Linux CLI has the same `setup`,
+`config`, `secret`, `models`, `status`, `doctor`, `restart`, and `open` commands. These
+systems have no permission prompts, so `permissions` says what the desktop allows. You
+and the person work through it like this:
 
 1. **Install.** From the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest),
    take `LokalBot-<version>-linux-x86_64.tar.gz`, extract it, and run `./install.sh`
@@ -104,8 +112,8 @@ The Windows and Linux CLI has the read-only commands and the MCP server, but not
 2. **Onboarding.** The person chooses what LokalBot remembers and which models to
    download, in the app.
 3. **Access.** If the person wants you to read their library, they turn on "Allow
-   external agents to read your meeting library" in Settings → Privacy & Data, and
-   screen memory separately. Never create LokalBot's `control/` files yourself.
+   external agents to read your meeting library" in Settings → Privacy & Data. Screen
+   memory, files, and what they shared about themselves each have their own switch there. Never create LokalBot's `control/` files yourself.
 4. **CLI and skill.** Run `lokalbot-cli install-skill`, or have the person click
    **Install for your coding agent…** in Settings → Advanced → Agent CLI. The CLI goes
    to `~/.local/bin` on Linux and `%LOCALAPPDATA%\Programs\LokalBot\bin` on Windows;

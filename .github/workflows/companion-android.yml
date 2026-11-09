@@ -1,0 +1,319 @@
+# Android companion: build, test and lint, sign with a throwaway key through
+# Scripts/sign-android-release.sh, and run the result against a stand-in computer.
+#
+# Release (release.yml) calls this for a v* tag, next to the macOS job, without
+# any secret and without restoring compiled output from a cache. It keeps the
+# unsigned APK for android-publish, which signs it with the real key and attaches
+# it once the macOS release exists. To try that path, which publishes nothing:
+#
+#   gh workflow run companion-android.yml --ref BRANCH -f tag=v0.12.1
+
+name: Companion Android
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.13.0
+        required: true
+        type: string
+  push:
+    branches: [master, dev]
+    paths:
+      - "Companion/**"
+      - "!Companion/ios/**"
+      - "!Companion/**/*.md"
+      - "LinuxWindows/crates/lokalbot-sync/**"
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/rust-toolchain.toml"
+      - "Scripts/build-sync-*"
+      - "Scripts/sign-android-release.sh"
+      - ".github/workflows/companion-android.yml"
+  pull_request:
+    branches: [master, dev]
+    paths:
+      - "Companion/**"
+      - "!Companion/ios/**"
+      - "!Companion/**/*.md"
+      - "LinuxWindows/crates/lokalbot-sync/**"
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/rust-toolchain.toml"
+      - "Scripts/build-sync-*"
+      - "Scripts/sign-android-release.sh"
+      - ".github/workflows/companion-android.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Build as the release of this tag, e.g. v0.12.1 (publishes nothing)"
+        required: false
+        type: string
+
+concurrency:
+  group: companion-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The emulator's data partition, the AVD's default for pixel_7 on API 36. The
+  # emulator won't start without 1.2 times this free next to the AVD.
+  EMULATOR_DATA_PARTITION_MB: 6144
+
+permissions:
+  contents: read
+
+jobs:
+  # The owner's Ubuntu box runs this when it's online and idle, on a runner of its
+  # own (lokalbot-android) beside the one for the Linux job of linux-windows.yml, so
+  # a commit that starts both workflows runs them at the same time. GitHub's runners
+  # run it otherwise. A release always builds on GitHub, because that APK gets
+  # signed with the real key. So do pull requests from forks. Listing runners needs
+  # RUNNER_STATUS_TOKEN; without it, or with the SELF_HOSTED_RUNNERS variable set to
+  # "off", the job runs on GitHub. See LinuxWindows/scripts/ci/runners.
+  pick:
+    name: Pick a runner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          FROM_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          SWITCH: ${{ vars.SELF_HOSTED_RUNNERS }}
+        run: |
+          runner='"ubuntu-latest"'
+          if [ -n "$TAG" ]; then
+            why="a release build, for $TAG"
+          elif [ "$FROM_FORK" = true ]; then
+            why="pull request from a fork"
+          elif [ "$SWITCH" = off ]; then
+            why="SELF_HOSTED_RUNNERS is off"
+          elif [ -z "$GH_TOKEN" ]; then
+            why="no RUNNER_STATUS_TOKEN secret"
+          elif ! idle=$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
+              --jq '[.runners[] | select(.status == "online" and (.busy | not)) | .labels[].name]' 2>&1); then
+            why="couldn't list runners: $idle"
+            echo "::warning::$why"
+          else
+            why="labels of idle self-hosted runners: $idle"
+            if jq -e 'index("lokalbot-android")' <<<"$idle" >/dev/null; then runner='["self-hosted","lokalbot-android"]'; fi
+          fi
+          echo "runner=$runner" >>"$GITHUB_OUTPUT"
+          echo "$runner: $why"
+          {
+            echo "Runner: \`$runner\`"
+            echo
+            echo "Why: $why"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  android:
+    name: Build, test and lint
+    needs: pick
+    runs-on: ${{ fromJSON(needs.pick.outputs.runner) }}
+    timeout-minutes: 60
+    steps:
+      - name: Refuse to build a release off GitHub's runners
+        if: inputs.tag != '' && runner.environment != 'github-hosted'
+        run: |
+          echo "::error::A release APK gets signed with the real key, so it must be built on GitHub's runners." >&2
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The runner keeps a warm target directory, ~/.gradle and ~/.m2 in place of the
+      # caches. Keeping ~/.m2 also spares it Maven Central's 429s for the Robolectric
+      # downloads. Nothing from this machine reaches GitHub's cache.
+      - name: Check the self-hosted runner
+        if: runner.environment == 'self-hosted'
+        run: |
+          LinuxWindows/scripts/ci/runners/check-runner.sh --gradle
+          if [ ! -x "$HOME/android-sdk/emulator/emulator" ]; then
+            echo "::error::This runner has no Android SDK. Run setup-linux-android-sdk.sh on it." >&2
+            exit 1
+          fi
+          echo "ANDROID_HOME=$HOME/android-sdk" >>"$GITHUB_ENV"
+          # When a job is cancelled, its test can restart adb after the runner's cleanup.
+          pkill -u "$(id -u)" -x adb || true
+
+      - name: Check the tag names the app's version
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' Companion/android/app/build.gradle.kts)
+          tag="${TAG#v}"
+          if [[ "${tag%%-*}" != "$version" ]]; then
+            echo "::error::Tag $TAG does not match the Android versionName $version. Run Scripts/bump-version.py first." >&2
+            exit 1
+          fi
+
+      # How much disk GitHub's runners leave free varies a lot by machine, and a
+      # release build once left the emulator too little. These toolchains are the
+      # image's largest that this job never uses: .NET, Haskell, Swift, PowerShell
+      # and CodeQL, about 16 GB, gone in about 20 s.
+      - name: Free disk space
+        if: runner.environment == 'github-hosted'
+        run: |
+          df -h /
+          for dir in /usr/share/dotnet /usr/local/.ghcup /opt/ghc /usr/share/swift /usr/local/share/boost \
+              /usr/local/share/powershell "$RUNNER_TOOL_CACHE/CodeQL"; do
+            sudo rm -rf "$dir" &
+          done
+          wait
+          df -h /
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # Release builds start clean: no compiled output is restored from a cache.
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-disabled: ${{ inputs.tag != '' || runner.environment == 'self-hosted' }}
+
+      - name: Rust toolchain and Android targets
+        working-directory: LinuxWindows
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-linux-android x86_64-linux-android
+
+      - name: Cache cargo
+        if: inputs.tag == '' && runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/cargo-ndk
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            LinuxWindows/target
+          key: companion-android-cargo-${{ hashFiles('LinuxWindows/Cargo.lock', 'LinuxWindows/rust-toolchain.toml') }}
+          restore-keys: companion-android-cargo-
+
+      - name: Install cargo-ndk
+        run: command -v cargo-ndk || cargo install cargo-ndk --version "$CARGO_NDK_VERSION" --locked
+        env:
+          CARGO_NDK_VERSION: "4.1.2"
+
+      - name: Build the Rust sync core for Android
+        # GitHub's image ships the Android SDK and a current NDK. On the self-hosted
+        # runner, the script finds the NDK under ANDROID_HOME.
+        run: |
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          Scripts/build-sync-android.sh
+
+      - name: Build, unit and screenshot tests, lint
+        working-directory: Companion/android
+        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:verifyRoborazziDebug :app:lintDebug
+
+      - name: Tests of the end-to-end helpers
+        run: python3 -m unittest discover -s Companion/e2e
+
+      # The shrunk release build, because that's what ships and what the debug
+      # build above can't prove works.
+      - name: Build the release app and the stand-in computer
+        run: |
+          (cd Companion/android && ./gradlew :app:assembleRelease)
+          (cd LinuxWindows && cargo build -p lokalbot-sync --example companion_host)
+
+      # The same script signs the release with the real key, which this job never
+      # sees, and the end-to-end test below runs on what it writes.
+      - name: Sign with a throwaway key
+        run: |
+          umask 077
+          keystore="$RUNNER_TEMP/throwaway.p12"
+          unsigned=Companion/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          ANDROID_KEYSTORE_PASSWORD=$(openssl rand -hex 16)
+          export ANDROID_KEYSTORE_PASSWORD
+          keytool -genkeypair -keystore "$keystore" -storetype PKCS12 -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias throwaway -keyalg RSA -keysize 2048 -validity 1 -dname "CN=LokalBot throwaway"
+          Scripts/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/app-release-signed.apk" "$keystore"
+          if Scripts/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/refused.apk" "$keystore" not-this-certificate; then
+            echo "::error::The signing script accepted a key with the wrong certificate" >&2
+            exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/refused.apk"
+          rm -f "$keystore"
+
+      - name: Let the emulator use KVM
+        if: runner.environment == 'github-hosted'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Short of disk, the emulator exits at once, and the next step waits out its
+      # 10-minute boot timeout. Say so here instead. The next step first installs
+      # the system image, which takes 4.3 GB.
+      - name: Check the disk has room for the emulator
+        if: runner.environment == 'github-hosted'
+        run: |
+          df -h /
+          need=$(( EMULATOR_DATA_PARTITION_MB * 12 / 10 + 5 * 1024 ))
+          free=$(df -Pm "$HOME" | awk 'NR == 2 { print $4 }')
+          echo "$free MB free, the emulator needs $need MB"
+          if (( free < need )); then
+            echo "::error::Only $free MB of disk is free, and the emulator needs $need MB. Free more in the step \"Free disk space\"." >&2
+            exit 1
+          fi
+
+      - name: End-to-end test on an emulator
+        if: runner.environment == 'github-hosted'
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disk-size: ${{ env.EMULATOR_DATA_PARTITION_MB }}M
+          emulator-options: -no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect
+          script: >-
+            python3 Companion/e2e/android_trip.py
+            --apk "$RUNNER_TEMP/app-release-signed.apk"
+            --host LinuxWindows/target/debug/examples/companion_host
+            --out "$RUNNER_TEMP/android-e2e"
+
+      # Other people use this machine and its emulators at the same time.
+      - name: End-to-end test on an emulator of its own
+        if: runner.environment == 'self-hosted'
+        run: >-
+          python3 Companion/e2e/own_emulator.py --
+          python3 Companion/e2e/android_trip.py
+          --apk "$RUNNER_TEMP/app-release-signed.apk"
+          --host "$CARGO_TARGET_DIR/debug/examples/companion_host"
+          --out "$RUNNER_TEMP/android-e2e"
+
+      - name: Upload test, screenshot, lint and end-to-end reports
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: companion-android-reports
+          path: |
+            Companion/android/app/build/reports
+            Companion/android/app/build/outputs/roborazzi
+            Companion/android/app/build/test-results
+            Companion/android/app/build/outputs/mapping/release/mapping.txt
+            ${{ runner.temp }}/android-e2e
+          retention-days: 7
+
+      # The mapping decodes a stack trace from this release's shrunk build.
+      - name: Keep the unsigned release APK and its R8 mapping
+        if: inputs.tag != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-android
+          path: |
+            Companion/android/app/build/outputs/apk/release/app-release-unsigned.apk
+            Companion/android/app/build/outputs/mapping/release/mapping.txt
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload debug APK
+        if: inputs.tag == ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: LokalBot-Companion-debug
+          path: Companion/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7

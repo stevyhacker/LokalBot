@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 16,
+      "speaker": "me",
+      "text": "Strong on architecture, lighter on testing discipline. I'm a hire."
+    },
+    {
+      "start": 16,
+      "end": 32,
+      "speaker": "them",
+      "text": "Same read. Let's move to references this week."
+    }
+  ]
+}

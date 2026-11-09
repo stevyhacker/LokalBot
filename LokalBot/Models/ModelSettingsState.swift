@@ -306,6 +306,9 @@ enum ModelSettingsPresentation {
         case .whisperLarge: 1_600_000_000
         case .graniteSpeech:
             safeCombinedBytes(granite.model.sizeBytes, granite.projector.sizeBytes)
+        case .graniteSpeech5:
+            safeCombinedBytes(GraniteSpeechModelConfiguration.speech5.model.sizeBytes,
+                              GraniteSpeechModelConfiguration.speech5.projector.sizeBytes)
         case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .remoteServer: nil
         }
     }

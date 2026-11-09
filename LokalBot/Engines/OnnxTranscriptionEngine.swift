@@ -300,6 +300,9 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
                 let out = Pipe()
                 process.standardOutput = out
                 process.standardError = FileHandle.nullDevice   // verbose logging — discard
+                // The awaits below can move this task off the launching thread,
+                // where `waitUntilExit()` could wait forever.
+                let exitSignal = ProcessExitSignal(process)
                 guard processController.attach(process) else { throw CancellationError() }
                 defer { processController.detach(process) }
                 try process.run()
@@ -314,7 +317,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
                     processStartTime: processUsage?.startTime
                 )
                 let data = out.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
+                await exitSignal.wait()
                 try Task.checkCancellation()
                 if processController.wasCancelled { throw CancellationError() }
                 guard process.terminationStatus == 0 else {

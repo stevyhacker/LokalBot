@@ -1,0 +1,89 @@
+{
+  "text_only": {
+    "load_s": 0.75,
+    "idle_footprint_mib": 266,
+    "idle_rss_mib": 491,
+    "queries": {
+      "n": 20,
+      "p50_ms": 6.0,
+      "p95_ms": 12.0,
+      "total_s": 0.16,
+      "prompt_tokens_first": 18,
+      "peak_footprint_mib": 267,
+      "peak_rss_mib": 493
+    },
+    "ocr_batches_of_32x1500_chars": {
+      "n": 20,
+      "p50_ms": 441.9,
+      "p95_ms": 453.2,
+      "total_s": 8.87,
+      "prompt_tokens_first": 7012,
+      "peak_footprint_mib": 273,
+      "peak_rss_mib": 500
+    },
+    "lifetime_peak_footprint_mib": 321
+  },
+  "media_sized": {
+    "load_s": 1.01,
+    "idle_footprint_mib": 873,
+    "idle_rss_mib": 1101,
+    "queries": {
+      "n": 20,
+      "p50_ms": 5.1,
+      "p95_ms": 9.6,
+      "total_s": 0.14,
+      "prompt_tokens_first": 18,
+      "peak_footprint_mib": 873,
+      "peak_rss_mib": 1102
+    },
+    "screens_280": {
+      "n": 40,
+      "p50_ms": 138.7,
+      "p95_ms": 139.6,
+      "total_s": 5.57,
+      "prompt_tokens_first": 277,
+      "peak_footprint_mib": 938,
+      "peak_rss_mib": 1151
+    },
+    "photos_140": {
+      "n": 40,
+      "p50_ms": 76.1,
+      "p95_ms": 76.7,
+      "total_s": 3.06,
+      "prompt_tokens_first": 134,
+      "peak_footprint_mib": 952,
+      "peak_rss_mib": 1165
+    },
+    "frames_70": {
+      "n": 40,
+      "p50_ms": 44.0,
+      "p95_ms": 52.0,
+      "total_s": 1.82,
+      "prompt_tokens_first": 70,
+      "peak_footprint_mib": 958,
+      "peak_rss_mib": 1171
+    },
+    "frames_70_batches_of_8": {
+      "n": 5,
+      "p50_ms": 353.9,
+      "p95_ms": 385.4,
+      "total_s": 1.81,
+      "prompt_tokens_first": 560,
+      "peak_footprint_mib": 980,
+      "peak_rss_mib": 1193,
+      "per_image_ms": 44.2
+    },
+    "audio_30s": {
+      "n": 20,
+      "p50_ms": 137.1,
+      "p95_ms": 140.1,
+      "total_s": 2.78,
+      "prompt_tokens_first": 754,
+      "peak_footprint_mib": 1002,
+      "peak_rss_mib": 1216
+    },
+    "lifetime_peak_footprint_mib": 1002,
+    "footprint_after_work_mib": 820,
+    "rss_after_work_mib": 1216
+  }
+}

@@ -1,0 +1,39 @@
+# Builds the phone and tablet sync library for the Mac app.
+#
+# The Rust crate LinuxWindows/crates/lokalbot-sync becomes the local Swift
+# package Vendor/lokalbot-sync (product LokalBotSync) through
+# Scripts/build-sync-xcframework.sh. Xcode resolves packages before any build
+# phase runs, and XcodeGen refuses a local package path that does not exist,
+# so every job that builds the Mac app runs this after restoring the Vendor
+# cache and before `xcodegen generate`.
+name: Build lokalbot-sync
+description: Install the pinned Rust toolchain and build Vendor/lokalbot-sync.
+runs:
+  using: composite
+  steps:
+    # Hosted macOS images ship rustup; a self-hosted runner may not. The
+    # script installs the toolchain LinuxWindows/rust-toolchain.toml pins and
+    # the Apple targets it builds.
+    - name: Install rustup
+      shell: bash
+      run: |
+        if ! command -v rustup >/dev/null; then
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        fi
+
+    - name: Cache Rust build
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+          LinuxWindows/target
+        key: lokalbot-sync-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('LinuxWindows/rust-toolchain.toml', 'LinuxWindows/Cargo.lock', 'LinuxWindows/crates/lokalbot-sync/**', 'Scripts/build-sync-xcframework.sh') }}
+        restore-keys: |
+          lokalbot-sync-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Build the Swift package
+      shell: bash
+      run: bash Scripts/build-sync-xcframework.sh

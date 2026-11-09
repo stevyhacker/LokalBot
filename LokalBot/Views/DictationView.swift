@@ -161,17 +161,28 @@ struct DictationView: View {
         }
     }
 
-    /// Compose takes tone, name and terminology from the writing profile,
-    /// which lives with Autocomplete on the Writing page.
-    private var writingProfileRow: some View {
+    /// Compose takes tone, name and terminology from the writing profile it
+    /// shares with Autocomplete. In Settings its fields are edited right here;
+    /// the standalone window links to this page.
+    @ViewBuilder private var writingProfileRow: some View {
+        if embedded {
+            SettingsLabel("Writing profile", help: "Compose uses it for tone, your name and terminology. Autocomplete uses the same profile.")
+                .settingTarget("settings.dictationWritingProfile", selected: app.focusedSettingID)
+            WritingProfileFields()
+        } else {
+            writingProfileSummaryRow
+        }
+    }
+
+    private var writingProfileSummaryRow: some View {
         LabeledContent {
             HStack(spacing: 8) {
                 Text(verbatim: Self.writingProfileSummary(app.settings) { app.settings.appLanguage.localized($0) })
                     .settingsSecondary()
                     .lineLimit(1)
                 Button("Edit…") {
-                    app.openSettings(tab: .writing)
-                    app.focusedSettingID = "settings.cotypingUserName"
+                    app.openSettings(tab: .dictation)
+                    app.focusedSettingID = "settings.dictationWritingProfile"
                 }
                 .accessibilityIdentifier("dictation.writingProfile.edit")
             }

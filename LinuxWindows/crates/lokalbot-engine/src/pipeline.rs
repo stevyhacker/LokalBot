@@ -10,13 +10,11 @@ use anyhow::{Context as _, Result};
 use parking_lot::{Condvar, Mutex};
 use uuid::Uuid;
 
-use lokalbot_core::Meeting;
+use lokalbot_ai::remote_gate::Priority;
+use lokalbot_core::{Meeting, Transcript};
 
 use crate::models::Models;
 use crate::{BackgroundItem, BackgroundKind, EngineEvent, Shared, Stage};
-
-/// Launch resume stops retrying a job after this many starts.
-const MAX_AUTO_ATTEMPTS: u32 = 3;
 
 #[derive(Clone)]
 pub struct Pipeline {
@@ -29,6 +27,8 @@ struct Inner {
     queue: Mutex<VecDeque<Job>>,
     signal: Condvar,
     stop: AtomicBool,
+    /// The meeting being worked on right now.
+    active: Mutex<Option<Uuid>>,
 }
 
 #[derive(Clone, Debug)]
@@ -36,7 +36,46 @@ struct Job {
     meeting_id: Uuid,
     transcribe: bool,
     summarize: bool,
+    /// The summary was asked for automatically, so it runs only while
+    /// automatic summaries are on.
+    summary_follows_setting: bool,
     user_initiated: bool,
+    /// Picked up at launch, so it transcribes with the terms saved earlier.
+    resumed: bool,
+}
+
+impl Job {
+    /// A saved job picked up at launch (`ProcessingPipeline.resumedWork`).
+    fn resumed(saved: &lokalbot_core::PipelineJob) -> Self {
+        Self {
+            meeting_id: saved.meeting_id,
+            transcribe: saved.transcribe && !saved.transcription_completed,
+            summarize: saved.summarize,
+            summary_follows_setting: saved.summary_follows_setting,
+            user_initiated: false,
+            resumed: true,
+        }
+    }
+
+    /// Whether to write notes now. An automatic summary follows the setting
+    /// as it is at this point, so turning automatic summaries off also stops
+    /// a job queued earlier, even one that waited through a restart.
+    fn writes_notes(&self, auto_summarize: bool) -> bool {
+        self.summarize && (!self.summary_follows_setting || auto_summarize)
+    }
+
+    /// Folds another request for the same meeting into this queued job. The
+    /// user's request decides the summary and makes it explicit.
+    fn merge(&mut self, transcribe: bool, summarize: bool, user_initiated: bool) {
+        self.transcribe |= transcribe;
+        self.summarize = if user_initiated {
+            summarize
+        } else {
+            self.summarize || summarize
+        };
+        self.summary_follows_setting &= !user_initiated;
+        self.user_initiated |= user_initiated;
+    }
 }
 
 enum Outcome {
@@ -52,51 +91,138 @@ impl Pipeline {
             queue: Mutex::new(VecDeque::new()),
             signal: Condvar::new(),
             stop: AtomicBool::new(false),
+            active: Mutex::new(None),
         });
+        // Meetings deleted between the crash and this launch (`resumePending`).
+        match shared.library.list_meetings().and_then(|meetings| {
+            let existing: Vec<Uuid> = meetings.iter().map(|meeting| meeting.id).collect();
+            shared.library.prune_jobs(&existing)
+        }) {
+            Ok(0) => {}
+            Ok(removed) => log::info!("dropped {removed} processing job(s) for deleted meetings"),
+            Err(err) => log::warn!("could not prune the processing queue: {err:#}"),
+        }
         match shared.library.pending_jobs() {
             Ok(jobs) => {
                 let mut queue = inner.queue.lock();
                 for job in jobs {
-                    if job.attempts >= MAX_AUTO_ATTEMPTS {
-                        let message = job.last_error.clone().unwrap_or_else(|| {
-                            "Processing stopped after repeated failures.".into()
-                        });
-                        shared.emit(EngineEvent::Processing {
-                            meeting_id: job.meeting_id,
-                            stage: Some(Stage::Failed(message)),
-                        });
-                        continue;
-                    }
                     shared.emit(EngineEvent::Processing {
                         meeting_id: job.meeting_id,
                         stage: Some(Stage::Queued),
                     });
-                    queue.push_back(Job {
-                        meeting_id: job.meeting_id,
-                        transcribe: job.transcribe && !job.transcription_completed,
-                        summarize: job.summarize,
-                        user_initiated: false,
-                    });
+                    queue.push_back(Job::resumed(&job));
                 }
             }
             Err(err) => log::warn!("could not read pending jobs: {err:#}"),
+        }
+        // A job that used up its automatic attempts stays parked until the
+        // user retries it; show why it stopped again (`parkedJobs`).
+        match shared.library.parked_jobs() {
+            Ok(jobs) => {
+                for job in jobs {
+                    let message = job
+                        .last_error
+                        .unwrap_or_else(|| "Processing stopped after repeated failures.".into());
+                    shared.emit(EngineEvent::Processing {
+                        meeting_id: job.meeting_id,
+                        stage: Some(Stage::Failed(message)),
+                    });
+                }
+            }
+            Err(err) => log::warn!("could not read parked jobs: {err:#}"),
         }
         let worker = inner.clone();
         std::thread::Builder::new()
             .name("lokalbot-pipeline".into())
             .spawn(move || worker.run())
             .expect("spawning the pipeline thread");
-        crate::speech::start_idle_release(shared.speech.clone(), shared);
-        Self { inner }
+        crate::speech::start_idle_release(shared.speech.clone(), shared.clone());
+        let pipeline = Self { inner };
+        // Finished recordings a run never transcribed, off the engine thread:
+        // this reads every meeting folder (`enqueueMissingTranscriptions`).
+        let settings = shared.settings();
+        if settings.auto_transcribe {
+            let repair = pipeline.clone();
+            std::thread::Builder::new()
+                .name("lokalbot-transcript-repair".into())
+                .spawn(move || {
+                    repair.enqueue_missing_transcriptions(settings.auto_summarize);
+                })
+                .expect("spawning the transcript repair");
+        }
+        pipeline
     }
 
+    /// Queues finished recordings whose transcript is missing or incomplete and
+    /// that have no queued, parked or running job. A merged gap is marked first,
+    /// so it is repaired at most once. Returns what it queued.
+    pub fn enqueue_missing_transcriptions(&self, summarize: bool) -> Vec<Uuid> {
+        let shared = &self.inner.shared;
+        let library = &shared.library;
+        if library.is_read_only() {
+            return Vec::new();
+        }
+        let meetings = match library.list_meetings() {
+            Ok(meetings) => meetings,
+            Err(err) => {
+                log::warn!("could not look for missing transcripts: {err:#}");
+                return Vec::new();
+            }
+        };
+        let mut queued = Vec::new();
+        for meeting in meetings {
+            if self.is_processing(meeting.id) || library.job(meeting.id).ok().flatten().is_some() {
+                continue;
+            }
+            let Some(reason) = lokalbot_core::health::missing_transcript(library, &meeting) else {
+                continue;
+            };
+            if reason == lokalbot_core::health::MissingTranscript::MergedGap
+                && let Err(err) = lokalbot_core::health::mark_gap_repair_requested(
+                    &library.meeting_dir(&meeting),
+                    chrono::Utc::now(),
+                )
+            {
+                log::warn!("transcript repair skipped for {}: {err:#}", meeting.id);
+                continue;
+            }
+            if self.enqueue(meeting.id, true, summarize, false) {
+                log::info!("queued missing transcript for {} ({reason:?})", meeting.id);
+                queued.push(meeting.id);
+            }
+        }
+        queued
+    }
+
+    /// Whether the transcription models are here, so a job would start now
+    /// rather than park (`ModelReadinessSnapshot.transcriptionReady`).
+    pub fn transcription_ready(&self) -> bool {
+        let models = &self.inner.models;
+        models
+            .missing(&models.meeting_requirements(false))
+            .is_empty()
+            && !models.transcription_server_blocked()
+    }
+
+    /// Saves a job for the next launch and leaves this run's queue alone. A
+    /// request already saved stays as it is (`deferUntilNextLaunch`).
+    pub fn defer_until_next_launch(&self, meeting_id: Uuid, summarize: bool) -> Result<()> {
+        let library = &self.inner.shared.library;
+        if library.job(meeting_id)?.is_none() {
+            library.enqueue_job(meeting_id, true, summarize, false)?;
+        }
+        Ok(())
+    }
+
+    /// Queues a meeting. False when the job could not be saved: it is not
+    /// queued, since a job that isn't saved would be lost on quit.
     pub fn enqueue(
         &self,
         meeting_id: Uuid,
         transcribe: bool,
         summarize: bool,
         user_initiated: bool,
-    ) {
+    ) -> bool {
         let shared = &self.inner.shared;
         if let Err(err) =
             shared
@@ -104,23 +230,26 @@ impl Pipeline {
                 .enqueue_job(meeting_id, transcribe, summarize, user_initiated)
         {
             log::warn!("could not persist the processing job: {err:#}");
+            shared.emit(EngineEvent::Processing {
+                meeting_id,
+                stage: Some(Stage::Failed(
+                    "Could not persist the processing job.".into(),
+                )),
+            });
+            return false;
         }
         {
             let mut queue = self.inner.queue.lock();
             if let Some(existing) = queue.iter_mut().find(|job| job.meeting_id == meeting_id) {
-                existing.transcribe |= transcribe;
-                existing.summarize = if user_initiated {
-                    summarize
-                } else {
-                    existing.summarize || summarize
-                };
-                existing.user_initiated |= user_initiated;
+                existing.merge(transcribe, summarize, user_initiated);
             } else {
                 queue.push_back(Job {
                     meeting_id,
                     transcribe,
                     summarize,
+                    summary_follows_setting: !user_initiated,
                     user_initiated,
+                    resumed: false,
                 });
             }
         }
@@ -129,6 +258,22 @@ impl Pipeline {
             stage: Some(Stage::Queued),
         });
         self.inner.signal.notify_one();
+        true
+    }
+
+    /// Nothing is queued or being processed.
+    pub fn is_idle(&self) -> bool {
+        self.inner.active.lock().is_none() && self.inner.queue.lock().is_empty()
+    }
+
+    pub fn is_processing(&self, meeting_id: Uuid) -> bool {
+        *self.inner.active.lock() == Some(meeting_id)
+            || self
+                .inner
+                .queue
+                .lock()
+                .iter()
+                .any(|job| job.meeting_id == meeting_id)
     }
 
     pub fn stop(&self) {
@@ -147,6 +292,7 @@ impl Inner {
                         return;
                     }
                     if let Some(job) = queue.pop_front() {
+                        *self.active.lock() = Some(job.meeting_id);
                         break job;
                     }
                     self.signal.wait_for(&mut queue, Duration::from_secs(5));
@@ -154,6 +300,7 @@ impl Inner {
             };
             self.publish_queue_length();
             let meeting_id = job.meeting_id;
+            self.shared.pipeline_busy.store(true, Ordering::Relaxed);
             match self.process(&job) {
                 Ok(Outcome::Done) => {
                     let _ = self.shared.library.mark_job_completed(meeting_id);
@@ -178,8 +325,14 @@ impl Inner {
                     });
                 }
             }
+            *self.active.lock() = None;
             self.shared
                 .clear_background(&format!("meeting:{meeting_id}"));
+            let more = !self.queue.lock().is_empty();
+            self.shared.pipeline_busy.store(more, Ordering::Relaxed);
+            // A finished meeting has a note and a follow-up due.
+            self.shared.exports.reconsider_notes();
+            self.shared.routines.reconsider_evidence();
             self.shared.emit(EngineEvent::LibraryChanged);
         }
     }
@@ -220,6 +373,31 @@ impl Inner {
         }
     }
 
+    /// A summary-only retry still gets the names an interrupted run decided.
+    /// Speaker identity is optional: it must not block notes from a saved
+    /// transcript or use up an automatic retry.
+    fn recover_speakers(&self, meeting: &Meeting, transcript: Transcript) -> Result<Transcript> {
+        let library = &self.shared.library;
+        let sealed = library
+            .meeting_dir(meeting)
+            .join(lokalbot_core::voice::EVIDENCE_FOLDER)
+            .join(lokalbot_core::voice::IDENTITY_FILE);
+        if !sealed.is_file() {
+            return Ok(transcript);
+        }
+        let memory = crate::voice::memory(library);
+        let recovered = memory.recover(meeting, &transcript).unwrap_or_else(|err| {
+            log::info!(
+                "speaker identity recovery skipped meeting={}: {err}",
+                meeting.id
+            );
+            transcript
+        });
+        let recovered = memory.applying_latest_decision(&recovered, meeting.id);
+        library.save_new_transcript(meeting, &recovered)?;
+        Ok(recovered)
+    }
+
     fn process(&self, job: &Job) -> Result<Outcome> {
         let library = &self.shared.library;
         let Some(meeting) = library.meeting(job.meeting_id)? else {
@@ -235,6 +413,10 @@ impl Inner {
         if job.transcribe || !has_transcript {
             let requirements = self.models.meeting_requirements(false);
             if !self.models.ensure(&requirements, job.user_initiated)? {
+                return Ok(Outcome::WaitingForModels);
+            }
+            // Audio waits for an approval; asking directly says what's missing.
+            if !job.user_initiated && self.models.transcription_server_blocked() {
                 return Ok(Outcome::WaitingForModels);
             }
             library.mark_job_started(meeting.id)?;
@@ -253,16 +435,29 @@ impl Inner {
                     .filter(|l| l != "auto" && !l.is_empty()),
                 diarize: settings.multi_speaker_diarization,
                 microphone_is_user: settings.microphone_is_user,
-                vocabulary_prompt: Some(settings.transcription_prompt.clone())
-                    .filter(|p| !p.trim().is_empty()),
+                vocabulary_prompt: Some(lokalbot_core::vocabulary::transcription_prompt(
+                    &meeting,
+                    library,
+                    &settings,
+                    lokalbot_speech::models::accepts_vocabulary(&settings.transcription_model),
+                    job.resumed,
+                ))
+                .filter(|p| !p.trim().is_empty()),
                 content_range: meeting.valid_content_range().map(|r| (r.start, r.end)),
+                collect_voice_samples: !meeting.is_sample(),
+                echo: settings
+                    .echo_cancellation
+                    .then(|| lokalbot_core::voice::reference_clock(&library.meeting_dir(&meeting))),
+                clock: Some(lokalbot_core::voice::reference_clock(
+                    &library.meeting_dir(&meeting),
+                )),
             };
             self.stage(&meeting, Stage::Transcribing, "Transcribing", None);
-            let transcript = self
+            let detailed = self
                 .shared
                 .speech
                 .with(&self.shared, &settings.transcription_model, |transcriber| {
-                    transcriber.transcribe_meeting(
+                    transcriber.transcribe_meeting_detailed(
                         audio.mic.as_deref(),
                         audio.system.as_deref(),
                         &options,
@@ -285,18 +480,52 @@ impl Inner {
                     )
                 })
                 .context("transcription")?;
-            let mut transcript = transcript;
+            let mut transcript = detailed.transcript;
             if let Some(range) = meeting.valid_content_range() {
                 range.apply(&mut transcript);
             }
-            if meeting.is_merged_meeting() {
-                transcript = lokalbot_core::merge::preserve_transcript_only_sources(
-                    library.transcript(&meeting)?.as_ref(),
-                    &library.meeting_dir(&meeting),
-                    transcript,
-                )?;
-            }
-            library.save_transcript(&meeting, &transcript)?;
+            let previous = library.transcript(&meeting)?;
+            // Names remembered voices and carries over what people decided.
+            // Identity errors never fail audio transcription.
+            let memory = crate::voice::memory(library);
+            let evidence = crate::voice::microphone_evidence(
+                library,
+                &meeting,
+                &transcript,
+                &detailed.turns,
+                &detailed.samples,
+            );
+            let identified = memory.process(lokalbot_core::voice::ProcessRequest {
+                transcript: &transcript,
+                meeting: &meeting,
+                turns: &detailed.turns,
+                evidence,
+                mic: audio.mic.as_deref(),
+                system: audio.system.as_deref(),
+                previous: previous.as_ref(),
+                name_automatically: crate::voice::NAME_SPEAKERS_AUTOMATICALLY,
+            });
+            transcript = match identified {
+                Ok(named) => named,
+                Err(err) => {
+                    log::warn!("speaker identity skipped meeting={}: {err}", meeting.id);
+                    memory.note_unavailable(meeting.id, &err);
+                    // Names the user gave speakers survive a new transcription.
+                    if let Some(previous) = &previous {
+                        transcript.carry_speaker_names_from(previous);
+                    }
+                    transcript
+                }
+            };
+            let transcript = finished_transcript(
+                &meeting,
+                &library.meeting_dir(&meeting),
+                previous.as_ref(),
+                transcript,
+                options.vocabulary_prompt.as_deref(),
+            )?;
+            let transcript = memory.applying_latest_decision(&transcript, meeting.id);
+            library.save_new_transcript(&meeting, &transcript)?;
             library.mark_transcription_completed(meeting.id)?;
             library.reindex_meeting(&meeting)?;
             self.shared.emit(EngineEvent::LibraryChanged);
@@ -305,13 +534,23 @@ impl Inner {
             }
         }
 
-        if job.summarize {
-            let Some(transcript) = library.transcript(&meeting)? else {
+        if job.writes_notes(self.shared.settings().auto_summarize) {
+            let Some(mut transcript) = library.transcript(&meeting)? else {
                 return Ok(Outcome::Done);
             };
+            // The vocabulary this meeting was transcribed with, so rows that
+            // only repeat it never become notes evidence.
+            let saved_prompt = lokalbot_core::vocabulary::saved_prompt(
+                &settings.transcription_prompt,
+                &library.meeting_dir(&meeting),
+            );
+            if lokalbot_speech::sanitize(&mut transcript, Some(&saved_prompt)).changed() {
+                library.save_transcript(&meeting, &transcript)?;
+            }
             if transcript.segments.is_empty() {
                 return Ok(Outcome::Done);
             }
+            let transcript = self.recover_speakers(&meeting, transcript)?;
             let requirements = self.models.think_requirements();
             if !self.models.ensure(&requirements, job.user_initiated)? {
                 return Ok(Outcome::WaitingForModels);
@@ -324,29 +563,75 @@ impl Inner {
                 "Preparing Think model",
                 None,
             );
-            let think = self.shared.think(&settings)?;
+            let think = self
+                .shared
+                .think(&settings)?
+                .with_priority(Priority::Pipeline, "meeting notes");
             self.stage(&meeting, Stage::Summarizing, "Writing notes", None);
             let user_notes = library.notes(&meeting)?;
-            let notes = lokalbot_ai::notes::generate_meeting_notes(
+            let started = std::time::Instant::now();
+            let folder = library.meeting_dir(&meeting);
+            let options = lokalbot_ai::notes::NotesOptions {
+                checkpoint_dir: Some(folder.clone()),
+                retrying_stopped_parts: job.user_initiated,
+                cancel: None,
+                // On-screen titles as secondary, source-labeled context.
+                screen_titles: if settings.meeting_notes_use_screen_titles && !meeting.is_imported()
+                {
+                    library.meeting_screen_context(&meeting).material_titles()
+                } else {
+                    Vec::new()
+                },
+            };
+            let notes = lokalbot_ai::notes::generate_meeting_notes_with(
                 &think,
                 &meeting,
                 &transcript,
                 &user_notes,
                 &settings,
+                &options,
                 &mut |detail: &str| self.stage(&meeting, Stage::Summarizing, detail, None),
             )?;
-            library.save_summary(&meeting, &notes.summary_markdown)?;
-            library.save_outcomes(&meeting, &notes.outcomes)?;
-            lokalbot_core::library::write_json(
-                &library.meeting_dir(&meeting).join("summary-claims.json"),
-                &notes.claims,
-            )?;
-            // Notes match the transcript again (`MeetingAttributionArtifacts`).
-            let _ = std::fs::remove_file(
-                library
-                    .meeting_dir(&meeting)
-                    .join(lokalbot_core::library::REFRESH_MARKER),
+            self.shared.generation_metrics.record(
+                format!("Summary · {}", think.display_name()),
+                started.elapsed().as_secs_f64(),
+                &notes.summary_markdown,
             );
+            // Notes for a transcript that changed meanwhile would be wrong.
+            if library.transcript(&meeting)?.as_ref() != Some(&transcript) {
+                anyhow::bail!(
+                    "Speaker attribution changed during generation. Refresh the meeting notes."
+                );
+            }
+            let previous = match library.outcomes(&meeting)? {
+                Some(outcomes) => Some(outcomes),
+                None => library.previous_outcomes(&meeting)?,
+            };
+            let state = library.outcome_state(&meeting)?;
+            library.save_outcomes(&meeting, &notes.outcomes)?;
+            if let Some(previous) = &previous {
+                let reconciled = lokalbot_core::meeting_review::reconcile_state(
+                    &state,
+                    previous,
+                    &notes.outcomes,
+                );
+                library.save_outcome_state(&meeting, &reconciled)?;
+            }
+            // Explicit user edits stay the authority for the sections beside them.
+            let authoritative = library
+                .outcome_projection(&meeting)?
+                .map(|projection| projection.corrected_outcomes())
+                .unwrap_or_else(|| notes.outcomes.clone());
+            let summary = lokalbot_ai::notes::render::synchronize(
+                &notes.summary_markdown,
+                &authoritative,
+                settings.note_template,
+            );
+            lokalbot_core::library::write_json(&folder.join("summary-claims.json"), &notes.claims)?;
+            library.save_summary(&meeting, &summary)?;
+            lokalbot_ai::notes::remove_checkpoint(&folder);
+            // Notes match the transcript again (`MeetingAttributionArtifacts`).
+            let _ = std::fs::remove_file(folder.join(lokalbot_core::library::REFRESH_MARKER));
             library.reindex_meeting(&meeting)?;
             if settings.semantic_search_enabled
                 && self
@@ -360,5 +645,320 @@ impl Inner {
             }
         }
         Ok(Outcome::Done)
+    }
+}
+
+/// The transcript to commit: rows a merged meeting's transcript-only sources
+/// keep, then the cleanup every source of rows must pass, kept or new
+/// (`transcript cleanup after merge`).
+fn finished_transcript(
+    meeting: &Meeting,
+    folder: &std::path::Path,
+    previous: Option<&lokalbot_core::Transcript>,
+    regenerated: lokalbot_core::Transcript,
+    prompt: Option<&str>,
+) -> Result<lokalbot_core::Transcript> {
+    let mut transcript = if meeting.is_merged_meeting() {
+        lokalbot_core::merge::preserve_transcript_only_sources(previous, folder, regenerated)?
+    } else {
+        regenerated
+    };
+    let report = lokalbot_speech::sanitize(&mut transcript, prompt);
+    if report.changed() {
+        log::info!(
+            "transcript cleanup after merge changed={} removed={} removed_words={}",
+            report.changed_segments,
+            report.removed_segments,
+            report.removed_words
+        );
+    }
+    Ok(transcript)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A finished recording with audio on disk and no transcript.
+    fn finished_recording(library: &lokalbot_core::Library, title: &str) -> Meeting {
+        let started = chrono::Utc::now() - chrono::Duration::hours(2);
+        let mut meeting = library.create_meeting(title, "Zoom", started).unwrap();
+        lokalbot_audio::write_wav_16k(
+            &library.meeting_dir(&meeting).join(lokalbot_audio::MIC_FILE),
+            &vec![0.25f32; 16_000 * 6],
+        )
+        .unwrap();
+        meeting.ended_at = Some(started + chrono::Duration::minutes(5));
+        meeting.recorded_duration = Some(6.0);
+        library.save_meeting(&meeting).unwrap();
+        meeting
+    }
+
+    fn library() -> (tempfile::TempDir, lokalbot_core::Library) {
+        let dir = tempfile::tempdir().unwrap();
+        let library =
+            lokalbot_core::Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        (dir, library)
+    }
+
+    fn pipeline(library: lokalbot_core::Library, settings: lokalbot_core::Settings) -> Pipeline {
+        let shared = Shared::for_tests(library, settings, |_| {});
+        let models = crate::models::Models::new(shared.clone());
+        Pipeline::start(shared, models)
+    }
+
+    /// Waits for the launch repair, which runs on a thread of its own.
+    fn wait_for_jobs(library: &lokalbot_core::Library, count: usize) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while library.pending_jobs().unwrap().len() < count {
+            assert!(std::time::Instant::now() < deadline, "no job was queued");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn launch_queues_finished_recordings_that_never_got_a_transcript() {
+        let (_dir, library) = library();
+        let missing = finished_recording(&library, "Never transcribed");
+        let settings = lokalbot_core::Settings {
+            auto_transcribe: true,
+            auto_summarize: false,
+            ..Default::default()
+        };
+        let pipeline = pipeline(library.clone(), settings);
+        pipeline.stop();
+        wait_for_jobs(&library, 1);
+        let job = library.job(missing.id).unwrap().unwrap();
+        assert!(job.transcribe && !job.summarize);
+        assert!(job.summary_follows_setting);
+    }
+
+    #[test]
+    fn launch_leaves_recordings_alone_while_automatic_transcription_is_off() {
+        let (_dir, library) = library();
+        finished_recording(&library, "Kept as audio");
+        let settings = lokalbot_core::Settings {
+            auto_transcribe: false,
+            ..Default::default()
+        };
+        let pipeline = pipeline(library.clone(), settings);
+        pipeline.stop();
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(library.pending_jobs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_repair_skips_parked_and_transcribed_meetings() {
+        let (_dir, library) = library();
+        let parked = finished_recording(&library, "Failed three times");
+        library.enqueue_job(parked.id, true, true, false).unwrap();
+        for _ in 0..lokalbot_core::jobs::MAX_AUTO_RESUME_ATTEMPTS {
+            library.mark_job_started(parked.id).unwrap();
+        }
+        let done = finished_recording(&library, "Transcribed");
+        std::fs::write(library.meeting_dir(&done).join("transcript.json"), "{}").unwrap();
+        let settings = lokalbot_core::Settings {
+            auto_transcribe: false,
+            ..Default::default()
+        };
+        let pipeline = pipeline(library.clone(), settings);
+        pipeline.stop();
+        assert!(pipeline.enqueue_missing_transcriptions(false).is_empty());
+        assert!(library.pending_jobs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_merged_gap_is_repaired_at_most_once() {
+        let (_dir, library) = library();
+        let mut meeting = finished_recording(&library, "Merged");
+        meeting.recorded_duration = Some(200.0);
+        meeting.merged_source_meeting_ids = Some(vec![Uuid::new_v4(), Uuid::new_v4()]);
+        library.save_meeting(&meeting).unwrap();
+        let folder = library.meeting_dir(&meeting);
+        let started = meeting.started_at;
+        let source = |duration: f64| lokalbot_core::merge::ManifestSource {
+            id: Uuid::new_v4(),
+            title: "Source".into(),
+            started_at: started,
+            duration,
+            has_audio: Some(true),
+            has_transcript: Some(true),
+        };
+        std::fs::write(
+            folder.join(lokalbot_core::merge::MANIFEST_FILE),
+            serde_json::to_vec(&lokalbot_core::merge::Manifest {
+                version: 2,
+                sources: vec![source(100.0), source(100.0)],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        // The transcript has nothing at all in the second source's span.
+        let transcript = lokalbot_core::Transcript {
+            segments: vec![lokalbot_core::Segment {
+                start: 1.0,
+                end: 5.0,
+                speaker: "source1:them".into(),
+                text: "Only the first half.".into(),
+                confidence: None,
+                timing_precision: None,
+                attribution: None,
+            }],
+            ..Default::default()
+        };
+        library.save_new_transcript(&meeting, &transcript).unwrap();
+        let settings = lokalbot_core::Settings {
+            auto_transcribe: false,
+            ..Default::default()
+        };
+        let pipeline = pipeline(library.clone(), settings);
+        pipeline.stop();
+
+        assert_eq!(
+            pipeline.enqueue_missing_transcriptions(true),
+            vec![meeting.id]
+        );
+        let marker: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(folder.join("transcript-gap-repair.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(marker["requestedAt"].as_str().unwrap().ends_with('Z'));
+
+        library.mark_job_completed(meeting.id).unwrap();
+        assert!(pipeline.enqueue_missing_transcriptions(true).is_empty());
+    }
+
+    #[test]
+    fn jobs_for_deleted_meetings_go_at_launch() {
+        let (_dir, library) = library();
+        let kept = finished_recording(&library, "Kept");
+        library.enqueue_job(kept.id, true, false, false).unwrap();
+        let gone = Uuid::new_v4();
+        library.enqueue_job(gone, true, false, false).unwrap();
+        let pipeline = pipeline(library.clone(), lokalbot_core::Settings::default());
+        pipeline.stop();
+        assert!(library.job(gone).unwrap().is_none());
+        assert!(library.job(kept.id).unwrap().is_some());
+    }
+
+    /// A merged meeting whose first source had a transcript and no audio.
+    fn merged_with_transcript_only_source(folder: &std::path::Path) -> Meeting {
+        let started = chrono::Utc::now();
+        let mut meeting = Meeting::new("Both", "Merged meetings", started, "both");
+        meeting.merged_source_meeting_ids = Some(vec![Uuid::new_v4(), Uuid::new_v4()]);
+        let source = |has_audio, has_transcript| lokalbot_core::merge::ManifestSource {
+            id: Uuid::new_v4(),
+            title: "Source".into(),
+            started_at: started,
+            duration: 100.0,
+            has_audio: Some(has_audio),
+            has_transcript: Some(has_transcript),
+        };
+        let manifest = lokalbot_core::merge::Manifest {
+            version: 2,
+            sources: vec![source(false, true), source(true, true)],
+        };
+        std::fs::write(
+            folder.join(lokalbot_core::merge::MANIFEST_FILE),
+            serde_json::to_vec(&manifest).unwrap(),
+        )
+        .unwrap();
+        meeting
+    }
+
+    fn row(start: f64, end: f64, text: &str) -> lokalbot_core::Segment {
+        lokalbot_core::Segment {
+            start,
+            end,
+            speaker: "source1:them".into(),
+            text: text.into(),
+            confidence: None,
+            timing_precision: None,
+            attribution: None,
+        }
+    }
+
+    #[test]
+    fn rows_kept_from_a_transcript_only_source_are_cleaned_too() {
+        let dir = tempfile::tempdir().unwrap();
+        let meeting = merged_with_transcript_only_source(dir.path());
+        let previous = lokalbot_core::Transcript {
+            segments: vec![row(3.0, 13.0, &vec!["thank you"; 40].join(" "))],
+            ..Default::default()
+        };
+        let regenerated = lokalbot_core::Transcript {
+            segments: vec![row(120.0, 125.0, "Recorded speech")],
+            ..Default::default()
+        };
+        let finished =
+            finished_transcript(&meeting, dir.path(), Some(&previous), regenerated, None).unwrap();
+        let texts: Vec<_> = finished.segments.iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(texts, ["thank you thank you", "Recorded speech"]);
+    }
+
+    #[test]
+    fn rows_that_only_repeat_the_vocabulary_are_removed_after_the_merge() {
+        let dir = tempfile::tempdir().unwrap();
+        let meeting = merged_with_transcript_only_source(dir.path());
+        let prompt = "Vocabulary: LokalBot, Zagreb, Qwen, Parakeet.";
+        let previous = lokalbot_core::Transcript {
+            segments: vec![
+                row(3.0, 13.0, prompt),
+                row(20.0, 25.0, "Notes from the first call"),
+            ],
+            ..Default::default()
+        };
+        let finished = finished_transcript(
+            &meeting,
+            dir.path(),
+            Some(&previous),
+            lokalbot_core::Transcript::default(),
+            Some(prompt),
+        )
+        .unwrap();
+        let texts: Vec<_> = finished.segments.iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(texts, ["Notes from the first call"]);
+    }
+
+    fn saved(summary_follows_setting: bool) -> lokalbot_core::PipelineJob {
+        lokalbot_core::PipelineJob {
+            meeting_id: Uuid::new_v4(),
+            transcribe: true,
+            transcription_completed: true,
+            summarize: true,
+            summary_follows_setting,
+            attempts: 1,
+            last_error: None,
+        }
+    }
+
+    #[test]
+    fn a_resumed_automatic_summary_follows_the_current_setting() {
+        let automatic = Job::resumed(&saved(true));
+        assert!(
+            !automatic.transcribe,
+            "its transcript was already committed"
+        );
+        assert!(automatic.writes_notes(true));
+        assert!(!automatic.writes_notes(false));
+
+        let explicit = Job::resumed(&saved(false));
+        assert!(
+            explicit.writes_notes(false),
+            "an explicit request still runs"
+        );
+    }
+
+    #[test]
+    fn an_explicit_request_overrides_a_queued_automatic_one() {
+        let mut job = Job::resumed(&saved(true));
+        job.merge(false, true, true);
+        assert!(job.writes_notes(false));
+        let mut job = Job::resumed(&saved(false));
+        job.merge(true, true, false);
+        assert!(
+            job.writes_notes(false),
+            "an automatic enqueue keeps it explicit"
+        );
     }
 }

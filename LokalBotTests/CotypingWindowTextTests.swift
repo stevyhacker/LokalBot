@@ -106,6 +106,59 @@ final class CotypingWindowTextTests: XCTestCase {
 
     // MARK: - Rereading
 
+    /// A reread reuses the last lines when the window image is unchanged
+    /// outside the field: the caret blinking in the field does not count, a
+    /// changed word elsewhere or a moved window or field does.
+    func testFingerprintIgnoresTheFieldButNotTheRestOfTheWindow() throws {
+        let window = CGRect(x: 100, y: 50, width: 750, height: 500)
+        let field = CGRect(x: 150, y: 450, width: 600, height: 40)
+        // 2 pixels per point; rectangles in pixels from the image's top left.
+        func image(_ marks: [CGRect]) throws -> CGImage {
+            let context = try XCTUnwrap(CGContext(
+                data: nil, width: 1_500, height: 1_000, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            context.setFillColor(CGColor(gray: 0.97, alpha: 1))
+            context.fill(CGRect(x: 0, y: 0, width: 1_500, height: 1_000))
+            context.setFillColor(CGColor(gray: 0.1, alpha: 1))
+            for line in 0..<10 {
+                context.fill(CGRect(x: 80, y: 1_000 - 60 - line * 60 - 18, width: 900 - line * 40, height: 18))
+            }
+            for mark in marks {
+                context.fill(CGRect(x: mark.minX, y: 1_000 - mark.maxY, width: mark.width, height: mark.height))
+            }
+            return try XCTUnwrap(context.makeImage())
+        }
+        let plain = try image([])
+        let caret = try image([CGRect(x: 400, y: 815, width: 2, height: 30)])
+        let draft = try image([CGRect(x: 120, y: 810, width: 300, height: 30)])
+        let changedWord = try image([CGRect(x: 1_000, y: 120, width: 40, height: 18)])
+        func fingerprint(_ image: CGImage, window: CGRect = window, field: CGRect = field) throws -> Data {
+            try XCTUnwrap(CotypingWindowText.fingerprint(of: image, windowFrame: window, fieldFrame: field))
+        }
+        XCTAssertEqual(try fingerprint(plain), try fingerprint(plain))
+        XCTAssertEqual(try fingerprint(caret), try fingerprint(plain))
+        XCTAssertEqual(try fingerprint(draft), try fingerprint(plain))
+        XCTAssertNotEqual(try fingerprint(changedWord), try fingerprint(plain))
+        XCTAssertNotEqual(try fingerprint(plain, window: window.offsetBy(dx: 10, dy: 0)), try fingerprint(plain))
+        XCTAssertNotEqual(try fingerprint(plain, field: field.insetBy(dx: 0, dy: -10)), try fingerprint(plain))
+    }
+
+    func testReusedLinesAreForgottenWithTheTextInUse() {
+        let recognized = CotypingWindowTextCapture.RecognizedLines()
+        let lines = [Line(text: "Shared plan", frame: CGRect(x: 0, y: 0, width: 100, height: 20))]
+        let fingerprint = Data([1, 2, 3])
+        let generation = recognized.generation
+        recognized.store(lines, forKey: "field", fingerprint: fingerprint, ifGeneration: generation)
+        XCTAssertEqual(recognized.lines(forKey: "field", fingerprint: fingerprint), lines)
+        XCTAssertNil(recognized.lines(forKey: "other field", fingerprint: fingerprint))
+        XCTAssertNil(recognized.lines(forKey: "field", fingerprint: Data([9])))
+        recognized.clear()
+        XCTAssertNil(recognized.lines(forKey: "field", fingerprint: fingerprint))
+        // A recognition that started before the text was forgotten cannot store.
+        recognized.store(lines, forKey: "field", fingerprint: fingerprint, ifGeneration: generation)
+        XCTAssertNil(recognized.lines(forKey: "field", fingerprint: fingerprint))
+    }
+
     func testRereadingKeepsThePromptUnlessNewTextAppears() {
         let current = Self.snapshot(Self.chat)
         XCTAssertFalse(CotypingWindowText.shouldReplace(current, with: Self.snapshot(Self.chat), heldFor: 5))
@@ -232,6 +285,70 @@ final class CotypingWindowTextTests: XCTestCase {
         clock.now += CotypingWindowTextCapture.refreshInterval
         expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
         XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true)
+    }
+
+    /// 2026-10-16: rereads added new text every few seconds while typing, and
+    /// each one made the next keystroke read the whole prompt again (268 ms
+    /// instead of 41). New text now waits for a pause in typing.
+    func testNewTextWaitsForAPauseInTyping() {
+        let clock = Clock()
+        let reply = Self.chat + [Self.line("Sarah: Thanks, I'll tell Daniel.", y: 760)]
+        let reads = Reads([Self.chat, reply])
+        // The wait never ends on its own here; the test steps the clock.
+        let capture = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in reads.next() },
+                                                sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) })
+        defer { capture.removeAll() }
+        capture.noteTyping()
+        expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+        let first = capture.cachedSnapshot()
+        XCTAssertNotNil(first, "The first text for a field is used at once, even while typing")
+
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        capture.noteTyping()
+        expectUpdate(capture, changes: false) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+        XCTAssertEqual(capture.snapshot(forKey: "a") { nil }, first, "New text never changes the prompt mid-typing")
+
+        clock.now += CotypingWindowTextCapture.typingPause / 2
+        capture.noteTyping()
+        clock.now += CotypingWindowTextCapture.typingPause / 2
+        capture.adoptPendingIfQuiet()
+        XCTAssertEqual(capture.cachedSnapshot(), first, "Each key starts the pause over")
+
+        clock.now += CotypingWindowTextCapture.typingPause
+        expectUpdate(capture) { capture.adoptPendingIfQuiet() }
+        XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true)
+    }
+
+    func testHeldTextIsUsedOnceThePauseComesOrDroppedWhenItIsNoLongerNew() {
+        let clock = Clock()
+        let reply = Self.chat + [Self.line("Sarah: Thanks, I'll tell Daniel.", y: 760)]
+        let reads = Reads([Self.chat, reply])
+        let capture = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in reads.next() },
+                                                sleep: { clock.now += $0 })
+        defer { capture.removeAll() }
+        expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        capture.noteTyping()
+        expectUpdate(capture) { _ = capture.snapshot(forKey: "a") { Self.request("a") } }
+        XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true,
+                      "The wait for the pause ends on its own")
+
+        // Held text that a later read no longer has is never used.
+        let heldReads = Reads([Self.chat, reply, Self.chat])
+        let held = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in heldReads.next() },
+                                             sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) })
+        defer { held.removeAll() }
+        expectUpdate(held) { _ = held.snapshot(forKey: "a") { Self.request("a") } }
+        let first = held.cachedSnapshot()
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        held.noteTyping()
+        expectUpdate(held, changes: false) { _ = held.snapshot(forKey: "a") { Self.request("a") } }
+        clock.now += CotypingWindowTextCapture.refreshInterval
+        expectUpdate(held, changes: false) { _ = held.snapshot(forKey: "a") { Self.request("a") } }
+        held.adoptPendingIfQuiet()
+        XCTAssertEqual(held.cachedSnapshot(), first)
+        XCTAssertEqual(heldReads.count, 3)
     }
 
     // MARK: - Grant, settings and prompt

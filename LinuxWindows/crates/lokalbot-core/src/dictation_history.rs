@@ -79,6 +79,20 @@ impl Entry {
             .collect::<Vec<_>>()
             .join(" ")
     }
+
+    /// Time and the start of the text, such as "2:20 PM — Can you check…".
+    pub fn menu_title(&self) -> String {
+        const LIMIT: usize = 60;
+        let line = self.preview();
+        let start = if line.chars().count() > LIMIT {
+            let mut start: String = line.chars().take(LIMIT - 1).collect();
+            start.push('…');
+            start
+        } else {
+            line
+        };
+        format!("{} — {start}", crate::time::clock_time(self.date))
+    }
 }
 
 /// The latest dictations, newest first: at most [`LIMIT`], none older than
@@ -308,6 +322,21 @@ mod tests {
         assert_eq!(
             history.find(Some(second)).map(|e| e.text.as_str()),
             Some("Second")
+        );
+    }
+
+    #[test]
+    fn a_menu_title_has_the_time_and_the_start_of_the_text() {
+        let now = Utc::now();
+        let time = crate::time::clock_time(now);
+        assert_eq!(
+            entry("Line one\nline two", now).menu_title(),
+            format!("{time} — Line one line two")
+        );
+        let long = "x".repeat(80);
+        assert_eq!(
+            entry(&long, now).menu_title(),
+            format!("{time} — {}…", "x".repeat(59))
         );
     }
 

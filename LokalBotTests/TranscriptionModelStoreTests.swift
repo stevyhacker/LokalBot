@@ -3,6 +3,39 @@ import FluidAudio
 @testable import LokalBot
 
 final class TranscriptionModelStoreTests: XCTestCase {
+    func testSpeech5RequiresItsOwnCompleteCacheAndDeletionPreserves41() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeGraniteModel(in: environment)
+        let configuration = GraniteSpeechModelConfiguration.speech5
+        let model = GraniteSpeechEngine.modelURL(configuration: configuration, appSupport: environment.appSupport)
+        let projector = GraniteSpeechEngine.projectorURL(configuration: configuration, appSupport: environment.appSupport)
+
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.graniteSpeech5, environment: environment))
+        try writeGGUF(model)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.graniteSpeech5, environment: environment))
+        try writeGGUF(projector)
+        XCTAssertTrue(TranscriptionModelStore.downloadedChoices(environment: environment).contains("granite-speech-5.0-2b"))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.graniteSpeech, environment: environment))
+
+        try TranscriptionModelStore.delete(.graniteSpeech5, environment: environment)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: model.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: projector.path))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.graniteSpeech, environment: environment))
+    }
+
+    func testDeletingGranite41LeavesSpeech5Downloaded() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeGraniteModel(in: environment)
+        try writeGGUF(GraniteSpeechEngine.modelURL(configuration: .speech5, appSupport: environment.appSupport))
+        try writeGGUF(GraniteSpeechEngine.projectorURL(configuration: .speech5, appSupport: environment.appSupport))
+
+        try TranscriptionModelStore.delete(.graniteSpeech, environment: environment)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.graniteSpeech, environment: environment))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.graniteSpeech5, environment: environment))
+    }
+
     func testDownloadedChoicesReadDiskCaches() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -62,13 +95,14 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(.parakeetV3, environment: environment))
     }
 
-    func testLegacyWhisperCacheIsRecognizedAndMigratedToApplicationSupport() throws {
+    func testLegacyWhisperCacheCountsOnlyAfterMigrationToApplicationSupport() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
         let legacyRoot = try XCTUnwrap(environment.legacyWhisperKitRepoRoot)
         let legacyModel = try writeWhisperModel(in: legacyRoot)
 
-        XCTAssertTrue(TranscriptionModelStore.isDownloaded(
+        // Readiness runs at launch and must not reach into ~/Documents.
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(
             .whisperLarge,
             environment: environment))
 
@@ -80,6 +114,9 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: migrated.appendingPathComponent("config.json").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: legacyModel.path))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(
+            .whisperLarge,
+            environment: environment))
     }
 
     func testWhisperMigrationDoesNotReplaceACompleteDestination() throws {
@@ -96,6 +133,28 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: legacyModel.appendingPathComponent("config.json").path))
+    }
+
+    /// Whisper prepares on every app start for people who use it, so once
+    /// Application Support has a model the legacy ~/Documents cache is not
+    /// even listed: listing it makes macOS ask for Documents access.
+    func testWhisperMigrationSkipsTheLegacyCacheOnceApplicationSupportHasAModel() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let legacyRoot = try XCTUnwrap(environment.legacyWhisperKitRepoRoot)
+        let otherLegacyModel = legacyRoot
+            .appendingPathComponent("openai_whisper-large-v3-v20240930_626MB", isDirectory: true)
+        for fileName in ["config.json", "AudioEncoder.mlmodelc", "MelSpectrogram.mlmodelc", "TextDecoder.mlmodelc"] {
+            try writeEmptyFile(otherLegacyModel.appendingPathComponent(fileName))
+        }
+        try writeWhisperModel(in: environment.whisperKitRepoRoot)
+
+        try TranscriptionModelStore.migrateLegacyWhisperKitModels(environment: environment)
+
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: otherLegacyModel.appendingPathComponent("config.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: environment.whisperKitRepoRoot
+            .appendingPathComponent(otherLegacyModel.lastPathComponent).path))
     }
 
     func testCustomGraniteQuantizationUsesItsConfiguredFiles() throws {

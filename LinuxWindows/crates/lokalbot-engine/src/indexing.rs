@@ -25,6 +25,10 @@ pub fn start(shared: Arc<Shared>, models: Models) {
                 }
                 Err(err) => log::warn!("updating the search index failed: {err:#}"),
             }
+            // This looks for the runtime once per launch.
+            while models.runtime_updating() && !shared.is_shutting_down() {
+                std::thread::sleep(Duration::from_secs(1));
+            }
             if !shared.settings().semantic_search_enabled
                 || !models.missing(&models.embedding_requirements()).is_empty()
             {

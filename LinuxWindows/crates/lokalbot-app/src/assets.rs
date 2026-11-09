@@ -23,6 +23,12 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     PinOff,
     // Meeting import, merge and boundaries
     Group, Import, Scissors, Undo2,
+    // Phones and tablets
+    Smartphone, Tablet,
+    // Selection actions
+    ClipboardCheck, Languages, Lightbulb, Minimize2, Reply, TextAlignStart, TextCursor,
+    // Files
+    FileCode, FileHeadphone, FileImage, FileVideoCamera,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

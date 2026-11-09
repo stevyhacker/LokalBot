@@ -104,6 +104,44 @@ final class RedesignContractTests: XCTestCase {
         XCTAssertEqual(RecallSearch.screenGroups([other] + ranked).map { $0.primary.snapshotID }, [2_001, 2_000])
     }
 
+    /// Recall fills snippets one session at a time; the groups must equal
+    /// filling every hit first, including sessions an unreadable hit splits.
+    func testLazilyFilledScreenGroupsMatchFillingEveryHit() {
+        let day = Calendar.current.startOfDay(for: Date())
+        var generator = SystemRandomNumberGenerator()
+        for round in 0..<20 {
+            let count = round == 0 ? 0 : Int.random(in: 1...600, using: &generator)
+            let hits = (0..<count).map { index -> ActivityStore.OCRHit in
+                let window = Int.random(in: 0..<12, using: &generator)
+                let minute = Double(Int.random(in: 0..<600, using: &generator))
+                return ActivityStore.OCRHit(snapshotID: Int64(index + 1),
+                                            ts: day.addingTimeInterval(minute * 60), app: "App \(window % 3)",
+                                            windowTitle: window >= 9 ? "" : "Window \(window)", snippet: "")
+            }
+            // Every fifth hit has no snippet; in windows 9–11, which have no title, it is unreadable.
+            let fill: ([ActivityStore.OCRHit]) -> [ActivityStore.OCRHit] = { batch in
+                batch.map { hit in
+                    var filled = hit
+                    filled.snippet = hit.snapshotID % 5 == 0 ? "" : "Budget review notes \(hit.snapshotID)"
+                    return filled
+                }
+            }
+            var filledCount = 0
+            for limit in [1, 3, 41] {
+                let eager = RecallSearch.screenGroups(
+                    RecallSearch.readableScreens(fill(hits), query: "budget"), limit: limit)
+                let lazy = RecallSearch.readableScreenGroups(hits, query: "budget", limit: limit) { batch in
+                    filledCount += batch.count
+                    return fill(batch)
+                }
+                XCTAssertEqual(lazy.map(\.id), eager.map(\.id), "round \(round), limit \(limit)")
+                XCTAssertEqual(lazy.map { $0.matches.map(\.snapshotID) }, eager.map { $0.matches.map(\.snapshotID) })
+                XCTAssertEqual(lazy.map { $0.matches.map(\.snippet) }, eager.map { $0.matches.map(\.snippet) })
+            }
+            XCTAssertLessThanOrEqual(filledCount, 3 * hits.count)
+        }
+    }
+
     func testRelativeDuePhrasesResolveOnlyAgainstTheirSpokenDay() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current

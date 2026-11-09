@@ -214,6 +214,139 @@ class MergedPullRequestUITests(unittest.TestCase):
         self.assertIn('pull-requests: read', release_workflow)
 
 
+class LaterWebsiteCommitsTests(unittest.TestCase):
+    """A candidate may sit behind master only by commits that can't reach a release."""
+
+    def setUp(self):
+        self.comparison = None
+
+    def api(self, path):
+        if path == 'git/ref/heads/master':
+            return {'object': {'sha': 'tip'}}
+        self.assertEqual(path, 'compare/candidate...tip')
+        return self.comparison
+
+    def ahead(self, *paths):
+        return dict(status='ahead', ahead_by=2, behind_by=0, files=[dict(filename=path) for path in paths])
+
+    def check(self):
+        with patch.object(release, 'command', return_value='candidate'), patch.object(release, 'api', side_effect=self.api), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(release.trusted_candidate(), 'candidate')
+        return output.getvalue()
+
+    def refused(self):
+        with self.assertRaises(ValueError):
+            self.check()
+
+    def test_the_tip_itself_needs_no_comparison(self):
+        with patch.object(release, 'command', return_value='tip'), patch.object(release, 'api', side_effect=self.api):
+            self.assertEqual(release.trusted_candidate(), 'tip')
+
+    def test_later_website_and_docs_files_keep_the_candidate(self):
+        self.comparison = self.ahead('web/index.html', 'Docs/plan.md', 'Video/demo.mp4', 'README.md',
+                                     'Scripts/render_web.py')
+        self.assertIn('past this candidate by 5 website or docs files', self.check())
+
+    def test_anything_a_release_could_ship_refuses(self):
+        for path in ['LokalBot/AppState.swift', 'LokalBot/Info.plist', 'project.yml', 'PRIVACY.md',
+                     'LinuxWindows/Cargo.toml', 'Companion/android/app/build.gradle.kts',
+                     'LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved',
+                     'Scripts/release-notes/v9.9.9.md', 'Scripts/build-mcpb.sh', 'Scripts/ci/release-candidate.py',
+                     '.github/workflows/release.yml', 'webhooks/index.html']:
+            with self.subTest(path=path):
+                self.comparison = self.ahead(path)
+                self.refused()
+                self.comparison = self.ahead('web/index.html', path)
+                self.refused()
+
+    def test_a_rename_out_of_the_app_refuses(self):
+        self.comparison = self.ahead('web/AppState.swift')
+        self.comparison['files'][0].update(status='renamed', previous_filename='LokalBot/AppState.swift')
+        self.refused()
+        self.comparison['files'][0]['previous_filename'] = 'web/old.html'
+        self.check()
+
+    def test_a_candidate_off_master_refuses(self):
+        for change in [dict(status='behind'), dict(status='diverged', behind_by=1), dict(status='identical'),
+                       dict(behind_by=1), dict(status=None)]:
+            with self.subTest(change=change):
+                self.comparison = dict(self.ahead('web/index.html'), **change)
+                self.refused()
+
+    def test_an_empty_or_possibly_cut_short_file_list_refuses(self):
+        self.comparison = self.ahead()
+        self.refused()
+        self.comparison = dict(status='ahead', behind_by=0)
+        self.refused()
+        self.comparison = self.ahead(*[f'web/{index}.html' for index in range(release.COMPARE_FILE_LIMIT)])
+        self.refused()
+        self.comparison = self.ahead(*[f'web/{index}.html' for index in range(release.COMPARE_FILE_LIMIT - 1)])
+        self.check()
+
+    def gates_with(self, head_sha):
+        run = dict(id=1, head_sha=head_sha, head_branch='master', event='push', status='completed',
+                   conclusion='success', run_number=3, run_attempt=1)
+        self.comparison = self.ahead('web/index.html')
+
+        def api(path):
+            if path.startswith('actions/workflows/'):
+                return {'workflow_runs': [run] if f'head_sha={head_sha}' in path else []}
+            if path.startswith('actions/runs/'):
+                return {'jobs': [dict(name=name, conclusion='success') for names in release.GATES.values() for name in names]}
+            return self.api(path)
+
+        with patch.object(release, 'command', return_value='candidate'), patch.object(release, 'api', side_effect=api), \
+                patch.object(release, 'merged_pull_request_ui', side_effect=ValueError('no UI run')), \
+                contextlib.redirect_stdout(io.StringIO()):
+            release.gates()
+
+    def test_gates_stay_bound_to_the_candidates_own_runs(self):
+        self.gates_with('candidate')
+        with self.assertRaises(ValueError):
+            self.gates_with('tip')
+
+    def test_preparing_refuses_a_commit_that_gets_no_build(self):
+        def command(*args):
+            if args[:2] == ('git', 'rev-parse'):
+                return 'candidate'
+            self.assertEqual(args, ('git', 'diff', '--name-only', 'candidate^', 'candidate'))
+            return self.changed
+
+        def api(path):
+            return {'object': {'sha': 'candidate'}}
+
+        with patch.object(release, 'command', side_effect=command), patch.object(release, 'api', side_effect=api):
+            self.changed = 'LokalBot/Info.plist\nweb/index.html'
+            release.check_candidate()
+            self.changed = 'web/index.html\nDocs/plan.md'
+            with self.assertRaises(ValueError):
+                release.check_candidate()
+
+    def test_prepare_release_dispatches_only_on_the_tip(self):
+        prepare = (ROOT / 'Scripts/prepare-release.sh').read_text()
+        self.assertLess(prepare.index('release-candidate.py candidate'), prepare.index('gh workflow run'))
+        moved = prepare.index('if [ "$sha" != "$remote_sha" ]; then')
+        self.assertLess(moved, prepare.index('gh workflow run release.yml'))
+        self.assertIn('exit 0', prepare[moved:prepare.index('gh workflow run release.yml')])
+
+    def test_a_website_push_starts_nothing_that_cancels_a_candidates_gates(self):
+        # A new run cancels the same group's running one, so a website push must
+        # either start no run or land in a group of its own.
+        for workflow in ['build.yml', 'xcodegen.yml']:
+            with self.subTest(workflow=workflow):
+                text = (ROOT / '.github/workflows' / workflow).read_text()
+                push = text.split('\n  push:\n', 1)[1].split('\nconcurrency:', 1)[0]
+                listed = [line.strip()[2:].strip('"') for line in push.splitlines() if line.strip().startswith('- ')]
+                self.assertEqual(sorted(listed), sorted(release.relevance.DOCS_ONLY))
+                self.assertNotIn('paths-ignore', text.split('\n  push:\n', 1)[0])
+        lint = (ROOT / '.github/workflows/lint.yml').read_text()
+        self.assertIn("group: lint-${{ github.ref == 'refs/heads/master' && github.sha || github.ref }}", lint)
+        ui = (ROOT / '.github/workflows/ui-tests.yml').read_text()
+        self.assertNotIn('\n  push:', ui.split('\non:\n', 1)[1].split('\nconcurrency:', 1)[0])
+        self.assertEqual(set(release.GATES), {'build.yml', 'xcodegen.yml', 'lint.yml', 'ui-tests.yml'})
+
+
 class CompleteCoverageTests(unittest.TestCase):
     def setUp(self):
         self.original = Path.cwd()

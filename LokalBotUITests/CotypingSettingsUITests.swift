@@ -1,6 +1,6 @@
 import XCTest
 
-/// Hosted coverage for autocomplete inside Settings → Writing.
+/// Hosted coverage for autocomplete inside Settings → Autocomplete.
 /// The legacy cotyping keys remain internal; user-facing language and routes
 /// are Autocomplete throughout.
 final class CotypingSettingsUITests: XCTestCase {
@@ -20,9 +20,9 @@ final class CotypingSettingsUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
             .waitForExistence(timeout: 10), "main window never rendered")
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Writing", in: app)
+        UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["autocomplete.home"]
-            .waitForExistence(timeout: 8), "Writing did not expose the autocomplete preview")
+            .waitForExistence(timeout: 8), "Autocomplete did not expose its preview")
     }
 
     override func tearDownWithError() throws {
@@ -40,7 +40,7 @@ final class CotypingSettingsUITests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "label == 'Insert suggestion'")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(staticText("Cotyping").exists,
-                       "legacy internal name leaked into the Writing settings")
+                       "legacy internal name leaked into the Autocomplete settings")
     }
 
     func testAutocompleteSettingsAndPreviewShareWriting() {
@@ -57,7 +57,7 @@ final class CotypingSettingsUITests: XCTestCase {
             XCTAssertTrue(enable.waitForExistence(timeout: 5))
             XCTAssertFalse(UITestHarness.toggle("Experimental hybrid suggestions", in: app).exists)
             UITestHarness.selectSettingsCategory("General", in: app)
-            UITestHarness.selectSettingsCategory("Writing", in: app)
+            UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         }
     }
 
@@ -66,7 +66,7 @@ final class CotypingSettingsUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
             .waitForExistence(timeout: 6), "Timeline did not render")
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Writing", in: app)
+        UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["autocomplete.home"]
             .waitForExistence(timeout: 8), "Autocomplete tab was not restored")
         XCTAssertTrue(app.descendants(matching: .any)["settings.form"].exists)

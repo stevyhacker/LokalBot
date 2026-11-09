@@ -53,7 +53,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
     private var transcript: Transcript {
         var result = Transcript(segments: [
             .init(start: 0, end: 5, speaker: "me", text: "I will ship the update on Friday."),
-            .init(start: 5, end: 10, speaker: "them", text: "I will review the documentation. We agreed to keep the release date."),
+            .init(start: 5, end: 10, speaker: "them", text: "I will review the documentation. We hope to keep the release date."),
             .init(start: 10, end: 15, speaker: "them", text: "What happens if the dependency is delayed?"),
         ], engine: "fixture")
         result.confirmSpeaker("me", isUser: true)
@@ -926,6 +926,24 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let actionProperties = try XCTUnwrap(item["properties"] as? [String: Any])
         XCTAssertEqual((actionProperties["quote"] as? [String: Any])?["maxLength"] as? Int, 1_000)
         XCTAssertTrue((item["required"] as? [String] ?? []).contains("quote"))
+    }
+
+    /// Filmed on 2026-11-04: Qwen 4B filed "Decision made…" under Key points,
+    /// so the notes said "No cited decisions" for a meeting that made two.
+    func testAStatedDecisionReachesTheFinishedNotesWhenTheModelFiledItElsewhere() async throws {
+        var filmed = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "me", text: "Agreed. Decision made, we shoot in the studio, can you book it for the 12th?"),
+            .init(start: 5, end: 10, speaker: "them", text: "Yes, I'll book it today."),
+            .init(start: 10, end: 15, speaker: "me", text: "Yes, we decided the launch stays on the 20th."),
+        ], engine: "fixture")
+        filmed.confirmSpeaker("me", isUser: true)
+        let script = Script([.text(try response(notes: [note("s1", "The shoot is in the studio.")]))])
+        let result = try await generate(script, transcript: filmed)
+        XCTAssertEqual(result.outcomes.decisionRecords.map(\.text),
+                       ["We shoot in the studio.", "We decided the launch stays on the 20th."])
+        XCTAssertEqual(result.claims.filter { $0.section == "Decisions" }.count, 2)
+        XCTAssertTrue(result.body.contains("We shoot in the studio."))
+        XCTAssertFalse(result.body.contains("can you book"), "the request stays out of the decision")
     }
 
     func testProseCannotOverrideDerivedSpeakerWithAModelID() throws {

@@ -321,7 +321,7 @@ struct AppSettings: Codable, Equatable {
     var retentionDays: Int = 14
     /// Keep OCR'd screen text past `retentionDays`. Off by default — screen
     /// text can be as sensitive as the pixels it came from, so keeping it
-    /// forever is an explicit opt-in (Settings → Privacy).
+    /// forever is an explicit opt-in (Settings → Screen & Activity).
     var keepOCRTextForever: Bool = false
     /// System-wide Quick Recall opens a compact search surface without first
     /// bringing the main app forward. Off by default because a global shortcut
@@ -416,6 +416,40 @@ struct AppSettings: Codable, Equatable {
     /// Local wall-clock hour (0...23) after which the overnight dream may run.
     /// Nights the Mac slept through catch up at the next launch or wake.
     var dreamingHour: Int = 4
+
+    // MARK: - Phones & tablets
+
+    /// Shares an allowlisted, end-to-end encrypted copy of the library with
+    /// phones and tablets the person pairs, over the local network or
+    /// Tailscale only. Off by default: nothing listens while it is off, and
+    /// it is independent of agent access and the other grants.
+    var companionSharingEnabled: Bool = false
+    /// What paired devices receive, per data class. The defaults are generous
+    /// because the copy stays on the person's own devices; each applies only
+    /// while sharing is on.
+    var companionShareMeetings: Bool = true
+    var companionShareTranscripts: Bool = true
+    var companionShareDigests: Bool = true
+    var companionShareTimeline: Bool = true
+    /// Window titles in the shared Timeline. Titles the Mac's retention has
+    /// already cleared stay cleared.
+    var companionShareWindowTitles: Bool = true
+    var companionSharePeople: Bool = true
+    var companionShareProjects: Bool = true
+    /// How far back the shared copy reaches; older records are withdrawn.
+    var companionHistory: CompanionHistoryWindow = .all
+    /// Answer questions sent from paired devices with the Think model and its
+    /// existing approvals.
+    var companionAnswersQuestions: Bool = true
+    /// Make meetings from recordings paired devices send, processed like any
+    /// other recording.
+    var companionAcceptsRecordings: Bool = true
+    /// The one TCP port the listener binds while sharing is on.
+    var companionPort: Int = CompanionSharing.defaultPort
+    /// Advertise `_lokalbot._tcp` on the local network. Off leaves the Mac
+    /// reachable only at the addresses a device stored when it paired, such
+    /// as its Tailscale address.
+    var companionAdvertisesOnBonjour: Bool = true
     /// First local calendar day eligible for dreaming during the current
     /// enabled period. Persisting the boundary prevents a multi-day sleep from
     /// silently skipping the last workday, without backfilling history from
@@ -426,6 +460,18 @@ struct AppSettings: Codable, Equatable {
     /// the person asks. Turning it off stops saving and use but keeps what is
     /// already remembered until the person forgets it.
     var askMemoryEnabled: Bool = true
+    /// Files (Settings → Files): search the folders the
+    /// person chooses by what is in them, with DigUp's engine. Off until they
+    /// turn it on after a notice; turning it off deletes the file index.
+    var fileSearchEnabled: Bool = false
+    /// The folders Files reads, as absolute paths.
+    var fileSearchFolders: [String] = []
+    /// Files also reads recordings and video (sound in 30-second windows, a
+    /// frame per shot), so a moment can be found and opened.
+    var fileSearchIncludesMedia: Bool = true
+    /// Files reads a folder's first pass on battery too. Off, big reads wait
+    /// for a charger; a few new files are read right away either way.
+    var fileSearchReadsOnBattery: Bool = false
     /// After the overnight review, learn facts and goals about the person
     /// from their own lines in that day's meetings (preferences wait for
     /// review; principles are never learned). Needs Ask memory and the review.
@@ -988,7 +1034,24 @@ struct AppSettings: Codable, Equatable {
         case dreamingEnabled
         case dreamingHour
         case dreamingFirstEligibleDayKey
+        case companionSharingEnabled
+        case companionShareMeetings
+        case companionShareTranscripts
+        case companionShareDigests
+        case companionShareTimeline
+        case companionShareWindowTitles
+        case companionSharePeople
+        case companionShareProjects
+        case companionHistory
+        case companionAnswersQuestions
+        case companionAcceptsRecordings
+        case companionPort
+        case companionAdvertisesOnBonjour
         case askMemoryEnabled
+        case fileSearchEnabled
+        case fileSearchFolders
+        case fileSearchIncludesMedia
+        case fileSearchReadsOnBattery
         case personalLearningEnabled
         case personalLearningFromDictation
         case memoryRoutinesEnabled
@@ -1205,7 +1268,24 @@ struct AppSettings: Codable, Equatable {
         try c.encodeIfPresent(
             dreamingFirstEligibleDayKey,
             forKey: .dreamingFirstEligibleDayKey)
+        try c.encode(companionSharingEnabled, forKey: .companionSharingEnabled)
+        try c.encode(companionShareMeetings, forKey: .companionShareMeetings)
+        try c.encode(companionShareTranscripts, forKey: .companionShareTranscripts)
+        try c.encode(companionShareDigests, forKey: .companionShareDigests)
+        try c.encode(companionShareTimeline, forKey: .companionShareTimeline)
+        try c.encode(companionShareWindowTitles, forKey: .companionShareWindowTitles)
+        try c.encode(companionSharePeople, forKey: .companionSharePeople)
+        try c.encode(companionShareProjects, forKey: .companionShareProjects)
+        try c.encode(companionHistory, forKey: .companionHistory)
+        try c.encode(companionAnswersQuestions, forKey: .companionAnswersQuestions)
+        try c.encode(companionAcceptsRecordings, forKey: .companionAcceptsRecordings)
+        try c.encode(CompanionSharing.clampedPort(companionPort), forKey: .companionPort)
+        try c.encode(companionAdvertisesOnBonjour, forKey: .companionAdvertisesOnBonjour)
         try c.encode(askMemoryEnabled, forKey: .askMemoryEnabled)
+        try c.encode(fileSearchEnabled, forKey: .fileSearchEnabled)
+        try c.encode(fileSearchFolders, forKey: .fileSearchFolders)
+        try c.encode(fileSearchIncludesMedia, forKey: .fileSearchIncludesMedia)
+        try c.encode(fileSearchReadsOnBattery, forKey: .fileSearchReadsOnBattery)
         try c.encode(personalLearningEnabled, forKey: .personalLearningEnabled)
         try c.encode(personalLearningFromDictation, forKey: .personalLearningFromDictation)
         try c.encode(memoryRoutinesEnabled, forKey: .memoryRoutinesEnabled)
@@ -1414,7 +1494,25 @@ struct AppSettings: Codable, Equatable {
         dreamingEnabled = decode(.dreamingEnabled, defaults.dreamingEnabled)
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)
+        companionSharingEnabled = decode(.companionSharingEnabled, defaults.companionSharingEnabled)
+        companionShareMeetings = decode(.companionShareMeetings, defaults.companionShareMeetings)
+        companionShareTranscripts = decode(.companionShareTranscripts, defaults.companionShareTranscripts)
+        companionShareDigests = decode(.companionShareDigests, defaults.companionShareDigests)
+        companionShareTimeline = decode(.companionShareTimeline, defaults.companionShareTimeline)
+        companionShareWindowTitles = decode(.companionShareWindowTitles, defaults.companionShareWindowTitles)
+        companionSharePeople = decode(.companionSharePeople, defaults.companionSharePeople)
+        companionShareProjects = decode(.companionShareProjects, defaults.companionShareProjects)
+        companionHistory = decode(.companionHistory, defaults.companionHistory)
+        companionAnswersQuestions = decode(.companionAnswersQuestions, defaults.companionAnswersQuestions)
+        companionAcceptsRecordings = decode(.companionAcceptsRecordings, defaults.companionAcceptsRecordings)
+        companionPort = CompanionSharing.clampedPort(decode(.companionPort, defaults.companionPort))
+        companionAdvertisesOnBonjour = decode(
+            .companionAdvertisesOnBonjour, defaults.companionAdvertisesOnBonjour)
         askMemoryEnabled = decode(.askMemoryEnabled, defaults.askMemoryEnabled)
+        fileSearchEnabled = decode(.fileSearchEnabled, defaults.fileSearchEnabled)
+        fileSearchFolders = decode(.fileSearchFolders, defaults.fileSearchFolders)
+        fileSearchIncludesMedia = decode(.fileSearchIncludesMedia, defaults.fileSearchIncludesMedia)
+        fileSearchReadsOnBattery = decode(.fileSearchReadsOnBattery, defaults.fileSearchReadsOnBattery)
         personalLearningEnabled = decode(.personalLearningEnabled, defaults.personalLearningEnabled)
         personalLearningFromDictation = decode(.personalLearningFromDictation, defaults.personalLearningFromDictation)
         memoryRoutinesEnabled = decode(.memoryRoutinesEnabled, defaults.memoryRoutinesEnabled)

@@ -3,12 +3,14 @@
 `lokalbot-bin/` holds the `PKGBUILD` and `.SRCINFO` published to the AUR as
 [lokalbot-bin](https://aur.archlinux.org/packages/lokalbot-bin), so Arch and
 Omarchy users can run `yay -S lokalbot-bin`. It repackages the release's
-`LokalBot-<version>-linux-x86_64.tar.gz` (checksum from its `.sha256` asset)
+`LokalBot-<version>-linux-x86_64.tar.gz` (with the SHA-256 GitHub reports for it)
 with the files and dependencies of the release's own Arch package
 (`scripts/package-linux-distros.sh`):
 
 - `/usr/bin/lokalbot` and `/usr/bin/lokalbot-cli`;
 - `/usr/share/applications/com.lokalbot.LokalBot.desktop` and the hicolor icons;
+- `/usr/share/ibus/component/com.lokalbot.LokalBot.xml`, which lists LokalBot as an
+  input source on GNOME (the archive has it from the first release after 0.12.0);
 - `LICENSE` (GPL-3.0), `THIRD_PARTY_NOTICES.md` and the `LICENSES/` folder
   of license texts it names (AGPL-3.0 for the Autocomplete code ported from
   Cotabby and, in releases after 0.11.0, the Rust crates' licenses) in
@@ -56,8 +58,8 @@ scripts/update-aur.sh 0.11.1        # pkgver, pkgrel=1, sha256, .SRCINFO
 scripts/ci/check-aur-package.sh
 ```
 
-`update-aur.sh` needs `makepkg`, or `docker`/`podman` to run it in an Arch
-container. For a packaging-only change to a published version (a new
+`update-aur.sh` needs `gh`, and `makepkg` or `docker`/`podman` to run it in an
+Arch container. For a packaging-only change to a published version (a new
 dependency, say), edit the `PKGBUILD`, run
 `scripts/update-aur.sh <same version> <pkgrel + 1>`, merge it, and publish it
 from master with `gh workflow run aur.yml -f tag=v<same version>`.

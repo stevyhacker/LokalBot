@@ -198,6 +198,11 @@ enum MeetingNotesGenerator {
         }
         let completed = checkpoint.parts.values.filter(\.complete).count
         guard completed == chunks.count else { throw Incomplete(completed: completed, total: chunks.count) }
+        let scanned = merged(checkpoint, transcript: transcript, template: template)
+        if let stated = evidence.statedDecisions(after: scanned.claims, template: template, meetingID: meetingID) {
+            // Keyed after the last part, so the decisions follow what the model wrote.
+            checkpoint.parts[String(chunks.count)] = Part(claims: stated.claims, outcomes: stated.outcomes, complete: true)
+        }
         let result = merged(checkpoint, transcript: transcript, template: template)
         try SummaryClaimEvidence.savePartial(result.claims, transcript: transcript, in: folder)
         return result

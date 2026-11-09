@@ -40,6 +40,28 @@ impl SurfaceClass {
         }
         SurfaceClass::Other
     }
+
+    /// `classify(bundleID:isIntegratedTerminal:)`: an xterm.js surface in an
+    /// editor or a browser is a terminal, whatever app it is in.
+    pub fn of_field(app_id: &str, app_name: &str, integrated_terminal: bool) -> Self {
+        if integrated_terminal {
+            SurfaceClass::Terminal
+        } else {
+            Self::of(app_id, app_name)
+        }
+    }
+
+    /// The Mac's raw value, used as a key in statistics and learned examples.
+    pub fn raw_name(self) -> &'static str {
+        match self {
+            SurfaceClass::CodeEditor => "codeEditor",
+            SurfaceClass::Terminal => "terminal",
+            SurfaceClass::Email => "email",
+            SurfaceClass::Chat => "chat",
+            SurfaceClass::Browser => "browser",
+            SurfaceClass::Other => "other",
+        }
+    }
 }
 
 /// "Code.exe" → "code", "/usr/bin/firefox" → "firefox",
@@ -276,6 +298,19 @@ pub fn compose(app_name: &str, app_id: &str, window_title: &str) -> Option<Surfa
         app_name: app,
         window_title: title,
     })
+}
+
+/// [`compose`] for a field: an integrated terminal has no surface to describe.
+pub fn compose_field(
+    app_name: &str,
+    app_id: &str,
+    window_title: &str,
+    integrated_terminal: bool,
+) -> Option<Surface> {
+    if integrated_terminal {
+        return None;
+    }
+    compose(app_name, app_id, window_title)
 }
 
 /// Conditions on the writing topic. Descriptions of the interface ("text

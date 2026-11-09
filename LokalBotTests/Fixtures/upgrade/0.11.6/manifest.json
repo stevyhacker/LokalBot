@@ -1,0 +1,10 @@
+{
+  "version": "0.11.6",
+  "keyDerivation": "sha256('lokalbot-upgrade-fixture-<account>')",
+  "accounts": [
+    "screenshot-key",
+    "chat-key"
+  ],
+  "generatedAt": "2026-10-30T08:55:53.229695+00:00",
+  "note": "Synthetic library and test-only keys. Safe to commit."
+}

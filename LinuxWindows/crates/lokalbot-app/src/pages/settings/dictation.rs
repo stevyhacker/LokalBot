@@ -1,20 +1,22 @@
 //! Dictation: the shortcut, how it triggers, Transcribe or Compose, where the
 //! text goes, a place to try it, and the recent dictations to copy again
 //! (`DictationSettingsControls.swift`, `DictationView.swift`,
-//! `RecentDictationsViews.swift`). The start sound and kept audio files are
-//! not implemented on Linux and Windows, so their rows are not shown.
+//! `RecentDictationsViews.swift`).
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::{Icon, Sizable as _, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
-use gpui_kit::{Context, FontWeight, ParentElement as _, SharedString, Styled as _, div, px};
+use gpui_kit::{
+    AnyElement, Context, FontWeight, IntoElement as _, ParentElement as _, SharedString,
+    Styled as _, div, px,
+};
 use lokalbot_core::Settings;
 use lokalbot_core::settings::{DictationIntent, DictationOutputMode, DictationTriggerMode};
 use lokalbot_engine::{Command, DictationCommand};
 
 use super::{Section, SettingsPage};
-use crate::state::AppEvent;
+use crate::state::{AppEvent, DictationHud};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{Ico, settings_row};
 
@@ -39,29 +41,143 @@ fn intent_detail(intent: DictationIntent) -> &'static str {
 }
 
 /// "Name, Style" or "Not set" (`DictationView.writingProfileSummary`).
-pub fn writing_profile_summary(settings: &Settings) -> &'static str {
-    match (
-        settings.cotyping_user_name.trim().is_empty(),
-        settings.cotyping_style_note.trim().is_empty(),
-    ) {
-        (false, false) => lokalbot_i18n::tr("Name, Style"),
-        (false, true) => lokalbot_i18n::tr("Name"),
-        (true, false) => lokalbot_i18n::tr("Style"),
-        (true, true) => lokalbot_i18n::tr("Not set"),
+pub fn writing_profile_summary(settings: &Settings) -> String {
+    let parts: Vec<&str> = [
+        ("Name", &settings.cotyping_user_name),
+        ("Style", &settings.cotyping_style_note),
+        ("Languages", &settings.cotyping_languages),
+        ("Terminology", &settings.cotyping_extended_context),
+    ]
+    .into_iter()
+    .filter(|(_, value)| !value.trim().is_empty())
+    .map(|(label, _)| lokalbot_i18n::tr(label))
+    .collect();
+    if parts.is_empty() {
+        lokalbot_i18n::tr("Not set").to_string()
+    } else {
+        parts.join(", ")
     }
 }
 
+/// The dictation in progress keeps the settings it started with, so its grants
+/// do not change under it.
+fn is_working(state: &DictationHud) -> bool {
+    !matches!(
+        state,
+        DictationHud::Idle
+            | DictationHud::Notice(_)
+            | DictationHud::Undelivered { .. }
+            | DictationHud::Failed(_)
+    )
+}
+
 impl SettingsPage {
+    /// A grant row, locked while a dictation is under way.
+    #[allow(clippy::too_many_arguments)]
+    fn grant(
+        &self,
+        id: &'static str,
+        title: &'static str,
+        help: Option<&'static str>,
+        value: bool,
+        locked: bool,
+        set: fn(&mut Settings, bool),
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let data = self.data.clone();
+        settings_row::row(
+            id,
+            lokalbot_i18n::tr(title).to_string(),
+            help.map(|help| lokalbot_i18n::tr(help).to_string().into()),
+            settings_row::switch(id, value, move |checked, _, cx| {
+                data.update(cx, |data, cx| data.update_settings(|s| set(s, checked), cx))
+            })
+            .disabled(locked),
+            self.is_focused(id),
+            cx,
+        )
+        .into_any_element()
+    }
+
+    /// What dictation runs on (`modelSection`), and any reason it can't reach
+    /// other apps on this desktop. The models themselves are chosen under Models.
+    fn dictation_model_section(
+        &self,
+        settings: &lokalbot_core::Settings,
+        cx: &mut Context<Self>,
+    ) -> Section {
+        let transcribe = lokalbot_speech::models::find(&settings.transcription_model).map_or_else(
+            || settings.transcription_model.clone(),
+            |m| m.display_name.to_string(),
+        );
+        let language = lokalbot_speech::language::language_name(&settings.transcription_language);
+        let mut section = Section::new(lokalbot_i18n::tr("Model"))
+            .row(
+                "settings.dictationTranscribeModel",
+                settings_row::row(
+                    "settings.dictationTranscribeModel",
+                    lokalbot_i18n::tr("Transcribe model"),
+                    None,
+                    settings_row::value(transcribe, cx),
+                    self.is_focused("settings.dictationTranscribeModel"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.dictationLanguage",
+                settings_row::row(
+                    "settings.dictationLanguage",
+                    lokalbot_i18n::tr("Language"),
+                    None,
+                    settings_row::value(lokalbot_i18n::tr(language).to_string(), cx),
+                    false,
+                    cx,
+                ),
+            );
+        if settings.dictation_intent != DictationIntent::Compose {
+            section = section.row(
+                "settings.dictationModelTrust",
+                settings_row::content_row(
+                    "settings.dictationModelTrust",
+                    settings_row::help(
+                        lokalbot_i18n::tr(
+                            "Speech recognition runs on this computer. No screen context or rewrite model is used.",
+                        ),
+                        cx,
+                    ),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        if let Some(limitation) = lokalbot_platform::insert::insertion_limitation() {
+            section = section.row(
+                "settings.dictationInsertion",
+                settings_row::content_row(
+                    "settings.dictationInsertion",
+                    settings_row::help(lokalbot_i18n::tr(&limitation).to_string(), cx),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        section
+    }
+
     pub(super) fn dictation_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
-        let (settings, microphones, last, recent) = {
+        let (settings, microphones, last, details, recent, hud, installed) = {
             let data = self.data.read(cx);
             (
                 data.settings.clone(),
                 data.audio_inputs.clone(),
                 data.last_dictation.clone(),
+                data.last_dictation_details.clone(),
                 data.recent_dictations.clone(),
+                data.dictation.clone(),
+                data.models.installed.clone(),
             )
         };
+        let working = is_working(&hud);
         let lb = cx.lb().clone();
 
         let mut options: Vec<(SharedString, SharedString)> =
@@ -158,21 +274,146 @@ impl SettingsPage {
                 ),
             );
         let dictation = if settings.dictation_intent == DictationIntent::Compose {
-            let compose_help = if crate::pages::ask::composer_inference(cx).remote {
+            let composition = lokalbot_ai::dictation::composition_settings(&settings);
+            let (_, hosts) = crate::state::inference_presentation(&composition);
+            let compose_help: SharedString = if hosts.is_empty() {
                 lokalbot_i18n::tr(
-                    "Compose uses your name and writing style. What you dictate is sent to your remote Think model for the final wording.",
+                    "Speech uses the meeting transcription model; final wording uses your local composition model and writing profile. Everything stays on this PC.",
                 )
+                .to_string()
+                .into()
             } else {
-                lokalbot_i18n::tr(
-                    "Compose uses your name and writing style, with your Think model on this PC.",
+                lokalbot_i18n::format(
+                    "Final wording uses your approved remote Think model ({0}). What you dictate, and any enabled screen context or saved facts it uses, is sent to that server.",
+                    &[(
+                        "0",
+                        hosts
+                            .iter()
+                            .map(|host| host.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )],
                 )
+                .into()
             };
-            dictation.row(
+            // Built-in models that are ready, plus a stored choice.
+            let chosen = settings.dictation_composition_built_in_model_id.clone();
+            let mut models: Vec<(String, SharedString)> = vec![(
+                String::new(),
+                lokalbot_i18n::tr("Same as Think").to_string().into(),
+            )];
+            models.extend(
+                lokalbot_ai::catalog::think_entries()
+                    .filter(|entry| entry.id == chosen || installed.iter().any(|id| id == entry.id))
+                    .map(|entry| (entry.id.to_string(), entry.display_name.into())),
+            );
+            let current_model = models
+                .iter()
+                .find(|(id, _)| *id == chosen)
+                .map_or_else(|| models[0].1.clone(), |(_, name)| name.clone());
+            let model_items: Vec<(SharedString, bool)> = models
+                .iter()
+                .map(|(id, name)| (name.clone(), *id == chosen))
+                .collect();
+            let model_ids: Vec<String> = models.iter().map(|(id, _)| id.clone()).collect();
+            let model_data = self.data.clone();
+            let sources_help = settings_row::content_row(
+                "settings.dictationComposeSources",
+                settings_row::help(
+                    lokalbot_i18n::tr(
+                        "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up.",
+                    )
+                    .to_string(),
+                    cx,
+                ),
+                false,
+                cx,
+            );
+            let screen_grant = self.grant(
+                "settings.dictationUseScreenContext",
+                "Use the focused window as context",
+                Some(
+                    "Reads the focused window's text through accessibility, or from a screenshot with on-device text recognition when it shares too little and that is installed. The image and text are not saved.",
+                ),
+                settings.dictation_use_screen_context,
+                working,
+                |s, v| s.dictation_use_screen_context = v,
+                cx,
+            );
+            let visible_grant = self.grant(
+                "settings.dictationUseVisibleContext",
+                "Use visible text above the field",
+                Some(
+                    "Reads nearby messages and labels through accessibility. No screenshot is needed, and the excerpts are not saved.",
+                ),
+                settings.dictation_use_visible_context,
+                working,
+                |s, v| s.dictation_use_visible_context = v,
+                cx,
+            );
+            let meeting_grant = self.grant(
+                "settings.dictationUseMeetingMemory",
+                "Use meeting and work memory",
+                None,
+                settings.dictation_use_meeting_memory,
+                working,
+                |s, v| s.dictation_use_meeting_memory = v,
+                cx,
+            );
+            let screen_memory_grant = self.grant(
+                "settings.dictationUseScreenMemory",
+                "Use screen-derived work memory",
+                Some(
+                    "Adds relevant saved facts when you ask Compose to draft or reply. Reads what is already saved; it does not start an overnight review.",
+                ),
+                settings.dictation_use_screen_memory,
+                working,
+                |s, v| s.dictation_use_screen_memory = v,
+                cx,
+            );
+            dictation
+                .row("settings.dictationComposeSources", sources_help)
+                .row("settings.dictationUseScreenContext", screen_grant)
+                .row("settings.dictationUseVisibleContext", visible_grant)
+                .row("settings.dictationUseMeetingMemory", meeting_grant)
+                .row("settings.dictationUseScreenMemory", screen_memory_grant)
+                .row(
+                    "settings.dictationCompositionBuiltInModelID",
+                    settings_row::row(
+                        "settings.dictationCompositionBuiltInModelID",
+                        lokalbot_i18n::tr("Compose model"),
+                        Some(
+                            lokalbot_i18n::tr(
+                                "A built-in model just for Compose. Same as Think follows your Think model and connection.",
+                            )
+                            .to_string()
+                            .into(),
+                        ),
+                        settings_row::picker(
+                            "settings-dictation-compose-model",
+                            current_model,
+                            model_items,
+                            move |index, _, cx| {
+                                if let Some(id) = model_ids.get(index).cloned() {
+                                    model_data.update(cx, |data, cx| {
+                                        data.update_settings(
+                                            |s| s.dictation_composition_built_in_model_id = id,
+                                            cx,
+                                        )
+                                    });
+                                }
+                            },
+                        ),
+                        self.is_focused("settings.dictationCompositionBuiltInModelID"),
+                        cx,
+                    ),
+                )
+                .row(
                 "settings.dictationWritingProfile",
                 settings_row::row(
                     "settings.dictationWritingProfile",
                     lokalbot_i18n::tr("Writing profile"),
-                    Some(compose_help.into()),
+                    Some(compose_help),
                     h_flex()
                         .gap(px(8.))
                         .items_center()
@@ -231,9 +472,46 @@ impl SettingsPage {
                     |s, v| s.dictation_show_overlay = v,
                     cx,
                 ),
+            )
+            .row(
+                "settings.dictationPlaysStartSound",
+                self.toggle(
+                    "settings.dictationPlaysStartSound",
+                    lokalbot_i18n::tr("Play a sound when the microphone is ready"),
+                    None,
+                    settings.dictation_plays_start_sound,
+                    |s, v| s.dictation_plays_start_sound = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.dictationLivePreview",
+                self.toggle(
+                    "settings.dictationLivePreview",
+                    lokalbot_i18n::tr("Show live transcript"),
+                    None,
+                    settings.dictation_live_preview,
+                    |s, v| s.dictation_live_preview = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.dictationRetainAudio",
+                self.toggle(
+                    "settings.dictationRetainAudio",
+                    lokalbot_i18n::tr("Keep dictation audio files"),
+                    Some(lokalbot_i18n::tr(
+                        "Saved as WAV files in the dictations folder of your library. Off, the audio stays in memory and is never written to disk.",
+                    )),
+                    settings.dictation_retain_audio,
+                    |s, v| s.dictation_retain_audio = v,
+                    cx,
+                ),
             );
 
-        let status: SharedString = if settings.dictation_enabled {
+        let status: SharedString = if self.data.read(cx).dictation_shortcut_inactive {
+            lokalbot_i18n::tr("Shortcut inactive.").into()
+        } else if settings.dictation_enabled {
             lokalbot_i18n::format(
                 match settings.dictation_trigger_mode {
                     DictationTriggerMode::PushToTalk => "Ready — hold {shortcut} to dictate.",
@@ -270,7 +548,15 @@ impl SettingsPage {
                             .outline()
                             .small()
                             .icon(Icon::new(Ico::Mic))
-                            .label(lokalbot_i18n::tr("Try here"))
+                            .label(lokalbot_i18n::tr(match hud {
+                                DictationHud::Starting
+                                | DictationHud::Transcribing
+                                | DictationHud::Preparing(_)
+                                | DictationHud::PreparationFailed(_)
+                                | DictationHud::Composing => "Cancel",
+                                DictationHud::Listening { .. } => "Stop & finish",
+                                _ => "Try here",
+                            }))
                             .on_click(move |_, _, cx| {
                                 data.update(cx, |data, cx| {
                                     data.request(AppEvent::ToggleDictation, cx)
@@ -278,7 +564,15 @@ impl SettingsPage {
                             }),
                     ),
             )
+            .child(settings_row::help(
+                lokalbot_i18n::tr(
+                    "Trying here shows the result below. It never inserts into another app or changes your clipboard; the shortcut uses the output setting above.",
+                )
+                .to_string(),
+                cx,
+            ))
             .when_some(last, |this, text| {
+                let details = details.clone().unwrap_or_default();
                 this.child(
                     v_flex()
                         .gap(px(4.))
@@ -294,16 +588,44 @@ impl SettingsPage {
                                     "Last result",
                                 ))),
                         )
-                        .child(div().text_size(ty::BODY).text_color(lb.text).child(text)),
+                        .child(div().text_size(ty::BODY).text_color(lb.text).child(text))
+                        .when_some(details.spoken, |this, spoken| {
+                            this.child(
+                                div()
+                                    .text_size(ty::CAPTION)
+                                    .text_color(lb.text_secondary)
+                                    .child(lokalbot_i18n::format(
+                                        "Spoken request: {0}",
+                                        &[("0", spoken.to_string())],
+                                    )),
+                            )
+                        })
+                        .when_some(details.context, |this, context| {
+                            this.child(
+                                div()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(lb.text_secondary)
+                                    .child(context),
+                            )
+                        })
+                        .when_some(details.engine, |this, engine| {
+                            this.child(
+                                div()
+                                    .text_size(ty::CAPTION)
+                                    .text_color(lb.text_secondary)
+                                    .child(engine),
+                            )
+                        }),
                 )
             });
         let try_section = Section::new(lokalbot_i18n::tr("Try dictation")).row(
             "settings.dictationTry",
             settings_row::content_row("settings.dictationTry", try_it, false, cx),
         );
+        let model_section = self.dictation_model_section(&settings, cx);
 
         if recent.is_empty() {
-            return vec![dictation, try_section];
+            return vec![dictation, try_section, model_section];
         }
         // Earlier results with Copy, so one left on the clipboard can be
         // copied again after something else replaced it.
@@ -387,6 +709,6 @@ impl SettingsPage {
             "settings.dictationRecent",
             settings_row::content_row("settings.dictationRecent", list, false, cx),
         );
-        vec![dictation, try_section, recent_section]
+        vec![dictation, try_section, model_section, recent_section]
     }
 }

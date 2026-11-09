@@ -133,6 +133,26 @@ struct MeetingNotesEvidence {
         ])
     }
 
+    /// Decisions a speaker stated outright that no finished part listed, as
+    /// source-linked notes. Run once the whole meeting is scanned: a page or
+    /// repair still in progress may yet list them.
+    func statedDecisions(after claims: [SummaryClaimEvidence.Claim], template: NoteTemplate,
+                         meetingID: UUID) -> Validated? {
+        guard template == .meeting, isEnglishMeeting else { return nil }
+        let listed = claims.filter { $0.section == "Decisions" }
+        let citedSegments = Set(listed.map(\.segmentID))
+        let citations = transcript.summaryCitationSources
+        let rows = Dictionary(grouping: units, by: \.source)
+            .filter { source, _ in citations[source].map { !citedSegments.contains($0) } ?? false }
+            .mapValues { $0.map(\.text).joined(separator: " ") }
+        let notes = ExplicitDecisions.missing(listedTexts: listed.map(\.text), in: rows)
+        guard !notes.isEmpty, let data = try? JSONSerialization.data(withJSONObject: [
+            "notes": notes, "actions": [[String: Any]](), "has_more": false,
+        ] as [String: Any]) else { return nil }
+        return validate(String(decoding: data, as: UTF8.self), units: units, template: template,
+                        meetingID: meetingID, maximumNotes: notes.count, maximumActions: 0)
+    }
+
     func validate(_ output: String, units: [Unit], template: NoteTemplate,
                   meetingID: UUID, maximumNotes: Int, maximumActions: Int) -> Validated {
         let parsed = CompleteJSONRecords.parse(output, keys: ["notes", "actions"])
@@ -403,5 +423,62 @@ struct MeetingNotesEvidence {
                 && section.caseInsensitiveCompare("Action items") != .orderedSame
         }
         return Self.sections(template).contains(section)
+    }
+}
+
+/// Decisions a speaker states outright ("Decision made: we shoot in the
+/// studio", "we decided the launch stays on the 20th"). Small models can file
+/// these under Key points, which leaves a meeting with no cited decisions, so
+/// a stated decision the model did not list is taken from its row. English
+/// only, like the other wording checks.
+enum ExplicitDecisions {
+    /// One note per stated decision that isn't already listed. `rows` holds
+    /// the rows no Decisions note cites.
+    static func missing(listedTexts: [String], in rows: [String: String]) -> [[String: Any]] {
+        var known = listedTexts
+        var added: [[String: Any]] = []
+        for source in rows.keys.sorted() {
+            for decision in statements(in: rows[source] ?? "") {
+                guard !known.contains(where: { OutcomeTextSimilarity.isSimilar($0, decision, threshold: 0.5) }) else { continue }
+                known.append(decision)
+                added.append(["section": "Decisions", "text": decision, "source": source])
+            }
+        }
+        return added
+    }
+
+    static func statements(in text: String) -> [String] {
+        var found: [String] = []
+        text.enumerateSubstrings(in: text.startIndex..., options: [.bySentences, .localized]) { sentence, _, _, _ in
+            if let sentence, let decision = statement(in: sentence.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                found.append(decision)
+            }
+        }
+        return found
+    }
+
+    private static func statement(in sentence: String) -> String? {
+        // A request after the decision is an action, not part of it.
+        let request = #",\s*(?:can|could|would|will) you\b.*$"#
+        let clause = sentence.replacingOccurrences(of: request, with: "", options: [.regularExpression, .caseInsensitive])
+        guard !clause.hasSuffix("?") else { return nil }
+        let past = #"\b(?:last (?:year|quarter|month|week)|years? ago|months? ago|back then|previously)\b"#
+        guard clause.range(of: past, options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
+        var decision: String?
+        var opening = clause.startIndex..<clause.startIndex
+        if let marker = clause.range(of: #"\bdecision(?: is| was)?(?: made)?\s*[:,–—-]\s*"#, options: [.regularExpression, .caseInsensitive]) {
+            opening = clause.startIndex..<marker.lowerBound
+            decision = String(clause[marker.upperBound...])
+        } else if let subject = clause.range(of: #"\b(?:we|we've|we have|the team|the team has) (?:decided|agreed)\b"#, options: [.regularExpression, .caseInsensitive]) {
+            opening = clause.startIndex..<subject.lowerBound
+            decision = String(clause[subject.lowerBound...])
+        }
+        // "If we decided…", "what we decided…", "no decision, …" settle nothing.
+        let unsettledOpening = #"\b(?:if|whether|once|when|unless|until|before|after|what|did|have|had|no)\b"#
+        guard clause[opening].range(of: unsettledOpening, options: [.regularExpression, .caseInsensitive]) == nil else { return nil }
+        guard var text = decision?.trimmingCharacters(in: CharacterSet.whitespaces.union(.punctuationCharacters)),
+              text.split(whereSeparator: \.isWhitespace).count >= 3 else { return nil }
+        text = text.prefix(1).uppercased() + text.dropFirst() + "."
+        return text.count <= 280 ? text : nil
     }
 }

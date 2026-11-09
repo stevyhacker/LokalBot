@@ -349,6 +349,9 @@ private struct SidebarPrivacyFooter: View {
                     ForEach(remoteHosts, id: \.self) { host in
                         Text(host).font(.scaled(.subheadline)).workspaceSupportingForeground()
                     }
+                    if app.settings.companionSharingEnabled {
+                        SidebarCompanionLine(host: app.companion)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -363,5 +366,24 @@ private struct SidebarPrivacyFooter: View {
     private var processingLabel: String {
         if case .blocked = destination { return "AI: connection blocked" }
         return remoteHosts.isEmpty ? "AI: on this Mac" : "AI: local + remote"
+    }
+}
+
+/// While sharing is on, the storage card says the library also has copies
+/// on the person's paired phones and tablets.
+private struct SidebarCompanionLine: View {
+    @ObservedObject var host: CompanionHost
+
+    var body: some View {
+        Group {
+            switch host.devices.count {
+            case 0: Text("Phones & tablets: none paired")
+            case 1: Text("Copy on 1 paired device")
+            default: Text("Copies on \(host.devices.count) paired devices")
+            }
+        }
+        .font(.scaled(.subheadline))
+        .workspaceSupportingForeground()
+        .accessibilityIdentifier("sidebar.companionDevices")
     }
 }

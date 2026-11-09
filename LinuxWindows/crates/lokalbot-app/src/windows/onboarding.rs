@@ -23,9 +23,11 @@ use lokalbot_core::ScreenContextMode;
 use lokalbot_core::settings::{AutoRecordMode, SummarizerBackend};
 
 use crate::pages::ask::composer_inference;
+use crate::pages::settings::model_options::download_source_row;
 use crate::pages::settings::models::{
-    autocomplete_needs, model_bytes, model_name, models_in_use, size_label,
+    autocomplete_needs, model_bytes, model_name, models_in_use, screen_text_engine_name, size_label,
 };
+use crate::pages::settings::{screen_text_control, screen_text_help};
 use crate::state::{AppData, AppEvent};
 use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
@@ -119,6 +121,9 @@ struct Draft {
     meeting_mode: AutoRecordMode,
     day_memory: bool,
     context_mode: ScreenContextMode,
+    /// The master switch for reading Claude Code and Codex sessions. The
+    /// per-agent switches and folder exclusions stay with Settings.
+    coding_agent_sessions: bool,
 }
 
 impl Draft {
@@ -155,6 +160,7 @@ impl Onboarding {
                 meeting_mode: settings.auto_record_mode,
                 day_memory: settings.tracking_enabled,
                 context_mode: settings.screen_context_capture_mode,
+                coding_agent_sessions: settings.coding_agent_evidence_enabled,
             },
             include_autocomplete: false,
             _subscriptions: subscriptions,
@@ -175,6 +181,8 @@ impl Onboarding {
                     s.auto_record_mode = draft.meeting_mode;
                     s.tracking_enabled = draft.day_memory;
                     s.screen_context_capture_mode = draft.screen_context();
+                    // Setup shows this choice, so finishing it is the person's answer.
+                    crate::pages::settings::choose_coding_agents(s, draft.coding_agent_sessions);
                     s.onboarding_completed = true;
                 },
                 cx,
@@ -186,15 +194,12 @@ impl Onboarding {
 
     fn prepare_models(&mut self, cx: &mut Context<Self>) {
         let include_autocomplete = self.include_autocomplete;
-        // The draft is not applied yet, so its screen text model is asked for here.
+        // The draft is not applied yet, so what its screen text needs is asked for here.
         let screen_text = self.draft.screen_context() != ScreenContextMode::ActivityOnly;
         self.data.update(cx, |data, cx| {
             data.request(AppEvent::PrepareModels, cx);
-            if screen_text && !data.models.screen_text_ready {
-                data.request(
-                    AppEvent::DownloadModel(lokalbot_ai::ocr::OCR_MODEL_ID.to_string()),
-                    cx,
-                );
+            if screen_text && let Some(download) = data.models.screen_text.download {
+                data.request(AppEvent::DownloadModel(download.id.to_string()), cx);
             }
             if include_autocomplete {
                 let missing: Vec<String> = autocomplete_needs(&data.settings)
@@ -215,6 +220,7 @@ impl Onboarding {
         let mode_page = page.clone();
         let detail_page = page.clone();
         let memory_page = page.clone();
+        let agents_page = page.clone();
         let retention = match self.data.read(cx).settings.retention_days {
             1 => lokalbot_i18n::tr("1 day").to_string(),
             days => lokalbot_i18n::format("{days} days", &[("days", format!("{}", days))]),
@@ -263,6 +269,15 @@ impl Onboarding {
                 menu
             });
         let screen_context = draft.screen_context() != ScreenContextMode::ActivityOnly;
+        // What screen text needs, offered with the choice that needs it.
+        let screen_text_status = self.data.read(cx).models.screen_text.clone();
+        let screen_text_offer =
+            (screen_context && screen_text_status.download.is_some()).then(|| {
+                (
+                    screen_text_help(&screen_text_status),
+                    screen_text_control(&self.data, "onboarding-download-ocr", cx),
+                )
+            });
         v_flex()
             .gap(px(16.))
             .child(text(
@@ -325,6 +340,37 @@ impl Onboarding {
                                     .child(text(
                                         crate::pages::settings::day_memory_mode_detail(draft.context_mode),
                                         lb.text_secondary,
+                                    ))
+                                    .when_some(screen_text_offer, |this, (help, control)| {
+                                        this.child(
+                                            h_flex()
+                                                .gap(px(12.))
+                                                .items_center()
+                                                .child(div().flex_1().min_w_0().child(text(help, lb.text_secondary)))
+                                                .child(control),
+                                        )
+                                    }),
+                            )
+                            .child(ui::divider(cx))
+                            .child(
+                                h_flex()
+                                    .gap(px(12.))
+                                    .items_center()
+                                    .child(
+                                        v_flex()
+                                            .flex_1().min_w_0()
+                                            .gap(px(4.))
+                                            .child(div().text_size(ty::BODY).text_color(lb.text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Coding Agent Sessions"))))
+                                            .child(text(lokalbot_i18n::tr("Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this computer."), lb.text_secondary)),
+                                    )
+                                    .child(Switch::new("onboarding-coding-agents").checked(draft.coding_agent_sessions).on_click(
+                                        move |on, _, cx| {
+                                            let on = *on;
+                                            agents_page.update(cx, |this, cx| {
+                                                this.draft.coding_agent_sessions = on;
+                                                cx.notify();
+                                            })
+                                        },
                                     )),
                             ),
                     ),
@@ -448,13 +494,24 @@ impl Onboarding {
                 None => (lokalbot_i18n::tr("Download required").into(), false),
             }
         };
-        let with_size = |id: &str| {
-            format!(
-                "{} · {}",
-                model_name(id),
-                size_label(model_bytes(id, &settings))
-            )
+        let with_size = |id: &str| match model_bytes(id, &settings) {
+            // A transcription server has nothing to download.
+            0 => model_name(id),
+            bytes => format!("{} · {}", model_name(id), size_label(bytes)),
         };
+        let source_data = self.data.clone();
+        let download_source = shows_download_source(&settings).then(|| {
+            download_source_row(
+                settings.model_download_source,
+                false,
+                move |source, _, cx| {
+                    source_data.update(cx, |data, cx| {
+                        data.update_settings(|s| s.model_download_source = source, cx)
+                    })
+                },
+                cx,
+            )
+        });
         let built_in = settings.summarizer_backend == SummarizerBackend::BuiltIn;
         let think_local = settings.think_is_local();
         let think_name = if built_in {
@@ -470,14 +527,31 @@ impl Onboarding {
             .then(|| model_status(embedding_id, status.embeddings_ready));
         // Everything "Prepare" downloads: Transcribe with voice detection and
         // speaker separation, Think, search by meaning, the llama.cpp runtime,
-        // screen text when chosen, and Autocomplete's model when asked for.
-        let ocr_id = lokalbot_ai::ocr::OCR_MODEL_ID;
-        let screen_text = (self.draft.screen_context() != ScreenContextMode::ActivityOnly)
-            .then(|| model_status(ocr_id, status.screen_text_ready));
+        // what screen text needs when chosen, and Autocomplete's model when asked for.
+        let screen_text_download = (self.draft.screen_context() != ScreenContextMode::ActivityOnly)
+            .then_some(status.screen_text.download)
+            .flatten();
+        let ocr_id = screen_text_download.map_or(lokalbot_ai::ocr::OCR_MODEL_ID, |d| d.id);
+        let screen_text =
+            (self.draft.screen_context() != ScreenContextMode::ActivityOnly).then(|| {
+                model_status(
+                    ocr_id,
+                    status.screen_text_ready && screen_text_download.is_none(),
+                )
+            });
+        let screen_text_name = match screen_text_download {
+            Some(download) => format!(
+                "{} · {}",
+                model_name(download.id),
+                size_label(download.bytes)
+            ),
+            None => screen_text_engine_name(&status.screen_text).to_string(),
+        };
         let mut needed = models_in_use(&settings);
-        if screen_text.is_some() && !needed.iter().any(|id| id == ocr_id) {
-            needed.push(ocr_id.to_string());
-        }
+        // Counted from what this computer lacks, not from what could be installed.
+        needed.retain(|id| {
+            id != lokalbot_ai::ocr::OCR_MODEL_ID && id != lokalbot_ai::ocr::OCR_LANGUAGES_ID
+        });
         if self.include_autocomplete {
             for id in autocomplete_needs(&settings) {
                 if !needed.contains(&id) {
@@ -489,14 +563,15 @@ impl Onboarding {
             .iter()
             .filter(|id| !status.installed.contains(id))
             .map(|id| model_bytes(id, &settings))
-            .sum();
+            .sum::<u64>()
+            + screen_text_download.map_or(0, |d| d.bytes);
         let autocomplete = model_status(
             &settings.cotyping_built_in_model_id,
             status.autocomplete_ready,
         );
         let page = cx.entity();
         let toggle_page = page.clone();
-        let preparing = !downloads.is_empty();
+        let preparing = downloads.values().any(|d| d.error.is_none());
         v_flex()
             .gap(px(14.))
             .child(text(
@@ -509,7 +584,7 @@ impl Onboarding {
                 this.child(model_row(lokalbot_i18n::tr("Search by meaning"), with_size(embedding_id), search, downloads.get(embedding_id).map(|d| d.fraction()), cx))
             })
             .when_some(screen_text, |this, screen_text| {
-                this.child(model_row(lokalbot_i18n::tr("Screen text"), with_size(ocr_id), screen_text, downloads.get(ocr_id).map(|d| d.fraction()), cx))
+                this.child(model_row(lokalbot_i18n::tr("Screen text"), screen_text_name, screen_text, downloads.get(ocr_id).map(|d| d.fraction()), cx))
             })
             .child(
                 h_flex()
@@ -546,11 +621,9 @@ impl Onboarding {
                     downloads.get(&settings.cotyping_built_in_model_id).map(|d| d.fraction()),
                     cx,
                 ))
-                .child(text(
-                    lokalbot_i18n::tr("Autocomplete also reads the text just above the field you are typing in, such as the conversation you are answering, to fit its suggestions. It stays on this PC and is never saved; turn it off in Settings → Writing."),
-                    lb.text_secondary,
-                ))
+                .child(text(autocomplete_disclosure(), lb.text_secondary))
             })
+            .children(download_source)
             .child(
                 h_flex()
                     .gap(px(12.))
@@ -624,6 +697,15 @@ impl Onboarding {
                         .child(row(lokalbot_i18n::tr("Meeting recording"), lokalbot_i18n::tr(draft.meeting_mode.label()).into()))
                         .child(ui::divider(cx))
                         .child(row(lokalbot_i18n::tr("Day memory"), day_memory))
+                        .child(ui::divider(cx))
+                        .child(row(
+                            lokalbot_i18n::tr("Coding agent sessions"),
+                            if draft.coding_agent_sessions {
+                                lokalbot_i18n::tr("On").into()
+                            } else {
+                                lokalbot_i18n::tr("Off").into()
+                            },
+                        ))
                         .child(ui::divider(cx))
                         .child(row(lokalbot_i18n::tr("Think model"), composer_inference(cx).label))
                         .child(ui::divider(cx))
@@ -760,6 +842,25 @@ impl Render for Onboarding {
     }
 }
 
+/// huggingface.co is blocked in mainland China, so the first download offers
+/// HF-Mirror and ModelScope there: on a computer set to that region or to
+/// Simplified Chinese, or once a mirror is already chosen. Settings → Models
+/// always has the same picker.
+fn shows_download_source(settings: &lokalbot_core::Settings) -> bool {
+    settings.model_download_source != lokalbot_core::settings::ModelDownloadSource::HuggingFace
+        || lokalbot_i18n::current().code == "zh-Hans"
+        || lokalbot_i18n::system_preferences()
+            .first()
+            .is_some_and(|preference| is_mainland_china_locale(preference))
+}
+
+/// `zh-Hans`, `zh_CN.UTF-8`, `en-CN`: Simplified Chinese or the CN region.
+fn is_mainland_china_locale(preference: &str) -> bool {
+    let code = preference.split('.').next().unwrap_or(preference);
+    let code = code.replace('_', "-").to_lowercase();
+    code.starts_with("zh-hans") || code.split('-').skip(1).any(|part| part == "cn")
+}
+
 fn text(content: impl Into<SharedString>, color: gpui_kit::Hsla) -> Div {
     div()
         .text_size(ty::BODY)
@@ -894,6 +995,17 @@ fn model_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mainland_china_locales_get_the_download_source() {
+        for locale in ["zh-CN", "zh_CN.UTF-8", "zh-Hans", "zh-Hans-SG", "en-CN"] {
+            assert!(is_mainland_china_locale(locale), "{locale}");
+        }
+        for locale in ["en-US", "zh-TW", "zh-Hant", "de_DE.UTF-8", "cn"] {
+            assert!(!is_mainland_china_locale(locale), "{locale}");
+        }
+    }
+
     use lokalbot_platform::session::Desktop;
 
     #[test]
@@ -909,5 +1021,24 @@ mod tests {
         ] {
             assert!(window_kind(&desktop) == WindowKind::Normal, "{desktop:?}");
         }
+    }
+}
+
+/// What preparing Autocomplete means for what it reads (`OnboardingView`).
+fn autocomplete_disclosure() -> &'static str {
+    lokalbot_i18n::tr(
+        "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once its text recognition model is downloaded, the whole window with on-device text recognition. It stays on this PC and is never saved; turn either off in Settings → Writing.",
+    )
+}
+
+#[cfg(test)]
+mod disclosure_tests {
+    #[test]
+    fn autocomplete_says_it_can_read_the_whole_window() {
+        let text = super::autocomplete_disclosure();
+        assert!(text.contains("the whole window"));
+        assert!(text.contains("the text just above the field"));
+        assert!(text.contains("never saved"));
+        assert!(text.contains("turn either off"));
     }
 }

@@ -19,6 +19,8 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
     /// In the UI this is the Activity source; calendar filtering is independent.
     case today = "Today"
     case screen = "Screen"
+    /// The folders chosen under Files. Offered only while Files is on.
+    case files = "Files"
 
     var id: String { rawValue }
     var displayName: String {
@@ -26,6 +28,7 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
         case .meetings: "Meetings"
         case .today: "Activity"
         case .screen: "Screen"
+        case .files: "Files"
         }
     }
     var icon: String {
@@ -33,10 +36,18 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
         case .meetings: "person.2"
         case .today: "chart.bar.doc.horizontal"
         case .screen: "rectangle.on.rectangle"
+        case .files: "folder"
         }
     }
 
-    static let defaults: Set<AskSourceScope> = [.meetings, .today, .screen]
+    /// Every source. Files is part of "All sources" whether or not it is on,
+    /// so turning it on or off never makes an earlier question look narrowed.
+    static let defaults: Set<AskSourceScope> = [.meetings, .today, .screen, .files]
+
+    /// The sources a person can choose now: Files only while it is on.
+    static func available(filesEnabled: Bool) -> [AskSourceScope] {
+        allCases.filter { $0 != .files || filesEnabled }
+    }
 
     static func storageValue(for scopes: Set<AskSourceScope>) -> String {
         allCases.filter(scopes.contains).map(\.rawValue).joined(separator: "|")
@@ -114,14 +125,22 @@ final class ScopedChatToolRunner: ChatToolRunner {
     private let scopes: Set<AskSourceScope>
     private let dayScopeKey: String?
     private let meetingIDs: Set<UUID>?
+    /// Says which meetings `meetingIDs` holds, e.g. "meetings from the last
+    /// 30 days"; without it, "the meetings chosen for it".
+    private let meetingScope: String?
+    /// What the question was asked about, e.g. "the day 4 Nov 2026": where
+    /// the answer starts, never a limit on the tools.
+    private let focus: String?
     private let screenSnapshotIDs: Set<Int64>?
 
     init(base: ChatToolRunner, scopes: Set<AskSourceScope>, dayScope: Date? = nil,
-         dayScopeKey: String? = nil, meetingIDs: Set<UUID>? = nil,
-         screenSnapshotIDs: Set<Int64>? = nil) {
+         dayScopeKey: String? = nil, meetingIDs: Set<UUID>? = nil, meetingScope: String? = nil,
+         focus: String? = nil, screenSnapshotIDs: Set<Int64>? = nil) {
         self.base = base
         self.scopes = scopes
         self.meetingIDs = meetingIDs
+        self.meetingScope = meetingScope
+        self.focus = focus
         self.screenSnapshotIDs = screenSnapshotIDs
         self.dayScopeKey = dayScopeKey ?? dayScope.map { AskDayScope.key(for: $0) }
     }
@@ -142,6 +161,34 @@ final class ScopedChatToolRunner: ChatToolRunner {
         // meeting titles outside the exact scope enforced by the tools below.
         guard scopes.contains(.meetings), dayScopeKey == nil, meetingIDs == nil else { return "" }
         return base.libraryOverview()
+    }
+
+    /// The dates and meetings the tools below are held to, in words that
+    /// complete "limited to"; nil when nothing narrows the library.
+    var limit: String? {
+        var parts: [String] = []
+        if let dayScopeKey, let dates = AskDateScope(storageKey: dayScopeKey) {
+            parts.append("what happened \(dates.phrase)")
+        }
+        if let meetingIDs {
+            parts.append(meetingScope ?? Self.chosenMeetings(meetingIDs.count))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ", and to ")
+    }
+
+    func questionScope() -> String {
+        [
+            limit.map { ChatPrompt.questionScope(limit: $0, datesCanBeRemoved: dayScopeKey != nil) },
+            focus.map(ChatPrompt.questionFocus),
+        ].compactMap { $0 }.joined(separator: "\n")
+    }
+
+    private static func chosenMeetings(_ count: Int) -> String {
+        switch count {
+        case 0: "no meetings"
+        case 1: "the one meeting chosen for it"
+        default: "the \(count) meetings chosen for it"
+        }
     }
 
     func run(_ call: ChatToolCall) async -> ChatToolResult {
@@ -168,7 +215,7 @@ final class ScopedChatToolRunner: ChatToolRunner {
                 return ChatToolResult(text: "The selected date scope is invalid. Choose a date again.", summary: "invalid date scope")
             }
             if ["search_meetings", "list_meetings", "get_meeting", "get_action_items",
-                "search_screen"].contains(call.name) {
+                "search_screen", "search_files"].contains(call.name) {
                 arguments["_lokalbot_day_scope"] = day
             } else if call.name == "activity_summary" {
                 arguments["day"] = day
@@ -178,7 +225,15 @@ final class ScopedChatToolRunner: ChatToolRunner {
         if arguments != call.arguments {
             scopedCall = ChatToolCall(name: call.name, arguments: arguments)
         }
-        return await base.run(scopedCall)
+        let result = await base.run(scopedCall)
+        // A short list read as the whole library ("the only one in your
+        // library"), so the meeting lists say what they were held to.
+        guard let limit, ["search_meetings", "list_meetings", "get_action_items"].contains(call.name) else {
+            return result
+        }
+        return ChatToolResult(
+            text: "Limited to \(limit) for this question; nothing outside that limit is shown.\n\(result.text)",
+            summary: result.summary, evidence: result.evidence)
     }
 
     private func allows(_ tool: String) -> Bool {
@@ -189,6 +244,8 @@ final class ScopedChatToolRunner: ChatToolRunner {
             scopes.contains(.today)
         case "search_screen":
             scopes.contains(.screen)
+        case "search_files":
+            scopes.contains(.files)
         default:
             false
         }
@@ -257,14 +314,16 @@ enum AskFacet: String, CaseIterable, Identifiable {
     case notes = "Notes"
     case outcomes = "Outcomes"
     case screen = "Screen"
+    case files = "Files"
 
     var id: String { rawValue }
 
-    /// The FTS index kind this facet narrows to; `nil` for All (no filter)
-    /// and Screen (which queries the OCR store instead of the FTS index).
+    /// The FTS index kind this facet narrows to; `nil` for All (no filter),
+    /// Screen (which queries the OCR store instead of the FTS index) and Files
+    /// (the file index).
     var kind: SearchIndex.Kind? {
         switch self {
-        case .all, .screen: nil
+        case .all, .screen, .files: nil
         case .transcripts: .segment
         case .summaries: .summary
         case .notes: .notes

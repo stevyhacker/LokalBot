@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Installs LokalBot for the current user from an extracted release archive:
-# binaries into ~/.local/bin, the desktop entry and icons into ~/.local/share.
+# binaries into ~/.local/bin, the desktop entries and icons into ~/.local/share.
+# The second entry lists LokalBot under KDE Plasma's Virtual Keyboard settings,
+# for autocomplete; it is not in the applications menu.
 # Run with --uninstall to remove them (your library is never touched).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="${XDG_BIN_HOME:-$HOME/.local/bin}"
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP_ID=com.lokalbot.LokalBot
+IM_ENTRY=$APP_ID.InputMethod.desktop
 if [ "${1:-}" = "--uninstall" ]; then
-  rm -f "$BIN/lokalbot" "$BIN/lokalbot-cli" "$DATA/applications/$APP_ID.desktop"
+  rm -f "$BIN/lokalbot" "$BIN/lokalbot-cli" "$DATA/applications/$APP_ID.desktop" \
+    "$DATA/applications/$IM_ENTRY"
   for size in 16 24 32 48 64 128 256 512; do
     rm -f "$DATA/icons/hicolor/${size}x${size}/apps/$APP_ID.png"
   done
@@ -19,6 +23,10 @@ install -Dm755 "$HERE/lokalbot" "$BIN/lokalbot"
 install -Dm755 "$HERE/lokalbot-cli" "$BIN/lokalbot-cli"
 install -Dm644 "$HERE/$APP_ID.desktop" "$DATA/applications/$APP_ID.desktop"
 sed -i "s|^Exec=lokalbot|Exec=$BIN/lokalbot|" "$DATA/applications/$APP_ID.desktop"
+if [ -f "$HERE/$IM_ENTRY" ]; then
+  install -Dm644 "$HERE/$IM_ENTRY" "$DATA/applications/$IM_ENTRY"
+  sed -i "s|^Exec=lokalbot|Exec=$BIN/lokalbot|" "$DATA/applications/$IM_ENTRY"
+fi
 for size in 16 24 32 48 64 128 256 512; do
   install -Dm644 "$HERE/icons/lokalbot-$size.png" "$DATA/icons/hicolor/${size}x${size}/apps/$APP_ID.png"
 done

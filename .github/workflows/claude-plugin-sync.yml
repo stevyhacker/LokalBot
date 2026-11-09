@@ -1,0 +1,76 @@
+# Copies the Claude Code plugin (Distribution/claude-plugin) into
+# stevyhacker/lokalbot-claude-plugin, the small repository the Claude plugin
+# directory reads. The directory can't download this repository: it is over the
+# directory's 50 MiB compressed limit. The directory follows that repository's
+# default branch, so each sync is picked up and scanned there.
+#
+# Runs on master pushes that change the plugin, and by hand:
+#   gh workflow run claude-plugin-sync.yml
+#
+# CLAUDE_PLUGIN_DEPLOY_KEY is a deploy key with write access to that one
+# repository. Without it the job only warns. Always GitHub-hosted: the key
+# never reaches the self-hosted runners.
+
+name: Claude plugin sync
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Distribution/claude-plugin/**"
+      - "LICENSE"
+      - ".github/workflows/claude-plugin-sync.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: claude-plugin-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Copy the plugin to its own repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Push the plugin folder
+        env:
+          DEPLOY_KEY: ${{ secrets.CLAUDE_PLUGIN_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::warning::CLAUDE_PLUGIN_DEPLOY_KEY is not set, so stevyhacker/lokalbot-claude-plugin was not updated."
+            exit 0
+          fi
+          ssh_dir="$RUNNER_TEMP/plugin-ssh"
+          mkdir -p "$ssh_dir"
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          # github.com's published ed25519 host key (gh api meta --jq .ssh_keys).
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh_dir/known_hosts -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519"
+
+          target="$RUNNER_TEMP/plugin-repo"
+          git clone --depth 1 git@github.com:stevyhacker/lokalbot-claude-plugin.git "$target"
+          rsync -a --delete --exclude .git Distribution/claude-plugin/ "$target/"
+          cp LICENSE "$target/LICENSE"
+
+          cd "$target"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "stevyhacker/lokalbot-claude-plugin is already up to date."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Sync from stevyhacker/LokalBot@${GITHUB_SHA::12}" \
+              -m "https://github.com/stevyhacker/LokalBot/tree/${GITHUB_SHA}/Distribution/claude-plugin"
+          git push origin HEAD
+          echo "Pushed $(git rev-parse --short HEAD) to stevyhacker/lokalbot-claude-plugin."

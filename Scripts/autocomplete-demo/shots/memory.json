@@ -1,0 +1,66 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "Launch update",
+  "file": "Launch update.txt",
+  "opening": "Hi all,\n\n",
+  "size": [
+    1760,
+    420
+  ],
+  "settle": 1.0,
+  "park": [
+    -240,
+    -160
+  ],
+  "pre": 0.6,
+  "post": 1.4,
+  "also": [
+    "me.dotenv.LokalBot"
+  ],
+  "setup": [
+    {
+      "key": "down",
+      "mods": [
+        "cmd"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "After the launch planning call, ",
+      "cps": 10
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "type": "the Team plan will be ",
+      "cps": 10
+    },
+    {
+      "wait": 0.6
+    },
+    {
+      "type": "$15",
+      "cps": 8
+    },
+    {
+      "mark": "typed"
+    },
+    {
+      "expect": "After the launch planning call, the Team plan will be $15"
+    },
+    {
+      "ghost": 40
+    },
+    {
+      "wait": 0.9
+    },
+    {
+      "accept": 7
+    },
+    {
+      "wait": 0.4
+    }
+  ]
+}

@@ -165,8 +165,26 @@ fn one_pass_renders_notes_outcomes_and_header() {
         notes.claims["claims"][0]["source_segment_id"],
         "segment-0000-0000000000-0000015000"
     );
-    // Checkpoints are removed once the notes are complete.
+    // The snapshot stays until the caller has saved the notes, so a crash in
+    // between can't lose the finished parts. The Mac's decoder requires `version`.
+    let raw: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.path().join(partial::PARTIAL_FILE)).unwrap())
+            .unwrap();
+    assert_eq!(raw["version"], 1);
+    let snapshot = partial::MeetingNotesPartial::load(dir.path(), &transcript).unwrap();
+    assert_eq!((snapshot.completed_parts, snapshot.total_parts), (1, 1));
+    // A different transcript never shows these parts.
+    let mut changed = transcript.clone();
+    changed.segments[0].text.push_str(" Changed.");
+    assert!(partial::MeetingNotesPartial::load(dir.path(), &changed).is_none());
+    // Final notes written later supersede it, even if cleanup was interrupted.
+    std::fs::write(dir.path().join("outcomes.json"), "{}").unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    std::fs::write(dir.path().join("summary.md"), "# Notes").unwrap();
+    assert!(partial::MeetingNotesPartial::load(dir.path(), &transcript).is_none());
+    remove_checkpoint(dir.path());
     assert!(!dir.path().join(CHECKPOINT_FILE).exists());
+    assert!(!dir.path().join(partial::PARTIAL_FILE).exists());
     assert!(steps.iter().any(|s| s.contains("Writing notes")));
     // The request carried the verbatim system prompt and the evidence rows.
     let request = server

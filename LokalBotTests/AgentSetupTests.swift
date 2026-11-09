@@ -80,6 +80,20 @@ final class AgentSetupTests: XCTestCase {
         XCTAssertEqual(app.agentSettingsChanges.recent.first?.caller, "lokalbot-cli via claude")
     }
 
+    func testFileSearchIsGrantedOnlyWhenRequestedAndTicked() throws {
+        _ = try leaveRequest(grants: [.settings, .files])
+        let setup = requests()
+        XCTAssertTrue(setup.check())
+
+        setup.allow(meetingLibrary: true, screenMemory: true, files: true, in: app)
+
+        XCTAssertTrue(app.filesAccess.isEnabled)
+        XCTAssertFalse(app.agentAccess.isEnabled, "meetings weren't asked for")
+        XCTAssertTrue(app.agentReadAccess.isEnabled, "the one switch shows the grant")
+        XCTAssertEqual(app.agentReadAccess.granted, [.files])
+        XCTAssertEqual(answer()?.grants, [.settings, .files])
+    }
+
     func testReadAccessThatWasNotRequestedIsNotGranted() throws {
         _ = try leaveRequest(grants: [.settings])
         let setup = requests()

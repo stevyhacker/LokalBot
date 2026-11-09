@@ -10,15 +10,21 @@ use std::time::Duration;
 use anyhow::{Context as _, bail};
 use serde_json::Value;
 
+use super::browser::BrowserDocument;
 use super::{CaptureStream, Evidence, EvidenceSource, WindowTitle, browser_family};
 use crate::process::{find_program, output_with_timeout};
 
 const PACTL_TIMEOUT: Duration = Duration::from_secs(3);
+/// A browser's tree answers one question per call, so it is read less often
+/// than the poll. `BROWSER_GAP` tolerates the wait.
+const CALL_READ_INTERVAL: Duration = Duration::from_secs(4);
 
 pub(super) struct PulseEvidence {
     pactl: Option<PathBuf>,
     json: bool,
     windows: crate::activity::WindowLister,
+    calls: crate::screen::BrowserCallReader,
+    last_call_read: Option<(std::time::Instant, Vec<BrowserDocument>)>,
 }
 
 impl PulseEvidence {
@@ -27,7 +33,30 @@ impl PulseEvidence {
             pactl: find_program("pactl"),
             json: true,
             windows: crate::activity::WindowLister::new(),
+            calls: crate::screen::BrowserCallReader::new(),
+            last_call_read: None,
         }
+    }
+
+    /// Meet documents in the browsers holding a microphone, read at most
+    /// every [`CALL_READ_INTERVAL`].
+    fn documents(&mut self, capturing: &[CaptureStream]) -> Vec<BrowserDocument> {
+        let families: Vec<&'static str> = capturing
+            .iter()
+            .filter_map(|stream| browser_family(&stream.process_name))
+            .collect();
+        if families.is_empty() {
+            self.last_call_read = None;
+            return Vec::new();
+        }
+        if let Some((at, documents)) = &self.last_call_read
+            && at.elapsed() < CALL_READ_INTERVAL
+        {
+            return documents.clone();
+        }
+        let documents = self.calls.read(&families, process_family);
+        self.last_call_read = Some((std::time::Instant::now(), documents.clone()));
+        documents
     }
 
     fn streams(&mut self) -> anyhow::Result<Vec<CaptureStream>> {
@@ -78,7 +107,12 @@ impl EvidenceSource for PulseEvidence {
         } else {
             Vec::new()
         };
-        Ok(Evidence { capturing, windows })
+        let documents = self.documents(&capturing);
+        Ok(Evidence {
+            capturing,
+            windows,
+            documents,
+        })
     }
 
     fn limitation(&self) -> Option<String> {
@@ -86,6 +120,18 @@ impl EvidenceSource for PulseEvidence {
             "Meeting detection needs the “pactl” command. Install the pulseaudio-utils package (it works with PipeWire too).".to_string()
         })
     }
+}
+
+/// Which browser a process on the accessibility bus is, from its executable.
+fn process_family(pid: u32) -> Option<&'static str> {
+    let exe = std::fs::read_link(format!("/proc/{pid}/exe")).ok();
+    exe.as_deref()
+        .and_then(|path| path.file_name())
+        .and_then(|name| browser_family(&name.to_string_lossy()))
+        .or_else(|| {
+            let comm = std::fs::read_to_string(format!("/proc/{pid}/comm")).ok()?;
+            browser_family(comm.trim())
+        })
 }
 
 fn stream_from(properties: impl Fn(&str) -> Option<String>, corked: bool) -> Option<CaptureStream> {
@@ -99,6 +145,7 @@ fn stream_from(properties: impl Fn(&str) -> Option<String>, corked: bool) -> Opt
         process_name: binary,
         app_name: properties("application.name"),
         ancestors: Vec::new(),
+        ancestor_pids: Vec::new(),
     })
 }
 
@@ -176,6 +223,7 @@ mod tests {
                 process_name: "zoom".into(),
                 app_name: Some("ZOOM VoiceEngine".into()),
                 ancestors: Vec::new(),
+                ancestor_pids: Vec::new(),
             }]
         );
         assert!(parse_json(b"not json").is_err());

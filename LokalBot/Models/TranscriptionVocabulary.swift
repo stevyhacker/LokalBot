@@ -1,7 +1,7 @@
 import Foundation
 
 /// Names and terms LokalBot already knows, offered to speech models that
-/// accept a vocabulary prompt (Whisper and Qwen). Every source is local and
+/// accept a vocabulary prompt (Whisper, Qwen and Granite 5). Every source is local and
 /// already part of the library: calendar attendee display names (never
 /// addresses or names derived from addresses), speaker names the user applied
 /// in related meetings, Dream project names, and distinctive meeting-title

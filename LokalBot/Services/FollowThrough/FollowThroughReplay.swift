@@ -47,7 +47,7 @@ enum FollowThroughReplay {
         init(fixture: Fixture) { self.fixture = fixture }
 
         var readToolSpecs: [ChatToolSpec] {
-            MeetingChatTools.specs.filter { FollowThroughTools.readTools.contains($0.name) }
+            MeetingChatTools.baseSpecs.filter { FollowThroughTools.readTools.contains($0.name) }
         }
 
         func runReadTool(_ call: ChatToolCall) async -> ChatToolResult {

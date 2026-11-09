@@ -3,10 +3,13 @@
   "name": "lokalbot",
   "compatibility_date": "2026-09-14",
   "account_id": "cfd3e739cdd3b76c04b5390bb9d5964f",
+  "main": "cloudflare/media-ranges.js",
   "assets": {
     "directory": "./web",
+    "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/*.mp4", "/*.m4a", "/*.mp3", "/*.webm", "/*.mov"]
   },
   "workers_dev": true,
   "routes": [

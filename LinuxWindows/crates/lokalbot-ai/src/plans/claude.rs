@@ -132,11 +132,9 @@ pub fn locate(refresh: bool) -> Option<PathBuf> {
         return Some(found);
     }
     let path = std::env::var_os("PATH");
-    let mut found = locate_in(path.as_deref(), home_dir().as_deref(), &is_executable);
+    let found = locate_in(path.as_deref(), home_dir().as_deref(), &is_executable);
     #[cfg(unix)]
-    if found.is_none() {
-        found = locate_with_login_shell();
-    }
+    let found = found.or_else(locate_with_login_shell);
     *cache.lock() = found.clone();
     found
 }
@@ -598,7 +596,7 @@ fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
 /// tail, and stops the child (with anything it started) on cancel or
 /// timeout. The child dies with LokalBot.
 fn run_child(
-    mut command: Command,
+    #[cfg_attr(not(unix), allow(unused_mut))] mut command: Command,
     input: &str,
     cancel: Option<&AtomicBool>,
     timeout: Duration,

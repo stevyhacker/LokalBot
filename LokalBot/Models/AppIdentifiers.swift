@@ -1,6 +1,7 @@
 import Foundation
 import Security
 import CryptoKit
+import os
 
 enum AppIdentifiers {
     /// The release identity is frozen for existing libraries and Keychain items.
@@ -61,6 +62,30 @@ enum UITestRuntime {
         !isEnabled
             && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
+
+    /// Unit tests run with temporary libraries, so any model they reach would
+    /// be downloaded from the network. They never download one: the download
+    /// throws instead, and the test bundle fails the test that started it.
+    static func refuseDownloadInUnitTests(of name: String) throws {
+        guard isUnitTesting else { return }
+        refusedUnitTestDownloads.withLock { $0.append(name) }
+        throw RefusedUnitTestDownload(name: name)
+    }
+
+    struct RefusedUnitTestDownload: LocalizedError {
+        let name: String
+        var errorDescription: String? { "Unit tests never download \(name)." }
+    }
+
+    /// Downloads refused since the last call, oldest first.
+    static func takeRefusedUnitTestDownloads() -> [String] {
+        refusedUnitTestDownloads.withLock { names in
+            defer { names.removeAll() }
+            return names
+        }
+    }
+
+    private static let refusedUnitTestDownloads = OSAllocatedUnfairLock(initialState: [String]())
 
     static var isEnabled: Bool {
 #if LOKALBOT_UI_TEST_HOST
@@ -190,6 +215,22 @@ enum KeychainSecrets {
 
     static func data(account: String) -> Data? {
         data(service: AppIdentifiers.bundleID, account: account)
+    }
+
+    /// The item's data, or nil when it was never saved. Throws for any other
+    /// failure (a locked keychain, denied access), so a caller can tell
+    /// "signed out" from "can't read it right now".
+    static func existingData(account: String) throws -> Data? {
+        var query = baseQuery(service: AppIdentifiers.bundleID, account: account)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var existing: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &existing)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess else {
+            throw EncryptionKeyFailure.operation("read", account: account, status: status)
+        }
+        return existing as? Data
     }
 
     static func setString(_ value: String, account: String) {

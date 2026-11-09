@@ -318,7 +318,7 @@ pub fn canonical_path(path: &Path) -> Option<PathBuf> {
 }
 
 /// `.` and `..` removed without touching the disk (`standardizedFileURL`).
-fn lexically_normalized(path: &Path) -> PathBuf {
+pub(crate) fn lexically_normalized(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for component in path.components() {
         match component {

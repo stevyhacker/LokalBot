@@ -2,8 +2,12 @@
 
 Rendered by Scripts/render_web.py. Keep claims aligned with the checked-in
 README and implementation; these pages intentionally avoid competitor claims.
-A guide with "kind": "question" is listed under Questions on /guides.
+A guide with "kind": "question" is listed under Questions on /guides, and one
+with "kind": "compare" under Compare. The AI assistants comparison lives in
+Scripts/assistant_roundup.py.
 """
+
+from assistant_roundup import ROUNDUP
 
 # Head and structured-data copy for web/guides.html.
 GUIDES_INDEX = {
@@ -60,8 +64,8 @@ GUIDES = [
     {
         "slug": "local-ai-meeting-notes-linux",
         "published": "2026-10-26",
-        "updated": "2026-10-26",
-        "updated_label": "October 26, 2026",
+        "updated": "2026-11-03",
+        "updated_label": "November 3, 2026",
         "title": "Local AI Meeting Notes on Linux — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.",
         "eyebrow": "Linux",
@@ -72,11 +76,17 @@ GUIDES = [
         <h2>What works on Linux</h2>
         <p>LokalBot for Linux is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app (Today, Meetings, Timeline, People, Projects, Ask, and Settings) and reads the same library format, so a library recorded on a Mac opens on Linux. It's an alpha.</p>
         <ul>
-          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your computer's audio through a PulseAudio or PipeWire monitor, so nothing joins the call. On Linux the second track is everything your computer plays, not one app. When it detects a meeting, it asks with a notification.</li>
-          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B through sherpa-onnx by default, with Parakeet v3, SenseVoice, and Whisper turbo as options. Speakers are separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and the meeting app's own audio streams through PulseAudio or PipeWire, so nothing joins the call. When it can't separate the app, the second track comes from the output monitor, so it holds everything your computer plays. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B through sherpa-onnx by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options. Speakers are separated with pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations come from Qwen3.5 4B in the built-in llama.cpp, or from Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
           <li><strong>Search.</strong> Keyword and meaning search across your meetings, with SQLite full-text search and EmbeddingGemma 2, plus Quick Recall from a shortcut.</li>
           <li><strong>Agent access.</strong> A read-only CLI and MCP server lets Claude Code, Codex, and other agents search your meetings, off until you allow it.</li>
+          <li><strong>Selection actions.</strong> Turn them on in <strong>Settings → General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
+          <li><strong>Spoken summaries.</strong> Hear summaries and answers read aloud, or export a WAV, with Kokoro 82M on your computer.</li>
+          <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
+          <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
+          <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
+          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. The apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Your desktop matters</h2>
@@ -88,12 +98,21 @@ GUIDES = [
               <tr><th scope="row">Day memory (app and window activity)</th><td>Yes</td><td>Hyprland, Sway, and KDE; GNOME with the Window Calls extension</td></tr>
               <tr><th scope="row">Screen context (visible text, optional encrypted screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal when it can capture just the active window</td></tr>
               <tr><th scope="row">Dictation</th><td>Yes</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your compositor</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>Only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Selection actions</th><td>Yes</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your compositor</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>As an input method on Sway, Hyprland, and GNOME; elsewhere only in the practice editor in Settings</td></tr>
               <tr><th scope="row">Tray icon</th><td colspan="2">Yes; GNOME needs the AppIndicator extension</td></tr>
             </tbody>
           </table>
         </div>
         <p>On <a href="/blog/windows-and-linux-alpha">Omarchy and other Hyprland desktops</a>, <code>grim</code>, <code>wtype</code>, <code>wl-clipboard</code>, and PipeWire are already there, and the dictation pill and Quick Recall float instead of tiling.</p>
+        <p>On Wayland, autocomplete in other apps takes part as an input method, the way language input tools do, and shows the suggestion inside the field. Turn it on in <strong>Settings → Writing</strong>. What else it needs depends on your desktop:</p>
+        <ul>
+          <li><strong>Sway and Hyprland:</strong> nothing more. A desktop runs one input method at a time, so if Fcitx or IBus is running, LokalBot stays out of its way and Settings says so. Omarchy runs Fcitx 5; if you don't use it, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start.</li>
+          <li><strong>GNOME:</strong> add LokalBot in GNOME Settings → Keyboard → Input Sources → + → Other, then choose it in the top bar or with <kbd>Super+Space</kbd>. With the <code>.tar.gz</code>, first run the command Settings shows. Either way, log out and back in once. Firefox and Chrome stay quiet without the Window Calls extension.</li>
+          <li><strong>KDE Plasma and other compositors:</strong> not yet. Settings says so and offers the practice editor.</li>
+        </ul>
+        <p>Not every app can take part. Qt 5 apps and X11 apps running through XWayland get no suggestions, though typing in them is unaffected, and older Chromium and Electron apps need <code>--enable-wayland-ime</code>, according to their documentation.</p>
+        <p>This route is new. It has only been tried on headless Sway 1.9 and GNOME Shell 46 with stand-in suggestions, not on real desktops with a real model, and Hyprland itself hasn't been run. The <a href="explainers/wayland-autocomplete.pdf">one-page explainer</a> covers what it reads and keeps, and the <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#autocomplete-on-wayland" target="_blank" rel="noopener">README</a> lists each desktop and app.</p>
 
         <h2>Install and stay updated</h2>
         <ul>
@@ -102,20 +121,21 @@ GUIDES = [
           <li><strong>Arch and Omarchy:</strong> <code>sudo pacman -U ./LokalBot-&lt;version&gt;-linux-x86_64.pkg.tar.zst</code>. LokalBot tells you when a newer package is out.</li>
           <li><strong>Any distribution:</strong> extract the <code>.tar.gz</code> and run <code>./install.sh</code>. It installs into <code>~/.local/bin</code>, adds LokalBot to your applications menu, and lets the app update itself after checking each download's signature.</li>
         </ul>
-        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. See the <a href="system-requirements">system requirements</a>.</p>
+        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. Reading screen text in scripts other than Latin needs Tesseract (<code>tesseract-ocr</code> on Debian and Ubuntu, <code>tesseract</code> on Fedora and Arch), which the <code>.deb</code> and <code>.rpm</code> recommend. See the <a href="system-requirements">system requirements</a>.</p>
 
         <h2>Models and hardware</h2>
         <p>On first launch LokalBot asks what to remember and downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing, CUDA read a long prompt into Qwen3.5 4B 44% faster than Vulkan on an RTX 3060. Without a capable GPU, notes on the CPU are slow, so you can point notes and Ask at Ollama on another computer or at a server you approve.</p>
 
         <h2>What's not there yet</h2>
         <ul>
-          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation are Mac only for now.</li>
+          <li>Remembered speakers only suggest. Naming a speaker teaches an encrypted voice profile, and later meetings offer that name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li>There's no Flatpak or Snap. An AUR package, <code>lokalbot-bin</code>, is on its way.</li>
           <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
         </ul>
         """,
         "faq": [
-            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation needs a compositor shortcut bound to lokalbot dictate; and autocomplete in other apps needs X11."),
+            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, but not yet on KDE Plasma or other compositors."),
             ("Do I need an NVIDIA GPU?", "No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."),
             ("Can I move my library between Linux and a Mac?", "Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."),
         ],
@@ -124,8 +144,8 @@ GUIDES = [
     {
         "slug": "local-ai-meeting-notes-windows",
         "published": "2026-10-26",
-        "updated": "2026-10-26",
-        "updated_label": "October 26, 2026",
+        "updated": "2026-11-03",
+        "updated_label": "November 3, 2026",
         "title": "Local AI Meeting Notes on Windows — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.",
         "eyebrow": "Windows",
@@ -136,13 +156,19 @@ GUIDES = [
         <h2>What works on Windows</h2>
         <p>LokalBot for Windows is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app and reads the same library format, so a library recorded on a Mac opens on Windows. It's an alpha.</p>
         <ul>
-          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your PC's audio through WASAPI loopback, so nothing joins the call. On Windows the second track is everything your PC plays, not one app. When it detects a meeting, it asks with a notification.</li>
-          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3, SenseVoice, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and the meeting app's own audio through WASAPI process loopback on Windows build 20348 or later, which includes Windows 11, so nothing joins the call. On older builds, or when it can't separate the app, the second track is everything your PC plays. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations from Qwen3.5 4B in the built-in llama.cpp, Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
-          <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and on-device OCR.</li>
+          <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and the text recognizer built into Windows, in your app and system languages where Windows has that language pack.</li>
           <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with LFM2.5 1.2B on your PC.</li>
           <li><strong>Calendar.</strong> Private iCal or CalDAV links from Outlook, Google, or another calendar name your recordings and list today's meetings.</li>
           <li><strong>Agents.</strong> A read-only CLI and MCP server for Claude Code, Codex, and other agents, and an optional Agent Mode that works on your files with your approval, in Git Bash or PowerShell.</li>
+          <li><strong>Selection actions.</strong> Turn them on in <strong>Settings → General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
+          <li><strong>Spoken summaries.</strong> Hear summaries and answers read aloud, or export a WAV, with Kokoro 82M on your PC.</li>
+          <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
+          <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
+          <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
+          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. The apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Install without admin rights</h2>
@@ -155,13 +181,14 @@ GUIDES = [
         <h2>What's not there yet</h2>
         <ul>
           <li>Code signing, so SmartScreen will warn until it's in place.</li>
-          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation are Mac only for now.</li>
+          <li>Remembered speakers only suggest. Naming a speaker teaches an encrypted voice profile, and later meetings offer that name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
         </ul>
         """,
         "faq": [
             ("Why does Windows warn me before LokalBot opens?", "The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first."),
-            ("Does a bot join my Teams or Zoom calls?", "No. LokalBot records your microphone and what your PC plays, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording."),
+            ("Does a bot join my Teams or Zoom calls?", "No. LokalBot records your microphone and the meeting app's audio, or everything your PC plays when it can't separate the app, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording."),
             ("Do I need administrator rights?", "No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available."),
         ],
         "related": ["system-requirements", "local-ai-meeting-notes-linux", "claude-code-codex-meeting-notes"],
@@ -218,8 +245,8 @@ GUIDES = [
     },
     {
         "slug": "open-source-ai-meeting-notes",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "Open-Source AI Meeting Notes: What to Verify",
         "description": "A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.",
         "eyebrow": "Open source",
@@ -236,7 +263,7 @@ GUIDES = [
         <h2>Trace the meeting data path</h2>
         <p>For a private notetaker, follow the recording from capture to deletion:</p>
         <ol>
-          <li>The microphone and the meeting audio produce two local audio tracks. On a Mac the second track is the selected meeting app; on Windows and Linux it is everything the computer plays.</li>
+          <li>The microphone and the meeting audio produce two local audio tracks. On a Mac the second track is the selected meeting app; on Windows and Linux it is the meeting app where it can be separated, and otherwise everything the computer plays.</li>
           <li>A downloaded speech engine creates the transcript on your computer.</li>
           <li>The built-in llama.cpp backend can generate a summary locally.</li>
           <li>SQLite stores the library and full-text search index.</li>
@@ -279,8 +306,8 @@ GUIDES = [
     },
     {
         "slug": "record-both-sides-mac-meeting-without-bot",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "Record Both Sides of a Mac Meeting Without a Bot",
         "description": "How LokalBot captures your microphone and meeting-app audio as synchronized tracks on macOS without adding a bot participant.",
         "eyebrow": "Bot-free capture",
@@ -294,7 +321,7 @@ GUIDES = [
         <h2>The two-track approach</h2>
         <p>LokalBot records two synchronized audio sources: the selected microphone and a Core Audio process tap for the selected meeting application's output. The transcript labels describe where the audio was captured, not a verified speaker identity. A shared microphone, headphones leaking into the mic, or meeting audio played into the room can put the same voice on either source.</p>
         <p>When several voices occur in the system-audio source, optional on-device diarization can estimate additional speaker turns. Diarization is probabilistic, so identities and boundaries may still need editing after a difficult or overlapping conversation.</p>
-        <p>The Windows and Linux versions (alpha) also record two tracks, but the second one is everything the computer plays, not one app: WASAPI loopback on Windows, and a PulseAudio or PipeWire monitor on Linux. Notifications or music playing during the call end up in the recording too. Calendar matching there uses private iCal or CalDAV links instead of macOS Calendar. See the <a href="system-requirements">system requirements</a>.</p>
+        <p>The Windows and Linux versions (alpha) also record two tracks. The second one is the meeting app alone where it can be separated: WASAPI process loopback on Windows build 20348 or later, and the app's own PulseAudio or PipeWire streams on Linux. Otherwise it is everything the computer plays, so notifications or music playing during the call end up in the recording too. Calendar matching there uses private iCal or CalDAV links instead of macOS Calendar. See the <a href="system-requirements">system requirements</a>.</p>
 
         <h2>What the other participants see</h2>
         <p>No account joins the room, no virtual participant appears in the roster, and no bot announces itself. That makes the workflow less disruptive, but it does not make recording invisible in a legal or ethical sense. Tell people when required, obtain consent, and follow employer and platform policies. LokalBot is a personal recorder; it cannot decide whether a particular meeting may be recorded.</p>
@@ -323,8 +350,8 @@ GUIDES = [
     },
     {
         "slug": "local-transcription-models-mac",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "Local Transcription Models for Mac: A Guide",
         "description": "Compare Granite Speech, Parakeet, Qwen3-ASR, and Whisper for private on-device meeting transcription on Apple Silicon.",
         "eyebrow": "Model guide",
@@ -348,7 +375,7 @@ GUIDES = [
             </tbody>
           </table>
         </div>
-        <p>The table covers the Mac app. The Windows and Linux versions (alpha) use Qwen3-ASR 0.6B by default, with Parakeet v3, SenseVoice, and Whisper turbo as options, and no Granite Speech; see the <a href="system-requirements">system requirements</a>.</p>
+        <p>The table covers the Mac app. The Windows and Linux versions (alpha) use Qwen3-ASR 0.6B by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options, and no Granite Speech; see the <a href="system-requirements">system requirements</a>.</p>
 
         <h2>A sensible selection strategy</h2>
         <ol>
@@ -383,8 +410,8 @@ GUIDES = [
     },
     {
         "slug": "system-requirements",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-03",
+        "updated_label": "November 3, 2026",
         "title": "LokalBot System Requirements: Mac, Windows and Linux (alpha)",
         "description": "Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.",
         "eyebrow": "Compatibility",
@@ -430,7 +457,7 @@ GUIDES = [
         <ul>
           <li><strong>Operating system:</strong> Windows 10 or 11 on an x64 PC.</li>
           <li><strong>Install:</strong> download <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-asset="windows">the Windows installer</a> from the latest release and run it. It installs LokalBot for your user into <code>%LOCALAPPDATA%\\Programs\\LokalBot</code>, with a Start menu shortcut and no administrator rights. It isn't code-signed yet, so SmartScreen asks first: choose <strong>More info → Run anyway</strong>. The release also has a portable zip.</li>
-          <li><strong>System audio:</strong> WASAPI loopback records everything the computer plays, not just the meeting app.</li>
+          <li><strong>System audio:</strong> WASAPI process loopback records just the meeting app on build 20348 or later, which includes Windows 11. On older builds, or when the app can't be separated, WASAPI loopback records everything the computer plays.</li>
           <li><strong>Disk:</strong> about 4 GB for the default transcription, summary, and search models, plus your recordings.</li>
           <li><strong>GPU:</strong> optional. The built-in llama.cpp runs on a Vulkan GPU or on the CPU.</li>
           <li><strong>Library:</strong> <code>%LOCALAPPDATA%\\LokalBot</code>.</li>
@@ -440,10 +467,11 @@ GUIDES = [
         <ul>
           <li><strong>System:</strong> x86_64 with glibc 2.39 or later, such as Ubuntu 24.04, Debian 13, or Fedora 40 or newer.</li>
           <li><strong>Graphics:</strong> a Vulkan or OpenGL driver. Mesa is fine.</li>
-          <li><strong>Audio:</strong> PulseAudio or PipeWire. LokalBot records the output monitor, so it captures everything the computer plays, not just the meeting app.</li>
+          <li><strong>Audio:</strong> PulseAudio or PipeWire. LokalBot records the meeting app's own streams where it can, and otherwise the output monitor, which captures everything the computer plays.</li>
           <li><strong>Install:</strong> download <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-asset="linux">the Linux archive</a> from the latest release, extract it, and run <code>./install.sh</code>. It installs LokalBot to <code>~/.local/bin</code> and adds it to your applications menu. The same release also has a <code>.deb</code> (Debian, Ubuntu), an <code>.rpm</code> (Fedora, openSUSE) and an Arch package. Installing the <code>.deb</code>, or the <code>.rpm</code> on Fedora, also adds the LokalBot repository, so <code>sudo apt upgrade</code> or <code>sudo dnf upgrade</code> brings later versions; with the Arch package, LokalBot tells you about updates instead of installing them.</li>
           <li><strong>Disk:</strong> about 4 GB for the default models, plus your recordings. The built-in llama.cpp runs on a Vulkan GPU or on the CPU.</li>
-          <li><strong>GNOME:</strong> the tray icon needs the AppIndicator extension, and day memory needs the Window Calls extension.</li>
+          <li><strong>Screen text in other scripts:</strong> needs Tesseract (<code>tesseract-ocr</code> on Debian and Ubuntu, <code>tesseract</code> on Fedora and Arch), which the <code>.deb</code> and <code>.rpm</code> recommend. Without it, screen text reads Latin letters with ocrs.</li>
+          <li><strong>GNOME:</strong> the tray icon needs the AppIndicator extension, and day memory needs the Window Calls extension. Autocomplete in other apps needs LokalBot added as an input source, and in Firefox and Chrome it also needs Window Calls.</li>
           <li><strong>Library:</strong> <code>~/.local/share/LokalBot</code>.</li>
         </ul>
 
@@ -456,7 +484,8 @@ GUIDES = [
               <tr><th scope="row">Day memory (app and window activity)</th><td>Yes</td><td>Hyprland, Sway, and KDE; GNOME with the Window Calls extension</td></tr>
               <tr><th scope="row">Screen context (visible text, optional screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal</td></tr>
               <tr><th scope="row">Dictation</th><td>Hold Alt+Space</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your desktop's settings</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>Yes</td><td>Only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Selection actions</th><td>Press Ctrl+Alt+Space</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your desktop's settings</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>Yes</td><td>As an input method on Sway, Hyprland, and GNOME, lightly tested so far (see the <a href="local-ai-meeting-notes-linux">Linux guide</a>); elsewhere only in the practice editor in Settings</td></tr>
             </tbody>
           </table>
         </div>
@@ -464,25 +493,30 @@ GUIDES = [
         <h2>Models on Windows and Linux</h2>
         <p>The Windows and Linux app has its own defaults:</p>
         <ul>
-          <li><strong>Transcription:</strong> Qwen3-ASR 0.6B, with Parakeet v3, SenseVoice, and Whisper turbo as options.</li>
+          <li><strong>Transcription:</strong> Qwen3-ASR 0.6B, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options.</li>
           <li><strong>Speakers:</strong> pyannote segmentation with TitaNet embeddings.</li>
           <li><strong>Autocomplete:</strong> LFM2.5 1.2B.</li>
           <li><strong>Summaries and search:</strong> Qwen3.5 4B and EmbeddingGemma 2, the same as on a Mac.</li>
-          <li><strong>Screen text:</strong> accessibility (UI Automation on Windows, AT-SPI on Linux) plus on-device OCR, downloaded on request.</li>
+          <li><strong>Screen text:</strong> accessibility (UI Automation on Windows, AT-SPI on Linux) plus on-device OCR in your app and system languages: the recognizer built into Windows, or Tesseract on Linux, with ocrs as the fallback for Latin letters. Any download starts only when you ask.</li>
+          <li><strong>Spoken summaries:</strong> Kokoro 82M.</li>
         </ul>
         <p>The <a href="benchmarks">benchmarks</a> were measured on a Mac, so these engines have not been benchmarked yet.</p>
 
         <h2>Mac only for now</h2>
         <p>The Windows and Linux app has the same pages and reads the same library, but these features haven't been ported yet:</p>
         <ul>
-          <li>Selection actions (⌃⇧ W)</li>
-          <li>Meeting note export and daily memory notes for Obsidian and Logseq</li>
-          <li>Personal Context</li>
-          <li>Spoken summaries</li>
-          <li>Coding-agent sessions in day memory</li>
-          <li>Remember speakers (voice profiles)</li>
+          <li>Gmail in meeting briefs</li>
           <li>Apple Intelligence</li>
-          <li>Granite Speech and GigaAM transcription</li>
+          <li>Granite Speech transcription</li>
+          <li>Nemotron speaker separation</li>
+        </ul>
+
+        <h2>What works differently on Windows and Linux</h2>
+        <ul>
+          <li><strong>Remembered speakers:</strong> later meetings offer a remembered name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
+          <li><strong>Selection actions:</strong> the shortcut is <kbd>Ctrl+Alt+Space</kbd>, because ⌃⇧ W closes tabs and windows there. Apps without accessibility get results you can copy but not replace in place.</li>
+          <li><strong>Files:</strong> scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg. Results open in their default app.</li>
+          <li><strong>Phones and tablets:</strong> the apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Before an important meeting</h2>
@@ -507,8 +541,8 @@ GUIDES = [
         "slug": "granola-otter-alternatives-linux-windows",
         "kind": "question",
         "published": "2026-10-26",
-        "updated": "2026-10-26",
-        "updated_label": "October 26, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "Granola and Otter Alternatives for Linux and Windows",
         "description": "Granola has no Linux app, and Otter and Fireflies offer Linux only a web app. Which bot-free meeting notetakers run on Linux and Windows, where they transcribe, and how they're licensed.",
         "eyebrow": "Linux and Windows",
@@ -545,7 +579,7 @@ GUIDES = [
         </ul>
 
         <h2>Where LokalBot fits</h2>
-        <p>LokalBot records, transcribes, and summarizes on your computer by default, and asks before any context goes to a remote server. Speaker separation, meeting detection, cited answers, and a local read-only MCP server are free, and the same app keeps a timeline of your day, dictation, and autocomplete. Its Windows and Linux apps are in alpha: see <a href="local-ai-meeting-notes-linux">Linux</a> and <a href="local-ai-meeting-notes-windows">Windows</a> for what works today.</p>
+        <p>LokalBot records, transcribes, and summarizes on your computer by default, and asks before any context goes to a remote server. Speaker separation, meeting detection, cited answers, and a local read-only MCP server are free, and the same app keeps a timeline of your day, dictation, autocomplete, selection actions, spoken summaries, and a search of the folders you choose. Its Windows and Linux apps are in alpha: see <a href="local-ai-meeting-notes-linux">Linux</a> and <a href="local-ai-meeting-notes-windows">Windows</a> for what works today.</p>
         """,
         "faq": [
             ("Does Granola work on Linux?", "No. Granola's apps are for Mac, Windows, iPhone, and Android. Its web app can view and edit notes but can't record or transcribe a meeting."),
@@ -558,8 +592,8 @@ GUIDES = [
         "slug": "claude-code-codex-meeting-notes",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-09",
+        "updated_label": "November 9, 2026",
         "title": "Let Claude Code or Codex Search Your Meeting Notes",
         "description": "Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.",
         "eyebrow": "Agents and MCP",
@@ -578,8 +612,8 @@ GUIDES = [
         <h2>Set it up</h2>
         <ol>
           <li>Install LokalBot, let the models download, and record a short test meeting.</li>
-          <li>In <strong>Settings → Privacy &amp; Data → External agents</strong>, turn on <strong>Allow external agents to read your meeting library</strong>.</li>
-          <li>In <strong>Settings → Advanced → Agent CLI</strong>, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code>; add that folder to your PATH.</li>
+          <li>On a Mac, in <strong>Settings → External Agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong> and keep <strong>Meetings</strong> ticked. On Windows and Linux, turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>.</li>
+          <li>In <strong>Settings → External Agents → Agent CLI</strong> on a Mac, or <strong>Settings → Advanced → Agent CLI</strong> on Windows and Linux, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code>; add that folder to your PATH.</li>
           <li>Register the MCP server with your agent:</li>
         </ol>
         <pre class="code" aria-label="Add LokalBot's MCP server to Claude Code or Codex"><span class="c-op"># Claude Code</span>
@@ -587,8 +621,8 @@ GUIDES = [
 
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
-        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac.</p>
-        <p>In Claude Code you can install the LokalBot plugin instead. It adds the same server and a <code>/lokalbot:recall</code> command: run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
+        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac, except file search.</p>
+        <p>In Claude Code you can also install the LokalBot plugin. It adds the skill and three commands: <code>/lokalbot:brief</code> to catch up on your work, <code>/lokalbot:recall</code> to find what you said, saw or saved, and <code>/lokalbot:setup</code> to install LokalBot with you. Run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. The plugin doesn't start the MCP server, so keep the command above for screen memory. Codex has the same skills as a plugin: <code>codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin</code>, then <code>codex plugin add lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
 
         <h2>What the agent can do</h2>
         <ul>
@@ -598,14 +632,15 @@ GUIDES = [
           <li><strong>Follow up.</strong> <code>get_action_items</code> lists open actions with your corrections applied, and <code>list_people</code> shows who you meet, by name only. Email addresses are never returned.</li>
         </ul>
         <p>An agent without MCP can run the same commands in a shell. For example, <code>lokalbot-cli search "pricing decision"</code> prints matching meetings as JSON.</p>
-        <p>If you also save screen text, a second toggle, <strong>Allow external agents to read screen memory</strong>, grants access to today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
+        <p>Screen memory has its own permission: on a Mac, the <strong>Screen memory</strong> box under the same switch; on Windows and Linux, a second toggle, <strong>Allow external agents to read screen memory</strong>. It grants today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
+        <p>The <strong>Files</strong> box on a Mac, or <strong>Allow external agents to search your files</strong> on Windows and Linux, lets the agent search the folders you chose under Files with <code>search_files</code>, by their words. It gets each matching file's path, a short excerpt, and the passage that matched. LokalBot never changes the files.</p>
 
         <h2>Where your meetings go once an agent reads them</h2>
         <p>LokalBot doesn't upload your library, and its agent access is read-only, so the agent can't change or delete meetings. But whatever a tool returns becomes part of the agent's conversation, and Claude Code and Codex send that conversation to Anthropic or OpenAI under their own terms. Treat it like pasting the text in yourself:</p>
         <ul>
           <li>Prefer <code>search_meetings</code> and <code>ask_library</code> to pulling whole transcripts.</li>
-          <li>Turn access on only for agents you trust with that content, and turn the toggle off to cut access again.</li>
-          <li>The toggle controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
+          <li>Turn access on only for agents you trust with that content, tick only what they need, and turn the switch off to cut access again.</li>
+          <li>The switch controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
         </ul>
         """,
         "faq": [
@@ -619,8 +654,8 @@ GUIDES = [
         "slug": "ai-notetaker-bots-blocked-at-work",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "AI Notetaker Bots Blocked at Work? What IT Should Check",
         "description": "Why companies block meeting bots, what a bot-free local recorder changes and what it doesn't, and a checklist IT can use before approving one.",
         "eyebrow": "IT approval",
@@ -654,7 +689,7 @@ GUIDES = [
           <li><strong>Accounts and telemetry.</strong> None. There is no sign-in, analytics service, or telemetry backend.</li>
           <li><strong>Storage.</strong> Recordings, transcripts, and the search index are ordinary files and SQLite under the user's account, so disk encryption (FileVault, BitLocker, or LUKS) and your device policies protect them at rest. Day tracking saves app names and window titles by default; screen text and encrypted screenshots are separate opt-ins that expire after 14 days by default.</li>
           <li><strong>Consent behavior.</strong> On a fresh install, LokalBot asks through a notification before it records a detected meeting. Automatic recording is a setting the user has to turn on.</li>
-          <li><strong>Ways data can leave.</strong> Markdown exports, and on a Mac the Obsidian and Logseq note exports, are plain files in a folder the user picks. Agent access through the CLI and MCP server, and the optional Agent Mode, are off by default; once enabled, an agent's own provider receives what the agent reads.</li>
+          <li><strong>Ways data can leave.</strong> Markdown exports and the Obsidian and Logseq note exports are plain files in a folder the user picks. Agent access through the CLI and MCP server, and the optional Agent Mode, are off by default; once enabled, an agent's own provider receives what the agent reads.</li>
           <li><strong>Code and builds.</strong> The source is public under GPLv3. Mac releases are signed with a Developer ID and notarized by Apple, and install from the DMG or Homebrew. The Windows build (alpha) is a per-user installer or a portable zip, neither code-signed yet, so SmartScreen warns before it runs. The Linux build (alpha) comes as .deb, .rpm and Arch packages or an archive with an install script. On every platform, updates are signed and install only when the user chooses Install and Relaunch. Any version can be built from source.</li>
         </ol>
 
@@ -679,8 +714,8 @@ GUIDES = [
         "slug": "bot-free-meeting-recorder-speaker-labels",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "Can a Bot-Free Meeting Recorder Tell Who Said What?",
         "description": "How a recorder that never joins the call separates speakers, where the names come from, and measured speaker-separation accuracy for LokalBot on Mac.",
         "eyebrow": "Speaker labels",
@@ -696,9 +731,9 @@ GUIDES = [
           <li><strong>Two tracks first.</strong> Your microphone and the call audio are recorded separately, so your side and the call stay apart before any model runs. By default, speech on the microphone counts as yours (<strong>My microphone is me</strong>), which also puts your commitments first in action items.</li>
           <li><strong>Voices within each track.</strong> After the meeting, <strong>Separate voices by speaker</strong>, on by default, groups the voices in both tracks on your computer. New Mac installs use Nemotron 3; Windows and Linux (alpha) use pyannote segmentation with TitaNet embeddings.</li>
           <li><strong>Names from you.</strong> When you rename a speaker, calendar attendees appear as suggestions. They stay suggestions: even a one-on-one invite doesn't prove who spoke, so LokalBot never applies a calendar name on its own.</li>
-          <li><strong>Voices on this Mac, remembered.</strong> On a Mac, the optional <strong>Remember speakers on this Mac</strong> setting can suggest names for voices you've confirmed on this Mac's microphone in later recordings. Remote participants' voices are never enrolled or matched, so you name them in each meeting. This setting is Mac only for now.</li>
+          <li><strong>Voices, remembered.</strong> When you name a speaker and there's enough clear speech, LokalBot keeps an encrypted voice profile on your computer. That includes people on your calls, who aren't asked. On a Mac, a call voice that closely matches one remembered person is named automatically, and you can undo or correct it; microphone voices are only suggested. On Windows and Linux (alpha), a match is only offered, and <strong>Apply Names</strong> names the speaker.</li>
         </ol>
-        <p>All of these settings are in <strong>Settings → Meetings → Speaker names</strong>.</p>
+        <p>These settings and the list of remembered people are in <strong>Settings → Meetings → Speaker names</strong>.</p>
 
         <h2>How accurate is it?</h2>
         <p>The test ran on a Mac and used four public AMI meeting recordings, each scored twice (headset mix and distant microphone), for 184.55 minutes of audio with four speakers per meeting. Nemotron 3 had a 14.6% diarization error rate with no forgiveness collar, against 43.4% for the previous default, Pyannote Community-1. It found the right number of speakers in all eight cases and ran about 500 times faster than real time. The error rate adds up missed speech, false alarms, and speech credited to the wrong person. See the <a href="benchmarks">benchmarks</a> for methods and raw results.</p>
@@ -724,32 +759,32 @@ GUIDES = [
         "slug": "meeting-transcripts-obsidian-markdown",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-02",
+        "updated_label": "November 2, 2026",
         "title": "How to Get Meeting Transcripts into Obsidian as Markdown",
         "description": "Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script.",
         "eyebrow": "Obsidian and Markdown",
         "h1": "How do I get meeting transcripts into Obsidian as Markdown?",
-        "lead": "Record and transcribe on your Mac, and LokalBot can write a note for each meeting straight into your vault: the summary, the action items, the people and projects involved as links, and the transcript. You can also export one meeting at a time, add a daily note, or write the notes with your own script. Note export and the daily note are Mac only for now; on Windows and Linux (alpha), export one meeting at a time or use the script.",
+        "lead": "Record and transcribe on your computer, and LokalBot can write a note for each meeting straight into your vault: the summary, the action items, the people and projects involved as links, and the transcript. You can also export one meeting at a time, add a daily note, or write the notes with your own script.",
         "read_time": "5 min read",
         "body": """
         <h2>Why plain files work best</h2>
         <p>An Obsidian vault is a folder of Markdown files. Anything that writes a <code>.md</code> file into that folder can feed it, and the notes keep working without an account, a plugin, or a sync service in between. If the transcript is a file you own, nothing upstream can change how you get to it.</p>
 
-        <h2>Option 1: a note for every meeting (Mac)</h2>
-        <p>In <strong>Settings → Recording → Meeting note export</strong>, turn on <strong>Export a note for each meeting</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. LokalBot writes one note per meeting, including meetings you recorded before turning it on, named like <code>2026-10-14 Atlas release sync (4f7c2a91).md</code>.</p>
+        <h2>Option 1: a note for every meeting</h2>
+        <p>In <strong>Settings → Meetings → Meeting note export</strong>, turn on <strong>Export a note for each meeting</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. LokalBot writes one note per meeting, including meetings you recorded before turning it on, named like <code>2026-10-14 Atlas release sync (4f7c2a91).md</code>.</p>
         <p>Each note starts with properties: date, time, duration, meeting app, and the people and tracked projects involved as <code>[[links]]</code>, so they show up in backlinks and the graph. Then come the summary, the action items as checkboxes with the ones you finished checked off, and the transcript, unless you turn off <strong>Include the transcript</strong>. Detected passwords and keys are redacted.</p>
         <p>Notes stay current: marking an action done, renaming a speaker, or regenerating a summary updates the note. A note keeps its first name when you rename the meeting, so your links to it keep working. Once you edit, move, or delete a note, it is yours: LokalBot leaves it alone and does not write that meeting again.</p>
 
         <h2>Option 2: export one meeting</h2>
         <p>Open a meeting and choose <strong>Export → Export Meeting as Markdown…</strong>, then save it into your vault. The file starts with the title, date, duration, and meeting app, followed by the summary and the full transcript. <strong>Copy Meeting as Markdown</strong> puts the same text on the clipboard. This is fine for the occasional meeting and tedious for every one.</p>
 
-        <h2>Option 3: a daily note in Obsidian format (Mac)</h2>
-        <p>In <strong>Settings → Day Memory → Daily note export</strong>, turn on <strong>Export a daily memory note</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. Each evening (6 PM by default) LokalBot writes or refreshes one note for the day, with <code>date</code> and <code>tags</code> properties: the day's digest, a list of its meetings, app time, and saved moments. A day missed while the Mac was asleep is written later. If you edit a generated note, LokalBot keeps your edits and pauses the export until you move that note or choose another folder.</p>
+        <h2>Option 3: a daily note in Obsidian format</h2>
+        <p>In <strong>Settings → Daily Review → Daily note export</strong> on a Mac, or <strong>Settings → Day Memory → Daily note export</strong> on Windows and Linux, turn on <strong>Export a daily memory note</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. Each evening (6 PM by default) LokalBot writes or refreshes one note for the day, with <code>date</code> and <code>tags</code> properties: the day's digest, a list of its meetings, app time, and saved moments. A day missed while the computer was asleep is written later. If you edit a generated note, LokalBot keeps your edits and pauses the export until you move that note or choose another folder.</p>
         <p>The daily note lists meetings by time, title, and ID. It doesn't include their transcripts, so pair it with option 1 if you want the full text in the vault.</p>
 
         <h2>Option 4: your own script</h2>
-        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>, and install the CLI from <strong>Settings → Advanced → Agent CLI</strong>. Then save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
+        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn it on: on a Mac, <strong>Allow external agents to read your LokalBot data</strong> in <strong>Settings → External Agents</strong>, with <strong>Meetings</strong> ticked; on Windows and Linux, <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>. Then install the CLI from <strong>Settings → External Agents → Agent CLI</strong> on a Mac or <strong>Settings → Advanced → Agent CLI</strong> on Windows and Linux, save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
         <pre class="code" aria-label="Shell script that writes each LokalBot meeting into an Obsidian vault"><span class="c-op"># Folder inside your vault</span>
 vault=<span class="c-str">"$HOME/Documents/Obsidian/Meetings"</span>
 mkdir -p <span class="c-str">"$vault"</span>
@@ -770,12 +805,13 @@ lokalbot-cli list <span class="c-op">\\</span>
         </ul>
         """,
         "faq": [
-            ("Is there an Obsidian plugin for LokalBot?", "No, and you don't need one. On a Mac, LokalBot writes a note for each meeting straight into a folder in your vault, so nothing needs installing in Obsidian. On Windows and Linux, export meetings one at a time or use the script above."),
+            ("Is there an Obsidian plugin for LokalBot?", "No, and you don't need one. LokalBot writes a note for each meeting straight into a folder in your vault, so nothing needs installing in Obsidian."),
             ("Do the exported transcripts include speaker names?", "Yes. Each transcript line starts with a timestamp and the speaker's name, or a default label such as Me when you haven't named that speaker."),
-            ("Can I use Logseq instead?", "Yes, with Logseq OG, which keeps a graph as Markdown files. On a Mac, meeting notes and the daily note both come in a Logseq format, with page properties and TODO and DONE actions; choose your graph's pages folder for meeting notes. Logseq's newer database version imports Markdown instead of reading a folder, so it won't pick up new notes on its own."),
+            ("Can I use Logseq instead?", "Yes, with Logseq OG, which keeps a graph as Markdown files. Meeting notes and the daily note both come in a Logseq format, with page properties and TODO and DONE actions; choose your graph's pages folder for meeting notes. Logseq's newer database version imports Markdown instead of reading a folder, so it won't pick up new notes on its own."),
         ],
         "related": ["claude-code-codex-meeting-notes", "local-ai-meeting-notes-mac", "open-source-ai-meeting-notes"],
     },
+    ROUNDUP,
 ]
 
 # Hand-written reference pages (web/about.html, web/benchmarks.html). The
@@ -787,7 +823,7 @@ REFERENCES = [
         "eyebrow": "Fact sheet",
         "h1": "About LokalBot",
         "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source app for bot-free meeting notes, local transcription, and search on Mac, with Windows and Linux in alpha.",
-        "updated": "2026-10-26",
+        "updated": "2026-11-09",
     },
     {
         "slug": "benchmarks",

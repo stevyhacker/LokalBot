@@ -1,0 +1,12 @@
+[bindings.swift]
+module_name = "LokalBotSync"
+ffi_module_name = "LokalBotSyncFFI"
+ffi_module_filename = "LokalBotSyncFFI"
+
+[bindings.kotlin]
+package_name = "me.dotenv.lokalbot.sync"
+cdylib_name = "lokalbot_sync"
+# Free Rust objects with JNA's cleaner on every API level. The default tries
+# java.lang.ref.Cleaner (API 33) first, which lint flags with minSdk 29;
+# android_cleaner = true would need androidx.annotation in the :sync module.
+disable_java_cleaner = true

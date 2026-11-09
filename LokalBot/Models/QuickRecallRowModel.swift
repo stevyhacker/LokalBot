@@ -10,6 +10,7 @@ struct QuickRecallRowModel: Identifiable {
     enum Destination {
         case screen(Int64)
         case meeting(SearchIndex.Hit)
+        case file(FileSearchHit)
         /// A `PaletteCommand` id.
         case command(String)
     }
@@ -81,6 +82,20 @@ struct QuickRecallRowModel: Identifiable {
             captureCount: 1,
             isSaved: false,
             destination: .meeting(hit))
+    }
+
+    static func file(_ hit: FileSearchHit) -> Self {
+        .init(
+            id: "file.\(hit.id)",
+            icon: hit.icon,
+            appName: nil,
+            title: hit.name,
+            subtitle: "\(hit.kindLabel) · \(hit.folder)",
+            snippet: hit.excerpt,
+            timestamp: hit.date,
+            captureCount: 1,
+            isSaved: false,
+            destination: .file(hit))
     }
 
     static func command(_ command: PaletteCommand) -> Self {

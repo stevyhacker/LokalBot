@@ -82,7 +82,7 @@ final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
 
     // MARK: - Library tools
 
-    var libraryToolSpecs: [ChatToolSpec] { MeetingChatTools.specs }
+    var libraryToolSpecs: [ChatToolSpec] { MeetingChatTools.baseSpecs }
 
     func runLibraryTool(_ call: ChatToolCall) async -> LiveAnswerToolOutput {
         guard let app else { return .message("LokalBot is closing.") }

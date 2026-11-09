@@ -404,7 +404,7 @@ enum MeetingRadarReplay {
             return places
         }
 
-        var libraryToolSpecs: [ChatToolSpec] { MeetingChatTools.specs.filter { $0.name == "search_meetings" } }
+        var libraryToolSpecs: [ChatToolSpec] { MeetingChatTools.baseSpecs.filter { $0.name == "search_meetings" } }
 
         func runLibraryTool(_ call: ChatToolCall) async -> LiveAnswerToolOutput {
             let words = PersonalContextSelection.contentWords(call.string("query") ?? "")

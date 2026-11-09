@@ -1,4 +1,5 @@
 import CoreGraphics
+import CryptoKit
 import Foundation
 
 /// Text read from the focused window's pixels for the "Use the focused window
@@ -34,6 +35,49 @@ enum CotypingWindowText {
     /// New text shorter than this (a timestamp, a typing indicator) does not
     /// replace the text in use, which would make the model read it all again.
     static let minimumAddedCharacters = 12
+
+    /// Identifies what text recognition would read from a window image apart
+    /// from the field being typed in (its draft and blinking caret), whose
+    /// lines a prompt never uses. Equal fingerprints let a reread reuse the
+    /// last lines instead of recognizing the same window again (150–250 ms).
+    /// The frames are part of it because they place the lines.
+    static func fingerprint(of image: CGImage, windowFrame: CGRect, fieldFrame: CGRect) -> Data? {
+        guard image.width > 0, image.height > 0, windowFrame.width > 0, windowFrame.height > 0 else { return nil }
+        // Area-averaged to 512 pixels wide, a changed word still changes pixels.
+        let width = 512
+        let height = max(1, Int((Double(image.height) * Double(width) / Double(image.width)).rounded()))
+        var pixels = [UInt8](repeating: 0, count: width * height)
+        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context = CGContext(
+                data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+                space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
+            context.interpolationQuality = .high
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+        // Rows are stored top first, like the global coordinates of both frames.
+        let field = fieldFrame.insetBy(dx: -fieldMargin, dy: -fieldMargin).intersection(windowFrame)
+        if !field.isNull, !field.isEmpty {
+            let scaleX = Double(width) / windowFrame.width
+            let scaleY = Double(height) / windowFrame.height
+            let minX = max(0, Int(((field.minX - windowFrame.minX) * scaleX).rounded(.down)) - 1)
+            let maxX = min(width, Int(((field.maxX - windowFrame.minX) * scaleX).rounded(.up)) + 1)
+            let minY = max(0, Int(((field.minY - windowFrame.minY) * scaleY).rounded(.down)) - 1)
+            let maxY = min(height, Int(((field.maxY - windowFrame.minY) * scaleY).rounded(.up)) + 1)
+            if minX < maxX {
+                for row in minY..<maxY { pixels.replaceSubrange(row * width + minX..<row * width + maxX,
+                                                               with: repeatElement(0, count: maxX - minX)) }
+            }
+        }
+        var hasher = SHA256()
+        for value in [windowFrame.minX, windowFrame.minY, windowFrame.width, windowFrame.height,
+                      fieldFrame.minX, fieldFrame.minY, fieldFrame.width, fieldFrame.height] {
+            withUnsafeBytes(of: Double(value)) { hasher.update(bufferPointer: $0) }
+        }
+        pixels.withUnsafeBytes { hasher.update(bufferPointer: $0) }
+        return Data(hasher.finalize())
+    }
 
     /// The lines a prompt gets, in reading order. The draft itself never
     /// enters: it is already the text before the caret. Lines in the field's

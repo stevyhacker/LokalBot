@@ -5,8 +5,11 @@
 //! (`CaptureView.swift`, `CaptureDetailView.swift`,
 //! `ScreenMomentDetailView.swift`).
 
+mod agent_work;
 mod context;
+mod inspect;
 mod moment;
+mod range_delete;
 
 use std::cell::Cell;
 use std::collections::HashSet;
@@ -52,6 +55,8 @@ pub(crate) struct DayModel {
     pub activity: DayActivity,
     pub digest: Option<DayDigest>,
     pub attention: Vec<ActionThread>,
+    /// "Looks done?" suggestions, by thread.
+    pub hints: std::collections::HashMap<String, lokalbot_core::action_completion::CompletionHint>,
     pub meetings: Vec<Meeting>,
     pub moments: Vec<ScreenMoment>,
 }
@@ -64,15 +69,29 @@ pub(crate) enum Selection {
     RawCapture,
     /// One screen moment (`ScreenMoment::id`).
     Moment(i64),
+    /// One activity block (`ActivityBlock::id`).
+    Block(i64),
 }
 
 pub struct TimelinePage {
+    /// "Delete Captures in a Time Range…" while it is open.
+    range_deletion: Option<range_delete::RangeDeletion>,
     data: Entity<AppData>,
     day: NaiveDate,
     model: Option<Rc<DayModel>>,
     load_generation: u64,
     loaded_key: Option<(u64, NaiveDate)>,
     selection: Option<Selection>,
+    /// What Back returns to, nearest last ("Back to work session").
+    selection_trail: Vec<Selection>,
+    /// "Browse all retained moments" is open, with its Find and app filter.
+    moments_browsing: bool,
+    moment_search: Entity<InputState>,
+    moment_app: Option<String>,
+    /// The day's small moment images: `None` while one is being decrypted.
+    thumbnails: std::cell::RefCell<
+        std::collections::HashMap<i64, Option<crate::windows::screen_image::ScreenImage>>,
+    >,
     drawer_open: bool,
     meeting_preview: Option<MeetingPreview>,
     expanded_tasks: HashSet<usize>,
@@ -97,6 +116,13 @@ impl TimelinePage {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
         let today = Local::now().date_naive();
+        let moment_search = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(crate::i18n::placeholder(
+                "Find in this session",
+                window,
+                cx,
+            ))
+        });
         let calendar = cx.new(|cx| {
             let mut state = CalendarState::new(window, cx).disabled_matcher(Matcher::custom(
                 move |date: &NaiveDate| *date > Local::now().date_naive(),
@@ -105,6 +131,7 @@ impl TimelinePage {
             state
         });
         let subscriptions = vec![
+            cx.observe(&moment_search, |_, _, cx| cx.notify()),
             cx.observe(&data, |this, _, cx| {
                 this.on_data_changed(cx);
                 cx.notify();
@@ -125,12 +152,18 @@ impl TimelinePage {
             ))
         });
         let mut this = Self {
+            range_deletion: None,
             data,
             day: today,
             model: None,
             load_generation: 0,
             loaded_key: None,
             selection: None,
+            selection_trail: Vec::new(),
+            moments_browsing: false,
+            moment_search,
+            moment_app: None,
+            thumbnails: Default::default(),
             drawer_open: false,
             meeting_preview: None,
             expanded_tasks: HashSet::new(),
@@ -175,12 +208,15 @@ impl TimelinePage {
     }
 
     fn set_day(&mut self, day: NaiveDate, cx: &mut Context<Self>) {
+        self.range_deletion = None;
         let day = day.min(Local::now().date_naive());
         if day == self.day {
             return;
         }
         self.day = day;
         self.selection = None;
+        self.selection_trail.clear();
+        self.release_thumbnails();
         self.meeting_preview = None;
         self.drawer_open = false;
         self.expanded_tasks.clear();
@@ -191,6 +227,7 @@ impl TimelinePage {
 
     pub(crate) fn reload(&mut self, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
+        let suggest_done = threads::suggests_completion(&self.data.read(cx).settings);
         let day = self.day;
         self.load_generation += 1;
         let generation = self.load_generation;
@@ -198,15 +235,23 @@ impl TimelinePage {
             let model = cx
                 .background_spawn(async move {
                     let (start, end) = lokalbot_core::time::local_day_bounds(day);
+                    let attention = library
+                        .needs_attention(Some(day), usize::MAX)
+                        .unwrap_or_default();
+                    // Suggestions only, and only from text kept with consent.
+                    let hints = if suggest_done {
+                        library.action_completion_hints(&attention, Utc::now())
+                    } else {
+                        Default::default()
+                    };
                     DayModel {
                         activity: library.day_activity(day).unwrap_or_else(|err| {
                             log::warn!("day activity for {day}: {err:#}");
                             DayActivity::default()
                         }),
                         digest: library.day_digest(day).unwrap_or_default(),
-                        attention: library
-                            .needs_attention(Some(day), usize::MAX)
-                            .unwrap_or_default(),
+                        attention,
+                        hints,
                         meetings: library
                             .list_own_meetings()
                             .unwrap_or_default()
@@ -228,7 +273,29 @@ impl TimelinePage {
         .detach();
     }
 
+    /// Opens something inside the current selection, so Back returns to it.
+    pub(crate) fn open_child(&mut self, child: Selection, cx: &mut Context<Self>) {
+        if self.selection.as_ref() == Some(&child) {
+            return;
+        }
+        let mut trail = std::mem::take(&mut self.selection_trail);
+        trail.extend(self.selection.clone());
+        self.select(Some(child), cx);
+        self.selection_trail = trail;
+    }
+
+    /// Back: to what opened this selection, else to the day.
+    pub(crate) fn go_back(&mut self, cx: &mut Context<Self>) {
+        let mut trail = std::mem::take(&mut self.selection_trail);
+        let parent = trail.pop();
+        self.select(parent, cx);
+        self.selection_trail = trail;
+    }
+
     pub(crate) fn select(&mut self, selection: Option<Selection>, cx: &mut Context<Self>) {
+        self.selection_trail.clear();
+        self.moments_browsing = false;
+        self.moment_app = None;
         let toggled_off = selection.is_some() && selection == self.selection;
         self.selection = if toggled_off { None } else { selection };
         if !matches!(self.selection, Some(Selection::Moment(_))) {
@@ -520,10 +587,13 @@ impl TimelinePage {
         let shown = &model.attention[..model.attention.len().min(ATTENTION_ROWS)];
         let rows = shown.iter().enumerate().map(|(ix, thread)| {
             v_flex()
-                .child(div().py(px(6.)).child(threads::thread_row(
+                .child(div().py(px(6.)).child(threads::thread_row_with(
                     format!("timeline-thread-{ix}").into(),
                     thread,
-                    false,
+                    threads::RowOptions {
+                        hint: model.hints.get(&thread.id),
+                        ..Default::default()
+                    },
                     &self.data,
                     cx,
                 )))
@@ -603,45 +673,82 @@ impl TimelinePage {
         if shares.is_empty() && activity.meeting_count == 0 {
             return None;
         }
+        // Split by project when the day's agents name them, else by app.
+        let split = &activity.project_split;
+        let project_rows = agent_work::project_rows(split);
+        let outcomes = agent_work::outcome_text(&agent_work::day_outcomes(&activity.agent_bursts));
         let work_sessions = activity.sessions.iter().filter(|s| !s.is_meeting()).count();
         let mut counts = vec![lokalbot_i18n::count(work_sessions, "work session")];
         if activity.meeting_count > 0 {
             counts.push(lokalbot_i18n::count(activity.meeting_count, "meeting"));
         }
-        counts.push(lokalbot_i18n::count(digest::app_count(activity), "app"));
-        let segments: Vec<(Hsla, f32)> = shares
+        if split.projects.is_empty() {
+            counts.push(lokalbot_i18n::count(digest::app_count(activity), "app"));
+        } else {
+            counts.push(agent_work::counted(
+                split.projects.len(),
+                "{count} project",
+                "{count} projects",
+            ));
+        }
+        let legend_rows: Vec<(String, f64, Hsla)> = if split.projects.is_empty() {
+            shares
+                .iter()
+                .map(|share| {
+                    (
+                        share.label.to_string(),
+                        share.seconds,
+                        digest::share_color(share, cx),
+                    )
+                })
+                .collect()
+        } else {
+            project_rows
+                .iter()
+                .map(|row| {
+                    (
+                        row.label.clone(),
+                        row.seconds,
+                        agent_work::row_color(row, cx),
+                    )
+                })
+                .collect()
+        };
+        let segments: Vec<(Hsla, f32)> = legend_rows
             .iter()
-            .map(|share| (digest::share_color(share, cx), share.seconds as f32))
+            .map(|(_, seconds, color)| (*color, *seconds as f32))
             .collect();
         // Two columns, each app's time flush right so the numbers line up.
-        let legend = v_flex().gap(px(6.)).children(shares.chunks(2).map(|pair| {
-            h_flex()
-                .gap(px(20.))
-                .children(pair.iter().map(|share| {
-                    h_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap(px(7.))
-                        .items_center()
-                        .text_size(ty::SECONDARY)
-                        .child(ui::status_dot(digest::share_color(share, cx), px(7.)))
-                        .child(
-                            div()
-                                .min_w_0()
-                                .truncate()
-                                .text_color(lb.text)
-                                .child(share.label.clone()),
-                        )
-                        .child(div().flex_1().min_w(px(6.)))
-                        .child(
-                            div()
-                                .flex_none()
-                                .text_color(lb.text_secondary)
-                                .child(digest::hm(share.seconds)),
-                        )
-                }))
-                .when(pair.len() == 1, |this| this.child(div().flex_1()))
-        }));
+        let legend = v_flex()
+            .gap(px(6.))
+            .children(legend_rows.chunks(2).map(|pair| {
+                h_flex()
+                    .gap(px(20.))
+                    .children(pair.iter().map(|(label, seconds, color)| {
+                        h_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(7.))
+                            .items_center()
+                            .text_size(ty::SECONDARY)
+                            .child(ui::status_dot(*color, px(7.)))
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_color(lb.text)
+                                    .child(label.clone()),
+                            )
+                            .child(div().flex_1().min_w(px(6.)))
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .text_color(lb.text_secondary)
+                                    .child(digest::hm(*seconds)),
+                            )
+                    }))
+                    .when(pair.len() == 1, |this| this.child(div().flex_1()))
+            }));
         Some(
             v_flex()
                 .gap(px(12.))
@@ -673,8 +780,19 @@ impl TimelinePage {
                                 .child(counts.join(" · ")),
                         ),
                 )
-                .when(!shares.is_empty(), |this| {
+                .when(!legend_rows.is_empty(), |this| {
                     this.child(ui::proportion_bar(&segments, cx)).child(legend)
+                })
+                .when_some(outcomes, |this, outcomes| {
+                    this.child(
+                        h_flex()
+                            .gap(px(6.))
+                            .items_center()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.supporting)
+                            .child(ui::icon(Ico::Check, px(13.), lb.accent_text))
+                            .child(outcomes),
+                    )
                 })
                 .into_any_element(),
         )
@@ -818,6 +936,17 @@ impl TimelinePage {
         let lb = cx.lb().clone();
         let selected = self.selection == Some(Selection::Session(session.id.clone()));
         let selection = Selection::Session(session.id.clone());
+        // A project session takes its project's color, so the rail and the day's
+        // split read together.
+        let project = session
+            .project_shares
+            .first()
+            .filter(|_| session.title_names_project)
+            .map(|share| share.project.as_str());
+        let quiet = session.title_names_apps && !session.title_names_project;
+        let outcomes = agent_work::outcome_text(
+            &lokalbot_core::coding_agents::attribution::Outcomes::of(&session.agent_bursts),
+        );
         h_flex()
             .id(("timeline-session", ix))
             .w_full()
@@ -838,23 +967,36 @@ impl TimelinePage {
                 }
             })
             .child(metrics.time(session.start, None, cx))
-            .child(metrics.dot(lb.app_color(&session.primary_app)))
+            .child(metrics.dot(lb.app_color(project.unwrap_or(&session.primary_app))))
             // A title that only lists apps stays quieter than one that names
             // what was open.
             .child(
-                div()
+                gpui_kit::component::v_flex()
                     .flex_1()
                     .min_w_0()
-                    .truncate()
-                    .text_size(px(13.))
-                    .map(|this| {
-                        if session.title_names_apps {
-                            this.text_color(lb.supporting)
-                        } else {
-                            this.font_weight(FontWeight::MEDIUM).text_color(lb.text)
-                        }
-                    })
-                    .child(session.title.clone()),
+                    .gap(px(2.))
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(px(13.))
+                            .map(|this| {
+                                if quiet {
+                                    this.text_color(lb.supporting)
+                                } else {
+                                    this.font_weight(FontWeight::MEDIUM).text_color(lb.text)
+                                }
+                            })
+                            .child(session.title.clone()),
+                    )
+                    .when_some(outcomes, |this, outcomes| {
+                        this.child(
+                            div()
+                                .truncate()
+                                .text_size(ty::CAPTION)
+                                .text_color(lb.text_secondary)
+                                .child(outcomes),
+                        )
+                    }),
             )
             .child(
                 div()
@@ -973,13 +1115,41 @@ impl TimelinePage {
         }
     }
 
+    /// Ask about one work session, bounded to its moments on its day. A single
+    /// moment is attached instead, as "Ask About This…" does.
+    fn ask_session(
+        &self,
+        question: String,
+        moments: Vec<lokalbot_core::ScreenMoment>,
+        cx: &mut Context<Self>,
+    ) {
+        let day = self.day;
+        self.data.update(cx, |data, cx| {
+            match moments.as_slice() {
+                [one] => data.ask_screen = Some(one.clone()),
+                many => data.ask_screens = Some(many.iter().map(|m| m.id).collect()),
+            }
+            data.ask(
+                crate::state::AskRequest {
+                    question,
+                    meeting_ids: Vec::new(),
+                    submit: false,
+                    day: Some(day),
+                },
+                cx,
+            )
+        });
+    }
+
     fn ask_day(&self, question: String, meeting_ids: Vec<Uuid>, cx: &mut Context<Self>) {
+        let day = self.day;
         self.data.update(cx, |data, cx| {
             data.ask(
                 crate::state::AskRequest {
                     question,
                     meeting_ids,
                     submit: false,
+                    day: Some(day),
                 },
                 cx,
             )
@@ -993,6 +1163,8 @@ impl Page for TimelinePage {
     }
 
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let back = self.data.read(cx).evidence_return;
+        let back_data = self.data.clone();
         let (paused, screen_context) = {
             let data = self.data.read(cx);
             (
@@ -1007,6 +1179,17 @@ impl Page for TimelinePage {
         Some(
             h_flex()
                 .gap_1()
+                .when(back.is_some(), |this| {
+                    this.child(
+                        Button::new("timeline-evidence-back")
+                            .ghost()
+                            .icon(Icon::new(Ico::ChevronLeft))
+                            .label(lokalbot_i18n::tr("Back"))
+                            .on_click(move |_, _, cx| {
+                                back_data.update(cx, |data, cx| data.return_from_evidence(cx));
+                            }),
+                    )
+                })
                 .when(screen_context && !paused, |this| {
                     this.child(
                         ui::controls::toolbar_icon(

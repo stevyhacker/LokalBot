@@ -34,11 +34,41 @@ final class FunASRNanoRuntimeTests: XCTestCase {
         XCTAssertTrue(transcript.engine.contains("Fun-ASR-Nano-2512"))
     }
 
-    private func run(_ root: URL, count: Int) async throws -> [String] {
-        try await OnnxTranscriptionEngine.runBatch(
-            runtime: (root.appendingPathComponent("runtime"), root), arguments: [], weights: [],
-            modelID: "funasr-test", label: "Fun-ASR test", wavs: (0..<count).map { root.appendingPathComponent("\($0).wav") },
-            requireAllResults: true)
+    func testRepeatedRunsAllReturn() async throws {
+        // Each await in runBatch may resume on another thread. While the exit
+        // wait depended on the launching thread's run loop, a few dozen runs
+        // were enough to strand one forever.
+        let root = try helper(stdout: "{\"text\":\"你好\"}\n{\"text\":\"\"}\n")
+        defer { try? FileManager.default.removeItem(at: root) }
+        for _ in 0..<40 {
+            let result = try await run(root, count: 2)
+            XCTAssertEqual(result, ["你好", ""])
+        }
+    }
+
+    /// A stuck runtime fails the test within `timeout` instead of stalling CI
+    /// until the job's time limit.
+    private func run(_ root: URL, count: Int, timeout: TimeInterval = 30) async throws -> [String] {
+        let returned = XCTestExpectation(description: "Fun-ASR runtime returned")
+        let batch = Task {
+            defer { returned.fulfill() }
+            return try await OnnxTranscriptionEngine.runBatch(
+                runtime: (root.appendingPathComponent("runtime"), root), arguments: [], weights: [],
+                modelID: "funasr-test", label: "Fun-ASR test", wavs: (0..<count).map { root.appendingPathComponent("\($0).wav") },
+                requireAllResults: true)
+        }
+        guard await XCTWaiter.fulfillment(of: [returned], timeout: timeout) == .completed else {
+            batch.cancel()
+            throw RuntimeTimeout(seconds: timeout)
+        }
+        return try await batch.value
+    }
+
+    private struct RuntimeTimeout: Error, CustomStringConvertible {
+        let seconds: TimeInterval
+        var description: String {
+            "OnnxTranscriptionEngine.runBatch did not return within \(Int(seconds)) s."
+        }
     }
 
     private func helper(stdout: String) throws -> URL {

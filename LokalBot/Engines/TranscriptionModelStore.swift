@@ -16,7 +16,9 @@ struct TranscriptionModelStore {
             let fluidAudioRoot = AppDirectories.fluidAudioRoot
             let fluidAudioModelsRoot = fluidAudioRoot
                 .appendingPathComponent("Models", isDirectory: true)
-            let legacyWhisperKitRepoRoot = fileManager.urls(
+            // Unit tests never look in the user's Documents folder: macOS
+            // asks a freshly built test host for access every time.
+            let legacyWhisperKitRepoRoot = UITestRuntime.isUnitTesting ? nil : fileManager.urls(
                 for: .documentDirectory,
                 in: .userDomainMask
             ).first?
@@ -83,7 +85,9 @@ struct TranscriptionModelStore {
         case .qwenASR06B:
             return qwenModelExists(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
                                    environment: environment)
-        case .graniteSpeech:
+        case .graniteSpeech, .graniteSpeech5:
+            let graniteConfiguration = choice == .graniteSpeech5
+                ? GraniteSpeechModelConfiguration.speech5 : graniteConfiguration
             return ModelFileValidator.looksLikeGGUF(GraniteSpeechEngine.modelURL(
                 configuration: graniteConfiguration,
                 appSupport: environment.appSupport))
@@ -147,6 +151,10 @@ struct TranscriptionModelStore {
             [GraniteSpeechEngine.modelRoot(
                 configuration: graniteConfiguration,
                 appSupport: environment.appSupport)]
+        case .graniteSpeech5:
+            [GraniteSpeechEngine.modelRoot(
+                configuration: .speech5,
+                appSupport: environment.appSupport)]
         case .graniteTurbo:
             [GraniteTurboEngine.modelRoot(appSupport: environment.appSupport)]
         case .whisperLarge:
@@ -200,11 +208,11 @@ struct TranscriptionModelStore {
             model: model, verifyContents: false)
     }
 
+    /// Only the Application Support cache. Readiness checks run at launch, and
+    /// listing the legacy `~/Documents` cache there made macOS ask for
+    /// Documents access; preparing Whisper migrates that cache instead.
     private static func whisperModelDirectories(environment: Environment) -> [URL] {
-        let legacy = environment.legacyWhisperKitRepoRoot.map {
-            whisperModelDirectories(at: $0)
-        } ?? []
-        return whisperModelDirectories(at: environment.whisperKitRepoRoot) + legacy
+        whisperModelDirectories(at: environment.whisperKitRepoRoot)
     }
 
     private static func whisperModelDirectories(at repository: URL) -> [URL] {
@@ -225,12 +233,15 @@ struct TranscriptionModelStore {
     /// WhisperKit checks the new Application Support download root. Migration
     /// is deliberately best-effort at the call site: an MDM-denied legacy
     /// folder must never prevent a clean download into the correct location.
+    /// A complete Application Support cache skips the legacy folder entirely,
+    /// so only the first preparation after an upgrade touches `~/Documents`.
     static func migrateLegacyWhisperKitModels(
         environment: Environment = .live,
         fileManager: FileManager = .default
     ) throws {
         guard let legacyRoot = environment.legacyWhisperKitRepoRoot,
-              legacyRoot.standardizedFileURL != environment.whisperKitRepoRoot.standardizedFileURL
+              legacyRoot.standardizedFileURL != environment.whisperKitRepoRoot.standardizedFileURL,
+              !isDownloaded(.whisperLarge, environment: environment)
         else { return }
 
         for source in whisperModelDirectories(at: legacyRoot)

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generated from Assets/lokalbot-icon.svg (the L-shaped robot). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="108dp" android:height="108dp" android:viewportWidth="1024" android:viewportHeight="1024">
+    <group android:scaleX="0.72" android:scaleY="0.72" android:translateX="164" android:translateY="187">
+        <path android:fillColor="#FF3A7D72" android:pathData="M390,206 h0 a18,18 0 0 1 18,18 v50 a18,18 0 0 1 -18,18 h-0 a18,18 0 0 1 -18,-18 v-50 a18,18 0 0 1 18,-18 z"/>
+        <path android:fillColor="#FFFBBF24" android:pathData="M348,186 a42,42 0 1 0 84,0 a42,42 0 1 0 -84,0 z"/>
+        <path android:pathData="M330,276 h120 a62,62 0 0 1 62,62 v360 a62,62 0 0 1 -62,62 h-120 a62,62 0 0 1 -62,-62 v-360 a62,62 0 0 1 62,-62 z M330,592 h368 a62,62 0 0 1 62,62 v44 a62,62 0 0 1 -62,62 h-368 a62,62 0 0 1 -62,-62 v-44 a62,62 0 0 1 62,-62 z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="268" android:startY="276" android:endX="760" android:endY="760"><item android:offset="0" android:color="#FF6EF2DC"/><item android:offset="1" android:color="#FF23C4AE"/></gradient></aapt:attr></path>
+        <path android:fillColor="#FF0E141C" android:pathData="M350,326 h80 a38,38 0 0 1 38,38 v42 a38,38 0 0 1 -38,38 h-80 a38,38 0 0 1 -38,-38 v-42 a38,38 0 0 1 38,-38 z"/>
+        <path android:fillColor="#FF6EF2DC" android:pathData="M356,385 a34,34 0 1 0 68,0 a34,34 0 1 0 -68,0 z"/>
+        <path android:fillColor="#FFEAFFFA" android:pathData="M392,373 a10,10 0 1 0 20,0 a10,10 0 1 0 -20,0 z"/>
+        <path android:fillColor="#FF3A7D72" android:pathData="M228,430 h0 a22,22 0 0 1 22,22 v136 a22,22 0 0 1 -22,22 h-0 a22,22 0 0 1 -22,-22 v-136 a22,22 0 0 1 22,-22 z"/>
+        <path android:fillColor="#FF0E141C" android:pathData="M569,646 h0 a13,13 0 0 1 13,13 v34 a13,13 0 0 1 -13,13 h-0 a13,13 0 0 1 -13,-13 v-34 a13,13 0 0 1 13,-13 z M615,624 h0 a13,13 0 0 1 13,13 v78 a13,13 0 0 1 -13,13 h-0 a13,13 0 0 1 -13,-13 v-78 a13,13 0 0 1 13,-13 z M661,638 h0 a13,13 0 0 1 13,13 v50 a13,13 0 0 1 -13,13 h-0 a13,13 0 0 1 -13,-13 v-50 a13,13 0 0 1 13,-13 z M707,654 h0 a13,13 0 0 1 13,13 v18 a13,13 0 0 1 -13,13 h-0 a13,13 0 0 1 -13,-13 v-18 a13,13 0 0 1 13,-13 z"/>
+    </group>
+</vector>

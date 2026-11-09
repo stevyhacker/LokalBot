@@ -7,11 +7,9 @@ import XCTest
 /// step with the app, so a drift fails here instead of in the slower workday job.
 final class SeedLibraryCompatibilityTests: XCTestCase {
     func testFullDaySeedIsReadableByTheAppStores() throws {
-        let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        let script = repository.appendingPathComponent("Scripts/seed_demo_library.py")
-        guard FileManager.default.fileExists(atPath: script.path) else {
-            throw XCTSkip("the repository checkout is not available to this test run")
-        }
+        // A copy of Scripts/seed_demo_library.py; see project.yml.
+        let script = try XCTUnwrap(Bundle(for: Self.self).url(
+            forResource: "seed_demo_library", withExtension: "py"))
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("seed-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -35,11 +33,9 @@ final class SeedLibraryCompatibilityTests: XCTestCase {
     /// you file must decode with every origin the app stores.
     @MainActor
     func testDemoSeedAboutYouIsReadableByThePersonalModel() throws {
-        let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-        let script = repository.appendingPathComponent("Scripts/seed_demo_library.py")
-        guard FileManager.default.fileExists(atPath: script.path) else {
-            throw XCTSkip("the repository checkout is not available to this test run")
-        }
+        // A copy of Scripts/seed_demo_library.py; see project.yml.
+        let script = try XCTUnwrap(Bundle(for: Self.self).url(
+            forResource: "seed_demo_library", withExtension: "py"))
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("seed-about-you-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }

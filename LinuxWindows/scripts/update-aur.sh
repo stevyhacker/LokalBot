@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Points the lokalbot-bin AUR package (packaging/aur/lokalbot-bin) at a
-# release: sets pkgver, takes the Linux archive's SHA-256 from the release's
-# .sha256 asset, and regenerates .SRCINFO. A new version resets pkgrel to 1;
+# release: sets pkgver, takes the SHA-256 GitHub reports for the Linux archive
+# (with gh), and regenerates .SRCINFO. A new version resets pkgrel to 1;
 # the same version keeps it unless PKGREL is given (a packaging-only fix).
 #
 #   scripts/update-aur.sh 0.11.1       # or v0.11.1
@@ -11,8 +11,7 @@
 # (macOS, Ubuntu), it runs in an archlinux container with docker or podman.
 #
 # REPOSITORY: the GitHub repository with the release (default
-# stevyhacker/LokalBot). SHA256: use this checksum instead of downloading the
-# .sha256 asset.
+# stevyhacker/LokalBot). SHA256: use this checksum instead of asking GitHub.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DIR="packaging/aur/lokalbot-bin"
@@ -33,8 +32,8 @@ ASSET="LokalBot-$VERSION-linux-x86_64.tar.gz"
 
 SHA256="${SHA256:-}"
 if [ -z "$SHA256" ]; then
-  url="https://github.com/$REPOSITORY/releases/download/v$VERSION/$ASSET.sha256"
-  SHA256=$(curl -fsSL --retry 3 "$url" | awk -v asset="$ASSET" '$2 == asset || $2 == "*" asset { print $1 }')
+  SHA256=$(gh api "repos/$REPOSITORY/releases/tags/v$VERSION" \
+    --jq ".assets[] | select(.name == \"$ASSET\") | .digest | ltrimstr(\"sha256:\")")
 fi
 if ! [[ "$SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   echo "No SHA-256 for $ASSET in release v$VERSION of $REPOSITORY." >&2

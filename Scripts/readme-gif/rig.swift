@@ -9,7 +9,23 @@
 //   rig take  <shot.json> <out-dir>   record frames + take.json into out-dir
 //   rig still <shot.json> <out.png>   place the window and save one frame
 //   rig ax    <shot.json>             place the window and print its accessibility tree
+//   rig probe <shot.json> <out-prefix> place the window, run the setup, save <prefix>.txt
+//                                     (the accessibility tree) and <prefix>.png (one frame)
 //   rig idle  <seconds>               wait until nobody has touched an input device that long
+//   rig key   <name> [mod...]         press one key, e.g. a system-wide shortcut: rig key space control shift
+//   rig windows list|kill             other apps' windows on the filming display; kill ends their owners
+//   rig appearance light|dark         set the system appearance, which the apps launched next read
+//
+// take.json also tracks the pointer at 60 Hz (`pointer`: [t, x, y] in capture
+// seconds and window-relative points), so an edit can draw or follow it when
+// the shot leaves it out of the recording (`"cursor": false`). RIG_DISPLAY
+// names the display to film on by its CGDirectDisplayID. RIG_TREE_DIR saves the
+// window's accessibility tree at each `mark`, as <dir>/<mark>.txt.
+//
+// Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
+// timed out, 6 the focused field does not end with an `expect` text (keys
+// were lost on the way) or holds a `reject` text. Film the take again for any
+// of them.
 //
 // Build: swiftc -O -swift-version 5 rig.swift -o rig
 import AppKit
@@ -59,6 +75,14 @@ struct Action: Decodable {
     var hold: [String]?       // modifier keys held down while `during` runs, e.g. ["control", "option"]
     var during: [Action]?
     var run: [String]?        // a command started in the background, e.g. a voice line; not waited for
+    var ghost: Double?        // wait this long at most for an `also` app's floating window, e.g. a suggestion
+    var accept: Int?          // press `key` (default tab) up to this many times while that window shows
+    var expect: String?       // the focused field's text must end with this, else exit 6
+    var reject: String?       // the focused field's text must not contain this, else exit 6
+    var optional: Bool?       // skip this action, with a note, when its element is not found
+    var until: Target?        // wait for this element to appear, up to `timeout` seconds (default 60)
+    var gone: Bool?           // with `until`: wait for it to go away instead
+    var timeout: Double?
 }
 
 struct Shot: Decodable {
@@ -77,6 +101,8 @@ struct Shot: Decodable {
     var actions: [Action]
     var also: [String]?               // bundle ids whose windows are captured too, e.g. an overlay
     var title: String?                // capture the window whose title contains this; default: the widest
+    var cursor: Bool?                 // false leaves the pointer out of the recording; default true
+    var ownInput: Bool?               // the app posts input itself, such as a paste; don't read it as a person's
 }
 
 func loadShot(_ path: String) -> Shot {
@@ -114,6 +140,10 @@ struct Display {
             return Display(id: id, bounds: CGDisplayBounds(id),
                            visible: CGRect(x: v.minX, y: primaryHeight - v.maxY, width: v.width, height: v.height),
                            scale: screen.backingScaleFactor)
+        }
+        if let named = ProcessInfo.processInfo.environment["RIG_DISPLAY"].flatMap({ UInt32($0) }) {
+            guard let display = screens.first(where: { $0.id == named }) else { die("no display \(named)") }
+            return display
         }
         return screens.first { CGDisplayIsBuiltin($0.id) != 0 } ?? screens.max { $0.scale < $1.scale }!
     }
@@ -175,7 +205,7 @@ func axFind(_ root: AXUIElement, _ target: Target) -> AXUIElement? {
     return nil
 }
 
-func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0) {
+func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0, emit: (String) -> Void = { print($0) }) {
     guard depth < 40 else { return }
     let t = axText(element)
     var line = String(repeating: "  ", count: depth) + t.role
@@ -184,8 +214,8 @@ func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0) {
     if let f = axFrame(element) {
         line += String(format: "  [%.0f,%.0f %.0fx%.0f]", f.minX - origin.x, f.minY - origin.y, f.width, f.height)
     }
-    print(line)
-    for child in axChildren(element) { axDump(child, origin: origin, depth: depth + 1) }
+    emit(line)
+    for child in axChildren(element) { axDump(child, origin: origin, depth: depth + 1, emit: emit) }
 }
 
 // MARK: - The app under film
@@ -241,19 +271,22 @@ final class Subject {
         NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier
     }
 
-    /// Global point for a target.
-    func point(_ target: Target) -> CGPoint {
+    /// Global point for a target; nil when its element is not there.
+    func find(_ target: Target) -> CGPoint? {
         var p: CGPoint
         if let at = target.at {
             p = CGPoint(x: frame.minX + at[0], y: frame.minY + at[1])
         } else {
-            guard let element = axFind(window, target), let f = axFrame(element) else {
-                die("no element for \(target)")
-            }
+            guard let element = axFind(window, target), let f = axFrame(element) else { return nil }
             let anchor = target.anchor ?? [0.5, 0.5]
             p = CGPoint(x: f.minX + f.width * anchor[0], y: f.minY + f.height * anchor[1])
         }
         if let offset = target.offset { p.x += offset[0]; p.y += offset[1] }
+        return p
+    }
+
+    func point(_ target: Target) -> CGPoint {
+        guard let p = find(target) else { die("no element for \(target)") }
         return p
     }
 }
@@ -268,8 +301,12 @@ func hidIdle() -> Double { CGEventSource.secondsSinceLastEventType(.hidSystemSta
 /// When this tool last posted an event.
 var lastPost = Date.distantPast
 
+/// False while filming an app that posts input itself.
+nonisolated(unsafe) var guardsInput = true
+
 /// True when input arrived after `start` that this tool did not post.
 func touchedSince(_ start: Date) -> Bool {
+    guard guardsInput else { return false }
     let quiet = min(Date().timeIntervalSince(start), Date().timeIntervalSince(lastPost))
     return hidIdle() + 0.05 < quiet
 }
@@ -321,6 +358,11 @@ let namedKeys: [String: CGKeyCode] = [
     "return": 36, "tab": 48, "space": 49, "delete": 51, "escape": 53,
     "left": 123, "right": 124, "down": 125, "up": 126,
 ]
+
+/// A key by name, or a single character such as "a".
+func keyCode(_ name: String) -> CGKeyCode? {
+    namedKeys[name] ?? (name.count == 1 ? keyCodes[Character(name)] : nil)
+}
 
 func flags(_ mods: [String]) -> CGEventFlags {
     var f: CGEventFlags = []
@@ -396,6 +438,36 @@ func jitter() -> Double {
     return 0.75 + Double((rhythm >> 33) % 1000) / 1000 * 0.5
 }
 
+// MARK: - Overlays
+
+/// Bundle ids of the shot's `also` apps; their floating windows are overlays.
+nonisolated(unsafe) var overlayBundles: [String] = []
+
+/// Waits up to `seconds` for an overlay app to put a window above the menu
+/// bar's level on screen, such as LokalBot's autocomplete suggestion panel.
+/// The window list names windows that capture cannot see, so this times the
+/// suggestion even when its pixels are hidden from recording.
+func waitForOverlay(_ seconds: Double) -> Bool {
+    let pids = Set(overlayBundles.flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0) }
+        .map(\.processIdentifier))
+    let menuBar = Int(CGWindowLevelForKey(.statusWindow))
+    let deadline = Date().addingTimeInterval(seconds)
+    repeat {
+        let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        let shown = windows.contains { window in
+            guard let pid = window[kCGWindowOwnerPID as String] as? pid_t, pids.contains(pid),
+                  let layer = window[kCGWindowLayer as String] as? Int, layer > menuBar,
+                  (window[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+                  let bounds = window[kCGWindowBounds as String] as? [String: Double],
+                  (bounds["Width"] ?? 0) > 2, (bounds["Height"] ?? 0) > 2 else { return false }
+            return true
+        }
+        if shown { return true }
+        Thread.sleep(forTimeInterval: 0.02)
+    } while Date() < deadline
+    return false
+}
+
 // MARK: - Capture
 
 final class Capture: NSObject, SCStreamOutput {
@@ -461,6 +533,36 @@ final class Capture: NSObject, SCStreamOutput {
     func drain() { group.wait() }
 }
 
+/// The pointer's position through a take, sampled at 60 Hz on the capture's
+/// clock, relative to the captured rect. Capture delivers a frame only when
+/// the picture changes, so frames alone cannot place a hidden pointer.
+final class PointerTrack {
+    private let lock = NSLock()
+    private var samples: [[Double]] = []
+    private var timer: DispatchSourceTimer?
+
+    func start(_ capture: Capture, rect: CGRect) {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "rig.pointer"))
+        timer.schedule(deadline: .now(), repeating: 1.0 / 60)
+        timer.setEventHandler { [self] in
+            let p = pointer(), t = capture.now()
+            lock.lock()
+            samples.append([(t * 1000).rounded() / 1000, ((p.x - rect.minX) * 10).rounded() / 10,
+                            ((p.y - rect.minY) * 10).rounded() / 10])
+            lock.unlock()
+        }
+        timer.resume()
+        self.timer = timer
+    }
+
+    func stop() -> [[Double]] {
+        timer?.cancel()
+        lock.lock()
+        defer { lock.unlock() }
+        return samples
+    }
+}
+
 /// The display with every window left out except the subject's and those of
 /// the `also` apps. Windows are listed when capture starts, so an overlay app
 /// must already be running then; panels it opens later belong to no excluded
@@ -485,7 +587,7 @@ func filter(for subject: Subject, display: Display, also: [String]) async -> SCC
     }
 }
 
-func configuration(for rect: CGRect, display: Display, background: String) -> SCStreamConfiguration {
+func configuration(for rect: CGRect, display: Display, background: String, cursor: Bool = true) -> SCStreamConfiguration {
     let config = SCStreamConfiguration()
     config.sourceRect = rect.offsetBy(dx: -display.bounds.minX, dy: -display.bounds.minY)
     config.width = Int(rect.width * display.scale)
@@ -495,7 +597,7 @@ func configuration(for rect: CGRect, display: Display, background: String) -> SC
     // SCStreamConfiguration holds backgroundColor without retaining it.
     fills[background] = fills[background] ?? color(background)
     config.backgroundColor = fills[background]!
-    config.showsCursor = true
+    config.showsCursor = cursor
     config.ignoreShadowsDisplay = true
     config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
     config.queueDepth = 8
@@ -542,7 +644,10 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
     func guardHuman() {
         guard capture != nil else { return }
         if touchedSince(startedAt) { die("human input during the take; aborted", code: 3) }
-        if !subject.isFrontmost { die("another app came to the front; aborted", code: 3) }
+        if !subject.isFrontmost {
+            let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "unknown"
+            die("another app (\(front)) came to the front; aborted", code: 3)
+        }
     }
     for action in actions {
         guardHuman()
@@ -551,6 +656,10 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
         } else if let park = action.park {
             CGWarpMouseCursorPosition(CGPoint(x: subject.frame.minX + park[0], y: subject.frame.minY + park[1]))
             CGAssociateMouseAndMouseCursorPosition(1)
+        } else if let target = action.move ?? action.click ?? action.scroll ?? action.press ?? action.focus,
+                  action.optional == true, subject.find(target) == nil {
+            note("skipped: no element for \(target)")
+            record("missing", nil, ["target": String(describing: target)])
         } else if let target = action.move {
             let p = subject.point(target)
             record("move", p)
@@ -571,8 +680,31 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
                 key(keyCodes[lower] ?? 0, text: String(character), flags: shifted ? .maskShift : [])
                 Thread.sleep(forTimeInterval: jitter() / cps)
             }
-        } else if let name = action.key {
+        } else if let times = action.accept {
+            let name = action.key ?? "tab"
             guard let code = namedKeys[name] else { die("unknown key \(name)") }
+            var pressed = 0
+            while pressed < times, waitForOverlay(0) {
+                guardHuman()
+                record("key", nil, ["key": name])
+                key(code, text: nil, flags: flags(action.mods ?? []))
+                pressed += 1
+                Thread.sleep(forTimeInterval: action.duration ?? 0.32)
+            }
+            record("accepted", nil, ["presses": pressed])
+        } else if let expected = action.expect {
+            let focused: AXUIElement? = axValue(subject.element, kAXFocusedUIElementAttribute)
+            let text = focused.flatMap { axValue($0, kAXValueAttribute) as String? } ?? ""
+            guard text.hasSuffix(expected) else {
+                die("the field ends with \(String(text.suffix(expected.count + 12)).debugDescription), "
+                    + "not \(expected.debugDescription)", code: 6)
+            }
+        } else if let rejected = action.reject {
+            let focused: AXUIElement? = axValue(subject.element, kAXFocusedUIElementAttribute)
+            let text = focused.flatMap { axValue($0, kAXValueAttribute) as String? } ?? ""
+            guard !text.contains(rejected) else { die("the field has \(rejected.debugDescription) in it", code: 6) }
+        } else if let name = action.key {
+            guard let code = keyCode(name) else { die("unknown key \(name)") }
             record("key", nil, ["key": name])
             key(code, text: nil, flags: flags(action.mods ?? []))
         } else if let target = action.scroll {
@@ -605,6 +737,31 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
             do { try process.run() } catch { die("cannot run \(tool): \(error)") }
         } else if let mark = action.mark {
             record("mark", nil, ["name": mark])
+            if let dir = ProcessInfo.processInfo.environment["RIG_TREE_DIR"] {
+                var lines: [String] = []
+                axDump(subject.window, origin: subject.frame.origin) { lines.append($0) }
+                try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+                FileManager.default.createFile(atPath: "\(dir)/\(mark).txt",
+                                               contents: Data((lines.joined(separator: "\n") + "\n").utf8))
+            }
+        } else if let target = action.until {
+            let waited = Date()
+            let limit = action.timeout ?? 60
+            while (subject.find(target) == nil) != (action.gone == true) {
+                guardHuman()
+                if Date().timeIntervalSince(waited) > limit {
+                    guard action.optional == true else { die("no element for \(target) within \(limit)s", code: 5) }
+                    note("gave up waiting for \(target)")
+                    record("missing", nil, ["target": String(describing: target)])
+                    break
+                }
+                Thread.sleep(forTimeInterval: 0.25)
+            }
+            record("until", nil, ["waited": (Date().timeIntervalSince(waited) * 1000).rounded() / 1000])
+        } else if let seconds = action.ghost {
+            let waited = Date()
+            guard waitForOverlay(seconds) else { die("no overlay within \(seconds)s", code: 5) }
+            record("ghost", nil, ["waited": (Date().timeIntervalSince(waited) * 1000).rounded() / 1000])
         }
     }
 }
@@ -622,6 +779,8 @@ func waitForHumanIdle(_ seconds: Double) {
 func firstFrame(_ capture: Capture) -> Bool { capture.started.wait(timeout: .now() + 5) == .success }
 
 func take(_ shot: Shot, out: URL) async {
+    overlayBundles = shot.also ?? []
+    guardsInput = shot.ownInput != true
     waitForHumanIdle(shot.idle ?? 4)
     let (subject, display) = prepare(shot)
     var log: [[String: Any]] = []
@@ -633,7 +792,8 @@ func take(_ shot: Shot, out: URL) async {
     let frames = out.appendingPathComponent("frames")
     let capture = Capture(dir: frames)
     let stream = SCStream(filter: await filter(for: subject, display: display, also: shot.also ?? []),
-                          configuration: configuration(for: rect, display: display, background: fill(shot)),
+                          configuration: configuration(for: rect, display: display, background: fill(shot),
+                                                       cursor: shot.cursor ?? true),
                           delegate: nil)
     do {
         try? FileManager.default.removeItem(at: frames)
@@ -645,17 +805,20 @@ func take(_ shot: Shot, out: URL) async {
     }
     let startedAt = Date()
     guard firstFrame(capture) else { die("no frames arrived") }
+    let track = PointerTrack()
+    track.start(capture, rect: rect)
     pause(shot.pre ?? 0.6)
     run(shot.actions, subject: subject, capture: capture, rect: rect, log: &log, startedAt: startedAt)
     pause(shot.post ?? 1.0)
     let end = capture.now()
+    let path = track.stop()
     try? await stream.stopCapture()
     capture.drain()
     if touchedSince(startedAt) { die("human input during the take; aborted", code: 3) }
     let meta: [String: Any] = [
         "rect": [rect.minX, rect.minY, rect.width, rect.height],
         "scale": display.scale, "background": fill(shot), "end": end,
-        "frames": capture.stamps, "events": log,
+        "frames": capture.stamps, "events": log, "pointer": path,
     ]
     do {
         let json = try JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted, .sortedKeys])
@@ -668,11 +831,16 @@ func take(_ shot: Shot, out: URL) async {
 
 func still(_ shot: Shot, out: URL) async {
     let (subject, display) = prepare(shot)
+    await screenshot(shot, subject: subject, display: display, out: out)
+}
+
+func screenshot(_ shot: Shot, subject: Subject, display: Display, out: URL) async {
     let rect = captureRect(subject, shot)
     do {
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: await filter(for: subject, display: display, also: shot.also ?? []),
-            configuration: configuration(for: rect, display: display, background: fill(shot)))
+            configuration: configuration(for: rect, display: display, background: fill(shot),
+                                         cursor: shot.cursor ?? true))
         guard let dest = CGImageDestinationCreateWithURL(out as CFURL, UTType.png.identifier as CFString, 1, nil) else {
             die("cannot write \(out.path)")
         }
@@ -684,11 +852,63 @@ func still(_ shot: Shot, out: URL) async {
     }
 }
 
-let usage = "usage: rig take|still|ax <shot.json> [out] | rig idle <seconds>"
+/// A take's capture leaves other apps' windows out, so a dialog never shows in
+/// the footage but still catches the rig's clicks. Lists what is on the filming
+/// display; with `kill`, ends the owners of windows that aren't part of a take
+/// or of the desktop.
+func strayWindows(kill shouldKill: Bool) {
+    let keep: Set<String> = ["Window Server", "Dock", "Control Center", "SystemUIServer", "Notification Center",
+                             "Wallpaper", "WindowManager", "Spotlight", "Finder", "loginwindow",
+                             "TextEdit", "LokalBot", "LokalBot UI Test Host"]
+    let display = ProcessInfo.processInfo.environment["RIG_DISPLAY"].flatMap { UInt32($0) } ?? CGMainDisplayID()
+    let bounds = CGDisplayBounds(display)
+    let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+    guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return }
+    let stamp = ISO8601DateFormatter().string(from: Date())
+    for window in windows {
+        let owner = window[kCGWindowOwnerName as String] as? String ?? "?"
+        let pid = window[kCGWindowOwnerPID as String] as? pid_t ?? 0
+        let layer = window[kCGWindowLayer as String] as? Int ?? 0
+        let info = window[kCGWindowBounds as String] as? [String: CGFloat] ?? [:]
+        let rect = CGRect(x: info["X"] ?? 0, y: info["Y"] ?? 0, width: info["Width"] ?? 0, height: info["Height"] ?? 0)
+        guard rect.intersects(bounds) else { continue }
+        let stray = !keep.contains(owner) && layer >= 0 && rect.width > 100 && rect.height > 60 && pid != getpid()
+        if !shouldKill {
+            print("\(stamp) \(stray ? "stray" : "window") \(owner) pid=\(pid) layer=\(layer) \(rect)")
+        } else if stray {
+            print("\(stamp) closing \(owner) pid=\(pid) layer=\(layer) \(rect)")
+            Darwin.kill(pid, SIGTERM)
+        }
+    }
+}
+
+/// Apps read the WindowServer's theme, which the `AppleInterfaceStyle` default
+/// doesn't always reach by itself.
+func setSystemAppearance(dark: Bool) {
+    typealias SetTheme = @convention(c) (Bool) -> Void
+    guard let framework = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY),
+          let symbol = dlsym(framework, "SLSSetAppearanceThemeLegacy") else { die("no appearance call in SkyLight") }
+    unsafeBitCast(symbol, to: SetTheme.self)(dark)
+}
+
+let usage = "usage: rig take|still|ax|probe <shot.json> [out] | rig idle <seconds> | rig key <name> [mod...] | rig windows list|kill | rig appearance light|dark"
 let args = CommandLine.arguments
 guard args.count >= 3 else { die(usage) }
 if args[1] == "idle", let seconds = Double(args[2]) {
     waitForHumanIdle(seconds)
+    exit(0)
+}
+if args[1] == "windows" {
+    strayWindows(kill: args[2] == "kill")
+    exit(0)
+}
+if args[1] == "appearance" {
+    setSystemAppearance(dark: args[2] == "dark")
+    exit(0)
+}
+if args[1] == "key" {
+    guard let code = keyCode(args[2]) else { die("unknown key \(args[2])") }
+    key(code, text: nil, flags: flags(Array(args.dropFirst(3))))
     exit(0)
 }
 let shot = loadShot(args[2])
@@ -700,6 +920,12 @@ case "still" where args.count == 4:
 case "ax":
     let (subject, _) = prepare(shot)
     axDump(subject.window, origin: subject.frame.origin)
+case "probe" where args.count == 4:
+    let (subject, display) = prepare(shot)
+    var lines: [String] = []
+    axDump(subject.window, origin: subject.frame.origin) { lines.append($0) }
+    FileManager.default.createFile(atPath: args[3] + ".txt", contents: Data((lines.joined(separator: "\n") + "\n").utf8))
+    await screenshot(shot, subject: subject, display: display, out: URL(fileURLWithPath: args[3] + ".png"))
 default:
     die(usage)
 }

@@ -120,7 +120,7 @@ fn main() -> Result<()> {
     std::fs::write(&path, jpeg).with_context(|| format!("writing {}", path.display()))?;
     println!("saved the pixels to {}", path.display());
 
-    if lokalbot_ai::ocr::is_installed(&paths) {
+    if lokalbot_ai::ocr::is_ready(&paths) {
         let started = Instant::now();
         let engine = lokalbot_ai::ocr::OcrEngine::load(&paths)?;
         let text = engine.recognize(&frame.rgba, frame.width, frame.height)?;

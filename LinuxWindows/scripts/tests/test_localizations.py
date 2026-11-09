@@ -73,13 +73,9 @@ def source_keys():
     at their source; their presentation adapters are listed here instead.
     """
     keys = set()
-    paths = list(APP.rglob("*.rs")) + [
-        CRATES / "lokalbot-platform/src/tray.rs",
-        CRATES / "lokalbot-i18n/src/lib.rs",
-        # Errors from meeting import, merge and undo, shown as they are.
-        CRATES / "lokalbot-core/src/merge.rs",
-        CRATES / "lokalbot-engine/src/library_ops.rs",
-    ]
+    # Every crate: an error from core or the engine is shown as it is, and a key
+    # with no entry would stay in English in every language.
+    paths = [path for path in CRATES.glob("*/src/**/*.rs") if path.name != "catalogs.rs"]
     calls = re.compile(r'(?:lokalbot_i18n::(?:tr|format)|crate::i18n::placeholder|\btr)\s*\(')
     for path in paths:
         source = path.read_text().split("#[cfg(test)]")[0]

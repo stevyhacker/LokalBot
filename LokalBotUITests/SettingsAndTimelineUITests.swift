@@ -25,6 +25,8 @@ final class SettingsUITests: XCTestCase {
 
     func testInterfaceLanguageUpdatesOpenHostAndPersistsAfterRelaunch() throws {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
+        // Settings opens on Overview; the chosen page is remembered after relaunch.
+        UITestHarness.selectSettingsCategory("General", in: app)
         let picker = app.popUpButtons["settings.appLanguage"]
         UITestHarness.scrollTo(picker, in: app)
         UITestHarness.selectSegment("English", pickerIdentifier: "settings.appLanguage", in: app)
@@ -98,6 +100,7 @@ final class SettingsUITests: XCTestCase {
 
     private func assertInterfaceLanguagesRenderAndPersist(_ languages: [(String, String, String, String)]) throws {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
+        UITestHarness.selectSettingsCategory("General", in: app)
         for (identifier, nativeName, theme, languageLabel) in languages {
             UITestHarness.scrollTo(app.popUpButtons["settings.appLanguage"], in: app)
             UITestHarness.selectSegment(nativeName, pickerIdentifier: "settings.appLanguage", in: app)
@@ -122,10 +125,40 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.staticText(containing: "Theme", in: app).waitForExistence(timeout: 6))
     }
 
+    /// Settings opens on Overview: a card's action turns its feature on or
+    /// opens the page that does, and its title opens the feature's page.
+    func testOverviewTurnsFeaturesOnAndOpensTheirPages() {
+        UITestHarness.clickSidebar("sidebar.settings", in: app)
+        let overview = app.scrollViews["settings.overview"]
+        XCTAssertTrue(overview.waitForExistence(timeout: 6), "Settings must open on Overview")
+
+        let turnOn = app.buttons["settings.overview.askAnywhere.action"]
+        UITestHarness.scrollTo(turnOn, in: app, within: overview)
+        XCTAssertTrue(turnOn.waitForExistence(timeout: 4), "Ask anywhere is off by default and offers Turn On")
+        turnOn.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !turnOn.exists }, "Turning it on replaces the action")
+        let open = app.buttons["settings.overview.askAnywhere.open"]
+        UITestHarness.scrollTo(open, in: app, within: overview)
+        open.click()
+        let toggle = UITestHarness.toggle("Enable the system-wide Ask shortcut", in: app)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 6), "The card opens the Ask page")
+        XCTAssertEqual(String(describing: toggle.value ?? ""), "1", "Overview's Turn On is the page's switch")
+        toggle.click()
+        XCTAssertTrue(UITestHarness.waitUntil { String(describing: toggle.value ?? "") == "0" })
+
+        UITestHarness.selectSettingsCategory("Overview", in: app)
+        let files = app.buttons["settings.overview.files.action"]
+        UITestHarness.scrollTo(files, in: app, within: app.scrollViews["settings.overview"])
+        XCTAssertTrue(files.waitForExistence(timeout: 4), "Files is off by default and offers Set Up")
+        files.click()
+        XCTAssertTrue(app.descendants(matching: .any)["settings.files.enabled"].waitForExistence(timeout: 6),
+                      "Set Up opens Files, where its notice turns it on")
+    }
+
     func testPermissionRepairPaneRendersCorePermissions() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
 
-        UITestHarness.selectSettingsCategory("Privacy & Data", in: app)
+        UITestHarness.selectSettingsCategory("Privacy & Permissions", in: app)
         let microphone = UITestHarness.staticText(containing: "Microphone", in: app)
         UITestHarness.scrollTo(microphone, in: app)
         // Gate on the Microphone row, not the "Permissions" section header:
@@ -146,7 +179,7 @@ final class SettingsUITests: XCTestCase {
 
     func testResourceMonitorRendersUsageAndModelState() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Advanced", in: app)
+        UITestHarness.selectSettingsCategory("Diagnostics", in: app)
 
         let cpu = app.descendants(matching: .any)["settings.resourceMonitor.cpu"]
         UITestHarness.scrollTo(cpu, in: app)
@@ -164,7 +197,7 @@ final class SettingsUITests: XCTestCase {
 
     func testCalendarDependentOptionsHiddenWhenCalendarDetectionIsOff() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["settings.form"]
+        XCTAssertTrue(app.descendants(matching: .any)["settings.categories"]
             .waitForExistence(timeout: 6), "settings pane did not render")
         UITestHarness.selectSettingsCategory("Meetings", in: app)
 
@@ -206,7 +239,7 @@ final class SettingsUITests: XCTestCase {
         """)
 
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["settings.form"]
+        XCTAssertTrue(app.descendants(matching: .any)["settings.categories"]
             .waitForExistence(timeout: 6), "settings pane did not render")
         UITestHarness.selectSettingsCategory("Meetings", in: app)
 

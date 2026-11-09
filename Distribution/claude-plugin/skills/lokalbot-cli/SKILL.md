@@ -1,0 +1,209 @@
+---
+name: lokalbot-cli
+description: The user's local memory of their meetings, screen, coding-agent work, and what they shared about themselves. Run `lokalbot-cli brief` at the start of a session on the user's own work, and check LokalBot before asking the user about past work, decisions, commitments, or where something stands. Also use it to look up how LokalBot is configured.
+---
+
+# LokalBot CLI Skill
+
+LokalBot is a private work-memory app for macOS, Linux and Windows. Its read-only CLI retrieves recorded meetings and searches the folders the user chose under Files; separately authorized MCP tools retrieve screen-memory text and metadata. Use this skill for evidence from the user's recorded work, not for scheduling meetings or answering general questions about a topic.
+
+If `lokalbot-cli` isn't on PATH, use the embedded copy directly:
+`/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`.
+Windows and Linux installs put it at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` (Windows) or `~/.local/bin/lokalbot-cli` (Linux).
+
+## Start here
+
+```bash
+lokalbot-cli brief
+```
+
+Run this once at the start of a session (MCP: `get_briefing`). It says which LokalBot sources are on and how the user would turn on the others, then gives what each permission covers: what the user shared about themselves, their open action items, current projects and goals, recent Claude Code and Codex work by project, and a timeline with recent days in detail and older weeks and months in a line each. It is short on purpose. Use it to orient, then search for detail. `brief` points to `lokalbot-cli` commands; `get_briefing` gives the same text but names MCP tools instead.
+
+Before asking the user about past work, a decision, a commitment, or where something stands, search LokalBot first. Ask only when LokalBot has nothing, and say what you checked. Items the briefing doesn't list are unknown, not false. Cite meetings from `get`, `search`, or `actions` results, not from the briefing's summary lines.
+
+## Choose the source
+
+- Use `list` when you need candidate meeting ids, titles, and dates.
+- Use `list --include summary` for what several meetings covered, such as the topics of the last ten meetings or one week's themes. One call returns every summary, shortened to fit. Don't fetch transcripts meeting by meeting for that: they are long, and ten of them can fill your context.
+- Use `get` when the meeting is known; `latest` works without listing first. Request `metadata,summary` for a cited summary; include `transcript` when the question needs exact wording.
+- Use `search` directly when the user remembers a phrase or wants cross-meeting mentions.
+- Use `actions` for commitments: what the user owes, overdue work, or one meeting's next steps.
+- Use `people` for everything about one person: what the user owes them, what they owe the user, decisions made together, and shared meetings.
+- Use `path` only when the task needs an on-disk folder or audio file.
+- For viewed screen text or app activity, use the screen-memory MCP tools within the user's separate permission and history scope.
+- Use `search-files` (MCP: `search_files`) for something in the user's own documents, PDFs, screenshots, or pictures, such as a contract clause, a receipt, or an error they took a screenshot of.
+- Use `personal-context` (MCP: `get_personal_context`) before advising on a personal decision or tailoring work to the user: it returns the facts, preferences, goals, and principles the user chose to share, most relevant to your task first.
+
+## Discovery
+
+```bash
+lokalbot-cli list --limit 10
+lokalbot-cli list --limit 10 --table
+lokalbot-cli list --since 2026-06-01 --query "design"
+lokalbot-cli list --limit 10 --include summary
+lokalbot-cli list --since 2026-10-13 --until 2026-10-17 --include summary --table
+```
+
+The `id` field in each list entry is an 8-character prefix that the other commands accept.
+
+`--include summary` adds each meeting's `summary` (Markdown). The listed summaries share 20,000 characters: short ones come whole, and a long one is cut, ending in `…`, with `"summary_truncated": true`. `get <id> --include summary` reads it whole. With `--include summary`, `--limit` defaults to 10 and goes up to 50. `transcript` isn't accepted there; read transcripts one meeting at a time with `get`.
+
+## Reading a single meeting
+
+```bash
+lokalbot-cli get latest --include metadata,summary
+lokalbot-cli get 4f7c2a91 --include metadata,summary --format json
+lokalbot-cli get 4f7c2a91 --include metadata,transcript
+```
+
+`--include` accepts a comma-separated list of `metadata`, `summary`, `transcript`. Default is all three.
+
+## Cross-meeting search
+
+```bash
+lokalbot-cli search "auth refactor"
+lokalbot-cli search "auth refactor" --table --limit 20
+```
+
+A meeting matches when it contains every word, in any order, ignoring case and accents; when none does, the closest partial matches follow. Words of up to three letters or digits (`API`, `Q3`) match only whole words. Quote an exact phrase inside the query (`'"auth refactor"'`) to match only that phrase. Transcript hits include a `timestamp` (HH:MM:SS) so the user can jump to that moment in the in-app player.
+
+## Answers and reply drafts
+
+```bash
+lokalbot-cli ask "What did we decide about the caching layer?"
+lokalbot-cli reply "Did you pick a caching layer yet?" --instruction "keep it short"
+pbpaste | lokalbot-cli reply
+```
+
+`ask` is the command-line form of `ask_library` (below): LokalBot's local model answers from the matching meetings. `reply` drafts the user's reply to a message they received from what the matching meetings say, without inventing facts; a message no meeting matches gets no draft. Both need the LokalBot app running, and the first call after a cold start can take up to a minute. JSON by default: `{"status", "text", "sources"}`, where `status` is `answered`, `not_found`, or `error` (with a `code` such as `access_disabled`); errors also exit with status 1. Show a draft to the user before sending it anywhere.
+
+## Action items
+
+```bash
+lokalbot-cli actions
+lokalbot-cli actions --owner me --table
+lokalbot-cli actions --owner ana --status all --days 90
+lokalbot-cli actions --meeting 4f7c2a91
+```
+
+Actions use the user's saved corrections and status. `due_date` (YYYY-MM-DD) appears only when the spoken due phrase resolves unambiguously; otherwise use `due` as said. Overdue and soon-due work comes first.
+
+## People
+
+```bash
+lokalbot-cli people --table
+lokalbot-cli people --query ana
+lokalbot-cli people "Ana Petrović"
+```
+
+People are joined from calendar attendee names, speaker names applied in LokalBot, and action owners. Names chosen, people merged, and entries hidden on the app's People page apply here too, and `meeting_count` counts a call recorded in several parts once. Only names are returned; never ask for or infer email addresses.
+
+## Personal context
+
+```bash
+lokalbot-cli personal-context --task "Evaluate a job offer in Berlin"
+lokalbot-cli personal-context --task "Plan next quarter" --kind goal --kind principle --limit 5
+```
+
+Items are the user's own statements (`authority: "stated"`), shared by them for agents. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, so don't infer the user's values from their absence. They are not evidence about meetings or other people. A `[personal_context_disabled]` error means the user hasn't ticked What I shared about myself (see [When access is off](#when-access-is-off)). Explain that, and don't work around it. The user marks the items agents may read with **Share with Agents** in Settings → Personal Context.
+
+## Files
+
+```bash
+lokalbot-cli search-files "lease renewal"
+lokalbot-cli search-files "payment declined" --kind screenshot --after 2026-10-01 --table
+lokalbot-cli search-files "quarterly report" --kind pdf --kind doc --limit 5
+```
+
+Searches only the folders the user chose under Files in LokalBot: the text LokalBot read from documents, PDF pages, screenshots, and pictures, plus file names, best match first. It matches words, not meaning, so use words the file would contain and rephrase when nothing comes back; search by meaning is in LokalBot's Ask. Recordings and video match only by name. Each result has `path`, `kind`, `page` (PDFs) or `seconds`, `modified`, `taken` (photos), `size`, `excerpt`, and `passage`, the matched text up to 1,500 characters. `--kind` takes `screenshot`, `image`, `pdf`, `doc`, `audio`, or `video` and repeats; `--after` and `--before` take YYYY-MM-DD; `--limit` goes up to 50 (default 10). It works with the app closed.
+
+Cite files by path. Open one yourself only when the passage isn't enough, and never change, move, or delete it. `[files_unavailable]` means Files is off in LokalBot, has no folder, or hasn't read its folders yet; the user chooses folders in Settings → Files.
+
+## Path lookup
+
+```bash
+lokalbot-cli path
+lokalbot-cli path latest                         # the newest meeting's folder
+```
+
+## Settings and status
+
+Use these when the user asks how LokalBot is set up, why something is or isn't happening (recording, capture, models), or wants a setting changed.
+
+```bash
+lokalbot-cli config search "dark mode"           # find a setting's key by plain words
+lokalbot-cli config describe autoRecordMode      # type, allowed values, tier
+lokalbot-cli config get autoRecordMode
+lokalbot-cli config list --changed --table
+lokalbot-cli config set noteTemplate=lecture summaryLanguage=en
+lokalbot-cli config set trackingEnabled=false --dry-run
+lokalbot-cli config reset dayDigestHour
+lokalbot-cli config export --changed > settings.json
+lokalbot-cli config import settings.json --dry-run
+lokalbot-cli config set calendarDetectionEnabled=true --wait 120   # waits for the user's approval
+lokalbot-cli config request <id> --wait 120      # answer to an earlier needs_approval
+lokalbot-cli secret list                         # which API keys are saved (never their values)
+lokalbot-cli secret set openai-compatible --wait 120   # the key goes in on standard input
+lokalbot-cli status                              # version, recording, models, permissions, agent access
+lokalbot-cli open settings dictationShortcut     # show the user a setting in LokalBot
+lokalbot-cli open settings permissions           # or a section
+lokalbot-cli open settings filesAccess           # the Files box; also agentAccess, screenMemoryAccess, personalContextAccess
+```
+
+`search`, `describe`, and `config schema` work any time. Everything else needs the separate "Allow external agents to change LokalBot settings" toggle in LokalBot → Settings → External Agents (Settings → Privacy & Data on Windows and Linux). If a command returns `[settings_access_disabled]`, explain that setting and let the user choose. These commands start LokalBot in the background when it isn't running; pass `--no-launch` when the user doesn't want it started.
+
+Changing settings:
+
+- Change only what the user asked for. Run `describe` first so you use the right tokens, and `--dry-run` when you are unsure. A `set` applies all of its pairs or none of them.
+- Preferences (tier `preference`), and changes that narrow what LokalBot captures or sends (turning capture off, adding an exclusion), apply right away. The user can undo them under the toggle.
+- Turning on capture, a data source, autocomplete or dictation, approving a server, removing an exclusion, or changing retention (tier `consent`) sends the whole request to the user in LokalBot and returns `[needs_approval]` (exit 3) with the request in `details`: its `id`, every change, and, for a shorter retention policy, what the cleanup deletes. Nothing is applied yet. Ask the user before making such a request, tell them a card is waiting in LokalBot, and pass `--wait <seconds>` (up to 300) or run `config request <id> --wait <seconds>` for the answer: exit 0 approved, 4 declined, 5 expired. Don't resend a declined request unless the user asks; an identical request still waiting is reused rather than asked twice.
+- API keys: `secret set <name>` reads the key from standard input and always waits for approval the same way. Never put a key on the command line, never echo it back, and never ask to read one; `secret list` only says whether each is saved. `secret clear <name>` removes one right away.
+- `[read_only]` settings can't be changed from the terminal.
+- Never write LokalBot's preferences with `defaults write`, and never create or edit files in its `control/` folder: a partial preferences write silently resets other settings (it can turn automatic recording on), and the running app overwrites it anyway.
+
+## Setting up LokalBot
+
+When the user wants LokalBot set up, run these steps in order; `lokalbot-cli <command> --help` describes each command. If LokalBot isn't installed yet, install it first: on a Mac with `brew install --cask stevyhacker/tap/lokalbot`, and on Windows and Linux from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest), after which the user picks what LokalBot remembers in the app. On Windows and Linux the same commands work once the app is running; those systems have no permission prompts, so `permissions` says what the desktop allows.
+
+```bash
+lokalbot-cli setup start --wait 300        # the user clicks Allow in LokalBot; the only way to get access
+lokalbot-cli setup plan > plan.json        # talk it through, then edit to the user's answers
+lokalbot-cli setup apply plan.json --wait 300
+lokalbot-cli models status                 # poll until meetingReady
+lokalbot-cli permissions                   # then: permissions request <name>, restart if macOS asks
+lokalbot-cli setup finish
+lokalbot-cli doctor                        # exit 0 when ready; nextSteps otherwise
+```
+
+- Ask before adding `--meeting-library`, `--screen-memory`, or `--files` to `setup start`, and before requesting any setting in the plan's `notes.needsApproval`.
+- Exit 3 means the user hasn't answered yet, 4 means they declined (don't ask again unless they say so), and 5 means the request expired. `[settings_access_disabled]` means the user hasn't allowed access yet: run `setup start`.
+- For permissions, tell the user exactly what to click, then poll `permissions` until it shows the grant.
+- Never install by removing the quarantine attribute, and never write LokalBot's preferences or files in `control/` yourself.
+
+## MCP alternative (and ask_library)
+
+The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings` (`include: "summary"` works as in `list --include summary`), `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves, and `search_files` searches the user's chosen folders as `search-files` does, each under its own permission.
+
+```bash
+claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
+```
+
+When `lokalbot-cli` is on PATH, `claude mcp add lokalbot -- lokalbot-cli mcp` works on every platform.
+
+`ask_library` is the synthesis tool: it sends the question to LokalBot's **local** model, which reads the library and returns only an answer with meeting citations — useful when the user wants a conclusion rather than quotes. It needs the LokalBot app running, and the first call can take up to a minute while the model loads. Prefer `search`/`get` when the user wants exact wording.
+
+LokalBot itself does not upload library content. An external agent or MCP client may transmit tool inputs and results under its own privacy terms, so connect only clients the user trusts and retrieve the minimum meeting content needed.
+
+## When access is off
+
+Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → External Agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in Settings → Privacy & Data: "Allow external agents to read your meeting library", "Allow external agents to read screen memory", "What I shared about myself", and "Allow external agents to search your files".
+
+`[access_disabled]` means meetings are off, `[screen_access_disabled]` screen memory, `[personal_context_disabled]` what the user shared, and `[files_access_disabled]` Files; the message names the place. Tell the user which one it is and let them choose. Don't change consent markers or work around disabled access.
+
+## Evidence and privacy
+
+- Answer from returned evidence. Quote exact wording only from retrieved text; distinguish your synthesis from the recorded content. If there are no hits, say so.
+- Cite meetings by title and date, adding transcript timestamps for exact moments. Identify the captured time and app for screen-memory evidence when provided.
+- Never write into the meetings folder. Audio, transcripts, and summaries live in the `meetings` folder of the library root that `lokalbot-cli path` prints (on a Mac, `~/Library/Application Support/me.dotenv.LokalBot/`).
+- Retrieve only the content needed. Summarize instead of pasting full transcripts unless explicitly asked.
+- Do not forward transcripts, summaries, or tool results to any additional service beyond the client the user deliberately connected.

@@ -118,6 +118,16 @@ impl MicCapture {
         self.samples.lock().clone()
     }
 
+    /// Copy of the samples from `start` to `end`, for one preview window.
+    pub fn samples_between(&self, start: usize, end: usize) -> Vec<f32> {
+        let samples = self.samples.lock();
+        let end = end.min(samples.len());
+        samples
+            .get(start.min(end)..end)
+            .unwrap_or_default()
+            .to_vec()
+    }
+
     /// Stops the microphone and returns all captured 16 kHz mono samples.
     pub fn stop(mut self) -> Vec<f32> {
         self.shutdown();

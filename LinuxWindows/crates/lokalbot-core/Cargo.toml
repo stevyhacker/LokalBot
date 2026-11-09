@@ -22,12 +22,22 @@ rusqlite.workspace = true
 sha2.workspace = true
 hex.workspace = true
 regex.workspace = true
+fancy-regex = "0.19"
 unicode-normalization.workspace = true
 # Screen images at rest (`AES.GCM` on macOS).
 aes-gcm = "0.10"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Security_Authentication_Identity"] }
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authentication_Identity",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }
 
 [dev-dependencies]
 tempfile.workspace = true

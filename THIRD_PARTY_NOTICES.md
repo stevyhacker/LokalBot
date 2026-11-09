@@ -25,6 +25,7 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | EventSource | MIT | https://github.com/mattt/EventSource |
 | yyjson | MIT | https://github.com/ibireme/yyjson |
 | llama.cpp | MIT | https://github.com/ggml-org/llama.cpp |
+| DigUpKit (DigUp's file crawler, readers, index and search, used by Files; image sizing ported to Swift in LokalBot) | MIT | https://github.com/ARahim3/DigUp |
 | sherpa-onnx | Apache-2.0 | https://github.com/k2-fsa/sherpa-onnx |
 | ONNX Runtime | MIT | https://github.com/microsoft/onnxruntime |
 | Sample meeting recordings (bundled; a fictional script voiced in English with the ElevenLabs Eleven v4 premade voices "Bella" and "Chris", and in German, Simplified Chinese and Serbian with Gemini 3.8 Flash TTS voices) | Generated audio used under the ElevenLabs Terms of Service and the Gemini API Terms of Service; scripts GPL-3.0 as part of LokalBot | `LokalBot/Resources/SampleMeeting/README.md` |
@@ -32,6 +33,8 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | pi agent packages (optional, installed on request) | MIT | https://github.com/earendil-works/pi |
 | LFM models (downloaded on request) | LFM Open License v1.0 | https://docs.liquid.ai/lfm/help/model-license |
 | Parakeet Ultra (downloaded on request; moondream post-training of NVIDIA Parakeet v3, Core ML conversion by FluidInference) | CC-BY-4.0 | https://huggingface.co/moondream/parakeet-ultra / https://huggingface.co/FluidInference/parakeet-ultra-coreml |
+| EmbeddingGemma 2 (downloaded on first use of search by meaning, and its image and audio projector when Files is turned on; ggml-org's GGUF conversion) | Apache-2.0 | https://huggingface.co/google/embeddinggemma-2 / https://huggingface.co/ggml-org/embeddinggemma-2-GGUF |
+| Granite Speech 5.0 2B (downloaded on request; official IBM GGUF and projector) | Apache-2.0 | https://huggingface.co/ibm-granite/granite-speech-5.0-2b / https://huggingface.co/ibm-granite/granite-speech-5.0-2b-GGUF |
 
 Downloaded AI models are not bundled with LokalBot. Each model remains subject
 to the license shown by its publisher; review that license before downloading
@@ -207,8 +210,9 @@ under the license of the model it comes from. The speech models are
 sherpa-onnx's ONNX conversions from its `asr-models`,
 `speaker-segmentation-models` and `speaker-recongition-models` releases
 (https://github.com/k2-fsa/sherpa-onnx/releases), the ocrs models come from
-ocrs's own storage, and the text models come from Hugging Face, pinned to a
-revision.
+ocrs's own storage, Tesseract's language data comes from GitHub, and the text
+models come from Hugging Face, each pinned to a revision or digest. Tesseract
+itself is not included: on Linux, LokalBot runs the copy your system installed.
 
 | Model | Used for | License | Source |
 | --- | --- | --- | --- |
@@ -220,6 +224,7 @@ revision.
 | pyannote segmentation 3.0 | telling speakers apart | MIT | https://huggingface.co/pyannote/segmentation-3.0 |
 | TitaNet-S, NVIDIA NeMo | recognizing voices | Apache-2.0: NVIDIA's model card puts it under the NeMo toolkit's license | https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/titanet_small |
 | ocrs text detection and recognition | screen text | CC-BY-SA-4.0 | https://huggingface.co/robertknight/ocrs |
+| Tesseract `tessdata_fast` language data | screen text on Linux | Apache-2.0 | https://github.com/tesseract-ocr/tessdata_fast |
 | Qwen3.5 0.8B, 2B and 4B; Qwen3.6 27B and 35B-A3B (GGUF by Unsloth) | Think, Autocomplete | Apache-2.0 | https://huggingface.co/Qwen |
 | LFM2.5 1.2B Instruct (GGUF by Unsloth), 2.6B and 8B-A1B, Liquid AI | Think, Autocomplete | LFM Open License v1.0 | https://huggingface.co/LiquidAI |
 | Gemma 4 E2B base (GGUF by mradermacher), E4B and 12B (GGUF by Unsloth), Google DeepMind | Think, Autocomplete | Apache-2.0 | https://ai.google.dev/gemma/docs/gemma_4_license |
@@ -238,9 +243,34 @@ downloads the companion archive from the same pinned llama.cpp release into its
 own runtime folder. The NVIDIA GPU driver remains installed and managed by the
 user's operating system; it is not included in LokalBot's downloads.
 
+## Phone and tablet companion apps
+
+The Mac app and the iPhone, iPad and Android companion apps in `Companion/`
+compile in `lokalbot-sync`, LokalBot's own Rust crate for pairing and sync
+(`LinuxWindows/crates/lokalbot-sync`). Its Rust crates are listed with their
+licenses and notices in [`LICENSES/rust-crates.md`](LICENSES/rust-crates.md),
+among them snow (Apache-2.0), the UniFFI runtime (MPL-2.0, used unmodified),
+rusqlite with SQLite compiled in (SQLite is in the public domain),
+curve25519-dalek (BSD-3-Clause) and the RustCrypto ChaCha20-Poly1305 and
+BLAKE2 crates (MIT or Apache-2.0). The Rust standard library is compiled in as
+well, under MIT or Apache-2.0.
+
+The iPhone and iPad app otherwise uses only Apple's SDKs. The Android app
+also includes:
+
+| Component | License | Source |
+| --- | --- | --- |
+| Inter 4.001, the interface font | OFL-1.1 | Copyright 2016 The Inter Project Authors, https://github.com/rsms/inter |
+| Jetpack Compose, Material 3 and AndroidX (Activity, Core, Lifecycle, DataStore, WindowManager, WorkManager, Biometric, CameraX) | Apache-2.0 | https://developer.android.com/jetpack/androidx |
+| Kotlin standard library, kotlinx.coroutines and kotlinx.serialization | Apache-2.0 | https://github.com/JetBrains/kotlin |
+| JNA, used under Apache-2.0 (it is also offered under LGPL-2.1) | Apache-2.0 | https://github.com/java-native-access/jna |
+| ML Kit Barcode Scanning, with its bundled model, for scanning the pairing code | ML Kit Terms of Service | https://developers.google.com/ml-kit/terms |
+
 ## MIT License
 
 mlx-audio portions: Copyright (c) 2024 Prince Canuma.
+
+DigUp and DigUpKit portions: Copyright (c) 2026 Abdur Rahim.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in

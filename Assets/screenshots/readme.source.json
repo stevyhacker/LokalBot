@@ -1,4 +1,5 @@
 {
+  "readme_status": "No longer in the root README since 2026-11-05, which uses Assets/hero and Assets/readme instead. Kept for the launch film and distribution listings that use these files.",
   "captured_on": "2026-10-09",
   "source_release": "0.10.2",
   "source_branch": "master",
@@ -71,7 +72,6 @@
     "path": "../videos/lokalbot-readme-demo.mp4",
     "bytes": 8995820,
     "sha256": "7689af0d8117e0051abc1126ac31416f6bb0cd6424fe8ee74587571d8834ba11",
-    "readme_embed_url": "https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555",
     "mime_type": "video/mp4",
     "width": 1920,
     "height": 1080,

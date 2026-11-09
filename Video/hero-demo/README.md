@@ -1,19 +1,19 @@
 # LokalBot hero demo production
 
-This HyperFrames project renders the narrated product films used on the website
-and in the repository README. It deliberately keeps generated screenshot copies,
+This HyperFrames project renders narrated product films. The website no longer
+plays them: its home page uses the short clips from
+`Video/lokalbot-landing-demos/`. It deliberately keeps generated screenshot copies,
 audio stems, review renders, and local tool environments out of Git: the source
 captures remain canonical under `Assets/screenshots/`, while the short film's
 high-density sources live under `Assets/video-screenshots/`.
 
-Both productions are 1872×1276 at 30 fps so they map exactly to the website's
-936×638 display slot at 2× density:
+Both productions are 1872×1276 at 30 fps:
 
-- The 30-second production is the default `web/assets/hero-demo.mp4` and is also
+- The 30-second production renders to `.build/hero-demo/hero-demo.mp4` and is also
   preserved as `hero-demo-short.mp4`. It focuses on Quick Recall, Context Rewind,
   Dictation, Cotyping, and the local-first privacy payoff.
-- The 56-second production is preserved as `hero-demo-long.mp4`. It adds the
-  meeting recap, transcript evidence, and cited answers.
+- The 56-second production renders to `.build/hero-demo/hero-demo-long.mp4`. It adds
+  the meeting recap, transcript evidence, and cited answers.
 
 `DESIGN.md` defines the visual and motion language; `storyboard.md` locks the
 long-form narrative and claim boundaries.

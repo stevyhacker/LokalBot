@@ -13,8 +13,9 @@ use std::path::{Path, PathBuf};
 use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::errors::Error;
 use symphonia::core::formats::probe::Hint;
+use symphonia::core::formats::well_known::FORMAT_ID_ADTS;
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo, TrackType};
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::units::Timestamp;
 
@@ -281,7 +282,11 @@ struct Stream {
 }
 
 fn probe(path: &Path) -> io::Result<Box<dyn FormatReader>> {
-    let source = MediaSourceStream::new(Box::new(File::open(path)?), Default::default());
+    let source: Box<dyn MediaSource> = match UnfinishedCaf::open(path)? {
+        Some(caf) => Box::new(caf),
+        None => Box::new(File::open(path)?),
+    };
+    let source = MediaSourceStream::new(source, Default::default());
     let mut hint = Hint::new();
     if let Some(extension) = path.extension().and_then(|e| e.to_str()) {
         hint.with_extension(extension);
@@ -294,6 +299,116 @@ fn probe(path: &Path) -> io::Result<Box<dyn FormatReader>> {
             MetadataOptions::default(),
         )
         .map_err(invalid)
+}
+
+/// A CAF whose writer never closed it, which is what a Mac's crash audio
+/// (`mic.live.caf`) looks like: its data chunk says -1 for "to the end of the
+/// file", and the file may stop inside a sample. Symphonia's reader takes that
+/// -1 and then reads the audio as if it were more chunks, so this presents the
+/// file as the closed one it would have been.
+struct UnfinishedCaf {
+    file: File,
+    /// Where the data chunk's size field is, and what it should have said.
+    size_at: u64,
+    size: [u8; 8],
+    /// The end of the last whole packet.
+    length: u64,
+    position: u64,
+}
+
+impl UnfinishedCaf {
+    /// `None` for any other file, which is read as it is.
+    fn open(path: &Path) -> io::Result<Option<Self>> {
+        let caf = path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("caf"));
+        if !caf {
+            return Ok(None);
+        }
+        let mut file = File::open(path)?;
+        let Some((size_at, declared, packet)) = caf_data_chunk(&mut file) else {
+            return Ok(None);
+        };
+        let file_length = file.metadata()?.len();
+        // The size counts the data chunk's four-byte edit count too.
+        let body = size_at + 8;
+        let audio = file_length.saturating_sub(body + 4);
+        if u64::try_from(declared).is_ok_and(|declared| body + declared <= file_length) {
+            return Ok(None);
+        }
+        let whole = audio - audio % packet;
+        file.seek(SeekFrom::Start(0))?;
+        Ok(Some(Self {
+            file,
+            size_at,
+            size: (whole + 4).to_be_bytes(),
+            length: body + 4 + whole,
+            position: 0,
+        }))
+    }
+}
+
+impl Read for UnfinishedCaf {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        let available = self.length.saturating_sub(self.position);
+        let wanted = (buffer.len() as u64).min(available) as usize;
+        let read = self.file.read(&mut buffer[..wanted])?;
+        for (index, byte) in buffer[..read].iter_mut().enumerate() {
+            let at = self.position + index as u64;
+            if (self.size_at..self.size_at + 8).contains(&at) {
+                *byte = self.size[(at - self.size_at) as usize];
+            }
+        }
+        self.position += read as u64;
+        Ok(read)
+    }
+}
+
+impl Seek for UnfinishedCaf {
+    fn seek(&mut self, from: SeekFrom) -> io::Result<u64> {
+        self.position = self.file.seek(from)?;
+        Ok(self.position)
+    }
+}
+
+impl MediaSource for UnfinishedCaf {
+    fn is_seekable(&self) -> bool {
+        true
+    }
+
+    fn byte_len(&self) -> Option<u64> {
+        Some(self.length)
+    }
+}
+
+/// Where a fixed-packet CAF's data chunk keeps its size, what the size says, and
+/// the bytes per packet.
+fn caf_data_chunk(file: &mut File) -> Option<(u64, i64, u64)> {
+    fn bytes<const N: usize>(file: &mut File) -> Option<[u8; N]> {
+        let mut read = [0; N];
+        file.read_exact(&mut read).ok()?;
+        Some(read)
+    }
+    if &bytes::<4>(file)? != b"caff" {
+        return None;
+    }
+    bytes::<4>(file)?; // version and flags
+    let mut packet = None;
+    loop {
+        let kind = bytes::<4>(file)?;
+        let size_at = file.stream_position().ok()?;
+        let size = i64::from_be_bytes(bytes::<8>(file)?);
+        match &kind {
+            b"desc" => {
+                bytes::<16>(file)?; // rate, format and its flags
+                packet = Some(u64::from(u32::from_be_bytes(bytes::<4>(file)?)));
+            }
+            b"data" => return Some((size_at, size, packet.filter(|bytes| *bytes > 0)?)),
+            _ => {}
+        }
+        let next = (size_at + 8).checked_add(u64::try_from(size).ok()?)?;
+        file.seek(SeekFrom::Start(next)).ok()?;
+    }
 }
 
 /// The IDs of a file's audio tracks that can be decoded, the default first.
@@ -353,7 +468,12 @@ impl Stream {
             let decoder = symphonia::default::get_codecs()
                 .make_audio_decoder(params, &AudioDecoderOptions::default())
                 .map_err(invalid)?;
-            (track.id, rate, track.num_frames, decoder)
+            // ADTS doesn't say how long it is. Symphonia's figure is a guess
+            // from a few hundred frames, and reading stops where the length says.
+            let total = track
+                .num_frames
+                .filter(|_| format.format_info().format != FORMAT_ID_ADTS);
+            (track.id, rate, total, decoder)
         };
         Ok(Self {
             format,
@@ -622,6 +742,54 @@ mod tests {
         let mut samples = Vec::new();
         while reader.read_mono(10_000, &mut samples).unwrap() > 0 {}
         samples
+    }
+
+    /// `mic.live.caf`: 16 kHz mono Float32. A recorder that crashed never wrote
+    /// the data chunk's size (-1), and may have stopped inside a sample.
+    fn crash_tee(samples: &[f32], data_size: i64, torn_bytes: usize) -> Vec<u8> {
+        let mut bytes = b"caff\0\x01\0\0desc".to_vec();
+        bytes.extend_from_slice(&32i64.to_be_bytes());
+        bytes.extend_from_slice(&16_000f64.to_be_bytes());
+        bytes.extend_from_slice(b"lpcm");
+        bytes.extend_from_slice(&3u32.to_be_bytes()); // float, little-endian
+        for field in [4u32, 1, 1, 32] {
+            bytes.extend_from_slice(&field.to_be_bytes());
+        }
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&data_size.to_be_bytes());
+        bytes.extend_from_slice(&0u32.to_be_bytes()); // edit count
+        for sample in samples {
+            bytes.extend_from_slice(&sample.to_le_bytes());
+        }
+        bytes.extend_from_slice(&vec![0; torn_bytes]);
+        bytes
+    }
+
+    #[test]
+    fn a_crash_tee_decodes_to_the_audio_it_holds() {
+        let samples: Vec<f32> = (0..48_000).map(|i| ((i % 100) as f32) / 200.0).collect();
+        for (name, data_size, torn) in [
+            ("closed.caf", (samples.len() * 4 + 4) as i64, 0),
+            ("growing.caf", -1, 0),
+            ("torn.caf", -1, 3),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join(name);
+            std::fs::write(&path, crash_tee(&samples, data_size, torn)).unwrap();
+            let mut reader = TrackReader::open(&path).unwrap_or_else(|err| panic!("{name}: {err}"));
+            assert_eq!(reader.sample_rate(), SAMPLE_RATE, "{name}");
+            assert_eq!(reader.frames(), samples.len() as u64, "{name}");
+            let decoded = read_all(&mut reader);
+            assert_eq!(decoded.len(), samples.len(), "{name}");
+            for (got, want) in decoded.iter().zip(&samples) {
+                assert!((got - want).abs() < 0.001, "{name}: {got} vs {want}");
+            }
+            // The player and the waveform seek.
+            reader.seek_frame(24_000).unwrap();
+            let mut rest = Vec::new();
+            reader.read_mono(10, &mut rest).unwrap();
+            assert!((rest[0] - samples[24_000]).abs() < 0.001, "{name}");
+        }
     }
 
     #[test]

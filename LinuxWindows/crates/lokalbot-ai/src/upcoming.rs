@@ -485,7 +485,8 @@ pub struct MemoryProject {
     pub pinned: bool,
 }
 
-/// `DreamMemory.activeProjects` from `memory/memory.json`.
+/// `DreamMemory.activeProjects`, through the evidence check: a project whose
+/// sources were deleted or corrected since it was written doesn't count.
 fn read_projects(library: &Library) -> Vec<MemoryProject> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -493,8 +494,7 @@ fn read_projects(library: &Library) -> Vec<MemoryProject> {
         #[serde(default)]
         active_projects: Vec<MemoryProject>,
     }
-    std::fs::read(library.paths().root().join("memory/memory.json"))
-        .ok()
+    lokalbot_core::evidence::read_work_memory(library.paths().root())
         .and_then(|bytes| serde_json::from_slice::<Memory>(&bytes).ok())
         .map(|memory| memory.active_projects)
         .unwrap_or_default()

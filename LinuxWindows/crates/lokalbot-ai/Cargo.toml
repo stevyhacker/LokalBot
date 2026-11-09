@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 lokalbot-core.workspace = true
+lokalbot-i18n.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
@@ -56,6 +57,16 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_JobObjects",
     "Win32_System_LibraryLoader",
     "Win32_System_Threading",
+] }
+
+# Screen text recognition (`ocr::windows_media`): the recognizer built into Windows.
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Globalization",
+    "Graphics_Imaging",
+    "Media_Ocr",
+    "Storage_Streams",
 ] }
 
 [dev-dependencies]

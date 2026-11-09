@@ -17,6 +17,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use lokalbot_core::coding_agents::{
+    self, CodingAgentAction, CodingAgentBurst, PullRequestReference, pull_request_label,
+};
 use lokalbot_core::model::{ActionStatus, DigestCoverage, DigestMeta, DigestQuality, Meeting};
 use lokalbot_core::{Library, Settings};
 
@@ -64,6 +67,9 @@ pub struct DayEvidence {
     pub activities: Vec<Activity>,
     pub standalone_contexts: Vec<ScreenContext>,
     pub meetings: Vec<MeetingEvidence>,
+    /// Settled coding-agent work. Like meetings, it arrives pre-structured and
+    /// is rendered in its own lossless journal section.
+    pub coding_agent_bursts: Vec<CodingAgentBurst>,
 }
 
 /// One slice of the day that gets its own extraction pass.
@@ -153,6 +159,11 @@ fn evenly_spaced(count: usize, limit: usize) -> Vec<usize> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Source {
     Meeting,
+    /// `recorded_outcome`: the burst committed, opened or merged a pull request,
+    /// released, pushed, or ran tests.
+    AgentSession {
+        recorded_outcome: bool,
+    },
     Activity,
     ScreenContext,
 }
@@ -161,6 +172,7 @@ impl Source {
     fn order(self) -> u8 {
         match self {
             Source::Meeting => 0,
+            Source::AgentSession { .. } => 1,
             Source::Activity => 2,
             Source::ScreenContext => 3,
         }
@@ -176,7 +188,52 @@ struct Event {
     source_ids: Vec<i64>,
     app: String,
     title: String,
+    /// The burst behind an agent-session event; several after merging.
+    agent_bursts: Vec<CodingAgentBurst>,
 }
+
+/// Apps that host coding agents: their chat window, a terminal or an editor.
+/// Screen text captured there while a stored session ran is mostly that session
+/// on screen, which the session evidence already states more exactly. The first
+/// fifteen are the Mac's; the rest are Linux and Windows terminals and editors.
+const CODING_AGENT_HOST_APPS: &[&str] = &[
+    "claude",
+    "codex",
+    "terminal",
+    "iterm",
+    "iterm2",
+    "ghostty",
+    "warp",
+    "alacritty",
+    "kitty",
+    "wezterm",
+    "cursor",
+    "zed",
+    "code",
+    "visual studio code",
+    "windsurf",
+    "gnome-terminal",
+    "gnome-terminal-server",
+    "gnome terminal",
+    "ptyxis",
+    "konsole",
+    "xterm",
+    "xfce4-terminal",
+    "tilix",
+    "terminator",
+    "foot",
+    "rio",
+    "cosmic-term",
+    "code - oss",
+    "code-oss",
+    "vscodium",
+    "windows terminal",
+    "windowsterminal",
+    "command prompt",
+    "cmd",
+    "powershell",
+    "pwsh",
+];
 
 fn covered_duration(events: &[&Event]) -> f64 {
     let mut intervals: Vec<(DateTime<Utc>, DateTime<Utc>)> = events
@@ -252,7 +309,15 @@ impl DayEvidence {
                 artifact_modified_at: artifact_modified_at(library, &meeting),
             });
         }
-        Ok(Self::build(day, start, end, blocks, contexts, meetings))
+        let settings = lokalbot_core::Settings::load(&library.paths().settings_file());
+        let bursts = if settings.coding_agent_evidence_active() {
+            library.coding_agent_bursts(start, end)?
+        } else {
+            Vec::new()
+        };
+        Ok(Self::build(
+            day, start, end, blocks, contexts, meetings, bursts,
+        ))
     }
 
     pub fn build(
@@ -262,6 +327,7 @@ impl DayEvidence {
         blocks: Vec<lokalbot_core::model::ActivityBlock>,
         contexts: Vec<ScreenContext>,
         mut meetings: Vec<MeetingEvidence>,
+        mut coding_agent_bursts: Vec<CodingAgentBurst>,
     ) -> Self {
         let mut activities: Vec<Activity> = blocks
             .into_iter()
@@ -316,6 +382,8 @@ impl DayEvidence {
                 .cmp(&b.started_at)
                 .then(a.id.to_string().cmp(&b.id.to_string()))
         });
+        coding_agent_bursts.retain(|burst| burst.start >= start && burst.start <= end);
+        coding_agent_bursts.sort_by(|a, b| a.start.cmp(&b.start).then_with(|| a.id().cmp(&b.id())));
         Self {
             day,
             start,
@@ -323,6 +391,7 @@ impl DayEvidence {
             activities,
             standalone_contexts: standalone,
             meetings,
+            coding_agent_bursts,
         }
     }
 
@@ -330,6 +399,25 @@ impl DayEvidence {
         self.activities.is_empty()
             && self.standalone_contexts.is_empty()
             && self.meetings.is_empty()
+            && self.coding_agent_bursts.is_empty()
+    }
+
+    /// Bursts of one session, in order, one group per session.
+    pub fn coding_agent_sessions(&self) -> Vec<Vec<CodingAgentBurst>> {
+        coding_agents::sessions(&self.coding_agent_bursts)
+    }
+
+    fn is_covered_by_coding_agent_session(
+        &self,
+        app: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> bool {
+        CODING_AGENT_HOST_APPS.contains(&app.trim().to_lowercase().as_str())
+            && self
+                .coding_agent_bursts
+                .iter()
+                .any(|burst| burst.start <= end && start <= burst.end)
     }
 
     pub fn latest_evidence_at(&self) -> Option<DateTime<Utc>> {
@@ -341,6 +429,7 @@ impl DayEvidence {
                 .iter()
                 .filter_map(|m| m.artifact_modified_at)
                 .max(),
+            self.coding_agent_bursts.iter().map(|b| b.end).max(),
         ]
         .into_iter()
         .flatten()
@@ -370,7 +459,16 @@ impl DayEvidence {
     fn events(&self) -> Vec<Event> {
         let mut events = Vec::new();
         for activity in self.activities.iter().filter(|a| !is_system_only(&a.app)) {
-            let contexts = Self::summary_contexts(activity);
+            let covered_by_agent = self.is_covered_by_coding_agent_session(
+                &activity.app,
+                activity.start,
+                activity.end,
+            );
+            let contexts = if covered_by_agent {
+                Self::representative(&activity.contexts, 1)
+            } else {
+                Self::summary_contexts(activity)
+            };
             let budget = if contexts.is_empty() {
                 0
             } else {
@@ -382,6 +480,12 @@ impl DayEvidence {
                     "Possible task context (weak; corroborate before summarizing): {}",
                     activity.title
                 ));
+            }
+            if covered_by_agent {
+                lines.push(
+                    "A coding-agent session covers this interval; this screen text likely shows that session, so prefer the AGENT SESSION evidence."
+                        .into(),
+                );
             }
             for context in &contexts {
                 let source = if context.snapshot_id > 0 {
@@ -414,6 +518,7 @@ impl DayEvidence {
                     .collect(),
                 app: activity.app.clone(),
                 title: activity.title.clone(),
+                agent_bursts: Vec::new(),
             });
         }
         for context in self
@@ -421,6 +526,13 @@ impl DayEvidence {
             .iter()
             .filter(|c| !is_system_only(&c.app))
         {
+            if self.is_covered_by_coding_agent_session(
+                &context.app,
+                context.captured_at,
+                context.captured_at,
+            ) {
+                continue;
+            }
             let source = if context.snapshot_id > 0 {
                 format!("[screen:{}]", context.snapshot_id)
             } else {
@@ -440,6 +552,7 @@ impl DayEvidence {
                 source_ids: if context.snapshot_id > 0 { vec![context.snapshot_id] } else { Vec::new() },
                 app: context.app.clone(),
                 title: context.window_title.clone(),
+                agent_bursts: Vec::new(),
             });
         }
         for meeting in &self.meetings {
@@ -470,6 +583,21 @@ impl DayEvidence {
                 source_ids: Vec::new(),
                 app: meeting.app.clone(),
                 title: meeting.title.clone(),
+                agent_bursts: Vec::new(),
+            });
+        }
+        for burst in &self.coding_agent_bursts {
+            events.push(Event {
+                start: burst.start,
+                end: burst.end,
+                source: Source::AgentSession {
+                    recorded_outcome: burst.recorded_outcome(),
+                },
+                text: burst.evidence_text(3),
+                source_ids: Vec::new(),
+                app: burst.agent.display_name().to_string(),
+                title: burst.work_title(),
+                agent_bursts: vec![burst.clone()],
             });
         }
         events.sort_by(|a, b| {
@@ -567,12 +695,14 @@ impl DayEvidence {
     }
 
     fn make_segment(&self, events: &[&Event], max_characters: usize) -> Segment {
-        let details = detail_indices(events, 12);
+        let detail_events = merging_agent_sessions(events);
+        let detail_refs: Vec<&Event> = detail_events.iter().collect();
+        let details = detail_indices(&detail_refs, 12);
         let content_budget = ((max_characters as f64 * 0.82) as usize).max(120);
         let per_detail = (content_budget / details.len().max(1)).max(120);
         let texts: Vec<String> = details
             .iter()
-            .map(|i| sanitize::sanitize(&events[*i].text, Some(per_detail)))
+            .map(|i| sanitize::sanitize(&detail_refs[*i].text, Some(per_detail)))
             .filter(|t| !t.is_empty())
             .collect();
         let mut evidence = format!(
@@ -628,14 +758,136 @@ impl DayEvidence {
         } else {
             clean
         };
-        [
+        let mut sections = vec![
             format!("## Day summary\n\n{body}"),
             format!("## Meetings\n\n{}", self.meetings_section()),
-            format!("## Time allocation\n\n{}", self.time_allocation_section()),
-            format!("## Full activity log\n\n{}", self.chronological_log()),
-        ]
-        .join("\n\n")
-            + "\n"
+        ];
+        // Only days with agent work gain the section, so journals written
+        // without the feature keep their existing shape.
+        if !self.coding_agent_bursts.is_empty() {
+            sections.push(format!(
+                "## Agent sessions\n\n{}",
+                self.agent_sessions_section()
+            ));
+        }
+        sections.push(format!(
+            "## Time allocation\n\n{}",
+            self.time_allocation_section()
+        ));
+        sections.push(format!(
+            "## Full activity log\n\n{}",
+            self.chronological_log()
+        ));
+        sections.join("\n\n") + "\n"
+    }
+
+    /// Recorded facts only, one entry per session. The agent's own report is a
+    /// claim for the model to corroborate, so it stays out of this section.
+    fn agent_sessions_section(&self) -> String {
+        self.coding_agent_sessions()
+            .iter()
+            .filter_map(|bursts| {
+                let first = bursts.first()?;
+                let mut lines = vec![
+                    format!(
+                        "### {} — {} ({})",
+                        time(first.start),
+                        markdown_inline(&first.title),
+                        first.agent.display_name()
+                    ),
+                    format!(
+                        "- Project: {}{}",
+                        markdown_inline(&first.project),
+                        first
+                            .branch
+                            .as_ref()
+                            .map(|branch| format!(" (branch {})", markdown_inline(branch)))
+                            .unwrap_or_default()
+                    ),
+                ];
+                let spans = bursts
+                    .iter()
+                    .map(|b| format!("{}–{}", time(b.start), time(b.end)))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let active: f64 = bursts.iter().map(|b| b.active_duration).sum();
+                lines.push(format!("- Time: {spans} ({} active)", duration(active)));
+                let prompts: Vec<&String> = bursts.iter().flat_map(|b| &b.prompts).collect();
+                let prompt_count: usize = bursts.iter().map(|b| b.prompt_count).sum();
+                if !prompts.is_empty() {
+                    let shown: Vec<String> = prompts
+                        .iter()
+                        .take(3)
+                        .map(|p| markdown_inline(&sanitize::single_line(p, 160)))
+                        .collect();
+                    let more = if prompt_count > shown.len() {
+                        format!(" (+{} more)", prompt_count - shown.len())
+                    } else {
+                        String::new()
+                    };
+                    lines.push(format!("- Requests: {}{more}", shown.join("; ")));
+                }
+                let mut actions: Vec<&CodingAgentAction> = Vec::new();
+                for action in bursts.iter().flat_map(|b| &b.actions) {
+                    if !actions.contains(&action) {
+                        actions.push(action);
+                    }
+                }
+                if !actions.is_empty() {
+                    lines.push(format!(
+                        "- Recorded actions: {}",
+                        actions
+                            .iter()
+                            .map(|a| markdown_inline(&a.summary()))
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    ));
+                }
+                let mut pull_requests: Vec<&String> = Vec::new();
+                for url in bursts.iter().flat_map(|b| &b.pull_requests) {
+                    if !pull_requests.contains(&url) {
+                        pull_requests.push(url);
+                    }
+                }
+                if !pull_requests.is_empty() {
+                    lines.push(format!(
+                        "- Pull requests: {}",
+                        pull_requests
+                            .iter()
+                            .map(|url| pull_request_link(url))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+                let mut files: Vec<&String> = Vec::new();
+                for file in bursts.iter().flat_map(|b| &b.changed_files) {
+                    if !files.contains(&file) {
+                        files.push(file);
+                    }
+                }
+                let hidden: usize = bursts
+                    .iter()
+                    .map(|b| b.changed_file_count.saturating_sub(b.changed_files.len()))
+                    .sum();
+                if !files.is_empty() || hidden > 0 {
+                    let shown: Vec<String> =
+                        files.iter().take(5).map(|f| markdown_inline(f)).collect();
+                    let more = files.len() - shown.len() + hidden;
+                    lines.push(format!(
+                        "- Changed files ({}): {}{}",
+                        files.len() + hidden,
+                        shown.join(", "),
+                        if more > 0 {
+                            format!(", +{more} more")
+                        } else {
+                            String::new()
+                        }
+                    ));
+                }
+                Some(lines.join("\n"))
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n")
     }
 
     fn chronological_log(&self) -> String {
@@ -643,6 +895,7 @@ impl DayEvidence {
             Activity(&'a Activity),
             Context(&'a ScreenContext),
             Meeting(&'a MeetingEvidence),
+            Agent(&'a CodingAgentBurst),
         }
         let mut entries: Vec<(DateTime<Utc>, u8, Entry)> = Vec::new();
         entries.extend(
@@ -659,6 +912,11 @@ impl DayEvidence {
             self.meetings
                 .iter()
                 .map(|m| (m.started_at, 0, Entry::Meeting(m))),
+        );
+        entries.extend(
+            self.coding_agent_bursts
+                .iter()
+                .map(|b| (b.start, 3, Entry::Agent(b))),
         );
         entries.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
         if entries.is_empty() {
@@ -723,6 +981,28 @@ impl DayEvidence {
                     markdown_inline(&meeting.title),
                     markdown_inline(&meeting.app)
                 ),
+                Entry::Agent(burst) => {
+                    let mut line = format!(
+                        "- **{}–{}** — **{}** — {} ({})",
+                        time(burst.start),
+                        time(burst.end),
+                        burst.agent.display_name(),
+                        markdown_inline(&burst.title),
+                        markdown_inline(&burst.project)
+                    );
+                    if !burst.actions.is_empty() {
+                        line.push_str(&format!(
+                            "\n  - Recorded actions: {}",
+                            burst
+                                .actions
+                                .iter()
+                                .map(|a| markdown_inline(&a.summary()))
+                                .collect::<Vec<_>>()
+                                .join("; ")
+                        ));
+                    }
+                    line
+                }
             })
             .collect::<Vec<_>>()
             .join("\n")
@@ -840,6 +1120,12 @@ impl DayEvidence {
             push_context(&mut fields, context);
         }
         fields.extend(self.meeting_fields());
+        // Appended only when present: journals of days without agent work keep
+        // matching the signature they were generated with.
+        for burst in &self.coding_agent_bursts {
+            fields.push("agent".into());
+            fields.extend(burst.signature_fields());
+        }
         fingerprint(&fields)
     }
 
@@ -863,8 +1149,52 @@ fn fingerprint(fields: &[String]) -> String {
     lokalbot_core::library::sha256_hex(&material)
 }
 
-/// Meetings and agent sessions never get sampled away from a busy segment.
+/// A Markdown link labelled `owner/repo#N`.
+fn pull_request_link(url: &str) -> String {
+    pull_request_label(url).map_or_else(|| format!("<{url}>"), |label| format!("[{label}]({url})"))
+}
+
+/// A session often has several bursts in one segment. Show it once, with every
+/// burst's requests, actions and files, so parallel sessions do not crowd each
+/// other out of the detail budget.
+fn merging_agent_sessions(events: &[&Event]) -> Vec<Event> {
+    let mut merged: Vec<Event> = Vec::new();
+    let mut positions: HashMap<String, usize> = HashMap::new();
+    for event in events {
+        let Some(burst) = event.agent_bursts.first() else {
+            merged.push((*event).clone());
+            continue;
+        };
+        let key = burst.session_key();
+        if let Some(position) = positions.get(&key) {
+            merged[*position]
+                .agent_bursts
+                .extend(event.agent_bursts.iter().cloned());
+        } else {
+            positions.insert(key, merged.len());
+            merged.push((*event).clone());
+        }
+    }
+    for event in &mut merged {
+        if event.agent_bursts.len() > 1
+            && let Some(session) = coding_agents::merging(&event.agent_bursts)
+        {
+            event.end = session.end;
+            event.source = Source::AgentSession {
+                recorded_outcome: session.recorded_outcome(),
+            };
+            event.text = session.evidence_text(3);
+        }
+    }
+    merged
+}
+
+/// Meetings are already structured work evidence, so a busy interval must not
+/// sample around them merely because it contains many short activity events.
+/// Agent sessions that recorded an outcome get the same guarantee, up to six,
+/// ahead of those that did not. The rest of the budget covers the interval evenly.
 fn detail_indices(events: &[&Event], limit: usize) -> Vec<usize> {
+    const RESERVED_AGENT_SESSIONS: usize = 6;
     if events.is_empty() || limit == 0 {
         return Vec::new();
     }
@@ -880,10 +1210,19 @@ fn detail_indices(events: &[&Event], limit: usize) -> Vec<usize> {
     if meetings.len() >= limit {
         return sample(&meetings, limit);
     }
-    let taken: HashSet<usize> = meetings.iter().copied().collect();
+    let sessions = |recorded_outcome: bool| -> Vec<usize> {
+        (0..events.len())
+            .filter(|i| events[*i].source == Source::AgentSession { recorded_outcome })
+            .collect()
+    };
+    let agent_limit = RESERVED_AGENT_SESSIONS.min(limit - meetings.len());
+    let mut reserved = sample(&sessions(true), agent_limit);
+    reserved.extend(sample(&sessions(false), agent_limit - reserved.len()));
+    let taken: HashSet<usize> = meetings.iter().chain(&reserved).copied().collect();
     let remaining: Vec<usize> = (0..events.len()).filter(|i| !taken.contains(i)).collect();
     let mut indices = meetings.clone();
-    indices.extend(sample(&remaining, limit - meetings.len()));
+    indices.extend(reserved);
+    indices.extend(sample(&remaining, limit - taken.len()));
     indices.sort_unstable();
     indices
 }
@@ -1254,6 +1593,260 @@ fn merge_fallback_candidate(block: &FocusBlock, tasks: &mut Vec<NormalizedTask>)
     });
 }
 
+/// A session's task, with what identifies its work when matching it to the
+/// model's tasks.
+struct SessionCandidate {
+    block: FocusBlock,
+    /// The work title without its project.
+    name: String,
+    project: Option<String>,
+    pull_requests: Vec<PullRequestReference>,
+}
+
+/// One candidate per agent session that recorded an outcome, from recorded facts
+/// only. Scheduled runs are left to segment extraction: their reports often
+/// describe other days. Tasks are named by the work, not by the first request or
+/// the folder the session started in.
+fn session_candidates(evidence: &DayEvidence) -> Vec<SessionCandidate> {
+    evidence
+        .coding_agent_sessions()
+        .iter()
+        .filter_map(|bursts| {
+            let session = coding_agents::merging(bursts)?;
+            if !session.recorded_outcome() || session.is_scheduled_run() {
+                return None;
+            }
+            let name = session.work_title();
+            let project = session.work_project();
+            let title = match &project {
+                Some(project) if !name.to_lowercase().contains(&project.to_lowercase()) => {
+                    format!("{name} ({project})")
+                }
+                _ => name.clone(),
+            };
+            let in_project = project
+                .as_ref()
+                .map(|project| format!(" in {project}"))
+                .unwrap_or_default();
+            let mut work_done =
+                format!("Worked with {}{in_project}.", session.agent.display_name());
+            if !session.actions.is_empty() {
+                work_done.push_str(&format!(
+                    " Recorded actions: {}.",
+                    session
+                        .actions
+                        .iter()
+                        .take(6)
+                        .map(CodingAgentAction::summary)
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ));
+            }
+            let labels: Vec<String> = session
+                .pull_requests
+                .iter()
+                .filter_map(|url| pull_request_label(url))
+                .collect();
+            let finished = session.actions.iter().any(|action| {
+                matches!(
+                    action,
+                    CodingAgentAction::MergedPullRequest { .. } | CodingAgentAction::Release { .. }
+                )
+            });
+            Some(SessionCandidate {
+                block: FocusBlock {
+                    task: clean_inline(&title, TITLE_CHARACTERS),
+                    work_done: clean_summary(&work_done, WORK_DONE_WORDS),
+                    status: if finished { "completed" } else { "in_progress" }.into(),
+                    outcome: if labels.is_empty() {
+                        String::new()
+                    } else {
+                        clean_summary(&format!("Pull requests: {}", labels.join(", ")), 32)
+                    },
+                    next_step: String::new(),
+                    source_ids: Vec::new(),
+                },
+                name,
+                project,
+                pull_requests: session.pull_request_references(),
+            })
+        })
+        .collect()
+}
+
+fn mentions_word(word: &str, text: &str) -> bool {
+    Regex::new(&format!(r"(?i)\b{}\b", regex::escape(word)))
+        .is_ok_and(|pattern| pattern.is_match(text))
+}
+
+static PULL_REQUEST_NUMBER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:#|\bPRs?\s*#?)(\d+)").expect("valid regex"));
+
+/// Numbers written as `#12`, `PR 12` or `PRs #12`.
+fn pull_request_numbers(text: &str) -> HashSet<i64> {
+    PULL_REQUEST_NUMBER
+        .captures_iter(text)
+        .filter_map(|captures| captures[1].parse().ok())
+        .collect()
+}
+
+/// The title names one of the session's pull requests: `owner/repo#12`, or `#12`
+/// or `PR 12` beside the repository's name. A number alone could belong to
+/// another repository's pull request.
+fn names_pull_request(title: &str, candidate: &SessionCandidate) -> bool {
+    candidate.pull_requests.iter().any(|pull_request| {
+        let label = format!(
+            "{}/{}#{}",
+            pull_request.owner, pull_request.repository, pull_request.number
+        );
+        contains_label(title, &label, false)
+            || (mentions_word(&pull_request.repository, title)
+                && pull_request_numbers(title).contains(&pull_request.number))
+    })
+}
+
+/// `label` occurs and no digit follows it, so `#10` is not mentioned by `#105`.
+fn contains_label(text: &str, label: &str, case_sensitive: bool) -> bool {
+    let (text, label) = if case_sensitive {
+        (text.to_string(), label.to_string())
+    } else {
+        (text.to_lowercase(), label.to_lowercase())
+    };
+    text.match_indices(&label).any(|(index, _)| {
+        !text[index + label.len()..]
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_digit())
+    })
+}
+
+const IGNORED_WORK_WORDS: &[&str] = &[
+    "a", "all", "an", "and", "any", "for", "from", "in", "its", "of", "on", "or", "our", "the",
+    "these", "this", "those", "to", "with",
+];
+
+/// Lowercased content words in singular form, with "pull request" as "pr", so
+/// "Review the pull requests" and "open PR review" share their words.
+fn work_words(text: &str) -> HashSet<String> {
+    let folded = text.to_lowercase().replace("pull request", "pr");
+    let mut words = HashSet::new();
+    for raw in folded.split(|c: char| !c.is_alphanumeric()) {
+        if raw.is_empty() {
+            continue;
+        }
+        let mut word = raw.to_string();
+        if word == "prs" {
+            word = "pr".into();
+        } else if word.chars().count() > 4 && word.ends_with("ies") {
+            word.truncate(word.len() - 3);
+            word.push('y');
+        } else if word.ends_with("xes") || word.ends_with("ches") || word.ends_with("shes") {
+            word.truncate(word.len() - 2);
+        } else if word.chars().count() > 3
+            && word.ends_with('s')
+            && !["ss", "us", "is"].iter().any(|end| word.ends_with(end))
+        {
+            word.pop();
+        }
+        if !IGNORED_WORK_WORDS.contains(&word.as_str()) {
+            words.insert(word);
+        }
+    }
+    words
+}
+
+/// Every word of the session's name is in the task's title, the task is about
+/// the session's project, and the two name no different pull requests: "Review
+/// all open PRs" in LokalBot is "LokalBot open PR review and fixes", while
+/// "Review PR" is not "LokalBot PR #290 review".
+fn describes_same_work(task: &NormalizedTask, candidate: &SessionCandidate) -> bool {
+    let mut words = work_words(&candidate.name);
+    if let Some(project) = &candidate.project {
+        for word in work_words(project) {
+            words.remove(&word);
+        }
+        if !mentions_word(project, &format!("{} {}", task.title, task.summary)) {
+            return false;
+        }
+    }
+    let title_words = work_words(&task.title);
+    if words.len() < 2 || !words.iter().all(|word| title_words.contains(word)) {
+        return false;
+    }
+    let named = pull_request_numbers(&task.title);
+    let linked: HashSet<i64> = candidate.pull_requests.iter().map(|p| p.number).collect();
+    named.is_empty() || linked.is_empty() || !named.is_disjoint(&linked)
+}
+
+/// The part of a session's outcome a task does not state yet. Several sessions
+/// can merge into one task, so each adds only pull requests it has not already
+/// named.
+fn unmentioned_outcome(outcome: &str, summary: &str) -> String {
+    const PREFIX: &str = "Pull requests: ";
+    let Some(labels) = outcome.strip_prefix(PREFIX) else {
+        return if summary.to_lowercase().contains(&outcome.to_lowercase()) {
+            String::new()
+        } else {
+            outcome.to_string()
+        };
+    };
+    let missing: Vec<&str> = labels
+        .split(',')
+        .map(str::trim)
+        .filter(|label| !contains_label(summary, label, true))
+        .collect();
+    if missing.is_empty() {
+        String::new()
+    } else {
+        format!("{PREFIX}{}", missing.join(", "))
+    }
+}
+
+/// Segment extraction keeps at most three items per segment, and a small model
+/// rarely fills them all, so parallel sessions could still vanish. Those that
+/// recorded an outcome are stated from their actions and added after aggregation.
+fn merge_session_candidate(candidate: &SessionCandidate, tasks: &mut Vec<NormalizedTask>) {
+    let block = &candidate.block;
+    let key = task_key(&block.task);
+    let found = tasks
+        .iter()
+        .position(|task| {
+            task_key(&task.title) == key
+                || lokalbot_core::digest::is_similar(&task.title, &block.task)
+        })
+        .or_else(|| {
+            tasks
+                .iter()
+                .position(|task| names_pull_request(&task.title, candidate))
+        })
+        .or_else(|| {
+            tasks
+                .iter()
+                .position(|task| describes_same_work(task, candidate))
+        });
+    let Some(index) = found else {
+        tasks.push(NormalizedTask {
+            title: block.task.clone(),
+            status: block.status.clone(),
+            summary: candidate_summary(block),
+            next_step: String::new(),
+        });
+        return;
+    };
+    let addition = unmentioned_outcome(&block.outcome, &tasks[index].summary);
+    if !addition.is_empty() {
+        tasks[index].summary = clean_summary(
+            &format!("{} {addition}", tasks[index].summary),
+            SUMMARY_WORDS,
+        );
+    }
+    // A recorded merge or release settles the status; nothing weaker overrides
+    // what the model concluded.
+    if block.status == "completed" {
+        tasks[index].status = "completed".into();
+    }
+}
+
 fn normalized_list(values: &[String], max_words: usize) -> Vec<String> {
     let mut result = Vec::new();
     for raw in values {
@@ -1353,8 +1946,15 @@ fn unique_follow_ups(
 
 const RECORDED_ACTIVITY: &str = "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item.";
 
-fn render(blocks: &[FocusBlock], draft: Option<&DigestDraft>) -> String {
-    let (tasks, decisions, blockers) = normalized_digest(draft, blocks);
+fn render(
+    blocks: &[FocusBlock],
+    draft: Option<&DigestDraft>,
+    sessions: &[SessionCandidate],
+) -> String {
+    let (mut tasks, decisions, blockers) = normalized_digest(draft, blocks);
+    for candidate in sessions {
+        merge_session_candidate(candidate, &mut tasks);
+    }
     if tasks.is_empty() {
         return RECORDED_ACTIVITY.into();
     }
@@ -1457,6 +2057,45 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
             return blocks;
         }
     }
+    // Agent sessions name their work and record their actions, which says more
+    // than a window title without claiming an outcome.
+    for session in evidence.coding_agent_sessions() {
+        let Some(merged) = coding_agents::merging(&session) else {
+            continue;
+        };
+        let mut actions: Vec<String> = Vec::new();
+        for action in session.iter().flat_map(|burst| &burst.actions) {
+            let summary = action.summary();
+            if !actions.contains(&summary) {
+                actions.push(summary);
+            }
+        }
+        let context = format!(
+            "Worked with {}{}",
+            merged.agent.display_name(),
+            merged
+                .work_project()
+                .map(|project| format!(" in {project}"))
+                .unwrap_or_default()
+        );
+        let work_done = if actions.is_empty() {
+            format!("{context}.")
+        } else {
+            let shown: Vec<&str> = actions.iter().take(4).map(String::as_str).collect();
+            format!("{context}. Recorded actions: {}.", shown.join("; "))
+        };
+        blocks.push(FocusBlock {
+            task: clean_inline(&merged.work_title(), TITLE_CHARACTERS),
+            work_done: clean_summary(&work_done, WORK_DONE_WORDS),
+            status: "unknown".into(),
+            outcome: String::new(),
+            next_step: String::new(),
+            source_ids: Vec::new(),
+        });
+        if blocks.len() == limit {
+            return blocks;
+        }
+    }
     let mut grouped: HashMap<String, (String, f64, DateTime<Utc>)> = HashMap::new();
     for activity in &evidence.activities {
         let Some(title) = fallback_activity_title(&activity.title, &activity.app) else {
@@ -1513,7 +2152,7 @@ pub fn fallback_summary(evidence: &DayEvidence) -> String {
     if blocks.is_empty() {
         RECORDED_ACTIVITY.into()
     } else {
-        render(&blocks, None)
+        render(&blocks, None, &[])
     }
 }
 
@@ -1743,6 +2382,7 @@ pub fn generate_overview(
         covered_seconds: covered,
         tracked_seconds: tracked,
     });
+    let sessions = session_candidates(evidence);
     let uses_best_available = substantive.is_empty();
     let marks_priority = !substantive.is_empty() && !secondary.is_empty();
     let primary_count = substantive.len();
@@ -1850,7 +2490,7 @@ pub fn generate_overview(
         degraded = true;
     }
     Ok(Overview {
-        summary: render(&selected, draft.as_ref()),
+        summary: render(&selected, draft.as_ref(), &sessions),
         quality: if degraded {
             DigestQuality::Partial
         } else {
@@ -1906,6 +2546,24 @@ pub fn generate_day_digest(
     };
     progress("Digest ready");
     Ok((markdown, meta))
+}
+
+/// The day's unedited generated digest and whether it still matches the day's
+/// evidence (`DailyEvidenceArtifacts.generatedDigest`). Callers use only a current
+/// one: a stale digest could disagree with newer corrections or evidence.
+pub fn generated_digest(library: &Library, day: NaiveDate) -> Option<(String, bool)> {
+    let journal = library.journal_path(day);
+    let text = std::fs::read_to_string(&journal).ok()?;
+    if text.trim().is_empty() || !lokalbot_core::evidence::journal_is_generated(&journal) {
+        return None;
+    }
+    let signature = library
+        .digest_meta(day)
+        .ok()
+        .flatten()?
+        .evidence_signature?;
+    let (current, _) = evidence_signatures(library, day).ok()?;
+    Some((text, current == signature))
 }
 
 /// The current evidence signatures for `day`, to decide whether a stored

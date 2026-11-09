@@ -405,16 +405,20 @@ enum BrowserMeetingSession {
         var matches: [Window] = []
         let focused = value(app, kAXFocusedWindowAttribute)
         let deadline = ProcessInfo.processInfo.systemUptime + 1
+        quietWindows.keep(only: windows, processID: processID)
         windowLoop: for window in windows {
             guard ProcessInfo.processInfo.systemUptime < deadline else { issue = .deadline; return nil }
             let title = value(window, kAXTitleAttribute) as? String ?? ""
             if ScreenContextPrivacy.isPrivateWindow(title: title)
                 || value(window, kAXMinimizedAttribute) as? Bool == true { continue }
+            let started = ProcessInfo.processInfo.systemUptime
+            if quietWindows.isQuiet(window, title: title, processID: processID, now: started) { continue }
             var stack: [(AXUIElement, Int, Bool)] = [(window, 0, false)]
             var url: String?
+            var sawMeetDocument = false
             var buttons: [String] = []
             var messages: [String] = []
-            var budget = TraversalBudget(startTime: ProcessInfo.processInfo.systemUptime)
+            var budget = TraversalBudget(startTime: started)
             while let (node, depth, inside) = stack.popLast() {
                 guard ProcessInfo.processInfo.systemUptime < deadline else { issue = .deadline; return nil }
                 guard budget.visit(depth: depth, at: ProcessInfo.processInfo.systemUptime) else {
@@ -429,7 +433,9 @@ enum BrowserMeetingSession {
                     if inside { continue }
                     let raw = fields[kAXURLAttribute]
                     let text = (raw as? URL)?.absoluteString ?? (raw as? String) ?? ""
-                    guard let valid = meetURL(text),
+                    let meet = meetURL(text)
+                    if meet != nil { sawMeetDocument = true }
+                    guard let valid = meet,
                           expected == nil || valid == expected else { continue }
                     guard url == nil else { continue windowLoop }
                     url = valid
@@ -445,6 +451,9 @@ enum BrowserMeetingSession {
                 guard budget.allowsChildren(children.count) else { issue = .pageTooLarge; continue windowLoop }
                 stack += children.reversed().map { ($0, depth + 1, inDocument) }
             }
+            // Only a complete read without any Meet document is remembered.
+            quietWindows.record(window, title: title, quiet: !sawMeetDocument,
+                                processID: processID, now: started)
             if let url, let parsed = URL(string: url) {
                 let match = Window(element: window, snapshot: Snapshot(url: parsed, state: state(buttons: buttons, messages: messages)),
                                    title: title)
@@ -469,6 +478,55 @@ enum BrowserMeetingSession {
         }
         return matches.count == 1 ? matches.first : nil
     }
+
+    /// Browser windows whose last complete read found no Meet document. A Meet
+    /// tab coming to the front or loading replaces the window's title, so a
+    /// window keeping its title is not walked again until `maximumAge` passes.
+    /// Each walk visits the browser's own toolbar, tab strip, and bookmarks
+    /// with one cross-process call per node, which every 2-second detector
+    /// tick used to repeat for every window, in LokalBot and in the browser.
+    final class QuietWindowCache: @unchecked Sendable {
+        static let maximumAge: TimeInterval = 30
+
+        private struct Entry {
+            let window: AXUIElement
+            let title: String
+            let checkedAt: TimeInterval
+        }
+
+        private let lock = NSLock()
+        private var entries: [pid_t: [Entry]] = [:]
+
+        func isQuiet(_ window: AXUIElement, title: String, processID: pid_t, now: TimeInterval) -> Bool {
+            lock.withLock {
+                entries[processID]?.contains {
+                    CFEqual($0.window, window) && $0.title == title && now - $0.checkedAt < Self.maximumAge
+                } ?? false
+            }
+        }
+
+        func record(_ window: AXUIElement, title: String, quiet: Bool, processID: pid_t, now: TimeInterval) {
+            lock.withLock {
+                var list = entries[processID, default: []].filter { !CFEqual($0.window, window) }
+                if quiet { list.append(Entry(window: window, title: title, checkedAt: now)) }
+                entries[processID] = list.isEmpty ? nil : list
+            }
+        }
+
+        /// Forgets windows that closed.
+        func keep(only windows: [AXUIElement], processID: pid_t) {
+            lock.withLock {
+                guard let list = entries[processID] else { return }
+                let kept = list.filter { entry in windows.contains { CFEqual($0, entry.window) } }
+                entries[processID] = kept.isEmpty ? nil : kept
+            }
+        }
+
+        func removeAll() {
+            lock.withLock { entries.removeAll() }
+        }
+    }
+    static let quietWindows = QuietWindowCache()
 
     private final class PrimedProcesses: @unchecked Sendable {
         private let lock = NSLock()

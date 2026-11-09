@@ -75,7 +75,20 @@ fn bind_keys(cx: &mut App) {
     ]);
 }
 
+/// The draft without its @, when an @ was just typed where a word starts
+/// (`AgentComposer`: at the start, after a space or a new line). An address
+/// such as me@example.com stays text.
+fn context_trigger(draft: &str) -> Option<&str> {
+    if draft == "@" || draft.ends_with(" @") || draft.ends_with("\n@") {
+        draft.strip_suffix('@')
+    } else {
+        None
+    }
+}
+
 pub struct AgentPage {
+    /// The model last asked about for its reasoning levels.
+    reasoning_asked: Option<String>,
     data: Entity<AppData>,
     model: Option<Entity<AgentModel>>,
     composer: Entity<TextareaState>,
@@ -111,6 +124,8 @@ pub struct AgentPage {
 impl AgentPage {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         bind_keys(cx);
+        let handle = AgentPageHandle(cx.entity().downgrade());
+        cx.set_global(handle);
         let data = AppData::global(cx);
         let composer = cx.new(|cx| {
             TextareaState::new(window, cx)
@@ -137,6 +152,7 @@ impl AgentPage {
                 let section = data.read(cx).section;
                 if section == Section::Agent {
                     this.ensure_model(window, cx);
+                    this.take_request(window, cx);
                     if this.last_section != Section::Agent {
                         this.focus_composer(window, cx);
                     }
@@ -149,6 +165,13 @@ impl AgentPage {
                 |this, input, event: &InputEvent, window, cx| match event {
                     InputEvent::Change => {
                         let value = input.read(cx).value().to_string();
+                        // Typing @ asks for context instead of typing it.
+                        if let Some(kept) = context_trigger(&value) {
+                            let kept = kept.to_string();
+                            input.update(cx, |input, cx| input.set_value(kept, window, cx));
+                            this.open_context_picker(window, cx);
+                            return;
+                        }
                         if value != this.synced_draft {
                             this.synced_draft = value.clone();
                             this.with_session(cx, |session| session.draft = value);
@@ -188,6 +211,7 @@ impl AgentPage {
         ];
         let last_section = data.read(cx).section;
         let mut page = Self {
+            reasoning_asked: None,
             data,
             model: None,
             composer,
@@ -219,6 +243,7 @@ impl AgentPage {
         };
         if last_section == Section::Agent {
             page.ensure_model(window, cx);
+            page.take_request(window, cx);
             // `AgentComposer.onAppear`: the composer is ready for typing.
             page.focus_composer(window, cx);
         }
@@ -234,6 +259,7 @@ impl AgentPage {
         let data = self.data.clone();
         let model = cx.new(|cx| AgentModel::new(data, cx));
         let subscription = cx.observe_in(&model, window, |this, _, window, cx| {
+            this.take_request(window, cx);
             this.sync_composer(window, cx);
             this.follow_transcript(cx);
             this.show_task_error(cx);
@@ -241,6 +267,37 @@ impl AgentPage {
         });
         self._subscriptions.push(subscription);
         self.model = Some(model);
+    }
+
+    /// Acts on what another page or the palette asked for. A prompt goes into
+    /// the selected task's draft (`AppState.openAgent`), waits for setup, and is
+    /// never sent.
+    fn take_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let waiting_for_setup = self.selected_id(cx).is_none();
+        let Some(request) = self.data.update(cx, |data, _| match data.agent_request {
+            Some(crate::state::AgentRequest::Prompt(_)) if waiting_for_setup => None,
+            _ => data.agent_request.take(),
+        }) else {
+            return;
+        };
+        match request {
+            crate::state::AgentRequest::Prompt(prompt) => {
+                self.with_session(cx, |session| session.draft = prompt);
+                self.sync_composer(window, cx);
+                self.focus_composer(window, cx);
+            }
+            crate::state::AgentRequest::NewTask => self.new_task(window, cx),
+            crate::state::AgentRequest::SearchTasks => {
+                self.task_search
+                    .update(cx, |state, cx| state.focus(window, cx));
+            }
+            crate::state::AgentRequest::FindInTask => self.open_find(window, cx),
+            crate::state::AgentRequest::ToggleResults => {
+                self.results_visible = !self.results_visible;
+                cx.notify();
+            }
+            crate::state::AgentRequest::SelectTask(id) => self.select_task(id, window, cx),
+        }
     }
 
     // ------------------------------------------------------------ helpers
@@ -440,6 +497,39 @@ impl Page for AgentPage {
     }
 }
 
+/// The live page, so the palette can list its tasks.
+struct AgentPageHandle(gpui_kit::WeakEntity<AgentPage>);
+
+impl gpui_kit::Global for AgentPageHandle {}
+
+/// Unarchived tasks, in their order, with their workspace names.
+pub fn palette_tasks(cx: &App) -> Vec<(Uuid, String, String)> {
+    let Some(page) = cx
+        .try_global::<AgentPageHandle>()
+        .and_then(|handle| handle.0.upgrade())
+    else {
+        return Vec::new();
+    };
+    let page = page.read(cx);
+    let Some(tasks) = page.model(cx).and_then(|model| model.tasks.as_ref()) else {
+        return Vec::new();
+    };
+    tasks
+        .ordered()
+        .into_iter()
+        .filter(|tab| !tab.record.is_archived)
+        .map(|tab| {
+            let workspace = tab
+                .record
+                .workspace
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            (tab.id, tab.title(), workspace)
+        })
+        .collect()
+}
+
 impl AgentPage {
     fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.find_visible = true;
@@ -451,21 +541,26 @@ impl AgentPage {
 
 impl Render for AgentPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.take_request(window, cx);
         let lb = cx.lb().clone();
         let installed = self
             .model(cx)
             .is_some_and(|m| m.phase == InstallPhase::Installed && m.tasks.is_some());
         let body = if installed {
+            let sidebar = self.render_sidebar(window, cx);
+            let conversation = self.render_conversation(window, cx);
+            let split = crate::ui::split::leading(
+                "LokalBot.agent",
+                gpui_kit::px(sidebar::SIDEBAR_WIDTH),
+                crate::ui::split::LIST_RANGE,
+                sidebar,
+                div().size_full().child(conversation),
+                &self.data,
+                cx,
+            );
             h_flex()
                 .size_full()
-                .child(self.render_sidebar(window, cx))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .h_full()
-                        .child(self.render_conversation(window, cx)),
-                )
+                .child(div().flex_1().min_w_0().h_full().child(split))
                 .when(self.results_visible, |this| {
                     this.child(self.render_results(window, cx))
                 })
@@ -539,4 +634,20 @@ fn small_icon_button(
         .xsmall()
         .icon(Icon::new(icon))
         .tooltip(tooltip)
+}
+
+#[cfg(test)]
+mod context_trigger_tests {
+    use super::context_trigger;
+
+    #[test]
+    fn an_at_where_a_word_starts_opens_the_picker() {
+        assert_eq!(context_trigger("@"), Some(""));
+        assert_eq!(context_trigger("look at @"), Some("look at "));
+        assert_eq!(context_trigger("first\n@"), Some("first\n"));
+        assert_eq!(context_trigger("me@"), None);
+        assert_eq!(context_trigger("me@example.com"), None);
+        assert_eq!(context_trigger("@name"), None);
+        assert_eq!(context_trigger(""), None);
+    }
 }

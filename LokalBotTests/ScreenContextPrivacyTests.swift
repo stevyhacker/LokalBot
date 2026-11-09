@@ -1,3 +1,4 @@
+import ApplicationServices
 import XCTest
 @testable import LokalBot
 
@@ -364,6 +365,52 @@ final class ScreenContextPrivacyTests: XCTestCase {
 
         XCTAssertTrue(result.timedOut)
         XCTAssertNil(result.snapshot)
+    }
+
+    /// Walks read each element's attributes in one call; an attribute the
+    /// element lacks comes back as an error value. A subrole that could not be
+    /// read must leave the secure-field state unknown, never plain.
+    func testBatchedElementReadKeepsUnreadableSecureFieldStateUnknown() throws {
+        func error(_ code: AXError) throws -> AnyObject {
+            var value = code
+            return try XCTUnwrap(AXValueCreate(.axError, &value))
+        }
+        let names = ScreenAccessibilityReader.secureFieldAttributes
+        func status(_ values: [AnyObject]) -> Bool? {
+            ScreenAccessibilityReader.secureFieldStatus(.init(names: names, values: values))
+        }
+        XCTAssertEqual(status(["AXTextField" as NSString, try error(.noValue), "text field" as NSString,
+                               "Name" as NSString, NSNull()]), false)
+        XCTAssertEqual(status(["AXTextField" as NSString, "AXSecureTextField" as NSString, "text field" as NSString,
+                               try error(.attributeUnsupported), try error(.noValue)]), true)
+        XCTAssertEqual(status(["AXTextField" as NSString, try error(.attributeUnsupported), "text field" as NSString,
+                               "Password" as NSString, try error(.noValue)]), true)
+        XCTAssertNil(status(["AXTextField" as NSString, try error(.cannotComplete), "text field" as NSString,
+                             "Name" as NSString, try error(.noValue)]))
+        XCTAssertNil(status([try error(.noValue), "AXSecureTextField" as NSString, "secure text field" as NSString,
+                             try error(.noValue), try error(.noValue)]))
+        let node = ScreenAccessibilityReader.NodeAttributes(names: names, values: [
+            "AXGroup" as NSString, try error(.noValue), NSNull(), "Title" as NSString, try error(.cannotComplete)])
+        XCTAssertEqual(node.value(names[0]) as? String, "AXGroup")
+        XCTAssertNil(node.value(names[1]))
+        XCTAssertEqual(node.error(names[1]), .noValue)
+        XCTAssertEqual(node.error(names[2]), .noValue)
+        XCTAssertEqual(node.error(names[4]), .cannotComplete)
+    }
+
+    /// Text reads are skipped where the visible-text policy would drop them.
+    func testVisibleTextPolicyPreconditionMatchesItsResult() {
+        let viewport = CGRect(x: 0, y: 0, width: 100, height: 100)
+        for frame in [CGRect(x: 10, y: 10, width: 20, height: 10), CGRect(x: 200, y: 200, width: 20, height: 10),
+                      .zero, .null] as [CGRect?] + [nil] {
+            for hidden in [false, true] {
+                let shown = ScreenVisibleTextPolicy.text(role: "AXStaticText", frame: frame, viewport: viewport,
+                                                         hidden: hidden, title: "Title", visibleRangeText: "Visible",
+                                                         staticValue: "Value")
+                XCTAssertEqual(ScreenVisibleTextPolicy.mayShowText(frame: frame, viewport: viewport, hidden: hidden),
+                               !shown.isEmpty)
+            }
+        }
     }
 
     /// macOS answers an app's accessibility queries about itself in-process on

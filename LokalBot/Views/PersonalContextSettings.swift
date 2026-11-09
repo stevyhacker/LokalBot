@@ -2,11 +2,12 @@ import SwiftUI
 
 /// Settings → Personal Context: learned items waiting for review, what
 /// LokalBot keeps about the person grouped by kind, the learning switches,
-/// and what agents can read. Every item can be edited or forgotten here.
+/// and whether agents can read the shared items. Every item can be edited or
+/// forgotten here.
 struct PersonalContextSettings: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var personalModel: PersonalModelController
-    @ObservedObject var access: PersonalContextAccessManager
+    @ObservedObject var access: AgentReadAccess
     @State private var editing: EditorTarget?
     @State private var confirmingForgetAll = false
     @State private var confirmingDismissAll = false
@@ -284,28 +285,13 @@ struct PersonalContextSettings: View {
         }
     }
 
-    @ViewBuilder private var agentsSection: some View {
+    /// The same grant as External Agents' box, so sharing is set up here.
+    private var agentsSection: some View {
         let shared = personalModel.claims.filter { $0.sharing == .agents }.count
-        if access.isEnabled || shared > 0 {
-            Section {
-                HStack(alignment: .center, spacing: 10) {
-                    Image(systemName: "person.2.wave.2")
-                        .foregroundStyle(access.isEnabled ? AnyShapeStyle(Brand.teal) : AnyShapeStyle(.secondary))
-                        .frame(width: 18)
-                        .accessibilityHidden(true)
-                    Text(LocalizedStringKey(Self.agentSummary(shared: shared, accessEnabled: access.isEnabled)))
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 12)
-                    Button("Privacy settings…") {
-                        app.settingsTab = .privacy
-                        app.focusedSettingID = "settings.personalContextAccess"
-                    }
-                    .buttonStyle(.workspaceLink)
-                }
-            } header: {
-                Text("Agents")
-            }
-        }
+        return AgentKindAccessSection(
+            access: access, kind: .personalContext,
+            detail: shared > 0 || access.isGranted(.personalContext)
+                ? Self.agentSummary(shared: shared, accessEnabled: access.isGranted(.personalContext)) : nil)
     }
 
     static func agentSummary(shared: Int, accessEnabled: Bool) -> String {
@@ -327,7 +313,7 @@ struct PersonalContextSettings: View {
                                 + "that share words with it, up to about 2,000 characters. If your Think model is a "
                                 + "remote server you approved, they are sent there with the question. External agents "
                                 + "(MCP clients and the CLI) read only items you mark Share with agents, and only while "
-                                + "personal context access is on in Settings → Privacy. Agent Mode, Autocomplete, exports, "
+                                + "the External agents box on this page is on. Agent Mode, Autocomplete, exports, "
                                 + "and diagnostics never get them. Turning this off stops saving and using them in Ask; "
                                 + "forget them here to delete them. Learned items go when you delete or correct the "
                                 + "meeting they came from, unless you keep them. Questions limited to some sources or "
@@ -581,7 +567,7 @@ struct PersonalClaimEditor: View {
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("settings.personalContext.text")
             Toggle("Share with agents", isOn: $sharesWithAgents)
-                .help("MCP clients and the CLI can read this item while personal context access is on in Settings → Privacy.")
+                .help("MCP clients and the CLI can read this item while the External agents box on this page is on.")
                 .accessibilityIdentifier("settings.personalContext.share")
             HStack {
                 Text("\(text.count)/\(PersonalModel.maxCharacters)")

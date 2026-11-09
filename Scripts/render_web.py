@@ -53,10 +53,10 @@ ORGANIZATION = {
 # Hand-written pages outside the generator, with the date each last changed.
 # Bump a date when you edit that page so the sitemap's lastmod stays honest.
 STATIC_PAGES = {
-    "": "2026-10-26",
-    "privacy": "2026-10-26",
+    "": "2026-11-05",
+    "privacy": "2026-11-09",
     "terms": "2026-10-26",
-    "support": "2026-10-26",
+    "support": "2026-11-02",
     "enshittification-proof": "2026-10-26",
 }
 
@@ -140,9 +140,14 @@ def render_footer(partial: str) -> str:
     """The shared footer, with a Compare link for every comparison page."""
 
     # Root-relative, because blog posts are served one level down at /blog/<slug>.
+    roundups = [
+        f'      <a href="/{guide["slug"]}">Best open-source AI assistants</a>'
+        for guide in GUIDES
+        if guide.get("kind") == "compare"
+    ]
     links = "\n".join(
-        f'      <a href="/{page["slug"]}">{page["h1"].removeprefix("LokalBot ")}</a>'
-        for page in PAGES
+        roundups
+        + [f'      <a href="/{page["slug"]}">{page["h1"].removeprefix("LokalBot ")}</a>' for page in PAGES]
     )
     return fill_template(partial, {"{{COMPARE_LINKS}}": links}, "Footer").rstrip("\n")
 
@@ -254,6 +259,7 @@ def render_compact_cards(cards: list[tuple[str, str, str, str, str]]) -> str:
 
 def guide_structured_data(page: dict) -> str:
     url = f"{SITE}/{page['slug']}"
+    extra = [page["item_list"]] if page.get("item_list") else []
     return json_ld(
         [
             {
@@ -269,6 +275,7 @@ def guide_structured_data(page: dict) -> str:
             },
             breadcrumb_list([("Home", f"{SITE}/"), ("Guides", f"{SITE}/guides"), (page["h1"], url)]),
             faq_page(page["faq"], url),
+            *extra,
         ]
     )
 
@@ -319,6 +326,7 @@ def guides_index_structured_data() -> str:
     listed = (
         [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind") == "question"]
         + [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind", "guide") == "guide"]
+        + [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind") == "compare"]
         + [(page["slug"], page["h1"]) for page in PAGES]
         + [(reference["slug"], reference["h1"]) for reference in REFERENCES]
     )
@@ -375,7 +383,12 @@ def render_guides_index(template: str, footer: str) -> str:
         "{{QUESTION_CARDS}}": render_guide_cards("question"),
         "{{GUIDE_CARDS}}": render_guide_cards("guide"),
         "{{COMPARE_CARDS}}": render_compact_cards(
-            [(page["slug"], "Compare", page["h1"], page["description"], search_terms(page)) for page in PAGES]
+            [
+                (guide["slug"], "Compare", guide["h1"], guide["description"], search_terms(guide))
+                for guide in GUIDES
+                if guide.get("kind") == "compare"
+            ]
+            + [(page["slug"], "Compare", page["h1"], page["description"], search_terms(page)) for page in PAGES]
         ),
         "{{REFERENCE_CARDS}}": render_compact_cards(
             [(ref["slug"], ref["eyebrow"], ref["h1"], ref["description"], "") for ref in REFERENCES]
@@ -401,13 +414,14 @@ def post_byline(post: dict) -> str:
     return " · ".join(parts)
 
 
-def render_post_cards(posts: list[dict]) -> str:
+def render_post_cards(posts: list[dict], summaries: bool = True) -> str:
+    """Cards linking to posts. The home page leaves the summaries out to stay short."""
     return "\n".join(
         f'        <a class="guide-card blog-card" href="/blog/{post["slug"]}">\n'
         f'          <span class="guide-card__eyebrow"><time datetime="{post["published"]}">{long_date(post["published"])}</time> · {post["eyebrow"]}</span>\n'
         f'          <strong>{post["h1"]}</strong>\n'
-        f'          <span>{post["description"]}</span>\n'
-        f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
+        + (f'          <span>{post["description"]}</span>\n' if summaries else "")
+        + f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
         "        </a>"
         for post in posts
     )
@@ -512,7 +526,7 @@ def render_home(index: str) -> str:
     start, end = index.find(LATEST_POSTS_START), index.find(LATEST_POSTS_END)
     if start == -1 or end < start:
         raise SystemExit("web/index.html is missing the LATEST-POSTS markers.")
-    cards = render_post_cards(POSTS[:3])
+    cards = render_post_cards(POSTS[:3], summaries=False)
     return index[: start + len(LATEST_POSTS_START)] + "\n" + cards + "\n        " + index[end:]
 
 

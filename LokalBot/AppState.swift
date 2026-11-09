@@ -51,49 +51,98 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Which tab the Settings surface shows (spec §2.5 — Settings absorbs
-    /// Models as a tab strip). Session-sticky like TypeTab.
+    /// A Settings page. Each feature has one page with everything that sets it
+    /// up, in sidebar order. Raw values stay stable for the CLI, AppControl and
+    /// saved selections, so a renamed page keeps its old identifier.
     enum SettingsTab: String, CaseIterable {
-        case general, recording, dayMemory, personalContext, writing, dictation, models, privacy, advanced
+        case overview, general
+        case recording, dayMemory, files, email
+        case ask, personalContext, daily
+        case writing, dictation
+        case models, agents, devices
+        case privacy, advanced
+
+        enum Group: String, CaseIterable {
+            case memory = "Memory", assistant = "Assistant", writing = "Writing",
+                 connections = "Connections", app = "App"
+        }
+
+        /// The sidebar heading the page sits under. Overview and General have
+        /// none: they come first, above the headings.
+        var group: Group? {
+            switch self {
+            case .overview, .general: nil
+            case .recording, .dayMemory, .files, .email: .memory
+            case .ask, .personalContext, .daily: .assistant
+            case .writing, .dictation: .writing
+            case .models, .agents, .devices: .connections
+            case .privacy, .advanced: .app
+            }
+        }
 
         var displayName: String {
             switch self {
+            case .overview: "Overview"
             case .recording: "Meetings"
-            case .dayMemory: "Day Memory"
+            case .dayMemory: "Screen & Activity"
+            case .files: "Files"
+            case .email: "Email"
+            case .ask: "Ask"
             case .personalContext: "Personal Context"
-            case .privacy: "Privacy & Data"
-            default: rawValue.capitalized
+            case .daily: "Daily Review"
+            case .writing: "Autocomplete"
+            case .dictation: "Dictation"
+            case .models: "Models"
+            case .agents: "External Agents"
+            case .devices: "Phones & tablets"
+            case .general: "General"
+            case .privacy: "Privacy & Permissions"
+            case .advanced: "Diagnostics"
             }
         }
 
         var icon: String {
             switch self {
-            case .general: "gearshape"
+            case .overview: "square.grid.2x2"
             case .recording: "person.2"
-            case .dayMemory: "calendar.day.timeline.left"
+            case .dayMemory: "macwindow"
+            case .files: "doc.on.doc"
+            case .email: "envelope"
+            case .ask: "sparkles"
             case .personalContext: "person.crop.circle"
+            case .daily: "moon.stars"
             case .writing: "pencil"
             case .dictation: "mic"
             case .models: "shippingbox"
+            case .agents: "point.3.connected.trianglepath.dotted"
+            case .devices: "ipad.and.iphone"
+            case .general: "gearshape"
             case .privacy: "lock"
-            case .advanced: "slider.horizontal.3"
+            case .advanced: "stethoscope"
             }
         }
 
-        /// Legacy capture names select their tab; the pre-merge "models"
-        /// section name lands on the Models tab.
+        /// Capture and launch names, including the names pages had before
+        /// Settings was organized by feature.
         init?(captureName: String) {
             switch captureName.lowercased() {
+            case "overview": self = .overview
             case "general": self = .general
             case "recording", "meetings": self = .recording
-            case "daymemory", "day memory": self = .dayMemory
+            case "daymemory", "day memory", "screen", "screen & activity", "activity": self = .dayMemory
+            case "files": self = .files
+            case "email", "mail", "gmail": self = .email
+            case "ask": self = .ask
             case "personalcontext", "personal context", "personal-context", "aboutyou", "about you":
                 self = .personalContext
-            case "writing", "write": self = .writing
+            case "daily", "dailyreview", "daily review", "overnight", "routines": self = .daily
+            case "writing", "write", "autocomplete": self = .writing
             case "dictation": self = .dictation
             case "models": self = .models
-            case "privacy": self = .privacy
-            case "advanced": self = .advanced
+            case "agents", "externalagents", "external agents", "agent-access": self = .agents
+            case "devices", "phones", "tablets", "phones & tablets", "companion": self = .devices
+            case "privacy", "permissions": self = .privacy
+            case "advanced", "diagnostics": self = .advanced
             default: return nil
             }
         }
@@ -162,6 +211,16 @@ final class AppState: ObservableObject {
             if oldValue.semanticSearchEnabled, !settings.semanticSearchEnabled {
                 cachedEmbeddingIndex?.stopScreenBackfill()
             }
+            if settings.fileSearchEnabled != oldValue.fileSearchEnabled
+                || settings.fileSearchFolders != oldValue.fileSearchFolders
+                || settings.fileSearchIncludesMedia != oldValue.fileSearchIncludesMedia
+                || settings.fileSearchReadsOnBattery != oldValue.fileSearchReadsOnBattery {
+                applyFileSearchSetting()
+            }
+            if settings.semanticSearchEnabled != oldValue.semanticSearchEnabled
+                || settings.effectiveScreenContextCaptureMode != oldValue.effectiveScreenContextCaptureMode {
+                applyScreenImageSetting()
+            }
             if interactive {
                 if Self.dictationLifecycleChanged(from: oldValue, to: settings) {
                     dictation.applySettings()
@@ -208,6 +267,9 @@ final class AppState: ObservableObject {
                 }
                 if settings.learnsFromDictation != oldValue.learnsFromDictation {
                     applyDictationLearningSetting()
+                }
+                if Self.companionChanged(from: oldValue, to: settings) {
+                    applyCompanionSetting()
                 }
             }
         }
@@ -309,10 +371,22 @@ final class AppState: ObservableObject {
     // Navigation (main window): sidebar section and selected meeting.
     @Published var navSection: NavSection = .today
     @Published var showingActions = false
-    @Published var meetingNoteDrafts: [UUID: String] = [:]
+    /// Unsaved note text, so a remounted editor resumes it. Editors read it
+    /// only when they appear; publishing it re-rendered every AppState
+    /// observer on each keystroke.
+    var meetingNoteDrafts: [UUID: String] = [:]
     @Published var actionSelection: Set<String> = []
-    @Published var recallQuery = ""
-    @Published var recallState = RecallWorkspaceState()
+    /// Ask's query and scope live on their own object, observed by Ask alone,
+    /// so typing a query does not re-render every AppState observer.
+    let recall = RecallWorkspace()
+    var recallQuery: String {
+        get { recall.query }
+        set { recall.query = newValue }
+    }
+    var recallState: RecallWorkspaceState {
+        get { recall.state }
+        set { recall.state = newValue }
+    }
     @Published var evidenceMeetingID: UUID?
     @Published var evidenceReturnSection: NavSection?
     private var evidenceReturnMeetingIDs: Set<Meeting.ID>?
@@ -425,9 +499,7 @@ final class AppState: ObservableObject {
     func writeProjectSummary(for project: ProjectProfile, automatic: Bool) {
         guard project.isTracked else { return }
         if automatic {
-            guard settings.allowsAutomaticMainInference,
-                  ModelReadinessSnapshot.thinkReady(settings, storage: storage),
-                  projectStore.shouldWriteAutomatically(project) else { return }
+            guard writesProjectSummariesAutomatically, projectStore.shouldWriteAutomatically(project) else { return }
         }
         let provenance = DreamInferenceProvenance(settings: settings)
         let location: String
@@ -436,15 +508,17 @@ final class AppState: ObservableObject {
         } else {
             location = provenance.origin.flatMap { URL(string: $0)?.host } ?? provenance.origin ?? "a server"
         }
-        Task { [weak self] in
-            guard let self else { return }
-            await self.projectStore.writeSummary(for: project, automatic: automatic, location: location) { [weak self] in
-                guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
-                if automatic && !self.settings.allowsAutomaticMainInference { throw CancellationError() }
-                return try await self.thinkExecution.makeTextEngine(
-                    self.settings, priority: automatic ? .background : .interactive, purpose: "project summary")
-            }
+        projectStore.startWritingSummary(for: project, automatic: automatic, location: location) { [weak self] in
+            guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+            if automatic && !self.settings.allowsAutomaticMainInference { throw CancellationError() }
+            return try await self.thinkExecution.makeTextEngine(
+                self.settings, priority: automatic ? .background : .interactive, purpose: "project summary")
         }
+    }
+
+    /// Whether opening a project with no current note starts writing one.
+    var writesProjectSummariesAutomatically: Bool {
+        settings.allowsAutomaticMainInference && ModelReadinessSnapshot.thinkReady(settings, storage: storage)
     }
     private static let typeTabDefaultsKey = "lokalbotv3.type.selectedTab"
     private static var navigationDefaults: UserDefaults {
@@ -457,8 +531,10 @@ final class AppState: ObservableObject {
     @Published var typeTab: TypeTab = .dictation {
         didSet { Self.navigationDefaults.set(typeTab.rawValue, forKey: Self.typeTabDefaultsKey) }
     }
-    private static let settingsTabDefaultsKey = "lokalbotv3.settings.selectedTab"
-    @Published var settingsTab: SettingsTab = .general {
+    /// Renamed when Settings was organized by feature, so everyone opens the
+    /// new Overview once; the page chosen after that is remembered.
+    private static let settingsTabDefaultsKey = "lokalbotv4.settings.selectedPage"
+    @Published var settingsTab: SettingsTab = .overview {
         didSet { Self.navigationDefaults.set(settingsTab.rawValue, forKey: Self.settingsTabDefaultsKey) }
     }
     @Published var focusedSettingID: String?
@@ -495,11 +571,17 @@ final class AppState: ObservableObject {
 
     /// Open Settings as a destination inside the existing main window.
     func openSettings(tab: SettingsTab? = nil) {
-        if let tab { settingsTab = tab }
-        focusedSettingID = nil
-        evidenceReturnSection = nil
-        navSection = .settings
+        if let tab { selectSettingsTab(tab) } else if focusedSettingID != nil { focusedSettingID = nil }
+        if evidenceReturnSection != nil { evidenceReturnSection = nil }
+        if navSection != .settings { navSection = .settings }
         WindowAccess.shared.open("main")
+    }
+
+    /// A Settings category click. Every `@Published` assignment re-renders all
+    /// AppState observers, equal value or not, so assign only what changes.
+    func selectSettingsTab(_ tab: SettingsTab) {
+        if settingsTab != tab { settingsTab = tab }
+        if focusedSettingID != nil { focusedSettingID = nil }
     }
 
     /// Navigate to the Ask section, optionally pre-filling the query and/or
@@ -601,6 +683,18 @@ final class AppState: ObservableObject {
     private(set) lazy var personalContextAccess = PersonalContextAccessManager(
         gate: PersonalContextAccessGate(root: storage.rootURL),
         claims: { [weak self] in self?.personalModel.readableClaims() })
+    /// File search for agents: a fourth read grant, with the chosen folders
+    /// kept in a copy the CLI reads while Files is on.
+    private(set) lazy var filesAccess = FilesAccessManager(
+        gate: FilesAccessGate(root: storage.rootURL),
+        folders: { [weak self] in
+            guard let self, self.settings.fileSearchEnabled else { return nil }
+            return self.settings.fileSearchFolders
+        })
+    /// The one switch over the four read grants, with a box for each.
+    private(set) lazy var agentReadAccess = AgentReadAccess(
+        meetings: agentAccess, screenMemory: screenMemoryAccess, personalContext: personalContextAccess,
+        files: filesAccess, root: storage.rootURL)
     /// Terminal settings access is another separate grant. Its control
     /// socket exists only while the grant is on.
     private(set) lazy var settingsControl = SettingsControlAccessManager(
@@ -703,6 +797,36 @@ final class AppState: ObservableObject {
     /// recordings. Concrete type so the settings UI observes its permission
     /// state; handed to the detector as the `CalendarEventProviding` seam.
     let calendar = EventKitCalendarEventProvider()
+    /// Connected mail accounts, read-only. Nothing is read until the person
+    /// connects an account; checks then run in the app like every schedule.
+    private(set) lazy var email: EmailController = {
+        let controller = EmailController(root: storage.rootURL)
+        controller.attendeeAddresses = { [weak self] in self?.emailAttendeeAddresses() ?? [] }
+        controller.nextMeetingStart = { [weak self] in self?.nextMeetingWithAttendeesStart() }
+        // Recorded meetings' attendees count too, so wait for the library.
+        controller.canSync = { [weak self] in self?.libraryReady == true }
+        return controller
+    }()
+    /// Files: the folders the person chose, searched by what is in them.
+    /// Nothing is read until Files is turned on and a folder is chosen.
+    private(set) lazy var fileSearch: FileSearchService = {
+        let service = FileSearchService.live(storage: storage)
+        service.isRecording = { [weak self] in
+            guard let self else { return false }
+            return self.recording.isRecording || self.recording.isStarting
+        }
+        service.transcribeMoment = { [weak self] hit in await self?.fileMoments.passage(for: hit) }
+        return service
+    }()
+    /// Transcribes a recording's or video's matched 30 seconds for the
+    /// assistant, with the person's transcription model, only if it is on
+    /// this Mac, and never while a meeting records.
+    private(set) lazy var fileMoments = FileMomentTranscriber.live(
+        settings: { [weak self] in self?.settings ?? AppSettings() },
+        isRecording: { [weak self] in
+            guard let self else { return true }
+            return self.recording.isRecording || self.recording.isStarting
+        })
     private var cachedSearchIndex: SearchIndex?
     var searchIndex: SearchIndex {
         if let cachedSearchIndex { return cachedSearchIndex }
@@ -720,10 +844,47 @@ final class AppState: ObservableObject {
         if let cachedEmbeddingIndex { return cachedEmbeddingIndex }
         let created = EmbeddingIndex(
             databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
-            storage: storage)
+            storage: storage,
+            embedder: UITestRuntime.isUnitTesting ? EmbeddingIndex.unavailableEmbedder : nil)
         for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
+        created.screenSearchByMeaningDidStart = { [weak self] in
+            guard let self, self.screenImagesWanted else { return }
+            self.screenImages.resume()
+        }
         cachedEmbeddingIndex = created
         return created
+    }
+
+    /// Picture vectors for retained screen captures, made on the media
+    /// embedder Files uses. Wanted only with search by meaning and Text +
+    /// visual context; headless runs and test hosts never make them.
+    private var cachedScreenImages: ScreenImageEmbeddings?
+    var screenImages: ScreenImageEmbeddings {
+        if let cachedScreenImages { return cachedScreenImages }
+        let created = ScreenImageEmbeddings.live(
+            storage: storage, databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+        created.isEnabled = { [weak self] in self?.screenImagesWanted ?? false }
+        created.isInUse = { [weak self] in self?.embeddingIndex.isScreenSearchInUse ?? false }
+        created.pauseReason = { [weak self] in
+            guard let self else { return nil }
+            return FileSearchService.PauseReason.current(
+                isRecording: self.recording.isRecording || self.recording.isStarting)
+        }
+        cachedScreenImages = created
+        return created
+    }
+
+    private var screenImagesWanted: Bool {
+        settings.semanticSearchEnabled && settings.effectiveScreenContextCaptureMode.capturesPixels
+            && !UITestRuntime.isUnitTesting && !Self.isUITesting && HeadlessCommand.requested == nil
+    }
+
+    private func applyScreenImageSetting() {
+        if screenImagesWanted {
+            screenImages.conditionsDidChange()
+        } else {
+            cachedScreenImages?.stop()
+        }
     }
     private(set) lazy var screenshots = ScreenshotService(
         store: activityStore, storage: storage, sampler: sampler,
@@ -818,7 +979,8 @@ final class AppState: ObservableObject {
         mutateEvidence: { [weak self] days, mutation in
             try self?.withPrimaryEvidenceChange(on: days, .revision, mutation)
         },
-        onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) })
+        onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) },
+        waitUntilReady: { [weak self] in await self?.waitForLibrary() })
     /// Meeting-recording lifecycle: recorders, watchdog, timer tick, prewarm.
     private(set) lazy var recording = RecordingController(
         storage: storage,
@@ -987,7 +1149,11 @@ final class AppState: ObservableObject {
         searchIndex: searchIndex,
         embeddingIndex: embeddingIndex,
         activityStore: activityStore,
-        settings: { [store = settingsStore] in store.current })
+        settings: { [store = settingsStore] in store.current },
+        files: { [weak self] in
+            guard let self, self.settings.fileSearchEnabled, self.fileSearch.isAvailable else { return nil }
+            return self.fileSearch
+        })
 
     /// Chat assistant (the "Chat" section). Reuses the summariser's `TextEngine`
     /// and a tool-calling agent over the live meeting list + search indexes.
@@ -1010,6 +1176,75 @@ final class AppState: ObservableObject {
         personalModel: personalModel,
         askMemoryEnabled: { [weak self] in self?.settings.askMemoryEnabled ?? false },
         deferHistoryLoading: true)
+
+    /// Phones and tablets (Settings → Phones & tablets). Created on first use,
+    /// such as Settings → Overview showing its card; it starts nothing until
+    /// sharing is on, so with sharing off nothing listens and no record is built.
+    private var companionHost: CompanionHost?
+    private var companionCurationObserver: AnyCancellable?
+
+    var companion: CompanionHost {
+        if let companionHost { return companionHost }
+        let host = CompanionHost(
+            root: storage.rootURL,
+            activityDatabaseURL: activityStore.databaseURL,
+            factory: CompanionServerFactory.live,
+            opApplier: CompanionOpApplier(outcomes: outcomeIndex, meetings: { [weak self] in self?.meetings ?? [] }),
+            askResponder: CompanionAskResponder(dependencies: .init(
+                settings: { [store = settingsStore] in store.current },
+                makeEngine: { [weak self] in
+                    guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+                    return try await self.thinkExecution.makeTextEngine(
+                        self.settings, priority: .interactive, purpose: "companion ask")
+                },
+                tools: { [unowned self] in self.libraryTools },
+                meetings: { [weak self] in self?.meetings ?? [] })),
+            recordingReceiver: CompanionRecordingReceiver(dependencies: .init(
+                meetingExists: { [weak self] id in
+                    guard let self else { return false }
+                    if self.meetings.contains(where: { $0.id == id }) { return true }
+                    let root = self.storage.rootURL
+                    return await Task.detached {
+                        let all = try? SessionLookup.loadAllMeetings(root: root, includeMergedSources: true)
+                        return all?.contains { $0.id == id } == true
+                    }.value
+                },
+                language: { [weak self] in self?.settings.appLanguage ?? .system },
+                importRecording: { [weak self] url, origin in
+                    guard let self else { throw CancellationError() }
+                    return try await MeetingImportService.importDeviceRecording(
+                        from: url, origin: origin, storage: self.storage)
+                },
+                didImport: { [weak self] meeting in self?.addDeviceRecording(meeting) })),
+            language: { [weak self] in self?.settings.appLanguage ?? .system })
+        companionHost = host
+        return host
+    }
+
+    /// Starts, reconfigures, or stops sharing to match Settings. Waits for the
+    /// library so ops from devices find their meetings.
+    func applyCompanionSetting() {
+        guard interactive, libraryReady else { return }
+        guard settings.companionSharingEnabled else {
+            companionHost?.stop()
+            companionCurationObserver = nil
+            CompanionHost.discardUploads(root: storage.rootURL)
+            return
+        }
+        let host = companion
+        host.apply(settings.companionSharing)
+        if companionCurationObserver == nil {
+            companionCurationObserver = Publishers.Merge3(
+                projectStore.$curation.dropFirst().map { _ in () },
+                projectStore.$summaries.dropFirst().map { _ in () },
+                peopleStore.$curation.dropFirst().map { _ in () }
+            ).sink { [weak host] in host?.connectionsChanged() }
+        }
+    }
+
+    static func companionChanged(from old: AppSettings, to new: AppSettings) -> Bool {
+        old.companionSharing != new.companionSharing
+    }
 
     /// What the person told LokalBot about themselves: Ask and Quick Recall
     /// read and add to it, Settings → Personal Context edits it.
@@ -1120,6 +1355,8 @@ final class AppState: ObservableObject {
     /// and (re)point the live transcriber at the active meeting folder.
     private func meetingRecordingStateDidChange(active: Bool) {
         guard interactive else { return }
+        if settings.fileSearchEnabled { fileSearch.conditionsDidChange() }
+        if screenImagesWanted { screenImages.conditionsDidChange() }
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
         }
@@ -1239,7 +1476,8 @@ final class AppState: ObservableObject {
         calendarObserver = calendar.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
         }
-        modelRolesObserver = modelRoles.objectWillChange.sink { [weak self] in
+        // Not download progress: the model views observe ModelRoles directly.
+        modelRolesObserver = modelRoles.readinessChanges.sink { [weak self] in
             self?.objectWillChange.send()
         }
         navigationHandoffObserver = navigationHandoff.objectWillChange.sink { [weak self] in
@@ -1360,6 +1598,7 @@ final class AppState: ObservableObject {
         agentAccess.start()
         screenMemoryAccess.start()
         personalContextAccess.start()
+        filesAccess.start()
         settingsApprovals.announce = { request in RecordingNotifier.shared.settingsApprovalRequested(request) }
         settingsApprovals.withdraw = { request in RecordingNotifier.shared.withdrawSettingsApproval(request.id) }
         settingsControl.start()
@@ -1380,6 +1619,8 @@ final class AppState: ObservableObject {
         applyDreamingSetting()
         applyDictationLearningSetting()
         applyHealthCheckSetting()
+        // Headless runs and the UI test host never read mail.
+        if headlessCommand == nil, !Self.isUITesting { email.start() }
         bindBackgroundActivity()
         // First-run check. A genuinely-new user with missing permissions gets
         // onboarding (windowed — see AppDelegate); the flag persists only when
@@ -1443,6 +1684,7 @@ final class AppState: ObservableObject {
             let merged = byID.values.sorted { $0.startedAt > $1.startedAt }
             self.meetings = merged
             self.libraryReady = true
+            self.applyCompanionSetting()
             self.speakerIdentity.maintainRetention(meetings: { [weak self] in self?.meetings ?? [] })
             self.learnSpeakerVoices(after: .seconds(60))
             Task { await self.outcomeIndex.refreshInBackground(meetings: merged) }
@@ -1460,6 +1702,7 @@ final class AppState: ObservableObject {
             if self.settings.semanticSearchEnabled {
                 self.reindexEmbeddingLibraryInBackground(merged)
             }
+            self.applyFileSearchSetting()
             self.libraryLoadTask = nil
             if let pending = self.pendingRecordingStart {
                 self.pendingRecordingStart = nil
@@ -1470,6 +1713,12 @@ final class AppState: ObservableObject {
                     systemAudioPolicy: pending.systemAudioPolicy)
             }
         }
+    }
+
+    /// Returns once the meeting library has loaded, for launch work that
+    /// should not compete with it.
+    private func waitForLibrary() async {
+        for await ready in $libraryReady.values where ready { return }
     }
 
     private func reindexLibraryInBackground(_ meetings: [Meeting]) {
@@ -1483,6 +1732,8 @@ final class AppState: ObservableObject {
     /// a whole meeting is expensive, so it waits for typing to settle.
     func meetingNotesDidChange(_ meeting: Meeting) {
         reindexSearchInBackground(meeting)
+        // Notes are saved outside the evidence path; paired devices show them.
+        companionHost?.evidenceChanged(days: [meeting.startedAt], meetingIDs: [meeting.id])
         guard settings.semanticSearchEnabled else { return }
         notesEmbeddingDebounce[meeting.id]?.cancel()
         notesEmbeddingDebounce[meeting.id] = Task { @MainActor [weak self] in
@@ -1511,6 +1762,7 @@ final class AppState: ObservableObject {
             self.embeddingBackfillTask = nil
             self.embeddingBackfill = nil
             await self.embeddingIndex.resumeScreenBackfill()
+            if self.screenImagesWanted { self.screenImages.resume() }
         }
         embeddingBackfillTask = (token, task)
     }
@@ -1520,6 +1772,7 @@ final class AppState: ObservableObject {
     private func screenTextDidArrive() {
         guard settings.semanticSearchEnabled else { return }
         embeddingIndex.screenTextDidArrive()
+        if screenImagesWanted { screenImages.capturesDidArrive() }
     }
 
     private func reindexEmbeddingInBackground(_ meeting: Meeting) {
@@ -1623,6 +1876,7 @@ final class AppState: ObservableObject {
             interactive = false
             settingsStore.flush()
             settingsControl.stop()
+            companionHost?.stop()
             let pendingCotypingRuntimeTask = self.cotypingRuntimeTask
             pendingCotypingRuntimeTask?.cancel()
             await pendingCotypingRuntimeTask?.value
@@ -1651,6 +1905,9 @@ final class AppState: ObservableObject {
             meetingNoteExport.stop()
             memoryRoutines.stop()
             dreaming.stop()
+            email.stop()
+            if settings.fileSearchEnabled { fileSearch.stop() }
+            cachedScreenImages?.stop()
             chat.stop()
             dictation.stop()
             cotyping.stop()
@@ -1662,6 +1919,7 @@ final class AppState: ObservableObject {
             await LlamaServer.embedder.stop()
             await LlamaServer.cotyping.stop()
             await GraniteSpeechEngine.shared.shutdown()
+            await FileMediaEmbedderRuntime.shared.shutdown()
             return true
         }
         terminationCleanupTask = task
@@ -1864,6 +2122,24 @@ final class AppState: ObservableObject {
                 }
             }
             if !failures.isEmpty { self.lastError = failures.joined(separator: "\n") }
+        }
+    }
+
+    /// A recording from a paired device arrived as a meeting. It joins the
+    /// list and the processing queue like a recording finished on this Mac,
+    /// which waits for missing models rather than downloading them with nobody
+    /// here to see it. The person may be doing something else, so nothing opens
+    /// and no error shows.
+    func addDeviceRecording(_ meeting: Meeting) {
+        meetings.append(meeting)
+        meetings.sort { $0.startedAt > $1.startedAt }
+        lokalbotLog("device recording received meeting=\(meeting.id)")
+        let queued = pipeline.enqueue(meeting, transcribe: true, summarize: settings.autoSummarize, origin: .automatic)
+        switch queued {
+        case .enqueued, .coalesced, .updatedActive:
+            break
+        case .alreadyProcessing, .persistenceFailed, .revoked:
+            lokalbotLog("device recording not queued meeting=\(meeting.id) reason=\(queued)")
         }
     }
 
@@ -2174,6 +2450,7 @@ final class AppState: ObservableObject {
                          activityOnly: activityOnly)
         // Learned facts and goals go with the meeting they came from.
         if !meetingIDs.isEmpty { personalModel.retractIfLoaded() }
+        companionHost?.evidenceChanged(days: days, meetingIDs: meetingIDs)
     }
 
     /// Reprocessing revises a meeting; it does not delete it. On 2026-10-07 a
@@ -2225,6 +2502,8 @@ final class AppState: ObservableObject {
         guard !days.isEmpty else { return }
         dailyMemoryExportScheduler.reconsider(days: days)
         memoryRoutines.reconsiderEvidence()
+        // Titles retention cleared disappear from paired devices too.
+        companionHost?.evidenceChanged(days: days, meetingIDs: [])
     }
 
     private func withPrimaryEvidenceChange<T>(for meetings: [Meeting], _ change: EvidenceChange,
@@ -2259,6 +2538,7 @@ final class AppState: ObservableObject {
             dailyMemoryExportScheduler.digestDidChange(on: day)
         }
         memoryRoutines.reconsiderEvidence()
+        companionHost?.dayDigestChanged(day)
         // A dream only reads finished days' digests. Today's digest is
         // refreshed many times a day and no report depends on it yet; a past
         // day's regenerated digest revokes exactly that day's report.
@@ -2288,7 +2568,8 @@ final class AppState: ObservableObject {
             lastError = "Could not retract changed evidence from Dream memory: " + error.localizedDescription
         }
         refreshDreamMemory()
-        latestDreamReport = dreamStore.latestReport()
+        let latest = dreamStore.latestReport()
+        if latestDreamReport != latest { latestDreamReport = latest }
         // An in-flight dream is checked against its own sources when it
         // commits, so only a change to the day being dreamed stops it early.
         dreaming.reconsiderReports(invalidating: invalidatedKeys, cancellingInFlight: false)
@@ -2618,6 +2899,33 @@ final class AppState: ObservableObject {
         navSection = .timeline
     }
 
+    /// People whose mail threads qualify for download: attendees of meetings
+    /// in the email window and the next two weeks, from the calendar (when
+    /// calendar use is on) and from recorded meetings.
+    private func emailAttendeeAddresses() -> Set<String> {
+        let now = Date()
+        let windowStart = EmailScope.windowStart(now: now)
+        var addresses: Set<String> = []
+        if settings.calendarDetectionEnabled {
+            addresses = calendar.attendeeAddresses(from: windowStart, to: now.addingTimeInterval(14 * 86_400))
+        }
+        for meeting in meetings where meeting.startedAt >= windowStart {
+            for identity in meeting.resolvedCalendarParticipantIdentities {
+                if let address = identity.emailAddress { addresses.insert(address) }
+            }
+        }
+        return addresses
+    }
+
+    private func nextMeetingWithAttendeesStart() -> Date? {
+        guard settings.calendarDetectionEnabled, calendar.hasAccess else { return nil }
+        let now = Date()
+        return calendar.meetingCandidates(on: now)
+            .filter { $0.startDate > now && !$0.resolvedParticipantIdentities.isEmpty }
+            .map(\.startDate)
+            .min()
+    }
+
     func applyMemoryRoutineSetting() {
         let snapshot = settings
         memoryRoutines.configure(MemoryRoutineScheduler.Configuration(
@@ -2629,6 +2937,18 @@ final class AppState: ObservableObject {
         )) { [weak self] message in
             self?.lastError = message
         }
+    }
+
+    /// Starts, re-reads or stops Files. Headless runs and the UI test host
+    /// never read the chosen folders.
+    func applyFileSearchSetting() {
+        guard HeadlessCommand.requested == nil, !Self.isUITesting, libraryReady else { return }
+        // The folders agents may search follow the folders Files reads.
+        filesAccess.refresh()
+        guard settings.fileSearchEnabled || fileSearch.configuration.enabled else { return }
+        fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders,
+                               includesMedia: settings.fileSearchIncludesMedia,
+                               readsOnBattery: settings.fileSearchReadsOnBattery))
     }
 
     func applyDreamingSetting() {
@@ -2901,10 +3221,13 @@ final class AppState: ObservableObject {
 
     func refreshDreamMemory() {
         if settings.cotypingUseMeetingMemory || settings.cotypingUseScreenMemory { cotyping.invalidateMemoryContext() }
+        // Evidence changes and every Settings visit reload this; an unchanged
+        // memory must not re-render every AppState observer.
         do {
-            dreamMemory = try dreamStore.loadMemory()
+            let loaded = try dreamStore.loadMemory()
+            if dreamMemory != loaded { dreamMemory = loaded }
         } catch {
-            dreamMemory = nil
+            if dreamMemory != nil { dreamMemory = nil }
             lastError = "Could not load dream memory: \(error.localizedDescription)"
         }
     }
@@ -2953,6 +3276,15 @@ final class AppState: ObservableObject {
         screenshots.stop()
         applyTrackingSetting()
         PermissionManager.shared.refresh()
+    }
+
+    /// A `[file:ID]` citation → open the file at its passage, if it is still
+    /// in the Files index.
+    func openFileCitation(_ id: Int64) {
+        guard settings.fileSearchEnabled else { return }
+        Task { @MainActor in
+            if let hit = await fileSearch.hit(segment: id) { FileSearchOpener.open(hit, query: nil) }
+        }
     }
 
     /// Search hit → open the meeting; transcript hits seek the player.

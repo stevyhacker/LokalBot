@@ -367,6 +367,9 @@ final class CotypingOverlayController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         // Keep the ghost out of screenshots, recordings, and background sampling.
         panel.sharingType = .none
+#if LOKALBOT_TEST_HOOKS
+        if TestHooks.filmsAutocomplete { panel.sharingType = .readOnly }
+#endif
         let view = CotypingGhostTextView(frame: .zero)
         panel.contentView = view
         self.panel = panel

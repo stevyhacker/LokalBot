@@ -23,7 +23,13 @@ import Foundation
 @MainActor
 final class CotypingCoordinator: ObservableObject {
     /// Live status for the in-app Cotyping section.
-    @Published var state: CotypingState = .idle
+    @Published var state: CotypingState = .idle {
+        didSet {
+#if LOKALBOT_TEST_HOOKS
+            if TestHooks.filmsAutocomplete, state != oldValue { lokalbotLog("film: cotyping \(state)") }
+#endif
+        }
+    }
     /// True while the subsystem is running (taps + focus poll installed).
     @Published var isRunning = false
     /// Last non-empty suggestion shown (diagnostics).

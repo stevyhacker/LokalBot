@@ -1,0 +1,20 @@
+{
+  "name": "lokalbot",
+  "interface": {
+    "displayName": "LokalBot"
+  },
+  "plugins": [
+    {
+      "name": "lokalbot",
+      "source": {
+        "source": "local",
+        "path": "./Distribution/openai-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

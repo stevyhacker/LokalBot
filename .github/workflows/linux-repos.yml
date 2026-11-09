@@ -105,8 +105,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/release"
           cd "$RUNNER_TEMP/release"
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern 'LokalBot-*-linux-x86_64.tar.gz*'
-          sha256sum -c LokalBot-*-linux-x86_64.tar.gz.sha256
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern 'LokalBot-*-linux-x86_64.tar.gz'
+          # Checked against the SHA-256 GitHub reports for each release file.
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.assets[] | "\(.digest | ltrimstr("sha256:"))  \(.name)"' |
+            sha256sum --check --ignore-missing --strict
           tar -xzf LokalBot-*-linux-x86_64.tar.gz
 
       - name: Check the repositories in Ubuntu, Debian and Fedora containers
@@ -194,12 +196,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/packages"
           cd "$RUNNER_TEMP/packages"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --pattern 'LokalBot-*-linux-amd64.deb*' --pattern 'LokalBot-*-linux-x86_64.rpm*'
-          sha256sum -c ./*.sha256
+            --pattern 'LokalBot-*-linux-amd64.deb' --pattern 'LokalBot-*-linux-x86_64.rpm'
+          # Checked against the SHA-256 GitHub reports for each release file.
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.assets[] | "\(.digest | ltrimstr("sha256:"))  \(.name)"' |
+            sha256sum --check --ignore-missing --strict
           version="${TAG#v}-1"
           [[ "$(dpkg-deb --field LokalBot-*.deb Version)" == "$version" ]] || { echo "::error::The .deb is not lokalbot $version" >&2; exit 1; }
           [[ "$(rpm -qp --queryformat '%{VERSION}-%{RELEASE}' LokalBot-*.rpm)" == "$version" ]] || { echo "::error::The .rpm is not lokalbot $version" >&2; exit 1; }
-          rm ./*.sha256
 
       - name: Import the signing key
         env:

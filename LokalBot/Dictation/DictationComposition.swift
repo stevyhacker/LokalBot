@@ -453,6 +453,10 @@ enum DictationComposePrompt {
 
     Do not invent missing facts; if an instruction requires an unavailable detail, use a clear placeholder. Do not claim to have sent, posted, clicked, or completed an external action; only produce the text the user can insert.
 
+    The application and window title only say where the text will go. Never write them into the text unless the spoken request asks for them.
+
+    Write plain text with no markdown such as ** or # headings, unless the spoken request asks for markdown.
+
     Return only the final insertable text. Do not add quotation marks, labels, explanations, markdown fences, or a preamble.
     """
 
@@ -523,6 +527,53 @@ enum DictationComposePrompt {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return output
+    }
+
+    /// The model's text as it will be inserted. Small models sometimes open
+    /// with the window title they were given, or format plain text as
+    /// markdown, even when told not to. What the person said always wins: a
+    /// title or markdown they asked for stays.
+    static func insertableText(_ text: String, spokenText: String, context: DictationScreenContext?) -> String {
+        let withoutTitle = removingEchoedTitle(text, spokenText: spokenText, context: context)
+        return spokenRequestsMarkdown(spokenText) ? withoutTitle : removingMarkdownEmphasis(withoutTitle)
+    }
+
+    private static func spokenRequestsMarkdown(_ spokenText: String) -> Bool {
+        spokenText.localizedCaseInsensitiveContains("markdown") || spokenText.contains("**")
+            || spokenText.contains("# ")
+    }
+
+    private static func comparableLine(_ line: String) -> String {
+        line.trimmingCharacters(in: CharacterSet.whitespaces.union(CharacterSet(charactersIn: "#*_\"“”:")))
+            .replacingOccurrences(of: #"^(?i:window|application|title)\s*:\s*"#, with: "", options: .regularExpression)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    private static func removingEchoedTitle(_ text: String, spokenText: String, context: DictationScreenContext?) -> String {
+        guard let context else { return text }
+        let names = [context.windowTitle, context.appName].map(comparableLine).filter { $0.count >= 3 }
+            .filter { !spokenText.localizedCaseInsensitiveContains($0) }
+        var lines = text.components(separatedBy: .newlines)
+        guard let first = lines.first, names.contains(comparableLine(first)) else { return text }
+        lines.removeFirst()
+        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func removingMarkdownEmphasis(_ text: String) -> String {
+        var inFence = false
+        return text.components(separatedBy: "\n").map { line in
+            if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") { inFence.toggle(); return line }
+            guard !inFence else { return line }
+            var result = line.replacingOccurrences(of: #"^\s{0,3}#{1,6}\s+"#, with: "", options: .regularExpression)
+            for pattern in [
+                #"\*\*(?=\S)(.+?)(?<=\S)\*\*"#,
+                #"(?<![\w_])__(?=\S)(.+?)(?<=\S)__(?![\w_])"#,
+                #"(?<![\w*])\*(?=[^\s*])([^*]+?)(?<=[^\s*])\*(?![\w*])"#,
+            ] {
+                result = result.replacingOccurrences(of: pattern, with: "$1", options: .regularExpression)
+            }
+            return result
+        }.joined(separator: "\n")
     }
 
     private static func profileLines(_ profile: DictationComposeProfile) -> [String] {

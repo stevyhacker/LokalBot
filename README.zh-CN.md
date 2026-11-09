@@ -6,8 +6,15 @@
 
 **你的个人上下文引擎。**
 
-私密的会议纪要、工作回顾、语音输入和自动补全，AI 全部在你的电脑上运行。<br />
-免费开源，无需注册账号，不会有机器人加入你的会议。
+每场会议都有纪要，不需要机器人进会。一次搜索，覆盖你看过和听过的一切。<br />
+在任何应用里都能自动补全和语音输入。默认在本机运行。<br />
+你的 AI 智能体也能搜索这些内容，支持 Claude Code、Codex 和任何 MCP 客户端。
+
+<a href="Assets/screenshots/zh-Hans/meetings-summary.png"><img src="Assets/screenshots/zh-Hans/meetings-summary.png" width="920" alt="LokalBot 中的「Harbor 2.0 发布评审」会议：中文要点回顾，以及带负责人和时间戳的待办事项，左侧列出三场中文会议" /></a>
+
+<sub>真实应用截图。演示会议是虚构的普通话会议，语音由 TTS 合成；转写和纪要由本机上的 Qwen3-ASR 和 Qwen3.5 4B 实际生成，未做修改（<a href="Assets/screenshots/zh-Hans/README.md">制作说明</a>）。</sub>
+
+**免费开源，无需注册账号。**
 
 [![下载 macOS 版 LokalBot](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20macOS%20%E7%89%88%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![下载 Windows 版 LokalBot（alpha）](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20Windows%20%E7%89%88%E2%80%82-alpha-0969da?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNiAxNic%2BPHBhdGggZmlsbD0nd2hpdGUnIGQ9J00wIDBoNy41djcuNUgwek04LjUgMEgxNnY3LjVIOC41ek0wIDguNWg3LjVWMTZIMHpNOC41IDguNUgxNlYxNkg4LjV6Jy8%2BPC9zdmc%2B)](https://github.com/stevyhacker/lokalbot/releases/latest)
@@ -22,17 +29,13 @@
 
 [English](README.md) · **简体中文**
 
-[功能](#features) · [Windows 与 Linux](#windows-and-linux) · [中文支持](#chinese) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [开发者与智能体](#developers) · [官网](https://www.lokalbot.com/)
+[功能](#features) · [中文支持](#chinese) · [开发者与智能体](#developers) · [Windows 与 Linux](#windows-and-linux) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [官网](https://www.lokalbot.com/)
 
-<a href="Assets/screenshots/zh-Hans/meetings-summary.png"><img src="Assets/screenshots/zh-Hans/meetings-summary.png" width="920" alt="LokalBot 中的「Harbor 2.0 发布评审」会议：中文要点回顾，以及带负责人和时间戳的待办事项，左侧列出三场中文会议" /></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" /><img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot 的使用过程：六个循环场景，演示数据为虚构内容，界面为英文。录制一场 Google Chrome 通话，实时转写逐行出现，随后生成纪要，点击待办的引用会跳到转写里的原话。输入 demo pres，同时找到在屏幕上看过的 Keynote 文稿、Mail 回复和两场会议。在 TextEdit 中，自动补全接着写完团队套餐的价格，按 Tab 接受。按住 Option-Space 说话，光标处写出一段简短的团队通知。向 Ask 提问，回答带编号引用，点击引用打开来源会议。在终端里，Claude Code 调用 LokalBot，列出设计评审的决定和还欠的事项。" /></picture>
 
-<sub>真实应用截图。演示会议是虚构的普通话会议，语音由 TTS 合成；转写和纪要由本机上的 Qwen3-ASR 和 Qwen3.5 4B 实际生成，未做修改（<a href="Assets/screenshots/zh-Hans/README.md">制作说明</a>）。</sub>
+<sub>真实应用，虚构演示数据，界面为英文。等待时间已剪短，部分打字已加速。</sub>
 
 </div>
-
-https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
-
-<div align="center"><sub>45 秒演示（英文旁白）：LokalBot 为什么要记住你听到和看到的内容、由哪些本地模型完成，以及真实应用的使用过程。演示数据为虚构内容。</sub></div>
 
 <a id="features"></a>
 
@@ -40,7 +43,7 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 
 ### 记住会上定下的事
 
-不需要机器人进会，直接录制麦克风和会议软件的声音。转写、要点回顾、决策和待办都在本机生成，每一条都能跳回讨论的原话。
+不需要机器人进会，直接录制麦克风和会议软件的声音。转写、要点回顾、决策和待办都在本机生成，每一条都能跳回讨论的原话。也可以把音频和视频文件导入为会议。
 
 <div align="center"><a href="Assets/screenshots/zh-Hans/meetings-transcript.png"><img src="Assets/screenshots/zh-Hans/meetings-transcript.png" alt="同一场会议的中文转写，带时间戳和发言人标签，夹在中文里的 App Store、TestFlight、bug 都被正确识别" width="920" /></a></div>
 
@@ -50,11 +53,11 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 
 一次搜索覆盖会议转写，以及（开启后）你在屏幕上看到过的文字。可以按关键词或按含义搜索，然后直接打开对应的段落或屏幕画面，不用在各个应用之间来回翻找。
 
-<div align="center"><a href="Assets/screenshots/quick-recall.png"><img src="Assets/screenshots/quick-recall.png" alt="Quick Recall 同时找到在 Pages 里看过的清单和三场提到字幕的会议（英文演示数据）" width="560" /></a></div>
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/search-dark.png" /><img src="Assets/readme/search-light.png" width="640" alt="Quick Recall 同时找到在屏幕上看过的 Keynote 文稿和 Mail 回复，以及两场提到演示文稿的会议（英文演示数据）" /></picture></div>
 
 ### 帮你把句子写完
 
-在其他应用里打字时，灰色文字会提示这句话可以怎么结尾。按 **Tab** 接受下一个词，在 Mac 上按 **\`** 接受剩下的全部，或者继续打字忽略它。
+在其他应用里打字时，灰色文字会提示这句话可以怎么结尾。按 **Tab** 接受下一个词，按 **\`** 接受剩下的全部，或者继续打字忽略它。
 
 <div align="center"><img src="Assets/screenshots/autocomplete-memory.gif" alt="在 TextEdit 中写和 John 通话后的进展，自动补全根据会议内容补出了发布时间和前提条件（英文演示）" width="920" /></div>
 
@@ -65,40 +68,72 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 - **用你的语言写。** 在 Mac 上，同一个小模型可以用德语、法语、意大利语、西班牙语等语言补全。
 - **留在你的电脑上。** 小模型在应用内运行：Mac 上是 Gemma 4 E2B，Windows 和 Linux 上是 LFM2.5 1.2B。你输入的内容和它读取的上下文都不会离开你的电脑。
 
-在 **Settings → Writing** 中开启。可以先在示例对话里试用，之后还能看到它帮你写了多少字。
+在 **Settings → Autocomplete** 中开启。可以先在示例对话里试用，之后还能看到它帮你写了多少字。
 
 ### 接着上次的进度
 
-**Today** 汇总你的每日回顾和会议里还没完成的待办。**Timeline** 把采集到的活动按工作时段分组，背后的上下文都可以查看。待办可以修改、标记完成，并追溯到出处。
-
 <table>
   <tr>
-    <td width="50%"><a href="Assets/screenshots/today.png"><img src="Assets/screenshots/today.png" alt="Today 页面：每日回顾和未完成的会议待办（英文演示数据）" width="400" /></a></td>
-    <td width="50%"><a href="Assets/screenshots/timeline.png"><img src="Assets/screenshots/timeline.png" alt="Timeline 页面：工作时段、会议和采集到的上下文（英文演示数据）" width="400" /></a></td>
+    <td width="50%" valign="top"><strong>我还有什么要做？</strong><br />
+      <b>Today</b> 显示当天的摘要和所有未完成的待办，每一条都链接到它来自的会议。每天早上，夜间回顾还会加上一段对昨天的回看。</td>
+    <td width="50%" valign="top"><strong>这一天都去哪了？</strong><br />
+      <b>Timeline</b> 按工作时段回溯你的一天。默认只记录应用和窗口活动；屏幕文字和截图需要单独开启。如果你用 Claude Code 或 Codex，它还能按项目命名这些工作，并显示相关的 Pull Request 和提交。</td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Today</b>：每日回顾和未完成的待办</sub></td>
-    <td align="center"><sub><b>Timeline</b>：工作时段及其上下文</sub></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/today-dark.gif" /><img src="Assets/readme/today-light.gif" width="420" alt="Today 页面列出需要处理的待办，每一条都链接到对应的会议；勾掉一条后，下方是每日回顾（英文演示数据）" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/timeline-dark.gif" /><img src="Assets/readme/timeline-light.gif" width="420" alt="Timeline 页面显示记录时长和当天的工作时段；点击一个时段会打开它的证据以及背后的文档和窗口（英文演示数据）" /></picture></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><strong>和 Maya 还有什么没谈完？</strong><br />
+      <b>People</b> 显示等你处理的事和你们一起做的决定。给发言人命名一次，LokalBot 之后的会议里就能认出这个声音。</td>
+    <td width="50%" valign="top"><strong>我把它存哪了？</strong><br />
+      <b>Files</b> 按内容搜索你选择的文件夹：文档、PDF 页面、图片，以及录音和视频中的片段。</td>
+  </tr>
+  <tr>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/people-dark.gif" /><img src="Assets/readme/people-light.gif" width="420" alt="People 页面显示 Maya 的页面：等你处理的待办、建议的项目，以及带会议链接的共同决定（英文演示数据）" /></picture></td>
+    <td><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/files-dark.gif" /><img src="Assets/readme/files-light.gif" width="420" alt="搜索租约里关于宠物的条款，找到 PDF 的一页；搜索谈到睡眠的地方，找到播客录音中的片段（英文演示数据）" /></picture></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <strong>这个项目进展到哪了？</strong><br />
+      跟踪一个项目，LokalBot 会汇总提到它的会议、待办和决定。打开它可以看到一段简短的进展说明，并能链接回背后的会议。不确定该跟踪什么？它会建议你的会议里反复出现的名字。<br /><br />
+      <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/projects-dark.gif" /><img src="Assets/readme/projects-light.gif" width="640" alt="Projects 建议跟踪在四场会议里出现过的 Northwind；开始跟踪后会写出一段进展说明，每一条都链接回会议（英文演示数据）" /></picture>
+    </td>
   </tr>
 </table>
 
+### 提问，并核对出处
+
+向你自己的工作提问。回答会引用来源，无法核实时也会说明。顺着引用可以回到原始转写或录音。生成的纪要只是起点，不能代替原本的讨论。
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/ask-dark.gif" /><img src="Assets/readme/ask-light.gif" width="720" alt="询问关于拍摄的决定：回答带着编号引用和证据列表逐步出现，点击来源打开 Holiday shoot planning 会议（英文演示数据）" /></picture></div>
+
 ### 用说的代替打字
 
-在 **Settings → Dictation** 中开启听写，然后按住 **⌥ Space**（Windows 和 Linux 上是 **Alt+Space**，也可以用你自己设置的快捷键）说话，松开后文字就会插入到任何应用的光标位置。转写在你的电脑上完成，使用的是你为会议选择的同一个转写模型。在 Wayland 上，请在桌面设置里把 `lokalbot dictate` 绑定到一个快捷键。
+在 **Settings → Dictation** 中开启听写，然后按住 **⌥ Space**（Windows 和 Linux 上是 **Alt+Space**，也可以用你自己设置的快捷键）说话，松开后文字就会插入到任何应用的光标位置。转写在你的电脑上完成，使用的是你为会议选择的同一个转写模型，最近的听写内容也会保留，方便再次复制。在 Compose 模式下，说出你的需要，LokalBot 就会在光标处写好；如果你允许，还能用上会议里的内容。在 Wayland 上，请在桌面设置里把 `lokalbot dictate` 绑定到一个快捷键。
 
-### 更多
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/dictation-dark.gif" /><img src="Assets/readme/dictation-light.gif" width="720" alt="按住 Option-Space 向空白文档听写：小面板开始聆听，随后光标处出现一段带发布价格的团队通知（英文演示）" /></picture></div>
 
-| 提问，并核对出处 | 跟进落实 | 接入你自己的智能体 |
-| --- | --- | --- |
-| 向会议记录库提问，顺着回答里的引用回到原始转写或录音。生成的纪要只是起点，不能代替原本的讨论。 | 生成本地跟进草稿。在 Mac 上，还可以导出纪要，并在你选择的文件夹里生成每日简报和每周工作日志。都由你检查后自己发送。 | 通过内置的 `lokalbot-cli`，让 Claude Code 或任何 MCP 客户端只读访问你的会议记录库。默认关闭，需要你手动开启。 |
+### 它记得你的工作方式
 
-<sub>截图都是 Mac 应用的真实截图，未经编辑。除中文会议截图外，其余截图和动图使用英文虚构演示数据。</sub>
+Personal Context（个人上下文）是一份加密的列表，保存你的事实、偏好、目标和原则。你可以对 Ask 说“记住我希望提前一天拿到议程”，在设置中添加，也可以让夜间回顾从你在会议里说的话中提取事实和偏好。Ask 会用上这些内容，让回答更贴合你的工作。
+
+- **只学你自己的话。** 它只从你说的内容中学习，不会学其他发言人的话。读取这些内容的模型留在你的电脑上，除非你批准了某个服务器。
+- **能看到出处。** 每一条学到的内容都会显示它来自哪句话。偏好以及来自你输入内容的条目，会等你决定保留还是忽略。会议里的事实和目标会直接保存。
+- **可以随时关闭。** 学习默认开启，每晚最多三条。在设置里用一个开关就能停止。
+- **对智能体保密。** 智能体只能读取你选择共享的条目，并且需要单独授权。
+
+### 起草跟进内容
+
+生成本地跟进草稿。还可以在你的 Obsidian 或 Logseq 文件夹里为每场会议保留一份笔记，并获得每日简报和每周工作日志。都由你检查后自己发送。
+
+<sub>中文会议截图是 Mac 应用的真实截图，未经编辑。其余画面来自真实的 Mac 应用，使用英文虚构演示数据，等待时间已剪短，部分打字已加速。搜索、Today、Timeline 和 People 使用预置的资料库；纪要、Ask 回答、听写、自动补全和 Files 结果由本机模型生成。<a href="Video/lokalbot-landing-demos/README.md">制作说明（英文）</a>。</sub>
 
 <a id="windows-and-linux"></a>
 
 ### Windows 和 Linux 版（alpha）
 
-用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），还有少数 Mac 功能没有移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
+用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、与手机和平板共享、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
 
 <a id="chinese"></a>
 
@@ -118,6 +153,44 @@ https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 - **Windows 和 Linux 版** 暂时没有镜像下载，请用 `HTTPS_PROXY` 等环境变量设置代理来下载模型；中文关键词也只能匹配一段话的开头。屏幕文字识别（OCR）目前只识别拉丁字母，中文屏幕内容要靠应用提供的无障碍文本。
 - **发言人切换。** 中文会议里，发言人切换的地方偶尔会有一两个字被归到别的发言人名下（见上面转写截图的 00:00:35）。
 - **自动补全** 主要针对英文和欧洲语言调优，中文（包括使用中文输入法时）还没有经过系统测试。
+
+<a id="developers"></a>
+
+## 开发者与智能体
+
+Claude Code、Codex 或任何 MCP 客户端，都可以通过内置的 **`lokalbot-cli`** 或它的 stdio **Model Context Protocol (MCP)** 服务器搜索你的会议。可以问定了什么、某个待办归谁，或者某个话题在哪里出现过。智能体可以读取你的资料库，但不能修改。
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/agents-dark.gif" /><img src="Assets/readme/agents-light.gif" width="720" alt="在终端里询问 Claude Code：今天的设计评审对缓存做了什么决定，我还欠什么；它调用 LokalBot 两次，列出决定和未完成的待办（英文演示）" /></picture></div>
+
+用一条命令连接 Claude Code，或者安装 [Claude Code 插件](Distribution/claude-plugin/README.md)：
+
+```bash
+# macOS
+claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
+# Windows 和 Linux，lokalbot-cli 已在 PATH 中
+claude mcp add lokalbot -- lokalbot-cli mcp
+```
+
+访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself 或 Files。在 Windows 和 Linux 上，每一项在 **Settings → Privacy & Data** 的 External agents 下都有单独的开关：会议记录库、文件、屏幕记忆和 What I shared about myself。然后在 **Settings → Advanced → Agent CLI** 安装 CLI。
+
+**想根据会议采取行动？** 在 Claude Code 或 Codex 中打开任意待办，提示词已经填好任务和它的出处，由你检查后发送。
+
+也可以在任何终端或智能体中使用 CLI：
+
+```bash
+lokalbot-cli search "database decision"
+lokalbot-cli get latest --include metadata,summary
+lokalbot-cli search-files "lease renewal" --kind pdf   # 需开启 Files 访问
+lokalbot-cli mcp
+```
+
+在 Mac 上，没有安装到 PATH 时，可以直接使用 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`。在 Windows 和 Linux 上，**Settings → Advanced → Agent CLI** 同样会安装 CLI，安装位置和加入 PATH 的方法见[编程智能体（英文）](LinuxWindows/README.md#coding-agents)。各平台的命令和 MCP 工具完全相同。
+
+屏幕记忆的 MCP 工具需要单独授权，范围可以是今天、最近七天或全部保留的历史。它们返回文字和元数据，不返回解密后的截图。`search_files` 按内容搜索你在 Files 中选择的文件夹，返回文件路径、摘录和匹配的段落；它需要开启 Files 访问，并且不会更改你的文件。外部客户端可能会把结果发送给它们自己的模型提供商。
+
+应用还提供可选的 **Agent Mode**，用来处理经过你审阅的上下文。文件和命令操作遵循它的审批设置，与只读的 CLI/MCP 接口相互独立。
+
+[CLI 示例](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code 插件](Distribution/claude-plugin/README.md) · [MCP 架构](DEVELOPMENT.md#agent-cli--mcp)
 
 ## 和同类工具相比
 
@@ -154,6 +227,7 @@ flowchart LR
 - **你决定保留什么。** 默认只记录活动。屏幕上的文字和加密截图需要单独开启。随时可以暂停采集，或者排除特定的应用和网站。检测并不完美，凡是你绝不想保留的内容，请直接排除。
 - **你决定保留多久。** 屏幕文字和截图默认 14 天后过期。你可以调整时长，也可以手动保存某个时刻，它会一直保留到你取消保存或删除为止。
 - **网络访问有明确的边界。** 下载模型、检查更新和可选的智能体运行环境需要联网；自动检查更新可以关闭。远程模型服务器只有在你批准它的地址之后才会收到内容；可选的 Agent Mode 和外部 CLI/MCP 客户端各有独立的权限和数据处理方式。
+- **只有配对后，手机才会收到副本。** **Settings → Phones & tablets** 默认关闭。开启后，Mac 会通过本地网络或 Tailscale，把你选择的数据以端到端加密的方式发送给已配对的手机和平板，中间没有 LokalBot 服务器。截图、屏幕文字、参会者邮箱和声纹不会共享。已配对的手机也可以录制会议并以同样的方式发送；由 Mac 处理，之后手机会删除自己的副本。
 
 想自己验证本地处理路径：下载模型，选择内置后端，关闭自动检查更新，然后在录音、转写和生成纪要时观察网络流量。经你批准的智能体命令和外部客户端是另外的路径。
 
@@ -202,14 +276,14 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 <details>
 <summary><strong>我的笔记可以导出到别处吗？</strong></summary>
 
-可以。在 Mac 上，你可以导出会议内容，或者开启 Markdown、Obsidian、Logseq 记忆导出。本地例程也可以把草稿保存到你选择的文件夹。这些 Markdown 文件是普通的未加密文件；如果用其他服务同步它们，请留意对方的隐私设置。Windows 和 Linux 版暂时还不支持导出。
+可以。开启 **Meeting note export**，就会在你选择的文件夹（比如 Obsidian 仓库或 Logseq 图谱）里为每场会议保留一份 Markdown 笔记，包括摘要、待办、相关的人和项目，以及转写。你也可以导出单场会议、写入每日记忆笔记，或者让本地例程保存草稿。这些都是普通的未加密文件；如果用其他服务同步它们，请留意对方的隐私设置。详见 [Meeting transcripts in Obsidian（英文）](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown)。
 
 </details>
 
 <details>
 <summary><strong>能在 Windows 或 Linux 上使用吗？</strong></summary>
 
-可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。选择文字操作、纪要导出、个人上下文（Personal Context）、语音朗读摘要，以及工作记录中的编程智能体会话，目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
+可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议简报中的 Gmail 目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
 
 </details>
 
@@ -235,40 +309,22 @@ Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、
 
 [项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/EmbeddingIndex.swift) · [模型与运行时细节](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
 
-<a id="developers"></a>
-
-## 开发者与智能体
-
-应用内置了 **`lokalbot-cli`**：它是会议记录库的只读接口，同时也是一个 stdio **Model Context Protocol (MCP)** 服务器。访问默认关闭：先在 **Settings → Privacy & Data** 中开启会议记录库访问，再到 **Settings → Advanced → Agent CLI** 安装 CLI。
-
-<div align="center"><img src="Assets/cli-demo.svg" alt="终端动画：lokalbot-cli 以表格列出会议，搜索 redis 并返回 JSON，然后打印最新会议的摘要" width="720" /></div>
-
-```bash
-lokalbot-cli search "database decision"
-lokalbot-cli get latest --include metadata,summary
-lokalbot-cli mcp
-```
-
-在 Mac 上，没有安装到 PATH 时，可以直接使用 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`。在 Windows 和 Linux 上，**Settings → Advanced → Agent CLI** 同样会安装 CLI，安装位置和加入 PATH 的方法见[编程智能体（英文）](LinuxWindows/README.md#coding-agents)。那里的 CLI 提供只读命令和全部 MCP 工具；`ask`、`reply` 以及设置和配置命令只有 Mac 版提供。
-
-屏幕记忆的 MCP 工具需要单独授权，范围可以是今天、最近七天或全部保留的历史。它们返回文字和元数据，不返回解密后的截图。外部客户端可能会把结果发送给它们自己的模型提供商。
-
-应用还提供可选的 **Agent Mode**，用来处理经过你审阅的上下文。文件和命令操作遵循它的审批设置，与只读的 CLI/MCP 接口相互独立。
-
-[CLI 示例](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code 插件](Distribution/claude-plugin/README.md) · [MCP 架构](DEVELOPMENT.md#agent-cli--mcp)
-
 ## 从源码构建
 
 构建 Mac 应用，你需要一台安装了完整 Xcode 的 Apple Silicon Mac；[构建流程](.github/workflows/build.yml) 固定了 CI 使用的工具链。在已安装 Homebrew 的情况下：
 
 ```bash
 brew install xcodegen cmake
+# 手机和平板同步库用 Rust 构建（https://rustup.rs）；仓库固定了工具链，rustup 会在首次使用时安装。
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
 
 git clone https://github.com/stevyhacker/lokalbot.git
 cd lokalbot
 
 # 首次构建获取运行时之前，XcodeGen 需要这些路径存在。
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+# 把手机和平板同步库（Rust）构建为本地 Swift 包。
+Scripts/build-sync-xcframework.sh
 xcodegen generate
 open LokalBot.xcodeproj
 ```
@@ -291,4 +347,4 @@ LokalBot 是基于 [GPLv3](LICENSE) 协议的自由软件。第三方组件和�
 
 基于 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[MLX Swift](https://github.com/ml-explore/mlx-swift)、[speech-swift](https://github.com/soniqo/speech-swift)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[WhisperKit](https://github.com/argmaxinc/WhisperKit)、[FluidAudio](https://github.com/FluidInference/FluidAudio)、[Sparkle](https://github.com/sparkle-project/Sparkle)、[XcodeGen](https://github.com/yonaskolb/XcodeGen)、[GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)、[GPUI Kit](https://github.com/longbridge/gpui-kit) 和 [ONNX Runtime](https://github.com/microsoft/onnxruntime) 构建，使用的模型包括 [Qwen3-ASR](https://huggingface.co/Qwen)、[IBM Granite Speech](https://huggingface.co/ibm-granite)、[Parakeet](https://huggingface.co/nvidia) 和 [LFM2.5](https://huggingface.co/LiquidAI)。自动补全引擎与 [Cotabby](https://cotabby.app) 共享同一个核心循环。
 
-<sub>本文译自英文版 README（2026 年 10 月 20 日），如有出入，以英文版为准。</sub>
+<sub>本文译自英文版 README（2026 年 11 月 5 日），如有出入，以英文版为准。</sub>

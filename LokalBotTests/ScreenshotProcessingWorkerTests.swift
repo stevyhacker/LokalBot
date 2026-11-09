@@ -445,6 +445,43 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         }
     }
 
+    /// A frame of the same window that differs only by its blinking caret
+    /// stores nothing; any other change still stores.
+    func testCaretOnlyFramesOfTheSameWindowAreNotStoredAgain() async throws {
+        let key = SymmetricKey(data: Data(repeating: 0x66, count: 32))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).heic.enc")
+        let text = "Quarterly planning notes for the design review"
+        let caretOn = try XCTUnwrap(SyntheticWindowImage.make(caret: true))
+        let caretOff = try XCTUnwrap(SyntheticWindowImage.make(caret: false))
+        let otherLines = try XCTUnwrap(SyntheticWindowImage.make(caret: false, lineCount: 9))
+        let worker = ScreenshotProcessingWorker(dependencies: ScreenshotProcessingDependencies(
+            contentHash: { ScreenshotImageProcessing.contentHash(of: $0) },
+            heicData: { _ in Data("image".utf8) },
+            recognizeText: { _ in "" },
+            write: { _, _ in XCTFail("staged captures are not written") }))
+        func process(_ image: CGImage, text: String = text, source: String = "Notes\u{1f}Plan",
+                     trigger: ScreenCaptureTrigger = .typingPause) async throws -> Bool {
+            let outcome = try await worker.process(ScreenshotProcessingRequest(
+                image: image, trigger: trigger, key: key, fileURL: url, accessibleText: text,
+                stageOnly: true, source: source))
+            if case .stored = outcome { return true }
+            return false
+        }
+
+        XCTAssertNotEqual(ScreenshotImageProcessing.contentHash(of: caretOn),
+                          ScreenshotImageProcessing.contentHash(of: caretOff), "the frames differ by bytes")
+        let first = try await process(caretOn)
+        let blink = try await process(caretOff)
+        let blinkAgain = try await process(caretOn)
+        XCTAssertEqual([first, blink, blinkAgain], [true, false, false])
+        let otherWindow = try await process(caretOff, source: "Notes\u{1f}Other")
+        let editedText = try await process(caretOn, text: text + " and budget", source: "Notes\u{1f}Other")
+        let changedImage = try await process(otherLines, text: text + " and budget", source: "Notes\u{1f}Other")
+        let manual = try await process(caretOn, text: text + " and budget", source: "Notes\u{1f}Other",
+                                       trigger: .manual)
+        XCTAssertEqual([otherWindow, editedText, changedImage, manual], [true, true, true, true])
+    }
+
     func testRichAccessibilityTextAvoidsOCRAndCredentialsDropPixels() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ScreenshotPrivacyTests-\(UUID().uuidString)",

@@ -2,8 +2,9 @@
 
 Practical runbook for cutting a notarized LokalBot release and publishing a
 Sparkle update. The same tag also ships the Linux and Windows app with its own
-signed update feeds ([Linux and Windows](#linux-and-windows)). The release
-tooling lives in `Scripts/`:
+signed update feeds ([Linux and Windows](#linux-and-windows)) and the Android
+app as a signed APK ([Android](#android)). The release tooling lives in
+`Scripts/`:
 
 | File | Role |
 | --- | --- |
@@ -13,6 +14,7 @@ tooling lives in `Scripts/`:
 | `Scripts/appcast.template.xml` | Sparkle 2 feed skeleton |
 | `Scripts/clean_local.sh` | wipe local build/derived/DMG artifacts |
 | `Scripts/bump-version.py` | set the version in every file one tag ships it from |
+| `Scripts/sign-android-release.sh` | align and sign the Android APK, then check its certificate |
 | `LinuxWindows/scripts/release-feeds.sh` | sign the Linux/Windows archives and write their update feeds |
 | `LinuxWindows/scripts/linux-repos.sh` | add the `.deb` and `.rpm` to the signed apt and dnf repositories ([Linux package repositories](#linux-package-repositories)) |
 | `LinuxWindows/scripts/third-party-licenses.sh` | regenerate the Linux/Windows crate license list ([Third-party licenses](#third-party-licenses)) |
@@ -177,17 +179,18 @@ whose changelog base has no fixture.
 
 ### 1. Bump the version
 
-One tag ships macOS, Linux and Windows, so the marketing version lives in
-`LokalBot/Info.plist` (the source of truth), `project.yml`, and the Linux and
+One tag ships macOS, Linux, Windows and Android, so the marketing version lives
+in `LokalBot/Info.plist` (the source of truth), `project.yml`, the Linux and
 Windows workspace (`LinuxWindows/Cargo.toml` and its crates in
-`LinuxWindows/Cargo.lock`). Set all of them at once:
+`LinuxWindows/Cargo.lock`) and the Android app
+(`Companion/android/app/build.gradle.kts`). Set all of them at once:
 
 ```sh
 python3 Scripts/bump-version.py 1.0.0 100
 ```
 
-- `CFBundleShortVersionString` and the workspace version → marketing version, e.g. `1.0.0`
-- `CFBundleVersion` → build number, e.g. `100` (monotonic; Sparkle compares this)
+- `CFBundleShortVersionString`, the workspace version and `versionName` → marketing version, e.g. `1.0.0`
+- `CFBundleVersion` and `versionCode` → build number, e.g. `100` (monotonic; Sparkle and Android compare this)
 
 `release-preflight.py` (also in every XcodeGen CI run) fails when any of these
 disagree, or when the Linux/Windows update key differs from `SUPublicEDKey`.
@@ -205,14 +208,14 @@ the metadata files together (replace the version below):
 ```sh
 git fetch origin --tags
 git add project.yml LokalBot/Info.plist LinuxWindows/Cargo.toml LinuxWindows/Cargo.lock \
-  Scripts/release-notes/v0.8.1.md
+  Companion/android/app/build.gradle.kts Scripts/release-notes/v0.8.1.md
 python3 Scripts/release-preflight.py --version 0.8.1 --candidate --staged
 git diff --cached
 ```
 
 This read-only preflight checks every version source, the notes and changelog
 base, increasing build numbers, local/remote tag availability, and that the
-staged snapshot contains exactly the five validated metadata files. Complete
+staged snapshot contains exactly the six validated metadata files. Complete
 feature/fix commits separately before preparing this candidate. It never
 commits, tags, or publishes. Without `--candidate --staged`, the script checks
 metadata consistency and stable-release notes, including for already-released
@@ -221,6 +224,57 @@ consistency without requiring stable-release notes. That mode cannot be combined
 with `--candidate` or `--staged`; candidate preparation and stable publication
 still require the notes and changelog. Prerelease publication retains its
 tag-specific notes path and generated-notes fallback.
+
+#### Explainers for major features
+
+Every major feature in a stable release ships with an explainer: one
+infographic image (PNG) or one short PDF that shows a new user what the
+feature does and how to start using it. A major feature is a new capability
+people have to learn, such as a new page, workflow, integration, or group of
+settings. Fixes, new model choices, and small additions to something people
+already use don't need one.
+
+- **Content.** What the feature does and who it's for; how to turn it on, with
+  the real menu or settings path; what it reads, keeps, and sends, and what
+  stays on the computer; its limits and anything unverified, such as an alpha
+  platform or a pending review; and at least one real screenshot, film still,
+  or diagram. Use synthetic data, such as the demo library, never a real
+  library, mailbox, or calendar.
+- **Format.** A PNG at least 1200 pixels wide, or a PDF of a few pages, under
+  10 MB either way. Name it after the feature, not the release:
+  `web/explainers/<feature-slug>.png` or `.pdf`, in lowercase words joined by
+  dashes, for example `web/explainers/gmail-meeting-briefs.pdf`. When a later
+  release changes the feature, update the same file.
+- **Making one.** Write the explainer as an HTML page and render it with
+  headless Google Chrome. Commit the page as
+  `Docs/explainers/<feature-slug>.html`, so a later release can update the
+  explainer from it:
+
+  ```sh
+  python3 Scripts/render_explainer.py Docs/explainers/gmail-meeting-briefs.html web/explainers/gmail-meeting-briefs.pdf
+  python3 Scripts/render_explainer.py Docs/explainers/gmail-meeting-briefs.html web/explainers/gmail-meeting-briefs.png --size 1200x2400
+  ```
+
+  A PNG captures a fixed canvas at 2x, so design the page at that size. For a
+  PDF, give the page `print-color-adjust: exact` so its backgrounds print, and
+  size each page with `@page` so nothing breaks across sheets
+  (`Docs/explainers/gmail-meeting-briefs.html` is one way to do that).
+- **Land it before the candidate.** Commit explainers to `master` with their
+  feature or in a separate pull request, because the candidate commit holds
+  only the release metadata. The website deploys `web/` from `master`, so the
+  link works before the tag is pushed.
+- **Link it** at the end of the feature's bullet under **What’s new**:
+  `[How it works](https://www.lokalbot.com/explainers/gmail-meeting-briefs.pdf)`.
+  The GitHub Release body and Sparkle's release-notes link show the same notes.
+  After publishing, open each explainer link from the release page.
+
+`release-preflight.py` enforces this for releases after 0.11.5. Notes with a
+**What’s new** section must link at least one explainer, and every linked
+explainer must be a committed PNG or PDF in `web/explainers/`, under 10 MB.
+When everything new in a release is small, say so in an HTML comment in the
+notes, which GitHub doesn't show on the release page:
+`<!-- no explainer: only small additions to existing pages -->`. The preflight
+can't tell which bullets are major, so check each one while writing the notes.
 
 Build (including its Tests job), Nightly and Release use Xcode **26.4.1** (build
 **17E202**) on `macos-26` runners; MLX 0.32.3 and later need its Swift 6.3 toolchain,
@@ -245,9 +299,11 @@ artifacts from the preceding attempt. UI Tests runs on pull requests that are
 ready for review, weekly on `master`, and for a release candidate that its
 merged pull request's run doesn't cover, when `Scripts/prepare-release.sh`
 dispatches it with the candidate's SHA; it no longer runs on every `master`
-push. Build, Lint and XcodeGen still do. Build skips its
-macOS jobs on pull requests that change only docs, the website, assets, video
-or distribution notes (`Scripts/ci/build-relevance.py`).
+push. Lint runs on every push, and Build and XcodeGen on every push except one
+of only docs, the website and the scripts that generate it, assets, video or
+distribution notes (`DOCS_ONLY` in `Scripts/ci/build-relevance.py`, mirrored by
+their `paths-ignore`). Build also skips its macOS jobs on pull requests that
+change only those paths.
 
 ### Optional: prepare the signed archive while CI validates
 
@@ -268,14 +324,29 @@ UI Tests run it dispatched and the Build, Lint and XcodeGen push runs on the
 exact commit before creating the release tag. Merge the release pull request
 only once it contains the current `master`, so that its run covers the merge.
 
+A dispatch always runs on `master`'s tip. If website or docs commits have
+already landed after the candidate, the script can't prepare the archive or
+dispatch UI Tests for it: it succeeds when the merged pull request's run covers
+the candidate, and the tag run then builds the archive itself. Without that
+coverage, it refuses, and the release needs a new candidate. The script also
+refuses a commit that changes only `DOCS_ONLY` paths, because Build and XcodeGen
+never run on one.
+
 Build and unit execution are separate jobs in `build.yml`, sharing one compile.
 The UI aggregate checks smoke, Reduce Motion, both functional shards, all three
 visual sizes and every capture. Filtered or legacy-comparison runs cannot replace
 the complete UI gate. All UI execution remains on hosted runners.
 
-On a tag push, Release requires the candidate to remain the current `master` tip
-and verifies successful **push** runs for Build (both jobs), Lint and XcodeGen,
-and a successful UI Tests run on that exact SHA, either a push run or the
+On a tag push, Release requires the candidate to be the current `master` tip, or
+an ancestor of it when every file `master` has changed since matches `DOCS_ONLY`.
+Website and docs merges therefore don't restart a release: **tag the candidate's
+exact SHA, not the tip**. The artifacts build from the candidate's own checkout,
+so the later files aren't in the release. A change to anything else, a rename
+from outside those paths, or a file list GitHub cuts short (300 files) refuses
+the tag, and the release then needs a new candidate.
+
+Release also verifies successful **push** runs for Build (both jobs), Lint and
+XcodeGen, and a successful UI Tests run on that exact SHA, either a push run or the
 exact-SHA dispatch from `prepare-release.sh`; only a full run reports
 `XCUITest (macOS)`. When no UI Tests run exists on that SHA, the merged pull
 request's newest run counts instead, if the candidate merges a pull request
@@ -414,16 +485,14 @@ actually uploads to.
 
 ### 7. Publish the GitHub Release
 
-Upload the DMG under its versioned name, its checksum and the appcast as release
-assets so the feed at `releases/latest/download/appcast.xml` resolves:
+Upload the DMG under its versioned name and the appcast as release assets so the
+feed at `releases/latest/download/appcast.xml` resolves:
 
 ```sh
 cp build/LokalBot.dmg build/LokalBot-1.0.0-macos-arm64.dmg
-(cd build && shasum -a 256 -b LokalBot-1.0.0-macos-arm64.dmg > LokalBot-1.0.0-macos-arm64.dmg.sha256)
 git tag v1.0.0 && git push origin v1.0.0
 gh release create v1.0.0 \
   build/LokalBot-1.0.0-macos-arm64.dmg \
-  build/LokalBot-1.0.0-macos-arm64.dmg.sha256 \
   build/appcast.xml \
   --title "LokalBot 1.0.0" \
   --notes-file Scripts/release-notes/v1.0.0.md
@@ -467,11 +536,15 @@ work), checks each feed against its archive, and attaches to the release:
 
 | Asset | What it is |
 | --- | --- |
-| `LokalBot-<version>-linux-x86_64.tar.gz` (+ `.sha256`) | Linux archive with `install.sh` |
-| `LokalBot-<version>-windows-x86_64.zip` (+ `.sha256`) | Windows archive |
-| `LokalBot-<version>-windows-x86_64-setup.exe` (+ `.sha256`) | per-user Windows installer of the same files (`scripts/package-windows-installer.ps1`, Inno Setup 6): `%LOCALAPPDATA%\Programs\LokalBot`, a Start menu shortcut with the notification app id, and an Installed apps entry, without administrator rights. The release installs and uninstalls it on the Windows runner. Updates replace the files in place from the zip and then write the new version into that Installed apps entry, which winget reads (`lokalbot_update::installed_apps`) |
-| `LokalBot-<version>-linux-amd64.deb`, `LokalBot-<version>-linux-x86_64.rpm`, `LokalBot-<version>-linux-x86_64.pkg.tar.zst` (+ `.sha256`) | Debian/Ubuntu, Fedora/openSUSE and Arch packages of the same binaries (`scripts/package-linux-distros.sh`, nfpm). The release checks each one installs in a clean Ubuntu 24.04, Fedora 41 and Arch container. They install into `/usr/bin`, so LokalBot announces updates for them instead of replacing its files; it recognizes them by the package name `lokalbot`. A `.deb` or `.rpm` that added the LokalBot repository ([Linux package repositories](#linux-package-repositories)) is told to run `sudo apt upgrade` or `sudo dnf upgrade`; the others get the command that installs the new package |
+| `LokalBot-<version>-linux-x86_64.tar.gz` | Linux archive with `install.sh` |
+| `LokalBot-<version>-windows-x86_64.zip` | Windows archive |
+| `LokalBot-<version>-windows-x86_64-setup.exe` | per-user Windows installer of the same files (`scripts/package-windows-installer.ps1`, Inno Setup 6): `%LOCALAPPDATA%\Programs\LokalBot`, a Start menu shortcut with the notification app id, and an Installed apps entry, without administrator rights. The release installs and uninstalls it on the Windows runner. Updates replace the files in place from the zip and then write the new version into that Installed apps entry, which winget reads (`lokalbot_update::installed_apps`) |
+| `LokalBot-<version>-linux-amd64.deb`, `LokalBot-<version>-linux-x86_64.rpm`, `LokalBot-<version>-linux-x86_64.pkg.tar.zst` | Debian/Ubuntu, Fedora/openSUSE and Arch packages of the same binaries (`scripts/package-linux-distros.sh`, nfpm). The release checks each one installs in a clean Ubuntu 24.04, Fedora 41 and Arch container. They install into `/usr/bin`, so LokalBot announces updates for them instead of replacing its files; it recognizes them by the package name `lokalbot`. A `.deb` or `.rpm` that added the LokalBot repository ([Linux package repositories](#linux-package-repositories)) is told to run `sudo apt upgrade` or `sudo dnf upgrade`; the others get the command that installs the new package |
 | `linux-x86_64.json`, `windows-x86_64.json` | update feeds |
+
+Releases attach no separate checksum files. GitHub shows each file's SHA-256 on
+the release page and returns it as `digest` in the API, and the release jobs and
+the Homebrew tap read it there.
 
 A feed names the version, the minimum installed version that may install it
 (default `0.0.0`, any; set `MINIMUM_VERSION` when a release must be installed
@@ -565,8 +638,8 @@ an update, re-upload the previous release's `linux-x86_64.json` and
 
 After the publish job, the `aur` job (`.github/workflows/aur.yml`) points the
 `lokalbot-bin` AUR package (`LinuxWindows/packaging/aur`) at the stable tag's
-Linux archive and its `.sha256`, builds and installs it in a clean Arch
-container with namcap, and pushes `PKGBUILD` and `.SRCINFO` to
+Linux archive and the SHA-256 GitHub reports for it, builds and installs it in
+a clean Arch container with namcap, and pushes `PKGBUILD` and `.SRCINFO` to
 aur.archlinux.org with the `AUR_SSH_PRIVATE_KEY` secret. It pushes only while
 the `AUR_PUBLISH` repository variable is `true` (set it once an AUR account holds
 the key); without the variable or the secret it stops after the checks, and
@@ -589,6 +662,90 @@ request and a moderator merges it, usually within a day or two. To resubmit
 by hand: `gh workflow run winget.yml -f tag=v<version>`. The first version
 and the token are set up once; see
 [LinuxWindows/packaging/winget/README.md](LinuxWindows/packaging/winget/README.md).
+
+## Android
+
+The tag that releases macOS also attaches the Android app, as
+`LokalBot-<version>-android.apk`, for people to install directly. It holds
+arm64-v8a and x86_64, and installs on Android 10 or later.
+
+`release.yml` calls `companion-android.yml`, the same workflow CI uses, with the
+tag, without secrets or a compiled-output cache, while the macOS job runs. Its
+tag check fails when `versionName` does not name the tag's version. It builds the
+shrunk release APK and runs the unit, screenshot and lint checks. It then signs
+the APK with a throwaway key through `Scripts/sign-android-release.sh` and runs
+the end-to-end test on that copy against the stand-in computer, on an emulator.
+The tag keeps this job on GitHub's runners; CI's other runs may use the self-hosted
+Android runner on the Linux machine.
+
+After the macOS job has published the release (so its release gates passed),
+`android-publish` signs the same unsigned APK with `ANDROID_KEYSTORE_BASE64` and
+attaches it. The script refuses a key whose certificate differs from
+`Companion/android/release-certificate.sha256`. Signing is not part of the Gradle
+build, so no build script runs beside the key. Pre-release tags get an APK too.
+
+The build's R8 mapping, which decodes a stack trace from that release, stays with
+the unsigned APK in the run's `release-android` artifact for 90 days.
+
+If the macOS release succeeded but an Android job failed, fix the cause and use
+**Re-run failed jobs**: the publish job uploads with `--clobber`.
+
+The app has no update check, so people install each new APK over the old one.
+Android keeps their pairing and library only if the new APK has the same signing
+key and a higher `versionCode` (the Mac build number):
+
+- Taking a bad version back means releasing a new version with a higher build
+  number. Android refuses to install a lower one over it.
+- Replacing the key forces everyone to uninstall, which erases the phone's copy
+  and its pairing. Never rotate it casually, and never lose it.
+- When the app goes to Google Play, enroll in Play App Signing with this same key
+  so that people can move between the APK and Play without reinstalling.
+
+The iPhone and iPad app is not attached. iOS installs apps only through the App
+Store, TestFlight or a provisioned device list, so an `.ipa` on the release page
+would not install for anyone.
+
+### One-time setup
+
+Generate the key on a trusted computer, not the Windows PC or a shared machine.
+PKCS12 has one password, which CI reads from the secret; the backup is what
+protects it. The certificate lasts 50 years because Google Play requires one
+that runs past 2033, and it can't be renewed without changing the key.
+
+```bash
+dir=$(mktemp -d)
+pass=$(openssl rand -hex 32)
+keytool -genkeypair -keystore "$dir/lokalbot-android.p12" -storetype PKCS12 \
+  -storepass "$pass" -alias lokalbot -keyalg RSA -keysize 4096 -validity 18250 \
+  -dname "CN=LokalBot, O=LokalBot"
+base64 -i "$dir/lokalbot-android.p12" | gh secret set ANDROID_KEYSTORE_BASE64 --repo stevyhacker/lokalbot
+printf '%s' "$pass" | gh secret set ANDROID_KEYSTORE_PASSWORD --repo stevyhacker/lokalbot
+keytool -list -v -keystore "$dir/lokalbot-android.p12" -storepass "$pass" \
+  | awk '/SHA256:/ {print $2}' | tr -d : | tr 'A-F' 'a-f' > Companion/android/release-certificate.sha256
+```
+
+Keep `$dir/lokalbot-android.p12` and the password in your password manager, not
+on disk, then `rm -rf "$dir"`. Commit `release-certificate.sha256`: from then on
+every release attaches an APK, and a missing or different key fails the job.
+
+### Dry run
+
+```sh
+gh workflow run companion-android.yml --ref BRANCH -f tag=v<current version>
+```
+
+builds as a release would, without caches, and keeps the unsigned APK as the
+`release-android` artifact. It never reads the release key and publishes nothing.
+Every run of the workflow signs with a throwaway key and tests that copy.
+
+### Checks after publishing
+
+```sh
+gh release download vX.Y.Z --repo stevyhacker/lokalbot --pattern '*-android.apk'
+apksigner verify --print-certs LokalBot-X.Y.Z-android.apk
+```
+
+The `SHA-256` line must match `Companion/android/release-certificate.sha256`.
 
 ## Homebrew synchronization after a stable release
 
@@ -615,11 +772,11 @@ temporary keychain exists only while Xcode exports and seals the finished app,
 then is deleted. The DMG uses a separate short-lived keychain that is deleted
 immediately after `codesign`, before notarization. The workflow then notarizes
 and staples, downloads the Sparkle tarball for `sign_update`, runs
-`generate_appcast.py`, and uploads `LokalBot-<version>-macos-arm64.dmg`, its
-`.sha256` and `appcast.xml` to the Release.
+`generate_appcast.py`, and uploads `LokalBot-<version>-macos-arm64.dmg` and
+`appcast.xml` to the Release.
 Jobs beside it build, sign and attach the Linux and Windows archives and feeds
-([Linux and Windows](#linux-and-windows)); the manual steps above cover macOS
-only.
+([Linux and Windows](#linux-and-windows)) and the Android APK
+([Android](#android)); the manual steps above cover macOS only.
 Required repo secrets:
 
 - `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PWD`, `KEYCHAIN_PWD`
@@ -631,6 +788,10 @@ Required repo secrets:
 Optional: `AUR_SSH_PRIVATE_KEY`, the AUR account's SSH key that lets the
 release push the `lokalbot-bin` AUR package once the `AUR_PUBLISH` repository
 variable is `true` ([AUR package](#aur-package)).
+
+`ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` sign the Android APK.
+A release has no APK until its key is set up, and a missing secret fails the
+job after that ([Android](#android)).
 
 Set the certificate and credential secrets without pasting them into source or
 shell history. `gh secret set NAME` prompts for the value securely:
@@ -676,8 +837,8 @@ package has no repository.
 for stable tags after the packages are attached; pre-release tags never reach
 the repositories. On a GitHub-hosted runner (never a self-hosted one: this key
 decides what every subscribed computer installs as root) it downloads the
-release's `.deb` and `.rpm` and checks their `.sha256`, copies the published
-packages from the R2 bucket `lokalbot-packages`, and runs
+release's `.deb` and `.rpm`, checks them against the SHA-256 GitHub reports,
+copies the published packages from the R2 bucket `lokalbot-packages`, and runs
 `LinuxWindows/scripts/linux-repos.sh`. That adds the release unless its
 version is already published (a published version's bytes never change),
 keeps the newest 3 versions, signs new RPMs with `rpmsign`, rebuilds and signs
@@ -834,6 +995,8 @@ hdiutil attach build/LokalBot.dmg
 - Never commit the private key.
 - Never sign Linux/Windows feeds with any key but `SPARKLE_PRIVATE_KEY`; copies
   verify against the embedded `SUPublicEDKey`.
+- Never lose or casually replace the Android signing key → installed copies refuse
+  updates signed by another key.
 - Always Sparkle-sign **after** the final DMG exists (no edits after signing).
 - Always publish `appcast.xml` **after** the Release asset exists.
 - Always pass the real `owner/repo` slug when generating the appcast.

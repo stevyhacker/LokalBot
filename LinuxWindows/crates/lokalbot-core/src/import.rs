@@ -2,7 +2,9 @@
 //!
 //! The file's audio becomes the meeting's system track, so it is separated
 //! into speakers like call audio. The original file is only read. Decoding
-//! happens in `lokalbot-audio`; these are the rules around it.
+//! happens in `lokalbot-audio`; these are the rules around it. A recording from
+//! a paired phone or tablet becomes the microphone track instead; see
+//! `import_device_recording` in `lokalbot-engine`.
 
 use std::path::Path;
 

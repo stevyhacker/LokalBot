@@ -58,6 +58,8 @@ final class SettingRegistryTests: XCTestCase {
             "dictationIntent": try stored(DictationIntent.allCases),
             "dictationTriggerMode": try stored(DictationTriggerMode.allCases),
             "dictationOutputMode": try stored(DictationOutputMode.allCases),
+            // Shortest window first, so a later choice shares more.
+            "companionHistory": try stored([CompanionHistoryWindow.days30, .days90, .days365, .all]),
         ]
         let choiceSpecs = SettingRegistry.all.filter { $0.kind.choices != nil }
         XCTAssertEqual(Set(choiceSpecs.map(\.key)), Set(expected.keys))
@@ -107,6 +109,7 @@ final class SettingRegistryTests: XCTestCase {
                        .number(AppSettings.minimumSpeechSpeed...AppSettings.maximumSpeechSpeed))
         XCTAssertEqual(SettingRegistry.spec(for: "cotypingDebounceMs")?.kind,
                        .integer(CotypingDebouncePolicy.minimumMilliseconds...AppSettings.maximumCotypingDebounceMs))
+        XCTAssertEqual(SettingRegistry.spec(for: "companionPort")?.kind, .integer(CompanionSharing.portRange))
     }
 
     func testSearchDescriptorsAgreeWithTheRegistry() {
@@ -165,8 +168,12 @@ final class SettingRegistryTests: XCTestCase {
     }
 
     func testSnapshotSpecSelection() throws {
-        XCTAssertEqual(try SettingsSnapshot.specs(category: "privacy", keys: nil).map(\.key),
-                       ["retentionDays", "keepOCRTextForever", "excludedApps", "excludedScreenDomains"])
+        XCTAssertEqual(try SettingsSnapshot.specs(category: "files", keys: nil).map(\.key),
+                       ["fileSearchEnabled", "fileSearchFolders", "fileSearchIncludesMedia", "fileSearchReadsOnBattery"])
+        // Retention and exclusions live with the capture they limit.
+        XCTAssertEqual(try SettingsSnapshot.specs(category: "privacy", keys: nil).map(\.key), [])
+        XCTAssertTrue(try SettingsSnapshot.specs(category: "dayMemory", keys: nil).map(\.key)
+            .contains("retentionDays"))
         XCTAssertEqual(try SettingsSnapshot.specs(category: nil, keys: ["appTheme"]).map(\.key), ["appTheme"])
         XCTAssertThrowsError(try SettingsSnapshot.specs(category: nil, keys: ["languageHint"])) { error in
             XCTAssertEqual((error as? AppControlError)?.code, "unknown_key")

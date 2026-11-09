@@ -4,6 +4,7 @@
 //! to call from a background task; the UI must not call them on its main
 //! thread for whole-library operations (lists, search, rebuilds).
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -63,6 +64,11 @@ CREATE INDEX IF NOT EXISTS idx_screen_bookmarks_created ON screen_bookmarks(crea
 CREATE TABLE IF NOT EXISTS coding_agent_bursts (id TEXT PRIMARY KEY, agent TEXT NOT NULL,
     start REAL NOT NULL, end REAL NOT NULL, payload TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_coding_agent_bursts_start ON coding_agent_bursts(start);
+CREATE TABLE IF NOT EXISTS memory_routine_runs (id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL, run_token TEXT NOT NULL UNIQUE, started_at REAL NOT NULL,
+    completed_at REAL, status TEXT NOT NULL, output_path TEXT NOT NULL DEFAULT '',
+    error TEXT NOT NULL DEFAULT '', meeting_id TEXT NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS idx_memory_routine_runs_started ON memory_routine_runs(started_at DESC);
 CREATE VIRTUAL TABLE IF NOT EXISTS ocr_fts USING fts5(
     text, window_title, ts UNINDEXED, app UNINDEXED,
     text_source UNINDEXED, snapshot_id UNINDEXED,
@@ -73,6 +79,10 @@ CREATE TABLE IF NOT EXISTS screen_embeddings (
     FOREIGN KEY(snapshot_id) REFERENCES screenshots(id) ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS idx_screen_embeddings_ts ON screen_embeddings(ts);
 CREATE INDEX IF NOT EXISTS idx_screen_embeddings_app_ts ON screen_embeddings(app, ts);
+CREATE INDEX IF NOT EXISTS idx_screen_embeddings_model ON screen_embeddings(model_id);
+CREATE TABLE IF NOT EXISTS screen_image_embeddings (
+    snapshot_id INTEGER PRIMARY KEY, vec BLOB NOT NULL, model_id TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(snapshot_id) REFERENCES screenshots(id) ON DELETE CASCADE);
 
 CREATE TABLE IF NOT EXISTS pipeline_jobs (meeting_id TEXT PRIMARY KEY, transcribe INTEGER NOT NULL,
     transcription_completed INTEGER NOT NULL DEFAULT 0, summarize INTEGER NOT NULL,
@@ -90,6 +100,11 @@ struct Inner {
     paths: LibraryPaths,
     db: Mutex<Connection>,
     read_only: bool,
+    /// The `chat-key`, once the engine has installed its source.
+    chat_keys: parking_lot::RwLock<Option<crate::sealed::KeySource>>,
+    /// Conversations that couldn't be saved, kept for this run.
+    unsaved_chats: Mutex<HashMap<Uuid, Conversation>>,
+    personal: Mutex<crate::personal::controller::State>,
 }
 
 /// The two audio tracks of a meeting, if present on disk.
@@ -109,9 +124,23 @@ pub enum MeetingLookup {
 }
 
 impl Library {
+    pub(crate) fn chat_key_slot(&self) -> &parking_lot::RwLock<Option<crate::sealed::KeySource>> {
+        &self.inner.chat_keys
+    }
+
+    pub(crate) fn unsaved_chats(&self) -> &Mutex<HashMap<Uuid, Conversation>> {
+        &self.inner.unsaved_chats
+    }
+
+    pub(crate) fn personal_state(&self) -> &Mutex<crate::personal::controller::State> {
+        &self.inner.personal
+    }
+
     /// Opens (creating if needed) the library and its SQLite schema.
     pub fn open(paths: LibraryPaths) -> Result<Self> {
-        fs::create_dir_all(paths.root())
+        // Owner-only (0700 on Unix), which also repairs an older library
+        // whose files were created world-readable under the usual umask.
+        crate::access::ensure_private_dir(paths.root())
             .with_context(|| format!("creating {}", paths.root().display()))?;
         fs::create_dir_all(paths.meetings_dir())?;
         let db = Connection::open(paths.database()).context("opening lokalbotv3.sqlite")?;
@@ -120,8 +149,7 @@ impl Library {
             "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;",
         )?;
         db.execute_batch(SCHEMA).context("creating schema")?;
-        // Older pipeline_jobs tables predate last_error.
-        let _ = db.execute("ALTER TABLE pipeline_jobs ADD COLUMN last_error TEXT", []);
+        crate::jobs::migrate(&db).context("updating the processing queue")?;
         crate::screen::migrate(&db).context("updating the screen context tables")?;
         migrate_ocr_metadata(&db).context("indexing screen text metadata")?;
         crate::search::migrate(&db).context("migrating the search index")?;
@@ -130,6 +158,9 @@ impl Library {
                 paths,
                 db: Mutex::new(db),
                 read_only: false,
+                chat_keys: Default::default(),
+                unsaved_chats: Default::default(),
+                personal: Default::default(),
             }),
         })
     }
@@ -152,6 +183,9 @@ impl Library {
                 paths,
                 db: Mutex::new(db),
                 read_only: true,
+                chat_keys: Default::default(),
+                unsaved_chats: Default::default(),
+                personal: Default::default(),
             }),
         })
     }
@@ -256,7 +290,7 @@ impl Library {
         let dir = self.meeting_dir(&updated);
         let transcript = self.transcript(meeting)?;
         // Withdraw what was built from the old range even when no segment survives.
-        crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
+        crate::evidence::with_meeting_removal(self.paths().root(), &[meeting], || {
             invalidate_generated_notes(&dir)?;
             if let Some(mut transcript) = transcript {
                 range.apply(&mut transcript);
@@ -372,11 +406,12 @@ impl Library {
         let mut n = 2;
         loop {
             let dir = self.paths().meeting_dir(&relative);
-            let made = match dir.parent() {
-                Some(parent) => fs::create_dir_all(parent).and_then(|()| fs::create_dir(&dir)),
-                None => fs::create_dir(&dir),
-            };
-            match made {
+            // Outside the match: a file where a parent folder belongs also says
+            // AlreadyExists, and no other name gets past that.
+            if let Some(parent) = dir.parent() {
+                fs::create_dir_all(parent).with_context(|| format!("creating {relative}"))?;
+            }
+            match fs::create_dir(&dir) {
                 Ok(()) => return Ok(relative),
                 Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
                     relative = format!("{base}-{n}");
@@ -399,10 +434,9 @@ impl Library {
 
     pub fn audio(&self, meeting: &Meeting) -> MeetingAudio {
         let dir = self.meeting_dir(meeting);
-        let pick = |names: &[&str]| names.iter().map(|n| dir.join(n)).find(|p| p.is_file());
         MeetingAudio {
-            mic: pick(&[MIC_TRACK, "mic.flac", "mic.m4a"]),
-            system: pick(&[SYSTEM_TRACK, "system.flac", "system.m4a"]),
+            mic: crate::audio_files::track_file(&dir, crate::audio_files::Track::Mic),
+            system: crate::audio_files::track_file(&dir, crate::audio_files::Track::System),
         }
     }
 
@@ -416,7 +450,7 @@ impl Library {
         }
         let order = self.deletion_order(meeting)?;
         let affected: Vec<&Meeting> = order.iter().collect();
-        crate::evidence::with_meeting_mutation(self.paths().root(), &affected, || {
+        crate::evidence::with_meeting_removal(self.paths().root(), &affected, || {
             for meeting in &order {
                 self.remove_meeting(meeting)?;
             }
@@ -426,7 +460,7 @@ impl Library {
 
     /// Descendants before their merged meeting. A source that doesn't point
     /// back at its merged meeting, or a cycle, means the markers are corrupt.
-    fn deletion_order(&self, meeting: &Meeting) -> Result<Vec<Meeting>> {
+    pub fn deletion_order(&self, meeting: &Meeting) -> Result<Vec<Meeting>> {
         let all: std::collections::HashMap<Uuid, Meeting> = self
             .list_all_meetings()?
             .into_iter()
@@ -511,6 +545,29 @@ impl Library {
         })
     }
 
+    /// Saves a fresh transcription (`ProcessingPipeline.write`). When it
+    /// differs from the saved transcript, the summary, claims and outcomes
+    /// written from the old one move aside to `*.previous.*` first, so they
+    /// are not shown, searched or asked about as current until notes are
+    /// written again.
+    pub fn save_new_transcript(&self, meeting: &Meeting, transcript: &Transcript) -> Result<()> {
+        let dir = self.meeting_dir(meeting);
+        crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
+            if self
+                .transcript(meeting)?
+                .is_some_and(|saved| saved != *transcript)
+            {
+                invalidate_generated_notes(&dir)?;
+            }
+            write_json(&dir.join(TRANSCRIPT_FILE), transcript)?;
+            write_atomic(
+                &dir.join(TRANSCRIPT_MD_FILE),
+                transcript.markdown().as_bytes(),
+            )?;
+            Ok(())
+        })
+    }
+
     pub fn summary(&self, meeting: &Meeting) -> Result<Option<String>> {
         read_text(&self.meeting_dir(meeting).join(SUMMARY_FILE))
     }
@@ -545,7 +602,9 @@ impl Library {
     ///
     /// macOS treats outcomes whose `transcriptRevision` no longer matches the
     /// transcript's SHA-256 (over Swift's exact JSON bytes) as stale. This
-    /// port cannot reproduce those bytes, so it treats outcomes as current.
+    /// port cannot reproduce those bytes, so it treats outcomes as current;
+    /// its own new transcriptions move them aside instead
+    /// ([`Self::save_new_transcript`]).
     pub fn outcomes(&self, meeting: &Meeting) -> Result<Option<MeetingOutcomes>> {
         Ok(
             read_json::<MeetingOutcomes>(&self.meeting_dir(meeting).join(OUTCOMES_FILE))?
@@ -600,47 +659,6 @@ impl Library {
         entry.updated_at = Utc::now();
         entry.user_edited = true;
         self.save_outcome_state(meeting, &state)
-    }
-
-    // ---------------------------------------------------------------- chats
-
-    pub fn conversations(&self) -> Result<Vec<Conversation>> {
-        let dir = self.paths().chats_dir();
-        let mut out = Vec::new();
-        let Ok(entries) = fs::read_dir(&dir) else {
-            return Ok(out);
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().is_some_and(|e| e == "json") {
-                match read_json::<Conversation>(&path) {
-                    Ok(Some(conversation)) => out.push(conversation),
-                    Ok(None) => {}
-                    Err(err) => log::warn!("skipping unreadable chat {}: {err:#}", path.display()),
-                }
-            }
-        }
-        out.sort_by_key(|c| std::cmp::Reverse(c.updated_at));
-        Ok(out)
-    }
-
-    pub fn save_conversation(&self, conversation: &Conversation) -> Result<()> {
-        let path = self
-            .paths()
-            .chats_dir()
-            .join(format!("{}.json", conversation.id.hyphenated()));
-        write_json(&path, conversation)
-    }
-
-    pub fn delete_conversation(&self, id: Uuid) -> Result<()> {
-        let path = self
-            .paths()
-            .chats_dir()
-            .join(format!("{}.json", id.hyphenated()));
-        match fs::remove_file(path) {
-            Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err.into()),
-            _ => Ok(()),
-        }
     }
 
     // --------------------------------------------------------------- digest
@@ -848,7 +866,7 @@ pub fn write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<()> {
     Ok(())
 }
 
-fn sort_keys(value: serde_json::Value) -> serde_json::Value {
+pub(crate) fn sort_keys(value: serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {
             let sorted: std::collections::BTreeMap<String, serde_json::Value> =
@@ -869,7 +887,15 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
     let tmp = dir.join(format!(".{file_name}.{}.tmp", Uuid::new_v4().simple()));
     {
-        let mut file = fs::File::create(&tmp)?;
+        // Transcripts, notes and settings are readable by their owner only.
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&tmp)?;
         file.write_all(bytes)?;
         file.sync_all()?;
     }
@@ -885,6 +911,32 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// That says AlreadyExists, like a taken name, and trying more names never
+    /// ended. On its own thread so this fails instead of hanging the test run.
+    #[test]
+    fn a_file_where_a_month_folder_belongs_is_an_error() {
+        let (sender, answer) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let dir = tempfile::tempdir().unwrap();
+            let library = Library::open(LibraryPaths::new(dir.path().join("library"))).unwrap();
+            let started_at = Utc::now();
+            let local = started_at.with_timezone(&Local);
+            let month = library.paths().meeting_dir(&format!(
+                "meetings/{:04}/{:02}",
+                local.year(),
+                local.month()
+            ));
+            fs::create_dir_all(month.parent().unwrap()).unwrap();
+            fs::write(&month, b"").unwrap();
+            let reserved = library.reserve_meeting_folder("Standup", started_at);
+            sender.send(reserved.is_err()).unwrap();
+        });
+        let refused = answer
+            .recv_timeout(std::time::Duration::from_secs(30))
+            .expect("it kept trying other names");
+        assert!(refused);
+    }
 
     fn fixture_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -960,6 +1012,86 @@ mod tests {
         let saved: serde_json::Value =
             serde_json::from_slice(&fs::read(folder.join(META_FILE)).unwrap()).unwrap();
         assert_eq!(saved, written);
+    }
+
+    #[test]
+    fn a_changed_transcription_moves_its_old_notes_aside() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(LibraryPaths::new(dir.path())).unwrap();
+        let meeting = library
+            .create_meeting("Planning", "Zoom", crate::time::now_seconds())
+            .unwrap();
+        let said = |text: &str| Transcript {
+            segments: vec![
+                serde_json::from_value(serde_json::json!({
+                    "start": 0.0, "end": 4.0, "speaker": "them", "text": text
+                }))
+                .unwrap(),
+            ],
+            ..Default::default()
+        };
+        let notes = |library: &Library| {
+            library.save_summary(&meeting, "We ship Friday.").unwrap();
+            library
+                .save_outcomes(
+                    &meeting,
+                    &MeetingOutcomes {
+                        open_questions: vec!["Ship Friday?".into()],
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        };
+        library
+            .save_new_transcript(&meeting, &said("We ship Friday."))
+            .unwrap();
+        notes(&library);
+
+        // The same words again (a retry) keep the notes.
+        library
+            .save_new_transcript(&meeting, &said("We ship Friday."))
+            .unwrap();
+        assert!(library.outcomes(&meeting).unwrap().is_some());
+
+        library
+            .save_new_transcript(&meeting, &said("Friday is cancelled."))
+            .unwrap();
+        let folder = library.meeting_dir(&meeting);
+        assert_eq!(library.outcomes(&meeting).unwrap(), None);
+        assert_eq!(library.summary(&meeting).unwrap(), None);
+        assert!(folder.join("outcomes.previous.json").is_file());
+        assert!(folder.join("summary.previous.md").is_file());
+        assert!(folder.join(REFRESH_MARKER).is_file());
+        assert_eq!(
+            library.transcript(&meeting).unwrap().unwrap().segments[0].text,
+            "Friday is cancelled."
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn library_files_are_private_to_their_owner() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("LokalBot");
+        // A library from an older build, created under umask 022.
+        fs::create_dir_all(&root).unwrap();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let library = Library::open(LibraryPaths::new(&root)).unwrap();
+        assert_eq!(mode(&root), 0o700);
+        let meeting = library
+            .create_meeting("Standup", "Zoom", crate::time::now_seconds())
+            .unwrap();
+        library
+            .save_transcript(&meeting, &Transcript::default())
+            .unwrap();
+        library.save_notes(&meeting, "private").unwrap();
+        let folder = library.meeting_dir(&meeting);
+        for file in [META_FILE, TRANSCRIPT_FILE, TRANSCRIPT_MD_FILE, NOTES_FILE] {
+            assert_eq!(mode(&folder.join(file)), 0o600, "{file}");
+        }
     }
 
     fn library_with_merge(dir: &Path) -> (Library, Meeting, Meeting, Meeting) {

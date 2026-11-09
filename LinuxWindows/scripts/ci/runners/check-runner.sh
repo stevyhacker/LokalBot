@@ -4,8 +4,14 @@
 #   unit is meant to block;
 # - points XDG directories at this job's temp folder, so app state doesn't
 #   carry over between jobs the way it can't on GitHub's fresh machines;
-# - trims the warm target directory when it, or the disk, gets too full.
+# - trims the warm target directory when it, or the disk, gets too full, and
+#   with --gradle (the Android runner, the only one that uses them), Gradle's
+#   caches when the disk does. ~/.m2 stays, since Maven Central can refuse to
+#   send it all again.
 set -euo pipefail
+
+gradle=false
+[ "${1:-}" = --gradle ] && gradle=true
 
 if timeout 3 bash -c 'exec 3<>/dev/tcp/100.100.100.100/53' 2>/dev/null; then
   echo "::error::This runner can reach the Tailscale network. Check the IPAddressDeny drop-in from setup-linux-runner.sh."
@@ -34,4 +40,8 @@ echo "Warm target: $size_gb GB in $target; $free_gb GB free."
 if [ "$size_gb" -gt "${TARGET_LIMIT_GB:-60}" ] || [ "$free_gb" -lt "${MIN_FREE_GB:-40}" ]; then
   echo "Clearing the warm target to free space."
   rm -rf "${target:?}"/*
+fi
+if [ "$gradle" = true ] && [ "$free_gb" -lt "${MIN_FREE_GB:-40}" ]; then
+  echo "Clearing Gradle's caches to free space."
+  rm -rf "$HOME/.gradle/caches"
 fi

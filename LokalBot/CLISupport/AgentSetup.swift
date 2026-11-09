@@ -17,6 +17,8 @@ enum AgentSetup {
         case settings
         case meetingLibrary
         case screenMemory
+        /// Search the folders chosen under Files (`search_files`).
+        case files
     }
 
     struct Request: Codable, Equatable {

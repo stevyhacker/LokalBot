@@ -1,7 +1,8 @@
-//! `lokalbot-cli`: read-only access to the LokalBot library, plus a stdio MCP server.
+//! `lokalbot-cli`: read-only access to the LokalBot library, a stdio MCP server,
+//! and settings through the running app.
 
 use clap::Parser as _;
-use lokalbot_cli::{Cli, Command, run};
+use lokalbot_cli::{Cli, CliError, Command, run};
 
 fn main() {
     let cli = Cli::parse();
@@ -11,6 +12,10 @@ fn main() {
             if !is_mcp {
                 println!("{output}");
             }
+        }
+        Err(CliError::Exit { code, stdout }) => {
+            println!("{stdout}");
+            std::process::exit(code);
         }
         Err(err) => {
             eprintln!("Error: {}", err.message());
