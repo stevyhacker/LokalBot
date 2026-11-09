@@ -31,7 +31,8 @@ case "$(uname -s)" in
     STAGE="dist/$NAME"
     rm -rf "$STAGE" && mkdir -p "$STAGE/icons"
     cp "$TARGET/release/lokalbot" "$TARGET/release/lokalbot-cli" "$STAGE/"
-    cp packaging/linux/com.lokalbot.LokalBot.desktop packaging/linux/install.sh "$STAGE/"
+    cp packaging/linux/com.lokalbot.LokalBot.desktop packaging/linux/com.lokalbot.LokalBot.xml \
+      packaging/linux/com.lokalbot.LokalBot.InputMethod.desktop packaging/linux/install.sh "$STAGE/"
     cp packaging/icons/lokalbot-*.png "$STAGE/icons/"
     cp ../LICENSE "$STAGE/LICENSE" 2>/dev/null || true
     # The third-party notices and every license text they name (including
@@ -40,7 +41,6 @@ case "$(uname -s)" in
     cp ../THIRD_PARTY_NOTICES.md "$STAGE/"
     cp -R ../LICENSES "$STAGE/LICENSES"
     tar -C dist -czf "dist/$NAME.tar.gz" "$NAME"
-    (cd dist && sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256")
     echo "dist/$NAME.tar.gz"
     ;;
   MINGW*|MSYS*|CYGWIN*)
@@ -62,7 +62,6 @@ case "$(uname -s)" in
     cp ../THIRD_PARTY_NOTICES.md "$STAGE/"
     cp -R ../LICENSES "$STAGE/LICENSES"
     (cd dist && 7z a -tzip "$NAME.zip" "$NAME" >/dev/null)
-    (cd dist && sha256sum "$NAME.zip" > "$NAME.zip.sha256")
     echo "dist/$NAME.zip"
     ;;
   *) echo "unsupported platform: $(uname -s)"; exit 1 ;;

@@ -35,6 +35,8 @@ foreach ($page in $Pages) {
   Start-Sleep -Seconds $WaitSeconds
   $h = $p.MainWindowHandle
   [LbWin]::SetForegroundWindow($h) | Out-Null
+  # The palette is its own window, opened as a person would: the desktop capture below shows it.
+  if ($page -eq "palette") { [System.Windows.Forms.SendKeys]::SendWait("^k"); Start-Sleep -Seconds 2 }
   # Park the pointer in a corner so no hover state shows.
   [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width - 2), ([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height - 2))
   Start-Sleep -Milliseconds 600

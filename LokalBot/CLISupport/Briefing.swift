@@ -27,6 +27,8 @@ enum Briefing {
         var now: Date
         var calendar: Calendar = .current
         var vocabulary: Vocabulary = .mcp
+
+        var filesGate: FilesAccessGate { FilesAccessGate(root: root) }
     }
 
     static var definition: ToolDefinition {
@@ -117,8 +119,8 @@ enum Briefing {
                     + "a made-up call with synthetic voices, not the user's work. Its results carry \"sample\": true.")
             }
         } else {
-            lines.append("- Meetings: off. The user can turn on Settings → Privacy → \"Allow external agents to "
-                + "read your meeting library\".")
+            lines.append("- Meetings: off. The user can turn it on in "
+                + AgentReadAccessCopy.path(ticking: "Meetings") + ".")
         }
         if let screenScope {
             let window: String
@@ -133,8 +135,8 @@ enum Briefing {
                     : "Tools: search_screen, get_timeline, get_recent_activity, get_app_usage, "
                         + "get_screenshot_detail."))
         } else {
-            lines.append("- Screen memory: off. The user can turn on Settings → Privacy → \"Allow external agents "
-                + "to read screen memory\".")
+            lines.append("- Screen memory: off. The user can turn it on in "
+                + AgentReadAccessCopy.path(ticking: "Screen memory") + ".")
         }
         if context.personalGate.isEnabled {
             if let projection {
@@ -145,8 +147,19 @@ enum Briefing {
                 lines.append("- Personal Context: on, but LokalBot hasn't written the shared items yet.")
             }
         } else {
-            lines.append("- Personal Context: off. The user can turn on Settings → Privacy → \"Allow external agents to "
-                + "read what I shared about myself\".")
+            lines.append("- Personal Context: off. The user can turn it on in "
+                + AgentReadAccessCopy.path(ticking: "What I shared about myself") + ".")
+        }
+        if context.filesGate.isEnabled {
+            if let files = context.filesGate.readProjection() {
+                lines.append("- Files: on, \(files.folders.count) \(files.folders.count == 1 ? "folder" : "folders"), "
+                    + "searched by words. " + (cli ? "Command: search-files." : "Tool: search_files."))
+            } else {
+                lines.append("- Files: on, but Files is off in LokalBot or has no folder yet.")
+            }
+        } else {
+            lines.append("- Files: off. The user can turn it on in "
+                + AgentReadAccessCopy.path(ticking: "Files") + ".")
         }
         return lines.joined(separator: "\n")
     }

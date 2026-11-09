@@ -92,7 +92,8 @@ test("Agent fetch rejects same-origin redirects and preserves normal response st
 // be returned even if the fake UI would approve every request.
 async function withExtensionFixture(run: (fixture: {
   root: string; workspace: string; library: string;
-  call: (toolName: string, input: unknown) => Promise<any>;
+  // `cwd` is the session folder pi resolves tool paths against (ctx.cwd).
+  call: (toolName: string, input: unknown, cwd?: string) => Promise<any>;
   approvals: any[];
   provider: any;
 }) => Promise<void>, baseUrl = "http://127.0.0.1:1234/v1", extraEnvironment: Record<string, string> = {}) {
@@ -115,7 +116,8 @@ async function withExtensionFixture(run: (fixture: {
       if (name === "tool_call") handler = callback;
     } } as any);
     const approvals: any[] = [];
-    const call = (toolName: string, input: unknown) => handler({ toolName, input }, {
+    const call = (toolName: string, input: unknown, cwd?: string) => handler({ toolName, input }, {
+      cwd,
       ui: { confirm: async (_title: string, message: string) => {
         approvals.push(JSON.parse(message)); return true;
       } },
@@ -206,6 +208,41 @@ test("workspace symlinks do not turn private-library reads into implicit access"
     await call("read", { path: "linked-library/meeting.md" });
     expect(approvals).toHaveLength(1);
     expect(approvals[0].path).toBe(join(library, "meeting.md"));
+  });
+});
+
+test("relative paths resolve against pi's session folder", async () => {
+  await withExtensionFixture(async ({ root, library, call, approvals }) => {
+    await writeFile(join(library, "transcript.txt"), "synthetic transcript");
+    // pi resolves against ctx.cwd: a resumed session keeps the folder it was saved with.
+    await call("read", { path: "private-library/transcript.txt" }, root);
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0].path).toBe(join(library, "transcript.txt"));
+  });
+});
+
+test("a NUL byte or a path that isn't text always asks", async () => {
+  await withExtensionFixture(async ({ workspace, call, approvals }) => {
+    await writeFile(join(workspace, "notes.txt"), "x");
+    await call("read", { path: "notes.txt" });
+    expect(approvals).toHaveLength(0);
+    for (const path of ["notes.txt\0", "\0notes.txt", "notes.txt\0/../../secret", 42, ["notes.txt"], {}, ""]) {
+      for (const tool of ["read", "write", "edit"]) {
+        approvals.length = 0;
+        await call(tool, { path, content: "x", oldText: "a", newText: "b" });
+        expect([tool, path, approvals.length]).toEqual([tool, path, 1]);
+        // The card names no file it can't be sure of.
+        expect([tool, path, approvals[0].path]).toEqual([tool, path, undefined]);
+      }
+    }
+  });
+});
+
+test("a file URL pi can't open asks instead of failing the check", async () => {
+  await withExtensionFixture(async ({ call, approvals }) => {
+    await call("read", { path: "file://evil.example/etc/hosts" });
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0].path).toBeUndefined();
   });
 });
 

@@ -17,6 +17,7 @@ private struct AgentSetupCard: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var meetingLibrary = false
     @State private var screenMemory = false
+    @State private var files = false
 
     var body: some View {
         Group {
@@ -28,21 +29,28 @@ private struct AgentSetupCard: View {
                         Text(verbatim: String(request.requester.prefix(80))).font(.scaled(.headline))
                         Text("asks to set up LokalBot for you from the terminal.")
                     }
-                    Text("Allowing it lets the agent change your LokalBot settings, download models, and walk you through macOS permissions. Turning on capture, a data source, or sharing still asks you here. You can turn this off at any time in Settings → Privacy.")
+                    Text("Allowing it lets the agent change your LokalBot settings, download models, and walk you through macOS permissions. Turning on capture, a data source, or sharing still asks you here. You can turn this off at any time in Settings → External Agents.")
                         .workspaceTextRole(.supporting)
                     if request.grants.contains(.meetingLibrary) {
                         Toggle(isOn: $meetingLibrary) {
-                            SettingsLabel("Allow external agents to read your meeting library",
-                                          help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.")
+                            SettingsLabel("Let agents read your meetings",
+                                          help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings: read-only, on this Mac only.")
                         }
                         .accessibilityIdentifier("agentSetup.meetingLibrary")
                     }
                     if request.grants.contains(.screenMemory) {
                         Toggle(isOn: $screenMemory) {
-                            SettingsLabel("Allow external agents to read screen memory",
-                                          help: "Separate, scoped, read-only access to captured text and metadata. Screenshot pixels are never returned.")
+                            SettingsLabel("Let agents read screen memory",
+                                          help: "Captured text and metadata from the last 7 days. Screenshot pixels are never returned.")
                         }
                         .accessibilityIdentifier("agentSetup.screenMemory")
+                    }
+                    if request.grants.contains(.files) {
+                        Toggle(isOn: $files) {
+                            SettingsLabel("Let agents search your files",
+                                          help: "Search the folders you chose under Files by their words. Files are never changed.")
+                        }
+                        .accessibilityIdentifier("agentSetup.files")
                     }
                     Text("Allow only an agent you started yourself. Any program on this Mac can make this request.")
                         .workspaceTextRole(.trust)
@@ -51,7 +59,8 @@ private struct AgentSetupCard: View {
                         Button("Don't Allow") { decline() }
                             .accessibilityIdentifier("agentSetup.deny")
                         Button("Allow") {
-                            requests.allow(meetingLibrary: meetingLibrary, screenMemory: screenMemory, in: app)
+                            requests.allow(meetingLibrary: meetingLibrary, screenMemory: screenMemory, files: files,
+                                           in: app)
                         }
                         .primaryActionButton()
                         .accessibilityIdentifier("agentSetup.allow")
@@ -72,6 +81,7 @@ private struct AgentSetupCard: View {
         .onAppear { requests.check() }
         .onChange(of: requests.pending?.nonce) { _, nonce in
             meetingLibrary = false
+            files = false
             screenMemory = false
             if nonce == nil { dismissWindow(id: "agent-setup") }
         }

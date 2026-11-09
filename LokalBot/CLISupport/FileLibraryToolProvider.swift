@@ -6,6 +6,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     var gate: AgentAccessGate
     var screenGate: ScreenMemoryAccessGate
     var personalGate: PersonalContextAccessGate
+    var filesGate: FilesAccessGate
     var screenReader: any ScreenMemoryReading
     var now: () -> Date
     var ask: (String) async -> ToolResult
@@ -14,6 +15,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         gate: AgentAccessGate,
         screenGate: ScreenMemoryAccessGate? = nil,
         personalGate: PersonalContextAccessGate? = nil,
+        filesGate: FilesAccessGate? = nil,
         screenReader: (any ScreenMemoryReading)? = nil,
         now: @escaping () -> Date = Date.init,
         ask: @escaping (String) async -> ToolResult
@@ -21,6 +23,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         self.gate = gate
         self.screenGate = screenGate ?? ScreenMemoryAccessGate(root: gate.root)
         self.personalGate = personalGate ?? PersonalContextAccessGate(root: gate.root)
+        self.filesGate = filesGate ?? FilesAccessGate(root: gate.root)
         self.screenReader = screenReader ?? SQLiteScreenMemoryReader(
             databaseURL: gate.root.appendingPathComponent("lokalbotv3.sqlite"))
         self.now = now
@@ -28,12 +31,12 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     }
 
     static let accessDisabledMessage =
-        "External agent access is off. Enable it in LokalBot → Settings → Privacy → " +
-        "\"Allow external agents to read your meeting library\"."
+        "External agent access to meetings is off. The user can turn it on in "
+        + AgentReadAccessCopy.path(ticking: "Meetings") + "."
 
     static let screenAccessDisabledMessage =
-        "External screen-memory access is off. Enable it separately in LokalBot → " +
-        "Settings → Privacy → \"Allow external agents to read screen memory\"."
+        "External screen-memory access is off. The user can turn it on in "
+        + AgentReadAccessCopy.path(ticking: "Screen memory") + "."
 
     var tools: [ToolDefinition] {
         [
@@ -225,6 +228,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                     "required": ["snapshot_id"],
                 ]),
             PersonalContextTool.definition,
+            FilesSearchTool.definition,
         ]
     }
 
@@ -270,6 +274,8 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             return getScreenshotDetail(arguments)
         case PersonalContextTool.name:
             return getPersonalContext(arguments)
+        case FilesSearchTool.name:
+            return searchFiles(arguments)
         case Briefing.toolName:
             return .text(briefing())
         default:
@@ -304,6 +310,44 @@ struct FileLibraryToolProvider: LibraryToolProvider {
 
     /// Independent of meeting and screen access, and of Agent Mode
     /// capabilities: only the Personal context marker and its projection.
+    private func searchFiles(_ arguments: JSONValue?) -> ToolResult {
+        guard filesGate.isAuthorized() else {
+            return .error(.filesAccessDisabled, FilesSearchTool.disabledMessage)
+        }
+        guard let query = arguments?["query"]?.stringValue else {
+            return .error(.invalidArguments, "\(FilesSearchTool.name) requires a \"query\" string.")
+        }
+        var kinds: [String]?
+        if let raw = arguments?["kinds"] {
+            guard case .array(let values) = raw, values.allSatisfy({ $0.stringValue != nil }) else {
+                return .error(.invalidArguments, "\"kinds\" must be an array of strings.")
+            }
+            kinds = values.compactMap(\.stringValue)
+        }
+        for field in ["after", "before"] where arguments?[field] != nil && arguments?[field]?.stringValue == nil {
+            return .error(.invalidArguments, "\"\(field)\" must be a day as YYYY-MM-DD.")
+        }
+        var limit: Int?
+        if let raw = arguments?["limit"] {
+            guard let value = raw.intValue else {
+                return .error(.invalidArguments,
+                              "\"limit\" must be an integer between 1 and \(FilesSearchTool.maximumLimit).")
+            }
+            limit = value
+        }
+        switch FilesSearchTool.report(query: query, kinds: kinds, after: arguments?["after"]?.stringValue,
+                                      before: arguments?["before"]?.stringValue, limit: limit, gate: filesGate) {
+        case .success(let report):
+            return .text(FilesSearchTool.json(report))
+        case .failure(.disabled):
+            return .error(.filesAccessDisabled, FilesSearchTool.disabledMessage)
+        case .failure(.unavailable):
+            return .error(.filesUnavailable, FilesSearchTool.unavailableMessage)
+        case .failure(.invalid(let message)):
+            return .error(.invalidArguments, message)
+        }
+    }
+
     private func getPersonalContext(_ arguments: JSONValue?) -> ToolResult {
         guard personalGate.isEnabled else {
             return .error(.personalContextDisabled, PersonalContextTool.disabledMessage)

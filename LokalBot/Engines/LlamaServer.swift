@@ -140,6 +140,12 @@ actor LlamaServer {
             }
         }
     }
+    /// How long a started server may take to report healthy. A Mac that has
+    /// just booted can page a model in for minutes, and a load that crashes
+    /// ends this wait at once, so the limit only has to catch a hung server.
+    static let startupHealthInterval: Duration = .milliseconds(500)
+    static let startupHealthAttempts = 600
+
 
     func ensureRunning(modelAt url: URL) async throws {
         while true {
@@ -292,8 +298,8 @@ actor LlamaServer {
                 processStartTime: SystemResourceSampler.processUsage(for: process.processIdentifier)?.startTime))
 
             // Model load can take a while for the big ones; poll /health.
-            for _ in 0..<240 {
-                try await Task.sleep(for: .milliseconds(500))
+            for _ in 0..<Self.startupHealthAttempts {
+                try await Task.sleep(for: Self.startupHealthInterval)
                 if !process.isRunning {
                     throw ServerError.failedToStart(
                         await startupFailure("llama-server exited during startup", output: output))

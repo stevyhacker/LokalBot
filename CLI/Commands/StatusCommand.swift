@@ -7,7 +7,7 @@ struct StatusCommand: ParsableCommand {
         abstract: "Show the running app's version, recording state, permissions, and agent access.",
         discussion: """
             Needs "Allow external agents to change LokalBot settings" in
-            LokalBot → Settings → Privacy. Starts LokalBot in the background
+            LokalBot → Settings → External Agents. Starts LokalBot in the background
             when it is not running unless --no-launch is given.
             """)
 

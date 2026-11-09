@@ -270,6 +270,7 @@ impl TimelinePage {
         let save_data = self.data.clone();
         let note_input = self.moment_note.clone();
         let ask_data = self.data.clone();
+        let ask_moment = moment.clone();
         let ask_question = lokalbot_i18n::format(
             "What was I looking at in “{0}” at {1}?",
             &[
@@ -321,12 +322,15 @@ impl TimelinePage {
                     .label(lokalbot_i18n::tr("Ask About This…"))
                     .on_click(move |_, _, cx| {
                         let question = ask_question.clone();
+                        let attached = ask_moment.clone();
                         ask_data.update(cx, |data, cx| {
+                            data.ask_screen = Some(attached);
                             data.ask(
                                 crate::state::AskRequest {
                                     question,
                                     meeting_ids: Vec::new(),
                                     submit: false,
+                                    day: None,
                                 },
                                 cx,
                             )

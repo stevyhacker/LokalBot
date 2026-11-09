@@ -43,6 +43,42 @@ final class EmailTextTests: XCTestCase {
         XCTAssertEqual(EmailText.decode(Data([0xE9]), charset: nil), "é")
     }
 
+    // MARK: New text in a message
+
+    func testReplyHistoryAndSignaturesAreLeftOut() {
+        XCTAssertEqual(EmailText.conversationText("""
+            Friday works. I'll bring the numbers.
+
+            --\u{20}
+            Ana Petrović
+            Head of Product
+
+            On Mon, Oct 26, 2026 at 10:00 AM Stevan <me@example.com> wrote:
+            > Can we move it to Friday?
+            """), "Friday works. I'll bring the numbers.")
+        // Gmail wraps a long header onto a second line.
+        XCTAssertEqual(EmailText.conversationText("""
+            Sounds good.
+            On Mon, Oct 26, 2026 at 10:00 AM Stevan Bogosavljevic <me@example.com>
+            wrote:
+            > Old text
+            """), "Sounds good.")
+        XCTAssertEqual(EmailText.conversationText("""
+            Approved.
+            Sent from my iPhone
+
+            From: Ana <ana@x.com>
+            Sent: Monday, October 26, 2026 10:00
+            Subject: Budget
+            """), "Approved.")
+        XCTAssertEqual(EmailText.conversationText("Može u petak.\n\npon, 26. okt 2026. u 10:00 Ana <ana@x.com> je napisala:\n> Može li petak?"),
+                       "Može u petak.")
+        XCTAssertEqual(EmailText.conversationText("Passt.\n\nAm 26.10.2026 um 10:00 schrieb Ana <ana@x.com>:\n> Freitag?"),
+                       "Passt.")
+        XCTAssertEqual(EmailText.conversationText("FYI\n\n---------- Forwarded message ---------\nFrom: Bank"),
+                       "FYI")
+    }
+
     // MARK: HTML
 
     func testHTMLBecomesReadableTextWithoutScriptsOrStyles() {

@@ -3,8 +3,9 @@
 The five app screenshots below were captured for the root [README](../../README.md)
 on **October 9, 2026** in light appearance from the `v0.10.2` release commit
 [`1ade074a90510866d8909dc17e2e1dde372831b7`](https://github.com/stevyhacker/lokalbot/tree/1ade074a90510866d8909dc17e2e1dde372831b7)
-(build 46). The README now uses the first four; it shows Autocomplete with the
-[clip described below](#autocomplete-clip) instead of `cotyping.png`.
+(build 46). The root README now uses [newer clips and stills](../hero/README.md) instead;
+of this set it only keeps the [Autocomplete clip described below](#autocomplete-clip). The
+Chinese README still uses its own [Mandarin frames](zh-Hans/README.md).
 
 | File | Surface |
 | --- | --- |
@@ -12,7 +13,7 @@ on **October 9, 2026** in light appearance from the `v0.10.2` release commit
 | [meetings-summary.png](meetings-summary.png) | Podcast trailer review with recap, actions, decisions, and source citations |
 | [today.png](today.png) | Items needing attention and the day digest |
 | [timeline.png](timeline.png) | Day overview, digest, open items, and work sessions |
-| [cotyping.png](cotyping.png) | Settings → Writing with the Autocomplete preview and rehearsal |
+| [cotyping.png](cotyping.png) | Settings → Autocomplete (then called Writing) with the preview and rehearsal |
 
 These are unedited captures of the native SwiftUI views, with fictional content
 from `Scripts/seed_demo_library.py --profile studio`: a small video studio's
@@ -21,7 +22,7 @@ composited product mockups. The isolated capture host suppresses background
 capture and inference; displayed transcripts, summaries, suggestions, and
 permission states are fixture data. The images show the interface, not proof
 of live recording or model performance. The README's hero is a separate
-recorded loop described in [Assets/hero/README.md](../hero/README.md).
+loop described in [Assets/hero/README.md](../hero/README.md).
 
 The LokalBot UI Test Host was built from the commit above with
 `CODE_SIGNING_ALLOWED=NO` into its own DerivedData. Each frame used the
@@ -82,8 +83,8 @@ ffmpeg -i Video/lokalbot-autocomplete-launch/assets/footage/remember.mp4 \
 
 ## Demo video
 
-The README embeds a [45-second demo](../videos/lokalbot-readme-demo.mp4), the
-light cut of [Video/lokalbot-readme-45s](../../Video/lokalbot-readme-45s/README.md).
+The README embedded this [45-second demo](../videos/lokalbot-readme-demo.mp4) until
+November 5, 2026, the light cut of [Video/lokalbot-readme-45s](../../Video/lokalbot-readme-45s/README.md).
 The first 15 seconds are motion graphics drawn in the composition: the problem,
 the promise, and the default local models by name. The last 30 seconds are
 recordings of the native app from `master` at

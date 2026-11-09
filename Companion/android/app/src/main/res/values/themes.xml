@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lokalbot_window">#FFFFFF</color>
+    <color name="lokalbot_accent_fill">#0C8275</color>
+
+    <style name="Theme.LokalBot" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/lokalbot_window</item>
+        <item name="android:colorAccent">@color/lokalbot_accent_fill</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

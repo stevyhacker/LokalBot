@@ -47,6 +47,16 @@ packages:
   LaunchAtLogin:
     url: https://github.com/sindresorhus/LaunchAtLogin-Modern
     from: "1.1.0"
+  DigUp:
+    url: https://github.com/stevyhacker/DigUp  # fork of ARahim3/DigUp
+    revision: 3fe62fdc5ae3b1cfbf6e474e327bfcad2c70b2f1  # DigUpKit only (MIT): file crawling, reading, index and search
+  # Phones and tablets: the Rust crate LinuxWindows/crates/lokalbot-sync as a
+  # local package (static XCFramework + UniFFI Swift), written by
+  # Scripts/build-sync-xcframework.sh. Vendor/ is gitignored, and Xcode
+  # resolves packages before any build phase, so run the script before
+  # `xcodegen generate` and the first build (DEVELOPMENT.md, every workflow).
+  LokalBotSync:
+    path: Vendor/lokalbot-sync
 
 # Shared application body. Both `LokalBot` (prod) and `LokalBot Dev` build the
 # SAME sources from this template and differ only in identity-bearing settings
@@ -131,6 +141,10 @@ targetTemplates:
         product: Logging
       - package: LaunchAtLogin
         product: LaunchAtLogin
+      - package: DigUp
+        product: DigUpKit
+      - package: LokalBotSync
+        product: LokalBotSync
       # Embed the self-contained CLI into Contents/Helpers/ and code-sign it
       # on copy (hardened runtime during a notarised archive). It's a target
       # dependency so it's built first; `link: false` because a tool is
@@ -148,6 +162,10 @@ targetTemplates:
         basedOnDependencyAnalysis: false
       - name: Fetch sherpa-onnx vendor
         script: "\"$PROJECT_DIR/Scripts/fetch-sherpa.sh\""
+        basedOnDependencyAnalysis: false
+      # Rebuilds the package when the crate changed since the last build.
+      - name: Build lokalbot-sync
+        script: "\"$PROJECT_DIR/Scripts/build-sync-xcframework.sh\""
         basedOnDependencyAnalysis: false
     postBuildScripts:
       - name: Sign bundled native runtimes
@@ -167,8 +185,8 @@ targetTemplates:
         CFBundleDisplayName: LokalBot
         CFBundleDevelopmentRegion: en
         CFBundleIconFile: AppIcon
-        CFBundleShortVersionString: "0.11.4"
-        CFBundleVersion: "59"
+        CFBundleShortVersionString: "0.12.2"
+        CFBundleVersion: "64"
         NSMicrophoneUsageDescription: >-
           LokalBot records your side of meetings from the microphone.
           Audio stays on this Mac unless you approve a transcription server;
@@ -186,10 +204,36 @@ targetTemplates:
           inference servers may receive meeting titles and chosen display
           names as context, but never attendee emails.
         LSApplicationCategoryType: public.app-category.productivity
+        NSDocumentsFolderUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSDesktopFolderUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSDownloadsFolderUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSRemovableVolumesUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
+        NSNetworkVolumesUsageDescription: >-
+          LokalBot reads only the folders you choose under Files, to search them
+          by what is in them. Files are read on this Mac and never changed or
+          uploaded.
         NSLocalNetworkUsageDescription: >-
-          LokalBot connects to inference servers you add on your own network,
-          such as a model server on another computer, only after you approve
-          each one. Nothing is sent to other devices otherwise.
+          LokalBot connects to inference servers you add on your own network
+          after you approve each one. When you turn on Phones & tablets, it
+          also lets the phones and tablets you pair find this Mac and receive
+          an encrypted copy of what you share. Nothing is sent to other devices
+          otherwise.
+        # Bonjour advertisement for paired phones and tablets, only while
+        # Settings → Phones & tablets is on.
+        NSBonjourServices:
+          - _lokalbot._tcp
         # Plain HTTP to an approved server on the user's own network.
         # InferenceEndpointPolicy decides which hosts may be reached at all;
         # these exceptions only let URLSession load the names it allows.
@@ -302,6 +346,22 @@ targets:
       - path: LokalBotTests/Fixtures
         type: folder
         buildPhase: resources
+      # Repository files that tests check, copied so a test never reads the
+      # checkout: macOS asks each new test host for access to ~/Documents.
+      - path: LokalBot/LokalBot.entitlements
+        buildPhase: resources
+      - path: Scripts/record-capture/scrub-allowlist.json
+        buildPhase: resources
+      - path: Scripts/seed_demo_library.py
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/memory-cases.json
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/memory-relevance-cases.json
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/visible-context-cases.json
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/visible-memory-link-cases.json
+        buildPhase: resources
     dependencies:
       - target: LokalBot
     settings:
@@ -309,6 +369,8 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/LokalBot.app/Contents/MacOS/LokalBot"
         GENERATE_INFOPLIST_FILE: YES
+        # Fails any test that starts a model download; see the class.
+        INFOPLIST_KEY_NSPrincipalClass: LokalBotTests.LokalBotTestObservation
         PRODUCT_MODULE_NAME: LokalBotTests
         PRODUCT_BUNDLE_IDENTIFIER: me.dotenv.LokalBotTests
         # Tests that `import LlamaCore` and call libllama C functions directly
@@ -395,6 +457,9 @@ targets:
     dependencies:
       - package: ArgumentParser
         product: ArgumentParser
+      # search-files and search_files read the Files index with DigUp's search.
+      - package: DigUp
+        product: DigUpKit
     settings:
       base:
         SWIFT_VERSION: "5.10"

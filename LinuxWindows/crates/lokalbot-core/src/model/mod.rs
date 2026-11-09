@@ -2,6 +2,7 @@
 //! files round-trip between both apps.
 
 pub mod activity;
+pub mod ask_scope;
 pub mod chat;
 pub mod digest;
 pub mod follow_up;
@@ -12,6 +13,7 @@ pub mod projects;
 pub mod transcript;
 
 pub use activity::*;
+pub use ask_scope::*;
 pub use chat::*;
 pub use digest::*;
 pub use follow_up::*;

@@ -43,6 +43,7 @@ struct LiveMeetingDetailView: View {
         .padding(.top, 8)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .navigationTitle(meeting.displayTitle)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { app.stopRecording() } label: {

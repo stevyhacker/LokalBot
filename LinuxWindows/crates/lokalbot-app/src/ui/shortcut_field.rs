@@ -7,8 +7,8 @@ use gpui_kit::component::{Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     App, Context, EventEmitter, FocusHandle, InteractiveElement as _, IntoElement, Keystroke,
-    ParentElement as _, Render, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Subscription, Window, div, px,
+    Modifiers, ModifiersChangedEvent, ParentElement as _, Render, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
 };
 
 use super::Ico;
@@ -28,6 +28,9 @@ pub struct ShortcutField {
     value: String,
     default_value: String,
     recording: bool,
+    /// Modifiers held since recording began, with no key yet: a chord when they
+    /// are all let go (`ShortcutRecorder.handleModifiers`).
+    chord: Modifiers,
     error: Option<SharedString>,
     focus: FocusHandle,
     validate: Validator,
@@ -56,6 +59,7 @@ impl ShortcutField {
             value: value.into(),
             default_value: default_value.into(),
             recording: false,
+            chord: Modifiers::default(),
             error: None,
             focus,
             validate: Box::new(validate),
@@ -76,6 +80,7 @@ impl ShortcutField {
             return;
         }
         self.recording = true;
+        self.chord = Modifiers::default();
         self.error = None;
         window.focus(&self.focus, cx);
         let this = cx.entity().downgrade();
@@ -98,7 +103,28 @@ impl ShortcutField {
         cx.notify();
     }
 
+    /// A key ends the chord: Ctrl+Alt then D records Ctrl+Alt+D, not Ctrl+Alt.
+    fn modifiers_changed(&mut self, modifiers: Modifiers, cx: &mut Context<Self>) {
+        if !self.recording {
+            return;
+        }
+        if modifiers.modified() {
+            self.chord.control |= modifiers.control;
+            self.chord.alt |= modifiers.alt;
+            self.chord.shift |= modifiers.shift;
+            self.chord.platform |= modifiers.platform;
+            return;
+        }
+        let chord = std::mem::take(&mut self.chord);
+        if !chord.modified() {
+            return;
+        }
+        let candidate = format_modifiers(&chord).join("+");
+        self.accept(candidate, cx);
+    }
+
     fn record(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) {
+        self.chord = Modifiers::default();
         if keystroke.key == "escape" && !has_command_modifier(keystroke) {
             self.stop(cx);
             return;
@@ -111,6 +137,10 @@ impl ShortcutField {
             cx.notify();
             return;
         };
+        self.accept(candidate, cx);
+    }
+
+    fn accept(&mut self, candidate: String, cx: &mut Context<Self>) {
         if let Some(problem) = (self.validate)(&candidate, cx) {
             self.error = Some(problem.into());
             cx.notify();
@@ -177,6 +207,11 @@ impl Render for ShortcutField {
                                 lb.text
                             })
                             .child(label)
+                            .on_modifiers_changed(cx.listener(
+                                |this, event: &ModifiersChangedEvent, _, cx| {
+                                    this.modifiers_changed(event.modifiers, cx)
+                                },
+                            ))
                             .on_click(cx.listener(|this, _, window, cx| this.start(window, cx))),
                     )
                     .when(!recording && self.value != self.default_value, |this| {
@@ -222,7 +257,12 @@ pub fn format_keystroke(keystroke: &Keystroke) -> Option<String> {
     if !has_command_modifier(keystroke) {
         return None;
     }
-    let m = &keystroke.modifiers;
+    let mut parts = format_modifiers(&keystroke.modifiers);
+    parts.push(key_name(&keystroke.key));
+    Some(parts.join("+"))
+}
+
+fn format_modifiers(m: &Modifiers) -> Vec<String> {
     let mut parts: Vec<String> = Vec::new();
     if m.control {
         parts.push("Ctrl".into());
@@ -240,8 +280,7 @@ pub fn format_keystroke(keystroke: &Keystroke) -> Option<String> {
             "Super".into()
         });
     }
-    parts.push(key_name(&keystroke.key));
-    Some(parts.join("+"))
+    parts
 }
 
 fn key_name(key: &str) -> String {

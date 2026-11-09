@@ -3,10 +3,14 @@
 //!
 //! Evidence is a meeting app's own microphone stream, never the global "mic
 //! in use" flag: WASAPI capture sessions on Windows, PulseAudio/PipeWire
-//! source outputs on Linux. Zoom and Webex start at once; Teams, Slack and
-//! Discord need 12 s of sustained evidence (gaps up to 6 s tolerated);
-//! browsers need a Google Meet window title plus the browser's own mic stream
+//! source outputs on Linux. Zoom, Webex, Tencent Meeting and VooV Meeting
+//! start at once; Teams, Slack, Discord, Feishu, Lark, DingTalk and WeCom need
+//! 12 s of sustained evidence (gaps up to 6 s tolerated); browsers need a Google Meet window title plus the browser's own mic stream
 //! for 2 s. A meeting ends `stop_debounce` after its evidence disappears.
+//!
+//! Where a browser's accessibility tree can be read ([`browser`]), it decides:
+//! call controls start a call, a waiting room doesn't, and a page that says the
+//! call is over ends it at once. Anything unread falls back to the title.
 //!
 //! The calendar ([`CalendarHint`], `MeetingDetector.swift`) adds evidence but
 //! never replaces it: a browser holding the microphone during an event with
@@ -19,19 +23,27 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+pub(crate) mod browser;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(windows)]
 mod win32;
 
+pub use browser::meet_url;
+use browser::{BrowserDocument, Verdict};
+
 /// A meeting the detector is tracking.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DetectedMeeting {
-    /// "Zoom", "Teams", "Slack", "Webex", "Discord" or "Google Meet".
+    /// The app's name, such as "Zoom", "Tencent Meeting" or "Google Meet".
     pub app_name: String,
     /// The executable that holds the microphone ("Zoom.exe", "chrome").
     pub process_name: String,
     pub pid: u32,
+    /// The top process of the app, whose tree plays the call's sound.
+    pub audio_pid: u32,
+    /// The room, when the browser's accessibility tree named it.
+    pub meeting_url: Option<String>,
     /// The meeting's name from a browser tab title ("Meet – Weekly sync"),
     /// when it has one.
     pub title_hint: Option<String>,
@@ -67,6 +79,21 @@ pub(crate) struct CaptureStream {
     pub app_name: Option<String>,
     /// Executable names of the parent processes, nearest first (Windows).
     pub ancestors: Vec<String>,
+    /// Their process ids, in the same order.
+    pub ancestor_pids: Vec<u32>,
+}
+
+impl CaptureStream {
+    /// The topmost process in this stream's chain that belongs to the app.
+    fn app_root(&self, belongs: impl Fn(&str) -> bool) -> u32 {
+        let mut root = self.pid;
+        for (name, pid) in self.ancestors.iter().zip(&self.ancestor_pids) {
+            if belongs(name) {
+                root = *pid;
+            }
+        }
+        root
+    }
 }
 
 /// A top-level window, for browser tab titles.
@@ -81,6 +108,8 @@ pub(crate) struct WindowTitle {
 pub(crate) struct Evidence {
     pub capturing: Vec<CaptureStream>,
     pub windows: Vec<WindowTitle>,
+    /// Meet documents read from browsers' accessibility trees.
+    pub documents: Vec<BrowserDocument>,
 }
 
 pub(crate) trait EvidenceSource: Send {
@@ -112,6 +141,12 @@ enum AppKind {
     Teams,
     Slack,
     Discord,
+    TencentMeeting,
+    VoovMeeting,
+    Feishu,
+    Lark,
+    DingTalk,
+    WeCom,
     Meet,
     /// A browser call on a conferencing site other than Meet, known from the
     /// calendar event's link ("Zoom", "Teams", …).
@@ -126,6 +161,12 @@ impl AppKind {
             Self::Teams => "Teams",
             Self::Slack => "Slack",
             Self::Discord => "Discord",
+            Self::TencentMeeting => "Tencent Meeting",
+            Self::VoovMeeting => "VooV Meeting",
+            Self::Feishu => "Feishu",
+            Self::Lark => "Lark",
+            Self::DingTalk => "DingTalk",
+            Self::WeCom => "WeCom",
             Self::Meet => "Google Meet",
             Self::WebCall(name) => name,
         }
@@ -138,15 +179,24 @@ impl AppKind {
     /// Dedicated conferencing apps start at once; chat apps make short sounds
     /// and need sustained evidence (`requiresSustainedAudioForStart`).
     fn needs_sustained_evidence(self) -> bool {
-        matches!(self, Self::Teams | Self::Slack | Self::Discord)
+        matches!(
+            self,
+            Self::Teams
+                | Self::Slack
+                | Self::Discord
+                | Self::Feishu
+                | Self::Lark
+                | Self::DingTalk
+                | Self::WeCom
+        )
     }
 
     fn priority(self) -> u8 {
         match self {
-            Self::Zoom | Self::Webex => 0,
+            Self::Zoom | Self::Webex | Self::TencentMeeting | Self::VoovMeeting => 0,
             Self::Teams => 1,
             Self::Meet | Self::WebCall(_) => 2,
-            Self::Slack => 3,
+            Self::Slack | Self::Feishu | Self::Lark | Self::DingTalk | Self::WeCom => 3,
             Self::Discord => 4,
         }
     }
@@ -165,6 +215,12 @@ fn native_kind(process: &str) -> Option<AppKind> {
         "ms-teams" | "teams" | "teams-for-linux" | "msteams" => AppKind::Teams,
         "slack" => AppKind::Slack,
         "discord" | "discordptb" | "discordcanary" | "vesktop" => AppKind::Discord,
+        "wemeetapp" | "wemeet" | "tencentmeeting" => AppKind::TencentMeeting,
+        "voovmeeting" | "voovmeetingapp" => AppKind::VoovMeeting,
+        "feishu" | "bytedance-feishu" => AppKind::Feishu,
+        "lark" | "bytedance-lark" => AppKind::Lark,
+        "dingtalk" | "com.alibabainc.dingtalk" => AppKind::DingTalk,
+        "wxwork" | "wecom" => AppKind::WeCom,
         _ => return None,
     })
 }
@@ -363,6 +419,7 @@ impl Core {
             let names = std::iter::once(stream.process_name.as_str())
                 .chain(stream.ancestors.iter().map(String::as_str));
             let mut candidate = None;
+            let mut room = None;
             for name in names {
                 if let Some(kind) = native_kind(name) {
                     candidate = Some((kind, None, None));
@@ -372,13 +429,26 @@ impl Core {
                     if !browsers_allowed {
                         break;
                     }
-                    if let Some(hint) = meet_windows.get(family) {
+                    let expected = current
+                        .filter(|c| c.family == Some(family))
+                        .and_then(|c| c.meeting.meeting_url.as_deref());
+                    let read = browser::verdict(&evidence.documents, family, expected);
+                    let denied = matches!(read, Verdict::NotInCall | Verdict::Ended);
+                    if let Verdict::InCall(url) = read {
+                        room = url;
+                        let hint = meet_windows.get(family).cloned().flatten();
+                        candidate = Some((AppKind::Meet, Some(family), hint));
+                    } else if !denied && let Some(hint) = meet_windows.get(family) {
                         candidate = Some((AppKind::Meet, Some(family), hint.clone()));
                     } else if let Some((kind, active_family)) = active_browser
                         && active_family == family
+                        && read != Verdict::Ended
                     {
+                        // Unreadable controls never prove a running call ended.
                         candidate = Some((kind, Some(family), None));
-                    } else if let Some(kind) = link_kind {
+                    } else if let Some(kind) = link_kind
+                        && !(denied && kind == AppKind::Meet)
+                    {
                         // The calendar's link check: the browser holds the
                         // microphone during an event with a conferencing link.
                         candidate = Some((kind, Some(family), None));
@@ -398,6 +468,10 @@ impl Core {
             let Some((kind, family, title_hint)) = candidate else {
                 continue;
             };
+            let audio_pid = stream.app_root(|name| match family {
+                Some(family) => browser_family(name) == Some(family),
+                None => native_kind(name) == Some(kind),
+            });
             let next = Candidate {
                 kind,
                 family,
@@ -405,6 +479,8 @@ impl Core {
                     app_name: kind.name().to_string(),
                     process_name: stream.process_name.clone(),
                     pid: stream.pid,
+                    audio_pid,
+                    meeting_url: room,
                     title_hint,
                 },
             };
@@ -468,6 +544,21 @@ impl Core {
         let candidates = self.candidates(evidence, current.as_ref(), now);
         let mut events = Vec::new();
 
+        // The page says the call is over: no debounce (`browser-ended`).
+        if let Some(current) = &current
+            && let Some(family) = current.family
+            && browser::verdict(
+                &evidence.documents,
+                family,
+                current.meeting.meeting_url.as_deref(),
+            ) == Verdict::Ended
+        {
+            self.active = None;
+            self.pending = None;
+            events.push(DetectorEvent::Ended(current.meeting.clone()));
+            return events;
+        }
+
         let Some(current) = current else {
             // Only the best candidate may start; a pending window for another
             // app is replaced, like the single `startConfirmation` on macOS.
@@ -492,7 +583,11 @@ impl Core {
             if let Some(active) = &mut self.active {
                 active.stop_at = None;
                 active.candidate.meeting.pid = same.meeting.pid;
+                active.candidate.meeting.audio_pid = same.meeting.audio_pid;
                 active.candidate.meeting.process_name = same.meeting.process_name.clone();
+                if same.meeting.meeting_url.is_some() {
+                    active.candidate.meeting.meeting_url = same.meeting.meeting_url.clone();
+                }
                 if active.candidate.meeting.title_hint.is_none() {
                     active.candidate.meeting.title_hint = same.meeting.title_hint.clone();
                 }
@@ -654,6 +749,7 @@ mod tests {
         Evidence {
             capturing: streams.to_vec(),
             windows: Vec::new(),
+            documents: Vec::new(),
         }
     }
 
@@ -674,6 +770,193 @@ mod tests {
             t += 2;
         }
         events
+    }
+
+    fn meet_room(state: browser::CallState) -> Evidence {
+        Evidence {
+            capturing: vec![stream(7, "chrome")],
+            windows: vec![WindowTitle {
+                app: "chrome".into(),
+                title: "Meet - Weekly sync - Google Chrome".into(),
+            }],
+            documents: vec![BrowserDocument {
+                family: "chrome",
+                url: "https://meet.google.com/abc-defg-hij".into(),
+                state,
+            }],
+        }
+    }
+
+    #[test]
+    fn call_controls_start_a_call_and_name_its_room() {
+        let start = Instant::now();
+        let mut core = Core::new(1);
+        let mut in_call = meet_room(browser::CallState::InCall);
+        in_call.windows.clear();
+        let events = run(&mut core, start, 0, 4, &in_call);
+        assert_eq!(events.len(), 1, "{events:?}");
+        let DetectorEvent::Started(meeting) = &events[0].1 else {
+            panic!("{events:?}");
+        };
+        assert_eq!(meeting.app_name, "Google Meet");
+        assert_eq!(
+            meeting.meeting_url.as_deref(),
+            Some("https://meet.google.com/abc-defg-hij")
+        );
+    }
+
+    #[test]
+    fn a_readable_waiting_room_never_starts_a_call() {
+        let start = Instant::now();
+        let mut core = Core::new(1);
+        let lobby = meet_room(browser::CallState::Unavailable);
+        assert!(run(&mut core, start, 0, 30, &lobby).is_empty());
+        // The same title and microphone with no readable tree is today's start.
+        let mut unread = meet_room(browser::CallState::Unavailable);
+        unread.documents.clear();
+        let events = run(&mut core, start, 32, 36, &unread);
+        assert!(matches!(events[0].1, DetectorEvent::Started(_)));
+    }
+
+    #[test]
+    fn a_waiting_room_holds_back_a_calendar_link_to_meet_only() {
+        let start = Instant::now();
+        let mut core = Core::new(1);
+        core.calendar = CalendarHint {
+            active: true,
+            meeting_url: Some("https://meet.google.com/abc-defg-hij".into()),
+            ..Default::default()
+        };
+        let mut lobby = meet_room(browser::CallState::Unavailable);
+        lobby.windows.clear();
+        assert!(run(&mut core, start, 0, 10, &lobby).is_empty());
+        core.calendar.meeting_url = Some("https://zoom.us/j/123".into());
+        let events = run(&mut core, start, 12, 16, &lobby);
+        assert!(matches!(events[0].1, DetectorEvent::Started(_)));
+    }
+
+    #[test]
+    fn a_page_that_says_the_call_is_over_ends_it_at_once() {
+        let start = Instant::now();
+        let mut core = Core::new(1);
+        run(
+            &mut core,
+            start,
+            0,
+            4,
+            &meet_room(browser::CallState::InCall),
+        );
+        assert!(core.active.is_some());
+        // The browser still holds the microphone and the tab keeps its title.
+        let ended = meet_room(browser::CallState::Ended);
+        let events = run(&mut core, start, 6, 8, &ended);
+        assert_eq!(events.len(), 1, "{events:?}");
+        assert_eq!(events[0].0, 6);
+        assert!(matches!(events[0].1, DetectorEvent::Ended(_)));
+        assert!(core.active.is_none());
+    }
+
+    #[test]
+    fn an_unreadable_tree_never_ends_a_running_call() {
+        let start = Instant::now();
+        let mut core = Core::new(1);
+        run(
+            &mut core,
+            start,
+            0,
+            4,
+            &meet_room(browser::CallState::InCall),
+        );
+        let mut unread = evidence(&[stream(7, "chrome")]);
+        unread.documents.clear();
+        let lobby_like = meet_room(browser::CallState::Unavailable);
+        assert!(run(&mut core, start, 6, 60, &unread).is_empty());
+        assert!(run(&mut core, start, 62, 120, &lobby_like).is_empty());
+        assert!(core.active.is_some());
+    }
+
+    #[test]
+    fn the_macs_native_meeting_apps_are_known_on_both_platforms() {
+        for (process, name) in [
+            ("wemeetapp", "Tencent Meeting"),
+            ("wemeetapp.exe", "Tencent Meeting"),
+            ("VooVMeeting.exe", "VooV Meeting"),
+            ("feishu", "Feishu"),
+            ("Feishu.exe", "Feishu"),
+            ("lark", "Lark"),
+            ("Lark.exe", "Lark"),
+            ("DingTalk.exe", "DingTalk"),
+            ("com.alibabainc.dingtalk", "DingTalk"),
+            ("WXWork.exe", "WeCom"),
+        ] {
+            assert_eq!(native_kind(process).map(AppKind::name), Some(name));
+        }
+        // Too broad to call a meeting, as on the Mac: its voice messages and
+        // videos sound long enough to pass the wait.
+        assert_eq!(native_kind("WeChat.exe"), None);
+    }
+
+    /// Dedicated conferencing apps start at once; the ones that also carry
+    /// chat and voice messages need the sustained wait (`knownApps`).
+    #[test]
+    fn only_the_dedicated_conferencing_apps_start_at_once() {
+        for process in ["wemeetapp", "voovmeeting"] {
+            let mut core = Core::new(1);
+            let stream = super::tests::stream(10, process);
+            let events = run(&mut core, Instant::now(), 0, 2, &evidence(&[stream]));
+            assert_eq!(events.len(), 1, "{process}");
+        }
+        for process in ["feishu", "lark", "dingtalk", "wxwork"] {
+            let start = Instant::now();
+            let mut core = Core::new(1);
+            let held = evidence(&[stream(10, process)]);
+            assert!(run(&mut core, start, 0, 10, &held).is_empty(), "{process}");
+            assert_eq!(run(&mut core, start, 12, 14, &held).len(), 1, "{process}");
+        }
+    }
+
+    #[test]
+    fn the_audio_target_is_the_top_process_of_the_app() {
+        let start = Instant::now();
+        let mut core = Core::new(1);
+        let helper = CaptureStream {
+            pid: 30,
+            process_name: "msedgewebview2.exe".into(),
+            ancestors: vec![
+                "msedgewebview2.exe".into(),
+                "ms-teams.exe".into(),
+                "explorer.exe".into(),
+            ],
+            ancestor_pids: vec![20, 10, 5],
+            ..Default::default()
+        };
+        core.calendar.active = true;
+        let events = run(&mut core, start, 0, 2, &evidence(&[helper]));
+        let DetectorEvent::Started(meeting) = &events[0].1 else {
+            panic!("{events:?}");
+        };
+        assert_eq!(meeting.app_name, "Teams");
+        assert_eq!(meeting.pid, 30);
+        assert_eq!(meeting.audio_pid, 10);
+
+        let mut core = Core::new(1);
+        let renderer = CaptureStream {
+            pid: 3,
+            process_name: "chrome.exe".into(),
+            ancestors: vec!["chrome.exe".into(), "explorer.exe".into()],
+            ancestor_pids: vec![2, 1],
+            ..Default::default()
+        };
+        let mut call = evidence(&[renderer]);
+        call.windows.push(WindowTitle {
+            app: "chrome.exe".into(),
+            title: "Meet - Sync - Google Chrome".into(),
+        });
+        let events = run(&mut core, start, 0, 4, &call);
+        let DetectorEvent::Started(meeting) = &events[0].1 else {
+            panic!("{events:?}");
+        };
+        assert_eq!(meeting.audio_pid, 2);
     }
 
     #[test]

@@ -3,9 +3,9 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Windows for autocomplete: a low-level keyboard hook that takes plain Tab
-//! and Esc only while ghost text shows (`CotypingInputMonitor`'s accept
-//! tap), `SendInput` Unicode keystrokes for an accepted chunk
+//! Windows for autocomplete: a low-level keyboard hook that takes the plain
+//! accept keys and Esc only while ghost text shows (`CotypingInputMonitor`'s
+//! accept tap), `SendInput` Unicode keystrokes for an accepted chunk
 //! (`CotypingInserter`), and the ghost window's styles and placement.
 //!
 //! The hook is installed when a suggestion appears and removed when it goes;
@@ -31,8 +31,9 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT,
-    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, SendInput, VIRTUAL_KEY, VK_BACK,
-    VK_CONTROL, VK_DELETE, VK_ESCAPE, VK_LWIN, VK_MENU, VK_RETURN, VK_RWIN, VK_SHIFT, VK_TAB,
+    KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VSC_TO_VK, MapVirtualKeyW,
+    SendInput, VIRTUAL_KEY, VK_BACK, VK_CONTROL, VK_DELETE, VK_ESCAPE, VK_LWIN, VK_MENU, VK_RETURN,
+    VK_RIGHT, VK_RWIN, VK_SHIFT, VK_TAB,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GWL_EXSTYLE, GWL_STYLE, GetForegroundWindow, GetWindowLongPtrW,
@@ -46,15 +47,18 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use super::geometry::Rect;
-use super::{Edit, FieldSnapshot, InterceptedKey, KeyHandler};
+use super::{AcceptKeys, Edit, FieldSnapshot, InterceptedKey, KeyHandler};
 
 /// `dwExtraInfo` of LokalBot's own keystrokes ("LOKA").
 pub(super) const MARKER: usize = 0x4C4F_4B41;
 /// Many apps take only the first 20 UTF-16 units of one burst of keys.
 const CHUNK: usize = 20;
+/// The scan code of the key left of 1, whatever it types on this layout.
+const BACKTICK_SCAN_CODE: u32 = 0x29;
 
 enum Command {
     Active(bool),
+    Keys(AcceptKeys),
     PassThrough(InterceptedKey),
     Stop,
 }
@@ -62,8 +66,9 @@ enum Command {
 struct HookState {
     handler: KeyHandler,
     hook: Option<HHOOK>,
+    keys: AcceptKeys,
     /// Keys whose press was taken, so their release is taken too.
-    taken: [bool; 2],
+    taken: [bool; 4],
 }
 
 thread_local! {
@@ -75,6 +80,30 @@ fn index(key: InterceptedKey) -> usize {
     match key {
         InterceptedKey::Tab => 0,
         InterceptedKey::Escape => 1,
+        InterceptedKey::RightArrow => 2,
+        InterceptedKey::Backtick => 3,
+    }
+}
+
+fn intercepted(info: &KBDLLHOOKSTRUCT) -> Option<InterceptedKey> {
+    match VIRTUAL_KEY(info.vkCode as u16) {
+        VK_TAB => Some(InterceptedKey::Tab),
+        VK_ESCAPE => Some(InterceptedKey::Escape),
+        VK_RIGHT => Some(InterceptedKey::RightArrow),
+        _ if info.scanCode == BACKTICK_SCAN_CODE => Some(InterceptedKey::Backtick),
+        _ => None,
+    }
+}
+
+fn virtual_key(key: InterceptedKey) -> VIRTUAL_KEY {
+    match key {
+        InterceptedKey::Tab => VK_TAB,
+        InterceptedKey::Escape => VK_ESCAPE,
+        InterceptedKey::RightArrow => VK_RIGHT,
+        // SAFETY: no pointers; maps a scan code on the current layout.
+        InterceptedKey::Backtick => {
+            VIRTUAL_KEY(unsafe { MapVirtualKeyW(BACKTICK_SCAN_CODE, MAPVK_VSC_TO_VK) } as u16)
+        }
     }
 }
 
@@ -93,12 +122,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
     if code == HC_ACTION as i32 {
         // SAFETY: for HC_ACTION, lparam points to the event's KBDLLHOOKSTRUCT.
         let info = unsafe { &*(lparam.0 as *const KBDLLHOOKSTRUCT) };
-        let key = match VIRTUAL_KEY(info.vkCode as u16) {
-            VK_TAB => Some(InterceptedKey::Tab),
-            VK_ESCAPE => Some(InterceptedKey::Escape),
-            _ => None,
-        };
-        if let Some(key) = key
+        if let Some(key) = intercepted(info)
             && info.dwExtraInfo != MARKER
         {
             let message = wparam.0 as u32;
@@ -109,7 +133,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                 let Some(state) = state.as_mut() else {
                     return false;
                 };
-                if state.hook.is_none() {
+                if state.hook.is_none() || !state.keys.takes(key) {
                     return false;
                 }
                 let slot = index(key);
@@ -166,6 +190,10 @@ impl Hook {
         self.send(Command::Active(active));
     }
 
+    pub(super) fn set_keys(&self, keys: AcceptKeys) {
+        self.send(Command::Keys(keys));
+    }
+
     pub(super) fn pass_through(&self, key: InterceptedKey) {
         self.send(Command::PassThrough(key));
     }
@@ -185,7 +213,8 @@ fn run(handler: KeyHandler, commands: Receiver<Command>, ready: Sender<u32>) {
         *state.borrow_mut() = Some(HookState {
             handler,
             hook: None,
-            taken: [false; 2],
+            keys: AcceptKeys::default(),
+            taken: [false; 4],
         })
     });
     crate::win32_loop::run(
@@ -196,11 +225,13 @@ fn run(handler: KeyHandler, commands: Receiver<Command>, ready: Sender<u32>) {
             while let Ok(command) = commands.try_recv() {
                 match command {
                     Command::Active(active) => set_hook(active),
+                    Command::Keys(keys) => STATE.with(|state| {
+                        if let Some(state) = state.borrow_mut().as_mut() {
+                            state.keys = keys;
+                        }
+                    }),
                     Command::PassThrough(key) => {
-                        let vk = match key {
-                            InterceptedKey::Tab => VK_TAB,
-                            InterceptedKey::Escape => VK_ESCAPE,
-                        };
+                        let vk = virtual_key(key);
                         if let Err(err) = send(&[key_input(vk, false), key_input(vk, true)]) {
                             log::debug!("autocomplete: passing a key on failed: {err:#}");
                         }
@@ -240,7 +271,7 @@ fn set_hook(active: bool) {
                 // SAFETY: `hook` came from SetWindowsHookExW on this thread.
                 let _ = unsafe { UnhookWindowsHookEx(hook) };
                 state.hook = None;
-                state.taken = [false; 2];
+                state.taken = [false; 4];
             }
             _ => {}
         }
@@ -253,7 +284,7 @@ fn key_input(vk: VIRTUAL_KEY, up: bool) -> INPUT {
     } else {
         KEYBD_EVENT_FLAGS(0)
     };
-    if vk == VK_DELETE {
+    if vk == VK_DELETE || vk == VK_RIGHT {
         flags |= KEYEVENTF_EXTENDEDKEY;
     }
     INPUT {

@@ -4,7 +4,7 @@
 #   dist/LokalBot-<version>-linux-amd64.deb          Debian, Ubuntu
 #   dist/LokalBot-<version>-linux-x86_64.rpm         Fedora, openSUSE, RHEL
 #   dist/LokalBot-<version>-linux-x86_64.pkg.tar.zst Arch
-# each with a .sha256 file. Run scripts/package.sh first.
+# Run scripts/package.sh first.
 #
 # NFPM: the nfpm binary to use (default: nfpm on PATH).
 # PACKAGE_VERSION, STAGE, LINUX_REPO_PUBLIC_KEY: another version, staged
@@ -67,6 +67,12 @@ contents:
   - src: $ROOT/packaging/linux/$APP_ID.desktop
     dst: /usr/share/applications/$APP_ID.desktop
     file_info: {mode: 0644}
+  - src: $ROOT/packaging/linux/$APP_ID.xml
+    dst: /usr/share/ibus/component/$APP_ID.xml
+    file_info: {mode: 0644}
+  - src: $ROOT/packaging/linux/$APP_ID.InputMethod.desktop
+    dst: /usr/share/applications/$APP_ID.InputMethod.desktop
+    file_info: {mode: 0644}
   - src: $STAGE/LICENSE
     dst: /usr/share/doc/lokalbot/copyright
     packager: deb
@@ -128,7 +134,8 @@ EOF
   # Arch's gcc-libs is a meta package of every GCC runtime; namcap asks for
   # libgcc and libstdc++, and for hicolor-icon-theme, which owns the icon folders.
   # System audio uses PulseAudio or PipeWire's PulseAudio server; the
-  # suggested tools enable typing and screenshots on some desktops.
+  # suggested tools enable typing and screenshots on some desktops. Tesseract
+  # reads screen text in scripts other than Latin; without it, ocrs reads Latin.
   cat <<'EOF'
 overrides:
   deb:
@@ -148,6 +155,7 @@ overrides:
       - mesa-vulkan-drivers
       - libegl1
       - libwayland-egl1
+      - tesseract-ocr
     suggests:
       - xdotool
       - wtype
@@ -166,6 +174,8 @@ overrides:
       - libxkbcommon-x11.so.0()(64bit)
       - libvulkan.so.1()(64bit)
       - libwayland-client.so.0()(64bit)
+    recommends:
+      - tesseract
     suggests:
       - xdotool
       - wtype
@@ -196,9 +206,8 @@ cd "$ROOT/dist"
 for spec in "deb linux-amd64.deb" "rpm linux-x86_64.rpm" "archlinux linux-x86_64.pkg.tar.zst"; do
   set -- $spec
   OUT="LokalBot-$VERSION-$2"
-  rm -f "$OUT" "$OUT.sha256"
+  rm -f "$OUT"
   "$NFPM" package --config "$CONFIG" --packager "$1" --target "$OUT"
-  sha256sum "$OUT" > "$OUT.sha256"
   echo "dist/$OUT"
 done
 rm -f "$CONFIG" "$KEYRING"

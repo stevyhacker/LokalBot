@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use lokalbot_audio::{Recorder, RecorderOptions, input_devices};
+use lokalbot_audio::{AppAudioTarget, Recorder, RecorderOptions, input_devices};
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
@@ -14,11 +14,20 @@ fn main() -> anyhow::Result<()> {
     let mut options = RecorderOptions {
         mic_device: None,
         capture_system: true,
+        system_app: None,
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--mic" => options.mic_device = args.next(),
             "--no-system" => options.capture_system = false,
+            // Records this executable's sound alone, when it can be separated.
+            "--app" => {
+                options.system_app = args.next().map(|name| AppAudioTarget {
+                    pid: 0,
+                    process_name: name.clone(),
+                    app_name: name,
+                })
+            }
             "--devices" => {
                 for device in input_devices() {
                     println!(

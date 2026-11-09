@@ -1,0 +1,15 @@
+{"bundle": "me.dotenv.LokalBot.uitesthost", "size": [960, 600], "cursor": false, "park": [560, 470], "settle": 1.5, "pre": 0.6, "post": 1.0,
+ "setup":[{"press": {"label": "Hide Sidebar"}, "optional": true},
+          {"until": {"contains": "Where It Stands"}, "timeout": 60},
+          {"click": {"contains": "Northwind,"}, "duration": 0.2},
+          {"until": {"id": "project.track"}, "timeout": 30},
+          {"wait": 1.5}],
+ "actions":[
+  {"wait": 1.6},
+  {"mark": "suggested"},
+  {"click": {"id": "project.track"}, "duration": 0.8},
+  {"until": {"contains": "Writing a note"}, "timeout": 30},
+  {"mark": "tracked"},
+  {"move": {"at": [760, 560]}, "duration": 0.6},
+  {"wait": 1.0},
+  {"mark": "writing"}]}

@@ -5,6 +5,8 @@ final class OpenRouterModelCatalogTests: XCTestCase {
     private actor Server {
         enum Reply {
             case endpoints(Data)
+            /// Answers after a pause, failing if the asking task is cancelled.
+            case delayed(Data)
             case status(Int)
             case failure
         }
@@ -12,11 +14,14 @@ final class OpenRouterModelCatalogTests: XCTestCase {
         var requests: [URLRequest] = []
 
         init(_ replies: [Reply]) { self.replies = replies }
-        func answer(_ request: URLRequest) throws -> (Data, URLResponse) {
+        func answer(_ request: URLRequest) async throws -> (Data, URLResponse) {
             requests.append(request)
             guard !replies.isEmpty else { throw URLError(.timedOut) }
             switch replies.removeFirst() {
             case .endpoints(let data): return (data, response(request, 200))
+            case .delayed(let data):
+                try await Task.sleep(for: .milliseconds(300))
+                return (data, response(request, 200))
             case .status(let code): return (Data(), response(request, code))
             case .failure: throw URLError(.notConnectedToInternet)
             }
@@ -131,6 +136,37 @@ final class OpenRouterModelCatalogTests: XCTestCase {
         XCTAssertEqual(retried?.levels, [.low, .high, .max])
         let requests = await server.recorded()
         XCTAssertEqual(requests.count, 2)
+    }
+
+    func testCallersDuringALookupWaitForItInsteadOfGettingNothing() async throws {
+        let server = Server([.delayed(modelList)])
+        let catalog = catalog(server, defaults: defaults())
+
+        async let first = catalog.reasoningSupport(model: "z-ai/glm-5.3-flash", baseURL: base, approvedOrigins: approved)
+        async let second = catalog.reasoningSupport(model: "z-ai/glm-5.3-flash", baseURL: base, approvedOrigins: approved)
+        let levels = await [first?.levels, second?.levels]
+
+        XCTAssertEqual(levels, [[.low, .high, .max], [.low, .high, .max]])
+        let requests = await server.recorded()
+        XCTAssertEqual(requests.count, 1)
+    }
+
+    func testACancelledCallerDoesNotCancelTheLookup() async throws {
+        let server = Server([.delayed(modelList)])
+        let catalog = catalog(server, defaults: defaults())
+
+        // A Settings view's task is cancelled when the view disappears.
+        let view = Task { await catalog.reasoningSupport(model: "z-ai/glm-5.3-flash", baseURL: base,
+                                                         approvedOrigins: approved) }
+        while await server.recorded().isEmpty { await Task.yield() }
+        view.cancel()
+        let next = await catalog.reasoningSupport(model: "z-ai/glm-5.3-flash", baseURL: base, approvedOrigins: approved)
+
+        XCTAssertEqual(next?.levels, [.low, .high, .max])
+        let cancelled = await view.value
+        XCTAssertEqual(cancelled?.levels, [.low, .high, .max])
+        let requests = await server.recorded()
+        XCTAssertEqual(requests.count, 1)
     }
 
     func testSendsNothingWithoutApprovalToOtherServersOrForUnsafeModelIDs() async throws {

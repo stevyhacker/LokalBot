@@ -222,6 +222,7 @@ fn focus_block(markdown: &str) -> DigestTask {
         next_step: None,
         time_range: None,
         screen_sources: sources,
+        source_moments: Vec::new(),
     };
     let Some(after) = visible.strip_prefix("**") else {
         return untitled(&visible, sources);
@@ -248,6 +249,7 @@ fn focus_block(markdown: &str) -> DigestTask {
         next_step: None,
         time_range,
         screen_sources: sources,
+        source_moments: Vec::new(),
     }
 }
 
@@ -771,6 +773,26 @@ impl Library {
         });
         digest.modified_at = modified(&self.journal_path(day));
         digest.latest_evidence_at = self.latest_evidence_at(day)?;
+        for task in digest
+            .tasks
+            .iter_mut()
+            .chain(digest.other_activity.iter_mut())
+            .chain(digest.follow_up_tasks.iter_mut())
+        {
+            task.source_moments = task
+                .screen_sources
+                .iter()
+                .map(|id| {
+                    let moment = self.screen_moment(*id).ok().flatten()?;
+                    Some(DigestSourceMoment {
+                        id: moment.id,
+                        app: moment.app,
+                        document_name: moment.document_name,
+                        ts: moment.ts,
+                    })
+                })
+                .collect();
+        }
         digest.is_stale = match (digest.modified_at, digest.latest_evidence_at) {
             (Some(modified), Some(latest)) => latest > modified,
             _ => false,
@@ -779,7 +801,8 @@ impl Library {
     }
 
     /// The newest evidence for `day`: activity (clamped to the day), screen
-    /// text, finished meetings' ends and their artifacts' modification times.
+    /// text, coding-agent work, finished meetings' ends and their artifacts'
+    /// modification times.
     pub fn latest_evidence_at(&self, day: NaiveDate) -> Result<Option<DateTime<Utc>>> {
         let (start, end) = crate::time::local_day_bounds(day);
         let (start_epoch, end_epoch) = (crate::time::to_epoch(start), crate::time::to_epoch(end));
@@ -790,6 +813,9 @@ impl Library {
             }
             if crate::timeline::table_exists(db, "ocr_metadata")? {
                 parts.push("SELECT ts AS value FROM ocr_metadata WHERE ts >= ?1 AND ts < ?2");
+            }
+            if crate::timeline::table_exists(db, "coding_agent_bursts")? {
+                parts.push("SELECT end AS value FROM coding_agent_bursts WHERE start >= ?1 AND start < ?2");
             }
             if parts.is_empty() {
                 return Ok(None);

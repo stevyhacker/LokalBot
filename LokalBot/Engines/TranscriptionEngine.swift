@@ -515,7 +515,10 @@ actor ParakeetEngine: TranscriptionEngine {
 
     /// Groups token timings into sentence-ish segments: split on silence
     /// gaps > 1 s, on sentence-ending punctuation once a segment has grown
-    /// past ~200 chars, or after 30 s regardless.
+    /// past ~200 chars, or after 30 s regardless. Token timing can place a
+    /// sentence's closing punctuation after the pause that follows it, so a
+    /// token with no letters or digits always stays with the words before it
+    /// and neither causes a split nor stretches the segment's end.
     static func segments(from result: ASRResult, speaker: String) -> [Transcript.Segment] {
         guard let timings = result.tokenTimings, !timings.isEmpty else {
             let text = Transcript.normalizedText(result.text)
@@ -529,8 +532,15 @@ actor ParakeetEngine: TranscriptionEngine {
         var current: [TokenTiming] = []
         var currentLength = 0
 
+        func isPunctuationOnly(_ token: String) -> Bool {
+            token.rangeOfCharacter(from: .alphanumerics) == nil
+        }
+        func lastSpoken() -> TokenTiming? {
+            current.last { !isPunctuationOnly($0.token) } ?? current.last
+        }
+
         func flush() {
-            guard let first = current.first, let last = current.last else { return }
+            guard let first = current.first, let last = lastSpoken() else { return }
             let text = Transcript.normalizedText(current.map(\.token).joined()
                 .replacingOccurrences(of: "  ", with: " ")
                 .trimmingCharacters(in: .whitespacesAndNewlines))
@@ -545,11 +555,12 @@ actor ParakeetEngine: TranscriptionEngine {
         }
 
         for timing in timings {
-            if let last = current.last, let first = current.first {
+            if !isPunctuationOnly(timing.token), let last = lastSpoken(), let first = current.first,
+               let closing = current.last {
                 let gap = timing.startTime - last.endTime
                 let duration = last.endTime - first.startTime
-                let sentenceEnded = last.token.hasSuffix(".") || last.token.hasSuffix("!")
-                    || last.token.hasSuffix("?")
+                let sentenceEnded = closing.token.hasSuffix(".") || closing.token.hasSuffix("!")
+                    || closing.token.hasSuffix("?")
                 if gap > 1.0 || duration > 30 || (sentenceEnded && currentLength > 200) {
                     flush()
                 }

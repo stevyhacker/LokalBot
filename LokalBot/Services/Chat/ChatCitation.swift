@@ -6,6 +6,8 @@ struct ChatEvidence: Sendable {
     var meetingIDs: Set<String> = []
     var meetingSeconds: [String: Set<Int>] = [:]
     var screenIDs: Set<Int64> = []
+    /// Passages in the Files index (`FileSearchHit.id`).
+    var fileIDs: Set<Int64> = []
 
     mutating func addMeeting(_ id: UUID, seconds: TimeInterval? = nil) {
         let key = SessionLookup.shortID(id).lowercased()
@@ -19,12 +21,16 @@ struct ChatEvidence: Sendable {
     mutating func merge(_ other: ChatEvidence) {
         meetingIDs.formUnion(other.meetingIDs)
         screenIDs.formUnion(other.screenIDs)
+        fileIDs.formUnion(other.fileIDs)
         for (id, seconds) in other.meetingSeconds { meetingSeconds[id, default: []].formUnion(seconds) }
     }
 
     func contains(_ citation: ChatCitation) -> Bool {
         if citation.kind == .screen {
             return citation.snapshotID.map(screenIDs.contains) ?? false
+        }
+        if citation.kind == .file {
+            return citation.fileID.map(fileIDs.contains) ?? false
         }
         let id = citation.meetingID.lowercased()
         guard meetingIDs.contains(id) else { return false }
@@ -35,8 +41,8 @@ struct ChatEvidence: Sendable {
 }
 
 /// Inline citation markers the assistant emits — `[meeting:ID]`,
-/// `[meeting:ID@HH:MM:SS]`, or `[screen:ID]` (see ChatPrompt's citation
-/// instructions).
+/// `[meeting:ID@HH:MM:SS]`, `[screen:ID]`, or `[file:ID]` (see ChatPrompt's
+/// citation instructions).
 /// Messages are persisted with the markers in place; the chat UI replaces each
 /// one in situ with a stable numbered reference and renders a matching source
 /// table that deep-links to the cited evidence.
@@ -44,6 +50,7 @@ struct ChatCitation: Equatable, Identifiable, Sendable {
     enum Kind: String, Equatable, Sendable {
         case meeting
         case screen
+        case file
     }
 
     let kind: Kind
@@ -63,12 +70,23 @@ struct ChatCitation: Equatable, Identifiable, Sendable {
         seconds = nil
     }
 
+    init(fileID: Int64) {
+        kind = .file
+        sourceID = String(fileID)
+        seconds = nil
+    }
+
     /// Backwards-compatible meeting accessor used by the existing deep-link
     /// route. Callers should check `kind == .meeting` first.
     var meetingID: String { sourceID }
 
     var snapshotID: Int64? {
         guard kind == .screen else { return nil }
+        return Int64(sourceID)
+    }
+
+    var fileID: Int64? {
+        guard kind == .file else { return nil }
         return Int64(sourceID)
     }
 
@@ -86,7 +104,7 @@ enum ChatCitationParser {
     /// Meeting IDs match SessionLookup's short ids; screen IDs are positive
     /// SQLite row IDs. Meeting stamps accept M:SS, MM:SS, or HH:MM:SS.
     private static let pattern =
-        #"\[(meeting|screen):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]"#
+        #"\[(meeting|screen|file):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]"#
 
     /// Several meetings in one marker — `[meetings:A, B]` or
     /// `[meeting:A; meeting:B@00:01:10]` — which small models write despite
@@ -99,7 +117,7 @@ enum ChatCitationParser {
     /// Replace markers with ordered `[n]` references and return the matching,
     /// deduped citations. Repeated sources retain their first source number.
     static func extract(_ text: String, linked: Bool = false) -> (display: String, citations: [ChatCitation]) {
-        guard text.contains("[meeting:") || text.contains("[screen:"),
+        guard text.contains("[meeting:") || text.contains("[screen:") || text.contains("[file:"),
               let regex = try? NSRegularExpression(pattern: pattern) else { return (text, []) }
         let ns = text as NSString
         var citations: [ChatCitation] = []
@@ -115,6 +133,10 @@ enum ChatCitationParser {
                stamp == nil,
                let snapshotID = Int64(sourceID), snapshotID > 0 {
                 citation = ChatCitation(snapshotID: snapshotID)
+            } else if kind == ChatCitation.Kind.file.rawValue,
+                      stamp == nil,
+                      let fileID = Int64(sourceID), fileID > 0 {
+                citation = ChatCitation(fileID: fileID)
             } else if kind == ChatCitation.Kind.meeting.rawValue,
                       sourceID.count >= 3,
                       stamp == nil || stamp.flatMap(seconds(from:)) != nil {
@@ -148,12 +170,12 @@ enum ChatCitationParser {
         if streaming, let bracket = text.lastIndex(of: "["),
            !text[bracket...].contains("]") {
             let suffix = text[bracket...]
-            if ["[meeting:", "[meetings:", "[screen:"].contains(where: { $0.hasPrefix(suffix) || suffix.hasPrefix($0) }) {
+            if ["[meeting:", "[meetings:", "[screen:", "[file:"].contains(where: { $0.hasPrefix(suffix) || suffix.hasPrefix($0) }) {
                 text = String(text[..<bracket])
             }
         }
         text = splitGrouped(text)
-        guard let regex = try? NSRegularExpression(pattern: #"\[(?:meeting|screen):[^\]\n]*\]"#) else { return text }
+        guard let regex = try? NSRegularExpression(pattern: #"\[(?:meeting|screen|file):[^\]\n]*\]"#) else { return text }
         let ns = text as NSString
         for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
             let marker = ns.substring(with: match.range)

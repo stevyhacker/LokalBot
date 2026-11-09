@@ -221,13 +221,6 @@ impl ReasoningChoices {
     pub fn displayed(&self, level: ReasoningLevel) -> ReasoningLevel {
         self.clamp(level).unwrap_or(ReasoningLevel::Automatic)
     }
-
-    pub fn automatic_title(&self) -> String {
-        match self.default_level {
-            Some(level) => format!("Automatic ({})", reasoning_name(level)),
-            None => "Automatic".into(),
-        }
-    }
 }
 
 fn level_rank(level: ReasoningLevel) -> u8 {
@@ -735,18 +728,6 @@ impl AgentSession {
         self.start();
     }
 
-    pub fn resume_saved_session(&mut self, session: SavedSession) {
-        self.shutdown();
-        self.folder = TranscriptFolder::default();
-        self.reset_approval_policy();
-        self.workspace = session.workspace.clone();
-        self.session_title = Some(session.title.clone());
-        self.active_session_file = Some(session.file.clone());
-        self.draft.clear();
-        self.launch_mode = LaunchMode::Saved(session);
-        self.start();
-    }
-
     // ---------------------------------------------------------- prompting
 
     /// Composer submission: queues a follow-up while running, sends when
@@ -1118,13 +1099,6 @@ impl AgentSession {
             request_id: id.to_string(),
             confirmed: approved,
         });
-    }
-
-    /// Unattended callers resolve every card as a one-time denial.
-    pub fn deny_all_pending_approvals(&mut self) {
-        for id in self.folder.pending_approval_ids() {
-            self.respond_to_approval(&id, false, ApprovalScope::Once);
-        }
     }
 
     fn cancel_pending_approvals(&mut self) {
@@ -1683,23 +1657,10 @@ fn discard(launched: Launched, env: &AgentEnvironment) {
     }
 }
 
-/// Why a launched remote endpoint may no longer receive context.
+/// Why a launched remote endpoint may no longer receive context
+/// (`InferenceEndpointPolicy.validate` before each send).
 fn remote_block(base: &str, settings: &Settings) -> Option<String> {
-    if lokalbot_core::access::is_loopback_url(base) {
-        return None;
-    }
-    let origin = lokalbot_core::access::origin_of(base)?;
-    if settings
-        .approved_remote_inference_origins
-        .iter()
-        .any(|approved| approved.eq_ignore_ascii_case(&origin))
-    {
-        None
-    } else {
-        Some(format!(
-            "Allow sending context to {origin} in Settings → Models first."
-        ))
-    }
+    lokalbot_core::access::remote_block_reason(base, &settings.approved_remote_inference_origins)
 }
 
 /// Our extension sends title `lokalbot_tool_approval` with structured

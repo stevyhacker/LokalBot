@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 15,
+      "speaker": "them",
+      "text": "Our team loves the export feature, but we need SSO before we roll out company-wide."
+    },
+    {
+      "start": 15,
+      "end": 30,
+      "speaker": "me",
+      "text": "SSO is on the Q3 roadmap. I'll send you the security overview this week."
+    },
+    {
+      "start": 30,
+      "end": 45,
+      "speaker": "them",
+      "text": "Great. Pricing for 250 seats would help us get budget approved."
+    }
+  ]
+}

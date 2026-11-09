@@ -148,7 +148,7 @@ final class FileLibraryToolProviderTests: XCTestCase {
                 "list_meetings", "get_meeting", "search_meetings", "ask_library",
                 "get_action_items", "list_people", "get_person",
                 "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
-                "get_screenshot_detail", "get_personal_context",
+                "get_screenshot_detail", "get_personal_context", "search_files",
             ])
         for tool in provider.tools {
             XCTAssertFalse(tool.description.isEmpty, tool.name)

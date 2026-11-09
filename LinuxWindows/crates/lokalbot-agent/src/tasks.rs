@@ -393,6 +393,30 @@ impl ResultPreview {
     }
 }
 
+/// The result a `file://` link in an answer points at (`AgentSessionView`'s
+/// `openURL`): a tool call on that file, its path taken against the task's folder.
+pub fn result_for_file_link(
+    url: &str,
+    results: &[ResultPreview],
+    workspace: &Path,
+) -> Option<ResultPreview> {
+    let linked = crate::policy::lexically_normalized(&from_file_url(url)?);
+    results
+        .iter()
+        .find(|result| {
+            result.file_path.as_deref().is_some_and(|path| {
+                let path = Path::new(path);
+                let full = if path.is_absolute() {
+                    path.to_path_buf()
+                } else {
+                    workspace.join(path)
+                };
+                crate::policy::same_path(&crate::policy::lexically_normalized(&full), &linked)
+            })
+        })
+        .cloned()
+}
+
 // --------------------------------------------------------------- encoding
 
 /// Swift encodes `UUID` as an uppercase hyphenated string.
@@ -446,6 +470,40 @@ mod optional_file_url {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_link_opens_the_tool_result_on_that_file() {
+        let result = |id: &str, path: Option<&str>| ResultPreview {
+            id: id.into(),
+            title: String::new(),
+            detail: String::new(),
+            text: String::new(),
+            original: None,
+            proposed: None,
+            file_path: path.map(str::to_string),
+        };
+        let results = [
+            result("none", None),
+            result("relative", Some("src/./main.rs")),
+            result("absolute", Some("/work/other/notes.md")),
+        ];
+        let workspace = Path::new("/work/app");
+        let found = |url: &str| result_for_file_link(url, &results, workspace).map(|r| r.id);
+        assert_eq!(
+            found("file:///work/app/src/main.rs").as_deref(),
+            Some("relative")
+        );
+        assert_eq!(
+            found("file:///work/app/lib/../src/main.rs").as_deref(),
+            Some("relative")
+        );
+        assert_eq!(
+            found("file:///work/other/notes.md").as_deref(),
+            Some("absolute")
+        );
+        assert_eq!(found("file:///work/app/README.md"), None);
+        assert_eq!(found("https://example.com/src/main.rs"), None);
+    }
 
     #[test]
     fn metadata_stores_references_and_queued_drafts_without_source_text() {

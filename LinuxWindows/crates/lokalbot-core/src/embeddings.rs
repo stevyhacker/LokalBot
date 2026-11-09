@@ -1,7 +1,7 @@
 //! Semantic search storage (`EmbeddingIndex.swift`). Vectors are computed
 //! by the AI layer; this module chunks text, stores vectors and ranks them.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 use anyhow::{Result, bail};
@@ -330,7 +330,19 @@ impl Library {
         limit: usize,
         floor: f32,
     ) -> Result<Vec<(Uuid, f64, String, f32)>> {
-        if limit == 0 || query_vec.is_empty() {
+        self.semantic_search_in(query_vec, limit, floor, None)
+    }
+
+    /// [`Self::semantic_search`] among `meetings` only, so a day or an evidence
+    /// boundary doesn't lose its passages to the limit.
+    pub fn semantic_search_in(
+        &self,
+        query_vec: &[f32],
+        limit: usize,
+        floor: f32,
+        meetings: Option<&HashSet<Uuid>>,
+    ) -> Result<Vec<(Uuid, f64, String, f32)>> {
+        if limit == 0 || query_vec.is_empty() || meetings.is_some_and(HashSet::is_empty) {
             return Ok(Vec::new());
         }
         self.with_db(|db| {
@@ -352,6 +364,9 @@ impl Library {
                 }
                 let id: String = row.get(0)?;
                 let Ok(meeting_id) = Uuid::parse_str(&id) else { continue };
+                if meetings.is_some_and(|allowed| !allowed.contains(&meeting_id)) {
+                    continue;
+                }
                 let hit = (meeting_id, row.get(1)?, row.get(2)?, score);
                 if best.len() < limit {
                     best.push(hit);
@@ -504,6 +519,33 @@ mod tests {
             .unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].2, "close");
+        // A scope filters before the limit, so it can't lose its passages.
+        let scope: HashSet<Uuid> = [ended.id].into_iter().collect();
+        assert_eq!(
+            library
+                .semantic_search_in(&[0.9, 0.1], 1, MEETING_SIMILARITY_FLOOR, Some(&scope))
+                .unwrap()
+                .len(),
+            1
+        );
+        let elsewhere: HashSet<Uuid> = [Uuid::from_u128(7)].into_iter().collect();
+        assert!(
+            library
+                .semantic_search_in(&[0.9, 0.1], 5, MEETING_SIMILARITY_FLOOR, Some(&elsewhere))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            library
+                .semantic_search_in(
+                    &[0.9, 0.1],
+                    5,
+                    MEETING_SIMILARITY_FLOOR,
+                    Some(&HashSet::new())
+                )
+                .unwrap()
+                .is_empty()
+        );
         library.save_notes(&ended, "New notes").unwrap();
         assert_eq!(
             library.meetings_needing_embeddings(MODEL_ID).unwrap().len(),

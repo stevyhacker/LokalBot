@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 20,
+      "speaker": "them",
+      "text": "The migration work is going well, but I want more design review exposure."
+    },
+    {
+      "start": 20,
+      "end": 38,
+      "speaker": "me",
+      "text": "Let's rotate you into the Thursday design reviews starting next week."
+    }
+  ]
+}

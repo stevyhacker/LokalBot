@@ -19,7 +19,7 @@ bump_spec = importlib.util.spec_from_file_location("bump_version", SOURCE / "Scr
 bump_version = importlib.util.module_from_spec(bump_spec)
 bump_spec.loader.exec_module(bump_version)
 STAGED = ("project.yml\nLokalBot/Info.plist\nLinuxWindows/Cargo.toml\nLinuxWindows/Cargo.lock\n"
-          "Scripts/release-notes/v0.8.1.md")
+          "Companion/android/app/build.gradle.kts\nScripts/release-notes/v0.8.1.md")
 PORT_LOCK = """version = 4
 
 [[package]]
@@ -55,6 +55,14 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.notes.write_text('- Faster releases.\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n')
         (self.root / "LinuxWindows").mkdir()
         self.write_port("0.8.1")
+        self.write_android("0.8.1", "31")
+
+    def write_android(self, version, build):
+        source = self.root / "Companion/android/app/build.gradle.kts"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("android {\n    defaultConfig {\n"
+                          f'        versionCode = {build}\n        versionName = "{version}"\n'
+                          "    }\n}\n")
 
     def write_port(self, version, lock_version=None):
         (self.root / "LinuxWindows/Cargo.toml").write_text(
@@ -117,6 +125,80 @@ class ReleaseMetadataTests(unittest.TestCase):
         for metadata_only in [False, True]:
             with self.subTest(metadata_only=metadata_only), self.assertRaisesRegex(ValueError, "Requested"):
                 preflight.validate(self.root, version="0.9.0", metadata_only=metadata_only)
+
+    def release(self, version, notes):
+        (self.root / "LokalBot/Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleShortVersionString": version, "CFBundleVersion": "31", "SUPublicEDKey": "a2V5"}))
+        (self.root / "project.yml").write_text(
+            f'        CFBundleShortVersionString: "{version}"\n        CFBundleVersion: "31"\n')
+        self.write_port(version)
+        self.write_android(version, "31")
+        (self.root / f"Scripts/release-notes/v{version}.md").write_text(
+            f"{notes}\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.11.5...v{version}\n")
+
+    def explainer(self, name, content=b"\x89PNG\r\n\x1a\nimage"):
+        path = self.root / "web/explainers" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
+
+    def test_major_features_need_an_explainer_after_0_11_5(self):
+        self.release("0.11.6", "## What’s new\n\n- **Gmail meeting briefs.** Email rows on Today.")
+        with self.assertRaisesRegex(ValueError, "explainer for each major feature"):
+            preflight.validate(self.root)
+
+    def test_releases_up_to_0_11_5_need_no_explainer(self):
+        self.notes.write_text("## What’s new\n\n- **Faster releases.**\n\n"
+                              "https://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n")
+        self.assertEqual(preflight.validate(self.root), ("0.8.1", "31", "v0.8.0"))
+
+    def test_fixes_only_release_needs_no_explainer(self):
+        self.release("0.11.6", "## Fixes\n\n- **Steadier recording.** Webex capture follows its helper.")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+
+    def test_no_explainer_comment_needs_a_reason(self):
+        self.release("0.11.6", "## What’s new\n\n- **Speaker search.**\n\n<!-- no explainer: -->")
+        with self.assertRaisesRegex(ValueError, "explainer for each major feature"):
+            preflight.validate(self.root)
+        self.release("0.11.6", "## What’s new\n\n- **Speaker search.**\n\n"
+                               "<!-- no explainer: only small additions to existing pages -->")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+
+    def test_linked_explainer_must_be_a_png_or_pdf_in_web_explainers(self):
+        link = "https://www.lokalbot.com/explainers/{}"
+        for name, setup, error in [
+            ("gmail-briefs.png", None, "isn't in the repository"),
+            ("Gmail_Briefs.png", None, "feature-slug"),
+            ("gmail-briefs.jpg", None, "feature-slug"),
+            ("gmail-briefs.png", b"<html>not an image</html>", "isn't a PNG"),
+            ("gmail-briefs.pdf", b"\x89PNG\r\n\x1a\n", "isn't a PDF"),
+        ]:
+            with self.subTest(name=name, error=error):
+                shutil.rmtree(self.root / "web", ignore_errors=True)
+                if setup is not None:
+                    self.explainer(name, setup)
+                self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format(name)})")
+                with self.assertRaisesRegex(ValueError, error):
+                    preflight.validate(self.root)
+        self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format('gmail-briefs.png')})")
+        large = self.explainer("gmail-briefs.png")
+        with large.open("r+b") as handle:
+            handle.truncate(preflight.EXPLAINER_MAX_BYTES + 1)
+        with self.assertRaisesRegex(ValueError, "under 10 MB"):
+            preflight.validate(self.root)
+        self.explainer("gmail-briefs.png")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+        self.explainer("gmail-briefs.pdf", b"%PDF-1.7\n")
+        self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format('gmail-briefs.pdf')})")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+
+    def test_candidate_explainer_must_be_committed(self):
+        self.explainer("gmail-briefs.png")
+        self.release("0.11.6", "## What’s new\n\n- **Gmail briefs.** "
+                               "[How it works](https://www.lokalbot.com/explainers/gmail-briefs.png)")
+        with patch.object(preflight, "committed", return_value=False):
+            with self.assertRaisesRegex(ValueError, "Commit the explainer"):
+                preflight.validate(self.root, candidate=True)
 
     def test_missing_human_summary(self):
         self.notes.write_text('https://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n')
@@ -185,6 +267,13 @@ class ReleaseMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Cargo.lock disagrees .*lokalbot-app, lokalbot-core"):
             preflight.validate(self.root, metadata_only=True)
 
+    def test_android_version_must_match(self):
+        for version, build in [("0.8.0", "31"), ("0.8.1", "30")]:
+            with self.subTest(version=version, build=build):
+                self.write_android(version, build)
+                with self.assertRaisesRegex(ValueError, "build.gradle.kts and Info.plist disagree"):
+                    preflight.validate(self.root, metadata_only=True)
+
     def test_port_update_key_must_match_sparkle(self):
         self.write_update_key("b3RoZXI=")
         with self.assertRaisesRegex(ValueError, "SUPublicEDKey"):
@@ -200,6 +289,9 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual((info["CFBundleShortVersionString"], info["CFBundleVersion"]), ("0.9.0", "32"))
         self.assertIn('version = "1.0.228"', (self.root / "LinuxWindows/Cargo.lock").read_text())
         self.assertIn('serde = { version = "1" }', (self.root / "LinuxWindows/Cargo.toml").read_text())
+        android = (self.root / "Companion/android/app/build.gradle.kts").read_text()
+        self.assertIn('versionName = "0.9.0"', android)
+        self.assertIn("versionCode = 32\n", android)
         with self.assertRaisesRegex(ValueError, "form"):
             bump_version.bump(self.root, "1.0", "33")
 

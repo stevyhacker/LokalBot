@@ -1,0 +1,3 @@
+# ggml-org/embeddinggemma-2-GGUF at revision bfcd298762cc34d0357ece5ebdd31791a3a374d8 (the app's pin, and DigUp's)
+2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135  embeddinggemma-2-Q8_0.gguf  309855456
+c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f  mmproj-embeddinggemma-2-Q8_0.gguf  554821024

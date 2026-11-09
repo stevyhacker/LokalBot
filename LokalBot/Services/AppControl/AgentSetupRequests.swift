@@ -44,7 +44,7 @@ final class AgentSetupRequests: ObservableObject {
     }
 
     /// The person allowed the request, with the read access they ticked.
-    func allow(meetingLibrary: Bool, screenMemory: Bool, in app: AppState) {
+    func allow(meetingLibrary: Bool, screenMemory: Bool, files: Bool = false, in app: AppState) {
         guard let request = pending else { return }
         guard request.isLive(at: now()) else {
             answer(request, .expired, grants: [])
@@ -64,6 +64,10 @@ final class AgentSetupRequests: ObservableObject {
         if screenMemory, request.grants.contains(.screenMemory) {
             app.screenMemoryAccess.setEnabled(true)
             if app.screenMemoryAccess.isEnabled { grants.append(.screenMemory) }
+        }
+        if files, request.grants.contains(.files) {
+            app.filesAccess.setEnabled(true)
+            if app.filesAccess.isEnabled { grants.append(.files) }
         }
         app.agentSettingsChanges.recordSetup(grants, caller: request.requester)
         answer(request, .approved, grants: grants)

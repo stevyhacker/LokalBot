@@ -70,7 +70,7 @@ enum WindowHandoffCapturer {
                 isTrusted: { environment.accessibility.isTrusted() },
                 readDocument: { processID in
                     await Task.detached(priority: .userInitiated) {
-                        ScreenAccessibilityReader.resolve(processID: processID, scope: .document)
+                        ScreenAccessibilityReader.resolve(processID: processID, reading: .document)
                     }.value
                 },
                 readVisible: { await ScreenAccessibilityReader.shared.capture(processID: $0) },

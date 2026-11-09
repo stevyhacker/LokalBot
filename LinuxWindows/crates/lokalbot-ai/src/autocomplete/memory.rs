@@ -39,6 +39,97 @@ impl Policy {
     }
 }
 
+impl Policy {
+    pub fn from_settings(settings: &lokalbot_core::Settings) -> Self {
+        Self {
+            meetings: settings.cotyping_use_meeting_memory,
+            screen_derived: settings.cotyping_use_screen_memory,
+        }
+    }
+}
+
+/// Size, modification time and file number of a source, or `None` when it is
+/// missing (`CotypingMemoryContextProvider.FileStamp`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FileStamp {
+    pub modified: Option<std::time::SystemTime>,
+    pub size: u64,
+    pub file_number: u64,
+}
+
+impl FileStamp {
+    pub fn of(path: &std::path::Path) -> Option<Self> {
+        let metadata = std::fs::metadata(path).ok()?;
+        #[cfg(unix)]
+        let file_number = std::os::unix::fs::MetadataExt::ino(&metadata);
+        #[cfg(not(unix))]
+        let file_number = 0;
+        Some(Self {
+            modified: metadata.modified().ok(),
+            size: metadata.len(),
+            file_number,
+        })
+    }
+}
+
+/// What a lookup read, so it can be told later whether its facts still hold
+/// (`CotypingMemoryContextProvider.Snapshot.isCurrent`). Editing or deleting
+/// a source, or withdrawing a grant, ends the suggestions it shaped. Paths and
+/// stamps only: no text.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct MemoryGuard {
+    pub policy: Policy,
+    pub stamps: Vec<(std::path::PathBuf, Option<FileStamp>)>,
+    /// The library, whose evidence must stay readable.
+    pub root: Option<std::path::PathBuf>,
+}
+
+impl MemoryGuard {
+    /// Stamps `paths` now, before they are read, so a later edit shows.
+    pub fn stamp(
+        policy: Policy,
+        root: &std::path::Path,
+        paths: impl IntoIterator<Item = std::path::PathBuf>,
+    ) -> Self {
+        Self {
+            policy,
+            stamps: paths
+                .into_iter()
+                .map(|path| {
+                    let stamp = FileStamp::of(&path);
+                    (path, stamp)
+                })
+                .collect(),
+            root: Some(root.to_path_buf()),
+        }
+    }
+
+    pub fn is_current(&self, policy: Policy) -> bool {
+        policy == self.policy
+            && self
+                .stamps
+                .iter()
+                .all(|(path, stamp)| FileStamp::of(path) == *stamp)
+            && self
+                .root
+                .as_deref()
+                .is_none_or(|root| lokalbot_core::evidence::read_state(root).is_some())
+    }
+}
+
+/// One finished lookup: what it found, and how to tell it still holds.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Lookup {
+    pub selection: Selection,
+    pub guard: MemoryGuard,
+}
+
+impl Lookup {
+    pub fn is_current(&self, policy: Policy) -> bool {
+        self.selection.items.is_empty() || self.guard.is_current(policy)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Item {
     pub id: String,
@@ -699,6 +790,46 @@ mod tests {
 
     fn select_for(items: &[Item], draft: &str) -> Selection {
         select(items, &Query::new(draft, "", "", ""), ENABLED, now(), true)
+    }
+
+    #[test]
+    fn a_lookup_stops_being_current_when_a_source_or_grant_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let source = root.join("notes.md");
+        std::fs::write(&source, "The launch moved.").unwrap();
+        let policy = Policy {
+            meetings: true,
+            screen_derived: false,
+        };
+        let lookup = Lookup {
+            selection: Selection {
+                items: vec![item("The launch moved.", "Launch", "m:1")],
+            },
+            guard: MemoryGuard::stamp(policy, root, [source.clone(), root.join("gone.json")]),
+        };
+        assert!(lookup.is_current(policy));
+        // A grant withdrawn.
+        assert!(!lookup.is_current(Policy::default()));
+        // An edit, a removal, or a source that appeared.
+        std::fs::write(&source, "The launch moved to May.").unwrap();
+        assert!(!lookup.is_current(policy));
+        let appeared = Lookup {
+            selection: lookup.selection.clone(),
+            guard: MemoryGuard::stamp(policy, root, [root.join("later.json")]),
+        };
+        std::fs::write(root.join("later.json"), "{}").unwrap();
+        assert!(!appeared.is_current(policy));
+        // An unfinished revocation stops all overnight memory.
+        let fresh = Lookup {
+            selection: lookup.selection.clone(),
+            guard: MemoryGuard::stamp(policy, root, []),
+        };
+        assert!(fresh.is_current(policy));
+        std::fs::write(root.join(lokalbot_core::evidence::PENDING_FILE), "{}").unwrap();
+        assert!(!fresh.is_current(policy));
+        // Nothing found: nothing to withdraw.
+        assert!(Lookup::default().is_current(Policy::default()));
     }
 
     #[test]

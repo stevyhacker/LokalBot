@@ -1,5 +1,35 @@
 # CUDA hardware validation
 
+## llama.cpp b12110 (v0.9.0) — 2026-11-05
+
+Release test binaries from one source tree ran on GPUs rented on vast.ai, on
+Ubuntu 24.04 with the `nvidia/cuda:12.8.1-base-ubuntu24.04` image. Every library
+was a fresh download.
+
+| GPU (compute capability) | Driver (CUDA) | Selected build | Libraries | Result |
+| --- | --- | --- | --- | --- |
+| RTX 3060 (8.6) | 615.71.09 (13.4) | 13.4 | companion | Runtime test passed; 25/25 layers on the GPU; ready in 23.6 s |
+| Titan Xp (6.1) | 580.173.02 (13.0) | 12.8 | companion | Runtime test passed; 25/25 layers on the GPU; first reply 40.1 s while the driver compiled kernels, next load 1.2 s |
+
+On both machines, chat, JSON-schema output, a tool call and `/completion` worked
+with `--log-verbosity 4`, and a marker word in prompts stayed out of the log.
+Starting from an older CUDA folder under Automatic, the update path chose Vulkan
+on the real GPU and removed that folder. The Vulkan runtime test also passed on
+the RTX 3060.
+
+Prompt reading and generation on the RTX 3060 with the CUDA 13.4 builds, about
+1,600 prompt tokens and 128 generated tokens, three alternating runs, medians:
+
+| Model | Prefill b11669 → b12110 (tok/s) | Decode b11669 → b12110 (tok/s) |
+| --- | ---: | ---: |
+| Gemma 4 E2B Q6_K | 4,146 → 4,556 | 100 → 106 |
+| Qwen3.5 0.8B Q4_K_M | 9,582 → 9,995 | 221 → 242 |
+
+`autocomplete_eval` with LFM2.5 1.2B, one run per backend, including the 160 ms
+debounce: CUDA p50 222 ms and p95 272 ms, Vulkan p50 362 ms and p95 2,371 ms, with
+19 of 20 suggestions on both. CUDA on Windows, the CUDA 12.4 build and system-library
+reuse were not exercised on this build.
+
 ## Build selection, native Windows and backend fallback — 2026-10-22
 
 The review fixes add a CUDA 12 build (12.8 on Linux, 12.4 on Windows) next to

@@ -3,19 +3,17 @@ import XCTest
 
 @MainActor
 final class LocalLlamaCotypingEngineTests: XCTestCase {
+    /// The compact fallback model from the local cache or
+    /// `LOKALBOT_COTYPING_TEST_MODEL`, never the checkout (see
+    /// `LlamaCotypingRuntimeTests`).
     private func bundledModelPath() throws -> String {
         let entry = ModelCatalog.entry(id: ModelCatalog.compactFallbackID)!
         guard let url = ModelCatalog.localURL(for: entry, storage: StorageManager()) else {
-            let repoRoot = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-            let vendorURL = repoRoot
-                .appendingPathComponent("Vendor/llama-models")
-                .appendingPathComponent(entry.fileName)
-            guard ModelFileValidator.looksLikeGGUF(vendorURL) else {
-                throw XCTSkip("Compact fallback model not present; skipping engine integration test.")
+            guard let path = ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_TEST_MODEL"],
+                  ModelFileValidator.looksLikeGGUF(URL(fileURLWithPath: path)) else {
+                throw XCTSkip("Set LOKALBOT_COTYPING_TEST_MODEL to \(entry.fileName) to run this engine integration test.")
             }
-            return vendorURL.path
+            return path
         }
         return url.path
     }

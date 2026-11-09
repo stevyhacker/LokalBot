@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Best Open-Source AI Assistants You Can Run Locally (2026)</title>
+  <meta name="description" content="Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared: memory, document chat, licenses, platforms, and install links, with our own screenshots." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/best-open-source-ai-assistants" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/best-open-source-ai-assistants" />
+  <meta property="og:title" content="Best Open-Source AI Assistants You Can Run Locally (2026)" />
+  <meta property="og:description" content="Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared: memory, document chat, licenses, platforms, and install links, with our own screenshots." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Best Open-Source AI Assistants You Can Run Locally (2026)" />
+  <meta name="twitter:description" content="Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared: memory, document chat, licenses, platforms, and install links, with our own screenshots." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"The best open-source AI assistants you can run locally","description":"Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared: memory, document chat, licenses, platforms, and install links, with our own screenshots.","datePublished":"2026-11-09","dateModified":"2026-11-09","mainEntityOfPage":"https://www.lokalbot.com/best-open-source-ai-assistants","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"The best open-source AI assistants you can run locally","item":"https://www.lokalbot.com/best-open-source-ai-assistants"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/best-open-source-ai-assistants#faq","mainEntity":[{"@type":"Question","name":"What is the best local AI assistant?","acceptedAnswer":{"@type":"Answer","text":"It depends on the job. For a private ChatGPT-style chat, Jan (open source) or LM Studio (more polished, but closed source). To run models for other apps and agents, Ollama. To ask questions across your documents, AnythingLLM. For one web app shared by a household or team, Open WebUI. For an assistant that remembers your meetings and what you saw on screen, LokalBot."}},{"@type":"Question","name":"Which local AI assistant has memory like ChatGPT?","acceptedAnswer":{"@type":"Answer","text":"Open WebUI has a Memory feature, marked experimental, where you or the model can save facts about you. AnythingLLM has Memories, off by default, which it extracts from recent chats every three hours. LokalBot remembers your meetings and, if you turn it on, your screen, and learns facts and preferences from your own words. Ollama and LM Studio have no memory, and Jan lists it as coming soon."}},{"@type":"Question","name":"Is LM Studio open source?","acceptedAnswer":{"@type":"Answer","text":"No. The LM Studio app is proprietary, though free for home and work since July 2025. Its lms command-line tool, its SDKs, and its MLX engine are open source under the MIT license."}},{"@type":"Question","name":"Is Open WebUI still open source?","acceptedAnswer":{"@type":"Answer","text":"Its code is public, but since version 0.6.6 (April 2025) it uses the Open WebUI License, which adds a branding clause to BSD-3 terms. Its own documentation says it is not an OSI-approved open-source license. Code up to version 0.6.5 remains BSD-3."}},{"@type":"Question","name":"Do I need a GPU to run a local AI assistant?","acceptedAnswer":{"@type":"Answer","text":"No. Our test machine had none, and a 4B model answered at about 12 to 20 tokens a second on an 8-core CPU, which is readable but not fast. A recent GPU or an Apple Silicon Mac is much faster and can run larger, more capable models."}},{"@type":"Question","name":"Can these assistants work completely offline?","acceptedAnswer":{"@type":"Answer","text":"Yes, once the app and a model are downloaded, local chat works offline in all six. Some features use the network by default: Ollama's cloud models and web search, Jan's web search, AnythingLLM's anonymous telemetry, and update checks in most apps. Each app's section on this page says what to switch off."}}]},{"@type":"ItemList","@id":"https://www.lokalbot.com/best-open-source-ai-assistants#apps","name":"Open-source AI assistants compared","numberOfItems":6,"itemListElement":[{"@type":"ListItem","position":1,"url":"https://www.lokalbot.com/best-open-source-ai-assistants#ollama","item":{"@type":"SoftwareApplication","name":"Ollama","url":"https://ollama.com/","operatingSystem":"macOS, Windows, Linux","license":"https://github.com/ollama/ollama/blob/main/LICENSE","applicationCategory":"UtilitiesApplication"}},{"@type":"ListItem","position":2,"url":"https://www.lokalbot.com/best-open-source-ai-assistants#lm-studio","item":{"@type":"SoftwareApplication","name":"LM Studio","url":"https://lmstudio.ai/","operatingSystem":"macOS, Windows, Linux","license":"https://lmstudio.ai/app-terms","applicationCategory":"UtilitiesApplication"}},{"@type":"ListItem","position":3,"url":"https://www.lokalbot.com/best-open-source-ai-assistants#jan","item":{"@type":"SoftwareApplication","name":"Jan","url":"https://www.jan.ai/","operatingSystem":"macOS, Windows, Linux","license":"https://github.com/janhq/jan/blob/main/LICENSE","applicationCategory":"UtilitiesApplication"}},{"@type":"ListItem","position":4,"url":"https://www.lokalbot.com/best-open-source-ai-assistants#anythingllm","item":{"@type":"SoftwareApplication","name":"AnythingLLM","url":"https://anythingllm.com/","operatingSystem":"macOS, Windows, Linux, Android","license":"https://github.com/Mintplex-Labs/anything-llm/blob/master/LICENSE","applicationCategory":"UtilitiesApplication"}},{"@type":"ListItem","position":5,"url":"https://www.lokalbot.com/best-open-source-ai-assistants#open-webui","item":{"@type":"SoftwareApplication","name":"Open WebUI","url":"https://openwebui.com/","operatingSystem":"Any (Docker or Python); macOS, Windows, Linux desktop app","license":"https://github.com/open-webui/open-webui/blob/main/LICENSE","applicationCategory":"UtilitiesApplication"}},{"@type":"ListItem","position":6,"url":"https://www.lokalbot.com/best-open-source-ai-assistants#lokalbot","item":{"@id":"https://www.lokalbot.com/#software"}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#guide">Skip to guide</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+  </header>
+
+  <main class="guide-page" id="guide">
+    <header class="guide-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Compare</span></nav>
+      <p class="eyebrow">Compare</p>
+      <h1>The best open-source AI assistants you can run locally</h1>
+      <p class="guide-hero__lead">Six private ChatGPT alternatives that run on your own computer, compared honestly: what each one is for, what it remembers about you, how it's licensed, and how to install it.</p>
+      <p class="guide-byline"><time datetime="2026-11-09">Updated November 9, 2026</time> · 12 min read</p>
+    </header>
+
+    <article class="guide-article">
+<p class="blog-note"><strong>Disclosure:</strong> LokalBot is our app. To keep this fair, we installed the latest release of every app on November 9, 2026, took every screenshot ourselves, and checked each claim against the project's own site, docs, license, and release notes, listed at the end. Nobody paid to be included. We re-check the page every month; if something is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">tell us on GitHub</a>.</p>
+
+        <h2 id="short-answer">The short answer</h2>
+        <p>These six tools all run AI on your own computer, but they do different jobs. Pick by what you want to do:</p>
+        <ul>
+          <li><strong>A private ChatGPT-style chat app:</strong> <a href="#jan">Jan</a> is open source and sets itself up in a few clicks. <a href="#lm-studio">LM Studio</a> is more polished, but its app is closed source.</li>
+          <li><strong>Models for other apps, scripts, and coding agents:</strong> <a href="#ollama">Ollama</a>.</li>
+          <li><strong>Answers from your documents:</strong> <a href="#anythingllm">AnythingLLM</a>.</li>
+          <li><strong>One ChatGPT-like web app for your household or team:</strong> <a href="#open-webui">Open WebUI</a>, running on top of Ollama. Read its license first if you plan to rebrand it.</li>
+          <li><strong>An assistant that remembers your actual work, from meetings to what you saw on screen:</strong> <a href="#lokalbot">LokalBot</a>, our app.</li>
+        </ul>
+        <p>They also work together. Most of them can use a model that Ollama or LM Studio is already serving, so you don't have to choose just one.</p>
+
+        <h2 id="at-a-glance">At a glance</h2>
+        <p>Checked on November 9, 2026. Every app is free to use on your own computer.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table guide-table--wide">
+            <thead><tr><th scope="col">App</th><th scope="col">Best for</th><th scope="col">Runs models itself</th><th scope="col">Remembers you across chats</th><th scope="col">Chat with your files</th><th scope="col">License</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><a href="#ollama">Ollama</a></th><td>Running models for other apps and agents</td><td>Yes</td><td>No</td><td>Attaches a file's text to the prompt</td><td>MIT</td></tr>
+              <tr><th scope="row"><a href="#lm-studio">LM Studio</a></th><td>Trying models in a polished app</td><td>Yes</td><td>No</td><td>PDF, Word, and text files</td><td>Proprietary, free</td></tr>
+              <tr><th scope="row"><a href="#jan">Jan</a></th><td>A simple private chat app</td><td>Yes</td><td>Not yet (“coming soon”)</td><td>Yes, with citations</td><td>Apache 2.0</td></tr>
+              <tr><th scope="row"><a href="#anythingllm">AnythingLLM</a></th><td>Chatting with documents</td><td>Yes, in the desktop app</td><td>Optional, off by default</td><td>Yes, workspaces with sources</td><td>MIT</td></tr>
+              <tr><th scope="row"><a href="#open-webui">Open WebUI</a></th><td>A shared web app for a household or team</td><td>No, connects to Ollama or an API</td><td>Yes, marked experimental</td><td>Yes, knowledge bases with citations</td><td>Open WebUI License (not OSI)</td></tr>
+              <tr><th scope="row"><a href="#lokalbot">LokalBot</a></th><td>Remembering your meetings and screen</td><td>Yes, built in</td><td>Yes, learns from your own words</td><td>Searches folders you choose</td><td>GPLv3</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="memory">Which one is a ChatGPT alternative with memory?</h2>
+        <p>ChatGPT can remember details you share and use them in later chats. Of these six, three remember something about you, and they do it in very different ways:</p>
+        <ul>
+          <li><strong>Open WebUI</strong> keeps memories under Settings → Personalization → Memory, marked Experimental. You can add them yourself, and with native tool calling the model can save them on its own. In our test with Qwen3.5 4B on Ollama, “Remember that I am vegetarian” got a friendly “I've noted that,” but nothing was saved. Memories we added by hand were used in the next chat. Its docs warn that memory works best with capable models.</li>
+          <li><strong>AnythingLLM</strong> added Memories &amp; Personalization in May 2026. It's off by default. Once you turn it on, a background job reads recent chats every three hours and keeps up to 5 memories about you plus 20 per workspace, which you can edit. It needs a model that supports tool calling.</li>
+          <li><strong>LokalBot</strong> remembers your work rather than your chats: meeting transcripts, notes, and decisions, and, if you turn it on, what you saw on screen. Its Personal Context is an encrypted list of facts, preferences, and goals. It learns them overnight from your own words in meetings, never other speakers', or when you say “Remember …” in Ask. Every learned item shows the line it came from, and preferences wait for you to keep or dismiss them. Learning is on by default and one switch stops it.</li>
+          <li><strong>Jan</strong> lists memory as coming soon. Its projects share instructions and files across chats today.</li>
+          <li><strong>Ollama</strong> and <strong>LM Studio</strong> don't remember anything between chats.</li>
+        </ul>
+        <p>Before you trust any assistant with memory, check what it saves, whether you can see and delete each item, and which model reads it. All of these keep memories on your own computer, but if you connect a cloud model, that model sees them too.</p>
+
+        <h2 id="the-apps">The six apps, one by one</h2>
+        <p>In order from model runners to chat apps, with LokalBot last.</p>
+
+        <section class="tool" id="ollama" aria-labelledby="ollama-title">
+          <h3 id="ollama-title">Ollama</h3>
+          <p class="tool-tagline">The model runner other apps build on</p>
+          <figure class="blog-figure">
+            <a href="assets/compare/ai-assistants/ollama.webp" target="_blank" rel="noopener"><img src="assets/compare/ai-assistants/ollama.webp" width="1600" height="1000" alt="A terminal running Ollama 0.40.15 on Linux: ollama list shows qwen3.5:4b, then ollama run answers a question about bread." loading="lazy" decoding="async" /></a>
+            <figcaption>Real output from Ollama 0.40.15's command line on Linux, answering with Qwen3.5 4B on the CPU. On macOS and Windows, Ollama also has a chat window.</figcaption>
+          </figure>
+          <p>With about 186,000 GitHub stars, Ollama is the best-known way to run open models on your own computer. One command downloads a model and runs it, and a local API that speaks the OpenAI and Anthropic formats serves it to other apps. That API is why so many tools in this list, LokalBot included, can use Ollama as their engine. On macOS and Windows it also has a simple chat app with chat history, file attachments, and a thinking switch. On Linux it is command line only.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Running models for other apps, scripts, and coding agents.</li>
+            <li>A dependable local API with one-command model downloads.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>No memory between chats, and attached files are pasted into the prompt rather than indexed, so long files get cut off. Unless your GPU has 24 GB or more, the default context is 4,096 tokens.</li>
+            <li>Cloud models and web search are on by default, and using them needs an Ollama account. Set <code>OLLAMA_NO_CLOUD=1</code> to turn them off.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>Latest release</dt><dd>0.40.15, November 3, 2026</dd>
+            <dt>License</dt><dd><a href="https://github.com/ollama/ollama/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>, app included</dd>
+            <dt>Runs on</dt><dd>macOS 14+, Windows 10+, Linux (command line only), Docker</dd>
+            <dt>Price</dt><dd>Free on your own hardware; optional cloud plans from $20 a month</dd>
+            <dt>Source</dt><dd><a href="https://github.com/ollama/ollama" target="_blank" rel="noopener">github.com/ollama/ollama</a> · about 186k stars</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://github.com/ollama/ollama/releases" target="_blank" rel="noopener">Releases on GitHub <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <pre class="code" aria-label="Install Ollama"><span class="c-op"># macOS and Linux</span>
+<span class="c-prompt">$</span> curl -fsSL https://ollama.com/install.sh | sh
+<span class="c-op"># then download and chat with a model</span>
+<span class="c-prompt">$</span> ollama run qwen3.5:4b</pre>
+        </section>
+
+        <section class="tool" id="lm-studio" aria-labelledby="lm-studio-title">
+          <h3 id="lm-studio-title">LM Studio</h3>
+          <p class="tool-tagline">The polished desktop app for trying models</p>
+          <figure class="blog-figure">
+            <a href="assets/compare/ai-assistants/lm-studio.webp" target="_blank" rel="noopener"><img src="assets/compare/ai-assistants/lm-studio.webp" width="1600" height="1000" alt="LM Studio 0.4.28 chat window with Gemma 4 E4B explaining in three paragraphs how a heat pump heats a house, after 13.9 seconds of reasoning." loading="lazy" decoding="async" /></a>
+            <figcaption>LM Studio 0.4.28 on Linux with Gemma 4 E4B, the model it suggests on first run, answering with reasoning on.</figcaption>
+          </figure>
+          <p>LM Studio is a desktop app for finding, downloading, and running models from Hugging Face. It has a clean chat window, chat with documents, MCP tools, and a local server that speaks the OpenAI and Anthropic formats. It runs llama.cpp everywhere and Apple's MLX on Apple Silicon. Of the apps here, it's the nicest for trying and comparing models.</p><p><strong>It is not open source.</strong> The app is proprietary, though free for home and work since July 2025. Its <code>lms</code> command-line tool, SDKs, and MLX engine are MIT-licensed. We include it because it's one of the most common answers to “how do I run AI locally?”</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Trying and comparing models from Hugging Face.</li>
+            <li>Serving a model to other apps from a desktop app instead of the command line.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Closed source, and it remembers nothing between chats: its docs say the model only knows what's in the chat or the system prompt.</li>
+            <li>Document chat reads PDF, Word, and text files. Voice input and web search aren't in LM Studio; the company's new agent app, LM Studio Bionic, has them, partly on paid plans.</li>
+            <li>Intel Macs aren't supported.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>Latest release</dt><dd>0.4.28, October 31, 2026</dd>
+            <dt>License</dt><dd>Proprietary (<a href="https://lmstudio.ai/app-terms" target="_blank" rel="noopener">app terms</a>), free for home and work; CLI and SDKs MIT</dd>
+            <dt>Runs on</dt><dd>macOS 14+ on Apple Silicon, Windows (x64 and Arm), Linux (x64 and Arm AppImage)</dd>
+            <dt>Price</dt><dd>Free</dd>
+            <dt>Source</dt><dd>App not public; <a href="https://github.com/lmstudio-ai" target="_blank" rel="noopener">CLI and SDKs on GitHub</a></dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://lmstudio.ai/download" target="_blank" rel="noopener">Download LM Studio <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://lmstudio.ai/docs/app" target="_blank" rel="noopener">Documentation <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <section class="tool" id="jan" aria-labelledby="jan-title">
+          <h3 id="jan-title">Jan</h3>
+          <p class="tool-tagline">The open-source ChatGPT-style desktop app</p>
+          <figure class="blog-figure">
+            <a href="assets/compare/ai-assistants/jan.webp" target="_blank" rel="noopener"><img src="assets/compare/ai-assistants/jan.webp" width="1600" height="1000" alt="Jan 0.8.8 chat window with Jan-v3.5-4B writing a friendly note asking a neighbour to water tomatoes, generated at 16 tokens per second." loading="lazy" decoding="async" /></a>
+            <figcaption>Jan 0.8.8 on Linux with Jan-v3.5-4B, the model it downloads during setup, writing at 16 tokens a second on the CPU.</figcaption>
+          </figure>
+          <p>Jan is the open-source app that feels closest to ChatGPT: install it, let it download a recommended model, and start typing. It bundles llama.cpp, can also use cloud models with your own API keys, and has projects, chat with files with citations, MCP tools, web search, and an OpenAI-compatible local server. Analytics stay off unless you allow them during setup.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>A simple, open-source private chat app.</li>
+            <li>Using local and cloud models side by side in one window.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>No memory yet: Jan's site lists it as “coming soon”. Projects share instructions and files across chats in the meantime.</li>
+            <li>Web search is on by default and sends your query to Exa when the model decides to search. On Intel Macs, Jan only works with cloud models.</li>
+            <li>Jan published 11 security advisories on October 29, 2026, two of them critical. Use version 0.8.8 or later.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>Latest release</dt><dd>0.8.8, October 28, 2026</dd>
+            <dt>License</dt><dd><a href="https://github.com/janhq/jan/blob/main/LICENSE" target="_blank" rel="noopener">Apache 2.0</a> since May 2025 (AGPLv3 before)</dd>
+            <dt>Runs on</dt><dd>macOS 13.6+ (Apple Silicon for local models), Windows 10+, Linux (x64)</dd>
+            <dt>Price</dt><dd>Free</dd>
+            <dt>Source</dt><dd><a href="https://github.com/janhq/jan" target="_blank" rel="noopener">github.com/janhq/jan</a> · about 45.6k stars</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://www.jan.ai/download" target="_blank" rel="noopener">Download Jan <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://github.com/janhq/jan/releases" target="_blank" rel="noopener">Releases on GitHub <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <pre class="code" aria-label="Install Jan"><span class="c-op"># Linux, from Flathub</span>
+<span class="c-prompt">$</span> flatpak install flathub ai.jan.Jan</pre>
+        </section>
+
+        <section class="tool" id="anythingllm" aria-labelledby="anythingllm-title">
+          <h3 id="anythingllm-title">AnythingLLM</h3>
+          <p class="tool-tagline">The app for chatting with your documents</p>
+          <figure class="blog-figure">
+            <a href="assets/compare/ai-assistants/anythingllm.webp" target="_blank" rel="noopener"><img src="assets/compare/ai-assistants/anythingllm.webp" width="1600" height="1000" alt="AnythingLLM workspace called Community garden answering “What happens if I miss a watering shift?” from an uploaded handbook PDF: a €10 contribution to the seed fund unless you arrange a swap, with the source listed." loading="lazy" decoding="async" /></a>
+            <figcaption>AnythingLLM 1.19 answering from a sample handbook PDF in a workspace, with the source listed under the answer. Qwen3.5 4B on Ollama.</figcaption>
+          </figure>
+          <p>AnythingLLM is built around workspaces of documents. Add PDFs, Word files, spreadsheets, web pages, or a GitHub repository, then ask questions and see the sources under each answer. It also has agents that browse the web and run scheduled jobs, MCP tools, voice input, and, in the desktop app for macOS and Windows, a meeting assistant that transcribes calls on your computer. The desktop app is single-user and has its own llama.cpp engine. The Docker version adds user accounts and an embeddable chat widget.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Asking questions across a pile of documents, with sources.</li>
+            <li>Small teams sharing document workspaces on one server.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Anonymous usage telemetry is on by default. Turn it off under Privacy, or with <code>DISABLE_TELEMETRY=true</code> on Docker.</li>
+            <li>Some desktop features, such as the meeting assistant and the Magic dictation and autocomplete tools, aren't in the public repository, and unlimited use of the Magic tools needs a paid Pro license.</li>
+            <li>Agent web search goes to You.com by default.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>Latest release</dt><dd>1.19.0, October 26, 2026</dd>
+            <dt>License</dt><dd><a href="https://github.com/Mintplex-Labs/anything-llm/blob/master/LICENSE" target="_blank" rel="noopener">MIT</a></dd>
+            <dt>Runs on</dt><dd>macOS, Windows, Linux (AppImage), Docker; an Android app</dd>
+            <dt>Price</dt><dd>Free; hosted cloud from $50 a month</dd>
+            <dt>Source</dt><dd><a href="https://github.com/Mintplex-Labs/anything-llm" target="_blank" rel="noopener">github.com/Mintplex-Labs/anything-llm</a> · about 68k stars</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://anythingllm.com/download" target="_blank" rel="noopener">Download AnythingLLM <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://docs.anythingllm.com/installation-docker/local-docker" target="_blank" rel="noopener">Docker guide <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <pre class="code" aria-label="Install AnythingLLM"><span class="c-op"># Docker, for several users; then open http://localhost:3001</span>
+<span class="c-prompt">$</span> export STORAGE_LOCATION=$HOME/anythingllm &amp;&amp; mkdir -p $STORAGE_LOCATION &amp;&amp; touch &quot;$STORAGE_LOCATION/.env&quot;
+<span class="c-prompt">$</span> docker run -d -p 3001:3001 --cap-add SYS_ADMIN \
+  -v ${STORAGE_LOCATION}:/app/server/storage \
+  -v ${STORAGE_LOCATION}/.env:/app/server/.env \
+  -e STORAGE_DIR=&quot;/app/server/storage&quot; mintplexlabs/anythingllm</pre>
+        </section>
+
+        <section class="tool" id="open-webui" aria-labelledby="open-webui-title">
+          <h3 id="open-webui-title">Open WebUI</h3>
+          <p class="tool-tagline">The self-hosted ChatGPT for a household or team</p>
+          <figure class="blog-figure">
+            <a href="assets/compare/ai-assistants/open-webui.webp" target="_blank" rel="noopener"><img src="assets/compare/ai-assistants/open-webui.webp" width="1600" height="1000" alt="Open WebUI 0.13.3 in a browser answering “What should I cook for dinner tonight?” with vegetarian ideas, using two saved memories: vegetarian, and living in Bar, Montenegro." loading="lazy" decoding="async" /></a>
+            <figcaption>Open WebUI 0.13.3 in a browser, connected to Ollama. The answer uses two memories we added under Settings → Personalization → Memory.</figcaption>
+          </figure>
+          <p>Open WebUI is a self-hosted, ChatGPT-style web app. You run it as a server with Docker or Python, connect it to Ollama or any OpenAI-compatible API, and open it in a browser on any device, including as an installable app on your phone. It has the longest feature list here: accounts and groups, knowledge bases with citations, web search, memory, voice calls with local Whisper transcription, image generation, tools, and MCP.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>One private ChatGPT-like web app for several people.</li>
+            <li>Power users who want every feature and don't mind running a server.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>It doesn't run models itself; you need Ollama or another server beside it. A new desktop app (0.1.4, AGPLv3) can run both on one computer.</li>
+            <li>Since version 0.6.6 (April 2025) the Open WebUI License adds a branding clause to BSD-3 terms: above 50 users you may not remove the Open WebUI branding without an enterprise license. Its own docs say it is not an OSI-approved open-source license.</li>
+            <li>It's a server to keep updated: there were four releases between November 3 and 8, 2026, and security fixes ship often. With a small model, its built-in tools can pull answers off topic.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>Latest release</dt><dd>0.13.3, November 8, 2026</dd>
+            <dt>License</dt><dd><a href="https://github.com/open-webui/open-webui/blob/main/LICENSE" target="_blank" rel="noopener">Open WebUI License</a> (BSD-3 plus a branding clause)</dd>
+            <dt>Runs on</dt><dd>Any OS with Docker or Python 3.11–3.12; a desktop app for macOS, Windows, and Linux</dd>
+            <dt>Price</dt><dd>Free; enterprise license for rebranding and support</dd>
+            <dt>Source</dt><dd><a href="https://github.com/open-webui/open-webui" target="_blank" rel="noopener">github.com/open-webui/open-webui</a> · about 158k stars</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://docs.openwebui.com/getting-started/quick-start" target="_blank" rel="noopener">Quick start <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://github.com/open-webui/open-webui/releases" target="_blank" rel="noopener">Releases on GitHub <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <pre class="code" aria-label="Install Open WebUI"><span class="c-op"># Docker, with Ollama on the same computer; then open http://localhost:3000</span>
+<span class="c-prompt">$</span> docker run -d -p 3000:8080 --add-host=host.docker.internal:host-gateway \
+  -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+<span class="c-op"># or with Python 3.11 or 3.12</span>
+<span class="c-prompt">$</span> pip install open-webui &amp;&amp; open-webui serve</pre>
+        </section>
+
+        <section class="tool" id="lokalbot" aria-labelledby="lokalbot-title">
+          <h3 id="lokalbot-title">LokalBot</h3>
+          <p class="tool-tagline">Our app: an assistant that remembers your work</p>
+          <figure class="blog-figure">
+            <a href="assets/compare/ai-assistants/lokalbot.webp" target="_blank" rel="noopener"><picture><source srcset="assets/compare/ai-assistants/lokalbot-dark.webp" media="(prefers-color-scheme: dark)" width="1600" height="1000" /><img src="assets/compare/ai-assistants/lokalbot.webp" width="1600" height="1000" alt="LokalBot&#x27;s Quick Recall searching for “demo pres”: it finds a Keynote deck and a Mail reply seen on screen, and two meetings where the demo presentation came up." loading="lazy" decoding="async" /></picture></a>
+            <figcaption>LokalBot's Quick Recall on a Mac, with fictional demo data: one search finds a Keynote deck and a Mail reply you saw on screen, and two meetings where it came up.</figcaption>
+          </figure>
+          <p>LokalBot is our app, and it's a different kind of assistant. Instead of starting from an empty chat, it builds a memory of your work. It records meetings without a bot joining, transcribes and summarizes them on your computer, and, if you turn it on, keeps the text of what you saw on screen. Ask a question and the answer cites the meeting or screen moment it came from. It also has dictation, autocomplete in other apps, a search of folders you choose, and a read-only MCP server, off until you turn it on, so Claude Code or Codex can search your library. Its models are built in; you can also point it at Ollama or another OpenAI-compatible server.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Remembering what was said and decided in meetings, and finding something you saw.</li>
+            <li>Giving coding agents your context, read-only.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>It isn't a general chat app for trying models; pair it with one of the apps above for that.</li>
+            <li>Recording needs your colleagues' consent, and screen memory and dictation need system permissions.</li>
+            <li>It's best on a Mac. The Windows and Linux app is in alpha, and LokalBot is a small project built by one developer.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>Latest release</dt><dd>0.12.2, November 5, 2026</dd>
+            <dt>License</dt><dd><a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSE" target="_blank" rel="noopener">GPLv3</a></dd>
+            <dt>Runs on</dt><dd>macOS 15+ on Apple Silicon; Windows 10/11 and Linux in alpha (<a href="system-requirements">requirements</a>)</dd>
+            <dt>Price</dt><dd>Free, no account</dd>
+            <dt>Source</dt><dd><a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">github.com/stevyhacker/lokalbot</a> · 91 stars</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download LokalBot <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">Star on GitHub <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <pre class="code" aria-label="Install LokalBot"><span class="c-op"># Mac, with Homebrew</span>
+<span class="c-prompt">$</span> brew install --cask stevyhacker/tap/lokalbot</pre>
+        </section>
+
+        <h2 id="together">Use them together</h2>
+        <p>A common setup is one app that runs the model and another that you talk to:</p>
+        <ul>
+          <li><strong>Open WebUI and AnythingLLM</strong> both connect to Ollama out of the box, and to LM Studio's server as an OpenAI-compatible API.</li>
+          <li><strong>Jan</strong> can add Ollama or LM Studio as a custom OpenAI-compatible provider.</li>
+          <li><strong>LokalBot</strong> can use Ollama or any OpenAI-compatible server, such as LM Studio's or Jan's, in Settings → Models. A server on another computer has to be approved before it receives any of your context.</li>
+        </ul>
+
+        <h2 id="how-we-tested">How we tested</h2>
+        <p>On November 9, 2026, we installed the latest release of each app on a Linux test machine with an 8-core AMD Ryzen 7 9700X, 64 GB of memory, and no GPU, so every model ran on the CPU. LM Studio and Jan used the model each one suggests on first run: Gemma 4 E4B and Jan-v3.5-4B. Open WebUI and AnythingLLM used Qwen3.5 4B served by Ollama, as did Ollama itself. We kept each app's default settings, except that we declined Jan's analytics prompt and added two memories in Open WebUI by hand. In Open WebUI, the 4B model kept reaching for the built-in automation tools, and with thinking on it once thought for four minutes without answering, so the screenshot's chat uses Legacy tool calling with thinking off. LokalBot's screenshot comes from its Mac app with fictional demo data. The handbook and the questions are made up too.</p>
+        <p>A 4B model on a CPU is a modest setup: answers arrived at about 12 to 20 tokens a second. With a GPU or an Apple Silicon Mac, every one of these apps is faster and can run larger models, which also follow instructions and use memory more reliably.</p>
+
+        <h2 id="updates">Update log</h2>
+        <ul>
+          <li><time datetime="2026-11-09">November 9, 2026</time>: First published. Checked Ollama 0.40.15, LM Studio 0.4.28, Jan 0.8.8, AnythingLLM 1.19.0, Open WebUI 0.13.3, and LokalBot 0.12.2.</li>
+        </ul>
+
+        <h2 id="sources">Sources</h2>
+        <p>Each project's own pages, checked on November 9, 2026:</p>
+        <ul class="source-list">
+          <li><strong>Ollama:</strong> <a href="https://github.com/ollama/ollama/releases" target="_blank" rel="noopener">github.com/ollama/ollama/releases</a>, <a href="https://docs.ollama.com/faq" target="_blank" rel="noopener">docs.ollama.com/faq</a>, <a href="https://docs.ollama.com/context-length" target="_blank" rel="noopener">docs.ollama.com/context-length</a>, <a href="https://ollama.com/pricing" target="_blank" rel="noopener">ollama.com/pricing</a></li>
+          <li><strong>LM Studio:</strong> <a href="https://lmstudio.ai/changelog/lmstudio" target="_blank" rel="noopener">lmstudio.ai/changelog/lmstudio</a>, <a href="https://lmstudio.ai/app-terms" target="_blank" rel="noopener">lmstudio.ai/app-terms</a>, <a href="https://lmstudio.ai/blog/free-for-work" target="_blank" rel="noopener">lmstudio.ai/blog/free-for-work</a>, <a href="https://lmstudio.ai/docs/app/system-requirements" target="_blank" rel="noopener">lmstudio.ai/docs/app/system-requirements</a>, <a href="https://lmstudio.ai/docs/app/basics/chat" target="_blank" rel="noopener">lmstudio.ai/docs/app/basics/chat</a>, <a href="https://lmstudio.ai/docs/app/basics/rag" target="_blank" rel="noopener">lmstudio.ai/docs/app/basics/rag</a></li>
+          <li><strong>Jan:</strong> <a href="https://github.com/janhq/jan/releases" target="_blank" rel="noopener">github.com/janhq/jan/releases</a>, <a href="https://jan.ai/" target="_blank" rel="noopener">jan.ai/</a>, <a href="https://docs.jan.ai/desktop/privacy" target="_blank" rel="noopener">docs.jan.ai/desktop/privacy</a>, <a href="https://docs.jan.ai/desktop/web-search" target="_blank" rel="noopener">docs.jan.ai/desktop/web-search</a>, <a href="https://github.com/janhq/jan/security/advisories" target="_blank" rel="noopener">github.com/janhq/jan/security/advisories</a></li>
+          <li><strong>AnythingLLM:</strong> <a href="https://github.com/Mintplex-Labs/anything-llm/releases" target="_blank" rel="noopener">github.com/Mintplex-Labs/anything-llm/releases</a>, <a href="https://docs.anythingllm.com/installation-docker/overview" target="_blank" rel="noopener">docs.anythingllm.com/installation-docker/overview</a>, <a href="https://docs.anythingllm.com/features/memories" target="_blank" rel="noopener">docs.anythingllm.com/features/memories</a>, <a href="https://github.com/Mintplex-Labs/anything-llm#telemetry--privacy" target="_blank" rel="noopener">github.com/Mintplex-Labs/anything-llm#telemetry--privacy</a>, <a href="https://anythingllm.com/cloud" target="_blank" rel="noopener">anythingllm.com/cloud</a></li>
+          <li><strong>Open WebUI:</strong> <a href="https://github.com/open-webui/open-webui/releases" target="_blank" rel="noopener">github.com/open-webui/open-webui/releases</a>, <a href="https://docs.openwebui.com/license" target="_blank" rel="noopener">docs.openwebui.com/license</a>, <a href="https://docs.openwebui.com/features/chat-conversations/memory" target="_blank" rel="noopener">docs.openwebui.com/features/chat-conversations/memory</a>, <a href="https://docs.openwebui.com/getting-started/quick-start" target="_blank" rel="noopener">docs.openwebui.com/getting-started/quick-start</a>, <a href="https://github.com/open-webui/desktop/releases" target="_blank" rel="noopener">github.com/open-webui/desktop/releases</a></li>
+        </ul>
+        <p>LokalBot's facts come from its <a href="https://github.com/stevyhacker/lokalbot#readme" target="_blank" rel="noopener">README</a> and <a href="privacy">privacy policy</a>. If this comparison helped you, a <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">star on GitHub</a> is how other people find LokalBot. Trademarks belong to their owners.</p>
+    </article>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Questions about this guide</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>What is the best local AI assistant?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>It depends on the job. For a private ChatGPT-style chat, Jan (open source) or LM Studio (more polished, but closed source). To run models for other apps and agents, Ollama. To ask questions across your documents, AnythingLLM. For one web app shared by a household or team, Open WebUI. For an assistant that remembers your meetings and what you saw on screen, LokalBot.</p>
+        </details>
+        <details class="qa">
+          <summary>Which local AI assistant has memory like ChatGPT?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Open WebUI has a Memory feature, marked experimental, where you or the model can save facts about you. AnythingLLM has Memories, off by default, which it extracts from recent chats every three hours. LokalBot remembers your meetings and, if you turn it on, your screen, and learns facts and preferences from your own words. Ollama and LM Studio have no memory, and Jan lists it as coming soon.</p>
+        </details>
+        <details class="qa">
+          <summary>Is LM Studio open source?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. The LM Studio app is proprietary, though free for home and work since July 2025. Its lms command-line tool, its SDKs, and its MLX engine are open source under the MIT license.</p>
+        </details>
+        <details class="qa">
+          <summary>Is Open WebUI still open source?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Its code is public, but since version 0.6.6 (April 2025) it uses the Open WebUI License, which adds a branding clause to BSD-3 terms. Its own documentation says it is not an OSI-approved open-source license. Code up to version 0.6.5 remains BSD-3.</p>
+        </details>
+        <details class="qa">
+          <summary>Do I need a GPU to run a local AI assistant?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. Our test machine had none, and a 4B model answered at about 12 to 20 tokens a second on an 8-core CPU, which is readable but not fast. A recent GPU or an Apple Silicon Mac is much faster and can run larger, more capable models.</p>
+        </details>
+        <details class="qa">
+          <summary>Can these assistants work completely offline?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes, once the app and a model are downloaded, local chat works offline in all six. Some features use the network by default: Ollama's cloud models and web search, Jan's web search, AnythingLLM's anonymous telemetry, and update checks in most apps. Each app's section on this page says what to switch off.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="guide-related" aria-labelledby="related-title">
+      <p class="eyebrow">Keep reading</p>
+      <h2 id="related-title">Related LokalBot guides</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card" href="open-source-ai-meeting-notes">
+          <span class="guide-card__eyebrow">Open source</span>
+          <strong>Open-source AI meeting notes: what to verify</strong>
+          <span>A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.</span>
+        </a>
+        <a class="guide-card" href="local-ai-meeting-notes-mac">
+          <span class="guide-card__eyebrow">Local meeting notes</span>
+          <strong>Local AI meeting notes on your Mac</strong>
+          <span>How local AI meeting notes work on a Mac: bot-free capture, on-device transcription, private summaries, trade-offs, and setup.</span>
+        </a>
+        <a class="guide-card" href="local-ai-meeting-notes-linux">
+          <span class="guide-card__eyebrow">Linux</span>
+          <strong>Local AI meeting notes on Linux</strong>
+          <span>Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

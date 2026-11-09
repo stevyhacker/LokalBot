@@ -101,6 +101,7 @@ struct ModelsView: View {
              "settings.autoTranscriptionVocabulary": sheet = .transcriptionOptions
         case "settings.cotypingBuiltInModelID", "settings.cotypingBackend": sheet = .autocomplete
         case "settings.dictationCompositionBuiltInModelID": sheet = .dictation
+        case "settings.speechVoice": sheet = .speech
         case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey":
             page.wrappedValue = .connections
         case "settings.generationBudgetPreset", "settings.thinkReasoningLevel", "settings.modelDownloadSource":

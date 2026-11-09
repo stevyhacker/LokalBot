@@ -28,6 +28,7 @@ pub(crate) struct Reply {
     pub body: Vec<u8>,
     pub retry_after: Option<Duration>,
     pub request_id: Option<String>,
+    pub content_type: Option<String>,
 }
 
 impl Reply {
@@ -101,10 +102,9 @@ fn finish(
             .and_then(|v| v.to_str().ok())
             .map(str::to_string)
     };
-    let retry_after = header("retry-after")
-        .and_then(|v| v.trim().parse::<f64>().ok())
-        .map(|s| Duration::from_secs_f64(s.max(0.0)));
+    let retry_after = header("retry-after").and_then(|v| retry_after(&v));
     let request_id = header("x-request-id").or_else(|| header("request-id"));
+    let content_type = header("content-type");
     let body = response
         .body_mut()
         .with_config()
@@ -116,7 +116,15 @@ fn finish(
         body,
         retry_after,
         request_id,
+        content_type,
     })
+}
+
+/// `Retry-After` in seconds. `inf` or a value too large for a `Duration` is
+/// ignored, so the caller's own backoff applies instead of a panic.
+fn retry_after(value: &str) -> Option<Duration> {
+    let seconds = value.trim().parse::<f64>().ok()?;
+    Duration::try_from_secs_f64(seconds.max(0.0)).ok()
 }
 
 pub(crate) fn post_json(
@@ -155,6 +163,20 @@ pub(crate) fn post_json_with(
         request = request.header(*name, value.as_str());
     }
     finish(url, request.send(&bytes[..]))
+}
+
+/// A POST of ready-made bytes (a multipart form) with explicit headers.
+pub(crate) fn post_bytes_with(
+    agent: &ureq::Agent,
+    url: &str,
+    headers: &[(&str, String)],
+    body: &[u8],
+) -> Result<Reply> {
+    let mut request = agent.post(url);
+    for (name, value) in headers {
+        request = request.header(*name, value.as_str());
+    }
+    finish(url, request.send(body))
 }
 
 /// A GET with explicit headers.
@@ -538,5 +560,23 @@ pub(crate) mod testing {
         out.write_all(head.as_bytes())?;
         out.write_all(body)?;
         out.flush()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retry_after_ignores_values_a_duration_cannot_hold() {
+        assert_eq!(retry_after("2"), Some(Duration::from_secs(2)));
+        assert_eq!(retry_after(" 0.5 "), Some(Duration::from_millis(500)));
+        assert_eq!(retry_after("-3"), Some(Duration::ZERO));
+        assert_eq!(retry_after("NaN"), Some(Duration::ZERO));
+        assert_eq!(retry_after("-inf"), Some(Duration::ZERO));
+        for value in ["inf", "infinity", "1e309", "18446744073709551616"] {
+            assert_eq!(retry_after(value), None, "{value}");
+        }
+        assert_eq!(retry_after("Wed, 21 Oct 2026 07:28:00 GMT"), None);
     }
 }

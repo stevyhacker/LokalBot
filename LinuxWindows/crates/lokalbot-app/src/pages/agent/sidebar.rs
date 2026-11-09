@@ -19,7 +19,7 @@ use super::{AgentPage, key as element_key};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
-const SIDEBAR_WIDTH: f32 = 272.;
+pub(super) const SIDEBAR_WIDTH: f32 = 272.;
 
 /// One row as shown.
 struct Row {
@@ -214,22 +214,15 @@ impl AgentPage {
             }
         }
 
-        v_flex()
-            .w(px(SIDEBAR_WIDTH))
-            .flex_none()
-            .h_full()
-            .border_r_1()
-            .border_color(lb.separator)
-            .child(header)
-            .child(
-                div()
-                    .id("agent-tasks")
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .pb(px(12.))
-                    .children(list),
-            )
+        v_flex().size_full().child(header).child(
+            div()
+                .id("agent-tasks")
+                .flex_1()
+                .min_h_0()
+                .overflow_y_scroll()
+                .pb(px(12.))
+                .children(list),
+        )
     }
 
     fn task_rows(&self, cx: &App) -> Vec<Row> {

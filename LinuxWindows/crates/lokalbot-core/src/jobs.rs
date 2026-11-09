@@ -18,12 +18,15 @@ pub struct PipelineJob {
     /// True only after this job committed its transcript.
     pub transcription_completed: bool,
     pub summarize: bool,
+    /// An automatic job: its summary runs only while automatic summaries are
+    /// on (`ProcessingPipeline.resumedWork`). False for an explicit request.
+    pub summary_follows_setting: bool,
     pub attempts: u32,
     pub last_error: Option<String>,
 }
 
-const COLUMNS: &str =
-    "meeting_id, transcribe, transcription_completed, summarize, attempts, last_error";
+const COLUMNS: &str = "meeting_id, transcribe, transcription_completed, summarize, \
+                       summary_follows_setting, attempts, last_error";
 
 fn job_from_row(row: &rusqlite::Row) -> rusqlite::Result<Option<PipelineJob>> {
     let id: String = row.get(0)?;
@@ -35,9 +38,31 @@ fn job_from_row(row: &rusqlite::Row) -> rusqlite::Result<Option<PipelineJob>> {
         transcribe: row.get::<_, i64>(1)? != 0,
         transcription_completed: row.get::<_, i64>(2)? != 0,
         summarize: row.get::<_, i64>(3)? != 0,
-        attempts: row.get::<_, i64>(4)?.max(0) as u32,
-        last_error: row.get(5)?,
+        summary_follows_setting: row.get::<_, i64>(4)? != 0,
+        attempts: row.get::<_, i64>(5)?.max(0) as u32,
+        last_error: row.get(6)?,
     }))
+}
+
+/// Adds the columns older builds' `pipeline_jobs` lacked, with the Mac's
+/// defaults (`PipelineJobStore`): an old row has no provenance, so its
+/// summary follows the current setting, and it cannot prove it committed the
+/// transcript on disk, so transcription runs again.
+pub(crate) fn migrate(db: &rusqlite::Connection) -> Result<()> {
+    let columns = crate::screen::column_names(db, "pipeline_jobs")?;
+    for (column, definition) in [
+        ("last_error", "TEXT"),
+        ("summary_follows_setting", "INTEGER NOT NULL DEFAULT 1"),
+        ("transcription_completed", "INTEGER NOT NULL DEFAULT 0"),
+    ] {
+        if !columns.iter().any(|existing| existing == column) {
+            db.execute(
+                &format!("ALTER TABLE pipeline_jobs ADD COLUMN {column} {definition}"),
+                [],
+            )?;
+        }
+    }
+    Ok(())
 }
 
 impl Library {
@@ -220,6 +245,47 @@ mod tests {
         library.mark_job_completed(id).unwrap();
         assert!(library.job(id).unwrap().is_none());
         library.enqueue_job(id, true, true, true).unwrap();
+        assert!(!library.job(id).unwrap().unwrap().summary_follows_setting);
+        library.enqueue_job(id, true, true, false).unwrap();
+        assert!(library.job(id).unwrap().unwrap().summary_follows_setting);
         assert_eq!(library.prune_jobs(&[]).unwrap(), 1);
+    }
+
+    #[test]
+    fn older_queue_tables_gain_the_missing_columns() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = crate::LibraryPaths::new(dir.path());
+        let id = Uuid::new_v4();
+        {
+            // The 0.6.2 table: no last_error, transcription_completed or
+            // summary_follows_setting.
+            let db = rusqlite::Connection::open(paths.database()).unwrap();
+            db.execute_batch(
+                "CREATE TABLE pipeline_jobs (meeting_id TEXT PRIMARY KEY, transcribe INTEGER NOT NULL, \
+                 summarize INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, enqueued_at REAL NOT NULL);",
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO pipeline_jobs VALUES (?1, 1, 1, 1, 0)",
+                [crate::ids::uuid_upper(&id)],
+            )
+            .unwrap();
+        }
+        let library = Library::open(paths.clone()).unwrap();
+        let pending = library.pending_jobs().unwrap();
+        assert_eq!(pending.len(), 1);
+        assert!(!pending[0].transcription_completed);
+        assert!(pending[0].summary_follows_setting);
+        assert_eq!(pending[0].attempts, 1);
+        library.mark_job_failed(id, "crashed").unwrap();
+        library.mark_transcription_completed(id).unwrap();
+        drop(library);
+
+        // Opening again must not try to add the columns a second time.
+        let library = Library::open(paths).unwrap();
+        let job = library.job(id).unwrap().unwrap();
+        assert!(job.transcription_completed);
+        assert!(job.summary_follows_setting);
+        assert_eq!(job.last_error.as_deref(), Some("crashed"));
     }
 }

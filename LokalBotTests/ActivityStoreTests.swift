@@ -386,48 +386,6 @@ final class ActivityStoreTests: XCTestCase {
             "SELECT 1 FROM screen_embeddings WHERE snapshot_id = ?1", bind: [snapshotID]))
     }
 
-    func testReciprocalRankFusionIsStableAndRewardsAgreement() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let keyword = [
-            ActivityStore.OCRHit(
-                snapshotID: 1, ts: now, app: "Safari", snippet: "keyword one"),
-            ActivityStore.OCRHit(
-                snapshotID: 2, ts: now, app: "Xcode", snippet: "keyword two"),
-        ]
-        let semantic = [
-            EmbeddingIndex.ScreenHit(
-                snapshotID: 2, ts: now, app: "Xcode", text: "semantic two", score: 0.9),
-            EmbeddingIndex.ScreenHit(
-                snapshotID: 3, ts: now, app: "Notes", text: "semantic three", score: 0.8),
-        ]
-
-        let ranked = ScreenSearchRanker.fuse(
-            keyword: keyword, semantic: semantic, limit: 3)
-
-        XCTAssertEqual(ranked.map(\.snapshotID), [2, 1, 3])
-        XCTAssertEqual(ranked.first?.keywordRank, 2)
-        XCTAssertEqual(ranked.first?.semanticRank, 1)
-        XCTAssertGreaterThan(ranked[0].score, ranked[1].score)
-    }
-
-    func testFusionPrefersKeywordMatchOverSemanticOnlyHitAtEqualRank() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let keyword = [
-            ActivityStore.OCRHit(
-                snapshotID: 10, ts: now, app: "Notion", snippet: "onboarding first"),
-        ]
-        let semantic = [
-            EmbeddingIndex.ScreenHit(
-                snapshotID: 3, ts: now, app: "Slack", text: "failover benchmark", score: 0.6),
-        ]
-
-        let ranked = ScreenSearchRanker.fuse(
-            keyword: keyword, semantic: semantic, limit: 2)
-
-        XCTAssertEqual(ranked.map(\.snapshotID), [10, 3])
-        XCTAssertEqual(ranked[0].score, ranked[1].score)
-    }
-
     /// EmbeddingGemma 2 scores unrelated screen text around 0.61, so Harrier's
     /// 0.45 floor would let nearly every capture into semantic results.
     func testSemanticScreenRankingDropsCapturesBelowTheEmbeddingFloor() {
@@ -491,6 +449,36 @@ final class ActivityStoreTests: XCTestCase {
         // …the relaxed OR query rescues the content terms.
         XCTAssertFalse(store.searchOCR("what were the rollback steps",
                                        matchAll: false, dropStopWords: true).isEmpty)
+    }
+
+    /// Snippets are built after ranking, only for the rows returned; deferred
+    /// snippets filled later must equal them, for FTS and CJK substring search.
+    func testDeferredOCRSnippetsMatchTheEagerOnes() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let texts = ["Quarterly budget review with the finance team and the budget owners",
+                     "Unrelated notes about lunch",
+                     "比如logo再大 budget 一点",
+                     "Budget draft: travel, hardware, and a second budget line for contractors"]
+        for (index, text) in texts.enumerated() {
+            _ = try store.insertScreenshot(ts: start.addingTimeInterval(Double(index * 600)), path: "",
+                                           app: index % 2 == 0 ? "Notes" : "Mail", windowTitle: "Window \(index)",
+                                           ocr: text)
+        }
+        for query in ["budget", "logo", "比如"] {
+            for grouped in [true, false] {
+                let eager = store.searchOCR(query, limit: 10, groupResults: grouped)
+                let deferred = store.searchOCR(query, limit: 10, groupResults: grouped, deferringSnippets: true)
+                XCTAssertFalse(eager.isEmpty, query)
+                XCTAssertTrue(deferred.allSatisfy { $0.snippet.isEmpty && $0.pendingSnippet != nil })
+                XCTAssertTrue(eager.allSatisfy { $0.pendingSnippet == nil })
+                XCTAssertEqual(store.fillOCRSnippets(deferred), eager, "\(query) grouped=\(grouped)")
+            }
+        }
+        XCTAssertTrue(store.searchOCR("budget").contains { $0.snippet.contains("«") })
     }
 
     func testMigratesLegacySchemaPreservingRows() throws {

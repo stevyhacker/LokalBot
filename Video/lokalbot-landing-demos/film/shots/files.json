@@ -1,0 +1,16 @@
+{"bundle": "me.dotenv.LokalBot", "title": "Ask", "size": [660, 480], "settle": 1.2, "cursor": false, "park": [600, 440], "pre": 0.5, "post": 1.2,
+ "setup":[{"focus": {"id": "quickRecall.input"}, "optional": true}],
+ "actions":[
+  {"wait": 0.3},
+  {"type": "the clause about pets in the lease", "cps": 14},
+  {"mark": "typed-lease"},
+  {"until": {"contains": "Harbor Street"}, "timeout": 300, "optional": true},
+  {"wait": 1.6},
+  {"mark": "lease"},
+  {"focus": {"id": "quickRecall.input"}, "optional": true},
+  {"key": "a", "mods": ["cmd"]},
+  {"type": "where they talk about sleep", "cps": 14},
+  {"mark": "typed-sleep"},
+  {"until": {"contains": "Small Studios"}, "timeout": 300, "optional": true},
+  {"wait": 1.6},
+  {"mark": "sleep"}]}

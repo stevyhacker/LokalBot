@@ -16,6 +16,17 @@ pub enum TrayItem {
         label: String,
         enabled: bool,
     },
+    /// A row with a checkmark, for a switch.
+    Toggle {
+        id: String,
+        label: String,
+        checked: bool,
+    },
+    /// A row that opens more rows.
+    Submenu {
+        label: String,
+        items: Vec<TrayItem>,
+    },
     Separator,
 }
 
@@ -51,10 +62,68 @@ pub struct TrayMenuState {
     pub day_memory_paused: bool,
     /// Screen context is on: offer "Capture Screen Now".
     pub screen_capture: bool,
-    /// A recent dictation can be copied again.
-    pub recent_dictation: bool,
+    /// Recent dictations to copy again, newest first.
+    pub recent_dictations: Vec<TrayDictationEntry>,
     /// A newer LokalBot is on offer.
     pub update: Option<TrayUpdate>,
+    /// What dictation is doing, which changes the status and primary action.
+    pub dictation: TrayDictation,
+    pub dictation_enabled: bool,
+    /// The dictation shortcut's label.
+    pub dictation_shortcut: String,
+    pub autocomplete_enabled: bool,
+    /// Day memory runs, so it can be paused.
+    pub tracking_enabled: bool,
+    /// The two newest meetings.
+    pub recent_meetings: Vec<TrayMeeting>,
+    /// The last error, on one short line.
+    pub last_error: Option<String>,
+    /// Terminal requests waiting for the person.
+    pub approvals_waiting: usize,
+}
+
+/// A dictation the clipboard may have lost.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrayDictationEntry {
+    pub id: String,
+    /// The start of the text, on one line.
+    pub preview: String,
+    /// "2:20 PM — Can you check…".
+    pub menu_title: String,
+}
+
+/// A meeting in the Recent list.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrayMeeting {
+    pub id: String,
+    pub title: String,
+    /// "Zoom · 12:04".
+    pub detail: String,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TrayDictation {
+    #[default]
+    Idle,
+    Starting,
+    Recording,
+    Transcribing,
+    Composing,
+}
+
+impl TrayDictation {
+    fn is_working(self) -> bool {
+        !matches!(self, Self::Idle)
+    }
+
+    /// The dictation button (`dictationButtonTitle`).
+    fn button(self) -> &'static str {
+        match self {
+            Self::Idle => "Start dictation",
+            Self::Recording => "Stop dictation",
+            Self::Starting | Self::Transcribing | Self::Composing => "Cancel dictation",
+        }
+    }
 }
 
 /// The update row (Sparkle's "Install Update…").
@@ -92,50 +161,171 @@ pub mod item_ids {
     pub const DOWNLOAD_UPDATE: &str = "download-update";
     pub const SHOW_UPDATE: &str = "show-update";
     pub const QUIT: &str = "quit";
+    pub const LIVE_TRANSCRIPT: &str = "live-transcript";
+    pub const DICTATION_ENABLED: &str = "dictation-enabled";
+    pub const DICTATION_BUTTON: &str = "dictation-button";
+    pub const AUTOCOMPLETE_ENABLED: &str = "autocomplete-enabled";
+    pub const VIEW_ALL_MEETINGS: &str = "view-all-meetings";
+    pub const APPROVALS: &str = "approvals";
+    pub const STAR_ON_GITHUB: &str = "star-on-github";
+    /// Followed by a meeting id.
+    pub const MEETING_PREFIX: &str = "meeting:";
+    /// Followed by a recent dictation's id.
+    pub const DICTATION_PREFIX: &str = "dictation:";
 }
 
-/// The macOS menu bar extra as a menu: status, Record Now / Stop Recording,
-/// Copy last dictation once there is one, Ask, Open LokalBot, Settings…, Pause/Resume day memory, Capture Screen
-/// Now while screen context is on, the update on offer, Quit LokalBot.
+/// A menu row shows one line, so long titles shorten (`shortMenuTitle`).
+fn short_title(title: &str) -> String {
+    const LIMIT: usize = 30;
+    if title.chars().count() <= LIMIT {
+        return title.to_string();
+    }
+    let mut text: String = title.chars().take(LIMIT - 3).collect();
+    text.push_str("...");
+    text
+}
+
+/// The macOS menu bar extra as a menu: status, any error or request waiting,
+/// Record Now / Stop Recording (or Cancel dictation), recent meetings, the
+/// dictation and autocomplete switches, Ask, Open LokalBot, Settings…,
+/// Pause/Resume day memory, Capture Screen Now while screen context is on, the
+/// update on offer, Star on GitHub, Quit LokalBot.
 pub fn standard_items(state: &TrayMenuState) -> Vec<TrayItem> {
     use item_ids::*;
     use lokalbot_i18n::tr;
-    let status = match (&state.timer, state.recording) {
-        (Some(timer), true) => {
+    let status = match (&state.timer, state.recording, state.dictation) {
+        (Some(timer), true, _) => {
             lokalbot_i18n::format("Recording · {timer}", &[("timer", timer.clone())])
         }
-        (None, true) => tr("Recording").to_string(),
+        (None, true, _) => tr("Recording").to_string(),
+        (_, _, TrayDictation::Starting) => tr("Starting dictation").to_string(),
+        (_, _, TrayDictation::Recording) => tr("Dictating").to_string(),
+        (_, _, TrayDictation::Transcribing) => tr("Transcribing").to_string(),
+        (_, _, TrayDictation::Composing) => tr("Composing").to_string(),
         _ => tr("Not recording").to_string(),
     };
+    let subtitle = match (state.recording, state.dictation) {
+        (false, TrayDictation::Starting) => tr("Connecting to the microphone").to_string(),
+        (false, TrayDictation::Recording) => lokalbot_i18n::format(
+            "Press {0} again to compose",
+            &[("0", state.dictation_shortcut.clone())],
+        ),
+        (false, TrayDictation::Transcribing) => {
+            tr("Turning speech into a writing request").to_string()
+        }
+        (false, TrayDictation::Composing) => tr("Writing for the focused app").to_string(),
+        _ => state.subtitle.clone(),
+    };
     let mut items = vec![TrayItem::Status(status)];
-    if !state.subtitle.is_empty() {
-        items.push(TrayItem::Status(state.subtitle.clone()));
+    if !subtitle.is_empty() {
+        items.push(TrayItem::Status(subtitle));
+    }
+    if let Some(error) = &state.last_error {
+        items.push(TrayItem::Status(short_error(error)));
+    }
+    match state.approvals_waiting {
+        0 => {}
+        1 => items.push(TrayItem::action(
+            APPROVALS,
+            tr("A settings change is waiting for your approval"),
+        )),
+        count => items.push(TrayItem::action(
+            APPROVALS,
+            &lokalbot_i18n::format(
+                "{0} settings changes are waiting for your approval",
+                &[("0", count.to_string())],
+            ),
+        )),
     }
     items.push(TrayItem::Separator);
     items.push(if state.recording {
         TrayItem::action(STOP_RECORDING, tr("Stop Recording"))
+    } else if state.dictation.is_working() {
+        TrayItem::action(DICTATION_BUTTON, tr(state.dictation.button()))
     } else {
         TrayItem::action(RECORD, tr("Record Now"))
     });
-    if state.recent_dictation {
+    if state.recording {
+        items.push(TrayItem::action(LIVE_TRANSCRIPT, tr("Live Transcript…")));
+    }
+    // The way back to a dictation the clipboard lost: the newest with its
+    // preview, earlier ones in its menu (`LastDictationMenuRow`).
+    if let Some((latest, earlier)) = state.recent_dictations.split_first() {
         items.push(TrayItem::action(
             COPY_LAST_DICTATION,
-            tr("Copy last dictation"),
+            &lokalbot_i18n::format(
+                "Copy last dictation — {preview}",
+                &[("preview", short_title(&latest.preview))],
+            ),
         ));
+        if !earlier.is_empty() {
+            items.push(TrayItem::Submenu {
+                label: tr("Earlier dictations").to_string(),
+                items: earlier
+                    .iter()
+                    .map(|entry| {
+                        TrayItem::action(
+                            &format!("{DICTATION_PREFIX}{}", entry.id),
+                            &entry.menu_title,
+                        )
+                    })
+                    .collect(),
+            });
+        }
     }
+    items.push(TrayItem::Separator);
+    items.push(TrayItem::Status(tr("Recent").to_string()));
+    if state.recent_meetings.is_empty() {
+        items.push(TrayItem::Status(tr("No meetings yet").to_string()));
+    } else {
+        for meeting in &state.recent_meetings {
+            items.push(TrayItem::action(
+                &format!("{MEETING_PREFIX}{}", meeting.id),
+                &format!("{} — {}", short_title(&meeting.title), meeting.detail),
+            ));
+        }
+        items.push(TrayItem::action(VIEW_ALL_MEETINGS, tr("View all")));
+    }
+    items.push(TrayItem::Separator);
+    items.push(TrayItem::Status(tr("Tools").to_string()));
+    items.push(TrayItem::Toggle {
+        id: DICTATION_ENABLED.into(),
+        label: lokalbot_i18n::format(
+            "Dictation shortcut · {0}",
+            &[("0", state.dictation_shortcut.clone())],
+        ),
+        checked: state.dictation_enabled,
+    });
+    // Recording takes the microphone; a dictation under way can still be stopped.
+    let start_dictation = TrayItem::Action {
+        id: DICTATION_BUTTON.into(),
+        label: tr(state.dictation.button()).to_string(),
+        enabled: !state.recording || state.dictation.is_working(),
+    };
+    if !state.dictation.is_working() || state.recording {
+        items.push(start_dictation);
+    }
+    items.push(TrayItem::Toggle {
+        id: AUTOCOMPLETE_ENABLED.into(),
+        label: tr("Autocomplete").to_string(),
+        checked: state.autocomplete_enabled,
+    });
     items.push(TrayItem::Separator);
     items.push(TrayItem::action(ASK, tr("Ask")));
     items.push(TrayItem::action(OPEN, tr("Open LokalBot")));
     items.push(TrayItem::action(SETTINGS, tr("Settings…")));
-    items.push(if state.day_memory_paused {
-        TrayItem::action(RESUME_DAY_MEMORY, tr("Resume day memory"))
-    } else {
-        TrayItem::action(PAUSE_DAY_MEMORY, tr("Pause day memory"))
-    });
+    if state.tracking_enabled {
+        items.push(if state.day_memory_paused {
+            TrayItem::action(RESUME_DAY_MEMORY, tr("Resume day memory"))
+        } else {
+            TrayItem::action(PAUSE_DAY_MEMORY, tr("Pause day memory"))
+        });
+    }
     if state.screen_capture && !state.day_memory_paused {
         items.push(TrayItem::action(CAPTURE_SCREEN, tr("Capture Screen Now")));
     }
     items.push(TrayItem::Separator);
+    items.push(TrayItem::action(STAR_ON_GITHUB, tr("Star on GitHub")));
     if let Some(update) = &state.update {
         let version = [("version", update.version.clone())];
         items.push(match (update.busy, update.action) {
@@ -160,6 +350,18 @@ pub fn standard_items(state: &TrayMenuState) -> Vec<TrayItem> {
     }
     items.push(TrayItem::action(QUIT, tr("Quit LokalBot")));
     items
+}
+
+/// An error on one line of a menu.
+fn short_error(error: &str) -> String {
+    const LIMIT: usize = 80;
+    let line = error.lines().next().unwrap_or(error);
+    if line.chars().count() <= LIMIT {
+        return line.to_string();
+    }
+    let mut text: String = line.chars().take(LIMIT - 1).collect();
+    text.push('…');
+    text
 }
 
 /// RGBA pixels, width and height.
@@ -238,7 +440,7 @@ impl Tray {
 #[cfg(target_os = "linux")]
 mod backend {
     use ksni::blocking::TrayMethods as _;
-    use ksni::menu::{MenuItem, StandardItem};
+    use ksni::menu::{CheckmarkItem, MenuItem, StandardItem, SubMenu};
 
     use super::{TrayEvent, TrayIcon, TrayItem, recording_variant, tooltip_text};
 
@@ -297,31 +499,53 @@ mod backend {
         }
 
         fn menu(&self) -> Vec<MenuItem<Self>> {
-            self.items
-                .iter()
-                .map(|item| match item {
-                    TrayItem::Status(text) => StandardItem {
-                        label: text.replace('_', "__"),
-                        enabled: false,
+            menu_items(&self.items)
+        }
+    }
+
+    fn menu_items(items: &[TrayItem]) -> Vec<MenuItem<Sni>> {
+        items
+            .iter()
+            .map(|item| match item {
+                TrayItem::Status(text) => StandardItem {
+                    label: text.replace('_', "__"),
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+                TrayItem::Action { id, label, enabled } => {
+                    let id = id.clone();
+                    StandardItem {
+                        label: label.replace('_', "__"),
+                        enabled: *enabled,
+                        activate: Box::new(move |tray: &mut Sni| {
+                            (tray.on_event)(TrayEvent::Item(id.clone()))
+                        }),
                         ..Default::default()
                     }
-                    .into(),
-                    TrayItem::Action { id, label, enabled } => {
-                        let id = id.clone();
-                        StandardItem {
-                            label: label.replace('_', "__"),
-                            enabled: *enabled,
-                            activate: Box::new(move |tray: &mut Sni| {
-                                (tray.on_event)(TrayEvent::Item(id.clone()))
-                            }),
-                            ..Default::default()
-                        }
-                        .into()
+                    .into()
+                }
+                TrayItem::Toggle { id, label, checked } => {
+                    let id = id.clone();
+                    CheckmarkItem {
+                        label: label.replace('_', "__"),
+                        checked: *checked,
+                        activate: Box::new(move |tray: &mut Sni| {
+                            (tray.on_event)(TrayEvent::Item(id.clone()))
+                        }),
+                        ..Default::default()
                     }
-                    TrayItem::Separator => MenuItem::Separator,
-                })
-                .collect()
-        }
+                    .into()
+                }
+                TrayItem::Submenu { label, items } => SubMenu {
+                    label: label.replace('_', "__"),
+                    submenu: menu_items(items),
+                    ..Default::default()
+                }
+                .into(),
+                TrayItem::Separator => MenuItem::Separator,
+            })
+            .collect()
     }
 
     pub(super) struct Tray {
@@ -391,7 +615,7 @@ mod backend {
 
     use crossbeam_channel::{Receiver, Sender, bounded, unbounded};
     use parking_lot::Mutex;
-    use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
+    use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
     use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 
     use super::{TrayEvent, TrayIcon, TrayItem, recording_variant, tooltip_text};
@@ -447,6 +671,27 @@ mod backend {
                 TrayItem::Status(text) => menu.append(&MenuItem::new(text, false, None))?,
                 TrayItem::Action { id, label, enabled } => {
                     menu.append(&MenuItem::with_id(id.as_str(), label, *enabled, None))?
+                }
+                TrayItem::Toggle { id, label, checked } => menu.append(&CheckMenuItem::with_id(
+                    id.as_str(),
+                    label,
+                    true,
+                    *checked,
+                    None,
+                ))?,
+                TrayItem::Submenu { label, items } => {
+                    let submenu = Submenu::new(label, true);
+                    for item in items {
+                        if let TrayItem::Action { id, label, enabled } = item {
+                            submenu.append(&MenuItem::with_id(
+                                id.as_str(),
+                                label,
+                                *enabled,
+                                None,
+                            ))?;
+                        }
+                    }
+                    menu.append(&submenu)?
                 }
                 TrayItem::Separator => menu.append(&PredefinedMenuItem::separator())?,
             }
@@ -633,7 +878,9 @@ mod tests {
             .iter()
             .filter_map(|item| match item {
                 TrayItem::Status(text) => Some(text.clone()),
-                TrayItem::Action { label, .. } => Some(label.clone()),
+                TrayItem::Action { label, .. }
+                | TrayItem::Toggle { label, .. }
+                | TrayItem::Submenu { label, .. } => Some(label.clone()),
                 TrayItem::Separator => None,
             })
             .collect();
@@ -643,10 +890,16 @@ mod tests {
                 "Not recording",
                 "Asks before recording meetings",
                 "Record Now",
+                "Recent",
+                "No meetings yet",
+                "Tools",
+                "Dictation shortcut · ",
+                "Start dictation",
+                "Autocomplete",
                 "Ask",
                 "Open LokalBot",
                 "Settings…",
-                "Pause day memory",
+                "Star on GitHub",
                 "Quit LokalBot"
             ]
         );
@@ -656,6 +909,7 @@ mod tests {
             subtitle: "Weekly sync".into(),
             day_memory_paused: true,
             screen_capture: true,
+            tracking_enabled: true,
             ..Default::default()
         });
         assert_eq!(live[0], TrayItem::Status("Recording · 12:04".into()));
@@ -673,8 +927,13 @@ mod tests {
         ));
         let capturing = standard_items(&TrayMenuState {
             screen_capture: true,
+            tracking_enabled: true,
             ..Default::default()
         });
+        assert!(capturing.contains(&TrayItem::action(
+            item_ids::PAUSE_DAY_MEMORY,
+            "Pause day memory"
+        )));
         assert!(capturing.contains(&TrayItem::action(
             item_ids::CAPTURE_SCREEN,
             "Capture Screen Now"
@@ -682,11 +941,85 @@ mod tests {
     }
 
     #[test]
+    fn the_menu_lists_recent_meetings_errors_and_requests() {
+        let items = standard_items(&TrayMenuState {
+            recent_meetings: vec![TrayMeeting {
+                id: "ABC".into(),
+                title: "A weekly sync with a very long title that keeps going".into(),
+                detail: "Zoom · 12:04".into(),
+            }],
+            last_error: Some("The microphone stopped\nsecond line".into()),
+            approvals_waiting: 2,
+            dictation_enabled: true,
+            dictation_shortcut: "Alt+Space".into(),
+            autocomplete_enabled: true,
+            ..Default::default()
+        });
+        assert!(items.contains(&TrayItem::Status("The microphone stopped".into())));
+        assert!(items.contains(&TrayItem::action(
+            item_ids::APPROVALS,
+            "2 settings changes are waiting for your approval"
+        )));
+        assert!(items.contains(&TrayItem::action(
+            "meeting:ABC",
+            "A weekly sync with a very l... — Zoom · 12:04"
+        )));
+        assert!(items.contains(&TrayItem::action(item_ids::VIEW_ALL_MEETINGS, "View all")));
+        assert!(items.contains(&TrayItem::Toggle {
+            id: item_ids::DICTATION_ENABLED.into(),
+            label: "Dictation shortcut · Alt+Space".into(),
+            checked: true,
+        }));
+        assert!(items.contains(&TrayItem::Toggle {
+            id: item_ids::AUTOCOMPLETE_ENABLED.into(),
+            label: "Autocomplete".into(),
+            checked: true,
+        }));
+    }
+
+    #[test]
+    fn dictation_changes_the_status_and_the_primary_action() {
+        let items = standard_items(&TrayMenuState {
+            dictation: TrayDictation::Recording,
+            dictation_shortcut: "Alt+Space".into(),
+            ..Default::default()
+        });
+        assert_eq!(items[0], TrayItem::Status("Dictating".into()));
+        assert_eq!(
+            items[1],
+            TrayItem::Status("Press Alt+Space again to compose".into())
+        );
+        assert!(items.contains(&TrayItem::action(
+            item_ids::DICTATION_BUTTON,
+            "Stop dictation"
+        )));
+        assert!(!items.contains(&TrayItem::action(item_ids::RECORD, "Record Now")));
+        // While recording, starting dictation isn't on offer.
+        let recording = standard_items(&TrayMenuState {
+            recording: true,
+            ..Default::default()
+        });
+        assert!(recording.contains(&TrayItem::Action {
+            id: item_ids::DICTATION_BUTTON.into(),
+            label: "Start dictation".into(),
+            enabled: false,
+        }));
+    }
+
+    #[test]
     fn a_recent_dictation_can_be_copied_from_the_menu() {
-        let copy = TrayItem::action(item_ids::COPY_LAST_DICTATION, "Copy last dictation");
+        let entry = |id: &str, preview: &str| TrayDictationEntry {
+            id: id.into(),
+            preview: preview.into(),
+            menu_title: format!("2:20 PM — {preview}"),
+        };
+        let copy = TrayItem::action(
+            item_ids::COPY_LAST_DICTATION,
+            "Copy last dictation — Can you check the build",
+        );
         assert!(!standard_items(&TrayMenuState::default()).contains(&copy));
         let items = standard_items(&TrayMenuState {
-            recent_dictation: true,
+            recent_dictations: vec![entry("1", "Can you check the build")],
             ..Default::default()
         });
         let record = items
@@ -694,6 +1027,28 @@ mod tests {
             .position(|item| *item == TrayItem::action(item_ids::RECORD, "Record Now"))
             .unwrap();
         assert_eq!(items[record + 1], copy);
+        assert!(
+            !items
+                .iter()
+                .any(|item| matches!(item, TrayItem::Submenu { .. }))
+        );
+
+        // Earlier ones sit in a menu of their own, each copied by its id.
+        let items = standard_items(&TrayMenuState {
+            recent_dictations: vec![
+                entry("1", "Can you check the build"),
+                entry("2", "Send the notes"),
+            ],
+            ..Default::default()
+        });
+        assert_eq!(items[record + 1], copy);
+        assert_eq!(
+            items[record + 2],
+            TrayItem::Submenu {
+                label: "Earlier dictations".into(),
+                items: vec![TrayItem::action("dictation:2", "2:20 PM — Send the notes")],
+            }
+        );
     }
 
     #[test]

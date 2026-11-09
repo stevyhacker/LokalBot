@@ -80,3 +80,13 @@ line_length:
 # No opt_in_rules are enabled on purpose: opting in would risk fresh violations
 # across an un-pre-linted tree, which `--strict` rejects. Add them back one at a
 # time after confirming the tree stays clean.
+
+custom_rules:
+  # Unit tests read repository files from the test bundle; project.yml copies
+  # them in. Reading the checkout makes macOS ask each new test host for
+  # access to ~/Documents, and the test waits on that prompt.
+  test_reads_checkout:
+    included: "LokalBotTests/.*\\.swift$"
+    regex: "fileURLWithPath:\\s*#file(Path)?\\b"
+    message: "Read repository files from the test bundle (add them to the LokalBotTests resources in project.yml), not from the checkout."
+    severity: error

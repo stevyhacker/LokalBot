@@ -9,7 +9,7 @@ struct PersonalContextCommand: AsyncParsableCommand {
             Returns the facts, preferences, goals, and principles the user
             marked as shared in LokalBot → Settings → Personal Context,
             most relevant to --task first. Needs the separate personal-context
-            permission in Settings → Privacy. JSON by default.
+            permission in Settings → External Agents. JSON by default.
             """
     )
 

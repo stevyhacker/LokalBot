@@ -1,7 +1,10 @@
 //! Quick Recall (`QuickRecallView.swift`, `QuickRecallRow.swift`,
-//! `QuickRecallFooter.swift`): a 660×480 search panel over meetings and
-//! screen memory. Return opens the selected result in the main window,
-//! Ctrl+Return opens Ask with the query, Escape or leaving the panel closes it.
+//! `QuickRecallFooter.swift`): a 660×480 search and command panel over meetings
+//! and screen memory. Typing a command runs it on Return, like a launcher. Return
+//! opens the selected result in the main window, Ctrl+Return opens Ask with the
+//! query, Escape or leaving the panel closes it. Reopened while an answer is being
+//! written, it shows that conversation (`ChatTranscriptView`, the same one Ask
+//! shows), with follow-ups inside its latest question's scope.
 
 use std::time::Duration;
 
@@ -14,20 +17,27 @@ use gpui_kit::component::{Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Bounds, Context, Entity, FontWeight, Hsla,
-    InteractiveElement as _, IntoElement, ParentElement as _, Render, ScrollHandle, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Subscription, Task, Window, WindowBounds,
-    WindowKind, WindowOptions, div, px, size,
+    InteractiveElement as _, IntoElement, ObjectFit, ParentElement as _, Render, ScrollHandle,
+    SharedString, StatefulInteractiveElement as _, Styled as _, StyledImage as _, Subscription,
+    Task, Window, WindowBounds, WindowKind, WindowOptions, div, img, px, size,
 };
 use lokalbot_core::ScreenMoment;
+use uuid::Uuid;
 
 use crate::pages::ask::search::{self, Hit, MeetingGroup, ScreenResult};
-use crate::pages::ask::{composer_inference, open_screen_moment};
-use crate::state::{AppData, AskRequest, MeetingTab};
+use crate::pages::ask::{AskPage, composer_inference, open_screen_moment, stop_answer_speech};
+use crate::palette::{self, Matching, PaletteCommand};
+use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, Section};
 use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::ui::screen_thumbnail::ScreenThumbnails;
 use crate::ui::{self, Ico, result_row};
+use crate::windows::screen_image::ScreenImage;
 
 const WIDTH: f32 = 660.;
 const HEIGHT: f32 = 480.;
+/// Saved moments to look through, and how many show with no query.
+const SAVED_MOMENTS: usize = 200;
+const SAVED_ROWS: usize = 12;
 const SUGGESTIONS: [&str; 3] = [
     "What did we decide in my last meeting?",
     "List my recent meetings",
@@ -107,14 +117,22 @@ fn build(window: &mut Window, cx: &mut App) -> Entity<QuickRecall> {
     view
 }
 
+/// Commands lead the list, so a typed command runs on Return like a launcher.
+/// Only a few show, so memory searches keep their results in view.
+const COMMAND_LIMIT: usize = 4;
+
 /// One selectable row.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 enum Row {
+    Command(PaletteCommand),
     Screen {
         moment: ScreenMoment,
         snippet: Option<String>,
         captures: usize,
+    },
+    File {
+        hit: lokalbot_core::files::FileHit,
     },
     Meeting {
         group: MeetingGroup,
@@ -132,6 +150,12 @@ pub struct QuickRecall {
     search_task: Option<Task<()>>,
     scroll: ScrollHandle,
     was_active: bool,
+    thumbnails: ScreenThumbnails,
+    /// The conversation on show instead of results, when one is.
+    conversation: Option<Uuid>,
+    /// Draws it: citations, evidence, copy, read aloud and retry, as in Ask.
+    transcript: Option<Entity<AskPage>>,
+    _transcript_changes: Option<Subscription>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -140,7 +164,7 @@ impl QuickRecall {
         let data = AppData::global(cx);
         let input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(crate::i18n::placeholder(
-                "Search your memory…",
+                "Search memory or run a command…",
                 window,
                 cx,
             ))
@@ -155,11 +179,15 @@ impl QuickRecall {
                         if value != this.query {
                             this.query = value;
                             this.selection = 0;
-                            this.search(window, cx);
+                            if this.conversation.is_none() {
+                                this.search(window, cx);
+                            }
                         }
                     }
                     InputEvent::PressEnter { secondary, .. } => {
-                        if *secondary {
+                        if this.conversation.is_some() {
+                            this.send_follow_up(window, cx);
+                        } else if *secondary {
                             this.ask_about_query(window, cx);
                         } else {
                             this.open_selected(window, cx);
@@ -168,6 +196,16 @@ impl QuickRecall {
                     _ => {}
                 },
             ),
+            cx.observe_in(&data, window, |this, data, window, cx| {
+                // A question from Ask moves the panel to its conversation.
+                let streaming = data.read(cx).ask_stream.as_ref().map(|s| s.conversation_id);
+                if let Some(id) = streaming
+                    && this.conversation.is_some_and(|shown| shown != id)
+                {
+                    this.show_conversation(id, window, cx);
+                }
+                cx.notify();
+            }),
             cx.observe_window_activation(window, |this, window, cx| {
                 if window.is_window_active() {
                     this.was_active = true;
@@ -177,6 +215,13 @@ impl QuickRecall {
                 }
             }),
         ];
+        // The answer already being written, as on the Mac.
+        let conversation = data
+            .read(cx)
+            .ask_stream
+            .as_ref()
+            .filter(|stream| stream.error.is_none())
+            .map(|stream| stream.conversation_id);
         let mut view = Self {
             data,
             input,
@@ -188,10 +233,36 @@ impl QuickRecall {
             search_task: None,
             scroll: ScrollHandle::new(),
             was_active: false,
+            thumbnails: ScreenThumbnails::default(),
+            conversation: None,
+            transcript: None,
+            _transcript_changes: None,
             _subscriptions: subscriptions,
         };
         view.load_saved(cx);
+        if let Some(id) = conversation {
+            view.show_conversation(id, window, cx);
+        }
         view
+    }
+
+    fn show_conversation(&mut self, id: Uuid, window: &mut Window, cx: &mut Context<Self>) {
+        let page = cx.new(|cx| AskPage::embedded(id, window, cx));
+        self._transcript_changes = Some(cx.observe(&page, |_, _, cx| cx.notify()));
+        self.transcript = Some(page);
+        self.conversation = Some(id);
+        self.set_placeholder("Ask a follow-up…", window, cx);
+    }
+
+    fn set_placeholder(
+        &mut self,
+        placeholder: &'static str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.input.update(cx, |input, cx| {
+            input.set_placeholder(lokalbot_i18n::tr(placeholder), window, cx)
+        });
     }
 
     fn focus_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -208,7 +279,7 @@ impl QuickRecall {
                 .background_spawn(async move { library.saved_moments().unwrap_or_default() })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                this.saved = saved.into_iter().take(12).collect();
+                this.saved = saved.into_iter().take(SAVED_MOMENTS).collect();
                 cx.notify();
             });
         })
@@ -225,14 +296,23 @@ impl QuickRecall {
             return;
         }
         self.searching = true;
-        let (library, meetings) = {
+        let (library, meetings, file_folders) = {
             let data = self.data.read(cx);
-            (data.library.clone(), data.meetings.clone())
+            (
+                data.library.clone(),
+                data.meetings.clone(),
+                if data.settings.file_search_enabled {
+                    data.settings.file_search_folders.clone()
+                } else {
+                    Vec::new()
+                },
+            )
         };
         let query = search::Query {
             text,
             meetings: true,
             screen: true,
+            file_folders,
             limit: 20,
             ..Default::default()
         };
@@ -241,9 +321,13 @@ impl QuickRecall {
             cx.background_executor()
                 .timer(Duration::from_millis(120))
                 .await;
+            let (lexical_library, lexical_query) = (library.clone(), query.clone());
             let found = cx
-                .background_spawn(async move { search::run(&library, &meetings, &query) })
+                .background_spawn(async move {
+                    search::run(&lexical_library, &meetings, &lexical_query)
+                })
                 .await;
+            let mut refined = found.clone();
             let _ = this.update(cx, |this, cx| {
                 if this.query != for_query {
                     return;
@@ -253,8 +337,38 @@ impl QuickRecall {
                 this.selection = 0;
                 cx.notify();
             });
+            // Meaning second, so words show at once.
+            let refined = cx
+                .background_spawn(async move {
+                    let vector = lokalbot_engine::query_vector(query.text.trim())?;
+                    search::refine(&library, &query, &vector, &mut refined);
+                    Some(refined)
+                })
+                .await;
+            if let Some(refined) = refined {
+                let _ = this.update(cx, |this, cx| {
+                    if this.query == for_query {
+                        this.results = refined;
+                        cx.notify();
+                    }
+                });
+            }
         }));
         cx.notify();
+    }
+
+    /// Matching commands, computed live so titles follow recording and dictation.
+    fn command_rows(&self, cx: &App) -> Vec<Row> {
+        let query = self.query.trim();
+        if self.conversation.is_some() || query.is_empty() {
+            return Vec::new();
+        }
+        let commands = palette::commands(self.data.read(cx), false, cx);
+        palette::filter(&commands, query, Matching::WordPrefix)
+            .into_iter()
+            .take(COMMAND_LIMIT)
+            .map(Row::Command)
+            .collect()
     }
 
     /// Screens first (saved moments without a query), then meetings.
@@ -263,6 +377,7 @@ impl QuickRecall {
             let screens = self
                 .saved
                 .iter()
+                .take(SAVED_ROWS)
                 .map(|moment| Row::Screen {
                     moment: moment.clone(),
                     snippet: None,
@@ -271,21 +386,20 @@ impl QuickRecall {
                 .collect();
             return (screens, Vec::new());
         }
-        let screens = self
-            .results
-            .screens
-            .iter()
+        let screens = search::screens_with_saved_first(&self.results.screens, &self.saved)
+            .into_iter()
             .map(
                 |ScreenResult {
                      moment,
                      snippet,
                      captures,
+                     ..
                  }| {
-                    let title = screen_title(moment);
+                    let title = screen_title(&moment);
                     Row::Screen {
-                        moment: moment.clone(),
-                        snippet: result_row::without_title_echo(snippet, &title),
-                        captures: *captures,
+                        snippet: result_row::without_title_echo(&snippet, &title),
+                        moment,
+                        captures,
                     }
                 },
             )
@@ -301,14 +415,32 @@ impl QuickRecall {
         (screens, meetings)
     }
 
-    fn all_rows(&self) -> Vec<Row> {
-        let (mut screens, meetings) = self.rows();
-        screens.extend(meetings);
-        screens
+    fn all_rows(&self, cx: &App) -> Vec<Row> {
+        let mut rows = self.command_rows(cx);
+        let (screens, meetings) = self.rows();
+        rows.extend(screens);
+        rows.extend(meetings);
+        rows.extend(self.file_rows());
+        rows
+    }
+
+    /// Files, after meetings.
+    fn file_rows(&self) -> Vec<Row> {
+        if self.query.trim().is_empty() {
+            return Vec::new();
+        }
+        self.results
+            .files
+            .iter()
+            .map(|hit| Row::File { hit: hit.clone() })
+            .collect()
     }
 
     fn move_selection(&mut self, delta: isize, cx: &mut Context<Self>) {
-        let count = self.all_rows().len();
+        if self.conversation.is_some() {
+            return;
+        }
+        let count = self.all_rows(cx).len();
         if count == 0 {
             return;
         }
@@ -318,7 +450,7 @@ impl QuickRecall {
     }
 
     fn open_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let rows = self.all_rows();
+        let rows = self.all_rows(cx);
         if let Some(row) = rows.get(self.selection).cloned() {
             self.open_row(row, window, cx);
         }
@@ -326,7 +458,20 @@ impl QuickRecall {
 
     fn open_row(&mut self, row: Row, window: &mut Window, cx: &mut Context<Self>) {
         match row {
+            // Recording and dictation act on the app the person came from, which
+            // gets the keyboard back as this panel closes.
+            Row::Command(command) => {
+                self.close(window, cx);
+                cx.defer(move |cx| palette::run(&command, cx));
+                return;
+            }
             Row::Screen { moment, .. } => open_screen_moment(&self.data, &moment, cx),
+            // Files open in their own app, not in LokalBot's main window.
+            Row::File { hit } => {
+                search::open_file(&hit);
+                self.close(window, cx);
+                return;
+            }
             Row::Meeting { group } => {
                 let at = group.hits[0].moment();
                 let tab = if at.is_some() {
@@ -343,6 +488,51 @@ impl QuickRecall {
         self.close(window, cx);
     }
 
+    /// A follow-up in the conversation on show, inside its latest question's scope
+    /// (`model.currentQuestionScope`). Until that is known, nothing is sent.
+    fn send_follow_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let question = self.query.trim().to_string();
+        let Some(conversation_id) = self.conversation else {
+            return;
+        };
+        let responding = self
+            .data
+            .read(cx)
+            .ask_stream
+            .as_ref()
+            .is_some_and(|stream| stream.error.is_none());
+        if question.is_empty() || responding {
+            return;
+        }
+        let scope = self
+            .transcript
+            .as_ref()
+            .and_then(|page| page.read(cx).follow_up_scope(conversation_id));
+        let Some(scope) = scope else {
+            return;
+        };
+        self.data.update(cx, |data, cx| {
+            data.ask_question(conversation_id, question, scope, None, cx)
+        });
+        self.input
+            .update(cx, |input, cx| input.set_value("", window, cx));
+        self.query.clear();
+        cx.notify();
+    }
+
+    /// Back to results (`showRecall`).
+    fn show_recall(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        stop_answer_speech(cx);
+        self.conversation = None;
+        self.transcript = None;
+        self._transcript_changes = None;
+        self.selection = 0;
+        self.set_placeholder("Search memory or run a command…", window, cx);
+        self.load_saved(cx);
+        self.search(window, cx);
+        self.focus_input(window, cx);
+    }
+
     /// Opens Ask with the query and the meetings it matched (`ask(_:usingResults:)`).
     fn ask_about_query(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let question = self.query.trim().to_string();
@@ -350,12 +540,15 @@ impl QuickRecall {
             return;
         }
         let meeting_ids = self.results.meetings.iter().map(|g| g.meeting.id).collect();
+        let screen_ids: Vec<i64> = self.results.screens.iter().map(|s| s.moment.id).collect();
         self.data.update(cx, |data, cx| {
+            data.ask_screens = (!screen_ids.is_empty()).then_some(screen_ids);
             data.ask(
                 AskRequest {
                     question,
                     meeting_ids,
                     submit: false,
+                    day: None,
                 },
                 cx,
             )
@@ -372,6 +565,7 @@ impl QuickRecall {
                     question,
                     meeting_ids: Vec::new(),
                     submit: false,
+                    day: None,
                 },
                 cx,
             )
@@ -381,6 +575,16 @@ impl QuickRecall {
     }
 
     fn open_full_ask(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Both surfaces share the conversation; opening it never re-submits.
+        if let Some(id) = self.conversation {
+            self.data.update(cx, |data, cx| {
+                data.ask_open_conversation = Some(id);
+                data.navigate(Section::Ask, cx)
+            });
+            super::activate_main(cx);
+            self.close(window, cx);
+            return;
+        }
         let question = self.query.trim().to_string();
         self.data.update(cx, |data, cx| {
             data.ask(
@@ -388,6 +592,7 @@ impl QuickRecall {
                     question,
                     meeting_ids: Vec::new(),
                     submit: false,
+                    day: None,
                 },
                 cx,
             )
@@ -398,6 +603,8 @@ impl QuickRecall {
 
     fn close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.search_task = None;
+        stop_answer_speech(cx);
+        self.thumbnails.clear(window, cx);
         let windows = super::secondary(cx);
         windows.quick_recall = None;
         windows.quick_recall_view = None;
@@ -407,12 +614,32 @@ impl QuickRecall {
     fn render_search_row(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let has_text = !self.query.is_empty();
+        let in_conversation = self.conversation.is_some();
+        let responding = in_conversation
+            && self
+                .data
+                .read(cx)
+                .ask_stream
+                .as_ref()
+                .is_some_and(|stream| stream.error.is_none());
         h_flex()
             .gap(px(10.))
             .items_center()
             .px(metric::PANEL_PADDING)
             .py(px(16.))
-            .child(ui::glyphs::ask_glyph(px(22.), lb.accent_text))
+            .when(in_conversation, |this| {
+                this.child(
+                    Button::new("quick-recall-back")
+                        .ghost()
+                        .small()
+                        .icon(Icon::new(Ico::ChevronLeft))
+                        .tooltip(lokalbot_i18n::tr("Back to recall"))
+                        .on_click(cx.listener(|this, _, window, cx| this.show_recall(window, cx))),
+                )
+            })
+            .when(!in_conversation, |this| {
+                this.child(ui::glyphs::ask_glyph(px(22.), lb.accent_text))
+            })
             .child(
                 div().flex_1().min_w_0().child(
                     Input::new(&self.input)
@@ -423,7 +650,20 @@ impl QuickRecall {
                         .px_0(),
                 ),
             )
-            .when(has_text, |this| {
+            .when(responding, |this| {
+                let data = self.data.clone();
+                this.child(
+                    Button::new("quick-recall-stop")
+                        .ghost()
+                        .small()
+                        .icon(Icon::new(Ico::CircleStop))
+                        .tooltip(lokalbot_i18n::tr("Stop"))
+                        .on_click(move |_, _, cx| {
+                            data.update(cx, |data, cx| data.request(AppEvent::StopAnswer, cx))
+                        }),
+                )
+            })
+            .when(has_text && !responding, |this| {
                 this.child(
                     Button::new("quick-recall-clear")
                         .ghost()
@@ -449,6 +689,78 @@ impl QuickRecall {
             )
     }
 
+    fn render_command_row(
+        &self,
+        index: usize,
+        command: &PaletteCommand,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let selected = index == self.selection;
+        let white: Hsla = gpui_kit::white();
+        let row_value = Row::Command(command.clone());
+        h_flex()
+            .id(("quick-recall-row", index))
+            .w_full()
+            .gap(px(12.))
+            .items_center()
+            .px(px(12.))
+            .py(px(10.))
+            .rounded(metric::GROUP_RADIUS)
+            .cursor_pointer()
+            .when(selected, |this| this.bg(lb.accent_fill))
+            .when(!selected, |this| {
+                this.hover(|s| s.bg(lb.text.opacity(0.05)))
+            })
+            .child(
+                div()
+                    .w(px(64.))
+                    .h(px(40.))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(ui::icon(
+                        command.icon,
+                        px(18.),
+                        if selected { white } else { lb.accent_text },
+                    )),
+            )
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(3.))
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(ty::SECONDARY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(if selected { white } else { lb.text })
+                            .child(command.title.clone()),
+                    )
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(ty::CAPTION)
+                            .text_color(if selected {
+                                white.opacity(0.85)
+                            } else {
+                                lb.text_secondary
+                            })
+                            .child(command.subtitle.clone()),
+                    ),
+            )
+            .when(selected, |this| {
+                this.child(ui::icon(Ico::CornerDownLeft, px(13.), white))
+            })
+            .on_click(
+                cx.listener(move |this, _, window, cx| {
+                    this.open_row(row_value.clone(), window, cx)
+                }),
+            )
+            .into_any_element()
+    }
+
     fn render_row(&self, index: usize, row: &Row, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let selected = index == self.selection;
@@ -461,6 +773,7 @@ impl QuickRecall {
         };
         let (leading, title, snippet, meta): (AnyElement, String, Option<String>, String) =
             match row {
+                Row::Command(command) => return self.render_command_row(index, command, cx),
                 Row::Screen {
                     moment,
                     snippet,
@@ -480,11 +793,17 @@ impl QuickRecall {
                     }
                     meta.push_str(&format!(" · {}", date_label(moment.ts, Local::now())));
                     let tint = lb.app_color(&moment.app);
+                    let image = self.thumbnails.image(moment, cx, |view| &view.thumbnails);
+                    let picture = match image {
+                        Some(ScreenImage::Ready(image)) => Some(image),
+                        _ => None,
+                    };
                     let leading = div()
                         .relative()
                         .w(px(64.))
                         .h(px(40.))
                         .rounded(metric::ROW_RADIUS)
+                        .overflow_hidden()
                         .bg(if selected {
                             white.opacity(0.18)
                         } else {
@@ -499,11 +818,20 @@ impl QuickRecall {
                         .flex()
                         .items_center()
                         .justify_center()
-                        .child(ui::icon(
-                            Ico::AppWindow,
-                            px(18.),
-                            if selected { white } else { tint },
-                        ))
+                        .map(|this| match picture {
+                            Some(image) => {
+                                this.child(img(image).size_full().object_fit(ObjectFit::Cover))
+                            }
+                            None => this.child(ui::icon(
+                                if moment.path.is_empty() {
+                                    Ico::ScanText
+                                } else {
+                                    Ico::AppWindow
+                                },
+                                px(18.),
+                                if selected { white } else { tint },
+                            )),
+                        })
                         .when(moment.is_saved, |this| {
                             this.child(
                                 div()
@@ -521,6 +849,39 @@ impl QuickRecall {
                         })
                         .into_any_element();
                     (leading, title, snippet.clone(), meta)
+                }
+                Row::File { hit } => {
+                    let meta = format!(
+                        "{} · {} · {}",
+                        hit.folder(),
+                        search::file_kind_label(hit),
+                        date_label(hit.date(), Local::now())
+                    );
+                    let leading = div()
+                        .w(px(64.))
+                        .h(px(40.))
+                        .flex()
+                        .justify_center()
+                        .child(
+                            div()
+                                .size(px(40.))
+                                .rounded(metric::ROW_RADIUS)
+                                .bg(if selected {
+                                    white.opacity(0.18)
+                                } else {
+                                    lb.chip_fill
+                                })
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(ui::icon(
+                                    search::file_icon(hit.kind),
+                                    px(18.),
+                                    if selected { white } else { lb.accent_text },
+                                )),
+                        )
+                        .into_any_element();
+                    (leading, hit.name(), hit.excerpt.clone(), meta)
                 }
                 Row::Meeting { group } => {
                     let hit: &Hit = &group.hits[0];
@@ -625,8 +986,14 @@ impl QuickRecall {
             .into_any_element()
     }
 
-    fn render_content(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn render_content(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
+        if let Some(page) = self.transcript.clone() {
+            return page.update(cx, |page, cx| {
+                page.render_transcript(window, cx).into_any_element()
+            });
+        }
+        let commands = self.command_rows(cx);
         let (screens, meetings) = self.rows();
         let trimmed = self.query.trim();
         if trimmed.is_empty() && screens.is_empty() {
@@ -648,7 +1015,12 @@ impl QuickRecall {
                     )))
                     .into_any_element(),
             );
-        } else if !trimmed.is_empty() && screens.is_empty() && meetings.is_empty() {
+        } else if !trimmed.is_empty()
+            && commands.is_empty()
+            && screens.is_empty()
+            && meetings.is_empty()
+            && self.results.files.is_empty()
+        {
             children.push(
                 v_flex()
                     .items_center()
@@ -682,9 +1054,12 @@ impl QuickRecall {
         // dividers are folded into the row elements to keep indexes aligned.
         let mut index = 0;
         let mut rows: Vec<AnyElement> = Vec::new();
+        let files = self.file_rows();
         for (title, section) in [
+            (lokalbot_i18n::tr("Commands"), &commands),
             (lokalbot_i18n::tr("Screens"), &screens),
             (lokalbot_i18n::tr("Meetings"), &meetings),
+            (lokalbot_i18n::tr("Files"), &files),
         ] {
             for (position, row) in section.iter().enumerate() {
                 let element = self.render_row(index, row, cx);
@@ -774,7 +1149,7 @@ impl QuickRecall {
                     .text_center()
                     .text_size(ty::BODY)
                     .text_color(lb.text_secondary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Type to search meetings, screens, and saved moments. Return opens a result; Ask is a separate action."))),
+                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Type to search meetings, screens, and saved moments, or to run a command like Record now. Return opens a result; Ask is a separate action."))),
             )
             .child(v_flex().gap(px(7.)).pt(px(6.)).children(suggestions))
             .into_any_element()
@@ -844,9 +1219,11 @@ impl QuickRecall {
 }
 
 impl Render for QuickRecall {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.thumbnails.drop_released(window, cx);
         let lb = cx.lb().clone();
-        let has_results = !self.all_rows().is_empty();
+        let has_results = !self.all_rows(cx).is_empty();
+        let in_conversation = self.conversation.is_some();
         v_flex()
             .size_full()
             .key_context("QuickRecall")
@@ -865,9 +1242,16 @@ impl Render for QuickRecall {
             .on_action(cx.listener(|this, _: &Escape, window, cx| this.close(window, cx)))
             .child(self.render_search_row(cx))
             .child(ui::divider(cx))
-            .child(div().flex_1().min_h_0().child(self.render_content(cx)))
-            .child(ui::divider(cx))
-            .child(self.render_footer(has_results, cx))
+            .child(
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .child(self.render_content(window, cx)),
+            )
+            .when(!in_conversation, |this| {
+                this.child(ui::divider(cx))
+                    .child(self.render_footer(has_results, cx))
+            })
     }
 }
 

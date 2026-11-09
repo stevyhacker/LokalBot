@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: October 26, 2026
+Effective: November 9, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -36,8 +36,14 @@ LokalBot can store the following under its Application Support directory:
 - opt-in Agent Mode sessions and the agent runtime;
 - facts, preferences, goals, and principles you ask Ask to remember about
   you, encrypted;
+- an index of the folders you choose to search under Files: file paths,
+  their text, and vectors of what they say or show (see [Files you
+  choose](#files-you-choose));
 - conversations downloaded from email accounts you connect, encrypted (see
-  **Email** under [Network access](#network-access)); and
+  **Email** under [Network access](#network-access));
+- while you share with phones and tablets, the records your paired devices
+  receive, those devices' public keys, and recordings on their way from them (see
+  [Phones and tablets](#phones-and-tablets)); and
 - preferences, diagnostic logs, and encryption keys.
 
 Fresh installs select activity-only day tracking. Visible text and encrypted
@@ -46,11 +52,13 @@ Screen Recording permissions. You can switch to accessible text without pixels,
 visual context, or fully off. Pixels are deleted after 14 days by default, and
 captured text, screenshot titles, URLs, and document names follow the same
 retention unless you explicitly choose to keep screen text and metadata forever.
+With visual context and search by meaning on, each retained screenshot also gets
+a vector of what it shows, made on this Mac from the pixels decrypted in memory
+(never written to disk) once you first search screens by meaning; that search
+downloads EmbeddingGemma 2's image and audio projector (555 MB). A screenshot's
+vector is deleted whenever its pixels are, even when its text is kept forever.
 Activity titles expire on the configured schedule even with that exception;
 app names and duration totals remain. Saved moments remain until you unsave or delete them. Dictation scratch
-audio is deleted after transcription by default. Dictated text is not kept,
-except briefly for learning while **Learn from my dictation** is on (see Personal
-Context below). You can delete an individual
 audio is deleted after transcription by default. Dictated text is kept only as
 the last 10 results for 7 days, encrypted, so you can copy one again (see
 **Recent dictations** below), and briefly for learning while **Learn from my
@@ -79,7 +87,7 @@ vocabulary, and note exports leave it out. **Remove sample** deletes it in one
 step, and nothing records that you tried it.
 
 **Read coding agent sessions** is on by default and can be turned off in
-Settings → Day Memory. While it is on, LokalBot reads Claude Code session files
+Settings → Screen & Activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
 `~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
 titles. It never opens the agents' credentials, settings, or databases, and
@@ -187,8 +195,8 @@ includes the relevant items in its prompt to your Think model, which may be
 an approved remote server. A question limited to some sources or days gets
 only items you stated, not learned ones.
 The answer lists the items it was given. External agents can read only items
-you mark **Share with agents**, and only while the separate personal-context
-grant described under External-agent access is on. Agent Mode, Autocomplete,
+you mark **Share with agents**, and only while **What I shared about myself**
+is ticked for them, as described under External-agent access. Agent Mode, Autocomplete,
 notes, exports, and diagnostics never get them.
 Turning off **Remember what I tell Ask** stops saving and using them and
 keeps what is saved; **Forget**, **Forget everything…**, or Undo on the Ask
@@ -301,11 +309,13 @@ The app may make these outbound connections:
   Qwen3 forced aligner (about 1 GB) that times each word; alignment and speaker
   processing remain on this Mac. Remembering voices also uses the local
   Pyannote models, which download on first use like the speaker models.
+  Turning on Files downloads EmbeddingGemma 2's image and audio projector
+  (555 MB), pinned and checked like the other models.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
 - **Email (optional):** nothing is read until you connect an account under
-  Settings → Personal Context → Email, after a notice that says what is read. LokalBot
+  Settings → Email, after a notice that says what is read. LokalBot
   signs in to Google with its own OAuth client, which has no secret: Google's
   consent page opens in macOS's sign-in sheet and returns only to LokalBot. If
   you import your own Google Cloud client instead, its id and secret are kept
@@ -371,13 +381,13 @@ The app may make these outbound connections:
   origin for autocomplete there; an approval for Think does not cover
   autocomplete, and one for autocomplete does not cover Think. Choosing and
   approving a server is your consent to send it what autocomplete uses, so
-  your Settings → Writing choices apply as set. While you type where
+  your Settings → Autocomplete choices apply as set. While you type where
   autocomplete can suggest, each request sends the text before the caret,
   your writing profile (name, style, languages, and notes), the API key you
   configured, and whichever of these you have turned on: the app and window
   title, the clipboard, visible text above the field, focused-window text,
   meeting and work memory, screen-derived memory, and learned examples.
-  Settings → Writing → Context names the server they go to. Secure fields and
+  Settings → Autocomplete → Context names the server they go to. Secure fields and
   excluded apps and sites are never read. A server on the internet must
   use HTTPS. A server on your own network (a private, link-local, or Tailscale
   address, or a `.local`, `.home.arpa`, `.ts.net`, or single-label name) may
@@ -492,6 +502,96 @@ use those requests to track you.
 LokalBot's own automated tests send only synthetic fixture text to remote
 model providers, from the project's CI; they never use a user's library.
 
+LokalBot accepts no incoming network connections apart from the listeners on
+`127.0.0.1` described above and the private control socket under
+[External-agent access](#external-agent-access). The one exception is opt-in:
+while you turn on **Phones & tablets**, the Mac listens for the phones and
+tablets you paired, as described next.
+
+## Phones and tablets
+
+Settings → **Phones & tablets** lets you read your Work Memory on your own
+iPhone, iPad, or Android device, and record meetings there for your Mac to
+process. It is off by default and separate from
+**Allow external agents to read your LokalBot data** and the other grants:
+turning one on never turns on another. While it is off, nothing listens and
+no shared copy is built.
+
+- **What is shared.** Only the data classes you leave on, each of which you can
+  turn off: meetings (title, time, app, duration, people's display names,
+  tracked projects, the summary, your notes, action items with your
+  corrections, decisions, and open questions), transcripts (text, times, and
+  speaker display names), Day Digests (with screen citations reduced to their
+  time and without the raw activity log, which quotes screen text), the
+  Timeline (work sessions, apps, time per project, coding-agent sessions, and
+  saved moments, with window titles unless you turn them off), people (display
+  names, open work, decisions, and meetings together), and tracked projects
+  (where they stand, actions, decisions, time, and meetings). You can limit the
+  copy to the last 30, 90, or 365 days; older records are removed from your
+  devices.
+- **What is never shared.** Calendar attendee email addresses, speaker
+  evidence and voice profiles, screenshots and their file paths, captured
+  screen text, the files you chose under Files, email, Personal Context,
+  overnight (Dream) memory, Ask conversations held on the Mac, settings, and
+  API keys. The bundled sample meeting is not shared.
+- **Where it travels.** Directly between your Mac and your devices, over your
+  local network or your Tailscale network. LokalBot operates no server or
+  relay and receives nothing. The Mac listens on one TCP port (17890 unless
+  you change it) and refuses, before any handshake, every connection that does
+  not come from a private network address (RFC 1918, link-local, or IPv6
+  unique local) or a Tailscale address (`100.64.0.0/10`). On the local
+  network it announces itself with Bonjour (`_lokalbot._tcp`) under a neutral
+  name, `LokalBot-` and four characters of its key's fingerprint, unless you
+  turn advertising off.
+- **Encryption and pairing.** Every connection is end-to-end encrypted and
+  mutually authenticated with the Noise Protocol Framework (X25519,
+  ChaChaPoly, BLAKE2s). Your Mac's long-term key is kept in the Keychain and
+  never synchronized. A device pairs only by scanning the code shown under
+  **Add a device**, which expires after five minutes and works once, and only
+  after you allow it in a prompt on the Mac. Afterwards the Mac accepts a
+  connection only from the keys of devices you paired.
+- **Questions from your devices.** With **Answer questions from my devices**
+  on, the Mac answers with your Think model and its existing approvals, from
+  the meetings and Timeline you share; screen memory and your files are never
+  searched for a device. With an approved remote Think server, the question
+  and the context it needs go to that server as they do for Ask on the Mac,
+  and the device shows that a remote engine answered. If the device
+  disconnects before the answer is finished, the Mac finishes it and holds it
+  in memory, never on disk, for up to 24 hours or until LokalBot quits, so the
+  device can collect it when it reconnects.
+- **Changes from your devices.** A device can mark an action open, done, or
+  deferred. The Mac applies the change as if you made it in Actions.
+- **Recordings from your devices.** A paired device can record a meeting. It
+  records only after you tap Record, keeps recording with the screen locked or
+  the app in the background, and shows the system's recording indicator
+  meanwhile. It's up to you to let people know they're being recorded, and to
+  follow the law where you are. The device keeps the audio in its app's private
+  storage, left out of device backups, until it can reach your Mac. It then sends
+  it directly, over the same encrypted connection, and deletes its copy once your
+  Mac confirms it has stored the meeting. The Mac only accepts recordings from
+  devices you paired, and only while **Accept recordings from my devices** is on;
+  with that off, the device keeps its recordings and sends no audio. The recording
+  becomes a meeting with that audio as its microphone track, so your speech
+  counts as yours while **My microphone is me** is on and other voices are treated
+  as this Mac's microphone would treat them. It takes no screen context, because
+  you weren't at the Mac. From then on it is processed, stored, and deleted like
+  any other meeting, with your transcription and Think models, including any remote
+  server you approved. The Mac keeps a partial upload in `companion/uploads/` in
+  the library until it arrives, for at most 14 days without progress, and deletes
+  them when you turn sharing off. The phone's microphone is never used for
+  anything else, and no audio ever goes from the Mac to a device.
+- **Storage.** The Mac keeps the shared records, the paired devices' public
+  keys, and the ids of recordings that arrived in `companion/companion.sqlite` in
+  the library; deleting it means pairing again. Each device keeps its copy in its
+  app's private storage for offline reading.
+- **Removing a device.** Remove it under Settings → Phones & tablets. It is
+  refused from its next connection, and if it is connected it is told to
+  erase its copy. Recordings that haven't reached your Mac are not a copy of
+  anything, so they stay on the device until you pair it again, which sends them,
+  or delete them there. The Mac deletes any partial upload from it. **Remove this
+  device** in the device's settings erases its copy and those recordings, and says
+  first how many would be lost.
+
 ## Email from Gmail
 
 This section is LokalBot's disclosure for data it receives from Google APIs.
@@ -500,7 +600,10 @@ Google APIs will adhere to the [Google API Services User Data
 Policy](https://developers.google.com/terms/api-services-user-data-policy) and
 the [Google Workspace API User Data and Developer
 Policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy),
-including the Limited Use requirements.
+including the Limited Use requirements. The use of raw or derived user data
+received from Google Workspace APIs will adhere to the Google User Data Policy,
+including the Limited Use requirements. That includes the AI models LokalBot
+runs on your Mac.
 
 - **What LokalBot reads.** With the read-only Gmail permission, LokalBot reads
   your Gmail address and its verified "Send mail as" addresses, Gmail's
@@ -514,16 +617,30 @@ including the Limited Use requirements.
   turned into text without loading images, tracking pixels, or links. Google
   refuses any change to your mail under this permission, so LokalBot can't
   send, delete, label, or mark mail as read.
-- **How it is used.** Only for features you see in LokalBot on your Mac. Today
-  that is the account list and its status in Settings; nothing else reads the
-  downloaded mail yet, not search, Ask, briefs, Dream reviews, Personal
-  Context, exports, model prompts, or the CLI and MCP. Before a feature such as
-  a meeting brief uses your mail, this policy will describe it and LokalBot
-  will ask you.
-- **Where it is kept.** Only on your Mac: each conversation is sealed with
-  AES-GCM, using a key kept in your macOS Keychain, in `email/` in the
-  library, and the sign-in tokens are kept in the Keychain. LokalBot has no
-  server, so nothing is uploaded anywhere.
+- **How it is used.** Only for features you see in LokalBot on your Mac:
+  - the account list and its status in Settings;
+  - **meeting briefs on Today.** Before a meeting, LokalBot picks up to five
+    conversations that include the meeting's attendees, matched by email
+    address, never by name. It shows each one's latest new text, with quoted
+    history and signatures removed and likely passwords, card numbers, and
+    account numbers redacted, and opens it in Gmail when you click it. The
+    brief's Think model receives the same excerpts, at most about 3,000
+    characters, marked as quoted mail it must not take instructions from.
+    Briefs are generated only by a model on your Mac, never a remote one. A
+    generated brief stays in the app's memory and is never saved to disk.
+
+  Conversations you wrote in stay on your Mac so a brief is ready when someone
+  in them joins a later meeting.
+
+  Nothing else reads the downloaded mail: not search, Ask, Dream reviews,
+  Personal Context learning, exports, or the CLI and MCP. Before another
+  feature uses your mail, this policy will describe it and LokalBot will ask
+  you.
+- **Where it is kept and how it is protected.** Only on your Mac: each
+  conversation is sealed with AES-GCM, using a key kept in your macOS Keychain,
+  in `email/` in the library, and the sign-in tokens are kept in the Keychain.
+  Mail and tokens travel between Google and your Mac only over HTTPS. LokalBot
+  has no server, so nothing is uploaded anywhere.
 - **Who receives it.** No one. LokalBot doesn't transfer or sell Gmail data to
   the LokalBot project, advertisers, data brokers, AI providers, or anyone
   else; doesn't use it for advertising or to decide credit-worthiness; and
@@ -531,6 +648,10 @@ including the Limited Use requirements.
   train AI or machine-learning models. Text from your mail is not sent to
   remote AI models; if that ever becomes an option, it will be off until you
   turn it on for that feature.
+- **Aggregated or anonymized data.** The only aggregate figures LokalBot makes
+  from Gmail are conversation and message counts, which Settings shows and its
+  log on your Mac records. It makes no anonymized data from your mail, and sends
+  nothing aggregated or anonymized anywhere.
 - **How long it is kept, and deleting it.** Messages older than 90 days are
   deleted automatically, and mail you trash, delete, or that stops
   qualifying is removed at the next check. **Disconnect** deletes that
@@ -538,6 +659,67 @@ including the Limited Use requirements.
   LokalBot's access; you can also remove it at
   [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
   Deleting LokalBot's library folder removes all downloaded mail.
+
+## Files you choose
+
+Files (Settings → Files) searches folders on your Mac by
+what is in them. It is off until you turn it on after a notice, and it reads
+nothing until you choose a folder. It never picks folders by itself: Settings
+offers Documents, Desktop and Downloads as one-click choices, and macOS asks
+you for access only when you pick one. Its engine is
+[DigUp](https://github.com/ARahim3/DigUp)'s, which runs inside LokalBot.
+
+- **What LokalBot reads.** Only the folders you list. In them it reads
+  pictures and screenshots, PDFs page by page (scanned pages as pictures),
+  and documents such as txt, md, rtf, doc, docx, odt, and html. It skips
+  hidden files and folders, app bundles, caches, the insides of code projects
+  except their screenshots, folders that look like datasets, and iCloud files
+  that are not downloaded; it never downloads them. Unless you turn off
+  **Include recordings and video**, it also reads recordings 30 seconds of
+  sound at a time and videos a frame per shot plus their sound. A folder you
+  remove from the list is dropped from the index at the next pass. LokalBot
+  never changes, moves, or uploads your files.
+- **How it is used.** An on-device model (EmbeddingGemma 2, with its image
+  and audio projector) turns each picture, page, and passage into a vector;
+  Apple's Vision reads the text in screenshots. Ask and Quick Recall search
+  those vectors and the extracted text when the Files source is selected, and
+  the Ask assistant can call `search_files` to read the passages that matched.
+  For a matched moment in a recording or video, the assistant hears what was
+  said: LokalBot transcribes just those 30 seconds with the transcription
+  model you chose, only if that model is already on this Mac and no meeting is
+  recording, and keeps the words in memory for that answer only. A remote
+  transcription server receives the clip only if you approved its origin.
+  Opening a moment plays it in a LokalBot window.
+  Reading happens in passes when something in the folders changes, and pauses
+  while a meeting records, in Low Power Mode, and while the Mac is warm. The
+  model runs only while new or changed files are read. A folder's first read
+  goes slower while you use the Mac: LokalBot checks how long ago the last key
+  press or mouse move was (never which key or where), as macOS reports it. On
+  battery, that first read waits for a charger unless you turn on **Read big
+  folders on battery**.
+  Before you add a folder, LokalBot counts what it holds to show how long the
+  first read will take. The count uses file metadata only (types, sizes, and
+  page counts and durations from Spotlight) and is not kept; the only thing
+  saved is how fast this Mac indexes, as timings without file names.
+- **Where it is kept.** In `files-index.noindex` in the library: each indexed
+  file's path, size, and dates, the text LokalBot extracted from it, short
+  excerpts, a photo's EXIF capture date, and the vectors. Transcribed moments
+  are not stored. It is not
+  encrypted beyond your disk's own encryption, because it holds text that
+  the files themselves already hold unencrypted in the folders you chose.
+- **Who receives it.** No one, by default: searching and indexing run on your
+  Mac. If you ask Ask a question with Files selected and your Think model is
+  a remote server, the passages `search_files` returns go to that server, as
+  meeting and screen text do, and only to an origin you approved (see
+  **Optional remote inference** under [Network access](#network-access)).
+  External agents using the CLI or MCP can search the index only while you
+  tick **Files** for them, and only in the folders you chose; what they read
+  then goes wherever that agent sends it (see
+  [External-agent access](#external-agent-access)).
+- **How long it is kept, and deleting it.** The index follows the folders:
+  a file you delete or move out of them leaves the index at the next pass.
+  Turning Files off deletes the whole index at once. Deleting LokalBot's
+  library folder removes it too.
 
 ## Permissions
 
@@ -565,6 +747,12 @@ grant optional permissions until you approve them:
   When it is already granted, Autocomplete also uses it to place suggestions
   in fields that report no caret position and to read the focused window's
   text (see below); it never asks for it.
+- Files and Folders access (Desktop, Documents, Downloads, external and
+  network drives), only when a folder you choose under Files lives there;
+  macOS asks the first time LokalBot reads it.
+- Local Network when you approve an inference server on your network or turn
+  on **Phones & tablets**. With the macOS firewall on, macOS may also ask
+  whether LokalBot may accept incoming connections for paired devices.
 
 On a fresh install, LokalBot asks through a notification before it records a
 detected meeting. You can switch to automatic recording or turn auto-record
@@ -574,36 +762,69 @@ before recording other people.
 ## External-agent access
 
 The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
-access unless you explicitly enable Agent Access under Settings → Privacy.
-Meeting access includes action items with your saved corrections and a People
-view of names, open actions, decisions, and shared meetings; it never
-includes attendee email addresses. An
-enabled external tool runs as your macOS user, so only connect tools you trust.
-Screen-memory MCP tools require a second, independent toggle and a history
-profile: today, the rolling last seven days, or all retained history. They
-expose captured text, window/app activity, timestamps, and capture metadata,
-but never decrypted screenshot pixels or screenshot file paths. Queries are
-clamped to the granted period and out-of-scope ids appear missing. Enabling
-meeting access does not enable screen-memory access, or vice versa. A connected
-MCP client may transmit tool inputs and results under that client's own privacy
-terms.
+access until you turn on **Allow external agents to read your LokalBot data**
+under Settings → External Agents. It is off by default. Under it is a
+box for each kind of data: **Meetings**, **Screen memory**, **What I shared
+about myself**, and **Files**. Agents can read only the kinds you tick, and
+ticking one never grants another. The first time you turn the switch on, only
+Meetings is ticked. The last ticked box can't be unticked; turn the switch off
+instead. Turning the switch off removes every read grant, and LokalBot
+remembers which boxes were ticked, and the screen history range, in the
+library's `control/agent-read-choices.json` for the next time. Grants made
+with the separate toggles of earlier versions, or through agent setup, stay as
+they were: the switch shows on while any kind is granted, nothing is added on
+upgrade, and Files starts unticked.
 
-**Allow external agents to read what I shared about myself** is a third,
-independent grant, off by default. It covers only the Personal Context items you mark
-**Share with agents**. Neither meeting nor screen access implies it, and Agent
-Mode's own session access doesn't either. While it is on, LokalBot keeps a
+Each kind's grant is its own marker file in the library's private `control/`
+folder, which the CLI and MCP server check even while LokalBot is closed. An
+enabled external tool runs as your macOS user, so only connect tools you trust.
+A connected MCP client may transmit tool inputs and results under that
+client's own privacy terms.
+
+**Meetings** covers the meeting library, including action items with your
+saved corrections and a People view of names, open actions, decisions, and
+shared meetings; it never includes attendee email addresses.
+
+**Screen memory** also needs a history range, **Granted history**, shown under
+its box: today, the rolling last seven days, or all retained history. Its MCP
+tools expose captured text, window/app activity, timestamps, and capture
+metadata, but never decrypted screenshot pixels or screenshot file paths.
+Queries are clamped to the granted period and out-of-scope ids appear missing.
+
+**What I shared about myself** covers only the Personal Context items you mark
+**Share with agents**; **Choose items…** under its box opens them. Agent
+Mode's own session access doesn't grant it. While it is ticked, LokalBot keeps a
 plaintext copy of exactly those items, with their kind, text, and dates, in the
 library's `control/personal-context.json` (mode 0600) so the CLI can read them
 without the encryption key. The copy is rewritten whenever you edit, unshare,
-or forget an item. It is deleted when you turn the grant off, and when LokalBot
-can't read Personal Context. `get_personal_context` and `lokalbot-cli personal-context`
-return at most 12 items, the most relevant to the agent's stated task.
+or forget an item. It is deleted when you untick the box or turn the switch
+off, and when LokalBot can't read Personal Context. `get_personal_context` and
+`lokalbot-cli personal-context` return at most 12 items, the most relevant to
+the agent's stated task.
+
+**Files** lets agents search the folders you chose under
+[Files](#files-you-choose) by their words, with `search_files` or
+`lokalbot-cli search-files`. The search covers the text LokalBot extracted from
+documents, PDF pages, screenshots, and pictures, plus file names; recordings
+and video match only by name. Search by meaning stays in LokalBot's Ask. Each
+result has the file's path, name, kind, page or position in seconds, modified
+date, the photo's capture date if it has one, size, a short excerpt, and the
+passage that matched, up to 1,500 characters. Only files that still exist in
+the folders you chose are returned. Searching never changes, moves, or uploads
+your files. The paths point at your own files, so an agent that can run
+commands as you can open them with its own access, which LokalBot can't limit.
+While Files is ticked, and Files is on with at least one folder, LokalBot keeps
+the list of chosen folders in the library's `control/files-access.json` (mode
+0600), so the CLI can search without reading LokalBot's settings. It is
+rewritten when you change the folders and deleted when you untick the box,
+turn the switch off, or turn Files off.
 
 `get_briefing` and `lokalbot-cli brief` give an agent one short overview to
 start a session with. With every grant off they still answer, but say only
 which grants are off and how to turn them on, not how much the library holds.
 Each other part needs the grant that covers its source. Shared Personal Context
-items need the personal-context grant. The meeting count, the newest meeting's title, and
+items need the personal-context grant. For Files, the overview says only
+whether it is on and how many folders it covers. The meeting count, the newest meeting's title, and
 your own open action items need meeting access. Current projects and goals from
 the overnight review need meeting access for meeting sources and screen access,
 within its history profile, for screen, activity, and digest sources; entries
@@ -642,14 +863,17 @@ background, which also starts the capture and schedules you have turned on.
 An agent setting LokalBot up for you can ask for this access with
 `lokalbot-cli setup start`. The CLI leaves a short-lived request in the
 library's `control/` folder, and LokalBot shows it in a window that names the
-program that asked. Only clicking Allow turns access on. Read access to the
-meeting library or screen memory appears as separate boxes, off unless you
-tick them, and Don't Allow leaves everything off. With access, the agent can
+program that asked. Only clicking Allow turns access on. If the agent also
+asks to read meetings, screen memory, or Files (`--meeting-library`,
+`--screen-memory`, `--files`), each appears as a separate box (**Let agents
+read your meetings**, **Let agents read screen memory**, **Let agents search
+your files**), off unless you tick it, and shows as ticked under External
+agents afterwards. Don't Allow leaves everything off. With access, the agent can
 also choose a model preset (which downloads models), show you macOS permission
 prompts, set launch at login, and restart LokalBot when macOS needs it. The
 permissions themselves are always yours to grant.
-This toggle grants no meeting-library, screen-memory, or personal-context
-access, and none of those grants it.
+This toggle grants no meeting-library, screen-memory, personal-context, or
+file access, and none of those grants it.
 
 **Open in Claude** and **Open in Codex**, in a meeting's More menu, start a new
 conversation in that installed app with the meeting's title, summary, and as much
@@ -696,8 +920,8 @@ folder's location on the clipboard.
 
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
-captured text, and semantic search vector until you unsave or delete that
-moment. Excluded apps and domains and focused secure fields are skipped.
+captured text, and semantic search vectors (of its text and, with visual
+context, of its picture) until you unsave or delete that moment. Excluded apps and domains and focused secure fields are skipped.
 Private and incognito browser windows are captured like any other window, so
 add a browser or site to the exclusions to keep it out. Detected credentials,
 payment card numbers, and IBANs are redacted and
@@ -763,7 +987,7 @@ and unknown document contexts do not learn or reuse examples. Settings →
 Autocomplete → **Forget learned text** removes the stored examples and cancels
 pending learning writes.
 
-Autocomplete keeps local counters, shown under Settings → Writing → **Usage and
+Autocomplete keeps local counters, shown under Settings → Autocomplete → **Usage and
 timing**: suggestions generated and accepted, generation time, and, for each
 kind of app (native apps, browsers, chat, email), the wait from your last
 keystroke to a visible suggestion, whether accepted text then appeared in the
@@ -774,7 +998,7 @@ discarded; only the outcome is counted. No typed text, app name, or window title
 is stored. **Reset** clears the counters, and **Copy measurements** puts the
 counts on the clipboard only when you click it.
 
-Settings → Writing → **Statistics** shows how much autocomplete wrote for you.
+Settings → Autocomplete → **Statistics** shows how much autocomplete wrote for you.
 For each local day and month it counts the suggestions shown and used, the
 words and characters accepted, and accepts deleted or undone at once, each also
 by kind of app and by autocomplete model, plus accepted typo corrections. To
@@ -793,7 +1017,7 @@ Autocomplete also has a separate **Use visible text above the field** setting.
 It is on for new installs and only takes effect while Autocomplete itself is on;
 settings saved by earlier versions keep their choice, which was off unless you
 turned it on. Onboarding says so where Autocomplete is prepared, and Settings →
-Writing turns it off. It reads Accessibility labels and messages in the focused
+Autocomplete turns it off. It reads Accessibility labels and messages in the focused
 field's column, up to 600 points above it, within the same visible window/pane.
 It selects at most three excerpts within 420 characters. Hidden/offscreen text,
 other inputs, sidebars, toolbars, secure fields, credential-bearing snippets,
@@ -817,7 +1041,7 @@ autocomplete without this additional context.
 Autocomplete also has a **Use the focused window as context** setting. It is on
 for every install, including settings saved by earlier versions, and only takes
 effect while Autocomplete itself is on and Screen Recording is already granted;
-Autocomplete never asks for Screen Recording. Settings → Writing turns it off.
+Autocomplete never asks for Screen Recording. Settings → Autocomplete turns it off.
 While you type in a field, Autocomplete captures only the focused window,
 recognizes its text on this Mac with Apple's Vision framework, and drops the
 image. Text inside the field you are typing in is left out, since it is already
@@ -941,7 +1165,7 @@ A result older than 7 days is dropped when LokalBot starts or saves the next
 dictation, and any beyond the newest 10 right away; **Clear** deletes the file. They are never logged or sent anywhere. Text meant
 for a password field is never kept.
 
-Selection actions are off by default (Settings → General → Shortcut). When
+Selection actions are off by default (Settings → Ask, or Turn On on Settings → Overview). When
 enabled, pressing their shortcut reads the text selected in the frontmost app
 once, through Accessibility. Apps on the shared exclusion list and secure
 fields are not read. When an app does not expose its selection that way,
@@ -982,15 +1206,25 @@ platform differences:
   `%LOCALAPPDATA%\LokalBot` on Windows, with logs in its `logs` folder. API
   keys, the ChatGPT plan sign-in, and the screen-image key are kept in the
   system credential store (Secret Service on Linux, Windows Credential
-  Manager).
+  Manager). Ask conversations, Personal Context and the dictation learning log
+  are AES-GCM encrypted under a per-install key there too. Without a reachable
+  store, new conversations stay in memory and existing plaintext ones stay as
+  they are until they can be encrypted. A file from another computer can't be
+  opened and is kept as is.
 - **Imported recordings** are read without being changed or moved, as on
   macOS, but their audio is kept as a 16 kHz WAV copy rather than AAC. Merged
   meetings also keep WAV tracks. A Mac reads these tracks too. The bundled
   sample meeting is imported and kept out of personal memory as on macOS.
 - **Screen context** is off until you turn it on.
   - Visible text is read through accessibility first (AT-SPI on Linux, UI
-    Automation on Windows). Otherwise on-device OCR is used; its model
-    downloads only when you ask for it in Settings.
+    Automation on Windows). Otherwise on-device OCR is used: the recognizer
+    built into Windows on Windows, and the Tesseract program on Linux if it's
+    installed, in your app and system languages. ocrs is the fallback for Latin
+    letters. Its models and Tesseract's language data download only when you ask
+    for them in Settings.
+  - On Linux, Tesseract gets a window's pixels over a pipe from memory, and they
+    are never written to a file for it. Only the text it returns is used; nothing
+    else it prints is kept or logged.
   - Secrets are redacted before anything is stored, and an image is dropped
     when anything was redacted.
   - Excluded apps and sites, private and incognito windows, focused password
@@ -1003,8 +1237,39 @@ platform differences:
     text, through accessibility.
   - It never reads password fields, terminals, excluded apps or LokalBot's own
     windows.
-  - Nothing it reads is stored. Suggestions come from the local Autocomplete
-    model, and accepted text is typed into the field without the clipboard.
+  - On Wayland it works as the desktop's input method instead: on Sway and
+    Hyprland when you turn it on, on GNOME when you also choose LokalBot as an
+    input source, and on KDE Plasma when you also choose LokalBot under System
+    Settings → Keyboard → Virtual Keyboard. While a text field has focus, the
+    desktop gives LokalBot the field's kind and up to 4,000 bytes of the text
+    around the caret, without LokalBot asking the app. In a password field, a
+    terminal, an excluded app, LokalBot's own windows or an app it cannot name,
+    that text is dropped unused as soon as the field is identified, and nothing
+    is suggested. Nearby visible text still comes through accessibility.
+  - On KDE Plasma, Plasma starts a small LokalBot process for the session
+    (`lokalbot --kwin-input-method`), because it talks to an input method only
+    over a connection it opens itself. That process passes the field to the
+    LokalBot app through a socket in LokalBot's private runtime folder that only
+    your user can open, and sends the text around the caret only while
+    autocomplete is on and the app is running. It keeps no text and writes no
+    file but that socket. With the app closed it reads no keys and shows
+    nothing, and typing is as it is without an input method. The window in front
+    is named by a short KWin script, as for day memory, so excluded apps are
+    refused before their text is used.
+  - Keys on Wayland: on Sway, Hyprland and KDE Plasma, LokalBot sees your keys
+    only while a suggestion shows, and passes on every one but the accept keys
+    and Esc. On GNOME, while LokalBot is the chosen input source, the desktop
+    asks it about every key press in a text field except in password fields,
+    where GNOME takes it out of the way. It compares the key to the accept keys
+    when a suggestion shows, and answers. Neither keys nor the text around the
+    caret are kept or logged, and choosing another input source or virtual
+    keyboard, or turning autocomplete off, ends all of this.
+  - It stores only encrypted examples accepted in identified documents, for 30
+    days, and estimated counts in `cotyping-stats.json` and `cotyping-usage.json`.
+    Suggestions come from the local Autocomplete model or a server you approve,
+    and accepted text is typed into the field without the clipboard.
+  - Window text needs on-device OCR, and uses what screen context uses. It
+    never starts a download.
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
@@ -1063,8 +1328,16 @@ platform differences:
   data. The update archive downloads only when you choose Install and
   Relaunch, and is checked against its pinned size, SHA-256 and the release
   signature before it is unpacked.
-- **Dictation** is off until you turn it on. Its audio stays in memory and is
-  never written to disk. The text is pasted through the clipboard, and your
+- **Dictation** is off until you turn it on. **Use the focused window as
+  context** is off on a new install. Its audio stays in memory unless you turn
+  on **Keep dictation audio files**, which saves WAV files in `dictations/` in
+  the library. Where a Wayland desktop reports nothing about focus, dictation
+  still pastes, because the destination cannot be checked. Media pause uses
+  MPRIS on Linux and System Media Transport Controls on Windows, reads each
+  player's status and, on Linux, page address, and stores nothing; Windows
+  can't see a browser session's page, so conference-domain and live-stream
+  exclusions don't apply there. The tray menu shows a preview of recent
+  dictations; on Linux other apps on the session bus can read it. The text is pasted through the clipboard, and your
   previous clipboard comes back about 300 ms later; when pasting isn't
   possible, the text is left on the clipboard instead. **Recent dictations**
   keeps the last 10 results (or the spoken words when Compose fails), with
@@ -1076,13 +1349,16 @@ platform differences:
   quits. A result older than 7 days is dropped when LokalBot starts or saves
   the next dictation, and **Clear** deletes the file. Text dictated into a
   password manager is never kept; password fields in other apps can't be
-  detected there. There is no **Learn from my dictation**.
+  detected there. **Learn from my dictation** works as on macOS once you turn it on.
 - **Meeting detection** looks at which apps are using the microphone
   (PulseAudio source outputs on Linux, WASAPI capture sessions on Windows) and
   by default asks with a notification before recording. System audio comes
-  from the whole output (a PulseAudio or PipeWire monitor, or WASAPI loopback),
-  not from one app, so anything else playing during a recording is recorded
-  too.
+  from the detected meeting app alone where it can be separated (PulseAudio or
+  PipeWire sink-input monitors on Linux, WASAPI process loopback on Windows 10
+  build 20348 or later). Otherwise it comes from the whole output, so anything
+  else playing is recorded too. While a browser holds the microphone, LokalBot
+  reads its accessibility tree for a Google Meet room and its call controls,
+  keeping only the room address; it never turns system accessibility on.
 - **Permissions.** There are no macOS-style permission prompts. Windows uses
   its own microphone privacy setting (Settings → Privacy & security →
   Microphone, "Let desktop apps access your microphone"). On Linux, Wayland
@@ -1090,18 +1366,62 @@ platform differences:
   apps expose their text only once system accessibility is on, and GNOME needs
   the Window Calls extension for app and window activity.
 - **External agents.** The meeting-library and screen-memory toggles in
-  Settings → Privacy & Data work as on macOS. The Windows and Linux CLI has no
-  settings-change access or `setup`, `config` and `secret` commands, and
-  personal context is read only from a library that came from a Mac, because
-  the app has no Personal Context page or setting for it yet.
-- **Mac-only features.** Personal Context, email, selection actions, meeting note export,
-  daily memory notes, spoken summaries and coding-agent sessions are not in the
-  Windows and Linux app yet, so none of their data is collected there.
+  Settings → Privacy & Data work as on macOS. The same commands work under the
+  same toggle: the socket lives in your private runtime folder, or is a named
+  pipe only your user can open on Windows, and `permissions` reports what the
+  desktop allows instead of showing prompts.
+- **Selection actions** work as on macOS, with Ctrl+C for ⌘C. Terminals are
+  never sent Ctrl+C. On X11 the primary selection is read only when the
+  frontmost app owns it; on Wayland it is not read. Apps without accessibility
+  cannot be checked for a focused password field, so LokalBot relies on toolkits
+  refusing to copy from one; results there are copy-only.
+- **Coding-agent sessions** are read only after you choose it in setup or
+  Settings → Day Memory, even if an earlier version or a Mac saved the setting as
+  on. Until then nothing under `~/.claude` or `~/.codex` is opened, and sessions a
+  Mac recorded in the library aren't used.
+- **Review the day overnight** is under Settings → Day Memory, on by default as
+  on macOS.
+- **Remembered voices.** The key is in the system credential store; without one,
+  names stay on the transcript and no voice is kept. A voice match is only
+  offered: **Apply Names** names the speaker. Sealed voice files are per install:
+  on another computer they stay untouched and voices aren't remembered there. A
+  meeting deleted while voices can't be opened is still deleted, this is reported,
+  and its contributions leave at the next opening.
+- **Files you choose.** Page counts and durations come from the files' own
+  headers. Words in screenshots come from screen text recognition only if it's
+  already available, and matched files open in their default app. A scanned page
+  is read only when its picture is stored as a JPEG or plain raster; JBIG2, CCITT
+  and JPEG 2000 scans stay unread.
+- **Remote servers.** Think and Agent Mode refuse plain HTTP to any non-loopback
+  server, including private and Tailscale addresses, even once approved. A
+  transcription server you approve receives audio and vocabulary: clips of at most
+  15 seconds, asked for text only unless the model is known to return word times,
+  and redirects aren't followed. Without word times, clips are cut at speaker
+  turns; there is no forced aligner.
+- **Agent handoff.** When no `claude://`, `claude-cli://` or `codex://` link is
+  registered, LokalBot starts the installed command-line agent in a new terminal
+  and copies the prompt to the clipboard for you to paste. It never passes the
+  prompt on a command line, and nothing is sent until you send it there.
+- **Phones and tablets.** Settings → Phones & tablets works as described under
+  [Phones and tablets](#phones-and-tablets), with this computer in place of the
+  Mac. The long-term key is kept in Windows Credential Manager or the Secret
+  Service; if neither can be reached, sharing stays off and says why. The local
+  network announcement uses mDNS under the same neutral name, which also replaces
+  the computer's host name in it. Windows Firewall may prompt when sharing starts,
+  and a firewall can block the port on either system; Settings says what to allow.
+- **Mac-only features.** Email is not in the Windows and Linux app yet, so none
+  of its data is collected there.
 - **Network access** is limited to model and runtime downloads you request
-  (models from Hugging Face and GitHub, the llama.cpp runtime from GitHub, the
-  OCR model from the ocrs project's storage), Agent Mode setup, update checks,
+  (models from Hugging Face, or HF-Mirror or ModelScope if you choose them, and
+  GitHub, the llama.cpp runtime from GitHub, the
+  OCR model from the ocrs project's storage, Tesseract's language data from
+  GitHub), Agent Mode setup, update checks,
   AI servers and subscription plans you approve, and the calendar links you
-  add.
+  add. If you already installed the llama.cpp runtime and an app update moves
+  to a new build, LokalBot downloads that build from GitHub on its own, checks
+  it against its pinned size and SHA-256, and removes the old one. CUDA is the
+  exception: it waits until you set it up again. Removing the runtime in
+  Settings stops this.
 
 ## Security and changes
 

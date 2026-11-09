@@ -77,7 +77,7 @@ struct ProjectsWorkspaceView: View {
                 .accessibilityIdentifier("projects.add")
             }
             .padding(WorkspaceMetric.cardPadding)
-            List(selection: $app.selectedProjectID) {
+            List(selection: listSelection) {
                 Section("Tracked") {
                     if tracked.isEmpty {
                         Text(store.curation.tracked.isEmpty
@@ -123,9 +123,19 @@ struct ProjectsWorkspaceView: View {
         }
     }
 
+    /// The page opens on the first project with nothing chosen yet, so the
+    /// list shows that project as selected too.
+    private var listSelection: Binding<String?> {
+        Binding(get: { app.selectedProjectID ?? selectedProject?.id },
+                set: { app.selectedProjectID = $0 })
+    }
+
     @ViewBuilder private var detail: some View {
         if let project = selectedProject {
             ProjectDetailView(project: project, store: store).id(project.id)
+        } else if let settling = Self.settlingProfile(selection: app.selectedProjectID, curation: store.curation,
+                                                      projects: connections.projects) {
+            ProjectDetailView(project: settling, store: store, isSettling: true).id(settling.id)
         } else {
             Text(detailPlaceholder)
                 .foregroundStyle(.secondary)
@@ -136,6 +146,19 @@ struct ProjectsWorkspaceView: View {
     private var selectedProject: ProjectProfile? {
         guard let id = app.selectedProjectID else { return tracked.first ?? connections.projects.first }
         return connections.projects.first { $0.id == id }
+    }
+
+    /// A suggestion that was just tracked stays on screen, already marked as
+    /// tracked, until the next refresh delivers its tracked profile. Nothing is
+    /// written from this copy: its evidence is about to be replaced.
+    static func settlingProfile(selection: String?, curation: ProjectCuration,
+                                projects: [ProjectProfile]) -> ProjectProfile? {
+        guard let selection, !projects.contains(where: { $0.id == selection }),
+              let tracked = curation.tracked.first(where: { trackedSelectionID($0.id) == selection }),
+              let suggestion = projects.first(where: {
+                  !$0.isTracked && PeopleDirectory.normalized($0.name) == PeopleDirectory.normalized(tracked.name)
+              }) else { return nil }
+        return suggestion.tracked(as: tracked.id, selectionID: selection)
     }
 
     private var detailPlaceholder: String {
@@ -243,6 +266,8 @@ struct ProjectDetailView: View {
     @EnvironmentObject var app: AppState
     let project: ProjectProfile
     @ObservedObject var store: ProjectStore
+    /// A provisional page for a project tracked a moment ago.
+    var isSettling = false
     @State private var renaming = false
     @State private var showingOlderActions = false
 
@@ -251,7 +276,7 @@ struct ProjectDetailView: View {
             VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
                 header
                 if project.isTracked {
-                    WhereItStandsSection(project: project, store: store)
+                    WhereItStandsSection(project: project, store: store, isSettling: isSettling)
                 } else {
                     suggestionBanner
                 }
@@ -270,7 +295,7 @@ struct ProjectDetailView: View {
         }
         .navigationTitle(project.name)
         .accessibilityIdentifier("project.detail")
-        .onAppear { app.writeProjectSummary(for: project, automatic: true) }
+        .onAppear { if !isSettling { app.writeProjectSummary(for: project, automatic: true) } }
         .onChange(of: project) { _, updated in app.writeProjectSummary(for: updated, automatic: true) }
         .sheet(isPresented: $renaming) {
             ProjectNameSheet(title: "Rename Project", actionTitle: "Save", name: project.name,
@@ -549,6 +574,7 @@ private struct WhereItStandsSection: View {
     @EnvironmentObject var app: AppState
     let project: ProjectProfile
     @ObservedObject var store: ProjectStore
+    var isSettling = false
 
     private var trackedID: UUID? { project.trackedID }
     private var summary: ProjectStatusSummary? { trackedID.flatMap { store.summaries[$0] } }
@@ -560,7 +586,7 @@ private struct WhereItStandsSection: View {
         WorkspaceSection(title: "Where It Stands", icon: "text.alignleft") {
             if let summary {
                 note(summary)
-            } else if isWriting {
+            } else if isWriting || (isSettling && hasEvidence && app.writesProjectSummariesAutomatically) {
                 EmptyWorkspaceRow(text: "Writing a note from the latest meetings and review notes…")
             } else if hasEvidence {
                 EmptyWorkspaceRow(text: "No note yet. LokalBot can write one from the meetings and review notes below.")
@@ -624,7 +650,7 @@ private struct WhereItStandsSection: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            if isWriting {
+            if isWriting || isSettling {
                 ProgressView().controlSize(.small)
             } else if hasEvidence {
                 Button(summary == nil ? "Write Note" : "Update") {

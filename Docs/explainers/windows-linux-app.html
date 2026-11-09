@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: What the Windows and Linux app can do</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Scripts/render_explainer.py Docs/explainers/windows-linux-app.html web/explainers/windows-linux-app.pdf
+  Each .page is one A4 sheet. The screenshots are the demo library on a Windows CI desktop.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12.5px; line-height: 1.48; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 15mm 15mm 12mm; display: flex; flex-direction: column; gap: 16px; background: var(--bg); break-after: page; }
+.page:last-child { break-after: auto; }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p, ul { margin: 0; }
+h1 { font-size: 31px; line-height: 1.1; letter-spacing: -0.022em; font-weight: 750; }
+h2 { font-size: 17px; line-height: 1.2; font-weight: 700; }
+h3 { font-size: 13px; font-weight: 650; margin-bottom: 3px; }
+ul { padding-left: 15px; display: grid; gap: 3px; }
+.lede { font-size: 14px; color: var(--text-dim); max-width: 62ch; }
+.dim { color: var(--text-dim); }
+.eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+.card p { color: var(--text-dim); font-size: 11.5px; }
+.sec { display: grid; gap: 9px; }
+img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line-strong); }
+figcaption { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
+figure { margin: 0; }
+.warn { color: var(--warn-text); }
+.foot { margin-top: auto; display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 7px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Windows and Linux · alpha</div>
+  <h1>Most of the Mac app, now on Windows and Linux</h1>
+  <p class="lede">The Windows and Linux app gains nearly everything the Mac has had: search across your files, a daily review, selection actions, People and Projects, and more. Your library still moves between all three.</p>
+  <figure>
+    <img src="windows-linux-app/windows-settings.png" alt="Settings Overview on Windows, listing each feature with whether it is on and a button to set it up.">
+    <figcaption>Settings → Overview on Windows, with the demo library. Start here: it lists every feature, whether it's on, and one click to set it up.</figcaption>
+  </figure>
+  <div class="grid">
+    <div class="card"><h3>Find</h3><p><b>Files:</b> search the folders you choose by what's in them. <b>Screens by meaning</b>, and screen text in more scripts. <b>Coding-agent sessions</b> from Claude Code and Codex, once you opt in.</p></div>
+    <div class="card"><h3>Understand</h3><p><b>Overnight review</b> of yesterday on Today. <b>People, Projects and Actions</b> gather what's open from your meetings. <b>Personal Context</b> holds what you told LokalBot and what it learns.</p></div>
+    <div class="card"><h3>Act</h3><p><b>Selection actions</b> rewrite, translate or summarize selected text. <b>Spoken summaries</b>, <b>routines and exports</b> to a folder or Obsidian, and <b>agent handoff</b> for actions.</p></div>
+    <div class="card"><h3>Reach it fast</h3><p><b>Ctrl+K</b> opens the command palette. <b>Ctrl+Shift+Space</b> asks from any app, and <b>Ctrl+Alt+Space</b> acts on a selection. Both shortcuts are off until you turn them on.</p></div>
+    <div class="card"><h3>Phones and tablets</h3><p>A computer can now host paired phones and tablets, in Settings → Phones &amp; tablets, over your local network or Tailscale. The apps aren't in the App Store or Play Store yet, so there's nothing to pair for now.</p></div>
+    <div class="card"><h3>Autocomplete on Wayland</h3><p>Suggestions in other apps on Sway, Hyprland and GNOME, as an input method. It has <a href="https://www.lokalbot.com/explainers/wayland-autocomplete.pdf" style="color:var(--accent-text)">its own guide</a>.</p></div>
+  </div>
+  <div class="foot"><span>LokalBot · Windows and Linux</span><span>1 of 2</span></div>
+</section>
+<section class="page">
+  <div class="sec">
+    <div class="eyebrow">What it reads, keeps and sends</div>
+    <div class="two">
+      <div class="card"><h3>Stays on this computer</h3><p>Files, screen text and reviews are read and indexed here, in your library. Screen text in other scripts uses Tesseract on Linux and Windows' own recognizer on Windows. Tesseract's language data is a separate download, once.</p></div>
+      <div class="card"><h3>Leaves only if you set it up</h3><p>The overnight review waits for mains power and uses a remote Think model only at a server you approved. A phone's Ask gets no personal context, work memory or files.</p></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">What changes when you update</div>
+    <ul>
+      <li>The overnight review starts running, as on the Mac. Turn it off in Settings → Overview.</li>
+      <li>Think and Agent Mode refuse plain <code>http://</code> to any server that isn't this computer, including ones on your network or Tailscale. Move those to HTTPS.</li>
+      <li>Ask chats are now encrypted. Without a credential store, new chats stay in memory and a banner says so.</li>
+      <li>Coding-agent sessions need you to opt in, even if a saved setting says they're on. A library moved from a Mac starts opted out.</li>
+    </ul>
+  </div>
+  <figure>
+    <img src="windows-linux-app/windows-people.png" alt="People on Windows: John Park's open work, waiting on you and waiting on them." style="max-height:88mm;object-fit:cover;object-position:top">
+    <figcaption>People on Windows, with the demo library's made-up names.</figcaption>
+  </figure>
+  <div class="sec">
+    <div class="eyebrow">Limits</div>
+    <ul>
+      <li>Gmail in meeting briefs is still Mac-only, as are speech runtimes such as Granite and Nemotron.</li>
+      <li>Remembered speakers only suggest names here. They don't name anyone on their own.</li>
+      <li>Files doesn't read <code>.doc</code>, RAW photos, or scans stored as JBIG2, CCITT or JPEG 2000. Video frames, HEIC and AVIF need ffmpeg.</li>
+      <li class="warn">Still alpha, and the Windows app isn't code-signed. This release was tested on an automated Windows desktop, not yet by hand, and real phones on a network and real calls haven't been tried. New translations are machine-assisted.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>LokalBot · Windows and Linux</span><span>2 of 2</span></div>
+</section>
+</body>
+</html>

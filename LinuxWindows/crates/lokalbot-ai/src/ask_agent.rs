@@ -19,6 +19,8 @@ use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use lokalbot_core::actions::OutcomeProjection;
+use lokalbot_core::files::FileHit;
+use lokalbot_core::files::search::{FileInterval, FileReader};
 use lokalbot_core::model::{
     ActionStatus, ChatActivity, ChatMessage, ChatRole, Meeting, Transcript,
 };
@@ -509,6 +511,15 @@ const SEARCH_SCREEN: ToolSpec = ToolSpec {
         true,
     )],
 };
+const SEARCH_FILES: ToolSpec = ToolSpec {
+    name: "search_files",
+    summary: "Search the folders the user chose under Files (documents, PDFs, pictures and screenshots on this PC) by what they say or show. Returns matching files with the passage that matched.",
+    arguments: &[(
+        "query",
+        "What to look for, in natural language or keywords.",
+        true,
+    )],
+};
 const ACTIVITY_SUMMARY: ToolSpec = ToolSpec {
     name: "activity_summary",
     summary: "How the user spent their time in apps on a given day: per-app durations, top windows, and any recorded meetings.",
@@ -588,7 +599,15 @@ impl<'a> Tools<'a> {
         if self.scope.include_activity {
             specs.push(ACTIVITY_SUMMARY);
         }
+        if self.files_available() {
+            specs.push(SEARCH_FILES);
+        }
         specs
+    }
+
+    /// Files is on with a folder, and this question may read it.
+    fn files_available(&self) -> bool {
+        self.scope.include_files && !self.scope.file_folders.is_empty()
     }
 
     /// The newest meetings in scope, so list questions need no call.
@@ -596,14 +615,18 @@ impl<'a> Tools<'a> {
         if !self.scope.include_meetings {
             return String::new();
         }
-        if self.meetings.is_empty() {
-            return "The user has no recorded meetings yet.".into();
-        }
         let count = self.meetings.len();
-        let mut lines = vec![format!(
-            "The user has {count} recorded meeting{}. Most recent:",
-            if count == 1 { "" } else { "s" }
-        )];
+        let plural = if count == 1 { "" } else { "s" };
+        // Within a limit the count is only what the limit lets through.
+        let header = match (&self.scope.limit, count) {
+            (Some(_), 0) => return "No meetings are inside this question's limit.".into(),
+            (Some(_), _) => {
+                format!("Inside this question's limit: {count} meeting{plural}. Most recent:")
+            }
+            (None, 0) => return "The user has no recorded meetings yet.".into(),
+            (None, _) => format!("The user has {count} recorded meeting{plural}. Most recent:"),
+        };
+        let mut lines = vec![header];
         for meeting in self.meetings.iter().take(12) {
             lines.push(format!(
                 "- [{}] {} — {}, {}",
@@ -627,18 +650,36 @@ impl<'a> Tools<'a> {
             "get_action_items" if self.scope.include_meetings => self.action_items(call),
             "search_screen" if self.scope.include_screen => self.search_screen(call),
             "activity_summary" if self.scope.include_activity => self.activity_summary(call),
+            "search_files" if self.files_available() => self.search_files(call),
             name => Ok(ToolResult::plain(
                 format!("Unknown tool '{name}'."),
                 "unknown tool",
             )),
         };
-        result.unwrap_or_else(|err| {
+        let result = result.unwrap_or_else(|err| {
             log::warn!("Ask tool {} failed: {err:#}", call.name);
             ToolResult::plain(
                 format!("The tool failed: {err:#}"),
                 format!("{} failed", call.name),
             )
-        })
+        });
+        // A short list read as the whole library ("the only one in your
+        // library"), so the meeting lists say what they were held to.
+        match &self.scope.limit {
+            Some(limit)
+                if self.scope.include_meetings
+                    && matches!(
+                        call.name.as_str(),
+                        "search_meetings" | "list_meetings" | "get_action_items"
+                    ) =>
+            {
+                ToolResult {
+                    text: format!("{}\n{}", limit.note(), result.text),
+                    ..result
+                }
+            }
+            _ => result,
+        }
     }
 
     fn resolve(&self, reference: &str) -> Option<&Meeting> {
@@ -1050,16 +1091,13 @@ impl<'a> Tools<'a> {
                 "missing query",
             ));
         };
-        let hits: Vec<_> = self
-            .library
-            .search_screen_hits(query, None, None, 40)?
-            .into_iter()
-            .filter(|h| {
-                self.scope.since.is_none_or(|s| h.moment.ts >= s)
-                    && self.scope.until.is_none_or(|u| h.moment.ts < u)
-            })
-            .take(12)
-            .collect();
+        let hits = crate::ask::scoped_screen_hits(
+            self.library,
+            self.embedder.as_ref(),
+            &self.scope,
+            query,
+            12,
+        )?;
         let mut evidence = Sources::default();
         let text = if hits.is_empty() {
             format!(
@@ -1097,6 +1135,68 @@ impl<'a> Tools<'a> {
         })
     }
 
+    /// Files that match, with the passage that matched. Recordings and video are
+    /// transcribed on demand: only the first two moments, to keep an answer quick.
+    fn search_files(&self, call: &ToolCall) -> Result<ToolResult> {
+        let Some(query) = call.string("query") else {
+            return Ok(ToolResult::plain(
+                "Provide a 'query' argument.",
+                "missing query",
+            ));
+        };
+        let vector = self
+            .embedder
+            .as_ref()
+            .filter(|_| self.scope.search_by_meaning)
+            .and_then(|embedder| embedder.embed_query(query).ok());
+        let reader = FileReader::shared(self.library.paths().root());
+        let hits = reader.search(
+            query,
+            vector.as_deref(),
+            &self.scope.file_folders,
+            FileInterval {
+                since: self.scope.since,
+                until: self.scope.until,
+            },
+            8,
+        );
+        let mut evidence = Sources::default();
+        let mut lines = Vec::new();
+        let mut moments = 0;
+        for hit in &hits {
+            evidence.files.insert(hit.id);
+            let is_moment = hit.is_moment();
+            if is_moment {
+                moments += 1;
+            }
+            let passage = if is_moment {
+                (moments <= 2)
+                    .then(|| self.scope.moments.0.as_ref().and_then(|hear| hear(hit)))
+                    .flatten()
+            } else {
+                reader.passage(hit.id)
+            };
+            lines.push(file_line(hit, passage.as_deref()));
+        }
+        let text = if lines.is_empty() {
+            format!("No files matched “{query}” in the folders chosen under Files.")
+        } else {
+            format!(
+                "Files matching “{query}” (from folders the user chose to search):\n{}",
+                lines.join("\n")
+            )
+        };
+        Ok(ToolResult {
+            text,
+            summary: format!(
+                "“{query}” — {} file{}",
+                hits.len(),
+                if hits.len() == 1 { "" } else { "s" }
+            ),
+            evidence,
+        })
+    }
+
     fn activity_summary(&self, call: &ToolCall) -> Result<ToolResult> {
         let (start, end, label) = match (self.scope.since, self.scope.until) {
             (Some(since), Some(until)) => (since, until, "the chosen dates".to_string()),
@@ -1112,7 +1212,14 @@ impl<'a> Tools<'a> {
                 (start, end, day.format("%A, %b %-d, %Y").to_string())
             }
         };
-        let blocks = self.library.activity_blocks(start, end)?;
+        // A scope with only a start (a paired device's history window) still
+        // reaches no earlier day through the `day` argument.
+        let before_scope = self.scope.since.is_some_and(|since| end <= since);
+        let blocks = if before_scope {
+            Vec::new()
+        } else {
+            self.library.activity_blocks(start, end)?
+        };
         let meetings: Vec<&Meeting> = self
             .meetings
             .iter()
@@ -1327,6 +1434,38 @@ fn parse_day(argument: &str, now: DateTime<Utc>) -> Option<NaiveDate> {
     }
 }
 
+/// One line per file: its citation marker, name, kind and date, folder, then the
+/// matched passage or the words that matched (`MeetingChatFormat.fileResults`).
+fn file_line(hit: &FileHit, passage: Option<&str>) -> String {
+    let body: String = passage
+        .or(hit.excerpt.as_deref())
+        .unwrap_or("")
+        .chars()
+        .take(700)
+        .collect();
+    let body = clean(&body);
+    let is_moment = hit.is_moment();
+    let tail = if body.is_empty() {
+        if is_moment {
+            " — matched by its sound or picture; no words transcribed".to_string()
+        } else {
+            " — a picture without text".to_string()
+        }
+    } else if is_moment {
+        format!(": said in these 30 seconds: {body}")
+    } else {
+        format!(": {body}")
+    };
+    format!(
+        "- [file:{}] {} ({}, {}) in {}{tail}",
+        hit.id,
+        hit.name(),
+        hit.kind_label(),
+        date_label(hit.date()),
+        hit.folder()
+    )
+}
+
 // ---------------------------------------------------------------- prompt
 
 /// `ChatPrompt.systemPrompt`: the tool catalogue, how to call tools and
@@ -1366,6 +1505,13 @@ pub fn system_prompt(tools: &[ToolSpec], overview: &str, inference_privacy: &str
 • Prefer search_meetings for questions about what was said or decided. Use get_meeting to read a specific meeting's summary or transcript. Use list_meetings to enumerate meetings. Use get_action_items for to-dos, decisions, or follow-ups. Use search_screen for things the user read or saw on screen (docs, sites, code, messages). Use activity_summary for how a day was spent across apps."
             .into(),
     );
+    let has_files = tools.iter().any(|tool| tool.name == "search_files");
+    if has_files {
+        lines.push(
+            "• Use search_files for the user's own documents, PDFs, pictures and screenshots in the folders they chose, described by content or by what a picture shows."
+                .into(),
+        );
+    }
     lines.push(String::new());
     lines.push(
         "Citing sources:
@@ -1373,6 +1519,12 @@ pub fn system_prompt(tools: &[ToolSpec], overview: &str, inference_privacy: &str
 • When part of your final answer comes from search_screen, append the exact [screen:ID] marker that search_screen returned. The app renders it as a private, local thumbnail linking to that captured moment. Never invent a screen id."
             .into(),
     );
+    if has_files {
+        lines.push(
+            "• When part of your final answer comes from search_files, append the exact [file:ID] marker that search_files returned. The app links it to the file on this PC. Never invent a file id."
+                .into(),
+        );
+    }
     if !overview.is_empty() {
         lines.push(String::new());
         lines.push(
@@ -1433,6 +1585,7 @@ fn icon(tool: &str) -> &'static str {
         "get_action_items" => "checklist",
         "search_screen" => "rectangle.on.rectangle",
         "activity_summary" => "calendar.day.timeline.left",
+        "search_files" => "folder",
         _ => "wrench.and.screwdriver",
     }
 }
@@ -1461,6 +1614,10 @@ fn start_label(call: &ToolCall) -> String {
             "Summarising activity for {}",
             call.string("day").unwrap_or("today")
         ),
+        "search_files" => format!(
+            "Searching your files for “{}”",
+            call.string("query").unwrap_or("")
+        ),
         other => format!("Running {other}"),
     }
 }
@@ -1474,6 +1631,7 @@ fn finish_label(tool: &str, summary: &str) -> String {
         "get_action_items" => format!("Collected outcomes — {summary}"),
         "search_screen" => format!("Searched screen text — {summary}"),
         "activity_summary" => format!("Summarised {summary}"),
+        "search_files" => format!("Searched your files — {summary}"),
         _ => summary.to_string(),
     }
 }
@@ -1496,15 +1654,22 @@ pub fn answer_with_tools(
     let tools = Tools::new(library, think.embedder(), scope.clone(), now)?;
     let specs = tools.specs();
     let names: BTreeSet<&str> = specs.iter().map(|s| s.name).collect();
-    let system = system_prompt(
-        &specs,
-        &tools.library_overview(),
-        &think.inference_privacy(),
+    let system = format!(
+        "{}{}",
+        system_prompt(
+            &specs,
+            &tools.library_overview(),
+            &think.inference_privacy(),
+        ),
+        crate::ask::ambient_block(scope)
     );
     let clock = current_time_line(now);
     let mut transcript = replayed_history(history, HISTORY_MESSAGES, HISTORY_CHARACTERS);
-    transcript.push(format!("User: {}", question.trim()));
-    let mut evidence = Sources::default();
+    transcript.push(match &scope.attached_context {
+        Some(context) => format!("User: {context}\n\nQuestion: {}", question.trim()),
+        None => format!("User: {}", question.trim()),
+    });
+    let mut evidence = crate::ask::attached_screen_sources(library, scope);
     let mut activity: Vec<ChatActivity> = Vec::new();
 
     let turn = |instruction: &str,
@@ -1777,13 +1942,7 @@ mod tests {
 
     #[test]
     fn replayed_history_never_starts_with_an_orphaned_answer() {
-        let message = |role, text: &str| ChatMessage {
-            id: Uuid::new_v4(),
-            role,
-            text: text.into(),
-            activity: Vec::new(),
-            created_at: None,
-        };
+        let message = |role, text: &str| ChatMessage::new(role, text);
         let history = vec![
             message(ChatRole::User, "first question"),
             message(ChatRole::Assistant, &"long answer ".repeat(100)),
@@ -2024,6 +2183,46 @@ mod tests {
         assert!(!uses_tool_loop(&think));
     }
 
+    /// A paired device's history window has a start and no end, and the model
+    /// still chooses the day it asks about.
+    #[test]
+    fn a_scope_start_also_limits_the_day_activity_summary_may_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let (start, _) =
+            time::local_day_bounds(chrono::NaiveDate::from_ymd_opt(2026, 3, 2).unwrap());
+        library
+            .append_activity(
+                "Numbers",
+                "Forecast",
+                start + Duration::hours(9),
+                start + Duration::hours(10),
+            )
+            .unwrap();
+        let call = ToolCall {
+            name: "activity_summary".into(),
+            arguments: BTreeMap::from([("day".to_string(), "2026-03-02".to_string())]),
+        };
+        let scope = |since| AskScope {
+            since,
+            include_meetings: false,
+            include_activity: true,
+            ..AskScope::default()
+        };
+        let open = Tools::new(&library, None, scope(None), start).unwrap();
+        assert!(open.run(&call).text.contains("Numbers"));
+        let limited = Tools::new(
+            &library,
+            None,
+            scope(Some(start + Duration::days(1))),
+            start + Duration::days(1),
+        )
+        .unwrap();
+        let answer = limited.run(&call).text;
+        assert!(!answer.contains("Numbers"), "{answer}");
+        assert!(answer.contains("No app activity"), "{answer}");
+    }
+
     #[test]
     fn scope_limits_tools_and_meetings() {
         let Some((_dir, library)) = crate::test_support::fixture_library() else {
@@ -2038,6 +2237,10 @@ mod tests {
         let tools = Tools::new(&library, None, scope, Utc::now()).unwrap();
         let specs: Vec<&str> = tools.specs().iter().map(|s| s.name).collect();
         assert_eq!(specs, ["search_screen", "activity_summary"]);
+        assert!(
+            !specs.contains(&"search_files"),
+            "no folders: the tool isn't offered"
+        );
         assert!(tools.library_overview().is_empty());
         let refused = tools.run(&ToolCall {
             name: "list_meetings".into(),
@@ -2057,5 +2260,195 @@ mod tests {
         });
         assert_eq!(listed.summary, "1 meeting");
         assert!(listed.text.contains(&one.short_id()));
+    }
+
+    /// A question limited to one day once answered "the library has only one
+    /// meeting": the overview and the meeting lists now say what they were
+    /// held to, and the prompt names the limit.
+    #[test]
+    fn a_limited_question_names_its_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let (start, end) =
+            time::local_day_bounds(chrono::NaiveDate::from_ymd_opt(2026, 11, 4).unwrap());
+        for (title, at) in [
+            ("Product Standup", start + Duration::hours(12)),
+            ("Planning", start - Duration::days(3)),
+        ] {
+            let mut meeting = library.create_meeting(title, "Chrome", at).unwrap();
+            meeting.ended_at = Some(at + Duration::minutes(29));
+            library.save_meeting(&meeting).unwrap();
+        }
+        let list = ToolCall {
+            name: "list_meetings".into(),
+            arguments: BTreeMap::new(),
+        };
+
+        let everything = Tools::new(&library, None, AskScope::default(), end).unwrap();
+        let overview = everything.library_overview();
+        assert!(
+            overview.starts_with("The user has 2 recorded meetings."),
+            "{overview}"
+        );
+        assert!(!everything.run(&list).text.starts_with("Limited to"));
+        assert!(!crate::ask::ambient_block(&AskScope::default()).contains("Question scope"));
+
+        let limit = crate::ask::QuestionLimit::new(Some(start), Some(end), None).unwrap();
+        assert_eq!(limit.words, "what happened on 4 Nov 2026");
+        let scope = AskScope {
+            since: Some(start),
+            until: Some(end),
+            limit: Some(limit),
+            ..AskScope::default()
+        };
+        let today = Tools::new(&library, None, scope.clone(), end).unwrap();
+        let overview = today.library_overview();
+        assert!(
+            overview.starts_with("Inside this question's limit: 1 meeting. Most recent:"),
+            "{overview}"
+        );
+        let listed = today.run(&list).text;
+        assert!(
+            listed.starts_with(
+                "Limited to what happened on 4 Nov 2026 for this question; nothing outside that limit is shown.\n"
+            ),
+            "{listed}"
+        );
+        assert!(
+            listed.contains("Product Standup") && !listed.contains("Planning"),
+            "{listed}"
+        );
+        let block = crate::ask::ambient_block(&scope);
+        assert!(
+            block.starts_with(
+                "\n\nQuestion scope:\nThis question is limited to what happened on 4 Nov 2026. "
+            ),
+            "{block}"
+        );
+        assert!(block.contains("Never describe what the tools return as the whole library"));
+        assert!(
+            block.ends_with("remove the date limit to ask about other days."),
+            "{block}"
+        );
+    }
+
+    fn files_scope(folder: &str) -> AskScope {
+        AskScope {
+            include_meetings: false,
+            include_files: true,
+            file_folders: vec![folder.to_string()],
+            ..AskScope::default()
+        }
+    }
+
+    fn library_with_a_file() -> (tempfile::TempDir, Library, String, i64) {
+        use lokalbot_core::files::index::FileIndex;
+        use lokalbot_core::files::{Candidate, FileKind, Modality, SegmentKind, index_dir};
+        let dir = tempfile::tempdir().unwrap();
+        let library =
+            Library::open(lokalbot_core::LibraryPaths::new(dir.path().join("lib"))).unwrap();
+        let docs = dir.path().join("docs");
+        std::fs::create_dir_all(&docs).unwrap();
+        let path = docs.join("plan.md");
+        std::fs::write(&path, "x").unwrap();
+        let index = FileIndex::open(&index_dir(library.paths().root())).unwrap();
+        let file = index
+            .insert(&Candidate {
+                path: path.to_string_lossy().into_owned(),
+                kind: FileKind::Doc,
+                size: 1,
+                mtime: 1_700_000_000.0,
+                inode: 1,
+                device: 1,
+            })
+            .unwrap();
+        index
+            .add_segment(
+                file,
+                SegmentKind::Chunk,
+                Modality::Text,
+                Some(1.0),
+                None,
+                Some("The roadmap for next year"),
+                Some("The roadmap for next year"),
+                None,
+            )
+            .unwrap();
+        let passage = index
+            .counts()
+            .map(|_| ())
+            .and_then(|()| {
+                lokalbot_core::files::search::Searcher::new(index)?
+                    .search("roadmap", None, None, 1)
+                    .map(|hits| hits[0].segment_id)
+            })
+            .unwrap();
+        (dir, library, docs.to_string_lossy().into_owned(), passage)
+    }
+
+    #[test]
+    fn search_files_cites_only_what_it_returned() {
+        let (_dir, library, folder, passage) = library_with_a_file();
+        let scope = files_scope(&folder);
+        let tools = Tools::new(&library, None, scope, Utc::now()).unwrap();
+        assert_eq!(
+            tools.specs().iter().map(|s| s.name).collect::<Vec<_>>(),
+            ["search_files"]
+        );
+        let result = tools.run(&ToolCall {
+            name: "search_files".into(),
+            arguments: [("query".to_string(), "roadmap".to_string())].into(),
+        });
+        assert!(
+            result.text.contains(&format!("[file:{passage}] plan.md")),
+            "{}",
+            result.text
+        );
+        assert!(result.text.contains("The roadmap for next year"));
+        assert!(result.evidence.files.contains(&passage));
+        assert_eq!(result.summary, "“roadmap” — 1 file");
+        let cited = verified(
+            &format!("It says so [file:{passage}] and here [file:999]."),
+            &result.evidence,
+        );
+        assert!(cited.contains(&format!("[file:{passage}]")));
+        assert!(cited.contains("(source not verified)"));
+    }
+
+    #[test]
+    fn files_off_for_this_question_means_no_tool_and_no_passages() {
+        let (_dir, library, folder, _passage) = library_with_a_file();
+        let scope = AskScope {
+            include_files: false,
+            ..files_scope(&folder)
+        };
+        let tools = Tools::new(&library, None, scope, Utc::now()).unwrap();
+        assert!(tools.specs().is_empty());
+        let result = tools.run(&ToolCall {
+            name: "search_files".into(),
+            arguments: [("query".to_string(), "roadmap".to_string())].into(),
+        });
+        assert!(result.text.contains("Unknown tool"), "{}", result.text);
+        assert!(result.evidence.files.is_empty());
+        // A folder off the list can't be reached even with the source on.
+        let tools = Tools::new(&library, None, files_scope("/elsewhere"), Utc::now()).unwrap();
+        let result = tools.run(&ToolCall {
+            name: "search_files".into(),
+            arguments: [("query".to_string(), "roadmap".to_string())].into(),
+        });
+        assert!(
+            result.text.starts_with("No files matched"),
+            "{}",
+            result.text
+        );
+    }
+
+    #[test]
+    fn the_prompt_explains_files_only_when_they_are_offered() {
+        let without = system_prompt(&[SEARCH_SCREEN], "", "");
+        assert!(!without.contains("search_files"));
+        let with = system_prompt(&[SEARCH_FILES], "", "");
+        assert!(with.contains("Use search_files for the user's own documents"));
+        assert!(with.contains("[file:ID]"));
     }
 }

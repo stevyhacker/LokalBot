@@ -52,13 +52,18 @@ pub enum MeetingTab {
 /// Settings categories, in sidebar order.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SettingsCategory {
+    /// Where Settings opens: every feature and whether it is on.
     #[default]
+    Overview,
     General,
     Meetings,
     DayMemory,
+    PersonalContext,
     Writing,
     Dictation,
+    Files,
     Models,
+    Devices,
     Privacy,
     Advanced,
 }
@@ -134,6 +139,30 @@ pub struct AskRequest {
     /// Limit sources to these meetings.
     pub meeting_ids: Vec<Uuid>,
     pub submit: bool,
+    /// Limit sources to this day (Ask About Today, Ask About This Day).
+    pub day: Option<chrono::NaiveDate>,
+}
+
+/// A prompt to put into Agent's composer (`AgentLaunchContext`). It is only a
+/// draft: nothing runs until the user sends it there.
+/// Where a meeting opened from evidence goes Back to (`evidenceReturnSection`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EvidenceReturn {
+    pub section: Section,
+    /// The Actions workspace stays open behind the evidence.
+    pub actions: bool,
+}
+
+/// What the palette asks of the Agent page.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AgentRequest {
+    NewTask,
+    SearchTasks,
+    FindInTask,
+    ToggleResults,
+    SelectTask(Uuid),
+    /// A prompt from another page, for the selected task's draft. Never sent.
+    Prompt(String),
 }
 
 /// A request to show a day on Timeline, optionally with a work session or
@@ -165,8 +194,33 @@ pub struct AppData {
     pub revision: u64,
     pub section: Section,
     pub settings_category: SettingsCategory,
+    /// A setting for Settings to scroll to and highlight (`focusedSettingID`).
+    pub settings_focus: Option<String>,
     pub meeting_focus: Option<MeetingFocus>,
+    /// Where evidence was opened from, for the Back button (`evidenceReturnSection`).
+    pub evidence_return: Option<EvidenceReturn>,
+    /// The Actions workspace is showing on Today.
+    pub actions_open: bool,
+    /// Warnings of the recording in progress.
+    pub capture_warnings: Vec<SharedString>,
     pub ask_request: Option<AskRequest>,
+    /// For the Agent page to act on when it next draws.
+    pub agent_request: Option<AgentRequest>,
+    /// Ctrl+F on the meeting page, waiting for the page to open Find.
+    pub meeting_find_requested: bool,
+    /// A meeting whose follow-up draft should open.
+    pub follow_up_request: Option<Uuid>,
+    /// A screen moment to attach to the next question ("Ask About This…").
+    pub ask_screen: Option<lokalbot_core::ScreenMoment>,
+    /// A work session's moments, as the next question's boundary.
+    pub ask_screens: Option<Vec<i64>>,
+    /// A conversation for Ask to open (Quick Recall's Open full Ask).
+    pub ask_open_conversation: Option<Uuid>,
+    /// The latest question of each conversation that attached screens. Their
+    /// ids stay in memory for a retry; only their days reach the conversation.
+    pub attached_asks: std::collections::HashMap<Uuid, AskScope>,
+    /// What Files is doing now.
+    pub files: lokalbot_engine::files::FileSearchStatus,
     pub timeline_focus: Option<TimelineFocus>,
     /// Today should open its Actions workspace ("Review Actions…").
     pub actions_requested: bool,
@@ -196,29 +250,59 @@ pub struct AppData {
     pub project_notes_running: Vec<String>,
     /// Text of the last dictation shown in LokalBot (output mode "Show in LokalBot").
     pub last_dictation: Option<SharedString>,
+    /// How the last dictation came about, for Last result.
+    pub last_dictation_details: Option<LastDictationDetails>,
     /// The latest dictations, newest first, for copying one again.
     pub recent_dictations: Vec<lokalbot_core::dictation_history::Entry>,
+    /// Settings and Today read this for the overnight review.
+    pub dream: lokalbot_engine::dreaming::DreamStatus,
     /// Microphone names for the device pickers in Settings, filled by the engine.
     pub audio_inputs: Vec<SharedString>,
     /// Settings is recording a new shortcut: global shortcuts should pause
     /// so the keystroke reaches the recorder.
     pub shortcut_recording: bool,
+    /// Dictation's shortcut is on but didn't register.
+    pub dictation_shortcut_inactive: bool,
     /// The floating dictation status.
     pub dictation: DictationHud,
+    /// The rolling transcript the overlay shows while dictating.
+    pub dictation_transcript: lokalbot_ai::dictation_preview::LiveTranscript,
+    /// Tells a timed dismissal whether its notice is still the one showing.
+    pub dictation_notice_serial: u64,
+    /// Selection actions' panel, as the engine last reported it.
+    pub selection_actions: lokalbot_engine::SelectionView,
     /// "Mic · Receiving audio" / "System · Not attached" while recording.
     pub recording_statuses: Option<(SharedString, SharedString)>,
+    /// When a lost track last came back; kept until the next recording starts.
+    pub last_audio_recovery: Option<DateTime<Utc>>,
     /// The latest "Write with Think" for a meeting's follow-up.
     pub follow_up: Option<(Uuid, FollowUpWriting)>,
     /// The opt-in live transcript preview of the meeting being recorded.
     pub live_preview: lokalbot_engine::LivePreview,
+    /// Read aloud: what is being read, and its last failure.
+    pub speech: lokalbot_engine::SpeechStatus,
+    /// Check model setup: the role being checked and the results so far.
+    pub model_checks: lokalbot_engine::ModelCheckStatus,
+    /// The last "Check connection".
+    pub connection_check: lokalbot_engine::ConnectionCheck,
+    /// Downloads cancelled since a model switch last started, so it can stop.
+    pub cancelled_downloads: Vec<String>,
     /// Screen context capture, as the engine reports it.
     pub screen: lokalbot_engine::ScreenStatus,
     /// The user's calendars, as the engine last read them.
     pub calendar: lokalbot_engine::CalendarSnapshot,
+    /// Paired phones and tablets, as the engine last reported them.
+    pub companion: lokalbot_engine::CompanionSnapshot,
+    /// The pairing request whose question is on screen.
+    pub pairing_prompt: Option<u64>,
     /// Today's preparation for the next meeting (in memory only).
     pub meeting_preparation: Option<lokalbot_engine::MeetingPreparation>,
     /// "Try a sample meeting" waiting for its models (`sample.rs`).
     pub sample_setup: Option<crate::sample::SampleSetup>,
+    /// What the routines are doing, and their recent runs.
+    pub routines: lokalbot_engine::routines::RoutineStatus,
+    /// The last retention pass.
+    pub retention: lokalbot_engine::RetentionStatus,
 }
 
 /// A follow-up being rewritten with Think (`FollowUpDraftSheet`).
@@ -243,12 +327,35 @@ pub enum DictationHud {
     Listening {
         level: f32,
         elapsed: f64,
+        /// Until the microphone delivers audio the overlay says it is starting.
+        microphone_live: bool,
+        /// A microphone problem, in place of the level bars.
+        capture_status: SharedString,
     },
     Transcribing,
+    /// The speech model is loading, or downloading (how far, 0–1).
+    Preparing(Option<f32>),
+    /// The speech model did not load; Retry keeps the audio.
+    PreparationFailed(SharedString),
     Composing,
     /// "Copied to the clipboard" and similar, shown briefly.
     Notice(SharedString),
+    /// Pasted text the field did not show, with Copy.
+    Undelivered {
+        copied: bool,
+    },
     Failed(SharedString),
+}
+
+/// How the last dictation came about (`DictationView.lastResultSection`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct LastDictationDetails {
+    /// What was said, when Compose wrote something else from it.
+    pub spoken: Option<SharedString>,
+    /// "Used: focused window; visible text".
+    pub context: Option<SharedString>,
+    /// "Parakeet v3 → Qwen3.5 4B · on this PC".
+    pub engine: Option<SharedString>,
 }
 
 /// Progress of an answer in Ask.
@@ -291,8 +398,10 @@ pub struct ModelStatus {
     pub think_ready: bool,
     pub autocomplete_ready: bool,
     pub embeddings_ready: bool,
-    /// The screen text recognition (OCR) models are downloaded.
+    /// Some screen text recognition engine can read now.
     pub screen_text_ready: bool,
+    /// Which one, in which languages, and what download would help.
+    pub screen_text: lokalbot_ai::ocr::OcrStatus,
     /// "CUDA", "Vulkan" or "CPU" for the selected built-in runtime, once installed.
     pub runtime_backend: Option<SharedString>,
     /// CUDA is downloaded, but its setup GPU check has not passed.
@@ -308,20 +417,46 @@ pub struct AskScope {
     pub include_meetings: bool,
     pub include_activity: bool,
     pub include_screen: bool,
+    /// The folders chosen under Files; the engine honours it only while Files is on.
+    pub include_files: bool,
+    /// Screens this question is bound to or attaches.
+    pub screen_ids: Vec<i64>,
+    /// `screen_ids` were attached by the person, as primary evidence.
+    pub attached_screens: bool,
+    pub screen_app: Option<String>,
     pub since: Option<DateTime<Utc>>,
     pub until: Option<DateTime<Utc>>,
+    /// The boundary saved with the question's turns.
+    pub saved: lokalbot_core::QuestionScope,
 }
 
 pub struct AppHandle(pub Entity<AppData>);
 
 impl Global for AppHandle {}
 
+/// What the microphone pickers offer. A device with no name can't be chosen,
+/// because the setting stores the name.
+fn microphone_names(devices: &[lokalbot_audio::AudioDevice]) -> Vec<SharedString> {
+    devices
+        .iter()
+        .filter(|device| !device.name.trim().is_empty())
+        .map(|device| device.name.clone().into())
+        .collect()
+}
+
 impl AppData {
     pub fn global(cx: &App) -> Entity<AppData> {
         cx.global::<AppHandle>().0.clone()
     }
 
-    pub fn new(library: Library, settings: Settings) -> Self {
+    pub fn new(library: Library, mut settings: Settings) -> Self {
+        // Each enabled period of the overnight review has a start, so an update
+        // to a version that has it doesn't review older days.
+        if settings.normalize_dreaming_boundary(chrono::Local::now().date_naive())
+            && let Err(err) = settings.save(&library.paths().settings_file())
+        {
+            log::error!("saving settings failed: {err}");
+        }
         let (inference_label, remote_hosts) = inference_presentation(&settings);
         Self {
             library,
@@ -330,9 +465,16 @@ impl AppData {
             meetings_loaded: false,
             revision: 0,
             section: Section::Today,
-            settings_category: SettingsCategory::General,
+            settings_category: SettingsCategory::Overview,
+            settings_focus: None,
             meeting_focus: None,
+            evidence_return: None,
+            actions_open: false,
+            capture_warnings: Vec::new(),
             ask_request: None,
+            agent_request: None,
+            meeting_find_requested: false,
+            follow_up_request: None,
             timeline_focus: None,
             actions_requested: false,
             person_focus: None,
@@ -348,20 +490,40 @@ impl AppData {
             downloads: HashMap::new(),
             models: ModelStatus::default(),
             digest_running: None,
+            speech: Default::default(),
+            model_checks: Default::default(),
+            connection_check: Default::default(),
+            cancelled_downloads: Vec::new(),
             project_notes_running: Vec::new(),
             last_dictation: None,
+            last_dictation_details: None,
             recent_dictations: Vec::new(),
+            dream: Default::default(),
             dictation: DictationHud::Idle,
+            dictation_transcript: Default::default(),
+            dictation_notice_serial: 0,
+            selection_actions: Default::default(),
             recording_statuses: None,
+            last_audio_recovery: None,
             follow_up: None,
             live_preview: Default::default(),
             audio_inputs: Vec::new(),
             shortcut_recording: false,
+            dictation_shortcut_inactive: false,
             screen: Default::default(),
             importing: Vec::new(),
             calendar: Default::default(),
+            companion: Default::default(),
+            pairing_prompt: None,
+            ask_screen: None,
+            ask_screens: None,
+            ask_open_conversation: None,
+            attached_asks: Default::default(),
+            files: Default::default(),
             meeting_preparation: None,
             sample_setup: None,
+            routines: Default::default(),
+            retention: Default::default(),
         }
     }
 
@@ -373,8 +535,27 @@ impl AppData {
 
     // ------------------------------------------------------------ navigation
 
+    /// Lists microphones away from the UI thread: audio backends can be slow.
+    pub fn refresh_audio_inputs(&mut self, cx: &mut Context<Self>) {
+        cx.spawn(async move |this, cx| {
+            let devices = cx
+                .background_spawn(async { lokalbot_audio::input_devices() })
+                .await;
+            this.update(cx, |this, cx| {
+                this.audio_inputs = microphone_names(&devices);
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
     pub fn navigate(&mut self, section: Section, cx: &mut Context<Self>) {
+        if section == Section::Settings {
+            self.refresh_audio_inputs(cx);
+        }
         self.section = section;
+        self.evidence_return = None;
         cx.notify();
     }
 
@@ -385,6 +566,12 @@ impl AppData {
         at: Option<f64>,
         cx: &mut Context<Self>,
     ) {
+        if self.section != Section::Meetings {
+            self.evidence_return = Some(EvidenceReturn {
+                section: self.section,
+                actions: self.section == Section::Today && self.actions_open,
+            });
+        }
         self.meeting_focus = Some(MeetingFocus {
             meeting_id,
             tab,
@@ -392,6 +579,37 @@ impl AppData {
         });
         self.section = Section::Meetings;
         cx.notify();
+    }
+
+    /// Back to where evidence was opened from (`returnFromEvidence`).
+    pub fn return_from_evidence(&mut self, cx: &mut Context<Self>) {
+        if let Some(back) = self.evidence_return.take() {
+            self.section = back.section;
+            if back.actions {
+                self.actions_requested = true;
+            }
+            cx.notify();
+        }
+    }
+
+    /// Repeats only what failed (`AppState.retryProcessing`). A person's retry
+    /// may download what it needs.
+    pub fn retry_processing(&mut self, meeting_id: Uuid, cx: &mut Context<Self>) {
+        let Some(meeting) = self.meeting(meeting_id).cloned() else {
+            return;
+        };
+        let (transcribe, summarize) = self
+            .library
+            .retry_work(&meeting, self.settings.auto_summarize)
+            .unwrap_or((true, true));
+        self.request(
+            AppEvent::ProcessMeeting {
+                meeting_id,
+                transcribe,
+                summarize,
+            },
+            cx,
+        );
     }
 
     pub fn open_timeline(
@@ -411,6 +629,12 @@ impl AppData {
 
     /// Timeline with one screen moment open (`ScreenMomentDetailView`).
     pub fn open_screen_moment(&mut self, id: i64, ts: DateTime<Utc>, cx: &mut Context<Self>) {
+        if self.section != Section::Timeline {
+            self.evidence_return = Some(EvidenceReturn {
+                section: self.section,
+                actions: self.section == Section::Today && self.actions_open,
+            });
+        }
         self.timeline_focus = Some(TimelineFocus {
             day: lokalbot_core::time::local_day(ts),
             session_id: None,
@@ -440,6 +664,7 @@ impl AppData {
     }
 
     pub fn open_settings(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
+        self.refresh_audio_inputs(cx);
         self.settings_category = category;
         self.section = Section::Settings;
         cx.notify();
@@ -448,6 +673,38 @@ impl AppData {
     pub fn ask(&mut self, request: AskRequest, cx: &mut Context<Self>) {
         self.ask_request = Some(request);
         self.section = Section::Ask;
+        cx.notify();
+    }
+
+    /// Sends a question, keeping what a retry of it would need.
+    pub fn ask_question(
+        &mut self,
+        conversation_id: Uuid,
+        question: String,
+        scope: AskScope,
+        retry_of: Option<Uuid>,
+        cx: &mut Context<Self>,
+    ) {
+        if scope.attached_screens {
+            self.attached_asks.insert(conversation_id, scope.clone());
+        } else {
+            self.attached_asks.remove(&conversation_id);
+        }
+        self.request(
+            AppEvent::AskQuestion {
+                conversation_id,
+                question,
+                scope: Box::new(scope),
+                retry_of,
+            },
+            cx,
+        );
+    }
+
+    /// Agent with `prompt` in its composer, unsent (`AppState.openAgent`).
+    pub fn open_agent(&mut self, prompt: String, cx: &mut Context<Self>) {
+        self.agent_request = Some(AgentRequest::Prompt(prompt));
+        self.section = Section::Agent;
         cx.notify();
     }
 
@@ -625,6 +882,12 @@ impl AppData {
         cx.spawn(async move |this, cx| {
             let result = cx
                 .background_spawn(async move {
+                    // The merged meeting's own contributions leave remembered voices.
+                    if let Err(err) =
+                        lokalbot_engine::voice::memory(&library).prepare_deletion(&merged)
+                    {
+                        log::warn!("speaker voice not forgotten meeting={}: {err}", merged.id);
+                    }
                     lokalbot_engine::library_ops::undo_merge(&library, &merged)
                 })
                 .await;
@@ -650,17 +913,21 @@ impl AppData {
         let library = self.library.clone();
         cx.spawn(async move |this, cx| {
             let result = cx
-                .background_spawn(async move { library.delete_meeting(&meeting) })
+                .background_spawn(async move {
+                    lokalbot_engine::voice::delete_meeting(&library, &meeting)
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                if let Err(err) = result {
-                    this.show_error(
+                match result {
+                    Ok(Some(pending)) => this.show_error(pending, cx),
+                    Ok(None) => {}
+                    Err(err) => this.show_error(
                         lokalbot_i18n::format(
                             "Could not delete the meeting: {err}",
                             &[("err", format!("{:#}", err))],
                         ),
                         cx,
-                    );
+                    ),
                 }
                 if this
                     .meeting_focus
@@ -705,6 +972,17 @@ impl AppData {
         );
     }
 
+    /// Deletes every saved agent session, withdrawing the generated journals that
+    /// used them. The agents' own files stay.
+    pub fn delete_coding_agent_evidence(&mut self, cx: &mut Context<Self>) {
+        let library = self.library.clone();
+        self.run_library_change(
+            lokalbot_i18n::tr("Could not delete saved agent sessions"),
+            move || library.delete_coding_agent_evidence().map(|_| ()),
+            cx,
+        );
+    }
+
     fn run_library_change(
         &mut self,
         failure: &'static str,
@@ -739,12 +1017,16 @@ impl AppData {
     pub fn update_settings(&mut self, change: impl FnOnce(&mut Settings), cx: &mut Context<Self>) {
         let before = self.settings.clone();
         change(&mut self.settings);
+        self.settings
+            .normalize_dreaming_boundary(chrono::Local::now().date_naive());
         if self.settings == before {
             return;
         }
         if before.app_language != self.settings.app_language {
             crate::i18n::apply(&self.settings.app_language, cx);
         }
+        // The engine applies it too, but the meeting view redraws first.
+        lokalbot_core::SpeakerAttribution::set_microphone_is_user(self.settings.microphone_is_user);
         let (label, hosts) = inference_presentation(&self.settings);
         self.inference_label = label;
         self.remote_hosts = hosts;
@@ -812,10 +1094,16 @@ impl AppData {
 /// `digest_running`, …) followed by `revision` bumps when files changed.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AppEvent {
+    /// A name was given or applied: remember the voice and suggest it elsewhere.
+    LearnSpeakerVoices,
     StartRecording,
     StopRecording,
     SettingsChanged,
     AppearanceChanged,
+    /// The overnight review, now.
+    ReviewNow,
+    /// Delete every overnight review and the work memory.
+    ClearWorkMemory,
     /// Transcribe and/or summarize a meeting again (Retry, "Transcribe & Summarize", "Summarize again").
     ProcessMeeting {
         meeting_id: Uuid,
@@ -828,7 +1116,9 @@ pub enum AppEvent {
     AskQuestion {
         conversation_id: Uuid,
         question: String,
-        scope: AskScope,
+        scope: Box<AskScope>,
+        /// The failed turn this asks again.
+        retry_of: Option<Uuid>,
     },
     StopAnswer,
     /// Download a model by catalog id (Think, Autocomplete, embeddings or speech).
@@ -856,6 +1146,8 @@ pub enum AppEvent {
     /// Store the API key for the OpenAI-compatible server in the system
     /// credential store (never in settings.json).
     SaveApiKey(String),
+    /// Saves, or when blank removes, autocomplete's own server key.
+    SaveAutocompleteServerKey(String),
     /// "Capture Screen Now" (tray and Timeline).
     CaptureScreenNow,
     /// Today's Record on a calendar event.
@@ -868,6 +1160,11 @@ pub enum AppEvent {
         event: Box<lokalbot_core::calendar::CalendarEvent>,
         generate: bool,
     },
+    /// "Run now" for a routine.
+    RunRoutine(lokalbot_core::settings::MemoryRoutineKind),
+    /// "Run retention now".
+    RunRetentionNow,
+    RestartMemoryCapture,
 }
 
 impl gpui_kit::EventEmitter<AppEvent> for AppData {}
@@ -876,10 +1173,12 @@ impl gpui_kit::EventEmitter<AppEvent> for AppData {}
 pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedString>) {
     use lokalbot_core::settings::SummarizerBackend;
     if let Some(plan) = settings.think_plan() {
-        return (
-            lokalbot_i18n::tr("AI: local + remote").into(),
-            vec![plan.destination_host().into()],
+        let mut hosts: Vec<SharedString> = vec![plan.destination_host().into()];
+        hosts.extend(
+            lokalbot_core::remote_transcription::audio_destination(settings)
+                .map(SharedString::from),
         );
+        return (lokalbot_i18n::tr("AI: local + remote").into(), hosts);
     }
     let url = match settings.summarizer_backend {
         SummarizerBackend::Ollama => Some(settings.ollama_base_url.as_str()),
@@ -888,17 +1187,22 @@ pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedS
         | SummarizerBackend::ChatGptPlan
         | SummarizerBackend::ClaudePlan => None,
     };
-    match url {
-        Some(url) if !lokalbot_core::access::is_loopback_url(url) => {
-            let host = lokalbot_core::access::origin_of(url)
-                .map(|o| o.split_once("://").map(|(_, h)| h.to_string()).unwrap_or(o))
-                .unwrap_or_else(|| url.to_string());
-            (
-                lokalbot_i18n::tr("AI: local + remote").into(),
-                vec![host.into()],
-            )
-        }
-        _ => (lokalbot_i18n::tr("AI: on this PC").into(), Vec::new()),
+    let mut hosts: Vec<SharedString> = Vec::new();
+    if let Some(url) = url.filter(|url| !lokalbot_core::access::is_loopback_url(url)) {
+        let host = lokalbot_core::access::origin_of(url)
+            .map(|o| o.split_once("://").map(|(_, h)| h.to_string()).unwrap_or(o))
+            .unwrap_or_else(|| url.to_string());
+        hosts.push(host.into());
+    }
+    if let Some(host) = lokalbot_core::remote_transcription::audio_destination(settings)
+        && !hosts.iter().any(|known| known.as_ref() == host)
+    {
+        hosts.push(host.into());
+    }
+    if hosts.is_empty() {
+        (lokalbot_i18n::tr("AI: on this PC").into(), hosts)
+    } else {
+        (lokalbot_i18n::tr("AI: local + remote").into(), hosts)
     }
 }
 
@@ -916,5 +1220,26 @@ pub fn day_label(at: DateTime<Utc>) -> String {
             lokalbot_i18n::date_locale(),
         )
         .to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pickers_offer_named_microphones_only() {
+        let device = |name: &str| lokalbot_audio::AudioDevice {
+            id: format!("id-{name}"),
+            name: name.to_string(),
+            is_default: false,
+        };
+        assert_eq!(
+            microphone_names(&[device("Desk mic"), device("  "), device("Headset")]),
+            vec![
+                SharedString::from("Desk mic"),
+                SharedString::from("Headset")
+            ]
+        );
     }
 }

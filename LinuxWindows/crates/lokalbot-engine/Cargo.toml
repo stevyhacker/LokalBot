@@ -14,6 +14,7 @@ lokalbot-ai.workspace = true
 lokalbot-audio.workspace = true
 lokalbot-speech.workspace = true
 lokalbot-platform.workspace = true
+lokalbot-sync.workspace = true
 anyhow.workspace = true
 log.workspace = true
 parking_lot.workspace = true
@@ -23,15 +24,34 @@ uuid.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 hex.workspace = true
+regex.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 # Screen images are kept as JPEG inside their sealed files.
-image = { version = "0.25", default-features = false, features = ["jpeg"] }
+# Files reads pictures in these formats too; PNG is how the image model takes them.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "bmp", "tiff", "webp", "tga", "pnm"] }
+# Files: watches the chosen folders. PDFs are read for their words.
+notify = "8"
+lopdf = "0.42"
+pdf-extract = "0.12"
+# Finds this computer for paired phones on the local network (`_lokalbot._tcp`).
+mdns-sd = "0.21"
+unicode-normalization.workspace = true
+directories.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3", features = ["async-secret-service", "async-io", "crypto-rust"] }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
+windows-sys = { version = "0.61", features = ["Win32_System_Threading"] }
 
 [dev-dependencies]
+flate2 = "1"
+tar = "0.4"
 tempfile.workspace = true
 env_logger.workspace = true

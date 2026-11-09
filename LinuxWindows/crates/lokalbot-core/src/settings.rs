@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::activity::ScreenContextMode;
 
+const DREAMING_FIRST_ELIGIBLE_KEY: &str = "dreamingFirstEligibleDayKey";
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -58,6 +60,10 @@ pub struct Settings {
     pub coding_agent_evidence_enabled: bool,
     pub coding_agent_reads_claude_code: bool,
     pub coding_agent_reads_codex: bool,
+    /// The user chose to let coding-agent sessions into day memory. The Mac
+    /// asks during setup; installs here saved the enabled key as true without
+    /// ever asking, so reading also needs this (not a Mac key).
+    pub coding_agent_evidence_confirmed: bool,
 
     // Privacy
     pub excluded_apps: String,
@@ -162,6 +168,120 @@ pub struct Settings {
     /// The user's own addresses, comma-separated, so feeds can tell the user
     /// from other attendees and skip invitations the user declined.
     pub calendar_my_email_addresses: String,
+
+    // Assistant
+    /// Rewrite what's selected in any app (`selectionActionsEnabled`). Off by default.
+    pub selection_actions_enabled: bool,
+    /// Ctrl+Shift+W, the Mac's chord, closes tabs and windows on these platforms.
+    pub selection_actions_shortcut: String,
+    pub ask_memory_enabled: bool,
+    pub personal_learning_enabled: bool,
+    pub personal_learning_from_dictation: bool,
+
+    // Meetings, beyond the group above
+    pub echo_cancellation: bool,
+    pub meeting_notes_use_screen_titles: bool,
+    /// The Mac's choice of speaker model; kept so a shared library round-trips.
+    pub diarization_model: String,
+
+    // Day memory, beyond the group above
+    pub meeting_visual_context_enabled: bool,
+    pub coding_agent_excluded_folders: String,
+    pub daily_memory_export_enabled: bool,
+    pub daily_memory_export_folder: String,
+    pub daily_memory_export_format: DailyMemoryExportFormat,
+    pub daily_memory_export_hour: u32,
+    /// The overnight review (`dreamingEnabled`), on by default as on macOS.
+    pub dreaming_enabled: bool,
+    pub dreaming_hour: u32,
+    pub memory_routines_enabled: bool,
+    pub memory_routine_folder: String,
+    pub enabled_memory_routines: Vec<MemoryRoutineKind>,
+    pub memory_routine_hour: u32,
+    pub memory_routine_weekday: u32,
+
+    // Files
+    /// Search chosen folders. Off until the user reads the notice and picks them.
+    pub file_search_enabled: bool,
+    pub file_search_folders: Vec<String>,
+    pub file_search_includes_media: bool,
+    pub file_search_reads_on_battery: bool,
+
+    // Phones and tablets
+    pub companion_sharing_enabled: bool,
+    pub companion_share_meetings: bool,
+    pub companion_share_transcripts: bool,
+    pub companion_share_digests: bool,
+    pub companion_share_timeline: bool,
+    pub companion_share_window_titles: bool,
+    pub companion_share_people: bool,
+    pub companion_share_projects: bool,
+    /// Days of history shared; 0 is all of it (the Mac's raw values: 0, 30, 90, 365).
+    pub companion_history: u32,
+    pub companion_answers_questions: bool,
+    pub companion_accepts_recordings: bool,
+    pub companion_port: u16,
+    pub companion_advertises_on_bonjour: bool,
+
+    // Models, beyond the group above
+    #[serde(rename = "remoteTranscriptionBaseURL")]
+    pub remote_transcription_base_url: String,
+    pub remote_transcription_model: String,
+    /// Kokoro voice for spoken summaries (`speechVoice`).
+    pub speech_voice: String,
+    pub speech_speed: f64,
+    /// The Mac's `ModelCatalog.Entry` records, kept as written.
+    pub custom_built_in_models: Vec<serde_json::Value>,
+    pub model_download_source: ModelDownloadSource,
+
+    // Writing (autocomplete), beyond the group above
+    pub cotyping_backend: CotypingBackend,
+    #[serde(rename = "cotypingServerBaseURL")]
+    pub cotyping_server_base_url: String,
+    pub cotyping_server_model: String,
+    pub cotyping_think_server_model: String,
+    pub cotyping_server_request_style: CotypingServerRequestStyle,
+    pub cotyping_languages: String,
+    pub cotyping_extended_context: String,
+    pub cotyping_accept_key: CotypingAcceptKey,
+    pub cotyping_full_accept_key: CotypingFullAcceptKey,
+    pub cotyping_auto_accept_trailing_punctuation: bool,
+    pub cotyping_escape_behavior: CotypingEscapeBehavior,
+    pub cotyping_add_space_after_accept: bool,
+    pub cotyping_suggest_in_integrated_terminals: bool,
+    pub cotyping_use_app_context: bool,
+    pub cotyping_use_clipboard: bool,
+    pub cotyping_use_window_text: bool,
+    pub cotyping_use_screen_memory: bool,
+    pub cotyping_use_local_learning: bool,
+    pub cotyping_learning_examples_in_prompt: u32,
+    pub cotyping_match_host_style: bool,
+    pub cotyping_autocorrect: bool,
+    pub cotyping_emoji: bool,
+    pub cotyping_macros: bool,
+
+    // Dictation, beyond the group above
+    pub dictation_live_preview: bool,
+    pub dictation_use_screen_context: bool,
+    pub dictation_use_visible_context: bool,
+    pub dictation_use_meeting_memory: bool,
+    pub dictation_use_screen_memory: bool,
+    #[serde(rename = "dictationCompositionBuiltInModelID")]
+    pub dictation_composition_built_in_model_id: String,
+
+    /// Today's one-time GitHub request (`GitHubStarPromptStore`): answered,
+    /// a summary has finished, and the days LokalBot was used.
+    pub github_star_dismissed: bool,
+    pub github_star_summary_completed: bool,
+    pub github_star_active_days: Vec<String>,
+    /// Pane widths you dragged, by pane (`LokalBot.people`). The Mac keeps
+    /// these in its split views instead.
+    pub pane_widths: std::collections::BTreeMap<String, f64>,
+
+    /// Keys this port doesn't model. A library moves between computers, so
+    /// saving here must not lose what the Mac wrote.
+    #[serde(flatten)]
+    pub other: serde_json::Map<String, serde_json::Value>,
 }
 
 impl Default for Settings {
@@ -204,6 +324,7 @@ impl Default for Settings {
             coding_agent_evidence_enabled: true,
             coding_agent_reads_claude_code: true,
             coding_agent_reads_codex: true,
+            coding_agent_evidence_confirmed: false,
 
             excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             excluded_screen_domains: String::new(),
@@ -262,11 +383,146 @@ impl Default for Settings {
             meeting_notes_use_calendar_context: true,
             calendar_evolution_enabled: true,
             calendar_my_email_addresses: String::new(),
+            selection_actions_enabled: false,
+            selection_actions_shortcut: "Ctrl+Alt+Space".into(),
+            ask_memory_enabled: true,
+            personal_learning_enabled: true,
+            personal_learning_from_dictation: false,
+            echo_cancellation: false,
+            meeting_notes_use_screen_titles: true,
+            diarization_model: "community1".into(),
+            meeting_visual_context_enabled: false,
+            coding_agent_excluded_folders: String::new(),
+            daily_memory_export_enabled: false,
+            daily_memory_export_folder: String::new(),
+            daily_memory_export_format: DailyMemoryExportFormat::default(),
+            daily_memory_export_hour: 18,
+            dreaming_enabled: true,
+            dreaming_hour: 4,
+            memory_routines_enabled: false,
+            memory_routine_folder: String::new(),
+            enabled_memory_routines: MemoryRoutineKind::ALL.to_vec(),
+            memory_routine_hour: 8,
+            memory_routine_weekday: 6,
+            file_search_enabled: false,
+            file_search_folders: Vec::new(),
+            file_search_includes_media: true,
+            file_search_reads_on_battery: false,
+            companion_sharing_enabled: false,
+            companion_share_meetings: true,
+            companion_share_transcripts: true,
+            companion_share_digests: true,
+            companion_share_timeline: true,
+            companion_share_window_titles: true,
+            companion_share_people: true,
+            companion_share_projects: true,
+            companion_history: 0,
+            companion_answers_questions: true,
+            companion_accepts_recordings: true,
+            companion_port: 17890,
+            companion_advertises_on_bonjour: true,
+            remote_transcription_base_url: String::new(),
+            remote_transcription_model: String::new(),
+            speech_voice: "af_heart".into(),
+            speech_speed: 1.0,
+            custom_built_in_models: Vec::new(),
+            model_download_source: ModelDownloadSource::default(),
+            cotyping_backend: CotypingBackend::default(),
+            cotyping_server_base_url: String::new(),
+            cotyping_server_model: String::new(),
+            cotyping_think_server_model: String::new(),
+            cotyping_server_request_style: CotypingServerRequestStyle::default(),
+            cotyping_languages: String::new(),
+            cotyping_extended_context: String::new(),
+            cotyping_accept_key: CotypingAcceptKey::default(),
+            cotyping_full_accept_key: CotypingFullAcceptKey::default(),
+            cotyping_auto_accept_trailing_punctuation: false,
+            cotyping_escape_behavior: CotypingEscapeBehavior::default(),
+            cotyping_add_space_after_accept: false,
+            cotyping_suggest_in_integrated_terminals: false,
+            cotyping_use_app_context: true,
+            cotyping_use_clipboard: true,
+            cotyping_use_window_text: true,
+            cotyping_use_screen_memory: false,
+            cotyping_use_local_learning: true,
+            cotyping_learning_examples_in_prompt: 3,
+            cotyping_match_host_style: true,
+            cotyping_autocorrect: true,
+            cotyping_emoji: true,
+            cotyping_macros: true,
+            dictation_live_preview: true,
+            // Off on a new install, as on the Mac. Its decode falls back to on
+            // only for its own older installs, and nothing here has those.
+            dictation_use_screen_context: false,
+            dictation_use_visible_context: false,
+            dictation_use_meeting_memory: false,
+            dictation_use_screen_memory: false,
+            dictation_composition_built_in_model_id: String::new(),
+            github_star_dismissed: false,
+            github_star_summary_completed: false,
+            github_star_active_days: Vec::new(),
+            pane_widths: Default::default(),
+            other: serde_json::Map::new(),
         }
     }
 }
 
 impl Settings {
+    /// Learn from my dictation needs both switches above it (`learnsFromDictation`).
+    pub fn learns_from_dictation(&self) -> bool {
+        self.ask_memory_enabled
+            && self.personal_learning_enabled
+            && self.personal_learning_from_dictation
+    }
+
+    /// The first local day the overnight review may read in this enabled period
+    /// (`dreamingFirstEligibleDayKey`), kept with the keys this app has no field
+    /// for, under the Mac's name.
+    pub fn dreaming_first_eligible_day_key(&self) -> Option<&str> {
+        self.other
+            .get(DREAMING_FIRST_ELIGIBLE_KEY)
+            .and_then(serde_json::Value::as_str)
+            .filter(|key| !key.is_empty())
+    }
+
+    pub fn set_dreaming_first_eligible_day_key(&mut self, key: Option<String>) {
+        match key {
+            Some(key) => {
+                self.other.insert(
+                    DREAMING_FIRST_ELIGIBLE_KEY.to_string(),
+                    serde_json::Value::String(key),
+                );
+            }
+            None => {
+                self.other.remove(DREAMING_FIRST_ELIGIBLE_KEY);
+            }
+        }
+    }
+
+    /// `AppState.applyDreamingSetting`: each enabled period starts at yesterday, so
+    /// an opt-in never backfills older days; off clears the boundary. Returns
+    /// whether anything changed.
+    pub fn normalize_dreaming_boundary(&mut self, today: chrono::NaiveDate) -> bool {
+        if self.dreaming_enabled {
+            if self.dreaming_first_eligible_day_key().is_some() {
+                return false;
+            }
+            let yesterday = today - chrono::Duration::days(1);
+            self.set_dreaming_first_eligible_day_key(Some(
+                yesterday.format("%Y-%m-%d").to_string(),
+            ));
+            true
+        } else {
+            if self.dreaming_first_eligible_day_key().is_none()
+                && !self.other.contains_key(DREAMING_FIRST_ELIGIBLE_KEY)
+            {
+                return false;
+            }
+            self.set_dreaming_first_eligible_day_key(None);
+            true
+        }
+    }
+
     /// Loads settings, falling back to defaults for anything missing or unreadable.
     /// A field with the wrong type falls back on its own; the rest still load.
     pub fn load(path: &Path) -> Self {
@@ -292,6 +548,7 @@ impl Settings {
         };
         for (key, value) in stored {
             if !merged.contains_key(&key) {
+                merged.insert(key, value);
                 continue;
             }
             let mut candidate = merged.clone();
@@ -336,6 +593,41 @@ impl Settings {
 
     pub fn excluded_app_list(&self) -> Vec<String> {
         split_list(&self.excluded_apps)
+    }
+
+    /// Folders whose coding-agent sessions are never read. Comma-separated, as
+    /// the Mac stores them.
+    pub fn coding_agent_excluded_folder_list(&self) -> Vec<String> {
+        self.coding_agent_excluded_folders
+            .split(',')
+            .map(str::trim)
+            .filter(|folder| !folder.is_empty())
+            .map(str::to_string)
+            .collect()
+    }
+
+    /// The user chose to use coding-agent sessions. The enabled key alone proves
+    /// nothing here: installs saved it as true without asking, so sessions a Mac
+    /// recorded in this library wait for that choice as well.
+    pub fn coding_agent_evidence_active(&self) -> bool {
+        self.coding_agent_evidence_enabled && self.coding_agent_evidence_confirmed
+    }
+
+    /// The agents whose sessions may be read now. Empty until the person has
+    /// chosen: `coding_agent_evidence_enabled` defaults to true and is saved
+    /// without being asked, so on its own it proves nothing.
+    pub fn enabled_coding_agents(&self) -> Vec<crate::coding_agents::CodingAgentKind> {
+        use crate::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
+        if !self.coding_agent_evidence_active() {
+            return Vec::new();
+        }
+        [
+            (ClaudeCode, self.coding_agent_reads_claude_code),
+            (Codex, self.coding_agent_reads_codex),
+        ]
+        .into_iter()
+        .filter_map(|(agent, reads)| reads.then_some(agent))
+        .collect()
     }
 
     pub fn excluded_domain_list(&self) -> Vec<String> {
@@ -746,9 +1038,190 @@ pub enum AcceptGranularity {
     Phrase,
 }
 
+/// `DailyMemoryExportFormat` on macOS.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DailyMemoryExportFormat {
+    #[default]
+    Markdown,
+    Obsidian,
+    Logseq,
+}
+
+/// `MemoryRoutineKind` on macOS.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum MemoryRoutineKind {
+    PostMeetingFollowUp,
+    DailyStandup,
+    WeeklyWorkLog,
+    UnfinishedActions,
+    LocalJournal,
+}
+
+impl MemoryRoutineKind {
+    pub const ALL: [MemoryRoutineKind; 5] = [
+        Self::PostMeetingFollowUp,
+        Self::DailyStandup,
+        Self::WeeklyWorkLog,
+        Self::UnfinishedActions,
+        Self::LocalJournal,
+    ];
+}
+
+/// Where model files come from (`ModelDownloadSource`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ModelDownloadSource {
+    #[default]
+    HuggingFace,
+    HfMirror,
+    ModelScope,
+}
+
+/// Which model finishes the sentence (`CotypingBackend`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CotypingBackend {
+    #[default]
+    OnDevice,
+    ThinkServer,
+    Server,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CotypingServerRequestStyle {
+    #[default]
+    Automatic,
+    TextCompletion,
+    Chat,
+}
+
+/// Takes the next word. The Mac stores its virtual key codes, so these do too.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "i32", into = "i32")]
+pub enum CotypingAcceptKey {
+    #[default]
+    Tab,
+    RightArrow,
+}
+
+impl From<CotypingAcceptKey> for i32 {
+    fn from(key: CotypingAcceptKey) -> i32 {
+        match key {
+            CotypingAcceptKey::Tab => 48,
+            CotypingAcceptKey::RightArrow => 124,
+        }
+    }
+}
+
+impl TryFrom<i32> for CotypingAcceptKey {
+    type Error = String;
+
+    fn try_from(code: i32) -> Result<Self, String> {
+        match code {
+            48 => Ok(Self::Tab),
+            124 => Ok(Self::RightArrow),
+            other => Err(format!("unknown accept key {other}")),
+        }
+    }
+}
+
+/// Takes the rest of the suggestion, stored like [`CotypingAcceptKey`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "i32", into = "i32")]
+pub enum CotypingFullAcceptKey {
+    #[default]
+    Backtick,
+    RightArrow,
+    Off,
+}
+
+impl From<CotypingFullAcceptKey> for i32 {
+    fn from(key: CotypingFullAcceptKey) -> i32 {
+        match key {
+            CotypingFullAcceptKey::Backtick => 50,
+            CotypingFullAcceptKey::RightArrow => 124,
+            CotypingFullAcceptKey::Off => -1,
+        }
+    }
+}
+
+impl TryFrom<i32> for CotypingFullAcceptKey {
+    type Error = String;
+
+    fn try_from(code: i32) -> Result<Self, String> {
+        match code {
+            50 => Ok(Self::Backtick),
+            124 => Ok(Self::RightArrow),
+            -1 => Ok(Self::Off),
+            other => Err(format!("unknown full-accept key {other}")),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CotypingEscapeBehavior {
+    #[default]
+    Pause,
+    PassThrough,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_enabled_period_of_the_overnight_review_has_a_start() {
+        let today = chrono::NaiveDate::from_ymd_opt(2026, 10, 20).unwrap();
+        let mut settings = Settings::default();
+        assert!(settings.dreaming_enabled, "on by default, as on the Mac");
+        assert!(settings.normalize_dreaming_boundary(today));
+        assert_eq!(
+            settings.dreaming_first_eligible_day_key(),
+            Some("2026-10-19")
+        );
+        // It stays once set, under the Mac's key.
+        assert!(!settings.normalize_dreaming_boundary(today));
+        let json = serde_json::to_value(&settings).unwrap();
+        assert_eq!(json["dreamingFirstEligibleDayKey"], "2026-10-19");
+
+        settings.dreaming_enabled = false;
+        assert!(settings.normalize_dreaming_boundary(today));
+        assert_eq!(settings.dreaming_first_eligible_day_key(), None);
+        assert!(
+            serde_json::to_value(&settings)
+                .unwrap()
+                .get("dreamingFirstEligibleDayKey")
+                .is_none()
+        );
+        assert!(!settings.normalize_dreaming_boundary(today));
+    }
+
+    #[test]
+    fn the_macs_boundary_is_read_and_kept() {
+        let settings: Settings =
+            serde_json::from_str(r#"{"dreamingFirstEligibleDayKey":"2026-09-01"}"#).unwrap();
+        assert_eq!(
+            settings.dreaming_first_eligible_day_key(),
+            Some("2026-09-01")
+        );
+    }
+
+    #[test]
+    fn dictation_reads_no_window_until_the_person_chooses_it() {
+        assert!(!Settings::default().dictation_use_screen_context);
+        // A settings file that doesn't mention it stays off too.
+        let missing: Settings = serde_json::from_str("{}").unwrap();
+        assert!(!missing.dictation_use_screen_context);
+        // A Mac library's saved choice is kept either way.
+        for saved in [true, false] {
+            let json = format!(r#"{{"dictationUseScreenContext":{saved}}}"#);
+            let settings: Settings = serde_json::from_str(&json).unwrap();
+            assert_eq!(settings.dictation_use_screen_context, saved);
+        }
+    }
 
     #[test]
     fn defaults_round_trip() {
@@ -757,6 +1230,22 @@ mod tests {
         assert_eq!(back, Settings::default());
         assert!(json.contains("\"autoRecordMode\":\"Ask via notification\""));
         assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b\""));
+    }
+
+    #[test]
+    fn accepting_recordings_is_on_by_default_and_round_trips_with_the_mac_key() {
+        // A settings file from before the setting existed.
+        let older: Settings = serde_json::from_str("{}").unwrap();
+        assert!(older.companion_accepts_recordings);
+
+        let off = Settings {
+            companion_accepts_recordings: false,
+            ..Settings::default()
+        };
+        let json = serde_json::to_value(&off).unwrap();
+        assert_eq!(json["companionAcceptsRecordings"], false);
+        let back: Settings = serde_json::from_value(json).unwrap();
+        assert!(!back.companion_accepts_recordings);
     }
 
     #[test]
@@ -903,6 +1392,59 @@ mod tests {
             Settings::load(&path),
             older,
             "loading does not rewrite an older library"
+        );
+    }
+
+    #[test]
+    fn saving_keeps_keys_this_port_does_not_model() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        // One typed value that doesn't parse sends loading down the
+        // field-by-field path, which has to keep them as well.
+        for raw in [
+            r#"{"graniteSpeechModel":{"repository":"ibm/granite"},"cotypingInProcessRuntime":false}"#,
+            r#"{"graniteSpeechModel":{"repository":"ibm/granite"},"cotypingInProcessRuntime":false,"retentionDays":"soon"}"#,
+        ] {
+            std::fs::write(&path, raw).unwrap();
+            Settings::load(&path).save(&path).unwrap();
+            let saved: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+            assert_eq!(saved["graniteSpeechModel"]["repository"], "ibm/granite");
+            assert_eq!(saved["cotypingInProcessRuntime"], false);
+        }
+    }
+
+    #[test]
+    fn the_macs_key_codes_and_enums_decode() {
+        let settings: Settings = serde_json::from_str(
+            r#"{"cotypingAcceptKey":124,"cotypingFullAcceptKey":-1,"cotypingEscapeBehavior":"passThrough","cotypingBackend":"thinkServer","modelDownloadSource":"hfMirror","dailyMemoryExportFormat":"Logseq","enabledMemoryRoutines":["dailyStandup"],"remoteTranscriptionBaseURL":"http://127.0.0.1:9000/v1"}"#,
+        )
+        .unwrap();
+        assert_eq!(settings.cotyping_accept_key, CotypingAcceptKey::RightArrow);
+        assert_eq!(
+            settings.cotyping_full_accept_key,
+            CotypingFullAcceptKey::Off
+        );
+        assert_eq!(
+            settings.cotyping_escape_behavior,
+            CotypingEscapeBehavior::PassThrough
+        );
+        assert_eq!(settings.cotyping_backend, CotypingBackend::ThinkServer);
+        assert_eq!(
+            settings.model_download_source,
+            ModelDownloadSource::HfMirror
+        );
+        assert_eq!(
+            settings.daily_memory_export_format,
+            DailyMemoryExportFormat::Logseq
+        );
+        assert_eq!(
+            settings.enabled_memory_routines,
+            vec![MemoryRoutineKind::DailyStandup]
+        );
+        assert_eq!(
+            settings.remote_transcription_base_url,
+            "http://127.0.0.1:9000/v1"
         );
     }
 }

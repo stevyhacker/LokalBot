@@ -54,6 +54,17 @@ struct AskDateScope: Equatable, Sendable {
         return firstDay == lastDay ? startLabel : "\(startLabel) – \(last.formatted(date: .abbreviated, time: .omitted))"
     }
 
+    /// "on 4 Nov 2026", or "from 1 Sep 2026 to 7 Sep 2026", for a sentence.
+    var phrase: String {
+        guard let first = AskDayScope.date(for: firstDay), let last = AskDayScope.date(for: lastDay) else {
+            return "on \(storageKey)"
+        }
+        let start = first.formatted(date: .abbreviated, time: .omitted)
+        return firstDay == lastDay
+            ? "on \(start)"
+            : "from \(start) to \(last.formatted(date: .abbreviated, time: .omitted))"
+    }
+
     func label(now: Date = Date(), calendar: Calendar = .current) -> String {
         if self == Self(day: now, calendar: calendar) { return "Today" }
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),

@@ -56,12 +56,14 @@ final class CodingAgentEvidenceIngestor {
     private let scan: Scan
     private let mutateEvidence: EvidenceMutation
     private let onChange: ([Date]) -> Void
+    private let waitUntilReady: @MainActor () async -> Void
     private let now: () -> Date
     private let calendar: Calendar
     private var timer: Timer?
+    private var firstRefresh: Task<Void, Never>?
     private var latestRefresh: Task<Void, Never>?
-    /// Reused across window refreshes, so a refresh parses only the
-    /// transcripts written since the last one.
+    /// Reused across window refreshes and days, so a refresh parses only
+    /// the lines agents appended since the last one.
     private let parseCache = CodingAgentParseCache()
     private(set) var lastError: String?
 
@@ -73,6 +75,7 @@ final class CodingAgentEvidenceIngestor {
         },
         mutateEvidence: @escaping EvidenceMutation,
         onChange: @escaping ([Date]) -> Void = { _ in },
+        waitUntilReady: @escaping @MainActor () async -> Void = {},
         now: @escaping () -> Date = Date.init,
         calendar: Calendar = .current
     ) {
@@ -81,6 +84,7 @@ final class CodingAgentEvidenceIngestor {
         self.scan = scan
         self.mutateEvidence = mutateEvidence
         self.onChange = onChange
+        self.waitUntilReady = waitUntilReady
         self.now = now
         self.calendar = calendar
     }
@@ -94,19 +98,28 @@ final class CodingAgentEvidenceIngestor {
         ).scan(from: firstDay, through: lastDay, cache: cache)
     }
 
-    /// Refresh now and then on a fixed interval while any agent is enabled.
+    /// Refresh once `waitUntilReady` returns, then on a fixed interval while
+    /// any agent is enabled. The first refresh parses every transcript in the
+    /// window, so at launch it waits for the meeting library to load.
     func start() {
         stop()
         guard !configuration().agents.isEmpty else { return }
         timer = Timer.scheduledTimer(withTimeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
-        Task { await refresh() }
+        let waitUntilReady = waitUntilReady
+        firstRefresh = Task { [weak self] in
+            await waitUntilReady()
+            guard !Task.isCancelled else { return }
+            await self?.refresh()
+        }
     }
 
     func stop() {
         timer?.invalidate()
         timer = nil
+        firstRefresh?.cancel()
+        firstRefresh = nil
     }
 
     /// Scan the recent window, plus `day` when it is older, and store what
@@ -129,7 +142,8 @@ final class CodingAgentEvidenceIngestor {
         let windowStart = calendar.date(byAdding: .day, value: -(Self.windowDays - 1), to: today) ?? today
         var ranges: [(first: Date, last: Date, cache: CodingAgentParseCache?)] = [(windowStart, today, parseCache)]
         if let day, calendar.startOfDay(for: day) < windowStart {
-            // A one-off older day would evict the window's cached files.
+            // An older day reaches past what the cache keeps: reading it
+            // there would reparse the window's files and drop the rest.
             ranges.append((calendar.startOfDay(for: day), calendar.startOfDay(for: day), nil))
         }
         let scan = self.scan

@@ -3,7 +3,8 @@
 //!
 //! The built-in backend leases the local `llama-server` for each request.
 //! Ollama and OpenAI-compatible servers on another machine are refused until
-//! the user approves their exact origin (`access::remote_block_reason`).
+//! the user approves their exact origin, and need HTTPS even on their own
+//! network (`access::remote_block_reason`).
 //! Anthropic's API speaks its own Messages API ([`crate::anthropic`]). A
 //! ChatGPT or Claude plan ([`crate::plans`]) needs its own approval entry.
 
@@ -28,6 +29,8 @@ use crate::error::AiError;
 use crate::http;
 use crate::json as model_json;
 use crate::plans;
+use crate::reasoning_lookup;
+use crate::remote_gate::{self, Priority};
 use crate::runtime::{Lease, RuntimeManager};
 
 /// The built-in model's default thinking ceiling (`highReasoningBudgetTokens`).
@@ -186,7 +189,14 @@ enum Backend {
 struct Inner {
     backend: Backend,
     level: ReasoningLevel,
+    /// How urgent this work is on a remote server's shared gate.
+    priority: Priority,
+    /// What the work is, for the retry log.
+    purpose: &'static str,
     context_tokens: OnceLock<u32>,
+    /// What the server publishes about this model's reasoning levels, read once
+    /// for a chosen level (`ThinkExecution`). `None` inside: it publishes nothing.
+    published_levels: OnceLock<Option<ReasoningSupport>>,
     /// The local runtime, for the embedder (also used with remote Think).
     runtime: Option<RuntimeManager>,
 }
@@ -204,8 +214,54 @@ fn consent(url: &str, approved: &[String]) -> Result<()> {
     }
 }
 
+/// Scheduled digest and overnight runs use the same origin approval as manual
+/// Think requests: on-device backends, loopback, or an approved origin
+/// (`AppSettings.allowsAutomaticMainInference`).
+pub fn allows_automatic_main_inference(settings: &Settings) -> bool {
+    let base = match settings.summarizer_backend {
+        SummarizerBackend::BuiltIn => return true,
+        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => {
+            return settings
+                .think_plan()
+                .is_some_and(|plan| plan.is_approved(settings));
+        }
+        SummarizerBackend::Ollama => &settings.ollama_base_url,
+        SummarizerBackend::OpenAICompatible => &settings.openai_base_url,
+    };
+    remote_block_reason(
+        &trimmed_base(base),
+        &settings.approved_remote_inference_origins,
+    )
+    .is_none()
+}
+
 fn trimmed_base(url: &str) -> String {
     url.trim().trim_end_matches('/').to_string()
+}
+
+/// The models an Ollama server has installed, sorted (`OllamaEngine.listModels`).
+/// Its origin must already be allowed to receive context; empty when it doesn't
+/// answer.
+pub fn list_ollama_models(base_url: &str, approved: &[String]) -> Result<Vec<String>> {
+    let base = trimmed_base(base_url);
+    consent(&base, approved)?;
+    let agent = http::agent(&base, Duration::from_secs(3));
+    let Ok(reply) = http::get(&agent, &format!("{base}/api/tags"), None) else {
+        return Ok(Vec::new());
+    };
+    Ok(ollama_model_names(&reply.json().unwrap_or_default()))
+}
+
+fn ollama_model_names(tags: &Value) -> Vec<String> {
+    let mut names: Vec<String> = tags
+        .get("models")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|m| m.get("name").and_then(Value::as_str).map(str::to_string))
+        .collect();
+    names.sort();
+    names
 }
 
 impl ThinkClient {
@@ -357,9 +413,99 @@ impl ThinkClient {
             inner: Arc::new(Inner {
                 backend,
                 level,
+                // `ThinkExecution.makeTextEngine`'s defaults.
+                priority: Priority::Background,
+                purpose: "summary",
                 context_tokens: OnceLock::new(),
+                published_levels: OnceLock::new(),
                 runtime,
             }),
+        }
+    }
+
+    /// The same client with another backend or level; its work stays what it was.
+    fn rebuilt(&self, backend: Backend, level: ReasoningLevel) -> Self {
+        Self {
+            inner: Arc::new(Inner {
+                backend,
+                level,
+                priority: self.inner.priority,
+                purpose: self.inner.purpose,
+                context_tokens: OnceLock::new(),
+                published_levels: OnceLock::new(),
+                runtime: self.inner.runtime.clone(),
+            }),
+        }
+    }
+
+    /// Says how urgent this client's work is on a remote server's shared gate
+    /// (no effect on the built-in model).
+    pub fn with_priority(self, priority: Priority, purpose: &'static str) -> Self {
+        Self {
+            inner: Arc::new(Inner {
+                backend: self.inner.backend.clone(),
+                level: self.inner.level,
+                priority,
+                purpose,
+                context_tokens: OnceLock::new(),
+                published_levels: OnceLock::new(),
+                runtime: self.inner.runtime.clone(),
+            }),
+        }
+    }
+
+    /// The gate's key: the server's origin, or the plan's consent key. The
+    /// built-in model, also when reached directly, has its own leases.
+    fn gate_origin(&self) -> Option<String> {
+        match &self.inner.backend {
+            Backend::BuiltIn { .. } => None,
+            Backend::Server {
+                dialect: Dialect::LlamaServer,
+                ..
+            } => None,
+            Backend::Server { base, .. } | Backend::Ollama { base, .. } => {
+                Some(remote_gate::origin(base))
+            }
+            Backend::Anthropic(engine) => Some(remote_gate::origin(&engine.base)),
+            Backend::ChatGptPlan(_) => Some(SubscriptionPlan::ChatGpt.consent_key().to_string()),
+            Backend::ClaudePlan(_) => Some(SubscriptionPlan::Claude.consent_key().to_string()),
+        }
+    }
+
+    /// A whole reply, replayed on transient failures (`GatedTextEngine.replaying`).
+    fn replaying<T>(&self, operation: impl FnMut() -> Result<T>) -> Result<T> {
+        match self.gate_origin() {
+            Some(origin) => remote_gate::shared().replaying(
+                &origin,
+                self.inner.priority,
+                self.inner.purpose,
+                operation,
+            ),
+            None => with_retry(operation),
+        }
+    }
+
+    /// A stream: it holds a slot, and is never replayed. Cancelled while it waits
+    /// for the slot, it reports what arrived: nothing.
+    fn streaming(
+        &self,
+        cancel: Option<&AtomicBool>,
+        operation: impl FnOnce() -> Result<Completion>,
+    ) -> Result<Completion> {
+        let Some(origin) = self.gate_origin() else {
+            return operation();
+        };
+        match remote_gate::shared().once(&origin, self.inner.priority, cancel, operation) {
+            Err(err)
+                if cancel.is_some_and(|c| c.load(Ordering::Relaxed))
+                    && crate::error::is_cancelled(&err) =>
+            {
+                Ok(Completion {
+                    cancelled: true,
+                    ..Default::default()
+                })
+            }
+            other => other,
         }
     }
 
@@ -382,7 +528,7 @@ impl ThinkClient {
             Backend::Anthropic(engine) => engine.api_key = key,
             _ => {}
         }
-        Self::with_runtime(backend, self.inner.level, self.inner.runtime.clone())
+        self.rebuilt(backend, self.inner.level)
     }
 
     /// Sets OpenRouter's provider data policy (no effect on other servers).
@@ -391,7 +537,7 @@ impl ThinkClient {
         if let Backend::Server { data_policy, .. } = &mut backend {
             *data_policy = policy;
         }
-        Self::with_runtime(backend, self.inner.level, self.inner.runtime.clone())
+        self.rebuilt(backend, self.inner.level)
     }
 
     pub fn with_reasoning_level(self, level: ReasoningLevel) -> Self {
@@ -402,7 +548,7 @@ impl ThinkClient {
             Backend::ClaudePlan(engine) => engine.level = level,
             _ => {}
         }
-        Self::with_runtime(backend, level, self.inner.runtime.clone())
+        self.rebuilt(backend, level)
     }
 
     /// The subscription plan this client runs on, if any.
@@ -712,18 +858,18 @@ impl ThinkClient {
                     ),
                     *data_policy,
                 );
-                with_retry(|| post_chat(base, api_key.as_deref(), &body))
+                self.replaying(|| post_chat(base, api_key.as_deref(), &body))
             }
             Backend::Ollama { base, model } => {
                 let model = self.ollama_model(base, model)?;
                 let body = ollama_body(&model, request, self.request_level(request), false);
-                with_retry(|| post_ollama(base, &body))
+                self.replaying(|| post_ollama(base, &body))
             }
-            Backend::Anthropic(engine) => engine.complete(request),
+            Backend::Anthropic(engine) => self.replaying(|| engine.complete(request)),
             Backend::ChatGptPlan(engine) => {
-                with_retry(|| engine.respond(request, None, &mut |_| {}))
+                self.replaying(|| engine.respond(request, None, &mut |_| {}))
             }
-            Backend::ClaudePlan(engine) => with_retry(|| engine.respond(request, None, None)),
+            Backend::ClaudePlan(engine) => self.replaying(|| engine.respond(request, None, None)),
         }
     }
 
@@ -791,7 +937,10 @@ impl ThinkClient {
                     ),
                     *data_policy,
                 );
-                match stream_chat(base, api_key.as_deref(), &body, cancel, on_delta) {
+                let streamed = self.streaming(cancel, || {
+                    stream_chat(base, api_key.as_deref(), &body, cancel, on_delta)
+                });
+                match streamed {
                     Err(err) if is_stream_unsupported(&err) => {
                         let completion = self.complete_full(request)?;
                         on_delta(&completion.text);
@@ -803,11 +952,17 @@ impl ThinkClient {
             Backend::Ollama { base, model } => {
                 let model = self.ollama_model(base, model)?;
                 let body = ollama_body(&model, request, self.request_level(request), true);
-                stream_ollama(base, &body, cancel, on_delta)
+                self.streaming(cancel, || stream_ollama(base, &body, cancel, on_delta))
             }
-            Backend::Anthropic(engine) => engine.stream(request, cancel, on_delta),
-            Backend::ChatGptPlan(engine) => engine.respond(request, cancel, on_delta),
-            Backend::ClaudePlan(engine) => engine.respond(request, cancel, Some(on_delta)),
+            Backend::Anthropic(engine) => {
+                self.streaming(cancel, || engine.stream(request, cancel, on_delta))
+            }
+            Backend::ChatGptPlan(engine) => {
+                self.streaming(cancel, || engine.respond(request, cancel, on_delta))
+            }
+            Backend::ClaudePlan(engine) => {
+                self.streaming(cancel, || engine.respond(request, cancel, Some(on_delta)))
+            }
         }
     }
 
@@ -825,14 +980,42 @@ impl ThinkClient {
                 model,
                 dialect,
                 ..
-            } => ReasoningSupport::known(*dialect, base, model),
-            Backend::Ollama { model, .. } => ReasoningSupport::ollama(model),
+            } => {
+                let known = ReasoningSupport::known(*dialect, base, model);
+                self.published_levels(|| {
+                    (*dialect == Dialect::OpenRouter && !model.is_empty())
+                        .then(|| reasoning_lookup::openrouter(base, model))
+                        .flatten()
+                })
+                .unwrap_or(known)
+            }
+            Backend::Ollama { base, model } => {
+                let known = ReasoningSupport::ollama(model);
+                self.published_levels(|| {
+                    (!model.is_empty())
+                        .then(|| reasoning_lookup::ollama(base, model, known.clone()))
+                        .flatten()
+                })
+                .unwrap_or(known)
+            }
             // These engines pick their own effort per request.
             Backend::Anthropic(_) | Backend::ChatGptPlan(_) | Backend::ClaudePlan(_) => {
                 return None;
             }
         };
         support.request_level(self.inner.level, request.reasoning_budget)
+    }
+
+    /// Only a chosen level needs to know what the model accepts. The client's
+    /// origin passed its consent check when the client was made.
+    fn published_levels(
+        &self,
+        read: impl FnOnce() -> Option<ReasoningSupport>,
+    ) -> Option<ReasoningSupport> {
+        if self.inner.level == ReasoningLevel::Automatic {
+            return None;
+        }
+        self.inner.published_levels.get_or_init(read).clone()
     }
 
     /// An empty Ollama model name means the server's first installed model.
@@ -842,16 +1025,7 @@ impl ThinkClient {
         }
         let agent = http::agent(base, Duration::from_secs(5));
         let reply = http::get(&agent, &format!("{base}/api/tags"), None)?;
-        let mut names: Vec<String> = reply
-            .json()
-            .ok()
-            .and_then(|v| v.get("models").and_then(Value::as_array).cloned())
-            .unwrap_or_default()
-            .iter()
-            .filter_map(|m| m.get("name").and_then(Value::as_str).map(str::to_string))
-            .collect();
-        names.sort();
-        names
+        ollama_model_names(&reply.json().unwrap_or_default())
             .into_iter()
             .next()
             .ok_or_else(|| AiError::NoModel.into())
@@ -881,8 +1055,9 @@ fn finish_text(completion: Completion, request: &ChatRequest) -> Result<String> 
     Ok(completion.text)
 }
 
-/// One replay for transient failures (408/409/425/429/5xx, transport),
-/// after the server's Retry-After (≤60 s) or about a second.
+/// One replay for transient failures (408/409/425/429/5xx, transport), after the
+/// server's Retry-After (≤60 s) or about a second. For a llama-server reached
+/// directly; other servers replay through their gate.
 pub(crate) fn with_retry<T>(mut call: impl FnMut() -> Result<T>) -> Result<T> {
     match call() {
         Err(err) => {
@@ -960,6 +1135,20 @@ impl ReasoningSupport {
     pub(crate) fn new(levels: &[ReasoningLevel], default_level: Option<ReasoningLevel>) -> Self {
         Self {
             levels: levels.to_vec(),
+            default_level,
+        }
+    }
+
+    /// Least reasoning first, for levels read from a server.
+    pub(crate) fn sorted(
+        mut levels: Vec<ReasoningLevel>,
+        default_level: Option<ReasoningLevel>,
+    ) -> Self {
+        levels.retain(|level| *level != ReasoningLevel::Automatic);
+        levels.sort_by_key(|level| level_rank(*level));
+        levels.dedup();
+        Self {
+            levels,
             default_level,
         }
     }
@@ -1104,10 +1293,89 @@ impl ReasoningSupport {
     }
 }
 
+/// What `settings` lets LokalBot ask a server about its model: OpenRouter's list
+/// or Ollama's capabilities, only from an origin already allowed for inference.
+#[derive(Clone, Debug, PartialEq)]
+enum PublishedLevels {
+    OpenRouter { base: String, model: String },
+    Ollama { base: String, model: String },
+}
+
+impl PublishedLevels {
+    fn of(settings: &Settings) -> Option<Self> {
+        let approved = &settings.approved_remote_inference_origins;
+        match settings.summarizer_backend {
+            SummarizerBackend::Ollama => {
+                let base = trimmed_base(&settings.ollama_base_url);
+                let model = settings.ollama_model.trim().to_string();
+                (!model.is_empty() && remote_block_reason(&base, approved).is_none())
+                    .then_some(Self::Ollama { base, model })
+            }
+            SummarizerBackend::OpenAICompatible => {
+                let base = trimmed_base(&settings.openai_base_url);
+                let model = settings.openai_model.trim().to_string();
+                (!model.is_empty()
+                    && Dialect::inferred(&base) == Dialect::OpenRouter
+                    && remote_block_reason(&base, approved).is_none())
+                .then_some(Self::OpenRouter { base, model })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Changes when the selected model, its server or its approval does: the moment to
+/// ask again (`ReasoningSupport.lookupKey`).
+pub fn reasoning_lookup_key(settings: &Settings) -> String {
+    let origins = settings.approved_remote_inference_origins.join(",");
+    match settings.summarizer_backend {
+        SummarizerBackend::BuiltIn => format!("builtIn|{}", settings.built_in_model_id),
+        SummarizerBackend::Ollama => format!(
+            "ollama|{}|{}|{origins}",
+            settings.ollama_base_url, settings.ollama_model
+        ),
+        SummarizerBackend::OpenAICompatible => format!(
+            "openAICompatible|{}|{}|{origins}",
+            settings.openai_base_url, settings.openai_model
+        ),
+        SummarizerBackend::ChatGptPlan => format!("chatGPTPlan|{}", settings.chatgpt_plan_model),
+        SummarizerBackend::ClaudePlan => format!("claudePlan|{}", settings.claude_plan_model),
+    }
+}
+
+/// Asks the server what the selected model accepts, so [`reasoning_choices`] can
+/// say (`ReasoningSupport.resolve`). Blocking: up to a few seconds on a slow
+/// server, so never on the UI thread. Sends only to an allowed origin, with no key
+/// and no content; does nothing for every other backend.
+pub fn refresh_reasoning_choices(settings: &Settings) {
+    match PublishedLevels::of(settings) {
+        Some(PublishedLevels::OpenRouter { base, model }) => {
+            reasoning_lookup::openrouter(&base, &model);
+        }
+        Some(PublishedLevels::Ollama { base, model }) => {
+            reasoning_lookup::ollama(&base, &model, ReasoningSupport::ollama(&model));
+        }
+        None => {}
+    }
+}
+
 /// The reasoning levels the Think model in `settings` accepts, and the level
-/// its server uses when none is sent (`ReasoningSupport.known(for:)`). Agent
-/// Mode offers only these and clamps its choice to them.
+/// its server uses when none is sent: what the server last published about it, else
+/// `ReasoningSupport.known(for:)`. Reads nothing from the network. Agent Mode
+/// offers only these and clamps its choice to them.
 pub fn reasoning_choices(settings: &Settings) -> (Vec<ReasoningLevel>, Option<ReasoningLevel>) {
+    let published = match PublishedLevels::of(settings) {
+        Some(PublishedLevels::OpenRouter { model, .. }) => {
+            reasoning_lookup::openrouter_cached(&model)
+        }
+        Some(PublishedLevels::Ollama { base, model }) => {
+            reasoning_lookup::ollama_cached(&base, &model)
+        }
+        None => None,
+    };
+    if let Some(support) = published {
+        return (support.levels, support.default_level);
+    }
     let support = match settings.summarizer_backend {
         SummarizerBackend::BuiltIn => catalog::entry(&settings.built_in_model_id)
             .map(ReasoningSupport::built_in)
@@ -1328,7 +1596,16 @@ fn parse_chat_completion(json: &Value) -> Result<Completion> {
 }
 
 fn post_chat(base: &str, bearer: Option<&str>, body: &Value) -> Result<Completion> {
-    let agent = http::agent(base, CHAT_TIMEOUT);
+    post_chat_within(base, bearer, body, CHAT_TIMEOUT)
+}
+
+fn post_chat_within(
+    base: &str,
+    bearer: Option<&str>,
+    body: &Value,
+    timeout: Duration,
+) -> Result<Completion> {
+    let agent = http::agent(base, timeout);
     let reply = http::post_json(&agent, &format!("{base}/chat/completions"), bearer, body)?;
     if !reply.ok() {
         return Err(reply.status_error().into());
@@ -1387,6 +1664,30 @@ impl ThinkFilter {
     }
 }
 
+/// One chat request with a short deadline and no replay, for autocomplete:
+/// a newer keystroke supersedes a failed one anyway. Streamed, so `cancel` can
+/// end it between tokens.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn short_chat(
+    dialect: Dialect,
+    base: &str,
+    model: &str,
+    bearer: Option<&str>,
+    data_policy: OpenRouterDataPolicy,
+    request: &ChatRequest,
+    timeout: Duration,
+    cancel: &AtomicBool,
+) -> Result<Completion> {
+    let body = with_data_policy(
+        chat_body(dialect, model, request, None, None, &[]),
+        data_policy,
+    );
+    match stream_chat_within(base, bearer, &body, Some(cancel), &mut |_| {}, timeout) {
+        Err(err) if is_stream_unsupported(&err) => post_chat_within(base, bearer, &body, timeout),
+        other => other,
+    }
+}
+
 fn stream_chat(
     base: &str,
     bearer: Option<&str>,
@@ -1394,9 +1695,20 @@ fn stream_chat(
     cancel: Option<&AtomicBool>,
     on_delta: &mut dyn FnMut(&str),
 ) -> Result<Completion> {
+    stream_chat_within(base, bearer, body, cancel, on_delta, CHAT_TIMEOUT)
+}
+
+fn stream_chat_within(
+    base: &str,
+    bearer: Option<&str>,
+    body: &Value,
+    cancel: Option<&AtomicBool>,
+    on_delta: &mut dyn FnMut(&str),
+    timeout: Duration,
+) -> Result<Completion> {
     let mut body = body.clone();
     body["stream"] = json!(true);
-    let agent = http::agent(base, CHAT_TIMEOUT);
+    let agent = http::agent(base, timeout);
     let url = format!("{base}/chat/completions");
     let mut stream = http::post_stream(&agent, &url, bearer, &body)?;
     if let Some(error) = stream.error.take() {
@@ -1997,7 +2309,11 @@ impl CompletionClient {
                 ..
             } => (
                 model.clone(),
-                *dialect == Dialect::LlamaServer || is_loopback_url(base),
+                // A server the user runs themselves; hosted APIs may reject
+                // unknown fields (`CotypingServerEndpoint.isSelfHosted`).
+                *dialect == Dialect::LlamaServer
+                    || is_loopback_url(base)
+                    || lokalbot_core::access::is_private_network_url(base),
                 *dialect,
                 *data_policy,
             ),
@@ -2158,6 +2474,140 @@ mod tests {
             200,
             json!({"choices": [{"message": {"role": "assistant", "content": content}, "finish_reason": finish}], "usage": {"prompt_tokens": 10, "completion_tokens": 5}}),
         )
+    }
+
+    /// A server that remembers how many requests it held at once.
+    fn slow_server() -> (StubServer, Arc<std::sync::atomic::AtomicUsize>) {
+        use std::sync::atomic::AtomicUsize;
+        let running = Arc::new(AtomicUsize::new(0));
+        let most = Arc::new(AtomicUsize::new(0));
+        let seen = most.clone();
+        let server = StubServer::start(move |_| {
+            let now = running.fetch_add(1, Ordering::SeqCst) + 1;
+            most.fetch_max(now, Ordering::SeqCst);
+            std::thread::sleep(Duration::from_millis(150));
+            running.fetch_sub(1, Ordering::SeqCst);
+            chat_reply("ok", "stop")
+        });
+        (server, seen)
+    }
+
+    fn at_once(client: &ThinkClient, requests: usize) {
+        std::thread::scope(|scope| {
+            for _ in 0..requests {
+                scope.spawn(|| client.complete(&ChatRequest::new("s", "u")).unwrap());
+            }
+        });
+    }
+
+    #[test]
+    fn scheduled_work_takes_one_slot_on_a_remote_server() {
+        let (server, most) = slow_server();
+        let client = ThinkClient::openai_compatible(&server.url("/v1"), "m", None, &[]).unwrap();
+        at_once(&client, 3);
+        assert_eq!(most.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn meeting_notes_take_two_slots_and_a_person_waits_for_none() {
+        let (server, most) = slow_server();
+        let notes = ThinkClient::openai_compatible(&server.url("/v1"), "m", None, &[])
+            .unwrap()
+            .with_priority(Priority::Pipeline, "meeting notes");
+        at_once(&notes, 4);
+        assert_eq!(most.load(Ordering::SeqCst), 2);
+
+        let (server, most) = slow_server();
+        let chat = ThinkClient::openai_compatible(&server.url("/v1"), "m", None, &[])
+            .unwrap()
+            .with_priority(Priority::Interactive, "chat");
+        at_once(&chat, 4);
+        assert_eq!(most.load(Ordering::SeqCst), 4);
+    }
+
+    #[test]
+    fn the_built_in_server_reached_directly_has_no_gate() {
+        let (server, most) = slow_server();
+        let client = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
+        at_once(&client, 3);
+        assert_eq!(most.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
+    fn priority_survives_the_settings_applied_after_it() {
+        let client = ThinkClient::openai_compatible("http://127.0.0.1:9/v1", "m", None, &[])
+            .unwrap()
+            .with_priority(Priority::Pipeline, "meeting notes")
+            .with_api_key(Some("key".into()))
+            .with_openrouter_data_policy(OpenRouterDataPolicy::PrivateOnly)
+            .with_reasoning_level(ReasoningLevel::Low);
+        assert_eq!(client.inner.priority, Priority::Pipeline);
+        assert_eq!(client.inner.purpose, "meeting notes");
+    }
+
+    #[test]
+    fn a_chosen_level_uses_what_ollama_says_the_model_accepts() {
+        let server = StubServer::start(|request| match request.path.as_str() {
+            // gpt-oss is known to take levels, but this server says it doesn't think.
+            "/api/show" => Reply::Json(200, json!({"capabilities": ["completion"]})),
+            _ => Reply::Json(200, json!({"message": {"content": "hi"}, "done": true})),
+        });
+        let automatic = ThinkClient::ollama(&server.url(""), "gpt-oss", &[]).unwrap();
+        automatic.complete(&ChatRequest::new("s", "u")).unwrap();
+        // Automatic needs no lookup.
+        assert!(server.requests().iter().all(|r| r.path != "/api/show"));
+        let chosen = ThinkClient::ollama(&server.url(""), "gpt-oss", &[])
+            .unwrap()
+            .with_reasoning_level(ReasoningLevel::High);
+        chosen.complete(&ChatRequest::new("s", "u")).unwrap();
+        chosen.complete(&ChatRequest::new("s", "u")).unwrap();
+        let shows = server
+            .requests()
+            .iter()
+            .filter(|r| r.path == "/api/show")
+            .count();
+        assert_eq!(shows, 1, "read once for a client");
+        let sent = server.last_json("/api/chat");
+        assert!(sent.get("think").is_none(), "{sent}");
+    }
+
+    #[test]
+    fn the_picker_reads_published_levels_only_from_an_allowed_origin() {
+        let server =
+            StubServer::start(|_| Reply::Json(200, json!({"capabilities": ["completion"]})));
+        let mut settings = Settings {
+            summarizer_backend: SummarizerBackend::Ollama,
+            ollama_base_url: server.url(""),
+            ollama_model: "gpt-oss".into(),
+            ..Settings::default()
+        };
+        // Nothing asked yet: what LokalBot knows.
+        assert_eq!(reasoning_choices(&settings).0.len(), 3);
+        refresh_reasoning_choices(&settings);
+        assert_eq!(server.requests().len(), 1);
+        assert!(
+            reasoning_choices(&settings).0.is_empty(),
+            "the server's word"
+        );
+        // Another computer, not approved: nothing is sent.
+        settings.ollama_base_url = "https://ollama.example".into();
+        refresh_reasoning_choices(&settings);
+        assert_eq!(server.requests().len(), 1);
+        assert_eq!(reasoning_choices(&settings).0.len(), 3);
+        // OpenRouter only from an approved origin; another server is never asked.
+        settings.summarizer_backend = SummarizerBackend::OpenAICompatible;
+        settings.openai_base_url = "https://openrouter.ai/api/v1".into();
+        settings.openai_model = "vendor/model".into();
+        assert!(PublishedLevels::of(&settings).is_none());
+        settings
+            .approved_remote_inference_origins
+            .push("https://openrouter.ai".into());
+        assert!(matches!(
+            PublishedLevels::of(&settings),
+            Some(PublishedLevels::OpenRouter { .. })
+        ));
+        settings.openai_base_url = server.url("/v1");
+        assert!(PublishedLevels::of(&settings).is_none());
     }
 
     #[test]
@@ -2526,6 +2976,63 @@ mod tests {
         );
         assert_eq!(seen, "Hi there");
         assert!(client.display_name().ends_with("· Ollama on this PC"));
+    }
+
+    #[test]
+    fn ollama_models_list_only_where_context_may_go() {
+        assert_eq!(
+            ollama_model_names(&json!({"models": [{"name": "b:latest"}, {"name": "a"}, {}]})),
+            ["a", "b:latest"]
+        );
+        assert!(ollama_model_names(&json!({"error": "no"})).is_empty());
+        // Asking a remote server what it has waits for its approval.
+        for (url, approved) in [
+            ("https://gpu.example.com", vec![]),
+            (
+                "http://192.168.1.20:11434",
+                vec!["http://192.168.1.20:11434".to_string()],
+            ),
+        ] {
+            let err = list_ollama_models(url, &approved).unwrap_err();
+            assert!(
+                matches!(
+                    err.downcast_ref::<AiError>(),
+                    Some(AiError::ConsentRequired(_))
+                ),
+                "{url}"
+            );
+        }
+    }
+
+    #[test]
+    fn think_refuses_approved_plain_http_on_a_private_network() {
+        // Think and Ollama alike: approval doesn't stand in for encryption.
+        let approved = |origin: &str| vec![origin.to_string()];
+        for (url, origin) in [
+            ("http://192.168.1.20:8080/v1", "http://192.168.1.20:8080"),
+            ("http://100.101.1.2:8080/v1", "http://100.101.1.2:8080"),
+            (
+                "http://gpu.tail1234.ts.net/v1",
+                "http://gpu.tail1234.ts.net",
+            ),
+        ] {
+            let err = ThinkClient::openai_compatible(url, "m", None, &approved(origin))
+                .err()
+                .unwrap();
+            assert!(err.to_string().contains("HTTPS"), "{url}");
+            let err = ThinkClient::ollama(url, "m", &approved(origin))
+                .err()
+                .unwrap();
+            assert!(err.to_string().contains("HTTPS"), "{url}");
+        }
+        let settings = Settings {
+            summarizer_backend: SummarizerBackend::OpenAICompatible,
+            openai_base_url: "http://192.168.1.20:8080/v1".into(),
+            approved_remote_inference_origins: approved("http://192.168.1.20:8080"),
+            ..Settings::default()
+        };
+        // Scheduled work follows the same rule.
+        assert!(!allows_automatic_main_inference(&settings));
     }
 
     #[test]

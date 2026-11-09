@@ -28,12 +28,17 @@ assessment, and coordinated release notes for a confirmed fix.
   Sandbox. On Windows and Linux it runs with your user's permissions, like other
   desktop apps there.
 - The Windows build is not code-signed yet. Download it only from this
-  repository's GitHub Releases and compare the published `.sha256`. Automatic
-  updates check each archive's size, SHA-256 and release signature before
-  installing it.
+  repository's GitHub Releases and compare its SHA-256 with the one the release
+  page shows next to the file. Automatic updates check each archive's size,
+  SHA-256 and release signature before installing it.
 - Remote inference is optional. Approving a non-loopback endpoint permits it to
   receive the context needed for the requested feature.
 - Agent Mode commands execute only after the configured approval policy allows
   them, but approved commands run with the current user's permissions.
-- The external-agent CLI/MCP surface is read-only and gated by the Agent Access
-  setting; enabling it grants trusted local processes access to the library.
+- The external-agent CLI/MCP surface is read-only. On macOS it is gated by
+  **Allow external agents to read your LokalBot data** in Settings → External Agents,
+  with a separate grant for each box under it: meetings, screen memory, shared
+  Personal Context, and Files. On Windows and Linux, meetings and screen memory
+  have separate toggles. Each grant lets trusted local processes read that
+  data; the Files grant returns file paths and extracted text from the folders
+  the user chose.

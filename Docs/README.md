@@ -7,7 +7,8 @@ boundary, reproducible development workflows, and current release behavior.
   `RELEASING.md` are the public source of truth.
 - `Docs/product-roadmap.md` records direction and status, not dated promises.
 - `Docs/screenshot-kit.md` and `Docs/demo-film-kit.md` describe reproducible
-  public-media capture.
+  public-media capture. `Docs/best-ai-assistants-screenshots.md` covers the
+  other apps' screenshots on the AI assistants comparison page.
 - `Video/lokalbot-promo/` is the canonical 16:9, 30-second promo source.
   Generated audio, fonts, snapshots, and renders stay ignored.
 

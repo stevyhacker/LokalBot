@@ -145,6 +145,8 @@ enum ProjectStatusGenerator {
         and what is still open. When meetings disagree, prefer the newest one (M1 is the newest).
         Do not invent owners, dates, numbers, or commitments. "Speaker 4" and similar labels are unnamed
         participants; keep them unnamed. "The user" is the person reading the note; address them as "you".
+        Action details in parentheses such as "(owner: Sam, due: Friday, open)" are evidence for you. Say who owes
+        what in plain words, and never copy that format, "owner:", "due:", "open", or "deferred" into the note.
         overview: one or two plain sentences on where it stands. points: at most five short points, newest
         first, each with the label of the meeting it comes from, or "review" for an overnight review note.
         open_questions: at most three questions the evidence leaves open; an empty list when there are none.
@@ -189,8 +191,11 @@ enum ProjectStatusGenerator {
         }
     }
 
+    /// `now` dates the prompt. `finishedAt` stamps the note once the model has
+    /// written it: a note that took minutes was still written just now.
     static func generate(evidence: Evidence, projectID: UUID, engine: TextEngine,
-                         location: String, now: Date = Date()) async throws -> ProjectStatusSummary {
+                         location: String, now: Date = Date(),
+                         finishedAt: () -> Date = { Date() }) async throws -> ProjectStatusSummary {
         guard !evidence.isEmpty else { throw GenerationError.emptyEvidence }
         let today: String = now.formatted(.dateTime.day().month(.abbreviated).year())
         let output: String = try await engine.generate(
@@ -223,10 +228,25 @@ enum ProjectStatusGenerator {
             projectID: projectID, overview: overview, points: points,
             openQuestions: Array(questions.prefix(maximumQuestions)),
             meetingIDs: evidence.meetingIDs, evidenceFingerprint: fingerprint(evidence),
-            generatedAt: now, engineName: engine.displayName, location: location)
+            generatedAt: finishedAt(), engineName: engine.displayName, location: location)
     }
 
     private static func clean(_ text: String) -> String {
-        ScreenContextPrivacy.redact(text).text.trimmingCharacters(in: .whitespacesAndNewlines)
+        removingEvidenceFormat(ScreenContextPrivacy.redact(text).text)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Small models copy the bracketed details `actionLine` gives them. Only
+    /// that exact shape goes: a sentence that says "the owner" or "still open"
+    /// in its own words stays.
+    static func removingEvidenceFormat(_ text: String) -> String {
+        var result = text
+        for pattern in [
+            #"\s*\((?:(?:owner|due):[^()]*|open|deferred)\)"#,
+            #"[\s,;:–—-]*\b(?:owner|due):[^().;\n]*,\s*(?:open|deferred)\b\)?"#,
+        ] {
+            result = result.replacingOccurrences(of: pattern, with: "", options: [.regularExpression, .caseInsensitive])
+        }
+        return result.replacingOccurrences(of: #"\s+([.,;:!?])"#, with: "$1", options: .regularExpression)
     }
 }

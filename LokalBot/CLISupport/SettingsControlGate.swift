@@ -21,7 +21,7 @@ struct SettingsControlGate {
     static let markerName = "settings-control-enabled"
 
     static let disabledMessage =
-        "External settings access is off. Enable it in LokalBot → Settings → Privacy → " +
+        "External settings access is off. Enable it in LokalBot → Settings → External Agents → " +
         "\"Allow external agents to change LokalBot settings\"."
 
     var root: URL

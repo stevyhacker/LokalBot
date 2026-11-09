@@ -37,6 +37,35 @@ on:
     branches: [master, dev]
   push:
     branches: [master, dev]
+    # A website or docs push has nothing to build, and starting a run would
+    # cancel the Build of a release candidate that is still validating.
+    # Mirrors DOCS_ONLY in Scripts/ci/build-relevance.py; a test keeps them equal.
+    paths-ignore:
+      - "Docs/**"
+      - "web/**"
+      - "Video/**"
+      - "Assets/**"
+      - "Distribution/**"
+      - "cloudflare/**"
+      - "wrangler.jsonc"
+      - "vercel.json"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - "DEVELOPMENT.md"
+      - "RELEASING.md"
+      - "SECURITY.md"
+      - "SUPPORT.md"
+      - "CLOUDFLARE.md"
+      - "Scripts/render_web.py"
+      - "Scripts/serve-web.py"
+      - "Scripts/comparison_pages.py"
+      - "Scripts/guide_pages.py"
+      - "Scripts/blog_posts.py"
+      - "Scripts/render_social_images.py"
 
 # Cancel superseded runs for the same ref so rapid pushes/force-pushes don't
 # leave a backlog of stale builds burning runner minutes.
@@ -129,9 +158,6 @@ jobs:
       - name: Create vendor dirs for XcodeGen
         run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 
-      - name: Generate project
-        run: xcodegen generate
-
       # The pre-build phase Scripts/fetch-llama.sh builds checksum-pinned
       # llama.cpp source for the app's deployment target into Vendor/. GGUF
       # models are user-selected downloads, not bundled in CI artifacts.
@@ -140,6 +166,14 @@ jobs:
         with:
           path: Vendor
           key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+
+      # After the Vendor cache, so a cached copy never replaces the fresh
+      # package; before generation, which needs the package to exist.
+      - name: Build lokalbot-sync
+        uses: ./.github/actions/lokalbot-sync
+
+      - name: Generate project
+        run: xcodegen generate
 
       # Idempotent: a no-op on a cache hit, the real download on a miss. Running
       # it explicitly (rather than only via the xcodebuild pre-build phase) lets

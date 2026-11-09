@@ -2,6 +2,7 @@
 //! Notes and Review tabs (the Transcript tab is in `transcript.rs`).
 
 use crate::i18n::h_flex;
+use crate::windows::screen_image::{self, ScreenImage};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::Textarea;
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
@@ -13,6 +14,7 @@ use gpui_kit::{
     AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
     SharedString, StatefulInteractiveElement as _, Styled as _, Window, div, px, white,
 };
+use gpui_kit::{AppContext as _, ObjectFit, StyledImage as _, img};
 use lokalbot_core::ActionStatus;
 
 use super::dialogs::{CorrectionSheet, NameSpeakerSheet};
@@ -80,20 +82,27 @@ impl MeetingsPage {
                     _ => self.render_review(&doc, cx),
                 };
                 div()
-                    .id("meeting-scroll")
+                    .relative()
                     .size_full()
-                    .overflow_y_scrollbar()
                     .child(
-                        v_flex()
-                            .w_full()
-                            .max_w(metric::CONTENT_MAX_WIDTH)
-                            .px(metric::DETAIL_PADDING)
-                            .pt(px(4.))
-                            .pb(metric::DETAIL_PADDING)
-                            .gap(metric::SECTION_SPACING)
-                            .children(self.render_status(&doc, cx))
-                            .child(body),
+                        div()
+                            .id("meeting-scroll")
+                            .size_full()
+                            .overflow_y_scroll()
+                            .track_scroll(&self.find.scroll)
+                            .child(
+                                v_flex()
+                                    .w_full()
+                                    .max_w(metric::CONTENT_MAX_WIDTH)
+                                    .px(metric::DETAIL_PADDING)
+                                    .pt(px(4.))
+                                    .pb(metric::DETAIL_PADDING)
+                                    .gap(metric::SECTION_SPACING)
+                                    .children(self.render_status(&doc, cx))
+                                    .child(body),
+                            ),
                     )
+                    .vertical_scrollbar(&self.find.scroll)
                     .into_any_element()
             }
         };
@@ -122,7 +131,44 @@ impl MeetingsPage {
     fn render_header(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
         let meeting = &doc.meeting;
-        let chip = |icon: Ico, text: String, color: gpui_kit::Hsla| {
+        use super::page_search::{Location, MetadataField, app_chip, audio_chip};
+        let date = model::date_label(meeting.started_at);
+        let duration = model::duration_label(meeting);
+        let marked_date = self.find_marked(
+            Location::Metadata(MetadataField::Date),
+            &date,
+            date.clone(),
+            false,
+            cx,
+        );
+        let marked_duration = self.find_marked(
+            Location::Metadata(MetadataField::Duration),
+            &duration,
+            duration.clone(),
+            false,
+            cx,
+        );
+        let marked_app = app_chip(meeting).map(|app| {
+            self.find_marked(
+                Location::Metadata(MetadataField::App),
+                &app,
+                app.clone(),
+                false,
+                cx,
+            )
+        });
+        let marked_audio = audio_chip(meeting).map(|audio| {
+            self.find_marked(
+                Location::Metadata(MetadataField::AudioSource),
+                audio,
+                audio,
+                false,
+                cx,
+            )
+        });
+        let title = meeting.display_title();
+        let marked_title = self.find_marked(Location::Title, &title, title.clone(), false, cx);
+        let chip = |icon: Ico, text: AnyElement, color: gpui_kit::Hsla| {
             h_flex()
                 .flex_none()
                 .gap(px(5.))
@@ -133,42 +179,25 @@ impl MeetingsPage {
                 .child(text)
         };
         let mut chips = vec![
-            chip(
-                Ico::Calendar,
-                model::date_label(meeting.started_at),
-                lb.supporting,
-            )
-            .into_any_element(),
-            chip(Ico::Clock, model::duration_label(meeting), lb.supporting).into_any_element(),
+            chip(Ico::Calendar, marked_date, lb.supporting).into_any_element(),
+            chip(Ico::Clock, marked_duration, lb.supporting).into_any_element(),
         ];
-        if meeting.is_sample() {
-            chips.push(
-                chip(
-                    Ico::Sparkles,
-                    lokalbot_i18n::tr("Sample meeting").to_string(),
-                    lb.accent_text,
-                )
-                .into_any_element(),
-            );
-        } else if !meeting.is_merged_meeting() {
-            chips
-                .push(chip(Ico::Video, meeting.app_name.clone(), lb.supporting).into_any_element());
+        if let Some(app) = marked_app {
+            let (icon, color) = if meeting.is_sample() {
+                (Ico::Sparkles, lb.accent_text)
+            } else {
+                (Ico::Video, lb.supporting)
+            };
+            chips.push(chip(icon, app, color).into_any_element());
         }
         // An imported file's audio came from neither this PC's microphone nor
         // its system audio, so neither label applies.
-        if !meeting.is_imported() {
+        if let Some(audio) = marked_audio {
             if meeting.has_system_track {
-                chips.push(
-                    chip(
-                        Ico::Volume2,
-                        lokalbot_i18n::tr("Mic + system").into(),
-                        lb.supporting,
-                    )
-                    .into_any_element(),
-                );
+                chips.push(chip(Ico::Volume2, audio, lb.supporting).into_any_element());
             } else {
                 chips.push(
-                    chip(Ico::TriangleAlert, lokalbot_i18n::tr("Mic only").into(), lb.attention_text)
+                    chip(Ico::TriangleAlert, audio, lb.attention_text)
                         .id("mic-only")
                         .tooltip(|window, cx| {
                             gpui_kit::component::tooltip::Tooltip::new(
@@ -188,7 +217,7 @@ impl MeetingsPage {
                     .font_weight(FontWeight::BOLD)
                     .text_color(lb.text)
                     .line_clamp(2)
-                    .child(meeting.display_title()),
+                    .child(marked_title),
             )
             .child(
                 h_flex()
@@ -376,6 +405,78 @@ impl MeetingsPage {
                 cx,
             ));
         }
+        if doc.capture_needs_attention {
+            out.push(
+                ui::status_surface(lb.attention, cx)
+                    .px(px(12.))
+                    .py(px(10.))
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(ui::icon(Ico::TriangleAlert, px(16.), lb.attention_text))
+                    .child(div().flex_1().min_w_0().text_size(ty::BODY).text_color(lb.text).child(
+                        crate::ui::text::paragraph(lokalbot_i18n::tr(
+                            "Audio capture was interrupted or saving reported an error. Review the saved recording for missing audio.",
+                        )),
+                    ))
+                    .into_any_element(),
+            );
+        }
+        if doc.recovery_needs_attention {
+            out.push(
+                ui::status_surface(lb.attention, cx)
+                    .px(px(12.))
+                    .py(px(10.))
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(ui::icon(Ico::TriangleAlert, px(16.), lb.attention_text))
+                    .child(div().flex_1().min_w_0().text_size(ty::BODY).text_color(lb.text).child(
+                        crate::ui::text::paragraph(lokalbot_i18n::tr(
+                            "Some recovery audio could not be verified. Saved audio and original checkpoints are retained.",
+                        )),
+                    ))
+                    .into_any_element(),
+            );
+        }
+        if doc.additional_audio > 0.1 {
+            let meeting = doc.meeting.clone();
+            let data = self.data.clone();
+            out.push(
+                ui::grouped_surface(cx)
+                    .px(px(12.))
+                    .py(px(10.))
+                    .flex()
+                    .items_center()
+                    .gap(px(10.))
+                    .child(ui::icon(Ico::AudioLines, px(16.), lb.text_secondary))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_size(ty::BODY)
+                            .text_color(lb.text)
+                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                "Additional saved audio is outside the meeting boundaries.",
+                            ))),
+                    )
+                    .child(
+                        Button::new("review-saved-audio")
+                            .outline()
+                            .small()
+                            .label(lokalbot_i18n::tr("Review additional saved audio…"))
+                            .on_click(move |_, window, cx| {
+                                super::dialogs::BoundarySheet::open(
+                                    data.clone(),
+                                    meeting.clone(),
+                                    window,
+                                    cx,
+                                );
+                            }),
+                    )
+                    .into_any_element(),
+            );
+        }
         if let Some(stage) = self.data.read(cx).processing.get(&doc.meeting.id).cloned() {
             let (icon, color) = match &stage {
                 ProcessingStage::Failed(_) => (Ico::TriangleAlert, lb.attention_text),
@@ -402,13 +503,23 @@ impl MeetingsPage {
                             .text_size(ty::SECONDARY)
                             .text_color(color)
                             .child(ui::icon(icon, px(14.), color))
-                            .child(div().flex_1().min_w_0().child(stage_label(&stage))),
+                            .child(div().flex_1().min_w_0().child({
+                                let label = stage_label(&stage);
+                                self.find_text(
+                                    super::page_search::Location::Status,
+                                    &label,
+                                    label.clone(),
+                                    cx,
+                                )
+                            })),
                     )
                     .when_some(button, |this, (label, id)| {
                         this.child(
-                            Button::new(id).outline().small().label(label).on_click(
-                                cx.listener(|this, _, _, cx| this.process(true, true, cx)),
-                            ),
+                            Button::new(id)
+                                .outline()
+                                .small()
+                                .label(label)
+                                .on_click(cx.listener(|this, _, _, cx| this.retry_processing(cx))),
                         )
                     })
                     .into_any_element(),
@@ -427,8 +538,133 @@ impl MeetingsPage {
                     .into_any_element(),
             );
         }
+        if let Some(progress) = &doc.partial_progress {
+            out.push(
+                v_flex()
+                    .gap(px(3.))
+                    .child(
+                        div()
+                            .text_size(ty::CAPTION)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(lb.text)
+                            .child(progress.clone()),
+                    )
+                    .child(
+                        div().text_size(ty::CAPTION).text_color(lb.text_secondary).child(
+                            crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                "Source-linked notes and actions are saved below. Actions become editable when the notes finish.",
+                            )),
+                        ),
+                    )
+                    .into_any_element(),
+            );
+        } else if doc.notes_need_refresh && self.tab == MeetingTab::Summary {
+            out.push(
+                ui::grouped_surface(cx)
+                    .p(px(12.))
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.))
+                    .child(
+                        h_flex()
+                            .gap(px(6.))
+                            .items_center()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(lb.text)
+                            .child(ui::icon(Ico::TriangleAlert, px(15.), lb.attention_text))
+                            .child(lokalbot_i18n::tr("Transcript or speaker details changed")),
+                    )
+                    .child(
+                        div().text_size(ty::BODY).text_color(lb.text_secondary).child(
+                            crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                "Review speakers and action owners, then refresh the derived notes.",
+                            )),
+                        ),
+                    )
+                    .child(
+                        h_flex().child(
+                            Button::new("review-stale-notes")
+                                .outline()
+                                .small()
+                                .label(lokalbot_i18n::tr("Review speakers and follow-ups"))
+                                .on_click(
+                                    cx.listener(|this, _, _, cx| this.set_tab(MeetingTab::Review, cx)),
+                                ),
+                        ),
+                    )
+                    .into_any_element(),
+            );
+        }
+        if !doc.unmatched_edits.is_empty() {
+            let expanded = self.unmatched_expanded;
+            out.push(
+                v_flex()
+                    .gap(px(6.))
+                    .child(
+                        h_flex()
+                            .id("unmatched-edits")
+                            .gap(px(6.))
+                            .items_center()
+                            .cursor_pointer()
+                            .text_size(ty::SECONDARY)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(lb.text)
+                            .child(ui::icon(
+                                if expanded { Ico::ChevronDown } else { Ico::ChevronRight },
+                                px(13.),
+                                lb.text_secondary,
+                            ))
+                            .child(lokalbot_i18n::format(
+                                "Review {count} unmatched action edits",
+                                &[("count", doc.unmatched_edits.len().to_string())],
+                            ))
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.unmatched_expanded = !this.unmatched_expanded;
+                                cx.notify();
+                            })),
+                    )
+                    .when(expanded, |this| {
+                        this.child(
+                            div().text_size(ty::CAPTION).text_color(lb.text_secondary).child(
+                                crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                    "These saved edits did not match a single regenerated action. Apply them to the correct action after reviewing its source.",
+                                )),
+                            ),
+                        )
+                        .children(doc.unmatched_edits.iter().map(|(text, detail)| {
+                            v_flex()
+                                .gap(px(2.))
+                                .child(div().text_size(ty::BODY).text_color(lb.text).child(text.clone()))
+                                .child(
+                                    div()
+                                        .text_size(ty::CAPTION)
+                                        .text_color(lb.text_secondary)
+                                        .child(detail.clone()),
+                                )
+                        }))
+                    })
+                    .into_any_element(),
+            );
+        }
+        if let Some(notice) = &doc.speaker_notice {
+            out.push(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.text_secondary)
+                    .child(lokalbot_i18n::tr(notice).to_string())
+                    .into_any_element(),
+            );
+        }
+        if !doc.recognized.is_empty() {
+            out.push(self.render_recognized(doc, cx));
+        }
         let unnamed = doc.unnamed_remote;
-        if self.tab == MeetingTab::Summary && unnamed > 0 {
+        if self.tab == MeetingTab::Summary
+            && unnamed > 0
+            && !doc.notes_need_refresh
+            && doc.recognized.is_empty()
+        {
             let text = if unnamed == 1 {
                 lokalbot_i18n::tr("1 speaker needs a name. Review action-linked voices first.")
                     .to_string()
@@ -519,14 +755,13 @@ impl MeetingsPage {
             ));
         }
         sections.push(self.render_action_items(doc, cx));
-        let has_outcomes = doc.outcomes.as_ref().is_some_and(|o| {
-            !o.action_items.is_empty()
-                || !o.decision_records.is_empty()
-                || !o.open_questions.is_empty()
-        });
-        if has_outcomes {
+        if doc.has_outcomes() {
             let decisions: AnyElement = if doc.decisions.is_empty() {
-                empty_row(lokalbot_i18n::tr("No cited decisions were extracted."), cx)
+                self.empty_row_marked(
+                    super::page_search::Section::Decisions,
+                    lokalbot_i18n::tr("No cited decisions were extracted."),
+                    cx,
+                )
             } else {
                 v_flex()
                     .gap(px(12.))
@@ -547,12 +782,23 @@ impl MeetingsPage {
                                     .text_size(ty::BODY)
                                     .line_height(px(20.))
                                     .text_color(lb.text)
-                                    .child(doc.speakers_text(&decision.text)),
+                                    .child({
+                                        let shown = doc.speakers_text(&decision.text).to_string();
+                                        self.find_text(
+                                            super::page_search::Location::Decision(
+                                                ix,
+                                                super::page_search::DecisionField::Text,
+                                            ),
+                                            &shown,
+                                            shown.clone(),
+                                            cx,
+                                        )
+                                    }),
                             )
                             .when_some(citation, |this, citation| {
                                 let start = citation.start;
                                 let page = cx.entity().downgrade();
-                                this.child(action_row::evidence_pill(
+                                let pill = action_row::evidence_pill(
                                     ("decision-evidence", ix),
                                     start,
                                     Some(citation.excerpt.clone().into()),
@@ -561,13 +807,26 @@ impl MeetingsPage {
                                             .update(cx, |this, cx| this.show_evidence(start, cx));
                                     },
                                     cx,
+                                );
+                                this.child(self.find_tinted(
+                                    pill,
+                                    super::page_search::Location::Decision(
+                                        ix,
+                                        super::page_search::DecisionField::Evidence,
+                                    ),
+                                    cx,
                                 ))
                             })
                             .into_any_element()
                     }))
                     .into_any_element()
             };
-            sections.push(card(lokalbot_i18n::tr("Decisions"), decisions, cx));
+            sections.push(self.card_marked(
+                lokalbot_i18n::tr("Decisions"),
+                super::page_search::Section::Decisions,
+                decisions,
+                cx,
+            ));
             if !doc.questions.is_empty() {
                 let rows = doc.questions.iter().map(|question| {
                     h_flex()
@@ -597,6 +856,9 @@ impl MeetingsPage {
             }
         }
         sections.push(self.render_full_notes(doc, cx));
+        if !doc.screen.materials.is_empty() {
+            sections.push(self.render_screen_materials(doc, cx));
+        }
         v_flex()
             .gap(metric::SECTION_SPACING)
             .children(sections)
@@ -609,15 +871,22 @@ impl MeetingsPage {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
-        let content: AnyElement = if doc.actions.is_empty() {
-            empty_row(
+        // The Review tab keeps the previous actions in view until new notes exist.
+        let actions = if doc.actions.is_empty() && self.tab == MeetingTab::Review {
+            &doc.previous_actions
+        } else {
+            &doc.actions
+        };
+        let content: AnyElement = if actions.is_empty() {
+            self.empty_row_marked(
+                super::page_search::Section::ActionItems,
                 lokalbot_i18n::tr("No action items were extracted from this meeting."),
                 cx,
             )
         } else {
-            let count = doc.actions.len();
+            let count = actions.len();
             v_flex()
-                .children(doc.actions.iter().enumerate().map(|(ix, action)| {
+                .children(actions.iter().enumerate().map(|(ix, action)| {
                     let row = self.render_action(ix, action, doc, cx);
                     v_flex()
                         .child(row)
@@ -628,7 +897,12 @@ impl MeetingsPage {
                 }))
                 .into_any_element()
         };
-        card(lokalbot_i18n::tr("Action Items"), content, cx)
+        self.card_marked(
+            lokalbot_i18n::tr("Action Items"),
+            super::page_search::Section::ActionItems,
+            content,
+            cx,
+        )
     }
 
     fn render_action(
@@ -683,7 +957,15 @@ impl MeetingsPage {
                 .text_color(owner_color)
                 .cursor_pointer()
                 .hover(|s| s.underline())
-                .child(owner_text)
+                .child(self.find_text(
+                    super::page_search::Location::Action(
+                        ix,
+                        super::page_search::ActionField::Owner,
+                    ),
+                    &owner_text,
+                    owner_text.clone(),
+                    cx,
+                ))
                 .on_click(move |_, window, cx| {
                     let action = correct_action.clone();
                     let _ = correct_page
@@ -697,26 +979,39 @@ impl MeetingsPage {
                 .clone()
                 .unwrap_or_else(|| due.clone())
                 .into();
+            let chip = action_row::due_chip(due, false, cx)
+                .id(("action-due", ix))
+                .tooltip(move |window, cx| {
+                    gpui_kit::component::tooltip::Tooltip::new(label.clone()).build(window, cx)
+                });
             meta.push(
-                action_row::due_chip(due, false, cx)
-                    .id(("action-due", ix))
-                    .tooltip(move |window, cx| {
-                        gpui_kit::component::tooltip::Tooltip::new(label.clone()).build(window, cx)
-                    })
-                    .into_any_element(),
+                self.find_tinted(
+                    chip,
+                    super::page_search::Location::Action(ix, super::page_search::ActionField::Due),
+                    cx,
+                )
+                .into_any_element(),
             );
         }
         if let Some(citation) = action.citation.clone() {
             let start = citation.start;
             let page = cx.entity().downgrade();
+            let pill = action_row::evidence_pill(
+                ("action-evidence", ix),
+                start,
+                Some(citation.excerpt.into()),
+                move |_, cx| {
+                    let _ = page.update(cx, |this, cx| this.show_evidence(start, cx));
+                },
+                cx,
+            );
             meta.push(
-                action_row::evidence_pill(
-                    ("action-evidence", ix),
-                    start,
-                    Some(citation.excerpt.into()),
-                    move |_, cx| {
-                        let _ = page.update(cx, |this, cx| this.show_evidence(start, cx));
-                    },
+                self.find_tinted(
+                    pill,
+                    super::page_search::Location::Action(
+                        ix,
+                        super::page_search::ActionField::Evidence,
+                    ),
                     cx,
                 )
                 .into_any_element(),
@@ -725,6 +1020,8 @@ impl MeetingsPage {
         let status = action.status;
         let menu_page = cx.entity().downgrade();
         let menu_action = action.clone();
+        let menu_data = self.data.clone();
+        let menu_meeting = doc.meeting.clone();
         let menu = action_row::options_menu(("action-menu", ix), move |menu, _, _| {
             let mut menu = menu;
             for option in [
@@ -746,19 +1043,286 @@ impl MeetingsPage {
             }
             let page = menu_page.clone();
             let action = menu_action.clone();
-            menu.separator().item(
-                PopupMenuItem::new(lokalbot_i18n::tr("Correct owner or due date")).on_click(
-                    move |_, window, cx| {
-                        let action = action.clone();
-                        let _ =
-                            page.update(cx, |this, cx| this.open_correction(action, window, cx));
-                    },
-                ),
-            )
+            let prompt = lokalbot_core::agent_handoff::agent_prompt_from_meeting(
+                &menu_meeting.display_title(),
+                &menu_action.text,
+            );
+            let agent_data = menu_data.clone();
+            let mut menu = menu
+                .separator()
+                .item(
+                    PopupMenuItem::new(lokalbot_i18n::tr("Correct owner or due date")).on_click(
+                        move |_, window, cx| {
+                            let action = action.clone();
+                            let _ = page
+                                .update(cx, |this, cx| this.open_correction(action, window, cx));
+                        },
+                    ),
+                )
+                .item(
+                    PopupMenuItem::new(lokalbot_i18n::tr("Open in Agent")).on_click(
+                        move |_, _, cx| {
+                            let prompt = prompt.clone();
+                            agent_data.update(cx, |data, cx| data.open_agent(prompt, cx));
+                        },
+                    ),
+                );
+            for target in crate::agent_handoff::for_actions() {
+                let data = menu_data.clone();
+                let meeting = menu_meeting.clone();
+                let id = menu_action.id.clone();
+                menu = menu.item(
+                    PopupMenuItem::new(crate::pages::today::threads::open_in_label(target))
+                        .on_click(move |_, _, cx| {
+                            crate::agent_handoff::hand_off_meeting_action(
+                                &data,
+                                &meeting,
+                                id.clone(),
+                                target,
+                                cx,
+                            )
+                        }),
+                );
+            }
+            menu
         });
         let _ = doc;
-        action_row::action_row(toggle, action.text.clone(), done, meta, None, menu, cx)
+        action_row::action_row_with(
+            toggle,
+            self.find_text(
+                super::page_search::Location::Action(ix, super::page_search::ActionField::Text),
+                &action.text,
+                action.text.clone(),
+                cx,
+            ),
+            done,
+            meta,
+            None,
+            menu,
+            cx,
+        )
+        .into_any_element()
+    }
+
+    /// `text`, with Find's matches at `location` marked; the current one
+    /// scrolls into view (`MeetingPageSearchMatch`).
+    fn find_text(
+        &self,
+        location: super::page_search::Location,
+        source: &str,
+        shown: impl Into<SharedString>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        self.find_marked(location, source, shown, true, cx)
+    }
+
+    /// A small control that can't mark its own words, tinted while Find has a
+    /// match in it.
+    fn find_tinted(
+        &self,
+        element: gpui_kit::Stateful<gpui_kit::Div>,
+        location: super::page_search::Location,
+        cx: &mut Context<Self>,
+    ) -> gpui_kit::Stateful<gpui_kit::Div> {
+        if !self.find.matches.iter().any(|m| m.location == location) {
+            return element;
+        }
+        let current = self
+            .find
+            .matches
+            .get(self.find.current)
+            .is_some_and(|m| m.location == location);
+        let tint = cx.lb().attention.opacity(if current { 0.55 } else { 0.22 });
+        element
+            .relative()
+            .bg(tint)
+            .when(current, |this| this.child(self.find_anchor()))
+    }
+
+    /// A section card whose title Find can mark.
+    fn card_marked(
+        &self,
+        title: &'static str,
+        section: super::page_search::Section,
+        content: impl IntoElement,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        v_flex()
+            .gap(metric::HEADER_TO_CONTENT)
+            .child(
+                div()
+                    .text_size(ty::SECTION)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(lb.text)
+                    .child(self.find_text(
+                        super::page_search::Location::SectionHeader(section),
+                        title,
+                        title,
+                        cx,
+                    )),
+            )
+            .child(ui::panel(cx).child(v_flex().gap(px(8.)).child(content)))
             .into_any_element()
+    }
+
+    fn empty_row_marked(
+        &self,
+        section: super::page_search::Section,
+        text: &'static str,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        div()
+            .py(px(6.))
+            .text_size(ty::BODY)
+            .text_color(cx.lb().text_secondary)
+            .child(self.find_text(
+                super::page_search::Location::EmptyState(section),
+                text,
+                text,
+                cx,
+            ))
+            .into_any_element()
+    }
+
+    /// `find_text`, for text that isn't in the overview's scroll view and so
+    /// has nothing to scroll with `anchored` off.
+    pub(super) fn find_marked(
+        &self,
+        location: super::page_search::Location,
+        source: &str,
+        shown: impl Into<SharedString>,
+        anchored: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let shown: SharedString = shown.into();
+        let matches: Vec<&super::page_search::PageMatch> = self
+            .find
+            .matches
+            .iter()
+            .filter(|found| found.location == location)
+            .collect();
+        // A shown text that differs from its source (names filled in) keeps
+        // its ranges only when they still land on the same words.
+        if matches.is_empty() || shown.as_ref() != source {
+            return div().child(shown).into_any_element();
+        }
+        let current = self.find.matches.get(self.find.current);
+        let lb = cx.lb().clone();
+        let mut has_current = false;
+        let highlights: Vec<_> = matches
+            .iter()
+            .map(|found| {
+                let is_current = current.is_some_and(|c| *c == **found);
+                has_current |= is_current;
+                (
+                    found.range.clone(),
+                    gpui_kit::HighlightStyle {
+                        background_color: Some(lb.attention.opacity(if is_current {
+                            0.55
+                        } else {
+                            0.22
+                        })),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        div()
+            .relative()
+            .child(gpui_kit::StyledText::new(shown).with_highlights(highlights))
+            .when(has_current && anchored, |this| {
+                this.child(self.find_anchor())
+            })
+            .into_any_element()
+    }
+
+    /// Plain lines with Find's matches marked, while Find has a match in a
+    /// Markdown block that cannot mark its own text; `None` otherwise.
+    fn find_lines(
+        &self,
+        location: super::page_search::Location,
+        text: &str,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let matches: Vec<&super::page_search::PageMatch> = self
+            .find
+            .matches
+            .iter()
+            .filter(|found| found.location == location)
+            .collect();
+        if matches.is_empty() {
+            return None;
+        }
+        let current = self.find.matches.get(self.find.current);
+        let lb = cx.lb().clone();
+        let mut offset = 0;
+        let mut lines = Vec::new();
+        for line in text.split_inclusive('\n') {
+            let span = offset..offset + line.len();
+            offset = span.end;
+            let shown = line.trim_end_matches('\n').to_string();
+            let mut has_current = false;
+            let highlights: Vec<_> = matches
+                .iter()
+                .filter(|found| found.range.start >= span.start && found.range.end <= span.end)
+                .map(|found| {
+                    let is_current = current.is_some_and(|c| *c == **found);
+                    has_current |= is_current;
+                    (
+                        found.range.start - span.start..found.range.end - span.start,
+                        gpui_kit::HighlightStyle {
+                            background_color: Some(lb.attention.opacity(if is_current {
+                                0.55
+                            } else {
+                                0.22
+                            })),
+                            ..Default::default()
+                        },
+                    )
+                })
+                .collect();
+            lines.push(
+                div()
+                    .relative()
+                    .min_h(px(10.))
+                    .child(gpui_kit::StyledText::new(shown).with_highlights(highlights))
+                    .when(has_current, |this| this.child(self.find_anchor()))
+                    .into_any_element(),
+            );
+        }
+        Some(v_flex().gap(px(3.)).children(lines).into_any_element())
+    }
+
+    /// Marks where the current match is and, the first time it paints, scrolls
+    /// the overview so it shows.
+    fn find_anchor(&self) -> impl IntoElement + use<> {
+        let scroll = self.find.scroll.clone();
+        let reveal = self.find.reveal.clone();
+        gpui_kit::canvas(
+            move |bounds, window, _| {
+                if !reveal.replace(false) {
+                    return;
+                }
+                let view = scroll.bounds();
+                let offset = scroll.offset();
+                let top = bounds.origin.y - view.origin.y;
+                let bottom = top + bounds.size.height;
+                let margin = px(24.);
+                let y = if top < margin {
+                    offset.y + margin - top
+                } else if bottom > view.size.height - margin {
+                    offset.y - (bottom - view.size.height + margin)
+                } else {
+                    return;
+                };
+                scroll.set_offset(gpui_kit::point(offset.x, y));
+                window.request_animation_frame();
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_full()
     }
 
     fn open_correction(
@@ -768,6 +1332,10 @@ impl MeetingsPage {
         cx: &mut Context<Self>,
     ) {
         let Some(doc) = self.doc.clone() else { return };
+        // Actions become editable when the notes finish.
+        if doc.partial_progress.is_some() {
+            return;
+        }
         CorrectionSheet::open(
             self.data.clone(),
             doc.meeting.clone(),
@@ -809,7 +1377,11 @@ impl MeetingsPage {
         }
         let notes = self.notes.saved.trim().to_string();
         let body: AnyElement = if notes.is_empty() && !doc.has_summary() {
-            empty_row(lokalbot_i18n::tr("No summary yet."), cx)
+            self.empty_row_marked(
+                super::page_search::Section::Summary,
+                lokalbot_i18n::tr("No summary yet."),
+                cx,
+            )
         } else {
             v_flex()
                 .max_w(metric::READING_MAX_WIDTH)
@@ -846,18 +1418,30 @@ impl MeetingsPage {
                         div()
                             .text_size(ty::SECONDARY)
                             .text_color(lb.text_secondary)
-                            .child(meta),
+                            .child(self.find_text(
+                                super::page_search::Location::SummaryMeta,
+                                &meta,
+                                meta.clone(),
+                                cx,
+                            )),
                     )
                 })
                 .when(doc.has_summary(), |this| {
+                    let matched = self.find_lines(
+                        super::page_search::Location::Summary,
+                        &doc.summary_body,
+                        cx,
+                    );
                     this.child(
-                        div().text_size(ty::BODY).child(
-                            crate::ui::markdown_view::markdown(
+                        div().text_size(ty::BODY).child(match matched {
+                            Some(lines) => lines,
+                            None => crate::ui::markdown_view::markdown(
                                 SharedString::from(format!("summary-{}", doc.meeting.id)),
                                 doc.summary_body.clone(),
                             )
-                            .selectable(true),
-                        ),
+                            .selectable(true)
+                            .into_any_element(),
+                        }),
                     )
                 })
                 .into_any_element()
@@ -865,7 +1449,12 @@ impl MeetingsPage {
         v_flex()
             .gap(px(12.))
             .child(disclosure)
-            .child(card(lokalbot_i18n::tr("Summary"), body, cx))
+            .child(self.card_marked(
+                lokalbot_i18n::tr("Summary"),
+                super::page_search::Section::Summary,
+                body,
+                cx,
+            ))
             .into_any_element()
     }
 
@@ -885,7 +1474,13 @@ impl MeetingsPage {
                             .text_size(ty::SECTION)
                             .font_weight(FontWeight::BOLD)
                             .text_color(lb.text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Your notes"))),
+                            .child(self.find_marked(
+                                super::page_search::Location::NotesLabel,
+                                lokalbot_i18n::tr("Your notes"),
+                                lokalbot_i18n::tr("Your notes"),
+                                false,
+                                cx,
+                            )),
                     )
                     .child(
                         div()
@@ -1072,7 +1667,12 @@ impl MeetingsPage {
             .get(&doc.meeting.id)
             .is_some_and(|stage| !matches!(stage, ProcessingStage::Failed(_)));
         let has_summary = doc.has_summary();
-        let (freshness, freshness_icon) = if has_summary {
+        let (freshness, freshness_icon) = if doc.notes_need_refresh {
+            (
+                lokalbot_i18n::tr("Notes need a refresh"),
+                Ico::TriangleAlert,
+            )
+        } else if has_summary {
             (
                 lokalbot_i18n::tr("Notes use the latest saved speaker details"),
                 Ico::CircleCheck,
@@ -1111,7 +1711,7 @@ impl MeetingsPage {
                     Button::new("refresh-notes")
                         .primary()
                         .label(if processing { lokalbot_i18n::tr("Processing…") } else { lokalbot_i18n::tr("Refresh Notes and Owners") })
-                        .disabled(processing || !doc.has_transcript())
+                        .disabled(processing || !doc.has_transcript() || doc.partial_progress.is_some())
                         .on_click(cx.listener(|this, _, _, cx| this.process(false, true, cx))),
                 ),
             );
@@ -1133,9 +1733,275 @@ impl MeetingsPage {
                             .child(crate::ui::text::paragraph(lokalbot_i18n::tr("2. Review action owners"))),
                     )
                     .child(div().text_size(ty::BODY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::tr("All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source."))))
+                    .when(doc.actions.is_empty() && !doc.previous_actions.is_empty(), |this| {
+                        this.child(div().text_size(ty::BODY).text_color(lb.attention_text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("These actions are from the previous notes. Review their owners, then refresh to regenerate notes from the corrected transcript."))))
+                    })
                     .child(self.render_action_items(doc, cx)),
             )
             .child(card(lokalbot_i18n::tr("Refresh Notes"), refresh, cx))
+            .into_any_element()
+    }
+
+    /// `MeetingScreenMaterialsSection`. The time plays the recording from when
+    /// it first appeared, the capture opens in Timeline and a page whose
+    /// address was captured can be reopened.
+    fn render_screen_materials(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
+        let lb = cx.lb().clone();
+        let rows = doc
+            .screen
+            .materials
+            .iter()
+            .enumerate()
+            .map(|(ix, material)| {
+                let offset = material.first_offset;
+                let data = self.data.clone();
+                let snapshot = material.first_snapshot_id;
+                let captured = doc
+                    .screen
+                    .moments
+                    .iter()
+                    .find(|m| m.snapshot_id == snapshot)
+                    .map(|m| m.captured_at);
+                let page = material.page_url.clone();
+                let thumbnail = match self.screen_thumbnail(snapshot, cx) {
+                    Some(ScreenImage::Ready(image)) => div()
+                        .size_full()
+                        .bg(gpui_kit::black().opacity(0.82))
+                        .child(img(image).size_full().object_fit(ObjectFit::Contain))
+                        .into_any_element(),
+                    _ => div()
+                        .size_full()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(lb.chip_fill)
+                        .child(ui::icon(Ico::Camera, px(16.), lb.text_secondary))
+                        .into_any_element(),
+                };
+                h_flex()
+                    .gap(px(12.))
+                    .py(px(6.))
+                    .items_center()
+                    .child(
+                        Button::new(("screen-play", ix))
+                            .ghost()
+                            .small()
+                            .label(lokalbot_core::time::stamp(offset))
+                            .tooltip(lokalbot_i18n::tr(
+                                "Play the recording from when this first appeared",
+                            ))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.focus_at = Some(offset);
+                                this.play_from(offset, cx);
+                            })),
+                    )
+                    .child(
+                        // The retained capture, opening in Timeline.
+                        div()
+                            .id(("screen-open", ix))
+                            .w(px(74.))
+                            .h(px(46.))
+                            .flex_none()
+                            .rounded(metric::ROW_RADIUS)
+                            .overflow_hidden()
+                            .child(thumbnail)
+                            .when_some(captured, |this, at| {
+                                this.cursor_pointer()
+                                    .tooltip(|window, cx| {
+                                        gpui_kit::component::tooltip::Tooltip::new(
+                                            lokalbot_i18n::tr("Open this capture in Timeline"),
+                                        )
+                                        .build(window, cx)
+                                    })
+                                    .on_click(move |_, _, cx| {
+                                        data.update(cx, |data, cx| {
+                                            data.open_screen_moment(snapshot, at, cx)
+                                        });
+                                    })
+                            }),
+                    )
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(2.))
+                            .child(
+                                div()
+                                    .text_size(ty::BODY)
+                                    .text_color(lb.text)
+                                    .line_clamp(2)
+                                    .child(material.title.clone()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(lb.text_secondary)
+                                    .child(screen_detail(material)),
+                            ),
+                    )
+                    .when_some(page, |row, url| {
+                        row.child(
+                            Button::new(("screen-page", ix))
+                                .ghost()
+                                .small()
+                                .label(lokalbot_i18n::tr("Open Page"))
+                                .on_click(move |_, _, cx| cx.open_url(&url)),
+                        )
+                    })
+            });
+        card(
+            lokalbot_i18n::tr("On Screen During the Meeting"),
+            v_flex()
+                .children(rows)
+                .child(div().pt(px(6.)).text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::tr("From screen memory on this computer. Time on screen is estimated from captures, which follow your screen retention setting.")))),
+            cx,
+        )
+    }
+
+    /// A capture's small image, loading it the first time it is asked for.
+    fn screen_thumbnail(&self, snapshot: i64, cx: &mut Context<Self>) -> Option<ScreenImage> {
+        const PIXELS: u32 = 240;
+        /// A call shows few documents; later rows keep their icon.
+        const MAX: usize = 32;
+        {
+            let thumbnails = self.screen_thumbnails.borrow();
+            if let Some(entry) = thumbnails.get(&snapshot) {
+                return entry.clone();
+            }
+            if thumbnails.len() >= MAX {
+                return None;
+            }
+        }
+        self.screen_thumbnails.borrow_mut().insert(snapshot, None);
+        let library = self.data.read(cx).library.clone();
+        let thumbnails = self.screen_thumbnails.clone();
+        cx.spawn(async move |this, cx| {
+            let image = cx
+                .background_spawn(async move {
+                    let moment = library.screen_moment(snapshot).ok().flatten()?;
+                    if moment.path.is_empty() {
+                        return None;
+                    }
+                    Some(screen_image::load(&library, &moment, PIXELS))
+                })
+                .await;
+            let _ = this.update(cx, |_, cx| {
+                // A meeting that was left meanwhile gave its entries up.
+                if let Some(entry) = thumbnails.borrow_mut().get_mut(&snapshot) {
+                    *entry = image;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+        None
+    }
+
+    /// Lets go of another meeting's pixels.
+    pub(super) fn release_screen_thumbnails(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.screen_thumbnails_for != self.selected {
+            self.screen_thumbnails_for = self.selected;
+            let released = std::mem::take(&mut *self.screen_thumbnails.borrow_mut());
+            for image in released.into_values().flatten() {
+                if let ScreenImage::Ready(image) = image {
+                    self.released_thumbnails.push(image);
+                }
+            }
+        }
+        for image in self.released_thumbnails.drain(..) {
+            cx.drop_image(image, Some(window));
+        }
+    }
+
+    pub(super) fn retry_processing(&mut self, cx: &mut Context<Self>) {
+        if let Some(meeting_id) = self.selected {
+            self.data
+                .update(cx, |data, cx| data.retry_processing(meeting_id, cx));
+        }
+    }
+
+    /// `MeetingOnScreenNowBar`: which window was in front at the playhead.
+    pub(super) fn render_on_screen_now(
+        &self,
+        doc: &MeetingDoc,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let position = self.player.as_ref().map(|p| p.position()).or(self.focus_at);
+        let moment = position.and_then(|at| doc.screen.moment(at)).cloned();
+        let body = match moment {
+            Some(moment) => {
+                let data = self.data.clone();
+                let (id, at) = (moment.snapshot_id, moment.captured_at);
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(10.))
+                    .items_center()
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(1.))
+                            .child(
+                                div()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(lb.text_secondary)
+                                    .child(lokalbot_i18n::format(
+                                        "On screen at {time}",
+                                        &[("time", lokalbot_core::time::stamp(moment.offset))],
+                                    )),
+                            )
+                            .child(
+                                div()
+                                    .truncate()
+                                    .text_size(ty::BODY)
+                                    .text_color(lb.text)
+                                    .child(if moment.is_call {
+                                        lokalbot_i18n::tr("The call").to_string()
+                                    } else {
+                                        moment.title.clone()
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex_none()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.text_secondary)
+                            .child(moment.site.clone().unwrap_or_else(|| moment.app.clone())),
+                    )
+                    .child(
+                        Button::new("screen-now-open")
+                            .ghost()
+                            .small()
+                            .label(lokalbot_i18n::tr("Open Capture"))
+                            .on_click(move |_, _, cx| {
+                                data.update(cx, |data, cx| data.open_screen_moment(id, at, cx));
+                            }),
+                    )
+                    .into_any_element()
+            }
+            None => div()
+                .flex_1()
+                .text_size(ty::SECONDARY)
+                .text_color(lb.text_secondary)
+                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                    "Play or select a transcript line to see what was on screen.",
+                )))
+                .into_any_element(),
+        };
+        ui::grouped_surface(cx)
+            .p(px(10.))
+            .flex()
+            .items_center()
+            .gap(px(10.))
+            .child(ui::icon(Ico::Monitor, px(15.), lb.text_secondary))
+            .child(body)
             .into_any_element()
     }
 
@@ -1154,6 +2020,9 @@ impl MeetingsPage {
             doc.meeting.clone(),
             transcript,
             speaker,
+            doc.identity.clone(),
+            doc.speaker_notice.clone(),
+            cx.entity().downgrade(),
             window,
             cx,
         );
@@ -1162,8 +2031,34 @@ impl MeetingsPage {
 
 impl MeetingDoc {
     /// Decision and question text with display speaker names.
-    fn speakers_text(&self, text: &str) -> String {
+    pub(super) fn speakers_text(&self, text: &str) -> String {
         text.to_string()
+    }
+}
+
+/// "Gmail · 4 min on screen"; the source is left out when the title already
+/// names it.
+fn screen_detail(material: &lokalbot_core::meeting_screen::Material) -> String {
+    let source = material.site.as_deref().unwrap_or(&material.app);
+    let minutes = (material.seconds_on_screen / 60.).round() as u64;
+    let duration = match minutes {
+        0 => lokalbot_i18n::tr("Under a minute on screen").to_string(),
+        1..=59 => lokalbot_i18n::format(
+            "{minutes} min on screen",
+            &[("minutes", minutes.to_string())],
+        ),
+        _ => lokalbot_i18n::format(
+            "{hours} hr {minutes} min on screen",
+            &[
+                ("hours", (minutes / 60).to_string()),
+                ("minutes", (minutes % 60).to_string()),
+            ],
+        ),
+    };
+    if source.eq_ignore_ascii_case(&material.title) {
+        duration
+    } else {
+        format!("{source} · {duration}")
     }
 }
 
@@ -1172,7 +2067,7 @@ fn speed_label(speed: f32) -> String {
     format!("{}x", text.trim_end_matches(".0"))
 }
 
-fn stage_label(stage: &ProcessingStage) -> String {
+pub(super) fn stage_label(stage: &ProcessingStage) -> String {
     match stage {
         ProcessingStage::Queued => lokalbot_i18n::tr("Queued…").into(),
         ProcessingStage::WaitingForModels => lokalbot_i18n::tr("Waiting for models — the recording is saved. Download the selected models in Settings → Models, or use Download & process to fetch them now.").into(),
@@ -1191,13 +2086,4 @@ pub(super) fn card(
     cx: &mut Context<MeetingsPage>,
 ) -> AnyElement {
     ui::section(title, v_flex().gap(px(8.)).child(content), cx).into_any_element()
-}
-
-fn empty_row(text: &'static str, cx: &mut Context<MeetingsPage>) -> AnyElement {
-    div()
-        .py(px(6.))
-        .text_size(ty::BODY)
-        .text_color(cx.lb().text_secondary)
-        .child(text)
-        .into_any_element()
 }

@@ -40,12 +40,13 @@ final class StorageManager {
         let m = String(format: "%02d", cal.component(.month, from: startedAt))
         let d = String(format: "%02d", cal.component(.day, from: startedAt))
 
-        var slug = "\(d)-\(Self.slugify(title))"
+        let base = Self.folderSlug(title)
+        var slug = "\(d)-\(base)"
         var relative = "meetings/\(y)/\(m)/\(slug)"
         // De-dupe: second Zoom meeting the same day gets "-2", etc.
         var counter = 2
         while FileManager.default.fileExists(atPath: rootURL.appendingPathComponent(relative).path) {
-            slug = "\(d)-\(Self.slugify(title))-\(counter)"
+            slug = "\(d)-\(base)-\(counter)"
             relative = "meetings/\(y)/\(m)/\(slug)"
             counter += 1
         }
@@ -183,6 +184,15 @@ final class StorageManager {
         try DreamStore(root: rootURL).withMeetingEvidenceMutation(for: [meeting]) {
             try FileManager.default.removeItem(at: meeting.folderURL(in: self))
         }
+    }
+
+    /// The slug, short enough for a folder name. APFS allows 255 bytes, which
+    /// about 85 CJK characters already fill, and a title a device sent can be
+    /// longer than that.
+    static func folderSlug(_ title: String) -> String {
+        var slug = slugify(title)
+        while slug.utf8.count > 120 { slug.removeLast() }
+        return slug
     }
 
     static func slugify(_ s: String) -> String {

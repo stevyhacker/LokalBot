@@ -15,6 +15,43 @@ def git(root, *args):
 PORT_MANIFEST = "LinuxWindows/Cargo.toml"
 PORT_LOCKFILE = "LinuxWindows/Cargo.lock"
 PORT_UPDATE_KEY = "LinuxWindows/crates/lokalbot-update/src/lib.rs"
+ANDROID_BUILD = "Companion/android/app/build.gradle.kts"
+
+# Releases after this one link an explainer for their major features
+# (RELEASING.md, "Explainers for major features").
+EXPLAINERS_AFTER = (0, 11, 5)
+EXPLAINER_LINK = re.compile(r"https://(?:www\.)?lokalbot\.com/explainers/([^\s)\]\"'<>]+)")
+EXPLAINER_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\.(?:png|pdf)")
+EXPLAINER_MAGIC = {".png": b"\x89PNG\r\n\x1a\n", ".pdf": b"%PDF-"}
+EXPLAINER_MAX_BYTES = 10 * 1024 * 1024
+NO_EXPLAINER = re.compile(r"<!--\s*no explainer:\s*\S.*?-->", re.DOTALL)
+
+
+def committed(root, path):
+    return subprocess.run(["git", "-C", str(root), "cat-file", "-e", f"HEAD:{path}"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+
+
+def validate_explainers(root, notes, candidate):
+    names = EXPLAINER_LINK.findall(notes)
+    for name in names:
+        if not EXPLAINER_NAME.fullmatch(name):
+            raise ValueError(f"Explainer links must name web/explainers/<feature-slug>.png or .pdf, not {name}")
+        path = f"web/explainers/{name}"
+        file = root / path
+        if not file.is_file():
+            raise ValueError(f"Release notes link an explainer that isn't in the repository: {path}")
+        if file.stat().st_size > EXPLAINER_MAX_BYTES:
+            raise ValueError(f"Explainers must be under 10 MB: {path}")
+        with file.open("rb") as handle:
+            if not handle.read(8).startswith(EXPLAINER_MAGIC[file.suffix]):
+                raise ValueError(f"Explainer isn't a {file.suffix[1:].upper()} file: {path}")
+        # The website deploys web/ from master, so an explainer must be committed before the tag.
+        if candidate and not committed(root, path):
+            raise ValueError(f"Commit the explainer before the release candidate: {path}")
+    if re.search(r"^## What[’']s new\s*$", notes, re.MULTILINE) and not names and not NO_EXPLAINER.search(notes):
+        raise ValueError("Link an explainer for each major feature under What’s new (RELEASING.md), "
+                         "or say why none is needed in <!-- no explainer: ... -->")
 
 
 def validate_port_version(root, version):
@@ -33,6 +70,16 @@ def validate_port_version(root, version):
     if not members or stale:
         raise ValueError(f"{PORT_LOCKFILE} disagrees with Info.plist for {', '.join(stale) or 'every crate'}; "
                          "run Scripts/bump-version.py or cargo update --workspace")
+
+
+def validate_android_version(root, version, build):
+    """The Android app ships from the same tag. Android refuses to install a lower
+    versionCode over a higher one, so it follows the Mac's increasing build number."""
+    source = (root / ANDROID_BUILD).read_text()
+    declared = (re.findall(r'^\s+versionName\s*=\s*"([^"]+)"', source, re.MULTILINE),
+                re.findall(r'^\s+versionCode\s*=\s*(\d+)', source, re.MULTILINE))
+    if declared != ([version], [build]):
+        raise ValueError(f"{ANDROID_BUILD} and Info.plist disagree on the version; run Scripts/bump-version.py")
 
 
 def validate_port_update_key(root, info):
@@ -62,6 +109,7 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
             raise ValueError(f"project.yml and Info.plist disagree on {key}")
     validate_port_version(root, actual)
     validate_port_update_key(root, info)
+    validate_android_version(root, actual, build)
     if metadata_only:
         return actual, build, None
     notes_path = f"Scripts/release-notes/v{actual}.md"
@@ -75,6 +123,8 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
     base = comparison[1]
     if tuple(map(int, base[1:].split('.'))) >= tuple(map(int, actual.split('.'))):
         raise ValueError("Changelog base must precede the release version")
+    if tuple(map(int, actual.split('.'))) > EXPLAINERS_AFTER:
+        validate_explainers(root, notes, candidate)
     if candidate:
         tag = f"v{actual}"
         if git(root, "tag", "--list", tag):
@@ -95,7 +145,7 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
         if not fixture.exists():
             raise ValueError(f"Add the upgrade fixture for {base} (Scripts/upgrade-fixtures/add.sh {base[1:]}) before releasing")
     if staged:
-        required = {"project.yml", "LokalBot/Info.plist", PORT_MANIFEST, PORT_LOCKFILE, notes_path}
+        required = {"project.yml", "LokalBot/Info.plist", PORT_MANIFEST, PORT_LOCKFILE, ANDROID_BUILD, notes_path}
         changed = set(git(root, "diff", "--cached", "--name-only").splitlines())
         if changed != required:
             raise ValueError(f"Stage only the release metadata together: {', '.join(sorted(required))}")

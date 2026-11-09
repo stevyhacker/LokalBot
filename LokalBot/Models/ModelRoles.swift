@@ -181,15 +181,41 @@ final class ModelRoles: ObservableObject {
             .sink { [weak self] progress, errors in
                 guard let self else { return }
                 let completedDownloads = !self.downloadProgress.isEmpty && progress.isEmpty
+                // A progress tick alone is not a readiness change.
+                let changed = Set(progress.keys) != Set(self.downloadProgress.keys)
+                    || errors != self.downloadErrors
                 self.downloadProgress = progress
                 self.downloadErrors = errors
-                self.revision &+= 1
+                if changed { self.revision &+= 1 }
                 if completedDownloads {
                     self.refreshDiskState()
                     self.onReadinessChanged()
                 }
             }
         refreshDiskState()
+    }
+
+    /// What is downloading, preparing, failed or ready, without progress.
+    /// AppState relays only these: relaying every progress tick (up to 5 Hz
+    /// per download) re-rendered every window for the whole of a
+    /// multi-gigabyte download. Views that draw progress observe this object.
+    var readinessChanges: AnyPublisher<Void, Never> {
+        Publishers.CombineLatest3(
+            $transcriptionPreparations.map { Set($0.keys) },
+            $preparationErrors,
+            // Bumped when a download starts, ends or fails, never by progress.
+            $revision)
+            .map { ReadinessSignature(preparing: $0, preparationErrors: $1, revision: $2) }
+            .removeDuplicates()
+            .dropFirst()
+            .map { _ in () }
+            .eraseToAnyPublisher()
+    }
+
+    private struct ReadinessSignature: Equatable {
+        var preparing: Set<String>
+        var preparationErrors: [TranscriptionConfiguration: String]
+        var revision: Int
     }
 
     var snapshot: ModelRolesSnapshot {

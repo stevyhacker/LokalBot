@@ -21,6 +21,8 @@ enum ToolErrorCode: String {
     case screenAccessDisabled = "screen_access_disabled"
     case personalContextDisabled = "personal_context_disabled"
     case personalContextUnavailable = "personal_context_unavailable"
+    case filesAccessDisabled = "files_access_disabled"
+    case filesUnavailable = "files_unavailable"
     case screenMemoryUnavailable = "screen_memory_unavailable"
     case screenshotNotFound = "screenshot_not_found"
     case appNotRunning = "app_not_running"

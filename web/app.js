@@ -72,6 +72,191 @@
     demos.forEach(function (video) { demoIO.observe(video); });
   }
 
+  /* ---------- silent loops: GIFs in all but file format, so no controls; stills under reduced motion or Save-Data ---------- */
+  var loops = $$(".home-loop");
+  /* a clip with both appearances follows the visitor's */
+  if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    loops.forEach(function (video) {
+      var name = video.getAttribute("data-clip");
+      if (!name) return;
+      video.setAttribute("poster", "assets/demos/" + name + "-wide-dark.webp");
+      video.setAttribute("src", "assets/demos/" + name + "-wide-dark.mp4");
+    });
+  }
+  var saveData = navigator.connection && navigator.connection.saveData;
+  if (loops.length && !reduce && !saveData && "IntersectionObserver" in window) {
+    var loopIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          var p = e.target.play();
+          if (p && p.catch) p.catch(function () {});
+        } else {
+          e.target.pause();
+        }
+      });
+    }, { threshold: 0.4 });
+    loops.forEach(function (video) { loopIO.observe(video); });
+  }
+
+  /* ---------- home hero: one short film, and the tabs are its chapters ---------- */
+  /* Loops muted while on screen. With reduced motion or Save-Data nothing starts by itself:
+     the tabs choose where the film starts and the browser's own controls play it. */
+  var demoStage = $("[data-demo-stage]");
+  if (demoStage) {
+    var demoTabs = $$(".demo-tab", demoStage);
+    var demoNotes = $$("[data-demo-note]", demoStage);
+    var demoFrame = $(".demo-frame", demoStage);
+    var demoTabList = $(".demo-tabs", demoStage);
+    var demoToggle = $(".demo-toggle", demoStage);
+    var demoVideo = $("video", demoFrame);
+    var demoPhone = window.matchMedia("(max-width: 640px)");
+    var demoDark = window.matchMedia("(prefers-color-scheme: dark)");
+    var demoAuto = !reduce && !(navigator.connection && navigator.connection.saveData);
+    var demoStarts = demoTabs.map(function (tab) { return parseFloat(tab.getAttribute("data-start")) || 0; });
+    var demoIndex = -1;
+    var demoHeld = false;
+    var demoOnScreen = true;
+    var demoTicking = false;
+
+    var demoFile = function (name, extension) {
+      return "assets/demos/" + name + "-" + (demoPhone.matches ? "tall" : "wide") + "-" + (demoDark.matches ? "dark" : "light") + extension;
+    };
+    var demoChapter = function (time) {
+      var index = 0;
+      demoStarts.forEach(function (start, i) { if (time >= start) { index = i; } });
+      return index;
+    };
+    var demoMark = function (index) {
+      if (index === demoIndex) { return; }
+      demoIndex = index;
+      demoTabs.forEach(function (tab, i) {
+        tab.classList.toggle("is-active", i === index);
+        if (i === index) { tab.setAttribute("aria-current", "true"); } else { tab.removeAttribute("aria-current"); }
+        tab.style.removeProperty("--demo-progress");
+      });
+      var name = demoTabs[index].getAttribute("data-demo");
+      demoVideo.setAttribute("aria-label", demoTabs[index].getAttribute("data-label"));
+      demoNotes.forEach(function (note) {
+        note.classList.toggle("is-active", note.getAttribute("data-demo-note") === name);
+      });
+      /* keep the active tab in view when the row scrolls; never moves the page */
+      var tab = demoTabs[index];
+      if (demoTabList.scrollWidth > demoTabList.clientWidth) {
+        demoTabList.scrollTo({ left: tab.offsetLeft - (demoTabList.clientWidth - tab.offsetWidth) / 2, behavior: reduce ? "auto" : "smooth" });
+      }
+    };
+    /* a new file for the viewer's width and appearance, from the same point in the film */
+    var demoLoad = function (time) {
+      var src = demoFile("full", ".mp4");
+      if (demoVideo.getAttribute("src") !== src) {
+        demoVideo.setAttribute("src", src);
+        demoVideo.load();
+      }
+      if (time) { demoVideo.currentTime = time; }
+    };
+    var demoRecut;
+
+    if (!demoAuto) {
+      var demoStill = function (index) {
+        demoMark(index);
+        demoVideo.setAttribute("poster", demoFile(demoTabs[index].getAttribute("data-demo"), ".webp"));
+        demoLoad(demoStarts[index]);
+      };
+      demoTabs.forEach(function (tab, index) {
+        tab.addEventListener("click", function () { demoStill(index); });
+      });
+      demoVideo.addEventListener("timeupdate", function () { demoMark(demoChapter(demoVideo.currentTime)); });
+      demoStill(0);
+      demoRecut = function () { demoStill(demoIndex); };
+    } else {
+      var demoTick = function () {
+        var time = demoVideo.currentTime;
+        var index = demoChapter(time);
+        var end = index + 1 < demoStarts.length ? demoStarts[index + 1] : demoVideo.duration;
+        demoMark(index);
+        if (end > demoStarts[index]) {
+          demoTabs[index].style.setProperty("--demo-progress", ((time - demoStarts[index]) / (end - demoStarts[index])).toFixed(3));
+        }
+        if (demoTicking) { requestAnimationFrame(demoTick); }
+      };
+      var demoShowHeld = function () {
+        var glyph = $("i.ph", demoToggle);
+        demoFrame.classList.toggle("is-held", demoHeld);
+        demoToggle.setAttribute("aria-label", demoHeld ? "Play the demo" : "Pause the demo");
+        if (glyph) { glyph.className = "ph " + (demoHeld ? "ph-play" : "ph-pause"); }
+      };
+      var demoResume = function () {
+        if (demoHeld || !demoOnScreen || document.hidden) { return; }
+        var p = demoVideo.play();
+        if (p && p.catch) {
+          /* Low Power Mode and some browsers refuse: leave the still up with a play button */
+          p.catch(function (error) {
+            if (error && error.name === "NotAllowedError") { demoHeld = true; demoShowHeld(); }
+          });
+        }
+      };
+
+      demoVideo.removeAttribute("poster");
+      demoVideo.removeAttribute("controls");
+      demoVideo.muted = true;
+      demoVideo.loop = true;
+      demoVideo.setAttribute("preload", "auto");
+      demoVideo.addEventListener("playing", function () {
+        demoFrame.classList.add("is-playing");
+        if (!demoTicking) { demoTicking = true; requestAnimationFrame(demoTick); }
+      });
+      demoVideo.addEventListener("pause", function () { demoTicking = false; });
+
+      demoFrame.classList.add("is-animated");
+      demoToggle.hidden = false;
+      var demoToggleHold = function () {
+        demoHeld = !demoHeld;
+        demoShowHeld();
+        if (demoHeld) { demoVideo.pause(); } else { demoResume(); }
+      };
+      demoToggle.addEventListener("click", function (e) { e.stopPropagation(); demoToggleHold(); });
+      demoFrame.addEventListener("click", demoToggleHold);
+      demoTabs.forEach(function (tab, index) {
+        tab.addEventListener("click", function () {
+          demoHeld = false;
+          demoShowHeld();
+          demoVideo.currentTime = demoStarts[index];
+          demoMark(index);
+          demoResume();
+        });
+      });
+
+      if ("IntersectionObserver" in window) {
+        new IntersectionObserver(function (entries) {
+          demoOnScreen = entries[0].isIntersecting;
+          if (demoOnScreen) { demoResume(); } else { demoVideo.pause(); }
+        }, { threshold: 0.25 }).observe(demoFrame);
+      }
+      document.addEventListener("visibilitychange", function () {
+        if (document.hidden) { demoVideo.pause(); } else { demoResume(); }
+      });
+
+      demoMark(0);
+      demoLoad(0);
+      demoResume();
+      demoRecut = function () {
+        var time = demoVideo.currentTime;
+        demoLoad(0);
+        demoVideo.addEventListener("loadedmetadata", function restore() {
+          demoVideo.removeEventListener("loadedmetadata", restore);
+          demoVideo.currentTime = time;
+        });
+        demoResume();
+      };
+    }
+
+    /* a different appearance or a phone rotated past the breakpoint needs its own cut */
+    [demoPhone, demoDark].forEach(function (query) {
+      if (query.addEventListener) { query.addEventListener("change", demoRecut); } else if (query.addListener) { query.addListener(demoRecut); }
+    });
+    demoStage.classList.add("is-ready");
+  }
+
   /* the visible label is the last non-empty text node; icons stay put */
   var labelNode = function (el) {
     var last = null;

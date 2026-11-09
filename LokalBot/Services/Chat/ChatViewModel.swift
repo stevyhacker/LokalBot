@@ -1192,6 +1192,7 @@ final class ChatViewModel: ObservableObject {
         case "get_meeting": return "doc.text"
         case "get_action_items": return "checklist"
         case "search_screen": return "camera.viewfinder"
+        case "search_files": return "folder"
         case "activity_summary": return "chart.bar.doc.horizontal"
         default: return "wrench.and.screwdriver"
         }
@@ -1207,6 +1208,7 @@ final class ChatViewModel: ObservableObject {
             return call.string("id").map { "Collecting outcomes from meeting \($0)" }
                 ?? "Collecting recent outcomes"
         case "search_screen": return "Searching screen text for “\(call.string("query") ?? "")”"
+        case "search_files": return "Searching your files for “\(call.string("query") ?? "")”"
         case "activity_summary": return "Summarising activity for \(call.string("day") ?? "today")"
         default: return "Running \(call.name)"
         }
@@ -1219,6 +1221,7 @@ final class ChatViewModel: ObservableObject {
         case "get_meeting": return "Read “\(summary)”"
         case "get_action_items": return "Collected outcomes — \(summary)"
         case "search_screen": return "Searched screen text — \(summary)"
+        case "search_files": return "Searched your files — \(summary)"
         case "activity_summary": return "Summarised \(summary)"
         default: return summary
         }

@@ -18,7 +18,7 @@ struct BriefContextView: View {
                 } else {
                     Text("No projects or goals have been identified yet.").foregroundStyle(.secondary)
                 }
-                Button("Configure overnight review") { app.openSettings(tab: .dayMemory) }
+                Button("Configure overnight review") { app.openSettings(tab: .daily) }
             }.padding(.top, 8)
         }.accessibilityIdentifier("today.briefContext")
     }

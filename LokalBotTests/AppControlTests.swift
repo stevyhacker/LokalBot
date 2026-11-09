@@ -191,9 +191,9 @@ final class AppControlHandlerTests: XCTestCase {
             "type": "choice", "value": "dark", "default": "system", "changed": true,
         ]])
 
-        let privacy = await call(.settingsList, ["category": "privacy"])
-        guard case .array(let privacyEntries)? = privacy.result else { return XCTFail("no list") }
-        XCTAssertEqual(privacyEntries.count, 4)
+        let files = await call(.settingsList, ["category": "files"])
+        guard case .array(let fileEntries)? = files.result else { return XCTFail("no list") }
+        XCTAssertEqual(fileEntries.count, 4)
     }
 
     func testReportsStableErrors() async throws {

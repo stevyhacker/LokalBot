@@ -44,6 +44,39 @@ final class RedesignUITests: XCTestCase {
         snapshot("saved-audio-review-and-capture-warning")
     }
 
+    /// Filmed on 2026-11-05: opening Projects showed the first project with no
+    /// row highlighted, and selecting a row widened the list column to its maximum.
+    func testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth() throws {
+        let projects = fixture.root.appendingPathComponent("projects", isDirectory: true)
+        try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
+        let tracked: [String: Any] = ["version": 1, "hiddenNames": [String](), "tracked": ["Atlas", "Borealis"].map { name in
+            ["id": UUID().uuidString, "name": name, "otherNames": [String](), "createdAt": "2026-11-01T09:00:00Z"] as [String: Any]
+        }]
+        try JSONSerialization.data(withJSONObject: tracked).write(to: projects.appendingPathComponent("tracked.json"))
+        try launch(["LOKALBOT_INITIAL_SECTION": "projects", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
+
+        let list = app.outlines["projects.list"]
+        XCTAssertTrue(list.waitForExistence(timeout: 8))
+        let selected = list.outlineRows.matching(NSPredicate(format: "selected == true"))
+        XCTAssertTrue(UITestHarness.waitUntil { selected.count == 1 },
+                      "The project the page opens on must be selected in the list; selected rows: \(selected.count)")
+        let width = list.frame.width
+        let unselected = list.outlineRows
+            .matching(NSPredicate(format: "selected == false"))
+            .containing(NSPredicate(format: "value BEGINSWITH 'Atlas' OR value BEGINSWITH 'Borealis'")).firstMatch
+        XCTAssertTrue(unselected.waitForExistence(timeout: 5))
+        // Named once: the query above stops matching a row as soon as it's selected.
+        let otherName = (unselected.staticTexts.firstMatch.value as? String ?? "").hasPrefix("Atlas") ? "Atlas" : "Borealis"
+        let other = list.outlineRows.containing(NSPredicate(format: "value BEGINSWITH %@", otherName)).firstMatch
+        other.click()
+        XCTAssertTrue(UITestHarness.waitUntil { other.isSelected && selected.count == 1 },
+                      "Clicking \(otherName) must select it and only it")
+        // A re-division lands on the next layout pass, so give it one.
+        usleep(800_000)
+        XCTAssertEqual(list.frame.width, width, accuracy: 2, "Selecting a project must not move the divider")
+        snapshot("projects-selection")
+    }
+
     func testWorkspaceVisualMatrix() throws {
         // Collect route assertion failures across the matrix for review. Any
         // failed assertion still fails this test and the aggregate release gate.
@@ -58,7 +91,7 @@ final class RedesignUITests: XCTestCase {
             ("timeline", ["LOKALBOT_INITIAL_SECTION": "timeline"]),
             ("search", ["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search", "LOKALBOT_INITIAL_SEARCH": "failover"]),
             ("ask", ["LOKALBOT_INITIAL_SECTION": "ask"]),
-            ("settings", ["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "privacy"]),
+            ("settings", ["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "overview"]),
             ("models", ["LOKALBOT_INITIAL_SECTION": "models"]),
             ("dictation", ["LOKALBOT_INITIAL_SECTION": "dictation"]),
             ("autocomplete", ["LOKALBOT_INITIAL_SECTION": "autocomplete", "LOKALBOT_COTYPING_DEMO": "1"]),
@@ -120,7 +153,7 @@ final class RedesignUITests: XCTestCase {
             "meeting": "meeting.audioPlayer", "transcript": "transcript.segment.0.text",
             "review": "meeting.review.speakers",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
-            "ask": "ask.submit", "settings": "settings.retention", "models": "models.overview",
+            "ask": "ask.submit", "settings": "settings.overview", "models": "models.overview",
             "dictation": "dictation.form", "agent": "agent.composer",
         ]
         if let identifier = anchors[route] {
@@ -483,7 +516,7 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "advanced"])
+        try launch(["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "agents"])
         let form = app.scrollViews["settings.form"]
         let cli = UITestHarness.staticText(containing: "Agent CLI", in: app)
         UITestHarness.scrollTo(cli, in: app, within: form, attempts: 16)
@@ -496,7 +529,7 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(UITestHarness.toggle("Enable autocomplete", in: app).exists,
                        "Dictation has its own page, separate from autocomplete")
         snapshot("settings-dictation")
-        UITestHarness.selectSettingsCategory("Advanced", in: app)
+        UITestHarness.selectSettingsCategory("Diagnostics", in: app)
         let cpu = element("settings.resourceMonitor.cpu")
         UITestHarness.scrollTo(cpu, in: app, within: form, attempts: 16)
         let cells = [cpu, element("settings.resourceMonitor.memory"), element("settings.resourceMonitor.models"),
@@ -536,7 +569,7 @@ final class RedesignUITests: XCTestCase {
     func testAutocompleteAcceptsPhysicalTabAndEscapeDismissesGhost() throws {
         try launch(["LOKALBOT_COTYPING_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Writing", in: app)
+        UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         let editor = app.textViews["autocomplete.rehearsal.editor"]
         UITestHarness.scrollTo(editor, in: app)
         editor.click()
@@ -602,7 +635,7 @@ final class RedesignUITests: XCTestCase {
     func testRetentionReviewCancelPreservesPolicy() throws {
         try launch(["LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Privacy & Data", in: app)
+        UITestHarness.selectSettingsCategory("Screen & Activity", in: app)
         let before = UserDefaults(suiteName: suite!)?.data(forKey: "lokalbotv3.settings")
         let review = app.buttons["Review expired context…"]
         UITestHarness.scrollTo(review, in: app)

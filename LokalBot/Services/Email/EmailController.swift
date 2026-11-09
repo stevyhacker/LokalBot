@@ -58,6 +58,8 @@ final class EmailController: ObservableObject {
     @Published private(set) var syncingAccountID: UUID?
     @Published private(set) var isSigningIn = false
     @Published var lastError: String?
+    /// Bumped whenever downloaded mail may have changed, so readers can cache.
+    @Published private(set) var mailRevision = 0
 
     /// Calendar attendee addresses around now; their threads qualify.
     var attendeeAddresses: @MainActor () -> Set<String> = { [] }
@@ -248,6 +250,7 @@ final class EmailController: ObservableObject {
         } catch {
             lastError = "This account couldn't be removed completely: \(error.localizedDescription)"
         }
+        mailRevision &+= 1
         var confirmed = true
         for token in tokens {
             if !(await authorizer.revoke(token: token)) { confirmed = false }
@@ -263,6 +266,14 @@ final class EmailController: ObservableObject {
             manualRequests.formUnion(accounts.map(\.id))
         }
         tick()
+    }
+
+    /// Downloaded mail for features that read it, such as the meeting brief.
+    /// Nil when no account is connected. Reading it decrypts files, so callers
+    /// do it off the main actor.
+    func mailbox() -> EmailMailbox? {
+        guard accountsLoaded, !accounts.isEmpty, let store = try? openStore() else { return nil }
+        return EmailMailbox(store: store, accounts: accounts)
     }
 
     private func upsert(_ account: EmailAccount) {
@@ -352,11 +363,29 @@ final class EmailController: ObservableObject {
             return
         }
         upsert(result)
+        mailRevision &+= 1
         do {
             try saveAccounts()
         } catch {
             lastError = "Email sync state couldn't be saved: \(error.localizedDescription)"
         }
         tick()
+    }
+}
+
+/// A read-only view of the downloaded mail of every connected account.
+struct EmailMailbox: Sendable {
+    let store: EmailStore
+    let accounts: [EmailAccount]
+
+    /// Every stored conversation, with the account it belongs to.
+    func sources() -> [EmailMeetingContext.Source] {
+        var sources: [EmailMeetingContext.Source] = []
+        for account in accounts {
+            for thread in store.threads(accountID: account.id) {
+                sources.append(EmailMeetingContext.Source(account: account, thread: thread))
+            }
+        }
+        return sources
     }
 }

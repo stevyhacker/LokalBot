@@ -63,6 +63,13 @@ enum CotypingRequestBuilder {
             visibleContext: visibleContext,
             windowContext: windowContext,
             learnedExamples: learnedExamples)
+#if LOKALBOT_TEST_HOOKS
+        // The autocomplete film replays these prompts to chart the model's choices.
+        if TestHooks.filmsAutocomplete,
+           let json = try? JSONSerialization.data(withJSONObject: ["prefix": prefix, "prompt": renderedPrompt.prompt]) {
+            lokalbotLog("film: request \(String(decoding: json, as: UTF8.self))")
+        }
+#endif
         return CotypingRequest(
             prompt: renderedPrompt.prompt,
             prefixText: prefix,

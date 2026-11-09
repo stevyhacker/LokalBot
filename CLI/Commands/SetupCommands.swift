@@ -29,8 +29,8 @@ struct SetupStartCommand: ParsableCommand {
         abstract: "Ask the person to let this agent set up LokalBot.",
         discussion: """
             Leaves a request that LokalBot shows the person, starting LokalBot
-            if needed. Read access to the meeting library or screen memory
-            appears as separate boxes, off unless the person ticks them.
+            if needed. Read access to the meeting library, screen memory, or
+            Files appears as separate boxes, off unless the person ticks them.
             Exits 0 when allowed, 3 while waiting, 4 when declined, and 5 when
             nobody answered in time.
             """)
@@ -40,6 +40,9 @@ struct SetupStartCommand: ParsableCommand {
 
     @Flag(name: .long, help: "Also ask for read access to screen memory.")
     var screenMemory = false
+
+    @Flag(name: .long, help: "Also ask to search the folders the person chose under Files.")
+    var files = false
 
     @Option(name: .long, help: ArgumentHelp(
         "Seconds to wait for the person to answer (at most 300).", valueName: "seconds"))
@@ -51,6 +54,7 @@ struct SetupStartCommand: ParsableCommand {
         var grants: [AgentSetup.Grant] = [.settings]
         if meetingLibrary, !AgentAccessGate(root: root).isEnabled { grants.append(.meetingLibrary) }
         if screenMemory, !ScreenMemoryAccessGate(root: root).isEnabled { grants.append(.screenMemory) }
+        if files, !FilesAccessGate(root: root).isEnabled { grants.append(.files) }
         if client.gate.isEnabled, grants == [.settings] {
             print(ControlOutput.json(["state": "approved", "alreadyAllowed": true]))
             return
@@ -407,7 +411,7 @@ struct DoctorCommand: ParsableCommand {
         var checks: [JSONValue] = []
         if case .array(let items)? = report["checks"] { checks = items }
         checks.append(["name": "cliOnPath", "ok": .bool(onPath), "detail": .string(onPath
-            ? "lokalbot-cli is on PATH." : "lokalbot-cli is not on PATH. Settings → Agent CLI installs it in ~/.local/bin.")])
+            ? "lokalbot-cli is on PATH." : "lokalbot-cli is not on PATH. Settings → External Agents → Agent CLI installs it in ~/.local/bin.")])
         report["checks"] = .array(checks)
         print(ControlOutput.json(.object(report)))
         if report["ready"] != .bool(true) { throw ExitCode.failure }

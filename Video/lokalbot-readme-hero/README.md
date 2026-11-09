@@ -1,9 +1,9 @@
 # LokalBot README hero reel
 
-Builds the 30-second loop at the top of the root README,
-[Assets/hero/lokalbot-demo-light.gif](../../Assets/hero/lokalbot-demo-light.gif).
-What the published file shows and which revisions it came from is in
-[Assets/hero/README.md](../../Assets/hero/README.md).
+Built the 30-second loop that opened the root README until November 5, 2026. It now opens
+with clips from [Video/lokalbot-landing-demos](../lokalbot-landing-demos/README.md).
+Pass an output path to `build.sh`: its default overwrites the current hero. The last loop
+built here is `Assets/hero/lokalbot-demo-light.gif` at `8378415`.
 
 ## Beats
 

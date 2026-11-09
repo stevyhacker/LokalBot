@@ -528,7 +528,7 @@ pub fn undo_merge(library: &Library, merged: &Meeting) -> Result<Vec<Meeting>, U
     // Deleting the merged meeting alone: its sources are about to come back.
     let mut detached = merged.clone();
     detached.merged_source_meeting_ids = None;
-    crate::evidence::with_meeting_mutation(library.paths().root(), &[merged], || {
+    crate::evidence::with_meeting_removal(library.paths().root(), &[merged], || {
         library.remove_meeting(&detached)
     })
     .map_err(|e| UndoError::Failed(format!("{e:#}")))?;

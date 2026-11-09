@@ -16,7 +16,9 @@ use gpui_kit::{
 use lokalbot_core::Meeting;
 use lokalbot_core::settings::{Settings, SummarizerBackend};
 
-use crate::pages::settings::models::{RUNTIME_ID, model_bytes, model_name, size_label};
+use crate::pages::settings::models::{
+    RUNTIME_ID, model_bytes, model_name, size_label, speech_needs,
+};
 use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, ProcessingStage};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
@@ -38,10 +40,7 @@ pub struct SampleSetup {
 /// separation, and the built-in Think model with its runtime (nothing for
 /// Think on a model server).
 pub fn needs(settings: &Settings) -> Vec<String> {
-    let mut ids = vec![settings.transcription_model.clone()];
-    ids.extend(lokalbot_speech::models::supporting_ids(
-        settings.multi_speaker_diarization,
-    ));
+    let mut ids = speech_needs(settings);
     if settings.summarizer_backend == SummarizerBackend::BuiltIn {
         ids.push(settings.built_in_model_id.clone());
         ids.push(RUNTIME_ID.to_string());
@@ -159,6 +158,7 @@ impl AppData {
                 question: lokalbot_i18n::tr(QUESTION).to_string(),
                 meeting_ids: vec![meeting_id],
                 submit: true,
+                day: None,
             },
             cx,
         );

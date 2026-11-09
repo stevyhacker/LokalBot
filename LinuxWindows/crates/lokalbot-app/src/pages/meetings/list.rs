@@ -109,13 +109,6 @@ impl MeetingsPage {
     }
 
     fn on_list_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
-        if event.keystroke.key == "f"
-            && (event.keystroke.modifiers.control || event.keystroke.modifiers.platform)
-        {
-            self.open_find(window, cx);
-            cx.stop_propagation();
-            return;
-        }
         match event.keystroke.key.as_str() {
             "space" => self.toggle_playback(cx),
             "left" => self.seek_by(-5., cx),
@@ -297,14 +290,7 @@ impl MeetingsPage {
                                 move |_, cx| {
                                     data_entity.update(cx, |data, cx| {
                                         for id in &failed {
-                                            data.request(
-                                                crate::state::AppEvent::ProcessMeeting {
-                                                    meeting_id: *id,
-                                                    transcribe: true,
-                                                    summarize: true,
-                                                },
-                                                cx,
-                                            );
+                                            data.retry_processing(*id, cx);
                                         }
                                     })
                                 },
@@ -452,11 +438,7 @@ impl MeetingsPage {
         let drop_data = data_entity.clone();
         v_flex()
             .id("meetings-column")
-            .w(metric::CONTENT_COLUMN_WIDTH)
-            .flex_none()
-            .h_full()
-            .border_r_1()
-            .border_color(lb.separator)
+            .size_full()
             .track_focus(&self.list_focus)
             .on_key_down(cx.listener(Self::on_list_key))
             .drag_over::<ExternalPaths>(move |style, _, _, _| style.bg(drop_target.opacity(0.08)))
@@ -711,16 +693,7 @@ fn stage_badge(
             .hover(|s| s.underline())
             .child(label)
             .on_click(move |_, _, cx| {
-                data.update(cx, |data, cx| {
-                    data.request(
-                        crate::state::AppEvent::ProcessMeeting {
-                            meeting_id,
-                            transcribe: true,
-                            summarize: true,
-                        },
-                        cx,
-                    )
-                })
+                data.update(cx, |data, cx| data.retry_processing(meeting_id, cx))
             })
     };
     match stage {
