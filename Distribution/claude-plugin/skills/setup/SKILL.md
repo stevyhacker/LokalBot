@@ -19,7 +19,7 @@ Install LokalBot and set it up for the user, following [AGENT_SETUP.md](https://
 5. Poll `$CLI models status` until `meetingReady` is true.
 6. Run `$CLI permissions`. For each permission an enabled feature needs, run `$CLI permissions request <name>`, tell the user exactly what to click, and poll until it shows as granted. Run `$CLI restart` if macOS asks for one.
 7. Run `$CLI setup finish`, then `$CLI doctor`, and report what is ready and anything left.
-8. This plugin's MCP server starts `lokalbot-cli` from PATH. If `command -v lokalbot-cli` finds nothing, ask the user before running `$CLI install-skill`, which links the CLI into `~/.local/bin` (and the skill into `~/.agents/skills` and `~/.claude/skills`), then have them run `/reload-plugins`.
+8. This plugin's commands run `lokalbot-cli` by name. If `command -v lokalbot-cli` finds nothing, ask the user before running `$CLI install-skill`, which links the CLI into `~/.local/bin` (and the skill into `~/.agents/skills` and `~/.claude/skills`).
 
 ## On Windows or Linux (alpha)
 

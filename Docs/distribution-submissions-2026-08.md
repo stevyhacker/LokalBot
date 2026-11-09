@@ -220,6 +220,7 @@ Submission steps (≈15 minutes, owner-only because of the login):
 
 1. From the repository root, run `claude plugin validate Distribution/claude-plugin --strict` and `claude plugin validate . --strict`. Both passed on 2026-11-09 with no warnings.
 2. Make sure the plugin folder is on public `master`.
+   - On 2026-11-09 the directory's automatic policy check refused 0.2.1: "Local MCP servers accepted only from Verified organizations." 0.3.0 starts no MCP server, works through `lokalbot-cli` alone, and is listed for Claude Code only, because Cowork can't run `lokalbot-cli`. Becoming a Verified organization (Anthropic confirms a real company) would allow bundling the server again.
 3. Open https://claude.ai/directory/manage → Submit new → Plugin bundle, and give the repository as `stevyhacker/lokalbot-claude-plugin`, with no path and the default branch.
 4. The listing icon is `.claude-plugin/icon.png` in the plugin. The directory takes the icon only from the first save or submission.
 5. After approval, users install with:
@@ -236,12 +237,11 @@ Distribution/claude-plugin in github.com/stevyhacker/lokalbot)
 
 LokalBot is a personal context engine: a private work-memory app that
 records, transcribes, and summarizes meetings and remembers your workday on
-your own computer. This plugin lets Claude Code read that library through the
-bundled lokalbot-cli and its stdio MCP server: meetings and their action
-items, the people in them, screen memory (text and metadata, never
-screenshots), the folders the user chose under Files, and what the user
-shared about themselves. Each kind of data is off by default and has its own
-permission in LokalBot.
+your own computer. This plugin lets Claude Code read that library through
+lokalbot-cli, which runs on the user's computer: meetings and their action
+items, the people in them, the folders the user chose under Files, and what
+the user shared about themselves. Each kind of data is off by default and has
+its own permission in LokalBot. The plugin starts no MCP server.
 
 Commands: /lokalbot:brief catches the user up on their work,
 /lokalbot:recall finds what they said, saw, agreed, or saved with citations,

@@ -55,6 +55,14 @@ class ClaudePluginTests(unittest.TestCase):
         self.assertFalse((ROOT / ".claude-plugin" / "plugin.json").exists(),
                          "the repository root must not be a plugin")
 
+    def test_no_local_mcp_server(self):
+        # The directory refuses plugins that start an MCP server on the user's
+        # computer unless the organization is Verified, which LokalBot isn't.
+        self.assertNotIn("mcpServers", self.manifest)
+        self.assertNotIn("mcpServers", self.entry)
+        for path in (".mcp.json", "hooks"):
+            self.assertFalse((PLUGIN / path).exists(), path)
+
     def test_one_semver_version_in_the_manifest(self):
         # Installs stay on their cached copy until this string changes, and
         # the marketplace entry must not carry a second one that could drift.
