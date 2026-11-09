@@ -1,0 +1,37 @@
+{
+  "name": "lokalbot",
+  "version": "0.1.0",
+  "description": "Agent Wrapped: your year with Claude Code and Codex, counted from the session logs on your own computer. Nothing is uploaded.",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "wrapped",
+    "coding-agents",
+    "year-in-review",
+    "local-first",
+    "lokalbot"
+  ],
+  "homepage": "https://www.lokalbot.com",
+  "bugs": "https://github.com/stevyhacker/LokalBot/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stevyhacker/LokalBot.git",
+    "directory": "Distribution/npm"
+  },
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "lokalbot": "bin/lokalbot.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
