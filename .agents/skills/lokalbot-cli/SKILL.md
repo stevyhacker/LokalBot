@@ -123,8 +123,7 @@ Cite files by path. Open one yourself only when the passage isn't enough, and ne
 
 ```bash
 lokalbot-cli path
-lokalbot-cli path latest
-cd "$(lokalbot-cli path latest)"
+lokalbot-cli path latest                         # the newest meeting's folder
 ```
 
 ## Settings and status
@@ -144,7 +143,7 @@ lokalbot-cli config import settings.json --dry-run
 lokalbot-cli config set calendarDetectionEnabled=true --wait 120   # waits for the user's approval
 lokalbot-cli config request <id> --wait 120      # answer to an earlier needs_approval
 lokalbot-cli secret list                         # which API keys are saved (never their values)
-printf %s "$KEY" | lokalbot-cli secret set openai-compatible --wait 120
+lokalbot-cli secret set openai-compatible --wait 120   # the key goes in on standard input
 lokalbot-cli status                              # version, recording, models, permissions, agent access
 lokalbot-cli open settings dictationShortcut     # show the user a setting in LokalBot
 lokalbot-cli open settings permissions           # or a section

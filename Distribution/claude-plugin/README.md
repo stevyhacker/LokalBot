@@ -8,7 +8,7 @@ LokalBot is your personal context engine: a private work-memory app for macOS, w
 
 - **`/lokalbot:brief [focus]`**: a short catch-up on your own work: what's in flight, what you owe and to whom, recent decisions, and which sources were off. See [skills/brief](skills/brief/SKILL.md).
 - **`/lokalbot:recall <question>`**: find what you said, saw, agreed, or saved, and answer with citations. It picks the source that fits: meetings, action items, people, screen memory, Files, or what you shared about yourself. See [skills/recall](skills/recall/SKILL.md).
-- **`/lokalbot:setup`**: install LokalBot and set it up with you. You allow access, approve consent changes, and grant system permissions in LokalBot; Claude does the rest from the terminal. The full journey is on a Mac; on Windows and Linux, Claude walks you through the install and then uses the same commands. See [skills/setup](skills/setup/SKILL.md) and [AGENT_SETUP.md](../../AGENT_SETUP.md).
+- **`/lokalbot:setup`**: install LokalBot and set it up with you. You allow access, approve consent changes, and grant system permissions in LokalBot; Claude does the rest from the terminal. The full journey is on a Mac; on Windows and Linux, Claude walks you through the install and then uses the same commands. See [skills/setup](skills/setup/SKILL.md) and [AGENT_SETUP.md](https://github.com/stevyhacker/LokalBot/blob/master/AGENT_SETUP.md).
 
 **The `lokalbot-cli` skill** teaches Claude when to check LokalBot (at the start of a session on your own work, and before asking you about past work, decisions, or commitments) and how to use the CLI:
 
@@ -42,7 +42,7 @@ From within Claude Code:
 /reload-plugins
 ```
 
-The first command adds this repository as a plugin marketplace (the catalog is [.claude-plugin/marketplace.json](../../.claude-plugin/marketplace.json)); the second installs the plugin, which is this folder. Claude Code namespaces plugin commands, so they appear as `/lokalbot:brief`, `/lokalbot:recall`, and `/lokalbot:setup`.
+The first command adds the LokalBot repository as a plugin marketplace (the catalog is [.claude-plugin/marketplace.json](https://github.com/stevyhacker/LokalBot/blob/master/.claude-plugin/marketplace.json)); the second installs the plugin, which is the `Distribution/claude-plugin` folder. Claude Code namespaces plugin commands, so they appear as `/lokalbot:brief`, `/lokalbot:recall`, and `/lokalbot:setup`.
 
 If you also ran `lokalbot-cli install-skill`, Claude Code sees the skill twice, as `lokalbot-cli` and `lokalbot:lokalbot-cli`. Either one works.
 
@@ -63,12 +63,13 @@ LokalBot does not upload your library. This plugin starts the CLI and MCP server
 
 ## CLI availability
 
-The MCP server and the commands run `lokalbot-cli` from your PATH. **Settings → External Agents → Agent CLI** in LokalBot (Settings → Advanced on Windows and Linux) installs it: at `~/.local/bin/lokalbot-cli` on macOS and Linux, and at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows, whose folder you add to PATH yourself ([how](../../LinuxWindows/README.md#coding-agents)). On a Mac, the embedded copy also works: `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`.
+The MCP server and the commands run `lokalbot-cli` from your PATH. **Settings → External Agents → Agent CLI** in LokalBot (Settings → Advanced on Windows and Linux) installs it: at `~/.local/bin/lokalbot-cli` on macOS and Linux, and at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows, whose folder you add to PATH yourself ([how](https://github.com/stevyhacker/LokalBot/blob/master/LinuxWindows/README.md#coding-agents)). On a Mac, the embedded copy also works: `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`.
 
 ## For maintainers
 
-- This folder is the whole plugin, so an install copies only these files. `skills/lokalbot-cli/SKILL.md` is a copy of [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md), which the Mac app bundles; `Scripts/tests/test_claude_plugin.py` fails when they differ, so copy the file after editing the original.
+- The plugin is the `Distribution/claude-plugin` folder of [stevyhacker/LokalBot](https://github.com/stevyhacker/LokalBot), so an install copies only these files. `skills/lokalbot-cli/SKILL.md` is a copy of [.agents/skills/lokalbot-cli/SKILL.md](https://github.com/stevyhacker/LokalBot/blob/master/.agents/skills/lokalbot-cli/SKILL.md), which the Mac app bundles; `Scripts/tests/test_claude_plugin.py` fails when they differ, so copy the file after editing the original.
+- [stevyhacker/lokalbot-claude-plugin](https://github.com/stevyhacker/lokalbot-claude-plugin) holds a copy of this folder for the Claude plugin directory, which can't download the LokalBot repository (its limit is 50 MiB compressed). The `Claude plugin sync` workflow pushes each change on LokalBot's master there, and the directory picks it up from that repository's default branch. Edit the plugin in LokalBot, never in that repository: the next sync overwrites it.
 - Bump `version` in [.claude-plugin/plugin.json](.claude-plugin/plugin.json) whenever anything in this folder changes, the skill copy included. Installs stay on their cached copy until that string changes. The marketplace entry carries no version of its own.
-- `.claude-plugin/icon.png` is the directory listing icon: the full-bleed 1024 px app icon. The directory takes the icon only from the first submission, so changing it later does nothing there.
+- The directory listing icon is the full-bleed 1024 px app icon, in `.claude-plugin/`, where the directory finds it without a manifest field. The directory takes the icon only from the first submission, so changing it later does nothing there.
 - Check changes with `claude plugin validate Distribution/claude-plugin --strict` and `claude plugin validate . --strict` from the repository root.
 - Field references: [plugin manifest](https://code.claude.com/docs/en/plugins-reference), [marketplaces](https://code.claude.com/docs/en/plugin-marketplaces), and [publishing](https://code.claude.com/docs/en/plugins/publish), checked 2026-11-09.

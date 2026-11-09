@@ -214,14 +214,14 @@ terms govern tool data. Works with any agent that reads SKILL.md files.
 
 ### 4b. Anthropic community plugin directory (Claude Code / Cowork)
 
-Verified 2026-08-21, updated 2026-11-09: the directory lives at `anthropics/claude-plugins-community`, a read-only mirror synced from Anthropic's review pipeline after a safety scan and a policy review. **PRs opened directly against the repo are closed automatically.** As of 2026-11-09, LokalBot is in neither `claude-plugins-community` (2,283 plugins) nor `claude-plugins-official` (317), and Anthropic's docs send submissions to https://claude.ai/directory/manage, which needs a paid claude.ai plan. Plugins in a subfolder of a larger repository are listed as `git-subdir` sources, so users fetch only that folder.
+Verified 2026-08-21, updated 2026-11-09: the directory lives at `anthropics/claude-plugins-community`, a read-only mirror synced from Anthropic's review pipeline after a safety scan and a policy review. **PRs opened directly against the repo are closed automatically.** As of 2026-11-09, LokalBot is in neither `claude-plugins-community` (2,283 plugins) nor `claude-plugins-official` (317), and Anthropic's docs send submissions to https://claude.ai/directory/manage, which needs a paid claude.ai plan. The portal downloads the whole repository to validate it and refuses anything over 50 MiB compressed (256 MiB uncompressed), which rules out the LokalBot repository. The plugin is therefore submitted from [stevyhacker/lokalbot-claude-plugin](https://github.com/stevyhacker/lokalbot-claude-plugin), a copy of `Distribution/claude-plugin` that the `Claude plugin sync` workflow keeps current from LokalBot's master.
 
 Submission steps (≈15 minutes, owner-only because of the login):
 
 1. From the repository root, run `claude plugin validate Distribution/claude-plugin --strict` and `claude plugin validate . --strict`. Both passed on 2026-11-09 with no warnings.
 2. Make sure the plugin folder is on public `master`.
-3. Open https://claude.ai/directory/manage and give the source as repository `github.com/stevyhacker/lokalbot`, path `Distribution/claude-plugin`.
-4. The listing icon is `Distribution/claude-plugin/.claude-plugin/icon.png`. The directory takes the icon only from the first save or submission, so don't submit before it is on `master`.
+3. Open https://claude.ai/directory/manage → Submit new → Plugin bundle, and give the repository as `stevyhacker/lokalbot-claude-plugin`, with no path and the default branch.
+4. The listing icon is `.claude-plugin/icon.png` in the plugin. The directory takes the icon only from the first save or submission.
 5. After approval, users install with:
    ```
    claude plugin marketplace add anthropics/claude-plugins-community
@@ -231,7 +231,8 @@ Submission steps (≈15 minutes, owner-only because of the login):
 Ready submission text (adapt to whatever free-text fields the form offers):
 
 ```text
-Plugin: lokalbot (source: github.com/stevyhacker/lokalbot, path Distribution/claude-plugin)
+Plugin: lokalbot (source: github.com/stevyhacker/lokalbot-claude-plugin, a copy of
+Distribution/claude-plugin in github.com/stevyhacker/lokalbot)
 
 LokalBot is a personal context engine: a private work-memory app that
 records, transcribes, and summarizes meetings and remembers your workday on
