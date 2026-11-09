@@ -46,6 +46,9 @@ struct SettingsScreen: View {
             }
             Section {
                 LabeledContent("Version", value: Bundle.main.versionLabel)
+                if let privacyURL = URL(string: "https://www.lokalbot.com/privacy") {
+                    Link("Privacy Policy", destination: privacyURL)
+                }
             } footer: {
                 Text("LokalBot runs no server. Your library travels only between your own devices, end-to-end encrypted.")
             }

@@ -164,8 +164,6 @@ struct AskEmptyState: View {
     let model: AskModel
     var composerFocused: FocusState<Bool>.Binding
 
-    private let suggestions = ["What's overdue?", "Summarize yesterday", "What did Maya ask me for?"]
-
     var body: some View {
         VStack(spacing: 14) {
             IconTile(systemImage: "sparkle.magnifyingglass", size: 52)
@@ -185,7 +183,7 @@ struct AskEmptyState: View {
                     .frame(maxWidth: 420)
             }
             VStack(spacing: 8) {
-                ForEach(suggestions, id: \.self) { suggestion in
+                ForEach(AskModel.suggestions(for: session.mode), id: \.self) { suggestion in
                     Button {
                         model.draft = suggestion
                         Task { await model.submit(session) }

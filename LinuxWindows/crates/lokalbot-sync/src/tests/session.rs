@@ -435,6 +435,174 @@ fn question(request_id: &str) -> String {
 }
 
 #[test]
+fn sample_ask_answers_from_the_real_store_without_connecting() {
+    let phone = Phone::sample();
+    let request = question("sample-q1");
+    phone.client.queue_question(request.clone()).unwrap();
+
+    // Even if an address is supplied, asking the sample must never connect.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let deltas = Arc::new(Mutex::new(Vec::new()));
+    let result = phone
+        .client
+        .ask(
+            request,
+            vec![listener.local_addr().unwrap().to_string()],
+            Box::new(Collector(Arc::clone(&deltas))),
+        )
+        .unwrap();
+    let result: Value = serde_json::from_str(&result).unwrap();
+    let answer = result["answer"].as_str().unwrap();
+    assert!(answer.to_lowercase().contains("onboarding"), "{answer}");
+    assert_eq!(result["requestId"], "sample-q1");
+    assert_eq!(result["engineLabel"], "Sample library");
+    let citations = result["citations"].as_array().unwrap();
+    assert!(!citations.is_empty());
+    assert!(citations.iter().any(|citation| {
+        citation["meetingId"] == super::STANDUP || citation["meetingId"] == DESIGN_REVIEW
+    }));
+    for citation in citations {
+        assert!(answer.contains(&format!("[{}]", citation["index"])));
+        assert!(
+            phone
+                .client
+                .meeting(citation["meetingId"].as_str().unwrap().into())
+                .unwrap()
+                .is_some()
+        );
+    }
+    assert_eq!(deltas.lock().concat(), answer);
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock)
+    );
+    assert!(phone.client.queued_questions().unwrap().is_empty());
+    let history = phone.client.ask_history(10).unwrap();
+    assert_eq!(history.len(), 1);
+    let saved: Value = serde_json::from_str(&history[0]).unwrap();
+    assert_eq!(saved["result"], result);
+}
+
+#[test]
+fn sample_ask_handles_unknown_topics_without_changing_unpaired_behavior() {
+    let request = json!({
+        "requestId": "sample-q2", "conversationId": "c1",
+        "question": "Do platypuses fly spacecraft?", "history": []
+    })
+    .to_string();
+    let phone = Phone::sample();
+    let answer = phone
+        .client
+        .ask(request.clone(), vec![], Box::new(Collector(Arc::default())))
+        .unwrap();
+    let answer: Value = serde_json::from_str(&answer).unwrap();
+    assert!(
+        answer["answer"]
+            .as_str()
+            .unwrap()
+            .contains("sample library")
+    );
+    assert!(answer["citations"].as_array().unwrap().is_empty());
+    assert!(matches!(
+        Phone::new()
+            .client
+            .ask(request, vec![], Box::new(Collector(Arc::default()))),
+        Err(SyncError::NotPaired(_))
+    ));
+}
+
+#[test]
+fn sample_ask_ios_suggestions_return_cited_fixture_facts() {
+    // Keep these prompts in sync with AskModel.suggestions(for: .sample).
+    let cases = [
+        (
+            "What came up about onboarding?",
+            "Test the onboarding flow with five customers before release",
+            super::STANDUP,
+        ),
+        (
+            "What came up about pricing?",
+            "Share pricing tiers with legal",
+            "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03",
+        ),
+        (
+            "What came up in the Northwind call?",
+            "Annual plan gets a 15% discount",
+            "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03",
+        ),
+    ];
+    let phone = Phone::sample();
+    for (index, (question, expected, meeting_id)) in cases.into_iter().enumerate() {
+        let request = json!({
+            "requestId": format!("sample-suggestion-{index}"), "conversationId": "suggestions",
+            "question": question, "history": []
+        })
+        .to_string();
+        let result = phone
+            .client
+            .ask(request, vec![], Box::new(Collector(Arc::default())))
+            .unwrap();
+        let result: Value = serde_json::from_str(&result).unwrap();
+        let answer = result["answer"].as_str().unwrap();
+        assert!(
+            result["citations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|citation| {
+                    citation["meetingId"] == meeting_id
+                        && answer.contains(&format!("{expected} [{}]", citation["index"]))
+                }),
+            "{question}: {result}"
+        );
+    }
+}
+
+#[test]
+fn asking_after_pairing_the_sample_uses_the_computer() {
+    let host = Host::new();
+    let asked = Arc::new(AtomicUsize::new(0));
+    let asked_by_host = Arc::clone(&asked);
+    host.delegate.on_ask(move |request, sink| {
+        asked_by_host.fetch_add(1, Ordering::SeqCst);
+        sink.done(
+            json!({
+                "requestId": request["requestId"], "answer": "Computer answer.",
+                "citations": [], "engineLabel": "Remote test engine", "location": "remote",
+                "answeredAt": "2026-10-31T07:15:02.000Z"
+            })
+            .to_string(),
+        );
+    });
+    let phone = Phone::sample();
+    phone
+        .client
+        .ask(
+            question("sample-before-pairing"),
+            vec![],
+            Box::new(Collector(Arc::default())),
+        )
+        .unwrap();
+    assert_eq!(phone.client.ask_history(0).unwrap().len(), 1);
+    phone.client.pair(host.offer()).unwrap();
+    assert!(!phone.client.is_sample().unwrap());
+    assert!(phone.client.ask_history(0).unwrap().is_empty());
+
+    let answer = phone
+        .client
+        .ask(
+            question("paired-after-sample"),
+            vec![],
+            Box::new(Collector(Arc::default())),
+        )
+        .unwrap();
+    let answer: Value = serde_json::from_str(&answer).unwrap();
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+    assert_eq!(answer["answer"], "Computer answer.");
+    assert_eq!(answer["location"], "remote");
+}
+
+#[test]
 fn asking_streams_the_answer_and_keeps_it() {
     let host = Host::new();
     host.delegate.on_ask(|request, sink| {

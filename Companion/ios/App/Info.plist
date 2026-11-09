@@ -34,12 +34,12 @@
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>LokalBot uses the camera to scan the pairing code your computer shows. Nothing is recorded or saved.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>LokalBot records meetings when you ask it to, and sends them only to your own computer, which transcribes them.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>LokalBot can ask for Face ID before showing your meetings and actions, if you turn on App Lock.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>LokalBot finds your computer and syncs with it directly over your network or Tailscale. Nothing goes through a server.</string>
+	<string>LokalBot finds your computer and syncs with it over your local network or Tailscale. Your data is end-to-end encrypted.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>LokalBot records meetings when you ask it to, and sends them only to your own computer, which transcribes them.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

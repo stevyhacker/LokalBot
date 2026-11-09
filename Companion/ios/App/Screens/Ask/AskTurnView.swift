@@ -37,7 +37,7 @@ struct AskTurnView: View {
     @ViewBuilder private var answer: some View {
         switch turn.state {
         case .answering where turn.answer.isEmpty:
-            LoadingStateLabel("Asking \(session.macName)…")
+            LoadingStateLabel(session.mode == .sample ? "Checking the sample library…" : "Asking \(session.macName)…")
         case .answering, .answered:
             VStack(alignment: .leading, spacing: 10) {
                 metadata(turn.state == .answering ? "LokalBot is answering" : "LokalBot",
@@ -195,8 +195,9 @@ struct AskTurnView: View {
         let remote = result.location == .remote
         return HStack(spacing: 6) {
             StatusDot(color: remote ? Brand.amber : LBTokens.Palette.accentFill, size: 7)
-            Text(remote ? "Answered with an approved remote engine · \(result.engineLabel)"
-                        : "Answered on your computer · \(result.engineLabel)")
+            Text(session.mode == .sample ? "Answered from the sample library"
+                 : remote ? "Answered with an approved remote engine · \(result.engineLabel)"
+                          : "Answered on your computer · \(result.engineLabel)")
         }
         .font(LBTokens.Typography.caption.weight(.medium))
         .foregroundStyle(remote ? LBTokens.Palette.attentionText : Brand.teal)
