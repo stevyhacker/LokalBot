@@ -2544,11 +2544,10 @@ final class AppState: ObservableObject {
 
     private func textRecognitionDidChange(stalled: Bool) {
         textRecognitionStalled = stalled
-        // Files reads screenshots with the same recognizer, outside the queue.
-        // When it is the one that never came back, the log says so.
-        if stalled, let seconds = FileSearchService.secondsOnCurrentFile, seconds >= 60 {
-            lokalbotLog("text recognition: Files has been reading one file for \(Int(seconds)) s")
-        }
+        // While it was stalled, Files left the screenshots and scans it could
+        // not read (`FileTextRecognition`). It answers again: read them now,
+        // not at the next change in a folder.
+        if !stalled, settings.fileSearchEnabled { fileSearch.requestPass() }
     }
 
     /// `previous` is the shortcut to fall back to when a newly chosen one is
