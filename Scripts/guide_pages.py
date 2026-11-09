@@ -588,8 +588,8 @@ GUIDES = [
         "slug": "claude-code-codex-meeting-notes",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-09",
+        "updated_label": "November 9, 2026",
         "title": "Let Claude Code or Codex Search Your Meeting Notes",
         "description": "Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.",
         "eyebrow": "Agents and MCP",
@@ -618,7 +618,7 @@ GUIDES = [
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
         <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac, except file search.</p>
-        <p>In Claude Code you can install the LokalBot plugin instead. It adds the same server and a <code>/lokalbot:recall</code> command: run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
+        <p>In Claude Code you can install the LokalBot plugin instead. It adds the same server, the skill, and three commands: <code>/lokalbot:brief</code> to catch up on your work, <code>/lokalbot:recall</code> to find what you said, saw or saved, and <code>/lokalbot:setup</code> to install LokalBot with you. Run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
 
         <h2>What the agent can do</h2>
         <ul>
