@@ -1,0 +1,82 @@
+{
+  "events" : [
+    {
+      "app" : {
+        "bundleIdentifier" : "com.apple.Notes",
+        "localizedName" : "Notes",
+        "processIdentifier" : 612
+      },
+      "query" : "frontmost",
+      "t" : 0
+    },
+    {
+      "query" : "idleSeconds",
+      "seconds" : 2,
+      "t" : 0
+    },
+    {
+      "flag" : true,
+      "query" : "trusted",
+      "t" : 0
+    },
+    {
+      "flag" : true,
+      "query" : "screenCaptureGranted",
+      "t" : 0
+    },
+    {
+      "includeText" : true,
+      "processID" : 612,
+      "query" : "axRead",
+      "read" : {
+        "snapshot" : {
+          "containsSecureField" : false,
+          "hasWebContent" : false,
+          "text" : "Bdgt rvw",
+          "windowFrame" : [
+            [
+              80,
+              60
+            ],
+            [
+              1200,
+              800
+            ]
+          ],
+          "windowTitle" : "Bdgt rvw"
+        }
+      },
+      "t" : 0
+    },
+    {
+      "query" : "windows",
+      "t" : 0,
+      "windows" : [
+        {
+          "appName" : "Notes",
+          "frame" : [
+            [
+              80,
+              60
+            ],
+            [
+              1200,
+              800
+            ]
+          ],
+          "id" : 4021,
+          "processID" : 612,
+          "title" : "Bdgt rvw"
+        }
+      ]
+    }
+  ],
+  "header" : {
+    "macOSVersion" : "27.2",
+    "origin" : "reconstructed",
+    "recordedAt" : "2026-11-09T00:00:00Z",
+    "scenario" : "window-with-little-accessible-text",
+    "schemaVersion" : 1,
+    "scrubberVersion" : 1
+  }
+}

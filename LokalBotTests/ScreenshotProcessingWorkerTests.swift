@@ -520,6 +520,81 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
     }
 
+    /// A worker whose text recognition never answers, until `unanswered` is signalled.
+    private static func workerWithSilentTextRecognition(
+        _ unanswered: DispatchSemaphore
+    ) -> ScreenshotProcessingWorker {
+        ScreenshotProcessingWorker(
+            dependencies: ScreenshotProcessingDependencies(
+                contentHash: { _ in Data(repeating: 0x51, count: 32) },
+                heicData: { _ in XCTFail("Pixels nothing checked for credentials must not be encoded"); return Data() },
+                recognizeText: { _ in
+                    unanswered.wait()
+                    return "read too late"
+                },
+                write: { _, _ in XCTFail("Pixels nothing checked for credentials must not be written") }),
+            textRecognition: TextRecognitionQueue(stallLimit: 60),
+            textRecognitionLimit: 0.1)
+    }
+
+    /// The outcome, or nil when the worker is still waiting after ten seconds.
+    private func outcomeWithinTenSeconds(
+        of worker: ScreenshotProcessingWorker, accessibleText: String
+    ) async throws -> ScreenshotProcessingWorker.Outcome? {
+        let request = ScreenshotProcessingRequest(
+            image: try XCTUnwrap(Self.onePixelImage()), trigger: .appSwitch, key: SymmetricKey(size: .bits256),
+            fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("unanswered-\(UUID()).enc"),
+            accessibleText: accessibleText, stageOnly: true)
+        let processed = expectation(description: "the capture is processed")
+        let processing = Task { () -> ScreenshotProcessingWorker.Outcome? in
+            defer { processed.fulfill() }
+            return try? await worker.process(request)
+        }
+        guard await XCTWaiter().fulfillment(of: [processed], timeout: 10) == .completed else { return nil }
+        return await processing.value
+    }
+
+    /// 2026-11-09: one text-recognition request never returned. The capture
+    /// waiting for it kept its turn, so every capture after it was skipped as
+    /// already in flight for the rest of the day.
+    func testACaptureGoesOnWithoutTextRecognitionThatNeverAnswers() async throws {
+        let unanswered = DispatchSemaphore(value: 0)
+        defer { unanswered.signal() }
+        let worker = Self.workerWithSilentTextRecognition(unanswered)
+
+        guard let outcome = try await outcomeWithinTenSeconds(of: worker, accessibleText: "Budget review") else {
+            return XCTFail("the capture is still waiting for text recognition")
+        }
+        guard case .stored(let stored) = outcome else {
+            return XCTFail("the capture should be stored with the text Accessibility read")
+        }
+        XCTAssertEqual(stored.text, "Budget review")
+        XCTAssertEqual(stored.textSource, "accessibility")
+        XCTAssertTrue(stored.missedOCR)
+        XCTAssertFalse(stored.usedOCR)
+        // The credential check reads the pixels' text. Without it they are not kept.
+        XCTAssertFalse(stored.hasPixels)
+        XCTAssertNil(stored.sealedPixels)
+    }
+
+    func testAWindowNothingCouldReadIsLeftForTheNextCapture() async throws {
+        let unanswered = DispatchSemaphore(value: 0)
+        defer { unanswered.signal() }
+        let worker = Self.workerWithSilentTextRecognition(unanswered)
+
+        guard let outcome = try await outcomeWithinTenSeconds(of: worker, accessibleText: "") else {
+            return XCTFail("the capture is still waiting for text recognition")
+        }
+        guard case .unreadable = outcome else {
+            return XCTFail("with no text from either source there is nothing to store")
+        }
+        // The same frame is read again, not skipped as already stored.
+        guard let again = try await outcomeWithinTenSeconds(of: worker, accessibleText: "Budget review") else {
+            return XCTFail("the capture is still waiting for text recognition")
+        }
+        guard case .stored = again else { return XCTFail("the frame was never stored, so it is not a duplicate") }
+    }
+
     func testCaptureDimensionsBoundLandscapeAndPortraitFrames() {
         XCTAssertEqual(
             ScreenshotCaptureDimensions.bounded(pixelWidth: 6_016, pixelHeight: 3_384),

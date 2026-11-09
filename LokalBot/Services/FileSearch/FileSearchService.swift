@@ -504,6 +504,13 @@ final class FileSearchService: ObservableObject {
 
     // MARK: - Indexing (on the index queue)
 
+    /// How long the indexer has been on the file it is reading; nil between
+    /// files. A file takes seconds, so minutes mean a read that is not
+    /// coming back, which only quitting ends.
+    nonisolated static var secondsOnCurrentFile: TimeInterval? {
+        Indexer.nowReading.map { Date().timeIntervalSince($0.since) }
+    }
+
     /// Turning recordings and video off excludes them by extension; the next
     /// sync then drops those already indexed.
     nonisolated static func indexOptions(includesMedia: Bool = true) -> IndexOptions {

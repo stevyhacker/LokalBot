@@ -148,7 +148,7 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         var lineCount = 0
         for _ in 0..<5 {
             let started = DispatchTime.now().uptimeNanoseconds
-            lineCount = await CotypingWindowTextCapture.recognizeLines(in: image, windowFrame: window).count
+            lineCount = await CotypingWindowTextCapture.recognizeLines(in: image, windowFrame: window)?.count ?? 0
             recognition.append(Self.seconds(since: started))
         }
         print("WINDOW_TEXT_BENCHMARK recognition lines=\(lineCount) \(Self.summary(recognition))")

@@ -896,7 +896,9 @@ Private and incognito browser windows are captured like any other window, so
 add a browser or site to the exclusions to keep it out. Detected credentials,
 payment card numbers, and IBANs are redacted and
 cause the associated pixel payload to be dropped; no detector is perfect, so
-exclude any source whose content should never be retained. Daily-memory exports,
+exclude any source whose content should never be retained. A window with little
+accessible text is checked through text recognition; when recognition gives no
+answer in time, that window's pixels are not kept. Daily-memory exports,
 meeting note exports, and routine outputs are ordinary unencrypted Markdown files
 written only to folders you choose and remain there until you remove them. A
 meeting note holds the meeting's summary, action items, the names of the people
