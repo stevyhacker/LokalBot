@@ -33,8 +33,6 @@ private func toolReply(_ name: String, _ arguments: [String: Any], id: String = 
                                 usage: .init(inputTokens: 900, outputTokens: 80), finishReason: "tool_calls")
 }
 
-private let repoRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-
 final class LiveAnswersTests: XCTestCase {
     private var folder: URL!
 
@@ -73,10 +71,13 @@ final class LiveAnswersTests: XCTestCase {
     }
 
     func testDemoSheetAndBriefAreReadable() async throws {
-        let files = repoRoot.appendingPathComponent("Docs/meta-hackathon/demo-files")
-        let sheet = try await LiveAnswerTools.documentText(files.appendingPathComponent("Northwind pricing v2.xlsx"))
+        // Copies of Docs/meta-hackathon/demo-files; see project.yml.
+        let bundle = Bundle(for: Self.self)
+        let sheetURL = try XCTUnwrap(bundle.url(forResource: "Northwind pricing v2", withExtension: "xlsx"))
+        let sheet = try await LiveAnswerTools.documentText(sheetURL)
         XCTAssertTrue(sheet.contains("Team | $12 per seat"), sheet)
-        let brief = try await LiveAnswerTools.documentText(files.appendingPathComponent("Northwind launch brief.pdf"))
+        let briefURL = try XCTUnwrap(bundle.url(forResource: "Northwind launch brief", withExtension: "pdf"))
+        let brief = try await LiveAnswerTools.documentText(briefURL)
         XCTAssertTrue(brief.contains("400 paying teams"), brief)
     }
 
