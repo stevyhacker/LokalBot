@@ -18,14 +18,21 @@
 //! - [`ibus`] is the route on GNOME: an IBus engine over D-Bus, which the user
 //!   chooses as an input source. While it is chosen the desktop asks it about
 //!   every key, and it answers without keeping them.
+//! - [`kwin`] is the route on KDE Plasma (`zwp_input_method_v1`). Plasma talks
+//!   to the input method it starts itself, so [`kwin_helper`] holds that
+//!   connection for the session and passes the field to the app. As on Sway,
+//!   the keyboard is grabbed only while a suggestion shows.
 //!
-//! [`Core`] is what the two share: the field, the ghost and what may be read.
+//! [`Core`] is what the routes share: the field, the ghost and what may be read.
 //!
 //! What this route sees, what it keeps and how it treats other input methods
 //! is written down in `PRIVACY.md`. Typed text is never logged here, and never
 //! kept past the field's next state.
 
 mod ibus;
+mod kwin;
+mod kwin_helper;
+mod kwin_wire;
 mod surface;
 mod wlroots;
 
@@ -379,10 +386,10 @@ impl Watcher {
             keys: Arc::new(Mutex::new(None)),
             limitation: Arc::new(Mutex::new(None)),
         };
-        let thread = if crate::session::desktop() == Desktop::Gnome {
-            ibus::start(policy, handler, handle.clone(), receiver)?
-        } else {
-            wlroots::start(policy, handler, handle.clone(), receiver, wake_read)?
+        let thread = match crate::session::desktop() {
+            Desktop::Gnome => ibus::start(policy, handler, handle.clone(), receiver)?,
+            Desktop::Kde => kwin::start(policy, handler, handle.clone(), receiver, wake_read)?,
+            _ => wlroots::start(policy, handler, handle.clone(), receiver, wake_read)?,
         };
         *CURRENT.lock() = Some(handle.clone());
         Ok(Self {
@@ -444,9 +451,11 @@ pub(super) fn support() -> Support {
                 )
             }
         }
-        Desktop::Gnome => Support::Available,
+        // Whether LokalBot is the chosen input method can change while
+        // Settings is open, so the route says that itself.
+        Desktop::Gnome | Desktop::Kde => Support::Available,
         _ => Support::Unavailable(lokalbot_i18n::format(
-            "Autocomplete in other apps is not available on {desktop} yet, because LokalBot cannot take part as an input method there. It works on X11, GNOME, Sway and Hyprland. On this desktop suggestions appear only in the practice editor below.",
+            "Autocomplete in other apps is not available on {desktop} yet, because LokalBot cannot take part as an input method there. It works on X11, GNOME, KDE Plasma, Sway and Hyprland. On this desktop suggestions appear only in the practice editor below.",
             &[("desktop", desktop.label())],
         )),
     }
@@ -464,8 +473,26 @@ pub(super) fn input_source_steps() -> Option<InputSourceSteps> {
             command: None,
         }),
         Desktop::Gnome => Some(ibus::steps()),
+        Desktop::Kde => Some(kwin::steps()),
         _ => None,
     }
+}
+
+/// Runs the input method KDE Plasma starts for LokalBot once it is chosen
+/// under Virtual Keyboard (`lokalbot --kwin-input-method`), until Plasma stops
+/// it. Returns the process's exit code.
+pub fn run_kwin_helper() -> i32 {
+    kwin_helper::run()
+}
+
+/// The desktop entry that lists LokalBot under Plasma's Virtual Keyboard, with
+/// this copy's path in it. Packages install the same file.
+pub fn kwin_desktop_entry() -> String {
+    kwin::desktop_entry(
+        &std::env::current_exe()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|_| "lokalbot".into()),
+    )
 }
 
 /// The IBus component file, which makes LokalBot one of the desktop's input

@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: November 3, 2026
+Effective: November 9, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -1208,20 +1208,32 @@ platform differences:
   - It never reads password fields, terminals, excluded apps or LokalBot's own
     windows.
   - On Wayland it works as the desktop's input method instead: on Sway and
-    Hyprland when you turn it on, and on GNOME when you also choose LokalBot as
-    an input source. While a text field has focus, the desktop gives LokalBot the
-    field's kind and up to 4,000 bytes of the text around the caret, without
-    LokalBot asking the app. In a password field, a terminal, an excluded app,
-    LokalBot's own windows or an app it cannot name, that text is dropped unused
-    as soon as the field is identified, and nothing is suggested. Nearby visible
-    text still comes through accessibility.
-  - Keys on Wayland: on Sway and Hyprland, LokalBot sees your keys only while a
-    suggestion shows, and passes on every one but the accept keys and Esc. On
-    GNOME, while LokalBot is the chosen input source, the desktop asks it about
-    every key press in a text field except in password fields, where GNOME takes it
-    out of the way. It compares the key to the accept keys when a suggestion shows,
-    and answers. Neither keys nor the text around the caret are kept or logged, and
-    choosing another input source or turning autocomplete off ends all of this.
+    Hyprland when you turn it on, on GNOME when you also choose LokalBot as an
+    input source, and on KDE Plasma when you also choose LokalBot under System
+    Settings → Keyboard → Virtual Keyboard. While a text field has focus, the
+    desktop gives LokalBot the field's kind and up to 4,000 bytes of the text
+    around the caret, without LokalBot asking the app. In a password field, a
+    terminal, an excluded app, LokalBot's own windows or an app it cannot name,
+    that text is dropped unused as soon as the field is identified, and nothing
+    is suggested. Nearby visible text still comes through accessibility.
+  - On KDE Plasma, Plasma starts a small LokalBot process for the session
+    (`lokalbot --kwin-input-method`), because it talks to an input method only
+    over a connection it opens itself. That process passes the field to the
+    LokalBot app through a socket in LokalBot's private runtime folder that only
+    your user can open, and sends the text around the caret only while
+    autocomplete is on and the app is running. It keeps no text and writes no
+    file but that socket. With the app closed it reads no keys and shows
+    nothing, and typing is as it is without an input method. The window in front
+    is named by a short KWin script, as for day memory, so excluded apps are
+    refused before their text is used.
+  - Keys on Wayland: on Sway, Hyprland and KDE Plasma, LokalBot sees your keys
+    only while a suggestion shows, and passes on every one but the accept keys
+    and Esc. On GNOME, while LokalBot is the chosen input source, the desktop
+    asks it about every key press in a text field except in password fields,
+    where GNOME takes it out of the way. It compares the key to the accept keys
+    when a suggestion shows, and answers. Neither keys nor the text around the
+    caret are kept or logged, and choosing another input source or virtual
+    keyboard, or turning autocomplete off, ends all of this.
   - It stores only encrypted examples accepted in identified documents, for 30
     days, and estimated counts in `cotyping-stats.json` and `cotyping-usage.json`.
     Suggestions come from the local Autocomplete model or a server you approve,

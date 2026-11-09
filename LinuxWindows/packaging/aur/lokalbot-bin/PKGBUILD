@@ -53,6 +53,11 @@ package() {
   if [ -f com.lokalbot.LokalBot.xml ]; then
     install -Dm644 com.lokalbot.LokalBot.xml -t "$pkgdir/usr/share/ibus/component/"
   fi
+  # Lists LokalBot under KDE Plasma's Virtual Keyboard, for autocomplete.
+  # Archives after 0.12.2 have it.
+  if [ -f com.lokalbot.LokalBot.InputMethod.desktop ]; then
+    install -Dm644 com.lokalbot.LokalBot.InputMethod.desktop -t "$pkgdir/usr/share/applications/"
+  fi
   local size
   for size in 16 24 32 48 64 128 256 512; do
     install -Dm644 "icons/lokalbot-$size.png" \

@@ -204,6 +204,35 @@ pub fn ibus_component() -> Option<String> {
     }
 }
 
+/// Runs the input method KDE Plasma starts for LokalBot (`lokalbot
+/// --kwin-input-method`) until Plasma stops it, and returns the exit code.
+/// Plasma starts it once the user chooses LokalBot under System Settings →
+/// Keyboard → Virtual Keyboard.
+pub fn run_kwin_input_method() -> i32 {
+    #[cfg(target_os = "linux")]
+    {
+        input_method::run_kwin_helper()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        2
+    }
+}
+
+/// The desktop entry that lists LokalBot under Plasma's Virtual Keyboard, for
+/// installs that no package put it in place for (`lokalbot
+/// --kwin-input-method-entry`).
+pub fn kwin_input_method_entry() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        Some(input_method::kwin_desktop_entry())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
 /// What the user does to use autocomplete on this desktop, for Settings.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InputSourceSteps {
