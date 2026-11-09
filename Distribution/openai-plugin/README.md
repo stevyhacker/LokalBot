@@ -2,7 +2,7 @@
 
 LokalBot is your personal context engine: a private work-memory app for macOS, with a Windows and Linux app in alpha. This plugin lets ChatGPT and Codex read your local LokalBot library through `lokalbot-cli`, which runs on your computer: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself. Each kind of data has its own permission in LokalBot, and all of it is off until you turn it on.
 
-It is a skills-only plugin marked **Desktop only**: it runs in Codex and in ChatGPT desktop threads that run locally, not in ChatGPT on the web or phone. OpenAI accepts local MCP servers in the directory only from approved partners, so this plugin has no MCP server, and screen memory (which only LokalBot's MCP server serves) isn't part of it. The [Claude Code plugin](../claude-plugin/README.md) has the same skills plus that server.
+It is a skills-only plugin marked **Desktop only**: it runs in Codex and in ChatGPT desktop threads that run locally, not in ChatGPT on the web or phone. OpenAI accepts local MCP servers in the directory only from approved partners, so this plugin has no MCP server, and screen memory (which only LokalBot's MCP server serves) isn't part of it. The [Claude Code plugin](../claude-plugin/README.md) has the same skills and no MCP server either.
 
 ## Skills
 

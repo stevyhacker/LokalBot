@@ -46,6 +46,7 @@ Key facts:
 - [Local transcription models for Mac](https://www.lokalbot.com/local-transcription-models-mac): Granite Speech, Parakeet, Qwen3-ASR, and Whisper compared
 - [Open-source AI meeting notes: what to verify](https://www.lokalbot.com/open-source-ai-meeting-notes): license, local processing, network boundaries, storage, builds, and updates
 - [How do I let Claude Code or Codex search my meeting notes?](https://www.lokalbot.com/claude-code-codex-meeting-notes): read-only local MCP access to a meeting library, setup, tools, and where the data goes
+- [LokalBot plugins for Claude Code and Codex](https://www.lokalbot.com/claude-code-codex-plugins): catch-up brief, recall with citations, and guided setup skills, install commands, permissions, and where the data goes
 - [My company blocks AI notetaker bots. What can I use?](https://www.lokalbot.com/ai-notetaker-bots-blocked-at-work): what a local recorder changes and an IT approval checklist
 - [Can a bot-free meeting recorder tell who said what?](https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels): speaker separation without a bot, naming, and measured accuracy
 - [How do I get meeting transcripts into Obsidian as Markdown?](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown): a note for every meeting, a one-off export, a daily Obsidian note, or a CLI script
