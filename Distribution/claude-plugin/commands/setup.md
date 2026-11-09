@@ -10,7 +10,7 @@ Install LokalBot and set it up for the user by following [AGENT_SETUP.md](../../
 
 ## Steps
 
-These steps are for a Mac. On Windows or Linux, agent-driven setup isn't available yet: follow the Windows and Linux section of AGENT_SETUP.md with the user instead, and stop there.
+These steps are for a Mac. On Windows or Linux, follow the Windows and Linux section of AGENT_SETUP.md with the user instead of these steps: installing differs, and the same commands work once the app is running.
 
 1. If `/Applications/LokalBot.app` is missing, run `brew install --cask stevyhacker/tap/lokalbot`. Never remove the quarantine attribute.
 2. Use `CLI=/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`. Run `$CLI setup start --wait 300` and tell the user to click Allow in LokalBot. Add `--meeting-library`, `--screen-memory`, or `--files` only if they want you to read their meetings or screen memory, or search the folders they chose under Files.

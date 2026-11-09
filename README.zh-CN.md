@@ -133,7 +133,7 @@ Personal Context（个人上下文）是一份加密的列表，保存你的事�
 
 ### Windows 和 Linux 版（alpha）
 
-用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、与手机和平板共享、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
+用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、与手机和平板共享、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
 
 <a id="chinese"></a>
 
@@ -171,7 +171,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself 或 Files。在 Windows 和 Linux 上，到 **Settings → Privacy & Data** 开启会议记录库访问。然后在 **Settings → Advanced → Agent CLI** 安装 CLI。
+访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself 或 Files。在 Windows 和 Linux 上，每一项在 **Settings → Privacy & Data** 的 External agents 下都有单独的开关：会议记录库、文件、屏幕记忆和 What I shared about myself。然后在 **Settings → Advanced → Agent CLI** 安装 CLI。
 
 **想根据会议采取行动？** 在 Claude Code 或 Codex 中打开任意待办，提示词已经填好任务和它的出处，由你检查后发送。
 
@@ -180,13 +180,13 @@ claude mcp add lokalbot -- lokalbot-cli mcp
 ```bash
 lokalbot-cli search "database decision"
 lokalbot-cli get latest --include metadata,summary
-lokalbot-cli search-files "lease renewal" --kind pdf   # Mac，需勾选 Files
+lokalbot-cli search-files "lease renewal" --kind pdf   # 需开启 Files 访问
 lokalbot-cli mcp
 ```
 
-在 Mac 上，没有安装到 PATH 时，可以直接使用 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`。在 Windows 和 Linux 上，**Settings → Advanced → Agent CLI** 同样会安装 CLI，安装位置和加入 PATH 的方法见[编程智能体（英文）](LinuxWindows/README.md#coding-agents)。那里的 CLI 提供只读命令和除 `search_files` 外的全部 MCP 工具；`ask`、`reply`、`search-files` 以及设置和配置命令只有 Mac 版提供。
+在 Mac 上，没有安装到 PATH 时，可以直接使用 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`。在 Windows 和 Linux 上，**Settings → Advanced → Agent CLI** 同样会安装 CLI，安装位置和加入 PATH 的方法见[编程智能体（英文）](LinuxWindows/README.md#coding-agents)。各平台的命令和 MCP 工具完全相同。
 
-屏幕记忆的 MCP 工具需要单独授权，范围可以是今天、最近七天或全部保留的历史。它们返回文字和元数据，不返回解密后的截图。在 Mac 上，`search_files` 按内容搜索你在 Files 中选择的文件夹，返回文件路径、摘录和匹配的段落；它需要勾选 Files，并且不会更改你的文件。外部客户端可能会把结果发送给它们自己的模型提供商。
+屏幕记忆的 MCP 工具需要单独授权，范围可以是今天、最近七天或全部保留的历史。它们返回文字和元数据，不返回解密后的截图。`search_files` 按内容搜索你在 Files 中选择的文件夹，返回文件路径、摘录和匹配的段落；它需要开启 Files 访问，并且不会更改你的文件。外部客户端可能会把结果发送给它们自己的模型提供商。
 
 应用还提供可选的 **Agent Mode**，用来处理经过你审阅的上下文。文件和命令操作遵循它的审批设置，与只读的 CLI/MCP 接口相互独立。
 
@@ -283,7 +283,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 <details>
 <summary><strong>能在 Windows 或 Linux 上使用吗？</strong></summary>
 
-可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。会议简报中的 Gmail 目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
+可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议简报中的 Gmail 目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
 
 </details>
 

@@ -6,8 +6,8 @@ This plugin connects Claude Code to your on-device LokalBot meeting library thro
 
 - **`/lokalbot:recall` command** — search your meeting library and get answers with citations (meeting title + date). See [commands/recall.md](commands/recall.md).
 - **`/lokalbot:setup` command** (Mac) — install LokalBot and set it up with you: you allow access and approve consent changes in LokalBot, and Claude does the rest from the terminal. See [commands/setup.md](commands/setup.md) and [AGENT_SETUP.md](../../AGENT_SETUP.md).
-- **`lokalbot-cli` skill** — teaches Claude when and how to use the CLI (`list`, `get`, `search`, `path`, and on a Mac `search-files`) from [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md).
-- **`lokalbot` MCP server** — runs `lokalbot-cli mcp` over stdio, exposing `list_meetings`, `get_meeting`, `search_meetings`, and `ask_library` (plus the separately gated screen-memory and personal-context tools, and on a Mac `search_files` for the folders you chose under Files).
+- **`lokalbot-cli` skill** — teaches Claude when and how to use the CLI (`list`, `get`, `search`, `path`, and `search-files`) from [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md).
+- **`lokalbot` MCP server** — runs `lokalbot-cli mcp` over stdio, exposing `list_meetings`, `get_meeting`, `search_meetings`, and `ask_library` (plus the separately gated screen-memory and personal-context tools, and `search_files` for the folders you chose under Files).
 
 ## Install
 
