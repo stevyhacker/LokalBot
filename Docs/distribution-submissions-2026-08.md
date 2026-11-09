@@ -178,7 +178,7 @@ Ask me anything.
 
 ## 4. Skill registries
 
-Two real registries exist today; both were verified on 2026-08-21. The in-repo skill is `.agents/skills/lokalbot-cli/SKILL.md`; the Claude Code plugin manifests are `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`.
+Two real registries exist today; both were verified on 2026-08-21. The in-repo skill is `.agents/skills/lokalbot-cli/SKILL.md`. The Claude Code plugin is the self-contained folder `Distribution/claude-plugin/` (manifest in its `.claude-plugin/plugin.json`), listed by `.claude-plugin/marketplace.json` at the repository root.
 
 ### 4a. skills.sh (Vercel)
 
@@ -214,45 +214,52 @@ terms govern tool data. Works with any agent that reads SKILL.md files.
 
 ### 4b. Anthropic community plugin directory (Claude Code / Cowork)
 
-Verified: the directory lives at `anthropics/claude-plugins-community` (read-only mirror synced nightly from Anthropic's review pipeline after automated security scanning). **PRs opened directly against the repo are closed automatically.** Individual authors submit through the [Console form](https://platform.claude.com/plugins/submit); Team or Enterprise organization owners with directory-management access may use the [claude.ai form](https://claude.ai/admin-settings/directory/submissions/plugins/new). The old `https://clau.de/plugin-directory-submission` short link now redirects to documentation rather than directly to a form.
+Verified 2026-08-21, updated 2026-11-09: the directory lives at `anthropics/claude-plugins-community`, a read-only mirror synced from Anthropic's review pipeline after a safety scan and a policy review. **PRs opened directly against the repo are closed automatically.** As of 2026-11-09, LokalBot is in neither `claude-plugins-community` (2,283 plugins) nor `claude-plugins-official` (317), and Anthropic's docs send submissions to https://claude.ai/directory/manage, which needs a paid claude.ai plan. Plugins in a subfolder of a larger repository are listed as `git-subdir` sources, so users fetch only that folder.
 
-Submission step (≈15 minutes):
+Submission steps (≈15 minutes, owner-only because of the login):
 
-1. Run `claude plugin validate .` and resolve errors before submission (warnings are allowed but should be reviewed).
-2. Wait until `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json` are pushed to the repository's `master` branch — the form asks for the public source.
-3. Individual author: open https://platform.claude.com/plugins/submit. Team/Enterprise directory owner: open https://claude.ai/admin-settings/directory/submissions/plugins/new. If login or organization access is required, hand the final click to the owner.
-4. Expect automated security scanning, then nightly sync into the marketplace. After approval, users install with:
+1. From the repository root, run `claude plugin validate Distribution/claude-plugin --strict` and `claude plugin validate . --strict`. Both passed on 2026-11-09 with no warnings.
+2. Make sure the plugin folder is on public `master`.
+3. Open https://claude.ai/directory/manage and give the source as repository `github.com/stevyhacker/lokalbot`, path `Distribution/claude-plugin`.
+4. The listing icon is `Distribution/claude-plugin/.claude-plugin/icon.png`. The directory takes the icon only from the first save or submission, so don't submit before it is on `master`.
+5. After approval, users install with:
    ```
    claude plugin marketplace add anthropics/claude-plugins-community
-   claude plugin install <plugin-name>@claude-community
+   claude plugin install lokalbot@claude-community
    ```
 
 Ready submission text (adapt to whatever free-text fields the form offers):
 
 ```text
-Plugin: lokalbot (source: github.com/stevyhacker/lokalbot)
+Plugin: lokalbot (source: github.com/stevyhacker/lokalbot, path Distribution/claude-plugin)
 
-What it does: connects Claude Code and Claude Cowork to LokalBot, a
-local-first macOS workspace that records, transcribes, and summarizes
-meetings entirely on-device. Through the bundled read-only lokalbot-cli
-and its stdio MCP server, the plugin lets Claude list, search, and quote
-past meetings with transcript citations through a locally running bridge.
-LokalBot does not upload library content, but Claude Code or Cowork may
-process tool inputs and results under Anthropic's terms. MCP access is gated
-behind explicit in-app consent toggles; users should connect only clients
-they trust and retrieve the minimum meeting content needed.
+LokalBot is a personal context engine: a private work-memory app that
+records, transcribes, and summarizes meetings and remembers your workday on
+your own computer. This plugin lets Claude Code read that library through the
+bundled lokalbot-cli and its stdio MCP server: meetings and their action
+items, the people in them, screen memory (text and metadata, never
+screenshots), the folders the user chose under Files, and what the user
+shared about themselves. Each kind of data is off by default and has its own
+permission in LokalBot.
 
-Manifests: .claude-plugin/plugin.json and .claude-plugin/marketplace.json
-in the repo root define the plugin and its marketplace entry.
+Commands: /lokalbot:brief catches the user up on their work,
+/lokalbot:recall finds what they said, saw, agreed, or saved with citations,
+and /lokalbot:setup installs LokalBot and sets it up with the user. The
+lokalbot-cli skill teaches Claude when to check LokalBot and how to cite it.
 
-Skill: the plugin wraps .agents/skills/lokalbot-cli/SKILL.md, which
-documents list/search/get/path verbs, JSON output, least-data guidance, and
-the boundary between LokalBot's local bridge and the connected client's
-privacy terms.
+Settings: with a separate permission, Claude can check and change LokalBot's
+settings. Anything that widens what LokalBot captures, reads, records, or
+sends, and every API key, waits for the user's approval in the app. The CLI
+and MCP tools never change meetings or the user's files.
 
-Facts for reviewers: GPLv3; Apple Silicon M1+; macOS 15.0+; no account,
-no telemetry, no vendor cloud; Developer ID signed, notarized, stapled;
-Sparkle updates; latest release v0.6.2 (2026-08-20).
+Privacy: LokalBot does not upload the library. Claude Code may process tool
+inputs and results under Anthropic's terms, so the skills retrieve only what
+a question needs.
+
+Facts for reviewers: GPLv3; Mac app on Apple Silicon (M1 or later) with
+macOS 15+, Developer ID signed, notarized, and stapled; Windows 10/11 x64
+and Linux x86_64 apps in alpha; no account, no telemetry, no LokalBot
+cloud; latest release v0.12.2 (2026-11-05).
 ```
 
 ### Non-registries checked and ruled out
