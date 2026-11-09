@@ -24,6 +24,15 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
         /// documented way to fill a prompt without sending it.
         case codexApp
 
+        /// The link without its prompt, for records of where a handoff went.
+        var link: String {
+            switch self {
+            case .claudeDesktop: "claude://code/new"
+            case .claudeCodeTerminal: "claude-cli://open"
+            case .codexApp: "codex://new"
+            }
+        }
+
         /// Each route's documented link. None sets a working folder, so the
         /// agent starts where it normally does rather than in the library.
         func url(prompt: String) -> URL? {

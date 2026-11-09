@@ -586,10 +586,18 @@ final class AgentSessionController: ObservableObject {
         for request in pendingRequests where policy.verdict(
             tool: request.tool,
             path: request.path,
+            command: request.command,
             requestWorkspace: request.workspace,
             selectedWorkspace: workspace) == .allow {
             await respondToApproval(id: request.id, approved: true, scope: .once)
         }
+    }
+
+    /// Read-only `lokalbot-cli` lookups run without a card in the read modes.
+    /// On for tasks handed off from a meeting's actions.
+    var allowsLibraryLookups: Bool {
+        get { policy.allowsLibraryLookups }
+        set { policy.allowsLibraryLookups = newValue }
     }
 
     /// Keeps the existing unattended `--agent` test hook narrowly scoped to
@@ -700,6 +708,7 @@ final class AgentSessionController: ObservableObject {
         switch policy.verdict(
             tool: approval.tool,
             path: approval.path,
+            command: approval.command,
             requestWorkspace: approval.workspace,
             selectedWorkspace: workspace) {
         case .allow:

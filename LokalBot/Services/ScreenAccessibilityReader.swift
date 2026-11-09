@@ -17,6 +17,8 @@ struct ScreenAccessibilitySnapshot: Codable, Equatable, Sendable {
     var hasUnattributedWebContent: Bool?
     /// Elements the read inspected; nil for recorded reads.
     var inspectedNodes: Int?
+    /// The focused element's selected text. Only whole-document reads keep it.
+    var selectedText: String?
 
     func privacyObservation(appName: String, bundleIdentifier: String?) -> ScreenContextPrivacy.Observation {
         .init(appName: appName, bundleIdentifier: bundleIdentifier,
@@ -57,6 +59,19 @@ enum ScreenVisibleTextPolicy {
             if role == "AXStaticText", let staticValue { result.append(staticValue) }
         }
         return result
+    }
+}
+
+/// Hand off reads a whole document on an explicit press: every text element
+/// of the focused window, including what is scrolled out of view, in reading
+/// order. Screen memory never uses it.
+enum ScreenDocumentTextPolicy {
+    static let maximumCharacters = 100_000
+    static let textRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField", "AXComboBox", "AXHeading"]
+
+    static func text(role: String?, hidden: Bool, value: String?) -> [String] {
+        guard !hidden, let role, textRoles.contains(role), let value else { return [] }
+        return [value]
     }
 }
 
@@ -228,8 +243,17 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         case metadata
         /// The window and its focused element, without walking its contents.
         case window
+        /// Hand off, on an explicit press: every text element of the focused
+        /// window in reading order, including what is scrolled out of view.
+        /// Screen memory never uses it.
+        case document
 
-        var checksSecureFields: Bool { self == .text || self == .privacy }
+        var checksSecureFields: Bool { self == .text || self == .privacy || self == .document }
+
+        var maximumDuration: Duration { self == .document ? .milliseconds(2_500) : .milliseconds(140) }
+        var maximumCharacters: Int { self == .document ? ScreenDocumentTextPolicy.maximumCharacters : 24_000 }
+        var maximumChildren: Int { self == .document ? 800 : 80 }
+        var maximumElementCharacters: Int { self == .document ? ScreenDocumentTextPolicy.maximumCharacters : 8_000 }
 
         /// Read in one cross-process call per element. Values a node rarely
         /// needs or that can be large (`AXValue`, `AXChildren`) stay separate.
@@ -241,6 +265,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                 return secureField + walk + [kAXPositionAttribute as String, kAXSizeAttribute as String,
                                              kAXVisibleCharacterRangeAttribute as String]
             case .privacy: return secureField + walk
+            // A document read walks every child, which it reads separately.
+            case .document: return secureField + ["AXHidden", kAXURLAttribute as String]
             case .metadata: return [kAXRoleAttribute as String] + walk
             case .window: return []
             }
@@ -249,7 +275,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
 
     /// `nodeLimit` caps the elements visited; a privacy recheck passes the
     /// count the capture's own read inspected, so both judge the same part
-    /// of the window even though the recheck reads faster.
+    /// of the window even though the recheck reads faster. A document read
+    /// visits up to 6,000 elements instead.
     static func resolve(processID: pid_t, reading: Reading = .text,
                         nodeLimit: Int = 320) -> ScreenAccessibilitySnapshot? {
         let diagnosed = reading == .text
@@ -282,17 +309,27 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         var containsSecureField = false
         var totalCharacters = 0
         let started = ContinuousClock.now
-        let maximumDuration = Duration.milliseconds(140)
-        let maximumNodes = reading == .window ? 0 : nodeLimit
-        let maximumCharacters = 24_000
+        let maximumDuration = reading.maximumDuration
+        let maximumNodes = switch reading {
+        case .window: 0
+        case .document: 6_000
+        case .text, .privacy, .metadata: nodeLimit
+        }
+        let maximumCharacters = reading.maximumCharacters
         let names = reading.nodeAttributes
 
         while head < queue.count,
               visited.count < maximumNodes,
               totalCharacters < maximumCharacters,
               started.duration(to: .now) < maximumDuration {
-            let next = queue[head]
-            head += 1
+            let next: (element: AXUIElement, viewport: CGRect?)
+            if reading == .document {
+                // A document is read depth first, so its text keeps reading order.
+                next = queue.removeLast()
+            } else {
+                next = queue[head]
+                head += 1
+            }
             let element = next.element
             let identity = CFHash(element)
             guard visited.insert(identity).inserted else { continue }
@@ -305,21 +342,33 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                                                         size: node.value(kAXSizeAttribute as String)) : nil
             let hidden = node.value("AXHidden") as? Bool == true
             if secure == true, Self.isTextEntry(role: role) { containsSecureField = true }
-            if reading == .text, secure == false,
-               ScreenVisibleTextPolicy.mayShowText(frame: elementFrame, viewport: next.viewport, hidden: hidden) {
-                let visibleText = ScreenVisibleTextPolicy.text(
-                    role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
-                    title: textualValue(node.value(kAXTitleAttribute as String)),
-                    visibleRangeText: Self.visibleText(
-                        of: element, range: node.value(kAXVisibleCharacterRangeAttribute as String)),
-                    staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
-                for text in visibleText {
+            if secure == false {
+                let texts: [String] = switch reading {
+                case .text where ScreenVisibleTextPolicy.mayShowText(
+                    frame: elementFrame, viewport: next.viewport, hidden: hidden):
+                    ScreenVisibleTextPolicy.text(
+                        role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
+                        title: textualValue(node.value(kAXTitleAttribute as String)),
+                        visibleRangeText: Self.visibleText(
+                            of: element, range: node.value(kAXVisibleCharacterRangeAttribute as String)),
+                        staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
+                case .document:
+                    // Only text roles are worth a separate call for their value.
+                    ScreenDocumentTextPolicy.text(
+                        role: role, hidden: hidden,
+                        value: ScreenDocumentTextPolicy.textRoles.contains(role ?? "")
+                            ? textualAttribute(element, kAXValueAttribute as String) : nil)
+                default:
+                    []
+                }
+                for text in texts {
                     append(
                         text,
                         parts: &parts,
                         seen: &seenText,
                         totalCharacters: &totalCharacters,
-                        maximumCharacters: maximumCharacters)
+                        maximumCharacters: maximumCharacters,
+                        maximumElementCharacters: reading.maximumElementCharacters)
                 }
             }
 
@@ -329,12 +378,21 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                 // own URL (or the window document) can establish that origin.
                 webAreaURLs.append(urlString(node.value(kAXURLAttribute as String)))
             }
-            if !hidden, let children = (node.value(kAXVisibleChildrenAttribute as String)
-                ?? attribute(element, kAXChildrenAttribute as String)) as? [AXUIElement] {
+            // Only a document read walks children that are out of view.
+            var rawChildren: CFTypeRef?
+            if !hidden {
+                rawChildren = reading == .document
+                    ? attribute(element, kAXChildrenAttribute as String)
+                    : node.value(kAXVisibleChildrenAttribute as String) ?? attribute(element, kAXChildrenAttribute as String)
+            }
+            if let children = rawChildren as? [AXUIElement] {
                 let clipsChildren = ["AXScrollArea", "AXWebArea", "AXWindow"].contains(role ?? "")
                 let viewport = clipsChildren
                     ? elementFrame.flatMap { next.viewport?.intersection($0) } : next.viewport
-                queue.append(contentsOf: children.prefix(80).map { ($0, viewport) })
+                let kept: [(element: AXUIElement, viewport: CGRect?)] =
+                    children.prefix(reading.maximumChildren).map { ($0, viewport) }
+                // Popped from the end, so the first child is read first.
+                queue.append(contentsOf: reading == .document ? Array(kept.reversed()) : kept)
             }
         }
 
@@ -361,6 +419,11 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         noteTextReadFailure(nil, processID: processID, includeText: diagnosed)
         let text = parts.joined(separator: "\n")
         let address = pageAddress(document: document, webAreaURLs: webAreaURLs)
+        let selectedText = reading == .document && settledFocus.focus == false
+            ? focused.flatMap { textualAttribute($0, kAXSelectedTextAttribute as String) }
+                .map { String($0.prefix(reading.maximumElementCharacters)) }
+                .flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+            : nil
         return ScreenAccessibilitySnapshot(
             text: text,
             sourceURL: address.sourceURL,
@@ -372,7 +435,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             containsSecureField: containsSecureField,
             framedURLs: address.framedURLs.isEmpty ? nil : address.framedURLs,
             hasUnattributedWebContent: address.hasUnattributedWebContent ? true : nil,
-            inspectedNodes: visited.count)
+            inspectedNodes: visited.count,
+            selectedText: selectedText)
     }
 
     /// One element's attributes from a single cross-process call. A walk used
@@ -486,12 +550,13 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         parts: inout [String],
         seen: inout Set<String>,
         totalCharacters: inout Int,
-        maximumCharacters: Int
+        maximumCharacters: Int,
+        maximumElementCharacters: Int = 8_000
     ) {
         let value = raw
             .replacingOccurrences(of: "\u{0000}", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty, value.count <= 8_000, seen.insert(value).inserted else { return }
+        guard !value.isEmpty, value.count <= maximumElementCharacters, seen.insert(value).inserted else { return }
         let remaining = maximumCharacters - totalCharacters
         guard remaining > 0 else { return }
         let clipped = String(value.prefix(remaining))

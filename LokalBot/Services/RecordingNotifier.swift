@@ -116,6 +116,25 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
         "settings-approval-\(id.uuidString)"
     }
 
+    private static let agentHandoffKey = "lokalbot.agent-handoff"
+
+    /// Opens Agent Mode when the person clicks a handoff notification.
+    var onOpenAgent: (@MainActor () -> Void)?
+
+    /// Posted when a meeting's actions were handed to Agent Mode on their own.
+    func actionsHandedOff(count: Int, meetingTitle: String, started: Bool) {
+        let title = switch (started, count) {
+        case (true, 1): "An agent is working on your action"
+        case (true, _): "Agents are working on \(count) of your actions"
+        case (false, 1): "Your action is ready for Agent Mode"
+        case (false, _): "\(count) of your actions are ready for Agent Mode"
+        }
+        post(title: title,
+             body: started ? "From \(meetingTitle). Open Agent Mode to follow along."
+                 : "From \(meetingTitle). Review and send each one in Agent Mode.",
+             userInfo: [Self.agentHandoffKey: "1"])
+    }
+
     func recordingStarted(title: String) {
         post(title: "Recording started", body: title)
     }
@@ -248,6 +267,10 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
         }
         if response.notification.request.content.userInfo[Self.settingsApprovalKey] != nil {
             WindowAccess.shared.open("settings-approval")
+            return
+        }
+        if response.notification.request.content.userInfo[Self.agentHandoffKey] != nil {
+            onOpenAgent?()
             return
         }
         let identifier = response.notification.request.identifier

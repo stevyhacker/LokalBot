@@ -289,6 +289,12 @@ enum SettingRegistry {
         entry("selectionActionsShortcut", .ask, "Selection actions shortcut", .structured,
               aliases: "selection actions hotkey keyboard key combination",
               summary: "Key combination that opens selection actions, as a key code and modifier flags."),
+        entry("windowHandoffEnabled", .ask, "Enable the Hand off shortcut", .bool, .consent,
+              aliases: "hand off handoff window agent global hotkey",
+              summary: "Register a global shortcut that reads the focused window and hands its task to Agent Mode, Claude Code, Codex, or the clipboard."),
+        entry("windowHandoffShortcut", .ask, "Hand off shortcut", .structured,
+              aliases: "hand off handoff hotkey keyboard key combination",
+              summary: "Key combination that hands off the focused window, as a key code and modifier flags."),
     ]
 
     private static let recording: [SettingSpec] = [
@@ -315,6 +321,12 @@ enum SettingRegistry {
               summary: "Transcribe each meeting when it ends."),
         entry("autoSummarize", .recording, "Summarize automatically after transcription", .bool,
               summary: "Write meeting notes once transcription finishes."),
+        entry("handOffActionsAfterSummary", .recording, "Hand off my actions to Agent Mode after each summary",
+              .bool, .consent, aliases: "agent swarm handoff action items tasks automatic",
+              summary: "After each summary, open one Agent Mode task per open action that is yours, with the meeting's notes attached."),
+        entry("startHandoffsAutomatically", .recording, "Start handoffs automatically", .bool, .consent,
+              aliases: "agent swarm handoff auto start send",
+              summary: "Handed-off Agent Mode tasks start on their own instead of waiting in the composer for Send."),
         entry("echoCancellation", .recording, "Remove the other side from your microphone track", .bool,
               aliases: "echo cancellation headphones",
               summary: "Subtract the system-audio track from the microphone track before transcription."),

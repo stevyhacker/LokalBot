@@ -22,6 +22,7 @@ struct DictationSettingsControls: View {
                         candidate.problem
                             ?? (candidate == app.settings.quickRecallShortcut ? .usedByAsk : nil)
                             ?? (candidate == app.settings.selectionActionsShortcut ? .usedBySelectionActions : nil)
+                            ?? (candidate == app.settings.windowHandoffShortcut ? .usedByWindowHandoff : nil)
                     },
                     onRecordingChanged: { app.setShortcutRecording($0) })
             }
