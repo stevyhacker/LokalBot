@@ -52,6 +52,7 @@ Key facts:
 
 ## Comparisons
 
+- [The best open-source AI assistants you can run locally](https://www.lokalbot.com/best-open-source-ai-assistants): LokalBot, Ollama, LM Studio, Jan, AnythingLLM, and Open WebUI compared on memory, document chat, licenses, platforms, and installation, with our own screenshots; re-checked monthly. LM Studio's app is proprietary, and Open WebUI's license is not OSI open source since 0.6.6.
 - [LokalBot vs Granola](https://www.lokalbot.com/lokalbot-vs-granola)
 - [LokalBot vs Apple Notes](https://www.lokalbot.com/lokalbot-vs-apple-notes)
 - [LokalBot vs Otter.ai](https://www.lokalbot.com/lokalbot-vs-otter)

@@ -2,8 +2,12 @@
 
 Rendered by Scripts/render_web.py. Keep claims aligned with the checked-in
 README and implementation; these pages intentionally avoid competitor claims.
-A guide with "kind": "question" is listed under Questions on /guides.
+A guide with "kind": "question" is listed under Questions on /guides, and one
+with "kind": "compare" under Compare. The AI assistants comparison lives in
+Scripts/assistant_roundup.py.
 """
+
+from assistant_roundup import ROUNDUP
 
 # Head and structured-data copy for web/guides.html.
 GUIDES_INDEX = {
@@ -807,6 +811,7 @@ lokalbot-cli list <span class="c-op">\\</span>
         ],
         "related": ["claude-code-codex-meeting-notes", "local-ai-meeting-notes-mac", "open-source-ai-meeting-notes"],
     },
+    ROUNDUP,
 ]
 
 # Hand-written reference pages (web/about.html, web/benchmarks.html). The
