@@ -1,0 +1,41 @@
+{
+  "title": "Launch sync",
+  "date": "2026-10-27T10:00:00Z",
+  "attendees": [
+    "Ana Petrović",
+    "Marko Ilić"
+  ],
+  "personName": "Jordan Lee",
+  "action": {
+    "text": "Send the revised pricing deck to Marko",
+    "owner": "Me",
+    "due": "by Friday",
+    "evidence": [
+      "00:00:22 Me: “I'll send the revised pricing deck to Marko by Friday.”"
+    ]
+  },
+  "summary": "## TL;DR\nThe team reviewed the launch checklist. Annual plans get twenty percent off. The launch date (Monday 3 November or Friday 7 November) and the free tier limit (three projects or one) conflict with the 19 October plan and are open; the person will settle them with Ana tomorrow.\n\n## Actions\n- Me: send the revised pricing deck to Marko by Friday.\n- Marko: review the onboarding emails before Wednesday.",
+  "transcript": [
+    "00:00:14 Others: Sure. The pricing page is almost done, I just need the final numbers.",
+    "00:00:22 Me: I'll send the revised pricing deck to Marko by Friday.",
+    "00:00:49 Others: Okay. So the launch is Friday the seventh now, right? Marketing told me Friday.",
+    "00:01:06 Others: Also, the free tier will be limited to one project, that's what sales wants.",
+    "00:01:15 Me: Okay, we'll decide that with Ana tomorrow.",
+    "00:01:33 Me: Perfect. Let's go with twenty percent off for annual plans then.",
+    "00:01:41 Others: Agreed, twenty percent it is. Thanks, talk tomorrow."
+  ],
+  "library": [
+    {
+      "id": "p1an0019",
+      "title": "Launch planning",
+      "date": "2026-10-19",
+      "text": "We agreed the launch is Monday, November 3rd, and the pricing page ships the Friday before. The free tier keeps three projects. Pricing deck v1 has monthly prices only."
+    },
+    {
+      "id": "one2one22",
+      "title": "Weekly 1:1",
+      "date": "2026-10-22",
+      "text": "Marko can review the onboarding emails once the copy is final. The pricing deck lives in the Launch folder as Pricing v2."
+    }
+  ]
+}

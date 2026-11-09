@@ -1,0 +1,231 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I will put the minutes in the project uh project document folder.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2124.32,
+          "excerpt" : "Uh okay. I will put the minutes in the project uh project document folder. Um what we're going to do for the next meeting is the Industrial Designer will do the components concept, User Interface Designer the user interface concept, and the trend-watching.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0397-0002105960-0002124320",
+          "speaker" : "them 1",
+          "start" : 2105.96
+        }
+      ],
+      "id" : "9827d948fcf2a241",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Will store meeting minutes in the project document folder."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1804.28,
+          "excerpt" : "Yeah I think maybe we should do some research into",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0308-0001801920-0001804280",
+          "speaker" : "them 2",
+          "start" : 1801.92
+        }
+      ],
+      "id" : "68333be5478a2116",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will conduct research on features elderly people prefer in a new remote control."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 2051.96,
+          "excerpt" : "I'd have to look into that a little more.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0373-0002050420-0002051960",
+          "speaker" : "them 2",
+          "start" : 2050.42
+        }
+      ],
+      "id" : "95e071b9b94adf6c",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will research the specific target age group for the remote control."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "this time I will take the minutes.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 139.11,
+          "excerpt" : "It's in wing C_ and E_. So it should be over in a in a while, couple of days. But it's going to be cold anyway, so I don't think you're gonna need it. Then our agenda. Now first the opening. Uh this time I will take the minutes.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0008-0000121570-0000139110",
+          "speaker" : "them 1",
+          "start" : 121.57
+        }
+      ],
+      "id" : "52272ee960fc6c0f",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Will take the minutes for the meeting."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "Think I'll go first.",
+        "resolution" : "other",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 183.55,
+          "excerpt" : "Think I'll go first.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0013-0000182760-0000183550",
+          "speaker" : "them 2",
+          "start" : 182.76
+        }
+      ],
+      "id" : "277c10d78a2d0c78",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 2",
+      "schemaVersion" : 4,
+      "text" : "Will present first."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 898.19,
+          "excerpt" : "We would have to look into that.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0110-0000897090-0000898190",
+          "speaker" : "them 2",
+          "start" : 897.09
+        }
+      ],
+      "id" : "b3f99ef091973ca7",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will investigate the feasibility of a docking station."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1172.15,
+          "excerpt" : "let's have a discussion on the control functions.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0135-0001168780-0001172150",
+          "speaker" : "them 1",
+          "start" : 1168.78
+        }
+      ],
+      "id" : "32ba791be122b10c",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will facilitate a discussion on control functions."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2139.55,
+          "excerpt" : "So just keep in mind the things we've said about the target group, uh requirements, and the trends which are uh going on. And uh specific instructions will be sent to you by uh the personal coach.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0398-0002124580-0002139550",
+          "speaker" : "them 1",
+          "start" : 2124.58
+        }
+      ],
+      "id" : "e182b970742798c1",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will send specific instructions to the designer via the personal coach."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousQuote",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2124.32,
+          "excerpt" : "Uh okay. I will put the minutes in the project uh project document folder. Um what we're going to do for the next meeting is the Industrial Designer will do the components concept, User Interface Designer the user interface concept, and the trend-watching.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0397-0002105960-0002124320",
+          "speaker" : "them 1",
+          "start" : 2105.96
+        },
+        {
+          "end" : 2094.82,
+          "excerpt" : "Yeah.",
+          "meetingID" : "E6257D03-D534-5874-8F50-1A50CE39DA97",
+          "segmentID" : "segment-0396-0002094570-0002094820",
+          "speaker" : "them 4",
+          "start" : 2094.57
+        }
+      ],
+      "due" : "unknown",
+      "id" : "b53ba941733430d8",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Assigned Industrial Designer to create components concept, User Interface Designer to create user interface concept, and trend-watching."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "d0878be5afb437d7e0845299680002f0616272ce0b2673c850a61413e81c9a1c"
+}

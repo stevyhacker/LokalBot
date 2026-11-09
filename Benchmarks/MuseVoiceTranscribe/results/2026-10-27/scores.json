@@ -1,0 +1,1162 @@
+{
+  "scored": "2026-10-27",
+  "raw": "raw",
+  "recordings": [
+    "EN2002a_mhm",
+    "EN2002a_sdm",
+    "ES2004a_mhm",
+    "ES2004a_sdm",
+    "IS1009a_mhm",
+    "IS1009a_sdm",
+    "TS3003a_mhm",
+    "TS3003a_sdm"
+  ],
+  "labels": {
+    "baseline": "LokalBot before Nemotron (FluidAudio 0.15.8)",
+    "offline": "Nemotron 3 offline, local (LokalBot default)",
+    "low": "Nemotron 3 low, local streaming API",
+    "muse-voice-transcribe": "Muse Voice Transcribe 1.0, realtime DIARIZATION (cloud)"
+  },
+  "views": {
+    "full": [
+      {
+        "engine": "muse-voice-transcribe",
+        "perFile": [
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 52.85585947286619,
+            "der250": 42.62747730186616
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 53.46249440484926,
+            "der250": 42.1762878352473
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 53.385707409953355,
+            "der250": 46.142469417456596
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 6,
+            "der0": 55.56780377505483,
+            "der250": 46.828855760531496
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 50.09569307730336,
+            "der250": 43.114279273723184
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 48.816848507987444,
+            "der250": 40.460068816801765
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 5,
+            "der0": 98.28645732042297,
+            "der250": 99.24007324504554
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 5,
+            "der0": 92.22666857833148,
+            "der250": 90.03739411743673
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "muse-voice-transcribe",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 5,
+            "der0": 60.35827491351117,
+            "der250": 53.1292550105189,
+            "components0": {
+              "false alarm": 3038.8660000000036,
+              "confusion": 419.3840000000022,
+              "total": 7867.477999999996,
+              "missed detection": 1290.424000000002,
+              "correct": 6157.669999999991
+            }
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 3,
+            "der0": 60.65687123624636,
+            "der250": 54.2821518126028,
+            "components0": {
+              "false alarm": 1599.666000000002,
+              "confusion": 171.7320000000017,
+              "total": 3933.7389999999973,
+              "missed detection": 614.6849999999997,
+              "correct": 3147.3219999999965
+            }
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 2,
+            "der0": 60.05967859077599,
+            "der250": 51.976358208435016,
+            "components0": {
+              "false alarm": 1439.2000000000012,
+              "confusion": 247.6520000000005,
+              "total": 3933.7389999999973,
+              "missed detection": 675.7390000000021,
+              "correct": 3010.347999999995
+            }
+          }
+        ]
+      },
+      {
+        "engine": "baseline",
+        "perFile": [
+          {
+            "engine": "baseline",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 45.68648073609661,
+            "der250": 32.08246641688472
+          },
+          {
+            "engine": "baseline",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 5,
+            "der0": 46.08567782433003,
+            "der250": 32.01083220840034
+          },
+          {
+            "engine": "baseline",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 36.896210783092066,
+            "der250": 24.078342987073594
+          },
+          {
+            "engine": "baseline",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 41.86741508231699,
+            "der250": 29.30870831905976
+          },
+          {
+            "engine": "baseline",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 33.677469400362156,
+            "der250": 22.86867328721137
+          },
+          {
+            "engine": "baseline",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 35.4291985157818,
+            "der250": 24.432509791693533
+          },
+          {
+            "engine": "baseline",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 2,
+            "der0": 48.541257938548,
+            "der250": 36.904334389141795
+          },
+          {
+            "engine": "baseline",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 2,
+            "der0": 48.66152523370626,
+            "der250": 35.73586491066762
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "baseline",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 5,
+            "der0": 43.435169553084506,
+            "der250": 30.449328584425743,
+            "components0": {
+              "false alarm": 1512.8265639343272,
+              "confusion": 697.4639275817863,
+              "total": 7867.477999999996,
+              "missed detection": 1206.9619173355068,
+              "correct": 5963.052155082702
+            }
+          },
+          {
+            "engine": "baseline",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 3,
+            "der0": 42.74345566134803,
+            "der250": 29.96191118812945,
+            "components0": {
+              "false alarm": 771.8629449996959,
+              "confusion": 334.7818400421119,
+              "total": 3933.7389999999973,
+              "missed detection": 574.7712002563464,
+              "correct": 3024.185959701539
+            }
+          },
+          {
+            "engine": "baseline",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 2,
+            "der0": 44.126883444821,
+            "der250": 30.93674598072204,
+            "components0": {
+              "false alarm": 740.9636189346313,
+              "confusion": 362.6820875396742,
+              "total": 3933.7389999999973,
+              "missed detection": 632.1907170791603,
+              "correct": 2938.866195381163
+            }
+          }
+        ]
+      },
+      {
+        "engine": "offline",
+        "perFile": [
+          {
+            "engine": "offline",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 14.729078565803427,
+            "der250": 7.889340553565679
+          },
+          {
+            "engine": "offline",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 16.43540885819697,
+            "der250": 9.156218937037957
+          },
+          {
+            "engine": "offline",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 9.675468965814325,
+            "der250": 4.530569129880531
+          },
+          {
+            "engine": "offline",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 18.104613071172825,
+            "der250": 12.533526888558736
+          },
+          {
+            "engine": "offline",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 19.487748891471714,
+            "der250": 15.551144581381807
+          },
+          {
+            "engine": "offline",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 13.022574033837909,
+            "der250": 8.306313001535113
+          },
+          {
+            "engine": "offline",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 9.448635378864742,
+            "der250": 3.8381427856877384
+          },
+          {
+            "engine": "offline",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 12.477021584583008,
+            "der250": 5.2486904168632025
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "offline",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 8,
+            "der0": 14.555073964841156,
+            "der250": 8.33825646605629,
+            "components0": {
+              "false alarm": 344.6395780861426,
+              "confusion": 139.2971295187485,
+              "total": 7867.477999308582,
+              "missed detection": 661.180534362078,
+              "correct": 7067.000335427754
+            }
+          },
+          {
+            "engine": "offline",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 13.61470249221739,
+            "der250": 7.79579550947701,
+            "components0": {
+              "false alarm": 159.5850338375588,
+              "confusion": 82.43617319679322,
+              "total": 3933.738999918935,
+              "missed detection": 293.54565462493866,
+              "correct": 3557.7571720972032
+            }
+          },
+          {
+            "engine": "offline",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 15.495445437591451,
+            "der250": 8.880717422635573,
+            "components0": {
+              "false alarm": 185.05454424858374,
+              "confusion": 56.8609563219553,
+              "total": 3933.738999389646,
+              "missed detection": 367.6348797371394,
+              "correct": 3509.2431633305514
+            }
+          }
+        ]
+      },
+      {
+        "engine": "low",
+        "perFile": [
+          {
+            "engine": "low",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 15.591718329703836,
+            "der250": 8.849498220950442
+          },
+          {
+            "engine": "low",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 17.241310124971523,
+            "der250": 9.9435884352332
+          },
+          {
+            "engine": "low",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 9.872456613008765,
+            "der250": 4.91112207168815
+          },
+          {
+            "engine": "low",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 29.85398709617821,
+            "der250": 25.999458417122234
+          },
+          {
+            "engine": "low",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 18.60310510704233,
+            "der250": 14.551701799205613
+          },
+          {
+            "engine": "low",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 13.77230437483578,
+            "der250": 9.086578507634473
+          },
+          {
+            "engine": "low",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 9.274778746462394,
+            "der250": 3.812092933400418
+          },
+          {
+            "engine": "low",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 17.706476780219337,
+            "der250": 10.067689167594095
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "low",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 8,
+            "der0": 16.47767731829994,
+            "der250": 10.454757464309345,
+            "components0": {
+              "false alarm": 329.62934584903985,
+              "confusion": 273.33839409017787,
+              "total": 7867.477998016353,
+              "missed detection": 693.409897662161,
+              "correct": 6900.729706264013
+            }
+          },
+          {
+            "engine": "low",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 13.899604006835462,
+            "der250": 8.124091255907606,
+            "components0": {
+              "false alarm": 156.95613459444147,
+              "confusion": 82.8000306105615,
+              "total": 3933.7389990463234,
+              "missed detection": 307.01797832488893,
+              "correct": 3543.9209901108725
+            }
+          },
+          {
+            "engine": "low",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 19.055750629814423,
+            "der250": 12.785423672711083,
+            "components0": {
+              "false alarm": 172.67321125459836,
+              "confusion": 190.53836347961638,
+              "total": 3933.738998970029,
+              "missed detection": 386.39191933727204,
+              "correct": 3356.8087161531403
+            }
+          }
+        ]
+      }
+    ],
+    "oracleSpeech": [
+      {
+        "engine": "muse-voice-transcribe",
+        "perFile": [
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 25.933355067503555,
+            "der250": 16.546989859691458
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 28.17644721793908,
+            "der250": 18.245159941963532
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 15.266629310381369,
+            "der250": 7.896589702238015
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 6,
+            "der0": 21.79781592760957,
+            "der250": 13.942689690437412
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 18.890449781937285,
+            "der250": 13.304439917147572
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 20.70201028884135,
+            "der250": 14.239718948438382
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 5,
+            "der0": 9.609239587932079,
+            "der250": 4.6630671456828265
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 5,
+            "der0": 14.833479310721817,
+            "der250": 9.602026471346486
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "muse-voice-transcribe",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 5,
+            "der0": 21.732606052409743,
+            "der250": 13.601437272203674,
+            "components0": {
+              "false alarm": 0.0,
+              "confusion": 419.3840000000022,
+              "total": 7867.477999999996,
+              "missed detection": 1290.424000000002,
+              "correct": 6157.669999999991
+            }
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 3,
+            "der0": 19.991590697806892,
+            "der250": 12.103492022456575,
+            "components0": {
+              "false alarm": 0.0,
+              "confusion": 171.7320000000017,
+              "total": 3933.7389999999973,
+              "missed detection": 614.6849999999997,
+              "correct": 3147.3219999999965
+            }
+          },
+          {
+            "engine": "muse-voice-transcribe",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 2,
+            "der0": 23.473621407012597,
+            "der250": 15.099382521950771,
+            "components0": {
+              "false alarm": 0.0,
+              "confusion": 247.6520000000005,
+              "total": 3933.7389999999973,
+              "missed detection": 675.7390000000021,
+              "correct": 3010.347999999995
+            }
+          }
+        ]
+      },
+      {
+        "engine": "baseline",
+        "perFile": [
+          {
+            "engine": "baseline",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 29.75146419366647,
+            "der250": 20.284392677526117
+          },
+          {
+            "engine": "baseline",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 5,
+            "der0": 30.78042458299305,
+            "der250": 21.072821240212434
+          },
+          {
+            "engine": "baseline",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 17.56196899389074,
+            "der250": 10.02233324214811
+          },
+          {
+            "engine": "baseline",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 22.45403396365201,
+            "der250": 14.551353663157855
+          },
+          {
+            "engine": "baseline",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 19.92961788871008,
+            "der250": 13.730179322538666
+          },
+          {
+            "engine": "baseline",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 21.18138950428517,
+            "der250": 15.021387908524932
+          },
+          {
+            "engine": "baseline",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 2,
+            "der0": 13.535568862236468,
+            "der250": 8.760083863736183
+          },
+          {
+            "engine": "baseline",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 2,
+            "der0": 16.851105719982286,
+            "der250": 11.266418604861864
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "baseline",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 5,
+            "der0": 24.206306581566466,
+            "der250": 15.995455337363259,
+            "components0": {
+              "false alarm": 0.0,
+              "confusion": 697.4639275817863,
+              "total": 7867.477999999996,
+              "missed detection": 1206.9619173355068,
+              "correct": 5963.052155082702
+            }
+          },
+          {
+            "engine": "baseline",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 3,
+            "der0": 23.121845152880223,
+            "der250": 15.047303725707042,
+            "components0": {
+              "false alarm": 0.0,
+              "confusion": 334.7818400421119,
+              "total": 3933.7389999999973,
+              "missed detection": 574.7712002563464,
+              "correct": 3024.185959701539
+            }
+          },
+          {
+            "engine": "baseline",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 2,
+            "der0": 25.290768010252723,
+            "der250": 16.94360694901948,
+            "components0": {
+              "false alarm": 0.0,
+              "confusion": 362.6820875396742,
+              "total": 3933.7389999999973,
+              "missed detection": 632.1907170791603,
+              "correct": 2938.866195381163
+            }
+          }
+        ]
+      },
+      {
+        "engine": "offline",
+        "perFile": [
+          {
+            "engine": "offline",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 11.940470142633727,
+            "der250": 6.361205472261994
+          },
+          {
+            "engine": "offline",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 13.652381474810168,
+            "der250": 7.766898315096558
+          },
+          {
+            "engine": "offline",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 7.417554727861426,
+            "der250": 3.6868636167260638
+          },
+          {
+            "engine": "offline",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 14.685427444159272,
+            "der250": 10.044070456417385
+          },
+          {
+            "engine": "offline",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 16.85488403153599,
+            "der250": 13.651663758231928
+          },
+          {
+            "engine": "offline",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 9.545393159733036,
+            "der250": 5.539603447847905
+          },
+          {
+            "engine": "offline",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 7.20020011540568,
+            "der250": 3.192107509160949
+          },
+          {
+            "engine": "offline",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 9.840645040566999,
+            "der250": 4.421223349398861
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "offline",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 8,
+            "der0": 11.779312744224589,
+            "der250": 6.831161679448626,
+            "components0": {
+              "false alarm": 126.25717474079505,
+              "confusion": 139.2971295187485,
+              "total": 7867.477999308582,
+              "missed detection": 661.180534362078,
+              "correct": 7067.000335427754
+            }
+          },
+          {
+            "engine": "offline",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 11.042674589483298,
+            "der250": 6.500804828430519,
+            "components0": {
+              "false alarm": 58.40816913891078,
+              "confusion": 82.43617319679322,
+              "total": 3933.738999918935,
+              "missed detection": 293.54565462493866,
+              "correct": 3557.7571720972032
+            }
+          },
+          {
+            "engine": "offline",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 12.515950899065,
+            "der250": 7.161518530466735,
+            "components0": {
+              "false alarm": 67.84900560188426,
+              "confusion": 56.8609563219553,
+              "total": 3933.738999389646,
+              "missed detection": 367.6348797371394,
+              "correct": 3509.2431633305514
+            }
+          }
+        ]
+      },
+      {
+        "engine": "low",
+        "perFile": [
+          {
+            "engine": "low",
+            "id": "EN2002a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 13.027758941483109,
+            "der250": 7.520694276314146
+          },
+          {
+            "engine": "low",
+            "id": "EN2002a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 14.740701666164815,
+            "der250": 8.786388758879383
+          },
+          {
+            "engine": "low",
+            "id": "ES2004a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 7.684972188380479,
+            "der250": 4.0878661417948665
+          },
+          {
+            "engine": "low",
+            "id": "ES2004a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 26.12861992968403,
+            "der250": 22.92668152515675
+          },
+          {
+            "engine": "low",
+            "id": "IS1009a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 16.070960292218235,
+            "der250": 12.810029665800792
+          },
+          {
+            "engine": "low",
+            "id": "IS1009a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 10.492091835164848,
+            "der250": 6.46852879847164
+          },
+          {
+            "engine": "low",
+            "id": "TS3003a_mhm",
+            "condition": "mhm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 7.1605450221884706,
+            "der250": 3.290994738055901
+          },
+          {
+            "engine": "low",
+            "id": "TS3003a_sdm",
+            "condition": "sdm",
+            "referenceSpeakers": 4,
+            "predictedSpeakers": 4,
+            "der0": 15.275270623064523,
+            "der250": 9.286519681801368
+          }
+        ],
+        "aggregate": [
+          {
+            "engine": "low",
+            "condition": "all",
+            "files": 8,
+            "correctSpeakerCounts": 8,
+            "der0": 13.857230084727354,
+            "der250": 9.035830826206496,
+            "components0": {
+              "false alarm": 123.4662362980884,
+              "confusion": 273.33839409017787,
+              "total": 7867.477998016353,
+              "missed detection": 693.409897662161,
+              "correct": 6900.729706264013
+            }
+          },
+          {
+            "engine": "low",
+            "condition": "mhm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 11.488943255744426,
+            "der250": 6.973963972439319,
+            "components0": {
+              "false alarm": 62.127032494070455,
+              "confusion": 82.8000306105615,
+              "total": 3933.7389990463234,
+              "missed detection": 307.01797832488893,
+              "correct": 3543.9209901108725
+            }
+          },
+          {
+            "engine": "low",
+            "condition": "sdm",
+            "files": 4,
+            "correctSpeakerCounts": 4,
+            "der0": 16.225516913756213,
+            "der250": 11.097697679973672,
+            "components0": {
+              "false alarm": 61.339203804017956,
+              "confusion": 190.53836347961638,
+              "total": 3933.738998970029,
+              "missed detection": 386.39191933727204,
+              "correct": 3356.8087161531403
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "sessions": [
+    {
+      "id": "EN2002a_mhm",
+      "sessionId": "lokalbot-bench-EN2002a_mhm-247627cd",
+      "duration": 2142.709375,
+      "endStreamSeconds": 2142.700982792012,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "EN2002a_sdm",
+      "sessionId": "lokalbot-bench-EN2002a_sdm-3ca7d901",
+      "duration": 2142.709375,
+      "endStreamSeconds": 2142.7027552079526,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "ES2004a_mhm",
+      "sessionId": "lokalbot-bench-ES2004a_mhm-da61755c",
+      "duration": 1049.3546875,
+      "endStreamSeconds": 1049.3009653339977,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "ES2004a_sdm",
+      "sessionId": "lokalbot-bench-ES2004a_sdm-5d47d862",
+      "duration": 1049.3546875,
+      "endStreamSeconds": 1049.3012065000366,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "IS1009a_mhm",
+      "sessionId": "lokalbot-bench-IS1009a_mhm-2aaefa84",
+      "duration": 838.8333125,
+      "endStreamSeconds": 838.8012614169857,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "IS1009a_sdm",
+      "sessionId": "lokalbot-bench-IS1009a_sdm-740a402c",
+      "duration": 838.9973125,
+      "endStreamSeconds": 838.9035324589931,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "TS3003a_mhm",
+      "sessionId": "lokalbot-bench-TS3003a_mhm-75b81025",
+      "duration": 1505.642625,
+      "endStreamSeconds": 1505.6016318330076,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    },
+    {
+      "id": "TS3003a_sdm",
+      "sessionId": "lokalbot-bench-TS3003a_sdm-3fb16ae1",
+      "duration": 1505.642625,
+      "endStreamSeconds": 1505.6002934999997,
+      "endedBy": "server",
+      "closeCode": 1000,
+      "closeReason": "No more transcript segments",
+      "speed": 1.0
+    }
+  ],
+  "turnSeconds": {
+    "count": 2014,
+    "median": 2.9600000000000186,
+    "p95": 16.319999999999936,
+    "max": 85.92
+  },
+  "turns": {
+    "EN2002a_mhm": {
+      "turns": 601,
+      "unattributedTurns": 3
+    },
+    "EN2002a_sdm": {
+      "turns": 519,
+      "unattributedTurns": 1
+    },
+    "ES2004a_mhm": {
+      "turns": 177,
+      "unattributedTurns": 0
+    },
+    "ES2004a_sdm": {
+      "turns": 139,
+      "unattributedTurns": 1
+    },
+    "IS1009a_mhm": {
+      "turns": 139,
+      "unattributedTurns": 2
+    },
+    "IS1009a_sdm": {
+      "turns": 117,
+      "unattributedTurns": 0
+    },
+    "TS3003a_mhm": {
+      "turns": 174,
+      "unattributedTurns": 1
+    },
+    "TS3003a_sdm": {
+      "turns": 148,
+      "unattributedTurns": 2
+    }
+  },
+  "latencySeconds": {
+    "finalTextAfterSpeechEnd": {
+      "count": 2014,
+      "median": 0.738014229481351,
+      "p95": 0.8282545839855402,
+      "max": 1.7476276249647071
+    },
+    "speakerLabelAfterSpeechEnd": {
+      "count": 2004,
+      "median": 0.7380247709749028,
+      "p95": 0.8282489590300202,
+      "max": 1.7475992919783039
+    }
+  },
+  "versions": {
+    "pyannote.metrics": "4.0.0",
+    "websockets": "15.0.1"
+  },
+  "environment": {
+    "python": "3.13.13",
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O"
+  }
+}

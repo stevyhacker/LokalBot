@@ -1,0 +1,209 @@
+# Films the Meta hackathon features on a hosted Mac: builds the UI test host,
+# runs HackathonFilmUITests (Meta Muse settings, Start Radar on a scripted
+# live meeting with fast live text, a question answered from synthetic screen
+# captures, questions answered from the demo's pricing sheet and this
+# checkout's code, Follow-through on what it caught), and uploads an MP4 of
+# the run with the result bundle. The hosted Mac's own screen isn't Retina, so
+# the film runs on a 1600x1000 point virtual display and captures its 3200x2000
+# pixels. Runs on pushes to the hackathon branch and on
+# demand.
+#
+# With a META_API_KEY repository secret, Live Radar, screen answers, live
+# answers and Follow-through call Muse Spark and Muse Wonder on the test's
+# synthetic meeting and captures, and on what live answers read from this
+# public checkout (a few cents a run). The key is written to a private file under RUNNER_TEMP and only that
+# path reaches the test, so it never enters the test configuration, the
+# result bundle, or the uploaded artifacts; the file is deleted at the end.
+# Without the secret, Muse replies are scripted in the host and nothing is
+# sent to Meta.
+name: Meta hackathon film
+
+on:
+  push:
+    branches: [meta-hackathon]
+    paths:
+      - "LokalBot/**"
+      - "LokalBotUITests/**"
+      - "Scripts/film/**"
+      - "Benchmarks/MuseRadar/fixtures/screens/**"
+      - "Docs/meta-hackathon/demo-files/**"
+      - "project.yml"
+      - ".github/workflows/meta-hackathon-film.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: meta-hackathon-film-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  film:
+    name: Film Live Radar and Follow-through
+    runs-on: macos-26
+    # A cold checksum-pinned llama.cpp build takes close to an hour when the
+    # vendor cache misses; the film itself takes about three minutes.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.4.1"
+
+      - name: Install build tools
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          command -v cmake >/dev/null || brew install cmake
+          command -v ffmpeg >/dev/null || brew install ffmpeg
+
+      - name: Create vendor dirs for XcodeGen
+        run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+
+      - name: Generate project
+        run: xcodegen generate
+
+      # Same keys as ui-tests.yml, so the default branch's caches are reused.
+      - name: Cache native vendors
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+
+      - name: Fetch llama.cpp vendor
+        run: bash Scripts/fetch-llama.sh
+
+      - name: Cache Swift packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/SourcePackages
+          key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.4.1-${{ hashFiles('**/Package.resolved') }}
+
+      - name: Build the UI test host
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: Scripts/ui-tests.sh --build-only
+
+      - name: Use real Muse replies when a key is configured
+        env:
+          META_API_KEY: ${{ secrets.META_API_KEY }}
+        run: |
+          if [ -n "$META_API_KEY" ]; then
+            umask 077
+            printf %s "$META_API_KEY" > "$RUNNER_TEMP/meta-api-key"
+            echo "FILM_MUSE=live" >> "$GITHUB_ENV"
+            echo "Muse replies: **live** (Muse Spark and Muse Wonder)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FILM_MUSE=scripted" >> "$GITHUB_ENV"
+            echo "Muse replies: scripted (no META_API_KEY secret)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # What live answers may read: the sheet and brief, and this repository without
+      # the film's notes, tests and scripted replies, which would answer its questions.
+      - name: Make the folders live answers read
+        run: |
+          folders="$RUNNER_TEMP/film-folders"
+          mkdir -p "$folders/Northwind"
+          cp Docs/meta-hackathon/demo-files/* "$folders/Northwind/"
+          git clone --quiet --no-checkout --branch "$GITHUB_REF_NAME" "file://$PWD" "$folders/LokalBot"
+          git -C "$folders/LokalBot" remote set-url origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git -C "$folders/LokalBot" sparse-checkout set --no-cone '/*' '!/HACKATHON.md' '!/PRIVACY.md' '!/DEVELOPMENT.md' \
+            '!/Docs/meta-hackathon/' '!/Benchmarks/MuseRadar/' '!/Video/meta-hackathon-demo/' '!/LokalBotTests/' \
+            '!/LokalBotUITests/' '!/LokalBot/Engines/MuseUITestTransport.swift'
+          git -C "$folders/LokalBot" checkout --quiet "$GITHUB_REF_NAME"
+          echo "FILM_FOLDERS=$folders/Northwind:$folders/LokalBot" >> "$GITHUB_ENV"
+
+      - name: Point the film test at the frames folder
+        run: |
+          mkdir -p .build/film/frames
+          python3 - <<'EOF'
+          import os
+          import plistlib
+          from pathlib import Path
+          frames = str(Path('.build/film/frames').resolve())
+          live = os.environ.get('FILM_MUSE') == 'live'
+          key_file = str(Path(os.environ['RUNNER_TEMP']) / 'meta-api-key')
+          for run in Path('.build/dd/Build/Products').glob('*.xctestrun'):
+              value = plistlib.loads(run.read_bytes())
+              for config in value['TestConfigurations']:
+                  for target in config['TestTargets']:
+                      env = target.setdefault('EnvironmentVariables', {})
+                      env['LOKALBOT_FILM_FRAMES'] = frames
+                      env['LOKALBOT_FILM_FOLDERS'] = os.environ['FILM_FOLDERS']
+                      if live:
+                          env['LOKALBOT_FILM_MUSE'] = 'live'
+                          env['LOKALBOT_FILM_META_KEY_FILE'] = key_file
+              run.write_bytes(plistlib.dumps(value))
+          EOF
+
+      - name: Give the runner a Retina screen
+        run: |
+          clang -fobjc-arc -framework Foundation -framework CoreGraphics \
+            -o "$RUNNER_TEMP/virtual-display" Scripts/film/virtual-display.m
+          nohup "$RUNNER_TEMP/virtual-display" 1600 1000 > "$RUNNER_TEMP/virtual-display.log" 2>&1 &
+          sleep 6
+          cat "$RUNNER_TEMP/virtual-display.log"
+          pgrep -q virtual-display
+          # The Dock hides itself, so the app has the screen's full height.
+          defaults write com.apple.dock autohide -bool true
+          killall Dock
+          sleep 2
+
+      - name: Film
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: |
+          python3 Scripts/film/capture.py .build/film/frames &
+          capture=$!
+          status=0
+          Scripts/ui-tests.sh --test-only --only HackathonFilmUITests --result .build/film/film.xcresult || status=$?
+          touch .build/film/frames/.stop
+          wait "$capture"
+          exit "$status"
+
+      - name: Encode the film
+        if: always()
+        run: |
+          cd .build/film/frames
+          if [ -s frames.txt ]; then
+            ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i frames.txt \
+              -vf "format=yuv420p" -r 10 -c:v libx264 -preset veryfast -crf 14 -g 20 -movflags +faststart \
+              ../lokalbot-live-radar-and-follow-through.mp4
+            ls -la ../*.mp4
+          else
+            echo "No frames were written." >&2
+          fi
+          cd ..
+          xcrun xcresulttool export attachments --path film.xcresult --output-path attachments 2>/dev/null || true
+          find attachments -type f 2>/dev/null | head -20 || true
+
+      - name: Upload the film
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: meta-hackathon-film
+          path: |
+            .build/film/*.mp4
+            .build/film/attachments
+            .build/film/frames/frames.txt
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload the result bundle
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: meta-hackathon-film-xcresult
+          path: .build/film/film.xcresult
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Delete the key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/meta-api-key"

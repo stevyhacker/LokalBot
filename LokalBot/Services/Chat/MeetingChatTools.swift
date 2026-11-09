@@ -389,7 +389,8 @@ final class MeetingChatTools: ChatToolRunner {
             .init(name: "query", description: "What to look for, in natural language or keywords.", required: true),
         ])
 
-    private static let baseSpecs: [ChatToolSpec] = [
+    /// The tools without `search_files`, for callers that have no chosen folders.
+    static let baseSpecs: [ChatToolSpec] = [
         ChatToolSpec(
             name: "search_meetings",
             summary: "Search across every meeting transcript, summary and title. Accepts natural-language or keyword queries; returns matching meetings with timestamps and snippets.",

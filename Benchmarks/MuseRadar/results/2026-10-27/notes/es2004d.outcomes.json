@@ -1,0 +1,223 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 98.97,
+          "excerpt" : "Me and William worked on a prototype, and I think William is going to make a presentation on that.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0020-0000094680-0000098970",
+          "speaker" : "them 2",
+          "start" : 94.68
+        }
+      ],
+      "id" : "08c88f1129fcf52e",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "William will present the prototype."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll show.",
+        "resolution" : "other",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 109.38,
+          "excerpt" : "Yeah, shall I show? I'll show. Though do you do you wanna do you wanna do you wanna hold it and I'll I'll show you the presentation. Can I just nick your",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0021-0000099490-0000109380",
+          "speaker" : "them 4",
+          "start" : 99.49
+        }
+      ],
+      "id" : "7369708b3f295a18",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 4",
+      "schemaVersion" : 4,
+      "text" : "Will show the prototype."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll just show you how we're going to evaluate our own feedback to this, to what we have so far.",
+        "resolution" : "other",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 550.81,
+          "excerpt" : "Okay, so we can come back to that slide, if you don't have a note of those. I'll just show you how we're going to evaluate our own feedback to this, to what we have so far. We're going to use a seven point scale, where one is true and seven is false. We look at each of those criteria that I've just mentioned, I'll call that slide back up, and I will just do a preliminary rating of all those criteria on the whiteboard here. Does that seem clear? Any questions there?",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0100-0000525040-0000550810",
+          "speaker" : "them 3",
+          "start" : 525.04
+        }
+      ],
+      "id" : "a549e1fcec1bafcf",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 3",
+      "schemaVersion" : 4,
+      "text" : "Will demonstrate the evaluation methodology using a seven-point scale."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 553.46,
+          "excerpt" : "So we're going to look at these",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0104-0000552410-0000553460",
+          "speaker" : "them 3",
+          "start" : 552.41
+        }
+      ],
+      "id" : "b7b8b54db6faeb93",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will present the evaluation criteria and ratings on the whiteboard."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1022.18,
+          "excerpt" : "I don't think so.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0243-0001021400-0001022180",
+          "speaker" : "them 1",
+          "start" : 1021.4
+        },
+        {
+          "end" : 1019.58,
+          "excerpt" : "So, how do we feel about this? We've got our our we've got the highest rating of meeting the specifications that is definitely true for two of the uh six criteria there. That is for um incorporates current fashion trends and is easy to locate. The lowest rating we've got, which is really it's not terribly low, it's close around neutral is for uh the minimisation of repetitive strain injury. Do we feel on the basis of of these evaluation findings that we can go ahead and now produce this as a prototype and market it, or do we have to make further modifications?",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0242-0000983120-0001019580",
+          "speaker" : "them 3",
+          "start" : 983.12
+        }
+      ],
+      "id" : "1b3c1768045564bf",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Proceed with producing the prototype and marketing the product based on current evaluation findings."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1281.24,
+          "excerpt" : "Okay, we'll just put it in as we'll put in as half.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0330-0001278400-0001281240",
+          "speaker" : "them 1",
+          "start" : 1278.4
+        },
+        {
+          "end" : 1281.47,
+          "excerpt" : "Okay.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0331-0001281250-0001281470",
+          "speaker" : "them 3",
+          "start" : 1281.25
+        }
+      ],
+      "id" : "115e2efe8a1593cb",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Allocate half the cost value to the rubber used in the casing."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1502.18,
+          "excerpt" : "We can do it some other way, we can do it doesn't have to be voice recognition. We could do the voice recognition for, you know, business class or something, you know, like an upgraded version. You could choose to have that or not.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0392-0001489170-0001502180",
+          "speaker" : "them 1",
+          "start" : 1489.17
+        },
+        {
+          "end" : 1498,
+          "excerpt" : "Yeah.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0393-0001497730-0001498000",
+          "speaker" : "them 3",
+          "start" : 1497.73
+        }
+      ],
+      "id" : "f5386b62cb32871f",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Offer voice recognition as an optional upgrade for business class customers rather than a standard feature."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "Oh, so we've got about fifty minutes to catch up with everything that I fell behind with, so I'll be delegating in my um role as Project Supervisor, so good luck.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2164.5,
+          "excerpt" : "Um the project has been evaluated well and truly. Um and we've got the meeting survey and questionnaire. Oh, so we've got about fifty minutes to catch up with everything that I fell behind with, so I'll be delegating in my um role as Project Supervisor, so good luck.",
+          "meetingID" : "37BF17AB-0B95-50C4-9D17-303AF1D32C55",
+          "segmentID" : "segment-0575-0002142710-0002164500",
+          "speaker" : "them 1",
+          "start" : 2142.71
+        }
+      ],
+      "id" : "c1675733db189291",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Will delegate responsibilities in their role as Project Supervisor."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "f0ddbaed7da887b28e2f90be4e70fa584e0561dc7fed023e9f9e2228f4cde725"
+}
