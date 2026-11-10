@@ -81,11 +81,11 @@ enum AgentRuntimeLayout {
         root.appendingPathComponent("pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js")
     }
 
-    /// Cheap receipt check for the normal launch path. Installation already
-    /// verifies every staged byte before the atomic swap, so routine Agent Mode
-    /// entry only needs to prove that the expected entry points and matching
-    /// version receipt are present. Use `isIntegrityValid` for an explicit deep
-    /// audit of the mutable runtime tree.
+    /// Cheap receipt check for opening the Agent pane. Installation already
+    /// verifies every staged byte before the atomic swap, so showing the pane
+    /// only needs to prove that the expected entry points and matching
+    /// version receipt are present. Starting a task runs `isIntegrityValid`,
+    /// the deep audit of the mutable runtime tree.
     static func isInstalled(under root: URL = defaultRoot,
                             manifest: AgentRuntimeManifest = .current) -> Bool {
         let bun = bunBinary(under: root)
@@ -112,8 +112,9 @@ enum AgentRuntimeLayout {
     }
 
     /// Explicit, recursive integrity audit. This intentionally opens every pi
-    /// runtime file and is therefore reserved for installation, repair, tests,
-    /// and user-requested verification rather than ordinary pane navigation.
+    /// runtime file, so it runs at installation, repair, user-requested
+    /// verification and before each task starts (`AgentSessionController`,
+    /// off the main actor), never on ordinary pane navigation.
     static func isIntegrityValid(under root: URL = defaultRoot,
                                  manifest: AgentRuntimeManifest = .current) -> Bool {
         guard isInstalled(under: root, manifest: manifest),

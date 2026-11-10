@@ -53,7 +53,9 @@ final class AudioSourceMonitor: ObservableObject {
     /// Bundle IDs whose audio is uninteresting — our own app and a few system
     /// processes that emit short blips Core Audio still reports as "running".
     private static let ignoredBundleIDs: Set<String> = [
-        "me.dotenv.LokalBot",
+        AppIdentifiers.Identity.release.bundleID,
+        AppIdentifiers.Identity.development.bundleID,
+        AppIdentifiers.Identity.uiTestHost.bundleID,
         "com.apple.controlcenter",
         "com.apple.SystemSounds",
         "com.apple.finder",
@@ -163,7 +165,7 @@ final class AudioSourceMonitor: ObservableObject {
         }
     }
 
-    private func apply(_ processes: [AudioProcess]) {
+    func apply(_ processes: [AudioProcess]) {
         let active = processes.filter(\.isRunningOutput)
         let activeIDs = Set(active.map(\.objectID))
 

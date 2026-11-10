@@ -330,14 +330,6 @@ enum ChatGPTIDToken {
                       expiresAt: Date(timeIntervalSince1970: expiry))
     }
 
-    /// The `email` claim of a token LokalBot already validated and stored.
-    static func storedEmail(_ token: String) -> String? {
-        let parts = token.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 3, let data = ChatGPTPlanOAuth.base64URLDecode(parts[1]),
-              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return payload["email"] as? String
-    }
-
     private static func invalid(_ reason: String) -> ChatGPTPlanError {
         .signInFailed("ChatGPT's sign-in token couldn't be verified (\(reason)). Try again.")
     }

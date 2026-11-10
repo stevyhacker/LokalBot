@@ -163,11 +163,6 @@ actor RemoteInferenceGate {
         pump(ticket.origin)
     }
 
-    /// Seconds until the origin accepts new requests again (0 when open).
-    func cooldownRemaining(origin: String) -> TimeInterval {
-        max(0, (queues[origin]?.cooldownUntil ?? 0) - now())
-    }
-
     func snapshot(origin: String) -> (inFlight: Int, waiting: Int) {
         let queue = queues[origin]
         return (queue?.inFlight.count ?? 0, queue?.waiters.count ?? 0)

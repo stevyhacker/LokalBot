@@ -42,8 +42,6 @@ enum LBTokens {
         /// Speakers in order of first appearance. Index 0 is always "You".
         /// Always show the name next to the color.
         static let speakers: [Color] = [accentText, .blue, .purple, .pink, Color(light: 0xD9A400, dark: 0xFFD60A), .indigo, .brown, .cyan]
-        /// The collapsed group of brief voices ("5 others").
-        static let groupedSpeakers = Color.gray
 
         static func speaker(at index: Int) -> Color {
             speakers[((index % speakers.count) + speakers.count) % speakers.count]
@@ -55,14 +53,12 @@ enum LBTokens {
     enum Typography {
         static var pageTitle: AppFont { AppFont.scaled(.largeTitle).bold() }           // 26 bold
         static var question: AppFont { AppFont.scaled(.title2).weight(.semibold) }     // 17 semibold, Ask
-        static var digestLead: AppFont { AppFont.scaled(.title3) }                     // 15, Day Digest highlights
         static var columnTitle: AppFont { AppFont.scaled(.title3).bold() }             // 15 bold, toolbar column titles
         static var section: AppFont { AppFont.scaled(.headline) }                      // 13 bold
         static var body: AppFont { AppFont.scaled(.body) }                             // 13
         static var reading: AppFont { AppFont.scaledSystem(size: 14) }              // transcript lines
         static var secondary: AppFont { AppFont.scaled(.callout) }                     // 12
         static var caption: AppFont { AppFont.scaled(.subheadline) }                   // 11
-        static var sidebarSection: AppFont { AppFont.scaled(.subheadline).bold() }     // 11 bold
         static var timestamp: AppFont { AppFont.scaled(.callout).monospacedDigit() }
         static var path: AppFont { AppFont.scaled(.callout, design: .monospaced) }
     }
@@ -78,18 +74,15 @@ enum LBTokens {
         static let contentDetailMinWidth: CGFloat = 420
         static let settingsCategoriesWidth: CGFloat = 240
         static let detailsPaneWidth: CGFloat = 320
-        static let contentColumnRange: ClosedRange<CGFloat> = 240...340
         static let detailPadding: CGFloat = 28
         static let sectionSpacing: CGFloat = 22
         static let headerToContent: CGFloat = 8
         static let groupRadius: CGFloat = 10
-        static let rowSelectionRadius: CGFloat = 8
         static let sidebarRowHeight: CGFloat = 28
         static let tableRowHeight: CGFloat = 34
         static let readingMaxWidth: CGFloat = 720
         static let composerRadius: CGFloat = 18
         static let actionToggleSize: CGFloat = 18
-        static let minimumWindow = CGSize(width: 1000, height: 700)
     }
 }
 

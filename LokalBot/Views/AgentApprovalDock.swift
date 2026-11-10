@@ -171,32 +171,6 @@ extension AgentApprovalMode {
         }
     }
 
-    var accessSummary: String {
-        switch self {
-        case .askBeforeChanges:
-            "Outside reads, file changes, and shell commands require approval"
-        case .approveReads:
-            "All reads are automatic; file changes and shell commands require approval"
-        case .approveReadsAndEdits:
-            "Reads and ordinary edits are automatic; private app data changes and shell commands ask"
-        case .fullAccess:
-            "Every agent tool is automatic; private app data changes ask"
-        }
-    }
-
-    var runtimeSummary: String {
-        switch self {
-        case .askBeforeChanges:
-            "Outside reads, file changes, and shell commands ask first."
-        case .approveReads:
-            "All reads run automatically; file changes and shell commands ask first."
-        case .approveReadsAndEdits:
-            "Reads and ordinary edits run automatically; private app data changes and shell commands ask first."
-        case .fullAccess:
-            "Every agent tool runs automatically. Private app data file-tool changes ask."
-        }
-    }
-
     var confirmationTitle: String {
         switch self {
         case .askBeforeChanges: "Use Ask before changes?"

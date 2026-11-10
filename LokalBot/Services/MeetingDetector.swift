@@ -192,11 +192,6 @@ final class MeetingDetector {
     /// through that uncertainty. This is separate from the user's short audio
     /// debounce because it protects the lifecycle signal itself.
     nonisolated static let browserObservationGrace: TimeInterval = 120
-    /// A browser host can disappear for a few seconds while Chrome replaces
-    /// the application process even though the Meet tab and helper audio stay
-    /// alive. This shorter window avoids splitting one call while bounding the
-    /// raw tail when the browser really did quit.
-    nonisolated static let browserHostReconnectGrace: TimeInterval = 15
     /// Teams keeps `modulehost` open while idle, so it can bridge a pause only
     /// while backed by recent audio from a process whose signal can disappear.
     /// With the default 15-second stop debounce, the detector remains tolerant
@@ -808,8 +803,7 @@ final class MeetingDetector {
             observedState,
             hostPresent: host != nil,
             now: now,
-            grace: max(Self.browserObservationGrace, max(0, stopDebounce)),
-            hostReconnectGrace: Self.browserHostReconnectGrace)
+            grace: max(Self.browserObservationGrace, max(0, stopDebounce)))
         if let sessionID = activeSessionID {
             onBrowserObservation?(sessionID, browserLifecycle.lostAt != nil,
                                   browserLifecycle.lastEvidenceAt)
@@ -1282,13 +1276,6 @@ final class MeetingDetector {
             for: app,
             in: currentAudioProcesses(),
             excluding: excludedPIDs)
-    }
-
-    /// Compatibility entry point for callers that only need the default
-    /// capture target. Recovery uses ``currentCaptureTargetProcess`` directly
-    /// so it can exclude a dead attachment.
-    nonisolated static func currentCaptureAudioProcess(for app: DetectedApp) -> AudioProcess? {
-        currentCaptureTargetProcess(for: app)
     }
 
     nonisolated static func currentAudioProcesses(now: Date? = nil) -> [AudioProcess] {

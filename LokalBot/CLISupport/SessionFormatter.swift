@@ -37,9 +37,8 @@ enum SessionFormatter {
     static let maximumSummaryListCount = 50
 
     static func listJSON(_ meetings: [Meeting], includeSummary: Bool = false) -> String {
-        let markdown = meetings.map(SessionLookup.summaryMarkdown(for:))
         let summaries = includeSummary
-            ? listSummaries(markdown)
+            ? listSummaries(meetings.map(SessionLookup.summaryMarkdown(for:)))
             : Array(repeating: nil, count: meetings.count)
         let entries = meetings.indices.map { index in
             let meeting = meetings[index]
@@ -51,8 +50,8 @@ enum SessionFormatter {
                 duration_seconds: meeting.duration ?? 0,
                 app_source: meeting.appName,
                 has_system_track: meeting.hasSystemTrack,
-                has_summary: markdown[index] != nil,
-                has_transcript: SessionLookup.transcriptMarkdown(for: meeting) != nil,
+                has_summary: SessionLookup.hasSummary(for: meeting),
+                has_transcript: SessionLookup.hasTranscriptMarkdown(for: meeting),
                 summary: summaries[index]?.text,
                 summary_truncated: summaries[index]?.truncated == true ? true : nil,
                 sample: meeting.isSample ? true : nil)

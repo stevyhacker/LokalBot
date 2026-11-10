@@ -740,8 +740,12 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
             guard self.evidence?.signature == signature else { return }
             generatedBriefs[signature] = generated
             failedSignatures.remove(signature)
-            if generatedBriefs.count > 24, let oldest = generatedBriefs.keys.first {
-                generatedBriefs.removeValue(forKey: oldest)
+            // Dictionary order is arbitrary, so this drops some other entry,
+            // never the brief just written: without it the card would fall
+            // back to the template and the next refresh would generate again.
+            if generatedBriefs.count > 24,
+               let evicted = generatedBriefs.keys.first(where: { $0 != signature }) {
+                generatedBriefs.removeValue(forKey: evicted)
             }
         } catch is CancellationError {
             return

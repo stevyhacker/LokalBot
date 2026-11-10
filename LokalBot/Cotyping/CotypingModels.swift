@@ -1,11 +1,11 @@
 import CoreGraphics
 import Foundation
 
-// Cotyping — LokalBot's third major feature: on-device, inline AI autocomplete
-// in (almost) any macOS text field, reusing the same local LLM backend that
-// powers summarization. Modeled on Cotabby's suggestion pipeline but driven by
-// LokalBot's HTTP `llama-server` (`/v1/completions`) instead of in-process
-// llama.cpp.
+// Cotyping — LokalBot's third major feature: inline AI autocomplete in (almost)
+// any macOS text field. Modeled on Cotabby's suggestion pipeline. The built-in
+// model runs in-process (`Llama/`); other backends go through LokalBot's HTTP
+// `llama-server` (`/v1/completions`) or a server the user chose.
+// `CotypingEngineSelector` picks the route for each completion.
 //
 // This file holds the value types shared across the cotyping subsystem. They
 // are deliberately `Sendable` value types so they can cross the async /

@@ -28,7 +28,7 @@ struct GetCommand: AsyncParsableCommand {
     var format: String = "md"
 
     func run() async throws {
-        try AgentAccessGate().requireAuthorized()
+        try AgentAccessGate().requireCommandAccess()
         let options = try parseOptions()
         let normalizedFormat = format.lowercased()
         guard normalizedFormat == "md" || normalizedFormat == "json" else {

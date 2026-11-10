@@ -680,25 +680,6 @@ enum DataMigration {
         return byPath.values.sorted { $0.path < $1.path }
     }
 
-    /// All envelopes are opened before any replacement. Each replacement uses
-    /// an atomic same-directory rename; interrupted retries safely accept the
-    /// resulting mix of current-key and legacy-key files.
-    @discardableResult
-    static func migrateEncryptedScreenshots(
-        files: [URL],
-        currentKeyData: Data,
-        legacyKeyData: [Data]
-    ) throws -> Int {
-        let rewrites = try encryptedScreenshotRewritePlan(
-            files: files,
-            currentKeyData: currentKeyData,
-            legacyKeyData: legacyKeyData)
-        for rewrite in rewrites {
-            try rewrite.data.write(to: rewrite.url, options: .atomic)
-        }
-        return rewrites.count
-    }
-
     private static func encryptedScreenshotRewritePlan(
         files: [URL],
         currentKeyData: Data,

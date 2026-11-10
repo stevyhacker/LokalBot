@@ -25,6 +25,12 @@ final class LiveRadarPanelController {
         model.$collapsed.dropFirst().removeDuplicates()
             .sink { [weak self] collapsed in self?.resize(collapsed: collapsed) }
             .store(in: &observers)
+        // "Hide from screen sharing" applies at once, also to a panel that is
+        // already up: `show()` alone set it only the next time the panel
+        // opened. The published value is the new one; `app.settings` is not yet.
+        app.$settings.map { Self.sharingType($0) }.removeDuplicates()
+            .sink { [weak self] sharingType in self?.panel?.sharingType = sharingType }
+            .store(in: &observers)
     }
 
     var isVisible: Bool { panel?.isVisible == true }

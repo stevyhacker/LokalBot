@@ -410,6 +410,8 @@ final class AppState: ObservableObject {
     var meetingPlaybackPositions: [UUID: TimeInterval] = [:]
     var meetingPlaybackSpeeds: [UUID: Float] = [:]
     func openActions() { showingActions = true; navSection = .today }
+    /// Today itself: `navSection` alone would stay on Actions when it is open.
+    func openToday() { showingActions = false; navSection = .today }
 
     /// People and Projects share one derived read model.
     @Published var selectedPersonID: String?
@@ -529,16 +531,12 @@ final class AppState: ObservableObject {
     var writesProjectSummariesAutomatically: Bool {
         settings.allowsAutomaticMainInference && ModelReadinessSnapshot.thinkReady(settings, storage: storage)
     }
-    private static let typeTabDefaultsKey = "lokalbotv3.type.selectedTab"
     private static var navigationDefaults: UserDefaults {
         if let suite = UITestRuntime.defaultsSuiteName,
            let defaults = UserDefaults(suiteName: suite) {
             return defaults
         }
         return .standard
-    }
-    @Published var typeTab: TypeTab = .dictation {
-        didSet { Self.navigationDefaults.set(typeTab.rawValue, forKey: Self.typeTabDefaultsKey) }
     }
     /// Renamed when Settings was organized by feature, so everyone opens the
     /// new Overview once; the page chosen after that is remembered.
@@ -573,7 +571,6 @@ final class AppState: ObservableObject {
 
     /// Keep legacy writing commands routed to the corresponding Settings section.
     func openType(_ tab: TypeTab) {
-        typeTab = tab
         openSettings(tab: tab == .cotyping ? .writing : .dictation)
         focusedSettingID = tab == .cotyping ? "settings.autocompletePreview" : "settings.dictationPreview"
     }
@@ -1444,15 +1441,6 @@ final class AppState: ObservableObject {
         if let raw = Self.navigationDefaults.string(forKey: Self.settingsTabDefaultsKey),
            let stored = SettingsTab(rawValue: raw) {
             settingsTab = stored
-        }
-        if let raw = Self.navigationDefaults.string(forKey: Self.typeTabDefaultsKey),
-           let stored = TypeTab(rawValue: raw) {
-            typeTab = stored
-        } else {
-            // Existing installs retain Dictation; genuinely new installs lead
-            // with the approved Autocomplete experience.
-            typeTab = Self.navigationDefaults.bool(forKey: Self.onboardingShownKey)
-                ? .dictation : .cotyping
         }
         if Self.isUnitTesting { return }
         // Settings corruption is a privacy event, not a cosmetic one: a field
@@ -2479,10 +2467,6 @@ final class AppState: ObservableObject {
         primaryEvidenceDidChange(on: meetings.map(\.startedAt), meetingIDs: Set(meetings.map(\.id)))
     }
 
-    func primaryEvidenceDidChange(on day: Date) {
-        primaryEvidenceDidChange(on: [day])
-    }
-
     func primaryEvidenceDidChange(on days: [Date]) {
         primaryEvidenceDidChange(on: days, meetingIDs: [])
     }
@@ -2862,12 +2846,12 @@ final class AppState: ObservableObject {
             openMeeting(id)
         case .day(let day):
             if Calendar.current.isDateInToday(day) {
-                navSection = .today
+                openToday()
             } else {
                 openTimelineDay(day)
             }
         case .dream:
-            navSection = .today
+            openToday()
         case .models:
             openSettings(tab: .models)
         }

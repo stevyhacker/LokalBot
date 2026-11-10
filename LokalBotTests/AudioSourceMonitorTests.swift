@@ -399,6 +399,20 @@ final class AudioSourceMonitorTests: XCTestCase {
         XCTAssertFalse(AudioSourceMonitor.isMediaPlayer("com.example.SomeNewMeetingApp"))
     }
 
+    /// A development build playing a meeting back was its own candidate:
+    /// only the release bundle ID was on the ignore list.
+    @MainActor
+    func testPlaybackFromAnyLokalBotBuildIsNeverARecordingCandidate() {
+        let builds: [AppIdentifiers.Identity] = [.release, .development, .uiTestHost]
+        for (index, identity) in builds.enumerated() {
+            let monitor = AudioSourceMonitor()
+            monitor.apply([AudioProcess(id: pid_t(500 + index), name: "LokalBot", bundleID: identity.bundleID,
+                                        objectID: AudioObjectID(500 + index), isRunningOutput: true)])
+            XCTAssertNil(monitor.detectedProcess, identity.bundleID)
+            monitor.stop()
+        }
+    }
+
     // MARK: - Choosing a target when nothing is emitting
 
     private func teamsApp(pid: pid_t = 100) -> MeetingDetector.DetectedApp {

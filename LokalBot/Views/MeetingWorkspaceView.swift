@@ -136,7 +136,6 @@ private struct MeetingWorkspaceDetail: View {
     @State private var transcriptDisplay = Transcript.DisplayIndex()
     @State private var speakerPresentation = MeetingSpeakerPresentation(transcript: nil)
     @State private var fullNotesExpanded = false
-    @State private var transcriptExpanded = false
     @State private var evidenceSegment: Int?
     @State private var evidenceRevision = 0
     @State private var correction: ActionCorrectionDraft?
@@ -304,7 +303,6 @@ private struct MeetingWorkspaceDetail: View {
             // Establish the requested capture route before asynchronous document
             // and speaker recovery; readiness must not race those operations.
             if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "transcript" {
-                transcriptExpanded = true
                 tab = .transcript
             } else if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "review" {
                 tab = .review
@@ -979,14 +977,6 @@ private struct MeetingWorkspaceDetail: View {
             fullNotesExpanded = true
         default: break
         }
-        let needsTranscriptLayout: Bool
-        if match.location.requiresTranscriptExpansion {
-            needsTranscriptLayout = !transcriptExpanded
-            transcriptExpanded = true
-        } else {
-            needsTranscriptLayout = false
-        }
-
         let scroll = {
             withAnimation(WorkspaceMotion.animation(
                 .autoScroll,
@@ -995,7 +985,6 @@ private struct MeetingWorkspaceDetail: View {
             }
         }
         // The target may live in another tab; scroll after SwiftUI mounts it.
-        _ = needsTranscriptLayout
         DispatchQueue.main.async(execute: scroll)
     }
 
@@ -1177,7 +1166,6 @@ private struct MeetingWorkspaceDetail: View {
 
     private func revealEvidence(at seconds: TimeInterval) {
         returningToReview = tab == .review
-        transcriptExpanded = true
         tab = .transcript
         player.pause()
         player.seek(to: seconds)

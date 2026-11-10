@@ -138,10 +138,11 @@ extension CotypingCompleting {
     func unload() async {}
 }
 
-/// Production engine: resolves LokalBot's configured `TextEngine` (the very same
-/// backend used for summarization — built-in llama-server by default, or Ollama
-/// / OpenAI-compatible / Apple Intelligence) and runs one raw completion through
-/// the shared normalizer.
+/// The HTTP route: runs one raw completion over a `TextEngine` and through the
+/// shared normalizer. It serves the built-in autocomplete model on its own
+/// `LlamaServer.cotyping` instance when the in-process engine does not apply
+/// (`CotypingEngineSelector`), and a server the user chose
+/// (`CotypingServerRoute`).
 @MainActor
 final class CotypingEngine: CotypingCompleting {
     /// Resolves the active `TextEngine`. In production this is

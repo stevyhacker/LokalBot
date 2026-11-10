@@ -320,11 +320,11 @@ final class DailyMemoryExportServiceTests: XCTestCase {
             ])
     }
 
-    private func writtenURL(_ outcome: DailyMemoryExportService.Outcome) throws -> URL {
-        guard case .written(let url) = outcome else {
-            throw XCTSkip("expected written outcome, got \(outcome)")
-        }
-        return url
+    private func writtenURL(_ outcome: DailyMemoryExportService.Outcome,
+                            file: StaticString = #filePath, line: UInt = #line) throws -> URL {
+        var written: URL?
+        if case .written(let url) = outcome { written = url }
+        return try XCTUnwrap(written, "expected written outcome, got \(outcome)", file: file, line: line)
     }
 }
 

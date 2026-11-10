@@ -107,12 +107,16 @@ enum ActionCompletionDetector {
             let since = thread.latestReference.meetingStartedAt
             guard since < now else { continue }
             let filter = ScreenSearchFilter(interval: DateInterval(start: since, end: now))
+            // A hit's whole text is read below. Its snippet is built only when
+            // that text cannot be read (a row from before captures had IDs).
             let hits = store.searchOCR(terms.prefix(4).joined(separator: " "), limit: hitsPerThread,
-                                       matchAll: false, filter: filter, groupResults: false)
+                                       matchAll: false, filter: filter, groupResults: false,
+                                       deferringSnippets: true)
             let captures = hits.map { hit in
                 Capture(snapshotID: hit.snapshotID, capturedAt: hit.ts, app: hit.app,
                         title: hit.windowTitle,
-                        text: store.ocrText(snapshotID: hit.snapshotID, maxChars: 4_000) ?? hit.snippet)
+                        text: store.ocrText(snapshotID: hit.snapshotID, maxChars: 4_000)
+                            ?? store.fillOCRSnippets([hit]).first?.snippet ?? "")
             }
             if let hint = hint(for: thread, captures: captures, dismissed: dismissed) {
                 result[thread.id] = hint
