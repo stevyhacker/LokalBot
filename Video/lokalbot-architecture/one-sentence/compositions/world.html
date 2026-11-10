@@ -1,0 +1,1495 @@
+<template>
+  <style>
+    /* kit:begin */
+    /* The look the three architecture films share. Injected into every scene by kit/build_lib.py:
+       edit kit/kit.css, never this copy. */
+    #root {
+      --slate: #0e151d;      /* the brand's ground, and the inside of the Mac */
+      --slate-2: #17222d;    /* a surface on slate */
+      --slate-3: #222e3d;    /* the icon plate's lighter end */
+      --ink: #0e141c;        /* type on mint and on light grounds */
+      --mint: #c9f1e7;       /* the brand's light ground */
+      --mint-hi: #6ef2dc;    /* the robot's body, lit side */
+      --mint-lo: #23c4ae;    /* the robot's body, far side */
+      --teal: #3a7d72;       /* the robot's arm: quiet structure */
+      --teal-deep: #1f3d38;  /* quiet type on mint */
+      --paper: #eafffa;      /* type on slate and teal */
+      --amber: #fbbf24;      /* the antenna light: one focus a frame, never decoration */
+      font-family: Inter, sans-serif;
+    }
+    .mono {
+      font-family: "JetBrains Mono", monospace;
+    }
+    /* A label that sits on the part it names: the model, its job, then its file facts. */
+    .plate {
+      position: absolute;
+      padding-left: 26px;
+      border-left: 8px solid var(--plate-rule, var(--mint-hi));
+      color: var(--plate-ink, var(--paper));
+      white-space: nowrap;
+    }
+    .plate-name {
+      font-weight: 800;
+      font-size: 60px;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .plate-job {
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.25;
+      margin-top: 10px;
+    }
+    .plate-spec {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.35;
+      margin-top: 10px;
+      color: var(--plate-dim, var(--mint-hi));
+    }
+    /* kit:end */
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #c9f1e7; /* outside the Mac: only seen at the pull-back */
+      color: var(--paper);
+    }
+    /* The camera: the inside of the Mac, a 3 x 3 map of 1920 x 1080 cells. Only this wrapper moves. */
+    #w-world {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 5760px;
+      height: 3240px;
+      transform-origin: 0 0;
+    }
+    #w-bezel {
+      position: absolute;
+      left: -300px;
+      top: -300px;
+      width: 6360px;
+      height: 3840px;
+      border-radius: 340px;
+      background: #222e3d;
+    }
+    #w-base {
+      position: absolute;
+      left: -670px;
+      top: 3540px;
+      width: 7100px;
+      height: 130px;
+      border-radius: 0 0 65px 65px;
+      background: #17222d;
+    }
+    #w-slab {
+      position: absolute;
+      left: -200px;
+      top: -200px;
+      width: 6160px;
+      height: 3640px;
+      border-radius: 260px;
+      background: var(--slate);
+    }
+    .route {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 5760px;
+      height: 3240px;
+      overflow: visible;
+    }
+    .st {
+      position: absolute;
+      width: 1920px;
+      height: 1080px;
+    }
+    .panel {
+      position: absolute;
+      background: var(--slate-2);
+      border-radius: 28px;
+    }
+    .inset {
+      position: absolute;
+      background: var(--slate);
+      border-radius: 18px;
+    }
+    .lab {
+      position: absolute;
+      white-space: nowrap;
+    }
+    .m28 {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.3;
+    }
+    .caret {
+      display: inline-block;
+      position: relative;
+      width: 0;
+      height: 1em;
+      vertical-align: -0.14em;
+    }
+    .caret::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 0;
+      width: 5px;
+      height: 100%;
+      background: currentColor;
+    }
+    .plate-more {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.35;
+      margin-top: 8px;
+    }
+
+    /* 1. The call */
+    #s1-win .dots,
+    #s8-term .dots {
+      position: absolute;
+      left: 28px;
+      top: 24px;
+      display: flex;
+      gap: 12px;
+    }
+    #s1-win .dots i,
+    #s8-term .dots i {
+      width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      background: var(--teal);
+    }
+    .tile {
+      position: absolute;
+      width: 540px;
+      height: 420px;
+      border-radius: 22px;
+      border: 6px solid var(--slate);
+      background: var(--slate);
+      overflow: hidden;
+    }
+    #s1-maya {
+      border-color: var(--mint-hi);
+    }
+    .tile .head {
+      position: absolute;
+      left: 189px;
+      top: 62px;
+      width: 150px;
+      height: 150px;
+      border-radius: 75px;
+    }
+    .tile .body {
+      position: absolute;
+      left: 104px;
+      top: 236px;
+      width: 320px;
+      height: 240px;
+      border-radius: 130px 130px 0 0;
+    }
+    #s1-maya .head,
+    #s1-maya .body {
+      background: linear-gradient(135deg, #6ef2dc, #23c4ae);
+    }
+    #s1-you .head,
+    #s1-you .body {
+      background: var(--teal);
+    }
+    .tile .tname {
+      position: absolute;
+      left: 22px;
+      bottom: 16px;
+      font-weight: 600;
+      font-size: 32px;
+      line-height: 1.2;
+      padding: 4px 14px;
+      border-radius: 10px;
+      background: var(--slate);
+    }
+    #s1-level {
+      position: absolute;
+      right: 22px;
+      bottom: 22px;
+      width: 118px;
+      height: 56px;
+    }
+    #s1-level i {
+      position: absolute;
+      bottom: 0;
+      width: 10px;
+      height: 56px;
+      border-radius: 5px;
+      background: var(--amber);
+      transform-origin: 50% 100%;
+    }
+    #s1-cap {
+      position: absolute;
+      left: 20px;
+      top: 28px;
+      display: flex;
+      font-weight: 700;
+      font-size: 40px;
+      line-height: 48px;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    #s1-cap .cw {
+      background: var(--amber);
+      padding: 8px 10px 8px 9px;
+      margin-right: -1px;
+      /* the block runs on under the next word, so no seam shows between two words */
+      box-shadow: 5px 0 0 var(--amber);
+    }
+    #s1-cap .cw:last-child {
+      box-shadow: none;
+    }
+    #s1-cap .cw:first-child {
+      padding-left: 20px;
+      border-radius: 12px 0 0 12px;
+    }
+    #s1-cap .cw:last-child {
+      padding-right: 20px;
+      border-radius: 0 12px 12px 0;
+    }
+    #s1-q {
+      position: absolute;
+      left: 1400px;
+      top: 104px;
+      font-weight: 900;
+      font-size: 110px;
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+    }
+    #s1-q span {
+      display: block;
+    }
+
+    /* The sentence as sound: an amber block of bars. It travels from the call to the words. */
+    #w-cap,
+    #w-sent {
+      position: absolute;
+      background: var(--amber);
+      transform-origin: 0 0;
+    }
+    #w-cap {
+      left: 0;
+      top: 0;
+      width: 512px;
+      height: 120px;
+      border-radius: 20px;
+    }
+    /* A playhead: the sound being played, then being listened to. */
+    #cap-head {
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 6px;
+      height: 104px;
+      border-radius: 3px;
+      background: var(--paper);
+    }
+    .sbars {
+      position: absolute;
+      width: 512px;
+      height: 120px;
+    }
+    .sbars i {
+      position: absolute;
+      top: 50%;
+      width: 8px;
+      border-radius: 4px;
+      background: var(--ink);
+    }
+    /* The sentence as words: the same block, wider. It travels from the words to the notes. */
+    #w-sent {
+      left: 4040px;
+      top: 1555px;
+      width: 1520px;
+      height: 130px;
+      border-radius: 24px;
+    }
+    #w-sent .sbars {
+      left: 504px;
+      top: 5px;
+    }
+    #sent-words {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.25em;
+      font-weight: 800;
+      font-size: 66px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    #sent-words .tok {
+      position: relative;
+    }
+    #sent-words .tick {
+      position: absolute;
+      left: 50%;
+      top: 116px;
+      width: 4px;
+      margin-left: -2px;
+      background: var(--paper);
+      transform-origin: 50% 0;
+    }
+    #sent-words .time {
+      position: absolute;
+      left: 50%;
+      width: 120px;
+      margin-left: -60px;
+      text-align: center;
+      font-style: normal;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      color: var(--paper);
+    }
+
+    /* 2 and 3. The recorder: two lanes that run from TRACKS into SPEAKERS */
+    #rec {
+      left: 2060px;
+      top: 240px;
+      width: 2360px;
+      height: 640px;
+    }
+    .lane {
+      left: 404px;
+      width: 1900px;
+      height: 190px;
+      transform-origin: 0 50%;
+    }
+    .lane .bars {
+      position: absolute;
+      inset: 0;
+    }
+    .lane .bars i {
+      position: absolute;
+      top: 50%;
+      width: 8px;
+      border-radius: 4px;
+    }
+    .fname {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      font-size: 40px;
+      line-height: 1.2;
+    }
+    .fapi {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.2;
+      color: var(--mint-hi);
+    }
+    .turns {
+      position: absolute;
+      left: 404px;
+      width: 1900px;
+      height: 24px;
+    }
+    .turns i {
+      position: absolute;
+      top: 0;
+      height: 24px;
+      border-radius: 12px;
+    }
+    #rec-end {
+      position: absolute;
+      left: 2184px;
+      top: 40px;
+      width: 6px;
+      height: 520px;
+      border-radius: 3px;
+      background: var(--paper);
+      transform-origin: 50% 0;
+    }
+    #rec-stop {
+      position: absolute;
+      left: 2174px;
+      top: 6px;
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      background: var(--paper);
+    }
+    #rec-scan {
+      position: absolute;
+      left: 0;
+      top: 40px;
+      width: 12px;
+      height: 590px;
+      border-radius: 6px;
+      background: var(--mint-hi);
+    }
+    .who {
+      font-weight: 700;
+      font-size: 30px;
+      line-height: 1.2;
+    }
+    #s2-nobot {
+      left: 2100px;
+      top: 912px;
+      font-weight: 700;
+      font-size: 40px;
+      line-height: 1.2;
+    }
+
+    /* 4. The words */
+    #s4-tag {
+      left: 200px;
+      top: 388px;
+      font-weight: 700;
+      font-size: 36px;
+      line-height: 1.2;
+    }
+    .plate.small .plate-name {
+      font-size: 44px;
+    }
+
+    /* 5. The notes */
+    #s5-tr .hd,
+    #s5-notes .hd {
+      position: absolute;
+      left: 30px;
+      top: 22px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 30px;
+      line-height: 1.2;
+      color: var(--mint-hi);
+    }
+    #s5-notes .hd {
+      left: 40px;
+      color: var(--teal-deep);
+    }
+    .trow {
+      position: absolute;
+      left: 30px;
+      height: 60px;
+      width: 740px;
+      font-size: 28px;
+      line-height: 60px;
+      white-space: nowrap;
+    }
+    .trow b {
+      position: absolute;
+      left: 0;
+      font-weight: 700;
+    }
+    .trow span {
+      position: absolute;
+      left: 100px;
+      font-weight: 500;
+      color: #b4c9c4;
+    }
+    #s5-read {
+      position: absolute;
+      left: 20px;
+      top: 76px;
+      width: 760px;
+      height: 68px;
+      border-radius: 12px;
+      background: rgba(110, 242, 220, 0.2);
+      border-bottom: 6px solid var(--mint-hi);
+    }
+    #s5-blank {
+      position: absolute;
+      left: 1040px;
+      top: 270px;
+      width: 760px;
+      height: 740px;
+      border: 4px dashed var(--teal);
+      border-radius: 24px;
+    }
+    #s5-blank span {
+      position: absolute;
+      left: 36px;
+      top: 18px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 30px;
+      line-height: 1.2;
+      color: var(--teal);
+    }
+    #s5-notes {
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: 24px;
+    }
+    #s5-notes h4 {
+      position: absolute;
+      left: 40px;
+      margin: 0;
+      font-weight: 800;
+      font-size: 40px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    #s5-notes p {
+      position: absolute;
+      left: 40px;
+      width: 680px;
+      margin: 0;
+      padding-left: 44px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.32;
+    }
+    #s5-notes p i {
+      position: absolute;
+      left: 0;
+      top: 5px;
+      width: 26px;
+      height: 26px;
+      border: 4px solid var(--teal);
+      border-radius: 7px;
+    }
+    #s5-notes p i.round {
+      border-radius: 13px;
+    }
+
+    /* 6. Meaning: the sentence as a vector, then as one dot */
+    #s6-strip {
+      position: absolute;
+      left: 2103px;
+      top: 2658px;
+      width: 1554px;
+      height: 84px;
+    }
+    #s6-strip i {
+      position: absolute;
+      top: 0;
+      width: 150px;
+      height: 84px;
+      border-radius: 12px;
+      background: var(--amber);
+      color: var(--ink);
+      font-style: normal;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      font-size: 34px;
+      line-height: 84px;
+      text-align: center;
+    }
+    .dot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 44px;
+      height: 44px;
+      margin: -22px 0 0 -22px;
+      border-radius: 22px;
+      background: var(--amber);
+    }
+
+    /* The database */
+    #db-file .corner {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 110px 110px 0;
+      border-color: transparent var(--slate) transparent transparent;
+    }
+    #db-file .corner2 {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 110px;
+      height: 110px;
+      border-radius: 0 0 0 26px;
+      background: var(--slate-3);
+    }
+    #db-name {
+      left: 50px;
+      top: 30px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      font-size: 48px;
+      line-height: 1.2;
+    }
+    .dbt {
+      position: absolute;
+      left: 28px;
+      top: 20px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 30px;
+      line-height: 1.2;
+      color: var(--mint-hi);
+      white-space: nowrap;
+    }
+    .krow {
+      position: absolute;
+      left: 28px;
+      height: 56px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 56px;
+      white-space: nowrap;
+    }
+    .krow b {
+      position: relative;
+      font-weight: 500;
+      padding: 4px 12px;
+      margin-left: -12px;
+    }
+    .krow u {
+      position: absolute;
+      top: 21px;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      background: var(--teal);
+    }
+    #db-mark {
+      position: absolute;
+      left: 16px;
+      top: 88px;
+      width: 152px;
+      height: 56px;
+      border-radius: 10px;
+      background: var(--amber);
+      transform-origin: 0 50%;
+    }
+    #db-vec i {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--paper);
+    }
+    #db-vec .near {
+      position: absolute;
+      font-weight: 600;
+      font-size: 28px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    /* 7. Typing */
+    #s7-page {
+      background: var(--paper);
+      border-radius: 24px;
+      color: var(--ink);
+    }
+    #s7-page .old {
+      position: absolute;
+      left: 80px;
+      height: 26px;
+      border-radius: 13px;
+      background: #c3dbd4;
+    }
+    #s7-line {
+      position: absolute;
+      left: 80px;
+      top: 186px;
+      font-weight: 500;
+      font-size: 64px;
+      line-height: 84px;
+      white-space: pre;
+    }
+    #s7-ghost {
+      display: inline-block;
+      position: relative;
+      margin-left: 14px;
+      padding: 0 14px 0 4px;
+      border-radius: 12px;
+      white-space: pre;
+    }
+    #s7-ghost-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: var(--amber);
+    }
+    #s7-ghost-tx {
+      position: relative;
+    }
+    #s7-model {
+      border-radius: 28px;
+      background: linear-gradient(135deg, #6ef2dc, #23c4ae);
+    }
+    #s7-model .bay {
+      position: absolute;
+      left: 30px;
+      top: 30px;
+      width: 240px;
+      height: 130px;
+      border-radius: 18px;
+      background: var(--slate);
+    }
+    #s7-model .bay i {
+      position: absolute;
+      left: 96px;
+      height: 14px;
+      border-radius: 7px;
+      background: var(--mint-hi);
+      transform-origin: 0 50%;
+    }
+    #s7-tab {
+      border-radius: 16px;
+      background: var(--slate-2);
+      border-bottom: 10px solid #0a0f15;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      font-size: 34px;
+      line-height: 90px;
+      text-align: center;
+    }
+
+    /* 8. The agent */
+    #s8-sw {
+      border-radius: 27px;
+      background: var(--slate-2);
+    }
+    #s8-knob {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      width: 42px;
+      height: 42px;
+      border-radius: 21px;
+      background: var(--paper);
+    }
+    .gate {
+      position: absolute;
+      top: 252px;
+      width: 164px;
+      height: 44px;
+      background: var(--slate-3);
+    }
+    .post {
+      position: absolute;
+      top: 236px;
+      width: 16px;
+      height: 76px;
+      border-radius: 8px;
+      background: var(--teal);
+    }
+    #s8-term .line {
+      position: absolute;
+      left: 44px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.3;
+      white-space: pre;
+    }
+    #s8-ans {
+      position: absolute;
+      left: 44px;
+      top: 262px;
+      padding: 10px 20px;
+      border-radius: 12px;
+      background: var(--amber);
+      color: var(--ink);
+      font-weight: 700;
+      font-size: 34px;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    /* The pull-back: screen-space labels over the Mac */
+    #w-over {
+      position: absolute;
+      inset: 0;
+    }
+    .mplate {
+      position: absolute;
+      padding: 12px 22px 14px 20px;
+      border-left: 8px solid var(--mint-hi);
+      border-radius: 4px 14px 14px 4px;
+      background: var(--slate);
+      white-space: nowrap;
+    }
+    .mplate b {
+      display: block;
+      font-weight: 800;
+      font-size: 40px;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: var(--paper);
+    }
+    .mplate span {
+      display: block;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.3;
+      color: var(--mint-hi);
+    }
+    #w-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 944px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 60px;
+      line-height: 1.2;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    #w-line span {
+      display: inline-block;
+      margin: 0 14px;
+    }
+    #w-dot {
+      position: absolute;
+      left: 751px;
+      top: 625.5px;
+      width: 50px;
+      height: 50px;
+      border-radius: 25px;
+      background: var(--amber);
+    }
+  </style>
+  <div id="root" data-composition-id="world" data-width="1920" data-height="1080">
+    <div id="w-world" data-layout-allow-overflow>
+      <div id="w-bezel"></div>
+      <div id="w-base"></div>
+      <div id="w-slab"></div>
+      <!-- The route: CALL, TRACKS, SPEAKERS, WORDS, NOTES, MEANING, DATABASE, TYPING, AGENT. -->
+      <svg class="route" viewBox="0 0 5760 3240">
+        <polyline points="960,540 2880,540 4800,540 4800,1620 4800,2700 2880,2700 2880,1620 960,1620 960,2700"
+          fill="none" stroke="#17222d" stroke-width="120" stroke-linejoin="round" stroke-linecap="round" />
+        <polyline id="w-trace" points="960,540 2880,540 4800,540 4800,1620 4800,2700 2880,2700 2880,1620 960,1620 960,2700"
+          fill="none" stroke="#fbbf24" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"
+          stroke-dasharray="12000 12000" stroke-dashoffset="12000" />
+      </svg>
+
+      <!-- 1. CALL -->
+      <div class="st" id="s1" style="left: 0; top: 0">
+        <div class="panel" id="s1-win" style="left: 140px; top: 170px; width: 1180px; height: 700px">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="tile" id="s1-maya" style="left: 36px; top: 80px">
+            <div class="head"></div>
+            <div class="body"></div>
+            <div class="tname">Maya</div>
+            <div id="s1-level"></div>
+          </div>
+          <div class="tile" id="s1-you" style="left: 604px; top: 80px">
+            <div class="head"></div>
+            <div class="body"></div>
+            <div class="tname">You</div>
+          </div>
+          <div class="inset" style="left: 36px; top: 530px; width: 1108px; height: 120px">
+            <div id="s1-cap">
+              <span class="cw">The</span><span class="cw">offsite</span><span class="cw">is</span><span class="cw">in</span><span class="cw">Lisbon,</span><span class="cw">May</span><span class="cw">12</span><span class="cw">to</span><span class="cw">14.</span>
+            </div>
+          </div>
+        </div>
+        <div id="s1-q"><span class="qw">Where</span><span class="qw">does</span><span class="qw">it go?</span></div>
+      </div>
+
+      <!-- 2 and 3. TRACKS and SPEAKERS share one recorder -->
+      <div class="panel" id="rec">
+        <div class="lab fname" id="rec-n1" style="left: 40px; top: 84px">mic.m4a</div>
+        <div class="lab fapi" id="rec-a1" style="left: 40px; top: 140px">AVAudioEngine</div>
+        <div class="lab fname" id="rec-n2" style="left: 40px; top: 394px">system.m4a</div>
+        <div class="lab fapi" id="rec-a2" style="left: 40px; top: 450px">Core Audio tap</div>
+        <div class="inset lane" id="lane1" style="top: 50px"><div class="bars" id="bars1"></div></div>
+        <div class="inset lane" id="lane2" style="top: 360px"><div class="bars" id="bars2"></div></div>
+        <div class="turns" id="turns1" style="top: 248px"></div>
+        <div class="turns" id="turns2" style="top: 558px"></div>
+        <div class="lab who" id="rec-you" style="left: 1668px; top: 284px; color: #6ef2dc">You</div>
+        <div class="lab who" id="rec-maya" style="left: 1124px; top: 592px">Maya</div>
+        <div id="rec-end"></div>
+        <div id="rec-stop"></div>
+        <div id="rec-scan"></div>
+      </div>
+      <div class="lab" id="s2-nobot">No bot joins the call</div>
+      <div class="plate" id="p-nemo" style="left: 4470px; top: 290px">
+        <div class="plate-name">Nemotron 3</div>
+        <div class="plate-job">speaker turns</div>
+        <div class="plate-spec">Core ML · 0.20 GB</div>
+      </div>
+
+      <!-- 4. WORDS -->
+      <div class="st" id="s4" style="left: 3840px; top: 1080px">
+        <div class="panel" style="left: 80px; top: 340px; width: 1760px; height: 420px"></div>
+        <div class="lab" id="s4-tag">Maya</div>
+        <div class="plate" id="p-asr" style="left: 140px; top: 96px">
+          <div class="plate-name">Qwen3-ASR 1.7B</div>
+          <div class="plate-job">52 languages</div>
+          <div class="plate-spec">MLX 8-bit · 2.47 GB</div>
+        </div>
+        <div class="plate small" id="p-align" style="left: 140px; top: 812px">
+          <div class="plate-name">Qwen3 forced aligner 0.6B</div>
+          <div class="plate-job">word timings, 11 languages</div>
+        </div>
+      </div>
+
+      <!-- 5. NOTES -->
+      <div class="st" id="s5" style="left: 3840px; top: 2160px">
+        <div class="plate" id="p-think" style="left: 120px; top: 36px">
+          <div class="plate-name">Qwen3.5 4B</div>
+          <div class="plate-job">notes and answers</div>
+          <div class="plate-spec">llama.cpp Q4_K_M · 2.74 GB</div>
+          <div class="plate-more">26-minute meeting: 33 s · M4 Max</div>
+        </div>
+        <div class="panel" id="s5-tr" style="left: 100px; top: 270px; width: 800px; height: 740px; border-radius: 24px">
+          <div class="hd">transcript.md</div>
+          <div id="s5-read"></div>
+          <div id="s5-rows"></div>
+        </div>
+        <div id="s5-blank"><span>summary.md</span></div>
+        <div class="panel" id="s5-notes" style="left: 1040px; top: 270px; width: 760px; height: 740px">
+          <div class="hd">summary.md</div>
+          <h4 id="n-h1" style="top: 92px">Decisions</h4>
+          <h4 id="n-h2" style="top: 258px">Action items</h4>
+          <p id="n-p2" style="top: 322px"><i></i>Pay the venue deposit for the Lisbon rooftop location by Friday.</p>
+          <h4 id="n-h3" style="top: 458px">Open questions</h4>
+          <p id="n-p3" style="top: 522px"><i class="round"></i>It is undecided whether everyone will fly in on Sunday.</p>
+        </div>
+      </div>
+
+      <!-- 6. MEANING -->
+      <div class="st" id="s6" style="left: 1920px; top: 2160px">
+        <div class="panel" style="left: 120px; top: 390px; width: 1680px; height: 300px"></div>
+        <div class="lab m28" id="s6-dim" style="left: 183px; top: 620px; font-size: 30px">768 dimensions</div>
+        <div class="plate" id="p-embed" style="left: 140px; top: 110px">
+          <div class="plate-name">EmbeddingGemma 2</div>
+          <div class="plate-job">search by meaning</div>
+          <div class="plate-spec">llama.cpp Q8_0 · 0.31 GB</div>
+        </div>
+      </div>
+
+      <!-- DATABASE -->
+      <div class="st" id="db" style="left: 1920px; top: 1080px">
+        <div class="panel" id="db-file" style="left: 210px; top: 150px; width: 1500px; height: 800px">
+          <div class="corner2"></div>
+          <div class="corner"></div>
+          <div class="lab" id="db-name">lokalbotv3.sqlite</div>
+          <div class="inset" id="db-key" style="left: 50px; top: 130px; width: 600px; height: 510px">
+            <div class="dbt" id="db-kt">keywords · FTS5</div>
+            <div id="db-mark"></div>
+            <div id="db-rows"></div>
+          </div>
+          <div class="inset" id="db-vec" style="left: 690px; top: 130px; width: 760px; height: 510px">
+            <div class="dbt" id="db-vt">vectors · 768-d</div>
+            <div class="near" id="near1" style="left: 446px; top: 188px">rooftop venue</div>
+            <div class="near" id="near2" style="left: 476px; top: 313px">travel budget</div>
+            <div class="near" id="near3" style="left: 214px; top: 328px">team dates</div>
+          </div>
+          <div class="lab m28" id="db-path" style="left: 50px; top: 672px">~/Library/Application Support/me.dotenv.LokalBot/</div>
+        </div>
+      </div>
+
+      <!-- 7. TYPING -->
+      <div class="st" id="s7" style="left: 0; top: 1080px">
+        <div class="panel" id="s7-page" style="left: 220px; top: 110px; width: 1480px; height: 340px">
+          <div class="old" style="top: 60px; width: 940px"></div>
+          <div class="old" style="top: 112px; width: 620px"></div>
+          <div id="s7-line"><span id="s7-typed"></span><span id="s7-ghost"><span id="s7-ghost-bg"></span><span id="s7-ghost-tx">Lisbon, May 12 to 14.</span></span></div>
+        </div>
+        <div class="panel" id="s7-model" style="left: 810px; top: 650px; width: 300px; height: 190px">
+          <div class="bay">
+            <i id="s7-b1" style="top: 34px; width: 110px"></i>
+            <i id="s7-b2" style="top: 58px; width: 80px"></i>
+            <i id="s7-b3" style="top: 82px; width: 100px"></i>
+          </div>
+        </div>
+        <div class="panel" id="s7-tab" style="left: 500px; top: 690px; width: 170px; height: 100px">tab</div>
+        <div class="plate" id="p-gemma" style="left: 1180px; top: 632px">
+          <div class="plate-name">Gemma 4 E2B</div>
+          <div class="plate-job">autocomplete</div>
+          <div class="plate-spec">llama.cpp Q6_K · 3.85 GB</div>
+          <div class="plate-more">56 ms median a keystroke · M4 Max</div>
+          <div class="plate-more" style="color: #6ef2dc">memory snippets: opt-in</div>
+        </div>
+      </div>
+
+      <!-- 8. AGENT -->
+      <div class="st" id="s8" style="left: 0; top: 2160px">
+        <div class="lab" id="s8-acc" style="left: 300px; top: 228px; font-weight: 700; font-size: 34px; line-height: 1.2">agent access</div>
+        <div class="lab m28" id="s8-off" style="left: 300px; top: 274px; color: #6ef2dc">off by default</div>
+        <div class="panel" id="s8-sw" style="left: 560px; top: 247px; width: 104px; height: 54px"><div id="s8-knob"></div></div>
+        <div class="post" style="left: 782px"></div>
+        <div class="post" style="left: 1122px"></div>
+        <div class="gate" id="s8-g1" style="left: 796px; border-radius: 8px 0 0 8px; transform-origin: 0 50%"></div>
+        <div class="gate" id="s8-g2" style="left: 960px; border-radius: 0 8px 8px 0; transform-origin: 100% 50%"></div>
+        <div class="lab m28" id="s8-mcp" style="left: 1170px; top: 256px">lokalbot-cli mcp · stdio · read-only</div>
+        <div class="panel" id="s8-term" style="left: 360px; top: 450px; width: 1200px; height: 470px">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="line" id="s8-l1" style="top: 96px"></div>
+          <div class="line" id="s8-l2" style="top: 174px; color: #6ef2dc">lokalbot · search_meetings("offsite")</div>
+          <div id="s8-ans">The offsite is in Lisbon, May 12 to 14.</div>
+        </div>
+      </div>
+
+      <!-- The sentence, in the forms that travel -->
+      <div id="w-cap"><div class="sbars" id="cap-bars"></div><div id="cap-head"></div></div>
+      <div id="w-sent">
+        <div class="sbars" id="sent-bars"></div>
+        <div id="sent-words"></div>
+      </div>
+      <div id="s6-strip"></div>
+      <div class="dot" id="dot1"></div>
+      <div class="dot" id="dot2"></div>
+      <div class="dot" id="dot3"></div>
+
+      <!-- The route once more, on top, for the pull-back -->
+      <svg class="route" id="w-top" viewBox="0 0 5760 3240">
+        <polyline id="w-trace-top" points="960,540 2880,540 4800,540 4800,1620 4800,2700 2880,2700 2880,1620 960,1620 960,2700"
+          fill="none" stroke="#fbbf24" stroke-width="44" stroke-linejoin="round" stroke-linecap="round"
+          stroke-dasharray="12000 12000" stroke-dashoffset="0" />
+        <polyline id="w-bead" points="960,540 2880,540 4800,540 4800,1620 4800,2700 2880,2700 2880,1620 960,1620 960,2700"
+          fill="none" stroke="#eafffa" stroke-width="20" stroke-linejoin="round" stroke-linecap="round"
+          stroke-dasharray="220 13000" stroke-dashoffset="230" />
+      </svg>
+    </div>
+
+    <!-- Screen space: the five models named over their stations, the line under the Mac, the last dot -->
+    <div id="w-over" data-layout-ignore>
+      <div class="mplate" style="left: 1202px; top: 168px"><b>Nemotron 3</b><span>0.20 GB</span></div>
+      <div class="mplate" style="left: 1202px; top: 411px"><b>Qwen3-ASR 1.7B</b><span>2.47 GB</span></div>
+      <div class="mplate" style="left: 1202px; top: 654px"><b>Qwen3.5 4B</b><span>2.74 GB</span></div>
+      <div class="mplate" style="left: 744px; top: 654px"><b>EmbeddingGemma 2</b><span>0.31 GB</span></div>
+      <div class="mplate" style="left: 372px; top: 411px"><b>Gemma 4 E2B</b><span>3.85 GB</span></div>
+      <div id="w-line"><span class="lw">One sentence.</span><span class="lw">Five models.</span><span class="lw">9.6 GB.</span><span class="lw">One Mac.</span></div>
+      <div id="w-dot"></div>
+    </div>
+  </div>
+  <script>
+    /* cues:begin */
+    // Written by build.py from the voice's timings: never edit between these two marks.
+    const CUES = {"length": 53.1, "slot": 52.5, "lines": {"a01": {"start": 0.4, "end": 5.02, "words": [["someone", 0.4], ["on", 0.88], ["your", 1.04], ["call", 1.2], ["says", 1.6], ["one", 2.0], ["sentence", 2.32], ["let's", 3.44], ["follow", 3.8], ["it", 4.0], ["through", 4.2], ["lokalbot", 4.36]]}, "a02": {"start": 5.37, "end": 10.857, "words": [["first", 5.37], ["it's", 5.85], ["only", 6.17], ["sound", 6.49], ["two", 7.53], ["tracks", 7.69], ["your", 8.49], ["microphone", 8.85], ["and", 9.53], ["the", 9.69], ["call", 9.89], ["app's", 10.09], ["audio", 10.49]]}, "a03": {"start": 11.207, "end": 15.406, "words": [["when", 11.207], ["the", 11.367], ["call", 11.527], ["ends", 11.927], ["a", 12.727], ["speaker", 13.047], ["model", 13.487], ["marks", 13.767], ["who", 14.247], ["spoke", 14.487], ["when", 15.047]]}, "a04": {"start": 15.756, "end": 20.971, "words": [["a", 15.756], ["speech", 15.916], ["model", 16.316], ["turns", 16.796], ["the", 17.196], ["sound", 17.356], ["into", 17.916], ["words", 18.156], ["each", 19.116], ["one", 19.356], ["pinned", 19.676], ["to", 20.156], ["its", 20.356], ["moment", 20.996]]}, "a05": {"start": 21.321, "end": 28.824, "words": [["a", 21.321], ["language", 21.641], ["model", 21.961], ["reads", 22.521], ["the", 22.841], ["whole", 23.161], ["transcript", 23.401], ["and", 24.281], ["writes", 24.521], ["the", 24.761], ["notes", 25.321], ["decisions", 25.961], ["action", 26.921], ["items", 27.321], ["open", 28.041], ["questions", 28.361]]}, "a06": {"start": 29.174, "end": 34.579, "words": [["an", 29.174], ["embedding", 29.334], ["model", 29.814], ["files", 30.294], ["it", 30.694], ["by", 30.854], ["meaning", 31.094], ["beside", 31.894], ["a", 32.294], ["keyword", 32.574], ["index", 32.854], ["in", 33.734], ["one", 33.894], ["database", 34.134]]}, "a07": {"start": 34.929, "end": 40.072, "words": [["days", 34.929], ["later", 35.329], ["you", 35.809], ["start", 35.969], ["typing", 36.729], ["and", 37.276], ["a", 37.369], ["model", 37.489], ["built", 37.889], ["for", 38.249], ["speed", 38.449], ["finishes", 39.009], ["the", 39.569], ["sentence", 39.729]]}, "a08": {"start": 40.422, "end": 44.377, "words": [["and", 40.422], ["only", 40.662], ["if", 40.982], ["you", 41.142], ["allow", 41.422], ["it", 41.702], ["your", 42.302], ["coding", 42.582], ["agent", 42.822], ["can", 43.222], ["ask", 43.462], ["for", 43.702], ["it", 43.862], ["too", 44.102]]}, "a09": {"start": 44.727, "end": 51.686, "words": [["one", 44.727], ["sentence", 45.047], ["five", 46.007], ["models", 46.327], ["under", 47.287], ["ten", 47.687], ["gigabytes", 48.007], ["all", 49.287], ["of", 49.447], ["it", 49.607], ["running", 49.927], ["on", 50.247], ["your", 50.487], ["mac", 51.167]]}}};
+    const LEN = CUES.length;
+    const SLOT = CUES.slot;
+    const L = (id) => CUES.lines[id].start;
+    const E = (id) => CUES.lines[id].end;
+    const W = (id, word, nth = 1) => {
+      const hits = CUES.lines[id].words.filter((said) => said[0] === word.toLowerCase());
+      if (hits.length < nth) throw new Error(`no cue ${id}/${word}`);
+      return hits[nth - 1][1];
+    };
+    gsap.config({ force3D: false }); // 2D transforms, so type stays sharp under a camera move
+    /* cues:end */
+    const tl = gsap.timeline({ paused: true });
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => gsap.utils.toArray(sel);
+    // A seeded generator: the same marks on every run.
+    const seeded = (seed) => () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+
+    // ---- helpers: every later move on a property is a fromTo from the value the last one left ----
+    const state = new Map();
+    const put = (sel, vars) => {
+      gsap.set(sel, vars);
+      state.set(sel, { ...(state.get(sel) || {}), ...vars });
+    };
+    const go = (sel, at, vars, duration, ease = "power2.inOut") => {
+      const now = state.get(sel) || {};
+      const from = {};
+      Object.keys(vars).forEach((key) => { from[key] = now[key]; });
+      tl.fromTo(sel, from, { ...vars, duration, ease, immediateRender: false }, at);
+      state.set(sel, { ...now, ...vars });
+    };
+    const jump = (sel, at, vars) => {
+      tl.set(sel, vars, at);
+      state.set(sel, { ...(state.get(sel) || {}), ...vars });
+    };
+    const wipe = (sel, at, duration = 0.38) =>
+      tl.fromTo(sel, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration, ease: "power3.out" }, at);
+    const blurIn = (sel, at, stagger = 0.07) =>
+      tl.fromTo(sel, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out", stagger }, at);
+    const fadeOut = (sel, at, duration = 0.2) =>
+      tl.fromTo(sel, { opacity: 1 }, { opacity: 0, duration, ease: "power3.in", immediateRender: false }, at);
+    // Text typed key by key: every character is laid out from the start and switched on in turn;
+    // a zero-width caret mark sits after each, and only one of them shows.
+    const typed = (host, text, start, step, from) => {
+      const el = $(host);
+      const marks = [];
+      const mark = () => {
+        const caret = document.createElement("i");
+        caret.className = "caret";
+        caret.style.opacity = 0;
+        el.appendChild(caret);
+        marks.push(caret);
+      };
+      mark();
+      [...text].forEach((char, index) => {
+        const span = document.createElement("span");
+        span.textContent = char;
+        span.style.opacity = 0;
+        el.appendChild(span);
+        tl.set(span, { opacity: 1 }, start + index * step);
+        mark();
+      });
+      tl.set(marks[0], { opacity: 1 }, from);
+      marks.forEach((caret, index) => {
+        if (!index) return;
+        tl.set(marks[index - 1], { opacity: 0 }, start + (index - 1) * step);
+        tl.set(caret, { opacity: 1 }, start + (index - 1) * step);
+      });
+      return marks[marks.length - 1];
+    };
+
+    // ---- marks built once ----
+    // The sentence's 32 bars: the same heights in the capsule and in the block it widens into.
+    const say = seeded(7);
+    const SENT = Array.from({ length: 32 }, (_, i) => {
+      const syllable = 0.35 + 0.65 * Math.abs(Math.sin((i + 2) * 0.62));
+      return Math.round(18 + 84 * syllable * (0.55 + 0.45 * say()));
+    });
+    ["#cap-bars", "#sent-bars"].forEach((host) => SENT.forEach((height, i) => {
+      const bar = document.createElement("i");
+      bar.style.cssText = `left:${i * 16 + 4}px;height:${height}px;margin-top:${-height / 2}px`;
+      $(host).appendChild(bar);
+    }));
+    // The two lanes. Who is talking, in bars of 16 px from the lane's start (the amber stretch is 45 to 76).
+    const YOU = [[0, 12], [32, 43], [79, 92]];
+    const MAYA = [[14, 30], [45, 76], [94, 108]];
+    const inside = (ranges, i) => ranges.some(([a, b]) => i >= a && i <= b);
+    const noise = seeded(21);
+    for (let i = 0; i < 111; i += 1) {
+      [["#bars1", YOU, "#6ef2dc"], ["#bars2", MAYA, "#eafffa"]].forEach(([host, ranges, color]) => {
+        const amberStretch = host === "#bars2" && i >= 45 && i <= 76;
+        const loud = inside(ranges, i);
+        const height = loud ? Math.round(36 + 110 * (0.4 + 0.6 * Math.abs(Math.sin(i * 0.7))) * (0.5 + 0.5 * noise())) : Math.round(6 + 6 * noise());
+        if (amberStretch) return;
+        const bar = document.createElement("i");
+        bar.style.cssText = `left:${i * 16 + 4}px;height:${height}px;margin-top:${-height / 2}px;background:${color}`;
+        $(host).appendChild(bar);
+      });
+    }
+    [["#turns1", YOU, "#6ef2dc"], ["#turns2", MAYA, "#eafffa"]].forEach(([host, ranges, color]) => ranges.forEach(([a, b]) => {
+      const turn = document.createElement("i");
+      turn.style.cssText = `left:${a * 16}px;width:${(b - a + 1) * 16}px;background:${color}`;
+      $(host).appendChild(turn);
+    }));
+    // Maya's level meter in the call.
+    for (let i = 0; i < 7; i += 1) {
+      const bar = document.createElement("i");
+      bar.style.left = `${i * 18}px`;
+      $("#s1-level").appendChild(bar);
+    }
+    // The words, each with its tick and its time (the times are illustrative).
+    const TOKENS = [["The", "0:10.2"], ["offsite", "0:10.4"], ["is", "0:10.9"], ["in", "0:11.0"], ["Lisbon,", "0:11.2"],
+      ["May", "0:11.9"], ["12", "0:12.2"], ["to", "0:12.5"], ["14.", "0:12.7"]];
+    TOKENS.forEach(([word, time], i) => {
+      const low = i % 2 === 1;
+      const tok = document.createElement("span");
+      tok.className = "tok";
+      tok.innerHTML = `${word}<i class="tick" style="height:${low ? 76 : 24}px"></i><i class="time" style="top:${low ? 198 : 146}px">${time}</i>`;
+      $("#sent-words").appendChild(tok);
+    });
+    // The transcript's rows; the fourth is where the sentence sits.
+    const ROWS = [["You", "Okay, let's settle the offsite."], ["Maya", "The rooftop venue fits all 40 of us."],
+      ["You", "And it's under budget?"], ["Maya", "The offsite is in Lisbon, May 12 to 14."], ["You", "Great. Decision made."],
+      ["Maya", "I'll pay the venue deposit by Friday."], ["You", "Will everyone fly in on Sunday?"], ["Maya", "Not decided yet."]];
+    ROWS.forEach(([who, said], i) => {
+      const row = document.createElement("div");
+      row.className = "trow";
+      row.style.top = `${80 + i * 78}px`;
+      row.innerHTML = `<b style="color:${who === "You" ? "#6ef2dc" : "#eafffa"}">${who}</b><span${i === 3 ? ' id="s5-left"' : ""}>${said}</span>`;
+      $("#s5-rows").appendChild(row);
+    });
+    // The vector.
+    ["0.12", "-0.48", "0.07", "0.91", "-0.33", "0.26", "-0.75", "0.04", "0.58", "..."].forEach((value, i) => {
+      const cell = document.createElement("i");
+      cell.textContent = value;
+      cell.style.left = `${i * 156}px`;
+      $("#s6-strip").appendChild(cell);
+    });
+    // The keyword index and the field of other passages.
+    ["Lisbon", "May", "offsite", "rooftop", "venue", "budget"].forEach((word, i) => {
+      const row = document.createElement("div");
+      row.className = "krow";
+      row.style.top = `${88 + i * 66}px`;
+      const refs = [3, 4, 2, 2, 3, 2][i];
+      row.innerHTML = `<b${i ? "" : ' id="db-lis"'}>${word}</b>` + Array.from({ length: refs }, (_, k) => `<u style="left:${330 + k * 30}px"></u>`).join("");
+      $("#db-rows").appendChild(row);
+    });
+    const scatter = seeded(99);
+    for (let i = 0; i < 46; i += 1) {
+      const x = 40 + scatter() * 680;
+      const y = 80 + scatter() * 390;
+      const size = 10 + Math.round(scatter() * 6);
+      // keep the landing place and its three names clear
+      if (x > 100 && x < 700 && y > 150 && y < 370) continue;
+      const dot = document.createElement("i");
+      dot.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px`;
+      $("#db-vec").appendChild(dot);
+    }
+    [[413, 198], [443, 323], [183, 338]].forEach(([x, y]) => {
+      const dot = document.createElement("i");
+      dot.style.cssText = `left:${x}px;top:${y}px;width:14px;height:14px`;
+      $("#db-vec").appendChild(dot);
+    });
+
+    // ---- when the camera leaves each station ----
+    const T = {
+      tracks: E("a01") - 0.07,
+      speakers: L("a03") - 0.25,
+      words: L("a04") - 0.66,
+      notes: L("a05") - 0.1,
+      meaning: L("a06") - 0.3,
+      database: W("a06", "meaning") + 0.25,
+      typing: L("a07") + 0.15,
+      agent: L("a08") - 0.12,
+      pull: L("a09") - 0.3,
+      out: E("a09") + 0.1,
+    };
+    const trace = (at, length, duration, ease = "power2.inOut") => go("#w-trace", at, { strokeDashoffset: 12000 - length }, duration, ease);
+    put("#w-trace", { strokeDashoffset: 12000 });
+
+    // ---- the camera ----
+    put("#w-world", { x: 0, y: -214, scale: 1.45 });
+    go("#w-world", 0, { y: -136, scale: 1.3 }, 1.4, "power2.out");
+    go("#w-world", W("a01", "let's") - 0.55, { x: 0, y: 0, scale: 1 }, 0.8);
+    go("#w-world", T.tracks, { x: -1920 }, 0.9);
+    go("#w-world", T.speakers, { x: -3020 }, 0.9);
+    go("#w-world", T.words + 0.05, { x: -3840 }, 0.75);
+    go("#w-world", T.words + 0.5, { y: -1080 }, 0.75);
+    go("#w-world", T.notes, { y: -2160 }, 0.9);
+    go("#w-world", T.meaning, { x: -1920 }, 0.9);
+    go("#w-world", T.database, { y: -1080 }, 0.9);
+    go("#w-world", T.typing, { x: 0 }, 0.9);
+    go("#w-world", T.agent, { y: -2160 }, 0.9);
+    go("#w-world", T.pull, { x: 312, y: 97.5, scale: 0.225 }, 1.4);
+
+    // ---- 1. CALL: she says it, and it is captioned ----
+    const level = seeded(3);
+    $$("#s1-level i").forEach((bar) => {
+      let last = 0.25 + 0.5 * level();
+      gsap.set(bar, { scaleY: last });
+      for (let t = 0; t < W("a01", "follow") - 0.4; t += 0.17) {
+        const next = 0.2 + 0.8 * level();
+        tl.fromTo(bar, { scaleY: last }, { scaleY: next, duration: 0.17, ease: "sine.inOut", immediateRender: false }, t);
+        last = next;
+      }
+      tl.fromTo(bar, { scaleY: last }, { scaleY: 0.12, duration: 0.3, ease: "power2.out", immediateRender: false }, W("a01", "follow") - 0.4);
+    });
+    gsap.set(".cw", { opacity: 0 });
+    $$(".cw").forEach((word, i) => tl.set(word, { opacity: 1 }, W("a01", "says") + 0.04 + i * 0.17));
+    blurIn(".qw", W("a01", "let's") + 0.12, 0.14);
+    // The caption closes into the capsule and leaves along the band; the camera goes with it.
+    const leave = T.tracks - 0.12;
+    tl.to("#s1-cap", { opacity: 0, duration: 0.12, ease: "none" }, leave);
+    put("#w-cap", { opacity: 0, x: 196, y: 728, scaleX: 2.02, scaleY: 0.533 });
+    jump("#w-cap", leave, { opacity: 1 });
+    gsap.set("#cap-bars", { opacity: 0 });
+    tl.to("#cap-bars", { opacity: 1, duration: 0.25, ease: "power2.out" }, leave + 0.12);
+    go("#w-cap", leave, { scaleX: 1, scaleY: 1 }, 0.4);
+    go("#w-cap", leave + 0.35, { y: 480 }, 0.5);
+    go("#w-cap", leave, { x: 2624 }, 1.1);
+    trace(leave + 0.3, 1920, 0.8);
+
+    // ---- 2. TRACKS: it is only sound ----
+    put("#cap-head", { opacity: 0, x: 10 });
+    const play = T.tracks + 1.05;
+    jump("#cap-head", play, { opacity: 1 });
+    go("#cap-head", play, { x: 496 }, W("a02", "two") - play, "none");
+    jump("#cap-head", W("a02", "two"), { opacity: 0, x: 10 });
+    blurIn("#s2-nobot", W("a02", "sound") + 0.3);
+    const lanes = W("a02", "two") - 0.1;
+    put(".bars", { clipPath: "inset(0px 1900px 0px 0px)" });
+    go(".bars", lanes + 0.25, { clipPath: "inset(0px 1184px 0px 0px)" }, 0.9, "power1.inOut");
+    const dock = W("a02", "tracks") + 0.95;
+    go("#w-cap", dock, { x: 3184, y: 635 }, 0.45);
+    go(".bars", dock + 0.4, { clipPath: "inset(0px 124px 0px 0px)" }, W("a03", "ends") - (dock + 0.4), "none");
+    wipe("#rec-n1", W("a02", "microphone") - 0.3);
+    wipe("#rec-a1", W("a02", "microphone") - 0.1);
+    wipe("#rec-n2", W("a02", "call") - 0.2);
+    wipe("#rec-a2", W("a02", "call"));
+
+    // ---- 3. SPEAKERS: who spoke when ----
+    tl.fromTo("#rec-end", { scaleY: 0 }, { scaleY: 1, duration: 0.25, ease: "power3.out" }, W("a03", "ends"));
+    tl.fromTo("#rec-stop", { scale: 0 }, { scale: 1, duration: 0.3, ease: "back.out(1.4)" }, W("a03", "ends") + 0.1);
+    const scan = W("a03", "speaker") - 0.05;
+    put("#rec-scan", { opacity: 0, x: 970 });
+    jump("#rec-scan", scan, { opacity: 1 });
+    go("#rec-scan", scan, { x: 2190 }, 0.9, "power1.inOut");
+    tl.fromTo("#rec-scan", { opacity: 1 }, { opacity: 0, duration: 0.15, ease: "power3.in", immediateRender: false }, scan + 0.9);
+    put(".turns", { clipPath: "inset(0px 1334px 0px 0px)", opacity: 0 });
+    jump(".turns", scan, { opacity: 1 });
+    go(".turns", scan, { clipPath: "inset(0px 114px 0px 0px)" }, 0.9, "power1.inOut");
+    blurIn("#rec-maya", W("a03", "who"));
+    blurIn("#rec-you", W("a03", "spoke"));
+    wipe("#p-nemo", W("a03", "speaker") - 0.35);
+    // The amber stretch drops out of the lane and travels down.
+    const drop = T.words;
+    go("#w-cap", drop, { x: 4544 }, 0.7);
+    go("#w-cap", drop, { y: 480 }, 0.3, "power2.out");
+    go("#w-cap", drop + 0.5, { y: 1560 }, 0.75);
+    trace(drop + 0.15, 3840, 0.5, "power2.in");
+    trace(drop + 0.65, 4920, 0.6, "power2.out");
+
+    // ---- 4. WORDS: sound into words, each with its time ----
+    const listen = W("a04", "turns") - 0.1;
+    jump("#cap-head", listen, { opacity: 1 });
+    go("#cap-head", listen, { x: 496 }, W("a04", "words") - 0.2 - listen, "none");
+    wipe("#p-asr", T.words + 1.2);
+    put("#w-sent", { opacity: 0, x: 0, y: 0, scale: 1, clipPath: "inset(5px 504px 5px 504px round 20px)" });
+    gsap.set(["#sent-words .tok", "#sent-words .time"], { opacity: 0 });
+    gsap.set("#sent-words .tok", { filter: "blur(6px)" });
+    gsap.set("#sent-words .tick", { scaleY: 0 });
+    const words = W("a04", "words") - 0.15;
+    jump("#w-sent", words, { opacity: 1 });
+    jump("#w-cap", words, { opacity: 0 });
+    go("#w-sent", words, { clipPath: "inset(0px 0px 0px 0px round 24px)" }, 0.45, "expo.out");
+    tl.set("#w-sent", { clipPath: "none" }, words + 0.46);
+    tl.to("#sent-bars i", { scaleY: 0, duration: 0.22, ease: "power3.in", stagger: 0.008 }, words + 0.1);
+    tl.to("#sent-words .tok", { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out", stagger: 0.07 }, words + 0.3);
+    blurIn("#s4-tag", words + 0.3);
+    const pin = W("a04", "pinned") - 0.05;
+    tl.to("#sent-words .tick", { scaleY: 1, duration: 0.16, ease: "power3.out", stagger: 0.05 }, pin);
+    tl.to("#sent-words .time", { opacity: 1, duration: 0.13, ease: "power2.out", stagger: 0.05 }, pin + 0.1);
+    wipe("#p-align", W("a04", "each"));
+    // It shrinks to a transcript line and goes down into the transcript.
+    tl.to(["#sent-words .tick", "#sent-words .time"], { opacity: 0, duration: 0.12, ease: "power3.in" }, T.notes - 0.1);
+    go("#w-sent", T.notes, { x: 30, y: 1191, scale: 0.421 }, 0.9);
+    trace(T.notes + 0.05, 6000, 0.8);
+
+    // ---- 5. NOTES: the transcript is read, the notes are written ----
+    wipe("#p-think", T.notes + 0.85);
+    gsap.set("#s5-left", { opacity: 0 });
+    put("#s5-read", { opacity: 0, y: 0 });
+    const read = W("a05", "reads");
+    tl.fromTo("#s5-read", { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "power2.out" }, read);
+    go("#s5-read", read, { y: 546 }, 1.25, "none");
+    tl.fromTo("#s5-read", { opacity: 1 }, { opacity: 0, duration: 0.15, ease: "power3.in", immediateRender: false }, read + 1.25);
+    tl.fromTo("#s5-notes", { clipPath: "inset(0% 0% 100% 0% round 24px)" },
+      { clipPath: "inset(0% 0% 0% 0% round 24px)", duration: 0.5, ease: "expo.out" }, W("a05", "writes") - 0.2);
+    blurIn("#n-h1", W("a05", "decisions") - 0.05);
+    const land = W("a05", "decisions") + 0.12;
+    go("#w-sent", land, { x: 880, y: 1035 }, 0.5, "expo.out");
+    tl.to("#s5-left", { opacity: 1, duration: 0.2, ease: "power2.out" }, land + 0.1);
+    blurIn("#n-h2", W("a05", "action") - 0.1);
+    wipe("#n-p2", W("a05", "action") + 0.08, 0.45);
+    blurIn("#n-h3", W("a05", "open") - 0.1);
+    wipe("#n-p3", W("a05", "open") + 0.08, 0.45);
+    // The line leaves the notes for the embedding model.
+    go("#w-sent", T.meaning, { x: -1480, y: 1118 }, 0.9);
+    trace(T.meaning + 0.05, 7920, 0.85);
+
+    // ---- 6. MEANING: the line becomes a vector, then one dot ----
+    wipe("#p-embed", W("a06", "embedding"));
+    const strip = T.meaning + 0.95;
+    fadeOut("#w-sent", strip, 0.1);
+    tl.fromTo("#s6-strip i", { scaleY: 0 }, { scaleY: 1, duration: 0.25, ease: "back.out(1.4)", stagger: { each: 0.03, from: "center" } }, strip + 0.06);
+    blurIn("#s6-dim", strip + 0.4);
+    const point = W("a06", "meaning") - 0.2;
+    $$("#s6-strip i").forEach((cell, i) => {
+      tl.to(cell, { x: (4.5 - i) * 156, scaleX: 0.3, opacity: 0, duration: 0.3, ease: "power3.in" }, point);
+    });
+    fadeOut("#s6-dim", point, 0.2);
+    put("#dot1", { x: 2880, y: 2700, scale: 0 });
+    go("#dot1", point + 0.22, { scale: 1 }, 0.3, "back.out(1.4)");
+    go("#dot1", T.database, { y: 1620 }, 0.9);
+    trace(T.database, 9000, 0.9);
+
+    // ---- DATABASE: beside a keyword index, in one file ----
+    const key = W("a06", "keyword") - 0.1;
+    wipe("#db-kt", key);
+    blurIn("#db-rows .krow", key + 0.1, 0.06);
+    tl.fromTo("#db-mark", { scaleX: 0 }, { scaleX: 1, duration: 0.25, ease: "power3.out" }, W("a06", "index"));
+    tl.to("#db-lis", { color: "#0e141c", duration: 0.1, ease: "none" }, W("a06", "index") + 0.05);
+    const file = W("a06", "index") + 0.2;
+    wipe("#db-vt", file);
+    go("#dot1", file + 0.05, { x: 3150, y: 1630 }, 0.4);
+    blurIn("#db-vec .near", file + 0.4, 0.08);
+
+    // ---- 7. TYPING: days later, the sentence finishes itself ----
+    put("#dot2", { x: 3150, y: 1630, scale: 0 });
+    jump("#dot2", T.typing - 0.02, { scale: 1 });
+    go("#dot2", T.typing, { x: 960 }, 1.1);
+    go("#dot2", T.typing, { y: 1620 }, 0.35, "power2.out");
+    trace(T.typing + 0.15, 10920, 0.95);
+    const keys = W("a07", "typing") - 0.4;
+    const caret = typed("#s7-typed", "The offsite is in", keys, 0.05, T.typing + 0.8);
+    gsap.set("#s7-ghost", { clipPath: "inset(0% 100% 0% 0%)" });
+    gsap.set("#s7-ghost-bg", { opacity: 0.32 });
+    gsap.set("#s7-ghost-tx", { opacity: 0.5 });
+    const model = W("a07", "model") - 0.05;
+    wipe("#p-gemma", W("a07", "typing"));
+    go("#dot2", model, { x: 884, y: 1825 }, 0.4, "power2.in");
+    go("#dot2", model + 0.4, { scale: 0.7 }, 0.15, "power2.out");
+    [["#s7-b1", 0.3], ["#s7-b2", 0.45], ["#s7-b3", 0.6]].forEach(([bar, late]) => {
+      tl.fromTo(bar, { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "power2.out" }, model + late + 0.3);
+    });
+    const ghost = W("a07", "finishes");
+    go("#dot2", ghost - 0.22, { x: 850, y: 1420, scale: 0.4 }, 0.22, "power3.in");
+    jump("#dot2", ghost, { scale: 0 });
+    tl.to("#s7-ghost", { clipPath: "inset(0% 0% 0% 0%)", duration: 0.32, ease: "power3.out" }, ghost);
+    const tab = W("a07", "sentence");
+    tl.fromTo("#s7-tab", { y: 0, scale: 1 }, { y: 8, scale: 0.96, duration: 0.07, ease: "power2.in" }, tab);
+    tl.fromTo("#s7-tab", { y: 8, scale: 0.96 }, { y: 0, scale: 1, duration: 0.14, ease: "power2.out", immediateRender: false }, tab + 0.07);
+    tl.to("#s7-ghost-bg", { opacity: 1, duration: 0.12, ease: "power2.out" }, tab + 0.05);
+    tl.to("#s7-ghost-tx", { opacity: 1, duration: 0.12, ease: "power2.out" }, tab + 0.05);
+    tl.set(caret, { opacity: 0 }, tab + 0.05);
+
+    // ---- 8. AGENT: only if you allow it ----
+    put("#dot3", { x: 960, y: 1935, scale: 0 });
+    go("#dot3", T.agent - 0.05, { scale: 1 }, 0.2, "back.out(1.4)");
+    go("#dot3", T.agent, { y: 2330 }, 0.9);
+    trace(T.agent, 11650, 0.9);
+    const allow = W("a08", "allow");
+    tl.fromTo("#s8-knob", { x: 0, backgroundColor: "#eafffa" }, { x: 50, backgroundColor: "#6ef2dc", duration: 0.2, ease: "power2.out" }, allow);
+    tl.fromTo(["#s8-g1", "#s8-g2"], { scaleX: 1 }, { scaleX: 0, duration: 0.35, ease: "power2.inOut" }, allow + 0.12);
+    wipe("#s8-mcp", allow + 0.2, 0.45);
+    const ask = W("a08", "agent") - 0.35;
+    const caret2 = typed("#s8-l1", "> Where is the offsite?", ask, 0.035, ask - 0.4);
+    gsap.set("#s8-l2", { clipPath: "inset(0% 100% 0% 0%)" });
+    tl.to("#s8-l2", { clipPath: "inset(0% 0% 0% 0%)", duration: 0.3, ease: "power3.out" }, W("a08", "ask"));
+    tl.set(caret2, { opacity: 0 }, W("a08", "ask"));
+    const through = W("a08", "ask") + 0.22;
+    go("#dot3", through, { y: 2610 }, 0.3, "power2.in");
+    trace(through, 12000, 0.35, "power2.in");
+    const answer = W("a08", "too");
+    go("#dot3", answer - 0.05, { scale: 0 }, 0.12, "power3.in");
+    tl.fromTo("#s8-ans", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.32, ease: "power3.out" }, answer);
+
+    // ---- The pull-back: the whole route, inside one Mac ----
+    gsap.set("#w-top", { opacity: 0 });
+    tl.to("#w-top", { opacity: 1, duration: 0.5, ease: "power2.inOut" }, T.pull + 0.55);
+    tl.to("#w-world .plate", { opacity: 0, duration: 0.3, ease: "power2.in" }, T.pull + 0.25);
+    const five = W("a09", "five");
+    $$(".mplate").forEach((plate, i) => wipe(plate, five + i * 0.12, 0.4));
+    const lw = $$(".lw");
+    blurIn(lw[0], Math.max(W("a09", "sentence"), T.pull + 1.2));
+    blurIn(lw[1], five);
+    blurIn(lw[2], W("a09", "ten"));
+    // "One Mac." lands on "running", ahead of its word, so the finished line holds two seconds.
+    blurIn(lw[3], W("a09", "running"));
+    put("#w-bead", { strokeDashoffset: 230 });
+    go("#w-bead", W("a09", "all") - 0.1, { strokeDashoffset: -12010 }, 1.8, "power1.inOut");
+    // The route runs back into one dot, which the end card picks up; the Mac leaves downward.
+    put("#w-trace-top", { strokeDashoffset: 0 });
+    go("#w-trace-top", T.out, { strokeDashoffset: -11990 }, 0.3, "power2.in");
+    tl.set("#w-trace", { opacity: 0 }, T.out);
+    put("#w-dot", { opacity: 0, x: -248, y: 54.5, scale: 0.4 });
+    jump("#w-dot", T.out + 0.26, { opacity: 1 });
+    go("#w-dot", T.out + 0.26, { x: 0, y: 0, scale: 1 }, 0.36);
+    go("#w-world", T.out + 0.18, { y: 1200 }, 0.45, "power3.in");
+    tl.to([".mplate", "#w-line"], { y: 1100, duration: 0.45, ease: "power3.in" }, T.out + 0.18);
+
+    tl.set({}, {}, LEN);
+    window.__timelines["world"] = tl;
+  </script>
+</template>

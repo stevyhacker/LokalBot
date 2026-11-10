@@ -1,0 +1,103 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    #dict-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #f2f7f5;
+      white-space: nowrap;
+    }
+    #dict-title span {
+      display: inline-block;
+    }
+    #dict-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #dict-stage {
+      position: absolute;
+      inset: 0;
+    }
+    #dict-win {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+    }
+    #dict-video {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+    }
+    #dict-mark {
+      position: absolute;
+      left: 508px;
+      top: 79px;
+      width: 729px;
+      height: 80px;
+      border-radius: 8px;
+      background: #fbbf24;
+      mix-blend-mode: multiply;
+    }
+  </style>
+  <div id="root" data-composition-id="dictation" data-width="1920" data-height="1080">
+    <div id="dict-vp" data-layout-allow-overflow>
+      <div id="dict-stage">
+        <div id="dict-win">
+          <video id="dict-video" class="clip" data-start="0" data-duration="7.65" data-track-index="0"
+            src="assets/footage/dictation.mp4" muted playsinline></video>
+          <div id="dict-mark"></div>
+        </div>
+      </div>
+    </div>
+    <h1 id="dict-title" class="clip" data-start="0.3" data-duration="6.9" data-track-index="1">
+      <span class="dict-word">Say</span> <span class="dict-word">it,</span> <span class="dict-word">and</span>
+      <span class="dict-word">it's</span> <span class="dict-word">written</span>
+    </h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const DOC = { x: 120, y: 90, scale: 1.1 };
+    // A new, empty document comes up as the finished one leaves upward.
+    tl.fromTo("#dict-stage", { y: 1000 }, { y: 0, duration: 0.5, ease: "power2.inOut" }, 0);
+    tl.fromTo(".dict-word", { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067, ease: "power2.out" }, 0.4);
+
+    // 0.62 s: the dictation shortcut goes down and LokalBot's panel opens. Down to it, to
+    // read the request as it is heard (the voice in the film is what the app is hearing).
+    tl.fromTo("#dict-win", { ...DOC, transformOrigin: "0 0" },
+      { x: -480, y: -924, scale: 1.45, duration: 0.6, ease: "power2.inOut" }, 0.55);
+    // 5.34 s: released. Back up to the top of the page, where the sentence is written at 5.67 s.
+    tl.fromTo("#dict-win", { x: -480, y: -924, scale: 1.45 },
+      { ...DOC, duration: 0.55, ease: "power2.inOut", immediateRender: false }, 5.2);
+
+    // The same decision again, from memory. The highlighter marks it.
+    tl.fromTo("#dict-mark", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.38, ease: "power3.out" }, 6.05);
+    tl.fromTo(".dict-word", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(6px)", duration: 0.15, ease: "power2.in", immediateRender: false }, 7.05);
+    // 7.2 s: the window drops away as the ground changes for the agent.
+    tl.fromTo("#dict-stage", { y: 0 }, { y: 1000, duration: 0.36, ease: "power3.in", immediateRender: false }, 7.2);
+    window.__timelines["dictation"] = tl;
+  </script>
+</template>

@@ -1,0 +1,23 @@
+63.3 s
+
+world: starts 0, slot 55.5667, host 56.1667
+  b01    0.40 to   9.08  (film   0.40)  gain 1
+      people@0.4  ask@0.8  which@1.28  cloud@1.6  lokalbot@2.08  sends@2.68  their@3.04  meetings@3.2  to@3.6  by@4.4  default@4.56  none@5.44  it@6.32  all@6.48  runs@6.68  inside@6.88  your@7.36  mac@7.52  so@8.2  let's@8.56  open@8.84  it@9.04
+  b02    9.28 to  15.71  (film   9.28)  gain 0.83
+      under@9.283  the@9.683  app@9.843  there@10.403  are@10.603  three@10.883  layers@11.123  the@12.083  models@12.443  the@13.123  engines@13.283  that@13.763  run@13.923  them@14.163  and@14.723  your@14.963  library@15.203
+  b03   15.96 to  26.99  (film  15.96)  gain 0.97
+      five@15.964  models@16.364  each@17.324  with@17.564  one@17.884  job@18.124  turning@19.204  speech@19.484  into@19.924  text@20.124  telling@21.004  speakers@21.324  apart@21.804  writing@22.844  your@23.244  notes@23.564  finishing@24.204  your@24.604  sentences@24.884  and@25.844  searching@26.084  by@26.524  meaning@26.684
+  b05   27.19 to  31.53  (film  27.19)  gain 0.87
+      together@27.191  nine@28.071  point@28.391  six@28.711  gigabytes@29.031  of@29.671  files@30.071  downloaded@30.711  once@31.351
+  b06   31.73 to  36.54  (film  31.73)  gain 0.99
+      three@31.728  engines@32.048  run@32.688  them@32.928  on@33.168  your@33.328  mac's@33.608  own@33.968  chip@34.288  with@35.088  nothing@35.248  else@35.648  to@35.928  install@36.048
+  b07   36.74 to  43.10  (film  36.74)  gain 1
+      whatever@36.738  they@37.138  produce@37.298  lands@37.938  in@38.378  one@38.618  folder@38.898  plain@40.018  files@40.258  and@41.098  a@41.218  single@41.378  database@41.698  for@42.338  search@42.578
+  b08   43.30 to  51.74  (film  43.30)  gain 0.93
+      model@43.3  files@43.7  and@44.18  updates@44.34  come@44.98  in@45.22  your@46.14  work@46.42  goes@46.66  out@46.9  only@47.3  where@47.7  you@47.94  send@48.1  it@48.42  a@49.06  remote@49.34  model@49.86  an@50.287  agent@50.42  your@51.22  phone@51.82
+  b09   51.94 to  54.54  (film  51.94)  gain 0.72
+      close@51.943  it@52.263  up@52.423  and@52.983  it's@53.103  all@53.383  still@53.703  in@54.103  there@54.423
+
+endcard: starts 55.5667, slot 7.73333, host 7.7333
+  end    1.07 to   5.32  (film  56.64)  gain 0.87
+      lokalbot@1.07  local@2.47  by@2.75  default@2.91  free@4.07  and@4.35  open@4.59  source@4.99

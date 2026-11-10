@@ -1,0 +1,117 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    #tl-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #0e141c;
+      white-space: nowrap;
+    }
+    #tl-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #tl-stage {
+      position: absolute;
+      inset: 0;
+    }
+    #tl-win {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    #tl-video {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+    }
+    #tl-mark {
+      position: absolute;
+      left: 1450px;
+      top: 848px;
+      width: 218px;
+      height: 46px;
+      border-radius: 6px;
+      background: #fbbf24;
+      mix-blend-mode: multiply;
+    }
+    #tl-cursor {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 44px;
+      height: 64px;
+      filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.35));
+    }
+  </style>
+  <div id="root" data-composition-id="timeline" data-width="1920" data-height="1080">
+    <div id="tl-vp" data-layout-allow-overflow>
+      <div id="tl-stage">
+        <div id="tl-win">
+          <video id="tl-video" class="clip" data-start="0" data-duration="5.8" data-track-index="0"
+            src="assets/footage/timeline.mp4" muted playsinline></video>
+          <div id="tl-mark"></div>
+        </div>
+        <svg id="tl-cursor" viewBox="0 0 22 32" data-layout-ignore>
+          <path d="M1.5 1.5v24.2l5.6-5.3 3.9 9.1 4-1.7-3.9-9h8.2z" fill="#0e141c" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+      </div>
+    </div>
+    <h1 id="tl-title" class="clip" data-start="0.3" data-duration="4.9" data-track-index="1">
+      <span id="tl-title-line">Your day, session by session</span>
+    </h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const WHOLE = { x: 211, y: 2, scale: 0.73, clipPath: "inset(0px 0px 0px 0px round 34px)" };
+    // Swiped in from the right as the terminal leaves to the left: the whole day, Monday.
+    tl.fromTo("#tl-stage", { x: 1900, y: 0 }, { x: 0, y: 0, duration: 0.5, ease: "power2.inOut" }, 0);
+    gsap.set("#tl-win", { ...WHOLE, transformOrigin: "0 0" });
+    tl.fromTo("#tl-title-line", { opacity: 0, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.45);
+
+    // The pointer opens one session of the morning (the click is at 1.23 s): what was on screen then.
+    tl.fromTo("#tl-cursor", { x: 1780, y: 960 }, { x: 1348, y: 690, duration: 0.6, ease: "power2.inOut" }, 0.58);
+    tl.fromTo("#tl-cursor", { scale: 1, transformOrigin: "0 0" },
+      { scale: 0.86, duration: 0.07, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, 1.16);
+    tl.fromTo("#tl-cursor", { x: 1348, y: 690 },
+      { x: 1100, y: 980, duration: 0.5, ease: "power2.in", immediateRender: false }, 1.6);
+
+    // 2.53 s: the list scrolls to the afternoon. In on that column alone: the call, then the
+    // update written after it, then the agent's terminal.
+    tl.fromTo("#tl-win", { ...WHOLE },
+      { x: -2052, y: -1204, scale: 1.9, clipPath: "inset(266px 0px 0px 1200px round 0px)", duration: 0.7,
+        ease: "power2.inOut", immediateRender: false }, 2.45);
+    tl.fromTo("#tl-mark", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.34, ease: "power3.out" }, 3.5);
+
+    // The highlight closes to a dot. At 5.3 s the screen leaves and the end card takes the dot.
+    tl.fromTo("#tl-mark", { width: 218, height: 46, y: 0, borderRadius: 6 },
+      { width: 26.3, height: 26.3, y: 9.85, borderRadius: 13.2, duration: 0.26, ease: "power2.in", immediateRender: false }, 5.02);
+    tl.fromTo("#tl-title-line", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power2.in", immediateRender: false }, 5.05);
+    tl.set("#tl-mark", { opacity: 0 }, 5.32);
+    tl.fromTo("#tl-stage", { y: 0 }, { y: 940, duration: 0.45, ease: "power3.in", immediateRender: false }, 5.3);
+    window.__timelines["timeline"] = tl;
+  </script>
+</template>

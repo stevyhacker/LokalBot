@@ -1,0 +1,47 @@
+    /* The look the three architecture films share. Injected into every scene by kit/build_lib.py:
+       edit kit/kit.css, never this copy. */
+    #root {
+      --slate: #0e151d;      /* the brand's ground, and the inside of the Mac */
+      --slate-2: #17222d;    /* a surface on slate */
+      --slate-3: #222e3d;    /* the icon plate's lighter end */
+      --ink: #0e141c;        /* type on mint and on light grounds */
+      --mint: #c9f1e7;       /* the brand's light ground */
+      --mint-hi: #6ef2dc;    /* the robot's body, lit side */
+      --mint-lo: #23c4ae;    /* the robot's body, far side */
+      --teal: #3a7d72;       /* the robot's arm: quiet structure */
+      --teal-deep: #1f3d38;  /* quiet type on mint */
+      --paper: #eafffa;      /* type on slate and teal */
+      --amber: #fbbf24;      /* the antenna light: one focus a frame, never decoration */
+      font-family: Inter, sans-serif;
+    }
+    .mono {
+      font-family: "JetBrains Mono", monospace;
+    }
+    /* A label that sits on the part it names: the model, its job, then its file facts. */
+    .plate {
+      position: absolute;
+      padding-left: 26px;
+      border-left: 8px solid var(--plate-rule, var(--mint-hi));
+      color: var(--plate-ink, var(--paper));
+      white-space: nowrap;
+    }
+    .plate-name {
+      font-weight: 800;
+      font-size: 60px;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .plate-job {
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.25;
+      margin-top: 10px;
+    }
+    .plate-spec {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.35;
+      margin-top: 10px;
+      color: var(--plate-dim, var(--mint-hi));
+    }

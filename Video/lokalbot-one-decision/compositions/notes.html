@@ -1,0 +1,152 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    .notes-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #f2f7f5;
+      white-space: nowrap;
+    }
+    .notes-title span {
+      display: inline-block;
+    }
+    #notes-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #notes-stage {
+      position: absolute;
+      inset: 0;
+    }
+    #notes-win {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+    }
+    #notes-video {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+    }
+    .notes-mark {
+      position: absolute;
+      border-radius: 6px;
+      background: #fbbf24;
+      mix-blend-mode: multiply;
+    }
+    #notes-mark {
+      left: 865px;
+      top: 795px;
+      width: 466px;
+      height: 48px;
+    }
+    #notes-ev1 {
+      left: 1506px;
+      top: 855px;
+      width: 314px;
+      height: 46px;
+    }
+    #notes-ev2 {
+      left: 1194px;
+      top: 891px;
+      width: 193px;
+      height: 45px;
+    }
+    /* The search panel opens over this window, as it does over any app. */
+    #notes-dim {
+      position: absolute;
+      inset: 0;
+      background: #0e151d;
+    }
+    #notes-cursor {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 44px;
+      height: 64px;
+      filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.35));
+    }
+  </style>
+  <div id="root" data-composition-id="notes" data-width="1920" data-height="1080">
+    <div id="notes-vp" data-layout-allow-overflow>
+      <div id="notes-stage">
+        <div id="notes-win">
+          <video id="notes-video" class="clip" data-start="0" data-duration="11.4" data-track-index="0"
+            src="assets/footage/notes.mp4" muted playsinline></video>
+          <div id="notes-mark" class="notes-mark"></div>
+          <div id="notes-ev1" class="notes-mark"></div>
+          <div id="notes-ev2" class="notes-mark"></div>
+        </div>
+        <div id="notes-dim"></div>
+      </div>
+      <svg id="notes-cursor" viewBox="0 0 22 32" data-layout-ignore>
+        <path d="M1.5 1.5v24.2l5.6-5.3 3.9 9.1 4-1.7-3.9-9h8.2z" fill="#0e141c" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round" />
+      </svg>
+    </div>
+    <h1 id="notes-title-a" class="notes-title clip" data-start="0" data-duration="3.3" data-track-index="1">
+      <span id="notes-title-a-line">LokalBot writes it down</span>
+    </h1>
+    <h1 id="notes-title-b" class="notes-title clip" data-start="3.3" data-duration="2.7" data-track-index="2">
+      <span class="notes-word">Every</span> <span class="notes-word">note</span> <span class="notes-word">cites</span>
+      <span class="notes-word">its</span> <span class="notes-word">line</span>
+    </h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const C = { x: 0, y: 0, scale: 0.95 };
+
+    // The cut from the call lands on the same sentence in the same place: the transcript
+    // line is now the decision in the notes. Then back out to the whole window.
+    tl.fromTo("#notes-win", { x: -1047, y: -610, scale: 1.5, transformOrigin: "0 0" },
+      { ...C, duration: 0.8, ease: "power2.inOut" }, 0.05);
+    tl.fromTo("#notes-title-a-line", { opacity: 0, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.2);
+    tl.fromTo("#notes-title-a-line", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power2.in", immediateRender: false }, 3.1);
+
+    // The pointer comes for the decision's citation. Its click (3.295 s) opens the transcript.
+    tl.fromTo("#notes-cursor", { x: 1900, y: 980 }, { x: 1676, y: 768, duration: 0.7, ease: "power2.inOut" }, 2.5);
+    tl.fromTo("#notes-cursor", { scale: 1, transformOrigin: "0 0" },
+      { scale: 0.86, duration: 0.07, ease: "power2.in", yoyo: true, repeat: 1, immediateRender: false }, 3.22);
+    tl.to("#notes-mark", { opacity: 0, duration: 0.08 }, 3.3);
+    tl.fromTo("#notes-cursor", { x: 1676, y: 768 },
+      { x: 1960, y: 700, duration: 0.5, ease: "power2.in", immediateRender: false }, 3.6);
+
+    // In on the line the note came from, and the highlighter finds the decision again.
+    tl.fromTo("#notes-win", { ...C }, { x: -768, y: -718, scale: 1.35, duration: 0.7, ease: "power2.inOut", immediateRender: false }, 3.5);
+    tl.fromTo(".notes-word", { opacity: 0 }, { opacity: 1, duration: 0.1, stagger: 0.08, ease: "none" }, 3.36);
+    tl.fromTo(".notes-word", { color: "#5d6b78" }, { color: "#f2f7f5", duration: 0.12, stagger: 0.08, ease: "none", immediateRender: false }, 3.4);
+    tl.fromTo("#notes-ev1", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.28, ease: "power3.out" }, 4.3);
+    tl.fromTo("#notes-ev2", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.2, ease: "power3.out" }, 4.55);
+    tl.fromTo(".notes-word", { opacity: 1 }, { opacity: 0, duration: 0.15, ease: "power2.in", immediateRender: false }, 5.82);
+
+    // 5.8 s: the search panel opens over the window; it dims and waits behind.
+    tl.to(["#notes-ev1", "#notes-ev2"], { opacity: 0, duration: 0.2 }, 5.7);
+    tl.fromTo("#notes-dim", { opacity: 0 }, { opacity: 0.8, duration: 0.35, ease: "power2.out" }, 5.8);
+    // 10.95 s: the swipe to the next app carries this one off to the left.
+    tl.fromTo("#notes-stage", { x: 0 }, { x: -1900, duration: 0.5, ease: "power2.inOut" }, 10.95);
+    window.__timelines["notes"] = tl;
+  </script>
+</template>
