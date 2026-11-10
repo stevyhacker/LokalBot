@@ -111,5 +111,6 @@ npx --yes hyperframes@0.8.150 render --quality high --video-frame-format png -o 
 
 For YouTube, add `--resolution landscape-4k` to the render: the titles and the terminal are drawn
 at 3840×2160, the footage is enlarged, and YouTube gives an upload of that size its better codec.
-`ffmpeg -ss 4.6 -i <film> -frames:v 1 -vf scale=1280:720 thumbnail.png` takes the thumbnail from
-the first highlight.
+`thumbnail/index.html` is the thumbnail (1280×720): the lockup, the film's idea in three lines, and
+the live transcript as filmed with the highlighter on the decision. Its header has the command
+that renders it.
