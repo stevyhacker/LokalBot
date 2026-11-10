@@ -46,7 +46,7 @@ Record microphone and meeting-app audio without a bot joining. Get local transcr
 
 ### Find something you saw
 
-One search across your meeting transcripts and, if you turn it on, what you saw on screen. Search by keyword or by meaning, then open the matching passage or screen moment instead of hunting through apps. The same window (**⌃⇧ Space**, or **Ctrl+Shift+Space** on Windows and Linux, once you turn on the shortcut in **Settings → General**) also runs app commands such as **Record now** or **Start dictation** from whatever app you're in.
+One search across your meeting transcripts and, if you turn it on, what you saw on screen. Search by keyword or by meaning, then open the matching passage or screen moment instead of hunting through apps. The same window (**⌃⇧ Space**, or **Ctrl+Shift+Space** on Windows and Linux, once you turn on the shortcut in **Settings → Ask**, or **Settings → General** on Windows and Linux) also runs app commands such as **Record now** or **Start dictation** from whatever app you're in.
 
 <div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/search-dark.png" /><img src="Assets/readme/search-light.png" width="640" alt="Quick Recall finding a Keynote deck and a Mail reply seen on screen, and two meetings that mention the demo presentation" /></picture></div>
 
@@ -111,7 +111,7 @@ Turn on Dictation in **Settings → Dictation**, then hold **⌥ Space** (**Alt+
 
 ### Rewrite what you selected
 
-Turn on selection actions in **Settings → General**, select text in any app, and press **⌃⇧ W**. Fix the grammar, make it shorter, translate it, summarize it, or type your own instruction, then replace the selection or copy the result. **Draft a reply with my memory** also searches your meetings, so the reply can use what was actually agreed, and lists the meetings it used. It runs on your Think model, which stays on your computer unless you chose and approved a server. On Windows and Linux the shortcut is **Ctrl+Alt+Space**, because ⌃⇧ W closes tabs and windows there; on Wayland, bind `lokalbot selection-actions` to a shortcut in your desktop's settings.
+Turn on selection actions in **Settings → Ask** (**Settings → General** on Windows and Linux), select text in any app, and press **⌃⇧ W**. Fix the grammar, make it shorter, translate it, summarize it, or type your own instruction, then replace the selection or copy the result. **Draft a reply with my memory** also searches your meetings, so the reply can use what was actually agreed, and lists the meetings it used. It runs on your Think model, which stays on your computer unless you chose and approved a server. On Windows and Linux the shortcut is **Ctrl+Alt+Space**, because ⌃⇧ W closes tabs and windows there; on Wayland, bind `lokalbot selection-actions` to a shortcut in your desktop's settings.
 
 ### It remembers how you work
 
@@ -149,7 +149,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in **Settings → Privacy & Data**: meeting library, files, screen memory, and What I shared about myself. Then install the CLI from **Settings → Advanced → Agent CLI**.
+Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in **Settings → Privacy & Data**: meeting library, files, screen memory, and What I shared about myself. Then install the CLI from **Settings → External Agents → Agent CLI** on a Mac, or **Settings → Advanced → Agent CLI** on Windows and Linux.
 
 **Ready to act on a meeting?** Open any action item in Claude Code or Codex, and the prompt is already typed in with the task and where it came from, for you to review and send.
 

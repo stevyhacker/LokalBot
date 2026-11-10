@@ -6,7 +6,7 @@
 # Usage:
 #   Scripts/unit-tests.sh
 #   Scripts/unit-tests.sh AppSettingsTests
-#   Scripts/unit-tests.sh AppSettingsTests/testDefaults
+#   Scripts/unit-tests.sh AppSettingsTests/testExplicitDiarizationChoicesSurviveReloadWithoutReenablingDiarization
 #   Scripts/unit-tests.sh --derived-data-path   # where the build products go
 set -euo pipefail
 

@@ -1,6 +1,5 @@
 """fetch-bun.sh must keep finding the pins AgentRuntimeManifest trusts."""
 from pathlib import Path
-import re
 import subprocess
 import unittest
 

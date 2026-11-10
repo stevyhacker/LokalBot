@@ -12,6 +12,10 @@ APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cd "$ROOT_DIR"
 /usr/bin/pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
+# XcodeGen needs these paths before the first build fetches the runtimes.
+mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+# The phone and tablet sync library (Rust), as a local Swift package.
+Scripts/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 xcodebuild \
   -project LokalBot.xcodeproj \

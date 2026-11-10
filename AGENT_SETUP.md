@@ -72,7 +72,8 @@ Commands that wait for the person (`setup start`, `setup apply`, `config set`,
 | 5 | Nobody answered before the request expired (five minutes) |
 
 Other errors exit 1 with a `[code]` message. For example, `[settings_access_disabled]`
-means the person has not allowed access yet; run `setup start`.
+means the person has not allowed access yet; run `setup start`. A command with a wrong
+option or value exits 64 with a usage message and no code.
 
 ## What the person does
 

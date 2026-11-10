@@ -195,8 +195,8 @@ GUIDES = [
     },
     {
         "slug": "offline-meeting-transcription-mac",
-        "updated": "2026-10-20",
-        "updated_label": "October 20, 2026",
+        "updated": "2026-11-10",
+        "updated_label": "November 10, 2026",
         "title": "Offline Meeting Transcription on Mac",
         "description": "Set up offline meeting transcription on Apple Silicon with local speech models, two-track audio, timestamps, and no cloud upload.",
         "eyebrow": "Offline transcription",
@@ -214,7 +214,7 @@ GUIDES = [
           <li><strong>IBM Granite Speech 4.1 2B</strong> is another local speech-recognition option.</li>
           <li><strong>Parakeet TDT 0.6B v3</strong> is the fast multilingual option, covering 25 languages and measuring around 190× realtime in the project's benchmark.</li>
           <li><strong>Parakeet v2</strong> focuses on English and can be useful when recall matters more than broad language coverage.</li>
-          <li><strong>Qwen3-ASR 1.7B</strong> is the default in LokalBot 0.8.1, covers 52 languages and dialects, and downloads about 3.2 GB.</li>
+          <li><strong>Qwen3-ASR 1.7B</strong> has been the default since LokalBot 0.8.1, covers 52 languages and dialects, and downloads about 2.5 GB.</li>
           <li><strong>Qwen3-ASR 0.6B</strong> provides a compact global-coverage option at roughly 0.7 GB.</li>
           <li><strong>Whisper large-v3 turbo</strong> covers 99 languages, supports word timestamps, and is a useful wide-language fallback at roughly 1.6 GB.</li>
         </ul>
@@ -245,8 +245,8 @@ GUIDES = [
     },
     {
         "slug": "open-source-ai-meeting-notes",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-10",
+        "updated_label": "November 10, 2026",
         "title": "Open-Source AI Meeting Notes: What to Verify",
         "description": "A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.",
         "eyebrow": "Open source",
@@ -281,6 +281,7 @@ GUIDES = [
 
 <span class="c-op"># Mac</span>
 <span class="c-prompt">$</span> mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+<span class="c-prompt">$</span> Scripts/build-sync-xcframework.sh
 <span class="c-prompt">$</span> xcodegen generate <span class="c-op">&amp;&amp;</span> open LokalBot.xcodeproj
 
 <span class="c-op"># Windows and Linux</span>
@@ -350,8 +351,8 @@ GUIDES = [
     },
     {
         "slug": "local-transcription-models-mac",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-10",
+        "updated_label": "November 10, 2026",
         "title": "Local Transcription Models for Mac: A Guide",
         "description": "Compare Granite Speech, Parakeet, Qwen3-ASR, and Whisper for private on-device meeting transcription on Apple Silicon.",
         "eyebrow": "Model guide",
@@ -369,7 +370,7 @@ GUIDES = [
               <tr><td>IBM Granite Speech 4.1 2B</td><td>Alternative local speech engine</td><td>Local llama.cpp speech model</td></tr>
               <tr><td>Parakeet TDT 0.6B v3</td><td>Very fast multilingual meetings</td><td>25 languages; ~190× realtime in project benchmarks</td></tr>
               <tr><td>Parakeet TDT 0.6B v2</td><td>English-focused recall</td><td>English only</td></tr>
-              <tr><td>Qwen3-ASR 1.7B</td><td>Default in LokalBot 0.8.1</td><td>52 languages/dialects; ~3.2 GB</td></tr>
+              <tr><td>Qwen3-ASR 1.7B</td><td>Default since LokalBot 0.8.1</td><td>52 languages/dialects; ~2.5 GB</td></tr>
               <tr><td>Qwen3-ASR 0.6B</td><td>Compact broad coverage</td><td>Global coverage; ~0.7 GB</td></tr>
               <tr><td>Whisper large-v3 turbo</td><td>Wide-language fallback and timestamps</td><td>99 languages; ~1.6 GB</td></tr>
             </tbody>
@@ -379,7 +380,7 @@ GUIDES = [
 
         <h2>A sensible selection strategy</h2>
         <ol>
-          <li><strong>Start with Qwen3-ASR 1.7B</strong> for the default speech model in LokalBot 0.8.1.</li>
+          <li><strong>Start with Qwen3-ASR 1.7B</strong>, the default speech model since LokalBot 0.8.1.</li>
           <li><strong>Choose Parakeet v3</strong> when throughput and its 25 supported languages cover your meetings.</li>
           <li><strong>Keep Whisper installed</strong> if you need broader language coverage or word timestamps.</li>
           <li><strong>Compare Granite Speech</strong> as another local option on the recordings that matter to you.</li>
@@ -402,7 +403,7 @@ GUIDES = [
         </ul>
         """,
         "faq": [
-            ("Which model does LokalBot recommend?", "Qwen3-ASR 1.7B is the default transcription model in LokalBot 0.8.1. You can change it in Settings → Models."),
+            ("Which model does LokalBot recommend?", "Qwen3-ASR 1.7B has been the default transcription model since LokalBot 0.8.1. You can change it in Settings → Models."),
             ("Which option covers the most languages?", "Whisper large-v3 turbo has the broadest listed coverage at 99 languages. Language count alone does not guarantee the best result for a specific recording."),
             ("Can I keep several models installed?", "Yes. That is useful when your meetings vary by language or audio quality, subject to disk space."),
         ],
@@ -410,8 +411,8 @@ GUIDES = [
     },
     {
         "slug": "system-requirements",
-        "updated": "2026-11-03",
-        "updated_label": "November 3, 2026",
+        "updated": "2026-11-10",
+        "updated_label": "November 10, 2026",
         "title": "LokalBot System Requirements: Mac, Windows and Linux (alpha)",
         "description": "Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.",
         "eyebrow": "Compatibility",
@@ -437,7 +438,7 @@ GUIDES = [
         <h2>Plan disk space on a Mac</h2>
         <ul>
           <li><strong>Compact setup:</strong> a roughly 0.7 GB Qwen3-ASR speech model plus a small 0.53–1.28 GB language model.</li>
-          <li><strong>Broader transcription:</strong> Whisper large-v3 turbo is roughly 1.6 GB; Qwen3-ASR 1.7B is roughly 3.2 GB.</li>
+          <li><strong>Broader transcription:</strong> Whisper large-v3 turbo is roughly 1.6 GB; Qwen3-ASR 1.7B is roughly 2.5 GB.</li>
           <li><strong>Quality-focused summaries:</strong> larger catalog choices add about 5–18 GB each.</li>
           <li><strong>Meetings and day memory:</strong> audio, transcripts, and visual captures use additional space over time.</li>
         </ul>
@@ -592,8 +593,8 @@ GUIDES = [
         "slug": "claude-code-codex-meeting-notes",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-11-09",
-        "updated_label": "November 9, 2026",
+        "updated": "2026-11-10",
+        "updated_label": "November 10, 2026",
         "title": "Let Claude Code or Codex Search Your Meeting Notes",
         "description": "Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.",
         "eyebrow": "Agents and MCP",
@@ -621,7 +622,7 @@ GUIDES = [
 
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
-        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac, except file search.</p>
+        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac.</p>
         <p>In Claude Code you can also install the LokalBot plugin. It adds the skill and three commands: <code>/lokalbot:brief</code> to catch up on your work, <code>/lokalbot:recall</code> to find what you said, saw or saved, and <code>/lokalbot:setup</code> to install LokalBot with you. Run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. The plugin doesn't start the MCP server, so keep the command above for screen memory. Codex has the same skills as a plugin: <code>codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin</code>, then <code>codex plugin add lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
 
         <h2>What the agent can do</h2>
@@ -823,13 +824,13 @@ REFERENCES = [
         "eyebrow": "Fact sheet",
         "h1": "About LokalBot",
         "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source app for bot-free meeting notes, local transcription, and search on Mac, with Windows and Linux in alpha.",
-        "updated": "2026-11-09",
+        "updated": "2026-11-10",
     },
     {
         "slug": "benchmarks",
         "eyebrow": "Benchmarks",
         "h1": "LokalBot local model benchmarks",
         "description": "Measured speech recognition, speaker diarization, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps.",
-        "updated": "2026-10-26",
+        "updated": "2026-11-10",
     },
 ]

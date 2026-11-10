@@ -22,7 +22,7 @@ cat > "$STAGE/manifest.json" <<MANIFEST
   "name": "lokalbot",
   "display_name": "LokalBot Meetings",
   "version": "$VERSION",
-  "description": "Ask your private, on-device meeting library: list, read, and search meetings, or get synthesized answers from LokalBot's local model. Requires the LokalBot app (lokalbot.me).",
+  "description": "Ask your private, on-device meeting library: list, read, and search meetings, or get synthesized answers from LokalBot's local model. Requires the LokalBot app (www.lokalbot.com).",
   "author": { "name": "LokalBot" },
   "server": {
     "type": "binary",
@@ -40,7 +40,7 @@ cat > "$STAGE/run.sh" <<'RUNSH'
 #!/bin/bash
 CLI="/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli"
 if [ ! -x "$CLI" ]; then
-  echo "LokalBot.app not found in /Applications — install LokalBot first (https://lokalbot.me), then re-enable this extension." >&2
+  echo "LokalBot.app not found in /Applications — install LokalBot first (https://www.lokalbot.com), then re-enable this extension." >&2
   exit 1
 fi
 exec "$CLI" mcp

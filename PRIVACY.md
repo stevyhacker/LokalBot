@@ -66,10 +66,6 @@ the last 10 results for 7 days, encrypted, so you can copy one again (see
 dictation** is on (see About you below). You can delete an individual
 meeting in the app or remove the entire LokalBot Application Support directory.
 
-**Read coding agent sessions** is on by default. On a new install, setup shows
-this choice with the other capture choices, and LokalBot reads no session until
-you finish setup. When LokalBot already has microphone access, as after a
-reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
 **Imported recordings.** When you drop an audio or video file onto Meetings or
 choose **Import Recording…**, LokalBot reads the file without changing or
 moving it and saves an AAC copy of its audio as the meeting's system track.
@@ -87,7 +83,10 @@ but day memory, digests, people, projects, action lists, Personal Context, trans
 vocabulary, and note exports leave it out. **Remove sample** deletes it in one
 step, and nothing records that you tried it.
 
-**Read coding agent sessions** is on by default and can be turned off in
+**Read coding agent sessions** is on by default. On a new install, setup shows
+this choice with the other capture choices, and LokalBot reads no session until
+you finish setup. When LokalBot already has microphone access, as after a
+reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
 Settings → Screen & Activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
 `~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
@@ -993,7 +992,7 @@ sessions like any other, so LokalBot reads them back as coding-agent evidence
 while **Read coding agent sessions** is on.
 
 **Hand off** is off until you turn on **Enable the Hand off shortcut** in
-Settings → General. Pressing the shortcut, or **Hand off this window** in the
+Settings → Ask. Pressing the shortcut, or **Hand off this window** in the
 menu bar, reads the focused window once: all of its Accessibility text,
 including text scrolled out of view, any selected text, and a screenshot when
 Screen Recording is allowed. When the window shares little text, the
@@ -1462,9 +1461,10 @@ platform differences:
   desktops may show portal prompts for screenshots and global shortcuts, some
   apps expose their text only once system accessibility is on, and GNOME needs
   the Window Calls extension for app and window activity.
-- **External agents.** The meeting-library and screen-memory toggles in
-  Settings → Privacy & Data work as on macOS. The same commands work under the
-  same toggle: the socket lives in your private runtime folder, or is a named
+- **External agents.** Settings → Privacy & Data has a separate switch for each
+  kind of data, where macOS has boxes under one switch: the meeting library,
+  files, screen memory, and What I shared about myself. The same commands work
+  under the same toggle: the socket lives in your private runtime folder, or is a named
   pipe only your user can open on Windows, and `permissions` reports what the
   desktop allows instead of showing prompts.
 - **Selection actions** work as on macOS, with Ctrl+C for ⌘C. Terminals are
@@ -1506,8 +1506,9 @@ platform differences:
   network announcement uses mDNS under the same neutral name, which also replaces
   the computer's host name in it. Windows Firewall may prompt when sharing starts,
   and a firewall can block the port on either system; Settings says what to allow.
-- **Mac-only features.** Email is not in the Windows and Linux app yet, so none
-  of its data is collected there.
+- **Mac-only features.** Email, Live Radar (with screen answers and live
+  answers), fast live text, Follow-through and Hand off are not in the Windows
+  and Linux app yet, so none of their data is collected or sent there.
 - **Network access** is limited to model and runtime downloads you request
   (models from Hugging Face, or HF-Mirror or ModelScope if you choose them, and
   GitHub, the llama.cpp runtime from GitHub, the

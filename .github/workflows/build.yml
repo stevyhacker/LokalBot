@@ -1,4 +1,4 @@
-# PR-time build gate for LokalBot (product name: BotinaV2).
+# PR-time build gate for LokalBot.
 #
 # On PRs into master/dev and on pushes to those branches: regenerate the
 # XcodeGen project and compile in Debug. Debug type-checks every file (same compile surface as
