@@ -696,6 +696,8 @@ fn bind_loopback(
     let (v6, v4) = listen_hosts(true);
     let attempts = if port == 0 { LOOPBACK_PORT_ATTEMPTS } else { 1 };
     let mut taken = Vec::new();
+    // Held until this returns: closed, Linux may hand the same port back.
+    let mut rejected = Vec::new();
     for _ in 0..attempts {
         let ipv6 = match bind_one(socket(v6, port)) {
             Ok(listener) => listener,
@@ -720,6 +722,7 @@ fn bind_loopback(
             {
                 log::debug!("companion listener: {v4} port {chosen}: {e}; trying another port");
                 taken.push(chosen);
+                rejected.push(ipv6);
             }
             Err(e) => {
                 return Err(SyncError::io(format!(
