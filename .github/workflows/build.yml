@@ -314,6 +314,10 @@ jobs:
           xcodebuild test-without-building -xctestrun "${runs[0]}" \
             -destination 'platform=macOS' -derivedDataPath .build/dd \
             -only-testing:LokalBotTests -resultBundlePath .build/unit.xcresult
+      # A skipped test reports nothing. Only the opt-in tests named in
+      # Scripts/ci/unit-skips.json may skip, and here each of them must.
+      - name: Require every skipped test to be a listed opt-in test
+        run: python3 Scripts/ci/unit-skips.py check .build/unit.xcresult --strict
       - name: Wait for the workday and the crash probe
         wait: [workday, audio-recovery]
       - name: Save unit results

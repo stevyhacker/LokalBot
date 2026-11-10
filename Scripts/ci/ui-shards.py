@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Plan disjoint XCTest shards and verify executed tests plus every matrix PNG."""
+"""Plan disjoint XCTest shards and verify executed tests plus every matrix PNG.
+
+The two functional shards are balanced from Scripts/ci/ui-durations.json; a
+test without a timing counts as 30 s. Refresh the file from passing runs with
+`ui-shards.py timings functional-1.log functional-2.log [more logs]`.
+"""
 import collections
 import json
 import os
@@ -69,6 +74,26 @@ def plan():
     return dict(smoke=smoke, background=background, **{'reduced-motion': [REDUCED],
                                'functional-1': shards[0], 'functional-2': shards[1]},
                 **{f'visual-{size}': [VISUAL] for size in SIZES})
+
+
+def timings(logs):
+    """Mean duration of each functional-shard test over the given shard logs.
+
+    The logs are `functional-1.log` and `functional-2.log` from the
+    `ui-results-functional-*` artifacts of passing UI Tests runs. A test the
+    logs do not hold keeps the timing it had.
+    """
+    pattern = re.compile(r"Test Case '-\[LokalBotUITests\.(\w+) (\w+)\]' passed \(([\d.]+) seconds\)")
+    seen = collections.defaultdict(list)
+    for log in logs:
+        for match in pattern.finditer(Path(log).read_text(errors='replace')):
+            seen[f'{match[1]}/{match[2]}'].append(float(match[3]))
+    phases = plan()
+    functional = phases['functional-1'] + phases['functional-2']
+    known = json.loads(Path('Scripts/ci/ui-durations.json').read_text())
+    measured = {test: round(sum(seen[test]) / len(seen[test]), 1) for test in functional if test in seen}
+    return {test: measured.get(test, known.get(test)) for test in sorted(functional)
+            if test in measured or test in known}
 
 
 def test_results(node):
@@ -196,7 +221,13 @@ if __name__ == '__main__':
             gate(*args)
         elif mode == 'verify':
             verify(Path(args[0]))
+        elif mode == 'timings':
+            Path('Scripts/ci/ui-durations.json').write_text(json.dumps(timings(args), indent=2) + '\n')
+            durations = json.loads(Path('Scripts/ci/ui-durations.json').read_text())
+            for phase in ['functional-1', 'functional-2']:
+                tests = plan()[phase]
+                print(f"{phase}: {len(tests)} tests, about {round(sum(durations.get(t, 30) for t in tests))} s")
         else:
-            raise ValueError('Expected plan, run or verify')
+            raise ValueError('Expected plan, run, gate, verify or timings')
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         sys.exit(str(error))

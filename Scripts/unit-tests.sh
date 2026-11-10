@@ -37,4 +37,14 @@ if [ "${1:-}" != "" ]; then
 fi
 
 "$ROOT/Scripts/build-sync-xcframework.sh"
-xcodebuild "${ARGS[@]}" test
+
+# A skipped test reports nothing, so name every skip and fail on one that is
+# not a listed opt-in test (Scripts/ci/unit-skips.json), as hosted CI does.
+RESULTS="$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-unit-results.XXXXXX")"
+trap 'rm -rf "$RESULTS"' EXIT
+STATUS=0
+xcodebuild "${ARGS[@]}" -resultBundlePath "$RESULTS/unit.xcresult" test || STATUS=$?
+if [ -d "$RESULTS/unit.xcresult" ]; then
+  python3 "$ROOT/Scripts/ci/unit-skips.py" check "$RESULTS/unit.xcresult" || [ "$STATUS" -ne 0 ] || STATUS=1
+fi
+exit "$STATUS"
