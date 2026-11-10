@@ -24,11 +24,12 @@ enum QueuedAnswerNotification {
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
     }
 
-    static func post(question: String, result: AskResult) {
+    static func post(question: String, result: AskResult, appLockOn: Bool) {
+        let banner = QueuedAnswerBanner(question: question, answer: result.answer, appLockOn: appLockOn)
         let content = UNMutableNotificationContent()
-        content.title = "Your computer answered"
-        content.subtitle = question
-        content.body = String(AskCitationParser.plainText(result.answer).prefix(180))
+        content.title = banner.title
+        content.subtitle = banner.subtitle
+        content.body = banner.body
         content.sound = .default
         content.threadIdentifier = result.requestId
         let request = UNNotificationRequest(identifier: result.requestId, content: content, trigger: nil)
@@ -62,12 +63,25 @@ final class AppLock {
     private static let enabledKey = "companion.appLock"
 
     var isEnabled: Bool = UserDefaults.standard.bool(forKey: AppLock.enabledKey) {
-        didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
+        didSet {
+            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            covers.refresh()
+        }
     }
-    private(set) var isLocked: Bool = UserDefaults.standard.bool(forKey: AppLock.enabledKey)
+    private(set) var isLocked: Bool = UserDefaults.standard.bool(forKey: AppLock.enabledKey) {
+        didSet { covers.refresh() }
+    }
     /// Covers the window while the app switcher takes its snapshot.
-    private(set) var isObscured = false
+    private(set) var isObscured = false {
+        didSet { covers.refresh() }
+    }
     private var authenticating = false
+    /// The cover above sheets, the recording screen and alerts, which the one in the view tree lies under.
+    @ObservationIgnored private let covers = LockCoverWindows()
+
+    init() {
+        covers.attach(to: self)
+    }
 
     var biometryName: String {
         let context = LAContext()
@@ -114,11 +128,13 @@ final class AppLock {
         }
     }
 
-    /// Turning the lock on asks once, so it can't lock someone out.
+    /// Turning the lock on asks once, so it can't lock someone out. Turning
+    /// it off needs the app unlocked: the switch is still there under the
+    /// cover, where a hardware keyboard could reach it.
     func setEnabled(_ enabled: Bool) async {
         guard enabled else {
+            guard !isLocked else { return }
             isEnabled = false
-            isLocked = false
             return
         }
         let context = LAContext()

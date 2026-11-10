@@ -42,6 +42,13 @@ interface CompanionRepository {
 
     suspend fun manifest(): Manifest?
     suspend fun meetings(fromDay: String? = null, toDay: String? = null, limit: Int = 1000): List<Meeting>
+
+    /** The newest [limit] meetings and whether older ones exist, for a list that loads as it's scrolled. */
+    suspend fun newestMeetings(limit: Int): MeetingsPage {
+        val rows = meetings(limit = limit + 1)
+        return MeetingsPage(rows.take(limit), hasMore = rows.size > limit)
+    }
+
     suspend fun meeting(id: String): Meeting?
     suspend fun transcript(meetingId: String): Transcript?
     suspend fun days(limit: Int = 1000): List<String>
@@ -98,6 +105,12 @@ interface CompanionRepository {
     /** Sends every waiting recording; when any arrive, syncs so their meetings do too. */
     suspend fun uploadRecordings(): UploadOutcome
 }
+
+data class MeetingsPage(val meetings: List<Meeting>, val hasMore: Boolean)
+
+/** The meetings with these ids that the library still shows, newest first. */
+suspend fun CompanionRepository.meetingsById(ids: Collection<String>): List<Meeting> =
+    ids.distinct().mapNotNull { meeting(it) }.filter { it.mergedInto == null }.sortedByDescending { it.startedAt }
 
 data class ActionFilter(
     val mineOnly: Boolean = false,

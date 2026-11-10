@@ -18,6 +18,7 @@ import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.data.model.ActionRow
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.MeetingAction
+import me.dotenv.lokalbot.companion.data.model.SyncNote
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.ui.common.LibraryViewModel
 
@@ -67,6 +68,7 @@ data class ActionDetailState(
     val meeting: Meeting? = null,
     val action: MeetingAction? = null,
     val pending: Boolean = false,
+    val syncNote: SyncNote? = null,
     val hasTranscript: Boolean = false,
     val loaded: Boolean = false,
 )
@@ -79,12 +81,13 @@ class ActionDetailViewModel(
 
     val state: StateFlow<ActionDetailState> = library(ActionDetailState(repository.today())) {
         val meeting = repository.meeting(meetingId)
-        val row = repository.actions(ActionFilter(status = null)).firstOrNull { it.meetingId == meetingId && it.action.id == actionId }
+        val action = meeting?.actions?.firstOrNull { it.id == actionId }
         ActionDetailState(
             today = repository.today(),
             meeting = meeting,
-            action = row?.action ?: meeting?.actions?.firstOrNull { it.id == actionId },
-            pending = row?.pending == true,
+            action = action,
+            pending = action?.pending == true,
+            syncNote = action?.syncNote,
             hasTranscript = meeting?.hasTranscript == true,
             loaded = true,
         )

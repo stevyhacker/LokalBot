@@ -204,10 +204,17 @@ public struct ActionItem: Codable, Sendable, Hashable, Identifiable {
     /// 1–5.
     public var importance: Int
     public var citations: [Citation]
+    /// Added by this device's store, in a meeting's actions: the status was
+    /// changed here and the computer hasn't confirmed it.
+    public var pending: Bool
+    /// Added by this device's store, in a meeting's actions: the computer
+    /// didn't make the last change.
+    public var syncNote: ActionSyncNote?
 
     public init(id: String, text: String, owner: String? = nil, ownerIsUser: Bool = false,
                 ownerUnclear: Bool = false, dueDate: String? = nil, dueText: String? = nil,
-                status: ActionStatus = .open, importance: Int = 3, citations: [Citation] = []) {
+                status: ActionStatus = .open, importance: Int = 3, citations: [Citation] = [],
+                pending: Bool = false, syncNote: ActionSyncNote? = nil) {
         self.id = id
         self.text = text
         self.owner = owner
@@ -218,6 +225,36 @@ public struct ActionItem: Codable, Sendable, Hashable, Identifiable {
         self.status = status
         self.importance = importance
         self.citations = citations
+        self.pending = pending
+        self.syncNote = syncNote
+    }
+
+    /// The computer never sends `pending`, so its absence means false.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        text = try container.decode(String.self, forKey: .text)
+        owner = try container.decodeIfPresent(String.self, forKey: .owner)
+        ownerIsUser = try container.decode(Bool.self, forKey: .ownerIsUser)
+        ownerUnclear = try container.decode(Bool.self, forKey: .ownerUnclear)
+        dueDate = try container.decodeIfPresent(String.self, forKey: .dueDate)
+        dueText = try container.decodeIfPresent(String.self, forKey: .dueText)
+        status = try container.decode(ActionStatus.self, forKey: .status)
+        importance = try container.decode(Int.self, forKey: .importance)
+        citations = try container.decode([Citation].self, forKey: .citations)
+        pending = try container.decodeIfPresent(Bool.self, forKey: .pending) ?? false
+        syncNote = try container.decodeIfPresent(ActionSyncNote.self, forKey: .syncNote)
+    }
+}
+
+/// The computer's answer when it didn't make a status change sent from this
+/// device (ffi.md, `syncNote`).
+public struct ActionSyncNote: Codable, Sendable, Hashable {
+    /// Why, in the computer's words.
+    public var message: String?
+
+    public init(message: String? = nil) {
+        self.message = message
     }
 }
 

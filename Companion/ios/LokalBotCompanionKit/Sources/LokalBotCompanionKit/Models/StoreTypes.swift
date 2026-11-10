@@ -8,15 +8,45 @@ public struct ActionRow: Codable, Sendable, Hashable, Identifiable {
     public var action: ActionItem
     /// A status change made here that the Mac hasn't confirmed yet.
     public var pending: Bool
+    /// The computer didn't make the last status change sent from here.
+    public var syncNote: ActionSyncNote?
 
     public var id: String { "\(meetingId)/\(action.id)" }
 
-    public init(meetingId: String, meetingTitle: String, meetingStartedAt: Date, action: ActionItem, pending: Bool = false) {
+    public init(meetingId: String, meetingTitle: String, meetingStartedAt: Date, action: ActionItem, pending: Bool = false,
+                syncNote: ActionSyncNote? = nil) {
         self.meetingId = meetingId
         self.meetingTitle = meetingTitle
         self.meetingStartedAt = meetingStartedAt
         self.action = action
         self.pending = pending
+        self.syncNote = syncNote
+    }
+
+    /// The row for one of a meeting's own actions, which carry what a row does.
+    public init(meeting: Meeting, action: ActionItem) {
+        self.init(meetingId: meeting.id, meetingTitle: meeting.title, meetingStartedAt: meeting.startedAt,
+                  action: action, pending: action.pending, syncNote: action.syncNote)
+    }
+}
+
+/// One page of the Meetings list.
+public struct MeetingsPage: Sendable, Hashable {
+    public var meetings: [Meeting]
+    /// Older meetings exist beyond these.
+    public var hasMore: Bool
+
+    public init(meetings: [Meeting], hasMore: Bool) {
+        self.meetings = meetings
+        self.hasMore = hasMore
+    }
+
+    /// From the rows a store returned when asked for `limit + 1`. A meeting
+    /// this build can't read is left out, and must not look like the end of
+    /// the list: whether more exist is counted in rows, not in what decoded.
+    public init(rows: [String], limit: Int) {
+        meetings = rows.prefix(limit).compactMap { try? CompanionJSON.decode(Meeting.self, from: $0) }
+        hasMore = rows.count > limit
     }
 }
 

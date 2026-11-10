@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -113,6 +114,7 @@ private fun ActionList(repository: CompanionRepository, pane: ListPaneState) {
                     today = state.today,
                     meetingTitle = row.meetingTitle,
                     pending = row.pending,
+                    note = row.syncNote,
                     selected = pane.twoPane && pane.selectedKey == ActionLink(row.meetingId, row.action.id).key,
                     onToggle = { viewModel.setActionStatus(row, it) },
                     onClick = { pane.open(ActionLink(row.meetingId, row.action.id).key) },
@@ -258,6 +260,7 @@ private fun ActionDetail(repository: CompanionRepository, link: ActionLink, onBa
                         }
                         TextButton(onClick = { navigator.openMeeting(meeting.id) }) { Text(stringResource(R.string.action_open_meeting)) }
                     }
+                    val note = state.syncNote
                     if (state.pending) {
                         Row(
                             Modifier.fillMaxWidth().groupedSurface(tint = palette.attention).padding(12.dp),
@@ -266,6 +269,18 @@ private fun ActionDetail(repository: CompanionRepository, link: ActionLink, onBa
                             Icon(Icons.Outlined.Schedule, null, tint = palette.attentionText, modifier = Modifier.size(18.dp))
                             Text(
                                 stringResource(R.string.action_pending_message, stringResource(statusLabel(action.status)).lowercase()),
+                                style = LokalBotType.secondary,
+                                color = palette.attentionText,
+                            )
+                        }
+                    } else if (note != null) {
+                        Row(
+                            Modifier.fillMaxWidth().groupedSurface(tint = palette.attention).padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(Icons.Outlined.ErrorOutline, null, tint = palette.attentionText, modifier = Modifier.size(18.dp))
+                            Text(
+                                listOfNotNull(stringResource(R.string.action_not_changed_message), note.message).joinToString(" "),
                                 style = LokalBotType.secondary,
                                 color = palette.attentionText,
                             )

@@ -6,10 +6,12 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.ListSerializer
 import me.dotenv.lokalbot.companion.TestLibrary
+import me.dotenv.lokalbot.companion.data.model.ActionRow
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.AskRequest
 import me.dotenv.lokalbot.companion.data.model.DayRecord
 import me.dotenv.lokalbot.companion.data.model.Meeting
+import me.dotenv.lokalbot.companion.data.model.MeetingAction
 import me.dotenv.lokalbot.companion.data.model.RecordEnvelope
 import me.dotenv.lokalbot.companion.data.model.RecordJson
 import me.dotenv.lokalbot.companion.data.model.SessionKind
@@ -102,6 +104,41 @@ class SampleLibraryTest {
 
         repository.setActionStatus(TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c", ActionStatus.Open)
         assertThat(repository.actions(ActionFilter(status = null)).single { it.action.id == "act-1f2e3d4c" }.pending).isFalse()
+    }
+
+    @Test
+    fun `a meeting's own actions say which ones wait for the Mac`() = runBlocking {
+        fun pending() = runBlocking { repository.meeting(TestLibrary.DESIGN_REVIEW)!!.actions.filter { it.pending }.map { it.id } }
+        assertThat(pending()).isEmpty()
+        repository.setActionStatus(TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c", ActionStatus.Done)
+        assertThat(pending()).containsExactly("act-1f2e3d4c")
+        // A row carries the flag itself, as the sync core's rows do.
+        assertThat(repository.actions(ActionFilter(status = null)).single { it.pending }.action.pending).isFalse()
+    }
+
+    @Test
+    fun `what the sync core adds to an action decodes`() {
+        // The store adds these to a meeting's actions (Companion/protocol/ffi.md).
+        val action = RecordJson.decodeFromString(
+            MeetingAction.serializer(),
+            """{"id":"a1","text":"Send the deck","status":"done","pending":true}""",
+        )
+        assertThat(action.pending).isTrue()
+        assertThat(action.syncNote).isNull()
+        val refused = RecordJson.decodeFromString(
+            MeetingAction.serializer(),
+            """{"id":"a1","text":"Send the deck","status":"open","syncNote":{"status":"unmatched","requestedStatus":"done",
+                "at":"2026-11-10T09:00:00.000Z","message":"This action changed on your computer."}}""",
+        )
+        assertThat(refused.pending).isFalse()
+        assertThat(refused.syncNote?.message).isEqualTo("This action changed on your computer.")
+        val row = RecordJson.decodeFromString(
+            ActionRow.serializer(),
+            """{"meetingId":"m1","meetingTitle":"Review","meetingStartedAt":"2026-11-10T09:00:00.000Z",
+                "action":{"id":"a1","text":"Send the deck"},"pending":false,"syncNote":{"status":"rejected","requestedStatus":"done","at":"x"}}""",
+        )
+        assertThat(row.syncNote).isNotNull()
+        assertThat(row.syncNote?.message).isNull()
     }
 
     @Test

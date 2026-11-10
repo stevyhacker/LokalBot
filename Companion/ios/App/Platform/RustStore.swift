@@ -5,9 +5,11 @@ import UIKit
 
 /// The device's copy of the Mac's library, kept by the Rust sync core
 /// (Companion/protocol/ffi.md). Its calls block, so reads and local changes
-/// run on one serial queue and network calls (pairing, sync, Ask) on another,
-/// so a slow Mac never holds up the screens. Uploads get a queue of their own,
-/// because sending a long recording mustn't hold up syncing or Ask.
+/// run on one serial queue and pairing, sync and unpairing on another, so a
+/// slow Mac never holds up the screens. Uploads get a queue of their own,
+/// because sending a long recording mustn't hold up syncing or Ask. So does
+/// Ask, which the core lets run beside a sync: an answer can take minutes, and
+/// a new question mustn't wait for a sync or for a queued question's answer.
 final class RustStore: CompanionStore, @unchecked Sendable {
     /// The name the Mac shows when it asks to allow this device.
     let deviceName: String
@@ -15,6 +17,7 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     private let local = DispatchQueue(label: "me.dotenv.LokalBot.companion.store", qos: .userInitiated)
     private let network = DispatchQueue(label: "me.dotenv.LokalBot.companion.network", qos: .utility)
     private let uploads = DispatchQueue(label: "me.dotenv.LokalBot.companion.uploads", qos: .utility)
+    private let asking = DispatchQueue(label: "me.dotenv.LokalBot.companion.ask", qos: .userInitiated, attributes: .concurrent)
 
     init(client: SyncClient, deviceName: String) {
         self.client = client
@@ -94,6 +97,10 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         try await read { Self.decodeAll(Meeting.self, try $0.meetings(fromDay: fromDay, toDay: toDay, limit: Self.limit(limit))) }
     }
 
+    func newestMeetings(limit: Int) async throws -> MeetingsPage {
+        try await read { MeetingsPage(rows: try $0.meetings(fromDay: nil, toDay: nil, limit: Self.limit(limit + 1)), limit: limit) }
+    }
+
     func meeting(id: String) async throws -> Meeting? {
         try await read { Self.decode(Meeting.self, try $0.meeting(id: id)) }
     }
@@ -154,7 +161,7 @@ final class RustStore: CompanionStore, @unchecked Sendable {
              onDelta: @escaping @Sendable (String) -> Void) async throws -> AskResult {
         let json = try CompanionJSON.encodeString(request)
         let listener = DeltaListener(onDelta)
-        let result = try await run(on: network) { try $0.ask(requestJson: json, extraAddresses: extraAddresses, listener: listener) }
+        let result = try await run(on: asking) { try $0.ask(requestJson: json, extraAddresses: extraAddresses, listener: listener) }
         return try CompanionJSON.decode(AskResult.self, from: result)
     }
 

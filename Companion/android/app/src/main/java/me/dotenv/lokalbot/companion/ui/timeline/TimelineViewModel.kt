@@ -33,7 +33,8 @@ class TimelineViewModel(repository: CompanionRepository) : LibraryViewModel(repo
         .mapLatest { day ->
             val today = repository.today()
             val key = day.toString()
-            val days = repository.days()
+            // Every recorded day: the earliest one is as far back as the day strip goes.
+            val days = repository.days(limit = Int.MAX_VALUE)
             val earliestRecorded = days.lastOrNull()?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             TimelineState(
                 today = today,

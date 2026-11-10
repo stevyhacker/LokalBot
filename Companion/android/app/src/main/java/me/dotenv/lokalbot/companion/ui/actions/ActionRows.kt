@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.ActionOrdering
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.MeetingAction
+import me.dotenv.lokalbot.companion.data.model.SyncNote
 import me.dotenv.lokalbot.companion.ui.LocalFormats
 import me.dotenv.lokalbot.companion.ui.components.ActionToggle
 import me.dotenv.lokalbot.companion.ui.components.rowSelection
@@ -35,7 +37,7 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 /**
  * One action item: the round toggle, the text, and a quiet line with the
  * owner, the due date (red when overdue), the meeting and any change that
- * is still waiting for the Mac.
+ * is still waiting for the Mac, or that the Mac didn't make.
  */
 @Composable
 fun ActionItemRow(
@@ -45,6 +47,7 @@ fun ActionItemRow(
     modifier: Modifier = Modifier,
     meetingTitle: String? = null,
     pending: Boolean = false,
+    note: SyncNote? = null,
     selected: Boolean = false,
     onClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit = {},
@@ -66,14 +69,14 @@ fun ActionItemRow(
                 color = if (done) LokalBotTheme.supportingText else Color.Unspecified,
                 textDecoration = if (action.status == ActionStatus.Done) TextDecoration.LineThrough else null,
             )
-            ActionMetaLine(action, today, meetingTitle, pending)
+            ActionMetaLine(action, today, meetingTitle, pending, note)
         }
         trailing()
     }
 }
 
 @Composable
-fun ActionMetaLine(action: MeetingAction, today: LocalDate, meetingTitle: String?, pending: Boolean) {
+fun ActionMetaLine(action: MeetingAction, today: LocalDate, meetingTitle: String?, pending: Boolean, note: SyncNote? = null) {
     val formats = LocalFormats.current
     val palette = LokalBotTheme.palette
     val supporting = LokalBotTheme.supportingText
@@ -99,6 +102,12 @@ fun ActionMetaLine(action: MeetingAction, today: LocalDate, meetingTitle: String
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 Icon(Icons.Outlined.Schedule, null, tint = palette.attentionText, modifier = Modifier.size(14.dp))
                 Text(stringResource(R.string.action_waiting_for_mac), style = LokalBotType.secondary, color = palette.attentionText)
+            }
+        } else if (note != null) {
+            // Without this the change made here just disappears at the next sync.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Icon(Icons.Outlined.ErrorOutline, null, tint = palette.attentionText, modifier = Modifier.size(14.dp))
+                Text(stringResource(R.string.action_not_changed), style = LokalBotType.secondary, color = palette.attentionText)
             }
         }
     }

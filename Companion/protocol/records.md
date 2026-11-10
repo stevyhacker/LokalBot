@@ -34,7 +34,7 @@ Every record travels and is stored in an envelope:
 | `version` | Increases by 1 each time this record's content changes |
 | `seq` | Host-wide change counter at the time of this version; strictly increasing |
 | `deleted` | `true` for a tombstone (the body is `{}`) |
-| `sortKey` | Instant or day that orders catch-up newest first (meeting `startedAt`, day `date`, others the publish time) |
+| `sortKey` | Instant or day that orders catch-up newest first (meeting `startedAt`; day `date`; a transcript its meeting's `startedAt` while the host has that meeting, so the two sort together, the meeting first; others the publish time) |
 | `body` | The record below |
 
 The host computes `version`, `seq` and `sortKey`; the Mac app publishes only
@@ -180,7 +180,8 @@ The only op in version 1. The Mac applies it through its existing action
 state store; when reprocessing has changed the action id it matches on
 `actionText`, and otherwise reports `unmatched`. The phone shows the new
 status at once, marked as waiting for the Mac, until the rebuilt meeting
-record arrives.
+record arrives. When the Mac reports `unmatched` or `rejected`, the phone puts
+the old status back and says the change wasn't made (ffi.md, `syncNote`).
 
 ## Ask
 

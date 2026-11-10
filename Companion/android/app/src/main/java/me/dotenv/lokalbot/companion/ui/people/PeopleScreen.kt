@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.StateFlow
 import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.ActionOrdering
 import me.dotenv.lokalbot.companion.data.CompanionRepository
+import me.dotenv.lokalbot.companion.data.meetingsById
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.data.model.MeetingAction
 import me.dotenv.lokalbot.companion.data.model.MeetingNote
@@ -76,8 +77,7 @@ data class PersonState(val person: Person? = null, val meetings: List<Meeting> =
 class PersonViewModel(repository: CompanionRepository, id: String) : LibraryViewModel(repository) {
     val state: StateFlow<PersonState> = library(PersonState(today = repository.today())) {
         val person = repository.person(id)
-        val ids = person?.meetingIds.orEmpty().toSet()
-        PersonState(person, repository.meetings().filter { it.id in ids }, repository.today(), loaded = true)
+        PersonState(person, repository.meetingsById(person?.meetingIds.orEmpty()), repository.today(), loaded = true)
     }
 }
 

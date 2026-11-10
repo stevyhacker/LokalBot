@@ -58,19 +58,38 @@ public struct MeetingDayGroup: Identifiable, Hashable, Sendable {
 
 @MainActor @Observable
 public final class MeetingsModel {
+    /// Meetings the list loads at a time.
+    public static let pageSize = 1_000
+
     public private(set) var groups: [MeetingDayGroup] = []
     public private(set) var hits: [SearchHit] = []
     public private(set) var searchedQuery = ""
     public private(set) var loaded = false
     public var query = ""
+    /// How many meetings the list has asked for so far; it grows as the list
+    /// is scrolled to its end.
+    public private(set) var listed = MeetingsModel.pageSize
+    /// Older meetings wait below the ones listed.
+    public private(set) var hasMore = false
+    private var loadingMore = false
 
     public init() {}
 
     public func load(_ session: CompanionSession) async {
-        let meetings = (try? await session.store.meetings(fromDay: nil, toDay: nil, limit: 5_000)) ?? []
-        groups = Self.grouped(meetings)
+        let page = (try? await session.store.newestMeetings(limit: listed)) ?? MeetingsPage(meetings: [], hasMore: false)
+        hasMore = page.hasMore
+        groups = Self.grouped(page.meetings)
         loaded = true
         if !query.isEmpty { await search(session) }
+    }
+
+    /// The end of the list came into view.
+    public func showMore(_ session: CompanionSession) async {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        listed += Self.pageSize
+        await load(session)
     }
 
     /// Searches the device's copy: titles, summaries, notes, actions,
@@ -125,8 +144,7 @@ public final class MeetingDetailModel {
     public func load(_ session: CompanionSession) async {
         meeting = try? await session.store.meeting(id: meetingID)
         transcript = meeting?.hasTranscript == true ? try? await session.store.transcript(meetingID: meetingID) : nil
-        let rows = (try? await session.store.actions(.all)) ?? []
-        pendingActionIDs = Set(rows.filter { $0.meetingId == meetingID && $0.pending }.map(\.action.id))
+        pendingActionIDs = Set((meeting?.actions ?? []).filter(\.pending).map(\.id))
         loaded = true
     }
 

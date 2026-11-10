@@ -1,8 +1,11 @@
 package me.dotenv.lokalbot.companion
 
+import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
@@ -42,16 +45,19 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        locked = savedInstanceState?.getBoolean(KEY_LOCKED) ?: true
+        // Restored state says "unlocked" for as long as Android keeps it, which can be days after
+        // it ended the process. Only a restart soon after the app was left may skip the lock.
+        locked = savedInstanceState == null || savedInstanceState.getBoolean(KEY_LOCKED) ||
+            awayTooLong(savedInstanceState.getLong(KEY_STOPPED_AT, NEVER))
         pairingLink = savedInstanceState?.getString(KEY_LINK) ?: pairingLinkFrom(intent)
         if (savedInstanceState == null) showRecorderIfAsked(intent)
 
         lifecycleScope.launch {
-            appLockEnabled = container.preferences.appLockEnabled.first()
+            appLockIs(container.preferences.appLockEnabled.first())
             if (!appLockEnabled) locked = false
             lockKnown = true
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                container.preferences.appLockEnabled.collect { appLockEnabled = it }
+                container.preferences.appLockEnabled.collect { appLockIs(it) }
             }
         }
 
@@ -90,7 +96,7 @@ class MainActivity : FragmentActivity() {
     override fun onStart() {
         super.onStart()
         val since = stoppedAt
-        if (appLockEnabled && since != null && SystemClock.elapsedRealtime() - since > RELOCK_AFTER_MS) locked = true
+        if (appLockEnabled && since != null && awayTooLong(since)) locked = true
         stoppedAt = null
     }
 
@@ -102,13 +108,25 @@ class MainActivity : FragmentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_LOCKED, locked)
+        outState.putLong(KEY_STOPPED_AT, stoppedAt ?: SystemClock.elapsedRealtime())
         pairingLink?.let { outState.putString(KEY_LINK, it) }
+    }
+
+    /** [since] is on the clock that restarts with the device, so a time ahead of it is from before a restart. */
+    private fun awayTooLong(since: Long): Boolean {
+        val away = SystemClock.elapsedRealtime() - since
+        return since == NEVER || away > RELOCK_AFTER_MS || away < 0
     }
 
     private fun setAppLock(enabled: Boolean) {
         lifecycleScope.launch { container.preferences.setAppLockEnabled(enabled) }
-        appLockEnabled = enabled
+        appLockIs(enabled)
         locked = false
+    }
+
+    private fun appLockIs(enabled: Boolean) {
+        appLockEnabled = enabled
+        keepOutOfRecents(enabled)
     }
 
     private fun canAuthenticate(): Boolean =
@@ -142,7 +160,26 @@ class MainActivity : FragmentActivity() {
     private companion object {
         const val KEY_LOCKED = "locked"
         const val KEY_LINK = "pairingLink"
+        const val KEY_STOPPED_AT = "stoppedAt"
+        const val NEVER = -1L
         const val RELOCK_AFTER_MS = 30_000L
         const val AUTHENTICATORS = BIOMETRIC_WEAK or DEVICE_CREDENTIAL
+    }
+}
+
+/**
+ * With the app lock on, the recents screen shows no picture of the library: the
+ * lock only comes down after a while in the background, and the system takes
+ * that picture on the way out. Android 13 can leave just that picture out, so
+ * the person's own screenshots still work, as on iOS. Earlier versions can only
+ * mark the whole window secure, which stops screenshots too.
+ */
+internal fun Activity.keepOutOfRecents(hide: Boolean) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        setRecentsScreenshotEnabled(!hide)
+    } else if (hide) {
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+    } else {
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 }

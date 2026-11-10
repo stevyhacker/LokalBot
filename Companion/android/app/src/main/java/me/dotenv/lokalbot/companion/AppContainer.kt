@@ -6,6 +6,7 @@ import android.provider.Settings
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -126,16 +127,25 @@ class AppContainer(private val app: Application) {
         }
         try {
             val mac = client.pair(link)
-            close(_repository.value)
-            val library = paired(client)
-            _repository.value = library
-            _heldRecordings.value = 0
-            preferences.setMode(LibraryMode.Paired)
-            SyncWorker.schedule(app)
-            scope.launch {
-                library.sync()
-                // Whatever was held since the Mac removed this device.
-                UploadWorker.enqueue(app)
+            // Cancelling can't interrupt the wait above. If the computer allowed this device
+            // after that, both sides are paired, so it's saved in full like any other pairing.
+            withContext(NonCancellable) {
+                // Only a pairing cancelled here and allowed later can find a recording going.
+                // Its library is about to close: what's recorded so far is kept and sent.
+                val cutShort = recorder.isActive
+                if (cutShort) recorder.abort()
+                close(_repository.value)
+                val library = paired(client)
+                _repository.value = library
+                _heldRecordings.value = 0
+                preferences.setMode(LibraryMode.Paired)
+                SyncWorker.schedule(app)
+                if (cutShort) recorder.recoverIfIdle(library)
+                scope.launch {
+                    library.sync()
+                    // Whatever was held since the Mac removed this device.
+                    UploadWorker.enqueue(app)
+                }
             }
             PairOutcome.Paired(mac.macName)
         } catch (e: SyncException) {

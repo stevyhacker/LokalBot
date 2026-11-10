@@ -152,10 +152,10 @@ twice is saved once.
 ```text
 // reads (JSON bodies from records.md; lists are newest first)
 manifest() -> string?
-meetings(from_day: string?, to_day: string?, limit: u32) -> [string]
+meetings(from_day: string?, to_day: string?, limit: u32) -> [string]   // limit 0: all of them
 meeting(id: string) -> string?
 transcript(meeting_id: string) -> string?
-days(limit: u32) -> [string]                 // day keys that have a record, newest first
+days(limit: u32) -> [string]                 // day keys that have a record, newest first; limit 0: all of them
 day(date: string) -> string?
 actions(filter: ActionFilter) -> [string]    // ActionRow JSON, see below
 people() -> [string]
@@ -173,10 +173,22 @@ is_sample() -> bool
 owner_unclear_only: bool, due_before: string? (YYYY-MM-DD) }`.
 
 `ActionRow` JSON:
-`{ "meetingId", "meetingTitle", "meetingStartedAt", "action": Action, "pending": bool }`,
+`{ "meetingId", "meetingTitle", "meetingStartedAt", "action": Action, "pending": bool, "syncNote"? }`,
 sorted overdue first, then by `dueDate` ascending (none last), then by meeting
 start descending. `pending` is true while a local status change waits for the
 Mac.
+
+`syncNote` is there when the Mac answered that change with `unmatched` or
+`rejected` (protocol.md, `opResult`):
+`{ "status", "requestedStatus", "at", "message"? }`, with the Mac's reason in
+`message`. The store has put the status back by then, so an app shows the note
+or the change just disappears. The note goes when the status is changed on the
+device again, or when a newer version of the meeting arrives.
+
+`meeting` and `meetings` return the same two as keys of the store's own on each
+action that has them: `"pending": true` and `"syncNote"`. Neither is part of the
+record the Mac sent (records.md), and `actions` moves them from the action to
+its row.
 
 Search uses SQLite FTS5 (unicode61, with the same CJK substring fallback as the
 Mac) over meeting titles, summaries, notes, actions, decisions, transcript
