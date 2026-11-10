@@ -3,6 +3,7 @@
 
 mod queries;
 mod recordings;
+mod sample;
 mod search;
 mod store;
 
@@ -294,8 +295,8 @@ impl SyncClient {
 
     // Questions
 
-    /// Asks the Mac, streaming the answer's text to `listener`. Returns the
-    /// result JSON (records.md, Ask) and saves it to the history.
+    /// Asks the Mac, or answers from the unpaired sample library, streaming
+    /// text to `listener`. Returns the result JSON and saves it to history.
     ///
     /// If the connection drops once the Mac has the question, the Mac keeps
     /// answering: this queues the question and fails with `Interrupted`.
@@ -308,12 +309,25 @@ impl SyncClient {
         listener: Box<dyn AskListener>,
     ) -> Result<String> {
         let (request_id, request) = parse_request(&request_json)?;
+        let pairing = {
+            let store = self.store.lock();
+            match store.pairing()? {
+                Some(pairing) => pairing,
+                None if store.is_sample()? => {
+                    let now = now_iso();
+                    let result = sample::answer(&store, &request_id, &request, &now)?;
+                    store.save_answer(&request_id, &request, &result, &now)?;
+                    // A callback may call the client again, so don't hold the store lock.
+                    drop(store);
+                    if let Some(answer) = str_field(&result, "answer") {
+                        listener.on_delta(answer.to_owned());
+                    }
+                    return Ok(result.to_string());
+                }
+                None => return Err(SyncError::not_paired()),
+            }
+        };
         let tuning = self.tuning();
-        let pairing = self
-            .store
-            .lock()
-            .pairing()?
-            .ok_or_else(SyncError::not_paired)?;
         let (channel, mut inbox, _) = self.connect(&pairing, &extra_addresses, &tuning)?;
         let result = run_ask(
             &channel,

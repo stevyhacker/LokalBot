@@ -54,8 +54,8 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSLocalNetworkUsageDescription: >-
-          LokalBot finds your computer and syncs with it directly over your
-          network or Tailscale. Nothing goes through a server.
+          LokalBot finds your computer and syncs with it over your local
+          network or Tailscale. Your data is end-to-end encrypted.
         NSBonjourServices:
           - _lokalbot._tcp
         NSCameraUsageDescription: >-

@@ -53,6 +53,15 @@ public final class AskModel {
 
     public init() {}
 
+    /// The sample answerer reads meeting decisions and actions, so offer
+    /// questions grounded in its bundled library. Paired suggestions stay general.
+    public static func suggestions(for mode: CompanionSession.Mode) -> [String] {
+        if mode == .sample {
+            return ["What came up about onboarding?", "What came up about pricing?", "What came up in the Northwind call?"]
+        }
+        return ["What's overdue?", "Summarize yesterday", "What did Maya ask me for?"]
+    }
+
     public var current: Conversation? {
         conversations.first { $0.id == currentID }
     }
@@ -155,7 +164,8 @@ public final class AskModel {
         let id = request.requestId
         session.askingIDs.insert(id)
         defer { session.askingIDs.remove(id) }
-        let addresses = await session.discoverAddresses()
+        // The sample is answered on this device and needs no network discovery.
+        let addresses = session.mode == .sample ? [] : await session.discoverAddresses()
         do {
             let result = try await session.store.ask(request, extraAddresses: addresses) { [weak self] delta in
                 Task { @MainActor in

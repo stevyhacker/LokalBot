@@ -48,6 +48,15 @@ struct AskCitationParserTests {
 @Suite("Ask model")
 @MainActor
 struct AskModelTests {
+    @Test func suggestedQuestionsMatchTheLibraryMode() {
+        #expect(AskModel.suggestions(for: .sample) == [
+            "What came up about onboarding?", "What came up about pricing?", "What came up in the Northwind call?",
+        ])
+        #expect(AskModel.suggestions(for: .paired) == [
+            "What's overdue?", "Summarize yesterday", "What did Maya ask me for?",
+        ])
+    }
+
     func session(reachable: Bool) async throws -> CompanionSession {
         let status = SyncStatus(paired: true, lastSyncAt: SampleLibrary.referenceDate, lastAddress: "192.168.1.20:17890",
                                 cursor: 19, macName: "Sample Mac")
@@ -78,6 +87,28 @@ struct AskModelTests {
         await model.load(session)
         #expect(model.conversations.count == 1)
         #expect(model.current?.turns.count == 2)
+    }
+
+    @Test func sampleQuestionsDoNotDiscoverComputersButPairedQuestionsDo() async throws {
+        let sample = CompanionSession(store: try FixtureStore.sampleLibrary())
+        await sample.start()
+        #expect(sample.mode == .sample)
+        var sampleDiscoveries = 0
+        sample.discoverAddresses = { sampleDiscoveries += 1; return [] }
+        let sampleModel = AskModel()
+        sampleModel.draft = "What did we decide about onboarding?"
+        await sampleModel.submit(sample)
+        #expect(sampleModel.current?.turns.first?.state == .answered)
+        #expect(sampleDiscoveries == 0)
+
+        let paired = try await session(reachable: true)
+        var pairedDiscoveries = 0
+        paired.discoverAddresses = { pairedDiscoveries += 1; return [] }
+        let pairedModel = AskModel()
+        pairedModel.draft = "What did we decide about onboarding?"
+        await pairedModel.submit(paired)
+        #expect(pairedModel.current?.turns.first?.state == .answered)
+        #expect(pairedDiscoveries == 1)
     }
 
     @Test func offersLocalSearchAndQueueWhenTheMacIsAway() async throws {
