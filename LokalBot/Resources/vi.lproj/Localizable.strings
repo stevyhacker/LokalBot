@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "Hành động gốc, cụm từ chỉ hạn và trích dẫn vẫn còn.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "Chỉ đọc các nguồn dưới đây khi bạn bắt đầu bằng yêu cầu viết như “trả lời…”, “viết…” hoặc “soạn…”. Nội dung đọc chính tả khác chỉ được chỉnh sửa.";
 "The text may not have been inserted" = "Có thể chưa chèn văn bản";
+"Dictation failed" = "Đọc chính tả thất bại";
+"No speech detected" = "Không phát hiện lời nói";
+"Transcribed on this Mac" = "Đã chép lời trên Mac này";
 "Theme" = "Chủ đề";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "Đây là tiêu đề cửa sổ đã ghi lại. Mở rộng tiêu đề để xem hoạt động phía sau.";
 "These choices are applied on the final Review step." = "Các lựa chọn này được áp dụng ở bước Xem lại cuối cùng.";

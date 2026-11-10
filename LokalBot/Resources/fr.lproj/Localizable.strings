@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "L’action d’origine, la formulation de l’échéance et les citations restent disponibles.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "Les sources ci-dessous ne sont lues que si vous commencez par une demande de rédaction, comme « répondre… », « écrire… » ou « rédiger… ». Les autres dictées sont simplement corrigées.";
 "The text may not have been inserted" = "Le texte n’a peut-être pas été inséré";
+"Dictation failed" = "Échec de la dictée";
+"No speech detected" = "Aucune parole détectée";
+"Transcribed on this Mac" = "Transcrit sur ce Mac";
 "Theme" = "Thème";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "Il s’agit des titres de fenêtres capturés. Dépliez un titre pour consulter l’activité correspondante.";
 "These choices are applied on the final Review step." = "Ces choix s’appliquent lors de l’étape finale de vérification.";

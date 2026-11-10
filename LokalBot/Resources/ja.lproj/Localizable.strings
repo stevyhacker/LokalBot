@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "元のアクション、期限の表現、引用は引き続き確認できます。";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "以下のソースは「返信して…」「書いて…」「下書きを…」などの文章作成依頼で始めたときだけ読み取ります。それ以外の音声入力は文章を整えるだけです。";
 "The text may not have been inserted" = "テキストが挿入されていない可能性があります";
+"Dictation failed" = "音声入力に失敗しました";
+"No speech detected" = "音声が検出されませんでした";
+"Transcribed on this Mac" = "このMacで文字起こししました";
 "Theme" = "テーマ";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "取得したウィンドウのタイトルです。タイトルを展開すると対応するアクティビティを確認できます。";
 "These choices are applied on the final Review step." = "これらの選択は最後の確認ステップで適用されます。";

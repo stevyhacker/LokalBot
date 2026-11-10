@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "Prvobitna obaveza, formulacija roka i navodi izvora ostaju dostupni.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "Izvori ispod čitaju se samo kada počnete zahtevom za pisanje, kao što su „odgovori…“, „napiši…“ ili „sastavi…“. Kod ostalog diktiranja tekst se samo čisti.";
 "The text may not have been inserted" = "Tekst možda nije umetnut";
+"Dictation failed" = "Diktiranje nije uspelo";
+"No speech detected" = "Govor nije otkriven";
+"Transcribed on this Mac" = "Transkribovano na ovom Mac-u";
 "Theme" = "Tema";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "Ovo su zabeleženi naslovi prozora. Proširite naslov da biste pregledali aktivnost iza njega.";
 "These choices are applied on the final Review step." = "Ovi izbori se primenjuju u završnom koraku Pregled.";

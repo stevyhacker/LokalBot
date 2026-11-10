@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "الإجراء الأصلي وعبارة الموعد والمراجع بيفضلوا متاحين.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "المصادر اللي تحت بتتقري بس لما تبدأ بطلب كتابة، زي «رد…» أو «اكتب…» أو «اكتب مسودة…». أي إملاء تاني بيتنقّح بس.";
 "The text may not have been inserted" = "ممكن النص متضافش";
+"Dictation failed" = "الإملاء فشل";
+"No speech detected" = "مفيش كلام اتكتشف";
+"Transcribed on this Mac" = "التفريغ النصي اتعمل على الـ Mac ده";
 "Theme" = "شكل الواجهة";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "دي عناوين نوافذ اتلقطت. وسّع عنوان عشان تشوف النشاط اللي وراه.";
 "These choices are applied on the final Review step." = "الاختيارات دي بتتطبق في خطوة المراجعة الأخيرة.";

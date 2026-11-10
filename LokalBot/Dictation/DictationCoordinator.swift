@@ -47,6 +47,10 @@ final class DictationCoordinator: ObservableObject {
     @Published private(set) var deliveryNotice: DictationDeliveryNotice?
     private var insertionCheckTask: Task<Void, Never>?
     private var noticeDismissTask: Task<Void, Never>?
+    /// Why the last dictation ended without its text, or why a model on this
+    /// Mac transcribed it. The HUD shows it over whatever app is in front.
+    @Published private(set) var problemNotice: DictationProblemNotice?
+    private var problemDismissTask: Task<Void, Never>?
     @Published private(set) var liveTranscript = DictationLiveTranscript()
     @Published private(set) var livePreviewStatus = ""
     @Published private(set) var isLivePreviewWorking = false
@@ -410,6 +414,7 @@ final class DictationCoordinator: ObservableObject {
         insertionCheckTask?.cancel()
         insertionCheckTask = nil
         dismissDeliveryNotice()
+        dismissProblemNotice()
         let startedAt = Date()
         startPressedAt = startedAt
         generation += 1
@@ -725,15 +730,25 @@ final class DictationCoordinator: ObservableObject {
             return
         }
         do {
-            let transcript = try await transcribeSerialized(
-                audioURL, config: config, retriesWithoutVocabulary: true)
+            // The server failing (a rejected key, no connection) does not
+            // lose the dictation: a model already on this Mac transcribes it.
+            let spoken = try await DictationTranscriptionFallback.transcribe(
+                settings: config,
+                selected: {
+                    try await transcribeSerialized(audioURL, config: config, retriesWithoutVocabulary: true)
+                },
+                onThisMac: { local in
+                    try await prepareStandInModel(local, generation: session)
+                    return try await transcribeSerialized(audioURL, config: local, retriesWithoutVocabulary: true)
+                })
+            let transcript = spoken.transcript
             try Task.checkCancellation()
             guard generation == session else { return }
 
             let spokenText = Transcript.normalizedText(
                 transcript.segments.map(\.displayText).joined(separator: " "))
             guard !spokenText.isEmpty else {
-                completeWithMessage("No speech detected.")
+                completeWithMessage("No speech detected.", notice: .noSpeech)
                 return
             }
 
@@ -812,6 +827,19 @@ final class DictationCoordinator: ObservableObject {
             lokalbotLog(
                 "dictation composed source=\(source) chars=\(text.count) "
                     + "asr=\(transcript.engine) intent=\(config.dictationIntent.rawValue)")
+            if let fallback = spoken.fallback {
+                // The HUD always says the server failed. LokalBot's own
+                // message says it too, unless it already holds a delivery
+                // problem, which matters more there.
+                switch delivery {
+                case .inserted, .copied, .displayed:
+                    onError("Dictation was transcribed on this Mac with \(fallback.choice.displayName). "
+                            + fallback.reason)
+                case .notDelivered, .unconfirmed, .failed, .cancelled:
+                    break
+                }
+                showProblemNotice(.transcribedOnThisMac(fallback))
+            }
         } catch is CancellationError {
             guard generation == session else { return }
             complete()
@@ -821,14 +849,31 @@ final class DictationCoordinator: ObservableObject {
             if let lastTranscript {
                 keepInHistory(lastTranscript, outcome: .notInserted)
             }
-            let prefix: String
             if case .composing = state {
-                prefix = "Could not compose dictation"
+                let message = "Could not compose dictation: \(error.localizedDescription)"
+                completeWithMessage(message, notice: .failed(message))
+            } else if case DictationError.noSpeech = error {
+                completeWithMessage("Dictation failed: \(error.localizedDescription)", notice: .noSpeech)
             } else {
-                prefix = "Dictation failed"
+                var detail = error.localizedDescription
+                if error is RemoteTranscriptionError, DictationTranscriptionFallback.localChoice(for: config) == nil {
+                    detail += " " + DictationTranscriptionFallback.nothingDownloadedHint
+                }
+                completeWithMessage("Dictation failed: \(detail)", notice: .failed(detail))
             }
-            completeWithMessage("\(prefix): \(error.localizedDescription)")
         }
+    }
+
+    /// Loads the model on this Mac that stands in for the server. It is on
+    /// disk already, so this is a load, shown in the HUD when it is slow.
+    private func prepareStandInModel(_ local: AppSettings, generation session: Int) async throws {
+        beginModelPreparation()
+        try await local.transcriptionEngine().prepare { [weak self] update in
+            self?.receiveModelPreparation(update, generation: session)
+        }
+        try Task.checkCancellation()
+        guard generation == session else { throw CancellationError() }
+        resetModelPreparation()
     }
 
     /// The paste waits up to 1.5 s for the app to read the text. If the
@@ -1200,10 +1245,34 @@ final class DictationCoordinator: ObservableObject {
         return task
     }
 
-    private func completeWithMessage(_ message: String) {
+    /// Ends a dictation that delivered nothing. `message` goes to LokalBot's
+    /// own window and `notice` to the HUD, which is what the person sees when
+    /// they dictated into another app.
+    private func completeWithMessage(_ message: String, notice: DictationProblemNotice) {
         lokalbotLog("dictation ended without delivery: \(message)")
         onError(message)
         complete()
+        showProblemNotice(notice)
+    }
+
+    private func showProblemNotice(_ notice: DictationProblemNotice) {
+        guard !state.isWorking, !isStarting else { return }
+        problemNotice = notice
+        refreshOverlay()
+        problemDismissTask?.cancel()
+        problemDismissTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled else { return }
+            self?.dismissProblemNotice()
+        }
+    }
+
+    func dismissProblemNotice() {
+        problemDismissTask?.cancel()
+        problemDismissTask = nil
+        guard problemNotice != nil else { return }
+        problemNotice = nil
+        refreshOverlay()
     }
 
     func retryModelPreparation() {
@@ -1740,11 +1809,12 @@ final class DictationCoordinator: ObservableObject {
 
     private func refreshOverlay() {
         // The preparation-error panel holds the only Retry button, so it shows
-        // even when the floating status is turned off.
+        // even when the floating status is turned off. So do the notices:
+        // without them a dictation that failed looks like nothing happened.
         overlay.update(
             for: self,
             visible: settingsProvider().dictationShowOverlay || modelPreparationError != nil
-                || deliveryNotice != nil)
+                || deliveryNotice != nil || problemNotice != nil)
     }
 }
 

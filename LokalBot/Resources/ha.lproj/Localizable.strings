@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "Matakin asali, kalmomin wa'adi da manazarta suna nan.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "Ana karanta kafofin da ke ƙasa ne kawai idan ka fara da buƙatar rubutu kamar “amsa…”, “rubuta…” ko “rubuta daftari…”. Sauran faɗa don rubutawa ana gyara shi kawai.";
 "The text may not have been inserted" = "Mai yiwuwa ba a saka rubutun ba";
+"Dictation failed" = "Faɗa don rubutawa ya gaza";
+"No speech detected" = "Ba a gano magana ba";
+"Transcribed on this Mac" = "An rubuta maganar a wannan Mac";
 "Theme" = "Jigo";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "Waɗannan taken tagogin da aka ɗauka ne. Faɗaɗa take don duba aikin da ke bayansa.";
 "These choices are applied on the final Review step." = "Ana aiwatar da waɗannan zaɓuɓɓuka a matakin Bita na ƙarshe.";

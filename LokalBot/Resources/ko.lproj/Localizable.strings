@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "원래 실행 항목, 기한 표현 및 인용은 계속 확인할 수 있습니다.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "아래 자료는 “답장…”, “작성…” 또는 “초안…”처럼 글쓰기 요청으로 시작할 때만 읽습니다. 그 외의 받아쓰기는 문장만 다듬습니다.";
 "The text may not have been inserted" = "텍스트가 삽입되지 않았을 수 있습니다";
+"Dictation failed" = "받아쓰기 실패";
+"No speech detected" = "음성이 감지되지 않았습니다";
+"Transcribed on this Mac" = "이 Mac에서 전사됨";
 "Theme" = "테마";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "캡처한 창 제목입니다. 제목을 펼쳐 관련 활동을 확인하세요.";
 "These choices are applied on the final Review step." = "이 선택 사항은 마지막 검토 단계에서 적용됩니다.";
