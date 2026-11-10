@@ -1,0 +1,227 @@
+<template>
+  <style>
+    /* kit:begin */
+    /* The look the three architecture films share. Injected into every scene by kit/build_lib.py:
+       edit kit/kit.css, never this copy. */
+    #root {
+      --slate: #0e151d;      /* the brand's ground, and the inside of the Mac */
+      --slate-2: #17222d;    /* a surface on slate */
+      --slate-3: #222e3d;    /* the icon plate's lighter end */
+      --ink: #0e141c;        /* type on mint and on light grounds */
+      --mint: #c9f1e7;       /* the brand's light ground */
+      --mint-hi: #6ef2dc;    /* the robot's body, lit side */
+      --mint-lo: #23c4ae;    /* the robot's body, far side */
+      --teal: #3a7d72;       /* the robot's arm: quiet structure */
+      --teal-deep: #1f3d38;  /* quiet type on mint */
+      --paper: #eafffa;      /* type on slate and teal */
+      --amber: #fbbf24;      /* the antenna light: one focus a frame, never decoration */
+      font-family: Inter, sans-serif;
+    }
+    .mono {
+      font-family: "JetBrains Mono", monospace;
+    }
+    /* A label that sits on the part it names: the model, its job, then its file facts. */
+    .plate {
+      position: absolute;
+      padding-left: 26px;
+      border-left: 8px solid var(--plate-rule, var(--mint-hi));
+      color: var(--plate-ink, var(--paper));
+      white-space: nowrap;
+    }
+    .plate-name {
+      font-weight: 800;
+      font-size: 60px;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .plate-job {
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.25;
+      margin-top: 10px;
+    }
+    .plate-spec {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.35;
+      margin-top: 10px;
+      color: var(--plate-dim, var(--mint-hi));
+    }
+    /* kit:end */
+    #root {
+      position: absolute;
+      inset: 0;
+      color: #0e141c;
+    }
+    /* The brand's mint ground opens from the amber dot the film's last picture closed to. */
+    #end-ground {
+      position: absolute;
+      inset: 0;
+      background: #c9f1e7;
+    }
+    /* That dot. It becomes the light on the robot's antenna. */
+    #end-spark {
+      position: absolute;
+      left: 751px;
+      top: 625.5px;
+      width: 50px;
+      height: 50px;
+      border-radius: 25px;
+      background: #fbbf24;
+    }
+    #end-icon {
+      position: absolute;
+      left: 501px;
+      top: 300px;
+      width: 232px;
+      height: 232px;
+    }
+    #end-name {
+      position: absolute;
+      left: 769px;
+      top: 324px;
+      font-size: 158px;
+      font-weight: 900;
+      letter-spacing: -0.045em;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    #end-name span {
+      display: inline-block;
+    }
+    #end-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 606px;
+      text-align: center;
+      font-size: 72px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    #end-line span {
+      display: inline-block;
+    }
+    #end-url {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 734px;
+      text-align: center;
+      font-size: 46px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    #end-note {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 968px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1.2;
+      color: #3f615b;
+      white-space: nowrap;
+    }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1920" data-height="1080"
+    data-composition-variables='[{"id":"note","type":"string","label":"Small print","default":"Mac defaults on a fresh install. Speeds measured on an M4 Max with 48 GB."},{"id":"flood","type":"number","label":"Seconds the mint ground takes to open from the dot (0: the film is already on mint)","default":0.45}]'>
+    <div id="end-ground" data-layout-ignore></div>
+    <!-- The brand's own icon (Assets/lokalbot-icon.svg), inlined so its antenna light can land. -->
+    <svg id="end-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="end-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#222e3d" />
+          <stop offset="1" stop-color="#0e141c" />
+        </linearGradient>
+        <linearGradient id="end-body" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#6ef2dc" />
+          <stop offset="1" stop-color="#23c4ae" />
+        </linearGradient>
+      </defs>
+      <rect x="64" y="64" width="896" height="896" rx="204" fill="url(#end-bg)" />
+      <rect x="372" y="206" width="36" height="86" rx="18" fill="#3a7d72" />
+      <circle id="end-light" cx="390" cy="186" r="42" fill="#fbbf24" />
+      <rect x="268" y="276" width="244" height="484" rx="62" fill="url(#end-body)" />
+      <rect x="268" y="592" width="492" height="168" rx="62" fill="url(#end-body)" />
+      <rect x="312" y="326" width="156" height="118" rx="38" fill="#0e141c" />
+      <circle cx="390" cy="385" r="34" fill="#6ef2dc" />
+      <circle cx="402" cy="373" r="10" fill="#eafffa" />
+      <rect x="206" y="430" width="44" height="180" rx="22" fill="#3a7d72" />
+      <g fill="#0e141c">
+        <rect x="556" y="646" width="26" height="60" rx="13" />
+        <rect x="602" y="624" width="26" height="104" rx="13" />
+        <rect x="648" y="638" width="26" height="76" rx="13" />
+        <rect x="694" y="654" width="26" height="44" rx="13" />
+      </g>
+    </svg>
+    <div id="end-spark" data-layout-ignore></div>
+    <div id="end-name"><span id="end-name-text">LokalBot</span></div>
+    <div id="end-line">
+      <span class="end-word">Local</span> <span class="end-word">by</span> <span class="end-word">default.</span>
+      <span class="end-word">Free</span> <span class="end-word">and</span> <span class="end-word">open</span>
+      <span class="end-word">source.</span>
+    </div>
+    <div id="end-url"><span id="end-url-text">lokalbot.com</span></div>
+    <div id="end-note"><span id="end-note-text"></span></div>
+  </div>
+  <script>
+    /* cues:begin */
+    // Written by build.py from the voice's timings: never edit between these two marks.
+    const CUES = {"length": 7.3, "slot": 7.3, "lines": {"end": {"start": 0.62, "end": 4.874, "words": [["lokalbot", 0.62], ["local", 2.02], ["by", 2.3], ["default", 2.46], ["free", 3.62], ["and", 3.9], ["open", 4.14], ["source", 4.54]]}}};
+    const LEN = CUES.length;
+    const SLOT = CUES.slot;
+    const L = (id) => CUES.lines[id].start;
+    const E = (id) => CUES.lines[id].end;
+    const W = (id, word, nth = 1) => {
+      const hits = CUES.lines[id].words.filter((said) => said[0] === word.toLowerCase());
+      if (hits.length < nth) throw new Error(`no cue ${id}/${word}`);
+      return hits[nth - 1][1];
+    };
+    gsap.config({ force3D: false }); // 2D transforms, so type stays sharp under a camera move
+    /* cues:end */
+    const tl = gsap.timeline({ paused: true });
+    const vars = window.__hyperframes.getVariables();
+    document.getElementById("end-note-text").textContent = vars.note;
+    // The film's last picture closed to an amber dot at (776, 650.5). Mint opens from behind it.
+    const flood = Number(vars.flood) || 0;
+    if (flood > 0) {
+      tl.fromTo("#end-ground", { clipPath: "circle(0px at 776px 650.5px)" },
+        { clipPath: "circle(1500px at 776px 650.5px)", duration: flood, ease: "power2.inOut" }, 0);
+    }
+    const at = flood;
+    // The dot rises to where the antenna will be.
+    tl.fromTo("#end-spark", { x: 0 }, { x: -186.6, duration: 0.6, ease: "power1.inOut" }, at + 0.08);
+    tl.fromTo("#end-spark", { y: 0 }, { y: -308.4, duration: 0.6, ease: "power2.inOut", immediateRender: false }, at + 0.08);
+    tl.fromTo("#end-spark", { scale: 1, transformOrigin: "50% 50%" }, { scale: 0.38, duration: 0.6, ease: "power2.in", immediateRender: false }, at + 0.08);
+    // The robot forms under it, and the dot becomes its light.
+    gsap.set("#end-light", { opacity: 0 });
+    tl.fromTo("#end-icon", { opacity: 0, scale: 0.86, transformOrigin: "38% 18%" },
+      { opacity: 1, scale: 1, duration: 0.42, ease: "expo.out" }, at + 0.42);
+    tl.set("#end-light", { opacity: 1 }, at + 0.68);
+    tl.set("#end-spark", { opacity: 0 }, at + 0.68);
+    tl.fromTo("#end-light", { scale: 1, transformOrigin: "50% 50%" },
+      { scale: 1.45, duration: 0.12, ease: "power2.out", yoyo: true, repeat: 1 }, at + 0.68);
+    // The name is drawn out from the mark as the voice says it.
+    tl.fromTo("#end-name-text", { clipPath: "inset(0% 100% 0% 0%)", x: -24 },
+      { clipPath: "inset(0% 0% 0% 0%)", x: 0, duration: 0.42, ease: "power3.out" }, at + 0.84);
+    // "Local by default. Free and open source.", each word as the voice says it. The spoken line
+    // opens with "LokalBot", so the picture's words follow the spoken ones from the second on.
+    const line = Object.keys(CUES.lines)[0];
+    const spoken = CUES.lines[line].words.slice(1);
+    gsap.utils.toArray(".end-word").forEach((word, index) => {
+      const said = spoken[index] ? spoken[index][1] : E(line);
+      tl.fromTo(word, { opacity: 0, filter: "blur(6px)" },
+        { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power2.out" }, said - 0.04);
+    });
+    tl.fromTo("#end-url-text", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, E(line) + 0.3);
+    tl.fromTo("#end-note-text", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power2.out" }, E(line) + 0.9);
+    tl.set({}, {}, LEN);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>
