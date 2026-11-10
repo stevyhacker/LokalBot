@@ -144,10 +144,12 @@ enum MuseUITestTransport {
     // MARK: - Screen answers
 
     /// The captures are labelled "Image N: <app> — <window>"; the answer names
-    /// the one that shows it.
+    /// the one that shows it. Only the question decides: the same part of the
+    /// request starts with the meeting's title, and "Launch sync" would give
+    /// every question the launch date.
     private static func screenAnswer(_ messages: [[String: Any]]) -> [String: Any] {
         let texts = (messages.last?["content"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }
-        let question = texts.first ?? ""
+        let question = (texts.first ?? "").components(separatedBy: "\nQuestion: ").last ?? ""
         let labels = texts.filter { $0.hasPrefix("Image ") }
         func image(from app: String) -> Int? { labels.firstIndex { $0.contains(app) }.map { $0 + 1 } }
         var answer: [String: Any] = ["answer": "", "image": 0, "quote": ""]

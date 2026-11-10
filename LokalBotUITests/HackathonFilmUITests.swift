@@ -63,6 +63,12 @@ final class HackathonFilmUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "radar.item.\(kind)"))
     }
 
+    /// Whatever shows `fragment`: a text of its own, or one folded into the
+    /// label of the button or row it sits in.
+    private func shown(_ fragment: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", fragment)).firstMatch
+    }
+
     func testFilmLiveRadarAndFollowThrough() throws {
         XCTContext.runActivity(named: isLive ? "Muse replies: live" : "Muse replies: scripted") { _ in }
         // 1. Connect Meta Muse in Settings → Recording.
@@ -136,10 +142,16 @@ final class HackathonFilmUITests: XCTestCase {
             let decision = UITestHarness.staticText(containing: "Annual plans get 20% off", in: app)
             XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
             XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
-            XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
+            // The board keeps commitments in a lazy grid below what needs
+            // attention, which builds a card only once it is in view; the
+            // panel lists the commitment as a row either way.
+            XCTAssertTrue(shown("Send the revised pricing deck", in: app).exists,
+                          "the commitment to send the deck is not on the radar")
             let code = UITestHarness.staticText(containing: "hidden from screen sharing", in: app)
             XCTAssertTrue(film.wait(for: code, timeout: 30), "the panel question was not answered from the code")
-            XCTAssertTrue(UITestHarness.staticText(containing: "AppSettings.swift", in: app).exists,
+            // The source is a button, so the file and line may be its label
+            // and not a text of their own.
+            XCTAssertTrue(shown("AppSettings.swift", in: app).exists,
                           "the code answer doesn't cite the line it read")
         }
         film.hold(3)
