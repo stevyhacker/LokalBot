@@ -38,15 +38,30 @@ public struct PairingPayload: Sendable, Hashable {
         let exp: Double
     }
 
+    /// What every pairing link starts with, as the sync core checks it.
+    private static let linkPrefix = "lokalbot://pair?"
+
+    /// A code this long past its expiry on this device's clock still goes to
+    /// the sync core, which allows the same (`EXPIRY_GRACE_SECS`): the
+    /// computer's clock decides, so a phone that runs fast doesn't refuse a
+    /// code the computer would take.
+    static let expiryGrace: TimeInterval = 120
+
+    /// The pairing link inside `text`, alone and with its scheme in lowercase:
+    /// the form the sync core takes. Nil when the text holds no link.
+    public static func link(in text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let start = trimmed.range(of: linkPrefix, options: .caseInsensitive) else { return nil }
+        return linkPrefix + trimmed[start.upperBound...].prefix { !$0.isWhitespace }
+    }
+
     /// Accepts the link itself or text that contains it, as pasted from a
     /// message or a note.
     public static func parse(_ text: String) throws -> PairingPayload {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let start = trimmed.range(of: "lokalbot://pair?", options: .caseInsensitive) else {
+        guard let link = Self.link(in: text) else {
             throw ParseError.notAPairingLink
         }
-        let link = trimmed[start.lowerBound...].prefix { !$0.isWhitespace }
-        guard let components = URLComponents(string: String(link)),
+        guard let components = URLComponents(string: link),
               let encoded = components.queryItems?.first(where: { $0.name == "d" })?.value,
               let data = Base64URL.decode(encoded),
               let body = try? JSONDecoder().decode(Body.self, from: data) else {
@@ -61,7 +76,9 @@ public struct PairingPayload: Sendable, Hashable {
             port: body.port, expiresAt: Date(timeIntervalSince1970: body.exp))
     }
 
-    public func isExpired(at now: Date = Date()) -> Bool { now >= expiresAt }
+    public func isExpired(at now: Date = Date()) -> Bool {
+        now > expiresAt.addingTimeInterval(Self.expiryGrace)
+    }
 }
 
 /// The short key hash the Mac advertises in its Bonjour TXT record (`k=`):

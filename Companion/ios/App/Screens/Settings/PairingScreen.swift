@@ -208,7 +208,8 @@ struct PairingScreen: View {
         do {
             let payload = try PairingPayload.parse(text)
             if payload.isExpired() { return .failed(CompanionStoreError.pairingExpired.errorDescription ?? "") }
-            return .confirm(payload, link: text)
+            // The sync core takes the link alone, not the text it was pasted in.
+            return .confirm(payload, link: PairingPayload.link(in: text) ?? text)
         } catch {
             return .failed(error.localizedDescription)
         }

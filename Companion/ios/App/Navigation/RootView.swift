@@ -235,6 +235,7 @@ struct MeetingWindow: View {
     static let id = "meeting"
     let meetingID: String?
     @Environment(CompanionSession.self) private var session
+    @Environment(AppLock.self) private var appLock
 
     var body: some View {
         NavigationStack {
@@ -246,6 +247,12 @@ struct MeetingWindow: View {
             }
         }
         .brandTinted()
+        // The lock covers this window as it does the main one.
+        .overlay {
+            if appLock.isLocked || appLock.isObscured {
+                LockCover()
+            }
+        }
         .task { if session.mode == .loading { await session.start() } }
     }
 }

@@ -26,6 +26,27 @@ struct PairingPayloadTests {
         #expect(!payload.isExpired(at: Date(timeIntervalSince1970: 1_793_439_000)))
     }
 
+    /// The sync core takes the link alone, starting `lokalbot://pair?` exactly,
+    /// so that is what goes to it, whatever was pasted around the link.
+    @Test func theLinkIsLiftedOutOfPastedText() throws {
+        let link = try Self.link(Self.valid)
+        #expect(PairingPayload.link(in: "Pair with: \(link) (expires in 5 min)") == link)
+        #expect(PairingPayload.link(in: "  \(link)\n") == link)
+        let capitalised = "Lokalbot://Pair?" + link.dropFirst("lokalbot://pair?".count)
+        #expect(PairingPayload.link(in: capitalised) == link)
+        #expect(try PairingPayload.parse(capitalised).macName == "Stevan's MacBook Pro")
+        #expect(PairingPayload.link(in: "https://lokalbot.app") == nil)
+    }
+
+    /// The sync core allows 120 s past the expiry on this device's clock and
+    /// leaves the rest to the computer, so the check before it allows the same.
+    @Test func aCodeJustPastItsExpiryStillGoesToTheComputer() throws {
+        let payload = try PairingPayload.parse(try Self.link(Self.valid))
+        #expect(!payload.isExpired(at: Date(timeIntervalSince1970: 1_793_440_000)))
+        #expect(!payload.isExpired(at: Date(timeIntervalSince1970: 1_793_440_120)))
+        #expect(payload.isExpired(at: Date(timeIntervalSince1970: 1_793_440_121)))
+    }
+
     @Test func rejectsOtherTextAndBrokenLinks() async throws {
         #expect(throws: PairingPayload.ParseError.notAPairingLink) { try PairingPayload.parse("https://lokalbot.app") }
         #expect(throws: PairingPayload.ParseError.unreadable) { try PairingPayload.parse("lokalbot://pair?d=%%%") }
