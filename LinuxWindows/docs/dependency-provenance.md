@@ -27,6 +27,12 @@ the declared commit and compares every source file. Result for 0.3.9, which decl
 | `gpui-pre-collections` | `collections` | identical |
 | `gpui-pre-sum-tree` | `sum_tree` | identical |
 | `gpui-pre-refineable` | `refineable` | identical |
+| `gpui-pre-derive-refineable` | `derive_refineable` | identical |
+| `gpui-pre-scheduler` | `scheduler` | identical |
+| `gpui-pre-http-client` | `http_client` | identical |
+| `gpui-pre-shared-string` | `gpui_shared_string` | identical |
+| `gpui-pre-ztracing` | `ztracing` | identical |
+| `gpui-pre-ztracing-macro` | `ztracing_macro` | identical |
 | `gpui-pre` | `gpui` | one file differs: `action.rs`, where the `actions!` macro derives `$crate::Action` instead of `gpui::Action`. The change is marked with a comment. |
 | `gpui-pre-macros` | `gpui_macros` | `gpui_macros.rs` routes each proc-macro's output through an added `gpui_pre_facade_paths.rs`, which rewrites `gpui::` paths to the `gpui-kit` facade. Both are marked as modified for gpui-pre. |
 

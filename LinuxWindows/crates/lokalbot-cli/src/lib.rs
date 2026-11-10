@@ -29,7 +29,7 @@ pub const MAXIMUM_MEETING_COUNT: usize = 1000;
     name = "lokalbot-cli",
     version,
     about = "Read your local LokalBot meeting library and inspect app settings.",
-    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → Privacy & Data. setup start asks the person for it."
+    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, search-files needs file access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → Privacy & Data. setup start asks the person for it."
 )]
 pub struct Cli {
     /// Read another library (same as LOKALBOT_STORAGE_ROOT).
@@ -284,7 +284,7 @@ pub enum Command {
         #[command(flatten)]
         launch: control::LaunchOptions,
     },
-    /// Serve the meeting library and optional screen memory over MCP.
+    /// Serve the meeting library, and optionally screen memory, shared Personal Context, and Files, over MCP.
     Mcp,
     /// Install the LokalBot skill and CLI link for coding agents.
     #[command(name = "install-skill")]
@@ -341,11 +341,20 @@ fn validation(message: impl Into<String>) -> CliError {
     CliError::Validation(message.into())
 }
 
+/// A failure agents are told to recognise by its code: `[code] message`, as
+/// the MCP tools, `ask` and the settings commands print it.
+fn coded(code: mcp::ToolErrorCode, message: &str) -> CliError {
+    CliError::Failure(format!("[{}] {message}", code.raw()))
+}
+
 fn require_meeting_access(paths: &LibraryPaths) -> Result<(), CliError> {
     if access::meetings_access_authorized(paths) {
         Ok(())
     } else {
-        Err(CliError::Failure(access::MEETINGS_DISABLED_MESSAGE.into()))
+        Err(coded(
+            mcp::ToolErrorCode::AccessDisabled,
+            access::MEETINGS_DISABLED_MESSAGE,
+        ))
     }
 }
 
@@ -657,7 +666,14 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 Ok(report) if table => Ok(files::table(&report)),
                 Ok(report) => Ok(json::pretty(&report, false)),
                 Err(files::Failure::Invalid(message)) => Err(validation(message)),
-                Err(failure) => Err(CliError::Failure(failure.message())),
+                Err(failure @ files::Failure::Disabled) => Err(coded(
+                    mcp::ToolErrorCode::FilesAccessDisabled,
+                    &failure.message(),
+                )),
+                Err(failure @ files::Failure::Unavailable) => Err(coded(
+                    mcp::ToolErrorCode::FilesUnavailable,
+                    &failure.message(),
+                )),
             }
         }
         Command::PersonalContext {
@@ -684,7 +700,14 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 }
                 Ok(report) => Ok(json::pretty(&report, false)),
                 Err(personal::Failure::Invalid(message)) => Err(validation(message)),
-                Err(failure) => Err(CliError::Failure(failure.message())),
+                Err(failure @ personal::Failure::Disabled) => Err(coded(
+                    mcp::ToolErrorCode::PersonalContextDisabled,
+                    &failure.message(),
+                )),
+                Err(failure @ personal::Failure::Unavailable) => Err(coded(
+                    mcp::ToolErrorCode::PersonalContextUnavailable,
+                    &failure.message(),
+                )),
             }
         }
         Command::Path { id } => {

@@ -12,7 +12,7 @@ use gpui_kit::{
     ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, div, px,
 };
 use lokalbot_core::RememberReceipt;
-use lokalbot_core::personal::{Claim, ClaimEdit, ClaimKind};
+use lokalbot_core::personal::{Claim, ClaimEdit, ClaimKind, EditError};
 use uuid::Uuid;
 
 use super::AskPage;
@@ -30,16 +30,23 @@ pub(super) struct RememberState {
 }
 
 impl AskPage {
+    /// Runs one edit off the main thread. One that could not be saved says
+    /// so, as in Settings → Personal Context: Undo must not look done.
     fn edit_claim(
         &mut self,
-        change: impl FnOnce(&lokalbot_core::Library) + Send + 'static,
+        change: impl FnOnce(&lokalbot_core::Library) -> Result<(), EditError> + Send + 'static,
         cx: &mut Context<Self>,
     ) {
         let library = self.data.read(cx).library.clone();
         let data = self.data.clone();
         cx.spawn(async move |_, cx| {
-            cx.background_spawn(async move { change(&library) }).await;
-            data.update(cx, |data, cx| data.mark_library_changed(cx));
+            let result = cx.background_spawn(async move { change(&library) }).await;
+            data.update(cx, |data, cx| {
+                if let Err(err) = result {
+                    data.show_error(err.message(), cx);
+                }
+                data.mark_library_changed(cx)
+            });
         })
         .detach();
     }
@@ -142,13 +149,16 @@ impl AskPage {
                                                 page.update(cx, |page, cx| {
                                                     page.edit_claim(
                                                         move |library| {
-                                                            let _ = library.personal().update(
-                                                                id,
-                                                                ClaimEdit {
-                                                                    kind: Some(kind),
-                                                                    ..Default::default()
-                                                                },
-                                                            );
+                                                            library
+                                                                .personal()
+                                                                .update(
+                                                                    id,
+                                                                    ClaimEdit {
+                                                                        kind: Some(kind),
+                                                                        ..Default::default()
+                                                                    },
+                                                                )
+                                                                .map(|_| ())
                                                         },
                                                         cx,
                                                     )
@@ -169,7 +179,7 @@ impl AskPage {
                                 undo_page.update(cx, |page, cx| {
                                     page.edit_claim(
                                         move |library| {
-                                            let _ = library.personal().forget(&HashSet::from([id]));
+                                            library.personal().forget(&HashSet::from([id]))
                                         },
                                         cx,
                                     )

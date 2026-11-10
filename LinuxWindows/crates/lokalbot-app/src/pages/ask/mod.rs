@@ -103,6 +103,11 @@ pub struct AskPage {
     embedded: bool,
     conversations: Vec<Conversation>,
     conversations_loaded: bool,
+    /// How many reloads have started, and the latest one taken: a read that
+    /// started earlier and finished later is out of date, and so is every
+    /// read that started before a conversation was deleted here.
+    reloads_started: u64,
+    reload_applied: u64,
     /// Why saved conversations couldn't all be opened or saved.
     conversations_problem: Option<String>,
     remember: remember::RememberState,
@@ -247,6 +252,8 @@ impl AskPage {
             embedded,
             conversations: Vec::new(),
             conversations_loaded: false,
+            reloads_started: 0,
+            reload_applied: 0,
             conversations_problem: None,
             remember: Default::default(),
             loaded_revision: None,
@@ -328,6 +335,8 @@ impl AskPage {
     fn reload_conversations(&mut self, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
         self.loaded_revision = Some(self.data.read(cx).revision);
+        self.reloads_started += 1;
+        let reload = self.reloads_started;
         cx.spawn(async move |this, cx| {
             let (loaded, claims) = cx
                 .background_spawn(async move {
@@ -347,6 +356,10 @@ impl AskPage {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
+                if reload <= this.reload_applied {
+                    return;
+                }
+                this.reload_applied = reload;
                 this.conversations_problem = loaded.problem();
                 this.conversations = loaded.conversations;
                 this.remember.claims = claims.into_iter().map(|c| (c.id, c)).collect();
@@ -392,6 +405,9 @@ impl AskPage {
             }
         });
         self.conversations.retain(|c| c.id != id);
+        // A read already under way may still list it, so none of those is
+        // taken; the read below, after the file is gone, replaces them.
+        self.reload_applied = self.reloads_started;
         if self.selected == Some(id) {
             self.selected = None;
             self.reset_scope();
@@ -412,8 +428,8 @@ impl AskPage {
                         cx,
                     )
                 });
-                let _ = this.update(cx, |this, cx| this.reload_conversations(cx));
             }
+            let _ = this.update(cx, |this, cx| this.reload_conversations(cx));
         })
         .detach();
     }

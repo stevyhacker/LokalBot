@@ -639,7 +639,7 @@ pub fn meeting_end(meeting: &Meeting, now: DateTime<Utc>) -> DateTime<Utc> {
         return ended;
     }
     if let Some(recorded) = meeting.recorded_duration {
-        return meeting.started_at + chrono::Duration::milliseconds((recorded * 1000.0) as i64);
+        return meeting.started_plus(recorded);
     }
     now.max(meeting.started_at + chrono::Duration::seconds(60))
 }

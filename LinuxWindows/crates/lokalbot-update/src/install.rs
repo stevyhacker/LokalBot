@@ -186,8 +186,8 @@ pub struct Targets {
     /// `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe`, which coding
     /// agents run as their MCP server. Replaced when it exists.
     pub cli_copy: Option<PathBuf>,
-    /// The XDG data folder holding install.sh's desktop entry and icons.
-    /// They are refreshed when the entry starts this installation.
+    /// The XDG data folder holding install.sh's desktop entries and icons.
+    /// They are refreshed when the application entry starts this installation.
     pub data_dir: Option<PathBuf>,
 }
 
@@ -266,7 +266,7 @@ struct Replacement {
 /// Windows CLI copy, files the archive folder also holds (licenses, notices,
 /// when LokalBot runs from an extracted archive or the installer's folder),
 /// license texts the update adds to that folder's `LICENSES`, the Visual C++
-/// runtime, then install.sh's desktop entry and icons. Nothing is replaced
+/// runtime, then install.sh's desktop entries and icons. Nothing is replaced
 /// unless every file could be staged.
 pub fn install(
     staged: &Path,
@@ -556,9 +556,10 @@ fn is_leftover(name: &str) -> bool {
     })
 }
 
-/// Rewrites install.sh's desktop entry and icons from the update when the
-/// entry starts this installation. Failures only log: the binaries are
-/// already in place.
+/// Rewrites install.sh's desktop entries (the application's, and the one that
+/// lists LokalBot under KDE Plasma's Virtual Keyboard settings) and icons from
+/// the update when the application entry starts this installation. Failures
+/// only log: the binaries are already in place.
 fn refresh_desktop_entry(staged: &Path, dir: &Path, data_dir: &Path) {
     let entry_path = data_dir
         .join("applications")
@@ -583,14 +584,26 @@ fn refresh_desktop_entry(staged: &Path, dir: &Path, data_dir: &Path) {
         return;
     }
     // install.sh: sed "s|^Exec=lokalbot|Exec=$BIN/lokalbot|"
-    let entry: String = template
-        .lines()
-        .map(|line| match line.strip_prefix("Exec=lokalbot") {
-            Some(rest) => format!("Exec={}{rest}\n", exec.display()),
-            None => format!("{line}\n"),
-        })
-        .collect();
+    let resolve = |template: &str| -> String {
+        template
+            .lines()
+            .map(|line| match line.strip_prefix("Exec=lokalbot") {
+                Some(rest) => format!("Exec={}{rest}\n", exec.display()),
+                None => format!("{line}\n"),
+            })
+            .collect()
+    };
+    let entry = resolve(&template);
     let result = write_atomically(&entry_path, entry.as_bytes()).and_then(|()| {
+        // install.sh installs the input-method entry whenever the archive
+        // has one, so an update from a release without it adds it too.
+        let input_method = format!("{APP_ID}.InputMethod.desktop");
+        if let Ok(template) = fs::read_to_string(staged.join(&input_method)) {
+            write_atomically(
+                &data_dir.join("applications").join(&input_method),
+                resolve(&template).as_bytes(),
+            )?;
+        }
         for size in ICON_SIZES {
             let icon = staged.join("icons").join(format!("lokalbot-{size}.png"));
             if icon.is_file() {
@@ -922,6 +935,14 @@ mod tests {
                 bin.join(APP_BINARY).display()
             ),
         );
+        // The entry for KDE Plasma's Virtual Keyboard settings, which the
+        // installed release did not have yet.
+        let input_method = format!("{APP_ID}.InputMethod.desktop");
+        write(
+            &staged.join(&input_method),
+            "[Desktop Entry]\nExec=lokalbot --kwin-input-method\nNoDisplay=true\n",
+        );
+        let input_method = data.join("applications").join(input_method);
         let mut targets = targets(&bin);
         targets.data_dir = Some(data.clone());
         install(&staged, &targets, SwapStyle::Unix).unwrap();
@@ -933,6 +954,13 @@ mod tests {
             )
         );
         assert_eq!(
+            read(&input_method),
+            format!(
+                "[Desktop Entry]\nExec={} --kwin-input-method\nNoDisplay=true\n",
+                bin.join(APP_BINARY).display()
+            )
+        );
+        assert_eq!(
             read(&data.join(format!("icons/hicolor/48x48/apps/{APP_ID}.png"))),
             "new icon 48"
         );
@@ -940,9 +968,11 @@ mod tests {
         // An entry that starts another copy is left alone.
         let other = "[Desktop Entry]\nExec=/opt/LokalBot/lokalbot %U\n".to_string();
         write(&entry, &other);
+        fs::remove_file(&input_method).unwrap();
         fs::remove_file(data.join(format!("icons/hicolor/48x48/apps/{APP_ID}.png"))).unwrap();
         install(&staged, &targets, SwapStyle::Unix).unwrap();
         assert_eq!(read(&entry), other);
+        assert!(!input_method.exists());
         assert!(
             !data
                 .join(format!("icons/hicolor/48x48/apps/{APP_ID}.png"))

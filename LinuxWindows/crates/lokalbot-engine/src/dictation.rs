@@ -523,12 +523,13 @@ impl Dictation {
     }
 
     fn finish(&self) {
-        self.shared.dictation_working.store(true, Ordering::Relaxed);
         let previous = std::mem::replace(&mut *self.state.lock(), State::Working);
         let State::Listening(listening) = previous else {
             *self.state.lock() = State::Idle;
             return;
         };
+        // Cleared again by `Runner::run`, however that run ends.
+        self.shared.dictation_working.store(true, Ordering::Relaxed);
         let Listening {
             capture,
             media,
@@ -599,6 +600,7 @@ impl Dictation {
             *self.state.lock() = previous;
             return;
         };
+        self.shared.dictation_working.store(true, Ordering::Relaxed);
         self.shared
             .emit(EngineEvent::Dictation(DictationUpdate::Transcribing));
         let session = self.session.fetch_add(1, Ordering::SeqCst) + 1;
@@ -636,6 +638,15 @@ fn keep_audio(shared: &Shared, samples: &[f32]) {
     }
 }
 
+/// Clears `Shared::dictation_working` when dropped.
+struct StillWorking(Arc<Shared>);
+
+impl Drop for StillWorking {
+    fn drop(&mut self) {
+        self.0.dictation_working.store(false, Ordering::Relaxed);
+    }
+}
+
 /// What a recording needs on its way to the end.
 struct Runner {
     shared: Arc<Shared>,
@@ -653,6 +664,9 @@ impl Runner {
 
     /// Runs one recording to the end, unless it was cancelled meanwhile.
     fn run(self, job: Job, session: u64) {
+        // Day digests and overnight reviews wait while this is set, so every
+        // way out clears it: a cancel or a failed load before the text too.
+        let working = StillWorking(self.shared.clone());
         if let Err(err) = self.prepare_model(&job.settings, session) {
             if !self.is_current(session) {
                 return;
@@ -677,9 +691,7 @@ impl Runner {
         let result = process(&self.shared, &job, &self.recent, &|| {
             self.is_current(session)
         });
-        self.shared
-            .dictation_working
-            .store(false, Ordering::Relaxed);
+        drop(working);
         if !self.is_current(session) {
             return;
         }
@@ -1316,6 +1328,62 @@ mod tests {
         let models = Models::new(shared.clone());
         let dictation = Dictation::new(shared.clone(), models);
         (dir, dictation, shared, events)
+    }
+
+    /// A recording waiting for its speech model, which is "downloading" for
+    /// as long as the test runs, so nothing is fetched.
+    fn waiting_for_the_model(dictation: &Dictation) -> Job {
+        for id in dictation.models.dictation_requirements() {
+            dictation.models.pretend_downloading(&id);
+        }
+        Job {
+            samples: Vec::new(),
+            settings: Settings::default(),
+            pressed: PressedFocus::nothing_known(),
+            screen: None,
+            cancel_screen: Arc::new(AtomicBool::new(false)),
+            rehearsal: false,
+        }
+    }
+
+    /// Day digests and overnight reviews wait while `dictation_working` is
+    /// set, so a run that ends before the text must clear it too.
+    #[test]
+    fn a_run_cancelled_while_its_model_loads_stops_counting_as_working() {
+        let (_dir, dictation, shared, _events) = coordinator();
+        let job = waiting_for_the_model(&dictation);
+        shared.dictation_working.store(true, Ordering::Relaxed);
+        let session = dictation.session.load(Ordering::SeqCst);
+        dictation.session.fetch_add(1, Ordering::SeqCst);
+
+        dictation.runner().run(job, session);
+
+        assert!(!shared.dictation_working.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn a_retry_counts_as_working_until_it_is_cancelled() {
+        let (_dir, dictation, shared, _events) = coordinator();
+        let job = waiting_for_the_model(&dictation);
+        *shared.dictation_state.lock() = State::NeedsRetry(Box::new(job));
+
+        dictation.retry();
+        assert!(shared.dictation_working.load(Ordering::Relaxed));
+
+        dictation.cancel();
+        let cancelled = Instant::now();
+        while shared.dictation_working.load(Ordering::Relaxed) {
+            assert!(cancelled.elapsed() < Duration::from_secs(10));
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn finishing_with_nothing_listening_does_not_count_as_working() {
+        let (_dir, dictation, shared, _events) = coordinator();
+        dictation.finish();
+        assert!(!shared.dictation_working.load(Ordering::Relaxed));
+        assert!(!shared.dictation_state.lock().is_busy());
     }
 
     #[test]

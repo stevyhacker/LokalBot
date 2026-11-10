@@ -101,15 +101,10 @@ impl Installer {
 
     /// The skill with this platform's paths in place of the macOS ones.
     pub fn skill_text(&self) -> String {
-        SKILL
-            .replace(
-                "LokalBot is a private work-memory app for macOS.",
-                "LokalBot is a private work-memory app for Linux and Windows.",
-            )
-            .replace(
-                "/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli",
-                &self.bin_link.to_string_lossy(),
-            )
+        SKILL.replace(
+            "/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli",
+            &self.bin_link.to_string_lossy(),
+        )
     }
 
     pub fn bin_dir_on_path(&self) -> bool {

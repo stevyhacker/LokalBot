@@ -293,7 +293,8 @@ console window, so use `lokalbot-cli --version` or pipe the app's output: `lokal
 
 Installing downloads the archive and checks its size, SHA-256 and Ed25519 signature (the macOS app's
 Sparkle key) before unpacking anything. It then replaces `lokalbot` and `lokalbot-cli` where they are
-(Linux: `~/.local/bin`, refreshing the applications-menu entry and icons that `install.sh` added; Windows:
+(Linux: `~/.local/bin`, refreshing the applications-menu entry, the KDE Virtual Keyboard entry and the icons
+that `install.sh` added; Windows:
 the extracted folder, and the copy `lokalbot-cli install-skill` made), stops the local model servers and Agent
 Mode, and starts the new version. On Windows a running `lokalbot-cli` (an agent's MCP server) keeps working;
 its old file is removed on a later start. Your library is never touched.

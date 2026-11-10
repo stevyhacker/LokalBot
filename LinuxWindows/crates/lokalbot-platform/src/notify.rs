@@ -36,7 +36,8 @@ impl NotificationHandle {
 }
 
 /// Posts a notification. `actions` are `(id, label)` pairs; `on_action`
-/// receives the chosen id ("default" when the notification body is clicked).
+/// receives the chosen id ("default" when the notification body is clicked,
+/// on Linux; Windows does not report that click yet).
 pub fn notify(
     title: &str,
     body: &str,
@@ -63,6 +64,13 @@ pub fn notify_with_timeout(
     for (id, label) in actions {
         notification.action(id, label);
     }
+    // A click on the body reaches `on_action` only as the "default" action,
+    // which a server sends only for a notification that registered it. Most
+    // desktops never show its label.
+    #[cfg(target_os = "linux")]
+    if on_action.is_some() {
+        notification.action("default", "LokalBot");
+    }
     if let Some(timeout) = timeout {
         notification.timeout(notify_rust::Timeout::Milliseconds(
             u32::try_from(timeout.as_millis()).unwrap_or(u32::MAX),
@@ -86,8 +94,11 @@ pub fn notify_with_timeout(
         .context("the notification could not be shown")?;
     #[cfg(target_os = "linux")]
     let id = shown.id();
+    // On Linux a callback alone is worth listening for: the body click. On
+    // Windows that click still arrives as "__closed" and is dropped below.
+    let listens = cfg!(target_os = "linux") || !actions.is_empty();
     if let Some(on_action) = on_action
-        && !actions.is_empty()
+        && listens
     {
         std::thread::Builder::new()
             .name("lokalbot-notification".into())

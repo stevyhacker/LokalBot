@@ -282,8 +282,10 @@ fn jpeg_exif(bytes: &[u8]) -> Option<Exif> {
             return None;
         }
         if marker == 0xE1 && bytes.get(i + 4..i + 10) == Some(b"Exif\0\0") {
+            // A declared length under 8 ends the segment before its own
+            // "Exif\0\0" header does: there is no TIFF block to read.
             let end = (i + 2 + length).min(bytes.len());
-            return parse_tiff(&bytes[i + 10..end]);
+            return parse_tiff(bytes.get(i + 10..end)?);
         }
         i += 2 + length;
     }
@@ -697,6 +699,19 @@ mod tests {
         );
         assert_eq!(exif_from_bytes(&tiff).unwrap().orientation, 6);
         assert_eq!(exif_from_bytes(b"not an image at all"), None);
+    }
+
+    #[test]
+    fn a_jpeg_exif_segment_shorter_than_its_header_is_not_read() {
+        // APP1 declares 2 to 7 bytes but still carries "Exif\0\0": the segment
+        // ends before the TIFF block starts. This used to panic the Files pass.
+        for length in 2u16..8 {
+            let mut jpeg = vec![0xFF, 0xD8, 0xFF, 0xE1];
+            jpeg.extend(length.to_be_bytes());
+            jpeg.extend(b"Exif\0\0");
+            jpeg.extend([0x49, 0x49, 0x2A, 0x00, 8, 0, 0, 0]);
+            assert_eq!(exif_from_bytes(&jpeg), None, "declared length {length}");
+        }
     }
 
     #[test]

@@ -214,6 +214,18 @@ fn consent(url: &str, approved: &[String]) -> Result<()> {
     }
 }
 
+/// Autocomplete's consent, the one its route was resolved with
+/// (`autocomplete::server::validate`): unlike Think, an approved server on the
+/// user's own network may use plain HTTP.
+fn autocomplete_consent(url: &str, approved: &[String]) -> Result<()> {
+    if crate::autocomplete::server::validate(url, approved).is_none() {
+        return Ok(());
+    }
+    let reason =
+        remote_block_reason(url, approved).unwrap_or_else(|| "The server URL is not valid.".into());
+    Err(AiError::ConsentRequired(reason).into())
+}
+
 /// Scheduled digest and overnight runs use the same origin approval as manual
 /// Think requests: on-device backends, loopback, or an approved origin
 /// (`AppSettings.allowsAutomaticMainInference`).
@@ -2272,7 +2284,7 @@ impl CompletionClient {
         approved_autocomplete_origins: &[String],
     ) -> Result<Self> {
         let base = trimmed_base(base_url);
-        consent(&base, approved_autocomplete_origins)?;
+        autocomplete_consent(&base, approved_autocomplete_origins)?;
         Ok(Self {
             target: CompletionTarget::Server {
                 dialect: Dialect::inferred(&base),
@@ -2400,8 +2412,12 @@ impl CompletionClient {
         let mut chunks = 0usize;
         let mut events = 0usize;
         let mut terminal = false;
+        let mut non_streaming = String::new();
         while let Some(line) = stream.next_line(&base)? {
             let Some(payload) = line.trim().strip_prefix("data:").map(str::trim) else {
+                if non_streaming.len() < 1_048_576 {
+                    non_streaming.push_str(&line);
+                }
                 continue;
             };
             if payload.is_empty() {
@@ -2441,8 +2457,20 @@ impl CompletionClient {
         }
         if !terminal {
             if events == 0 && text.is_empty() {
-                // A 2xx without SSE: this server does not stream.
-                let full = self.complete(request)?;
+                // A 2xx without SSE: this server does not stream, and the
+                // body it sent is the whole completion. Only a body that is
+                // not one is asked for again.
+                let sent = serde_json::from_str::<Value>(&non_streaming)
+                    .ok()
+                    .and_then(|json| {
+                        json.pointer("/choices/0/text")
+                            .and_then(Value::as_str)
+                            .map(str::to_string)
+                    });
+                let full = match sent {
+                    Some(full) => full,
+                    None => self.complete(request)?,
+                };
                 on_partial(&full);
                 return Ok(full);
             }
@@ -3161,6 +3189,43 @@ mod tests {
         assert_eq!(body["stop"][0], "\n");
         assert_eq!(CompletionRequest::cotyping("x", 100, true).max_tokens, 120);
         assert!(CompletionClient::server("https://typing.example.com/v1", "m", None, &[]).is_err());
+    }
+
+    /// A server that ignores `stream: true` answers once with the whole
+    /// completion; asking again doubled the wait and the bill per keystroke.
+    #[test]
+    fn a_completion_server_that_does_not_stream_is_asked_once() {
+        let server = StubServer::start(|_| {
+            Reply::Json(
+                200,
+                json!({"choices": [{"text": " world", "finish_reason": "stop"}]}),
+            )
+        });
+        let client = CompletionClient::server(&server.url("/v1"), "m", None, &[]).unwrap();
+        let mut partials = Vec::new();
+        let text = client
+            .stream(
+                &CompletionRequest::cotyping("Hello", 4, false),
+                &mut |_, _| false,
+                &mut |partial| partials.push(partial.to_string()),
+            )
+            .unwrap();
+        assert_eq!(text, " world");
+        assert_eq!(partials, [" world"]);
+        assert_eq!(server.requests().len(), 1);
+    }
+
+    /// Autocomplete accepts an approved plain-HTTP server on the user's own
+    /// network, and its raw completion client must not refuse that server.
+    #[test]
+    fn a_completion_server_on_the_private_network_may_use_plain_http_once_approved() {
+        let url = "http://192.168.1.20:8080/v1";
+        assert!(CompletionClient::server(url, "m", None, &[]).is_err());
+        let approved = ["http://192.168.1.20:8080".to_string()];
+        assert!(CompletionClient::server(url, "m", None, &approved).is_ok());
+        // Anywhere else still needs HTTPS, approved or not.
+        let approved = ["http://example.com".to_string()];
+        assert!(CompletionClient::server("http://example.com/v1", "m", None, &approved).is_err());
     }
 
     #[test]
