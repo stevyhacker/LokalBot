@@ -37,8 +37,8 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-# OWNER/REPO is a placeholder: the repo has no git remote yet. Set it (or pass
-# --repo, e.g. --repo "$GITHUB_REPOSITORY" in CI) before the first release.
+# OWNER/REPO is a placeholder for forks and manual runs: pass --repo (CI passes
+# --repo "$GITHUB_REPOSITORY"; the canonical slug is stevyhacker/lokalbot).
 DEFAULT_REPO = "OWNER/REPO"
 # Matches sign_update's stdout when signing a non-feed archive:
 #   sparkle:edSignature="<base64>" length="<bytes>"

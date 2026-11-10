@@ -4,7 +4,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use gpui_kit::{AnyWindowHandle, App, Entity, Global, SharedString};
@@ -95,6 +95,9 @@ pub struct Desktop {
     tray: Option<Tray>,
     tray_state: Mutex<Option<TrayMenuState>>,
     shortcuts: Arc<Mutex<Option<GlobalShortcuts>>>,
+    /// Counts [`sync_shortcuts_later`] calls: of several waiting to apply,
+    /// only the newest does.
+    shortcut_syncs: Arc<AtomicU64>,
     _ipc: Option<IpcServer>,
     sender: smol::channel::Sender<DesktopEvent>,
     dictation_pressed_at: Mutex<Option<Instant>>,
@@ -173,6 +176,7 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
         tray,
         tray_state: Mutex::new(None),
         shortcuts: Arc::new(Mutex::new(None)),
+        shortcut_syncs: Arc::new(AtomicU64::new(0)),
         _ipc: ipc,
         sender: sender.clone(),
         dictation_pressed_at: Mutex::new(None),
@@ -384,6 +388,8 @@ pub fn sync_shortcuts_later(cx: &mut App) {
     let shortcuts = desktop.shortcuts.clone();
     let active = desktop.dictation_cancel_keys.clone();
     let sender = desktop.sender.clone();
+    let syncs = desktop.shortcut_syncs.clone();
+    let sync = syncs.fetch_add(1, Ordering::SeqCst) + 1;
     std::thread::spawn(move || {
         // The manager may still be starting (Wayland asks the user first).
         for _ in 0..50 {
@@ -393,6 +399,11 @@ pub fn sync_shortcuts_later(cx: &mut App) {
             std::thread::sleep(Duration::from_millis(200));
         }
         let mut guard = shortcuts.lock();
+        // A later call carries newer settings and applies all of them, so an
+        // older one that got here late must not put its own back.
+        if syncs.load(Ordering::SeqCst) != sync {
+            return;
+        }
         let Some(manager) = guard.as_mut() else {
             let _ = sender.send_blocking(DesktopEvent::ShortcutsUnavailable);
             return;

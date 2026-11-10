@@ -94,7 +94,6 @@ extension AppState {
         let failures = try withPrimaryEvidenceChange(on: days, .removal) {
             try screenshots.applyRetentionReview(proposal)
         }
-        primaryEvidenceDidChange(on: days)
         settings.retentionDays = proposal.days
         settings.keepOCRTextForever = proposal.keepTextForever
         return failures

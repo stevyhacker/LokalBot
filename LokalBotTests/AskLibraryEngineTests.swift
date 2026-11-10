@@ -56,14 +56,17 @@ final class AskLibraryEngineTests: XCTestCase {
         super.tearDown()
     }
 
+    /// `appRunning: nil` reads the library's instance lock, as the CLI does.
     private func makeEngine(
         client: MockChatClient,
+        appRunning: Bool? = true,
         onPoll: @escaping () -> Void = {}
     ) -> AskLibraryEngine {
         var engine = AskLibraryEngine(gate: gate)
         engine.client = client
         engine.maxPollAttempts = 3
         engine.pollDelay = { onPoll() }
+        engine.appIsRunning = appRunning.map { running in { running } }
         return engine
     }
 
@@ -147,6 +150,19 @@ final class AskLibraryEngineTests: XCTestCase {
         let result = await makeEngine(client: client).ask("caching decision")
         XCTAssertTrue(result.text.hasPrefix("[app_not_running]"))
         XCTAssertTrue(result.text.contains("read tools still work"))
+    }
+
+    /// With the app closed nothing consumes a wake, so the answer is
+    /// immediate. It used to come after 60 one-second polls.
+    func testAClosedAppIsReportedWithoutWaitingForAWake() async {
+        let client = MockChatClient(healthyScript: [false, false, false, false])
+        var polls = 0
+        let engine = makeEngine(client: client, appRunning: nil) { polls += 1 }
+        let result = await engine.ask("caching decision")
+        XCTAssertTrue(result.text.hasPrefix("[app_not_running]"))
+        XCTAssertTrue(result.text.contains("read tools still work"))
+        XCTAssertEqual(polls, 0)
+        XCTAssertFalse(gate.pendingWake, "No wake is left behind for the next launch")
     }
 
     func testTimeoutAfterConsumedWakeIsModelLoadingTimeout() async {

@@ -22,15 +22,16 @@ extension LiveMeetingTranscriber: RadarLineFeed {
 }
 
 /// Live Radar for the meeting being recorded. It reads the live transcript
-/// preview, and every pass sends only the lines that arrived since the last
+/// preview, and every pass gives only the lines that arrived since the last
 /// one (plus a little context, what is already on the radar, and passages
-/// local search found in earlier meetings) to Muse on the Meta Model API.
+/// local search found in earlier meetings) to the Think model chosen in
+/// Settings → Models, under that model's own local or remote setting.
 /// Passes run about every 20 s, or after each turn when fast live text
 /// streams the transcript from Muse Voice Transcribe. Speaker separation
 /// stays on this Mac, and audio does too unless fast live text is on.
 ///
 /// Radar starts only when the person presses Start Radar during a recording,
-/// and only with a key and the api.meta.ai origin approved. It stops with the
+/// and only once Live Radar is turned on in Settings. It stops with the
 /// recording, after one last pass over lines it hasn't read yet, and saves
 /// what it found to `radar.json` in the meeting folder.
 @MainActor
@@ -60,6 +61,13 @@ final class MeetingRadar: ObservableObject {
 
     typealias ModelCall = @MainActor (_ messages: [[String: Any]], _ schema: [String: Any], _ model: String)
         async throws -> MuseChatClient.Reply
+    /// The Think engine for one request, as Settings → Models has it now.
+    typealias EngineSource = @MainActor (_ purpose: String) async throws -> TextEngine
+
+    /// A pass lists what it caught as short items and doesn't reason first.
+    static let passOptions = TextGenerationOptions(maxTokens: 2_000, reasoningBudgetTokens: 0, temperature: 0)
+    /// A live answer is one tool call per turn, with a little room to choose it.
+    static let answerOptions = TextGenerationOptions(maxTokens: 1_500, reasoningBudgetTokens: 256, temperature: 0.1)
 
     @Published private(set) var items: [RadarItem] = []
     @Published private(set) var state: State = .off
@@ -67,7 +75,8 @@ final class MeetingRadar: ObservableObject {
     @Published private(set) var statusMessage: String?
     @Published private(set) var totals = Totals()
     @Published private(set) var meetingID: Meeting.ID?
-    @Published private(set) var model = MetaModelAPI.museSpark.id
+    /// The name of the model reading this meeting, for the panel and `radar.json`.
+    @Published private(set) var model = ""
     /// The item that changed last: the newest one a pass added, or the
     /// question that just got an answer. The floating panel shows it.
     @Published private(set) var spotlightID: String?
@@ -92,6 +101,10 @@ final class MeetingRadar: ObservableObject {
     private let answerCall: LiveAnswerSession.Call
     private let settings: () -> AppSettings
     private let call: ModelCall
+    private let modelName: (AppSettings) -> String
+    /// Whether a screen answer's request carries the crops as pictures. The
+    /// Think model reads the text of each crop instead.
+    private let sendsScreenCrops: Bool
     private let availability: (AppSettings) -> String?
     private let timing: Timing
     private let now: () -> Date
@@ -120,13 +133,19 @@ final class MeetingRadar: ObservableObject {
     private var answerEpoch = 0
     private var spotlightHeldUntil: Date?
 
+    /// Passes and live answers run on `engine`, the Think model, unless a
+    /// caller supplies `call` or `answerCall` itself (tests, and the hosted
+    /// film of the feature).
     init(transcriber: RadarLineFeed,
          evidenceSource: RadarEvidenceSource,
          screenSource: RadarScreenSource? = nil,
          answerEnvironment: LiveAnswerEnvironment? = nil,
          answerCall: LiveAnswerSession.Call? = nil,
          settings: @escaping () -> AppSettings,
+         engine: EngineSource? = nil,
          call: ModelCall? = nil,
+         modelName: @escaping (AppSettings) -> String = { $0.thinkModelDisplayName },
+         sendsScreenCrops: Bool = false,
          availability: @escaping (AppSettings) -> String? = MeetingRadar.unavailableReason,
          timing: Timing = Timing(),
          now: @escaping () -> Date = Date.init) {
@@ -134,29 +153,29 @@ final class MeetingRadar: ObservableObject {
         self.evidenceSource = evidenceSource
         self.screenSource = screenSource
         self.answerEnvironment = answerEnvironment
-        self.answerCall = answerCall ?? { messages, tools, model in
-            let client = try MetaModelAPI.client(
-                settings: settings(), model: model, reasoningEffort: "low",
-                maxTokens: 4_000, priority: .interactive, purpose: "live answer")
-            return try await client.send(messages: messages, tools: tools)
+        self.answerCall = answerCall ?? { messages, tools, _ in
+            guard let engine else { throw TextEngineError.unavailable("Live Radar has no Think model to ask.") }
+            return try await ThinkChat.toolCall(from: try await engine("live answer"), messages: messages,
+                                                tools: tools, options: Self.answerOptions)
         }
         self.settings = settings
+        self.modelName = modelName
+        self.sendsScreenCrops = sendsScreenCrops
         self.availability = availability
         self.timing = timing
         self.now = now
-        self.call = call ?? { messages, schema, model in
-            let client = try MetaModelAPI.client(
-                settings: settings(), model: model, reasoningEffort: "minimal",
-                maxTokens: 4_000, priority: .interactive, purpose: "live radar")
-            return try await client.send(messages: messages, schema: (name: "radar", schema: schema))
+        self.call = call ?? { messages, schema, _ in
+            guard let engine else { throw TextEngineError.unavailable("Live Radar has no Think model to ask.") }
+            return try await ThinkChat.structuredReply(from: try await engine("live radar"), messages: messages,
+                                                       schema: schema, options: Self.passOptions)
         }
     }
 
-    /// Why Start Radar can't run, or nil when it can.
+    /// Why Start Radar can't run, or nil when it can. Live Radar is offered
+    /// only once it is turned on in Settings; after that the Think model's
+    /// own setup decides, and a request it refuses shows as the radar's error.
     static func unavailableReason(_ settings: AppSettings) -> String? {
-        if !settings.metaModelAPIApproved { return MetaModelAPI.ConnectionError.notApproved.errorDescription }
-        if settings.effectiveMetaModelAPIKey.isEmpty { return MetaModelAPI.ConnectionError.missingKey.errorDescription }
-        return nil
+        settings.liveRadarEnabled ? nil : String(localized: "Turn on Live Radar in Settings → Meetings.")
     }
 
     func start(meeting: Meeting, folder: URL) {
@@ -231,7 +250,7 @@ final class MeetingRadar: ObservableObject {
         lastPassStart = nil
         failures = 0
         retryAfter = nil
-        model = settings().museRadarModel
+        model = modelName(settings())
         let saved = folder.flatMap(MeetingRadarRecord.load(from:))
         record = saved ?? MeetingRadarRecord(model: model)
         items = record?.items ?? []
@@ -376,20 +395,22 @@ final class MeetingRadar: ObservableObject {
 
     /// Looks for the answer to a question the radar just caught in earlier
     /// screen captures: local search and cropping on this Mac, then one
-    /// request with up to three crops. Runs beside the passes.
+    /// request with the text of up to three crops. Runs beside the passes.
     private func answerFromScreen(_ question: RadarItem) {
         guard let screenSource, let meeting, let folder, answerTasks[question.id] == nil else { return }
-        let model = model, call = call, epoch = answerEpoch
+        let model = model, call = call, epoch = answerEpoch, sendsScreenCrops = sendsScreenCrops
         let asked = RadarScreenAnswers.question(question)
         answerTasks[question.id] = Task { [weak self] in
             let crops = await RadarScreenAnswers.crops(for: asked, from: screenSource)
             guard !crops.isEmpty, !Task.isCancelled else { return }
             let started = ContinuousClock.now
             do {
-                let reply = try await call(
-                    RadarScreenAnswers.messages(question: asked, meetingTitle: meeting.displayTitle,
-                                                meetingDate: meeting.startedAt, crops: crops),
-                    RadarScreenAnswers.schema, model)
+                let messages = sendsScreenCrops
+                    ? RadarScreenAnswers.messages(question: asked, meetingTitle: meeting.displayTitle,
+                                                  meetingDate: meeting.startedAt, crops: crops)
+                    : RadarScreenAnswers.textMessages(question: asked, meetingTitle: meeting.displayTitle,
+                                                      meetingDate: meeting.startedAt, crops: crops)
+                let reply = try await call(messages, RadarScreenAnswers.schema, model)
                 guard let self, self.answerEpoch == epoch else { return }
                 self.recordScreenAnswer(reply, crops: crops, question: question.id, folder: folder,
                                         model: model, started: started)
@@ -444,7 +465,7 @@ final class MeetingRadar: ObservableObject {
     private func answerLive(_ question: RadarItem) {
         let key = "live-" + question.id
         guard let answerEnvironment, let meeting, answerTasks[key] == nil else { return }
-        let model = settings().liveAnswersModel, call = answerCall, epoch = answerEpoch, id = question.id
+        let model = model, call = answerCall, epoch = answerEpoch, id = question.id
         let recent = order.suffix(10).compactMap { lines[$0] }.sorted { $0.time < $1.time }
             .map { "\($0.speakerName): \($0.text)" }
         let context = LiveAnswerMeeting(title: meeting.displayTitle, date: meeting.startedAt, recentLines: recent)

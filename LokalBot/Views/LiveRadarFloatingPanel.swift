@@ -25,6 +25,12 @@ final class LiveRadarPanelController {
         model.$collapsed.dropFirst().removeDuplicates()
             .sink { [weak self] collapsed in self?.resize(collapsed: collapsed) }
             .store(in: &observers)
+        // "Hide from screen sharing" applies at once, also to a panel that is
+        // already up: `show()` alone set it only the next time the panel
+        // opened. The published value is the new one; `app.settings` is not yet.
+        app.$settings.map { Self.sharingType($0) }.removeDuplicates()
+            .sink { [weak self] sharingType in self?.panel?.sharingType = sharingType }
+            .store(in: &observers)
     }
 
     var isVisible: Bool { panel?.isVisible == true }
@@ -303,7 +309,7 @@ struct LiveRadarPanelView: View {
                 Text(verbatim: reason).font(.scaled(.callout)).foregroundStyle(.secondary)
                 Button("Set Up…") { app.openSettings(tab: .recording) }
             } else {
-                Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. Sends \(MetaModelAPI.displayName(for: app.settings.museRadarModel)) new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings at api.meta.ai. Starts the live preview if it is off.")
+                Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. \(app.settings.thinkModelDisplayName) reads new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings. Starts the live preview if it is off.")
                     .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

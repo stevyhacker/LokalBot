@@ -741,7 +741,7 @@ pub(super) fn component_xml(exe: &str) -> String {
   <exec>{exe} --autostart</exec>
   <version>1.0</version>
   <author>LokalBot</author>
-  <license>GPL-3.0-or-later</license>
+  <license>GPL-3.0-only</license>
   <homepage>https://lokalbot.com</homepage>
   <textdomain>lokalbot</textdomain>
   <engines>
@@ -750,7 +750,7 @@ pub(super) fn component_xml(exe: &str) -> String {
       <longname>LokalBot</longname>
       <description>Autocomplete in other apps</description>
       <language>other</language>
-      <license>GPL-3.0-or-later</license>
+      <license>GPL-3.0-only</license>
       <author>LokalBot</author>
       <layout>default</layout>
       <symbol>LB</symbol>

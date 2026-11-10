@@ -51,9 +51,15 @@ impl FakeNotifications {
     }
 }
 
-#[test]
-#[ignore]
-fn notification_actions_reach_the_callback() {
+type Posted = crossbeam_channel::Receiver<(u32, String, Vec<String>)>;
+
+/// A notification server on the session bus, with what was posted to it and
+/// the ids it was asked to close.
+fn fake_notifications() -> (
+    zbus::blocking::Connection,
+    Posted,
+    crossbeam_channel::Receiver<u32>,
+) {
     let (posted_tx, posted) = unbounded();
     let (closed_tx, closed) = unbounded();
     let server = zbus::blocking::connection::Builder::session()
@@ -71,6 +77,28 @@ fn notification_actions_reach_the_callback() {
         .unwrap()
         .build()
         .unwrap();
+    (server, posted, closed)
+}
+
+/// What the server sends when the user chooses `action` on notification `id`.
+fn choose(server: &zbus::blocking::Connection, id: u32, action: &str) {
+    // Give the waiting thread time to subscribe first.
+    std::thread::sleep(Duration::from_millis(500));
+    server
+        .emit_signal(
+            None::<zbus::names::BusName<'_>>,
+            "/org/freedesktop/Notifications",
+            "org.freedesktop.Notifications",
+            "ActionInvoked",
+            &(id, action),
+        )
+        .unwrap();
+}
+
+#[test]
+#[ignore]
+fn notification_actions_reach_the_callback() {
+    let (server, posted, closed) = fake_notifications();
 
     let (action_tx, actions) = unbounded();
     let handle = lokalbot_platform::notify_with_timeout(
@@ -85,23 +113,53 @@ fn notification_actions_reach_the_callback() {
     .unwrap();
     let (id, summary, offered) = posted.recv_timeout(WAIT).unwrap();
     assert_eq!(summary, "Meeting detected");
-    assert_eq!(offered, ["record", "Record", "ignore", "Ignore"]);
+    // The last pair is the click on the body.
+    assert_eq!(
+        offered,
+        [
+            "record", "Record", "ignore", "Ignore", "default", "LokalBot"
+        ]
+    );
 
-    // Give the waiting thread time to subscribe, then "click" Record.
-    std::thread::sleep(Duration::from_millis(500));
-    server
-        .emit_signal(
-            None::<zbus::names::BusName<'_>>,
-            "/org/freedesktop/Notifications",
-            "org.freedesktop.Notifications",
-            "ActionInvoked",
-            &(id, "record"),
-        )
-        .unwrap();
+    choose(&server, id, "record");
     assert_eq!(actions.recv_timeout(WAIT).unwrap(), "record");
 
     handle.close();
     assert_eq!(closed.recv_timeout(WAIT).unwrap(), id);
+}
+
+/// The update and settings-approval notifications have no buttons: a click on
+/// the body is all they can report, and nothing listened for it.
+#[test]
+#[ignore]
+fn a_click_on_a_notification_without_buttons_reaches_the_callback() {
+    let (server, posted, _closed) = fake_notifications();
+
+    let (action_tx, actions) = unbounded();
+    lokalbot_platform::notify(
+        "LokalBot 9.9.9 is available",
+        "Open Settings to install it.",
+        &[],
+        Some(Box::new(move |action| {
+            let _ = action_tx.send(action);
+        })),
+    )
+    .unwrap();
+    let (id, _, offered) = posted.recv_timeout(WAIT).unwrap();
+    assert_eq!(offered, ["default", "LokalBot"]);
+
+    choose(&server, id, "default");
+    assert_eq!(actions.recv_timeout(WAIT).unwrap(), "default");
+}
+
+/// Nothing is listening for a click that nobody asked to hear about.
+#[test]
+#[ignore]
+fn a_notification_without_a_callback_offers_no_action() {
+    let (_server, posted, _closed) = fake_notifications();
+    lokalbot_platform::notify("Recording saved", "Weekly sync · 25 min", &[], None).unwrap();
+    let (_, _, offered) = posted.recv_timeout(WAIT).unwrap();
+    assert!(offered.is_empty(), "{offered:?}");
 }
 
 struct FakeWatcher {

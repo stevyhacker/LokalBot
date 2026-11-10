@@ -11,6 +11,8 @@ struct ScreenMomentDetailView: View {
     let onDismiss: (() -> Void)?
 
     @State private var note = ""
+    /// The note as last read from the store, which `note` is compared with.
+    @State private var storedNote = ""
     @State private var confirmingDeletion = false
     @State private var detailsExpanded = false
     @State private var fullTextExpanded = false
@@ -235,17 +237,18 @@ struct ScreenMomentDetailView: View {
             HStack {
                 Spacer()
                 Button("Save Note") { saveNote() }
-                    .disabled(note == savedNoteValue)
+                    .disabled(note == storedNote)
             }
         }
     }
 
-    private var savedNoteValue: String {
-        app.activityStore.savedMoments().first { $0.snapshotID == screenshot.id }?.note ?? ""
+    private func readStoredNote() {
+        storedNote = app.activityStore.savedMomentNote(snapshotID: screenshot.id) ?? ""
     }
 
     private func loadNote() {
-        note = savedNoteValue
+        readStoredNote()
+        note = storedNote
     }
 
     private func toggleSaved() {
@@ -257,7 +260,7 @@ struct ScreenMomentDetailView: View {
                     try app.activityStore.saveMoment(snapshotID: screenshot.id, note: note)
                 }
             }
-            app.primaryEvidenceDidChange(on: screenshot.ts)
+            readStoredNote()
             onReload()
         } catch {
             app.lastError = "Could not update saved moment: \(error.localizedDescription)"
@@ -269,7 +272,7 @@ struct ScreenMomentDetailView: View {
             try app.withPrimaryEvidenceChange(on: [screenshot.ts], .revision) {
                 try app.activityStore.saveMoment(snapshotID: screenshot.id, note: note)
             }
-            app.primaryEvidenceDidChange(on: screenshot.ts)
+            readStoredNote()
             onReload()
         } catch {
             app.lastError = "Could not save moment note: \(error.localizedDescription)"
@@ -281,7 +284,6 @@ struct ScreenMomentDetailView: View {
             try app.withPrimaryEvidenceChange(on: [screenshot.ts], .removal) {
                 try app.screenshots.deleteCapture(id: screenshot.id)
             }
-            app.primaryEvidenceDidChange(on: screenshot.ts)
             onClear()
             onReload()
         } catch {

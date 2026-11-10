@@ -25,13 +25,15 @@ struct AgentContextResolver {
     static let maximumAttachments = 10
     static let maximumContextCharacters = 60_000
 
-    func resolve(_ attachment: AgentAttachment, now: Date = Date()) throws -> AgentResultPreview {
+    /// `meetings` is the library when the caller has already read it.
+    func resolve(_ attachment: AgentAttachment, now: Date = Date(),
+                 meetings: [Meeting]? = nil) throws -> AgentResultPreview {
         let text: String
         switch attachment.kind {
         case .file:
             text = try Self.readDocument(URL(fileURLWithPath: attachment.reference))
         case .meeting:
-            guard let meeting = try SessionLookup.loadAllMeetings(root: root)
+            guard let meeting = try (meetings ?? SessionLookup.loadAllMeetings(root: root))
                 .first(where: { $0.id.uuidString == attachment.reference }) else { throw ContextError.missing }
             let folder = root.appendingPathComponent(meeting.relativePath).resolvingSymlinksInPath()
             guard folder.path.hasPrefix(root.resolvingSymlinksInPath().path + "/meetings/") else { throw ContextError.missing }
@@ -57,7 +59,10 @@ struct AgentContextResolver {
     func prompt(_ prompt: String, attachments: [AgentAttachment]) throws -> String {
         guard attachments.count <= Self.maximumAttachments else { throw ContextError.tooMany }
         guard !attachments.isEmpty else { return prompt }
-        let resolved = try attachments.map { try resolve($0) }
+        // One read of the library serves every attached meeting.
+        let meetings = attachments.contains { $0.kind == .meeting }
+            ? try SessionLookup.loadAllMeetings(root: root) : nil
+        let resolved = try attachments.map { try resolve($0, meetings: meetings) }
         guard resolved.reduce(0, { $0 + $1.text.count }) <= Self.maximumContextCharacters else { throw ContextError.tooLarge }
         let context = resolved.map { ["title": $0.title, "source": $0.id, "text": $0.text] }
         let data = try JSONSerialization.data(withJSONObject: context, options: [.sortedKeys])

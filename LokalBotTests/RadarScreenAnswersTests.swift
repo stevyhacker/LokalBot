@@ -114,23 +114,27 @@ final class RadarScreenAnswersTests: XCTestCase {
         XCTAssertTrue(url.hasPrefix("data:image/jpeg;base64,"))
     }
 
+    /// A radar that catches one question and answers it from a screen capture.
+    /// `asPictures` is the form for a model that reads images, with a price.
     @MainActor
-    func testRadarAnswersACaughtQuestionFromTheScreenAndSavesTheCrop() async throws {
+    private func answerFromTheScreen(asPictures: Bool) async throws
+        -> (answer: RadarScreenAnswer, pictures: Int, prompts: [String], saved: MeetingRadarRecord, searches: Int) {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("radar-screen-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         var settings = AppSettings()
-        settings.approvedRemoteInferenceOrigins = ["https://api.meta.ai"]
         settings.museScreenAnswersEnabled = true
         let feed = StubFeed()
         let screens = StubScreens(image: try dashboardPNG())
-        var imagesSent = 0
+        var pictures = 0
+        var prompts: [String] = []
         let radar = MeetingRadar(
             transcriber: feed, evidenceSource: NoEvidence(), screenSource: screens, settings: { settings },
             call: { messages, schema, _ in
                 if (schema["properties"] as? [String: Any])?["answer"] != nil {
-                    let content = messages.last?["content"] as? [[String: Any]] ?? []
-                    imagesSent += content.filter { $0["type"] as? String == "image_url" }.count
+                    let content = messages.last?["content"]
+                    pictures += (content as? [[String: Any]] ?? []).filter { $0["type"] as? String == "image_url" }.count
+                    if let text = content as? String { prompts.append(text) }
                     return reply(["answer": "4.1% in September", "image": 1, "quote": "Trial to paid, September 4.1%"])
                 }
                 return reply(["items": [["kind": "question", "text": "Trial-to-paid conversion last month", "owner": "",
@@ -138,6 +142,8 @@ final class RadarScreenAnswersTests: XCTestCase {
                                          "quote": "What was our trial-to-paid conversion last month?", "evidence": ""]],
                               "answered": [String]()])
             },
+            modelName: { asPictures ? MetaModelAPI.museSpark.id : $0.thinkModelDisplayName },
+            sendsScreenCrops: asPictures,
             availability: { _ in nil },
             timing: .init(minimumInterval: .seconds(60), turnInterval: .milliseconds(1), idlePoll: .milliseconds(5)))
         let meeting = Meeting(id: UUID(), title: "Launch sync", appName: "Meet", startedAt: Date(), relativePath: "m")
@@ -149,15 +155,35 @@ final class RadarScreenAnswersTests: XCTestCase {
         let answer = try XCTUnwrap(radar.items.first?.screenAnswer)
         XCTAssertEqual(answer.text, "4.1% in September")
         XCTAssertEqual(answer.snapshotID, 42)
-        XCTAssertEqual(imagesSent, 1)
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent(answer.image).path))
-        XCTAssertEqual(screens.questions.count, 1)
 
         await radar.finish()
         let saved = try XCTUnwrap(MeetingRadarRecord.load(from: folder))
         XCTAssertEqual(saved.items.first?.screenAnswer, answer)
         XCTAssertEqual(saved.screenAnswerRequests?.count, 1)
-        XCTAssertGreaterThan(saved.cost, saved.passes.reduce(0) { $0 + $1.cost }, "screen answers count toward cost")
+        return (answer, pictures, prompts, saved, screens.questions.count)
+    }
+
+    /// The Think model reads text, so it is given what was read from each
+    /// crop on this Mac, and no pixels leave it.
+    @MainActor
+    func testRadarAnswersACaughtQuestionFromTheScreenAndSavesTheCrop() async throws {
+        let run = try await answerFromTheScreen(asPictures: false)
+        XCTAssertEqual(run.pictures, 0, "the crop is sent as its text, not as a picture")
+        XCTAssertEqual(run.prompts.count, 1)
+        XCTAssertTrue(run.prompts.first?.contains("Capture 1: ") ?? false, run.prompts.first ?? "")
+        XCTAssertTrue(run.prompts.first?.contains("4.1") ?? false, "the crop's own text is what the model reads")
+        XCTAssertEqual(run.searches, 1)
+        XCTAssertEqual(run.saved.cost, 0, "the Think model reports no cost")
+    }
+
+    /// The hosted film and the replay ask a model that reads pictures.
+    @MainActor
+    func testAModelThatReadsPicturesIsSentTheCropAndItsCostCounts() async throws {
+        let run = try await answerFromTheScreen(asPictures: true)
+        XCTAssertEqual(run.pictures, 1)
+        XCTAssertTrue(run.prompts.isEmpty)
+        XCTAssertGreaterThan(run.saved.cost, run.saved.passes.reduce(0) { $0 + $1.cost }, "screen answers count toward cost")
     }
 
     @MainActor

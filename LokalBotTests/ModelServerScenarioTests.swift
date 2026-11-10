@@ -176,6 +176,21 @@ final class ModelServerScenarioTests: XCTestCase {
         XCTAssertEqual(answer, "Late but fine.")
     }
 
+    /// A refused streamed request reported "empty error response": the
+    /// error was built without reading the body the provider sent.
+    func testARefusedStreamKeepsTheProvidersReason() async throws {
+        try await server.load([StubRule.http(402, message: "Insufficient credits for this request")])
+        do {
+            _ = try await engine.generateStreaming(
+                system: "Answer briefly.", prompt: "Status?", context: [],
+                options: TextGenerationOptions(maxTokens: 64)) { _ in }
+            XCTFail("a refused stream must not produce an answer")
+        } catch TextEngineError.httpStatus(let code, let detail, _) {
+            XCTAssertEqual(code, 402)
+            XCTAssertTrue(detail.contains("Insufficient credits"), detail)
+        }
+    }
+
     @MainActor
     func testAskDroppedStreamSurfacesAnError() async throws {
         try await server.load([StubRule.drop()])

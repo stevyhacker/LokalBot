@@ -223,10 +223,6 @@ impl ProjectProfile {
             .strip_prefix("tracked:")
             .and_then(|id| Uuid::parse_str(id).ok())
     }
-
-    pub fn open_action_count(&self) -> usize {
-        self.my_actions.len() + self.others_actions.len()
-    }
 }
 
 #[cfg(test)]

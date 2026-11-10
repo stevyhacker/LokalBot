@@ -387,6 +387,16 @@ impl SettingsPage {
 
         let mut subscriptions = vec![
             cx.observe_in(&data, window, Self::on_data_changed),
+            // A window closed while a shortcut field records never hears the
+            // field stop, and the global shortcuts would stay paused.
+            cx.on_release(|this, cx| {
+                let was_recording = this
+                    .data
+                    .update(cx, |data, _| std::mem::take(&mut data.shortcut_recording));
+                if was_recording {
+                    crate::desktop::sync_shortcuts_later(cx);
+                }
+            }),
             cx.subscribe_in(&search, window, |this, input, event: &InputEvent, _, cx| {
                 if matches!(event, InputEvent::Change) {
                     this.query = input.read(cx).value().to_string();
@@ -407,6 +417,9 @@ impl SettingsPage {
                             data.shortcut_recording = recording;
                             cx.notify();
                         });
+                        // Unregisters the global shortcuts while the field
+                        // records, and puts them back when it stops.
+                        crate::desktop::sync_shortcuts_later(cx);
                     }
                 },
             ),
@@ -424,6 +437,9 @@ impl SettingsPage {
                             data.shortcut_recording = recording;
                             cx.notify();
                         });
+                        // Unregisters the global shortcuts while the field
+                        // records, and puts them back when it stops.
+                        crate::desktop::sync_shortcuts_later(cx);
                     }
                 },
             ),
@@ -441,6 +457,9 @@ impl SettingsPage {
                             data.shortcut_recording = recording;
                             cx.notify();
                         });
+                        // Unregisters the global shortcuts while the field
+                        // records, and puts them back when it stops.
+                        crate::desktop::sync_shortcuts_later(cx);
                     }
                 },
             ),

@@ -11,8 +11,12 @@ on:
       - "LokalBot/Resources/SampleMeeting/**"
       - "LokalBot/Resources/*.lproj/Localizable.strings"
       - "LokalBot/Models/AppLanguage.swift"
+      # The Rust tests compare with the Mac's system prompt and read its 0.10.9 library.
+      - "LokalBot/Resources/pi/system-prompt.md"
+      - "LokalBotTests/Fixtures/upgrade/0.10.9/**"
       # lokalbot-sync's tests and examples read the companion fixture library.
       - "Companion/protocol/fixtures/**"
+      - ".github/actions/windows-desktop-checks/**"
       - ".github/workflows/linux-windows.yml"
   pull_request:
     branches: [master, dev]
@@ -24,7 +28,10 @@ on:
       - "LokalBot/Resources/SampleMeeting/**"
       - "LokalBot/Resources/*.lproj/Localizable.strings"
       - "LokalBot/Models/AppLanguage.swift"
+      - "LokalBot/Resources/pi/system-prompt.md"
+      - "LokalBotTests/Fixtures/upgrade/0.10.9/**"
       - "Companion/protocol/fixtures/**"
+      - ".github/actions/windows-desktop-checks/**"
       - ".github/workflows/linux-windows.yml"
   workflow_dispatch:
 

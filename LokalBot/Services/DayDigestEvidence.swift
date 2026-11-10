@@ -293,7 +293,7 @@ struct DayDigestEvidence: Equatable, Sendable {
         }
     }
 
-    /// Compatibility view used by existing callers and tests.
+    /// The segments' evidence text alone. Only tests call it.
     func summaryChunks(maxCharacters: Int = 12_000) -> [String] {
         summarySegments(maxCharacters: maxCharacters).map(\.evidence)
     }
@@ -897,12 +897,7 @@ struct DayDigestEvidence: Equatable, Sendable {
     }
 
     private func time(_ date: Date, calendar: Calendar = .current) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
+        calendar.clockStamp(date)
     }
 
     private func duration(_ seconds: TimeInterval) -> String {
@@ -2184,12 +2179,17 @@ enum DayDigestOverviewGenerator {
     }
 
     private static func time(_ date: Date, calendar: Calendar) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
+        calendar.clockStamp(date)
+    }
+}
+
+extension Calendar {
+    /// "HH:mm" in this calendar's time zone, as a POSIX-locale `DateFormatter`
+    /// writes it. A digest asks for thousands of these, and building a
+    /// formatter for each was most of the cost.
+    func clockStamp(_ date: Date) -> String {
+        let parts = dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
     }
 }
 

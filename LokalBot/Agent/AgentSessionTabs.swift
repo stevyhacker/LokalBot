@@ -87,7 +87,6 @@ final class AgentSessionTabs: ObservableObject {
     }
 
     var selectedTab: Tab? { tabs.first { $0.id == selectedID } }
-    var canOpenAnotherSavedSession: Bool { true }
     func ensureSelectedController() -> AgentSessionController {
         guard let selectedTab, !selectedTab.record.isArchived else { return addSession().controller }
         return selectedTab.controller

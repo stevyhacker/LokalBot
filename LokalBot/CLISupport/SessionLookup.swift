@@ -77,6 +77,22 @@ enum SessionLookup {
         contents(at: folderURL(for: meeting).appendingPathComponent("transcript.md"))
     }
 
+    /// Whether a meeting has a summary or a transcript to read, without
+    /// reading it: `list` reports only that, for every meeting it lists.
+    static func hasSummary(for meeting: Meeting) -> Bool {
+        isReadable(folderURL(for: meeting).appendingPathComponent("summary.md"))
+    }
+
+    static func hasTranscriptMarkdown(for meeting: Meeting) -> Bool {
+        isReadable(folderURL(for: meeting).appendingPathComponent("transcript.md"))
+    }
+
+    private static func isReadable(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            && !isDirectory.boolValue && FileManager.default.isReadableFile(atPath: url.path)
+    }
+
     static func transcript(for meeting: Meeting) -> Transcript? {
         let url = folderURL(for: meeting).appendingPathComponent("transcript.json")
         guard let data = try? Data(contentsOf: url) else { return nil }

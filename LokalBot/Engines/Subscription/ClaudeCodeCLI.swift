@@ -229,7 +229,12 @@ enum ClaudeCodeProcess {
         }
         if Task.isCancelled { throw CancellationError() }
         if stopper.reason == "timed out" {
-            throw ClaudePlanError.failed("Claude Code didn't finish within \(timeout.components.seconds / 60) minutes.")
+            // Short limits (the 20-second sign-in check) are named in seconds:
+            // whole minutes turned them into "0 minutes".
+            let seconds = timeout.components.seconds
+            let limit = seconds < 60 ? "\(seconds) seconds"
+                : seconds < 120 ? "1 minute" : "\(seconds / 60) minutes"
+            throw ClaudePlanError.failed("Claude Code didn't finish within \(limit).")
         }
         return Output(status: process.terminationStatus, stdout: collector.stdout, stderrTail: collector.stderrTail)
     }

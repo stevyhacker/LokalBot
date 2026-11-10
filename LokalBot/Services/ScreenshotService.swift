@@ -531,8 +531,10 @@ actor ScreenshotProcessingWorker {
 
 /// 64-bit difference hash (dHash) for visually similar-frame detection.
 /// Unlike a byte SHA, this remains stable across tiny cursor/animation/codec
-/// changes. Automatic captures within `defaultDistanceThreshold` are skipped;
-/// explicit manual captures always bypass that decision in the worker above.
+/// changes. Stored captures within `defaultDistanceThreshold` share a
+/// similarity group. The worker above skips an automatic capture only when it
+/// has the same text and is within its own, tighter `nearDuplicateDistance`;
+/// explicit manual captures always bypass that decision.
 enum ScreenPerceptualHash {
     static let width = 9
     static let height = 8
@@ -1272,22 +1274,6 @@ final class ScreenshotService: ObservableObject {
         try store.deleteScreenshot(id: id)
     }
 
-    @discardableResult
-    func deleteCaptures(in interval: DateInterval) throws -> Int {
-        guard interval.end > interval.start else { return 0 }
-        let captures = store.screenshots(
-            in: interval, app: nil, bookmarkedOnly: false,
-            includingMissingFiles: true)
-        for capture in captures {
-            if !capture.path.isEmpty,
-               FileManager.default.fileExists(atPath: capture.path) {
-                try FileManager.default.removeItem(atPath: capture.path)
-            }
-        }
-        try store.deleteScreenshots(ids: captures.map(\.id))
-        return captures.count
-    }
-
     /// Manual cleanup keeps successful row/file deletions consistent even if
     /// another item fails. Saved moments require an explicit reviewed scope.
     func applyCaptureDeletionReview(_ review: CaptureDeletionReview) throws -> [String] {
@@ -1372,6 +1358,9 @@ final class ScreenshotService: ObservableObject {
         let current = now()
         guard retentionSchedule.shouldPrune(at: current, force: force) else { return false }
         performRetentionPrune(at: current)
+        // Hand off packages have their own 7-day limit. Writing one prunes the
+        // folder; this daily pass covers the days when nothing is handed off.
+        WindowHandoffPackage.prune(root: WindowHandoffPackage.root(library: storage.rootURL), now: current)
         return true
     }
 

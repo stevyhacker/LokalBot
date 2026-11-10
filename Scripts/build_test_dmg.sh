@@ -27,6 +27,8 @@ fi
 # Build the Debug app. Package only the bundle from this invocation, and let a
 # compile failure stop the script instead of falling through to a stale app.
 echo "Building LokalBot (Debug)…"
+# XcodeGen needs these paths before the first build fetches the runtimes.
+mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 Scripts/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -configuration Debug \

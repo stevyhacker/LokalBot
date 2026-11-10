@@ -84,10 +84,6 @@ impl TrackHealth {
             Self::Degraded(_) => "Degraded",
         }
     }
-
-    pub fn is_good(&self) -> bool {
-        matches!(self, Self::ReceivingAudio)
-    }
 }
 
 impl fmt::Display for TrackHealth {
@@ -152,7 +148,6 @@ struct StartReport {
 }
 
 pub struct Recorder {
-    dir: PathBuf,
     origin: Instant,
     mic: Option<TrackWriter>,
     system: Option<TrackWriter>,
@@ -205,27 +200,33 @@ impl Recorder {
             })
             .context("could not start the recorder thread")?;
 
+        let mut control = Some(control);
         let report: StartReport = match report_rx.recv_timeout(START_TIMEOUT) {
             Ok(report) => report,
-            Err(_) => StartReport {
-                mic: Err("the audio system did not respond".into()),
-                system: system
-                    .as_ref()
-                    .map(|_| Err("the audio system did not respond".into())),
-                warnings: Vec::new(),
-            },
+            Err(_) => {
+                // The thread is still inside the audio system. Joining it
+                // would wait for the call this timeout gave up on, so it is
+                // left to end by itself once it sees the stop.
+                control = None;
+                StartReport {
+                    mic: Err("the audio system did not respond".into()),
+                    system: system
+                        .as_ref()
+                        .map(|_| Err("the audio system did not respond".into())),
+                    warnings: Vec::new(),
+                }
+            }
         };
         let mic_state = Arc::clone(&mic.state);
         let system_state = system.as_ref().map(|s| Arc::clone(&s.state));
         let mut recorder = Recorder {
-            dir: dir.to_path_buf(),
             origin,
             mic: Some(mic),
             system,
             mic_state,
             system_state,
             control_tx,
-            control: Some(control),
+            control,
             warnings,
             has_system_audio: false,
         };
@@ -279,10 +280,6 @@ impl Recorder {
     /// True when system capture attached at start; false means a mic-only recording.
     pub fn has_system_audio(&self) -> bool {
         self.has_system_audio
-    }
-
-    pub fn dir(&self) -> &Path {
-        &self.dir
     }
 
     pub fn elapsed(&self) -> Duration {
@@ -359,11 +356,6 @@ impl Recorder {
                     && s.running.load(Ordering::Relaxed)
             }),
         }
-    }
-
-    /// Warnings so far (system capture failure, microphone fallback).
-    pub fn warnings(&self) -> Vec<String> {
-        self.warnings.lock().clone()
     }
 
     /// Stops both tracks at the same instant and closes the files.

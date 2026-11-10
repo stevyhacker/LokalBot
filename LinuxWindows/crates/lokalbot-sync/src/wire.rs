@@ -104,7 +104,19 @@ pub(crate) struct PacketReader {
 
 impl PacketReader {
     pub fn read(&mut self, source: &mut impl Read) -> io::Result<Option<Vec<u8>>> {
+        self.read_until(source, None)
+    }
+
+    /// Like [`read`](Self::read), and also returns `None` once `deadline` has
+    /// passed without a whole packet, so a peer that keeps sending a few bytes
+    /// inside every read timeout cannot hold the caller past it.
+    pub fn read_until(
+        &mut self,
+        source: &mut impl Read,
+        deadline: Option<Instant>,
+    ) -> io::Result<Option<Vec<u8>>> {
         let mut chunk = [0u8; 16 * 1024];
+        let mut read_any = false;
         loop {
             if self.buffer.len() >= 2 {
                 let len = usize::from(u16::from_be_bytes([self.buffer[0], self.buffer[1]]));
@@ -114,6 +126,10 @@ impl PacketReader {
                     return Ok(Some(packet));
                 }
             }
+            if read_any && deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+                return Ok(None);
+            }
+            read_any = true;
             match source.read(&mut chunk) {
                 Ok(0) => {
                     return Err(io::Error::new(
@@ -220,7 +236,7 @@ impl RawConn {
     pub fn recv_packet(&mut self) -> Result<Vec<u8>> {
         let deadline = Instant::now() + self.tuning.handshake_timeout;
         loop {
-            if let Some(packet) = self.packets.read(&mut self.stream)? {
+            if let Some(packet) = self.packets.read_until(&mut self.stream, Some(deadline))? {
                 return Ok(packet);
             }
             if Instant::now() >= deadline {

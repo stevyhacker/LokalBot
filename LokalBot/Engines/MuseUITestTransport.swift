@@ -32,6 +32,30 @@ enum MuseUITestTransport {
         return key
     }
 
+    /// Live Radar's passes and screen answers for the film. The app itself
+    /// runs them on the Think model; the film keeps Meta's wire format so its
+    /// scripted replies, and a live run with the film's key, work as before.
+    @MainActor
+    static func radarCall(settings: @escaping () -> AppSettings) -> MeetingRadar.ModelCall {
+        { messages, schema, _ in
+            let client = try MetaModelAPI.client(
+                settings: settings(), model: MetaModelAPI.museSpark.id, reasoningEffort: "minimal",
+                maxTokens: 4_000, priority: .interactive, purpose: "live radar")
+            return try await client.send(messages: messages, schema: (name: "radar", schema: schema))
+        }
+    }
+
+    /// Live answers for the film, as `radarCall`.
+    @MainActor
+    static func answerCall(settings: @escaping () -> AppSettings) -> LiveAnswerSession.Call {
+        { messages, tools, _ in
+            let client = try MetaModelAPI.client(
+                settings: settings(), model: MetaModelAPI.museWonder.id, reasoningEffort: "low",
+                maxTokens: 4_000, priority: .interactive, purpose: "live answer")
+            return try await client.send(messages: messages, tools: tools)
+        }
+    }
+
     static func reply(to request: URLRequest) async throws -> (Data, URLResponse) {
         // Long enough for the in-flight states to be visible.
         try await Task.sleep(for: .milliseconds(1_200))
@@ -120,10 +144,12 @@ enum MuseUITestTransport {
     // MARK: - Screen answers
 
     /// The captures are labelled "Image N: <app> — <window>"; the answer names
-    /// the one that shows it.
+    /// the one that shows it. Only the question decides: the same part of the
+    /// request starts with the meeting's title, and "Launch sync" would give
+    /// every question the launch date.
     private static func screenAnswer(_ messages: [[String: Any]]) -> [String: Any] {
         let texts = (messages.last?["content"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }
-        let question = texts.first ?? ""
+        let question = (texts.first ?? "").components(separatedBy: "\nQuestion: ").last ?? ""
         let labels = texts.filter { $0.hasPrefix("Image ") }
         func image(from app: String) -> Int? { labels.firstIndex { $0.contains(app) }.map { $0 + 1 } }
         var answer: [String: Any] = ["answer": "", "image": 0, "quote": ""]

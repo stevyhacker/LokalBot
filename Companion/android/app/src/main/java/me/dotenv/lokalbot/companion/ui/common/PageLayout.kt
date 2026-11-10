@@ -1,9 +1,7 @@
 package me.dotenv.lokalbot.companion.ui.common
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,10 +55,4 @@ fun BackButton(onBack: () -> Unit) {
     IconButton(onClick = onBack) {
         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
     }
-}
-
-/** A row of header actions. */
-@Composable
-fun HeaderActions(content: @Composable () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(0.dp)) { content() }
 }

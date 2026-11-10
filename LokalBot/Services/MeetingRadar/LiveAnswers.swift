@@ -1,8 +1,7 @@
 import Foundation
 
 /// The answer to a question or problem raised in the call, found in the
-/// person's own work while the call goes on. Built for the Meta Global AI
-/// Developer Hackathon (2026).
+/// person's own work while the call goes on.
 struct RadarAnswer: Codable, Equatable, Sendable {
     struct Source: Codable, Equatable, Identifiable, Sendable {
         enum Kind: String, Codable, Sendable {
@@ -59,9 +58,9 @@ protocol LiveAnswerEnvironment: AnyObject {
 }
 
 /// One live answer: memory first, then up to a few read-only tool calls, on
-/// the Muse model chosen in Settings (Wonder by default). Every source the
-/// answer cites must contain its quote, checked here against what the tools
-/// returned, so an answer can't rest on something nobody read.
+/// the Think model chosen in Settings → Models. Every source the answer cites
+/// must contain its quote, checked here against what the tools returned, so
+/// an answer can't rest on something nobody read.
 enum LiveAnswerSession {
     typealias Call = @MainActor (_ messages: [[String: Any]], _ tools: [[String: Any]], _ model: String)
         async throws -> MuseChatClient.Reply

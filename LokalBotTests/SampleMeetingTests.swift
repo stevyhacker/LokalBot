@@ -94,4 +94,39 @@ final class SampleMeetingTests: XCTestCase {
         XCTAssertEqual(ActionItemsReport.entries(
             meetings: [own, sample], root: root, filter: bySample, now: now, calendar: calendar).count, 1)
     }
+
+    /// The overnight review compares a day with the meetings and open actions
+    /// of the days before it. The sample used to be among them.
+    func testOvernightReviewLeavesTheSampleOutOfEarlierMeetingsAndActions() throws {
+        let root = try temporaryDirectory("SampleDream")
+        let storage = StorageManager(rootURL: root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = Date(timeIntervalSince1970: 1_784_376_000) // 2026-07-18 12:00 UTC
+        let own = Meeting(id: UUID(), title: "Design review", appName: "Zoom",
+                          startedAt: now.addingTimeInterval(-3_600), endedAt: now.addingTimeInterval(-1_800),
+                          relativePath: try storage.reserveMeetingFolder(
+                              title: "Design review", startedAt: now.addingTimeInterval(-3_600)))
+        var sample = Meeting(id: UUID(), title: SampleMeeting.english.title, appName: MeetingImportService.appName,
+                             startedAt: now.addingTimeInterval(-600), endedAt: now.addingTimeInterval(-390),
+                             relativePath: try storage.reserveMeetingFolder(
+                                 title: SampleMeeting.english.title, startedAt: now.addingTimeInterval(-600)))
+        sample.sampleID = SampleMeeting.english.id
+        for meeting in [own, sample] {
+            try storage.saveMeta(meeting)
+            try MeetingOutcomes(
+                actionItems: [.init(text: "Update the API spec for \(meeting.title)", owner: "Me")],
+                decisions: []).write(to: meeting.folderURL(in: storage))
+        }
+
+        // The day after both meetings.
+        let evidence = try DreamCompiler.compile(
+            day: now.addingTimeInterval(86_400), storageRoot: root, calendar: calendar)
+
+        XCTAssertEqual(evidence.priorMeetings.map(\.title), [own.title])
+        XCTAssertTrue(evidence.openActions.contains { $0.contains(own.title) }, "\(evidence.openActions)")
+        XCTAssertFalse(evidence.openActions.contains { $0.contains(sample.title) }, "\(evidence.openActions)")
+        let meetingSources = evidence.sources.filter { $0.kind == .meeting }.map(\.id)
+        XCTAssertEqual(meetingSources, [own.id.uuidString])
+    }
 }

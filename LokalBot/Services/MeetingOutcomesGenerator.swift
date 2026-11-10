@@ -181,10 +181,6 @@ enum MeetingOutcomesGenerator {
         OutcomeTextSimilarity.normalized(text)
     }
 
-    private static func tokens(_ text: String) -> Set<String> {
-        OutcomeTextSimilarity.tokens(text)
-    }
-
     private static func actionOrder(
         _ lhs: MeetingOutcomes.ActionItem,
         _ rhs: MeetingOutcomes.ActionItem

@@ -1,13 +1,14 @@
 import Foundation
 
-/// Client-side stop policy for streamed cotyping completions.
+/// Stop policy for cotyping completions, shared by both routes.
 ///
 /// Cotypist/Cotabby can stop inside the native decode loop once the accumulated
-/// text reaches a natural suggestion boundary. LokalBot's HTTP llama-server path
-/// cannot run that native hook, so the streaming client applies the same visible
-/// boundary rule and returns early. This does not improve first-token latency,
-/// but it prevents useful streamed suggestions from being replaced by later
-/// rambling or control-token scaffolding.
+/// text reaches a natural suggestion boundary. LokalBot's in-process engine
+/// asks this policy from its decode loop (`LocalLlamaCotypingEngine`). The
+/// HTTP llama-server path cannot run that native hook, so its streaming client
+/// applies the same visible boundary rule and returns early. This does not
+/// improve first-token latency, but it prevents useful streamed suggestions
+/// from being replaced by later rambling or control-token scaffolding.
 nonisolated enum CotypingDecodeStopPolicy {
     enum StopReason: String, Equatable {
         case sentenceBoundary = "sentence_boundary"

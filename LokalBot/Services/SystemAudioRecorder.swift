@@ -470,21 +470,6 @@ final class SystemAudioRecorder {
         return Float(sqrt(sumSquares / Double(sampleCount)))
     }
 
-    private static func copyBuffer(_ source: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard let destination = AVAudioPCMBuffer(
-            pcmFormat: source.format,
-            frameCapacity: source.frameLength) else { return nil }
-        destination.frameLength = source.frameLength
-        return copyBuffer(source, into: destination) ? destination : nil
-    }
-
-    private static func copyBuffer(
-        _ source: AVAudioPCMBuffer,
-        into destination: AVAudioPCMBuffer
-    ) -> Bool {
-        copyBufferList(source.audioBufferList, into: destination)
-    }
-
     static func copyBufferList(
         _ source: UnsafePointer<AudioBufferList>,
         into destination: AVAudioPCMBuffer

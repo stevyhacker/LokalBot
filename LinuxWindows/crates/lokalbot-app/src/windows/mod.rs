@@ -105,33 +105,7 @@ pub fn close_onboarding(cx: &mut App) {
     }
 }
 
-/// Brings the main window forward (the first window that is not a secondary one).
+/// Brings the main window forward, reopening it when it was closed to the tray.
 pub fn activate_main(cx: &mut App) {
-    let skip: Vec<_> = {
-        let windows = secondary(cx);
-        [
-            windows.quick_recall,
-            windows.selection_actions,
-            windows.onboarding,
-            windows.screen_image,
-            windows.settings_approval,
-            windows.agent_setup,
-            windows.command_palette,
-        ]
-        .into_iter()
-        .flatten()
-        .map(|h| h.window_id())
-        .collect()
-    };
-    for handle in cx.windows() {
-        if skip.contains(&handle.window_id()) {
-            continue;
-        }
-        if handle
-            .update(cx, |_, window, _| window.activate_window())
-            .is_ok()
-        {
-            return;
-        }
-    }
+    crate::desktop::show_main_window(cx);
 }

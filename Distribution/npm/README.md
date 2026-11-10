@@ -18,7 +18,7 @@ Claude Code and Codex each keep a log of every session on your computer. This co
 
 - It makes no network requests. The package has no dependencies, and the source is about 2,200 lines you can read in [`src/`](src).
 - It counts what you and the agents wrote, and when. It never keeps or prints the text itself.
-- It reads `~/.claude/projects` and `~/.codex/sessions`, or wherever `CLAUDE_CONFIG_DIR` and `CODEX_HOME` point. It never opens credentials or either agent's internal state.
+- It reads Claude Code's session logs in `~/.claude/projects` and `~/.config/claude/projects`, and Codex's in `~/.codex/sessions` and `~/.codex/archived_sessions`, or wherever `CLAUDE_CONFIG_DIR` and `CODEX_HOME` point. Beside Claude Code's logs it also reads `stats-cache.json`, the per-day counts Claude Code keeps after it deletes old logs. It never opens credentials or settings.
 - The image leaves your project names out unless you pass `--projects`. The terminal card shows them, since that is your own screen.
 
 ## What the figures mean

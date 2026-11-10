@@ -22,7 +22,7 @@ VERIFIED = "2026-10-26"
 
 # When LokalBot's own facts on these pages last changed (not the competitors').
 # It moves dateModified and the sitemap's lastmod, but not "Last verified".
-LOKALBOT_UPDATED = "2026-11-03"
+LOKALBOT_UPDATED = "2026-11-10"
 
 CHECK = '<i class="ph ph-check" aria-hidden="true"></i>'
 CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
@@ -32,7 +32,7 @@ LB_ASR = "On your computer — Qwen3-ASR by default, with Parakeet and Whisper a
 LB_DICTATION = f"{CHECK}Hold ⌥ Space (Alt+Space on Windows and Linux) in any app"
 LB_TIMELINE = f"{CHECK}App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days"
 LB_COTYPING = f"{CHECK}Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, and GNOME)"
-LB_AGENTS = "Read-only CLI and MCP server, off until you enable Agent Access"
+LB_AGENTS = "Read-only CLI and MCP server, off until you turn them on in Settings"
 LB_PLATFORM = "macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha"
 # Measured for the Mac engines; the Windows and Linux models differ.
 LB_LANGUAGES = "On Mac: 52 languages and dialects with the default model; 99 with Whisper"
@@ -423,7 +423,7 @@ PAGES = [
             "You want summaries from a local model with no keys to manage",
         ],
         "faq": [
-            ("Can LokalBot transcribe an existing audio file?", "Not today. LokalBot transcribes the meetings and dictation it records. For files you already have, MacWhisper is the better tool — and the two apps run fine side by side."),
+            ("Can LokalBot transcribe an existing audio file?", "Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded. It has no subtitle export; for subtitle files or batch transcription, MacWhisper is the better tool — and the two apps run fine side by side."),
             ("Which one is more private?", "Both can transcribe entirely on your Mac. The difference is in what surrounds it: LokalBot's summaries run on a built-in local model by default, and its source code is public under GPLv3, so you can check what it does with your audio."),
             ("Do they use the same speech models?", 'Partly. Both can run Whisper-family models on your Mac. LokalBot defaults to Qwen3-ASR and also offers Parakeet and Granite Speech; the <a href="benchmarks">benchmarks page</a> compares several of them on the same test set.'),
         ],

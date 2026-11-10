@@ -30,7 +30,7 @@ struct SearchCommand: AsyncParsableCommand {
     var table: Bool = false
 
     func run() async throws {
-        try AgentAccessGate().requireAuthorized()
+        try AgentAccessGate().requireCommandAccess()
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedQuery.isEmpty else {
             throw ValidationError("Query must not be empty.")

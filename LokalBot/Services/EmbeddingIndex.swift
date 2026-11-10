@@ -3,8 +3,9 @@ import Foundation
 import SQLite3
 
 /// Coalesces expensive embedding-model preparation by destination. Waiters
-/// can cancel independently; the shared operation is canceled only after its
-/// final waiter leaves, so one abandoned search cannot break active indexing.
+/// can cancel independently; the shared operation is never canceled and runs
+/// to completion even after its last waiter leaves, so one abandoned search
+/// cannot break active indexing and a later caller rejoins it.
 actor EmbeddingModelPreparationCoordinator {
     typealias Operation = @Sendable () async throws -> URL
 

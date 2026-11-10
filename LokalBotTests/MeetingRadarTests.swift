@@ -170,6 +170,40 @@ private final class StubEvidence: RadarEvidenceSource {
     }
 }
 
+/// A Think engine that returns one reply and keeps what it was asked.
+final class RadarThinkEngine: TextEngine, @unchecked Sendable {
+    struct Request {
+        var system: String
+        var prompt: String
+        var context: [String]
+        var schema: [String: Any]?
+        var options: TextGenerationOptions?
+    }
+
+    var replies: [String]
+    private(set) var requests: [Request] = []
+    var displayName: String { "Radar test engine" }
+
+    init(reply: String) { replies = [reply] }
+    init(replies: [String]) { self.replies = replies }
+
+    func generate(system: String, prompt: String, context: [String]) async throws -> String {
+        requests.append(Request(system: system, prompt: prompt, context: context))
+        return next()
+    }
+
+    func generate(system: String, prompt: String, context: [String],
+                  schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+        requests.append(Request(system: system, prompt: prompt, context: context, schema: schema, options: options))
+        return next()
+    }
+
+    /// The replies in order; the last one repeats.
+    private func next() -> String {
+        replies.count > 1 ? replies.removeFirst() : (replies.first ?? "")
+    }
+}
+
 @MainActor
 final class MeetingRadarTests: XCTestCase {
     private var folder: URL!
@@ -194,19 +228,76 @@ final class MeetingRadarTests: XCTestCase {
         while !condition(), Date() < deadline { try? await Task.sleep(for: .milliseconds(10)) }
     }
 
-    func testRadarNeedsApprovalBeforeAnythingIsSent() {
+    func testRadarIsOffUntilItIsTurnedOnInSettings() {
         var settings = AppSettings()
-        settings.approvedRemoteInferenceOrigins = []
-        XCTAssertEqual(MeetingRadar.unavailableReason(settings), MetaModelAPI.ConnectionError.notApproved.errorDescription)
+        XCTAssertFalse(settings.liveRadarEnabled, "Live Radar is offered only after it is turned on")
+        XCTAssertNotNil(MeetingRadar.unavailableReason(settings))
         let feed = ScriptedFeed()
         var calls = 0
         let radar = MeetingRadar(transcriber: feed, evidenceSource: StubEvidence(), settings: { settings },
                                  call: { _, _, _ in calls += 1; throw CancellationError() })
         let meeting = Meeting(id: UUID(), title: "Synthetic", appName: "Meet", startedAt: Date(), relativePath: "m")
         radar.start(meeting: meeting, folder: folder)
-        XCTAssertEqual(feed.activations, 0, "an unapproved radar must not start the preview")
+        XCTAssertEqual(feed.activations, 0, "a radar that is off must not start the preview")
         XCTAssertEqual(calls, 0)
         if case .failed = radar.state {} else { XCTFail("expected a failed state, got \(radar.state)") }
+
+        settings.liveRadarEnabled = true
+        XCTAssertNil(MeetingRadar.unavailableReason(settings))
+    }
+
+    /// Live Radar used to be offered once Meta Muse was approved. Settings
+    /// saved before it had its own switch keep it on with that approval.
+    func testSettingsFromBeforeTheSwitchKeepLiveRadarWhereMetaMuseWasApproved() throws {
+        func decoded(_ json: String) throws -> AppSettings {
+            try JSONDecoder().decode(AppSettings.self, from: Data(json.utf8))
+        }
+        XCTAssertTrue(try decoded(#"{"approvedRemoteInferenceOrigins": ["https://api.meta.ai"]}"#).liveRadarEnabled)
+        XCTAssertFalse(try decoded("{}").liveRadarEnabled)
+        XCTAssertFalse(try decoded(
+            #"{"approvedRemoteInferenceOrigins": ["https://api.meta.ai"], "liveRadarEnabled": false}"#).liveRadarEnabled,
+            "a saved choice wins over the approval")
+
+        var chosen = AppSettings()
+        chosen.liveRadarEnabled = true
+        XCTAssertTrue(try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(chosen)).liveRadarEnabled)
+    }
+
+    /// Without its own calls, the radar asks the Think engine: a pass as one
+    /// schema-held reply, named after the Think model and with no cost.
+    func testPassesRunOnTheThinkModel() async throws {
+        let feed = ScriptedFeed()
+        var settings = AppSettings()
+        settings.liveRadarEnabled = true
+        let item = #"{"kind": "decision", "text": "Ship on Monday", "owner": "", "due": "", "line": "L1", "#
+            + #""quote": "we ship on Monday", "evidence": ""}"#
+        let engine = RadarThinkEngine(reply: "Here is what I caught:\n{\"items\": [\(item)], \"answered\": []}")
+        var purposes: [String] = []
+        let radar = MeetingRadar(
+            transcriber: feed, evidenceSource: StubEvidence(), settings: { settings },
+            engine: { purpose in
+                purposes.append(purpose)
+                return engine
+            },
+            timing: .init(minimumInterval: .seconds(60), burstLines: 100, idlePoll: .milliseconds(5)))
+        let meeting = Meeting(id: UUID(), title: "Synthetic sync", appName: "Meet", startedAt: Date(), relativePath: "m")
+
+        radar.start(meeting: meeting, folder: folder)
+        XCTAssertEqual(radar.model, settings.thinkModelDisplayName)
+        feed.subject.send([.init(time: 4, speaker: "local", text: "Okay, we ship on Monday.")])
+        await waitUntil(radar.items.count == 1)
+        XCTAssertEqual(radar.items.first?.text, "Ship on Monday", "the object is read out of a reply that wraps it in prose")
+        XCTAssertEqual(purposes, ["live radar"])
+        XCTAssertEqual(engine.requests.count, 1)
+        XCTAssertEqual(engine.requests.first?.system, MeetingRadarAnalyzer.system)
+        XCTAssertTrue(engine.requests.first?.prompt.contains("we ship on Monday") ?? false)
+        XCTAssertNotNil(engine.requests.first?.schema?["properties"], "the pass is held to the radar's schema")
+        XCTAssertEqual(engine.requests.first?.options, MeetingRadar.passOptions)
+
+        await radar.finish()
+        let saved = try XCTUnwrap(MeetingRadarRecord.load(from: folder))
+        XCTAssertEqual(saved.model, settings.thinkModelDisplayName)
+        XCTAssertEqual(saved.cost, 0, "the Think model reports no cost")
     }
 
     func testPassesSendOnlyNewLinesAndFinishReadsTheRest() async throws {
@@ -229,7 +320,10 @@ final class MeetingRadarTests: XCTestCase {
                 return MuseChatClient.Reply(content: content, toolCalls: [],
                                             usage: .init(inputTokens: 1_000, outputTokens: 100), finishReason: "stop")
             },
-            // The stubbed call needs no key; approval is covered above.
+            // A model with a price, as when the hosted film runs the radar on
+            // Meta's models: the pass cost is counted from the reply's tokens.
+            modelName: { _ in MetaModelAPI.museSpark.id },
+            // The stubbed call needs no setup; the switch is covered above.
             availability: { _ in nil },
             timing: .init(minimumInterval: .seconds(60), burstLines: 100, idlePoll: .milliseconds(5)))
         let meeting = Meeting(id: UUID(), title: "Synthetic sync", appName: "Meet", startedAt: Date(), relativePath: "m")

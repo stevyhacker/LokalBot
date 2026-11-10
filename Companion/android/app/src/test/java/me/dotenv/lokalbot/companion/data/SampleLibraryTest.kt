@@ -113,6 +113,15 @@ class SampleLibraryTest {
     }
 
     @Test
+    fun `the sync core's hit kinds map onto the same ones`() {
+        assertThat(SearchHitKind.fromCore("meeting")).isEqualTo(SearchHitKind.Meeting)
+        assertThat(SearchHitKind.fromCore("transcript")).isEqualTo(SearchHitKind.Transcript)
+        // The core's name for a Day Digest.
+        assertThat(SearchHitKind.fromCore("day")).isEqualTo(SearchHitKind.Digest)
+        assertThat(SearchHitKind.fromCore("something newer")).isEqualTo(SearchHitKind.Meeting)
+    }
+
+    @Test
     fun `sample answers cite meetings and moments`() = runBlocking {
         val request = AskRequest(requestId = "r1", conversationId = "c1", question = "What's overdue?")
         val events = repository.ask(request).toList()

@@ -223,6 +223,8 @@ note "signing identity: $SIGNING_IDENTITY"
 note "installed signed time: ${installed_signed_time:-unknown}"
 
 log "Regenerating Xcode project"
+# XcodeGen needs these paths before the first build fetches the runtimes.
+mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 Scripts/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 

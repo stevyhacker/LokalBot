@@ -208,7 +208,7 @@ The app doesn't include any AI model. It downloads the ones below when you
 choose them, or when you turn on a feature that needs them, and each stays
 under the license of the model it comes from. The speech models are
 sherpa-onnx's ONNX conversions from its `asr-models`,
-`speaker-segmentation-models` and `speaker-recongition-models` releases
+`speaker-segmentation-models`, `speaker-recongition-models` and `tts-models` releases
 (https://github.com/k2-fsa/sherpa-onnx/releases), the ocrs models come from
 ocrs's own storage, Tesseract's language data comes from GitHub, and the text
 models come from Hugging Face, each pinned to a revision or digest. Tesseract
@@ -218,11 +218,14 @@ itself is not included: on Linux, LokalBot runs the copy your system installed.
 | --- | --- | --- | --- |
 | Qwen3-ASR 0.6B (int8) | transcription (default) | Apache-2.0 | https://huggingface.co/Qwen/Qwen3-ASR-0.6B |
 | Parakeet TDT 0.6B v3 (int8), NVIDIA | transcription (optional) | CC-BY-4.0 | https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 |
+| Parakeet TDT 0.6B v2 (int8), NVIDIA | transcription (optional) | CC-BY-4.0 | https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2 |
 | SenseVoice Small Yue (int8), ASLP-lab's fine-tune of FunAudioLLM's SenseVoice Small | transcription (optional) | WSYue-ASR's model card states Apache-2.0; SenseVoice Small is under the FunASR Model Open Source License Agreement 1.1, which also covers fine-tuned models | https://huggingface.co/ASLP-lab/WSYue-ASR, https://huggingface.co/FunAudioLLM/SenseVoiceSmall, https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE |
 | Whisper large-v3 turbo, OpenAI | transcription (optional) | MIT | https://huggingface.co/openai/whisper-large-v3-turbo |
+| GigaAM v3 Russian (CTC, int8) | transcription (optional) | MIT | https://huggingface.co/ai-sage/GigaAM-v3 |
 | Silero VAD | finding speech | MIT | https://github.com/snakers4/silero-vad |
 | pyannote segmentation 3.0 | telling speakers apart | MIT | https://huggingface.co/pyannote/segmentation-3.0 |
 | TitaNet-S, NVIDIA NeMo | recognizing voices | Apache-2.0: NVIDIA's model card puts it under the NeMo toolkit's license | https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/models/titanet_small |
+| Kokoro 82M (multi-lang v1.0) | reading summaries and answers aloud | Apache-2.0 | https://huggingface.co/hexgrad/Kokoro-82M |
 | ocrs text detection and recognition | screen text | CC-BY-SA-4.0 | https://huggingface.co/robertknight/ocrs |
 | Tesseract `tessdata_fast` language data | screen text on Linux | Apache-2.0 | https://github.com/tesseract-ocr/tessdata_fast |
 | Qwen3.5 0.8B, 2B and 4B; Qwen3.6 27B and 35B-A3B (GGUF by Unsloth) | Think, Autocomplete | Apache-2.0 | https://huggingface.co/Qwen |

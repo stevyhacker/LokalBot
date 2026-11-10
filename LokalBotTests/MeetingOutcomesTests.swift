@@ -498,6 +498,31 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertNil(reconciled.actions[priorAction.id])
     }
 
+    /// The same task extracted twice with a different basis is not merged
+    /// and has one content-derived ID. Summarizing again must not stop on it.
+    func testReprocessingKeepsEditedStateWhenTheSameActionIsExtractedTwice() {
+        let citation = OutcomeSourceCitation(
+            segmentID: "segment-0000-0000001000-0000002000",
+            start: 1, end: 2, speaker: "them", excerpt: "Sam, can you send the budget")
+        let prior = MeetingOutcomes.ActionItem(text: "Send the budget", owner: "Sam", citations: [citation])
+        let asRequest = MeetingOutcomes.ActionItem(
+            text: "Send the budget", owner: "Sam", citations: [citation],
+            attribution: .init(resolution: .other, speakerID: "them", basis: .request))
+        let asAssignment = MeetingOutcomes.ActionItem(
+            text: "Send the budget", owner: "Sam", citations: [citation],
+            attribution: .init(resolution: .other, speakerID: "them", basis: .assignment))
+        XCTAssertEqual(asRequest.id, asAssignment.id)
+        var state = MeetingOutcomeState()
+        state.actions[prior.id] = .init(status: .done, userEdited: true)
+
+        let reconciled = MeetingOutcomeStore.reconcileState(
+            state,
+            from: MeetingOutcomes(actionItems: [prior]),
+            to: MeetingOutcomes(actionItems: [asRequest, asAssignment]))
+
+        XCTAssertEqual(reconciled.actions[asRequest.id]?.status, .done)
+    }
+
     // MARK: - Formatting
 
     func testFormatOutcomesListsSectionsWithIDs() {

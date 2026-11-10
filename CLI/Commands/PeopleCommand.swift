@@ -26,7 +26,7 @@ struct PeopleCommand: AsyncParsableCommand {
     var table: Bool = false
 
     func run() async throws {
-        try AgentAccessGate().requireAuthorized()
+        try AgentAccessGate().requireCommandAccess()
         guard (1...PeopleReport.maximumEntries).contains(limit) else {
             throw ValidationError("--limit must be between 1 and \(PeopleReport.maximumEntries).")
         }
