@@ -114,11 +114,16 @@ enum ChatCitationParser {
         return #"\[meetings?:\s*("# + one + #"(?:\s*[,;]\s*"# + one + #")*)\]"#
     }()
 
+    // Compiled once: every streamed partial of an answer is parsed again.
+    private static let markerRegex = try? NSRegularExpression(pattern: pattern)
+    private static let groupedRegex = try? NSRegularExpression(pattern: groupedPattern)
+    private static let anyMarkerRegex = try? NSRegularExpression(pattern: #"\[(?:meeting|screen|file):[^\]\n]*\]"#)
+
     /// Replace markers with ordered `[n]` references and return the matching,
     /// deduped citations. Repeated sources retain their first source number.
     static func extract(_ text: String, linked: Bool = false) -> (display: String, citations: [ChatCitation]) {
         guard text.contains("[meeting:") || text.contains("[screen:") || text.contains("[file:"),
-              let regex = try? NSRegularExpression(pattern: pattern) else { return (text, []) }
+              let regex = markerRegex else { return (text, []) }
         let ns = text as NSString
         var citations: [ChatCitation] = []
         var display = ""
@@ -175,7 +180,7 @@ enum ChatCitationParser {
             }
         }
         text = splitGrouped(text)
-        guard let regex = try? NSRegularExpression(pattern: #"\[(?:meeting|screen|file):[^\]\n]*\]"#) else { return text }
+        guard let regex = anyMarkerRegex else { return text }
         let ns = text as NSString
         for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
             let marker = ns.substring(with: match.range)
@@ -192,7 +197,7 @@ enum ChatCitationParser {
     /// meeting, so every meeting is verified on its own.
     private static func splitGrouped(_ text: String) -> String {
         guard text.contains("[meeting"),
-              let regex = try? NSRegularExpression(pattern: groupedPattern) else { return text }
+              let regex = groupedRegex else { return text }
         var text = text
         let ns = text as NSString
         for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
@@ -209,14 +214,18 @@ enum ChatCitationParser {
         return text
     }
 
-    /// "1:23" → 83, "00:14:32" → 872. Nil for out-of-range fields.
+    /// "1:23" → 83, "00:14:32" → 872. Nil for out-of-range fields, and for a
+    /// leading field too large to count in seconds.
     static func seconds(from stamp: String) -> TimeInterval? {
         let parts = stamp.split(separator: ":").map(String.init).compactMap(Int.init)
         guard parts.count == 2 || parts.count == 3 else { return nil }
         guard parts.dropFirst().allSatisfy({ (0..<60).contains($0) }), parts[0] >= 0 else { return nil }
-        let value = parts.count == 2
-            ? parts[0] * 60 + parts[1]
-            : parts[0] * 3600 + parts[1] * 60 + parts[2]
+        // The leading field has no upper bound and can come from a model's
+        // tool call (`get_meeting`'s `from`), so scaling it must not trap.
+        let rest = parts.count == 2 ? parts[1] : parts[1] * 60 + parts[2]
+        let (scaled, scaleOverflowed) = parts[0].multipliedReportingOverflow(by: parts.count == 2 ? 60 : 3600)
+        let (value, sumOverflowed) = scaled.addingReportingOverflow(rest)
+        guard !scaleOverflowed, !sumOverflowed else { return nil }
         return TimeInterval(value)
     }
 

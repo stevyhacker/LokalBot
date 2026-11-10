@@ -11,6 +11,14 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP_ID=com.lokalbot.LokalBot
 IM_ENTRY=$APP_ID.InputMethod.desktop
 if [ "${1:-}" = "--uninstall" ]; then
+  # What this copy set up outside those folders goes too, as the Windows
+  # uninstaller removes it: the coding-agent skill from Settings → Advanced →
+  # Agent CLI, and a launch-at-login entry that starts this copy.
+  [ -x "$BIN/lokalbot-cli" ] && "$BIN/lokalbot-cli" install-skill --uninstall >/dev/null 2>&1 || true
+  AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/lokalbot.desktop"
+  if [ -f "$AUTOSTART" ] && grep -qF "$BIN/lokalbot" "$AUTOSTART"; then
+    rm -f "$AUTOSTART"
+  fi
   rm -f "$BIN/lokalbot" "$BIN/lokalbot-cli" "$DATA/applications/$APP_ID.desktop" \
     "$DATA/applications/$IM_ENTRY"
   for size in 16 24 32 48 64 128 256 512; do

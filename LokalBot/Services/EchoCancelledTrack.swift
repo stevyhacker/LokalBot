@@ -26,9 +26,6 @@ enum EchoCancelledTrack {
     /// Streamed in windows so a long meeting never has both tracks resident:
     /// an hour of 16 kHz mono is 230 MB per track decoded whole.
     static let chunkSeconds: TimeInterval = 30
-    /// Windows the delay estimate is taken from, as fractions of the track.
-    static let probePoints: [Double] = [0.2, 0.5, 0.8]
-    static let probeSeconds: TimeInterval = 20
 
     /// Voice Isolation produced only 2.6-3.1 dB on the recordings used to
     /// validate this stage, while Standard mode produced at least 12.9 dB.

@@ -677,23 +677,6 @@ extension CotypingCoordinator {
                 searchedMemory: searched))
     }
 
-    func runQualityBenchmark() async -> CotypingBenchmarkSummary {
-        let settings = settingsProvider()
-        var cfg = config
-        cfg.maxResponseTokens = settings.cotypingMaxResponseTokens
-        cfg.maxResponseWords = settings.cotypingMaxWords
-        return await CotypingBenchmarkRunner.run(
-            engine: engine,
-            config: cfg,
-            personalization: settings.cotypingPersonalization,
-            learnedExamples: { [weak self] field in
-                guard let self, settings.cotypingUseLocalLearning else { return [] }
-                return self.learningStore.examples(
-                    for: field,
-                    limit: settings.cotypingLearningExamplesInPrompt)
-            })
-    }
-
     private func shortError(_ error: Error) -> String {
         (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
     }

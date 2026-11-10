@@ -510,11 +510,6 @@ final class ProcessingPipeline: ObservableObject {
         drain()
     }
 
-    /// Queues finished recordings with a missing or incomplete transcript
-    /// that have no queued, parked, or running job (see
-    /// `MissingTranscription`). A merged gap is marked before queueing so it
-    /// is repaired at most once. Returns the queued meeting IDs.
-    @discardableResult
     /// Meetings already queued, parked, or running, so repairs and health
     /// checks never double-count them.
     func queuedMeetingIDs() -> Set<Meeting.ID> {
@@ -527,6 +522,11 @@ final class ProcessingPipeline: ObservableObject {
         return known
     }
 
+    /// Queues finished recordings with a missing or incomplete transcript
+    /// that have no queued, parked, or running job (see
+    /// `MissingTranscription`). A merged gap is marked before queueing so it
+    /// is repaired at most once. Returns the queued meeting IDs.
+    @discardableResult
     func enqueueMissingTranscriptions(in meetings: [Meeting], summarize: Bool) -> [Meeting.ID] {
         let known = queuedMeetingIDs()
         var queued: [Meeting.ID] = []

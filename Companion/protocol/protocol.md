@@ -30,9 +30,12 @@ Goals, in order:
   Bonjour is platform code (NetService on Apple, NSD on Android); the Rust
   crate only takes the resolved `host:port` strings.
 - Clients try, in this order and with a 2-second connect timeout each:
-  addresses passed in by the platform (Bonjour results), then the addresses
+  addresses passed in by the platform (Bonjour results), then the address
+  the last sync (or the pairing, before any sync) reached, then the addresses
   stored at pairing (LAN, Tailscale IP, MagicDNS name). The first that
   completes the handshake wins.
+- The host serves at most 64 connections at a time and closes any beyond
+  that straight away, before a handshake.
 
 ## Framing
 
@@ -93,7 +96,9 @@ Idle connections send `{"type":"ping"}` every 20 s; either side closes after
 3. The client connects, sends preface `0x01 + pairingId`, runs the pairing
    handshake, then sends
    `{"type":"pairRequest","deviceId":"<uuid>","deviceName":"Stevan's iPad","platform":"ipados"}`.
-   `platform` is one of `ios`, `ipados`, `android`.
+   `platform` is one of `ios`, `ipados`, `android`. A request with an empty
+   `deviceId` or any other `platform` gets `error` with code `bad_request`,
+   and the host closes.
 4. The host asks the person (blocking, up to 120 s). It replies
    `{"type":"pairResult","approved":true,"macName":"…"}` and, when
    approved, stores the device (id, name, platform, static public key,
@@ -131,6 +136,12 @@ Host → client:
 | `revoked` | — | This device was removed; erase local data |
 | `error` | `code`, `message` | Protocol error; the host closes |
 | `ping` | — | Keep-alive |
+
+`error` codes in a session: `unsupported_version` (see Versioning),
+`unsupported_purpose` (a `purpose` the host doesn't know),
+`unexpected_message` (the first message wasn't `hello`) and `bad_message` (a
+message the host couldn't read). Pairing has one more, `bad_request` (see
+Pairing).
 
 Flow for `purpose: "sync"`:
 
@@ -197,7 +208,7 @@ keeps its recordings. A device removed from the Mac keeps recordings that hadn't
 arrived, because they exist nowhere else, and sends them if it pairs again. To
 keep a device from exhausting the Mac, at most 8 recordings arrive at once and a
 device holds at most 16 unfinished files there; past that, `uploadDone` is
-`deferred`.
+`deferred`. A recording whose `byteCount` is over 4 GiB is `rejected`.
 
 A removed device that completes a session handshake gets `revoked` and the
 connection closes. (A device whose key the host never knew is dropped during

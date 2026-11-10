@@ -80,9 +80,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -110,6 +114,7 @@ import me.dotenv.lokalbot.companion.ui.components.chipChrome
 import me.dotenv.lokalbot.companion.ui.components.groupedSurface
 import me.dotenv.lokalbot.companion.ui.format.Formats
 import me.dotenv.lokalbot.companion.ui.text.Citations
+import me.dotenv.lokalbot.companion.ui.text.SearchSnippet
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTokens
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
@@ -423,11 +428,23 @@ private fun Unreachable(turn: AskTurnState, actions: TurnActions) {
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(hit.title, style = LokalBotType.body.copy(fontWeight = FontWeight.Medium), maxLines = 1)
-                            Text(hit.snippet, style = LokalBotType.secondary, color = LokalBotTheme.supportingText, maxLines = 2)
+                            val snippet = remember(hit.snippet, palette.textPrimary) { highlighted(hit.snippet, palette.textPrimary) }
+                            Text(snippet, style = LokalBotType.secondary, color = LokalBotTheme.supportingText, maxLines = 2)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+/** A search snippet with the words the sync core marked as matches in semibold, as on iPhone. */
+private fun highlighted(snippet: String, matchColor: Color): AnnotatedString = buildAnnotatedString {
+    for (part in SearchSnippet.parts(snippet)) {
+        if (part.isMatch) {
+            withStyle(SpanStyle(color = matchColor, fontWeight = FontWeight.SemiBold)) { append(part.text) }
+        } else {
+            append(part.text)
         }
     }
 }

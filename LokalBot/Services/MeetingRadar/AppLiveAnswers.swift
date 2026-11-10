@@ -3,7 +3,7 @@ import Foundation
 /// Live answers' view of the app: what LokalBot remembers that bears on a
 /// question, Ask's meeting and screen tools, and the folders chosen in
 /// Settings. Everything is read on this Mac; only what the prompt and the
-/// tools return goes to Muse.
+/// tools return goes to the Think model.
 @MainActor
 final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
     private weak var app: AppState?

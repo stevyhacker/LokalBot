@@ -151,6 +151,15 @@ impl Models {
         self.active.lock().contains_key(id)
     }
 
+    /// Counts `id` as downloading without fetching anything, so a test can
+    /// hold a caller at "waiting for the model".
+    #[cfg(test)]
+    pub(crate) fn pretend_downloading(&self, id: &str) {
+        self.active
+            .lock()
+            .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
+    }
+
     /// How far the first running download among `ids` is. `Some(None)` is one
     /// that hasn't reported yet; `None` means nothing is downloading.
     pub fn download_progress(&self, ids: &[String]) -> Option<Option<f32>> {
@@ -158,8 +167,8 @@ impl Models {
         Some(self.progress.lock().get(id).copied())
     }
 
-    /// [`Self::ensure`], for a caller that must end with `ids` installed: this
-    /// also waits out a download someone else started, and fails with why not.
+    /// [`Self::ensure`] for a download the user asked for, so the llama.cpp
+    /// runtime is the one they chose. Fails with why `ids` are not installed.
     pub fn ensure_installed(&self, ids: &[String]) -> Result<()> {
         install_all(
             ids,
@@ -274,6 +283,8 @@ impl Models {
 
     /// Ensures the given ids are installed, downloading them when allowed.
     /// Returns `Ok(false)` when something is missing and downloads are not allowed.
+    /// A download someone else started is waited for, and `Ok(true)` means
+    /// every id is installed.
     pub fn ensure(&self, ids: &[String], allow_download: bool) -> Result<bool> {
         let missing = self.missing(ids);
         if missing.is_empty() {
@@ -284,9 +295,13 @@ impl Models {
         }
         // Nobody asked to set up CUDA here, so built-in models get what they
         // run on until they do.
-        for id in missing {
-            self.download_tracked(&id, false)?;
-        }
+        install_all(
+            &missing,
+            |id| self.is_downloading(id),
+            |id| self.is_installed(id),
+            |id| self.download_tracked(id, false),
+            || std::thread::sleep(std::time::Duration::from_millis(200)),
+        )?;
         Ok(true)
     }
 
@@ -351,9 +366,10 @@ impl Models {
     pub fn delete(&self, id: &str) {
         let paths = self.shared.library.paths().clone();
         let result = match Self::resolve(id) {
+            // With its digest sidecar: a sidecar left behind would vouch for
+            // whatever file is put at that path later.
             Some(ModelRef::Gguf(entry)) => {
-                std::fs::remove_file(lokalbot_ai::catalog::model_path(&paths, entry))
-                    .map_err(anyhow::Error::from)
+                lokalbot_ai::catalog::delete_model(&paths, entry).map_err(anyhow::Error::from)
             }
             Some(ModelRef::Speech(model)) => lokalbot_speech::models::uninstall(&paths, model),
             Some(ModelRef::Runtime) => self.shared.runtime.uninstall(),
@@ -707,6 +723,48 @@ mod tests {
 
         assert!(models.is_installed(RUNTIME_ID));
         assert_eq!(models.shared.runtime.installed_backend(), None);
+    }
+
+    /// Processing a meeting while Settings was downloading the same model
+    /// went on without it, and the job failed.
+    #[test]
+    #[cfg(unix)]
+    fn ensure_waits_for_a_download_someone_else_started() {
+        let (_dir, models, _older, _events) = updated_library("auto", "b11669-ubuntu-x64");
+        models.pretend_downloading(RUNTIME_ID);
+        // That download ends without installing anything.
+        let other = {
+            let models = models.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(300));
+                models.active.lock().remove(RUNTIME_ID);
+            })
+        };
+
+        assert!(models.ensure(&ids(&[RUNTIME_ID]), true).unwrap());
+
+        assert!(models.is_installed(RUNTIME_ID));
+        other.join().unwrap();
+    }
+
+    #[test]
+    fn deleting_a_model_removes_its_digest_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let library =
+            lokalbot_core::Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let shared = Shared::for_tests(library, Default::default(), |_| {});
+        let entry = lokalbot_ai::catalog::all_entries().next().unwrap();
+        let path = lokalbot_ai::catalog::model_path(shared.library.paths(), entry);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"GGUF").unwrap();
+        lokalbot_ai::download::write_sidecar(&path, entry.sha256).unwrap();
+        let sidecar = lokalbot_ai::download::sidecar_path(&path);
+        assert!(sidecar.exists());
+
+        Models::new(shared).delete(entry.id);
+
+        assert!(!path.exists());
+        assert!(!sidecar.exists());
     }
 
     #[test]

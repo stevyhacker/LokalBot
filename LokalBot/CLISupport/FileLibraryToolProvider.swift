@@ -309,7 +309,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     }
 
     /// Independent of meeting and screen access, and of Agent Mode
-    /// capabilities: only the Personal context marker and its projection.
+    /// capabilities: only the Files marker and its folder list.
     private func searchFiles(_ arguments: JSONValue?) -> ToolResult {
         guard filesGate.isAuthorized() else {
             return .error(.filesAccessDisabled, FilesSearchTool.disabledMessage)
@@ -439,7 +439,11 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                 .invalidArguments,
                 "get_meeting requires an \"id\" string (short id, full UUID, or \"latest\").")
         }
-        var options = parseInclude(arguments?["include"]?.stringValue)
+        var options: SessionFormatter.GetOptions
+        switch parseInclude(arguments?["include"]?.stringValue) {
+        case .success(let parsed): options = parsed
+        case .failure(let result): return result
+        }
         switch boundedInteger(arguments?["max_characters"], name: "max_characters", default: 40_000, maximum: 200_000) {
         case .success(let value): options.transcriptCharacters = value
         case .failure(let result): return result
@@ -479,14 +483,29 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         }
     }
 
-    private func parseInclude(_ include: String?) -> SessionFormatter.GetOptions {
-        guard let include, !include.isEmpty else { return .all }
+    private enum IncludeResult {
+        case success(SessionFormatter.GetOptions)
+        case failure(ToolResult)
+    }
+
+    /// As `get --include` and `list_meetings` do, a part it does not know is
+    /// refused: a misspelt one must not come back as a meeting without that
+    /// section.
+    private func parseInclude(_ include: String?) -> IncludeResult {
+        guard let include, !include.isEmpty else { return .success(.all) }
         let parts = Set(include.lowercased().split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) })
-        return .init(
+        let unknown = parts.subtracting(["metadata", "summary", "transcript", ""]).sorted()
+        guard unknown.isEmpty else {
+            return .failure(.error(
+                .invalidArguments,
+                "Unknown include value(s): \(unknown.joined(separator: ", ")). "
+                    + "get_meeting takes \"metadata\", \"summary\" and \"transcript\"."))
+        }
+        return .success(.init(
             includeSummary: parts.contains("summary"),
             includeTranscript: parts.contains("transcript"),
-            includeMetadata: parts.contains("metadata"))
+            includeMetadata: parts.contains("metadata")))
     }
 
     private func searchMeetings(_ arguments: JSONValue?) -> ToolResult {

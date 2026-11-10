@@ -201,7 +201,7 @@ pub fn tools() -> Vec<Value> {
         ),
         tool(
             personal::NAME,
-            "Get what the user shared about themselves (facts, preferences, goals, principles) that is relevant to a task, most relevant first. Only items the user marked as shared are returned. The user writes and shares them, under a separate permission, in the Mac app; the Windows and Linux app has neither, so there they come only from a library that came from a Mac.",
+            "Get what the user shared about themselves (facts, preferences, goals, principles) that is relevant to a task, most relevant first. Only items the user marked as shared are returned. Requires the separate personal-context permission.",
             json!({"type": "object", "properties": {
                 "task": {"type": "string", "description": "What you are helping with, in a sentence (for example \"Evaluate a job offer\")."},
                 "kinds": {"type": "array", "items": {"type": "string", "enum": ["fact", "preference", "goal", "principle"]}, "description": "Optional: only these kinds."},
@@ -477,6 +477,22 @@ impl Provider {
                     .split(',')
                     .map(|p| p.trim().to_string())
                     .collect();
+                // As `get --include` and list_meetings do: a misspelt part
+                // must not come back as a meeting without that section.
+                let unknown: std::collections::BTreeSet<&str> = parts
+                    .iter()
+                    .map(String::as_str)
+                    .filter(|p| !p.is_empty() && !["metadata", "summary", "transcript"].contains(p))
+                    .collect();
+                if !unknown.is_empty() {
+                    return Err(ToolResult::error(
+                        ToolErrorCode::InvalidArguments,
+                        &format!(
+                            "Unknown include value(s): {}. get_meeting takes \"metadata\", \"summary\" and \"transcript\".",
+                            unknown.into_iter().collect::<Vec<_>>().join(", ")
+                        ),
+                    ));
+                }
                 GetOptions {
                     include_summary: parts.iter().any(|p| p == "summary"),
                     include_transcript: parts.iter().any(|p| p == "transcript"),

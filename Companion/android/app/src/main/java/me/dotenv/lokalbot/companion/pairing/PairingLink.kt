@@ -7,6 +7,13 @@ import java.util.Base64
 import kotlinx.serialization.Serializable
 import me.dotenv.lokalbot.companion.data.model.RecordJson
 
+/**
+ * A code this long past its expiry on this device's clock still goes to the sync core, which
+ * allows the same (`EXPIRY_GRACE_SECS`): the computer's clock decides, so a phone that runs
+ * fast doesn't refuse a code the computer would take.
+ */
+private const val EXPIRY_GRACE_SECONDS = 120L
+
 /** The JSON inside `lokalbot://pair?d=…` (Companion/protocol/protocol.md, Pairing). */
 @Serializable
 data class PairingPayload(
@@ -19,7 +26,7 @@ data class PairingPayload(
     val psk: String,
     val exp: Long,
 ) {
-    fun isExpired(now: Instant): Boolean = now.epochSecond >= exp
+    fun isExpired(now: Instant): Boolean = now.epochSecond > exp + EXPIRY_GRACE_SECONDS
 
     /** The `k=` value the Mac advertises in its Bonjour TXT record. */
     val fingerprint: String get() = keyFingerprint(Base64.getUrlDecoder().decode(macKey))

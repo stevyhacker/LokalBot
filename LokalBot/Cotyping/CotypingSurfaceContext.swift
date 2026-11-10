@@ -69,12 +69,13 @@ struct CotypingSurfaceContext: Equatable, Sendable {
     let fieldPlaceholder: String?
 }
 
-/// AX-derived app/window metadata captured once per focused-field session.
+/// AX-derived app/window metadata for the focused field.
 ///
-/// CoTabby freezes this context while focus remains in one field: a browser tab
-/// title or placeholder that mutates while the user types must not rewrite the
-/// prompt head on every request, because that defeats llama KV prefix reuse and
-/// can look like a field switch to fallback identity checks.
+/// CoTabby freezes this context while focus remains in one field. LokalBot
+/// reads it again once it is a second old
+/// (`CotypingAXHelper.surfaceCaptureMaximumAgeSeconds`): chat apps reuse one
+/// composer across conversations, so a frozen title named the conversation
+/// left behind. A second still keeps one suggestion's reads on one capture.
 struct CotypingSurfaceCapture: Equatable, Sendable {
     var windowTitle: String?
     var fieldPlaceholder: String?
@@ -86,7 +87,9 @@ struct CotypingSurfaceCapture: Equatable, Sendable {
         urlString: nil)
 }
 
-/// Tiny, one-entry focus-session cache for expensive surface AX reads.
+/// The key for a field's surface capture. The app caches captures in
+/// `CotypingSurfaceCaptureSingleFlight` with a maximum age; the one-entry
+/// cache below, which never expires, is exercised only by tests.
 struct CotypingSurfaceCaptureCache: Sendable {
     private var key: String?
     private var captured: CotypingSurfaceCapture = .empty

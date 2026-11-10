@@ -115,12 +115,27 @@ actor MeetingSpeakerEvidenceStore {
         _ = try commit(saved, meeting: meeting, expectedRevision: saved.revision)
     }
 
+    /// Whether erasing would remove anything. An erased journal stays on disk
+    /// for its names, so the hourly pass meets it again on every run.
+    private func holdsExpirableEvidence(_ meeting: Meeting) throws -> Bool {
+        let files = try FileManager.default.contentsOfDirectory(atPath: evidenceFolder(meeting).path)
+        if files.contains(where: { $0 != "identity.sealed" }) { return true }
+        let saved = try state(meeting: meeting)
+        return !saved.suggestions.isEmpty || !saved.voiceSamples.isEmpty
+            || saved.microphoneSampleDiagnostics != nil
+            || !saved.timeline.isEmpty || !(saved.acousticTimeline ?? []).isEmpty
+            || saved.assignments.contains { $0.match != nil || $0.supportingMatches != nil }
+    }
+
     func expire(meetings: [Meeting], retentionDays: Int) throws {
         let cutoff = Date().addingTimeInterval(-Double(max(0, retentionDays)) * 86_400)
         for meeting in meetings {
             let folder = evidenceFolder(meeting)
             guard FileManager.default.fileExists(atPath: folder.path) else { continue }
             if meeting.startedAt < cutoff {
+                // Erasing rewrites the journal and advances its revisions,
+                // which would fail a correction made at the same moment.
+                guard try holdsExpirableEvidence(meeting) else { continue }
                 try eraseEvidence(meeting: meeting)
             } else {
                 // Recent voice samples stay available for remembering.

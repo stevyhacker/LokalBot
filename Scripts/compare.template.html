@@ -37,17 +37,7 @@
     <div class="bg-glow bg-glow--a"></div>
     <div class="bg-glow bg-glow--b"></div>
     <div class="bg-glow bg-glow--c"></div>
-    <div class="bg-refract"></div>
-    <div class="bg-grain"></div>
   </div>
-
-  <svg class="glass-defs" aria-hidden="true" focusable="false" width="0" height="0">
-    <filter id="liquidGlass" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
-      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.015" numOctaves="2" seed="7" result="noise" />
-      <feGaussianBlur in="noise" stdDeviation="2.4" result="soft" />
-      <feDisplacementMap in="SourceGraphic" in2="soft" scale="26" xChannelSelector="R" yChannelSelector="G" />
-    </filter>
-  </svg>
 
   <!-- ───────────────────────── NAV ───────────────────────── -->
   <header class="nav" id="top">

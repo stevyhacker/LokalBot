@@ -32,7 +32,7 @@ struct ActionsCommand: AsyncParsableCommand {
     var table: Bool = false
 
     func run() async throws {
-        try AgentAccessGate().requireAuthorized()
+        try AgentAccessGate().requireCommandAccess()
         guard let statusFilter = ActionStatusFilter(rawValue: status.lowercased()) else {
             throw ValidationError("--status must be one of all, active, open, deferred, or done.")
         }

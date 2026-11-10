@@ -28,7 +28,7 @@
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs MacWhisper","description":"Compare MacWhisper's file transcription and dictation with LokalBot's free, open-source Mac app for bot-free meeting notes, dictation, and day recall.","datePublished":"2026-09-24","dateModified":"2026-11-03","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-macwhisper","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","applicationCategory":"BusinessApplication","operatingSystem":"macOS 15+, Windows 10+, Linux"},{"@type":"SoftwareApplication","name":"MacWhisper"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs MacWhisper","item":"https://www.lokalbot.com/lokalbot-vs-macwhisper"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-macwhisper#faq","mainEntity":[{"@type":"Question","name":"Can LokalBot transcribe an existing audio file?","acceptedAnswer":{"@type":"Answer","text":"Not today. LokalBot transcribes the meetings and dictation it records. For files you already have, MacWhisper is the better tool — and the two apps run fine side by side."}},{"@type":"Question","name":"Which one is more private?","acceptedAnswer":{"@type":"Answer","text":"Both can transcribe entirely on your Mac. The difference is in what surrounds it: LokalBot's summaries run on a built-in local model by default, and its source code is public under GPLv3, so you can check what it does with your audio."}},{"@type":"Question","name":"Do they use the same speech models?","acceptedAnswer":{"@type":"Answer","text":"Partly. Both can run Whisper-family models on your Mac. LokalBot defaults to Qwen3-ASR and also offers Parakeet and Granite Speech; the benchmarks page compares several of them on the same test set."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs MacWhisper","description":"Compare MacWhisper's file transcription and dictation with LokalBot's free, open-source Mac app for bot-free meeting notes, dictation, and day recall.","datePublished":"2026-09-24","dateModified":"2026-11-10","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-macwhisper","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"MacWhisper"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs MacWhisper","item":"https://www.lokalbot.com/lokalbot-vs-macwhisper"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-macwhisper#faq","mainEntity":[{"@type":"Question","name":"Can LokalBot transcribe an existing audio file?","acceptedAnswer":{"@type":"Answer","text":"Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded. It has no subtitle export; for subtitle files or batch transcription, MacWhisper is the better tool — and the two apps run fine side by side."}},{"@type":"Question","name":"Which one is more private?","acceptedAnswer":{"@type":"Answer","text":"Both can transcribe entirely on your Mac. The difference is in what surrounds it: LokalBot's summaries run on a built-in local model by default, and its source code is public under GPLv3, so you can check what it does with your audio."}},{"@type":"Question","name":"Do they use the same speech models?","acceptedAnswer":{"@type":"Answer","text":"Partly. Both can run Whisper-family models on your Mac. LokalBot defaults to Qwen3-ASR and also offers Parakeet and Granite Speech; the benchmarks page compares several of them on the same test set."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -37,17 +37,7 @@
     <div class="bg-glow bg-glow--a"></div>
     <div class="bg-glow bg-glow--b"></div>
     <div class="bg-glow bg-glow--c"></div>
-    <div class="bg-refract"></div>
-    <div class="bg-grain"></div>
   </div>
-
-  <svg class="glass-defs" aria-hidden="true" focusable="false" width="0" height="0">
-    <filter id="liquidGlass" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
-      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.015" numOctaves="2" seed="7" result="noise" />
-      <feGaussianBlur in="noise" stdDeviation="2.4" result="soft" />
-      <feDisplacementMap in="SourceGraphic" in2="soft" scale="26" xChannelSelector="R" yChannelSelector="G" />
-    </filter>
-  </svg>
 
   <!-- ───────────────────────── NAV ───────────────────────── -->
   <header class="nav" id="top">
@@ -196,7 +186,7 @@
       <div class="faq__list reveal">
         <details class="qa">
           <summary>Can LokalBot transcribe an existing audio file?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Not today. LokalBot transcribes the meetings and dictation it records. For files you already have, MacWhisper is the better tool — and the two apps run fine side by side.</p>
+          <p>Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded. It has no subtitle export; for subtitle files or batch transcription, MacWhisper is the better tool — and the two apps run fine side by side.</p>
         </details>
         <details class="qa">
           <summary>Which one is more private?<i class="ph ph-plus" aria-hidden="true"></i></summary>

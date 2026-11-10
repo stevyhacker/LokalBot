@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Records the Claude Code scene in tmux with asciinema. Usage: record.py <name> <cols> <rows> <prompt>"""
-import subprocess, sys, time, os, random, re
+import subprocess, sys, time, os, random
 name, cols, rows, prompt = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 W = os.path.expanduser("~/work/landing-demos")
 S = f"landing-{name}"

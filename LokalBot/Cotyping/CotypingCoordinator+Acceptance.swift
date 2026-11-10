@@ -47,6 +47,7 @@ extension CotypingCoordinator {
                       deletingCharacters: plan.deletingCharacters,
                       with: plan.replacementText) else {
                 clearSuggestion()
+                state = .idle
                 return false
             }
             if case .correction = current.kind {
@@ -64,10 +65,15 @@ extension CotypingCoordinator {
             liveField: live.field,
             pendingInsertionConsumedCount: pendingInsertionConsumedCount) else {
             clearSuggestion()
+            state = .idle
             return false
         }
         let remaining = current.remainingText
-        guard !remaining.isEmpty else { clearSuggestion(); return false }
+        guard !remaining.isEmpty else {
+            clearSuggestion()
+            state = .idle
+            return false
+        }
 
         let settings = settingsProvider()
         let liveField = live.field ?? current.field

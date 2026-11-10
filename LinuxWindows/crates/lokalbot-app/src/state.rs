@@ -143,8 +143,6 @@ pub struct AskRequest {
     pub day: Option<chrono::NaiveDate>,
 }
 
-/// A prompt to put into Agent's composer (`AgentLaunchContext`). It is only a
-/// draft: nothing runs until the user sends it there.
 /// Where a meeting opened from evidence goes Back to (`evidenceReturnSection`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EvidenceReturn {
@@ -190,6 +188,10 @@ pub struct AppData {
     /// Visible meetings, newest first.
     pub meetings: Vec<Meeting>,
     pub meetings_loaded: bool,
+    /// How many [`Self::reload`]s have started, and the latest whose list was
+    /// taken: one that started earlier and finished later is out of date.
+    reloads_started: u64,
+    reload_applied: u64,
     /// Bumped whenever library content changes, so pages can reload lazily.
     pub revision: u64,
     pub section: Section,
@@ -463,6 +465,8 @@ impl AppData {
             settings,
             meetings: Vec::new(),
             meetings_loaded: false,
+            reloads_started: 0,
+            reload_applied: 0,
             revision: 0,
             section: Section::Today,
             settings_category: SettingsCategory::Overview,
@@ -713,11 +717,19 @@ impl AppData {
     /// Reloads the meeting list on a background thread.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         let library = self.library.clone();
+        self.reloads_started += 1;
+        let reload = self.reloads_started;
         cx.spawn(async move |this, cx| {
             let loaded = cx
                 .background_spawn(async move { library.list_meetings() })
                 .await;
             let _ = this.update(cx, |this, cx| {
+                // Reads overlap; a slower, older one would bring back a
+                // meeting that a newer one no longer lists.
+                if reload <= this.reload_applied {
+                    return;
+                }
+                this.reload_applied = reload;
                 match loaded {
                     Ok(meetings) => this.meetings = meetings,
                     Err(err) => this.show_error(
@@ -907,6 +919,15 @@ impl AppData {
     }
 
     pub fn delete_meeting(&mut self, meeting_id: Uuid, cx: &mut Context<Self>) {
+        // The recorder is still writing into the folder of the meeting being
+        // recorded; it can be deleted once the recording has stopped.
+        if self
+            .recording
+            .meeting()
+            .is_some_and(|live| live.id == meeting_id)
+        {
+            return;
+        }
         let Some(meeting) = self.meeting(meeting_id).cloned() else {
             return;
         };

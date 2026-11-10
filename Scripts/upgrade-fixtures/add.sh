@@ -44,4 +44,4 @@ manifest = json.load(open(sys.argv[1]))
 if manifest.get("version") != sys.argv[2] or not manifest.get("note", "").startswith("Synthetic library"):
     sys.exit(f"{sys.argv[1]} is not the synthetic {sys.argv[2]} fixture")
 PY
-echo "Added $DEST from run $RUN. Commit it with the release candidate."
+echo "Added $DEST from run $RUN. Commit it on its own, before the release-metadata commit."

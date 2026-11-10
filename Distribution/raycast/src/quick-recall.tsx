@@ -63,9 +63,11 @@ export default function Command(
       ) : hits !== null && hits.length === 0 ? (
         <List.EmptyView title={`No matches for “${query}”`} />
       ) : (
-        hits?.map((hit) => (
+        hits?.map((hit, index) => (
           <List.Item
-            key={`${hit.meeting_id}-${hit.match_kind}`}
+            // One meeting can match several times with the same kind
+            // (transcript lines), so the position makes the key unique.
+            key={`${hit.meeting_id}-${hit.match_kind}-${index}`}
             title={hit.meeting_title}
             subtitle={cleanSnippet(hit.snippet)}
             accessories={[{ tag: hit.match_kind }]}

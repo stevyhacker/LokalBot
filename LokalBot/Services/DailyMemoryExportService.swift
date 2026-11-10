@@ -300,12 +300,7 @@ struct DailyMemoryExportService {
     }
 
     private func time(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
+        calendar.clockStamp(date)
     }
 
     private func duration(_ seconds: TimeInterval) -> String {

@@ -82,6 +82,15 @@ struct AgentAccessGate {
         guard isAuthorized(environment: environment) else { throw AgentAccessError.disabled }
     }
 
+    /// `requireAuthorized` for a CLI command: the refusal carries its code.
+    func requireCommandAccess(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) throws {
+        guard isAuthorized(environment: environment) else {
+            throw CodedCommandError(code: .accessDisabled, message: FileLibraryToolProvider.accessDisabledMessage)
+        }
+    }
+
     func enable() throws {
         try FileManager.default.createDirectory(
             at: controlDirectory,

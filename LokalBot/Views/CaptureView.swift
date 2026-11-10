@@ -149,8 +149,6 @@ final class CaptureModel: ObservableObject {
         }
     }
 
-    func waitForOverview() async { await overviewTask?.value }
-
     /// The selected day's meetings, live recording included, for the track
     /// and the overview stats.
     func meetings(in app: AppState) -> [Meeting] {
@@ -249,27 +247,6 @@ struct DayStatRow: View {
             }
             Spacer()
         }
-    }
-}
-
-/// Timeline favors human-scale work summaries over capture-volume metrics.
-private struct TimelineSessionStatRow: View {
-    let activeSeconds: TimeInterval
-    let sessionCount: Int
-    let meetingCount: Int
-
-    var body: some View {
-        HStack(spacing: 8) {
-            StatTile(icon: "clock", value: CaptureStyle.hm(activeSeconds), label: "tracked")
-            StatTile(icon: "rectangle.stack", value: "\(sessionCount)",
-                     label: sessionCount == 1 ? "session" : "sessions")
-            if meetingCount > 0 {
-                StatTile(icon: "waveform", value: "\(meetingCount)",
-                         label: meetingCount == 1 ? "meeting" : "meetings")
-            }
-            Spacer()
-        }
-        .accessibilityIdentifier("timeline.sessionStats")
     }
 }
 
@@ -534,11 +511,6 @@ private struct TimelineWorkspaceHeader: View {
         if model.selection != nil { return "Activity" }
         if model.showsRawCapture { return "Raw capture" }
         return "Details"
-    }
-
-    private var digestUpdatedHelp: String {
-        guard let updatedAt = model.digestUpdatedAt else { return "Day digest actions" }
-        return "Updated \(updatedAt.formatted(date: .abbreviated, time: .shortened))"
     }
 
     private var daySelection: Binding<Date> {

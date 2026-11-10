@@ -53,6 +53,24 @@ fn commands_honor_the_access_gate() {
     let output = cli(&root, &["list", "--table"]);
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("External agent access is off"));
+    // Each source that is off answers with the code the skill tells agents
+    // to look for, as its MCP tool does.
+    for (command, code) in [
+        (&["list"][..], "access_disabled"),
+        (&["search-files", "invoice"][..], "files_access_disabled"),
+        (
+            &["personal-context", "--task", "Plan a trip"][..],
+            "personal_context_disabled",
+        ),
+    ] {
+        let output = cli(&root, command);
+        assert_eq!(output.status.code(), Some(1), "{command:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.starts_with(&format!("Error: [{code}] ")),
+            "{command:?}: {stderr}"
+        );
+    }
     let brief = cli(&root, &["brief"]);
     assert!(brief.status.success());
     assert!(stdout(&brief).contains("- Meetings: off."));
@@ -160,7 +178,9 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
     .briefing();
 
     assert!(
-        brief.contains(". Commands: search, get, list, actions, and people.\n"),
+        brief.contains(
+            ". Commands: search, get, list, actions, people, and ask while the app runs.\n"
+        ),
         "{brief}"
     );
     assert!(
@@ -201,6 +221,40 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
     assert!(differing[0].starts_with("- Meetings: on."));
     assert!(differing[1].starts_with("- Screen memory: on,"));
     assert!(differing[2].starts_with("For more"));
+}
+
+/// `has_summary` and `has_transcript` come from the files being there, not
+/// from reading them, and say the same with and without `--include summary`.
+#[test]
+fn list_flags_say_which_files_a_meeting_has() {
+    let (_dir, root) = seeded();
+    let paths = LibraryPaths::new(&root);
+    access::set_meetings_access(&paths, true).unwrap();
+    let session = lokalbot_cli::session::Session::open(paths).unwrap();
+    let mut meetings = session.meetings().unwrap();
+    meetings.truncate(lokalbot_cli::session::DEFAULT_SUMMARY_LIST_COUNT);
+    let has = |index: usize, name: &str| session.folder(&meetings[index]).join(name).is_file();
+    let complete: Vec<usize> = (0..meetings.len())
+        .filter(|&i| has(i, "summary.md") && has(i, "transcript.md"))
+        .collect();
+    assert!(complete.len() >= 2, "the demo library has full meetings");
+    std::fs::remove_file(session.folder(&meetings[complete[0]]).join("summary.md")).unwrap();
+    std::fs::remove_file(session.folder(&meetings[complete[1]]).join("transcript.md")).unwrap();
+
+    for include_summary in [false, true] {
+        let rows: serde_json::Value = serde_json::from_str(&lokalbot_cli::session::list_json(
+            &session,
+            &meetings,
+            include_summary,
+        ))
+        .unwrap();
+        for (index, row) in rows.as_array().unwrap().iter().enumerate() {
+            assert_eq!(row["has_summary"], has(index, "summary.md"), "{row}");
+            assert_eq!(row["has_transcript"], has(index, "transcript.md"), "{row}");
+        }
+        assert_eq!(rows[complete[0]]["has_summary"], false);
+        assert_eq!(rows[complete[1]]["has_transcript"], false);
+    }
 }
 
 #[test]
@@ -288,6 +342,34 @@ fn list_includes_summaries_within_one_budget() {
             .contains("--limit must be between 1 and 50 with --include summary.")
     );
     assert!(cli(&root, &["list", "--limit", "51"]).status.success());
+}
+
+/// `get_meeting {"include": "summary,transcripts"}` used to come back as the
+/// summary alone, with nothing saying the transcript was not included.
+#[test]
+fn mcp_get_meeting_refuses_include_values_it_does_not_know() {
+    let (_dir, root) = seeded();
+    let paths = LibraryPaths::new(&root);
+    access::set_meetings_access(&paths, true).unwrap();
+    let tools = lokalbot_cli::mcp::Provider {
+        session: lokalbot_cli::session::Session::open(paths).unwrap(),
+        now: None,
+    };
+    let get = |include: &str| {
+        tools.call(
+            "get_meeting",
+            &serde_json::json!({"id": "latest", "include": include}),
+        )
+    };
+    let refused = get("summary, Transcripts,notes");
+    assert!(refused.is_error);
+    assert_eq!(
+        refused.text,
+        "[invalid_arguments] Unknown include value(s): notes, transcripts. get_meeting takes \"metadata\", \"summary\" and \"transcript\"."
+    );
+    let known = get("Summary, transcript");
+    assert!(!known.is_error, "{}", known.text);
+    assert!(!known.text.is_empty());
 }
 
 #[test]

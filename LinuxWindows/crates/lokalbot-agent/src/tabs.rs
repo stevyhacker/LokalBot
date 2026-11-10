@@ -18,7 +18,6 @@ pub const MAX_LIVE_SESSIONS: usize = 4;
 
 pub const UNAVAILABLE: &str =
     "That saved task is no longer available. Refresh the task list and try again.";
-pub const ALREADY_OPEN: &str = "That task is already open.";
 pub const MAX_LIVE_MESSAGE: &str = "Four agents are already working. Stop one before starting another task. You can still browse every saved task.";
 
 pub struct Tab {
@@ -202,14 +201,6 @@ impl TaskList {
     }
 
     // -------------------------------------------------------------- edits
-
-    /// The selected task, or a new one when it is archived.
-    pub fn ensure_selected(&mut self) -> Uuid {
-        match self.selected() {
-            Some(tab) if !tab.record.is_archived => tab.id,
-            _ => self.add_session(),
-        }
-    }
 
     pub fn add_session(&mut self) -> Uuid {
         let id = self.push_new_tab();

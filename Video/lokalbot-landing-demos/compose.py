@@ -27,10 +27,9 @@ import math
 import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).resolve().parent
 CANVAS = {"wide": (1920, 1200), "tall": (1080, 1350)}

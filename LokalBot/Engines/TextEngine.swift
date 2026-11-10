@@ -711,7 +711,10 @@ struct OpenAICompatibleEngine: TextEngine {
                 await onPartial(result)
                 return result
             }
-            throw TextEngineError.fromHTTPResponse(response as? HTTPURLResponse, data: Data())
+            // The provider's reason is in the body ("insufficient credits").
+            var body = Data()
+            for try await byte in bytes where body.count < 65_536 { body.append(byte) }
+            throw TextEngineError.fromHTTPResponse(response as? HTTPURLResponse, data: body)
         }
         var content = "", nonStreaming = ""
         var terminal = false

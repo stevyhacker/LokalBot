@@ -180,10 +180,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
 
     private nonisolated static var appSupport: URL { AppDirectories.applicationSupport }
 
-    nonisolated static func modelRoot() -> URL {
-        modelRoot(appSupport: appSupport)
-    }
-
     nonisolated static func modelRoot(appSupport: URL) -> URL {
         modelRoot(
             configuration: .defaultModel,
@@ -203,10 +199,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         return base.appendingPathComponent("4.1-2b", isDirectory: true)
     }
 
-    nonisolated static func modelURL() -> URL {
-        modelURL(appSupport: appSupport)
-    }
-
     nonisolated static func modelURL(appSupport: URL) -> URL {
         modelURL(
             configuration: .defaultModel,
@@ -219,10 +211,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
     ) -> URL {
         modelRoot(configuration: configuration, appSupport: appSupport)
             .appendingPathComponent(configuration.localModelFileName)
-    }
-
-    nonisolated static func projectorURL() -> URL {
-        projectorURL(appSupport: appSupport)
     }
 
     nonisolated static func projectorURL(appSupport: URL) -> URL {

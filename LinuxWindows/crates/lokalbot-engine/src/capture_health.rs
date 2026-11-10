@@ -102,15 +102,8 @@ impl CaptureMonitor {
         self.report.microphone_dropped_buffers = health.mic_dropped;
         self.report.system_dropped_buffers = health.system_dropped;
         let changed = self.report.observe(&messages, elapsed);
-        if (changed
-            || self
-                .last_report
-                .is_none_or(|last| now.duration_since(last) >= REPORT_INTERVAL))
-            && !self.save()
-        {
+        if !self.save_when_due(changed, now) {
             messages.push(HEALTH_NOT_SAVED_WARNING.to_string());
-        } else {
-            self.last_report = Some(now);
         }
         let notify = if elapsed >= 5.0 {
             self.notifications.due(&messages, elapsed)
@@ -122,6 +115,24 @@ impl CaptureMonitor {
         }
         self.shown = messages.clone();
         Some((messages, notify))
+    }
+
+    /// Saves the report when it changed, and otherwise every `REPORT_INTERVAL`
+    /// since the last save. False when a due save failed; the next check
+    /// tries again.
+    fn save_when_due(&mut self, changed: bool, now: Instant) -> bool {
+        let due = changed
+            || self
+                .last_report
+                .is_none_or(|last| now.duration_since(last) >= REPORT_INTERVAL);
+        if !due {
+            return true;
+        }
+        if !self.save() {
+            return false;
+        }
+        self.last_report = Some(now);
+        true
     }
 
     fn save(&self) -> bool {
@@ -142,5 +153,36 @@ impl CaptureMonitor {
         }
         self.report.completed_at = Some(chrono::Utc::now());
         self.save();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_unchanged_report_is_saved_again_every_interval() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join(RecordingHealthReport::FILE_NAME);
+        let mut monitor =
+            CaptureMonitor::new(dir.path().to_path_buf(), dir.path().to_path_buf(), false);
+        let start = Instant::now();
+
+        assert!(monitor.save_when_due(false, start), "the first check saves");
+        assert!(file.exists());
+        std::fs::remove_file(&file).unwrap();
+
+        // Checks run once a second. They used to move the last-saved time
+        // forward each time, so the interval never passed.
+        for second in 1..REPORT_INTERVAL.as_secs() {
+            assert!(monitor.save_when_due(false, start + Duration::from_secs(second)));
+            assert!(!file.exists(), "saved early, after {second} s");
+        }
+        assert!(monitor.save_when_due(false, start + REPORT_INTERVAL));
+        assert!(file.exists(), "saved once the interval has passed");
+
+        std::fs::remove_file(&file).unwrap();
+        assert!(monitor.save_when_due(true, start + REPORT_INTERVAL + Duration::from_secs(1)));
+        assert!(file.exists(), "a change saves at once");
     }
 }

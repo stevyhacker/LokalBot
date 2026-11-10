@@ -30,7 +30,7 @@ Describe the bug in one or two sentences.
 - OS version (on Linux: distribution, desktop, and X11 or Wayland):
 - Mac model, or PC CPU and GPU:
 - RAM:
-- Installed with: DMG / Homebrew / Windows zip / Linux archive and install.sh / built from source
+- Installed with: DMG / Homebrew / Windows installer / Windows zip / Linux archive and install.sh / .deb / .rpm / Arch package / built from source
 - Audio source: microphone / system audio / both
 - Transcription model:
 - Think (summaries) model: built-in / Ollama / OpenAI-compatible server / ChatGPT or Claude plan / Apple Intelligence

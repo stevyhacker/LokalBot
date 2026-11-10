@@ -157,8 +157,7 @@ enum BrowserMeetingSession {
         hostPresent: Bool,
         observationLostAt: Date?,
         now: Date,
-        grace: TimeInterval,
-        hostReconnectGrace _: TimeInterval? = nil
+        grace: TimeInterval
     ) -> LifecycleDecision {
         // A missing host/document or unreadable controls cannot prove an end.
         // Keep the authorized capture and its binding alive until positive end
@@ -213,11 +212,11 @@ enum BrowserMeetingSession {
         }
 
         mutating func observe(_ state: State?, hostPresent: Bool, now: Date,
-                              grace: TimeInterval, hostReconnectGrace: TimeInterval) -> Event {
+                              grace: TimeInterval) -> Event {
             let decision = BrowserMeetingSession.lifecycleDecision(
                 snapshotState: state, hostPresent: hostPresent,
                 observationLostAt: state == .gone ? (closedAt ?? now) : lostAt, now: now,
-                grace: grace, hostReconnectGrace: hostReconnectGrace)
+                grace: grace)
             switch decision {
             case .inCall:
                 let since = suspendedAt ?? lostAt

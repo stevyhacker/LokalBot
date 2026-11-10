@@ -172,23 +172,31 @@ fn fallback(text: &str) -> anyhow::Result<InsertOutcome> {
 fn paste(text: &str) -> anyhow::Result<InsertOutcome> {
     let combo = paste_combo(crate::activity::focused_app_hint().as_deref());
     let saved = save_clipboard();
-    copy_to_clipboard(text)?;
+    // The text only passes through the clipboard, so it is marked as
+    // generated, as on macOS: clipboard history and cloud sync skip it.
+    set_generated_text(text.to_string())?;
     #[cfg(target_os = "linux")]
     let saved_primary = (combo == PasteCombo::ShiftInsert).then(|| primary::replace(text));
-    match keys::send_paste(combo) {
-        Ok(true) => {}
-        Ok(false) => return Ok(InsertOutcome::CopiedToClipboard),
+    let sent = match keys::send_paste(combo) {
+        Ok(sent) => sent,
         Err(err) => {
             log::warn!("paste keystroke failed, leaving the text on the clipboard: {err:#}");
-            return Ok(InsertOutcome::CopiedToClipboard);
+            false
         }
+    };
+    if !sent {
+        // Left there for the user to paste: an ordinary copy from here on.
+        if let Err(err) = copy_to_clipboard(text) {
+            log::debug!("copying the text again failed: {err:#}");
+        }
+        return Ok(InsertOutcome::CopiedToClipboard);
     }
     std::thread::sleep(RESTORE_AFTER);
     // Restore only when the clipboard still holds our text: if the user or
     // the app copied something meanwhile, that wins.
     if with_clipboard(|c| c.get_text()).ok().as_deref() == Some(text) {
         let restored = match saved {
-            Saved::Text(previous) => with_clipboard(|c| c.set_text(previous)),
+            Saved::Text(previous) => set_generated_text(previous),
             Saved::Image(image) => with_clipboard(|c| c.set_image(image)),
             Saved::Nothing => Ok(()),
         };

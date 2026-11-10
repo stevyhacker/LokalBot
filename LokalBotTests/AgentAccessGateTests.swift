@@ -20,6 +20,30 @@ final class AgentAccessGateTests: XCTestCase {
         XCTAssertFalse(gate.isEnabled)
     }
 
+    /// The skill and AGENT_SETUP.md tell agents to look for these codes, and
+    /// the Windows and Linux CLI prints the same ones.
+    func testACommandRefusedForASwitchThatIsOffNamesItsCode() throws {
+        let (gate, root) = makeGate()
+        defer { try? FileManager.default.removeItem(at: root) }
+        XCTAssertThrowsError(try gate.requireCommandAccess(environment: [:])) { error in
+            XCTAssertEqual(error.localizedDescription,
+                           "[access_disabled] " + FileLibraryToolProvider.accessDisabledMessage)
+        }
+        try gate.enable()
+        XCTAssertNoThrow(try gate.requireCommandAccess(environment: [:]))
+
+        XCTAssertEqual(FilesSearchTool.Failure.disabled.commandError?.localizedDescription,
+                       "[files_access_disabled] " + FilesSearchTool.disabledMessage)
+        XCTAssertEqual(FilesSearchTool.Failure.unavailable.commandError?.localizedDescription,
+                       "[files_unavailable] " + FilesSearchTool.unavailableMessage)
+        XCTAssertNil(FilesSearchTool.Failure.invalid("bad").commandError)
+        XCTAssertEqual(PersonalContextTool.Failure.disabled.commandError?.localizedDescription,
+                       "[personal_context_disabled] " + PersonalContextTool.disabledMessage)
+        XCTAssertEqual(PersonalContextTool.Failure.unavailable.commandError?.localizedDescription,
+                       "[personal_context_unavailable] " + PersonalContextTool.unavailableMessage)
+        XCTAssertNil(PersonalContextTool.Failure.invalid("bad").commandError)
+    }
+
     func testWakeTouchConsumeCycle() throws {
         let (gate, root) = makeGate()
         defer { try? FileManager.default.removeItem(at: root) }

@@ -157,28 +157,32 @@ struct AppSettings: Codable, Equatable {
     /// Offers "Looks done?" on open actions when later retained screen text
     /// shows a matching completion (sent, merged, submitted). Never auto-completes.
     var suggestActionCompletion: Bool = true
-    /// Meta Model API models for Live Radar (while recording) and
-    /// Follow-through (after a meeting). Sending also needs a key and the
-    /// api.meta.ai origin in `approvedRemoteInferenceOrigins`.
-    var museRadarModel: String = MetaModelAPI.museSpark.id
+    /// Off by default: offers Live Radar while a meeting records. It reads
+    /// the live transcript with the Think model, under that model's own local
+    /// or remote setting, and only after Start Radar is pressed. A library
+    /// that had approved Meta Muse, which the radar used before, keeps it on.
+    var liveRadarEnabled: Bool = false
+    /// The Meta Model API model for Follow-through (after a meeting). Sending
+    /// also needs a key and the api.meta.ai origin in
+    /// `approvedRemoteInferenceOrigins`.
     var museFollowThroughModel: String = MetaModelAPI.museWonder.id
     /// Off by default: the live transcript preview streams meeting audio to
     /// Muse Voice Transcribe for text within a second of each turn, instead
     /// of transcribing chunks on this Mac. Also needs the api.meta.ai approval.
     var museLiveTextEnabled: Bool = false
-    /// Off by default: when Live Radar catches a question, crops of earlier
-    /// screen captures that mention it are sent to Muse Spark for the answer.
+    /// Off by default: when Live Radar catches a question, the text of crops
+    /// of earlier screen captures that mention it goes to the Think model for
+    /// the answer.
     var museScreenAnswersEnabled: Bool = false
     /// The floating Live Radar panel opens when a recording starts (once
-    /// Meta Muse is set up) and when the radar starts.
+    /// Live Radar is on) and when the radar starts.
     var liveRadarPanelEnabled: Bool = true
     /// Leaves the panel out of screen sharing and screen recordings.
     var liveRadarPanelHiddenFromCapture: Bool = true
-    /// Off by default: when Live Radar catches a question or problem, Muse
-    /// looks for the answer in the person's work, memory first, then their
-    /// meetings, screen text, and `liveAnswerFolders`.
+    /// Off by default: when Live Radar catches a question or problem, the
+    /// Think model looks for the answer in the person's work, memory first,
+    /// then their meetings, screen text, and `liveAnswerFolders`.
     var liveAnswersEnabled: Bool = false
-    var liveAnswersModel: String = MetaModelAPI.museWonder.id
     /// Folders live answers may read: documents anywhere in them, and code,
     /// commits, pull requests, and issues in git repositories.
     var liveAnswerFolders: [String] = []
@@ -988,14 +992,13 @@ struct AppSettings: Codable, Equatable {
         case transcriptionPrompt
         case autoTranscriptionVocabulary
         case suggestActionCompletion
-        case museRadarModel
+        case liveRadarEnabled
         case museFollowThroughModel
         case museLiveTextEnabled
         case museScreenAnswersEnabled
         case liveRadarPanelEnabled
         case liveRadarPanelHiddenFromCapture
         case liveAnswersEnabled
-        case liveAnswersModel
         case liveAnswerFolders
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
@@ -1219,14 +1222,13 @@ struct AppSettings: Codable, Equatable {
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
-        try c.encode(museRadarModel, forKey: .museRadarModel)
+        try c.encode(liveRadarEnabled, forKey: .liveRadarEnabled)
         try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
         try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
         try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
         try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
         try c.encode(liveRadarPanelHiddenFromCapture, forKey: .liveRadarPanelHiddenFromCapture)
         try c.encode(liveAnswersEnabled, forKey: .liveAnswersEnabled)
-        try c.encode(liveAnswersModel, forKey: .liveAnswersModel)
         try c.encode(liveAnswerFolders, forKey: .liveAnswerFolders)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
@@ -1430,14 +1432,12 @@ struct AppSettings: Codable, Equatable {
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
-        museRadarModel = decode(.museRadarModel, defaults.museRadarModel)
         museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
         museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
         museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
         liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)
         liveRadarPanelHiddenFromCapture = decode(.liveRadarPanelHiddenFromCapture, defaults.liveRadarPanelHiddenFromCapture)
         liveAnswersEnabled = decode(.liveAnswersEnabled, defaults.liveAnswersEnabled)
-        liveAnswersModel = decode(.liveAnswersModel, defaults.liveAnswersModel)
         liveAnswerFolders = decode(.liveAnswerFolders, defaults.liveAnswerFolders)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
@@ -1562,6 +1562,11 @@ struct AppSettings: Codable, Equatable {
         modelDownloadSource = decode(.modelDownloadSource, defaults.modelDownloadSource)
         approvedRemoteInferenceOrigins = decode(
             .approvedRemoteInferenceOrigins, defaults.approvedRemoteInferenceOrigins)
+        // Live Radar used to be offered once Meta Muse was approved. Settings
+        // saved before it had its own switch keep it on with that approval.
+        liveRadarEnabled = decode(
+            .liveRadarEnabled,
+            InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins))
         chatGPTPlanModel = decode(.chatGPTPlanModel, defaults.chatGPTPlanModel)
         claudePlanModel = decode(.claudePlanModel, defaults.claudePlanModel)
         chatGPTPlanNoticeAcknowledged = decode(

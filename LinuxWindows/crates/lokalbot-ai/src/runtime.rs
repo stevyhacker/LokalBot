@@ -2105,7 +2105,7 @@ fn directory_bytes(path: &Path) -> u64 {
         .sum()
 }
 
-/// The three role servers and the runtime they share. Cheap to clone and
+/// The four role servers and the runtime they share. Cheap to clone and
 /// `Send + Sync`; every clone controls the same servers.
 #[derive(Clone)]
 pub struct RuntimeManager {

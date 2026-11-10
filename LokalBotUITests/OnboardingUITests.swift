@@ -116,8 +116,4 @@ final class OnboardingUITests: XCTestCase {
     private func text(containing fragment: String) -> XCUIElement {
         UITestHarness.staticText(containing: fragment, in: app)
     }
-
-    private func optIn(_ title: String) -> XCUIElement {
-        app.descendants(matching: .any)["onboarding.optIn.\(title)"].firstMatch
-    }
 }

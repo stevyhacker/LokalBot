@@ -28,7 +28,7 @@
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs OpenWhispr","description":"Compare OpenWhispr and LokalBot, two open-source apps for dictation and bot-free meeting notes: local and cloud defaults, what's free, agent access, and platforms.","datePublished":"2026-10-26","dateModified":"2026-11-03","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-openwhispr","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","applicationCategory":"BusinessApplication","operatingSystem":"macOS 15+, Windows 10+, Linux"},{"@type":"SoftwareApplication","name":"OpenWhispr"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs OpenWhispr","item":"https://www.lokalbot.com/lokalbot-vs-openwhispr"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-openwhispr#faq","mainEntity":[{"@type":"Question","name":"Is OpenWhispr local?","acceptedAnswer":{"@type":"Answer","text":"It can be. Choose on-device transcription and a built-in local model, and your audio stays on your computer. Its setup recommends OpenWhispr Cloud, though, and transcription is chosen separately for dictation, meetings, and file uploads, so check each one. LokalBot runs on your computer by default and asks before any context goes to a remote server."}},{"@type":"Question","name":"How do AI agents reach each one?","acceptedAnswer":{"@type":"Answer","text":"OpenWhispr's MCP server is hosted: it needs a paid plan with cloud backup turned on and sees only notes synced to its cloud. Its local CLI is free. LokalBot's read-only CLI and MCP server run on your computer, read your local library, and are free; you turn them on in Settings."}},{"@type":"Question","name":"Which one runs on Linux?","acceptedAnswer":{"@type":"Answer","text":"Both. OpenWhispr ships AppImage, .deb, .rpm, and .tar.gz builds for x86-64 Linux. LokalBot's Linux app is in alpha, with .deb, .rpm, and Arch packages and updates through apt and dnf; see local AI meeting notes on Linux."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs OpenWhispr","description":"Compare OpenWhispr and LokalBot, two open-source apps for dictation and bot-free meeting notes: local and cloud defaults, what's free, agent access, and platforms.","datePublished":"2026-10-26","dateModified":"2026-11-10","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-openwhispr","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"OpenWhispr"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs OpenWhispr","item":"https://www.lokalbot.com/lokalbot-vs-openwhispr"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-openwhispr#faq","mainEntity":[{"@type":"Question","name":"Is OpenWhispr local?","acceptedAnswer":{"@type":"Answer","text":"It can be. Choose on-device transcription and a built-in local model, and your audio stays on your computer. Its setup recommends OpenWhispr Cloud, though, and transcription is chosen separately for dictation, meetings, and file uploads, so check each one. LokalBot runs on your computer by default and asks before any context goes to a remote server."}},{"@type":"Question","name":"How do AI agents reach each one?","acceptedAnswer":{"@type":"Answer","text":"OpenWhispr's MCP server is hosted: it needs a paid plan with cloud backup turned on and sees only notes synced to its cloud. Its local CLI is free. LokalBot's read-only CLI and MCP server run on your computer, read your local library, and are free; you turn them on in Settings."}},{"@type":"Question","name":"Which one runs on Linux?","acceptedAnswer":{"@type":"Answer","text":"Both. OpenWhispr ships AppImage, .deb, .rpm, and .tar.gz builds for x86-64 Linux. LokalBot's Linux app is in alpha, with .deb, .rpm, and Arch packages and updates through apt and dnf; see local AI meeting notes on Linux."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -37,17 +37,7 @@
     <div class="bg-glow bg-glow--a"></div>
     <div class="bg-glow bg-glow--b"></div>
     <div class="bg-glow bg-glow--c"></div>
-    <div class="bg-refract"></div>
-    <div class="bg-grain"></div>
   </div>
-
-  <svg class="glass-defs" aria-hidden="true" focusable="false" width="0" height="0">
-    <filter id="liquidGlass" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
-      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.015" numOctaves="2" seed="7" result="noise" />
-      <feGaussianBlur in="noise" stdDeviation="2.4" result="soft" />
-      <feDisplacementMap in="SourceGraphic" in2="soft" scale="26" xChannelSelector="R" yChannelSelector="G" />
-    </filter>
-  </svg>
 
   <!-- ───────────────────────── NAV ───────────────────────── -->
   <header class="nav" id="top">
@@ -129,7 +119,7 @@
             </tr>
             <tr>
               <th scope="row">Connect AI tools</th>
-              <td>Read-only CLI and MCP server, off until you enable Agent Access</td>
+              <td>Read-only CLI and MCP server, off until you turn them on in Settings</td>
               <td>A hosted MCP server on paid plans that sees notes synced to its cloud; a local CLI for free</td>
             </tr>
             <tr>

@@ -114,33 +114,3 @@ struct WorkspaceMenu: NSViewRepresentable {
         }
     }
 }
-
-/// Name the native popover boundary as well as its SwiftUI content group.
-struct PopoverAccessibilityLabel: NSViewRepresentable {
-    let label: String
-    func makeNSView(context: Context) -> Anchor { Anchor() }
-    func updateNSView(_ view: Anchor, context: Context) {
-        view.label = label
-        view.labelWindow()
-    }
-    final class Anchor: NSView {
-        var label = ""
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); labelWindow() }
-        func labelWindow() {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let window = self.window else { return }
-                window.setAccessibilityLabel(self.label)
-                window.title = self.label
-                // AppKit inserts a separate group around the SwiftUI content.
-                // Name that boundary too so entering the popover is meaningful.
-                for child in window.accessibilityChildren() ?? [] {
-                    guard let group = child as? any NSAccessibilityProtocol,
-                          group.accessibilityRole() == .group else { continue }
-                    group.setAccessibilityLabel(self.label)
-                    group.setAccessibilityTitle(self.label)
-                }
-            }
-        }
-    }
-}

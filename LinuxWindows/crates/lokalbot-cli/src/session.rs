@@ -258,12 +258,20 @@ pub fn shortened(text: &str, limit: usize) -> (String, bool) {
 }
 
 pub fn list_json(session: &Session, meetings: &[Meeting], include_summary: bool) -> String {
-    let markdown: Vec<Option<String>> = meetings.iter().map(|m| session.summary(m)).collect();
+    // `has_summary` and `has_transcript` only say a file is there. Reading
+    // every summary and transcript for them made a plain `list` read the
+    // whole library, so summaries are read only when they are printed.
+    let markdown: Vec<Option<String>> = if include_summary {
+        meetings.iter().map(|m| session.summary(m)).collect()
+    } else {
+        vec![None; meetings.len()]
+    };
     let summaries = if include_summary {
         list_summaries(&markdown)
     } else {
         vec![None; meetings.len()]
     };
+    let has_file = |m: &Meeting, name: &str| session.folder(m).join(name).is_file();
     let entries: Vec<ListEntry> = meetings
         .iter()
         .zip(markdown.iter().zip(summaries))
@@ -275,8 +283,9 @@ pub fn list_json(session: &Session, meetings: &[Meeting], include_summary: bool)
             duration_seconds: duration(m).unwrap_or(0.0),
             app_source: m.app_name.clone(),
             has_system_track: m.has_system_track,
-            has_summary: markdown.is_some(),
-            has_transcript: session.transcript_markdown(m).is_some(),
+            has_summary: markdown.is_some()
+                || (!include_summary && has_file(m, lokalbot_core::library::SUMMARY_FILE)),
+            has_transcript: has_file(m, lokalbot_core::library::TRANSCRIPT_MD_FILE),
             summary_truncated: summary.as_ref().and_then(|(_, cut)| cut.then_some(true)),
             summary: summary.map(|(text, _)| text),
             sample: m.is_sample().then_some(true),

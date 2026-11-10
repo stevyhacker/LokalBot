@@ -313,8 +313,17 @@ enum LiveAnswerTools {
 
     static func searchCode(_ query: String, in place: LiveAnswerPlace) async throws -> LiveAnswerToolOutput {
         guard !query.isEmpty else { return .message("Give a query.") }
-        let output = try await git(["grep", "-n", "-I", "-i", "-F", "--max-count=4", "-e", query], in: place.url, allowFailure: true)
-        let hits = output.split(separator: "\n").prefix(40).map { String($0.prefix(240)) }
+        // Tracked is not enough: hidden files and folders, `node_modules` and
+        // secret-looking files stay unread here as in the document tools. Git
+        // skips the first two; the name rule drops the rest before the cap.
+        let output = try await git(["grep", "-n", "-I", "-i", "-F", "--max-count=4", "-e", query, "--", "."]
+                                   + withheldPathspecs, in: place.url, allowFailure: true)
+        let hits = output.split(separator: "\n")
+            .filter { hit in
+                let path = hit.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).first ?? hit
+                return !isWithheld(relativePath: path)
+            }
+            .prefix(40).map { String($0.prefix(240)) }
         guard !hits.isEmpty else { return .message("No tracked file in \(place.name) contains “\(query)”.") }
         let lines = hits.compactMap { hit -> LiveAnswerLine? in
             let parts = hit.split(separator: ":", maxSplits: 2, omittingEmptySubsequences: false)
@@ -329,7 +338,13 @@ enum LiveAnswerTools {
         let clean = path.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
         let tracked = (try? await git(["ls-files", "--error-unmatch", "--", clean], in: place.url)) != nil
         let url = place.url.appendingPathComponent(clean).standardizedFileURL
-        guard tracked, url.path.hasPrefix(place.url.path + "/"), !isSecret(url) else {
+        // A tracked symlink is read through, so where it leads is held to the
+        // same rules as the path that was asked for.
+        let root = place.url.resolvingSymlinksInPath().path
+        let target = url.resolvingSymlinksInPath().path
+        guard tracked, url.path.hasPrefix(place.url.path + "/"), target.hasPrefix(root + "/"),
+              !isWithheld(relativePath: url.path.dropFirst(place.url.path.count + 1)),
+              !isWithheld(relativePath: target.dropFirst(root.count + 1)) else {
             return .message("\(clean) isn't a tracked file in \(place.name).")
         }
         let all = try String(contentsOf: url, encoding: .utf8).components(separatedBy: "\n")
@@ -417,6 +432,19 @@ enum LiveAnswerTools {
         let secrets = [".env", ".pem", ".key", ".p12", ".pfx", ".keychain", "id_rsa", "id_ed25519", ".netrc", "credentials"]
         return secrets.contains { name == $0 || name.hasSuffix($0) || name.hasPrefix(".env") }
     }
+
+    /// A path inside an approved folder that no tool reads: a hidden file or
+    /// folder, anything under `node_modules`, or a secret-looking name.
+    static func isWithheld(relativePath: some StringProtocol) -> Bool {
+        let components = relativePath.split(separator: "/")
+        if components.contains(where: { $0.hasPrefix(".") || $0 == "node_modules" }) { return true }
+        return components.last.map { isSecret(URL(fileURLWithPath: String($0))) } ?? false
+    }
+
+    /// The hidden and `node_modules` part of `isWithheld`, as pathspecs git
+    /// applies itself, so `git grep` never opens those files.
+    static let withheldPathspecs = [":(exclude,glob)**/.*", ":(exclude,glob)**/.*/**",
+                                    ":(exclude,glob)**/node_modules/**"]
 
     /// Inside an approved folder, no hidden component, not secret-looking,
     /// and a type `read_document` can read.

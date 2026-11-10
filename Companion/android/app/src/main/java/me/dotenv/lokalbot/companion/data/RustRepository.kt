@@ -145,7 +145,7 @@ class RustRepository(
     override suspend fun search(query: String, limit: Int): List<SearchHit> = core {
         client.search(query, limit.toUInt()).map { hit ->
             SearchHit(
-                kind = SearchHitKind.entries.firstOrNull { it.name.equals(hit.kind, ignoreCase = true) } ?: SearchHitKind.Meeting,
+                kind = SearchHitKind.fromCore(hit.kind),
                 key = hit.key,
                 meetingId = hit.meetingId,
                 title = hit.title,

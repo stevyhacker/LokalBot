@@ -108,8 +108,10 @@ final class RedesignContractTests: XCTestCase {
     /// filling every hit first, including sessions an unreadable hit splits.
     func testLazilyFilledScreenGroupsMatchFillingEveryHit() {
         let day = Calendar.current.startOfDay(for: Date())
-        var generator = SystemRandomNumberGenerator()
+        // A new seed on every run, named in each failure so the round can be run again.
+        let seed = UInt64.random(in: 0...UInt64.max)
         for round in 0..<20 {
+            var generator = SeededGenerator(state: seed &+ UInt64(round))
             let count = round == 0 ? 0 : Int.random(in: 1...600, using: &generator)
             let hits = (0..<count).map { index -> ActivityStore.OCRHit in
                 let window = Int.random(in: 0..<12, using: &generator)
@@ -134,11 +136,12 @@ final class RedesignContractTests: XCTestCase {
                     filledCount += batch.count
                     return fill(batch)
                 }
-                XCTAssertEqual(lazy.map(\.id), eager.map(\.id), "round \(round), limit \(limit)")
-                XCTAssertEqual(lazy.map { $0.matches.map(\.snapshotID) }, eager.map { $0.matches.map(\.snapshotID) })
-                XCTAssertEqual(lazy.map { $0.matches.map(\.snippet) }, eager.map { $0.matches.map(\.snippet) })
+                let run = "seed \(seed), round \(round), limit \(limit)"
+                XCTAssertEqual(lazy.map(\.id), eager.map(\.id), run)
+                XCTAssertEqual(lazy.map { $0.matches.map(\.snapshotID) }, eager.map { $0.matches.map(\.snapshotID) }, run)
+                XCTAssertEqual(lazy.map { $0.matches.map(\.snippet) }, eager.map { $0.matches.map(\.snippet) }, run)
             }
-            XCTAssertLessThanOrEqual(filledCount, 3 * hits.count)
+            XCTAssertLessThanOrEqual(filledCount, 3 * hits.count, "seed \(seed), round \(round)")
         }
     }
 
@@ -247,5 +250,18 @@ final class RedesignContractTests: XCTestCase {
         XCTAssertFalse(snapshot.coreReady)
         XCTAssertTrue(snapshot.detail.contains("model.example"))
         XCTAssertTrue(snapshot.detail.contains("separately"))
+    }
+}
+
+/// SplitMix64: a random sequence that a printed seed reproduces.
+private struct SeededGenerator: RandomNumberGenerator {
+    var state: UInt64
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var mixed = state
+        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
+        return mixed ^ (mixed >> 31)
     }
 }

@@ -248,6 +248,18 @@ enum PersonalContextTool {
             case .invalid(let message): message
             }
         }
+
+        /// What a CLI command throws for a refusal, with its code. Nil for
+        /// bad arguments, which the command reports as a usage error.
+        var commandError: CodedCommandError? {
+            switch self {
+            case .disabled:
+                CodedCommandError(code: .personalContextDisabled, message: PersonalContextTool.disabledMessage)
+            case .unavailable:
+                CodedCommandError(code: .personalContextUnavailable, message: PersonalContextTool.unavailableMessage)
+            case .invalid: nil
+            }
+        }
     }
 
     struct Report: Encodable {
