@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "Исходное действие, формулировка срока и ссылки остаются доступны.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "Источники ниже читаются только если начать с запроса на письмо, например «ответь…», «напиши…» или «составь…». В остальных случаях диктовка только исправляется.";
 "The text may not have been inserted" = "Возможно, текст не был вставлен";
+"Dictation failed" = "Диктовка не удалась";
+"No speech detected" = "Речь не обнаружена";
+"Transcribed on this Mac" = "Расшифровано на этом Mac";
 "Theme" = "Тема";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "Это захваченные заголовки окон. Разверните заголовок, чтобы изучить связанную активность.";
 "These choices are applied on the final Review step." = "Эти настройки применяются на последнем шаге Проверка.";

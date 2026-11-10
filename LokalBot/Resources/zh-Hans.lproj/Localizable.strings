@@ -1144,6 +1144,9 @@
 "The original action, due phrase and citations stay available." = "原始行动项、截止时间表述和引用仍会保留。";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "只有以写作请求开头时（如“回复……”“写……”或“起草……”）才会读取以下来源。其他听写只会整理文字。";
 "The text may not have been inserted" = "文字可能没有插入";
+"Dictation failed" = "听写失败";
+"No speech detected" = "未检测到语音";
+"Transcribed on this Mac" = "已在这台 Mac 上转写";
 "Theme" = "主题";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "这些是采集的窗口标题。展开标题可查看背后的活动。";
 "These choices are applied on the final Review step." = "这些选择将在最后的确认步骤生效。";

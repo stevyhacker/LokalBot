@@ -1144,6 +1144,9 @@
 "The original action, due phrase and citations stay available." = "The original action, due phrase and citations stay available.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up.";
 "The text may not have been inserted" = "The text may not have been inserted";
+"Dictation failed" = "Dictation failed";
+"No speech detected" = "No speech detected";
+"Transcribed on this Mac" = "Transcribed on this Mac";
 "Theme" = "Theme";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "These are captured window titles. Expand a title to inspect the activity behind it.";
 "These choices are applied on the final Review step." = "These choices are applied on the final Review step.";

@@ -19,6 +19,7 @@ struct DictationOverlayContent: Equatable {
         case transcript(Activity)
         case preparation(ModelPreparationPresentation, canRetry: Bool)
         case notice(DictationDeliveryNotice)
+        case problem(DictationProblemNotice)
     }
 
     /// The HUD's shapes. Widths and margins are even, so the panel and the
@@ -30,6 +31,8 @@ struct DictationOverlayContent: Equatable {
         case transcript
         case preparation
         case notice
+        /// A title and up to three lines saying what went wrong.
+        case problem
 
         var size: CGSize {
             switch self {
@@ -38,6 +41,7 @@ struct DictationOverlayContent: Equatable {
             case .transcript: CGSize(width: 540, height: 172)
             case .preparation: CGSize(width: 380, height: 76)
             case .notice: CGSize(width: 384, height: 38)
+            case .problem: CGSize(width: 384, height: 84)
             }
         }
 
@@ -64,13 +68,15 @@ struct DictationOverlayContent: Equatable {
         case .transcript: .transcript
         case .preparation: .preparation
         case .notice: .notice
+        // A title alone fits the one-line notice.
+        case .problem(let problem): problem.detail == nil ? .notice : .problem
         }
     }
 
     var activity: Activity? {
         switch kind {
         case .pill(let activity), .transcript(let activity): activity
-        case .preparation, .notice: nil
+        case .preparation, .notice, .problem: nil
         }
     }
 
@@ -85,6 +91,7 @@ struct DictationOverlayContent: Equatable {
         preparation: ModelPreparationPresentation,
         preparationFailed: Bool,
         notice: DictationDeliveryNotice?,
+        problem: DictationProblemNotice?,
         microphoneLive: Bool,
         captureStatus: String,
         timer: String,
@@ -102,7 +109,11 @@ struct DictationOverlayContent: Equatable {
             }
             kind = showsLiveTranscript ? .transcript(activity) : .pill(activity)
         } else if let notice {
+            // Text that may be lost comes first; the server's failure will
+            // show again at the next dictation.
             kind = .notice(notice)
+        } else if let problem {
+            kind = .problem(problem)
         } else {
             return nil
         }
@@ -127,6 +138,7 @@ extension DictationOverlayContent {
             preparation: dictation.modelPreparationPresentation,
             preparationFailed: dictation.modelPreparationError != nil,
             notice: dictation.deliveryNotice,
+            problem: dictation.problemNotice,
             microphoneLive: dictation.hasMicrophoneAudio,
             captureStatus: dictation.captureStatus,
             timer: dictation.timerLabel,

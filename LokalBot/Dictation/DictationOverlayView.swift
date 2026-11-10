@@ -183,6 +183,7 @@ struct DictationOverlayActions {
     var cancel: () -> Void = {}
     var copyNotice: () -> Void = {}
     var dismissNotice: () -> Void = {}
+    var dismissProblem: () -> Void = {}
     var retryPreparation: () -> Void = {}
 }
 
@@ -193,6 +194,7 @@ extension DictationOverlayActions {
             cancel: { [weak dictation] in dictation?.cancel() },
             copyNotice: { [weak dictation] in dictation?.copyDeliveryNoticeText() },
             dismissNotice: { [weak dictation] in dictation?.dismissDeliveryNotice() },
+            dismissProblem: { [weak dictation] in dictation?.dismissProblemNotice() },
             retryPreparation: { [weak dictation] in dictation?.retryModelPreparation() })
     }
 }
@@ -270,6 +272,8 @@ struct DictationOverlayView: View {
             preparationPanel(presentation, canRetry: canRetry)
         case .notice(let notice):
             noticeRow(notice)
+        case .problem(let problem):
+            problemRow(problem)
         }
     }
 
@@ -484,6 +488,39 @@ struct DictationOverlayView: View {
         .animation(.easeOut(duration: 0.16), value: notice.copied)
     }
 
+    // MARK: Problem notice
+
+    /// Why a dictation ended without its text, or why a model on this Mac
+    /// transcribed it. The reason is shown as written: it can quote a server.
+    private func problemRow(_ problem: DictationProblemNotice) -> some View {
+        HStack(alignment: .center, spacing: 0) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(LBTokens.Palette.attention)
+                .frame(width: Self.slot, height: Self.slot)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(problem.title))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                if let detail = problem.detail {
+                    Text(verbatim: detail)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("dictation.problem")
+            Spacer(minLength: 8)
+            HUDCloseButton(help: "Dismiss", action: actions.dismissProblem)
+                .frame(width: Self.slot, height: Self.slot)
+        }
+        .padding(.horizontal, Self.inset)
+    }
+
     /// Square cell for the leading indicator and the close button, the same
     /// in every shape so they stay put when the capsule changes.
     private static let slot: CGFloat = 30
@@ -506,6 +543,7 @@ extension DictationOverlayContent {
         case transcript
         case preparation
         case notice
+        case problem
     }
 
     var face: Face {
@@ -514,6 +552,7 @@ extension DictationOverlayContent {
         case .transcript: .transcript
         case .preparation: .preparation
         case .notice: .notice
+        case .problem: .problem
         }
     }
 }

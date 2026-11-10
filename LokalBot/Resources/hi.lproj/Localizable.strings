@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "मूल काम, नियत समय का वाक्यांश और संदर्भ उपलब्ध रहते हैं।";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "नीचे दिए स्रोत केवल तभी पढ़े जाते हैं जब आप “उत्तर दें…”, “लिखें…” या “मसौदा बनाएँ…” जैसे लेखन अनुरोध से शुरू करते हैं। बाकी डिक्टेशन का केवल पाठ सुधारा जाता है।";
 "The text may not have been inserted" = "शायद टेक्स्ट डाला नहीं गया";
+"Dictation failed" = "डिक्टेशन विफल रहा";
+"No speech detected" = "बोलचाल नहीं मिली";
+"Transcribed on this Mac" = "इस Mac पर लिप्यंतरण किया गया";
 "Theme" = "थीम";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "ये कैप्चर किए गए विंडो शीर्षक हैं। उससे जुड़ी गतिविधि देखने के लिए शीर्षक फैलाएँ।";
 "These choices are applied on the final Review step." = "ये विकल्प समीक्षा के आख़िरी चरण में लागू होते हैं।";

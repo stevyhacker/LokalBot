@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "اصل کارروائی، مقررہ وقت کی عبارت اور حوالہ جات دستیاب رہتے ہیں۔";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "نیچے کے ذرائع صرف تب پڑھے جاتے ہیں جب آپ «جواب دیں…»، «لکھیں…» یا «مسودہ لکھیں…» جیسی تحریری درخواست سے شروع کریں۔ دوسرے صوتی املا کی صرف صفائی کی جاتی ہے۔";
 "The text may not have been inserted" = "ممکن ہے متن درج نہ ہوا ہو";
+"Dictation failed" = "صوتی املا ناکام رہی";
+"No speech detected" = "کوئی گفتگو شناخت نہیں ہوئی";
+"Transcribed on this Mac" = "اس Mac پر نقل نویسی کی گئی";
 "Theme" = "تھیم";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "یہ ونڈوز کے کیپچر کیے گئے عنوانات ہیں۔ پیچھے کی سرگرمی دیکھنے کے لیے عنوان پھیلائیں۔";
 "These choices are applied on the final Review step." = "یہ انتخاب آخری جائزے کے مرحلے میں لاگو ہوتے ہیں۔";

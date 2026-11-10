@@ -56,6 +56,26 @@ final class DictationOverlayLayoutTests: XCTestCase {
         XCTAssertNil(content(state: .idle), "an idle HUD shows nothing")
     }
 
+    /// 2026-11-10: a dictation the server refused ended with nothing typed
+    /// and a message only LokalBot's own window shows.
+    func testAProblemShowsOnceDictationIsIdle() throws {
+        let problem = DictationProblemNotice.failed("The transcription server rejected the API key (HTTP 401).")
+        let shown = try XCTUnwrap(content(state: .idle, problem: problem))
+        XCTAssertEqual(shown.kind, .problem(problem))
+        XCTAssertEqual(shown.layout, .problem)
+        XCTAssertEqual(
+            try XCTUnwrap(content(state: .idle, problem: .noSpeech)).layout, .notice,
+            "a title alone fits the one-line notice")
+
+        // The next dictation's own states come first, and so does text that
+        // may be lost.
+        XCTAssertEqual(
+            try XCTUnwrap(content(state: .transcribing(startedAt: Date()), problem: problem)).layout, .pill)
+        let notInserted = DictationDeliveryNotice(text: "Hi")
+        XCTAssertEqual(
+            try XCTUnwrap(content(state: .idle, notice: notInserted, problem: problem)).kind, .notice(notInserted))
+    }
+
     func testMicrophoneIsLiveOnlyWhileListening() throws {
         XCTAssertTrue(try XCTUnwrap(content(
             state: .recording(startedAt: Date()), microphoneLive: true)).microphoneLive)
@@ -126,6 +146,7 @@ final class DictationOverlayLayoutTests: XCTestCase {
         live: Bool = false,
         showsPreparation: Bool = false,
         notice: DictationDeliveryNotice? = nil,
+        problem: DictationProblemNotice? = nil,
         microphoneLive: Bool = false,
         captureStatus: String = ""
     ) -> DictationOverlayContent? {
@@ -138,6 +159,7 @@ final class DictationOverlayLayoutTests: XCTestCase {
                 state: .preparing, title: "Preparing", status: "Checking…"),
             preparationFailed: false,
             notice: notice,
+            problem: problem,
             microphoneLive: microphoneLive,
             captureStatus: captureStatus,
             timer: "00:03",

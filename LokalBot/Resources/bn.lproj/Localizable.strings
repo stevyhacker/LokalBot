@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "মূল কাজ, সময়সীমার ভাষ্য ও উদ্ধৃতিসূত্র পাওয়া যাবে।";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "“উত্তর দিন…”, “লিখুন…” বা “খসড়া লিখুন…”-এর মতো লেখার অনুরোধ দিয়ে শুরু করলেই নিচের উৎস পড়া হয়। অন্য শ্রুতিলিখন শুধু পরিমার্জন করা হয়।";
 "The text may not have been inserted" = "পাঠ্য ঢোকানো না-ও হয়ে থাকতে পারে";
+"Dictation failed" = "শ্রুতিলিখন ব্যর্থ হয়েছে";
+"No speech detected" = "কথা শনাক্ত হয়নি";
+"Transcribed on this Mac" = "এই Mac-এ প্রতিলিপি করা হয়েছে";
 "Theme" = "থিম";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "এগুলো ধারণ করা উইন্ডোর শিরোনাম। পেছনের কার্যকলাপ দেখতে শিরোনাম প্রসারিত করুন।";
 "These choices are applied on the final Review step." = "চূড়ান্ত পর্যালোচনা ধাপে এই পছন্দগুলো প্রয়োগ হবে।";

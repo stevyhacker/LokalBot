@@ -1124,6 +1124,9 @@
 "The original action, due phrase and citations stay available." = "అసలు పని, గడువు పదబంధం, ఉటంకింపులు అందుబాటులో ఉంటాయి.";
 "The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up." = "“సమాధానం ఇవ్వండి…”, “రాయండి…” లేదా “ముసాయిదా రాయండి…” వంటి రచన అభ్యర్థనతో ప్రారంభించినప్పుడే కింది మూలాలు చదవబడతాయి. ఇతర డిక్టేషన్‌లో వచన సవరణ మాత్రమే జరుగుతుంది.";
 "The text may not have been inserted" = "వచనం చొప్పించబడకపోయి ఉండవచ్చు";
+"Dictation failed" = "డిక్టేషన్ విఫలమైంది";
+"No speech detected" = "మాటలు గుర్తించబడలేదు";
+"Transcribed on this Mac" = "ఈ Macలో ట్రాన్స్‌క్రిప్షన్ చేయబడింది";
 "Theme" = "థీమ్";
 "These are captured window titles. Expand a title to inspect the activity behind it." = "ఇవి సంగ్రహించిన విండో శీర్షికలు. వాటి వెనుక ఉన్న కార్యకలాపాన్ని చూడటానికి శీర్షికను విస్తరించండి.";
 "These choices are applied on the final Review step." = "ఈ ఎంపికలు చివరి సమీక్ష దశలో వర్తిస్తాయి.";
