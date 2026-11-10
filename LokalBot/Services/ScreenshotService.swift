@@ -354,9 +354,15 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
     }
 }
 
+/// An image on its way to the text-recognition queue. `CGImage` is immutable.
+private struct ScreenshotProcessingImage: @unchecked Sendable {
+    let image: CGImage
+}
+
 /// Injectable image/file operations keep the serial worker deterministic under
-/// test without weakening the production path. Every closure runs only inside
-/// `ScreenshotProcessingWorker`.
+/// test without weakening the production path. Every closure runs only for
+/// `ScreenshotProcessingWorker`; `recognizeText` runs on the text-recognition
+/// queue, which the worker waits for.
 struct ScreenshotProcessingDependencies: @unchecked Sendable {
     let contentHash: @Sendable (CGImage) -> Data
     let heicData: @Sendable (CGImage) throws -> Data
@@ -388,15 +394,28 @@ actor ScreenshotProcessingWorker {
         let hasPixels: Bool
         let privacyRedactionCount: Int
         let usedOCR: Bool
+        /// Text recognition was asked for the image's text and did not answer
+        /// in time. The capture holds what Accessibility read, and no pixels:
+        /// nothing checked them for credentials.
+        let missedOCR: Bool
         let sealedPixels: Data?
     }
 
     enum Outcome: Sendable {
         case unchanged
         case stored(StoredCapture)
+        /// Accessibility read no text and recognition gave no answer: there
+        /// is nothing to keep. The same frame is read again next time.
+        case unreadable
     }
 
+    /// How long a capture waits for the text in its pixels. Of 23,000 captures
+    /// in one Mac's log, 99.9% had it within 15 s.
+    static let textRecognitionLimit: TimeInterval = 20
+
     private let dependencies: ScreenshotProcessingDependencies
+    private let textRecognition: TextRecognitionQueue
+    private let textRecognitionLimit: TimeInterval
     private var lastContentHash: Data?
     /// The last stored capture, for skipping a frame of the same window that
     /// differs only by a blinking caret or similar: same text, and at most
@@ -405,8 +424,12 @@ actor ScreenshotProcessingWorker {
     private var lastStored: (contentHash: Data, source: String, text: String, perceptualHash: UInt64)?
     static let nearDuplicateDistance = 2
 
-    init(dependencies: ScreenshotProcessingDependencies = .live) {
+    init(dependencies: ScreenshotProcessingDependencies = .live,
+         textRecognition: TextRecognitionQueue = .shared,
+         textRecognitionLimit: TimeInterval = ScreenshotProcessingWorker.textRecognitionLimit) {
         self.dependencies = dependencies
+        self.textRecognition = textRecognition
+        self.textRecognitionLimit = textRecognitionLimit
     }
 
     func process(_ request: ScreenshotProcessingRequest) throws -> Outcome {
@@ -419,9 +442,11 @@ actor ScreenshotProcessingWorker {
         let accessible = ScreenContextPrivacy.redact(request.accessibleText)
         let accessibilityRedactions = request.accessibilityRedactionCount + accessible.count
         let hasRichAccessibility = ScreenContextPrivacy.hasRichAccessibleText(accessible.text)
-        let ocr = hasRichAccessibility
-            ? ScreenContextPrivacy.Redaction(text: "", count: 0)
-            : ScreenContextPrivacy.redact(dependencies.recognizeText(preparedImage))
+        // A capture never waits for recognition past its limit: one request
+        // that did not return held every capture after it (2026-11-09).
+        let recognized: String? = hasRichAccessibility ? "" : recognizeText(in: preparedImage)
+        if recognized == nil, accessible.text.isEmpty { return .unreadable }
+        let ocr = ScreenContextPrivacy.redact(recognized ?? "")
 
         let text: String
         let textSource: String
@@ -452,7 +477,9 @@ actor ScreenshotProcessingWorker {
         // If extracted text reveals a credential, retain only its deterministic
         // redacted form. Dropping the entire pixel payload is safer than trying
         // to infer a precise on-screen rectangle from a text-only observation.
-        let hasPixels = redactionCount == 0
+        // Pixels whose text recognition never read are unchecked, and dropped
+        // too: thin accessible text says little about what they show.
+        let hasPixels = redactionCount == 0 && recognized != nil
         var stagedPixels: Data?
         if hasPixels {
             let heic = try dependencies.heicData(preparedImage)
@@ -475,8 +502,19 @@ actor ScreenshotProcessingWorker {
             textSource: textSource,
             hasPixels: hasPixels,
             privacyRedactionCount: redactionCount,
-            usedOCR: !hasRichAccessibility,
+            usedOCR: !hasRichAccessibility && recognized != nil,
+            missedOCR: recognized == nil,
             sealedPixels: stagedPixels))
+    }
+
+    /// The text in `image`, or nil when recognition gave no answer in time.
+    /// The actor's thread waits here, as it always has for the recognition
+    /// itself, so two captures still cannot interleave.
+    private func recognizeText(in image: CGImage) -> String? {
+        let input = ScreenshotProcessingImage(image: image)
+        return textRecognition.runAndWait("screen capture", within: textRecognitionLimit) { [dependencies] in
+            dependencies.recognizeText(input.image)
+        }
     }
 
     /// A file write is not a completed capture until its SQLite rows commit.
@@ -493,8 +531,10 @@ actor ScreenshotProcessingWorker {
 
 /// 64-bit difference hash (dHash) for visually similar-frame detection.
 /// Unlike a byte SHA, this remains stable across tiny cursor/animation/codec
-/// changes. Automatic captures within `defaultDistanceThreshold` are skipped;
-/// explicit manual captures always bypass that decision in the worker above.
+/// changes. Stored captures within `defaultDistanceThreshold` share a
+/// similarity group. The worker above skips an automatic capture only when it
+/// has the same text and is within its own, tighter `nearDuplicateDistance`;
+/// explicit manual captures always bypass that decision.
 enum ScreenPerceptualHash {
     static let width = 9
     static let height = 8
@@ -681,7 +721,8 @@ final class ScreenshotService: ObservableObject {
     private lazy var privacyRecheckReader = ScreenAccessibilityReader.privacyRecheck { [recheckNodeLimit] in
         recheckNodeLimit.value
     }
-    private let processingWorker = ScreenshotProcessingWorker()
+    private let processingWorker: ScreenshotProcessingWorker
+    private let captureKey: @MainActor () throws -> SymmetricKey
     private let eventMonitor = ScreenContextEventMonitor()
     private var timer: Timer?
     private var retentionTimer: Timer?
@@ -699,10 +740,14 @@ final class ScreenshotService: ObservableObject {
          activeMeetingID: @escaping () -> UUID? = { nil },
          isHighPriorityInteractionActive: @escaping () -> Bool = { false },
          now: @escaping () -> Date = Date.init,
+         processingWorker: ScreenshotProcessingWorker = ScreenshotProcessingWorker(),
+         captureKey: @escaping @MainActor () throws -> SymmetricKey = { try ScreenshotService.encryptionKey() },
          settings: @escaping () -> AppSettings) {
         self.store = store
         self.storage = storage
         self.sampler = sampler
+        self.processingWorker = processingWorker
+        self.captureKey = captureKey
         self.accessibilityReader = accessibilityReader
         self.isMeetingRecordingActive = isMeetingRecordingActive
         self.activeMeetingID = activeMeetingID
@@ -1059,7 +1104,7 @@ final class ScreenshotService: ObservableObject {
         let outcome = try await processingWorker.process(ScreenshotProcessingRequest(
             image: image,
             trigger: trigger,
-            key: try Self.encryptionKey(),
+            key: try captureKey(),
             fileURL: file,
             accessibleText: accessibleText,
             accessibilityRedactionCount: accessibilityRedactionCount,
@@ -1069,7 +1114,12 @@ final class ScreenshotService: ObservableObject {
 
         guard case .stored(let stored) = outcome else {
             policy.noteCheck(at: timestamp)
-            lokalbotLog("context skip: unchanged frame (\(trigger.rawValue), app: \(frontApp))")
+            if case .unreadable = outcome {
+                lokalbotLog("context skip: no accessible text and text recognition did not answer "
+                    + "(\(trigger.rawValue), app: \(frontApp))")
+            } else {
+                lokalbotLog("context skip: unchanged frame (\(trigger.rawValue), app: \(frontApp))")
+            }
             return
         }
 
@@ -1117,7 +1167,8 @@ final class ScreenshotService: ObservableObject {
         lastTextSource = stored.textSource
         if stored.hasPixels { lastVisualCapture = timestamp }
         if stored.usedOCR { lastOCRCapture = timestamp }
-        let payload = stored.hasPixels ? file.lastPathComponent : "text-only after redaction"
+        let payload = stored.hasPixels ? file.lastPathComponent
+            : stored.missedOCR ? "text-only, text recognition did not answer" : "text-only after redaction"
         lokalbotLog("context ok: \(payload) (\(stored.text.count) text chars, source: "
             + "\(stored.textSource), app: \(frontApp), trigger: \(trigger.rawValue))")
         if !stored.text.isEmpty { onTextStored() }
@@ -1223,22 +1274,6 @@ final class ScreenshotService: ObservableObject {
         try store.deleteScreenshot(id: id)
     }
 
-    @discardableResult
-    func deleteCaptures(in interval: DateInterval) throws -> Int {
-        guard interval.end > interval.start else { return 0 }
-        let captures = store.screenshots(
-            in: interval, app: nil, bookmarkedOnly: false,
-            includingMissingFiles: true)
-        for capture in captures {
-            if !capture.path.isEmpty,
-               FileManager.default.fileExists(atPath: capture.path) {
-                try FileManager.default.removeItem(atPath: capture.path)
-            }
-        }
-        try store.deleteScreenshots(ids: captures.map(\.id))
-        return captures.count
-    }
-
     /// Manual cleanup keeps successful row/file deletions consistent even if
     /// another item fails. Saved moments require an explicit reviewed scope.
     func applyCaptureDeletionReview(_ review: CaptureDeletionReview) throws -> [String] {
@@ -1323,6 +1358,9 @@ final class ScreenshotService: ObservableObject {
         let current = now()
         guard retentionSchedule.shouldPrune(at: current, force: force) else { return false }
         performRetentionPrune(at: current)
+        // Hand off packages have their own 7-day limit. Writing one prunes the
+        // folder; this daily pass covers the days when nothing is handed off.
+        WindowHandoffPackage.prune(root: WindowHandoffPackage.root(library: storage.rootURL), now: current)
         return true
     }
 

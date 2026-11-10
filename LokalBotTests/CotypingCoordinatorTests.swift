@@ -717,6 +717,46 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.inputMonitor.isAcceptActive)
     }
 
+    /// Clicking into another field took the suggestion down but left the
+    /// state at "ready", which kept the new field from being read ahead.
+    func testFocusLeavingAShownSuggestionGoesIdleAndPrewarmsTheNewField() {
+        settings.cotypingEnabled = true
+        let coordinator = makeCoordinator()
+        coordinator.isRunning = true
+        coordinator.session = shownSession(" up on the timeline", after: "I wanted to follow")
+        coordinator.markReady(" up on the timeline")
+
+        coordinator.handleFocusChange(CotypingFocus(
+            appName: "Notes", bundleID: "com.apple.Notes", capability: .supported, field: liveField("Dear Ana,")))
+        let prewarmedField = coordinator.focusPrewarmFieldIdentity
+        coordinator.focusPrewarmTask?.cancel()
+
+        XCTAssertNil(coordinator.session)
+        XCTAssertEqual(coordinator.state, .idle)
+        XCTAssertNotNil(prewarmedField, "The new field is read before its first key")
+    }
+
+    /// Moving between fields during a recording replaced "Paused while a
+    /// meeting is recording." with the idle state.
+    func testTheMeetingPauseLabelSurvivesAFocusChange() {
+        settings.cotypingEnabled = true
+        let coordinator = CotypingCoordinator(
+            engine: engine,
+            settingsProvider: { [settings] in settings },
+            learningStore: CotypingLearningStore(storageRoot: tempDir, initialSnapshot: .init()),
+            isMeetingRecordingActive: { true },
+            selfBundleID: "me.dotenv.LokalBot.tests",
+            stats: stats)
+        coordinator.isRunning = true
+        coordinator.meetingRecordingStateChanged(active: true)
+        XCTAssertEqual(coordinator.state, .disabled(CotypingMeetingPause.reason))
+
+        coordinator.handleFocusChange(CotypingFocus(
+            appName: "Notes", bundleID: "com.apple.Notes", capability: .supported, field: liveField("Dear Ana,")))
+
+        XCTAssertEqual(coordinator.state, .disabled(CotypingMeetingPause.reason))
+    }
+
     func testClearingASuggestionStopsItsIdleClock() {
         let coordinator = makeCoordinator()
         coordinator.session = shownSession(" up", after: "I wanted to follow")

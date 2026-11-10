@@ -85,7 +85,7 @@ pub fn render(
                 clean(&newest.title, 80),
                 day_key(newest.started_at),
                 if cli {
-                    "Commands: search, get, list, actions, and people."
+                    "Commands: search, get, list, actions, people, and ask while the app runs."
                 } else {
                     "Tools: search_meetings, get_meeting, list_meetings, get_action_items, list_people, get_person, and ask_library while the app runs."
                 }

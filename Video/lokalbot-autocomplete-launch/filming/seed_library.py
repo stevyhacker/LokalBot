@@ -11,7 +11,6 @@ Usage: python3 seed_library.py <new-library-dir>
 """
 import importlib.util
 import json
-import os
 import plistlib
 import subprocess
 import sys

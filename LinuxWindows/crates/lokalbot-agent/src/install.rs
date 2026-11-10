@@ -12,7 +12,7 @@ use std::time::Duration;
 use anyhow::{Context as _, Result};
 
 use crate::digest;
-use crate::layout::{BUN_BINARY, RuntimeLayout, VersionMarker};
+use crate::layout::{RuntimeLayout, VersionMarker};
 use crate::manifest::{BUN_VERSION, PI_VERSION, RuntimeArtifact, RuntimeManifest};
 
 /// What the setup card shows.
@@ -392,14 +392,10 @@ pub fn install_packages(bun: &Path, destination: &Path) -> Result<(), InstallErr
     }
 }
 
-/// The binary name inside the runtime, for messages.
-pub fn bun_binary_name() -> &'static str {
-    BUN_BINARY
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::layout::BUN_BINARY;
     use crate::manifest::ArchiveKind;
     use std::sync::Arc;
 

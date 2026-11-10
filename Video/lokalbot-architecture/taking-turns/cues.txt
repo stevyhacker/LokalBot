@@ -1,0 +1,23 @@
+62.9333 s
+
+world: starts 0, slot 55.2, host 55.8
+  c01    0.40 to   6.38  (film   0.40)  gain 0.99
+      lokalbot@0.4  runs@1.2  five@1.52  ai@2  models@2.32  on@2.8  your@2.96  mac@3.12  so@4  how@4.56  does@4.72  one@5.04  laptop@5.28  hold@5.84  them@6  all@6.32
+  c02    6.62 to  13.54  (film   6.62)  gain 1
+      it@6.625  doesn't@6.785  have@7.105  to@7.425  the@8.145  models@8.425  are@8.705  files@8.945  on@9.345  your@9.545  disk@10.025  under@10.465  ten@10.785  gigabytes@11.025  and@12.038  they@12.145  take@12.425  turns@12.625  in@13.025  memory@13.185
+  c03   13.79 to  21.40  (film  13.79)  gain 1
+      during@13.792  a@14.112  call@14.472  lokalbot@14.992  only@15.792  records@16.112  transcription@17.392  waits@18.192  until@18.592  you@18.912  hang@19.112  up@19.312  and@19.992  autocomplete@20.192  pauses@20.992
+  c04   21.65 to  29.59  (film  21.65)  gain 0.94
+      then@21.652  the@21.972  speech@22.212  models@22.452  load@22.932  turn@23.852  the@24.052  sound@24.212  into@24.612  a@24.932  transcript@25.212  with@25.732  speakers@25.892  and@26.972  two@27.172  minutes@27.332  after@27.732  they@28.052  finish@28.212  they@28.852  unload@29.092
+  c05   29.84 to  36.99  (film  29.84)  gain 1
+      the@29.836  language@29.996  model@30.476  comes@30.916  in@31.116  next@31.556  and@31.916  writes@32.236  the@32.476  notes@32.996  it@33.516  stays@33.676  ten@34.076  minutes@34.316  in@34.956  case@35.116  you@35.356  ask@35.436  a@35.676  follow-up@35.876  then@36.556  leaves@36.796
+  c06   37.34 to  44.49  (film  37.34)  gain 1
+      the@37.341  autocomplete@37.501  model@38.301  stays@38.701  loaded@39.181  while@39.661  there's@39.901  room@40.221  because@40.941  it@41.261  answers@41.421  every@41.901  keystroke@42.301  in@42.941  about@43.101  fifty@43.461  milliseconds@44.221
+  c07   44.84 to  51.36  (film  44.84)  gain 1
+      a@44.839  broker@45.199  budgets@45.479  half@46.039  your@46.359  memory@46.519  for@46.999  loaded@47.359  models@48.039  and@48.626  what@48.759  you're@48.892  waiting@49.159  for@49.399  goes@49.759  ahead@50.039  of@50.359  background@50.519  work@51.479
+  c08   51.61 to  54.69  (film  51.61)  gain 0.84
+      five@51.608  models@52.008  one@52.888  mac@53.128  taking@53.928  turns@54.328
+
+endcard: starts 55.2, slot 7.73333, host 7.7333
+  end    1.07 to   5.32  (film  56.27)  gain 0.87
+      lokalbot@1.07  local@2.47  by@2.75  default@2.91  free@4.07  and@4.35  open@4.59  source@4.99

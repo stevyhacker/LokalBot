@@ -30,9 +30,10 @@ struct LokalBotCLIInstaller {
             environment: ProcessInfo.processInfo.environment)
     }
 
-    /// Resolves the app bundle from the embedded helper's own argv[0].
+    /// Resolves the app bundle from the embedded helper's own path. A shell
+    /// that finds the helper on PATH passes only the bare name as argv[0].
     static func fromCurrentBinary(
-        path: String = CommandLine.arguments[0],
+        path: String = Bundle.main.executablePath ?? CommandLine.arguments[0],
         fileManager: FileManager = .default
     ) -> LokalBotCLIInstaller? {
         let binary = URL(fileURLWithPath: path).resolvingSymlinksInPath()

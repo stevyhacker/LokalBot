@@ -72,11 +72,15 @@ extension CotypingCoordinator {
                liveField: focus.field,
                pendingInsertionConsumedCount: pendingInsertionConsumedCount) {
             clearSuggestion()
+            // Without a session the state is no longer "ready"; left there, it
+            // keeps the new field from being read ahead of its first key.
+            if case .ready = state { state = .idle }
         } else if let field = focus.field {
             reanchorVisibleSuggestion(to: field)
         }
         // Surface a disabled reason in the UI while idle (no live suggestion).
-        if session == nil, state == .idle || isDisabledState {
+        // A recording's pause label stays until the recording ends.
+        if session == nil, state == .idle || isDisabledState, !isMeetingRecordingActive() {
             let settings = settingsProvider()
             if let reason = CotypingAvailability.disabledReason(
                 enabled: settings.cotypingEnabled,

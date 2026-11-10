@@ -60,6 +60,7 @@ import me.dotenv.lokalbot.companion.ui.components.PageHeader
 import me.dotenv.lokalbot.companion.ui.components.WorkspaceSection
 import me.dotenv.lokalbot.companion.ui.components.chipChrome
 import me.dotenv.lokalbot.companion.ui.components.rowSelection
+import me.dotenv.lokalbot.companion.ui.format.Formats
 import me.dotenv.lokalbot.companion.ui.meetings.MeetingRow
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTokens
@@ -133,7 +134,7 @@ private fun PeopleList(repository: CompanionRepository, pane: ListPaneState) {
                     )
                 }
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    person.lastMetAt?.let { Instant.parse(it) }?.let {
+                    person.lastMetAt?.let { Formats.parseInstant(it) }?.let {
                         Text(formats.ago(it, viewModel.now()), style = LokalBotType.caption, color = LokalBotTheme.supportingText)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

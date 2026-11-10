@@ -1,0 +1,77 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    #call-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #f2f7f5;
+      white-space: nowrap;
+    }
+    #call-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #call-win {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+    }
+    #call-video {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+    }
+    /* The highlighter: the one accent of the film, on the decision wherever it appears. */
+    #call-mark {
+      position: absolute;
+      left: 860px;
+      top: 801px;
+      width: 496px;
+      height: 52px;
+      border-radius: 6px;
+      background: #fbbf24;
+      mix-blend-mode: multiply;
+    }
+  </style>
+  <div id="root" data-composition-id="call" data-width="1920" data-height="1080">
+    <div id="call-vp" data-layout-allow-overflow>
+      <div id="call-win">
+        <video id="call-video" class="clip" data-start="0" data-duration="6.2" data-track-index="0"
+          src="assets/footage/call.mp4" muted playsinline></video>
+        <div id="call-mark"></div>
+      </div>
+    </div>
+    <h1 id="call-title" class="clip" data-start="0" data-duration="6.2" data-track-index="1">You decide it on a call</h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // The window fills the screen, then in on the live transcript before the line arrives.
+    tl.fromTo("#call-win", { x: 0, y: 0, scale: 0.95, transformOrigin: "0 0" },
+      { x: -1047, y: -610, scale: 1.5, duration: 0.8, ease: "power2.inOut" }, 1.2);
+    // The decision arrives at 3.37 s; the highlighter runs over it once it has been read.
+    tl.fromTo("#call-mark", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.38, ease: "power3.out" }, 3.65);
+    window.__timelines["call"] = tl;
+  </script>
+</template>

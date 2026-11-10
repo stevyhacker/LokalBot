@@ -166,6 +166,11 @@ struct AskLibraryEngine {
         try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
     var maxPollAttempts = 60
+    /// Whether a LokalBot app holds this library. Nil reads the instance lock.
+    var appIsRunning: (() -> Bool)?
+
+    private static let appNotRunningMessage =
+        "ask_library needs the LokalBot app running (read tools still work without it). Open LokalBot and try again."
 
     func ask(_ question: String) async -> ToolResult {
         await answer(question).toolResult
@@ -233,8 +238,14 @@ struct AskLibraryEngine {
         guard let authorization = gate.authorizationID() else {
             return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
         }
-        if await !client.healthy(), let failure = await wakeAndWait(authorization: authorization) {
-            return failure
+        if await !client.healthy() {
+            if let failure = authorizationFailure(authorization) { return failure }
+            // Only a running app answers a wake, so a closed one is reported
+            // now instead of after a minute of polling.
+            guard appIsRunning?() ?? AppControlClient(root: gate.root).isAppRunning else {
+                return .failed(.appNotRunning, Self.appNotRunningMessage)
+            }
+            if let failure = await wakeAndWait(authorization: authorization) { return failure }
         }
         if let failure = authorizationFailure(authorization) { return failure }
 
@@ -293,9 +304,7 @@ struct AskLibraryEngine {
             }
         }
         if gate.pendingWake {
-            return .failed(
-                .appNotRunning,
-                "ask_library needs the LokalBot app running (read tools still work without it). Open LokalBot and try again.")
+            return .failed(.appNotRunning, Self.appNotRunningMessage)
         }
         return .failed(
             .modelLoadingTimeout,

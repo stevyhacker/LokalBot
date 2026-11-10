@@ -1,0 +1,46 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+    }
+    /* The ground: brand slate, then brand mint from the agent scene on. */
+    #backdrop-ground {
+      position: absolute;
+      inset: 0;
+      background: #0e151d;
+    }
+    #backdrop-flood {
+      position: absolute;
+      inset: 0;
+      background: #c9f1e7;
+    }
+    /* The screen every scene plays on: one stage, held from the first frame to the end card. */
+    #backdrop-screen {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      background: #17222d;
+    }
+  </style>
+  <div id="root" data-composition-id="backdrop" data-width="1920" data-height="1080"
+    data-composition-variables='[{"id":"floodAt","type":"number","label":"Ground turns mint at (s)","default":20.7},{"id":"exitAt","type":"number","label":"Screen leaves at (s)","default":25.9},{"id":"length","type":"number","label":"Film length (s)","default":30}]'>
+    <div id="backdrop-ground"></div>
+    <div id="backdrop-flood"></div>
+    <div id="backdrop-screen" data-layout-allow-overflow></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const vars = window.__hyperframes.getVariables();
+    // The agent scene opens with the ground changing: mint rises behind the screen.
+    tl.fromTo("#backdrop-flood", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.5, ease: "power2.inOut" }, vars.floodAt);
+    // The screen leaves downward as the end card arrives.
+    tl.fromTo("#backdrop-screen", { y: 0 }, { y: 940, duration: 0.45, ease: "power3.in" }, vars.exitAt);
+    // Keep the timeline as long as the film, so the last frames hold.
+    tl.set({}, {}, vars.length);
+    window.__timelines["backdrop"] = tl;
+  </script>
+</template>

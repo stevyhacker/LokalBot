@@ -37,6 +37,19 @@ enum LokalBotMain {
             RunLoop.main.run()
             return
         }
+        // Public or synthetic transcripts only; reads no library and no Keychain.
+        if let replay = MeetingRadarReplay.parse(CommandLine.arguments) {
+            Task { @MainActor in
+                exit(await MeetingRadarReplay.run(replay))
+            }
+            RunLoop.main.run()
+            return
+        }
+        if let replay = FollowThroughReplay.parse(CommandLine.arguments) {
+            Task { @MainActor in exit(await FollowThroughReplay.run(input: replay.input, model: replay.model)) }
+            RunLoop.main.run()
+            return
+        }
         // Reads one saved preferences value; needs no library, lock or window.
         if case .cotypingMeasurements? = HeadlessCommand.parse(CommandLine.arguments) {
             exit(CotypingStatsStore.printSaved())
@@ -360,6 +373,17 @@ struct LokalBotApp: App {
                 .environmentObject(app)
                 .brandTinted()
                 .appTextSizeRoot(textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
+
+        Window(app.settings.appLanguage.localized("Hand Off"), id: "window-handoff") {
+            WindowHandoffView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)

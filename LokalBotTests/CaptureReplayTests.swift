@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import LokalBot
 
@@ -51,6 +52,49 @@ final class CaptureReplayTests: XCTestCase {
         let captures = store.screenshots(in: nil, includingMissingFiles: true)
         XCTAssertTrue(captures.contains { $0.app == "Google Chrome" },
                       "the transient read must be retried and the text stored")
+    }
+
+    /// 2026-11-09: one text-recognition request never returned. The capture
+    /// waiting for it kept its turn, and every capture after it was skipped as
+    /// "already in flight" for the rest of the day. A window whose accessible
+    /// text is thin is still captured, and so is the next one.
+    func testCapturesGoOnWhenTextRecognitionNeverAnswers() async throws {
+        let replay = try replay("window-with-little-accessible-text")
+        let store = store()
+        var settings = AppSettings()
+        settings.trackingEnabled = true
+        settings.screenContextCaptureMode = .visualContext
+        let unanswered = DispatchSemaphore(value: 0)
+        defer { unanswered.signal() }
+        let live = ScreenshotProcessingDependencies.live
+        let worker = ScreenshotProcessingWorker(
+            dependencies: ScreenshotProcessingDependencies(
+                contentHash: live.contentHash, heicData: live.heicData,
+                recognizeText: { _ in
+                    unanswered.wait()
+                    return "read too late"
+                },
+                write: live.write),
+            textRecognition: TextRecognitionQueue(stallLimit: 60),
+            textRecognitionLimit: 0.1)
+        let key = SymmetricKey(size: .bits256)
+        let service = ScreenshotService(
+            store: store, storage: StorageManager(rootURL: root), sampler: ActivitySampler(store: store),
+            now: { replay.clock.now() }, processingWorker: worker, captureKey: { key }, settings: { settings })
+
+        let finished = expectation(description: "both captures finished")
+        Task {
+            await service.captureIfAppropriate(trigger: .manual)
+            await service.captureIfAppropriate(trigger: .manual)
+            finished.fulfill()
+        }
+        guard await XCTWaiter().fulfillment(of: [finished], timeout: 20) == .completed else {
+            return XCTFail("a capture is still waiting for text recognition, and holds every capture after it")
+        }
+        let captures = store.screenshots(in: nil, includingMissingFiles: true).filter { $0.app == "Notes" }
+        XCTAssertEqual(captures.count, 2, "both captures are stored, with the text Accessibility read")
+        XCTAssertFalse(captures.contains(where: \.hasPixels),
+                       "pixels whose text nothing read are unchecked for credentials and are not kept")
     }
 
     /// 2026-10-12: screens captured after 2026-10-08 never got vectors. Only

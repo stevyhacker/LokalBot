@@ -1,0 +1,128 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 375.93,
+          "excerpt" : "Here's the project finance uh which, of course, we all have to think about when we design this thing. Um selling price is supposed to be twenty five Euro.",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0065-0000367250-0000375930",
+          "speaker" : "them 1",
+          "start" : 367.25
+        },
+        {
+          "end" : 393.64,
+          "excerpt" : "and the production cost should not exceed hopefully should be less than twelve fifty Euro.",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0069-0000387400-0000393640",
+          "speaker" : "them 1",
+          "start" : 387.4
+        }
+      ],
+      "id" : "233c314cb9fc4c85",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "The team will adhere to a selling price of twenty-five Euro, a company profit aim of fifty million Euro, and an unlimited international market range."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 486.73,
+          "excerpt" : "Yes, I I feel that all the remote should be very compact. Yeah, those which we get here nowadays it's very long. And um and it should have multi-purpose. Like uh the remote control which we use for T_V_, it uh it should be used uh for some other purpose also, like controlling the uh temperature inside the house or for air-conditioners, or for heating system.",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0085-0000461460-0000486730",
+          "speaker" : "them 4",
+          "start" : 461.46
+        },
+        {
+          "end" : 495.26,
+          "excerpt" : "So it should be a multi-functional uh gadget that would um control all your household uh uh machines basically.",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0090-0000486720-0000495260",
+          "speaker" : "them 1",
+          "start" : 486.72
+        }
+      ],
+      "id" : "438e056d0ff5e825",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "The team will design a multi-functional remote control capable of controlling household machines such as air-conditioners, heating systems, and audio players."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingSpeaker",
+        "resolution" : "unresolved"
+      },
+      "citations" : [
+        {
+          "end" : 162.32,
+          "excerpt" : "Here is what this thing should be. This thing we are gonna um uh design is a new remote control. Uh should be original, trendy, and, of course, user friendly.",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0021-0000149440-0000162320",
+          "speaker" : "them 1",
+          "start" : 149.44
+        }
+      ],
+      "due" : "unknown",
+      "id" : "a15e21b969f7649a",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "The team will design a new remote control that is original, trendy, and user-friendly."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingSpeaker",
+        "resolution" : "unresolved"
+      },
+      "citations" : [
+        {
+          "end" : 551.13,
+          "excerpt" : "Yeah okay, friendly shape, that would help. I think another thing that would help is um if it beeps when you clap, because I think one of the big things that happens is people lose them. They can't find it.",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0113-0000538530-0000551130",
+          "speaker" : "them 2",
+          "start" : 538.53
+        },
+        {
+          "end" : 575.79,
+          "excerpt" : "Well or yeah or if it's really, if it's really in a dark spot that it gives out a a sound or a signal. Yeah. Mm-hmm. So if lost",
+          "meetingID" : "36FF8929-4EBA-58D7-B70D-2A96FD2CB0F0",
+          "segmentID" : "segment-0120-0000566140-0000575790",
+          "speaker" : "them 1",
+          "start" : 566.14
+        }
+      ],
+      "due" : "unknown",
+      "id" : "bd191ed6d563685b",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "The team will consider adding a beep or light signal to help users locate the remote control when lost."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "049bf85060a29379bf442588e7931abe75fd63b03e486603d5253324b3ef2fbf"
+}

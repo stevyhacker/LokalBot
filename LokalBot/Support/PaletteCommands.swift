@@ -130,7 +130,7 @@ enum PaletteCommandCatalog {
                                 : app.startRecording(context: app.recordingContext(for: app.detector.activeApp), source: source)
             }),
             .init(id: "nav.today", icon: "sun.max", title: "Go to Today",
-                  subtitle: "Home", action: { app.navSection = .today }),
+                  subtitle: "Home", action: { app.openToday() }),
             .init(id: "nav.actions", icon: "checklist", title: "Review all actions",
                   subtitle: "Today", action: { app.openActions() }),
             .init(id: "nav.timeline", icon: "calendar.day.timeline.left", title: "Go to Timeline",

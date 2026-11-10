@@ -146,10 +146,9 @@ impl MeetingScreenContext {
 
     pub fn build(meeting: &Meeting, screenshots: &[ScreenRow]) -> Self {
         let start = meeting.started_at;
-        let end = meeting.ended_at.unwrap_or_else(|| {
-            start
-                + Duration::milliseconds((meeting.recorded_duration.unwrap_or(0.0) * 1000.0) as i64)
-        });
+        let end = meeting
+            .ended_at
+            .unwrap_or_else(|| meeting.started_plus(meeting.recorded_duration.unwrap_or(0.0)));
         let playable = meeting
             .recorded_duration
             .unwrap_or_else(|| seconds_between(start, end))
@@ -471,10 +470,7 @@ impl Library {
         if meeting.is_imported() {
             return MeetingScreenContext::default();
         }
-        let fallback = meeting.started_at
-            + Duration::milliseconds(
-                (meeting.recorded_duration.unwrap_or(60.0).max(60.0) * 1000.0) as i64,
-            );
+        let fallback = meeting.started_plus(meeting.recorded_duration.unwrap_or(60.0).max(60.0));
         let end = meeting
             .ended_at
             .filter(|end| *end > meeting.started_at)
@@ -521,6 +517,35 @@ mod tests {
         meeting.recorded_duration = Some(600.0);
         meeting.ended_at = Some(meeting.started_at + Duration::seconds(600));
         meeting
+    }
+
+    /// A damaged `meta.json` can carry a length no calendar date can hold.
+    #[test]
+    fn an_impossible_recorded_length_does_not_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(crate::paths::LibraryPaths::new(dir.path())).unwrap();
+        for length in [1e13, -1e13, 1e300, -1e300, f64::NAN] {
+            let mut meeting = meeting();
+            meeting.ended_at = None;
+            meeting.recorded_duration = Some(length);
+            assert_eq!(meeting.started_plus(length), meeting.started_at);
+            assert_eq!(
+                crate::timeline::meeting_end(&meeting, meeting.started_at),
+                meeting.started_at
+            );
+            let context = MeetingScreenContext::build(&meeting, &[shot(1, 0, "Zoom", "Zoom", "")]);
+            assert!(context.materials.is_empty());
+            assert_eq!(
+                library.meeting_screen_context(&meeting),
+                MeetingScreenContext::default()
+            );
+        }
+        // An ordinary length still counts from the start.
+        let meeting = meeting();
+        assert_eq!(
+            meeting.started_plus(600.0),
+            meeting.started_at + Duration::seconds(600)
+        );
     }
 
     #[test]

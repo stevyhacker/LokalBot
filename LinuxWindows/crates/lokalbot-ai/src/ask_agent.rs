@@ -31,6 +31,7 @@ use crate::ask::{
     AskEvent, AskScope, NO_ANSWER, Sources, assistant, time_zone_name, verified, verified_partial,
 };
 use crate::embeddings::semantic_meeting_hits;
+use crate::json::extract_json_object;
 use crate::think::{ChatRequest, EmbeddingClient, ThinkClient};
 
 /// Tool calls before a final answer is forced (`ChatAgent.maxSteps`).
@@ -146,36 +147,6 @@ pub fn removing_answer_marker(text: &str) -> String {
         Some(rest) => rest.trim().to_string(),
         None => text.to_string(),
     }
-}
-
-/// The first balanced `{…}` in `text`, skipping braces inside strings.
-pub fn extract_json_object(text: &str) -> Option<&str> {
-    let start = text.find('{')?;
-    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
-    for (offset, c) in text[start..].char_indices() {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if c == '\\' {
-                escaped = true;
-            } else if c == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-        match c {
-            '"' => in_string = true,
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(&text[start..start + offset + 1]);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
 }
 
 fn json_object(text: &str) -> Option<Map<String, Value>> {

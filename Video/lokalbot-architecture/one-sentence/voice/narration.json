@@ -1,0 +1,51 @@
+{
+  "voice_id": "jBeSFLau956Zo30jykBV",
+  "model_id": "eleven_v4",
+  "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.8,
+    "speed": 1.0
+  },
+  "lines": [
+    {
+      "id": "a01",
+      "text": "Someone on your call says one sentence. Let's follow it through LokalBot."
+    },
+    {
+      "id": "a02",
+      "text": "First it's only sound: two tracks, your microphone and the call app's audio."
+    },
+    {
+      "id": "a03",
+      "text": "When the call ends, a speaker model marks who spoke when."
+    },
+    {
+      "id": "a04",
+      "text": "A speech model turns the sound into words, each one pinned to its moment."
+    },
+    {
+      "id": "a05",
+      "text": "A language model reads the whole transcript and writes the notes: decisions, action items, open questions."
+    },
+    {
+      "id": "a06",
+      "text": "An embedding model files it by meaning, beside a keyword index, in one database."
+    },
+    {
+      "id": "a07",
+      "text": "Days later you start typing, and a model built for speed finishes the sentence."
+    },
+    {
+      "id": "a08",
+      "text": "And only if you allow it, your coding agent can ask for it too."
+    },
+    {
+      "id": "a09",
+      "text": "One sentence, five models, under ten gigabytes. All of it running on your Mac."
+    },
+    {
+      "id": "end",
+      "text": "LokalBot. Local by default, free and open source."
+    }
+  ]
+}

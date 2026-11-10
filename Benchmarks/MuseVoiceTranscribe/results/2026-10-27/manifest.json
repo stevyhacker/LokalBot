@@ -1,0 +1,58 @@
+[
+  {
+    "id": "EN2002a_mhm",
+    "meeting": "EN2002a",
+    "condition": "mhm",
+    "audio": "EN2002a.Mix-Headset.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/EN2002a.rttm"
+  },
+  {
+    "id": "EN2002a_sdm",
+    "meeting": "EN2002a",
+    "condition": "sdm",
+    "audio": "EN2002a.Array1-01.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/EN2002a.rttm"
+  },
+  {
+    "id": "ES2004a_mhm",
+    "meeting": "ES2004a",
+    "condition": "mhm",
+    "audio": "ES2004a.Mix-Headset.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/ES2004a.rttm"
+  },
+  {
+    "id": "ES2004a_sdm",
+    "meeting": "ES2004a",
+    "condition": "sdm",
+    "audio": "ES2004a.Array1-01.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/ES2004a.rttm"
+  },
+  {
+    "id": "IS1009a_mhm",
+    "meeting": "IS1009a",
+    "condition": "mhm",
+    "audio": "IS1009a.Mix-Headset.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/IS1009a.rttm"
+  },
+  {
+    "id": "IS1009a_sdm",
+    "meeting": "IS1009a",
+    "condition": "sdm",
+    "audio": "IS1009a.Array1-01.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/IS1009a.rttm"
+  },
+  {
+    "id": "TS3003a_mhm",
+    "meeting": "TS3003a",
+    "condition": "mhm",
+    "audio": "TS3003a.Mix-Headset.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/TS3003a.rttm"
+  },
+  {
+    "id": "TS3003a_sdm",
+    "meeting": "TS3003a",
+    "condition": "sdm",
+    "audio": "TS3003a.Array1-01.wav",
+    "reference": "Benchmarks/NemotronDiarization/results/2026-09-23/references/TS3003a.rttm"
+  }
+]

@@ -1,6 +1,8 @@
 use std::io::Cursor;
 use std::net::{TcpListener, TcpStream};
-use std::time::Duration;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use serde_json::json;
 
@@ -55,6 +57,65 @@ fn a_partial_packet_survives_a_read_timeout() {
         }
     }
     assert_eq!(got.unwrap(), b"hello world");
+}
+
+/// A peer that hands over one byte per read and never runs dry. The first two
+/// bytes declare a 65,535-byte packet.
+struct Trickle {
+    reads: usize,
+}
+
+impl std::io::Read for Trickle {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        buffer[0] = 0xFF;
+        self.reads += 1;
+        Ok(1)
+    }
+}
+
+#[test]
+fn a_trickled_packet_stops_at_the_deadline() {
+    let mut reader = PacketReader::default();
+    let mut source = Trickle { reads: 0 };
+    let passed = Instant::now();
+    assert_eq!(reader.read_until(&mut source, Some(passed)).unwrap(), None);
+    assert_eq!(source.reads, 1);
+    // The byte it brought is kept: without a deadline the packet completes.
+    assert_eq!(reader.read(&mut source).unwrap().unwrap().len(), 65_535);
+    assert_eq!(source.reads, 2 + 65_535);
+}
+
+#[test]
+fn the_handshake_timeout_holds_against_a_peer_that_trickles_bytes() {
+    let mut tuning = fast_tuning();
+    tuning.handshake_timeout = Duration::from_millis(300);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut writer = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let (stream, _) = listener.accept().unwrap();
+    let mut conn = RawConn::new(stream, &tuning).unwrap();
+    let stop = Arc::new(AtomicBool::new(false));
+    let trickle = {
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            use std::io::Write as _;
+            // A byte every 10 ms always lands inside the 100 ms read timeout.
+            let _ = writer.write_all(&[0xFF, 0xFF]);
+            let started = Instant::now();
+            while started.elapsed() < Duration::from_secs(4) && !stop.load(Ordering::SeqCst) {
+                if writer.write_all(&[0]).is_err() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        })
+    };
+    let started = Instant::now();
+    let result = conn.recv_packet();
+    let waited = started.elapsed();
+    stop.store(true, Ordering::SeqCst);
+    trickle.join().unwrap();
+    assert!(result.is_err());
+    assert!(waited < Duration::from_secs(2), "waited {waited:?}");
 }
 
 #[test]

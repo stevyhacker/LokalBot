@@ -831,9 +831,22 @@ final class CotypingVisualCaret {
         in frame: CGRect, precedingText: String
     ) async -> [CotypingVisualCaretLocator.RecognizedLine]? {
         guard let image = await capture(frame) else { return nil }
-        return await Task.detached(priority: .userInitiated) {
-            CotypingVisualCaret.recognize(image, frame: frame, precedingText: precedingText)
-        }.value
+        let input = CapturedField(image: image)
+        // Not a detached task: recognition that never answered left each find
+        // holding a Swift concurrency thread, until none was free (2026-11-09).
+        return await TextRecognitionQueue.shared.run(
+            "autocomplete caret", urgency: .interactive, within: recognitionLimit
+        ) {
+            CotypingVisualCaret.recognize(input.image, frame: frame, precedingText: precedingText)
+        }
+    }
+
+    /// How long a find waits for its lines; they take 5 to 60 ms. A find
+    /// without them places no caret and is not counted as a miss.
+    private static let recognitionLimit: TimeInterval = 5
+
+    private struct CapturedField: @unchecked Sendable {
+        let image: CGImage
     }
 
     /// The field's lines, by the recognition that can read what was typed.

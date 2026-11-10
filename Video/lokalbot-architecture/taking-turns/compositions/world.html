@@ -1,0 +1,1278 @@
+<template>
+  <style>
+    /* kit:begin */
+    /* The look the three architecture films share. Injected into every scene by kit/build_lib.py:
+       edit kit/kit.css, never this copy. */
+    #root {
+      --slate: #0e151d;      /* the brand's ground, and the inside of the Mac */
+      --slate-2: #17222d;    /* a surface on slate */
+      --slate-3: #222e3d;    /* the icon plate's lighter end */
+      --ink: #0e141c;        /* type on mint and on light grounds */
+      --mint: #c9f1e7;       /* the brand's light ground */
+      --mint-hi: #6ef2dc;    /* the robot's body, lit side */
+      --mint-lo: #23c4ae;    /* the robot's body, far side */
+      --teal: #3a7d72;       /* the robot's arm: quiet structure */
+      --teal-deep: #1f3d38;  /* quiet type on mint */
+      --paper: #eafffa;      /* type on slate and teal */
+      --amber: #fbbf24;      /* the antenna light: one focus a frame, never decoration */
+      font-family: Inter, sans-serif;
+    }
+    .mono {
+      font-family: "JetBrains Mono", monospace;
+    }
+    /* A label that sits on the part it names: the model, its job, then its file facts. */
+    .plate {
+      position: absolute;
+      padding-left: 26px;
+      border-left: 8px solid var(--plate-rule, var(--mint-hi));
+      color: var(--plate-ink, var(--paper));
+      white-space: nowrap;
+    }
+    .plate-name {
+      font-weight: 800;
+      font-size: 60px;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .plate-job {
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.25;
+      margin-top: 10px;
+    }
+    .plate-spec {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.35;
+      margin-top: 10px;
+      color: var(--plate-dim, var(--mint-hi));
+    }
+    /* kit:end */
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #143a35;
+      color: #eafffa;
+    }
+    /* The camera: the stage (desk, shelf, files) sits inside this wrapper, and only it is moved. */
+    #w-world {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      transform-origin: 0 0;
+    }
+    #w-stage,
+    #w-arrow {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: visible;
+    }
+
+    /* c01: the question, the two thin files' names, the line at the laptop's height */
+    #tt-q {
+      position: absolute;
+      left: 880px;
+      top: 64px;
+      font-weight: 900;
+      font-size: 110px;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    #tt-q span {
+      display: inline-block;
+    }
+    .tt-tw {
+      position: absolute;
+      font-weight: 800;
+      font-size: 34px;
+      line-height: 40px;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .tt-twl {
+      position: absolute;
+      height: 4px;
+      background: #3a7d72;
+    }
+    #tt-rule {
+      position: absolute;
+      left: 240px;
+      top: 544px;
+      width: 860px;
+      height: 4px;
+      background: repeating-linear-gradient(to right, #eafffa 0 14px, transparent 14px 26px);
+    }
+
+    /* c02: what the five files weigh, before the desk is drawn over this space */
+    #big-n {
+      position: absolute;
+      left: 110px;
+      top: 232px;
+      font-weight: 900;
+      font-size: 230px;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    #big-sub {
+      position: absolute;
+      left: 124px;
+      top: 474px;
+      font-weight: 800;
+      font-size: 64px;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    /* The model files (on the shelf) and their copies (on the desk) */
+    .tt-file,
+    .tt-copy {
+      position: absolute;
+      background: linear-gradient(135deg, #6ef2dc, #23c4ae);
+      border-radius: 20px;
+      box-shadow: 0 12px 0 #14877a;
+      color: #0e141c;
+    }
+    .tt-file {
+      top: 762px;
+      height: 190px;
+    }
+    .tt-copy {
+      top: 350px;
+      height: 260px;
+    }
+    .tt-thin {
+      border-radius: 9px;
+    }
+    .tt-name {
+      position: absolute;
+      left: 20px;
+      top: 18px;
+      font-weight: 800;
+      font-size: 32px;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .tt-size {
+      position: absolute;
+      left: 20px;
+      top: 60px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .tt-copy .tt-name {
+      left: 16px;
+      top: 36px;
+      font-size: 28px;
+      opacity: 0;
+    }
+    /* Amber: the one model that is working right now. */
+    .tt-edge {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 16px;
+      background: #fbbf24;
+      border-radius: 20px 20px 0 0;
+      opacity: 0;
+    }
+    .tt-thin .tt-edge {
+      border-radius: 9px 9px 0 0;
+    }
+    .tt-flag {
+      position: absolute;
+      font-weight: 800;
+      font-size: 28px;
+      line-height: 32px;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .tt-flag b {
+      display: block;
+      font-weight: 800;
+    }
+    .tt-flag span {
+      display: block;
+      margin-top: 4px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      letter-spacing: 0;
+      line-height: 34px;
+    }
+    .tt-leader {
+      position: absolute;
+      width: 4px;
+      background: #3a7d72;
+    }
+    .tt-zone {
+      position: absolute;
+      font-weight: 800;
+      font-size: 44px;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    #lb-mem {
+      left: 150px;
+      top: 190px;
+      font-size: 40px;
+    }
+    #lb-disk {
+      left: 120px;
+      top: 776px;
+    }
+    #lb-disk-sub {
+      position: absolute;
+      left: 120px;
+      top: 834px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 36px;
+      white-space: nowrap;
+    }
+    /* A note pinned on a file while it waits on the shelf. */
+    .tt-tag {
+      position: absolute;
+      top: 874px;
+      padding: 12px 16px;
+      background: #0e151d;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 28px;
+      white-space: nowrap;
+      color: #eafffa;
+    }
+    .tt-pause {
+      margin-right: 8px;
+    }
+    .tt-pause i {
+      display: inline-block;
+      width: 7px;
+      height: 24px;
+      margin-right: 6px;
+      background: #eafffa;
+      vertical-align: -3px;
+    }
+
+    /* Timers over the blocks on the desk */
+    .tt-cd {
+      position: absolute;
+      top: 286px;
+      width: 140px;
+      height: 44px;
+      font-weight: 700;
+      font-size: 40px;
+      line-height: 44px;
+      opacity: 0;
+    }
+    .tt-cd span {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    .tt-cdt {
+      position: absolute;
+      top: 293px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 34px;
+      white-space: nowrap;
+      color: #8fc9bd;
+    }
+    .tt-cdb {
+      position: absolute;
+      top: 336px;
+      height: 6px;
+      border-radius: 3px;
+      background: #eafffa;
+      transform-origin: 0 50%;
+    }
+
+    /* The work area: what the running model reads or writes */
+    #rec {
+      position: absolute;
+      left: 520px;
+      top: 290px;
+      font-weight: 700;
+      font-size: 32px;
+      line-height: 40px;
+      white-space: nowrap;
+    }
+    #rec i {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 14px;
+      border-radius: 10px;
+      background: #eafffa;
+    }
+    .tt-trk {
+      position: absolute;
+      left: 520px;
+      font-weight: 500;
+      font-size: 30px;
+      line-height: 36px;
+      white-space: nowrap;
+    }
+    .tt-strip {
+      position: absolute;
+      left: 730px;
+      width: 920px;
+      height: 80px;
+    }
+    .tt-segs {
+      position: absolute;
+      left: 730px;
+      width: 920px;
+      height: 10px;
+    }
+    .tt-trl {
+      position: absolute;
+      left: 520px;
+      height: 56px;
+      font-size: 34px;
+      line-height: 56px;
+      white-space: nowrap;
+    }
+    .tt-who {
+      display: inline-block;
+      width: 112px;
+      font-weight: 800;
+    }
+    .tt-you {
+      color: #6ef2dc;
+    }
+    .tt-said {
+      display: inline-block;
+      font-weight: 500;
+    }
+    #notes {
+      position: absolute;
+      left: 1320px;
+      top: 250px;
+      width: 340px;
+      height: 356px;
+      background: #eafffa;
+      border-radius: 14px;
+      color: #0e141c;
+    }
+    #notes-file {
+      position: absolute;
+      left: 24px;
+      top: 18px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 34px;
+      color: #1f3d38;
+    }
+    .tt-nh {
+      position: absolute;
+      left: 24px;
+      font-weight: 800;
+      font-size: 32px;
+      letter-spacing: -0.02em;
+      line-height: 38px;
+      white-space: nowrap;
+    }
+    .tt-nb {
+      position: absolute;
+      left: 24px;
+      height: 10px;
+      border-radius: 5px;
+      background: #fbbf24;
+      transform-origin: 0 50%;
+    }
+    .tt-note {
+      position: absolute;
+      left: 520px;
+      top: 196px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 34px;
+      white-space: nowrap;
+    }
+    #bubble {
+      position: absolute;
+      left: 392px;
+      top: 222px;
+      width: 64px;
+      height: 56px;
+      border: 4px solid #eafffa;
+      border-radius: 16px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 34px;
+      line-height: 48px;
+    }
+    #field {
+      position: absolute;
+      left: 620px;
+      top: 420px;
+      width: 1020px;
+      height: 116px;
+      border: 4px solid #3a7d72;
+      border-radius: 18px;
+      background: #143a35;
+    }
+    #field-text {
+      position: absolute;
+      left: 32px;
+      top: 0;
+      height: 108px;
+      font-weight: 500;
+      font-size: 46px;
+      line-height: 108px;
+      white-space: pre;
+    }
+    .tt-ch {
+      color: #c9992b;
+      opacity: 0;
+    }
+    .tt-caret {
+      display: inline-block;
+      position: relative;
+      width: 0;
+      height: 0;
+      opacity: 0;
+    }
+    .tt-caret::after {
+      content: "";
+      position: absolute;
+      left: 1px;
+      top: -42px;
+      width: 4px;
+      height: 54px;
+      background: #eafffa;
+    }
+
+    /* c07: the budget and the queue */
+    #budget {
+      position: absolute;
+      left: 958px;
+      top: 180px;
+      width: 4px;
+      height: 456px;
+      background: repeating-linear-gradient(to bottom, #eafffa 0 14px, transparent 14px 26px);
+    }
+    /* The half of the desk the broker lets models have. */
+    #budget-zone {
+      position: absolute;
+      left: 122px;
+      top: 178px;
+      width: 836px;
+      height: 460px;
+      border-radius: 22px 0 0 22px;
+      background: #235c54;
+    }
+    #lb-budget {
+      position: absolute;
+      right: 984px;
+      top: 194px;
+      font-weight: 700;
+      font-size: 32px;
+      line-height: 38px;
+      white-space: nowrap;
+    }
+    #lb-queue {
+      position: absolute;
+      left: 1000px;
+      top: 378px;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 34px;
+      color: #8fc9bd;
+    }
+    .tt-tk {
+      position: absolute;
+      top: 430px;
+      width: 380px;
+      height: 88px;
+      border-radius: 14px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 30px;
+      line-height: 88px;
+      white-space: nowrap;
+    }
+    #tk-digest {
+      left: 1000px;
+      background: #0e151d;
+      color: #eafffa;
+    }
+    #tk-question {
+      left: 1400px;
+      background: #eafffa;
+      color: #0e141c;
+    }
+    #tk-answer {
+      position: absolute;
+      left: 1000px;
+      top: 532px;
+      width: 380px;
+      height: 12px;
+      border-radius: 6px;
+      background: #fbbf24;
+      transform-origin: 0 50%;
+    }
+
+    /* c08: the one idea, in the empty desk */
+    #line8 {
+      position: absolute;
+      left: 120px;
+      top: 360px;
+      width: 1680px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 84px;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    #line8 span {
+      display: inline-block;
+    }
+
+    /* The clock: a tape of minutes sliding under a fixed playhead. It stays on the frame while
+       the camera goes close on the desk under it. */
+    #w-clock {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 150px;
+      overflow: hidden;
+      background: #143a35;
+      opacity: 0;
+    }
+    #ck-tape,
+    #ck-events {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 16800px;
+      height: 150px;
+    }
+    #ck-evclip {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 960px;
+      height: 150px;
+      overflow: hidden;
+    }
+    .ck-t {
+      position: absolute;
+      left: 0;
+      width: 16800px;
+    }
+    #ck-t1 {
+      top: 96px;
+      height: 14px;
+      background: repeating-linear-gradient(to right, #3a7d72 0 2px, transparent 2px 28px);
+    }
+    #ck-t10 {
+      top: 82px;
+      height: 28px;
+      background: repeating-linear-gradient(to right, #8fc9bd 0 3px, transparent 3px 280px);
+    }
+    #ck-t60 {
+      top: 70px;
+      height: 40px;
+      background: repeating-linear-gradient(to right, #eafffa 0 4px, transparent 4px 1680px);
+    }
+    .ck-label {
+      position: absolute;
+      top: 112px;
+      width: 86px;
+      text-align: center;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 32px;
+      color: #8fc9bd;
+    }
+    .ck-hour {
+      color: #eafffa;
+    }
+    .ck-ev {
+      position: absolute;
+      top: 6px;
+      font-weight: 700;
+      font-size: 32px;
+      line-height: 38px;
+      white-space: nowrap;
+    }
+    #ck-callbar {
+      position: absolute;
+      left: 1680px;
+      top: 50px;
+      width: 728px;
+      height: 10px;
+      border-radius: 5px;
+      background: #eafffa;
+    }
+    #ck-head {
+      position: absolute;
+      left: 958px;
+      top: 44px;
+      width: 4px;
+      height: 102px;
+      background: #eafffa;
+    }
+    #ck-headcap {
+      position: absolute;
+      left: 948px;
+      top: 40px;
+      width: 24px;
+      height: 10px;
+      border-radius: 4px;
+      background: #eafffa;
+    }
+    #ck-time {
+      position: absolute;
+      left: 990px;
+      top: 0;
+      width: 220px;
+      height: 58px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      font-size: 52px;
+      line-height: 58px;
+    }
+    #ck-time span {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      white-space: nowrap;
+    }
+    #ck-rule {
+      position: absolute;
+      left: 0;
+      top: 146px;
+      width: 1920px;
+      height: 4px;
+      background: #3a7d72;
+    }
+    /* The amber dot the end card takes over. */
+    #w-dot {
+      position: absolute;
+      left: 751px;
+      top: 625.5px;
+      width: 50px;
+      height: 50px;
+      border-radius: 25px;
+      background: #fbbf24;
+      opacity: 0;
+    }
+  </style>
+  <div id="root" data-composition-id="world" data-width="1920" data-height="1080">
+    <div id="w-world" data-layout-allow-overflow>
+      <!-- The shelf (disk) is there from the first frame; the laptop's screen grows into the desk (memory). -->
+      <svg id="w-stage" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="tt-robot" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#6ef2dc" />
+            <stop offset="1" stop-color="#23c4ae" />
+          </linearGradient>
+        </defs>
+        <rect id="st-lapbezel" x="1100" y="548" width="580" height="370" rx="22" fill="#0e151d" />
+        <!-- The laptop's screen: it grows past the frame, and from then on the film is inside the Mac. -->
+        <rect id="st-screen" x="1116" y="564" width="548" height="338" rx="8" fill="#1b4a44" />
+        <rect id="st-ledge" x="200" y="940" width="1560" height="20" rx="6" fill="#0e151d" />
+        <rect id="st-desk" x="120" y="176" width="1680" height="464" rx="24" fill="#1b4a44" stroke="#3a7d72" stroke-width="4" stroke-dasharray="4300" />
+        <!-- LokalBot's own mark on the laptop's screen (Assets/lokalbot-icon.svg, without its plate). -->
+        <g id="st-lapicon" transform="translate(1298 620) scale(0.2)">
+          <rect x="372" y="206" width="36" height="86" rx="18" fill="#3a7d72" />
+          <circle cx="390" cy="186" r="42" fill="#eafffa" />
+          <rect x="268" y="276" width="244" height="484" rx="62" fill="url(#tt-robot)" />
+          <rect x="268" y="592" width="492" height="168" rx="62" fill="url(#tt-robot)" />
+          <rect x="312" y="326" width="156" height="118" rx="38" fill="#0e141c" />
+          <circle cx="390" cy="385" r="34" fill="#6ef2dc" />
+          <circle cx="402" cy="373" r="10" fill="#eafffa" />
+          <rect x="206" y="430" width="44" height="180" rx="22" fill="#3a7d72" />
+        </g>
+        <rect id="st-lapbase" x="1050" y="918" width="680" height="22" rx="8" fill="#3a7d72" />
+        <rect id="st-lapnotch" x="1340" y="918" width="100" height="8" rx="4" fill="#1f3d38" />
+      </svg>
+      <div id="budget-zone" data-layout-ignore></div>
+      <div id="tt-rule" data-layout-ignore></div>
+
+      <div id="tt-q"><span class="tt-qw">Five</span> <span class="tt-qw">models.</span><br /><span class="tt-qw">One</span> <span class="tt-qw">laptop?</span></div>
+      <div class="tt-tw" id="tw-nemo" style="right: 1444px; top: 262px">Nemotron 3</div>
+      <div class="tt-twl" id="twl-nemo" style="left: 482px; top: 280px; width: 14px"></div>
+      <div class="tt-tw" id="tw-embed" style="left: 654px; top: 344px">EmbeddingGemma 2</div>
+      <div class="tt-twl" id="twl-embed" style="left: 630px; top: 362px; width: 16px"></div>
+
+      <div id="big-n">9.6 GB</div>
+      <div id="big-sub">of model files</div>
+
+      <div class="tt-zone" id="lb-mem">memory</div>
+      <div class="tt-zone" id="lb-disk">disk</div>
+      <div class="mono" id="lb-disk-sub">9.6 GB of<br />model files</div>
+
+      <!-- Work area: recording, the transcript, the notes -->
+      <div id="rec"><i></i>recording</div>
+      <div class="tt-trk mono" id="trk-mic" style="top: 392px">mic.m4a</div>
+      <div class="tt-strip" id="strip-mic" style="top: 370px" data-layout-ignore></div>
+      <div class="tt-segs" id="segs-mic" style="top: 456px" data-layout-ignore></div>
+      <div class="tt-trk mono" id="trk-sys" style="top: 502px">system.m4a</div>
+      <div class="tt-strip" id="strip-sys" style="top: 480px" data-layout-ignore></div>
+      <div class="tt-segs" id="segs-sys" style="top: 566px" data-layout-ignore></div>
+
+      <div class="tt-trl" id="trl-1" style="top: 372px"><span class="tt-who tt-you">You</span><span class="tt-said">Lisbon or Porto?</span></div>
+      <div class="tt-trl" id="trl-2" style="top: 428px"><span class="tt-who">Maya</span><span class="tt-said">Lisbon. And it's under budget.</span></div>
+      <div class="tt-trl" id="trl-3" style="top: 484px"><span class="tt-who tt-you">You</span><span class="tt-said">Agreed. Let's decide.</span></div>
+      <div class="tt-trl" id="trl-4" style="top: 540px"><span class="tt-who">Maya</span><span class="tt-said">The offsite is in Lisbon, May 12 to 14.</span></div>
+
+      <div id="notes">
+        <div class="mono" id="notes-file">summary.md</div>
+        <div class="tt-nh" id="nh-1" style="top: 72px">Decisions</div>
+        <div class="tt-nb" id="nb-1" style="top: 120px; width: 250px"></div>
+        <div class="tt-nh" id="nh-2" style="top: 162px">Action items</div>
+        <div class="tt-nb" id="nb-2" style="top: 210px; width: 215px"></div>
+        <div class="tt-nh" id="nh-3" style="top: 252px">Open questions</div>
+        <div class="tt-nb" id="nb-3" style="top: 300px; width: 180px"></div>
+      </div>
+      <div class="tt-note mono" id="tag-notes">26-minute meeting: 33 s warm, 60 s with the load · M4 Max</div>
+      <div class="tt-note mono" id="tag-keys">56 ms median a keystroke · M4 Max</div>
+      <div id="bubble">?</div>
+      <div id="field"><div id="field-text"></div></div>
+
+      <!-- c07 -->
+      <div id="budget" data-layout-ignore></div>
+      <div id="lb-budget">budget: half of memory</div>
+      <svg id="w-arrow" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" data-layout-ignore>
+        <path id="st-arrow" d="M 990 474 L 884 474 M 906 456 L 884 474 L 906 492" fill="none" stroke="#eafffa" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <div class="mono" id="lb-queue">queue</div>
+      <div class="tt-tk" id="tk-digest">day digest · background</div>
+      <div class="tt-tk" id="tk-question">your question</div>
+      <div id="tk-answer" data-layout-ignore></div>
+
+      <div id="line8"><span class="tt-l8">Five models.</span> <span class="tt-l8">One Mac.</span> <span class="tt-l8">Taking turns.</span></div>
+
+      <!-- The five model files. Widths are their sizes on disk, 125 px a gigabyte. -->
+      <div class="tt-file" id="f-asr" style="left: 330px; width: 309px"><div class="tt-name">Qwen3-ASR 1.7B</div><div class="tt-size">2.47 GB</div></div>
+      <div class="tt-file tt-thin" id="f-nemo" style="left: 663px; width: 25px"></div>
+      <div class="tt-file" id="f-think" style="left: 712px; width: 343px"><div class="tt-name">Qwen3.5 4B</div><div class="tt-size">2.74 GB</div></div>
+      <div class="tt-file" id="f-gemma" style="left: 1079px; width: 481px"><div class="tt-name">Gemma 4 E2B</div><div class="tt-size">3.85 GB</div></div>
+      <div class="tt-file tt-thin" id="f-embed" style="left: 1584px; width: 39px"></div>
+      <div class="tt-flag" id="fl-nemo" style="left: 598px; top: 668px"><b>Nemotron 3</b><span>0.20 GB</span></div>
+      <div class="tt-leader" id="fll-nemo" style="left: 674px; top: 740px; height: 20px"></div>
+      <div class="tt-flag" id="fl-embed" style="right: 280px; top: 668px; text-align: right"><b>EmbeddingGemma 2</b><span>0.31 GB</span></div>
+      <div class="tt-leader" id="fll-embed" style="left: 1602px; top: 740px; height: 20px"></div>
+      <div class="tt-tag mono" id="tag-asr" style="left: 346px">after the call</div>
+      <div class="tt-tag mono" id="tag-gemma" style="left: 1095px"><span class="tt-pause"><i></i><i></i></span>paused while recording</div>
+
+      <!-- Copies in memory: a file stays on the shelf, its copy comes up to the desk. Widths 105 px a gigabyte. -->
+      <div class="tt-copy tt-thin" id="c-nemo" style="left: 160px; width: 28px"><div class="tt-edge"></div></div>
+      <div class="tt-copy" id="c-asr" style="left: 204px; width: 259px"><div class="tt-edge"></div><div class="tt-name">Qwen3-ASR 1.7B</div></div>
+      <div class="tt-copy" id="c-think" style="left: 160px; width: 288px"><div class="tt-edge"></div><div class="tt-name">Qwen3.5 4B</div></div>
+      <div class="tt-copy" id="c-gemma" style="left: 160px; width: 404px"><div class="tt-edge"></div><div class="tt-name">Gemma 4 E2B</div></div>
+      <div class="tt-copy" id="c-think2" style="left: 580px; width: 288px"><div class="tt-edge"></div><div class="tt-name">Qwen3.5 4B</div></div>
+      <div class="tt-copy tt-thin" id="c-embed" style="left: 160px; width: 33px"><div class="tt-edge"></div></div>
+      <div class="tt-flag" id="cfl-nemo" style="left: 160px; top: 246px">Nemotron 3</div>
+      <div class="tt-leader" id="cfll-nemo" style="left: 172px; top: 282px; height: 66px"></div>
+
+      <div class="tt-cd mono" id="cd-speech" style="left: 204px"></div>
+      <div class="tt-cdt mono" id="cdt-speech" style="left: 322px">unload after 120 s idle</div>
+      <div class="tt-cdb" id="cdb-speech" style="left: 160px; width: 303px" data-layout-ignore></div>
+      <div class="tt-cd mono" id="cd-think" style="left: 160px"></div>
+      <div class="tt-cdt mono" id="cdt-think" style="left: 302px">stays 600 s after its last request</div>
+      <div class="tt-cdb" id="cdb-think" style="left: 160px; width: 288px" data-layout-ignore></div>
+      <div class="tt-cdt mono" id="cdt-gemma" style="left: 160px">no timer</div>
+    </div>
+
+    <div id="w-clock" data-layout-allow-overflow>
+      <div id="ck-tape" data-layout-ignore>
+        <div class="ck-t" id="ck-t1"></div>
+        <div class="ck-t" id="ck-t10"></div>
+        <div class="ck-t" id="ck-t60"></div>
+      </div>
+      <div id="ck-evclip">
+        <div id="ck-events" data-layout-ignore>
+          <div id="ck-callbar"></div>
+          <div class="ck-ev" id="ev-call" style="left: 1692px">call</div>
+          <div class="ck-ev" id="ev-hangup" style="right: 14406px">hang up</div>
+          <div class="ck-ev" id="ev-typing" style="right: 12334px">typing</div>
+          <div class="ck-ev" id="ev-question" style="right: 6454px">a question</div>
+        </div>
+      </div>
+      <div id="ck-head"></div>
+      <div id="ck-headcap"></div>
+      <div id="ck-time"></div>
+      <div id="ck-rule"></div>
+    </div>
+
+    <!-- The amber dot the end card takes over: the last working model's edge closes to it. -->
+    <div id="w-dot" data-layout-ignore></div>
+  </div>
+  <script>
+    /* cues:begin */
+    // Written by build.py from the voice's timings: never edit between these two marks.
+    const CUES = {"length": 55.8, "slot": 55.2, "lines": {"c01": {"start": 0.4, "end": 6.375, "words": [["lokalbot", 0.4], ["runs", 1.2], ["five", 1.52], ["ai", 2.0], ["models", 2.32], ["on", 2.8], ["your", 2.96], ["mac", 3.12], ["so", 4.0], ["how", 4.56], ["does", 4.72], ["one", 5.04], ["laptop", 5.28], ["hold", 5.84], ["them", 6.0], ["all", 6.32]]}, "c02": {"start": 6.625, "end": 13.542, "words": [["it", 6.625], ["doesn't", 6.785], ["have", 7.105], ["to", 7.425], ["the", 8.145], ["models", 8.425], ["are", 8.705], ["files", 8.945], ["on", 9.345], ["your", 9.545], ["disk", 10.025], ["under", 10.465], ["ten", 10.785], ["gigabytes", 11.025], ["and", 12.038], ["they", 12.145], ["take", 12.425], ["turns", 12.625], ["in", 13.025], ["memory", 13.185]]}, "c03": {"start": 13.792, "end": 21.402, "words": [["during", 13.792], ["a", 14.112], ["call", 14.472], ["lokalbot", 14.992], ["only", 15.792], ["records", 16.112], ["transcription", 17.392], ["waits", 18.192], ["until", 18.592], ["you", 18.912], ["hang", 19.112], ["up", 19.312], ["and", 19.992], ["autocomplete", 20.192], ["pauses", 20.992]]}, "c04": {"start": 21.652, "end": 29.586, "words": [["then", 21.652], ["the", 21.972], ["speech", 22.212], ["models", 22.452], ["load", 22.932], ["turn", 23.852], ["the", 24.052], ["sound", 24.212], ["into", 24.612], ["a", 24.932], ["transcript", 25.212], ["with", 25.732], ["speakers", 25.892], ["and", 26.972], ["two", 27.172], ["minutes", 27.332], ["after", 27.732], ["they", 28.052], ["finish", 28.212], ["they", 28.852], ["unload", 29.092]]}, "c05": {"start": 29.836, "end": 36.991, "words": [["the", 29.836], ["language", 29.996], ["model", 30.476], ["comes", 30.916], ["in", 31.116], ["next", 31.556], ["and", 31.916], ["writes", 32.236], ["the", 32.476], ["notes", 32.996], ["it", 33.516], ["stays", 33.676], ["ten", 34.076], ["minutes", 34.316], ["in", 34.956], ["case", 35.116], ["you", 35.356], ["ask", 35.436], ["a", 35.676], ["follow-up", 35.876], ["then", 36.556], ["leaves", 36.796]]}, "c06": {"start": 37.341, "end": 44.489, "words": [["the", 37.341], ["autocomplete", 37.501], ["model", 38.301], ["stays", 38.701], ["loaded", 39.181], ["while", 39.661], ["there's", 39.901], ["room", 40.221], ["because", 40.941], ["it", 41.261], ["answers", 41.421], ["every", 41.901], ["keystroke", 42.301], ["in", 42.941], ["about", 43.101], ["fifty", 43.461], ["milliseconds", 44.221]]}, "c07": {"start": 44.839, "end": 51.358, "words": [["a", 44.839], ["broker", 45.199], ["budgets", 45.479], ["half", 46.039], ["your", 46.359], ["memory", 46.519], ["for", 46.999], ["loaded", 47.359], ["models", 48.039], ["and", 48.626], ["what", 48.759], ["you're", 48.892], ["waiting", 49.159], ["for", 49.399], ["goes", 49.759], ["ahead", 50.039], ["of", 50.359], ["background", 50.519], ["work", 51.479]]}, "c08": {"start": 51.608, "end": 54.691, "words": [["five", 51.608], ["models", 52.008], ["one", 52.888], ["mac", 53.128], ["taking", 53.928], ["turns", 54.328]]}}};
+    const LEN = CUES.length;
+    const SLOT = CUES.slot;
+    const L = (id) => CUES.lines[id].start;
+    const E = (id) => CUES.lines[id].end;
+    const W = (id, word, nth = 1) => {
+      const hits = CUES.lines[id].words.filter((said) => said[0] === word.toLowerCase());
+      if (hits.length < nth) throw new Error(`no cue ${id}/${word}`);
+      return hits[nth - 1][1];
+    };
+    gsap.config({ force3D: false }); // 2D transforms, so type stays sharp under a camera move
+    /* cues:end */
+    const tl = gsap.timeline({ paused: true });
+    const $ = (selector) => document.querySelector(selector);
+    const all = (selector) => gsap.utils.toArray(selector);
+    const PAPER = "#eafffa";
+    const AMBER = "#fbbf24";
+
+    // Appear and leave: opacity only, so type under the camera stays sharp.
+    const show = (target, at, duration = 0.15) =>
+      tl.fromTo(target, { opacity: 0 }, { opacity: 1, duration, ease: "power2.out" }, at);
+    const hide = (target, at, duration = 0.2) =>
+      tl.fromTo(target, { opacity: 1 }, { opacity: 0, duration, ease: "power2.in", immediateRender: false }, at);
+    // A stack of states, one visible at a time: [[when, text], ...].
+    const states = (host, entries) => {
+      entries.forEach(([at, text], index) => {
+        const state = document.createElement("span");
+        state.textContent = text;
+        host.appendChild(state);
+        tl.set(state, { opacity: 1 }, at);
+        if (index + 1 < entries.length) tl.set(state, { opacity: 0 }, entries[index + 1][0]);
+      });
+    };
+    const clock = (seconds) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+    // ---------------------------------------------------------------- the stage's data
+    // Shelf: left and width of each file (125 px a gigabyte). Tower: where it stands at the start.
+    const FILES = {
+      asr: { x: 330, w: 309, tower: [421, 401] },
+      nemo: { x: 663, w: 25, tower: [500, 217] },
+      think: { x: 712, w: 343, tower: [405.6, 585] },
+      gemma: { x: 1079, w: 481, tower: [343.5, 769] },
+      embed: { x: 1584, w: 39, tower: [590, 217] },
+    };
+    const SHELF_TOP = 762;
+    const DESK_TOP = 350; // where a copy stands on the desk
+    const TOWER_SCALE = 0.9;
+    const SINK = 12; // the shelf settles this far when the laptop grows into the stage
+    // Desk: where each copy docks, and how wide it is there (105 px a gigabyte).
+    const COPIES = {
+      "c-nemo": { slot: 160, w: 28, file: "nemo" },
+      "c-asr": { slot: 204, w: 259, file: "asr" },
+      "c-think": { slot: 160, w: 288, file: "think" },
+      "c-gemma": { slot: 160, w: 404, file: "gemma" },
+      "c-think2": { slot: 580, w: 288, file: "think" },
+      "c-embed": { slot: 160, w: 33, file: "embed" },
+    };
+    // A copy's state while it still sits on its file.
+    const home = (id) => {
+      const copy = COPIES[id];
+      const file = FILES[copy.file];
+      return { x: file.x - copy.slot, y: SHELF_TOP - DESK_TOP, scaleX: file.w / copy.w, scaleY: 190 / 260 };
+    };
+    for (const id of Object.keys(COPIES)) gsap.set("#" + id, { transformOrigin: "0 0", opacity: 0, ...home(id) });
+    const rise = (id, at, duration = 0.6) => {
+      const from = home(id);
+      const copy = "#" + id;
+      tl.set(copy, { opacity: 1 }, at);
+      // Across first, then up: the copy runs along under the desk and comes up into its place,
+      // so it never crosses what the desk is showing.
+      tl.fromTo(copy, { x: from.x }, { x: 0, duration, ease: "power3.out", immediateRender: false }, at);
+      tl.fromTo(copy, { y: from.y }, { y: 0, duration, ease: "power2.inOut", immediateRender: false }, at);
+      tl.fromTo(copy, { scaleX: from.scaleX, scaleY: from.scaleY },
+        { scaleX: 1, scaleY: 1, duration, ease: "power2.inOut", immediateRender: false }, at);
+      return at + duration;
+    };
+    const drop = (id, at, duration = 0.35) => {
+      const copy = "#" + id;
+      tl.fromTo(copy, { x: 0, y: 0, scaleX: 1, scaleY: 1 },
+        { ...home(id), duration, ease: "power3.in", immediateRender: false }, at);
+      tl.set(copy, { opacity: 0 }, at + duration);
+      return at + duration;
+    };
+    const named = (id, at) => tl.fromTo(`#${id} .tt-name`, { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "power2.out", immediateRender: false }, at);
+    const unnamed = (id, at) => tl.set(`#${id} .tt-name`, { opacity: 0 }, at);
+    const working = (id, from, to) => {
+      tl.set(`#${id} .tt-edge`, { opacity: 1 }, from);
+      tl.set(`#${id} .tt-edge`, { opacity: 0 }, to);
+    };
+
+    // Seeded noise for the waveforms.
+    let seed = 20261110;
+    const noise = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    // Who speaks when, in bars of the two tracks (92 bars, 10 px apart).
+    const TURNS = { mic: [[2, 16], [46, 60], [70, 82]], sys: [[19, 43], [63, 67], [85, 91]] };
+    for (const [track, color] of [["mic", "#6ef2dc"], ["sys", PAPER]]) {
+      for (let bar = 0; bar < 92; bar++) {
+        const speaking = TURNS[track].some(([from, to]) => bar >= from && bar <= to);
+        const height = speaking ? 18 + Math.round(noise() * 56) : 4;
+        const mark = document.createElement("i");
+        mark.style.cssText = `position:absolute;left:${bar * 10}px;top:${40 - height / 2}px;width:6px;height:${height}px;border-radius:3px;background:${color}`;
+        $("#strip-" + track).appendChild(mark);
+      }
+      for (const [from, to] of TURNS[track]) {
+        const turn = document.createElement("i");
+        turn.style.cssText = `position:absolute;left:${from * 10}px;top:0;width:${(to - from + 1) * 10 - 4}px;height:10px;border-radius:5px;background:${color}`;
+        $("#segs-" + track).appendChild(turn);
+      }
+    }
+
+    // ---------------------------------------------------------------- c01: the tower and the laptop
+    for (const [id, file] of Object.entries(FILES)) {
+      gsap.set("#f-" + id, { transformOrigin: "0 0", x: file.tower[0] - file.x, y: file.tower[1] - SHELF_TOP, scale: TOWER_SCALE });
+    }
+    gsap.set(".tt-file .tt-size, .tt-flag b, .tt-flag span, .tt-leader, .tt-tag", { opacity: 0 });
+    gsap.set("#budget-zone", { opacity: 0 });
+    gsap.set("#lb-mem, #lb-disk, #lb-disk-sub, #rec, .tt-trk, #notes, .tt-note, #bubble, #field, #budget, #lb-budget, #lb-queue, .tt-tk, #tk-answer, #st-arrow, .tt-cdt, .tt-cdb, .tt-who, .ck-ev", { opacity: 0 });
+    gsap.set("#ev-call", { opacity: 1 });
+    gsap.set("#st-desk", { opacity: 0 });
+    // The two smallest files land on the tower as the film opens, and are named as they land.
+    tl.fromTo("#f-nemo", { y: FILES.nemo.tower[1] - SHELF_TOP - 190 },
+      { y: FILES.nemo.tower[1] - SHELF_TOP, duration: 0.3, ease: "power3.in" }, 0.12);
+    show("#tw-nemo, #twl-nemo", 0.4);
+    tl.fromTo("#f-embed", { y: FILES.embed.tower[1] - SHELF_TOP - 190 },
+      { y: FILES.embed.tower[1] - SHELF_TOP, duration: 0.3, ease: "power3.in" }, 0.5);
+    show("#tw-embed, #twl-embed", 0.78);
+    // The question, in two parts, as the voice gets to each.
+    const question = all(".tt-qw");
+    [[0, W("c01", "five")], [1, W("c01", "five") + 0.09], [2, W("c01", "one")], [3, W("c01", "one") + 0.09]].forEach(([word, at]) => {
+      tl.fromTo(question[word], { opacity: 0, filter: "blur(6px)" },
+        { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, at - 0.04);
+    });
+    // The laptop's height, carried across to the tower: everything above the line is too much.
+    tl.fromTo("#tt-rule", { clipPath: "inset(0% 0% 0% 100%)" },
+      { clipPath: "inset(0% 0% 0% 0%)", duration: 0.6, ease: "power2.out" }, W("c01", "mac") - 0.05);
+
+    // ---------------------------------------------------------------- c02: files on a shelf, a desk above it
+    const answer = W("c02", "doesn't");
+    question.forEach((word, index) => {
+      tl.fromTo(word, { opacity: 1, filter: "blur(0px)" },
+        { opacity: 0, filter: "blur(6px)", duration: 0.2, ease: "power2.in", immediateRender: false }, answer - 0.05 + index * 0.03);
+    });
+    hide(".tt-tw, .tt-twl", answer - 0.05);
+    tl.fromTo("#tt-rule", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "power2.in" }, answer - 0.05);
+    // Into the Mac: the laptop's screen grows past the frame, and the shelf it stood on runs the full width.
+    const grow = answer + 0.25;
+    tl.fromTo("#st-lapbezel, #st-lapicon", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "power2.in" }, grow);
+    tl.fromTo("#st-lapbase, #st-lapnotch", { opacity: 1, y: 0 }, { opacity: 0, y: 18, duration: 0.3, ease: "power2.in" }, grow);
+    tl.fromTo("#st-screen", { attr: { x: 1116, y: 564, width: 548, height: 338, rx: 8 } },
+      { attr: { x: -60, y: -60, width: 2040, height: 1200, rx: 0 }, duration: 0.7, ease: "power2.inOut" }, grow);
+    tl.fromTo("#st-screen", { fill: "#1b4a44" }, { fill: "#143a35", duration: 0.35, ease: "power1.inOut" }, grow + 0.5);
+    tl.set("#st-screen", { opacity: 0 }, grow + 0.9);
+    tl.fromTo("#st-ledge", { attr: { x: 200, y: 940, width: 1560 } },
+      { attr: { x: 120, y: 940 + SINK, width: 1680 }, duration: 0.8, ease: "power2.inOut" }, grow);
+    for (const [id, file] of Object.entries(FILES)) {
+      tl.fromTo("#f-" + id, { y: file.tower[1] - SHELF_TOP }, { y: file.tower[1] - SHELF_TOP + SINK, duration: 0.8, ease: "power2.inOut", immediateRender: false }, grow);
+    }
+    // The tower comes apart: one file after another flies to its place on the shelf, the last landing on "disk".
+    const apart = W("c02", "the") + 0.1;
+    const FLIGHT = 0.55;
+    const NEXT = (W("c02", "disk") - FLIGHT - apart) / 4;
+    ["gemma", "think", "asr", "embed", "nemo"].forEach((id, index) => {
+      const file = FILES[id];
+      const at = apart + index * NEXT;
+      tl.fromTo("#f-" + id, { x: file.tower[0] - file.x, scale: TOWER_SCALE },
+        { x: 0, scale: 1, duration: FLIGHT, ease: "power2.inOut", immediateRender: false }, at);
+      tl.fromTo("#f-" + id, { y: file.tower[1] - SHELF_TOP + SINK },
+        { y: 0, duration: FLIGHT, ease: "power3.inOut", immediateRender: false }, at);
+    });
+    show("#fl-embed b, #fll-embed", apart + 3 * NEXT + FLIGHT);
+    show("#fl-nemo b, #fll-nemo", apart + 4 * NEXT + FLIGHT);
+    show("#lb-disk", W("c02", "disk") + 0.1);
+    ["#f-asr .tt-size", "#fl-nemo span", "#f-think .tt-size", "#f-gemma .tt-size", "#fl-embed span"].forEach((size, index) => {
+      show(size, W("c02", "ten") + index * 0.06);
+    });
+    tl.fromTo("#big-n", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out" }, W("c02", "ten") - 0.04);
+    tl.fromTo("#big-sub", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13, ease: "power2.out" }, W("c02", "ten") + 0.14);
+    // Memory: the number has had its read; it makes way, and the desk is drawn over the shelf.
+    const desk = W("c02", "and") + 0.3;
+    tl.fromTo("#big-n, #big-sub", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(8px)", duration: 0.2, ease: "power2.in", immediateRender: false }, desk - 0.2);
+    show("#lb-disk-sub", desk);
+    tl.set("#st-desk", { opacity: 1 }, desk);
+    tl.fromTo("#st-desk", { strokeDashoffset: 4300 }, { strokeDashoffset: 0, duration: 0.4, ease: "power2.inOut" }, desk);
+    tl.fromTo("#st-desk", { fillOpacity: 0 }, { fillOpacity: 1, duration: 0.25, ease: "power1.out" }, desk + 0.1);
+    // Two files show the move once: up to the desk, down again.
+    const turn1 = W("c02", "turns") - 0.05;
+    rise("c-think", turn1, 0.3);
+    drop("c-think", turn1 + 0.35, 0.22);
+    const turn2 = turn1 + 0.4;
+    rise("c-gemma", turn2, 0.3);
+    drop("c-gemma", turn2 + 0.35, 0.22);
+    show("#lb-mem", W("c02", "memory"));
+
+    // ---------------------------------------------------------------- the clock
+    const PX = 28; // px a minute
+    const minute = (hour, min) => (hour - 9) * 60 + min; // minutes since 09:00
+    const hhmm = (m) => `${9 + Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+    const tapeX = (m) => 960 - m * PX - 1;
+    for (let m = 30; m <= 570; m += 10) {
+      const label = document.createElement("span");
+      label.textContent = hhmm(m);
+      label.className = "ck-label" + (m % 60 === 0 ? " ck-hour" : "");
+      label.style.left = `${m * PX - 42}px`;
+      $("#ck-tape").appendChild(label);
+    }
+    const TAPE = ["#ck-tape", "#ck-events"];
+    gsap.set(TAPE, { x: tapeX(minute(10, 0)) });
+    const readout = [];
+    // Slide the tape from one minute to another; the readout follows in whole steps.
+    const run = (from, to, at, duration, ease, step, inverse) => {
+      tl.fromTo(TAPE, { x: tapeX(from) }, { x: tapeX(to), duration, ease, immediateRender: false }, at);
+      for (let m = Math.ceil((from + 0.001) / step) * step; m <= to; m += step) {
+        readout.push([at + duration * inverse((m - from) / (to - from)), hhmm(m)]);
+      }
+      if (to % step) readout.push([at + duration, hhmm(to)]);
+    };
+    const linear = (f) => f;
+    const inOut2 = (f) => (f < 0.5 ? Math.sqrt(f / 2) : 1 - Math.sqrt((1 - f) / 2));
+    const inOut3 = (f) => (f < 0.5 ? Math.cbrt(f / 4) : 1 - Math.cbrt((1 - f) / 4));
+
+    // ---------------------------------------------------------------- c03: the call, and nothing loaded
+    const callStart = W("c03", "during") + 0.35;
+    const callEnd = E("c03") - 0.1;
+    tl.set("#w-clock", { opacity: 1 }, L("c03") - 0.1);
+    tl.fromTo("#w-clock", { clipPath: "inset(0% 50% 0% 50%)" },
+      { clipPath: "inset(0% 0% 0% 0%)", duration: 0.5, ease: "power2.out" }, L("c03") - 0.1);
+    readout.push([L("c03") - 0.1, "10:00"]);
+    run(minute(10, 0), minute(10, 26), callStart, callEnd - callStart, "none", 1, linear);
+    tl.set("#ev-hangup", { opacity: 1 }, callEnd);
+    // It only records: two tracks draw for as long as the call lasts.
+    show("#rec, #trk-mic, #trk-sys", W("c03", "call") - 0.1);
+    tl.fromTo("#strip-mic, #strip-sys", { clipPath: "inset(0% 100% 0% 0%)" },
+      { clipPath: "inset(0% 0% 0% 0%)", duration: callEnd - callStart, ease: "none" }, callStart);
+    show("#tag-asr", W("c03", "transcription"));
+    show("#tag-gemma", W("c03", "autocomplete"));
+
+    // ---------------------------------------------------------------- c04: the speech models come up, work, and go
+    hide("#tag-asr, #tag-gemma, #rec", L("c04") - 0.1);
+    const WIDE = { x: 0, y: 0, scale: 1 };
+    const CLOSE = { x: -64, y: -44, scale: 1.15 };
+    tl.fromTo("#w-world", WIDE, { ...CLOSE, duration: 0.9, ease: "power2.inOut" }, L("c04") + 0.05);
+    const speechUp = W("c04", "load") - 0.35;
+    rise("c-nemo", speechUp);
+    const asrDocked = rise("c-asr", speechUp + 0.1);
+    show("#cfl-nemo, #cfll-nemo", speechUp + 0.55);
+    named("c-asr", asrDocked - 0.05);
+    // Nemotron first: who spoke when, on both tracks.
+    working("c-nemo", W("c04", "turn"), W("c04", "transcript") - 0.1);
+    tl.fromTo("#segs-mic, #segs-sys", { clipPath: "inset(0% 100% 0% 0%)" },
+      { clipPath: "inset(0% 0% 0% 0%)", duration: 0.7, ease: "power1.inOut" }, W("c04", "turn"));
+    // Then Qwen3-ASR: the tracks become lines of text, and each line gets its speaker.
+    const writing = W("c04", "transcript") - 0.1;
+    gsap.set(".tt-said", { color: AMBER }); // a line is amber while it is being written
+    working("c-asr", writing, W("c04", "two") - 0.08);
+    hide("#trk-mic, #trk-sys, #strip-mic, #strip-sys, #segs-mic, #segs-sys", writing - 0.05, 0.25);
+    [1, 2, 3, 4].forEach((line, index) => {
+      const at = writing + 0.12 + index * 0.2;
+      tl.fromTo(`#trl-${line} .tt-said`, { clipPath: "inset(0% 100% 0% 0%)" },
+        { clipPath: "inset(0% 0% 0% 0%)", duration: 0.34, ease: "none" }, at);
+      tl.fromTo(`#trl-${line} .tt-said`, { color: AMBER }, { color: PAPER, duration: 0.2, ease: "power1.out", immediateRender: false }, at + 0.34);
+      show(`#trl-${line} .tt-who`, W("c04", "speakers") + index * 0.07);
+    });
+    readout.push([W("c04", "transcript"), "10:27"]);
+    tl.fromTo(TAPE, { x: tapeX(minute(10, 26)) }, { x: tapeX(minute(10, 27)), duration: 0.4, ease: "power2.inOut", immediateRender: false }, W("c04", "transcript") - 0.2);
+    // Two minutes idle, then they unload.
+    const wait1 = W("c04", "two") + 0.15;
+    const gone1 = W("c04", "unload") - 0.2;
+    tl.set("#cd-speech", { opacity: 1 }, W("c04", "two"));
+    hide("#cfll-nemo", W("c04", "two") - 0.1, 0.1); // the countdown takes the leader's place
+    show("#cdt-speech, #cdb-speech", W("c04", "two"));
+    states($("#cd-speech"), [[W("c04", "two"), "2:00"]].concat(
+      Array.from({ length: 12 }, (_, k) => [wait1 + ((gone1 - wait1) * (k + 1)) / 12, clock(110 - k * 10)])));
+    tl.fromTo("#cdb-speech", { scaleX: 1 }, { scaleX: 0, duration: gone1 - wait1, ease: "none" }, wait1);
+    run(minute(10, 27), minute(10, 29), wait1, gone1 - wait1, "none", 1, linear);
+    const speechDown = W("c04", "unload");
+    tl.set("#cd-speech", { opacity: 0 }, speechDown);
+    hide("#cdt-speech, #cfl-nemo", speechDown, 0.15);
+    unnamed("c-asr", speechDown);
+    drop("c-asr", speechDown);
+    drop("c-nemo", speechDown + 0.06);
+
+    // ---------------------------------------------------------------- c05: the language model writes the notes, waits, leaves
+    const thinkUp = W("c05", "language") - 0.1;
+    const thinkDocked = rise("c-think", thinkUp);
+    named("c-think", thinkDocked - 0.05);
+    working("c-think", thinkDocked, W("c05", "stays") - 0.08);
+    const notesAt = W("c05", "writes") - 0.1;
+    tl.set("#notes", { opacity: 1 }, notesAt);
+    tl.fromTo("#notes", { clipPath: "inset(0% 0% 100% 0% round 14px)" },
+      { clipPath: "inset(0% 0% 0% 0% round 14px)", duration: 0.35, ease: "power2.out" }, notesAt);
+    [1, 2, 3].forEach((part, index) => {
+      const at = notesAt + 0.35 + index * 0.32;
+      tl.fromTo(`#nh-${part}`, { opacity: 0 }, { opacity: 1, duration: 0.13, ease: "power2.out" }, at);
+      tl.fromTo(`#nb-${part}`, { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "power2.out" }, at + 0.08);
+      tl.to(`#nb-${part}`, { backgroundColor: "#9db8b2", duration: 0.25, ease: "power1.out" }, W("c05", "stays") - 0.08);
+    });
+    show("#tag-notes", W("c05", "notes"));
+    readout.push([W("c05", "writes") + 0.4, "10:30"]);
+    tl.fromTo(TAPE, { x: tapeX(minute(10, 29)) }, { x: tapeX(minute(10, 30)), duration: 0.4, ease: "power2.inOut", immediateRender: false }, W("c05", "writes") + 0.2);
+    // Ten minutes, in case a follow-up comes.
+    const wait2 = W("c05", "stays") + 0.15;
+    const gone2 = W("c05", "leaves") - 0.3;
+    tl.set("#cd-think", { opacity: 1 }, W("c05", "stays"));
+    show("#cdt-think, #cdb-think", W("c05", "stays"));
+    states($("#cd-think"), [[W("c05", "stays"), "10:00"]].concat(
+      Array.from({ length: 20 }, (_, k) => [wait2 + ((gone2 - wait2) * (k + 1)) / 20, clock(570 - k * 30)])));
+    tl.fromTo("#cdb-think", { scaleX: 1 }, { scaleX: 0, duration: gone2 - wait2, ease: "none" }, wait2);
+    run(minute(10, 30), minute(10, 40), wait2, gone2 - wait2, "none", 1, linear);
+    tl.fromTo("#bubble", { opacity: 0, scale: 0.6, transformOrigin: "0% 100%" },
+      { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.6)" }, W("c05", "follow-up"));
+    hide("#bubble", W("c05", "follow-up") + 0.55, 0.15);
+    const thinkDown = W("c05", "leaves");
+    tl.set("#cd-think", { opacity: 0 }, thinkDown);
+    hide("#cdt-think, .tt-trl, #notes, #tag-notes", thinkDown - 0.05, 0.2);
+    unnamed("c-think", thinkDown);
+    drop("c-think", thinkDown);
+
+    // ---------------------------------------------------------------- c06: autocomplete stays, and answers every key
+    const whip1 = W("c05", "leaves") + 0.25;
+    run(minute(10, 40), minute(11, 40), whip1, 0.4, "power3.inOut", 10, inOut3);
+    tl.set("#ev-typing", { opacity: 1 }, whip1 + 0.4);
+    const gemmaUp = W("c06", "autocomplete") - 0.1;
+    const gemmaDocked = rise("c-gemma", gemmaUp);
+    named("c-gemma", gemmaDocked - 0.05);
+    show("#cdt-gemma", W("c06", "stays"));
+    // A sentence typed in any app: each key is answered, the suggestion always one step ahead.
+    const SENTENCE = "The offsite is in Lisbon, May 12 to 14.";
+    const TYPED = 17;
+    const firstKey = W("c06", "because");
+    const lastKey = W("c06", "keystroke") + 0.75;
+    const keyAt = (key) => firstKey + ((lastKey - firstKey) * (key - 1)) / (TYPED - 1); // key: 1 to TYPED
+    const carets = [];
+    const chars = [];
+    const text = $("#field-text");
+    const caret = () => {
+      const mark = document.createElement("i");
+      mark.className = "tt-caret";
+      text.appendChild(mark);
+      carets.push(mark);
+    };
+    caret();
+    [...SENTENCE].forEach((letter, index) => {
+      const char = document.createElement("span");
+      char.className = "tt-ch";
+      char.textContent = letter;
+      text.appendChild(char);
+      chars.push(char);
+      if (index < TYPED) caret();
+    });
+    const fieldAt = W("c06", "room") + 0.15;
+    show("#field", fieldAt, 0.2);
+    tl.set(carets[0], { opacity: 1 }, fieldAt);
+    for (let key = 1; key <= TYPED; key++) {
+      const at = keyAt(key);
+      tl.set(chars[key - 1], { opacity: 1, color: PAPER }, at);
+      tl.set(carets[key - 1], { opacity: 0 }, at);
+      tl.set(carets[key], { opacity: 1 }, at);
+      working("c-gemma", at + 0.02, at + 0.1);
+    }
+    tl.set(chars.slice(1), { opacity: 1 }, keyAt(1) + 0.06); // the first suggestion, 56 ms after the first key
+    show("#tag-keys", W("c06", "fifty"));
+    readout.push([W("c06", "because"), "11:41"]);
+    tl.fromTo(TAPE, { x: tapeX(minute(11, 40)) }, { x: tapeX(minute(11, 41)), duration: 0.4, ease: "power2.inOut", immediateRender: false }, W("c06", "because") - 0.2);
+
+    // ---------------------------------------------------------------- c07: the broker's budget and its queue
+    const afternoon = E("c06") + 0.05;
+    hide("#field, #tag-keys, #cdt-gemma", afternoon - 0.05, 0.2);
+    run(minute(11, 41), minute(15, 10), afternoon, 0.45, "power3.inOut", 30, inOut3);
+    tl.set("#ev-question", { opacity: 1 }, afternoon + 0.45);
+    tl.fromTo("#w-world", CLOSE, { ...WIDE, duration: 0.9, ease: "power2.inOut", immediateRender: false }, afternoon);
+    // Half of the desk is tinted from the left up to a dashed line: that much, and no more.
+    const budgeted = W("c07", "half") - 0.25;
+    tl.set("#budget-zone", { opacity: 1 }, budgeted);
+    tl.fromTo("#budget-zone", { clipPath: "inset(0% 100% 0% 0% round 22px 0px 0px 22px)" },
+      { clipPath: "inset(0% 0% 0% 0% round 22px 0px 0px 22px)", duration: 0.45, ease: "power2.inOut" }, budgeted);
+    tl.set("#budget", { opacity: 1 }, budgeted + 0.3);
+    tl.fromTo("#budget", { clipPath: "inset(0% 0% 100% 0%)" },
+      { clipPath: "inset(0% 0% 0% 0%)", duration: 0.35, ease: "power2.out" }, budgeted + 0.3);
+    show("#lb-budget", W("c07", "half") + 0.2);
+    readout.push([W("c07", "models"), "15:11"]);
+    tl.fromTo(TAPE, { x: tapeX(minute(15, 10)) }, { x: tapeX(minute(15, 11)), duration: 0.4, ease: "power2.inOut", immediateRender: false }, W("c07", "models") - 0.2);
+    // Background work was first in the queue; what the person is waiting for passes it.
+    const queued = W("c07", "models") + 0.1;
+    show("#lb-queue", queued);
+    tl.set("#tk-digest", { opacity: 1 }, queued);
+    tl.fromTo("#tk-digest", { x: 960 }, { x: 0, duration: 0.5, ease: "expo.out" }, queued);
+    const asked = W("c07", "what") - 0.05;
+    tl.set("#tk-question", { opacity: 1 }, asked);
+    tl.fromTo("#tk-question", { x: 560 }, { x: 0, duration: 0.5, ease: "expo.out" }, asked);
+    const pass = W("c07", "goes") - 0.05;
+    tl.fromTo("#tk-question", { x: 0 }, { x: -400, duration: 0.5, ease: "power2.inOut", immediateRender: false }, pass);
+    tl.fromTo("#tk-question", { y: 0 }, { y: -104, duration: 0.25, ease: "power2.out" }, pass);
+    tl.fromTo("#tk-question", { y: -104 }, { y: 0, duration: 0.25, ease: "power2.in", immediateRender: false }, pass + 0.25);
+    tl.fromTo("#tk-digest", { x: 0 }, { x: 400, duration: 0.5, ease: "power2.inOut", immediateRender: false }, pass + 0.05);
+    const think2Up = pass + 0.35;
+    const think2Docked = rise("c-think2", think2Up);
+    named("c-think2", think2Docked - 0.05);
+    working("c-think2", think2Docked, L("c08") - 0.3);
+    show("#st-arrow", think2Docked);
+    tl.set("#tk-answer", { opacity: 1 }, think2Docked);
+    tl.fromTo("#tk-answer", { scaleX: 0 }, { scaleX: 1, duration: Math.max(0.3, E("c07") - think2Docked), ease: "none" }, think2Docked);
+
+    // ---------------------------------------------------------------- c08: the day at rest
+    const rest = L("c08") - 0.3; // the desk is clear before the line lands in it
+    hide("#budget, #budget-zone, #lb-budget, #lb-queue, #tk-digest, #tk-question, #tk-answer, #st-arrow", rest, 0.2);
+    unnamed("c-think2", rest);
+    unnamed("c-gemma", rest);
+    drop("c-think2", rest, 0.28);
+    drop("c-gemma", rest + 0.06, 0.28);
+    const evening = W("c08", "taking") + 0.1;
+    run(minute(15, 11), minute(18, 0), rest + 0.1, evening - rest - 0.1, "power2.inOut", 10, inOut2);
+    [["five", 0.08], ["one", -0.04], ["taking", -0.04]].forEach(([word, offset], index) => {
+      tl.fromTo(all(".tt-l8")[index], { opacity: 0, filter: "blur(6px)" },
+        { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power2.out" }, W("c08", word) + offset);
+    });
+    // Once more, one after another: each file up and down, amber while it is up.
+    const wave = W("c08", "taking") - 0.05;
+    const HOP = 96;
+    const BEAT = 0.2;
+    ["c-embed", "c-gemma", "c-think", "c-nemo", "c-asr"].forEach((id, index) => {
+      const copy = "#" + id;
+      const from = home(id);
+      const at = wave + index * BEAT;
+      tl.set(copy, { opacity: 1, ...from }, at);
+      working(id, at, at + BEAT);
+      tl.fromTo(copy, { y: from.y }, { y: from.y - HOP, duration: BEAT / 2, ease: "power2.out", immediateRender: false }, at);
+      tl.fromTo(copy, { y: from.y - HOP }, { y: from.y, duration: BEAT / 2, ease: "power2.in", immediateRender: false }, at + BEAT / 2);
+      tl.set(copy, { opacity: 0 }, at + BEAT);
+    });
+    // The last one's amber edge closes into the dot the end card takes over.
+    const last = wave + 4 * BEAT + BEAT / 2; // Qwen3-ASR at the top of its move
+    const edge = { x: FILES.asr.x + FILES.asr.w / 2 - 776, y: SHELF_TOP - HOP + 6 - 650.5, scaleX: FILES.asr.w / 50, scaleY: 12 / 50 };
+    tl.set("#c-asr .tt-edge", { opacity: 0 }, last);
+    tl.set("#w-dot", { opacity: 1, ...edge }, last);
+    tl.fromTo("#w-dot", edge, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.3, ease: "power2.inOut", immediateRender: false }, last);
+
+    // The clock's readout, from everything above.
+    readout.sort((a, b) => a[0] - b[0]);
+    states($("#ck-time"), readout);
+
+    tl.set({}, {}, LEN);
+    window.__timelines["world"] = tl;
+  </script>
+</template>

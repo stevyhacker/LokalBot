@@ -18,7 +18,6 @@ pub const MODEL_ID: &str = "embeddinggemma-2-q8-mean-768-v1";
 pub const DOCUMENT_PREFIX: &str = "title: none | text: ";
 pub const QUERY_PREFIX: &str = "task: search result | query: ";
 pub const MEETING_SIMILARITY_FLOOR: f32 = 0.61;
-pub const SCREEN_SIMILARITY_FLOOR: f32 = 0.58;
 /// Marks chunks taken from the user's own notes.
 pub const NOTES_CHUNK_MARKER: &str = "My meeting notes: ";
 const TRANSCRIPT_TARGET_CHARS: usize = 500;

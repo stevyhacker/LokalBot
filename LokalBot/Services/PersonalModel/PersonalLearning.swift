@@ -394,8 +394,9 @@ enum PersonalLearning {
         return result
     }
 
-    /// Word-overlap grounding only: what `run` falls back to without an
-    /// embedder. At most `maxPerNight`.
+    /// Word-overlap grounding only. At most `maxPerNight`. `run` calls
+    /// `groundedCandidates`, which applies the same rule to items in the
+    /// line's language; only tests call this.
     static func candidates(from output: String, utterances: [Utterance],
                            evidence: (Utterance) -> DreamEvidenceProvenance?) -> [PersonalModel.LearningCandidate] {
         var result: [PersonalModel.LearningCandidate] = []

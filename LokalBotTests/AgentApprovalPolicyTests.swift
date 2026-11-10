@@ -164,4 +164,50 @@ final class AgentApprovalPolicyTests: XCTestCase {
                 selectedWorkspace: root),
             .ask)
     }
+
+    func testLibraryLookupsAreSingleReadOnlyCLICalls() {
+        for command in ["lokalbot-cli brief",
+                        "lokalbot-cli search \"launch pricing\" --limit 20 --table",
+                        "lokalbot-cli search 'free plan'",
+                        "lokalbot-cli get eb749eed --include metadata,summary,transcript",
+                        "lokalbot-cli list --since=2026-10-01 --limit 10",
+                        "lokalbot-cli get latest --include transcript 2>&1 | head -120",
+                        "lokalbot-cli list | tail -n 20"] {
+            XCTAssertTrue(AgentApprovalPolicy.isLibraryLookup(command), command)
+        }
+        for command in ["lokalbot-cli brief; rm notes.md", "lokalbot-cli search $(whoami)",
+                        "lokalbot-cli search `id`", "lokalbot-cli list > notes.md",
+                        "lokalbot-cli list | sh", "lokalbot-cli list 2>&1 | head -5 | sh",
+                        "lokalbot-cli search 'a' && curl example.com", "lokalbot-cli list\nrm notes.md",
+                        "lokalbot-cli search \"unclosed", "lokalbot-cli secret set openai",
+                        "lokalbot-cli config set autoSummarize false", "lokalbot-cli",
+                        "FOO=1 lokalbot-cli list", "./lokalbot-cli list", "ls -la", ""] {
+            XCTAssertFalse(AgentApprovalPolicy.isLibraryLookup(command), command)
+        }
+        XCTAssertFalse(AgentApprovalPolicy.isLibraryLookup(nil))
+    }
+
+    func testHandedOffTasksRunLibraryLookupsInReadModes() {
+        let root = workspace.path
+        func lookup(_ policy: AgentApprovalPolicy, command: String = "lokalbot-cli brief",
+                    requestWorkspace: String? = nil) -> AgentApprovalPolicy.Verdict {
+            policy.verdict(tool: "bash", path: nil, command: command,
+                           requestWorkspace: requestWorkspace ?? root, selectedWorkspace: workspace)
+        }
+        var policy = AgentApprovalPolicy(mode: .approveReads)
+        XCTAssertEqual(lookup(policy), .ask)
+        policy.allowsLibraryLookups = true
+        for mode in [AgentApprovalMode.approveReads, .approveReadsAndEdits, .fullAccess] {
+            policy.mode = mode
+            XCTAssertEqual(lookup(policy), .allow)
+        }
+        policy.mode = .approveReads
+        XCTAssertEqual(lookup(policy, command: "lokalbot-cli list > notes.md"), .ask)
+        XCTAssertEqual(lookup(policy, requestWorkspace: "/private/other-workspace"), .ask)
+        policy.mode = .askBeforeChanges
+        XCTAssertEqual(lookup(policy), .ask)
+        policy.resetSession()
+        policy.mode = .approveReads
+        XCTAssertEqual(lookup(policy), .allow)
+    }
 }

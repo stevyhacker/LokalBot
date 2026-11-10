@@ -295,14 +295,7 @@ def comparison_structured_data(page: dict) -> str:
                 "author": ORGANIZATION,
                 "publisher": ORGANIZATION,
                 "about": [
-                    {
-                        "@type": "SoftwareApplication",
-                        "@id": f"{SITE}/#software",
-                        "name": "LokalBot",
-                        "url": f"{SITE}/",
-                        "applicationCategory": "BusinessApplication",
-                        "operatingSystem": "macOS 15+, Windows 10+, Linux",
-                    },
+                    {"@id": f"{SITE}/#software"},
                     {"@type": "SoftwareApplication", "name": page["competitor_name"]},
                 ],
             },

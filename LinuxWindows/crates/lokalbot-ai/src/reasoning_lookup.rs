@@ -97,13 +97,9 @@ struct ModelList {
 }
 
 impl ModelList {
-    /// Reads the list when it's a day old, or missing and not just tried. The lock
-    /// around this makes callers that arrive during a read wait for it.
-    fn refresh(
-        &mut self,
-        now: Instant,
-        fetch: impl FnOnce() -> Option<HashMap<String, ReasoningSupport>>,
-    ) {
+    /// Whether to read the list now: it's a day old, or missing and not just
+    /// tried. Saying yes counts as the try.
+    fn due(&mut self, now: Instant) -> bool {
         let stale = self
             .fetched_at
             .is_none_or(|at| now.duration_since(at) >= REFRESH_INTERVAL);
@@ -111,17 +107,38 @@ impl ModelList {
             .attempted_at
             .is_some_and(|at| now.duration_since(at) < RETRY_INTERVAL);
         if !stale || waiting {
-            return;
+            return false;
         }
         self.attempted_at = Some(now);
-        if let Some(parsed) = fetch() {
-            self.by_model = parsed;
-            self.fetched_at = Some(now);
+        true
+    }
+
+    /// Keeps what a read that began at `now` returned.
+    fn store(&mut self, now: Instant, parsed: HashMap<String, ReasoningSupport>) {
+        self.by_model = parsed;
+        self.fetched_at = Some(now);
+    }
+
+    /// Reads the list when it is [`due`](Self::due).
+    #[cfg(test)]
+    fn refresh(
+        &mut self,
+        now: Instant,
+        fetch: impl FnOnce() -> Option<HashMap<String, ReasoningSupport>>,
+    ) {
+        if self.due(now)
+            && let Some(parsed) = fetch()
+        {
+            self.store(now, parsed);
         }
     }
 }
 
 static OPENROUTER: LazyLock<Mutex<ModelList>> = LazyLock::new(Default::default);
+/// Held for a read of OpenRouter's list, so callers that arrive during one wait
+/// for it. The list has its own lock, held only to look at it: the interface
+/// asks [`openrouter_cached`] while drawing and must never wait for the network.
+static OPENROUTER_READ: Mutex<()> = Mutex::new(());
 /// Ollama's last answers, by server and model. A server that stops answering loses
 /// its entry, and what LokalBot knows without asking applies again.
 static OLLAMA: LazyLock<Mutex<HashMap<String, ReasoningSupport>>> = LazyLock::new(Default::default);
@@ -129,17 +146,23 @@ static OLLAMA: LazyLock<Mutex<HashMap<String, ReasoningSupport>>> = LazyLock::ne
 /// The selected model's levels from OpenRouter's list, read at most daily (`GET
 /// <base>/models`). `None` when the model isn't listed.
 pub(crate) fn openrouter(base: &str, model: &str) -> Option<ReasoningSupport> {
-    let mut list = OPENROUTER.lock();
-    list.refresh(Instant::now(), || {
+    let reading = OPENROUTER_READ.lock();
+    let now = Instant::now();
+    let due = OPENROUTER.lock().due(now);
+    if due {
         let agent = http::agent(base, LIST_TIMEOUT);
         let headers = [("Accept", "application/json".to_string())];
-        let reply = http::get_with(&agent, &format!("{base}/models"), &headers).ok()?;
-        if reply.status != 200 {
-            return None;
+        let parsed = http::get_with(&agent, &format!("{base}/models"), &headers)
+            .ok()
+            .filter(|reply| reply.status == 200)
+            .and_then(|reply| reply.json().ok())
+            .and_then(|json| support_in_models(&json));
+        if let Some(parsed) = parsed {
+            OPENROUTER.lock().store(now, parsed);
         }
-        support_in_models(&reply.json().ok()?)
-    });
-    list.by_model.get(&model.to_lowercase()).cloned()
+    }
+    drop(reading);
+    openrouter_cached(model)
 }
 
 /// What the list said, without reading it.
@@ -303,6 +326,41 @@ mod tests {
         list.refresh(later, fails);
         assert_eq!(calls.get(), 3);
         assert!(list.by_model.contains_key("m"));
+    }
+
+    /// The interface reads the cached list while drawing, and a read of the
+    /// list can take ten seconds on a bad network.
+    #[test]
+    fn a_read_of_the_list_leaves_the_cached_answers_free() {
+        let (release, held) = std::sync::mpsc::channel::<()>();
+        let held = Mutex::new(held);
+        let server = StubServer::start(move |_| {
+            let _ = held.lock().recv_timeout(Duration::from_secs(10));
+            Reply::Json(
+                200,
+                json!({"data": [
+                    {"id": "audit/reader", "reasoning": {"supported_efforts": ["low"]}},
+                ]}),
+            )
+        });
+        *OPENROUTER.lock() = ModelList::default();
+        let base = server.url("");
+        let reading = std::thread::spawn(move || openrouter(&base, "Audit/Reader"));
+        let asked = Instant::now();
+        while server.requests().is_empty() {
+            assert!(asked.elapsed() < Duration::from_secs(10), "never asked");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        // The request is out and unanswered.
+        let free = OPENROUTER.try_lock().is_some();
+        release.send(()).unwrap();
+        let found = reading.join().unwrap();
+        assert!(free, "the cached list was locked for the whole read");
+        assert_eq!(found.unwrap().levels, [Off, Low]);
+        assert_eq!(
+            openrouter_cached("audit/reader").unwrap().levels,
+            [Off, Low]
+        );
     }
 
     #[test]

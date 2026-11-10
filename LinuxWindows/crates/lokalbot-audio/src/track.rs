@@ -77,8 +77,6 @@ pub(crate) struct TrackState {
     level_at_ms: AtomicU64,
     last_audio_ms: AtomicU64,
     last_audible_ms: AtomicU64,
-    frames: AtomicU64,
-    audible_frames: AtomicU64,
     dropped_buffers: AtomicU64,
     /// The capture stream exists and has not reported a fatal error.
     pub running: AtomicBool,
@@ -102,8 +100,6 @@ impl TrackState {
             level_at_ms: AtomicU64::new(NEVER),
             last_audio_ms: AtomicU64::new(NEVER),
             last_audible_ms: AtomicU64::new(NEVER),
-            frames: AtomicU64::new(0),
-            audible_frames: AtomicU64::new(0),
             dropped_buffers: AtomicU64::new(0),
             running: AtomicBool::new(false),
             attached: AtomicBool::new(false),
@@ -398,8 +394,6 @@ impl LevelMeter {
         state.last_audio_ms.store(at, Ordering::Relaxed);
         if level_rms >= AUDIBLE_RMS {
             state.last_audible_ms.store(at, Ordering::Relaxed);
-            let frames = chunk.samples.len() as u64 * SAMPLE_RATE as u64 / chunk.rate.max(1) as u64;
-            state.audible_frames.fetch_add(frames, Ordering::Relaxed);
         }
         self.peak = self.peak.max(normalized_level(level_rms));
         let window = *self.window_start.get_or_insert(chunk.received);
@@ -434,7 +428,6 @@ fn run_writer(
                     result = timeline.place(&chunk, written, &mut |segment| {
                         write_segment(&mut writer, segment)
                     });
-                    state.frames.store(writer.frames(), Ordering::Relaxed);
                     if let Err(error) = &result {
                         log::error!(
                             "audio track {}: write failed: {error}",
@@ -457,7 +450,6 @@ fn run_writer(
             write_segment(&mut writer, segment)
         });
     }
-    state.frames.store(writer.frames(), Ordering::Relaxed);
     let frames = writer.finish()?;
     result.map(|()| frames)
 }

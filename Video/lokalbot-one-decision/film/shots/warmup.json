@@ -1,0 +1,3 @@
+{"bundle":"com.apple.TextEdit","title":"Team update","size":[960,600],"settle":1.0,"cursor":false,"park":[-240,-160],"pre":0.6,"post":1.0,"also":["me.dotenv.LokalBot.uitesthost"],
+ "setup":[{"key":"down","mods":["cmd"]}],
+ "actions":[{"type":"Monday, Tuesday, Wednesday, Thursday, ","cps":10},{"expect":"Monday, Tuesday, Wednesday, Thursday, "},{"ghost":240},{"wait":1}]}

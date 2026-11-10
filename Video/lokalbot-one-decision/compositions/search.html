@@ -1,0 +1,97 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    #search-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #f2f7f5;
+      white-space: nowrap;
+    }
+    #search-title span {
+      display: inline-block;
+    }
+    #search-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #search-stage {
+      position: absolute;
+      inset: 0;
+    }
+    #search-panel {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1320px;
+      height: 1024px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+    }
+    #search-video {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1320px;
+      height: 1024px;
+    }
+    #search-mark {
+      position: absolute;
+      left: 190px;
+      top: 462px;
+      width: 503px;
+      height: 34px;
+      border-radius: 5px;
+      background: #fbbf24;
+      mix-blend-mode: multiply;
+    }
+  </style>
+  <div id="root" data-composition-id="search" data-width="1920" data-height="1080">
+    <div id="search-vp" data-layout-allow-overflow>
+      <div id="search-stage">
+        <div id="search-panel">
+          <video id="search-video" class="clip" data-start="0.2" data-duration="5.4" data-track-index="0"
+            src="assets/footage/search.mp4" muted playsinline></video>
+          <div id="search-mark"></div>
+        </div>
+      </div>
+    </div>
+    <h1 id="search-title" class="clip" data-start="0.2" data-duration="5.4" data-track-index="1">
+      <span class="search-word">One</span> <span class="search-word">search</span> <span class="search-word">brings</span>
+      <span class="search-word">it</span> <span class="search-word">back</span>
+    </h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // The panel opens over the notes, wherever you are.
+    tl.fromTo("#search-panel", { x: 222, y: 70, scale: 1.05, opacity: 0, transformOrigin: "0 0" },
+      { x: 186, y: 14, scale: 1.1, opacity: 1, duration: 0.4, ease: "expo.out" }, 0);
+    tl.fromTo(".search-word", { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067, ease: "power2.out" }, 0.3);
+    // "lisbon" is typed by 1.25 s and the results are in by 1.5 s; then down the list with the arrow keys.
+    tl.fromTo("#search-panel", { x: 186, y: 14, scale: 1.1 },
+      { x: 153, y: -381, scale: 1.15, duration: 0.7, ease: "power2.inOut", immediateRender: false }, 1.75);
+    // 3.6 s: the selection has reached the call. The highlighter marks the decision in the mail seen on screen.
+    tl.fromTo("#search-mark", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.34, ease: "power3.out" }, 3.85);
+    tl.fromTo(".search-word", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(6px)", duration: 0.15, ease: "power2.in", immediateRender: false }, 5.0);
+    // 5.15 s: the swipe to the next app.
+    tl.fromTo("#search-stage", { x: 0 }, { x: -1900, duration: 0.5, ease: "power2.inOut" }, 5.15);
+    window.__timelines["search"] = tl;
+  </script>
+</template>

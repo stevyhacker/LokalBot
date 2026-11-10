@@ -224,7 +224,7 @@ struct SettingsView: View {
         case .general:
             generalSection; updatesSection; aboutSection
         case .recording:
-            meetingsSection; processingSection; summarizationSection; meetingNoteExportSection
+            meetingsSection; processingSection; summarizationSection; LiveRadarSettingsSection(); MetaMuseSettingsSection(); meetingNoteExportSection
         case .dayMemory:
             screenCaptureSection; retentionSection; exclusionsSection; codingAgentsSection
             AgentKindAccessSection(access: app.agentReadAccess, kind: .screenMemory)
@@ -236,7 +236,7 @@ struct SettingsView: View {
         case .email:
             EmailSettingsSection(email: app.email, focusedSettingID: app.focusedSettingID)
         case .ask:
-            askAnywhereSection; selectionActionsSection; askAnswersSection; askSourcesSection
+            askAnywhereSection; selectionActionsSection; windowHandoffSection; askAnswersSection; askSourcesSection
         case .personalContext:
             PersonalContextSettings(personalModel: app.personalModel, access: app.agentReadAccess)
         case .daily:
@@ -323,6 +323,8 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.menuBarOnly", selected: app.focusedSettingID)
                         .onChange(of: app.settings.menuBarOnly) { _, menuBarOnly in
+                            // The Dock policy reads saved settings.
+                            app.settingsStore.flush()
                             DockPolicy.sync()
                             if !menuBarOnly { openWindow(id: "main") }
                         }
@@ -378,7 +380,8 @@ struct SettingsView: View {
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
                                     for: candidate, dictationShortcut: app.settings.dictationShortcut,
-                                    selectionActionsShortcut: app.settings.selectionActionsShortcut)
+                                    selectionActionsShortcut: app.settings.selectionActionsShortcut,
+                                    windowHandoffShortcut: app.settings.windowHandoffShortcut)
                             },
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
@@ -406,11 +409,37 @@ struct SettingsView: View {
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
                                     for: candidate, dictationShortcut: app.settings.dictationShortcut,
-                                    askShortcut: app.settings.quickRecallShortcut)
+                                    askShortcut: app.settings.quickRecallShortcut,
+                                    windowHandoffShortcut: app.settings.windowHandoffShortcut)
                             },
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
                     .settingTarget("settings.selectionActionsShortcut", selected: app.focusedSettingID)
+                }
+    }
+
+    private var windowHandoffSection: some View {
+                Section("Hand off this window") {
+                    Toggle(isOn: $app.settings.windowHandoffEnabled) {
+                        SettingsLabel("Enable the Hand off shortcut",
+                                      help: "Press the shortcut below in any app to hand the task in its window to Agent Mode, Claude Code, Codex, or the clipboard. LokalBot reads that window's full text and takes a screenshot only when you press it, skips excluded apps, sites, and password fields, and shows you the brief before anything is handed off.")
+                    }
+                    .settingTarget("settings.windowHandoffEnabled", selected: app.focusedSettingID)
+                    LabeledContent("Hand off shortcut") {
+                        ShortcutRecorder(
+                            shortcut: $app.settings.windowHandoffShortcut,
+                            defaultShortcut: .windowHandoffDefault,
+                            accessibilityIdentifier: "settings.windowHandoffShortcut",
+                            changeHelp: "Change the Hand off shortcut",
+                            validate: { candidate in
+                                QuickRecallHotKeyController.problem(
+                                    for: candidate, dictationShortcut: app.settings.dictationShortcut,
+                                    askShortcut: app.settings.quickRecallShortcut,
+                                    selectionActionsShortcut: app.settings.selectionActionsShortcut)
+                            },
+                            onRecordingChanged: { app.setShortcutRecording($0) })
+                    }
+                    .settingTarget("settings.windowHandoffShortcut", selected: app.focusedSettingID)
                 }
     }
 
@@ -721,6 +750,16 @@ struct SettingsView: View {
                     .settingTarget("settings.autoTranscribe", selected: app.focusedSettingID)
                     Toggle("Summarize automatically after transcription", isOn: $app.settings.autoSummarize)
                     .settingTarget("settings.autoSummarize", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.handOffActionsAfterSummary) {
+                        SettingsLabel("Hand off my actions to Agent Mode after each summary",
+                                      help: "Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached.")
+                    }
+                    .settingTarget("settings.handOffActionsAfterSummary", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.startHandoffsAutomatically) {
+                        SettingsLabel("Start handoffs automatically",
+                                      help: "Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking.")
+                    }
+                    .settingTarget("settings.startHandoffsAutomatically", selected: app.focusedSettingID)
                     modelRow(.transcription, title: "Transcribe model", value: app.settings.transcriptionModelDisplayName,
                              help: "Also used by Dictation.")
                     LabeledContent {

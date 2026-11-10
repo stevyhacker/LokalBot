@@ -1,0 +1,25 @@
+59.8 s
+
+world: starts 0, slot 52.5, host 53.1
+  a01    0.40 to   5.02  (film   0.40)  gain 1
+      someone@0.4  on@0.88  your@1.04  call@1.2  says@1.6  one@2  sentence@2.32  let's@3.44  follow@3.8  it@4  through@4.2  lokalbot@4.36
+  a02    5.37 to  10.86  (film   5.37)  gain 1
+      first@5.37  it's@5.85  only@6.17  sound@6.49  two@7.53  tracks@7.69  your@8.49  microphone@8.85  and@9.53  the@9.69  call@9.89  app's@10.09  audio@10.49
+  a03   11.21 to  15.41  (film  11.21)  gain 1
+      when@11.207  the@11.367  call@11.527  ends@11.927  a@12.727  speaker@13.047  model@13.487  marks@13.767  who@14.247  spoke@14.487  when@15.047
+  a04   15.76 to  20.97  (film  15.76)  gain 1
+      a@15.756  speech@15.916  model@16.316  turns@16.796  the@17.196  sound@17.356  into@17.916  words@18.156  each@19.116  one@19.356  pinned@19.676  to@20.156  its@20.356  moment@20.996
+  a05   21.32 to  28.82  (film  21.32)  gain 1
+      a@21.321  language@21.641  model@21.961  reads@22.521  the@22.841  whole@23.161  transcript@23.401  and@24.281  writes@24.521  the@24.761  notes@25.321  decisions@25.961  action@26.921  items@27.321  open@28.041  questions@28.361
+  a06   29.17 to  34.58  (film  29.17)  gain 0.89
+      an@29.174  embedding@29.334  model@29.814  files@30.294  it@30.694  by@30.854  meaning@31.094  beside@31.894  a@32.294  keyword@32.574  index@32.854  in@33.734  one@33.894  database@34.134
+  a07   34.93 to  40.07  (film  34.93)  gain 0.94
+      days@34.929  later@35.329  you@35.809  start@35.969  typing@36.729  and@37.276  a@37.369  model@37.489  built@37.889  for@38.249  speed@38.449  finishes@39.009  the@39.569  sentence@39.729
+  a08   40.42 to  44.38  (film  40.42)  gain 0.87
+      and@40.422  only@40.662  if@40.982  you@41.142  allow@41.422  it@41.702  your@42.302  coding@42.582  agent@42.822  can@43.222  ask@43.462  for@43.702  it@43.862  too@44.102
+  a09   44.73 to  51.69  (film  44.73)  gain 0.86
+      one@44.727  sentence@45.047  five@46.007  models@46.327  under@47.287  ten@47.687  gigabytes@48.007  all@49.287  of@49.447  it@49.607  running@49.927  on@50.247  your@50.487  mac@51.167
+
+endcard: starts 52.5, slot 7.3, host 7.3
+  end    0.62 to   4.87  (film  53.12)  gain 0.87
+      lokalbot@0.62  local@2.02  by@2.3  default@2.46  free@3.62  and@3.9  open@4.14  source@4.54

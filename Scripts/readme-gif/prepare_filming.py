@@ -64,6 +64,8 @@ SETTINGS = {
     "meetingNoteExportEnabled": False,
     "quickRecallEnabled": False,
     "selectionActionsEnabled": False,
+    "windowHandoffEnabled": False,
+    "handOffActionsAfterSummary": False,
     "menuBarOnly": False,
 }
 

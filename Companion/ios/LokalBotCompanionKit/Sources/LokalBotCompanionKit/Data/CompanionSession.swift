@@ -97,11 +97,6 @@ public final class CompanionSession {
         revision += 1
     }
 
-    /// Something changed in the store; every screen reloads.
-    public func storeDidChange() {
-        revision += 1
-    }
-
     /// Switches to a store opened again, for example with a new device name
     /// before pairing.
     public func replaceStore(_ store: any CompanionStore) async {

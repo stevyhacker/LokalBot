@@ -157,6 +157,35 @@ struct AppSettings: Codable, Equatable {
     /// Offers "Looks done?" on open actions when later retained screen text
     /// shows a matching completion (sent, merged, submitted). Never auto-completes.
     var suggestActionCompletion: Bool = true
+    /// Off by default: offers Live Radar while a meeting records. It reads
+    /// the live transcript with the Think model, under that model's own local
+    /// or remote setting, and only after Start Radar is pressed. A library
+    /// that had approved Meta Muse, which the radar used before, keeps it on.
+    var liveRadarEnabled: Bool = false
+    /// The Meta Model API model for Follow-through (after a meeting). Sending
+    /// also needs a key and the api.meta.ai origin in
+    /// `approvedRemoteInferenceOrigins`.
+    var museFollowThroughModel: String = MetaModelAPI.museWonder.id
+    /// Off by default: the live transcript preview streams meeting audio to
+    /// Muse Voice Transcribe for text within a second of each turn, instead
+    /// of transcribing chunks on this Mac. Also needs the api.meta.ai approval.
+    var museLiveTextEnabled: Bool = false
+    /// Off by default: when Live Radar catches a question, the text of crops
+    /// of earlier screen captures that mention it goes to the Think model for
+    /// the answer.
+    var museScreenAnswersEnabled: Bool = false
+    /// The floating Live Radar panel opens when a recording starts (once
+    /// Live Radar is on) and when the radar starts.
+    var liveRadarPanelEnabled: Bool = true
+    /// Leaves the panel out of screen sharing and screen recordings.
+    var liveRadarPanelHiddenFromCapture: Bool = true
+    /// Off by default: when Live Radar catches a question or problem, the
+    /// Think model looks for the answer in the person's work, memory first,
+    /// then their meetings, screen text, and `liveAnswerFolders`.
+    var liveAnswersEnabled: Bool = false
+    /// Folders live answers may read: documents anywhere in them, and code,
+    /// commits, pull requests, and issues in git repositories.
+    var liveAnswerFolders: [String] = []
     /// Meeting notes may use the calendar title and invited names, and the
     /// titles of documents on screen during the call, as secondary context.
     var meetingNotesUseCalendarContext: Bool = true
@@ -166,6 +195,13 @@ struct AppSettings: Codable, Equatable {
     var useCalendarAgenda: Bool = false
     var autoTranscribe: Bool = true
     var autoSummarize: Bool = true
+    /// After each summary, open one Agent Mode task per open action that is
+    /// the person's. Off by default: it hands meeting notes to Agent Mode's
+    /// model without a click.
+    var handOffActionsAfterSummary: Bool = false
+    /// Handed-off tasks start on their own instead of waiting in the composer
+    /// for Send. Off by default.
+    var startHandoffsAutomatically: Bool = false
     var speechVoice: KokoroVoice = .heart
     var speechSpeed: Double = 1.0
 
@@ -310,6 +346,12 @@ struct AppSettings: Codable, Equatable {
     var selectionActionsEnabled: Bool = false
     /// The key combination that opens selection actions from any app.
     var selectionActionsShortcut: DictationShortcut = .selectionActionsDefault
+    /// A system-wide shortcut that reads the focused window and hands the
+    /// task on it to another agent. Off by default: it reads another app's
+    /// window, including text that is scrolled out of view.
+    var windowHandoffEnabled: Bool = false
+    /// The key combination that hands off the focused window.
+    var windowHandoffShortcut: DictationShortcut = .windowHandoffDefault
 
     // MARK: - Day digest
 
@@ -587,6 +629,31 @@ struct AppSettings: Codable, Equatable {
         set {
             KeychainSecrets.setString(newValue, account: "openai-compatible-api-key")
         }
+    }
+
+    var metaModelAPIKey: String {
+        get { KeychainSecrets.string(account: MetaModelAPI.apiKeyAccount) ?? "" }
+        set { KeychainSecrets.setString(newValue, account: MetaModelAPI.apiKeyAccount) }
+    }
+
+    /// Meta's own key, else Think's key when Think already points at
+    /// api.meta.ai, so one key serves both.
+    var effectiveMetaModelAPIKey: String {
+#if LOKALBOT_UI_TEST_HOST
+        // The film's key (or none for scripted replies) wins over what the
+        // test typed into Settings, and a runner's Keychain never decides the run.
+        if let key = MuseUITestTransport.apiKey { return key }
+#endif
+        let own = metaModelAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !own.isEmpty { return own }
+        guard let think = URL(string: openAIBaseURL),
+              RemoteInferenceGate.origin(for: think) == MetaModelAPI.origin else { return "" }
+        return openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Live Radar and Follow-through may send meeting text to api.meta.ai.
+    var metaModelAPIApproved: Bool {
+        InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins)
     }
 
     // MARK: - Summarisation shape
@@ -925,11 +992,21 @@ struct AppSettings: Codable, Equatable {
         case transcriptionPrompt
         case autoTranscriptionVocabulary
         case suggestActionCompletion
+        case liveRadarEnabled
+        case museFollowThroughModel
+        case museLiveTextEnabled
+        case museScreenAnswersEnabled
+        case liveRadarPanelEnabled
+        case liveRadarPanelHiddenFromCapture
+        case liveAnswersEnabled
+        case liveAnswerFolders
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
         case useCalendarAgenda
         case autoTranscribe
         case autoSummarize
+        case handOffActionsAfterSummary
+        case startHandoffsAutomatically
         case speechVoice
         case speechSpeed
         case dictationEnabled
@@ -957,6 +1034,8 @@ struct AppSettings: Codable, Equatable {
         case quickRecallShortcut
         case selectionActionsEnabled
         case selectionActionsShortcut
+        case windowHandoffEnabled
+        case windowHandoffShortcut
         case dayDigestAutoEnabled
         case dayDigestHour
         case dayDigestCustomPrompt
@@ -1143,11 +1222,21 @@ struct AppSettings: Codable, Equatable {
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
+        try c.encode(liveRadarEnabled, forKey: .liveRadarEnabled)
+        try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
+        try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
+        try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
+        try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
+        try c.encode(liveRadarPanelHiddenFromCapture, forKey: .liveRadarPanelHiddenFromCapture)
+        try c.encode(liveAnswersEnabled, forKey: .liveAnswersEnabled)
+        try c.encode(liveAnswerFolders, forKey: .liveAnswerFolders)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
         try c.encode(autoTranscribe, forKey: .autoTranscribe)
         try c.encode(autoSummarize, forKey: .autoSummarize)
+        try c.encode(handOffActionsAfterSummary, forKey: .handOffActionsAfterSummary)
+        try c.encode(startHandoffsAutomatically, forKey: .startHandoffsAutomatically)
         try c.encode(speechVoice, forKey: .speechVoice)
         try c.encode(Self.clampedSpeechSpeed(speechSpeed), forKey: .speechSpeed)
         try c.encode(dictationEnabled, forKey: .dictationEnabled)
@@ -1180,6 +1269,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(quickRecallShortcut, forKey: .quickRecallShortcut)
         try c.encode(selectionActionsEnabled, forKey: .selectionActionsEnabled)
         try c.encode(selectionActionsShortcut, forKey: .selectionActionsShortcut)
+        try c.encode(windowHandoffEnabled, forKey: .windowHandoffEnabled)
+        try c.encode(windowHandoffShortcut, forKey: .windowHandoffShortcut)
         try c.encode(dayDigestAutoEnabled, forKey: .dayDigestAutoEnabled)
         try c.encode(min(23, max(0, dayDigestHour)), forKey: .dayDigestHour)
         try c.encode(dayDigestCustomPrompt, forKey: .dayDigestCustomPrompt)
@@ -1341,11 +1432,20 @@ struct AppSettings: Codable, Equatable {
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
+        museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
+        museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
+        museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
+        liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)
+        liveRadarPanelHiddenFromCapture = decode(.liveRadarPanelHiddenFromCapture, defaults.liveRadarPanelHiddenFromCapture)
+        liveAnswersEnabled = decode(.liveAnswersEnabled, defaults.liveAnswersEnabled)
+        liveAnswerFolders = decode(.liveAnswerFolders, defaults.liveAnswerFolders)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)
         autoTranscribe = decode(.autoTranscribe, defaults.autoTranscribe)
         autoSummarize = decode(.autoSummarize, defaults.autoSummarize)
+        handOffActionsAfterSummary = decode(.handOffActionsAfterSummary, defaults.handOffActionsAfterSummary)
+        startHandoffsAutomatically = decode(.startHandoffsAutomatically, defaults.startHandoffsAutomatically)
         speechVoice = decode(.speechVoice, defaults.speechVoice)
         speechSpeed = Self.clampedSpeechSpeed(decode(.speechSpeed, defaults.speechSpeed))
         dictationEnabled = decode(.dictationEnabled, defaults.dictationEnabled)
@@ -1388,6 +1488,10 @@ struct AppSettings: Codable, Equatable {
         let storedSelectionActionsShortcut = decode(.selectionActionsShortcut, defaults.selectionActionsShortcut)
         selectionActionsShortcut = storedSelectionActionsShortcut.quickRecallProblem == nil
             ? storedSelectionActionsShortcut : defaults.selectionActionsShortcut
+        windowHandoffEnabled = decode(.windowHandoffEnabled, defaults.windowHandoffEnabled)
+        let storedWindowHandoffShortcut = decode(.windowHandoffShortcut, defaults.windowHandoffShortcut)
+        windowHandoffShortcut = storedWindowHandoffShortcut.quickRecallProblem == nil
+            ? storedWindowHandoffShortcut : defaults.windowHandoffShortcut
         dayDigestAutoEnabled = decode(.dayDigestAutoEnabled, defaults.dayDigestAutoEnabled)
         dayDigestHour = min(23, max(0, decode(.dayDigestHour, defaults.dayDigestHour)))
         dayDigestCustomPrompt = decode(.dayDigestCustomPrompt, defaults.dayDigestCustomPrompt)
@@ -1458,6 +1562,11 @@ struct AppSettings: Codable, Equatable {
         modelDownloadSource = decode(.modelDownloadSource, defaults.modelDownloadSource)
         approvedRemoteInferenceOrigins = decode(
             .approvedRemoteInferenceOrigins, defaults.approvedRemoteInferenceOrigins)
+        // Live Radar used to be offered once Meta Muse was approved. Settings
+        // saved before it had its own switch keep it on with that approval.
+        liveRadarEnabled = decode(
+            .liveRadarEnabled,
+            InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins))
         chatGPTPlanModel = decode(.chatGPTPlanModel, defaults.chatGPTPlanModel)
         claudePlanModel = decode(.claudePlanModel, defaults.claudePlanModel)
         chatGPTPlanNoticeAcknowledged = decode(

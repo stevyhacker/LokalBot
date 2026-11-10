@@ -23,7 +23,6 @@ const RECOVERY_WINDOW: Duration = Duration::from_secs(20);
 const MAX_SAMPLES: usize = SAMPLE_RATE as usize * 60 * 30;
 
 pub struct MicCapture {
-    origin: Instant,
     state: Arc<TrackState>,
     samples: Arc<Mutex<Vec<f32>>>,
     error: Arc<Mutex<Option<String>>>,
@@ -60,7 +59,6 @@ impl MicCapture {
             .spawn(move || supervise(device, sink, stop_rx, ready_tx, control_error))
             .context("could not start the dictation microphone thread")?;
         let mut capture = MicCapture {
-            origin,
             state,
             samples,
             error,
@@ -76,6 +74,10 @@ impl MicCapture {
                 Err(anyhow!("Could not start the microphone: {message}"))
             }
             Err(_) => {
+                // The thread is still inside the audio system. Joining it
+                // would wait for the call this timeout gave up on, so it is
+                // left to end by itself once it sees the stop.
+                drop(capture.control.take());
                 capture.shutdown();
                 Err(anyhow!(
                     "Could not start the microphone: the audio system did not respond"
@@ -99,10 +101,6 @@ impl MicCapture {
         self.state.since_audio_ms().map(Duration::from_millis)
     }
 
-    pub fn elapsed(&self) -> Duration {
-        self.origin.elapsed()
-    }
-
     /// The microphone was lost and could not be reopened.
     pub fn error(&self) -> Option<String> {
         self.error.lock().clone()
@@ -111,11 +109,6 @@ impl MicCapture {
     /// Seconds captured so far.
     pub fn seconds(&self) -> f64 {
         self.samples.lock().len() as f64 / SAMPLE_RATE as f64
-    }
-
-    /// Copy of everything captured so far (live preview).
-    pub fn samples_16k(&self) -> Vec<f32> {
-        self.samples.lock().clone()
     }
 
     /// Copy of the samples from `start` to `end`, for one preview window.
@@ -135,7 +128,8 @@ impl MicCapture {
     }
 
     fn shutdown(&mut self) {
-        let _ = self.stop_tx.send(());
+        // Never blocks: a stop the thread has not read yet is stop enough.
+        let _ = self.stop_tx.try_send(());
         if let Some(control) = self.control.take() {
             let _ = control.join();
         }

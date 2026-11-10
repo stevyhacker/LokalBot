@@ -107,8 +107,7 @@ final class MeetingIntegrityTests: XCTestCase {
                 hostPresent: false,
                 observationLostAt: now,
                 now: now.addingTimeInterval(14.9),
-                grace: 120,
-                hostReconnectGrace: 15),
+                grace: 120),
             .waitForObservation)
         XCTAssertEqual(
             BrowserMeetingSession.lifecycleDecision(
@@ -116,8 +115,7 @@ final class MeetingIntegrityTests: XCTestCase {
                 hostPresent: false,
                 observationLostAt: now,
                 now: now.addingTimeInterval(15),
-                grace: 120,
-                hostReconnectGrace: 15),
+                grace: 120),
             .waitForObservation)
     }
 
@@ -158,7 +156,7 @@ final class MeetingIntegrityTests: XCTestCase {
         func observe(_ state: BrowserMeetingSession.State?, at seconds: TimeInterval, host: Bool = true)
             -> BrowserMeetingSession.LifecycleTracker.Event {
             tracker.observe(state, hostPresent: host, now: start.addingTimeInterval(seconds),
-                            grace: 120, hostReconnectGrace: 15)
+                            grace: 120)
         }
         XCTAssertEqual(observe(nil, at: 10), .lost(nil))
         XCTAssertEqual(observe(.present, at: 20), .suspended(.present))
@@ -176,12 +174,12 @@ final class MeetingIntegrityTests: XCTestCase {
                 var tracker = BrowserMeetingSession.LifecycleTracker(verifiedAt: start)
                 for seconds in [1.0, 122, 137, 600, 3_600] {
                     let event = tracker.observe(state, hostPresent: hostPresent,
-                        now: start.addingTimeInterval(seconds), grace: 120, hostReconnectGrace: 15)
+                        now: start.addingTimeInterval(seconds), grace: 120)
                     if case .end = event { XCTFail("Missing observations must never stop or trim audio") }
                 }
                 XCTAssertEqual(tracker.lastEvidenceAt, start)
                 XCTAssertEqual(tracker.observe(.inCall, hostPresent: true,
-                    now: start.addingTimeInterval(3_610), grace: 120, hostReconnectGrace: 15),
+                    now: start.addingTimeInterval(3_610), grace: 120),
                     .recovered(after: 3_609))
             }
         }
@@ -193,7 +191,7 @@ final class MeetingIntegrityTests: XCTestCase {
         func observe(_ state: BrowserMeetingSession.State?, _ seconds: Double)
             -> BrowserMeetingSession.LifecycleTracker.Event {
             tracker.observe(state, hostPresent: true, now: start.addingTimeInterval(seconds),
-                            grace: 120, hostReconnectGrace: 15)
+                            grace: 120)
         }
         XCTAssertEqual(observe(nil, 10), .lost(nil))
         XCTAssertEqual(observe(.gone, 600), .none)

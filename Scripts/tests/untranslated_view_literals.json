@@ -78,9 +78,6 @@
     "BackgroundActivityCard.swift": [
       "+\\(…) more"
     ],
-    "BriefContextView.swift": [
-      "Overnight review uses your recorded evidence and the projects and goals below. Pin an item to keep it in future reviews."
-    ],
     "CaptureDetailView.swift": [
       "Showing \\(…) representative scenes from \\(…). Browse raw capture for every scene.",
       "\\(…) observed · \\(…) activity \\(…)"
@@ -115,7 +112,6 @@
       "This selects \\(…) and keeps inline suggestions separate from the model used for meetings and Ask."
     ],
     "FollowUpDraftSheet.swift": [
-      "From \\(…) · \\(…)",
       "Write with Think",
       "Writing…"
     ],
@@ -292,7 +288,6 @@
       "Hide older",
       "Meetings, actions, and window titles that use any of these names are linked to the project.",
       "Not a Project",
-      "Open questions",
       "Stop Tracking",
       "Suggested",
       "Track \\(…)",
@@ -383,9 +378,6 @@
     "ActionsWorkspaceView.swift": [
       "Could not update: ",
       "Owner unclear"
-    ],
-    "AgentSessionHistoryView.swift": [
-      "Unknown error"
     ],
     "AgentSessionView.swift": [
       "New task"

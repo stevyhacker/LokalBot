@@ -22,6 +22,7 @@ extension AppSecret {
         case .openAICompatible: "openai-compatible-api-key"
         case .remoteTranscription: AppSettings.remoteTranscriptionAPIKeyAccount
         case .autocompleteServer: AppSettings.cotypingServerAPIKeyAccount
+        case .metaModelAPI: MetaModelAPI.apiKeyAccount
         }
     }
 }
@@ -93,7 +94,6 @@ extension AppState {
         let failures = try withPrimaryEvidenceChange(on: days, .removal) {
             try screenshots.applyRetentionReview(proposal)
         }
-        primaryEvidenceDidChange(on: days)
         settings.retentionDays = proposal.days
         settings.keepOCRTextForever = proposal.keepTextForever
         return failures
@@ -206,6 +206,7 @@ extension AppState {
         case .openAICompatible: modelChecks.invalidate(for: settings)
         case .remoteTranscription: modelChecks.invalidate([.transcribe])
         case .autocompleteServer: modelChecks.invalidate([.autocomplete])
+        case .metaModelAPI: break
         }
         agentSettingsChanges.recordSecret(secret, isSet: value != nil, caller: caller)
     }

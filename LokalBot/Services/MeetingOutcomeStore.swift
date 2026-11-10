@@ -29,9 +29,11 @@ enum MeetingOutcomeStore {
         var reconciled = MeetingOutcomeState()
         var consumed: Set<String> = []
         let oldActions = previous.actionItems.filter { state.actions[$0.id] != nil }
-        let matches = Dictionary(uniqueKeysWithValues: next.actionItems.map { action in
+        // An action's ID is a hash of its text, owner, due date and sources,
+        // so one the model returned twice arrives here under one ID.
+        let matches = Dictionary(next.actionItems.map { action in
             (action.id, oldActions.filter { matchScore($0, action) >= 0.8 })
-        })
+        }, uniquingKeysWith: { first, _ in first })
         for action in next.actionItems {
             let candidates = matches[action.id] ?? []
             guard candidates.count == 1, let old = candidates.first,

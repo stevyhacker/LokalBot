@@ -218,6 +218,10 @@ struct MenuBarView: View {
                 if app.isRecording {
                     Button("Live Transcript…") { app.showLiveMeeting() }
                         .buttonStyle(.bordered)
+                    if MeetingRadar.unavailableReason(app.settings) == nil {
+                        Button("Live Radar") { app.liveRadarPanel.show() }
+                            .buttonStyle(.bordered)
+                    }
                 }
             }
         }
@@ -409,6 +413,9 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 2) {
             Divider().padding(.vertical, 4)
             menuAction("Ask", icon: "sparkle.magnifyingglass") { app.openQuickRecall() }
+            if app.settings.windowHandoffEnabled {
+                menuAction("Hand off this window", icon: "arrow.up.forward.app") { app.windowHandoff.invoke() }
+            }
             menuAction("Open LokalBot", icon: "macwindow") { WindowAccess.shared.open("main") }
             menuAction("Settings…", icon: "gearshape") { app.openSettings() }
             if app.settings.trackingEnabled {

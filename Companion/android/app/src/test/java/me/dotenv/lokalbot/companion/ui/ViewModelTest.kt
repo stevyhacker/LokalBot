@@ -5,6 +5,8 @@ import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -180,6 +182,28 @@ class ViewModelTest {
     }
 
     @Test
+    fun `a queued question shows its answer once the Mac has answered`() {
+        val changes = MutableStateFlow(0L)
+        val offline = object : CompanionRepository by repository {
+            override val revision: StateFlow<Long> = changes
+            override fun ask(request: AskRequest): Flow<AskEvent> = flowOf(AskEvent.Failed("No route to the Mac", macUnreachable = true))
+        }
+        val viewModel = AskViewModel(offline)
+        viewModel.ask("What did Maya ask me?")
+        val request = viewModel.state.value.turns.single().request
+        viewModel.askWhenMacIsBack(request.requestId)
+        assertThat(viewModel.state.value.turns.single().phase).isEqualTo(TurnPhase.Queued)
+
+        // A later sync asks the Mac, which saves the answer; the library then says it changed.
+        runBlocking { repository.ask(request).collect {} }
+        changes.value += 1
+        val turn = viewModel.state.value.turns.single()
+        assertThat(turn.phase).isEqualTo(TurnPhase.Done)
+        assertThat(turn.answer).isEqualTo(turn.result!!.answer)
+        assertThat(turn.result!!.citations).isNotEmpty()
+    }
+
+    @Test
     fun `pairing confirms the Mac, then waits for approval`() {
         val validLink = PairingLinkFixture.link(TestLibrary.now.epochSecond + 300)
         var approved: PairOutcome = PairOutcome.Failed("Your Mac said no.")
@@ -207,7 +231,8 @@ class ViewModelTest {
         assertThat(sentName).isEqualTo("Stevan's Pixel")
 
         viewModel.restart()
-        viewModel.submit(PairingLinkFixture.link(TestLibrary.now.epochSecond - 10))
+        // Well past the two minutes the sync core allows for a clock that runs fast.
+        viewModel.submit(PairingLinkFixture.link(TestLibrary.now.epochSecond - 600))
         assertThat(viewModel.problem.value).isEqualTo(LinkProblem.Expired)
     }
 }

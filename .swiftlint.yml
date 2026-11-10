@@ -1,4 +1,4 @@
-# SwiftLint ruleset for LokalBot (product: BotinaV2).
+# SwiftLint ruleset for LokalBot.
 #
 # Tuned to be LENIENT. The lint workflow runs `swiftlint lint --strict`
 # (.github/workflows/lint.yml), where ANY violation — warning OR error — fails

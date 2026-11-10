@@ -4,7 +4,8 @@ This checklist keeps LokalBot's cotyping work aligned with the quality bar obser
 
 LokalBot defaults:
 
-- LFM2.5 1.2B Instruct Q4_K_M is the benchmarked default cotyping model.
+- Gemma 4 E2B Base Q6_K is the default cotyping model; LFM2.5 1.2B Instruct
+  Q4_K_M is the Lightweight preset's.
   Cotyping runs its own dedicated model in-process on Apple Silicon, with a
   separate `llama-server` as the conservative fallback — it never reuses the
   summarization model.
@@ -225,10 +226,11 @@ cooperating layers:
   is suppressed as `wordCompletionMismatch` rather than shown broken.
 
 Note: Cotypist ships the *base* Gemma 4 E4B GGUF
-(`gemma-4-E4B-UD-Q5_K_XL`). LokalBot now defaults to LFM2.5 1.2B Instruct and
-keeps Gemma 4 E4B Instruct as its higher-capacity option. The 2026-07-21 model
-matrix also tested Cotabby's E2B base and the E4B base; both missed LokalBot's
-current safety/word-completion gate, so they were not added as defaults.
+(`gemma-4-E4B-UD-Q5_K_XL`). LokalBot now defaults to Gemma 4 E2B Base Q6_K, uses
+LFM2.5 1.2B Instruct in the Lightweight preset, and hides Gemma 4 E4B from new
+cotyping picks. The 2026-07-21 model matrix also tested Cotabby's E2B base and
+the E4B base; both missed the safety/word-completion gate LokalBot had then, so
+they were not added as defaults at the time.
 
 ## Live comparison with Cotypist (2026-10-03)
 
@@ -410,9 +412,9 @@ cotyping model card in Cotyping, Models, or Settings to fetch it.
 
 Expected behavior:
 
-- LFM2.5 1.2B Instruct Q4_K_M is selected for fresh settings.
-- The Hugging Face download starts if the model is missing (~0.73 GB), and the
-  card links to the model's separate LFM Open License terms.
+- Gemma 4 E2B Base Q6_K is selected for fresh settings.
+- The Hugging Face download starts if the model is missing (~3.85 GB), and the
+  card links to Gemma 4's Apache 2.0 license.
 - Until the model is present, cotyping reports that it needs the download — there
   is no fallback to the bundled summarization model.
 - Once downloaded, the status shows ready and cotyping uses the in-process

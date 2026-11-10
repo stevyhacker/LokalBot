@@ -1,5 +1,5 @@
 """ASR diagnostic for narration takes (content check, not a listening score)."""
-import json, re, subprocess, sys
+import json, re, subprocess
 import numpy as np
 from difflib import SequenceMatcher
 from pathlib import Path

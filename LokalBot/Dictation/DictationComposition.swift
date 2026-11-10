@@ -166,23 +166,33 @@ private struct DictationOCRImage: @unchecked Sendable {
     let image: CGImage
 }
 
-private actor DictationOCRWorker {
-    func recognize(_ input: DictationOCRImage) -> String {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = false
-        // Same as screen OCR: the en-US default cannot read CJK text.
-        request.automaticallyDetectsLanguage = true
-        try? VNImageRequestHandler(cgImage: input.image).perform([request])
-        return (request.results ?? [])
-            .compactMap { $0.topCandidates(1).first?.string }
-            .joined(separator: "\n")
+private enum DictationScreenText {
+    /// How long Compose waits for the window's text. Dictation started the
+    /// read when recording began, so this is on top of the time spent speaking.
+    static let recognitionLimit: TimeInterval = 5
+
+    /// The window's text, or nil when recognition gave no answer in time.
+    static func recognize(_ input: DictationOCRImage) async -> String? {
+        await TextRecognitionQueue.shared.run(
+            "dictation screen context", urgency: .interactive, within: recognitionLimit
+        ) {
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = false
+            // Same as screen OCR: the en-US default cannot read CJK text.
+            request.automaticallyDetectsLanguage = true
+            try? VNImageRequestHandler(cgImage: input.image).perform([request])
+            return (request.results ?? [])
+                .compactMap { $0.topCandidates(1).first?.string }
+                .joined(separator: "\n")
+        }
     }
 }
 
 private enum DictationScreenCaptureFailure: Error {
     case focusChanged
     case noWindow
+    case textRecognitionUnanswered
 }
 
 /// Captures only the window that was focused when dictation began. Screen
@@ -194,7 +204,6 @@ final class DictationScreenContextCapture {
 
     private let privacyReader: ScreenAccessibilityReader
     private let focusReader: DictationFocusSnapshotExecutor
-    private let ocrWorker = DictationOCRWorker()
 
     init(privacyReader: ScreenAccessibilityReader = .metadataOnly,
          focusReader: DictationFocusSnapshotExecutor = .shared) {
@@ -292,7 +301,10 @@ final class DictationScreenContextCapture {
         guard !Task.isCancelled, await contextStillMatches(target, identity: identity, policy: policy) else {
             throw DictationScreenCaptureFailure.focusChanged
         }
-        let text = await ocrWorker.recognize(DictationOCRImage(image: image))
+        // Without the text, the caller falls back to the window's name alone.
+        guard let text = await DictationScreenText.recognize(DictationOCRImage(image: image)) else {
+            throw DictationScreenCaptureFailure.textRecognitionUnanswered
+        }
         guard !Task.isCancelled,
               await contextStillMatches(target, identity: identity, policy: policy) else {
             throw DictationScreenCaptureFailure.focusChanged

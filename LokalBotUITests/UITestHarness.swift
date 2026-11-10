@@ -141,23 +141,6 @@ enum UITestHarness {
             .firstMatch
     }
 
-    static func typeInFirstTextField(
-        _ text: String,
-        in app: XCUIApplication,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
-        let field = app.textFields["settings.search"].exists
-            ? app.textFields["settings.search"]
-            : app.textFields.firstMatch
-        XCTAssertTrue(field.waitForExistence(timeout: 6),
-                      "text field missing", file: file, line: line)
-        let layoutDeadline = Date().addingTimeInterval(4)
-        while field.frame.width < 40, Date() < layoutDeadline { usleep(150_000) }
-        field.click()
-        field.typeText(text)
-    }
-
     /// Select a SwiftUI segmented-picker item across the two accessibility
     /// mappings macOS currently emits (button on newer SDKs, radio button on
     /// older ones). Keeping this in one place makes tab tests less brittle.

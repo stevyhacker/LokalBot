@@ -547,10 +547,10 @@ impl Settings {
             return Self::default();
         };
         for (key, value) in stored {
-            if !merged.contains_key(&key) {
-                merged.insert(key, value);
-                continue;
-            }
+            // Every stored key is tried, including ones the defaults leave out
+            // when unset (`agentReasoningLevel`): an unreadable value there
+            // would otherwise fail the final decode and reset every setting.
+            // Keys this port doesn't model always decode, into `other`.
             let mut candidate = merged.clone();
             candidate.insert(key.clone(), value.clone());
             if serde_json::from_value::<Settings>(serde_json::Value::Object(candidate)).is_ok() {
@@ -1230,6 +1230,36 @@ mod tests {
         assert_eq!(back, Settings::default());
         assert!(json.contains("\"autoRecordMode\":\"Ask via notification\""));
         assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b\""));
+    }
+
+    #[test]
+    fn one_unreadable_value_does_not_reset_the_other_settings() {
+        // `agentReasoningLevel` is left out of the saved defaults when unset,
+        // so it used to skip the per-field check: a level this build can't
+        // read failed the whole decode and every setting came back default.
+        let stored = serde_json::json!({
+            "agentReasoningLevel": "a level from a newer build",
+            "semanticSearchEnabled": !Settings::default().semantic_search_enabled,
+            "companionAcceptsRecordings": "not a bool",
+            "aKeyOnlyTheMacWrites": {"kept": true},
+        });
+        let loaded = Settings::load_field_by_field(&serde_json::to_vec(&stored).unwrap());
+
+        assert_eq!(loaded.agent_reasoning_level, None);
+        assert_eq!(
+            loaded.semantic_search_enabled,
+            !Settings::default().semantic_search_enabled,
+            "a readable setting beside the unreadable ones still loads"
+        );
+        assert_eq!(
+            loaded.companion_accepts_recordings,
+            Settings::default().companion_accepts_recordings
+        );
+        assert_eq!(
+            loaded.other.get("aKeyOnlyTheMacWrites"),
+            Some(&serde_json::json!({"kept": true})),
+            "keys this port doesn't model survive"
+        );
     }
 
     #[test]

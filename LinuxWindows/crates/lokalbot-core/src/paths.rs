@@ -105,14 +105,6 @@ impl LibraryPaths {
         self.root.join("projects")
     }
 
-    pub fn activity_dir(&self) -> PathBuf {
-        self.root.join("activity")
-    }
-
-    pub fn dictations_dir(&self) -> PathBuf {
-        self.root.join("dictations")
-    }
-
     pub fn control_dir(&self) -> PathBuf {
         self.root.join("control")
     }

@@ -1,0 +1,680 @@
+{
+ "tau": 0.876875102519989,
+ "crossMatches": 507,
+ "systems": {
+  "Live Radar \u00b7 muse-spark-1.3": {
+   "meetings": 6,
+   "perMeeting": [
+    {
+     "meeting": "ES2004b",
+     "commitment": 0,
+     "decision": 13,
+     "question": 11,
+     "contradiction": 0,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      1,
+      4
+     ],
+     "supported": [
+      1,
+      24
+     ]
+    },
+    {
+     "meeting": "ES2004d",
+     "commitment": 3,
+     "decision": 7,
+     "question": 11,
+     "contradiction": 4,
+     "actionsCovered": [
+      0,
+      2
+     ],
+     "decisionsCovered": [
+      0,
+      6
+     ],
+     "supported": [
+      1,
+      25
+     ]
+    },
+    {
+     "meeting": "IS1009b",
+     "commitment": 2,
+     "decision": 3,
+     "question": 7,
+     "contradiction": 3,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      2,
+      4
+     ],
+     "supported": [
+      2,
+      15
+     ]
+    },
+    {
+     "meeting": "IS1009d",
+     "commitment": 2,
+     "decision": 23,
+     "question": 7,
+     "contradiction": 5,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      6,
+      9
+     ],
+     "supported": [
+      14,
+      37
+     ]
+    },
+    {
+     "meeting": "TS3003b",
+     "commitment": 4,
+     "decision": 3,
+     "question": 6,
+     "contradiction": 4,
+     "actionsCovered": [
+      2,
+      2
+     ],
+     "decisionsCovered": [
+      1,
+      11
+     ],
+     "supported": [
+      8,
+      17
+     ]
+    },
+    {
+     "meeting": "TS3003d",
+     "commitment": 2,
+     "decision": 9,
+     "question": 14,
+     "contradiction": 2,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      3,
+      8
+     ],
+     "supported": [
+      8,
+      27
+     ]
+    }
+   ],
+   "actions": {
+    "matched": 2,
+    "of": 8,
+    "rate": 0.25
+   },
+   "decisions": {
+    "matched": 13,
+    "of": 42,
+    "rate": 0.30952380952380953
+   },
+   "supported": {
+    "matched": 34,
+    "of": 145,
+    "rate": 0.23448275862068965
+   },
+   "items": {
+    "commitment": 13,
+    "decision": 58,
+    "question": 56,
+    "contradiction": 18
+   },
+   "live": {
+    "passes": 582,
+    "meetingMinutes": 220.4145,
+    "passSecondsMedian": 1.0662155835,
+    "passSecondsP95": 2.695946959,
+    "shownAfterMedian": 23.678145750000112,
+    "inputTokens": 1218144,
+    "outputTokens": 159964,
+    "reasoningTokens": 141457,
+    "rejected": 5,
+    "cost": 1.8502498,
+    "costPerHour": 0.5036646318640562,
+    "failedRequests": 0
+   },
+   "contradictions": [
+    {
+     "meeting": "ES2004d",
+     "text": "Voice recognition is now ambivalent, not decided to include.",
+     "quote": "slightly ambivalent as to whether to use voice recognition",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Ratings will be individual averaged instead of consensus.",
+     "quote": "take an average at the end",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Shape changed from double-curved to single-curved with flattened bottom.",
+     "quote": "No. Single-curved. Two",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Proposes optional voice-recognition version instead of single product design.",
+     "quote": "for, you know, business class",
+     "earlier": "Remote control design: functional design meeting"
+    },
+    {
+     "meeting": "IS1009b",
+     "text": "Now only TV control versus earlier multi-functional requirement.",
+     "quote": "it should only control the T_V_",
+     "earlier": "Remote control design: kick-off meeting"
+    },
+    {
+     "meeting": "IS1009b",
+     "text": "Proposes TV, VCR, stereo and appliance control despite TV-only limit.",
+     "quote": "make it work the T_V_, the V_C_R_,",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009b",
+     "text": "Single-device design is standard; multiple-device control is hard.",
+     "quote": "hard to design a remote controller for multiple devices",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Oversized remote proposal conflicts with earlier compact design decision.",
+     "quote": "oversized remote which she guarantees",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Marketing expert says remote should be small conflicting with oversized proposal.",
+     "quote": "such a remote should be small",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Speech recogniser decided now despite research pending before.",
+     "quote": "decision that we took last time was",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Prototype is compact, contradicting earlier oversized remote proposal.",
+     "quote": "also compact in shape",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Kinetic energy source contradicts earlier battery energy source decision.",
+     "quote": "kinetic source so that's in",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "Touchscreen is fragile conflicts with shockproof requirement.",
+     "quote": "It wouldn't be very robust. It's very fragile",
+     "earlier": "Remote control design: kick-off meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "Remote now TV-only, contradicting earlier multi-device requirement.",
+     "quote": "only suitable for T_V_.",
+     "earlier": "Remote control design: kick-off meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "Teletext is important and should not be skipped.",
+     "quote": "teletext simply was an important feature",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "40+ is biggest population share, contradicting earlier small-market claim.",
+     "quote": "biggest share of the",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "TS3003d",
+     "text": "Case material is now plastic only, not wood or plastic.",
+     "quote": "It's plastic. It's the cheapest one",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "TS3003d",
+     "text": "No docking station now, contradicting earlier plan to have one.",
+     "quote": "we are not going to make a docking station",
+     "earlier": "Remote control design: conceptual design meeting"
+    }
+   ]
+  },
+  "Live Radar \u00b7 muse-wonder-1.0": {
+   "meetings": 6,
+   "perMeeting": [
+    {
+     "meeting": "ES2004b",
+     "commitment": 1,
+     "decision": 9,
+     "question": 16,
+     "contradiction": 0,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      2,
+      4
+     ],
+     "supported": [
+      3,
+      26
+     ]
+    },
+    {
+     "meeting": "ES2004d",
+     "commitment": 3,
+     "decision": 10,
+     "question": 17,
+     "contradiction": 6,
+     "actionsCovered": [
+      0,
+      2
+     ],
+     "decisionsCovered": [
+      0,
+      6
+     ],
+     "supported": [
+      2,
+      36
+     ]
+    },
+    {
+     "meeting": "IS1009b",
+     "commitment": 0,
+     "decision": 12,
+     "question": 7,
+     "contradiction": 1,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      3,
+      4
+     ],
+     "supported": [
+      6,
+      20
+     ]
+    },
+    {
+     "meeting": "IS1009d",
+     "commitment": 2,
+     "decision": 24,
+     "question": 11,
+     "contradiction": 5,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      7,
+      9
+     ],
+     "supported": [
+      16,
+      42
+     ]
+    },
+    {
+     "meeting": "TS3003b",
+     "commitment": 7,
+     "decision": 5,
+     "question": 5,
+     "contradiction": 5,
+     "actionsCovered": [
+      2,
+      2
+     ],
+     "decisionsCovered": [
+      7,
+      11
+     ],
+     "supported": [
+      13,
+      22
+     ]
+    },
+    {
+     "meeting": "TS3003d",
+     "commitment": 2,
+     "decision": 14,
+     "question": 14,
+     "contradiction": 2,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      4,
+      8
+     ],
+     "supported": [
+      10,
+      32
+     ]
+    }
+   ],
+   "actions": {
+    "matched": 2,
+    "of": 8,
+    "rate": 0.25
+   },
+   "decisions": {
+    "matched": 23,
+    "of": 42,
+    "rate": 0.5476190476190477
+   },
+   "supported": {
+    "matched": 50,
+    "of": 178,
+    "rate": 0.2808988764044944
+   },
+   "items": {
+    "commitment": 15,
+    "decision": 74,
+    "question": 70,
+    "contradiction": 19
+   },
+   "live": {
+    "passes": 582,
+    "meetingMinutes": 220.4145,
+    "passSecondsMedian": 2.0508604165,
+    "passSecondsP95": 3.9733177079999997,
+    "shownAfterMedian": 23.973757646000024,
+    "inputTokens": 1173027,
+    "outputTokens": 77416,
+    "reasoningTokens": 57109,
+    "rejected": 5,
+    "cost": 4.6710888,
+    "costPerHour": 1.271537616626855,
+    "failedRequests": 0
+   },
+   "contradictions": [
+    {
+     "meeting": "ES2004d",
+     "text": "Voice recognition is now described as ambivalent, though earlier it was decided to include it.",
+     "quote": "still um uh slightly ambivalent as to whether to use voice recognition",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Individual ratings with an average replace the earlier consensus rating approach.",
+     "quote": "if we each did give our own individual rating",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Speakers now say nothing feasible reduces RSI, contradicting claim that button material minimises RSI.",
+     "quote": "we felt could feasibly reduce that",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Standard battery is now proposed instead of the previously confirmed kinetic option.",
+     "quote": "Instead of going for kinetic",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Optional business-class voice-recognition upgrade conflicts with earlier decision to produce one design, not alternates.",
+     "quote": "We could do the voice recognition for, you know, business class or something",
+     "earlier": "Remote control design: functional design meeting"
+    },
+    {
+     "meeting": "ES2004d",
+     "text": "Cost is now twelve point two five, not twelve point three five as previously stated.",
+     "quote": "it's twelve point two five",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009b",
+     "text": "Extended entertainment control conflicts with earlier instruction to limit remote to TV only.",
+     "quote": "make it work the T_V_, the V_C_R_, the stereo set",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Oversized remote conflicts with earlier compact design requirement.",
+     "quote": "presented also an oversized remote",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Few buttons conflicts with nine channel buttons plus other required buttons.",
+     "quote": "child friendly design with few buttons",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Rechargeable battery conflicts with earlier decision to use batteries for cost-effectiveness.",
+     "quote": "if possible a rechargeable battery",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Speech recogniser was previously undecided pending cost research, now presented as already decided.",
+     "quote": "the special feature we would like to see is a speech recogniser",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "IS1009d",
+     "text": "Mute buttons are now on the front, not on the side as stated earlier.",
+     "quote": "are the mute buttons",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "A touchscreen would push production cost way above the 12.50 Euro maximum set earlier.",
+     "quote": "way above the twelve and a half Euros",
+     "earlier": "Remote control design: kick-off meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "Touchscreen is fragile and not robust, conflicting with earlier shockproof requirement.",
+     "quote": "It wouldn't be very robust",
+     "earlier": "Remote control design: kick-off meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "TV-only remote conflicts with earlier ability to control multiple devices.",
+     "quote": "only suitable for T_V_",
+     "earlier": "Remote control design: kick-off meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "Me says 40-plus is the biggest population share, conflicting with earlier claim that market is pretty small.",
+     "quote": "biggest share of the of the whole population",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "TS3003b",
+     "text": "Teletext is now listed as an important requirement, conflicting with the earlier decision to skip teletext.",
+     "quote": "channel selection is important. Volume selection, power and teletext",
+     "earlier": "this meeting"
+    },
+    {
+     "meeting": "TS3003d",
+     "text": "Flat case is now proposed instead of the earlier single curved case.",
+     "quote": "go with the flat flat case",
+     "earlier": "Remote control design: conceptual design meeting"
+    },
+    {
+     "meeting": "TS3003d",
+     "text": "Docking station will now not be made, contradicting earlier decision to have one.",
+     "quote": "not going to make a docking station",
+     "earlier": "Remote control design: conceptual design meeting"
+    }
+   ]
+  },
+  "Post-meeting notes \u00b7 Qwen3.5 4B (local)": {
+   "meetings": 6,
+   "perMeeting": [
+    {
+     "meeting": "ES2004b",
+     "commitment": 8,
+     "decision": 1,
+     "question": 0,
+     "contradiction": 0,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      0,
+      4
+     ],
+     "supported": [
+      1,
+      9
+     ]
+    },
+    {
+     "meeting": "ES2004d",
+     "commitment": 8,
+     "decision": 0,
+     "question": 0,
+     "contradiction": 0,
+     "actionsCovered": [
+      0,
+      2
+     ],
+     "decisionsCovered": [
+      0,
+      6
+     ],
+     "supported": [
+      2,
+      8
+     ]
+    },
+    {
+     "meeting": "IS1009b",
+     "commitment": 13,
+     "decision": 2,
+     "question": 0,
+     "contradiction": 0,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      0,
+      4
+     ],
+     "supported": [
+      0,
+      15
+     ]
+    },
+    {
+     "meeting": "IS1009d",
+     "commitment": 9,
+     "decision": 0,
+     "question": 0,
+     "contradiction": 0,
+     "actionsCovered": [
+      0,
+      1
+     ],
+     "decisionsCovered": [
+      0,
+      9
+     ],
+     "supported": [
+      0,
+      9
+     ]
+    },
+    {
+     "meeting": "TS3003b",
+     "commitment": 9,
+     "decision": 0,
+     "question": 0,
+     "contradiction": 0,
+     "actionsCovered": [
+      2,
+      2
+     ],
+     "decisionsCovered": [
+      0,
+      11
+     ],
+     "supported": [
+      4,
+      9
+     ]
+    },
+    {
+     "meeting": "TS3003d",
+     "commitment": 11,
+     "decision": 1,
+     "question": 0,
+     "contradiction": 0,
+     "actionsCovered": [
+      1,
+      1
+     ],
+     "decisionsCovered": [
+      2,
+      8
+     ],
+     "supported": [
+      3,
+      12
+     ]
+    }
+   ],
+   "actions": {
+    "matched": 3,
+    "of": 8,
+    "rate": 0.375
+   },
+   "decisions": {
+    "matched": 2,
+    "of": 42,
+    "rate": 0.047619047619047616
+   },
+   "supported": {
+    "matched": 10,
+    "of": 62,
+    "rate": 0.16129032258064516
+   },
+   "items": {
+    "commitment": 58,
+    "decision": 4,
+    "question": 0,
+    "contradiction": 0
+   }
+  }
+ }
+}

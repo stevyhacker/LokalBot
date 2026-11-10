@@ -1,0 +1,79 @@
+[
+ {
+  "line": 1,
+  "speaker": "them",
+  "start": 2.0,
+  "end": 8.88025,
+  "text": "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."
+ },
+ {
+  "line": 2,
+  "speaker": "local",
+  "start": 11.0,
+  "end": 14.188875,
+  "text": "I'll send the revised pricing deck to Marko by Friday."
+ },
+ {
+  "line": 3,
+  "speaker": "them",
+  "start": 19.0,
+  "end": 23.693,
+  "text": "Great. What was our trial-to-paid conversion last month, by the way?"
+ },
+ {
+  "line": 4,
+  "speaker": "local",
+  "start": 27.0,
+  "end": 29.581375,
+  "text": "Let me think, I saw it on the dashboard."
+ },
+ {
+  "line": 5,
+  "speaker": "them",
+  "start": 34.0,
+  "end": 39.5874375,
+  "text": "Also, the launch is Friday the seventh now, right? Marketing told me Friday."
+ },
+ {
+  "line": 6,
+  "speaker": "local",
+  "start": 43.0,
+  "end": 45.838625,
+  "text": "Hm, I thought it was the Monday. Let me check."
+ },
+ {
+  "line": 7,
+  "speaker": "them",
+  "start": 50.0,
+  "end": 53.138,
+  "text": "And sales wants the free tier limited to one project."
+ },
+ {
+  "line": 8,
+  "speaker": "local",
+  "start": 58.0,
+  "end": 60.8493125,
+  "text": "Okay, let's decide that with Ana tomorrow."
+ },
+ {
+  "line": 9,
+  "speaker": "them",
+  "start": 65.0,
+  "end": 68.218625,
+  "text": "Marko will review the onboarding emails before Wednesday."
+ },
+ {
+  "line": 10,
+  "speaker": "local",
+  "start": 73.0,
+  "end": 76.8758125,
+  "text": "Perfect. Let's go with twenty percent off for annual plans."
+ },
+ {
+  "line": 11,
+  "speaker": "them",
+  "start": 80.0,
+  "end": 83.0915,
+  "text": "Agreed, twenty percent. Talk tomorrow!"
+ }
+]

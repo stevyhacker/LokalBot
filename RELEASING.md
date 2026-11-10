@@ -169,9 +169,10 @@ Scripts/upgrade-fixtures/add.sh 0.8.0
 It downloads that artifact from a run of the release's tag or of `master`,
 extracts it into `LokalBotTests/Fixtures/upgrade/<version>/` with the
 database's write-ahead log folded in, and checks that its manifest names the
-version and the synthetic library. Commit the folder with the candidate; the
-Build job's `UpgradeMigrationTests` opens every fixture folder. When the
-artifact is missing or expired, build it with
+version and the synthetic library. Commit the folder on its own, before the
+release-metadata commit (the staged preflight in step 1 accepts only the
+metadata files); the Build job's `UpgradeMigrationTests` opens every fixture
+folder. When the artifact is missing or expired, build it with
 `gh workflow run upgrade-fixtures.yml --ref master -f versions=<version>` and
 run `add.sh` again once that finishes. The committed folders are the only list
 of fixture versions. `release-preflight.py --candidate` refuses a release
@@ -286,9 +287,9 @@ only); **UI Tests (macOS 26)** builds and runs the same suite with 26.4.1,
 weekly and on demand (`gh workflow run ui-tests-macos26.yml --ref BRANCH`), and is
 not a merge or release gate until its known macOS 26 failures are fixed. Update
 explicit versions and runners together after hosted validation. The Build gate compiles the production app and its unit-test
-target. The UI workflow builds its separate host once, runs the critical group,
-then Reduce Motion, then independent functional and visual shards covering all
-72 captures. A shared inventory and aggregate result verification prevent missing
+target. The UI workflow builds its separate host once, then runs the critical
+group, Reduce Motion, and the independent functional, background and visual
+shards in parallel, covering all 78 captures. A shared inventory and aggregate result verification prevent missing
 or duplicate tests. Filtered manual UI
 dispatches remain focused checks and do not constitute the full release gate.
 Test products are shared only within the same workflow attempt and exact SHA,
@@ -333,8 +334,8 @@ refuses a commit that changes only `DOCS_ONLY` paths, because Build and XcodeGen
 never run on one.
 
 Build and unit execution are separate jobs in `build.yml`, sharing one compile.
-The UI aggregate checks smoke, Reduce Motion, both functional shards, all three
-visual sizes and every capture. Filtered or legacy-comparison runs cannot replace
+The UI aggregate checks smoke, Reduce Motion, both functional shards, the
+background shard, all three visual sizes and every capture. Filtered or legacy-comparison runs cannot replace
 the complete UI gate. All UI execution remains on hosted runners.
 
 On a tag push, Release requires the candidate to be the current `master` tip, or
@@ -369,7 +370,7 @@ For hosted comparison of the retained capture timer:
 gh workflow run ui-tests.yml --ref BRANCH -f capture_mode=legacy
 ```
 
-Its visual artifacts retain all 72 cases under a separate comparison check; it
+Its visual artifacts retain all 78 cases under a separate comparison check; it
 cannot satisfy the default full UI release gate. Default captures require ready route content and
 window geometry before the preserved one-second compositing delay.
 
@@ -663,6 +664,20 @@ by hand: `gh workflow run winget.yml -f tag=v<version>`. The first version
 and the token are set up once; see
 [LinuxWindows/packaging/winget/README.md](LinuxWindows/packaging/winget/README.md).
 
+## MCP Registry
+
+For a stable tag, the `mcp-registry` job (`.github/workflows/mcp-registry.yml`)
+runs after the macOS job publishes the release. While the
+`MCP_REGISTRY_PUBLISH` repository variable is `true`, it attaches
+`LokalBot.mcpb` (built from the tag) when the release lacks it, writes the
+bundle's URL and SHA-256 into `Distribution/mcp-registry/server.json`, and
+publishes `io.github.stevyhacker/lokalbot` `<version>` to the official MCP
+Registry with GitHub OIDC, so there is no secret. Without the variable, or when
+the registry already has the version, it says so and succeeds. Don't replace a
+release's `LokalBot.mcpb` after the registry has it. To publish by hand:
+`gh workflow run mcp-registry.yml -f tag=v<version>`. See
+[Distribution/mcp-registry/README.md](Distribution/mcp-registry/README.md).
+
 ## Android
 
 The tag that releases macOS also attaches the Android app, as
@@ -788,6 +803,10 @@ Required repo secrets:
 Optional: `AUR_SSH_PRIVATE_KEY`, the AUR account's SSH key that lets the
 release push the `lokalbot-bin` AUR package once the `AUR_PUBLISH` repository
 variable is `true` ([AUR package](#aur-package)).
+
+Optional, with no secret: the `MCP_REGISTRY_PUBLISH` repository variable set to
+`true` lists each stable release's `LokalBot.mcpb` in the official MCP Registry
+([MCP Registry](#mcp-registry)).
 
 `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` sign the Android APK.
 A release has no APK until its key is set up, and a missing secret fails the

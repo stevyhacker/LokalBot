@@ -177,6 +177,11 @@ final class AppState: ObservableObject {
     @Published private(set) var importingRecordings: [String] = []
     private var recordingImportTask: Task<Void, Never>?
     @Published var lastError: String?
+    /// Text recognition has stopped answering (`TextRecognitionQueue`). Until
+    /// it answers or the app restarts, a window whose text Accessibility
+    /// cannot read is kept without its pixels, or not at all. Cleared when it
+    /// answers, or when the user dismisses it.
+    @Published var textRecognitionStalled = false
     /// A recording or dictation start was refused because microphone access
     /// is denied at the system level. Cleared when the user opens System
     /// Settings from the recovery toast or dismisses it.
@@ -241,6 +246,10 @@ final class AppState: ObservableObject {
                 if settings.selectionActionsEnabled != oldValue.selectionActionsEnabled
                     || settings.selectionActionsShortcut != oldValue.selectionActionsShortcut {
                     applySelectionActionsSetting(replacing: oldValue.selectionActionsShortcut)
+                }
+                if settings.windowHandoffEnabled != oldValue.windowHandoffEnabled
+                    || settings.windowHandoffShortcut != oldValue.windowHandoffShortcut {
+                    applyWindowHandoffSetting(replacing: oldValue.windowHandoffShortcut)
                 }
                 // UI retention reductions are reviewed and executed explicitly.
                 // Changing a preference must not trigger an unreviewed cleanup.
@@ -401,6 +410,8 @@ final class AppState: ObservableObject {
     var meetingPlaybackPositions: [UUID: TimeInterval] = [:]
     var meetingPlaybackSpeeds: [UUID: Float] = [:]
     func openActions() { showingActions = true; navSection = .today }
+    /// Today itself: `navSection` alone would stay on Actions when it is open.
+    func openToday() { showingActions = false; navSection = .today }
 
     /// People and Projects share one derived read model.
     @Published var selectedPersonID: String?
@@ -415,6 +426,8 @@ final class AppState: ObservableObject {
 
     /// The meeting whose follow-up draft sheet is open, from any entry point.
     @Published var followUpDraftMeeting: Meeting?
+    /// The open Follow-through run (Muse plans one action; each step waits for approval).
+    @Published var followThroughSession: FollowThroughSession?
     /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
     @Published var showsSampleSetup = false
 
@@ -518,16 +531,12 @@ final class AppState: ObservableObject {
     var writesProjectSummariesAutomatically: Bool {
         settings.allowsAutomaticMainInference && ModelReadinessSnapshot.thinkReady(settings, storage: storage)
     }
-    private static let typeTabDefaultsKey = "lokalbotv3.type.selectedTab"
     private static var navigationDefaults: UserDefaults {
         if let suite = UITestRuntime.defaultsSuiteName,
            let defaults = UserDefaults(suiteName: suite) {
             return defaults
         }
         return .standard
-    }
-    @Published var typeTab: TypeTab = .dictation {
-        didSet { Self.navigationDefaults.set(typeTab.rawValue, forKey: Self.typeTabDefaultsKey) }
     }
     /// Renamed when Settings was organized by feature, so everyone opens the
     /// new Overview once; the page chosen after that is remembered.
@@ -562,7 +571,6 @@ final class AppState: ObservableObject {
 
     /// Keep legacy writing commands routed to the corresponding Settings section.
     func openType(_ tab: TypeTab) {
-        typeTab = tab
         openSettings(tab: tab == .cotyping ? .writing : .dictation)
         focusedSettingID = tab == .cotyping ? "settings.autocompletePreview" : "settings.dictationPreview"
     }
@@ -750,6 +758,42 @@ final class AppState: ObservableObject {
         },
         openPanel: { WindowAccess.shared.open("selection-actions") },
         report: { [weak self] message in self?.lastError = message }))
+    private(set) lazy var windowHandoffHotKey: QuickRecallHotKeyController = {
+        let controller = QuickRecallHotKeyController(
+            identifier: QuickRecallHotKeyController.windowHandoffIdentifier)
+        controller.onInvoke = { [weak self] in self?.windowHandoff.invoke() }
+        return controller
+    }()
+    /// Hand off: reads the focused window on a press and hands its task to
+    /// another agent. The brief runs on the Think model, so remote inference
+    /// keeps its per-origin approval.
+    private(set) lazy var windowHandoff = WindowHandoffController(dependencies: .init(
+        capture: { [weak self] in
+            guard let self else { return WindowHandoffCapture(issue: .unreadable) }
+            return await WindowHandoffCapturer.capture(
+                excludedApps: self.settings.excludedAppList,
+                excludedDomains: self.settings.excludedScreenDomainList)
+        },
+        makeEngine: { [weak self] in
+            guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+            return try await self.thinkExecution.makeTextEngine(
+                self.settings, priority: .interactive, purpose: "hand off")
+        },
+        targets: { WindowHandoffTarget.availableOnThisMac },
+        writePackage: { [weak self] capture, brief in
+            guard let self else { throw CocoaError(.fileWriteUnknown) }
+            return try WindowHandoffPackage.write(capture, brief: brief, library: self.storage.rootURL)
+        },
+        deliver: { [weak self] package, target in
+            guard let self else { return "LokalBot is shutting down." }
+            return self.deliverWindowHandoff(package, to: target)
+        },
+        returnFocus: { source in
+            guard let application = NSRunningApplication(processIdentifier: source.processID) else { return }
+            Task { await FocusReturn.activate(application) }
+        },
+        openPanel: { WindowAccess.shared.open("window-handoff") },
+        closePanel: { WindowAccess.shared.close("window-handoff") }))
     private let dailyMemoryExportScheduler = DailyMemoryExportScheduler()
     /// Notes are written while processing is idle, so a meeting's note is not
     /// written half-finished and rewritten moments later.
@@ -1091,6 +1135,64 @@ final class AppState: ObservableObject {
     private(set) lazy var liveTranscriber = LiveMeetingTranscriber(
         storageRoot: storage.rootURL,
         settings: { [store = settingsStore] in store.current })
+    /// Live Radar reads the live transcript with the Think model while
+    /// recording; it runs only after the person starts it for that meeting.
+    private(set) lazy var meetingRadar: MeetingRadar = {
+        let settings: () -> AppSettings = { [store = settingsStore] in store.current }
+        let evidence = LibraryRadarEvidenceSource(
+            meetings: { [weak self] in self?.meetings ?? [] },
+            searchIndex: searchIndex,
+            embeddingIndex: embeddingIndex,
+            settings: settings)
+        let screens = Self.radarScreenSource(store: activityStore)
+        let answers = AppLiveAnswerEnvironment(app: self)
+#if LOKALBOT_UI_TEST_HOST
+        // The hosted film of Live Radar runs on scripted replies, or on
+        // Meta's models with the film's key. Both speak Meta's wire format.
+        if MuseUITestTransport.isEnabled {
+            return MeetingRadar(
+                transcriber: liveTranscriber, evidenceSource: evidence, screenSource: screens,
+                answerEnvironment: answers, answerCall: MuseUITestTransport.answerCall(settings: settings),
+                settings: settings, call: MuseUITestTransport.radarCall(settings: settings),
+                modelName: { _ in MetaModelAPI.museSpark.id }, sendsScreenCrops: true)
+        }
+#endif
+        return MeetingRadar(
+            transcriber: liveTranscriber, evidenceSource: evidence, screenSource: screens,
+            answerEnvironment: answers, settings: settings,
+            engine: { [weak self] purpose in
+                guard let self else { throw CancellationError() }
+                return try await self.thinkExecution.makeTextEngine(
+                    self.settings, priority: .interactive, purpose: purpose)
+            })
+    }()
+
+    /// The floating Live Radar window, for checking the radar from the
+    /// meeting app.
+    private(set) lazy var liveRadarPanel = LiveRadarPanelController(app: self)
+
+    /// Starts Live Radar for the meeting being recorded and brings up the
+    /// floating panel, so the person can go back to the call.
+    func startLiveRadar(for meeting: Meeting) {
+        meetingRadar.start(meeting: meeting, folder: meeting.folderURL(in: storage))
+        if meetingRadar.isActive, settings.liveRadarPanelEnabled { liveRadarPanel.show() }
+#if LOKALBOT_UI_TEST_HOST
+        if meetingRadar.isActive { FilmCall.show(app: self, title: meeting.displayTitle) }
+#endif
+    }
+
+    /// Screen memory for screen answers. The UI-test host can use a folder of
+    /// synthetic captures instead (`LOKALBOT_UI_TEST_SCREENS`), as the radar
+    /// replay's `--screens` does.
+    private static func radarScreenSource(store: ActivityStore) -> RadarScreenSource {
+#if LOKALBOT_UI_TEST_HOST
+        if let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_SCREENS"],
+           let screens = try? MeetingRadarReplay.FixtureScreens(folder: URL(fileURLWithPath: path, isDirectory: true)) {
+            return screens
+        }
+#endif
+        return LibraryRadarScreenSource(store: store)
+    }
 
     @MainActor
     func prepareRecommendedCotypingModel() {
@@ -1319,10 +1421,20 @@ final class AppState: ObservableObject {
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
         }
+        // The radar keeps its own copy of the live lines, so its last pass can
+        // run after the preview is cleared.
+        if meetingRadar.meetingID != nil, meetingRadar.meetingID != recording.currentMeeting?.id {
+            Task { await meetingRadar.finish() }
+        }
         if active, let meeting = recording.currentMeeting {
             liveTranscriber.prepare(folder: meeting.folderURL(in: storage))
+            // With Live Radar on, the panel offers Start Radar over the call.
+            if settings.liveRadarPanelEnabled, MeetingRadar.unavailableReason(settings) == nil {
+                liveRadarPanel.show()
+            }
         } else {
             liveTranscriber.stop(preservingHandoff: recording.isSplittingForCalendarHandoff)
+            if !recording.isSplittingForCalendarHandoff { liveRadarPanel.hide() }
         }
     }
 
@@ -1330,6 +1442,10 @@ final class AppState: ObservableObject {
     /// in-progress recording selected, so the detail pane shows the live
     /// transcript and notes.
     func showLiveMeeting() {
+#if LOKALBOT_UI_TEST_HOST
+        // The film's stand-in call covers the LokalBot window; closing it is the way back.
+        if FilmCall.close() { return }
+#endif
         guard let live = currentMeeting else { return }
         navSection = .meetings
         selectedMeetingIDs = [live.id]
@@ -1344,15 +1460,6 @@ final class AppState: ObservableObject {
         if let raw = Self.navigationDefaults.string(forKey: Self.settingsTabDefaultsKey),
            let stored = SettingsTab(rawValue: raw) {
             settingsTab = stored
-        }
-        if let raw = Self.navigationDefaults.string(forKey: Self.typeTabDefaultsKey),
-           let stored = TypeTab(rawValue: raw) {
-            typeTab = stored
-        } else {
-            // Existing installs retain Dictation; genuinely new installs lead
-            // with the approved Autocomplete experience.
-            typeTab = Self.navigationDefaults.bool(forKey: Self.onboardingShownKey)
-                ? .dictation : .cotyping
         }
         if Self.isUnitTesting { return }
         // Settings corruption is a privacy event, not a cosmetic one: a field
@@ -1444,6 +1551,7 @@ final class AppState: ObservableObject {
             // The sample's notes don't count toward asking for a GitHub star.
             guard !meeting.isSample else { return }
             self?.githubStar.recordSummaryCompleted()
+            self?.handOffActionsAfterSummary(meeting)
         }
         if needsSynchronousLibrary {
             searchIndex.reindexAll(meetings, storage: storage)
@@ -1458,6 +1566,10 @@ final class AppState: ObservableObject {
         if Self.isUITesting && !Self.runsBackgroundWorkInUITests { return }
         interactive = true
         RecordingNotifier.shared.bootstrap()
+        RecordingNotifier.shared.onOpenAgent = { [weak self] in
+            self?.openAgent()
+            WindowAccess.shared.open("main")
+        }
         applyTrackingSetting()
         // Crash recovery: re-enqueue any meeting whose processing never
         // finished — a quit or crash mid-transcription used to lose the job.
@@ -1557,6 +1669,7 @@ final class AppState: ObservableObject {
         showAgentSetupIfRequested()
         applyQuickRecallSetting()
         applySelectionActionsSetting()
+        applyWindowHandoffSetting()
         applyDailyMemoryExportSetting()
         applyMeetingNoteExportSetting()
         applyDayDigestSetting()
@@ -1846,6 +1959,8 @@ final class AppState: ObservableObject {
             quickRecallHotKey.stop()
             selectionActionsHotKey.stop()
             selectionActions.stop()
+            windowHandoffHotKey.stop()
+            windowHandoff.stop()
             dailyMemoryExportScheduler.stop()
             meetingNoteExport.stop()
             memoryRoutines.stop()
@@ -2371,10 +2486,6 @@ final class AppState: ObservableObject {
         primaryEvidenceDidChange(on: meetings.map(\.startedAt), meetingIDs: Set(meetings.map(\.id)))
     }
 
-    func primaryEvidenceDidChange(on day: Date) {
-        primaryEvidenceDidChange(on: [day])
-    }
-
     func primaryEvidenceDidChange(on days: [Date]) {
         primaryEvidenceDidChange(on: days, meetingIDs: [])
     }
@@ -2528,10 +2639,22 @@ final class AppState: ObservableObject {
             try self.withScheduledRetention(on: days, mutation)
         }
         screenshots.onTextStored = { [weak self] in self?.screenTextDidArrive() }
+        TextRecognitionQueue.shared.observeStalls { [weak self] stall in
+            Task { @MainActor in self?.textRecognitionDidChange(stalled: stall != nil) }
+        }
         sampler.excludedApps = { [weak self] in self?.settings.excludedAppList ?? [] }
         sampler.excludedDomains = { [weak self] in self?.settings.excludedScreenDomainList ?? [] }
         if settings.trackingEnabled { sampler.start() } else { sampler.stop() }
         screenshots.restart()
+    }
+
+    private func textRecognitionDidChange(stalled: Bool) {
+        textRecognitionStalled = stalled
+        // Files reads screenshots with the same recognizer, outside the queue.
+        // When it is the one that never came back, the log says so.
+        if stalled, let seconds = FileSearchService.secondsOnCurrentFile, seconds >= 60 {
+            lokalbotLog("text recognition: Files has been reading one file for \(Int(seconds)) s")
+        }
     }
 
     /// `previous` is the shortcut to fall back to when a newly chosen one is
@@ -2560,9 +2683,11 @@ final class AppState: ObservableObject {
         guard interactive else { return }
         quickRecallHotKey.isSuspended = recording
         selectionActionsHotKey.isSuspended = recording
+        windowHandoffHotKey.isSuspended = recording
         if !recording {
             applyQuickRecallSetting()
             applySelectionActionsSetting()
+            applyWindowHandoffSetting()
         }
     }
 
@@ -2740,12 +2865,12 @@ final class AppState: ObservableObject {
             openMeeting(id)
         case .day(let day):
             if Calendar.current.isDateInToday(day) {
-                navSection = .today
+                openToday()
             } else {
                 openTimelineDay(day)
             }
         case .dream:
-            navSection = .today
+            openToday()
         case .models:
             openSettings(tab: .models)
         }

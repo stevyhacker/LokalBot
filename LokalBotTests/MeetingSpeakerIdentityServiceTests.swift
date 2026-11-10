@@ -236,6 +236,28 @@ import XCTest
         XCTAssertTrue(profiles.isEmpty)
     }
 
+    /// A merge keeps its sources on disk and out of the library list. Their
+    /// voice samples expire with the screen retention period all the same.
+    func testVoiceSamplesOfAMergedSourceExpireThoughTheLibraryListLeavesItOut() async throws {
+        var source = try storage.createMeetingFolder(title: "Folded source", appName: "Google Chrome")
+        var parent = try storage.createMeetingFolder(title: "Merged meeting", appName: "Google Chrome")
+        source.startedAt = Date().addingTimeInterval(-30 * 86_400)
+        source.mergedIntoMeetingID = parent.id
+        parent.mergedSourceMeetingIDs = [source.id]
+        try storage.saveMeta(source)
+        try storage.saveMeta(parent)
+        var saved = MeetingSpeakerIdentityState(meetingID: source.id)
+        var vector = [Float](repeating: 0, count: 256); vector[0] = 1
+        saved.voiceSamples = [SpeakerVoiceSample(speaker: "them", range: .init(start: 0, end: 10), vector: vector, source: .system)]
+        _ = try await service.store().commit(saved, meeting: source, expectedRevision: 0)
+
+        await service.expire(meetings: [parent])
+
+        let expired = try await service.state(for: source)
+        XCTAssertTrue(expired.voiceSamples.isEmpty, "A folded source keeps its voice samples past retention")
+        XCTAssertNil(service.notice)
+    }
+
     private func microphoneFixture() throws -> (Meeting, URL, Transcript, [SpeakerAudioTurn], [SpeakerVoiceSample]) {
         let meeting = try storage.createMeetingFolder(title: "Quiet reference rule fixture", appName: "Google Chrome")
         let folder = meeting.folderURL(in: storage)

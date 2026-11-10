@@ -1,0 +1,449 @@
+import AppKit
+import AVFoundation
+import XCTest
+
+/// Clicks through Live Radar and Follow-through end to end and films it: the
+/// Meta Muse settings, Start Radar on a live meeting whose transcript arrives
+/// turn by turn with fast live text, a question answered from a synthetic
+/// screen capture, questions answered from a pricing sheet and from this
+/// repository's code, the floating Live Radar panel over a stand-in video call
+/// (`LOKALBOT_UI_TEST_CALL`), the board behind it, and Follow-through on the
+/// commitment it caught. The runner has no meeting audio, so the transcript's
+/// words come from the script.
+///
+/// By default Muse replies are scripted in the host (`LOKALBOT_MUSE_UI_TEST=1`),
+/// so no key or network is used and the checks name exact items. With
+/// `LOKALBOT_FILM_MUSE=live` and `LOKALBOT_FILM_META_KEY_FILE` naming a file
+/// that holds a Meta Model API key, the host calls Muse Spark and Muse Wonder
+/// on this fixture, and the checks look for kinds of items and approve
+/// whatever steps Follow-through proposes. With `LOKALBOT_FILM_FRAMES` set, the
+/// test marks when `.github/workflows/meta-hackathon-film.yml` should film the
+/// screen, a 3200x2000 virtual display, into that folder.
+final class HackathonFilmUITests: XCTestCase {
+    private var library: URL!
+    private var defaultsSuiteName: String?
+    private var film: Film!
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        library = FileManager.default.temporaryDirectory
+            .appendingPathComponent("LokalBotFilm-\(UUID().uuidString)", isDirectory: true)
+        try FilmFixture.plant(in: library)
+        film = Film()
+    }
+
+    override func tearDownWithError() throws {
+        film?.finish()
+        XCUIApplication(bundleIdentifier: "me.dotenv.LokalBot.uitesthost").terminate()
+        try? FileManager.default.removeItem(at: library)
+        UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+    }
+
+    /// The host's Muse mode, and the key file for live replies.
+    private var muse: [String: String] {
+        let env = ProcessInfo.processInfo.environment
+        if env["LOKALBOT_FILM_MUSE"] == "live", let file = env["LOKALBOT_FILM_META_KEY_FILE"],
+           FileManager.default.fileExists(atPath: file) {
+            return ["LOKALBOT_MUSE_UI_TEST": "live", "LOKALBOT_UI_TEST_META_API_KEY_FILE": file]
+        }
+        return ["LOKALBOT_MUSE_UI_TEST": "1"]
+    }
+
+    private var isLive: Bool { muse["LOKALBOT_MUSE_UI_TEST"] == "live" }
+
+    /// As large as the runner's desktop allows, so the film has room for text.
+    private var windowSize: [String: String] {
+        let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1600, height: 1000)
+        let width = Int(min(1_560, visible.width - 24))
+        let height = Int(min(1_080, visible.height - 16))
+        return ["LOKALBOT_CAPTURE_SIZE": "\(width)x\(height)"]
+    }
+
+    private func radarItems(_ kind: String = "", in app: XCUIApplication) -> XCUIElementQuery {
+        app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "radar.item.\(kind)"))
+    }
+
+    /// Whatever shows `fragment`: a text of its own, or one folded into the
+    /// label of the button or row it sits in.
+    private func shown(_ fragment: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", fragment)).firstMatch
+    }
+
+    func testFilmLiveRadarAndFollowThrough() throws {
+        XCTContext.runActivity(named: isLive ? "Muse replies: live" : "Muse replies: scripted") { _ in }
+        // 1. Connect Meta Muse in Settings → Recording.
+        let launch = try UITestHarness.launch(
+            storageRoot: library, suitePrefix: "Film", settingsJSON: try FilmFixture.settingsJSON(),
+            environment: ["LOKALBOT_INITIAL_SECTION": "settings",
+                          "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "recording",
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(windowSize) { _, new in new })
+        defaultsSuiteName = launch.defaultsSuiteName
+        var app = launch.app
+        let keyField = app.secureTextFields["settings.metaMuse.key"]
+        UITestHarness.scrollTo(keyField, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(film.wait(for: keyField, timeout: 15), "Meta Muse settings did not render")
+        film.hold(1.5)
+        keyField.click()
+        keyField.typeText("demo-key-not-real")
+        film.hold(0.8)
+        app.buttons["Save key"].click()
+        film.hold(1.5)
+        // Fast live text, screen answers, and live answers over this checkout
+        // are on in this library's settings.
+        let screenAnswers = app.descendants(matching: .any)["settings.liveRadar.screenAnswers"].firstMatch
+        UITestHarness.scrollTo(screenAnswers, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(film.wait(for: screenAnswers, timeout: 5), "the screen answers switch did not render")
+        film.hold(2)
+        let folders = app.buttons["settings.liveRadar.addFolder"].firstMatch
+        UITestHarness.scrollTo(folders, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(film.wait(for: folders, timeout: 5), "the live answers folders did not render")
+        film.hold(3)
+
+        // 2. A live meeting: Start Radar, then the transcript arrives line by line.
+        app = try UITestHarness.relaunch(
+            storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
+            environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
+                          "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
+                          "LOKALBOT_UI_TEST_SCREENS": try FilmFixture.screens().path,
+                          "LOKALBOT_UI_TEST_CALL": "1",
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
+                .merging(windowSize) { _, new in new })
+        let start = app.buttons["live.radar.start"]
+        XCTAssertTrue(film.wait(for: start, timeout: 15), "Live Radar pane did not render")
+        film.hold(2)
+        start.click()
+        let started = Date()
+        let panel = app.descendants(matching: .any)["liveRadarPanel"].firstMatch
+        XCTAssertTrue(film.wait(for: panel, timeout: 10), "the floating Live Radar panel did not open")
+        let call = app.descendants(matching: .any)["filmCall"].firstMatch
+        XCTAssertTrue(film.wait(for: call, timeout: 10), "the stand-in call did not open behind the panel")
+        XCTAssertTrue(film.wait(for: UITestHarness.staticText(containing: "Muse Voice Transcribe", in: app), timeout: 10),
+                      "the preview isn't using fast live text")
+        let screenAnswer = app.descendants(matching: .any)["radar.screenAnswer"].firstMatch
+        let liveAnswer = app.descendants(matching: .any)["radar.answer"].firstMatch
+        if isLive {
+            // Real replies vary: require a contradiction with the earlier
+            // meeting, an answer from a screen capture, an answer from the
+            // sheet or the code, and a few items, and let the last pass and
+            // answers after the final line (about 96 s in) finish.
+            XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 100),
+                          "Muse found no contradiction with the earlier meeting")
+            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 100), "no question was answered from the screen")
+            XCTAssertTrue(film.wait(for: liveAnswer, timeout: 100), "no question was answered from the sheet or the code")
+            film.hold(max(0, 120 - Date().timeIntervalSince(started)))
+            XCTAssertGreaterThanOrEqual(radarItems(in: app).count, 3, "Muse caught fewer than three items")
+        } else {
+            let sheet = UITestHarness.staticText(containing: "$12 per seat", in: app)
+            XCTAssertTrue(film.wait(for: sheet, timeout: 40), "the Team plan question was not answered from the sheet")
+            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 40), "the conversion question was not answered from the screen")
+            XCTAssertTrue(UITestHarness.staticText(containing: "4.1% in September", in: app).exists)
+            let contradiction = UITestHarness.staticText(containing: "Launch moved to Friday", in: app)
+            XCTAssertTrue(film.wait(for: contradiction, timeout: 60), "the launch-date contradiction never appeared")
+            let decision = UITestHarness.staticText(containing: "Annual plans get 20% off", in: app)
+            XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
+            XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
+            // The board keeps commitments in a lazy grid below what needs
+            // attention, which builds a card only once it is in view; the
+            // panel lists the commitment as a row either way.
+            XCTAssertTrue(shown("Send the revised pricing deck", in: app).exists,
+                          "the commitment to send the deck is not on the radar")
+            let code = UITestHarness.staticText(containing: "hidden from screen sharing", in: app)
+            XCTAssertTrue(film.wait(for: code, timeout: 30), "the panel question was not answered from the code")
+            // The source is a button, so the file and line may be its label
+            // and not a text of their own.
+            XCTAssertTrue(shown("AppSettings.swift", in: app).exists,
+                          "the code answer doesn't cite the line it read")
+        }
+        film.hold(3)
+        // The panel folds to its header and the newest item, and back.
+        let collapse = app.buttons["liveRadarPanel.collapse"].firstMatch
+        if collapse.exists {
+            collapse.click()
+            film.hold(2.5)
+            collapse.click()
+            film.hold(2)
+        }
+        // After the call, Open LokalBot leaves the call for the board behind it.
+        let open = app.buttons["liveRadarPanel.open"].firstMatch
+        XCTAssertTrue(open.exists, "the panel has no Open LokalBot button")
+        open.click()
+        let board = app.scrollViews["radar.items"]
+        let deadline = Date().addingTimeInterval(5)
+        while call.exists, Date() < deadline { film.hold(0.2) }
+        XCTAssertFalse(call.exists, "Open LokalBot did not leave the call")
+        film.hold(3)
+        // Closing it leaves the board; UI tests would otherwise check the
+        // panel before every scroll.
+        let closePanel = app.buttons["liveRadarPanel.close"].firstMatch
+        if closePanel.exists {
+            closePanel.click()
+            film.hold(1)
+        }
+        // What needs attention leads the board; scroll to the commitments and decision.
+        if board.exists {
+            for _ in 0..<3 {
+                board.scroll(byDeltaX: 0, deltaY: -220)
+                film.hold(1.6)
+            }
+        }
+        film.hold(2)
+
+        // 3. After the meeting: its page keeps what the radar caught. Follow through.
+        try FilmFixture.launchSync(in: library, finished: true)
+        app = try UITestHarness.relaunch(
+            storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
+            environment: ["LOKALBOT_INITIAL_SECTION": "meetings",
+                          "LOKALBOT_SELECT_FIRST": "1",
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
+                .merging(windowSize) { _, new in new })
+        let followThrough = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'radar.followThrough.'")).firstMatch
+        XCTAssertTrue(film.wait(for: app.descendants(matching: .any)["radar.items"], timeout: 20),
+                      "the meeting page has no Live Radar section")
+        UITestHarness.scrollTo(followThrough, in: app)
+        if film.wait(for: followThrough, timeout: 10) {
+            film.hold(2.5)
+            followThrough.click()
+        } else {
+            // A live run may not attribute the commitment to the user; the
+            // saved action's menu offers the same Follow-through.
+            XCTAssertTrue(isLive, "no Follow Through button on the commitment")
+            let menu = app.descendants(matching: .any)["meeting.action.status.film-action-0"]
+            UITestHarness.scrollTo(menu, in: app, upward: true)
+            XCTAssertTrue(film.wait(for: menu, timeout: 10), "no action menu to follow through from")
+            menu.click()
+            let item = app.menuItems["Follow Through with Muse…"]
+            XCTAssertTrue(film.wait(for: item, timeout: 5))
+            item.click()
+        }
+
+        // Approve every step Muse proposes, until it finishes.
+        let approve = app.buttons.matching(NSPredicate(format: "identifier == 'followThrough.approve' AND isEnabled == true")).firstMatch
+        let done = app.descendants(matching: .any)["followThrough.done"]
+        let failure = app.descendants(matching: .any)["followThrough.error"]
+        var approved: [String] = []
+        for _ in 0..<5 {
+            let deadline = Date().addingTimeInterval(isLive ? 120 : 30)
+            while !approve.exists, !done.exists, !failure.exists, Date() < deadline { film.hold(0.4) }
+            if done.exists || failure.exists || !approve.exists { break }
+            film.hold(3)
+            approved.append(approve.label)
+            approve.click()
+            film.hold(1.5)
+        }
+        XCTAssertFalse(failure.exists, "Follow-through failed: \(failure.exists ? failure.label : "")")
+        XCTAssertTrue(film.wait(for: done, timeout: 10), "Follow-through did not finish")
+        XCTAssertFalse(approved.isEmpty, "Follow-through proposed nothing")
+        if !isLive {
+            XCTAssertEqual(approved, ["Open in Mail", "Open in Calendar"])
+            XCTAssertTrue(UITestHarness.staticText(containing: "Drafted the deck email to Marko", in: app).exists)
+        }
+        film.hold(4)
+    }
+}
+
+/// The test's waits, and the markers that start and stop the screen capture
+/// beside it (`Scripts/film/capture.py`), which writes full-size frames to the
+/// `LOKALBOT_FILM_FRAMES` folder. Taking screenshots here would hold up the test.
+private final class Film {
+    private let folder: URL?
+
+    init() {
+        folder = ProcessInfo.processInfo.environment["LOKALBOT_FILM_FRAMES"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        mark(".start")
+    }
+
+    func wait(for element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if element.exists { return true }
+            Thread.sleep(forTimeInterval: 0.4)
+        } while Date() < deadline
+        return element.exists
+    }
+
+    func hold(_ seconds: TimeInterval) {
+        Thread.sleep(forTimeInterval: seconds)
+    }
+
+    func finish() {
+        mark(".stop")
+    }
+
+    private func mark(_ name: String) {
+        guard let folder else { return }
+        FileManager.default.createFile(atPath: folder.appendingPathComponent(name).path, contents: Data())
+    }
+}
+
+/// An earlier planning meeting the radar can contradict, and the meeting that
+/// is filmed live and then followed through.
+private enum FilmFixture {
+    /// Live answers read `LOKALBOT_FILM_FOLDERS`: the workflow's copy of the
+    /// pricing sheet and brief, and of this repository without the film's own
+    /// notes and tests, which would answer its questions for it. Otherwise
+    /// they read this checkout.
+    static func settingsJSON(file: StaticString = #filePath) throws -> String {
+        let root = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
+        let paths = ProcessInfo.processInfo.environment["LOKALBOT_FILM_FOLDERS"]?.components(separatedBy: ":")
+            ?? [root.appendingPathComponent("Docs/meta-hackathon/demo-files").path, root.path]
+        let folders = String(decoding: try JSONSerialization.data(withJSONObject: paths), as: UTF8.self)
+        return """
+        {
+          "menuBarOnly": false,
+          "trackingEnabled": true,
+          "screenshotsEnabled": false,
+          "calendarDetectionEnabled": false,
+          "semanticSearchEnabled": false,
+          "cotypingEnabled": false,
+          "cotypingUserName": "Stevan",
+          "liveRadarEnabled": true,
+          "museLiveTextEnabled": true,
+          "museScreenAnswersEnabled": true,
+          "liveAnswersEnabled": true,
+          "liveAnswerFolders": \(folders),
+          "approvedRemoteInferenceOrigins": ["https://api.meta.ai"]
+        }
+        """
+    }
+
+    static let live: [(TimeInterval, String, String)] = [
+        // The call waits after the two questions live answers look up, so
+        // each answer is the panel's top card for a while, as in the demo.
+        (2, "them", "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."),
+        (7, "local", "I'll send the revised pricing deck to Marko by Friday."),
+        (12, "them", "Great. What did we put as the Team plan price in the pricing sheet?"),
+        (17, "local", "One second, it's in the sheet."),
+        (34, "them", "And what was our trial-to-paid conversion in September, by the way?"),
+        (39, "local", "Let me think, I saw it on the dashboard."),
+        (45, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
+        (50, "local", "Hm, I thought it was the Monday. Let me check."),
+        (55, "them", "And sales wants the free tier limited to one project."),
+        (60, "local", "Okay, let's decide that with Ana tomorrow."),
+        (65, "them", "Unrelated, but I'm showing LokalBot to a journalist on Friday. Is the radar panel hidden when I share my screen?"),
+        (70, "local", "Hm, good question."),
+        (86, "them", "Marko will review the onboarding emails before Wednesday."),
+        (91, "local", "Perfect. Let's go with twenty percent off for annual plans."),
+        (96, "them", "Agreed, twenty percent. Talk tomorrow!"),
+    ]
+
+    /// The radar replay's synthetic captures: a metrics dashboard and a
+    /// launch plan, read from the checkout the tests were built from.
+    static func screens(file: StaticString = #filePath) throws -> URL {
+        let folder = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Benchmarks/MuseRadar/fixtures/screens", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("screens.json").path) else {
+            throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: folder.path])
+        }
+        return folder
+    }
+
+    static func liveScript(in library: URL) throws -> URL {
+        let url = library.appendingPathComponent("live-script.json")
+        let rows = live.map { ["time": $0.0, "speaker": $0.1, "text": $0.2] as [String: Any] }
+        try JSONSerialization.data(withJSONObject: rows).write(to: url)
+        return url
+    }
+
+    static func plant(in root: URL) throws {
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("meetings"), withIntermediateDirectories: true)
+        let calendar = Calendar.current
+        let today = calendar.date(byAdding: .hour, value: 11, to: calendar.startOfDay(for: Date())) ?? Date()
+        let planning = today.addingTimeInterval(-8 * 86_400)
+        try write(id: "44444444-4444-4444-8444-444444444444", title: "Launch planning", start: planning, minutes: 20,
+                  slug: "launch-planning", root: root,
+                  transcript: [
+                      (0, "them", "So we agreed: the launch is Monday, November 3rd, and the pricing page ships the Friday before."),
+                      (14, "me", "And the free tier keeps three projects, that's settled."),
+                      (26, "them", "Marko can review the onboarding emails once the copy is final."),
+                  ],
+                  summary: "## TL;DR\nThe launch is Monday, November 3rd; the pricing page ships the Friday before. "
+                      + "The free tier keeps three projects.",
+                  decisions: ["The launch is Monday, November 3rd; the pricing page ships the Friday before",
+                              "The free tier keeps three projects"],
+                  actions: [])
+        try launchSync(in: root, finished: false)
+    }
+
+    /// The filmed meeting. Until the call ends it has no transcript or notes,
+    /// so live answers can't search lines that haven't been said yet; then it
+    /// gets the transcript, notes, and action Follow-through reads.
+    static func launchSync(in root: URL, finished: Bool) throws {
+        let calendar = Calendar.current
+        let today = calendar.date(byAdding: .hour, value: 11, to: calendar.startOfDay(for: Date())) ?? Date()
+        try write(id: "55555555-5555-4555-8555-555555555555", title: "Launch sync", start: today, minutes: 15,
+                  slug: "launch-sync", root: root,
+                  transcript: finished ? live.map { ($0.0, $0.1 == "local" ? "me" : "them", $0.2) } : [],
+                  summary: finished ? "## TL;DR\nLaunch checklist. Annual plans get twenty percent off. The launch date "
+                      + "and the free tier limit are open until a talk with Ana tomorrow." : "",
+                  decisions: finished ? ["Annual plans get twenty percent off"] : [],
+                  actions: finished ? [("Send the revised pricing deck to Marko", "Me", "by Friday", 1)] : [],
+                  participants: [("Marko Ilić", "marko@example.com"), ("Ana Petrović", "ana@example.com")])
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    private static func write(id: String, title: String, start: Date, minutes: Double, slug: String, root: URL,
+                              transcript: [(TimeInterval, String, String)], summary: String, decisions: [String],
+                              actions: [(String, String, String, Int)],
+                              participants: [(String, String)] = []) throws {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: start)
+        let relative = String(format: "meetings/%04d/%02d/%02d-%@", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0, slug)
+        let folder = root.appendingPathComponent(relative, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let iso = ISO8601DateFormatter()
+        var meta: [String: Any] = [
+            "id": id, "title": title, "appName": "Google Meet", "relativePath": relative, "hasSystemTrack": true,
+            "startedAt": iso.string(from: start), "endedAt": iso.string(from: start.addingTimeInterval(minutes * 60)),
+        ]
+        if !participants.isEmpty {
+            meta["participantNameHints"] = participants.map(\.0)
+            meta["calendarParticipantIdentities"] = participants.enumerated().map {
+                ["id": "film-\($0.offset)", "name": $0.element.0, "emailAddress": $0.element.1]
+            }
+        }
+        try JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted]).write(to: folder.appendingPathComponent("meta.json"))
+        let segments = transcript.map { ["start": $0.0, "end": $0.0 + 4.5, "speaker": $0.1, "text": $0.2] as [String: Any] }
+        try JSONSerialization.data(withJSONObject: ["engine": "synthetic-fixture", "segments": segments])
+            .write(to: folder.appendingPathComponent("transcript.json"))
+        try transcript.map { "**[\(stamp($0.0))] \($0.1.capitalized):** \($0.2)" }.joined(separator: "\n\n")
+            .write(to: folder.appendingPathComponent("transcript.md"), atomically: true, encoding: .utf8)
+        try summary.write(to: folder.appendingPathComponent("summary.md"), atomically: true, encoding: .utf8)
+        func citation(_ index: Int) -> [String: Any] {
+            let segment = transcript[index]
+            return ["meetingID": id,
+                    "segmentID": String(format: "segment-%04d-%010lld-%010lld", index,
+                                        Int64(segment.0 * 1_000), Int64((segment.0 + 4.5) * 1_000)),
+                    "start": segment.0, "end": segment.0 + 4.5, "speaker": segment.1 == "me" ? "me" : "them",
+                    "excerpt": segment.2]
+        }
+        let outcomes: [String: Any] = [
+            "schemaVersion": 2,
+            "actionItems": actions.enumerated().map { index, action in
+                ["id": "film-action-\(index)", "schemaVersion": 2, "text": action.0, "owner": action.1,
+                 "isForUser": action.1 == "Me", "due": action.2, "citations": [citation(action.3)]] as [String: Any]
+            },
+            "decisionRecords": decisions.enumerated().map { index, text in
+                ["id": "film-decision-\(index)", "schemaVersion": 2, "text": text,
+                 "citations": [citation(min(index, transcript.count - 1))]] as [String: Any]
+            },
+            "openQuestions": [String](),
+        ]
+        try JSONSerialization.data(withJSONObject: outcomes, options: [.prettyPrinted])
+            .write(to: folder.appendingPathComponent("outcomes.json"))
+        for track in ["mic.live.caf", "system.live.caf"] {
+            try silence(to: folder.appendingPathComponent(track))
+        }
+    }
+
+    private static func silence(to url: URL) throws {
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: 8_000, channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 8_000 * 30) else { return }
+        buffer.frameLength = buffer.frameCapacity
+        try AVAudioFile(forWriting: url, settings: format.settings).write(from: buffer)
+    }
+
+    private static func stamp(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds)
+        return String(format: "%02d:%02d:%02d", total / 3_600, total / 60 % 60, total % 60)
+    }
+}

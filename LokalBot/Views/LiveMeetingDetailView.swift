@@ -2,14 +2,15 @@ import SwiftUI
 
 /// The detail pane for the meeting being recorded right now, shown when the
 /// in-progress row is selected (and as the Meetings empty state while
-/// recording). The rolling
-/// transcript preview (chunked, undiarized — the full pipeline transcript
-/// replaces it after the meeting) sits beside a full-height quick-notes pad;
-/// notes are saved to `notes.md` in the meeting folder and folded into the
-/// summary.
+/// recording). Live Radar fills the main area; beside it, the rolling
+/// transcript preview (undiarized — the full pipeline transcript replaces it
+/// after the meeting) sits above a quick-notes pad, whose notes are saved to
+/// `notes.md` in the meeting folder and folded into the summary.
 ///
 /// Starting preview is an explicit ASR opt-in. Opening a live meeting alone
-/// does not load a model or start speech inference.
+/// does not load a model or start speech inference. With fast live text on,
+/// the preview streams to Muse Voice Transcribe and shows each turn as it is
+/// spoken.
 struct LiveMeetingDetailView: View {
     @EnvironmentObject var app: AppState
     let meeting: Meeting
@@ -23,19 +24,31 @@ struct LiveMeetingDetailView: View {
     @State private var saveTask: Task<Void, Never>?
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
+    /// Starting the preview now would stream to Muse rather than run locally.
+    private var usesMuse: Bool {
+        transcriber.state == .off ? MuseLiveText.unavailableReason(app.settings) == nil : transcriber.engine == .muse
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
 
             HSplitView {
-                transcriptColumn
-                    .frame(minWidth: 240, maxWidth: .infinity, maxHeight: .infinity)
+                MeetingRadarPanel(radar: app.meetingRadar, meeting: meeting)
+                    .frame(minWidth: 420, idealWidth: 760, maxWidth: .infinity, maxHeight: .infinity)
                     .layoutPriority(1)
-                    .splitPaneAccessibilityLabel("Live transcript")
-                notesColumn
-                    .frame(minWidth: 200, idealWidth: 300, maxHeight: .infinity)
-                    .splitPaneAccessibilityLabel("Meeting notes")
+                    .splitPaneAccessibilityLabel("Live radar")
+                VSplitView {
+                    transcriptColumn
+                        .frame(minHeight: 180, maxHeight: .infinity)
+                        .splitPaneAccessibilityLabel("Live transcript")
+                    notesColumn
+                        .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
+                        .padding(.top, 10)
+                        .splitPaneAccessibilityLabel("Meeting notes")
+                }
+                .padding(.leading, 12)
+                .frame(minWidth: 300, idealWidth: 400, maxWidth: 560, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -110,13 +123,21 @@ struct LiveMeetingDetailView: View {
                 case .off:
                     Button("Start Live Transcript Preview") { transcriber.activate() }
                         .accessibilityIdentifier("live.startPreview")
-                    Button("From Beginning") { transcriber.activate(from: .beginning) }
-                        .accessibilityIdentifier("live.previewFromBeginning")
+                    if !usesMuse {
+                        Button("From Beginning") { transcriber.activate(from: .beginning) }
+                            .accessibilityIdentifier("live.previewFromBeginning")
+                    }
+                }
+                if usesMuse {
+                    BrandChip(icon: "waveform", text: MuseLiveText.displayName, size: .compact)
+                        .help("Fast live text is on: meeting audio streams to api.meta.ai while the preview runs.")
                 }
             }
             .buttonStyle(.bordered)
             if transcriber.state == .off {
-                Text("Preview starts with the latest 12 seconds. The full transcript covers the whole recording.")
+                Text(usesMuse
+                     ? "Preview streams meeting audio to Muse from now on. The full transcript is still made on this Mac after the meeting."
+                     : "Preview starts with the latest 12 seconds. The full transcript covers the whole recording.")
                     .workspaceTextRole(.supporting)
             } else if transcriber.state == .paused {
                 Text("Preview paused. Recording continues; resume picks up where you left off.")
@@ -144,12 +165,11 @@ struct LiveMeetingDetailView: View {
                 .font(.scaled(.caption2))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.trailing, 12)
     }
 
     private var transcript: some View {
         Group {
-            if transcriber.lines.isEmpty {
+            if transcriber.lines.isEmpty && transcriber.partials.isEmpty {
                 Group {
                     switch transcriber.state {
                     case .off:
@@ -178,6 +198,11 @@ struct LiveMeetingDetailView: View {
                             ForEach(transcriber.lines) { line in
                                 lineView(line).id(line.id)
                             }
+                            // Turns still being spoken, word by word.
+                            ForEach(transcriber.partials) { line in
+                                lineView(line).opacity(0.6)
+                            }
+                            Color.clear.frame(height: 1).id(Self.liveEdge)
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,9 +227,10 @@ struct LiveMeetingDetailView: View {
                         }
                     }
                     .onChange(of: transcriber.lines.last?.id) {
-                        if followingLive, let last = transcriber.lines.last {
-                            proxy.scrollTo(last.id, anchor: .bottom)
-                        }
+                        if followingLive { proxy.scrollTo(Self.liveEdge, anchor: .bottom) }
+                    }
+                    .onChange(of: transcriber.partials.map(\.text)) {
+                        if followingLive { proxy.scrollTo(Self.liveEdge, anchor: .bottom) }
                     }
                     .onAppear {
                         if let last = transcriber.lines.last {
@@ -215,6 +241,8 @@ struct LiveMeetingDetailView: View {
             }
         }
     }
+
+    private static let liveEdge = "live-edge"
 
     private func lineView(_ line: LiveMeetingTranscriber.Line) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -247,7 +275,6 @@ struct LiveMeetingDetailView: View {
                 .font(AppFont.scaled(.callout))
                 .foregroundStyle(notesSaveState.hasPrefix("Not saved:") ? Brand.error : .secondary)
         }
-        .padding(.leading, 12)
     }
 
     private static func timestamp(_ time: TimeInterval) -> String {

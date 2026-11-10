@@ -11,6 +11,10 @@ It also answers Range requests, as production does. Without them a browser can
 only seek within what it has already buffered, so the home page's demo tabs,
 which seek within one film, would jump back to the start.
 
+And it serves pages the way wrangler.jsonc tells production to: an
+extensionless URL such as /guides or /blog/<slug> gets its .html file, and a
+missing path gets 404.html with status 404.
+
 Usage: Scripts/serve-web.py [port]   (default 8791)
 """
 import functools
@@ -33,9 +37,32 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Accept-Ranges", "bytes")
         super().end_headers()
 
+    def translate_path(self, path):
+        """Map /page to page.html (html_handling), before the directory case so /blog is blog.html."""
+        local = super().translate_path(path)
+        if not local.endswith("/") and not os.path.isfile(local) and os.path.isfile(local + ".html"):
+            return local + ".html"
+        return local
+
+    def send_not_found(self):
+        """Production serves 404.html at any missing path (not_found_handling)."""
+        page = os.path.join(self.directory, "404.html")
+        if not os.path.isfile(page):
+            self.send_error(404, "File not found")
+            return None
+        with open(page, "rb") as f:
+            body = f.read()
+        self.send_response(404)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        return io.BytesIO(body)
+
     def send_head(self):
         wanted = re.fullmatch(r"bytes=(\d*)-(\d*)", self.headers.get("Range", ""))
         path = self.translate_path(self.path)
+        if not os.path.exists(path):
+            return self.send_not_found()
         if not wanted or not os.path.isfile(path):
             return super().send_head()
         size = os.path.getsize(path)

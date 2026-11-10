@@ -40,6 +40,9 @@ struct FileSearchResultRow: View {
 @MainActor
 enum FileSearchOpener {
     private static var windows: [ObjectIdentifier: NSWindow] = [:]
+    /// Each window's close observer. Its block holds the player, so it is
+    /// removed with the window.
+    private static var closeObservers: [ObjectIdentifier: NSObjectProtocol] = [:]
 
     static func open(_ hit: FileSearchHit, query: String?) {
         guard FileManager.default.fileExists(atPath: hit.path) else { return }
@@ -95,11 +98,14 @@ enum FileSearchOpener {
         window.center()
         let key = ObjectIdentifier(window)
         windows[key] = window
-        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window,
-                                               queue: .main) { _ in
+        closeObservers[key] = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
             Task { @MainActor in
                 onClose()
                 windows[key] = nil
+                if let observer = closeObservers.removeValue(forKey: key) {
+                    NotificationCenter.default.removeObserver(observer)
+                }
             }
         }
         window.makeKeyAndOrderFront(nil)

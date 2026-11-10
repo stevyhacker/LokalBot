@@ -550,7 +550,10 @@ enum CotypingAXHelper {
                     learningScopeKey(near: element, bundleID: bundleID)
                 } : nil)
         field.selectionSkipsParagraphBreaks = content.skipsBreaks
-        if includeVisibleContext, !isIntegratedTerminal {
+        // `CotypingAvailability` never suggests in a terminal app, so its
+        // window is not captured and read for a suggestion that cannot come.
+        if includeVisibleContext, !isIntegratedTerminal,
+           CotypingSurfaceClassifier.classify(bundleID: bundleID) != .terminal {
             let policy = cacheState.withLock { cacheState.visibleContextPolicy }
             field.visibleContextWasRequested = true
             let excluded = ScreenContextPrivacy.isExcluded(
@@ -1465,7 +1468,8 @@ enum CotypingAXHelper {
         }
         let element = raw as! AXUIElement
         // Pin the timeout on the focused element too so a wedged target app can
-        // never block the main-thread reads in `resolveFocus` past 50 ms.
+        // never block the reads in `resolveFocus` past 50 ms. They run on
+        // `CotypingAXSnapshotExecutor`'s worker queue.
         AXUIElementSetMessagingTimeout(element, 0.05)
         return element
     }

@@ -131,7 +131,17 @@ sealed interface UploadOutcome {
     data class Failed(val reason: SyncFailure, val message: String) : UploadOutcome
 }
 
-enum class SearchHitKind { Meeting, Action, Decision, Transcript, Digest }
+enum class SearchHitKind {
+    Meeting, Action, Decision, Transcript, Digest;
+
+    companion object {
+        /** The sync core's kinds are `meeting`, `transcript` and `day`, which is a Day Digest. */
+        fun fromCore(kind: String): SearchHitKind = when (kind) {
+            "day" -> Digest
+            else -> SearchHitKind.entries.firstOrNull { it.name.equals(kind, ignoreCase = true) } ?: Meeting
+        }
+    }
+}
 
 data class SearchHit(
     val kind: SearchHitKind,

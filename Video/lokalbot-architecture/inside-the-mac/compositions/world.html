@@ -1,0 +1,1372 @@
+<template>
+  <style>
+    /* kit:begin */
+    /* The look the three architecture films share. Injected into every scene by kit/build_lib.py:
+       edit kit/kit.css, never this copy. */
+    #root {
+      --slate: #0e151d;      /* the brand's ground, and the inside of the Mac */
+      --slate-2: #17222d;    /* a surface on slate */
+      --slate-3: #222e3d;    /* the icon plate's lighter end */
+      --ink: #0e141c;        /* type on mint and on light grounds */
+      --mint: #c9f1e7;       /* the brand's light ground */
+      --mint-hi: #6ef2dc;    /* the robot's body, lit side */
+      --mint-lo: #23c4ae;    /* the robot's body, far side */
+      --teal: #3a7d72;       /* the robot's arm: quiet structure */
+      --teal-deep: #1f3d38;  /* quiet type on mint */
+      --paper: #eafffa;      /* type on slate and teal */
+      --amber: #fbbf24;      /* the antenna light: one focus a frame, never decoration */
+      font-family: Inter, sans-serif;
+    }
+    .mono {
+      font-family: "JetBrains Mono", monospace;
+    }
+    /* A label that sits on the part it names: the model, its job, then its file facts. */
+    .plate {
+      position: absolute;
+      padding-left: 26px;
+      border-left: 8px solid var(--plate-rule, var(--mint-hi));
+      color: var(--plate-ink, var(--paper));
+      white-space: nowrap;
+    }
+    .plate-name {
+      font-weight: 800;
+      font-size: 60px;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .plate-job {
+      font-weight: 500;
+      font-size: 34px;
+      line-height: 1.25;
+      margin-top: 10px;
+    }
+    .plate-spec {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.35;
+      margin-top: 10px;
+      color: var(--plate-dim, var(--mint-hi));
+    }
+    /* kit:end */
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #f1faf7;
+      color: var(--ink);
+    }
+    #root i {
+      display: block;
+      font-style: normal;
+    }
+
+    /* ---- b01: the question, and the cloud it assumes ---- */
+    #m-title {
+      position: absolute;
+      left: 110px;
+      top: 92px;
+      font-weight: 900;
+      font-size: 84px;
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+    }
+    #m-cloud {
+      position: absolute;
+      left: 1440px;
+      top: 56px;
+      width: 360px;
+      height: 200px;
+    }
+    #m-cloud-shape {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    #m-cloud-q {
+      position: absolute;
+      left: 8px;
+      top: 52px;
+      width: 360px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 100px;
+      line-height: 1;
+    }
+    #m-strike {
+      position: absolute;
+      left: 1436px;
+      top: 232px;
+      width: 404px;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--slate);
+    }
+    #m-noacct {
+      position: absolute;
+      left: 1420px;
+      top: 264px;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    /* ---- the isometric Mac: every face is a plain 2D transform ---- */
+    .top {
+      position: absolute;
+      transform-origin: 0 0;
+      transform: rotate(30deg) skewX(-30deg) scaleY(0.866);
+    }
+    .wall-u {
+      position: absolute;
+      transform-origin: 0 0;
+      transform: skewY(30deg) scaleX(0.866);
+    }
+    .wall-v {
+      position: absolute;
+      transform-origin: 0 0;
+      transform: skewY(-30deg) scaleX(0.866);
+    }
+    #m-iso,
+    .m-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 0;
+      height: 0;
+    }
+    /* A face the size of the base, and the two sides that hang from its front edges. */
+    .m-foot {
+      left: 0;
+      top: 0;
+      width: 660px;
+      height: 420px;
+      border-radius: 10px;
+    }
+    .m-side-l {
+      left: -363.7px;
+      top: 210px;
+      width: 660px;
+    }
+    .m-side-r {
+      left: 207.8px;
+      top: 540px;
+      width: 420px;
+    }
+    .m-shadow {
+      left: 0;
+      top: 34px;
+      width: 660px;
+      height: 420px;
+      border-radius: 40px;
+      background: rgba(14, 21, 29, 0.2);
+      filter: blur(34px);
+    }
+    #m-ground-shadow {
+      left: -6px;
+      top: 46px;
+      background: rgba(14, 21, 29, 0.24);
+      filter: blur(30px);
+    }
+    #m-shell {
+      position: absolute;
+      left: 0;
+      top: -420px;
+      width: 660px;
+      height: 420px;
+      border-radius: 16px;
+      background: var(--slate);
+      border: 3px solid var(--slate-3);
+    }
+    #m-shell-top {
+      left: 8.7px;
+      top: -425px;
+      width: 660px;
+      height: 10px;
+      background: var(--slate-3);
+    }
+    #m-shell-side {
+      left: 571.6px;
+      top: -90px;
+      width: 10px;
+      height: 420px;
+      background: #111a24;
+    }
+    .m-base-l {
+      height: 24px;
+      background: #0a1017;
+    }
+    .m-base-r {
+      height: 24px;
+      background: #111a24;
+    }
+    #m-tray {
+      background: var(--slate-2);
+      border: 3px solid var(--slate-3);
+    }
+    #m-well {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      right: 12px;
+      bottom: 12px;
+      border-radius: 6px;
+      background: #0b1118;
+    }
+    /* The library: a paper folder lying in the tray. */
+    #m-lib {
+      position: absolute;
+      left: 150px;
+      top: 156px;
+      width: 360px;
+      height: 236px;
+    }
+    #m-lib-tab {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 128px;
+      height: 40px;
+      border-radius: 10px 10px 0 0;
+      background: var(--paper);
+    }
+    #m-lib-body {
+      position: absolute;
+      left: 0;
+      top: 30px;
+      width: 360px;
+      height: 206px;
+      border-radius: 0 12px 12px 12px;
+      background: var(--paper);
+    }
+    .m-lib-line {
+      position: absolute;
+      left: 30px;
+      height: 12px;
+      border-radius: 6px;
+      background: #9db3ac;
+    }
+    #m-deck {
+      background: var(--slate-2);
+      border: 3px solid var(--slate-3);
+    }
+    .m-key {
+      position: absolute;
+      width: 38px;
+      height: 30px;
+      border-radius: 6px;
+      background: #0b1118;
+    }
+    #m-pad {
+      position: absolute;
+      left: 215px;
+      top: 258px;
+      width: 230px;
+      height: 130px;
+      border-radius: 12px;
+      border: 3px solid var(--slate-3);
+      background: #131d28;
+    }
+    .m-lside {
+      height: 12px;
+    }
+    .m-lside.m-side-l {
+      background: #0a1017;
+    }
+    .m-lside.m-side-r {
+      background: #111a24;
+    }
+    .m-plate {
+      background: var(--slate-2);
+      border: 3px solid var(--slate-3);
+    }
+    .m-irail {
+      position: absolute;
+      top: 250px;
+      height: 140px;
+      border-radius: 8px;
+      background: var(--teal);
+    }
+    .m-isock {
+      position: absolute;
+      top: 187px;
+      height: 210px;
+      border-radius: 6px;
+      background: #0b1118;
+    }
+    .m-itile {
+      position: absolute;
+      top: 187px;
+      height: 210px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--mint-hi), var(--mint-lo));
+    }
+    #m-appface {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 660px;
+      height: 412.5px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 3px solid var(--slate);
+      background: #ffffff;
+    }
+    #m-appface img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #m-app-side-l {
+      left: -357.2px;
+      top: -213.75px;
+      width: 660px;
+      height: 10px;
+      background: var(--slate);
+    }
+    #m-app-side-r {
+      left: 214.4px;
+      top: 116.25px;
+      width: 412.5px;
+      height: 10px;
+      background: var(--slate-3);
+    }
+    #m-app-shadow {
+      top: -386px;
+    }
+
+    /* ---- b02: a name for each layer, with a leader to it ---- */
+    .m-lab {
+      position: absolute;
+      left: 1296px;
+      width: 560px;
+      height: 68px;
+      white-space: nowrap;
+    }
+    .m-lab i {
+      position: absolute;
+      left: 0;
+      top: 32px;
+      width: 56px;
+      height: 4px;
+      background: var(--teal);
+    }
+    .m-lab b {
+      position: absolute;
+      left: -7px;
+      top: 27px;
+      width: 14px;
+      height: 14px;
+      border-radius: 7px;
+      background: var(--teal);
+    }
+    .m-lab span {
+      position: absolute;
+      left: 72px;
+      top: 0;
+      font-weight: 800;
+      font-size: 54px;
+      line-height: 68px;
+      letter-spacing: -0.03em;
+    }
+
+    /* ---- b03 to b06: the model board, facing the camera ---- */
+    #m-flat {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    #m-ext {
+      position: absolute;
+      left: 120px;
+      top: 590px;
+      width: 1680px;
+      height: 200px;
+      border-radius: 0 0 28px 28px;
+      background: var(--slate-2);
+    }
+    #m-board {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1680px;
+      height: 560px;
+      border-radius: 28px;
+      background: var(--slate-2);
+      color: var(--paper);
+    }
+    #m-board-cap {
+      position: absolute;
+      left: 32px;
+      top: 26px;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--mint-hi);
+      white-space: nowrap;
+    }
+    .m-socket {
+      position: absolute;
+      top: 250px;
+      height: 280px;
+      border-radius: 12px;
+      background: #0b1118;
+    }
+    .m-slab {
+      position: absolute;
+      top: 250px;
+      height: 280px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--mint-hi), var(--mint-lo));
+      color: var(--ink);
+      overflow: hidden;
+    }
+    .m-slab-name {
+      position: absolute;
+      left: 22px;
+      top: 18px;
+      font-weight: 800;
+      font-size: 38px;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+    }
+    .m-tag {
+      position: absolute;
+      top: 228px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 28px;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+    .m-flag {
+      position: absolute;
+    }
+    .m-flag-name {
+      position: absolute;
+      font-weight: 800;
+      font-size: 40px;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      white-space: nowrap;
+    }
+    .m-flag-spec {
+      position: absolute;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.25;
+      color: var(--mint-hi);
+      white-space: nowrap;
+    }
+    .m-flag-lead {
+      position: absolute;
+      width: 4px;
+      background: var(--teal);
+    }
+    .m-seg {
+      position: absolute;
+      height: 12px;
+      border-radius: 6px;
+    }
+    .m-bar {
+      position: absolute;
+      width: 8px;
+      border-radius: 4px;
+      background: var(--ink);
+    }
+    .m-textline {
+      position: absolute;
+      left: 22px;
+      height: 12px;
+      border-radius: 6px;
+      background: var(--ink);
+    }
+    .m-thin {
+      position: absolute;
+      left: 22px;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--ink);
+    }
+    .m-bullet {
+      position: absolute;
+      left: 22px;
+      width: 14px;
+      height: 14px;
+      border-radius: 7px;
+      background: var(--ink);
+    }
+    .m-bulletline {
+      position: absolute;
+      left: 48px;
+      height: 12px;
+      border-radius: 6px;
+      background: var(--ink);
+    }
+    #m-gem-line {
+      position: absolute;
+      left: 22px;
+      top: 108px;
+      font-weight: 600;
+      font-size: 28px;
+      line-height: 40px;
+      white-space: pre;
+    }
+    #m-gem-typed,
+    #m-gem-ghost {
+      display: inline-block;
+      vertical-align: top;
+    }
+    #m-gem-ghost {
+      color: #1f5c54;
+    }
+    #m-gem-caret {
+      display: inline-block;
+      vertical-align: top;
+      width: 3px;
+      height: 34px;
+      margin: 3px 1px 0 2px;
+      background: var(--ink);
+    }
+    .m-cdot {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 7px;
+      background: var(--paper);
+    }
+    .m-rail {
+      position: absolute;
+      top: 636px;
+      height: 80px;
+      border-radius: 10px;
+      background: var(--slate);
+      border-top: 5px solid var(--teal);
+      color: var(--paper);
+    }
+    .m-rail span {
+      position: absolute;
+      left: 22px;
+      top: 12px;
+      font-weight: 800;
+      font-size: 38px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    #m-core-lab {
+      position: absolute;
+      left: 563px;
+      top: 724px;
+      font-weight: 800;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--paper);
+      white-space: nowrap;
+    }
+    .m-size {
+      position: absolute;
+      top: 666px;
+      width: 200px;
+      text-align: center;
+      font-size: 30px;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+    #m-bracket {
+      position: absolute;
+      left: 140px;
+      top: 722px;
+    }
+    #m-total {
+      position: absolute;
+      left: 0;
+      top: 752px;
+      width: 1920px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 120px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+    }
+    #m-hf {
+      position: absolute;
+      left: 0;
+      top: 922px;
+      width: 1920px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+    .m-pin {
+      position: absolute;
+      top: 790px;
+      width: 6px;
+      height: 40px;
+      background: var(--teal);
+    }
+    #m-chip {
+      position: absolute;
+      left: 140px;
+      top: 830px;
+      width: 1640px;
+      height: 90px;
+      border-radius: 16px;
+      background: var(--slate);
+      color: var(--paper);
+    }
+    #m-chip-name {
+      position: absolute;
+      left: 0;
+      top: 20px;
+      width: 1640px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 40px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    /* On the llama.cpp rail: it is the engine the app bundles (Core ML is part of macOS). */
+    #m-bundled {
+      position: absolute;
+      left: 1158px;
+      top: 657px;
+      width: 600px;
+      text-align: right;
+      font-weight: 600;
+      font-size: 32px;
+      line-height: 1.2;
+      color: var(--mint-hi);
+      white-space: nowrap;
+    }
+
+    /* ---- b07: the library, as the folder it is ---- */
+    #m-folder {
+      position: absolute;
+      left: 120px;
+      top: 202px;
+      width: 1680px;
+      height: 676px;
+    }
+    #m-folder-body {
+      position: absolute;
+      left: 0;
+      top: 64px;
+      width: 1680px;
+      height: 612px;
+      border-radius: 0 24px 24px 24px;
+      background: #ffffff;
+      border: 4px solid var(--slate);
+    }
+    #m-folder-tab {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 360px;
+      height: 70px;
+      border-radius: 18px 18px 0 0;
+      background: #ffffff;
+      border: 4px solid var(--slate);
+      border-bottom: none;
+    }
+    #m-folder-tab span {
+      position: absolute;
+      left: 30px;
+      top: 10px;
+      font-weight: 800;
+      font-size: 36px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .m-tree {
+      position: absolute;
+      left: 80px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 500;
+      font-size: 46px;
+      line-height: 60px;
+      white-space: pre;
+    }
+    .m-file,
+    #m-sqlite,
+    #m-t6a {
+      display: inline-block;
+      border-radius: 6px;
+    }
+    #m-sqltag {
+      display: inline-block;
+      margin-left: 40px;
+      font-size: 28px;
+      line-height: 60px;
+      vertical-align: top;
+    }
+    .m-drop {
+      position: absolute;
+      top: 495px;
+      width: 34px;
+      height: 34px;
+      border-radius: 17px;
+      background: var(--amber);
+    }
+
+    /* ---- b08: the edge of the Mac ---- */
+    #m-edge {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1080px;
+    }
+    #m-wall-svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    #m-yourmac {
+      position: absolute;
+      left: 664px;
+      top: 96px;
+      font-weight: 800;
+      font-size: 36px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .m-in-lab,
+    .m-door-lab {
+      position: absolute;
+      font-weight: 700;
+      font-size: 40px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .m-arrow {
+      position: absolute;
+      left: 250px;
+      width: 392px;
+      height: 10px;
+      border-radius: 5px;
+      background: var(--mint-lo);
+    }
+    .m-arrow i {
+      position: absolute;
+      right: -14px;
+      top: -15px;
+      width: 0;
+      height: 0;
+      border-left: 30px solid var(--mint-lo);
+      border-top: 20px solid transparent;
+      border-bottom: 20px solid transparent;
+    }
+    .m-door {
+      position: absolute;
+      left: 1288px;
+      width: 24px;
+      height: 100px;
+      border-radius: 8px;
+      background: var(--slate);
+    }
+    .m-switch {
+      position: absolute;
+      left: 1338px;
+      width: 64px;
+      height: 34px;
+      border-radius: 17px;
+      background: #c3d2cd;
+    }
+    .m-switch i {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 26px;
+      height: 26px;
+      border-radius: 13px;
+      background: var(--slate);
+    }
+    #m-offnote {
+      position: absolute;
+      left: 1338px;
+      top: 800px;
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    /* ---- b09: the one line, and the dot the end card takes over ---- */
+    #m-last {
+      position: absolute;
+      left: 0;
+      top: 874px;
+      width: 1920px;
+      text-align: center;
+      font-weight: 900;
+      font-size: 76px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+    }
+    #m-last span {
+      display: inline-block;
+      margin: 0 12px;
+    }
+    #m-dot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50px;
+      height: 50px;
+      border-radius: 25px;
+      background: var(--amber);
+    }
+  </style>
+  <div id="root" data-composition-id="world" data-width="1920" data-height="1080">
+    <!-- b01: the question people ask, and the cloud it assumes. -->
+    <div id="m-title">Where do your<br />meetings go?</div>
+    <div id="m-cloud">
+      <svg id="m-cloud-shape" viewBox="0 0 360 200" width="360" height="200" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 78 176 H 284 A 50 50 0 0 0 300 80 A 76 76 0 0 0 164 52 A 56 56 0 0 0 76 88 A 44 44 0 0 0 78 176 Z"
+          fill="none" stroke="#0e151d" stroke-width="5" stroke-dasharray="14 11" stroke-linecap="round" />
+      </svg>
+      <div id="m-cloud-q">?</div>
+    </div>
+    <div id="m-strike"></div>
+    <div id="m-noacct" class="mono">no account, no telemetry</div>
+
+    <!-- b08: the edge of the Mac. It sits behind the Mac, so it comes first. -->
+    <div id="m-edge" data-layout-allow-overflow>
+      <svg id="m-wall-svg" width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+        <rect id="m-wall-fill" x="620" y="150" width="680" height="750" rx="44" fill="#e2f1ec" />
+        <rect id="m-wall" x="620" y="150" width="680" height="750" rx="44" fill="none" stroke="#0e151d" stroke-width="6"
+          pathLength="1" stroke-dasharray="1" />
+      </svg>
+      <div id="m-yourmac">your Mac</div>
+      <div class="m-in-lab" id="m-in-1-lab" style="left: 250px; top: 300px">model files</div>
+      <div class="m-arrow" id="m-in-1" style="top: 365px"><i></i></div>
+      <div class="m-in-lab" id="m-in-2-lab" style="left: 250px; top: 520px">updates</div>
+      <div class="m-arrow" id="m-in-2" style="top: 585px"><i></i></div>
+      <div class="m-door" id="m-door-1" style="top: 280px"></div>
+      <div class="m-door" id="m-door-2" style="top: 475px"></div>
+      <div class="m-door" id="m-door-3" style="top: 670px"></div>
+      <div class="m-switch" id="m-sw-1" style="top: 313px"><i></i></div>
+      <div class="m-switch" id="m-sw-2" style="top: 508px"><i></i></div>
+      <div class="m-switch" id="m-sw-3" style="top: 703px"><i></i></div>
+      <div class="m-door-lab" id="m-door-1-lab" style="left: 1424px; top: 306px">a remote model</div>
+      <div class="m-door-lab" id="m-door-2-lab" style="left: 1424px; top: 501px">an agent (MCP)</div>
+      <div class="m-door-lab" id="m-door-3-lab" style="left: 1424px; top: 696px">your phone</div>
+      <div id="m-offnote" class="mono">off until you turn it on</div>
+    </div>
+
+    <!-- The Mac, isometric. Children are placed from the base's back corner. -->
+    <div id="m-iso" data-layout-allow-overflow>
+      <div class="top m-foot m-shadow" id="m-ground-shadow"></div>
+      <div id="m-display" class="m-layer">
+        <div class="top" id="m-shell-top"></div>
+        <div class="wall-v" id="m-shell-side"></div>
+        <div id="m-shell"></div>
+      </div>
+      <div id="m-base" class="m-layer">
+        <div class="wall-u m-side-l m-base-l"></div>
+        <div class="wall-v m-side-r m-base-r"></div>
+        <div class="top m-foot" id="m-tray">
+          <div id="m-well"></div>
+          <div id="m-lib">
+            <i id="m-lib-tab"></i>
+            <i id="m-lib-body"></i>
+            <i class="m-lib-line" style="top: 78px; width: 240px"></i>
+            <i class="m-lib-line" style="top: 112px; width: 290px"></i>
+            <i class="m-lib-line" style="top: 146px; width: 200px"></i>
+            <i class="m-lib-line" style="top: 180px; width: 260px"></i>
+          </div>
+        </div>
+      </div>
+      <div id="m-L-engines" class="m-layer">
+        <div class="top m-foot m-shadow"></div>
+        <div class="wall-u m-side-l m-lside"></div>
+        <div class="wall-v m-side-r m-lside"></div>
+        <div class="top m-foot m-plate">
+          <i class="m-irail" style="left: 10px; width: 160px"></i>
+          <i class="m-irail" style="left: 175px; width: 13px"></i>
+          <i class="m-irail" style="left: 193px; width: 457px"></i>
+        </div>
+      </div>
+      <div id="m-L-models" class="m-layer">
+        <div class="top m-foot m-shadow"></div>
+        <div class="wall-u m-side-l m-lside"></div>
+        <div class="wall-v m-side-r m-lside"></div>
+        <div class="top m-foot m-plate">
+          <div id="m-isocks"></div>
+          <div id="m-itiles"></div>
+        </div>
+      </div>
+      <div id="m-deck-wrap" class="m-layer">
+        <div class="top m-foot" id="m-deck">
+          <div id="m-keys"></div>
+          <div id="m-pad"></div>
+        </div>
+      </div>
+      <div id="m-L-app" class="m-layer">
+        <div class="top m-foot m-shadow" id="m-app-shadow"></div>
+        <div class="wall-u" id="m-app-side-l"></div>
+        <div class="wall-v" id="m-app-side-r"></div>
+        <!-- The real app: the notes of the Offsite planning meeting, from the One Decision film's footage. -->
+        <div id="m-appface"><img src="assets/app-notes.png" alt="" /></div>
+      </div>
+    </div>
+
+    <!-- b02: the four layers, named. -->
+    <div class="m-lab" id="m-lab-app" style="top: 346px"><i></i><b></b><span>the app</span></div>
+    <div class="m-lab" id="m-lab-models" style="top: 486px"><i></i><b></b><span>models</span></div>
+    <div class="m-lab" id="m-lab-engines" style="top: 626px"><i></i><b></b><span>engines</span></div>
+    <div class="m-lab" id="m-lab-library" style="top: 766px"><i></i><b></b><span>library</span></div>
+
+    <!-- b03 to b06: the model board, turned to face the camera. Slab widths are file sizes, 167 px a GB. -->
+    <div id="m-flat" data-layout-allow-overflow>
+      <div id="m-ext"></div>
+      <div id="m-board">
+        <div id="m-board-cap" class="mono">five model files, widths to scale</div>
+        <i class="m-socket" style="left: 20px; width: 413px"></i>
+        <i class="m-socket" style="left: 443px; width: 33px"></i>
+        <i class="m-socket" style="left: 486px; width: 458px"></i>
+        <i class="m-socket" style="left: 954px; width: 644px"></i>
+        <i class="m-socket" style="left: 1608px; width: 52px"></i>
+
+        <!-- The two files too thin to carry their names. -->
+        <div class="m-flag" id="m-flag-nem" style="left: 443px; top: 86px; width: 300px; height: 180px">
+          <i class="m-seg m-nem-seg" style="left: 0; top: 0; width: 70px; background: var(--mint-hi)"></i>
+          <i class="m-seg m-nem-seg" style="left: 76px; top: 20px; width: 48px; background: var(--paper)"></i>
+          <i class="m-seg m-nem-seg" style="left: 130px; top: 0; width: 52px; background: var(--mint-hi)"></i>
+          <i class="m-seg m-nem-seg" style="left: 188px; top: 20px; width: 44px; background: var(--paper)"></i>
+          <div class="m-flag-name" id="m-name-nem" style="left: 0; top: 52px">Nemotron 3</div>
+          <i class="m-flag-lead" id="m-lead-nem" style="left: 14px; top: 104px; height: 76px"></i>
+        </div>
+        <div class="m-flag" id="m-flag-emb" style="left: 1240px; top: 40px; width: 420px; height: 226px">
+          <div id="m-emb-art" style="position: absolute; left: 236px; top: 0; width: 184px; height: 84px"></div>
+          <div class="m-flag-name" id="m-name-emb" style="right: 0; top: 98px">EmbeddingGemma 2</div>
+          <div class="m-flag-spec mono" style="right: 0; top: 148px"><span id="m-q-emb" class="m-quant">Q8_0</span><span id="m-p-emb" class="m-port"> · :17873</span></div>
+          <i class="m-flag-lead" id="m-lead-emb" style="left: 392px; top: 190px; height: 36px"></i>
+        </div>
+
+        <div class="m-slab" id="m-slab-asr" style="left: 20px; width: 413px">
+          <div class="m-slab-name">Qwen3-ASR 1.7B</div>
+          <div id="m-asr-bars"></div>
+          <i class="m-textline m-asr-line" style="top: 112px; width: 300px"></i>
+          <i class="m-textline m-asr-line" style="top: 140px; width: 250px"></i>
+          <i class="m-textline m-asr-line" style="top: 168px; width: 190px"></i>
+          <div class="m-tag m-quant" style="left: 22px">8-bit</div>
+        </div>
+        <div class="m-slab" id="m-slab-nem" style="left: 443px; width: 33px"></div>
+        <div class="m-slab" id="m-slab-qwen" style="left: 486px; width: 458px">
+          <div class="m-slab-name">Qwen3.5 4B</div>
+          <i class="m-thin m-qwen-thin" style="top: 104px; width: 340px"></i>
+          <i class="m-thin m-qwen-thin" style="top: 124px; width: 300px"></i>
+          <i class="m-thin m-qwen-thin" style="top: 144px; width: 360px"></i>
+          <i class="m-thin m-qwen-thin" style="top: 164px; width: 260px"></i>
+          <i class="m-bullet m-qwen-dot" style="top: 104px"></i><i class="m-bulletline m-qwen-line" style="top: 105px; width: 280px"></i>
+          <i class="m-bullet m-qwen-dot" style="top: 136px"></i><i class="m-bulletline m-qwen-line" style="top: 137px; width: 220px"></i>
+          <i class="m-bullet m-qwen-dot" style="top: 168px"></i><i class="m-bulletline m-qwen-line" style="top: 169px; width: 250px"></i>
+          <div class="m-tag m-quant" style="left: 22px">Q4_K_M</div>
+          <div class="m-tag m-port" style="right: 22px">:17872</div>
+        </div>
+        <div class="m-slab" id="m-slab-gem" style="left: 954px; width: 644px">
+          <div class="m-slab-name">Gemma 4 E2B</div>
+          <div id="m-gem-line"><span id="m-gem-typed">The offsite is in</span><span id="m-gem-caret"></span><span id="m-gem-ghost"> Lisbon, May 12 to 14.</span></div>
+          <div class="m-tag m-quant" style="left: 22px">Q6_K</div>
+          <div class="m-tag m-port" style="right: 22px">in-process</div>
+        </div>
+        <div class="m-slab" id="m-slab-emb" style="left: 1608px; width: 52px"></div>
+      </div>
+
+      <!-- b06: the three engines, each as wide as the files it runs. -->
+      <div class="m-rail" id="m-rail-mlx" style="left: 140px; width: 413px"><span>MLX</span></div>
+      <div class="m-rail" id="m-rail-core" style="left: 563px; width: 33px"></div>
+      <div class="m-rail" id="m-rail-llama" style="left: 606px; width: 1174px"><span>llama.cpp · Metal</span></div>
+      <div id="m-core-lab">Core ML</div>
+      <div id="m-pins"></div>
+      <div id="m-chip"><div id="m-chip-name">Apple silicon</div></div>
+      <div id="m-bundled">bundled with the app</div>
+
+      <!-- b05: the sizes, and what they come to. -->
+      <div class="m-size mono" style="left: 246.5px">2.47 GB</div>
+      <div class="m-size mono" style="left: 479.5px">0.20 GB</div>
+      <div class="m-size mono" style="left: 735px">2.74 GB</div>
+      <div class="m-size mono" style="left: 1296px">3.85 GB</div>
+      <div class="m-size mono" style="left: 1580px; text-align: right">0.31 GB</div>
+      <svg id="m-bracket" width="1640" height="30" viewBox="0 0 1640 30" xmlns="http://www.w3.org/2000/svg">
+        <path d="M 2 2 V 14 H 1638 V 2 M 820 14 V 28" fill="none" stroke="#0e141c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <div id="m-total">9.6 GB</div>
+      <div id="m-hf" class="mono">from Hugging Face, each file checked by SHA-256</div>
+    </div>
+
+    <!-- b07: the library, opened: the folder tree as it is on disk. -->
+    <div id="m-folder" data-layout-allow-overflow>
+      <div id="m-folder-body"></div>
+      <div id="m-folder-tab"><span>library</span></div>
+      <div class="m-tree" id="m-t1" style="top: 112px">~/Library/Application Support/me.dotenv.LokalBot/</div>
+      <div class="m-tree" id="m-t2" style="top: 196px">├── meetings/2026/11/09-offsite-planning/</div>
+      <div class="m-tree" id="m-t3" style="top: 280px"><span id="m-t3a">│     </span><span class="m-file">mic.m4a</span>  <span class="m-file">system.m4a</span>  <span class="m-file">transcript.md</span>  <span class="m-file">summary.md</span></div>
+      <div class="m-tree" id="m-t4" style="top: 364px">├── journal/2026-11-09.md</div>
+      <div class="m-tree" id="m-t5" style="top: 448px">├── models/</div>
+      <div class="m-tree" id="m-t6" style="top: 532px"><span id="m-t6a">└── <span id="m-sqlite">lokalbotv3.sqlite</span></span><span id="m-sqltag">keywords (FTS5) + vectors (768-d)</span></div>
+    </div>
+    <div class="m-drop" style="left: 445px" data-layout-ignore></div>
+    <div class="m-drop" style="left: 735px" data-layout-ignore></div>
+    <div class="m-drop" style="left: 1108px" data-layout-ignore></div>
+    <div class="m-drop" style="left: 1480px" data-layout-ignore></div>
+
+    <!-- b09: the one line. -->
+    <div id="m-last"><span id="m-last-1">Five models.</span><span id="m-last-2">9.6 GB.</span><span id="m-last-3">Inside your Mac.</span></div>
+
+    <!-- Amber is "your work": the meeting that does not go to the cloud. The end card takes this dot over. -->
+    <div id="m-dot" data-layout-ignore></div>
+  </div>
+  <script>
+    /* cues:begin */
+    // Written by build.py from the voice's timings: never edit between these two marks.
+    const CUES = {"length": 56.1667, "slot": 55.56666666666667, "lines": {"b01": {"start": 0.4, "end": 9.083, "words": [["people", 0.4], ["ask", 0.8], ["which", 1.28], ["cloud", 1.6], ["lokalbot", 2.08], ["sends", 2.68], ["their", 3.04], ["meetings", 3.2], ["to", 3.6], ["by", 4.4], ["default", 4.56], ["none", 5.44], ["it", 6.32], ["all", 6.48], ["runs", 6.68], ["inside", 6.88], ["your", 7.36], ["mac", 7.52], ["so", 8.2], ["let's", 8.56], ["open", 8.84], ["it", 9.04]]}, "b02": {"start": 9.283, "end": 15.714, "words": [["under", 9.283], ["the", 9.683], ["app", 9.843], ["there", 10.403], ["are", 10.603], ["three", 10.883], ["layers", 11.123], ["the", 12.083], ["models", 12.443], ["the", 13.123], ["engines", 13.283], ["that", 13.763], ["run", 13.923], ["them", 14.163], ["and", 14.723], ["your", 14.963], ["library", 15.203]]}, "b03": {"start": 15.964, "end": 26.991, "words": [["five", 15.964], ["models", 16.364], ["each", 17.324], ["with", 17.564], ["one", 17.884], ["job", 18.124], ["turning", 19.204], ["speech", 19.484], ["into", 19.924], ["text", 20.124], ["telling", 21.004], ["speakers", 21.324], ["apart", 21.804], ["writing", 22.844], ["your", 23.244], ["notes", 23.564], ["finishing", 24.204], ["your", 24.604], ["sentences", 24.884], ["and", 25.844], ["searching", 26.084], ["by", 26.524], ["meaning", 26.684]]}, "b05": {"start": 27.191, "end": 31.528, "words": [["together", 27.191], ["nine", 28.071], ["point", 28.391], ["six", 28.711], ["gigabytes", 29.031], ["of", 29.671], ["files", 30.071], ["downloaded", 30.711], ["once", 31.351]]}, "b06": {"start": 31.728, "end": 36.538, "words": [["three", 31.728], ["engines", 32.048], ["run", 32.688], ["them", 32.928], ["on", 33.168], ["your", 33.328], ["mac's", 33.608], ["own", 33.968], ["chip", 34.288], ["with", 35.088], ["nothing", 35.248], ["else", 35.648], ["to", 35.928], ["install", 36.048]]}, "b07": {"start": 36.738, "end": 43.1, "words": [["whatever", 36.738], ["they", 37.138], ["produce", 37.298], ["lands", 37.938], ["in", 38.378], ["one", 38.618], ["folder", 38.898], ["plain", 40.018], ["files", 40.258], ["and", 41.098], ["a", 41.218], ["single", 41.378], ["database", 41.698], ["for", 42.338], ["search", 42.578]]}, "b08": {"start": 43.3, "end": 51.743, "words": [["model", 43.3], ["files", 43.7], ["and", 44.18], ["updates", 44.34], ["come", 44.98], ["in", 45.22], ["your", 46.14], ["work", 46.42], ["goes", 46.66], ["out", 46.9], ["only", 47.3], ["where", 47.7], ["you", 47.94], ["send", 48.1], ["it", 48.42], ["a", 49.06], ["remote", 49.34], ["model", 49.86], ["an", 50.287], ["agent", 50.42], ["your", 51.22], ["phone", 51.82]]}, "b09": {"start": 51.943, "end": 54.543, "words": [["close", 51.943], ["it", 52.263], ["up", 52.423], ["and", 52.983], ["it's", 53.103], ["all", 53.383], ["still", 53.703], ["in", 54.103], ["there", 54.423]]}}};
+    const LEN = CUES.length;
+    const SLOT = CUES.slot;
+    const L = (id) => CUES.lines[id].start;
+    const E = (id) => CUES.lines[id].end;
+    const W = (id, word, nth = 1) => {
+      const hits = CUES.lines[id].words.filter((said) => said[0] === word.toLowerCase());
+      if (hits.length < nth) throw new Error(`no cue ${id}/${word}`);
+      return hits[nth - 1][1];
+    };
+    gsap.config({ force3D: false }); // 2D transforms, so type stays sharp under a camera move
+    /* cues:end */
+    const tl = gsap.timeline({ paused: true });
+    const $ = (id) => document.getElementById(id);
+    // A seeded generator for the marks that only need to look irregular.
+    let seed = 11;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const add = (parent, cls, style) => {
+      const el = document.createElement("i");
+      el.className = cls;
+      Object.assign(el.style, style);
+      parent.appendChild(el);
+      return el;
+    };
+
+    // ---- Marks built once, before the timeline ----
+    // The key deck: five rows of keys and a space bar.
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 13; col++) {
+        if (row === 4 && col > 3 && col < 9) {
+          if (col === 4) add($("m-keys"), "m-key", { left: 30 + col * 46.5 + "px", top: 28 + row * 40 + "px", width: "224px" });
+          continue;
+        }
+        add($("m-keys"), "m-key", { left: 30 + col * 46.5 + "px", top: 28 + row * 40 + "px" });
+      }
+    }
+    // The five files as they sit on the small isometric board: the flat board's layout, 660 / 1680.
+    const FILES = [[20, 413], [443, 33], [486, 458], [954, 644], [1608, 52]];
+    const K = 660 / 1680;
+    FILES.forEach(([left, width]) => {
+      add($("m-isocks"), "m-isock", { left: left * K + "px", width: Math.max(width * K, 5) + "px" });
+      add($("m-itiles"), "m-itile", { left: left * K + "px", width: Math.max(width * K, 5) + "px" });
+    });
+    // Speech as bars, inside the Qwen3-ASR file.
+    for (let i = 0; i < 16; i++) {
+      const height = 18 + Math.round(rnd() * 58);
+      add($("m-asr-bars"), "m-bar m-asr-bar", { left: 22 + i * 14 + "px", top: 146 - height / 2 + "px", height: height + "px" });
+    }
+    // Passages as dots, by the EmbeddingGemma file's name.
+    [[20, 18], [52, 6], [78, 30], [36, 44], [66, 58], [100, 12], [112, 46], [92, 66]].forEach(([left, top]) =>
+      add($("m-emb-art"), "m-cdot m-emb-dot", { left: left + 50 + "px", top: top + "px" }));
+    const newcomer = add($("m-emb-art"), "m-cdot", { left: "106px", top: "28px", background: "#6ef2dc" });
+    newcomer.id = "m-emb-new";
+    // Pins between the engines and the chip.
+    for (let i = 0; i < 40; i++) add($("m-pins"), "m-pin", { left: 177 + i * 40 + "px" });
+
+    // ---- Helpers ----
+    const blurIn = (target, at, duration = 0.15) =>
+      tl.fromTo(target, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration, ease: "power2.out" }, at);
+    const type = (target, chars, at, duration) =>
+      tl.fromTo(target, { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration, ease: `steps(${chars})` }, at);
+    // The dot is 40 px on screen until the end card takes it over at 50.
+    const DOT = 0.8;
+    const dotTo = (from, to, at, duration, easeX = "power1.inOut", easeY = "power2.inOut") => {
+      tl.fromTo("#m-dot", { x: from[0] }, { x: to[0], duration, ease: easeX, immediateRender: false }, at);
+      tl.fromTo("#m-dot", { y: from[1] }, { y: to[1], duration, ease: easeY, immediateRender: false }, at);
+    };
+    const dotShow = (at) => tl.fromTo("#m-dot", { scale: 0 }, { scale: DOT, duration: 0.25, ease: "back.out(2)", immediateRender: false }, at);
+    const dotHide = (at) => tl.fromTo("#m-dot", { scale: DOT }, { scale: 0, duration: 0.14, ease: "power2.in", immediateRender: false }, at);
+
+    // ---- Where things are ----
+    const O1 = [940, 470]; // the base's back corner while the Mac stands alone
+    const O2 = [712, 470]; // and once it is open, with the layer names at its right
+    const O3 = [902, 485]; // inside its edge, at 0.56
+    const O4 = [877, 396]; // closed again, at 0.8
+    const APP_WALL = { x: 10.4, y: -402, rotation: 0, skewX: 0, skewY: 30, scaleX: 0.8345, scaleY: 0.9636 };
+    const APP_FLAT = { x: 0, y: -420, rotation: 30, skewX: -30, skewY: 0, scaleX: 1, scaleY: 0.866 };
+    const LIB = [-121, 300]; // the front of the library folder, from the base's back corner
+    const FLAT_Y = 170; // the board sits mid-frame while the files seat, then moves up for the sizes
+    const BOARD_ISO = { x: O2[0], y: O2[1] - 280 - FLAT_Y, rotation: 30, skewX: -30, scaleX: K, scaleY: (0.866 * 420) / 560 };
+    const BOARD_FLAT = { x: 120, y: 90, rotation: 0, skewX: 0, scaleX: 1, scaleY: 1 };
+
+    gsap.set("#m-iso", { x: O1[0], y: O1[1], transformOrigin: "0 0" });
+    gsap.set("#m-shell", { skewY: 30, scaleX: 0.866, transformOrigin: "0% 100%" });
+    gsap.set("#m-appface", { transformOrigin: "0 0", ...APP_WALL });
+    gsap.set("#m-strike", { rotation: -23.4, transformOrigin: "0% 50%" });
+    gsap.set("#m-dot", { xPercent: -50, yPercent: -50, x: 1226, y: 425, scale: 0, transformOrigin: "50% 50%" });
+    gsap.set("#m-flat", { y: FLAT_Y });
+    gsap.set("#m-board", { transformOrigin: "0 0", opacity: 0, ...BOARD_ISO });
+    gsap.set("#m-folder", { transformOrigin: "50% 50%" });
+    gsap.set(["#m-L-models .m-shadow", "#m-L-engines .m-shadow", "#m-app-shadow", "#m-app-side-l", "#m-app-side-r"], { opacity: 0 });
+    gsap.set(["#m-edge", "#m-last span", "#m-ext"], { opacity: 0 });
+
+    // ---- b01: which cloud? None. ----
+    const tCloud = W("b01", "cloud");
+    const tSends = W("b01", "sends");
+    const tNone = W("b01", "none");
+    const tInside = W("b01", "inside");
+    const tOpen = W("b01", "open") - 0.1;
+    // A meeting, on the screen of the app that recorded it.
+    dotShow(W("b01", "ask"));
+    tl.fromTo("#m-cloud", { clipPath: "inset(0% 100% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.55, ease: "power2.out" }, tCloud - 0.05);
+    blurIn("#m-cloud-q", tCloud + 0.3);
+    // It sets off for the cloud and stops short of it.
+    dotTo([1226, 425], [1380, 186], tSends, 0.7, "power1.inOut", "power2.out");
+    tl.fromTo("#m-strike", { scaleX: 0 }, { scaleX: 1, duration: 0.22, ease: "power2.out" }, tNone);
+    tl.to("#m-cloud-shape", { opacity: 0.25, duration: 0.3, ease: "power2.out" }, tNone + 0.1);
+    tl.fromTo("#m-cloud-q", { opacity: 1 }, { opacity: 0, duration: 0.2, ease: "power2.in", immediateRender: false }, tNone + 0.1);
+    blurIn("#m-noacct", tNone + 0.4);
+    // And comes back down into the Mac.
+    dotTo([1380, 186], [1044, 740], tInside - 0.1, 0.6, "power1.inOut", "power2.in");
+    dotHide(tInside + 0.5);
+
+    // "Let's open it": the app leaves the screen and lies flat; the lid folds; the deck slides off.
+    tl.to(["#m-title", "#m-cloud", "#m-strike", "#m-noacct"], { opacity: 0, filter: "blur(8px)", duration: 0.2, ease: "power2.in" }, tOpen - 0.12);
+    tl.fromTo("#m-iso", { x: O1[0] }, { x: O2[0], duration: 0.8, ease: "power2.inOut", immediateRender: false }, tOpen);
+    tl.fromTo("#m-appface", APP_WALL, { ...APP_FLAT, duration: 0.8, ease: "power2.inOut", immediateRender: false }, tOpen);
+    tl.fromTo("#m-shell", { scaleY: 1 }, { scaleY: 0, duration: 0.45, ease: "power2.in", immediateRender: false }, tOpen + 0.3);
+    tl.to(["#m-shell-top", "#m-shell-side"], { opacity: 0, duration: 0.15, ease: "none" }, tOpen + 0.3);
+    tl.fromTo("#m-deck-wrap", { x: 0, y: 0 }, { x: -300, y: 173, duration: 0.45, ease: "power2.in", immediateRender: false }, tOpen + 0.35);
+    tl.fromTo("#m-deck-wrap", { opacity: 1 }, { opacity: 0, duration: 0.3, ease: "power1.in", immediateRender: false }, tOpen + 0.45);
+    tl.fromTo(["#m-app-side-l", "#m-app-side-r", "#m-app-shadow"], { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none", immediateRender: false }, tOpen + 0.7);
+
+    // ---- b02: three layers under the app ----
+    const label = (id, at) => {
+      tl.fromTo(`${id} b`, { scale: 0 }, { scale: 1, duration: 0.15, ease: "power2.out" }, at - 0.14);
+      tl.fromTo(`${id} i`, { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.2, ease: "power2.out" }, at - 0.1);
+      blurIn(`${id} span`, at);
+    };
+    const rise = (id, peek, height, at) => {
+      tl.fromTo(id, { y: 0 }, { y: -peek, duration: 0.4, ease: "power2.out", immediateRender: false }, W("b02", "three"));
+      tl.fromTo(id, { y: -peek }, { y: -height, duration: 0.7, ease: "power2.inOut", immediateRender: false }, at - 0.35);
+      tl.fromTo(`${id} .m-shadow`, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none", immediateRender: false }, at - 0.2);
+    };
+    const tModels = W("b02", "models");
+    const tEngines = W("b02", "engines");
+    label("#m-lab-app", W("b02", "app"));
+    rise("#m-L-models", 36, 280, tModels);
+    label("#m-lab-models", tModels + 0.1);
+    rise("#m-L-engines", 18, 140, tEngines);
+    label("#m-lab-engines", tEngines + 0.1);
+    // The meeting is found where it landed: on the library.
+    tl.set("#m-dot", { x: O2[0] + LIB[0], y: O2[1] + LIB[1] - 24 }, tEngines);
+    dotShow(tEngines + 0.3);
+    label("#m-lab-library", W("b02", "library"));
+
+    // ---- The model board turns to face the camera ----
+    const tTurn = E("b02") + 0.35;
+    tl.to(".m-lab", { opacity: 0, duration: 0.15, ease: "power2.in" }, tTurn - 0.35);
+    tl.fromTo("#m-L-app", { y: 0 }, { y: -780, duration: 0.3, ease: "power3.in", immediateRender: false }, tTurn - 0.3);
+    tl.fromTo("#m-L-engines", { y: -140 }, { y: 780, duration: 0.35, ease: "power3.in", immediateRender: false }, tTurn + 0.02);
+    tl.fromTo(["#m-base", "#m-ground-shadow"], { y: 0 }, { y: 780, duration: 0.35, ease: "power3.in", immediateRender: false }, tTurn + 0.02);
+    tl.fromTo("#m-dot", { y: O2[1] + LIB[1] - 24 }, { y: O2[1] + LIB[1] - 24 + 780, duration: 0.35, ease: "power3.in", immediateRender: false }, tTurn + 0.02);
+    // The files lift out: they go back in one at a time.
+    tl.to("#m-itiles", { opacity: 0, duration: 0.14, ease: "none" }, tTurn - 0.14);
+    tl.to("#m-L-models .m-lside", { opacity: 0, duration: 0.1, ease: "none" }, tTurn - 0.06);
+    tl.fromTo("#m-L-models .m-shadow", { opacity: 1 }, { opacity: 0, duration: 0.1, ease: "none", immediateRender: false }, tTurn - 0.06);
+    tl.set("#m-L-models .m-plate", { opacity: 0 }, tTurn);
+    tl.set("#m-board", { opacity: 1 }, tTurn);
+    tl.fromTo("#m-board", BOARD_ISO, { ...BOARD_FLAT, duration: 0.8, ease: "power2.inOut", immediateRender: false }, tTurn);
+    tl.set("#m-iso", { opacity: 0 }, tTurn + 0.6);
+    tl.set("#m-ext", { opacity: 1 }, tTurn + 0.8);
+
+    // ---- b03: five files, one job each ----
+    tl.fromTo(".m-socket", { boxShadow: "inset 0 0 0 0px #6ef2dc" }, { boxShadow: "inset 0 0 0 4px #6ef2dc", duration: 0.2, ease: "power2.out", stagger: 0.11 }, W("b03", "five") + 0.45);
+    tl.to(".m-socket", { boxShadow: "inset 0 0 0 0px #6ef2dc", duration: 0.3, ease: "power2.in", stagger: 0.05 }, W("b03", "each") + 0.5);
+    blurIn("#m-board-cap", W("b03", "each"));
+    const seat = (id, at) => {
+      tl.fromTo(id, { y: -150 }, { y: 0, duration: 0.45, ease: "back.out(1.4)" }, at - 0.3);
+      tl.fromTo(id, { opacity: 0 }, { opacity: 1, duration: 0.1, ease: "none" }, at - 0.3);
+    };
+    // Speech becomes text.
+    const tAsr = W("b03", "speech");
+    seat("#m-slab-asr", tAsr);
+    tl.fromTo(".m-asr-bar", { scaleY: 0, transformOrigin: "50% 50%" }, { scaleY: 1, duration: 0.2, ease: "power2.out", stagger: 0.012 }, tAsr + 0.12);
+    tl.fromTo(".m-asr-bar", { scaleY: 1 }, { scaleY: 0, duration: 0.2, ease: "power2.in", stagger: 0.012, immediateRender: false }, tAsr + 0.6);
+    tl.fromTo(".m-asr-line", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.25, ease: "power2.out", stagger: 0.08 }, tAsr + 0.72);
+    // Speakers, told apart.
+    const tNem = W("b03", "speakers");
+    seat("#m-slab-nem", tNem);
+    tl.fromTo("#m-lead-nem", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.2, ease: "power2.out" }, tNem);
+    blurIn("#m-name-nem", tNem + 0.08);
+    tl.fromTo(".m-nem-seg", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.16, ease: "power1.out", stagger: 0.12 }, tNem + 0.2);
+    // A transcript becomes notes.
+    const tQwen = W("b03", "notes");
+    seat("#m-slab-qwen", tQwen);
+    tl.fromTo(".m-qwen-thin", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.18, ease: "power2.out", stagger: 0.04 }, tQwen + 0.1);
+    tl.fromTo(".m-qwen-thin", { opacity: 1 }, { opacity: 0, duration: 0.14, ease: "none", immediateRender: false }, tQwen + 0.5);
+    tl.fromTo(".m-qwen-dot", { scale: 0 }, { scale: 1, duration: 0.15, ease: "back.out(2)", stagger: 0.09 }, tQwen + 0.58);
+    tl.fromTo(".m-qwen-line", { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.22, ease: "power2.out", stagger: 0.09 }, tQwen + 0.62);
+    // A sentence, finished.
+    const tGem = W("b03", "sentences");
+    seat("#m-slab-gem", tGem);
+    type("#m-gem-typed", 17, tGem + 0.1, 0.45);
+    tl.fromTo("#m-gem-caret", { opacity: 0 }, { opacity: 1, duration: 0.05, ease: "none" }, tGem + 0.1);
+    blurIn("#m-gem-ghost", tGem + 0.65);
+    // A passage, placed among its neighbours.
+    const tEmb = W("b03", "meaning");
+    seat("#m-slab-emb", tEmb);
+    tl.fromTo("#m-lead-emb", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.2, ease: "power2.out" }, tEmb - 0.35);
+    blurIn("#m-name-emb", tEmb - 0.3);
+    tl.fromTo(".m-emb-dot", { scale: 0 }, { scale: 1, duration: 0.14, ease: "back.out(2)", stagger: 0.025 }, tEmb - 0.2);
+    tl.fromTo("#m-emb-new", { x: -150, y: 26, opacity: 0 }, { x: 0, y: 0, opacity: 1, duration: 0.35, ease: "power3.out" }, tEmb + 0.05);
+
+    // ---- b05: what they weigh ----
+    const tTogether = W("b05", "together");
+    const tNine = W("b05", "nine");
+    tl.fromTo("#m-flat", { y: FLAT_Y }, { y: 0, duration: 0.55, ease: "power2.inOut", immediateRender: false }, tTogether - 0.5);
+    gsap.utils.toArray(".m-size").forEach((size, index) => blurIn(size, tTogether + 0.02 + index * 0.07));
+    tl.fromTo("#m-bracket", { scaleX: 0, transformOrigin: "50% 50%" }, { scaleX: 1, duration: 0.3, ease: "power2.out" }, tNine - 0.14);
+    tl.fromTo("#m-total", { opacity: 0, scale: 1.2, filter: "blur(8px)", transformOrigin: "50% 60%" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.22, ease: "power3.out" }, tNine);
+    gsap.utils.toArray(".m-quant").forEach((tag, index) => blurIn(tag, W("b05", "files") + index * 0.05));
+    blurIn("#m-hf", W("b05", "downloaded"));
+
+    // ---- b06: what runs them ----
+    const tB6 = L("b06");
+    const tRails = W("b06", "engines");
+    const tChip = W("b06", "chip");
+    tl.to([".m-size", "#m-bracket", "#m-total", "#m-hf"], { opacity: 0, y: 24, duration: 0.25, ease: "power3.in" }, tB6 - 0.3);
+    tl.fromTo("#m-ext", { y: -140 }, { y: 0, duration: 0.45, ease: "power2.inOut" }, tB6 - 0.15);
+    tl.fromTo(".m-rail", { scaleY: 0, transformOrigin: "50% 100%" }, { scaleY: 1, duration: 0.35, ease: "expo.out", stagger: 0.08 }, tRails - 0.2);
+    blurIn(".m-rail span", tRails + 0.05);
+    blurIn("#m-core-lab", tRails + 0.2);
+    // The files settle onto their engines.
+    tl.fromTo([".m-slab", ".m-socket"], { y: 0 }, { y: 16, duration: 0.3, ease: "back.out(2)", immediateRender: false }, tRails + 0.05);
+    gsap.utils.toArray(".m-port").forEach((tag, index) => blurIn(tag, W("b06", "run") + index * 0.06));
+    tl.fromTo(".m-pin", { scaleY: 0, transformOrigin: "50% 0%" }, { scaleY: 1, duration: 0.2, ease: "power2.out", stagger: 0.006 }, tChip - 0.3);
+    tl.fromTo("#m-chip", { clipPath: "inset(0% 50% 0% 50%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.4, ease: "power2.out" }, tChip - 0.2);
+    blurIn("#m-chip-name", tChip + 0.1);
+    blurIn("#m-bundled", W("b06", "nothing"));
+
+    // ---- b07: where it all lands ----
+    const tB7 = L("b07");
+    const tLands = W("b07", "lands");
+    const tFolder = W("b07", "folder");
+    tl.fromTo("#m-flat", { y: 0 }, { y: -1080, duration: 0.38, ease: "power3.in", immediateRender: false }, tB7 - 0.38);
+    tl.fromTo("#m-folder", { y: 980 }, { y: 0, duration: 0.55, ease: "expo.out" }, tB7 - 0.12);
+    type("#m-t1", 49, tB7 + 0.2, 0.45);
+    type("#m-t2", 41, tLands - 0.42, 0.4);
+    tl.fromTo("#m-t3a", { opacity: 0 }, { opacity: 1, duration: 0.05, ease: "none" }, tLands - 0.06);
+    // What the models wrote falls into the meeting's folder and becomes its files.
+    gsap.utils.toArray(".m-drop").forEach((drop, index) => {
+      const lands = tLands + 0.3 + index * 0.1;
+      tl.fromTo(drop, { y: -620 }, { y: 0, duration: 0.4, ease: "power2.in" }, lands - 0.4);
+      tl.fromTo(drop, { scale: 1 }, { scale: 0, duration: 0.12, ease: "power2.in", immediateRender: false }, lands);
+      tl.fromTo(gsap.utils.toArray(".m-file")[index], { opacity: 0 }, { opacity: 1, duration: 0.1, ease: "none" }, lands);
+    });
+    type("#m-t4", 25, tFolder + 0.08, 0.3);
+    type("#m-t5", 11, tFolder + 0.42, 0.18);
+    type("#m-t6a", 21, tFolder + 0.64, 0.28);
+    tl.to(".m-file", { backgroundColor: "#fbbf24", duration: 0.15, ease: "power2.out", stagger: 0.06 }, W("b07", "plain"));
+    tl.to("#m-sqlite", { backgroundColor: "#fbbf24", duration: 0.15, ease: "power2.out" }, W("b07", "database"));
+    blurIn("#m-sqltag", W("b07", "database") + 0.2);
+
+    // ---- b08: the edge ----
+    const tB8 = L("b08");
+    const S3 = 0.56;
+    // Pull back from the folder to the Mac it is in.
+    tl.fromTo("#m-folder", { scale: 1, y: 0 }, { scale: 0.14, y: 96, duration: 0.42, ease: "power2.inOut", immediateRender: false }, tB8 - 0.42);
+    tl.to("#m-folder", { opacity: 0, duration: 0.12, ease: "none" }, tB8 - 0.14);
+    tl.set("#m-iso", { x: O3[0], y: O3[1] }, tB8 - 0.44);
+    tl.set(["#m-base", "#m-ground-shadow", "#m-L-app"], { y: 0 }, tB8 - 0.44);
+    tl.set("#m-L-engines", { y: -140 }, tB8 - 0.44);
+    tl.set(["#m-L-models .m-plate", "#m-itiles", "#m-L-models .m-lside", "#m-L-models .m-shadow"], { opacity: 1 }, tB8 - 0.44);
+    tl.fromTo("#m-iso", { scale: 1.15 }, { scale: S3, duration: 0.46, ease: "power2.out", immediateRender: false }, tB8 - 0.3);
+    tl.fromTo("#m-iso", { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "none", immediateRender: false }, tB8 - 0.3);
+    tl.set("#m-edge", { opacity: 1 }, tB8 - 0.3);
+    tl.fromTo("#m-wall-fill", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, tB8 - 0.2);
+    tl.fromTo("#m-wall", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.5, ease: "power2.inOut" }, tB8 - 0.28);
+    blurIn("#m-yourmac", tB8 + 0.12);
+    const arrow = (id, at) => {
+      tl.fromTo(id, { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.35, ease: "power2.out" }, at);
+      blurIn(`${id}-lab`, at + 0.05);
+    };
+    arrow("#m-in-1", tB8 + 0.02);
+    arrow("#m-in-2", W("b08", "updates") - 0.05);
+    // Your work, inside. It goes to the edge and no further.
+    const HOME = [O3[0] + S3 * LIB[0], O3[1] + S3 * LIB[1] - 16];
+    const WAIT = [1250, 525];
+    const DOORS = [[1258, 330], [1258, 525], [1258, 720]];
+    tl.set("#m-dot", { x: HOME[0], y: HOME[1], scale: 0 }, W("b08", "work") - 0.2);
+    dotShow(W("b08", "work") - 0.1);
+    dotTo(HOME, WAIT, W("b08", "out"), 0.5, "power2.inOut", "power2.inOut");
+    tl.fromTo(".m-door", { scaleY: 0, transformOrigin: "50% 50%" }, { scaleY: 1, duration: 0.25, ease: "power2.out", stagger: 0.1 }, W("b08", "only"));
+    tl.fromTo(".m-switch", { scale: 0, transformOrigin: "50% 50%" }, { scale: 1, duration: 0.2, ease: "back.out(2)", stagger: 0.1 }, W("b08", "only") + 0.12);
+    blurIn("#m-offnote", W("b08", "send"));
+    const tRemote = W("b08", "remote");
+    const tAgent = W("b08", "agent");
+    const tPhone = Math.min(W("b08", "phone"), E("b08") - 0.45);
+    blurIn("#m-door-1-lab", tRemote);
+    dotTo(WAIT, DOORS[0], tRemote, 0.35);
+    blurIn("#m-door-2-lab", tAgent);
+    dotTo(DOORS[0], DOORS[1], tAgent, 0.35);
+    blurIn("#m-door-3-lab", tPhone);
+    dotTo(DOORS[1], DOORS[2], tPhone, 0.35);
+
+    // ---- b09: close it up ----
+    const tClose = W("b09", "close");
+    const S4 = 0.8;
+    // The doors stay a moment longer than the line that named them, so the last one can be read.
+    tl.to("#m-edge", { opacity: 0, duration: 0.25, ease: "power2.in" }, tClose + 0.35);
+    dotTo(DOORS[2], HOME, tClose, 0.4);
+    dotHide(tClose + 0.36);
+    tl.fromTo("#m-iso", { x: O3[0], y: O3[1], scale: S3 }, { x: O4[0], y: O4[1], scale: S4, duration: 0.75, ease: "power2.inOut", immediateRender: false }, tClose + 0.3);
+    tl.fromTo("#m-L-models", { y: -280 }, { y: 0, duration: 0.7, ease: "power2.inOut", immediateRender: false }, tClose);
+    tl.fromTo("#m-L-engines", { y: -140 }, { y: 0, duration: 0.7, ease: "power2.inOut", immediateRender: false }, tClose + 0.08);
+    tl.to(["#m-L-models .m-shadow", "#m-L-engines .m-shadow", "#m-app-shadow", "#m-app-side-l", "#m-app-side-r"], { opacity: 0, duration: 0.2, ease: "none" }, tClose + 0.2);
+    tl.fromTo("#m-shell", { scaleY: 0 }, { scaleY: 1, duration: 0.45, ease: "power2.out", immediateRender: false }, tClose + 0.3);
+    tl.to(["#m-shell-top", "#m-shell-side"], { opacity: 1, duration: 0.15, ease: "none" }, tClose + 0.7);
+    tl.fromTo("#m-appface", APP_FLAT, { ...APP_WALL, duration: 0.7, ease: "power2.inOut", immediateRender: false }, tClose + 0.35);
+    tl.fromTo("#m-deck-wrap", { x: -300, y: 173 }, { x: 0, y: 0, duration: 0.5, ease: "power2.out", immediateRender: false }, tClose + 0.5);
+    // It shows only as it arrives, so it never hangs over the frame as a ghost.
+    tl.fromTo("#m-deck-wrap", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none", immediateRender: false }, tClose + 0.78);
+    blurIn("#m-last-1", tClose + 0.62);
+    blurIn("#m-last-2", W("b09", "it's"));
+    blurIn("#m-last-3", W("b09", "still"));
+    // The meeting is where it was all along: in the app, in the Mac.
+    const SCREEN = [O4[0] + S4 * 285.8, O4[1] + S4 * -45];
+    tl.set("#m-dot", { x: SCREEN[0], y: SCREEN[1] }, W("b09", "still") - 0.35);
+    dotShow(W("b09", "still") - 0.3);
+
+    // ---- Hand-off: the dot goes to where the end card takes it over ----
+    const tHand = SLOT - 0.5;
+    dotTo(SCREEN, [776, 650.5], tHand, 0.45, "power2.inOut", "power2.inOut");
+    tl.fromTo("#m-dot", { scale: DOT }, { scale: 1, duration: 0.45, ease: "power2.inOut", immediateRender: false }, tHand);
+    tl.fromTo("#m-iso", { y: O4[1] }, { y: O4[1] + 110, duration: 0.4, ease: "power3.in", immediateRender: false }, tHand);
+    tl.fromTo("#m-iso", { opacity: 1 }, { opacity: 0, duration: 0.4, ease: "power3.in", immediateRender: false }, tHand);
+    tl.fromTo("#m-last", { y: 0, opacity: 1 }, { y: 110, opacity: 0, duration: 0.4, ease: "power3.in" , immediateRender: false }, tHand);
+
+    tl.set({}, {}, LEN);
+    window.__timelines["world"] = tl;
+  </script>
+</template>

@@ -383,7 +383,16 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         }
     }
 
-    func expire(meetings: [Meeting]) async {
+    func expire(meetings listed: [Meeting]) async {
+        // A merge folds its sources out of the library list but keeps their
+        // folders, speaker evidence included, so retention reads them from disk.
+        let root = storage.rootURL
+        let listedIDs = Set(listed.map(\.id))
+        let folded = await Task.detached(priority: .utility) {
+            ((try? SessionLookup.loadAllMeetings(root: root, includeMergedSources: true)) ?? [])
+                .filter { $0.isMergedSource && !listedIDs.contains($0.id) }
+        }.value
+        let meetings = listed + folded
         guard meetings.contains(where: {
             FileManager.default.fileExists(atPath: $0.folderURL(in: storage).appendingPathComponent("speaker-evidence").path)
         }) else { return }

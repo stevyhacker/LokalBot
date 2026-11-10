@@ -58,9 +58,12 @@ object AskSink { delta(text: string); done(result_json: string); failed(message:
 ```
 
 The host's database (`db_path`, under `<library>/companion/companion.sqlite`)
-holds the published records, the change counter, paired devices and the ids of
-recordings that arrived. It is derived data plus device public keys: deleting
-it means re-pairing and a full re-sync, nothing else.
+holds the published records, the change counter, paired devices, the keys of
+removed devices and the ids of recordings that arrived. The records are derived
+data, but deleting the database costs more than re-pairing and a full re-sync.
+The host also forgets which devices it removed, so a removed device that
+connects again is dropped during the handshake like a stranger, instead of
+being told `revoked` ([protocol.md](protocol.md)), and keeps the copy it has.
 
 `receive_recording` runs on its own thread once a recording is whole and its
 checksum matches, and may take as long as it needs. `file_path` is an ADTS AAC

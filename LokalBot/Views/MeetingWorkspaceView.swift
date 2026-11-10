@@ -136,7 +136,6 @@ private struct MeetingWorkspaceDetail: View {
     @State private var transcriptDisplay = Transcript.DisplayIndex()
     @State private var speakerPresentation = MeetingSpeakerPresentation(transcript: nil)
     @State private var fullNotesExpanded = false
-    @State private var transcriptExpanded = false
     @State private var evidenceSegment: Int?
     @State private var evidenceRevision = 0
     @State private var correction: ActionCorrectionDraft?
@@ -166,6 +165,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var speechSessionID: UUID?
     @State private var searchQuery = ""
     @State private var screenContext = MeetingScreenContext()
+    @State private var radar: MeetingRadarRecord?
     private var tab: MeetingWorkspaceTab {
         get { app.meetingWorkspaceTabs[meeting.id] ?? .summary }
         nonmutating set {
@@ -193,6 +193,7 @@ private struct MeetingWorkspaceDetail: View {
         _captureNeedsAttention = State(initialValue: document.captureNeedsAttention)
         _recoveryNeedsAttention = State(initialValue: document.recoveryNeedsAttention)
         _screenContext = State(initialValue: document.screenContext)
+        _radar = State(initialValue: document.radar)
     }
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
@@ -302,7 +303,6 @@ private struct MeetingWorkspaceDetail: View {
             // Establish the requested capture route before asynchronous document
             // and speaker recovery; readiness must not race those operations.
             if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "transcript" {
-                transcriptExpanded = true
                 tab = .transcript
             } else if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "review" {
                 tab = .review
@@ -482,6 +482,9 @@ private struct MeetingWorkspaceDetail: View {
         items += [
             .init(title: "Draft follow-up…", identifier: "toolbar.followUp",
                   enabled: projection != nil && partialNotes == nil, action: { app.draftFollowUp(for: meeting) }),
+            .init(title: "Hand off my actions to Agent Mode", identifier: "toolbar.handOffActions",
+                  enabled: partialNotes == nil && projection.map { !MeetingActionHandoff.actions(in: $0).isEmpty } == true,
+                  action: { app.handOffActionsAndOpenAgent(of: meeting) }),
             .separator,
             .init(title: isReadingSummary ? "Stop spoken summary" : "Read summary aloud",
                   enabled: summary?.isEmpty == false, action: { isReadingSummary ? stopSpeech() : readSummary() }),
@@ -757,6 +760,25 @@ private struct MeetingWorkspaceDetail: View {
                 }
             }
         }
+        if let radar, !radar.items.isEmpty {
+            WorkspaceSection(title: "Live Radar", icon: "dot.radiowaves.left.and.right") {
+                RadarItemList(items: radar.items,
+                              followThrough: { app.followThrough($0, in: meeting) },
+                              openSource: { revealEvidence(at: $0.time) },
+                              folder: meeting.folderURL(in: app.storage),
+                              scrolls: false)
+                // The Think model reports no cost; a cost is shown where a
+                // meeting has one from when the radar ran on Meta's models.
+                Group {
+                    if radar.cost > 0 {
+                        Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · \(RadarItemList.costLabel(radar.cost))")
+                    } else {
+                        Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes")
+                    }
+                }
+                .font(.scaled(.caption)).foregroundStyle(.secondary)
+            }
+        }
         if !screenContext.materials.isEmpty {
             MeetingScreenMaterialsSection(
                 context: screenContext,
@@ -963,14 +985,6 @@ private struct MeetingWorkspaceDetail: View {
             fullNotesExpanded = true
         default: break
         }
-        let needsTranscriptLayout: Bool
-        if match.location.requiresTranscriptExpansion {
-            needsTranscriptLayout = !transcriptExpanded
-            transcriptExpanded = true
-        } else {
-            needsTranscriptLayout = false
-        }
-
         let scroll = {
             withAnimation(WorkspaceMotion.animation(
                 .autoScroll,
@@ -979,7 +993,6 @@ private struct MeetingWorkspaceDetail: View {
             }
         }
         // The target may live in another tab; scroll after SwiftUI mounts it.
-        _ = needsTranscriptLayout
         DispatchQueue.main.async(execute: scroll)
     }
 
@@ -1136,6 +1149,7 @@ private struct MeetingWorkspaceDetail: View {
         captureNeedsAttention = document.captureNeedsAttention
         recoveryNeedsAttention = document.recoveryNeedsAttention
         screenContext = document.screenContext
+        radar = document.radar
         summary = document.summary
         speakerNameHints = document.speakerNameHints
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
@@ -1160,7 +1174,6 @@ private struct MeetingWorkspaceDetail: View {
 
     private func revealEvidence(at seconds: TimeInterval) {
         returningToReview = tab == .review
-        transcriptExpanded = true
         tab = .transcript
         player.pause()
         player.seek(to: seconds)
@@ -1866,6 +1879,7 @@ private struct OutcomeActionRow: View {
                 app.handOff(reference, owner: displayOwner, to: target)
             }))
         }
+        items.append(.init(title: "Follow Through with Muse…", action: { app.followThrough(reference) }))
         return items
     }
 

@@ -39,8 +39,15 @@ class PairingLinkTest {
     fun `rejects other text, expired codes and newer versions`() {
         assertThat(PairingLink.parse("https://example.com", now)).isEqualTo(PairingLinkResult.NotALink)
         assertThat(PairingLink.parse("lokalbot://pair?d=%%%", now)).isEqualTo(PairingLinkResult.NotALink)
-        assertThat(PairingLink.parse(link(exp = now.epochSecond - 1), now)).isEqualTo(PairingLinkResult.Expired)
+        assertThat(PairingLink.parse(link(exp = now.epochSecond - 121), now)).isEqualTo(PairingLinkResult.Expired)
         assertThat(PairingLink.parse(link(version = 2), now)).isEqualTo(PairingLinkResult.Unsupported)
+    }
+
+    /** The sync core allows 120 s past the expiry on this device's clock and leaves the rest to the computer. */
+    @Test
+    fun `a code just past its expiry still goes to the computer`() {
+        assertThat(PairingLink.parse(link(exp = now.epochSecond - 1), now)).isInstanceOf(PairingLinkResult.Valid::class.java)
+        assertThat(PairingLink.parse(link(exp = now.epochSecond - 120), now)).isInstanceOf(PairingLinkResult.Valid::class.java)
     }
 
     @Test

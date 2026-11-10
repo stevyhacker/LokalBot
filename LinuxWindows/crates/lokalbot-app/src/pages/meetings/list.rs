@@ -622,6 +622,7 @@ impl MeetingsPage {
                             } else {
                                 menu.item(
                                     PopupMenuItem::new(lokalbot_i18n::tr("Delete meeting…"))
+                                        .disabled(live)
                                         .on_click(move |_, window, cx| {
                                             dialogs::confirm_delete(
                                                 data.clone(),

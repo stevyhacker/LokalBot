@@ -1,0 +1,47 @@
+{
+  "voice_id": "jBeSFLau956Zo30jykBV",
+  "model_id": "eleven_v4",
+  "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.8,
+    "speed": 1.0
+  },
+  "lines": [
+    {
+      "id": "b01",
+      "text": "People ask which cloud LokalBot sends their meetings to. By default, none. It all runs inside your Mac, so let's open it."
+    },
+    {
+      "id": "b02",
+      "text": "Under the app, there are three layers: the models, the engines that run them, and your library."
+    },
+    {
+      "id": "b03",
+      "text": "Five models, each with one job: turning speech into text, telling speakers apart, writing your notes, finishing your sentences, and searching by meaning."
+    },
+    {
+      "id": "b05",
+      "text": "Together, nine point six gigabytes of files, downloaded once."
+    },
+    {
+      "id": "b06",
+      "text": "Three engines run them on your Mac's own chip, with nothing else to install."
+    },
+    {
+      "id": "b07",
+      "text": "Whatever they produce lands in one folder: plain files, and a single database for search."
+    },
+    {
+      "id": "b08",
+      "text": "Model files and updates come in. Your work goes out only where you send it: a remote model, an agent, your phone."
+    },
+    {
+      "id": "b09",
+      "text": "Close it up, and it's all still in there."
+    },
+    {
+      "id": "end",
+      "text": "LokalBot. Local by default, free and open source."
+    }
+  ]
+}

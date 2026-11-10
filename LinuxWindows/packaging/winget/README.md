@@ -10,7 +10,7 @@ winstall list it.
 a fork unchanged:
 
 ```
-manifests/s/stevyhacker/LokalBot/0.11.0/
+manifests/s/stevyhacker/LokalBot/0.12.2/
   stevyhacker.LokalBot.yaml                  version
   stevyhacker.LokalBot.installer.yaml        installer
   stevyhacker.LokalBot.locale.en-US.yaml     default locale
@@ -29,7 +29,7 @@ and each start corrects an entry an older updater left behind
 ## Checks
 
 ```sh
-winget validate --manifest LinuxWindows\packaging\winget\manifests\s\stevyhacker\LokalBot\0.11.0
+winget validate --manifest LinuxWindows\packaging\winget\manifests\s\stevyhacker\LokalBot\0.12.2
 ```
 
 On a pull request that changes these files, `.github/workflows/winget.yml` runs
@@ -64,14 +64,14 @@ here only change when the installer does (its scope, `AppId` or switches).
    `gh secret set WINGET_TOKEN --repo stevyhacker/LokalBot` (paste the token
    when asked). Only `winget.yml`'s submit job reads it, on a GitHub-hosted
    runner.
-4. **Submit the first version** (0.11.0), one of:
+4. **Submit the first version** (0.12.2, the latest stable release), one of:
    - On Windows, with [wingetcreate](https://github.com/microsoft/winget-create):
      ```powershell
      wingetcreate token --store   # signs in to GitHub, or set WINGET_CREATE_GITHUB_TOKEN
-     wingetcreate submit --prtitle "New package: stevyhacker.LokalBot version 0.11.0" LinuxWindows\packaging\winget\manifests\s\stevyhacker\LokalBot\0.11.0
+     wingetcreate submit --prtitle "New package: stevyhacker.LokalBot version 0.12.2" LinuxWindows\packaging\winget\manifests\s\stevyhacker\LokalBot\0.12.2
      ```
    - From any computer, with git: clone your fork, copy
-     `manifests/s/stevyhacker/LokalBot/0.11.0` to the same path in it, commit
+     `manifests/s/stevyhacker/LokalBot/0.12.2` to the same path in it, commit
      on a new branch, push, and open the pull request against
      `microsoft/winget-pkgs` `master`, completing its checklist.
 5. **Wait for the merge.** winget-pkgs' bots validate the pull request and

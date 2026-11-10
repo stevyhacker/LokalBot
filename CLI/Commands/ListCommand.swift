@@ -40,7 +40,7 @@ struct ListCommand: AsyncParsableCommand {
     var table: Bool = false
 
     func run() async throws {
-        try AgentAccessGate().requireAuthorized()
+        try AgentAccessGate().requireCommandAccess()
         let sinceDate = try since.map { try Self.requireDate($0, option: "--since") }
         let untilDate = try until.map { try Self.requireDate($0, option: "--until") }
         let includeSummary: Bool

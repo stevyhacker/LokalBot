@@ -34,6 +34,16 @@ enum ToolErrorCode: String {
     case invalidArguments = "invalid_arguments"
 }
 
+/// A refusal a CLI command prints as `[code] message`, the form the MCP
+/// tools, `ask` and the settings commands use, so an agent can tell which
+/// switch is off whichever way it asked.
+struct CodedCommandError: LocalizedError, Equatable {
+    let code: ToolErrorCode
+    let message: String
+
+    var errorDescription: String? { "[\(code.rawValue)] \(message)" }
+}
+
 /// Outcome of a `tools/call` in MCP content-result form.
 struct ToolResult {
     var text: String
