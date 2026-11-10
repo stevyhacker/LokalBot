@@ -166,6 +166,11 @@ struct AppSettings: Codable, Equatable {
     /// Muse Voice Transcribe for text within a second of each turn, instead
     /// of transcribing chunks on this Mac. Also needs the api.meta.ai approval.
     var museLiveTextEnabled: Bool = false
+    /// Off by default: the live transcript preview cuts each track at pauses
+    /// and transcribes one turn at a time with the Transcribe model, so a
+    /// turn's text follows its speaker by about a second, and Live Radar
+    /// reads after each turn. Muse's fast live text takes precedence.
+    var turnByTurnLiveTextEnabled: Bool = false
     /// Off by default: when Live Radar catches a question, the text of crops
     /// of earlier screen captures that mention it goes to the Think model for
     /// the answer.
@@ -993,6 +998,7 @@ struct AppSettings: Codable, Equatable {
         case suggestActionCompletion
         case liveRadarEnabled
         case museLiveTextEnabled
+        case turnByTurnLiveTextEnabled
         case museScreenAnswersEnabled
         case liveRadarPanelEnabled
         case liveRadarPanelHiddenFromCapture
@@ -1222,6 +1228,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
         try c.encode(liveRadarEnabled, forKey: .liveRadarEnabled)
         try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
+        try c.encode(turnByTurnLiveTextEnabled, forKey: .turnByTurnLiveTextEnabled)
         try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
         try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
         try c.encode(liveRadarPanelHiddenFromCapture, forKey: .liveRadarPanelHiddenFromCapture)
@@ -1430,6 +1437,7 @@ struct AppSettings: Codable, Equatable {
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
         museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
+        turnByTurnLiveTextEnabled = decode(.turnByTurnLiveTextEnabled, defaults.turnByTurnLiveTextEnabled)
         museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
         liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)
         liveRadarPanelHiddenFromCapture = decode(.liveRadarPanelHiddenFromCapture, defaults.liveRadarPanelHiddenFromCapture)

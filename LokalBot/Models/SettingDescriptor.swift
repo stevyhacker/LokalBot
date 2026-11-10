@@ -171,6 +171,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.liveAnswerFolders", title: "Folders and repositories it may read", category: .recording, aliases: "live answers folders repositories documents code github"),
         .init(id: "settings.liveRadarPanelEnabled", title: "Show the floating Live Radar panel during meetings", category: .recording, aliases: "live radar floating panel overlay window always on top"),
         .init(id: "settings.liveRadarPanelHiddenFromCapture", title: "Hide the floating panel from screen sharing and recordings", category: .recording, aliases: "live radar panel screen share recording privacy hidden"),
+        .init(id: "settings.turnByTurnLiveTextEnabled", title: "Turn-by-turn live text", category: .recording, aliases: "live transcript preview turns pauses realtime speech local radar"),
         .init(id: "settings.museLiveTextEnabled", title: "Fast live text with Muse Voice Transcribe", category: .recording, aliases: "meta muse voice transcribe realtime live transcript speech cloud audio"),
         .init(id: "settings.meetingVisualContextEnabled", title: "Capture low-frequency visual context during meetings", category: .dayMemory, aliases: "meetingVisualContextEnabled"),
         .init(id: "settings.dayDigestAutoEnabled", title: "Generate the day digest automatically", category: .daily, aliases: "dayDigestAutoEnabled"),

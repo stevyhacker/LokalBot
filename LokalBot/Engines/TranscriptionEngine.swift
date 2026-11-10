@@ -824,6 +824,17 @@ actor CohereEngine: TranscriptionEngine {
     }
 }
 
+/// The voice-activity model's memory of one live track, handed back and forth
+/// through `SpeechActivity.liveProbability`.
+struct LiveVoiceState: Sendable {
+    struct Unavailable: Error {}
+
+    fileprivate var stream = VadStreamState.initial()
+
+    init() {}
+    fileprivate init(stream: VadStreamState) { self.stream = stream }
+}
+
 /// Voice-activity gate over FluidAudio's Silero VAD. Lets the pipeline skip
 /// transcribing a track with no speech (e.g. your mic while muted for the whole
 /// call) rather than feeding silence to the ASR model, which can hallucinate
@@ -875,6 +886,24 @@ actor SpeechActivity {
     func speechSeconds(in url: URL) async -> Double? {
         await speechSegments(in: url)?.reduce(0.0) { $0 + $1.duration }
     }
+
+    /// How likely the next `liveChunkFrames` of a track being recorded are
+    /// speech. `state` is the model's memory of that track so far; pass back
+    /// the one returned. Unlike the file sweep above this throws when the
+    /// model is unavailable, so a live preview stops instead of treating
+    /// everything as speech.
+    func liveProbability(of chunk: [Float],
+                         state: LiveVoiceState) async throws -> (probability: Float, state: LiveVoiceState) {
+        activeUses += 1
+        defer { finishUse() }
+        try await prepare()
+        guard let manager else { throw LiveVoiceState.Unavailable() }
+        let result = try await manager.processStreamingChunk(chunk, state: state.stream)
+        return (result.probability, LiveVoiceState(stream: result.state))
+    }
+
+    /// Frames (16 kHz) the model judges at a time: 256 ms.
+    static let liveChunkFrames = VadManager.chunkSize
 
     private nonisolated static func cacheKey(for url: URL) -> String {
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
