@@ -2,13 +2,15 @@
 
 Copy-paste-ready submission kits for four surfaces. Every field below is either an exact value to paste or a file path verified to exist in this repo on 2026-08-21. Each section is executable end-to-end in under 20 minutes.
 
-Shared facts used across all sections (do not embellish): GPLv3 · Apple Silicon M1+ · macOS 15.0+ · no account, no telemetry, no LokalBot cloud · Developer ID signed, notarized, stapled · Sparkle updates · bot-free two-track capture via Core Audio process tap ("Me" = mic, "Them" = meeting-app tap) · local transcription (IBM Granite Speech 4.1 default; Parakeet ~190x realtime; Whisper 99 languages; Qwen3-ASR) · local summaries/chat with citations · Dictation (hold Option-Space) · Cotyping ghost-text autocomplete in any app · day Timeline · `lokalbot-cli` read-only CLI + stdio MCP server · LokalBot.mcpb one-click MCP bundle. External-client boundary: LokalBot does not upload library content, but Claude Code, Cursor, and other MCP clients may transmit tool inputs and results under their own privacy terms; connect only trusted clients. Latest release: v0.6.2 (2026-08-20).
+> Sections 1 to 3 are the August kit, written for v0.6.2. Their copy still says Granite Speech 4.1 is the default transcription model, names v0.6.2, and describes a Mac-only app. Correct those from the shared facts below and the [README](../README.md) before pasting any of it. Sections 4b and 4c were written in November and are current.
+
+Shared facts used across all sections (do not embellish): GPLv3 · Apple Silicon M1+ · macOS 15.0+ (Windows and Linux in alpha) · no account, no telemetry, no LokalBot cloud · Developer ID signed, notarized, stapled · Sparkle updates · bot-free two-track capture via Core Audio process tap ("Me" = mic, "Them" = meeting-app tap) · local transcription (Qwen3-ASR 1.7B default; Parakeet ~190x realtime; Whisper 99 languages; Granite Speech) · local summaries/chat with citations · Dictation (hold Option-Space) · Cotyping ghost-text autocomplete in any app · day Timeline · `lokalbot-cli` read-only CLI + stdio MCP server · LokalBot.mcpb one-click MCP bundle. External-client boundary: LokalBot does not upload library content, but Claude Code, Cursor, and other MCP clients may transmit tool inputs and results under their own privacy terms; connect only trusted clients. Latest release: see https://github.com/stevyhacker/lokalbot/releases/latest (the kit was written for v0.6.2, 2026-08-20).
 
 Canonical links:
 
 - Repo: https://github.com/stevyhacker/lokalbot
 - Site: https://www.lokalbot.com
-- DMG: https://github.com/stevyhacker/lokalbot/releases/download/v0.6.2/LokalBot.dmg
+- DMG: `LokalBot-<version>-macos-arm64.dmg` at https://github.com/stevyhacker/lokalbot/releases/latest
 
 ---
 

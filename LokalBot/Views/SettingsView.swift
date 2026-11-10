@@ -9,6 +9,7 @@ struct SettingsView: View {
 
     @StateObject private var updates = AppUpdateManager.shared
     @State private var cliMessage: String?
+    @State private var exportingDiagnostics = false
     @State private var writingAdvancedExpanded = false
     @State private var forgettingCotypingLearning = false
     @State private var confirmingDreamMemoryClear = false
@@ -119,6 +120,7 @@ struct SettingsView: View {
                 .accessibilityLabel(Text(LocalizedStringKey(queryIsEmpty ? app.settingsTab.displayName : "Search settings")))
                 .splitPaneAccessibilityLabel(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
         }
+        .splitStructureDirection()
         .frame(minWidth: 700)
         .workspaceMinimumHeight(600)
         .tint(Brand.teal)
@@ -1358,6 +1360,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Button("Export Diagnostics…") { exportDiagnostics() }
+                                .disabled(exportingDiagnostics)
                                 .accessibilityIdentifier("settings.exportDiagnostics")
                             Button("Run Health Check Now") {
                                 if let url = app.runHealthCheckNow(notify: false) { NSWorkspace.shared.open(url) }
@@ -1375,11 +1378,26 @@ struct SettingsView: View {
         panel.allowedContentTypes = [.zip]
         panel.nameFieldStringValue = "LokalBot Diagnostics \(DreamDay.key(for: Date())).zip"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try app.exportDiagnostics(to: url)
-            NSWorkspace.shared.activateFileViewerSelecting([url])
-        } catch {
-            app.lastError = error.localizedDescription
+        // Copying and zipping up to 48 MB of logs takes seconds. On the main
+        // thread the whole app stood still for them, a recording's timer
+        // included.
+        let sources = app.diagnosticsSources()
+        exportingDiagnostics = true
+        Task {
+            let failure = await Task.detached(priority: .userInitiated) { () -> String? in
+                do {
+                    try DiagnosticsExporter.export(sources, to: url)
+                    return nil
+                } catch {
+                    return error.localizedDescription
+                }
+            }.value
+            exportingDiagnostics = false
+            if let failure {
+                app.lastError = failure
+            } else {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
         }
     }
 

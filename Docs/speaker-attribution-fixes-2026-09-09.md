@@ -2,6 +2,8 @@
 
 9 September 2026. Follow-up to the speaker identification and attribution changes.
 
+Historical report: the Google Meet participant observer described here was removed in LokalBot 0.9.1, and LokalBot no longer reads Meet participant names or speaking activity. What it says about that observer is retained as context, not current behavior. See [DEVELOPMENT.md](../DEVELOPMENT.md#transcription--speakers).
+
 ## Changes
 
 - A recording-bound Google Meet window can be observed while another application is foreground. Chrome must still have the verified meeting selected in that window. An unbound background window, a different meeting, an excluded/private source, a minimized window, a locked screen, or a source change cannot supply evidence. Frames stop on source loss or when visual identification is disabled.

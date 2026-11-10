@@ -56,7 +56,7 @@ final class ClaudePlanEngineTests: XCTestCase {
 
     func testArgumentsKeepClaudeCodeToAPlainTextModel() throws {
         let engine = ClaudePlanEngine(model: "sonnet")
-        let arguments = try engine.arguments(schema: nil, options: nil, streaming: false)
+        let arguments = engine.arguments(structured: false, options: nil, streaming: false)
 
         XCTAssertEqual(Array(arguments.prefix(3)), ["-p", "--output-format", "json"])
         XCTAssertTrue(arguments.contains("--no-session-persistence"),
@@ -75,18 +75,59 @@ final class ClaudePlanEngineTests: XCTestCase {
     }
 
     func testStreamingAndStructuredArguments() throws {
-        let schema: [String: Any] = ["type": "object", "properties": ["items": ["type": "array", "maxItems": 3]]]
-        let arguments = try ClaudePlanEngine(model: "").arguments(
-            schema: schema, options: .init(reasoningBudgetTokens: 0), streaming: true)
+        let arguments = ClaudePlanEngine(model: "").arguments(
+            structured: true, options: .init(reasoningBudgetTokens: 0), streaming: true)
 
+        XCTAssertEqual(value(after: "--input-format", in: arguments), "stream-json")
         XCTAssertEqual(value(after: "--output-format", in: arguments), "stream-json")
         XCTAssertTrue(arguments.contains("--verbose"))
         XCTAssertTrue(arguments.contains("--include-partial-messages"))
         XCTAssertNil(value(after: "--model", in: arguments), "empty uses Claude Code's default")
         // Notes run with no reasoning budget: the lowest effort, not the default.
         XCTAssertEqual(value(after: "--effort", in: arguments), "low")
-        let passed = try XCTUnwrap(value(after: "--json-schema", in: arguments))
-        XCTAssertTrue(passed.contains("\"maxItems\":3"), "Claude Code accepts the schema unchanged")
+        XCTAssertFalse(arguments.contains("--json-schema"), "a schema can hold meeting text")
+
+        let plain = ClaudePlanEngine(model: "").arguments(structured: true, options: nil, streaming: false)
+        XCTAssertEqual(value(after: "--output-format", in: plain), "stream-json",
+                       "stream-json input needs stream-json output")
+        XCTAssertTrue(plain.contains("--verbose"))
+        XCTAssertFalse(plain.contains("--include-partial-messages"))
+    }
+
+    /// A notes repair lists the meeting's action items as the allowed values
+    /// of a field. A command line is readable by other processes, so the
+    /// schema travels on stdin with the prompt.
+    func testSchemaTravelsOnStdinNeverInTheArguments() async throws {
+        let runner = FakeRunner { _ in
+            Self.result(["stop_reason": "tool_use", "structured_output": ["text": "Send Marko the Q3 budget"]])
+        }
+        let schema: [String: Any] = [
+            "type": "object",
+            "properties": ["text": ["type": "string", "enum": ["Send Marko the Q3 budget"]],
+                           "items": ["type": "array", "maxItems": 3]],
+        ]
+        let reply = try await ClaudePlanEngine(model: "haiku", runner: runner)
+            .generate(system: "Repair.", prompt: "Which action?", context: ["Transcript"], schema: schema)
+
+        XCTAssertEqual(reply, #"{"text":"Send Marko the Q3 budget"}"#)
+        let call = try XCTUnwrap(runner.calls.first)
+        XCTAssertFalse(call.arguments.contains { $0.contains("Marko") || $0.contains("enum") },
+                       "\(call.arguments)")
+        XCTAssertFalse(call.arguments.contains("--json-schema"))
+        XCTAssertEqual(value(after: "--input-format", in: call.arguments), "stream-json")
+        let lines = try call.input.split(separator: "\n").map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
+        }
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertEqual(lines[0]["type"] as? String, "control_request")
+        let request = try XCTUnwrap(lines[0]["request"] as? [String: Any])
+        XCTAssertEqual(request["subtype"] as? String, "initialize")
+        XCTAssertEqual(request["jsonSchema"] as? NSDictionary, schema as NSDictionary,
+                       "Claude Code gets the schema unchanged")
+        XCTAssertEqual(lines[1]["type"] as? String, "user")
+        let message = try XCTUnwrap(lines[1]["message"] as? [String: Any])
+        let content = try XCTUnwrap(message["content"] as? [[String: Any]])
+        XCTAssertEqual(content.first?["text"] as? String, "Transcript\n\nWhich action?")
     }
 
     func testChosenEffortIsCappedByTheTaskBudget() throws {
@@ -128,6 +169,30 @@ final class ClaudePlanEngineTests: XCTestCase {
         let parsed = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(reply.utf8)) as? [String: Any])
         XCTAssertEqual(parsed["title"] as? String, "Weekly sync")
         XCTAssertEqual(parsed["count"] as? Int, 2)
+    }
+
+    /// A Claude Code that ignores the schema sent on stdin answers in prose.
+    /// That used to be returned as the structured reply, with no error.
+    func testAProseReplyToASchemaRequestFails() throws {
+        XCTAssertThrowsError(try ClaudePlanEngine.parseResult(
+            ["type": "result", "result": "Here are the notes: the launch moved to Friday.", "stop_reason": "end_turn"],
+            wantsStructured: true)) { error in
+            guard case TextEngineError.badResponse = error else { return XCTFail("\(error)") }
+        }
+        // JSON as text is still a reply, with or without a code fence around it.
+        XCTAssertEqual(try ClaudePlanEngine.parseResult(
+            ["type": "result", "result": #"{"a": 1}"#, "stop_reason": "end_turn"], wantsStructured: true).text,
+                       #"{"a": 1}"#)
+        XCTAssertEqual(try ClaudePlanEngine.parseResult(
+            ["type": "result", "result": "```json\n{\"a\": 1}\n```", "stop_reason": "end_turn"],
+            wantsStructured: true).text, #"{"a": 1}"#)
+        // Without a schema, prose is the answer.
+        XCTAssertEqual(try ClaudePlanEngine.parseResult(
+            ["type": "result", "result": "The launch moved to Friday.", "stop_reason": "end_turn"],
+            wantsStructured: false).text, "The launch moved to Friday.")
+        // A reply cut off at the output limit keeps its own handling.
+        XCTAssertTrue(try ClaudePlanEngine.parseResult(
+            ["type": "result", "result": #"{"a":"#, "stop_reason": "max_tokens"], wantsStructured: true).truncated)
     }
 
     @MainActor

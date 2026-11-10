@@ -45,7 +45,7 @@ echo "== packages the workflow installs on GitHub's runners"
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
   libxkbcommon-x11-dev libwayland-dev libvulkan1 mesa-vulkan-drivers libfontconfig-dev \
-  libasound2-dev libxcb1-dev libx11-xcb-dev libssl-dev pkg-config clang \
+  libasound2-dev libxcb1-dev libx11-xcb-dev pkg-config clang \
   xvfb xfwm4 x11-xserver-utils xdotool ffmpeg hsetroot xfce4-panel x11-utils dbus-daemon \
   python3 git curl ca-certificates
 

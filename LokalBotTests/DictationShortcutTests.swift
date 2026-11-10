@@ -136,7 +136,7 @@ final class DictationShortcutTests: XCTestCase {
         XCTAssertFalse(monitor.handle(type: .flagsChanged, event: try flags([.maskControl, .maskAlternate])),
                        "modifiers are never swallowed")
         XCTAssertEqual(calls.starts, 0, "the microphone waits for the hold delay")
-        try await Task.sleep(for: .milliseconds(120))
+        try await waitForStart(calls)
         XCTAssertEqual(calls.starts, 1)
 
         XCTAssertFalse(monitor.handle(type: .flagsChanged, event: try flags(.maskControl)))
@@ -165,7 +165,7 @@ final class DictationShortcutTests: XCTestCase {
     func testKeyPressedDuringAStartedChordCancelsTheDictation() async throws {
         let (monitor, calls) = chordMonitor(mode: .pushToTalk)
         _ = monitor.handle(type: .flagsChanged, event: try flags([.maskControl, .maskAlternate]))
-        try await Task.sleep(for: .milliseconds(120))
+        try await waitForStart(calls)
         XCTAssertEqual(calls.starts, 1)
         _ = monitor.handle(type: .keyDown, event: try key(17, [.maskControl, .maskAlternate]))
         _ = monitor.handle(type: .flagsChanged, event: try flags([]))
@@ -193,6 +193,16 @@ final class DictationShortcutTests: XCTestCase {
                        [.maskControl, .maskShift])
         XCTAssertEqual(ShortcutRecorder.eventFlags(from: [.option, .command]),
                        [.maskAlternate, .maskCommand])
+    }
+
+    /// The start fires on the main queue after the hold delay; a fixed sleep
+    /// only just longer than the delay loses to a busy runner.
+    @MainActor
+    private func waitForStart(_ calls: ChordCalls) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while calls.starts == 0, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
     }
 
     @MainActor

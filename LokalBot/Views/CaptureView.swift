@@ -164,7 +164,6 @@ final class CaptureModel: ObservableObject {
         defer {
             if digestGeneration == generation { generating = false }
         }
-        let freshBlocks = app.activityStore.blocks(on: requestedDay)
         do {
             let result = try await app.dayDigest.generate(for: requestedDay)
             guard digestGeneration == generation,
@@ -172,7 +171,9 @@ final class CaptureModel: ObservableObject {
             overviewGeneration &+= 1
             overviewTask?.cancel()
             overviewLoading = false
-            blocks = freshBlocks
+            // Read now, not before the model ran: generation can take a
+            // minute, and blocks from before it replaced newer ones.
+            blocks = app.activityStore.blocks(on: requestedDay)
             digest = result.text
             let snapshot = app.dayDigest.snapshot(for: requestedDay)
             digestUpdatedAt = snapshot.modifiedAt

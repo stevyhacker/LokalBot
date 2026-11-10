@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Settings → Meetings → Meta Muse: the key and the api.meta.ai approval, for
-/// the two things that use Meta's models: fast live text and Follow-through.
-/// Live Radar reads with the Think model and has its own section.
+/// Settings → Meetings → Meta Muse: the key and the api.meta.ai approval for
+/// fast live text, the one thing that still uses Meta's models. Live Radar
+/// and Follow-through run on the Think model.
 struct MetaMuseSettingsSection: View {
     @EnvironmentObject var app: AppState
     @State private var keyDraft = ""
@@ -10,10 +10,9 @@ struct MetaMuseSettingsSection: View {
     @State private var editingKey = false
     @State private var keySaveError: String?
 
-    static let approvalHelp = "Follow-through sends the action, its source passages, the meeting summary, your name "
-        + "from Settings → Autocomplete, and what its tools read. Fast live text sends meeting audio while the live "
-        + "preview runs. Voices and calendar email addresses stay on this Mac. The same approval covers Think if you "
-        + "point it at this server."
+    static let approvalHelp = "Fast live text sends meeting audio while the live preview runs, with your name from "
+        + "Settings → Autocomplete as a spelling hint. Voices and calendar email addresses stay on this Mac. The same "
+        + "approval covers Think if you point it at this server."
 
     static let liveTextHelp = "While the live transcript preview runs, streams the microphone and call audio to "
         + "\(MuseLiveText.displayName), which returns each turn's text about a second after it ends. Without it, the "
@@ -25,7 +24,7 @@ struct MetaMuseSettingsSection: View {
     var body: some View {
         Section {
             Toggle(isOn: approval) {
-                SettingsLabel("Allow sending meeting text to \(origin)", help: Self.approvalHelp)
+                SettingsLabel("Allow sending meeting audio to \(origin)", help: Self.approvalHelp)
             }
             .accessibilityIdentifier("settings.metaMuse.approval")
             .settingTarget("settings.metaMuseApproval", selected: app.focusedSettingID)
@@ -39,14 +38,6 @@ struct MetaMuseSettingsSection: View {
 
             LabeledContent("API key") { keyControl }
                 .settingTarget("settings.metaModelAPIKey", selected: app.focusedSettingID)
-
-            Picker(selection: $app.settings.museFollowThroughModel) {
-                ForEach(MetaModelAPI.models) { model in Text(model.displayName).tag(model.id) }
-            } label: {
-                SettingsLabel("Follow-through model",
-                              help: "Plans the work for one action and proposes drafts, invites, and handoffs. Nothing is sent or created until you approve it.")
-            }
-            .settingTarget("settings.museFollowThroughModel", selected: app.focusedSettingID)
 
             SettingsHelp("Meta's terms for your Model API account apply. Content sent while you use free credits may be used to improve Meta's products, so record only people who agreed.")
         } header: {

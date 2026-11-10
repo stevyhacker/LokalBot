@@ -8,6 +8,9 @@ public protocol CompanionStore: Sendable {
     // Reads
     func manifest() async throws -> Manifest?
     func meetings(fromDay: String?, toDay: String?, limit: Int) async throws -> [Meeting]
+    /// The newest `limit` meetings and whether older ones exist, for a list
+    /// that loads as it's scrolled.
+    func newestMeetings(limit: Int) async throws -> MeetingsPage
     func meeting(id: String) async throws -> Meeting?
     func transcript(meetingID: String) async throws -> Transcript?
     /// Day keys that have a record.

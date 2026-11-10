@@ -122,11 +122,13 @@ class StandInHost:
     """LinuxWindows/crates/lokalbot-sync/examples/companion_host: the sample
     library and the real sync server, without a computer's pipeline."""
 
-    def __init__(self, binary, folder, port, name="E2E Computer"):
+    def __init__(self, binary, folder, port, name="E2E Computer", asks=False):
         self.binary = Path(binary).resolve()
         self.folder = Path(folder)
         self.port = port
         self.name = name
+        # Whether it asks before allowing a device, as a person's computer does; allow() answers.
+        self.asks = asks
         self.log = self.folder / "host.log"
         self.process = None
 
@@ -138,7 +140,7 @@ class StandInHost:
                 [
                     str(self.binary),
                     "--name", self.name,
-                    "--auto-approve",
+                    *([] if self.asks else ["--auto-approve"]),
                     "--loopback",
                     "--port", str(self.port),
                     "--dir", str(self.folder / "data"),
@@ -181,6 +183,15 @@ class StandInHost:
         self.process.stdin.flush()
         wait_until("a pairing code", lambda: len(pattern.findall(self.text())) > before, 10, 0.2)
         return pattern.findall(self.text())[-1]
+
+    def is_asking(self):
+        """Whether a device is waiting for an answer."""
+        text = self.text()
+        return text.count("[y/n]") > len(re.findall(r"^(?:Approved|Not approved)\.$", text, re.M))
+
+    def allow(self):
+        self.process.stdin.write("y\n")
+        self.process.stdin.flush()
 
     def received(self):
         pairs = re.findall(r"^recording: (.*)\nKept \d+ bytes at (.*)$", self.text(), re.M)

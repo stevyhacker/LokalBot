@@ -124,6 +124,24 @@ class ClaudePluginTests(unittest.TestCase):
             with self.subTest(tool=tool):
                 self.assertIn(f"`{tool}`", readme)
 
+    def test_skills_name_every_authority_personal_context_returns(self):
+        # An agent told every item is the user's own statement quotes a learned,
+        # possibly outdated one as the user's words.
+        access = (ROOT / "LokalBot" / "CLISupport" / "PersonalContextAccess.swift").read_text(
+            encoding="utf-8")
+        authorities = set(re.findall(r'authority = "([a-z]+)"', access))
+        self.assertEqual(authorities, {"stated", "learned"})
+        for skill in (CANONICAL_SKILL,
+                      ROOT / "LokalBot" / "Resources" / "pi" / "lokalbot-cli-skill" / "SKILL.md",
+                      ROOT / "LinuxWindows" / "crates" / "lokalbot-agent" / "resources"
+                      / "lokalbot-cli-skill" / "SKILL.md"):
+            section = skill.read_text(encoding="utf-8").split("## Personal context", 1)[1]
+            section = section.split("\n## ", 1)[0]
+            with self.subTest(skill=str(skill.relative_to(ROOT))):
+                for authority in sorted(authorities):
+                    self.assertIn(f'`"{authority}"`', section)
+                self.assertNotIn("Items are the user's own statements", section)
+
 
 if __name__ == "__main__":
     unittest.main()

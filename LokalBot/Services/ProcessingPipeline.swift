@@ -870,6 +870,22 @@ final class ProcessingPipeline: ObservableObject {
             }
         } catch {
             guard !revokedMeetingIDs.contains(meeting.id) else { return }
+            // The transcription server was revoked, or an on-device model
+            // chosen, while this meeting was uploading. Start over with the
+            // settings as they are now: an on-device model transcribes it,
+            // and otherwise the meeting waits. Only a change since this
+            // attempt began restarts, so a server that was never approved
+            // still fails with its message.
+            if (error as? RemoteTranscriptionError)?.isConsentWithdrawn == true {
+                let current = settings()
+                if current.transcriptionModel != config.transcriptionModel
+                    || current.remoteTranscription != config.remoteTranscription {
+                    lokalbotLog("pipeline restarting meeting=\(meeting.id): the transcription server was withdrawn")
+                    stages[meeting.id] = .queued
+                    queue.append(activeJob ?? job)
+                    return
+                }
+            }
             // The persisted job row stays — the next launch re-enqueues it
             // (until the attempt cap) so a crash or transient failure never
             // silently drops a meeting. The message is persisted so a job
@@ -1075,7 +1091,7 @@ final class ProcessingPipeline: ObservableObject {
                 // Keep going: the other track may still succeed, and its
                 // checkpoint means only this track is redone on retry.
                 lokalbotLog("transcription track failed track=\(name) error=\(error.localizedDescription)")
-                trackError = trackError ?? error
+                trackError = Self.trackFailure(earlier: trackError, later: error)
             }
         }
         if let trackError { throw trackError }
@@ -1084,6 +1100,17 @@ final class ProcessingPipeline: ObservableObject {
         }
         let merged = Transcript.merged(tracks)
         return TranscribedTracks(transcript: merged, turns: acousticTurns, samples: voiceSamples)
+    }
+
+    /// The failure a job reports when more than one track failed: the first,
+    /// unless a later one says the transcription server was withdrawn. That
+    /// one decides what happens next (the meeting starts over on the settings
+    /// as they are now), and an earlier server error on the other track must
+    /// not turn it into a failed meeting.
+    nonisolated static func trackFailure(earlier: Error?, later: Error) -> Error {
+        guard let earlier else { return later }
+        if (earlier as? RemoteTranscriptionError)?.isConsentWithdrawn == true { return earlier }
+        return (later as? RemoteTranscriptionError)?.isConsentWithdrawn == true ? later : earlier
     }
 
     static func checkpointInput(audioRevision: String, track: String, engine: TranscriptionEngine,

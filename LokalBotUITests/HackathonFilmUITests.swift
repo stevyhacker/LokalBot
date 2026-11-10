@@ -17,8 +17,8 @@ import XCTest
 /// that holds a Meta Model API key, the host calls Muse Spark and Muse Wonder
 /// on this fixture, and the checks look for kinds of items and approve
 /// whatever steps Follow-through proposes. With `LOKALBOT_FILM_FRAMES` set, the
-/// test marks when `.github/workflows/meta-hackathon-film.yml` should film the
-/// screen, a 3200x2000 virtual display, into that folder.
+/// test writes start and stop markers into that folder for a screen capture
+/// running beside it.
 final class HackathonFilmUITests: XCTestCase {
     private var library: URL!
     private var defaultsSuiteName: String?
@@ -212,7 +212,7 @@ final class HackathonFilmUITests: XCTestCase {
             UITestHarness.scrollTo(menu, in: app, upward: true)
             XCTAssertTrue(film.wait(for: menu, timeout: 10), "no action menu to follow through from")
             menu.click()
-            let item = app.menuItems["Follow Through with Muse…"]
+            let item = app.menuItems["Follow Through…"]
             XCTAssertTrue(film.wait(for: item, timeout: 5))
             item.click()
         }
@@ -242,9 +242,9 @@ final class HackathonFilmUITests: XCTestCase {
     }
 }
 
-/// The test's waits, and the markers that start and stop the screen capture
-/// beside it (`Scripts/film/capture.py`), which writes full-size frames to the
-/// `LOKALBOT_FILM_FRAMES` folder. Taking screenshots here would hold up the test.
+/// The test's waits, and the markers that start and stop a screen capture
+/// beside it, which writes full-size frames to the `LOKALBOT_FILM_FRAMES`
+/// folder. Taking screenshots here would hold up the test.
 private final class Film {
     private let folder: URL?
 

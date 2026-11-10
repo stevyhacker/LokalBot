@@ -117,7 +117,8 @@ class FixtureRepository(
                     meetingId = meeting.id,
                     meetingTitle = meeting.title,
                     meetingStartedAt = meeting.startedAt,
-                    action = action,
+                    // As in the synced store, a row carries the flag itself.
+                    action = action.copy(pending = false),
                     pending = (meeting.id to action.id) in pending,
                 )
             }
@@ -192,7 +193,7 @@ class FixtureRepository(
         val overrides = synchronized(lock) { localStatus.filterKeys { it.first == meeting.id } }
         if (overrides.isEmpty()) return meeting
         return meeting.copy(actions = meeting.actions.map { action ->
-            overrides[meeting.id to action.id]?.let { action.copy(status = it) } ?: action
+            overrides[meeting.id to action.id]?.let { action.copy(status = it, pending = true) } ?: action
         })
     }
 

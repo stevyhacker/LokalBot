@@ -1,6 +1,6 @@
 # Cloudflare deployment
 
-The website can be deployed as Cloudflare Workers static assets using `wrangler.jsonc`.
+The website is deployed as Cloudflare Workers static assets using `wrangler.jsonc`.
 
 - Repository: `stevyhacker/lokalbot`, production branch: `master`.
 - Build command: leave empty; `web/` contains the deployable site.
@@ -18,13 +18,16 @@ The website can be deployed as Cloudflare Workers static assets using `wrangler.
   by the assets directly.
 - No runtime secret is needed; downloads remain on GitHub Releases.
 
-Before switching DNS, verify the Workers URL, article links, CSS, JavaScript,
-video range requests and the download link. Keep the Vercel project available
-until the custom domains pass the same checks.
+Both custom domains are attached to the Worker and Cloudflare proxies the
+website's DNS. After a change to `wrangler.jsonc` or the media Worker, check a
+page, an article link, CSS, JavaScript, a video range request and the download
+link on the deployed site. Mail and TXT records in the zone are not the site's;
+leave them as they are.
 
-Back up and remove only conflicting website A/CNAME records before attaching the
-custom domains declared in Wrangler. Preserve mail and TXT records. Enable the
-canonical rule after Cloudflare manages the proxied website DNS.
+`vercel.json` is what remains of the earlier Vercel hosting. No domain points at
+that project, and its last deployment from this repository was on 2026-09-14.
+Confirm in Vercel that the project is disconnected or deleted before removing
+the file.
 
 ## Redirect rules
 

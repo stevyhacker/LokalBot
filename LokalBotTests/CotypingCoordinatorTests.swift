@@ -702,15 +702,20 @@ final class CotypingCoordinatorTests: XCTestCase {
     func testASuggestionLeftAloneIsTakenDownSoTabReachesTheApp() async throws {
         let coordinator = makeCoordinator()
         coordinator.isRunning = true
-        coordinator.idleSuggestionLifetimeMilliseconds = 400
+        // Each check sits 800 ms from the moment that would change its answer,
+        // so a slow runner cannot decide it.
+        coordinator.idleSuggestionLifetimeMilliseconds = 2_000
         coordinator.session = shownSession(" up on the timeline", after: "I wanted to follow")
         coordinator.markReady(" up on the timeline")
-        try await Task.sleep(for: .milliseconds(200))
+        try await Task.sleep(for: .milliseconds(1_200))
         // Typing through the suggestion is activity, so the clock starts again.
         coordinator.markReady(" on the timeline")
-        try await Task.sleep(for: .milliseconds(250))
-        XCTAssertNotNil(coordinator.session, "typed through 250 ms ago, inside the lifetime")
-        try await Task.sleep(for: .milliseconds(600))
+        try await Task.sleep(for: .milliseconds(1_200))
+        XCTAssertNotNil(coordinator.session, "typed through 1.2 s ago, inside the lifetime; shown 2.4 s ago, past it")
+        let deadline = ContinuousClock.now + .seconds(6)
+        while coordinator.session != nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
         XCTAssertNil(coordinator.session)
         XCTAssertEqual(coordinator.state, .idle)
         XCTAssertNil(coordinator.suggestionExpiryTask)

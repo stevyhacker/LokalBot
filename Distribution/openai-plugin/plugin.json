@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "lokalbot",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Your personal context engine. Reads your local LokalBot library on macOS, Windows, or Linux: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself, each behind its own permission in LokalBot.",
   "author": {
     "name": "stevyhacker",

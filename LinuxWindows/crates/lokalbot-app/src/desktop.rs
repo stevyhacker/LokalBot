@@ -4,7 +4,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use gpui_kit::{AnyWindowHandle, App, Entity, Global, SharedString};
@@ -90,14 +90,62 @@ pub fn refusal_answer(refusal: Refusal, refused: &str, working: Option<&str>) ->
     }
 }
 
+/// The shortcuts one [`sync_shortcuts_later`] call asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct WantedShortcuts {
+    dictation: Option<Shortcut>,
+    quick_recall: Option<Shortcut>,
+    selection_actions: Option<Shortcut>,
+    mode: DictationTriggerMode,
+    paused: bool,
+}
+
+/// Which [`sync_shortcuts_later`] call may register, and what is registered.
+/// Most settings changes leave the shortcuts alone, and taking them down
+/// to put the same ones back would lose a press made in between.
+#[derive(Default)]
+struct ShortcutSyncs {
+    calls: u64,
+    /// What the last call registered, when all of it was accepted and no
+    /// later call has begun to change it.
+    registered: Option<WantedShortcuts>,
+}
+
+impl ShortcutSyncs {
+    /// A call for `wanted`. Its number, or `None` when that is registered
+    /// already. Either way, calls still waiting to register give up.
+    fn request(&mut self, wanted: WantedShortcuts) -> Option<u64> {
+        self.calls += 1;
+        (self.registered != Some(wanted)).then_some(self.calls)
+    }
+
+    /// Whether call `number` is still the newest, at the moment it starts to
+    /// register. From here until [`Self::finish`] nothing counts as registered.
+    fn begin(&mut self, number: u64) -> bool {
+        if self.calls != number {
+            return false;
+        }
+        self.registered = None;
+        true
+    }
+
+    /// Call `number` registered `wanted`; `accepted` when nothing was refused.
+    /// A refused shortcut is tried again by the next call.
+    fn finish(&mut self, number: u64, wanted: WantedShortcuts, accepted: bool) {
+        if self.calls == number && accepted {
+            self.registered = Some(wanted);
+        }
+    }
+}
+
 /// Handles that must live as long as the app.
 pub struct Desktop {
     tray: Option<Tray>,
     tray_state: Mutex<Option<TrayMenuState>>,
     shortcuts: Arc<Mutex<Option<GlobalShortcuts>>>,
-    /// Counts [`sync_shortcuts_later`] calls: of several waiting to apply,
-    /// only the newest does.
-    shortcut_syncs: Arc<AtomicU64>,
+    /// Of several [`sync_shortcuts_later`] calls waiting to apply, only the
+    /// newest does, and one that would change nothing does not start.
+    shortcut_syncs: Arc<Mutex<ShortcutSyncs>>,
     _ipc: Option<IpcServer>,
     sender: smol::channel::Sender<DesktopEvent>,
     dictation_pressed_at: Mutex<Option<Instant>>,
@@ -176,7 +224,7 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
         tray,
         tray_state: Mutex::new(None),
         shortcuts: Arc::new(Mutex::new(None)),
-        shortcut_syncs: Arc::new(AtomicU64::new(0)),
+        shortcut_syncs: Arc::new(Mutex::new(ShortcutSyncs::default())),
         _ipc: ipc,
         sender: sender.clone(),
         dictation_pressed_at: Mutex::new(None),
@@ -389,7 +437,16 @@ pub fn sync_shortcuts_later(cx: &mut App) {
     let active = desktop.dictation_cancel_keys.clone();
     let sender = desktop.sender.clone();
     let syncs = desktop.shortcut_syncs.clone();
-    let sync = syncs.fetch_add(1, Ordering::SeqCst) + 1;
+    let wanted = WantedShortcuts {
+        dictation,
+        quick_recall,
+        selection_actions,
+        mode,
+        paused,
+    };
+    let Some(sync) = syncs.lock().request(wanted) else {
+        return;
+    };
     std::thread::spawn(move || {
         // The manager may still be starting (Wayland asks the user first).
         for _ in 0..50 {
@@ -401,7 +458,7 @@ pub fn sync_shortcuts_later(cx: &mut App) {
         let mut guard = shortcuts.lock();
         // A later call carries newer settings and applies all of them, so an
         // older one that got here late must not put its own back.
-        if syncs.load(Ordering::SeqCst) != sync {
+        if !syncs.lock().begin(sync) {
             return;
         }
         let Some(manager) = guard.as_mut() else {
@@ -442,6 +499,8 @@ pub fn sync_shortcuts_later(cx: &mut App) {
                 refusal,
             });
         }
+        let accepted = outcomes.iter().all(|outcome| outcome.refusal.is_none());
+        syncs.lock().finish(sync, wanted, accepted);
         // While a shortcut is being recorded nothing is registered on purpose.
         if !paused {
             let _ = sender.send_blocking(DesktopEvent::ShortcutsApplied(outcomes));
@@ -880,6 +939,73 @@ pub fn notify_update_available(version: String, body: SharedString, cx: &mut App
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn wanted(dictation: &str) -> WantedShortcuts {
+        WantedShortcuts {
+            dictation: Some(Shortcut::parse(dictation).unwrap()),
+            quick_recall: None,
+            selection_actions: None,
+            mode: DictationTriggerMode::PushToTalk,
+            paused: false,
+        }
+    }
+
+    /// Syncs with `shortcuts` registered and accepted.
+    fn registered(shortcuts: WantedShortcuts) -> ShortcutSyncs {
+        let mut syncs = ShortcutSyncs::default();
+        let call = syncs.request(shortcuts).unwrap();
+        assert!(syncs.begin(call));
+        syncs.finish(call, shortcuts, true);
+        syncs
+    }
+
+    #[test]
+    fn a_sync_that_would_change_nothing_does_not_start() {
+        let space = wanted("Ctrl+Shift+Space");
+        let mut syncs = registered(space);
+        // Some other setting changed: the same shortcuts are asked for.
+        assert_eq!(syncs.request(space), None);
+        assert_eq!(syncs.request(space), None);
+        assert!(syncs.request(wanted("Ctrl+Alt+K")).is_some());
+    }
+
+    #[test]
+    fn a_refused_shortcut_is_tried_again_by_the_next_sync() {
+        let space = wanted("Ctrl+Shift+Space");
+        let mut syncs = ShortcutSyncs::default();
+        let call = syncs.request(space).unwrap();
+        assert!(syncs.begin(call));
+        syncs.finish(call, space, false);
+        assert!(syncs.request(space).is_some());
+    }
+
+    #[test]
+    fn going_back_before_a_change_registered_leaves_what_is_registered() {
+        let (space, other) = (wanted("Ctrl+Shift+Space"), wanted("Ctrl+Alt+K"));
+        let mut syncs = registered(space);
+        let waiting = syncs.request(other).unwrap();
+        assert_eq!(syncs.request(space), None);
+        assert!(
+            !syncs.begin(waiting),
+            "the older call registered what the settings no longer ask for"
+        );
+    }
+
+    #[test]
+    fn going_back_while_a_change_registers_puts_the_first_back() {
+        let (space, other) = (wanted("Ctrl+Shift+Space"), wanted("Ctrl+Alt+K"));
+        let mut syncs = registered(space);
+        let changing = syncs.request(other).unwrap();
+        assert!(syncs.begin(changing));
+        // The other shortcut is being registered now, so the first one no
+        // longer counts as registered and has to be asked for again.
+        let back = syncs.request(space).expect("nothing would put it back");
+        syncs.finish(changing, other, true);
+        assert!(syncs.begin(back));
+        syncs.finish(back, space, true);
+        assert_eq!(syncs.request(space), None);
+        assert!(syncs.request(other).is_some());
+    }
 
     #[test]
     fn a_taken_shortcut_goes_back_to_what_worked_or_turns_off() {

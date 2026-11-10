@@ -1,0 +1,17 @@
+{
+  "calls" : [
+    {
+      "completionTokens" : 401,
+      "content" : "{\n  \"actions\": [\n    {\n      \"importance\": 4,\n      \"owner\": \"source\",\n      \"basis\": \"commitment\",\n      \"quote\": \"export change is something I I have to update\",\n      \"source\": \"s6\",\n      \"context\": [\"s7\"],\n      \"text\": \"Update the export change and confirm if the plan is still true after last merges.\",\n      \"due\": \"\"\n    },\n    {\n      \"importance\": 3,\n      \"owner\": \"source\",\n      \"basis\": \"commitment\",\n      \"quote\": \"I'll ping you Mira and Jonas to to get that resolved in chat\",\n      \"source\": \"s12\",\n      \"context\": [],\n      \"text\": \"Ping Mira and Jonas in chat to resolve simplification of nightly export queue plan.\",\n      \"due\": \"\"\n    }\n  ],\n  \"has_more\": false,\n  \"notes\": [\n    {\n      \"section\": \"Key points\",\n      \"text\": \"Drafted small export proof of concept and responded to comments on billing change.\",\n      \"source\": \"s2\"\n    },\n    {\n      \"section\": \"Open questions\",\n      \"text\": \"Nightly export is a separate queue from main; plan needs revisit as it predates last merges.\",\n      \"source\": \"s10\"\n    },\n    {\n      \"section\": \"Decisions\",\n      \"text\": \"Them will merge two open reporting changes reviewed by Nico.\",\n      \"source\": \"s13\"\n    },\n    {\n      \"section\": \"Open questions\",\n      \"text\": \"Need to speak with Mira about required alerts once pricing work is merged.\",\n      \"source\": \"s14\"\n    }\n  ]\n}",
+      "finishReason" : "stop",
+      "latencyMilliseconds" : 3008,
+      "maxTokens" : 4096,
+      "purpose" : "notes",
+      "reasoningBudgetTokens" : 0,
+      "reasoningTokens" : 0
+    }
+  ],
+  "caseName" : "notes-run-on-standup",
+  "model" : "qwen\/qwen3.8-flash",
+  "recordedAt" : "2026-11-09T10:46:25Z"
+}

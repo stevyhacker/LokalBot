@@ -61,6 +61,20 @@ final class PermissionOverlayTrackerTests: XCTestCase {
         }
     }
 
+    /// Turning a permission on from the command line started a walkthrough
+    /// nothing dismissed: after System Settings was closed, a timer ran three
+    /// times a second for the rest of the session.
+    func testWalkthroughEndsWhenSystemSettingsIsClosedOrNeverOpens() {
+        let grace = PermissionOverlayTracker.launchGraceSeconds
+        XCTAssertFalse(PermissionOverlayTracker.shouldEnd(settingsRunning: true, hasPresented: true, secondsTracked: 3_600),
+                       "System Settings is still open, perhaps behind another app")
+        XCTAssertTrue(PermissionOverlayTracker.shouldEnd(settingsRunning: false, hasPresented: true, secondsTracked: 5),
+                      "closed after the overlay was shown")
+        XCTAssertFalse(PermissionOverlayTracker.shouldEnd(settingsRunning: false, hasPresented: false, secondsTracked: grace - 1),
+                       "System Settings may still be launching")
+        XCTAssertTrue(PermissionOverlayTracker.shouldEnd(settingsRunning: false, hasPresented: false, secondsTracked: grace))
+    }
+
     private func transition(
         settingsFrame: CGRect?,
         hasPresented: Bool,

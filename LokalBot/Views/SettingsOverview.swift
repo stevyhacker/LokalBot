@@ -143,7 +143,9 @@ struct SettingsOverview: View {
             Feature(id: "autocomplete", group: .writing, title: "Autocomplete", icon: AppState.SettingsTab.writing.icon,
                     status: !settings.cotypingEnabled ? .off("Off")
                         : granted(.accessibility) && granted(.inputMonitoring) ? .on("On") : .attention("Needs permission"),
-                    detail: "Suggestions as you type in other apps, on this Mac.",
+                    detail: settings.cotypingRemoteHost == nil
+                        ? "Suggestions as you type in other apps, on this Mac."
+                        : "Suggestions as you type in other apps, from the server you chose.",
                     page: .writing, focus: "settings.autocompletePreview",
                     action: settings.cotypingEnabled ? nil : Action(title: "Try autocomplete") {
                         open(.writing, focus: "settings.autocompletePreview")

@@ -93,7 +93,9 @@ involved.
 - **Android** (`android_trip.py`) installs the shrunk release build on an emulator,
   opens the QR scanner, pairs, syncs, opens every screen, asks a question and
   records, including a recording cut off by a force-stop and one made while the
-  host is away. It pairs through the link, so no QR code gets decoded. The
+  host is away. Before that it cancels a pairing on the phone and then allows it
+  on a host that asks first, and checks the pairing is kept and synced. It pairs
+  through the link, so no QR code gets decoded. The
   emulator's microphone is silent, so it proves the recorder, its service and the
   upload, not how speech sounds.
 - **iOS** (`ios_trip.py`) runs a Debug build in the Simulator: it pairs, syncs,

@@ -80,9 +80,21 @@ struct ScreenCapturePolicy {
 /// tests; the service owns only the lightweight timer that asks it periodically.
 struct ScreenshotRetentionSchedule {
     static let pruneInterval: TimeInterval = 86_400
+    /// How often the service asks whether a pass is due.
+    static let checkInterval: TimeInterval = 3_600
+    /// How soon a pass that reported an error runs again: by the next check.
+    /// It is a little under the check interval, because the check after a
+    /// failed pass comes exactly one interval later or a few minutes late,
+    /// and "due in an hour" then slipped to the check after that.
+    static let retryInterval: TimeInterval = checkInterval - 600
+    /// Failed passes retried in a row before the daily rhythm resumes. A
+    /// failure that never clears must not repeat the library-wide pass, and
+    /// the memory it revokes, every hour.
+    static let maximumRetries = 3
     static let markerFileName = ".screen-retention-last-pass"
 
     private(set) var lastPrune: Date?
+    private var failedPasses = 0
     /// Where the last pass is remembered. Without it every launch ran a
     /// library-wide pass on the main actor and revoked derived journals and
     /// Dream reports again, however recently the previous pass had run. Nil
@@ -108,12 +120,33 @@ struct ScreenshotRetentionSchedule {
             let elapsed = now.timeIntervalSince(lastPrune)
             guard elapsed < 0 || elapsed >= Self.pruneInterval else { return false }
         }
-        lastPrune = now
+        record(now)
+        return true
+    }
+
+    /// The pass `shouldPrune` allowed left something undone (a busy database,
+    /// a file that would not delete). Expired screen data would otherwise
+    /// stay a whole day longer, across relaunches too, so the next pass is
+    /// due in an hour.
+    mutating func passFailed(at now: Date) {
+        failedPasses += 1
+        guard failedPasses <= Self.maximumRetries else {
+            failedPasses = 0
+            return
+        }
+        record(now.addingTimeInterval(Self.retryInterval - Self.pruneInterval))
+    }
+
+    mutating func passSucceeded() {
+        failedPasses = 0
+    }
+
+    private mutating func record(_ date: Date) {
+        lastPrune = date
         if let markerURL {
             // Best effort: a failed write only means the next launch prunes again.
-            try? Data(now.formatted(.iso8601).utf8).write(to: markerURL, options: .atomic)
+            try? Data(date.formatted(.iso8601).utf8).write(to: markerURL, options: .atomic)
         }
-        return true
     }
 
     static func requiresImmediatePrune(previousDays: Int, currentDays: Int) -> Bool {
@@ -819,7 +852,7 @@ final class ScreenshotService: ObservableObject {
         _ = runRetentionMaintenanceIfNeeded()
         guard retentionTimer == nil else { return }
         let maintenance = Timer.scheduledTimer(
-            withTimeInterval: 60 * 60,
+            withTimeInterval: ScreenshotRetentionSchedule.checkInterval,
             repeats: true
         ) { [weak self] _ in
             Task { @MainActor in
@@ -830,17 +863,30 @@ final class ScreenshotService: ObservableObject {
         retentionTimer = maintenance
     }
 
+    /// Every click, typing pause and scroll ends in `captureIfAppropriate`,
+    /// and while capture is off, paused, held back by a recording or cooling
+    /// down, each one is skipped for the same reason. That reason is logged
+    /// once until a capture gets past these checks, so the log keeps the
+    /// lines that explain a missing capture.
+    private var lastRepeatedSkip: String?
+
+    private func logRepeatedSkip(_ reason: String, detail: String? = nil) {
+        guard reason != lastRepeatedSkip else { return }
+        lastRepeatedSkip = reason
+        lokalbotLog("context skip: \(reason)" + (detail.map { " (\($0))" } ?? ""))
+    }
+
     func captureIfAppropriate(trigger: ScreenCaptureTrigger) async {
         let config = settings()
         let consent = ScreenshotCaptureConsent(
             generation: captureGeneration, pauseRevision: sampler.capturePauseRevision, settings: config)
         let mode = config.effectiveScreenContextCaptureMode
         guard mode.capturesText, config.trackingEnabled else {
-            lokalbotLog("context skip: disabled"); return
+            logRepeatedSkip("disabled"); return
         }
-        guard !sampler.isPaused else { lokalbotLog("context skip: paused"); return }
+        guard !sampler.isPaused else { logRepeatedSkip("paused"); return }
         if trigger != .manual, isHighPriorityInteractionActive() {
-            lokalbotLog("context skip: interactive capture has priority")
+            logRepeatedSkip("interactive capture has priority")
             return
         }
         let recordingActive = isMeetingRecordingActive()
@@ -849,15 +895,16 @@ final class ScreenshotService: ObservableObject {
             recordingActive: recordingActive,
             visualContextEnabled: config.meetingVisualContextEnabled && mode.capturesPixels)
         else {
-            lokalbotLog("context skip: recording active (\(trigger.rawValue))")
+            logRepeatedSkip("recording active", detail: trigger.rawValue)
             return
         }
         guard policy.shouldCapture(trigger: trigger,
                                    idleInterval: max(60, config.screenshotIntervalMinutes * 60))
         else {
-            if trigger != .interval { lokalbotLog("context skip: cooldown (\(trigger.rawValue))") }
+            if trigger != .interval { logRepeatedSkip("cooldown", detail: trigger.rawValue) }
             return
         }
+        lastRepeatedSkip = nil
         let current = now()
         if recordingActive, trigger != .manual,
            let lastMeetingCapture,
@@ -1358,6 +1405,11 @@ final class ScreenshotService: ObservableObject {
         let current = now()
         guard retentionSchedule.shouldPrune(at: current, force: force) else { return false }
         performRetentionPrune(at: current)
+        if lastRetentionError == nil {
+            retentionSchedule.passSucceeded()
+        } else {
+            retentionSchedule.passFailed(at: current)
+        }
         // Hand off packages have their own 7-day limit. Writing one prunes the
         // folder; this daily pass covers the days when nothing is handed off.
         WindowHandoffPackage.prune(root: WindowHandoffPackage.root(library: storage.rootURL), now: current)

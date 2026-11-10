@@ -235,7 +235,13 @@ final class OrphanedLlamaServerReclaimTests: XCTestCase {
             }
             usleep(20_000)
         }
-        throw XCTSkip("The stand-in helper did not start listening.")
+        // Not a skip: `listeningPIDs` is the code under test, and every test
+        // here would go quiet if it stopped seeing a listener.
+        throw HelperFailure(description: "listeningPIDs(onPort: \(port)) never reported the stand-in helper (pid \(pid))")
+    }
+
+    private struct HelperFailure: Error, CustomStringConvertible {
+        let description: String
     }
 
     private func writeMarker(in folder: String, helper: pid_t, port: Int,
@@ -264,7 +270,7 @@ final class OrphanedLlamaServerReclaimTests: XCTestCase {
             let port = Int.random(in: 50_000...59_000)
             if LlamaServer.listeningPIDs(onPort: port).isEmpty { return port }
         }
-        throw XCTSkip("No unused port found.")
+        throw HelperFailure(description: "listeningPIDs reported a listener on 20 random ports in a row")
     }
 
     @discardableResult

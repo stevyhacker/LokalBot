@@ -1,7 +1,11 @@
 # Phone and tablet companion apps: plan
 
-Date: 2026-10-30, revised 2026-10-31 after the owner's decisions. Status:
-decided, not started.
+Date: 2026-10-30, revised 2026-10-31 after the owner's decisions. Status: in
+progress. The Mac side, the shared core and both apps are in the repository
+(`LokalBot/Services/Companion/`, `LinuxWindows/crates/lokalbot-sync/`,
+`Companion/`), and releases attach the Android APK since 0.12.2. The store
+release (milestone 6) is open. [Companion/README.md](../Companion/README.md)
+describes what exists.
 Branch: `claude/companion-apps`.
 
 **Goal.** People who run LokalBot on a Mac can read their Work Memory on an

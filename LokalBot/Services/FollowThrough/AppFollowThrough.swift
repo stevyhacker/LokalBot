@@ -120,8 +120,8 @@ final class AppFollowThroughEnvironment: FollowThroughEnvironment {
 enum FollowThroughBriefing {
     static let maximumSummaryCharacters = 4_000
 
-    /// What Muse is told about the action. Names only: calendar addresses
-    /// stay local.
+    /// What the model is told about the action. Names only: calendar
+    /// addresses stay local.
     static func make(target: FollowThroughTarget, meeting: Meeting?, summary: String?,
                      radar: MeetingRadarRecord?, personName: String = "") -> String {
         var sections = ["ACTION: \(target.text)",
@@ -181,16 +181,27 @@ extension AppState {
         let briefing = FollowThroughBriefing.make(target: target, meeting: meeting, summary: summary,
                                                   radar: folder.flatMap(MeetingRadarRecord.load(from:)),
                                                   personName: settings.cotypingUserName)
-        let model = settings.museFollowThroughModel
-        let session = FollowThroughSession(
-            target: target, briefing: briefing, model: model,
-            environment: AppFollowThroughEnvironment(app: self),
-            call: { [store = settingsStore] messages, tools in
-                let client = try MetaModelAPI.client(
-                    settings: store.current, model: model, reasoningEffort: "low",
-                    maxTokens: 8_000, priority: .agent, purpose: "follow-through")
-                return try await client.send(messages: messages, tools: tools)
+        let environment = AppFollowThroughEnvironment(app: self)
+#if LOKALBOT_UI_TEST_HOST
+        // The hosted film runs Follow-through on scripted replies, or on
+        // Meta's models with the film's key. Both speak Meta's wire format.
+        if MuseUITestTransport.isEnabled {
+            followThroughSession = FollowThroughSession(
+                target: target, briefing: briefing, model: MetaModelAPI.museWonder.id, environment: environment,
+                call: MuseUITestTransport.followThroughCall(settings: { [store = settingsStore] in store.current }))
+            return
+        }
+#endif
+        // The Think model, as Settings → Models has it at each turn: its
+        // server, its approval and its request gate are Think's own.
+        followThroughSession = FollowThroughSession(
+            target: target, briefing: briefing, model: settings.thinkModelDisplayName, environment: environment,
+            call: { [weak self] messages, tools in
+                guard let self else { throw CancellationError() }
+                let engine = try await self.thinkExecution.makeTextEngine(
+                    self.settings, priority: .interactive, purpose: "follow-through")
+                return try await ThinkChat.toolCall(from: engine, messages: messages, tools: tools,
+                                                    options: FollowThroughSession.turnOptions)
             })
-        followThroughSession = session
     }
 }

@@ -37,9 +37,10 @@
 #                             committed; then a missing secret fails the job.
 #
 # Optional repository variable (no secret):
-#   MCP_REGISTRY_PUBLISH   `true` lists each stable release's LokalBot.mcpb in
-#                          the official MCP Registry (mcp-registry.yml), which
-#                          signs in with GitHub OIDC.
+#   MCP_REGISTRY_PUBLISH   `false` keeps stable releases out of the official
+#                          MCP Registry (mcp-registry.yml), which signs in with
+#                          GitHub OIDC and otherwise lists each one. The
+#                          release gets its LokalBot.mcpb either way.
 
 name: Release
 
@@ -327,7 +328,7 @@ jobs:
         run: python3 Scripts/ci/release-candidate.py pack
       - name: Save prepared candidate
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: prepared-app-${{ github.sha }}
@@ -552,7 +553,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-android
           path: ${{ runner.temp }}/android
@@ -623,7 +624,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: release-*-x86_64
           path: LinuxWindows/dist
@@ -691,11 +692,10 @@ jobs:
     permissions:
       contents: read
 
-  # Lists this version's MCP bundle in the official MCP Registry once the
-  # macOS job has published the release, attaching LokalBot.mcpb first when the
-  # release lacks it. Only while the MCP_REGISTRY_PUBLISH repository variable is
-  # true; it signs in with GitHub OIDC, so there is no secret. Pre-releases stay
-  # off the registry.
+  # Attaches LokalBot.mcpb once the macOS job has published the release, then
+  # lists this version in the official MCP Registry unless the
+  # MCP_REGISTRY_PUBLISH repository variable is false. It signs in with GitHub
+  # OIDC, so there is no secret. Pre-releases get neither.
   mcp-registry:
     name: MCP Registry
     if: github.event_name == 'push' && !contains(github.ref_name, '-')

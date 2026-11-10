@@ -1,4 +1,3 @@
 {
-  "models": ["qwen/qwen3.8-flash", "z-ai/glm-5.3-flash"],
-  "maxRequestsPerRun": 40
+  "models": ["qwen/qwen3.8-flash", "z-ai/glm-5.3-flash"]
 }

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# The Run action of a Codex local environment (.codex/environments/, which is
+# not tracked) calls this: build LokalBot Dev and start it, or attach lldb,
+# stream logs, or check that it launched.
 set -euo pipefail
 
 MODE="${1:-run}"

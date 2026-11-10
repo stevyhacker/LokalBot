@@ -245,7 +245,7 @@ struct ActionThreadRow: View {
                 ForEach(ActionAgentAvailability.installed) { target in
                     Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
                 }
-                Button("Follow Through with Muse…") { app.followThrough(thread.latestReference) }
+                Button("Follow Through…") { app.followThrough(thread.latestReference) }
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 28, height: 24)

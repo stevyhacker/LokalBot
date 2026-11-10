@@ -134,6 +134,7 @@ fun TodayContent(
                                     today = state.today,
                                     meetingTitle = row.meetingTitle,
                                     pending = row.pending,
+                                    note = row.syncNote,
                                     onToggle = { onToggle(row, it) },
                                     onClick = { onOpenAction(row) },
                                 )

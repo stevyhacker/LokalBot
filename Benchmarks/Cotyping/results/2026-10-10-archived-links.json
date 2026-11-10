@@ -59,6 +59,11 @@
       "label": "COTABBY-LICENSE.txt",
       "originalTarget": "COTABBY-LICENSE.txt",
       "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates-master/COTABBY-LICENSE.txt"
+    },
+    {
+      "label": "reproduction instructions",
+      "originalTarget": "../../README.md#two--and-four-candidate-decoder-experiment",
+      "archivePath": "Benchmarks/Cotyping/README.md"
     }
   ],
   "Benchmarks/Cotyping/results/2026-10-10-decoder-loop/ATTRIBUTION.md": [
@@ -147,6 +152,20 @@
       "label": "judge repeats",
       "originalTarget": "judge-fresh/stability.json",
       "archivePath": "Benchmarks/Cotyping/results/2026-10-10-prefix-search/judge-fresh/stability.json"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-claude-judge/REPORT.md": [
+    {
+      "label": "README",
+      "originalTarget": "../../README.md#blinded-usefulness-judging",
+      "archivePath": "Benchmarks/Cotyping/README.md"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-decoder-loop/REPORT.md": [
+    {
+      "label": "replay controls",
+      "originalTarget": "../../README.md#decoder-optimization-loop-2026-10-10",
+      "archivePath": "Benchmarks/Cotyping/README.md"
     }
   ]
 }

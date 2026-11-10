@@ -459,7 +459,7 @@ final class MeetingChatTools: ChatToolRunner {
         }
         let meetings = scopedMeetings(meetingsProvider(), call: call)
         let hasDayScope = call.string("_lokalbot_day_scope") != nil
-        let allowedIDs: Set<UUID>? = hasDayScope || call.string("_lokalbot_meeting_ids") != nil
+        let allowedIDs: Set<UUID>? = hasDayScope || call.scope("_lokalbot_meeting_ids") != nil
             ? Set(meetings.map(\.id)) : nil
         var keyword = searchIndex.search(query, limit: 8, meetingIDs: allowedIDs)
         if keyword.isEmpty {
@@ -552,7 +552,7 @@ final class MeetingChatTools: ChatToolRunner {
             scoped = [meeting]
             scopeLabel = meeting.title
         } else {
-            if call.string("_lokalbot_meeting_ids") != nil {
+            if call.scope("_lokalbot_meeting_ids") != nil {
                 scoped = meetings
                 scopeLabel = "Selected meetings"
             } else if let dayArgument = call.string("_lokalbot_day_scope"),
@@ -630,8 +630,8 @@ final class MeetingChatTools: ChatToolRunner {
         } else {
             filter = .all
         }
-        if let raw = call.string("_lokalbot_screen_ids") {
-            filter.snapshotIDs = Set(raw.split(separator: ",").compactMap { Int64($0) })
+        if let ids = call.scope("_lokalbot_screen_ids") {
+            filter.snapshotIDs = Set(ids.compactMap { Int64($0) })
         }
         var hits = activityStore.searchOCR(query, limit: 40, filter: filter)
         let matchedAll = !hits.isEmpty
@@ -676,8 +676,19 @@ final class MeetingChatTools: ChatToolRunner {
         let argument = call.string("_lokalbot_day_scope") ?? call.string("day") ?? "today"
         let scope = AskDateScope(storageKey: argument)
             ?? (call.string("_lokalbot_day_scope") == nil ? Self.parseDay(argument, now: now()).map { AskDateScope(day: $0) } : nil)
-        guard let scope, let interval = scope.interval() else {
+        guard let scope, var interval = scope.interval() else {
             return ChatToolResult(text: "Could not understand day or date scope '\(argument)'.", summary: "bad day argument")
+        }
+        // An asker whose history starts at a date (a paired phone) reads no
+        // activity from before it, whichever day the model asks for.
+        if let seconds = call.string("_lokalbot_not_before").flatMap({ Double($0) }) {
+            let floor = Date(timeIntervalSince1970: seconds)
+            guard interval.end > floor else {
+                return ChatToolResult(
+                    text: "\(scope.dateLabel) is outside the history this question can read.",
+                    summary: "outside the readable history")
+            }
+            interval = DateInterval(start: max(interval.start, floor), end: interval.end)
         }
         let blocks = activityStore.blocks(in: interval).map {
             ActivityBlock(id: $0.id, app: $0.app, title: $0.title,
@@ -699,8 +710,8 @@ final class MeetingChatTools: ChatToolRunner {
 
     private func scopedMeetings(_ meetings: [Meeting], call: ChatToolCall) -> [Meeting] {
         var meetings = meetings
-        if let raw = call.string("_lokalbot_meeting_ids") {
-            let ids = Set(raw.split(separator: ",").compactMap { UUID(uuidString: String($0)) })
+        if let listed = call.scope("_lokalbot_meeting_ids") {
+            let ids = Set(listed.compactMap { UUID(uuidString: $0) })
             meetings = meetings.filter { ids.contains($0.id) }
         }
         guard let dayArgument = call.string("_lokalbot_day_scope") else { return meetings }

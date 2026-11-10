@@ -432,7 +432,7 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
     let calendar = calendar::start(shared.clone());
     let preparation = upcoming::Preparation::start(shared.clone(), models.clone());
     let detector = detector::Detector::start(shared.clone(), commands.clone(), meeting_detector);
-    let dictation = dictation::Dictation::new(shared.clone(), models.clone());
+    let dictation = dictation::Dictation::new(shared.clone(), models.clone(), commands.clone());
     let selection_actions =
         selection::Controller::new(selection::LiveHost::new(shared.clone(), models.clone()));
     let live = live::LiveTranscriber::new(shared.clone(), models.clone());

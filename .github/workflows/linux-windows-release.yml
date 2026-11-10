@@ -78,7 +78,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libxkbcommon-x11-dev libwayland-dev libvulkan1 libfontconfig-dev \
-            libasound2-dev libxcb1-dev libx11-xcb-dev libssl-dev pkg-config clang
+            libasound2-dev libxcb1-dev libx11-xcb-dev pkg-config clang
 
       # The archives and packages ship LICENSES/rust-crates.md; it must list
       # the crates this Cargo.lock builds.

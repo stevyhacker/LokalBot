@@ -140,6 +140,15 @@ final class AgentSessionTabs: ObservableObject {
         return added
     }
 
+    /// Sends tasks that were handed off with `start: false`, once whatever
+    /// their prompts point at is in place.
+    func startHandoffs(_ ids: [UUID]) {
+        pendingHandoffStarts += ids.filter { id in
+            tabs.contains { $0.id == id } && !pendingHandoffStarts.contains(id)
+        }
+        startPendingHandoffs()
+    }
+
     private func hasTask(for source: AgentHandoffSource?, againIfArchived: Bool) -> Bool {
         guard let source else { return false }
         return tabs.contains { $0.record.handoff == source && !(againIfArchived && $0.record.isArchived) }
@@ -399,6 +408,14 @@ final class AgentSessionTabs: ObservableObject {
 
     /// Compatibility for callers that close a workspace: archive keeps drafts.
     func close(_ id: UUID) async { await setArchived(id, true) }
+
+    /// A withdrawn Think server or plan approval stops every turn that is
+    /// still sending to it.
+    func remoteApprovalsDidChange() {
+        for controller in tabs.map(\.controller) {
+            Task { await controller.remoteApprovalsDidChange() }
+        }
+    }
 
     func shutdownAll() async {
         pendingHandoffStarts.removeAll()

@@ -36,6 +36,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.StateFlow
 import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.CompanionRepository
+import me.dotenv.lokalbot.companion.data.meetingsById
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.data.model.MeetingAction
@@ -79,8 +80,7 @@ data class ProjectState(val project: Project? = null, val meetings: List<Meeting
 class ProjectViewModel(repository: CompanionRepository, id: String) : LibraryViewModel(repository) {
     val state: StateFlow<ProjectState> = library(ProjectState(today = repository.today())) {
         val project = repository.project(id)
-        val ids = project?.meetingIds.orEmpty().toSet()
-        ProjectState(project, repository.meetings().filter { it.id in ids }, repository.today(), loaded = true)
+        ProjectState(project, repository.meetingsById(project?.meetingIds.orEmpty()), repository.today(), loaded = true)
     }
 
     fun setStatus(meetingId: String, actionId: String, status: ActionStatus) {

@@ -120,11 +120,17 @@ enum CotypingAXHelper {
 
     /// Forgets nearby text read from the screen for any field but the
     /// focused one.
-    static func forgetVisibleContext(exceptFor focusIdentityKey: String? = nil) {
+    static func forgetVisibleContext(exceptFor focusIdentityKey: String? = nil, field: CotypingField? = nil) {
         cacheState.visibleContexts.removeAll(except: focusIdentityKey)
-        // Window text is keyed by its window; a read for another field or
-        // window forgets it, and leaving every field forgets it here.
-        if focusIdentityKey == nil { CotypingWindowTextCapture.shared.removeAll() }
+        // Window text is keyed by its window. Leaving every field forgets it
+        // here, and so does focus in another app or another field; a read
+        // for another window or document forgets it too.
+        guard focusIdentityKey != nil, let field else {
+            CotypingWindowTextCapture.shared.removeAll()
+            return
+        }
+        CotypingWindowTextCapture.shared.forget(
+            unlessForProcess: field.processID, role: field.role, fieldFrame: field.inputFrameRect)
     }
 
     private static var appReadPolicy: CotypingAppReadPolicy {

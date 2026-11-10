@@ -64,6 +64,9 @@ class RustRepository(
     /** One upload pass at a time. Apart from [syncLock], so a long upload holds up neither syncing nor Ask. */
     private val uploadLock = Mutex()
 
+    /** One pass over the queued questions at a time. Apart from [syncLock], so a slow answer holds up no sync. */
+    private val questionsLock = Mutex()
+
     /** Request ids being asked right now, so a queued one isn't asked twice at once. */
     private val asking: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val macKey: ByteArray? = client.pairedMac()?.macKeyB64?.let(::decodeKey)
@@ -111,6 +114,12 @@ class RustRepository(
 
     override suspend fun meetings(fromDay: String?, toDay: String?, limit: Int): List<Meeting> = core {
         client.meetings(fromDay, toDay, limit.toUInt()).map { it.decode(Meeting.serializer()) }.filter { it.mergedInto == null }
+    }
+
+    /** One row past the page says whether the list goes on. It's counted as the core returned it and never decoded. */
+    override suspend fun newestMeetings(limit: Int): MeetingsPage = core {
+        val rows = client.meetings(null, null, (limit + 1).toUInt())
+        MeetingsPage(rows.take(limit).map { it.decode(Meeting.serializer()) }, hasMore = rows.size > limit)
     }
 
     override suspend fun meeting(id: String): Meeting? = core { client.meeting(id)?.decode(Meeting.serializer()) }
@@ -209,38 +218,43 @@ class RustRepository(
         client.askHistory(limit.toUInt()).map { it.decode(AskExchange.serializer()) }
     }
 
-    override suspend fun sync(): SyncOutcome = syncLock.withLock {
-        _syncState.value = SyncState.Syncing(statusInfo())
-        val outcome = try {
-            val addresses = discover(fingerprint())
-            val report = core { client.sync(addresses) }
-            if (report.received > 0u || report.deleted > 0u || report.opsApplied > 0u) changed()
-            SyncOutcome.Synced(report.received.toInt(), report.deleted.toInt(), report.address)
-        } catch (e: SyncException) {
-            Log.w(TAG, "sync failed: ${e::class.simpleName}: ${e.message}")
-            SyncOutcome.Failed(failureOf(e), e.message.orEmpty())
+    override suspend fun sync(): SyncOutcome {
+        val outcome = syncLock.withLock {
+            _syncState.value = SyncState.Syncing(statusInfo())
+            val outcome = try {
+                val addresses = discover(fingerprint())
+                val report = core { client.sync(addresses) }
+                if (report.received > 0u || report.deleted > 0u || report.opsApplied > 0u) changed()
+                SyncOutcome.Synced(report.received.toInt(), report.deleted.toInt(), report.address)
+            } catch (e: SyncException) {
+                Log.w(TAG, "sync failed: ${e::class.simpleName}: ${e.message}")
+                SyncOutcome.Failed(failureOf(e), e.message.orEmpty())
+            }
+            _syncState.value = when (outcome) {
+                is SyncOutcome.Synced -> SyncState.Idle(statusInfo())
+                is SyncOutcome.Failed -> SyncState.Failed(statusInfo(), outcome.reason, outcome.message)
+            }
+            // A meeting that just arrived ends its recording's time in the list.
+            refreshRecordings()
+            outcome
         }
-        _syncState.value = when (outcome) {
-            is SyncOutcome.Synced -> SyncState.Idle(statusInfo())
-            is SyncOutcome.Failed -> SyncState.Failed(statusInfo(), outcome.reason, outcome.message)
-        }
-        // A meeting that just arrived ends its recording's time in the list.
-        refreshRecordings()
         if (outcome is SyncOutcome.Synced) {
             // The computer answered, so whatever waits can go, without holding this sync up.
             scope.launch { uploadRecordings() }
+            // An answer can take minutes. Outside the lock, a change made meanwhile is sent without waiting for it.
             askQueuedQuestions()
         }
         if (outcome is SyncOutcome.Failed && outcome.reason == SyncFailure.Revoked) onRevoked()
-        outcome
+        return outcome
     }
 
     /**
      * Questions asked while the Mac was away, or whose connection dropped
      * while it answered: ask them now and announce each answer. A question
-     * Ask is asking right now is left to it.
+     * Ask is asking right now is left to it. One pass at a time, so a second
+     * sync doesn't announce an answer the first is about to.
      */
-    private suspend fun askQueuedQuestions() {
+    private suspend fun askQueuedQuestions() = questionsLock.withLock {
         val answered = askHistory(500).map { it.request.requestId }.toSet()
         for (request in queuedQuestions().filter { it.requestId !in answered && it.requestId !in asking }) {
             val addresses = discover(fingerprint())

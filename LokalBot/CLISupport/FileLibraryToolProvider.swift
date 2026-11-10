@@ -64,6 +64,10 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                             "type": "string",
                             "description": "Only meetings on or after this local calendar day (YYYY-MM-DD).",
                         ],
+                        "until": [
+                            "type": "string",
+                            "description": "Only meetings on or before this local calendar day (YYYY-MM-DD).",
+                        ],
                         "query": [
                             "type": "string",
                             "description": "Case-insensitive title substring filter.",
@@ -414,6 +418,17 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                         "\"since\" must be a real local calendar day formatted YYYY-MM-DD, got \"\(since)\".")
                 }
                 meetings = meetings.filter { $0.startedAt >= day }
+            }
+            // As `list --until`: without it, one earlier week could not be
+            // asked for, and newer meetings used up the limit first.
+            if let until = arguments?["until"]?.stringValue {
+                guard let day = LibraryInputPolicy.localDay(until) else {
+                    return .error(
+                        .invalidArguments,
+                        "\"until\" must be a real local calendar day formatted YYYY-MM-DD, got \"\(until)\".")
+                }
+                let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86_400)
+                meetings = meetings.filter { $0.startedAt < endOfDay }
             }
             let limit: Int
             switch includeSummary

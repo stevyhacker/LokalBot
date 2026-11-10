@@ -168,6 +168,13 @@ extension AppSettings {
         return !InferenceEndpointPolicy.isLoopback(url)
     }
 
+    /// The server autocomplete sends typing to: nil while autocomplete is
+    /// off, runs on this Mac, or has no server set up yet.
+    var cotypingRemoteHost: String? {
+        guard cotypingEnabled, cotypingLeavesThisMac else { return nil }
+        return cotypingConfiguredServerURL?.host
+    }
+
     /// Model ID recorded with autocomplete statistics.
     var cotypingStatisticsModelID: String {
         guard cotypingBackend != .onDevice else { return cotypingBuiltInModelID }

@@ -135,6 +135,10 @@ enum AttributedTrackTranscriber {
                 value = try await engine.transcribe(audio: audio, language: language, prompt: prompt)
 #endif
             } catch let error where !(error is CancellationError)
+                        // A withdrawn transcription server is not a sliver
+                        // the engine rejected: skipping it would finish the
+                        // track without the rest of its audio.
+                        && (error as? RemoteTranscriptionError)?.isConsentWithdrawn != true
                         && region.end - region.start < Self.rejectableRegionSeconds {
                 // Turn boundaries leave slivers shorter than some engines accept
                 // (Parakeet rejects audio under 0.3 s). Losing one sliver is far

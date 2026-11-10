@@ -7,11 +7,16 @@ that now comes back empty (for example notes with only actions), and a
 model's p95 latency doubling. Latency pools every case of a model and needs
 several calls on both sides; one slow request is provider noise, not drift.
 Drift is reported (Markdown + $GITHUB_OUTPUT), never a failing exit code.
+
+A committed case the run made no call for was not checked. That is reported
+apart from drift and does exit 1, because a rejected key, spent credit or a
+renamed model otherwise reads as "No drift detected".
 """
 import argparse
 import json
 import os
 from pathlib import Path
+import sys
 
 JSON_PURPOSES = {"digestFocus", "digestAggregate", "notes"}
 REASONING_SHARE = 0.6
@@ -98,20 +103,47 @@ def compare(committed_root, fresh_root):
     return messages
 
 
-def main():
+def unrecorded(committed_root, fresh_root):
+    """Cases this run was meant to record and made no call for: a committed
+    case with no fresh file or an empty one, or an empty fresh file."""
+    committed, fresh = load(committed_root), load(fresh_root)
+    empty = {key for key, recording in fresh.items() if not recording["calls"]}
+    return sorted(empty | {key for key in committed if key not in fresh})
+
+
+def report(messages, missing, recorded_any):
+    lines = ["# Model drift", ""]
+    if missing:
+        lines += ["Nothing was recorded, so drift was not checked." if not recorded_any
+                  else "Some cases were not recorded, so drift was not checked for them.",
+                  "No request for these got an answer; the job log has the provider's error:", ""]
+        lines += [f"- {model} {case}" for model, case in missing]
+        if not recorded_any:
+            return lines
+        lines += ["", "In the cases that were recorded:", ""]
+    return lines + ([f"- {m}" for m in messages] or ["No drift detected."])
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("committed")
     parser.add_argument("fresh")
     parser.add_argument("--report", required=True)
-    args = parser.parse_args()
-    messages = compare(Path(args.committed), Path(args.fresh))
-    lines = ["# Model drift", ""] + ([f"- {m}" for m in messages] or ["No drift detected."])
+    args = parser.parse_args(argv)
+    committed, fresh = Path(args.committed), Path(args.fresh)
+    messages = compare(committed, fresh)
+    missing = unrecorded(committed, fresh)
+    recorded_any = any(recording["calls"] for recording in load(fresh).values())
+    lines = report(messages, missing, recorded_any)
+    Path(args.report).parent.mkdir(parents=True, exist_ok=True)
     Path(args.report).write_text("\n".join(lines) + "\n")
     if target := os.environ.get("GITHUB_OUTPUT"):
         with open(target, "a", encoding="utf-8") as stream:
             stream.write(f"drift={'true' if messages else 'false'}\n")
+            stream.write(f"unrecorded={len(missing)}\n")
     print("\n".join(lines))
+    return 1 if missing else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

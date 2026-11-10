@@ -178,12 +178,38 @@ impl Searcher {
     }
 
     /// The hits for `text`, best first. Kinds narrow the result, not the scale.
+    /// Words are looked for in the best thousand passages, which is more than
+    /// a page of results needs.
     pub fn search(
         &mut self,
         text_query: &str,
         query_vector: Option<&[f32]>,
         kinds: Option<&HashSet<FileKind>>,
         limit: usize,
+    ) -> Result<Vec<SearchHit>> {
+        self.search_passages(text_query, query_vector, kinds, limit, false)
+    }
+
+    /// [`Self::search`] for a caller that drops hits afterwards and asks
+    /// again for more: every matching passage is read until `limit` files
+    /// are found, so fewer hits than `limit` means no other file matches.
+    pub fn search_through(
+        &mut self,
+        text_query: &str,
+        query_vector: Option<&[f32]>,
+        kinds: Option<&HashSet<FileKind>>,
+        limit: usize,
+    ) -> Result<Vec<SearchHit>> {
+        self.search_passages(text_query, query_vector, kinds, limit, true)
+    }
+
+    fn search_passages(
+        &mut self,
+        text_query: &str,
+        query_vector: Option<&[f32]>,
+        kinds: Option<&HashSet<FileKind>>,
+        limit: usize,
+        every_passage: bool,
     ) -> Result<Vec<SearchHit>> {
         if query_vector.is_some() && self.vectors.is_none() {
             self.load_vectors()?;
@@ -227,15 +253,21 @@ impl Searcher {
         let mut coverage: HashMap<i64, f64> = HashMap::new();
         if !patterns.is_empty() {
             let mut seen = HashSet::new();
-            let mut statement = self.index.db.prepare_cached(
+            let mut statement = self.index.db.prepare_cached(&format!(
                 "SELECT s.file, s.id, snippet(fts, 1, '«', '»', '…', 12), fts.original FROM fts \
                  JOIN segments s ON s.id = fts.rowid \
-                 WHERE fts MATCH ?1 ORDER BY bm25(fts, 3.0, 1.0) LIMIT 1000",
-            )?;
+                 WHERE fts MATCH ?1 ORDER BY bm25(fts, 3.0, 1.0){}",
+                if every_passage { "" } else { " LIMIT 1000" }
+            ))?;
             let mut rows = statement.query([patterns.join(" OR ")])?;
+            // A caller looking further down the ranking gets more files.
+            let most_files = limit.max(100);
             while let Some(row) = rows.next()? {
+                if words.len() >= most_files {
+                    break;
+                }
                 let file: i64 = row.get(0)?;
-                if words.len() >= 100 || !allowed(file) || !seen.insert(file) {
+                if !allowed(file) || !seen.insert(file) {
                     continue;
                 }
                 // Text normalizing changed is quoted as it's written.

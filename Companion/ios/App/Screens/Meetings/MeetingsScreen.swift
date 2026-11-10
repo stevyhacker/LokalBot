@@ -60,6 +60,13 @@ struct MeetingsList: View {
                         SectionHeader(DayKey(group.day).map { format.dayTitle($0, today: session.today) } ?? group.day)
                     }
                 }
+                if model.hasMore {
+                    // Reaching the end of what's listed loads the meetings before it.
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                        .task(id: model.listed) { await model.showMore(session) }
+                }
             } else {
                 SearchResults(hits: model.hits, query: model.searchedQuery)
             }

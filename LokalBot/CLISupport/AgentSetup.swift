@@ -139,7 +139,8 @@ struct SetupPlan: Codable, Equatable {
     /// The settings to talk through with the person, in the order to ask.
     static let keys = [
         "autoRecordMode", "calendarDetectionEnabled", "transcriptionLanguage", "summaryLanguage", "noteTemplate",
-        "trackingEnabled", "screenContextCaptureMode", "dayDigestAutoEnabled", "dreamingEnabled",
+        "trackingEnabled", "screenContextCaptureMode", "codingAgentEvidenceEnabled",
+        "dayDigestAutoEnabled", "dreamingEnabled",
         "dictationEnabled", "cotypingEnabled", "menuBarOnly", "appLanguage",
     ]
 

@@ -81,6 +81,7 @@ struct MainWindowView: View {
                 .accessibilityLabel("Workspace content")
                 .splitPaneAccessibilityLabel("Workspace content")
         }
+        .splitStructureDirection()
     }
 
     /// Reserve space for recovery feedback so it cannot cover a workspace's
@@ -314,12 +315,9 @@ private struct SidebarPrivacyFooter: View {
 
     private var destination: InferencePresentation { InferencePresentation(settings: app.settings) }
 
-    /// Think's server and the transcription server, each named once.
-    private var remoteHosts: [String] {
-        [destination, app.settings.transcriptionPresentation].reduce(into: [String]()) { hosts, presentation in
-            if case .remote(let host) = presentation, !hosts.contains(host) { hosts.append(host) }
-        }
-    }
+    /// Think's server, the transcription server and autocomplete's server,
+    /// each named once.
+    private var remoteHosts: [String] { app.settings.remoteAIHosts }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {

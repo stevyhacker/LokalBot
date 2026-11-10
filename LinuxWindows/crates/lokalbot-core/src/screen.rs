@@ -20,8 +20,8 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use aes_gcm::aead::{Aead as _, AeadCore as _, KeyInit as _, OsRng};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::Aes256Gcm;
+use aes_gcm::aead::{KeyInit as _, OsRng};
 use anyhow::{Context as _, Result, bail};
 use chrono::{DateTime, Utc};
 use rusqlite::{OptionalExtension as _, params};
@@ -33,8 +33,6 @@ use crate::timeline::table_exists;
 
 /// Length of the per-install image key.
 pub const IMAGE_KEY_BYTES: usize = 32;
-const NONCE_BYTES: usize = 12;
-const TAG_BYTES: usize = 16;
 /// File suffix of frames written here (`.heic.enc` on macOS).
 pub const IMAGE_FILE_SUFFIX: &str = ".jpg.enc";
 
@@ -60,28 +58,14 @@ pub fn new_image_key() -> [u8; IMAGE_KEY_BYTES] {
 
 /// Seals `plaintext` as `nonce ‖ ciphertext ‖ tag` with a fresh random nonce.
 pub fn seal_image(key: &[u8; IMAGE_KEY_BYTES], plaintext: &[u8]) -> Result<Vec<u8>> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-    let sealed = cipher
-        .encrypt(&nonce, plaintext)
-        .map_err(|_| anyhow::anyhow!("could not encrypt the screen image"))?;
-    let mut out = Vec::with_capacity(NONCE_BYTES + sealed.len());
-    out.extend_from_slice(&nonce);
-    out.extend_from_slice(&sealed);
-    Ok(out)
+    crate::sealed::seal(key, plaintext)
+        .map_err(|_| anyhow::anyhow!("could not encrypt the screen image"))
 }
 
 /// Opens bytes written by [`seal_image`]. Any other key, a truncated file
 /// or a changed byte fails authentication.
 pub fn open_image(key: &[u8; IMAGE_KEY_BYTES], sealed: &[u8]) -> Result<Vec<u8>, ImageError> {
-    if sealed.len() < NONCE_BYTES + TAG_BYTES {
-        return Err(ImageError::OtherKey);
-    }
-    let (nonce, body) = sealed.split_at(NONCE_BYTES);
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-    cipher
-        .decrypt(Nonce::from_slice(nonce), body)
-        .map_err(|_| ImageError::OtherKey)
+    crate::sealed::open(key, sealed).ok_or(ImageError::OtherKey)
 }
 
 /// Reads and opens one image file.
@@ -565,9 +549,15 @@ fn similarity_group(db: &rusqlite::Connection, id: i64, ts: f64, hash: u64) -> R
 
 #[cfg(test)]
 mod tests {
+    use aes_gcm::aead::Aead as _;
+    use aes_gcm::{Key, Nonce};
+
     use super::*;
     use crate::LibraryPaths;
     use crate::settings::Settings;
+
+    const NONCE_BYTES: usize = 12;
+    const TAG_BYTES: usize = 16;
 
     fn library() -> (tempfile::TempDir, Library) {
         let dir = tempfile::tempdir().unwrap();

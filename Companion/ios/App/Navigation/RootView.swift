@@ -21,6 +21,8 @@ struct RootView: View {
         .brandTinted()
         .fullScreenCover(isPresented: $recording.isPresented) { RecordingScreen().brandTinted() }
         .onChange(of: session.mode) { recording.sessionModeChanged() }
+        // The cover stops touches, not a hardware keyboard: nothing under it takes focus or keys while locked.
+        .disabled(appLock.isLocked)
         .overlay {
             if appLock.isLocked || appLock.isObscured {
                 LockCover()
@@ -39,6 +41,7 @@ struct RootView: View {
 /// Over, Stage Manager and rotation all work.
 struct MainTabs: View {
     @Environment(AppNavigator.self) private var navigator
+    @Environment(AppLock.self) private var appLock
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
@@ -79,7 +82,8 @@ struct MainTabs: View {
         // The sidebar's selection is white on the deep teal, as on the Mac;
         // pages keep the text teal (see tab(_:)).
         .tint(sizeClass == .regular ? Brand.tealFill : Brand.teal)
-        .focusedSceneValue(\.navigator, navigator)
+        // The keyboard commands act through this, so they do nothing while the app is locked.
+        .focusedSceneValue(\.navigator, appLock.isLocked ? nil : navigator)
         .onAppear { navigator.adapt(compact: sizeClass == .compact) }
         .onChange(of: sizeClass) { _, new in navigator.adapt(compact: new == .compact) }
     }
@@ -223,10 +227,14 @@ struct LockCover: View {
                     Button("Unlock with \(appLock.biometryName)") { Task { await appLock.unlock() } }
                         .primaryActionButton()
                         .controlSize(.large)
+                        .keyboardShortcut(.defaultAction)
                 }
             }
         }
         .ignoresSafeArea()
+        // VoiceOver stays on the cover instead of reading the page under it.
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
     }
 }
 
@@ -247,6 +255,7 @@ struct MeetingWindow: View {
             }
         }
         .brandTinted()
+        .disabled(appLock.isLocked)
         // The lock covers this window as it does the main one.
         .overlay {
             if appLock.isLocked || appLock.isObscured {

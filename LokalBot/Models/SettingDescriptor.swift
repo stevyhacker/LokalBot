@@ -166,7 +166,6 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.meetingNotesUseScreenTitles", title: "Give notes the titles of documents on screen", category: .recording, aliases: "screen documents slides summary context"),
         .init(id: "settings.useCalendarAgenda", title: "Use invitation agendas", category: .recording, aliases: "agenda calendar invitation notes description"),
         .init(id: "settings.liveRadarEnabled", title: "Offer Live Radar during meetings", category: .recording, aliases: "live radar commitments decisions questions contradictions think model"),
-        .init(id: "settings.museFollowThroughModel", title: "Follow-through model", category: .recording, aliases: "meta muse wonder spark follow through agent actions api key"),
         .init(id: "settings.museScreenAnswersEnabled", title: "Answer meeting questions from your screen", category: .recording, aliases: "live radar screen memory answers questions screenshots think model"),
         .init(id: "settings.liveAnswersEnabled", title: "Answer questions from your work during calls", category: .recording, aliases: "live answers questions problems documents code github memory think model"),
         .init(id: "settings.liveAnswerFolders", title: "Folders and repositories it may read", category: .recording, aliases: "live answers folders repositories documents code github"),

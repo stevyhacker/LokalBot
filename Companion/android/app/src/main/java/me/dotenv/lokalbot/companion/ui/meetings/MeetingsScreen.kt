@@ -4,25 +4,30 @@ import android.view.accessibility.AccessibilityManager
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
@@ -98,7 +103,9 @@ private fun MeetingList(repository: CompanionRepository, pane: ListPaneState) {
             Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 PageHeader(
                     title = stringResource(R.string.nav_meetings),
-                    subtitle = pluralStringResource(R.plurals.meetings_count, state.total, state.total),
+                    // Until the list has reached its end, only how many are listed is known.
+                    subtitle = if (state.hasMore) stringResource(R.string.meetings_count_more, state.total)
+                    else pluralStringResource(R.plurals.meetings_count, state.total, state.total),
                     actions = {
                         record?.let { RecordIconButton(it) }
                         OverflowDestinationsButton(offerRecord = false)
@@ -138,6 +145,15 @@ private fun MeetingList(repository: CompanionRepository, pane: ListPaneState) {
             }
             items(group.meetings, key = { it.id }) { meeting ->
                 MeetingRow(meeting, onClick = { pane.open(meeting.id) }, selected = pane.twoPane && pane.selectedKey == meeting.id)
+            }
+        }
+        if (state.hasMore) {
+            item(key = "more") {
+                // Reaching the end of what's listed loads the meetings before it.
+                LaunchedEffect(state) { viewModel.showMore() }
+                Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
             }
         }
     }

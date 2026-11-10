@@ -1,7 +1,7 @@
 {
   "name": "lokalbot",
   "displayName": "LokalBot",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Your personal context engine. Claude Code reads your local LokalBot library on macOS, Windows, or Linux through lokalbot-cli: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself, each behind its own permission in LokalBot. Adds /lokalbot:brief, /lokalbot:recall, and /lokalbot:setup and the lokalbot-cli skill. With a separate permission, Claude can also check and change LokalBot's settings; changes that widen what LokalBot captures wait for your approval in the app.",
   "author": {
     "name": "stevyhacker",

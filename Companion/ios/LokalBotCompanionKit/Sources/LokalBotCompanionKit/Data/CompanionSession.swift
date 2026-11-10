@@ -33,6 +33,9 @@ public final class CompanionSession {
     public private(set) var uploadProgress: [String: Double] = [:]
     /// Request ids being asked right now, so a queued one isn't asked twice at once.
     var askingIDs: Set<String> = []
+    /// One pass over the queued questions at a time, so a second sync doesn't
+    /// announce an answer the first is about to.
+    private var answeringQueued = false
 
     /// Bonjour results as `host:port`, preferring the paired Mac. Set by the app.
     public var discoverAddresses: @MainActor () async -> [String] = { [] }
@@ -110,15 +113,14 @@ public final class CompanionSession {
     public func syncNow() async {
         guard mode == .paired, !isSyncing else { return }
         isSyncing = true
-        defer { isSyncing = false }
         let addresses = await discoverAddresses()
+        var synced = false
         do {
             _ = try await store.sync(extraAddresses: addresses)
             macUnreachable = false
             lastSyncError = nil
             await refresh()
-            await answerQueuedQuestions(addresses: addresses)
-            Task { await uploadRecordings() }
+            synced = true
         } catch CompanionStoreError.unreachable {
             macUnreachable = true
             status = (try? await store.status()) ?? status
@@ -128,11 +130,20 @@ public final class CompanionSession {
         } catch {
             lastSyncError = error.localizedDescription
         }
+        isSyncing = false
+        guard synced else { return }
+        Task { await uploadRecordings() }
+        // An answer can take minutes. The sync is over by now, so a change made
+        // meanwhile is sent at once instead of waiting for it.
+        await answerQueuedQuestions(addresses: addresses)
     }
 
     /// Questions asked while the Mac was away, or whose connection dropped
     /// while it answered. A question Ask is asking right now is left to it.
     private func answerQueuedQuestions(addresses: [String]) async {
+        guard !answeringQueued else { return }
+        answeringQueued = true
+        defer { answeringQueued = false }
         guard let queued = try? await store.queuedQuestions(), !queued.isEmpty else { return }
         for request in queued where !askingIDs.contains(request.requestId) {
             askingIDs.insert(request.requestId)

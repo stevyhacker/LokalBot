@@ -98,6 +98,25 @@ final class FilesAccessTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(search("basil").success).results.count, 0, "a deleted file isn't returned")
     }
 
+    /// Folders and dates are applied after ranking. With a limit of 1 the
+    /// search looked at the best four matches only; when those were all in a
+    /// folder agents may not search, a match in the chosen folder was never
+    /// seen and the answer was "nothing". The eight files outside hold both
+    /// words of the query and the one inside holds one, so it ranks last.
+    func testAMatchRankedBelowOnesOutsideTheChosenFoldersIsStillFound() async throws {
+        for number in 1...8 {
+            try write("bill-\(number).txt", in: other, "Invoice number \(number) for the studio rent.")
+        }
+        try write("notes.txt", in: chosen,
+                  "Planning notes for the quarter: hiring, the offsite, travel, and one invoice to chase.")
+        try await index(folders: [chosen, other])
+        try gate.enable()
+        try gate.writeProjection(FilesAccessProjection(generatedAt: Date(), folders: [chosen.path]))
+
+        let report = try XCTUnwrap(search("invoice number", limit: 1).success)
+        XCTAssertEqual(report.results.map(\.name), ["notes.txt"])
+    }
+
     func testRejectsBadArguments() {
         XCTAssertEqual(search("  ").failure?.isInvalid, true)
         XCTAssertEqual(search("x", limit: 0).failure?.isInvalid, true)

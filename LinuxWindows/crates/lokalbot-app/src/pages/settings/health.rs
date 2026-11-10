@@ -117,7 +117,11 @@ fn permissions_item(missing: &[String]) -> Item {
 }
 
 /// The capture rows from what the engine reports.
-pub fn capture_items(data: &AppData, missing: &[String]) -> Vec<Item> {
+pub fn capture_items(
+    data: &AppData,
+    missing: &[String],
+    latest_activity: Option<chrono::DateTime<chrono::Utc>>,
+) -> Vec<Item> {
     let settings = &data.settings;
     let screen = &data.screen;
     let paused = data.day_memory_paused;
@@ -146,7 +150,6 @@ pub fn capture_items(data: &AppData, missing: &[String]) -> Vec<Item> {
         "Encrypted"
     };
     let source = screen.last_text_source.as_deref();
-    let latest_activity = data.library.latest_activity_end().ok().flatten();
     vec![
         Item {
             title: "Activity",
@@ -246,8 +249,11 @@ pub fn audio_items(
     items
 }
 
-pub fn background_items(data: &AppData, storage: Option<(u64, Option<u64>)>) -> Vec<Item> {
-    let pending = data.library.pending_jobs().map_or(0, |jobs| jobs.len());
+pub fn background_items(
+    data: &AppData,
+    storage: Option<(u64, Option<u64>)>,
+    pending: usize,
+) -> Vec<Item> {
     let busy = !data.processing.is_empty();
     let routines = &data.routines;
     let routine_value = if !data.settings.memory_routines_enabled {
@@ -586,13 +592,24 @@ impl SettingsPage {
             return;
         }
         self.storage_measured_at = Some(std::time::Instant::now());
-        let root = self.data.read(cx).library.paths().root().to_path_buf();
+        let library = self.data.read(cx).library.clone();
         cx.spawn(async move |this, cx| {
-            let measured = cx
-                .background_spawn(async move { measure_storage(&root) })
+            // The page redraws on every engine event, several times a second
+            // while recording, so what it shows from the database is read
+            // here and not while drawing.
+            let (measured, latest_activity, pending) = cx
+                .background_spawn(async move {
+                    (
+                        measure_storage(library.paths().root()),
+                        library.latest_activity_end().ok().flatten(),
+                        library.pending_jobs().map_or(0, |jobs| jobs.len()),
+                    )
+                })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 this.storage = Some(measured);
+                this.latest_activity = latest_activity;
+                this.pending_jobs = pending;
                 cx.notify();
             });
         })
@@ -604,9 +621,9 @@ impl SettingsPage {
         let storage = self.storage;
         let data = self.data.read(cx);
         let missing = missing_capabilities(data, cx);
-        let capture = capture_items(data, &missing);
+        let capture = capture_items(data, &missing, self.latest_activity);
         let audio = audio_items(data.recording_statuses.as_ref(), data.last_audio_recovery);
-        let background = background_items(data, storage);
+        let background = background_items(data, storage, self.pending_jobs);
         let active_error = data
             .screen
             .last_error

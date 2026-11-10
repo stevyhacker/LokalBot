@@ -7,8 +7,13 @@ revision they came from is in [Assets/hero/README.md](../../Assets/hero/README.m
 The published hero is now cut by
 [Video/lokalbot-landing-demos](../../Video/lokalbot-landing-demos/README.md). Before that,
 [Video/lokalbot-readme-hero](../../Video/lokalbot-readme-hero/README.md) composed it, reusing the live autocomplete and dictation scenes from the loop this pipeline
-built at `43d72b9`. Running `build.sh` here replaces
-`Assets/hero/lokalbot-demo-light.gif` with this pipeline's own five-scene loop.
+built at `43d72b9`. `build.sh` here builds this pipeline's own five-scene loop into
+`<takes>/out`; it replaces `Assets/hero/lokalbot-demo-light.gif` only when `Assets/hero`
+is given as its second argument.
+
+`rig.swift`, `seed_library.py` and `prepare_filming.py` are shared: the autocomplete and
+agent handoff demos, the landing demos and the One Decision film use them. The other
+files serve only this older loop.
 
 | File | Role |
 | --- | --- |

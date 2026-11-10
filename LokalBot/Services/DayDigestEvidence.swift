@@ -1250,11 +1250,6 @@ enum DayDigestOverviewGenerator {
                 break segmentLoop
             }
             var parsed = parseFocus(output, segment: segment)
-            if parsed == nil,
-               ProcessInfo.processInfo.environment["LOKALBOT_DIGEST_DEBUG_OUTPUT"] == "1" {
-                let preview = PromptContextSanitizer.sanitize(output, maxCharacters: 800)
-                lokalbotLog("day digest parse preview index=\(index + 1): \(preview)")
-            }
             if parsed == nil, attempts == 1 {
                 attempts = 2
                 let retryStartedAt = Date()
@@ -1269,13 +1264,6 @@ enum DayDigestOverviewGenerator {
                             reasoningBudgetTokens: 0,
                             temperature: 0))
                     parsed = parseFocus(output, segment: segment)
-                    if parsed == nil,
-                       ProcessInfo.processInfo.environment["LOKALBOT_DIGEST_DEBUG_OUTPUT"] == "1" {
-                        let preview = PromptContextSanitizer.sanitize(
-                            output, maxCharacters: 800)
-                        lokalbotLog(
-                            "day digest retry parse preview index=\(index + 1): \(preview)")
-                    }
                     lokalbotLog(
                         "day digest segment retry index=\(index + 1) parsed=\(parsed != nil) "
                             + "elapsed="

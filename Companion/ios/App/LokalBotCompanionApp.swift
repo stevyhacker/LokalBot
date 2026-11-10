@@ -82,8 +82,8 @@ final class AppEnvironment {
             let fingerprint = session?.pairedMac.flatMap { KeyFingerprint.fingerprint(base64Key: $0.macKeyB64) }
             return await discovery.addresses(preferringFingerprint: fingerprint)
         }
-        session.onQueuedAnswer = { request, result in
-            QueuedAnswerNotification.post(question: request.question, result: result)
+        session.onQueuedAnswer = { [appLock] request, result in
+            QueuedAnswerNotification.post(question: request.question, result: result, appLockOn: appLock.isEnabled)
         }
     }
 

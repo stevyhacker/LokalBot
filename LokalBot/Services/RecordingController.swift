@@ -254,8 +254,9 @@ final class RecordingController: ObservableObject {
     /// Only lifecycle events from this detector session own the recording.
     /// A recording the user started joins the session of the call it records.
     private(set) var detectorSessionID: UUID?
-    /// Explicit starts (menu bar, Record now, notifications) keep recording
-    /// through an uncertain browser end; only a confident end stops them.
+    /// True for explicit starts (menu bar, Record now, notifications). It no
+    /// longer changes when a recording stops: `MeetingMatcher.action` takes
+    /// it and treats both kinds alike, neither is stopped by an uncertain end.
     private(set) var startedByUser = false
     /// Drives `elapsed`; bumped each second by `recordingTick`.
     @Published private(set) var now = Date()

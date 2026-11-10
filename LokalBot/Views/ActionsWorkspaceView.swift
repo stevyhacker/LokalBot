@@ -185,7 +185,7 @@ struct ActionsWorkspaceView: View {
                                 prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
                                 meetingID: reference.meetingID, actionID: reference.action.id))
                         }
-                        Button("Follow Through with Muse…") { app.followThrough(reference) }
+                        Button("Follow Through…") { app.followThrough(reference) }
                         ForEach(ActionAgentAvailability.installed) { target in
                             Button("Open in \(target.rawValue)") { app.handOff(reference, to: target) }
                         }

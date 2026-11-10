@@ -14,16 +14,22 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import me.dotenv.lokalbot.companion.PairOutcome
 import me.dotenv.lokalbot.companion.TestLibrary
+import me.dotenv.lokalbot.companion.data.ActionFilter
 import me.dotenv.lokalbot.companion.data.ActionOrdering
 import me.dotenv.lokalbot.companion.data.AskEvent
 import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.data.FixtureRepository
+import me.dotenv.lokalbot.companion.data.model.ActionRow
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.AskRequest
+import me.dotenv.lokalbot.companion.data.model.Meeting
+import me.dotenv.lokalbot.companion.data.model.SyncNote
+import me.dotenv.lokalbot.companion.ui.actions.ActionDetailViewModel
 import me.dotenv.lokalbot.companion.ui.actions.ActionsViewModel
 import me.dotenv.lokalbot.companion.ui.actions.OwnerFilter
 import me.dotenv.lokalbot.companion.ui.ask.AskViewModel
 import me.dotenv.lokalbot.companion.ui.ask.TurnPhase
+import me.dotenv.lokalbot.companion.ui.meetings.MeetingDetailViewModel
 import me.dotenv.lokalbot.companion.ui.meetings.MeetingsViewModel
 import me.dotenv.lokalbot.companion.ui.onboarding.LinkProblem
 import me.dotenv.lokalbot.companion.ui.onboarding.PairingStep
@@ -92,6 +98,37 @@ class ViewModelTest {
         )
         viewModel.setQuery("behind a flag")
         assertThat(viewModel.state.value.days.flatMap { it.meetings }.map { it.id }).contains(TestLibrary.DESIGN_REVIEW)
+    }
+
+    @Test
+    fun `a meeting and an action show a waiting change without reading every action`() {
+        // Reading the whole library's actions for this got slower with every meeting.
+        val library = object : CompanionRepository by repository {
+            override suspend fun actions(filter: ActionFilter): List<ActionRow> = error("The meeting already says which actions wait.")
+        }
+        val meeting = MeetingDetailViewModel(library, TestLibrary.DESIGN_REVIEW)
+        val action = ActionDetailViewModel(library, TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c")
+        assertThat(meeting.state.value.loaded).isTrue()
+        assertThat(meeting.state.value.pendingActionIds).isEmpty()
+        assertThat(action.state.value.pending).isFalse()
+
+        meeting.setStatus("act-1f2e3d4c", ActionStatus.Done)
+        assertThat(meeting.state.value.pendingActionIds).containsExactly("act-1f2e3d4c")
+        assertThat(action.state.value.pending).isTrue()
+        assertThat(action.state.value.action?.status).isEqualTo(ActionStatus.Done)
+    }
+
+    @Test
+    fun `an action shows that the computer didn't make a change`() {
+        val note = SyncNote("This action changed on your computer. Open the meeting to update it.")
+        val refused = object : CompanionRepository by repository {
+            override suspend fun meeting(id: String): Meeting? = repository.meeting(id)?.let { meeting ->
+                meeting.copy(actions = meeting.actions.map { if (it.id == "act-1f2e3d4c") it.copy(syncNote = note) else it })
+            }
+        }
+        val state = ActionDetailViewModel(refused, TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c").state.value
+        assertThat(state.pending).isFalse()
+        assertThat(state.syncNote).isEqualTo(note)
     }
 
     @Test

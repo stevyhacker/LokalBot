@@ -2,13 +2,16 @@
 # (registry.modelcontextprotocol.io) as io.github.stevyhacker/lokalbot.
 #
 # Release (release.yml) calls it for every stable tag once the macOS job has
-# published the release. While the MCP_REGISTRY_PUBLISH repository variable is
-# `true`, it attaches LokalBot.mcpb when the release doesn't have it yet
-# (Scripts/build-mcpb.sh at the tag), writes the bundle's URL and SHA-256 into
-# Distribution/mcp-registry/server.json, and publishes that version. The
-# registry's GitHub OIDC sign-in proves the io.github.stevyhacker namespace, so
-# there is no secret. Without the variable it says so and succeeds. A version
-# the registry already has is skipped: published versions can't be changed.
+# published the release. It attaches LokalBot.mcpb when the release doesn't
+# have it yet (Scripts/build-mcpb.sh at the tag), writes the bundle's URL and
+# SHA-256 into Distribution/mcp-registry/server.json, and publishes that
+# version. The registry's GitHub OIDC sign-in proves the io.github.stevyhacker
+# namespace, so there is no secret and nothing to set up. A version the
+# registry already has is skipped: published versions can't be changed.
+#
+# The bundle is always attached. The registry step is skipped, with a notice,
+# in a repository whose owner the entry's namespace doesn't name (a fork), or
+# while the MCP_REGISTRY_PUBLISH repository variable is `false`.
 #
 #   gh workflow run mcp-registry.yml -f tag=v0.12.2   (publish a release by hand)
 #
@@ -113,15 +116,16 @@ jobs:
             echo "::error::$TAG is not a stable release tag"
             exit 1
           fi
-          if [ "$MCP_REGISTRY_PUBLISH" != "true" ]; then
-            echo "::notice::The MCP_REGISTRY_PUBLISH repository variable is not true, so $TAG was not listed in the MCP Registry."
+          # Listing needs no setup, so an unset variable means yes. The bundle
+          # below is attached either way.
+          if [ "$MCP_REGISTRY_PUBLISH" = "false" ]; then
+            echo "::notice::The MCP_REGISTRY_PUBLISH repository variable is false, so $TAG was not listed in the MCP Registry."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.gate.outputs.publish == 'true'
         with:
           ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
@@ -132,7 +136,6 @@ jobs:
 
       - name: Find or attach the bundle
         id: asset
-        if: steps.gate.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
@@ -188,6 +191,12 @@ jobs:
              "$SERVER_JSON" > "$RUNNER_TEMP/registry/server.json"
           cat "$RUNNER_TEMP/registry/server.json"
           name=$(jq -r .name "$RUNNER_TEMP/registry/server.json")
+          # The OIDC sign-in can only publish under io.github.<this repository's owner>.
+          if [ "${name%%/*}" != "io.github.${GITHUB_REPOSITORY_OWNER,,}" ]; then
+            echo "::notice::$name is not in $GITHUB_REPOSITORY_OWNER's namespace, so $TAG was not listed in the MCP Registry."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           status=$(curl -sS -o /dev/null -w '%{http_code}' \
             "https://registry.modelcontextprotocol.io/v0/servers/${name//\//%2F}/versions/$version")
           case "$status" in

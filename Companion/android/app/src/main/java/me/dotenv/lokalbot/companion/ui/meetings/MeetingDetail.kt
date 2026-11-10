@@ -273,6 +273,7 @@ private fun SummaryTab(
                     action = action,
                     today = state.today,
                     pending = action.id in state.pendingActionIds,
+                    note = action.syncNote,
                     onToggle = { onToggle(action.id, it) },
                     trailing = { action.citations.firstOrNull()?.let { EvidencePill(it.start, onClick = { onEvidence(it) }, Modifier.padding(top = 4.dp)) } },
                 )

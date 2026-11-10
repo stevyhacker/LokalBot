@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
 use chrono::Utc;
-use crossbeam_channel::{Receiver, bounded};
+use crossbeam_channel::{Receiver, Sender, bounded};
 use parking_lot::Mutex;
 use uuid::Uuid;
 
@@ -31,7 +31,7 @@ use lokalbot_platform::{FrontApp, Frontmost, PasteOutcome};
 
 use crate::dictation_context::{self as context, CapturedScreen, ContextTarget, LiveProviders};
 use crate::models::Models;
-use crate::{DictationCommand, DictationUpdate, EngineEvent, Shared, secrets};
+use crate::{Command, DictationCommand, DictationUpdate, EngineEvent, Shared, secrets};
 
 /// A status-only preparation reaches the overlay once it outlasts this. A warm
 /// model's check ends at once and must not flash the panel.
@@ -61,6 +61,27 @@ pub struct Dictation {
     session: Arc<AtomicU64>,
     /// Pasted text the field did not show, one click from being copied again.
     notice: Arc<Mutex<Option<String>>>,
+    /// The engine's own queue, for what a dictation's threads notice.
+    commands: Sender<Command>,
+}
+
+/// Less than this recorded when the microphone is lost is not worth
+/// transcribing (`shouldTranscribeAfterMicrophoneFailure`).
+const WORTH_TRANSCRIBING_SECONDS: f64 = 1.0;
+
+/// Tells the engine, once, that this dictation's microphone is gone for good.
+fn report_lost_microphone(
+    capture: &MicCapture,
+    session: u64,
+    commands: &Sender<Command>,
+    reported: &mut bool,
+) {
+    if !*reported && capture.error().is_some() {
+        *reported = true;
+        let _ = commands.send(Command::Dictation(DictationCommand::MicrophoneLost(
+            session,
+        )));
+    }
 }
 
 #[derive(Default)]
@@ -261,7 +282,7 @@ pub(crate) struct Job {
 }
 
 impl Dictation {
-    pub fn new(shared: Arc<Shared>, models: Models) -> Self {
+    pub fn new(shared: Arc<Shared>, models: Models, commands: Sender<Command>) -> Self {
         let shared_state = shared.dictation_state.clone();
         let recent = Arc::new(Recent {
             path: dictation_history::path(shared.library.paths().root()),
@@ -282,6 +303,7 @@ impl Dictation {
             recent,
             session: Arc::new(AtomicU64::new(0)),
             notice: Arc::new(Mutex::new(None)),
+            commands,
         }
     }
 
@@ -331,6 +353,7 @@ impl Dictation {
                 }
             }
             DictationCommand::RetryPreparation if retrying => self.retry(),
+            DictationCommand::MicrophoneLost(session) if listening => self.microphone_lost(session),
             DictationCommand::CopyRecent(id) => {
                 let (recent, shared) = (self.recent.clone(), self.shared.clone());
                 std::thread::spawn(move || recent.copy(id, &shared));
@@ -437,10 +460,13 @@ impl Dictation {
             let stop = ticker_stop.clone();
             let text = preview_text.clone();
             let models = self.models.clone();
+            let commands = self.commands.clone();
             std::thread::spawn(move || {
                 let mut announced = false;
+                let mut lost = false;
                 while !stop.load(Ordering::Relaxed) {
                     if let State::Listening(listening) = &*state.lock() {
+                        report_lost_microphone(&listening.capture, session, &commands, &mut lost);
                         let live = listening.capture.has_audio();
                         // The cue plays only once audio arrives: pressing the
                         // shortcut does not mean the microphone is listening.
@@ -520,6 +546,37 @@ impl Dictation {
         );
         self.shared
             .emit(EngineEvent::Dictation(DictationUpdate::Cancelled));
+    }
+
+    /// The microphone could not be reopened, so the dictation ends here
+    /// instead of listening to nothing until the shortcut is pressed again.
+    /// What was said before it stopped is kept (`refreshCaptureHealth`).
+    fn microphone_lost(&self, session: u64) {
+        if self.session.load(Ordering::SeqCst) != session {
+            return;
+        }
+        let (captured, error) = match &*self.state.lock() {
+            State::Listening(listening) => (
+                listening.capture.seconds(),
+                listening.capture.error().unwrap_or_default(),
+            ),
+            _ => return,
+        };
+        log::warn!("dictation microphone recovery failed: {error}");
+        if captured >= WORTH_TRANSCRIBING_SECONDS {
+            self.shared.error(format!(
+                "The microphone stopped, so dictation ended early. {error}"
+            ));
+            self.finish();
+        } else {
+            self.cancel();
+            self.shared
+                .emit(EngineEvent::Dictation(DictationUpdate::Failed {
+                    message: format!(
+                        "Dictation stopped because the microphone could not recover: {error}"
+                    ),
+                }));
+        }
     }
 
     fn finish(&self) {
@@ -748,8 +805,8 @@ impl Runner {
     }
 
     /// Loads the speech model, showing that in the overlay only once it takes
-    /// a while (`shouldShowModelPreparation`). A preview pass still holding the
-    /// model is not preparation, and this waits for it.
+    /// a while (`shouldShowModelPreparation`). A preview pass still decoding
+    /// is not preparation: the final pass waits for its current window.
     fn prepare_model(&self, settings: &Settings, session: u64) -> Result<()> {
         self.install_model(session)?;
         if !self.is_current(session) {
@@ -1326,7 +1383,8 @@ mod tests {
             log.lock().push(event)
         });
         let models = Models::new(shared.clone());
-        let dictation = Dictation::new(shared.clone(), models);
+        let (commands, _) = crossbeam_channel::unbounded();
+        let dictation = Dictation::new(shared.clone(), models, commands);
         (dir, dictation, shared, events)
     }
 
@@ -1384,6 +1442,111 @@ mod tests {
         dictation.finish();
         assert!(!shared.dictation_working.load(Ordering::Relaxed));
         assert!(!shared.dictation_state.lock().is_busy());
+    }
+
+    /// Puts a dictation in its listening state with no microphone behind it:
+    /// `seconds` already recorded, and how the capture failed, if it did.
+    fn listen(dictation: &Dictation, seconds: f64, error: Option<&str>) -> u64 {
+        let session = dictation.session.fetch_add(1, Ordering::SeqCst) + 1;
+        let (_, focus) = bounded(1);
+        *dictation.state.lock() = State::Listening(Box::new(Listening {
+            capture: MicCapture::ended(
+                vec![0.1; (seconds * SAMPLE_RATE) as usize],
+                error.map(str::to_string),
+            ),
+            media: Default::default(),
+            started: Instant::now(),
+            ticker_stop: Arc::new(AtomicBool::new(false)),
+            press: Press {
+                focus,
+                screen: None,
+                cancel_screen: Arc::new(AtomicBool::new(false)),
+            },
+            settings: Settings::default(),
+            rehearsal: false,
+        }));
+        session
+    }
+
+    #[test]
+    fn a_lost_microphone_ends_the_dictation_and_keeps_what_was_said() {
+        let (_dir, dictation, shared, events) = coordinator();
+        // The speech model "downloads" for as long as the test runs, so the
+        // kept audio waits for it and nothing is fetched.
+        for id in dictation.models.dictation_requirements() {
+            dictation.models.pretend_downloading(&id);
+        }
+        let session = listen(&dictation, 2.0, Some("device unplugged"));
+
+        dictation.handle(DictationCommand::MicrophoneLost(session));
+
+        assert!(matches!(*shared.dictation_state.lock(), State::Working));
+        {
+            let events = events.lock();
+            assert!(events.iter().any(|event| matches!(
+                event,
+                EngineEvent::Message { text, is_error: true }
+                    if text == "The microphone stopped, so dictation ended early. device unplugged"
+            )));
+            assert!(events.iter().any(|event| matches!(
+                event,
+                EngineEvent::Dictation(DictationUpdate::Transcribing)
+            )));
+        }
+        dictation.cancel();
+        let cancelled = Instant::now();
+        while shared.dictation_working.load(Ordering::Relaxed) {
+            assert!(cancelled.elapsed() < Duration::from_secs(10));
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn a_microphone_lost_before_anything_was_said_cancels_the_dictation() {
+        let (_dir, dictation, shared, events) = coordinator();
+        let session = listen(&dictation, 0.4, Some("device unplugged"));
+
+        dictation.handle(DictationCommand::MicrophoneLost(session));
+
+        assert!(!shared.dictation_state.lock().is_busy());
+        assert!(events.lock().iter().any(|event| matches!(
+            event,
+            EngineEvent::Dictation(DictationUpdate::Failed { message })
+                if message == "Dictation stopped because the microphone could not recover: device unplugged"
+        )));
+    }
+
+    #[test]
+    fn a_lost_microphone_reported_for_an_earlier_dictation_changes_nothing() {
+        let (_dir, dictation, shared, events) = coordinator();
+        let session = listen(&dictation, 2.0, None);
+
+        dictation.handle(DictationCommand::MicrophoneLost(session - 1));
+
+        assert!(matches!(
+            *shared.dictation_state.lock(),
+            State::Listening(_)
+        ));
+        assert!(events.lock().is_empty());
+        dictation.cancel();
+    }
+
+    #[test]
+    fn a_lost_microphone_is_reported_to_the_engine_once() {
+        let (commands, received) = crossbeam_channel::unbounded();
+        let mut reported = false;
+        let working = MicCapture::ended(Vec::new(), None);
+        report_lost_microphone(&working, 3, &commands, &mut reported);
+        assert!(received.try_recv().is_err());
+
+        let lost = MicCapture::ended(Vec::new(), Some("device unplugged".into()));
+        report_lost_microphone(&lost, 3, &commands, &mut reported);
+        report_lost_microphone(&lost, 3, &commands, &mut reported);
+        assert!(matches!(
+            received.try_recv(),
+            Ok(Command::Dictation(DictationCommand::MicrophoneLost(3)))
+        ));
+        assert!(received.try_recv().is_err());
     }
 
     #[test]

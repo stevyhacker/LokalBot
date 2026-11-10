@@ -86,6 +86,23 @@ impl MicCapture {
         }
     }
 
+    /// A capture that is already over: what it recorded and why it stopped.
+    /// For testing code built on a capture where there is no microphone.
+    #[doc(hidden)]
+    pub fn ended(samples: Vec<f32>, error: Option<String>) -> MicCapture {
+        let (audio_tx, _) = crossbeam_channel::bounded(1);
+        let (stop_tx, _) = crossbeam_channel::bounded(1);
+        MicCapture {
+            state: Arc::new(TrackState::new(Instant::now())),
+            samples: Arc::new(Mutex::new(samples)),
+            error: Arc::new(Mutex::new(error)),
+            audio_tx,
+            stop_tx,
+            control: None,
+            worker: None,
+        }
+    }
+
     /// Current loudness, 0–1.
     pub fn level(&self) -> f32 {
         self.state.level()

@@ -18,6 +18,7 @@ final class PermissionGuidanceController {
     private var hasPresentedOverlay = false
     private var isOverlayVisible = false
     private var lastSettingsFrame: CGRect?
+    private var trackingStarted: Date?
 
     init(
         permissionManager: PermissionManager,
@@ -73,6 +74,7 @@ final class PermissionGuidanceController {
         hasPresentedOverlay = false
         isOverlayVisible = false
         lastSettingsFrame = nil
+        trackingStarted = nil
     }
 
     private func presentGuidance(
@@ -96,6 +98,7 @@ final class PermissionGuidanceController {
 
     private func startTracking() {
         trackingTimer?.invalidate()
+        trackingStarted = Date()
         let timer = Timer(timeInterval: 0.3, repeats: true) { [weak self] _ in
             guard let self else { return }
             MainActor.assumeIsolated { self.refreshPosition() }
@@ -126,6 +129,16 @@ final class PermissionGuidanceController {
 
         permissionManager.refresh()
         guard permissionManager.granted[activePermission] != true else {
+            dismiss()
+            return
+        }
+
+        // Callers that are not a view (a setting changed from the command
+        // line) never dismiss, so the walkthrough has to end itself.
+        if PermissionOverlayTracker.shouldEnd(
+            settingsRunning: SystemSettingsWindowLocator.isRunning,
+            hasPresented: hasPresentedOverlay,
+            secondsTracked: trackingStarted.map { Date().timeIntervalSince($0) } ?? 0) {
             dismiss()
             return
         }

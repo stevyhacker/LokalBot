@@ -36,8 +36,7 @@ impl NotificationHandle {
 }
 
 /// Posts a notification. `actions` are `(id, label)` pairs; `on_action`
-/// receives the chosen id ("default" when the notification body is clicked,
-/// on Linux; Windows does not report that click yet).
+/// receives the chosen id, or "default" when the notification body is clicked.
 pub fn notify(
     title: &str,
     body: &str,
@@ -94,15 +93,26 @@ pub fn notify_with_timeout(
         .context("the notification could not be shown")?;
     #[cfg(target_os = "linux")]
     let id = shown.id();
-    // On Linux a callback alone is worth listening for: the body click. On
-    // Windows that click still arrives as "__closed" and is dropped below.
-    let listens = cfg!(target_os = "linux") || !actions.is_empty();
-    if let Some(on_action) = on_action
-        && listens
-    {
+    // A callback alone is worth listening for: the click on the body.
+    if let Some(on_action) = on_action {
         std::thread::Builder::new()
             .name("lokalbot-notification".into())
             .spawn(move || {
+                // A toast reports its body as a response of its own, which
+                // `wait_for_action` would hand over as "closed".
+                #[cfg(windows)]
+                let _ = shown.wait_for_response(|response: &notify_rust::NotificationResponse| {
+                    match response {
+                        notify_rust::NotificationResponse::Default => {
+                            on_action("default".to_string())
+                        }
+                        notify_rust::NotificationResponse::Action(action) => {
+                            on_action(action.clone())
+                        }
+                        _ => {}
+                    }
+                });
+                #[cfg(not(windows))]
                 shown.wait_for_action(|action| {
                     if action != "__closed" {
                         on_action(action.to_string());

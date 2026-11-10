@@ -152,17 +152,16 @@ overrides:
       - libwayland-client0
     recommends:
       - pipewire-pulse | pulseaudio
+      - pulseaudio-utils
       - mesa-vulkan-drivers
       - libegl1
       - libwayland-egl1
       - tesseract-ocr
     suggests:
-      - xdotool
       - wtype
       - ydotool
       - grim
-      - xsel
-      - zenity
+      - wl-clipboard
   rpm:
     depends:
       - libc.so.6(GLIBC_2.39)(64bit)
@@ -175,12 +174,12 @@ overrides:
       - libvulkan.so.1()(64bit)
       - libwayland-client.so.0()(64bit)
     recommends:
+      - pulseaudio-utils
       - tesseract
     suggests:
-      - xdotool
       - wtype
       - grim
-      - zenity
+      - wl-clipboard
   archlinux:
     depends:
       - glibc>=2.39

@@ -2,6 +2,8 @@
 
 7 September 2026 · Implementation and local validation, based on `879314487d32`.
 
+Historical report: the Google Meet participant observer described here was removed in LokalBot 0.9.1, and LokalBot no longer reads Meet participant names or speaking activity. What it says about that observer is retained as context, not current behavior. See [DEVELOPMENT.md](../DEVELOPMENT.md#transcription--speakers).
+
 The [9 September follow-up](speaker-attribution-fixes-2026-09-09.md) updates the original foreground-only provider, Accessibility contracts, microphone sample selection, and diagnostics. The historical validation below does not establish live compatibility for that update.
 
 **The implementation and deterministic checks are ready for review. Release validation is incomplete.** No live Meet compatibility, recognition-accuracy, timing-harness, or Release-performance result is claimed. Both new settings default to off.

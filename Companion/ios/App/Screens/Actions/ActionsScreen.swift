@@ -44,7 +44,7 @@ struct ActionsList: View {
                     ForEach(group.rows) { row in
                         NavigationLink(value: ActionRoute(row)) {
                             ActionRowView(action: row.action, meetingID: row.meetingId, meetingTitle: row.meetingTitle,
-                                          linksMeeting: false, pending: row.pending, today: model.today,
+                                          linksMeeting: false, pending: row.pending, note: row.syncNote, today: model.today,
                                           evidence: .hidden) {
                                 Task { await model.setStatus(row.action.status == .done ? .open : .done, for: row, session: session) }
                             }
@@ -171,9 +171,10 @@ struct ActionDetailScreen: View {
     }
 
     private func load() async {
-        let rows = (try? await session.store.actions(.all)) ?? []
-        row = rows.first { $0.meetingId == route.meetingID && $0.action.id == route.actionID }
         meeting = try? await session.store.meeting(id: route.meetingID)
+        row = meeting.flatMap { meeting in
+            meeting.actions.first { $0.id == route.actionID }.map { ActionRow(meeting: meeting, action: $0) }
+        }
         loaded = true
     }
 
@@ -210,6 +211,17 @@ struct ActionDetailScreen: View {
                     Text("Changed on this device. Waiting for your computer; it updates on the next sync.")
                 } icon: {
                     Image(systemName: "clock.arrow.2.circlepath")
+                }
+                .font(LBTokens.Typography.secondary)
+                .foregroundStyle(LBTokens.Palette.attentionText)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lbStatusSurface(LBTokens.Palette.attention)
+            } else if let note = row.syncNote {
+                Label {
+                    Text(["Your computer didn't make the change you made here.", note.message].compactMap { $0 }.joined(separator: " "))
+                } icon: {
+                    Image(systemName: "exclamationmark.circle")
                 }
                 .font(LBTokens.Typography.secondary)
                 .foregroundStyle(LBTokens.Palette.attentionText)

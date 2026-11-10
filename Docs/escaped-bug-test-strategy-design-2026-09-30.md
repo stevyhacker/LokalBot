@@ -1,7 +1,7 @@
 # Escaped-bug test strategy — design
 
 Date: 2026-09-30
-Status: approved design, pending implementation plan
+Status: implemented. Each step below has its code; "Implementation refinements" at the end and Testing in [DEVELOPMENT.md](../DEVELOPMENT.md#testing) describe it as built
 Delivery: one pull request, one commit (or small commit group) per step
 
 ## Why

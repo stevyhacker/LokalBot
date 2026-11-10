@@ -12,10 +12,11 @@ protocol FollowThroughEnvironment: AnyObject {
     func perform(_ proposal: FollowThroughProposal, for target: FollowThroughTarget) async throws -> String
 }
 
-/// One Follow-through run: Muse plans the work for one action, reads what it
-/// needs from the library, and proposes steps. Each step waits for the
-/// person to approve, edit, or decline it; nothing leaves the Mac as an email,
-/// invitation, or task without that click, and even then it opens as a draft.
+/// One Follow-through run: the Think model plans the work for one action,
+/// reads what it needs from the library, and proposes steps. Each step waits
+/// for the person to approve, edit, or decline it; nothing leaves the Mac as
+/// an email, invitation, or task without that click, and even then it opens
+/// as a draft.
 @MainActor
 final class FollowThroughSession: ObservableObject, Identifiable {
     enum Step: Identifiable, Equatable {
@@ -41,15 +42,20 @@ final class FollowThroughSession: ObservableObject, Identifiable {
 
     let id = UUID()
     let target: FollowThroughTarget
+    /// The name of the model doing the work, for the sheet.
     let model: String
     @Published private(set) var steps: [Step] = []
     @Published private(set) var state: State = .idle
     @Published private(set) var summary: String?
     @Published private(set) var usage = MuseChatClient.Usage()
 
+    /// Zero on the Think model, which reports no token use. The hosted film
+    /// runs on Meta's models, which do.
     var cost: Double { MetaModelAPI.cost(of: usage, model: model) }
 
     static let maximumTurns = 10
+    /// One tool call per turn; a draft email or a coding task is the longest.
+    static let turnOptions = TextGenerationOptions(maxTokens: 4_000, reasoningBudgetTokens: 1_024, temperature: 0.2)
     static let maximumToolResultCharacters = 6_000
 
     private let environment: FollowThroughEnvironment

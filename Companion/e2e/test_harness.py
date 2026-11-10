@@ -13,7 +13,7 @@ from unittest import mock
 import android_trip
 import harness
 import own_emulator
-from harness import Failure, free_port, read_adts, tap_until
+from harness import Failure, StandInHost, free_port, read_adts, tap_until
 
 CLIP = Path(__file__).resolve().parents[2] / "LinuxWindows/crates/lokalbot-audio/tests/data/tone-440-adts.aac"
 
@@ -84,6 +84,22 @@ class PortTests(unittest.TestCase):
         with mock.patch.object(own_emulator, "is_free", lambda port: False):
             with self.assertRaisesRegex(own_emulator.Failure, "console port"):
                 own_emulator.free_console_port()
+
+
+class StandInHostTests(unittest.TestCase):
+    def test_it_is_asking_until_the_question_is_answered(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        host = StandInHost("companion_host", folder.name, 1, asks=True)
+        question = 'Allow "Pixel 9" (android) to read your shared LokalBot data? [y/n]\n'
+        host.log.write_text("Pairing code\n")
+        self.assertFalse(host.is_asking())
+        host.log.write_text(question)
+        self.assertTrue(host.is_asking())
+        host.log.write_text(question + "Approved.\n")
+        self.assertFalse(host.is_asking())
+        host.log.write_text(question + "Not approved.\n" + question)
+        self.assertTrue(host.is_asking())
 
 
 class Clock:

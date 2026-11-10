@@ -64,7 +64,7 @@ final class AgentAccessManagerTests: XCTestCase {
 
         try gate.touchWake()
         await fulfillment(of: [woke], timeout: 5)
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await waitUntil { !gate.pendingWake }
         XCTAssertFalse(gate.pendingWake)
         XCTAssertNil(gate.readWakeError())
     }
@@ -79,7 +79,7 @@ final class AgentAccessManagerTests: XCTestCase {
 
         try gate.touchWake()
         await fulfillment(of: [failed], timeout: 5)
-        try await Task.sleep(nanoseconds: 200_000_000)
+        try await waitUntil { gate.readWakeError() != nil }
         XCTAssertEqual(
             gate.readWakeError(),
             "The built-in model isn't downloaded.")
@@ -121,6 +121,15 @@ final class AgentAccessManagerTests: XCTestCase {
             let waiting = waiters
             waiters.removeAll()
             for waiter in waiting { waiter.resume() }
+        }
+    }
+
+    /// The manager finishes handling a wake just after the engine answers;
+    /// wait for that instead of sleeping a fixed 200 ms on a busy runner.
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !condition(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
         }
     }
 

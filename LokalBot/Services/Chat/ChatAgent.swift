@@ -48,6 +48,18 @@ struct ChatToolCall: Equatable, Sendable {
 
     func int(_ key: String) -> Int? { string(key).flatMap(Int.init) }
 
+    /// The IDs of a scope the host put on the call (`ScopedChatToolRunner`):
+    /// nil when the call carries no such scope, and an empty list when the
+    /// scope is there and holds nothing. The two must never read alike: an
+    /// empty scope means nothing may be read. `string` reports an empty value
+    /// as missing, which read a scope of no meetings as every meeting.
+    func scope(_ key: String) -> [String]? {
+        guard let raw = arguments[key] else { return nil }
+        return raw.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Canonical JSON re-serialisation, so the running transcript records exactly
     /// one well-formed tool call back to the model regardless of how it was typed.
     var json: String {

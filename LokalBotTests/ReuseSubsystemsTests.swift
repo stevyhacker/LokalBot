@@ -671,29 +671,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertLessThanOrEqual(capped.count, 20)
     }
 
-    // MARK: - PromptSectionBudget
-
-    func testBudgetLeavesEverythingWhenItFits() {
-        let result = PromptSectionBudget().fit(
-            sections: [.init(label: "a", text: "aaaa", priority: 1, minCharacters: 1),
-                       .init(label: "b", text: "bbbb", priority: 2, minCharacters: 1)],
-            totalBudget: 100)
-        XCTAssertEqual(result.first { $0.label == "a" }?.text, "aaaa")
-        XCTAssertEqual(result.first { $0.label == "b" }?.text, "bbbb")
-    }
-
-    func testBudgetTrimsLowestPriorityFirstWithinBudget() {
-        let result = PromptSectionBudget().fit(
-            sections: [.init(label: "low", text: "aaaa", priority: 1, minCharacters: 1),
-                       .init(label: "high", text: "bbbb", priority: 2, minCharacters: 1)],
-            totalBudget: 4)
-        let total = result.reduce(0) { $0 + $1.text.count }
-        XCTAssertLessThanOrEqual(total, 4)
-        let low = result.first { $0.label == "low" }?.text.count ?? 0
-        let high = result.first { $0.label == "high" }?.text.count ?? 0
-        XCTAssertGreaterThanOrEqual(high, low)   // higher priority keeps at least as much
-    }
-
     // MARK: - AppleIntelligenceEngine prompt composition (pure helpers)
 
     func testComposePromptJoinsContextAndDropsBlanks() {

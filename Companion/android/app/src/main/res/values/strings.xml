@@ -79,6 +79,8 @@
     <string name="action_overdue_word">overdue</string>
     <string name="action_said">said “%1$s”</string>
     <string name="action_waiting_for_mac">Waiting for your computer</string>
+    <string name="action_not_changed">Not changed on your computer</string>
+    <string name="action_not_changed_message">Your computer didn\'t make the change you made here.</string>
     <string name="action_detail_owner">Owner</string>
     <string name="action_detail_due">Due</string>
     <string name="action_detail_importance">Importance</string>
@@ -121,6 +123,7 @@
         <item quantity="one">%1$d meeting</item>
         <item quantity="other">%1$d meetings</item>
     </plurals>
+    <string name="meetings_count_more">More than %1$d meetings</string>
     <string name="meeting_tabs_label">Meeting sections</string>
     <string name="meeting_tab_summary">Summary</string>
     <string name="meeting_tab_transcript">Transcript</string>

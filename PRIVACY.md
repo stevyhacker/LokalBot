@@ -17,7 +17,9 @@ LokalBot can store the following under its Application Support directory:
 
 - meeting microphone and system-audio tracks, and an AAC copy of the audio
   in recordings you import;
-- Live Radar findings (`radar.json`) for recordings where you started it;
+- Live Radar findings (`radar.json`) for recordings where you started it,
+  and, with screen answers on, the crop of the screen capture behind each
+  answer (`radar-answers/`, unencrypted JPEG files kept with the meeting);
 - transcripts, summaries, notes, search indexes, and meeting metadata,
   including attendee names and emails for calendar-matched meetings and,
   only when you turn on **Use invitation agendas**, the invitation's agenda
@@ -28,6 +30,9 @@ LokalBot can store the following under its Application Support directory:
 - downloaded transcription, embedding, speech, and language models;
 - permission-gated app/window activity history;
 - permission-gated visible screen text and encrypted screenshots;
+- a folder for each window you hand off (`handoffs/`): the window's text
+  and, when one is taken, an unencrypted screenshot, private to your user
+  and deleted after 7 days;
 - encrypted meeting-speaker evidence and voice profiles of the people you
   name;
 - saved screen moments, optional unencrypted daily-memory and meeting note
@@ -363,7 +368,8 @@ The app may make these outbound connections:
   invited participants' names, titles of documents on screen during the call,
   and, when enabled, the invitation agenda; each has its own setting.
   Follow-up drafts and pre-meeting briefs are written only by an on-device
-  Think model; Follow-through, below, is a separate feature you start yourself. A tracked project's "Where it stands" note uses the Think model
+  Think model; Follow-through, below, is a separate feature you start yourself
+  and follows the Think model you chose. A tracked project's "Where it stands" note uses the Think model
   you chose: **Write Note** or **Update** sends the project's names, the lines
   of its ten most recent meetings that name it, the decisions and open actions
   that name it, and its overnight review notes.
@@ -434,8 +440,24 @@ The app may make these outbound connections:
     and in a git repository the code tools read only files git tracks. An
     answer is shown only when every source it cites contains the words it
     quotes, and it is saved with its sources in `radar.json`.
-- **Optional Meta Muse (fast live text and Follow-through):** off until you add a
-  Meta Model API key and turn on "Allow sending meeting text to
+- **Follow-through** runs only when you choose Follow Through on one action.
+  It works with your Think model, under that model's own setting: with a
+  Think model on this Mac, nothing below leaves it; with a Think server or
+  plan, it goes only to the origin you approved for Think, and revoking that
+  approval stops it at its next step. The model is given the action, its
+  quoted source lines, the meeting title, date, invited names, the meeting
+  summary, that meeting's Live Radar items, and the name from Settings →
+  Autocomplete, then whatever its read tools return: meeting search results,
+  meeting summaries or transcript windows, and action items. It cannot read
+  screen memory. Every step it proposes (an email draft, a calendar
+  invitation, a task for Claude Code or Codex, marking the action done)
+  waits for your approval, can be edited first, and opens as a draft in
+  your mail app, Calendar, or coding agent; LokalBot never sends mail or
+  invitations itself. Email addresses are filled in from the meeting's
+  calendar invitation on this Mac and are never given to the model. An
+  approved email is also saved as the meeting's follow-up draft.
+- **Optional Meta Muse (fast live text):** off until you add a
+  Meta Model API key and turn on "Allow sending meeting audio to
   https://api.meta.ai" in Settings → Meetings → Meta Muse. That switch adds
   the origin to the same approved-server list Think uses, so revoking it in
   either place stops both. Even then, nothing is sent until you start it:
@@ -450,24 +472,9 @@ The app may make these outbound connections:
     from which track the audio is on, not from Muse. The full transcript is
     still made on this Mac after the meeting, and the recording is never
     uploaded as a file.
-  - **Follow-through** runs only when you choose Follow Through with Muse on
-    one action. It sends Muse Wonder (or the model you choose) the action, its
-    quoted source lines, the meeting title, date, invited names, the meeting
-    summary, that meeting's Live Radar items, and the name from Settings →
-    Autocomplete, then whatever its read tools return: meeting search results,
-    meeting summaries or transcript windows, and action items. It cannot read
-    screen memory. Every step it proposes (an email draft, a calendar
-    invitation, a task for Claude Code or Codex, marking the action done)
-    waits for your approval, can be edited first, and opens as a draft in
-    your mail app, Calendar, or coding agent; LokalBot never sends mail or
-    invitations itself. Email addresses are filled in from the meeting's
-    calendar invitation on this Mac and are not sent to Meta. An approved
-    email is also saved as the meeting's follow-up draft.
-  Requests go only to `https://api.meta.ai`, through the same per-origin
-  rate gate and redirect rule as Think, with the key kept in the Keychain.
+  Audio goes only to `api.meta.ai`, with the key kept in the Keychain.
   Meta's terms for your Model API account apply. Content sent while you use
-  free credits may be used to improve Meta's products; Contributor models,
-  which grant Meta training rights for a discount, are not offered.
+  free credits may be used to improve Meta's products.
 - **Optional autocomplete server:** Autocomplete runs on this Mac unless you
   choose Think's server or another OpenAI-compatible server under Settings →
   Models → Autocomplete. A server on a loopback address keeps your typing on
@@ -563,7 +570,9 @@ The app may make these outbound connections:
     whether it is signed in, LokalBot runs `claude auth status`, which reports
     the account email and plan without credentials. Claude Code's own
     telemetry and data settings apply to the requests it sends.
-- **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime.
+- **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime:
+  Bun from GitHub, checked against a pinned SHA-256, and the pi agent
+  packages from the npm registry, installed from the lockfile LokalBot ships.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside
   LokalBot's control. Files and meetings you explicitly attach are read locally
@@ -593,8 +602,10 @@ Those services receive normal connection metadata such as your IP address and
 request headers. LokalBot does not add an advertising identifier and does not
 use those requests to track you.
 
-LokalBot's own automated tests send only synthetic fixture text to remote
-model providers, from the project's CI; they never use a user's library.
+LokalBot's own automated tests send only synthetic fixtures, text or
+computer-voiced speech, to remote model providers: from the project's CI, or
+from a developer's own computer when that developer turns a live test on
+with its environment variable. They never use a user's library.
 
 LokalBot accepts no incoming network connections apart from the listeners on
 `127.0.0.1` described above and the private control socket under
@@ -1015,7 +1026,10 @@ folder's location on the clipboard.
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
 captured text, and semantic search vectors (of its text and, with visual
-context, of its picture) until you unsave or delete that moment. Excluded apps and domains and focused secure fields are skipped.
+context, of its picture) until you unsave or delete that moment. Two other
+copies of screen pixels sit outside that window: the screenshot in a Hand off
+folder, deleted after 7 days, and the crop saved with a Live Radar screen
+answer, which stays in the meeting folder until the meeting is deleted. Excluded apps and domains and focused secure fields are skipped.
 Private and incognito browser windows are captured like any other window, so
 add a browser or site to the exclusions to keep it out. Detected credentials,
 payment card numbers, and IBANs are redacted and
@@ -1379,7 +1393,9 @@ platform differences:
   - private calendar links you add (an iCal feed such as Google Calendar's
     secret address or a published Outlook calendar, or a CalDAV collection).
     Each link is fetched from its own server every five minutes while
-    calendar use is on. Links can carry credentials, so they are kept only in
+    calendar use is on, over an encrypted connection; a plain `http://` link
+    is read only from a calendar server on this computer. Links can carry
+    credentials, so they are kept only in
     the system credential store, and only their host appears in Settings and
     in logs;
   - on Linux, the calendars of Evolution Data Server (including GNOME Online

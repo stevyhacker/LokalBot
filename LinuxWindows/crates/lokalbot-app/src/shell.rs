@@ -209,6 +209,10 @@ impl Workspace {
         let background = data.background.clone();
         let inference_label = data.inference_label.clone();
         let remote_hosts = data.remote_hosts.clone();
+        let companion_line = data
+            .settings
+            .companion_sharing_enabled
+            .then(|| companion_line(data.companion.devices.len()));
         let data_entity = self.data.clone();
 
         v_flex()
@@ -360,7 +364,17 @@ impl Workspace {
                                         .text_size(ty::CAPTION)
                                         .text_color(lb.supporting)
                                         .child(host)
-                                })),
+                                }))
+                                // While sharing is on, the library also has
+                                // copies on the paired phones and tablets.
+                                .when_some(companion_line, |this, line| {
+                                    this.child(
+                                        div()
+                                            .text_size(ty::CAPTION)
+                                            .text_color(lb.supporting)
+                                            .child(line),
+                                    )
+                                }),
                         ),
                 ),
             )
@@ -614,6 +628,17 @@ pub fn drag_region<
     }
 }
 
+/// What the storage card says about paired phones and tablets
+/// (`SidebarCompanionLine`).
+fn companion_line(devices: usize) -> String {
+    match devices {
+        0 => lokalbot_i18n::tr("Phones & tablets: none paired").to_string(),
+        1 => lokalbot_i18n::tr("Copy on 1 paired device").to_string(),
+        many => lokalbot_i18n::tr("Copies on %lld paired devices")
+            .replace("%lld", &lokalbot_i18n::number(many)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -656,5 +681,12 @@ mod tests {
             background_destination(&item("reindex", BackgroundKind::Reindex), None),
             None
         );
+    }
+
+    #[test]
+    fn the_storage_card_counts_paired_devices() {
+        assert_eq!(companion_line(0), "Phones & tablets: none paired");
+        assert_eq!(companion_line(1), "Copy on 1 paired device");
+        assert_eq!(companion_line(3), "Copies on 3 paired devices");
     }
 }

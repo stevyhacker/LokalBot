@@ -18,26 +18,24 @@ For a stable tag, `release.yml` calls
 [`mcp-registry.yml`](../../.github/workflows/mcp-registry.yml) after the macOS
 job has published the release. It:
 
-1. stops with a notice unless the `MCP_REGISTRY_PUBLISH` repository variable is
-   `true`;
-2. attaches `LokalBot.mcpb`, built from the tag, when the release doesn't have
+1. attaches `LokalBot.mcpb`, built from the tag, when the release doesn't have
    it yet, and checks the bundle's version is the tag's;
-3. writes the bundle's URL and SHA-256 into a copy of `server.json`;
-4. skips the version if the registry already has it, otherwise signs in with
+2. writes the bundle's URL and SHA-256 into a copy of `server.json`;
+3. skips the version if the registry already has it, otherwise signs in with
    the registry's GitHub OIDC login (which proves the `io.github.stevyhacker`
    namespace, so there is no secret) and publishes.
 
-Once this is on, the release attaches the bundle itself, so it no longer needs
-uploading by hand. Don't replace `LokalBot.mcpb` on a release after the registry
-has it: clients check the file against the SHA-256 the registry holds.
+The release attaches the bundle itself, so it needs no uploading by hand. Don't
+replace `LokalBot.mcpb` on a release after the registry has it: clients check
+the file against the SHA-256 the registry holds.
 
-To publish a release by hand: `gh workflow run mcp-registry.yml -f tag=v<version>`.
+There is nothing to set up. Steps 2 and 3 are skipped, with a notice, in a fork
+(the sign-in can only publish under the repository owner's own namespace) and
+while the `MCP_REGISTRY_PUBLISH` repository variable is `false`; step 1 runs
+either way.
 
-## One-time setup (owner)
-
-Set the repository variable once, in Settings, Secrets and variables, Actions,
-Variables, or with `gh variable set MCP_REGISTRY_PUBLISH --body true --repo stevyhacker/LokalBot`.
-Then publish the current release by hand (above), or wait for the next one.
+To publish a release by hand, for example one made before this job existed:
+`gh workflow run mcp-registry.yml -f tag=v<version>`.
 
 ## Checks
 

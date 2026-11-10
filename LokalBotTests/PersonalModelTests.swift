@@ -219,6 +219,33 @@ final class PersonalModelStoreTests: XCTestCase {
         XCTAssertTrue(PersonalModelController(store: store).currentClaims().isEmpty)
     }
 
+    /// A question limited to some sources or days gets only what the person
+    /// stated. An item learned from an Ask question or a dictation and kept
+    /// in review has no meeting behind it, and went out with those questions
+    /// as if it were a statement.
+    func testScopedQuestionsGetStatedItemsNotOnesLearnedFromAskOrDictation() throws {
+        let store = makeStore()
+        var model = PersonalModel()
+        model.claims = [
+            PersonalClaim(kind: .fact, text: "I'm moving to Berlin in March.",
+                          origin: .typed(source: .dictation(app: "Notes"), dayKey: "2026-10-22"),
+                          status: .proposed, authority: .learned, quote: "I'm moving to Berlin in March.",
+                          createdAt: now),
+        ]
+        try store.save(model)
+        let controller = PersonalModelController(store: store, now: { self.now })
+        _ = controller.remember("Maya is my manager", origin: .added)
+        let learned = try XCTUnwrap(controller.suggestions.first)
+        XCTAssertNoThrow(try controller.confirm(learned.id).get())
+
+        XCTAssertEqual(controller.usableClaims().count, 2, "an unscoped question gets both")
+        XCTAssertEqual(controller.usableClaims(includeEvidenceBacked: false).map(\.text), ["Maya is my manager"])
+
+        // Kept as the person's own statement, it is one.
+        XCTAssertNoThrow(try controller.keepAsStatement(learned.id).get())
+        XCTAssertEqual(controller.usableClaims(includeEvidenceBacked: false).count, 2)
+    }
+
     func testKeepAllConfirmsTheListedSuggestionsTogether() throws {
         let store = makeStore()
         var model = PersonalModel()

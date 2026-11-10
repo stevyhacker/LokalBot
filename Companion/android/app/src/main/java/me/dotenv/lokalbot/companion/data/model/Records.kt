@@ -87,6 +87,13 @@ data class Citation(
     val excerpt: String = "",
 )
 
+/** The computer's answer when it didn't make a status change sent from this device (ffi.md, `syncNote`). */
+@Serializable
+data class SyncNote(
+    /** Why, in the computer's words. */
+    val message: String? = null,
+)
+
 @Serializable
 data class MeetingAction(
     val id: String,
@@ -99,6 +106,10 @@ data class MeetingAction(
     val status: ActionStatus = ActionStatus.Open,
     val importance: Int = 3,
     val citations: List<Citation> = emptyList(),
+    /** Added by this device's store, in a meeting's actions: the status was changed here and the computer hasn't confirmed it. */
+    val pending: Boolean = false,
+    /** Added by this device's store, in a meeting's actions: the computer didn't make the last change. */
+    val syncNote: SyncNote? = null,
 )
 
 /** A decision or an open question. */
@@ -269,6 +280,8 @@ data class ActionRow(
     val meetingStartedAt: String,
     val action: MeetingAction,
     val pending: Boolean = false,
+    /** The computer didn't make the last status change sent from here. */
+    val syncNote: SyncNote? = null,
 )
 
 @Serializable

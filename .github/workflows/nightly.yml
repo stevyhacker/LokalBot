@@ -75,7 +75,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unit-products
           path: .build/transfer
@@ -83,7 +83,26 @@ jobs:
         env:
           CODE_SIGNING_ALLOWED: "NO"
         run: python3 Scripts/ci/test-products.py unpack unit
+      # A pull request from a fork gets no secrets, so it can record nothing and
+      # its author cannot change that: say so and stop there. Anywhere else a
+      # missing key means the check is switched off, which is a failure. A
+      # secret cannot be read in an `if:`, so its presence comes through env.
+      - name: Check for the recording key
+        id: key
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          if [[ -n "$OPENROUTER_API_KEY" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            echo "::notice title=Model drift was not checked::This run has no OPENROUTER_API_KEY, as on a pull request from a fork, so no responses were recorded or compared."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::The OPENROUTER_API_KEY secret is not set, so model drift cannot be checked."
+            exit 1
+          fi
       - name: Record fresh responses
+        if: steps.key.outputs.available == 'true'
         env:
           TEST_RUNNER_LOKALBOT_RECORD_MODELS: "1"
           TEST_RUNNER_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -96,9 +115,10 @@ jobs:
             -only-testing:LokalBotTests/ModelRecordingTests
       - name: Compare with committed recordings
         id: compare
+        if: steps.key.outputs.available == 'true'
         run: python3 Scripts/ci/model-drift.py LokalBotTests/Fixtures/model-recordings .build/model-recordings --report .build/model-recordings/drift.md
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.key.outputs.available == 'true'
         with:
           name: model-recordings
           path: .build/model-recordings
@@ -115,6 +135,24 @@ jobs:
           else
             gh issue create --title "$title" --body-file .build/model-recordings/drift.md
           fi
+      # A rejected key, spent credit or a renamed model leaves cases with no
+      # answer; the comparison then fails instead of calling that no drift.
+      - name: Open or update the unchecked-drift issue
+        if: failure() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Model drift was not checked by the nightly run"
+          body=.build/model-drift-unchecked.md
+          mkdir -p .build
+          { echo "Run: $RUN_URL"; echo; cat .build/model-recordings/drift.md 2>/dev/null || echo "The job failed before it compared anything."; } > "$body"
+          number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [[ -n "$number" ]]; then
+            gh issue comment "$number" --body-file "$body"
+          else
+            gh issue create --title "$title" --body-file "$body"
+          fi
 
   day-in-the-life-real:
     name: Day in the life with real Parakeet
@@ -128,7 +166,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unit-products
           path: .build/transfer
@@ -151,7 +189,7 @@ jobs:
           export LOKALBOT_DAY_ROOT="$RUNNER_TEMP/workday"
           mkdir -p "$LOKALBOT_DAY_ROOT"
           bash Scripts/day-in-the-life.sh --real-asr 2>&1 | tee .build/day-in-the-life-real.log
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: day-in-the-life-real
@@ -187,7 +225,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unit-products
           path: .build/transfer

@@ -1,0 +1,213 @@
+{
+  "about": "Unit tests that may skip, each with what it needs. Scripts/ci/unit-skips.py fails a run in which any other test skips, and hosted CI also fails when a test listed here runs or is gone. Variables reach the test host with a TEST_RUNNER_ prefix on xcodebuild.",
+  "groups": [
+    {
+      "reason": "Calls Anthropic's API with a key the unit job does not hold (TEST_RUNNER_ANTHROPIC_API_KEY). Run by hand after changing the Anthropic engine.",
+      "tests": [
+        "AnthropicLiveTests/testMeetingNotesSchemaIsAccepted",
+        "AnthropicLiveTests/testSharedContextIsReadFromThePromptCache",
+        "AnthropicLiveTests/testStreamingAnswer"
+      ]
+    },
+    {
+      "reason": "Calls OpenRouter's transcription API with a key the unit job does not hold (TEST_RUNNER_OPENROUTER_API_KEY). Run by hand after changing server word times.",
+      "tests": [
+        "RemoteTranscriptionLiveTests/testServerWordTimesSplitTwoVoicesOnTheTrackTimeline"
+      ]
+    },
+    {
+      "reason": "Sends requests on the developer's signed-in ChatGPT plan (TEST_RUNNER_LOKALBOT_CHATGPT_PLAN_LIVE=1). Run by hand after changing the plan relay.",
+      "tests": [
+        "ChatGPTPlanLiveTests/testFunctionToolRoundTrip",
+        "ChatGPTPlanLiveTests/testPiRunsAToolTurnOnThePlanThroughTheRelay"
+      ]
+    },
+    {
+      "reason": "Runs the developer's signed-in Claude Code on its plan (TEST_RUNNER_LOKALBOT_CLAUDE_PLAN_LIVE=1). Run by hand after changing the Claude plan engine.",
+      "tests": [
+        "ClaudePlanLiveTests/testMeetingNotesSchemaIsAccepted",
+        "ClaudePlanLiveTests/testSignInIsReported",
+        "ClaudePlanLiveTests/testStreamingCompletes"
+      ]
+    },
+    {
+      "reason": "Needs the downloaded autocomplete model (LOKALBOT_COTYPING_TEST_MODEL names the GGUF); unit runs never download models. Run for a llama.cpp or autocomplete runtime change.",
+      "tests": [
+        "LlamaCotypingRuntimeTests/testAbortSignalDoesNotPoisonNextGeneration",
+        "LlamaCotypingRuntimeTests/testFocusPrefillSkipsDecodeWhenPromptPrefixCannotBeReused",
+        "LlamaCotypingRuntimeTests/testGenerateHonorsTaskCancellationBeforePrefill",
+        "LlamaCotypingRuntimeTests/testLoadsAndGeneratesDeterministically",
+        "LlamaCotypingRuntimeTests/testOnTokenReturningFalseStopsDecode",
+        "LlamaCotypingRuntimeTests/testReusedPrefixIsReflectedInPrefillTokenCount",
+        "LocalLlamaCotypingEngineTests/testGenerateReturnsNormalizedResult",
+        "LocalLlamaCotypingEngineTests/testStreamingFiresPartials"
+      ]
+    },
+    {
+      "reason": "Needs a downloaded candidate autocomplete model (LOKALBOT_CANDIDATE_TEST_MODEL). Run when comparing a candidate model's native decoding with the shipped path; LOKALBOT_TEST_LEGACY_HEALING=1 runs the prefix-path check on the old decoder, where it must fail.",
+      "tests": [
+        "CotypingFirstWordConfidenceTests/testNativeHybridMatchesCompositionAndNeverStreamsUncappedFallback",
+        "LocalLlamaHealedGenerationTests/testNativePrefillPoliciesPreserveColdAndWarmChunkBoundaryOutputs",
+        "LocalLlamaHealedGenerationTests/testNativePrefixSearchRetainsBaselineAndRestoresKVForSampling",
+        "LocalLlamaHealedGenerationTests/testNativeSearchReusePreservesColdAndWarmUnicodeOutputs"
+      ]
+    },
+    {
+      "reason": "Latency benchmark over a downloaded GGUF (LOKALBOT_COTYPING_LATENCY_MODEL, with _CASES, _LIBRARY and _OUT). A measurement, run by hand.",
+      "tests": [
+        "CotypingTypingLatencyBenchmarkTests/testTypingLatency"
+      ]
+    },
+    {
+      "reason": "Needs cached Qwen3-ASR weights (LOKALBOT_QWEN_TEST_MODEL_DIR, and LOKALBOT_QWEN_TEST_REFERENCE for upgrade parity). Run for a speech runtime update.",
+      "tests": [
+        "QwenASREngineTests/testCachedModelCancellationThrowsInsteadOfReturningTranscript",
+        "QwenASREngineTests/testCachedModelTranscribesSubFrameAudio",
+        "QwenASREngineTests/testCachedModelTranscriptionMatchesReferenceWhenProvided"
+      ]
+    },
+    {
+      "reason": "Needs the downloaded Qwen3 forced aligner (LOKALBOT_QWEN_ALIGNER_TEST_DIR). Run for an aligner or MLX update.",
+      "tests": [
+        "WordAttributionTests/testCachedAlignerKeepsScratchBuffersBoundedAcrossSegmentLengths",
+        "WordAttributionTests/testCachedAlignerVerifiesPinsAndTimesEveryWord"
+      ]
+    },
+    {
+      "reason": "Needs the verified Nemotron v2 model folder (LOKALBOT_NEMOTRON_TEST_MODEL_DIR). Run for a diarization runtime update.",
+      "tests": [
+        "NemotronRuntimeTests/testPinnedV2ModelRunsAndResetsOnCPUAndNeuralEngine"
+      ]
+    },
+    {
+      "reason": "Needs the prepared public diarization benchmark folder (TEST_RUNNER_NEMOTRON_BENCH_ROOT). Run for a diarization runtime update.",
+      "tests": [
+        "NemotronRuntimeTests/testPublicRecordingResetAndVoiceCompatibility"
+      ]
+    },
+    {
+      "reason": "Memory measurement on a copy of the Nemotron diarization folder (LOKALBOT_NEMOTRON_MODEL_DIR). A measurement, run by hand.",
+      "tests": [
+        "LibraryPerformanceBenchmarkTests/testDiarizationModelMemoryIsReleasedWhenIdle"
+      ]
+    },
+    {
+      "reason": "Needs the Files text model and projector (LOKALBOT_MEDIA_EMBEDDER_MODELS). Run for every llama.cpp update: it guards FileMediaEmbedder.vectorVersion.",
+      "tests": [
+        "FileMediaEmbedderReferenceTests/testATextLongerThanTheBatchIsCutLikeDigUpCutsIt",
+        "FileMediaEmbedderReferenceTests/testDigUpsReferenceInputsMakeItsReferenceVectors"
+      ]
+    },
+    {
+      "reason": "Needs Granite speech weights and a public-audio reference manifest (LOKALBOT_GRANITE5_REFERENCE). Run for a Granite runtime update.",
+      "tests": [
+        "GraniteTurboTests/testNativeEnginePreparesAndTranscribesPublicAudioWhenFixtureProvided",
+        "GraniteTurboTests/testNativeInferenceMatchesReferenceWhenFixtureProvided"
+      ]
+    },
+    {
+      "reason": "Needs a local sherpa-onnx Fun-ASR model and a public or synthetic speech WAV. Run for a Fun-ASR runtime update.",
+      "tests": [
+        "FunASRNanoRuntimeTests/testRealLocalModelWhenFixturesAreProvided"
+      ]
+    },
+    {
+      "reason": "Needs a fixture library that holds the real embedding model (LOKALBOT_EMBEDDING_FIXTURE). Run for an embedding model or index change.",
+      "tests": [
+        "EmbeddingIndexIntegrationTests/testEmbeddingRebuildAndRetrievalWhenFixtureProvided"
+      ]
+    },
+    {
+      "reason": "Timings over a copy of a real library database (LOKALBOT_PERF_DB). A measurement on private data, run by hand.",
+      "tests": [
+        "LibraryPerformanceBenchmarkTests/testCaptureProcessingTimings",
+        "LibraryPerformanceBenchmarkTests/testKeywordScreenSearchTimings",
+        "LibraryPerformanceBenchmarkTests/testLaunchDatabaseOpenTimings",
+        "LibraryPerformanceBenchmarkTests/testRetentionPathClearTimings",
+        "LibraryPerformanceBenchmarkTests/testSemanticRetrievalTimings",
+        "LibraryPerformanceBenchmarkTests/testWindowTextFingerprintTimings",
+        "LibraryPerformanceBenchmarkTests/testWindowTextRereadTimings"
+      ]
+    },
+    {
+      "reason": "Day digest benchmark (LOKALBOT_DIGEST_BENCH=1 and its variables; Benchmarks/DayDigest/run.sh sets them). A measurement, run by hand.",
+      "tests": [
+        "DayDigestBenchmarkTests/testDigestBenchmark"
+      ]
+    },
+    {
+      "reason": "Replays copied meeting folders through the action-ownership rules (LOKALBOT_OWNERSHIP_AUDIT). Private data, run by hand.",
+      "tests": [
+        "ActionOwnershipAuditTests/testSavedActionsThroughCurrentOwnershipRules"
+      ]
+    },
+    {
+      "reason": "Replays saved transcripts through the integrity checks (LOKALBOT_INTEGRITY_REPLAY). Private data, run by hand.",
+      "tests": [
+        "MeetingIntegrityTests/testLocalSavedTranscriptReplay"
+      ]
+    },
+    {
+      "reason": "Meeting-notes replays over a local manifest (LOKALBOT_NOTES_PLAN_MANIFEST, LOKALBOT_NOTES_REPLAY_MANIFEST). Private data and a local model, run by hand.",
+      "tests": [
+        "MeetingNotesReplayTests/testLocalCloudPlanningAndTranscriptCleanup",
+        "MeetingNotesReplayTests/testLocalQwenReplay"
+      ]
+    },
+    {
+      "reason": "Replays call-voice naming on saved meetings (LOKALBOT_SPEAKER_REPLAY_MANIFEST). Private data, run by hand.",
+      "tests": [
+        "SpeakerVoiceReplayTests/testCallVoicesAcrossSavedMeetings"
+      ]
+    },
+    {
+      "reason": "Echo cancellation on a real meeting folder (LOKALBOT_AEC_FIXTURE, LOKALBOT_AEC_OUTPUT). Private audio, run by hand.",
+      "tests": [
+        "EchoCancellerTests/testRealMeetingFolderIfProvided"
+      ]
+    },
+    {
+      "reason": "Replays a private local Granite runtime session (LOKALBOT_GRANITE_REPLAY_MANIFEST). Run by hand.",
+      "tests": [
+        "LlamaServerTests/testLocalGraniteRegionReplayKeepsOneProcess"
+      ]
+    },
+    {
+      "reason": "Needs a large seeded library (LOKALBOT_SCALE_LIBRARY). The nightly Scale and concurrency job builds one and runs these.",
+      "tests": [
+        "ScaleTests/testLargeLibraryLoadsAndIndexesWithinBudget",
+        "ScaleTests/testStartupRetentionSweepDoesNotBlockTheMainThread"
+      ]
+    },
+    {
+      "reason": "Records real model answers through OpenRouter (LOKALBOT_RECORD_MODELS=1). Only the nightly Model drift job runs it.",
+      "tests": [
+        "ModelRecordingTests/testRecordDriftModels"
+      ]
+    },
+    {
+      "reason": "Checks a freshly installed Agent Mode runtime against the manifest (LOKALBOT_PINNED_RUNTIME_TREE). Run when the runtime pins change.",
+      "tests": [
+        "AgentRuntimeTests/testCurrentManifestMatchesProvidedPinnedRuntimeTree"
+      ]
+    },
+    {
+      "reason": "Needs Agent Mode's runtime installed on the Mac; hosted runners do not have it. Runs on a Mac where Agent Mode was enabled once.",
+      "tests": [
+        "PiIntegrationTests/testPromptRoundTripsThroughRealPi"
+      ]
+    },
+    {
+      "reason": "Creates a key in the login Keychain (LOKALBOT_RUN_KEYCHAIN_TESTS=1), which can prompt on screen. Run by hand after changing how the encryption key is chosen.",
+      "tests": [
+        "AppIdentifiersTests/testUITestRuntimeFlagDoesNotSelectDeterministicEncryptionKeyInProductionTarget"
+      ]
+    },
+    {
+      "reason": "No scripted browser trace is committed yet. Recording one (Scripts/record-capture/run.sh chrome|safari) opens a browser on a desktop where a Debug build holds Accessibility and Screen Recording, which hosted runners cannot grant. Take this entry off the list with the first committed scripted-*.json trace.",
+      "tests": [
+        "CaptureReplayTests/testScriptedBrowserTracesReplayToACapture"
+      ]
+    }
+  ]
+}

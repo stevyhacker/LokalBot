@@ -83,14 +83,30 @@ public actor FixtureStore: CompanionStore {
     }
 
     public func meetings(fromDay: String?, toDay: String?, limit: Int) -> [Meeting] {
-        Array(allMeetings.filter { meeting in
+        allMeetings.filter { meeting in
             (fromDay.map { meeting.day >= $0 } ?? true) && (toDay.map { meeting.day <= $0 } ?? true)
-        }.prefix(limit))
+        }.prefix(limit).map(markingPending)
+    }
+
+    public func newestMeetings(limit: Int) -> MeetingsPage {
+        let rows = allMeetings.prefix(limit + 1)
+        return MeetingsPage(meetings: rows.prefix(limit).map(markingPending), hasMore: rows.count > limit)
     }
 
     public func meeting(id: String) -> Meeting? {
-        if case .meeting(let meeting)? = records[RecordKind.meeting.rawValue]?[id]?.body { return meeting }
+        if case .meeting(let meeting)? = records[RecordKind.meeting.rawValue]?[id]?.body { return markingPending(meeting) }
         return nil
+    }
+
+    /// A meeting's own actions say which ones wait for the computer, as the
+    /// Rust store's do.
+    private func markingPending(_ meeting: Meeting) -> Meeting {
+        guard !pendingActions.isEmpty else { return meeting }
+        var meeting = meeting
+        for index in meeting.actions.indices where pendingActions.contains(Self.actionKey(meeting.id, meeting.actions[index].id)) {
+            meeting.actions[index].pending = true
+        }
+        return meeting
     }
 
     public func transcript(meetingID: String) -> Transcript? {

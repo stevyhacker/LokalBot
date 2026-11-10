@@ -90,33 +90,6 @@ enum AskDayScope {
     }
 }
 
-/// Explicitly attached screen moments grant Screen access for that question;
-/// the attachment itself is narrow evidence and never widens retrieval time.
-enum AskScopeReconciler {
-    static func addingScreenContext(
-        to scopes: Set<AskSourceScope>,
-        dayScope: Date?
-    ) -> (scopes: Set<AskSourceScope>, dayScope: Date?) {
-        var reconciledScopes = scopes
-        reconciledScopes.insert(.screen)
-        // The attached OCR excerpt is an explicit, narrow exception. Keep the
-        // selected day on every retrieval tool instead of widening the whole
-        // Meetings/Screen library to Any time.
-        return (reconciledScopes, dayScope)
-    }
-}
-
-enum AskEscalationScope {
-    static func resolve(
-        mode: AskMode,
-        selectedSources: Set<AskSourceScope>,
-        selectedDay: Date?
-    ) -> (sources: Set<AskSourceScope>, dayScope: Date?) {
-
-        return (selectedSources, selectedDay)
-    }
-}
-
 /// A question-scoped tool catalogue. Disabled sources are absent from the
 /// agent prompt and are still denied at execution as a second boundary.
 @MainActor
@@ -128,6 +101,13 @@ final class ScopedChatToolRunner: ChatToolRunner {
     /// Says which meetings `meetingIDs` holds, e.g. "meetings from the last
     /// 30 days"; without it, "the meetings chosen for it".
     private let meetingScope: String?
+    /// False when `meetingIDs` holds everything the asker may read and so is
+    /// not worth telling the model about: it only leaves out what is never
+    /// theirs, such as the sample meeting.
+    private let namesMeetingLimit: Bool
+    /// The first moment `activity_summary` may read, for an asker whose
+    /// history starts there. Meetings are held by `meetingIDs`.
+    private let activityNotBefore: Date?
     /// What the question was asked about, e.g. "the day 4 Nov 2026": where
     /// the answer starts, never a limit on the tools.
     private let focus: String?
@@ -135,11 +115,14 @@ final class ScopedChatToolRunner: ChatToolRunner {
 
     init(base: ChatToolRunner, scopes: Set<AskSourceScope>, dayScope: Date? = nil,
          dayScopeKey: String? = nil, meetingIDs: Set<UUID>? = nil, meetingScope: String? = nil,
+         namesMeetingLimit: Bool = true, activityNotBefore: Date? = nil,
          focus: String? = nil, screenSnapshotIDs: Set<Int64>? = nil) {
         self.base = base
         self.scopes = scopes
         self.meetingIDs = meetingIDs
         self.meetingScope = meetingScope
+        self.namesMeetingLimit = namesMeetingLimit
+        self.activityNotBefore = activityNotBefore
         self.focus = focus
         self.screenSnapshotIDs = screenSnapshotIDs
         self.dayScopeKey = dayScopeKey ?? dayScope.map { AskDayScope.key(for: $0) }
@@ -170,7 +153,7 @@ final class ScopedChatToolRunner: ChatToolRunner {
         if let dayScopeKey, let dates = AskDateScope(storageKey: dayScopeKey) {
             parts.append("what happened \(dates.phrase)")
         }
-        if let meetingIDs {
+        if let meetingIDs, namesMeetingLimit {
             parts.append(meetingScope ?? Self.chosenMeetings(meetingIDs.count))
         }
         return parts.isEmpty ? nil : parts.joined(separator: ", and to ")
@@ -209,6 +192,9 @@ final class ScopedChatToolRunner: ChatToolRunner {
             arguments["_lokalbot_include_meetings"] = scopes.contains(.meetings)
                 ? "true"
                 : "false"
+            if let activityNotBefore {
+                arguments["_lokalbot_not_before"] = String(activityNotBefore.timeIntervalSince1970)
+            }
         }
         if let day = dayScopeKey {
             guard AskDateScope(storageKey: day) != nil else {

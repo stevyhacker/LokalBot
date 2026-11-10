@@ -132,10 +132,17 @@ final class AgentSessionController: ObservableObject {
     /// published until this returns to false, so a replacement process can
     /// never launch while its predecessor is still being terminated.
     private var failureTeardownInProgress = false
-    /// Held from resolveEndpoint (built-in engine only) until shutdown or
-    /// failure, so the Main LLM cannot be evicted mid-conversation by an
-    /// unrelated model load.
+    /// Held while a turn runs (built-in engine only), so the Main LLM cannot
+    /// be evicted mid-turn by an unrelated model load. A task that is open
+    /// but waiting holds nothing: a lease kept for as long as the tab stayed
+    /// open made every other model on that server wait behind it.
     private var llmLease: InferenceLease?
+    /// The built-in weights this runtime talks to, for taking the lease
+    /// again at the next turn; nil for a server or a plan.
+    private var builtInModel: URL?
+    /// Requests for the model that have not been answered yet; Stop cancels
+    /// them.
+    private var modelWaits: Set<Task<InferenceLease, Error>> = []
     /// Runs from resolveEndpoint (ChatGPT plan only) until shutdown or
     /// failure, like the lease.
     private var planRelay: ChatGPTPlanRelay?
@@ -294,6 +301,7 @@ final class AgentSessionController: ObservableObject {
             }
             guard generation == lifecycleGeneration else { return }
             state = .ready
+            releaseModelBetweenTurns()
         } catch {
             guard generation == lifecycleGeneration else { return }
             revokeAccessCapability()
@@ -411,21 +419,25 @@ final class AgentSessionController: ObservableObject {
         let pending = AgentQueuedPrompt(text: prompt, attachments: sources)
         let wirePrompt: String
         do {
-            if let connectedEndpoint {
-                try InferenceEndpointPolicy.validate(connectedEndpoint,
-                    approvedOrigins: settings().approvedRemoteInferenceOrigins)
-            }
-            // The relay's loopback URL passes the origin check; the plan has
-            // its own approval.
-            if let connectedPlan, !connectedPlan.isApproved(in: settings()) {
-                throw SubscriptionPlanError.approvalRequired(connectedPlan)
-            }
+            try requireApprovedDestination()
             wirePrompt = try contextResolver.prompt(prompt, attachments: sources)
         } catch {
             composerError = error.localizedDescription
             return false
         }
         isSending = true
+        defer { if generation == lifecycleGeneration { isSending = false } }
+        do {
+            try await holdModelForTurn()
+        } catch {
+            if generation == lifecycleGeneration {
+                composerError = error is CancellationError
+                    ? "Stopped while waiting for the model. Nothing was sent."
+                    : Self.message(for: error)
+            }
+            return false
+        }
+        guard generation == lifecycleGeneration else { return false }
         lastSubmittedPrompt = pending
         composerError = nil
         turnError = nil
@@ -438,7 +450,6 @@ final class AgentSessionController: ObservableObject {
             sourceAttachments.append(source)
         }
         state = .running
-        defer { if generation == lifecycleGeneration { isSending = false } }
         do {
             writeReasoningLevel()
             let command: PiCommand = steer && wasRunning
@@ -449,7 +460,10 @@ final class AgentSessionController: ObservableObject {
             if !response.success {
                 failedPrompt = pending
                 queueIsPaused = true
-                if !wasRunning { state = .ready }
+                if !wasRunning {
+                    state = .ready
+                    releaseModelBetweenTurns()
+                }
                 composerError = response.error ?? "The agent rejected this message. Review it before retrying."
                 folder.appendNotice(composerError!, isError: true)
                 publish()
@@ -463,6 +477,37 @@ final class AgentSessionController: ObservableObject {
             queueIsPaused = true
             await fail(with: error)
             return false
+        }
+    }
+
+    /// Throws when the server or plan this runtime is connected to is no
+    /// longer approved in Settings → Models.
+    private func requireApprovedDestination() throws {
+        let configuration = settings()
+        if let connectedEndpoint {
+            try InferenceEndpointPolicy.validate(connectedEndpoint,
+                approvedOrigins: configuration.approvedRemoteInferenceOrigins)
+        }
+        // The relay's loopback URL passes the origin check; the plan has
+        // its own approval.
+        if let connectedPlan, !connectedPlan.isApproved(in: configuration) {
+            throw SubscriptionPlanError.approvalRequired(connectedPlan)
+        }
+    }
+
+    /// Call when an approval for a Think server or plan is withdrawn. During
+    /// a turn the agent sends the conversation, attached context and tool
+    /// results to its endpoint at every model step without passing through
+    /// `send`, so a turn on a destination that is no longer approved ends
+    /// here, with its process. A session that is waiting sends nothing until
+    /// `send`, which refuses.
+    func remoteApprovalsDidChange() async {
+        guard state == .running || isSending else { return }
+        do {
+            try requireApprovedDestination()
+        } catch {
+            flushPendingTextDelta()
+            await transitionToFailure(message: Self.message(for: error), recovery: .openModels)
         }
     }
 
@@ -495,6 +540,7 @@ final class AgentSessionController: ObservableObject {
 
     func abort() async {
         queueIsPaused = true
+        for wait in modelWaits { wait.cancel() }
         // Once an RPC is sent, canceling its acknowledgement would report a
         // transport failure and requeue an already-delivered prompt. Let that
         // acknowledgement settle while abort independently stops the turn.
@@ -668,8 +714,10 @@ final class AgentSessionController: ObservableObject {
         case .agentStart:
             state = .running
             turnError = nil
+            holdModelForStartedTurn()
         case .agentSettled:
             state = .ready
+            releaseModelBetweenTurns()
         case .extensionUIRequest(let request):
             await handleUIRequest(request)
         default:
@@ -748,8 +796,66 @@ final class AgentSessionController: ObservableObject {
             includingCredentials: makeTransport == nil,
             broker: broker)
         llmLease = connection.lease
+        builtInModel = connection.lease.map { URL(fileURLWithPath: $0.modelPath) }
         planRelay = connection.relay
         return connection.endpoint
+    }
+
+    /// Takes the built-in model for the turn about to start, waiting behind
+    /// other work when the server is busy with a different model.
+    private func holdModelForTurn() async throws {
+        guard let builtInModel, llmLease == nil else { return }
+        let generation = lifecycleGeneration
+        let broker = broker
+        // Every caller asks for a lease of its own. When a send joined the
+        // request of a turn the agent had started, the turn could settle and
+        // give the lease back before the send resumed, and the send then
+        // stored that lease as if it were still held.
+        let wait = Task {
+            try await broker.lease(.mainLLM, model: builtInModel, priority: .interactive,
+                                   purpose: "agent session")
+        }
+        modelWaits.insert(wait)
+        let lease: InferenceLease
+        do {
+            lease = try await wait.value
+        } catch {
+            modelWaits.remove(wait)
+            throw error
+        }
+        modelWaits.remove(wait)
+        // The tab was closed or restarted while this waited.
+        guard generation == lifecycleGeneration else {
+            await broker.release(lease)
+            throw CancellationError()
+        }
+        // Another caller got its lease first, and one is enough.
+        guard llmLease == nil else {
+            await broker.release(lease)
+            return
+        }
+        llmLease = lease
+    }
+
+    /// The agent can start a turn the host did not send, such as a follow-up
+    /// it accepted just before settling. Take the model for it without
+    /// holding up the event loop.
+    private func holdModelForStartedTurn() {
+        guard builtInModel != nil, llmLease == nil, modelWaits.isEmpty else { return }
+        Task {
+            try? await self.holdModelForTurn()
+            // The turn may have settled before the model was free.
+            if self.state != .running, !self.isSending { self.releaseModelBetweenTurns() }
+        }
+    }
+
+    /// The agent is idle (`agent_settled`): give the server back until the
+    /// next turn. The relay and the model's identity stay.
+    private func releaseModelBetweenTurns() {
+        guard let lease = llmLease else { return }
+        llmLease = nil
+        let broker = self.broker
+        Task { await broker.release(lease) }
     }
 
     /// Call after the Agent or Think reasoning setting changes. A running
@@ -878,6 +984,9 @@ final class AgentSessionController: ObservableObject {
     private func releaseModelConnection() {
         planRelay?.stop()
         planRelay = nil
+        builtInModel = nil
+        for wait in modelWaits { wait.cancel() }
+        modelWaits.removeAll()
         guard let lease = llmLease else { return }
         llmLease = nil
         let broker = self.broker

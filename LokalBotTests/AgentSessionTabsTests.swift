@@ -371,6 +371,28 @@ final class AgentSessionTabsTests: XCTestCase {
         await sessions.shutdownAll()
     }
 
+    /// A window handoff copies its package into the task's folder before the
+    /// task may start. When the task was queued to start first and the copy
+    /// then failed, the agent was sent a prompt naming files that were not there.
+    func testAHandoffLeftUnstartedIsSentOnlyWhenStarted() async throws {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        let added = sessions.handOff(makeHandoffs(count: 1), start: false)
+
+        XCTAssertTrue(sessions.pendingHandoffStarts.isEmpty)
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(factory.plans.count, 0, "nothing starts on its own")
+
+        sessions.startHandoffs(added)
+        sessions.startHandoffs(added)
+        XCTAssertEqual(sessions.pendingHandoffStarts, added, "starting twice queues it once")
+        try await waitUntil { factory.transports.last?.sentLines.contains { $0.contains("Work on action 1") } == true }
+        factory.transports.last?.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        try await waitUntil { sessions.pendingHandoffStarts.isEmpty }
+        XCTAssertEqual(factory.plans.count, 1)
+        await sessions.shutdownAll()
+    }
+
     private func makeHandoffs(count: Int) -> [AgentHandoff] {
         let meetingID = UUID()
         return (1...count).map { number in

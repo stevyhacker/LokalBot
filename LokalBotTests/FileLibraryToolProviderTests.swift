@@ -341,6 +341,22 @@ final class FileLibraryToolProviderTests: XCTestCase {
         XCTAssertTrue(badSince.isError)
         XCTAssertTrue(badSince.text.hasPrefix("[invalid_arguments]"))
 
+        // As `list --until`: an earlier period can be asked for on its own.
+        let byUntil = await provider.call(
+            name: "list_meetings",
+            arguments: ["until": "2026-03-31"])
+        XCTAssertTrue(byUntil.text.contains("Old sync"), byUntil.text)
+        XCTAssertFalse(byUntil.text.contains("Cache planning"), byUntil.text)
+        let between = await provider.call(
+            name: "list_meetings",
+            arguments: ["since": "2026-04-01", "until": "2026-12-31"])
+        XCTAssertTrue(between.text.contains("Cache planning"))
+        XCTAssertFalse(between.text.contains("Old sync"))
+        let badUntil = await provider.call(
+            name: "list_meetings",
+            arguments: ["until": "end of March"])
+        XCTAssertTrue(badUntil.text.hasPrefix("[invalid_arguments]"), badUntil.text)
+
         let capped = await provider.call(
             name: "list_meetings",
             arguments: ["limit": 1])

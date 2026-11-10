@@ -1370,6 +1370,9 @@ enum Phase {
 struct ServerState {
     phase: Phase,
     leases: usize,
+    /// How many of those are kept for as long as a task is open, not for one
+    /// request. Nobody waits for these to end.
+    held_open: usize,
     idle_since: Option<Instant>,
     /// The model `lease()` starts when nothing is loaded.
     desired: Option<(String, PathBuf)>,
@@ -1408,6 +1411,7 @@ pub struct Lease {
     token: String,
     model_id: String,
     model_path: PathBuf,
+    held_open: bool,
 }
 
 impl Lease {
@@ -1471,6 +1475,9 @@ impl Drop for Lease {
     fn drop(&mut self) {
         let mut state = self.server.state.lock();
         state.leases = state.leases.saturating_sub(1);
+        if self.held_open {
+            state.held_open = state.held_open.saturating_sub(1);
+        }
         if state.leases == 0 {
             state.idle_since = Some(Instant::now());
         }
@@ -1521,12 +1528,23 @@ impl LlamaServer {
             }
         };
         let (id, path) = desired.ok_or(AiError::NoModel)?;
-        self.inner.lease_path(&id, &path)
+        self.inner.lease_path(&id, &path, false)
     }
 
     /// Leases `entry`, starting (or switching to) it as needed. A switch waits
     /// until every lease on the current model is released.
     pub fn lease_model(&self, entry: &ModelEntry) -> Result<Lease> {
+        self.lease_entry(entry, false)
+    }
+
+    /// [`Self::lease_model`] for a lease kept while a task stays open. A
+    /// request for another model fails while it is held, instead of waiting
+    /// for a task that may never be closed.
+    pub fn lease_model_for_task(&self, entry: &ModelEntry) -> Result<Lease> {
+        self.lease_entry(entry, true)
+    }
+
+    fn lease_entry(&self, entry: &ModelEntry, held_open: bool) -> Result<Lease> {
         let paths = &self.inner.installer.paths;
         // Hashes once when the file has no digest sidecar yet.
         if !catalog::verify_downloaded(paths, entry)? {
@@ -1534,7 +1552,7 @@ impl LlamaServer {
         }
         let path = catalog::model_path(paths, entry);
         self.inner.state.lock().desired = Some((entry.id.to_string(), path.clone()));
-        self.inner.lease_path(entry.id, &path)
+        self.inner.lease_path(entry.id, &path, held_open)
     }
 
     /// Stops the server now (leases still held will see it restart).
@@ -1565,16 +1583,23 @@ impl LlamaServer {
 }
 
 impl ServerInner {
-    fn lease_path(self: &Arc<Self>, model_id: &str, model_path: &Path) -> Result<Lease> {
+    fn lease_path(
+        self: &Arc<Self>,
+        model_id: &str,
+        model_path: &Path,
+        held_open: bool,
+    ) -> Result<Lease> {
         enum Next {
             Lease,
             Forget,
             Wait,
+            Held(String),
             Start,
         }
         let mut state = self.state.lock();
         loop {
             let busy = state.leases > 0;
+            let task_open = state.held_open > 0;
             let next = match &mut state.phase {
                 Phase::Running(running)
                     if running.model_path == model_path
@@ -1589,6 +1614,9 @@ impl ServerInner {
                     if alive { Next::Lease } else { Next::Forget }
                 }
                 Phase::Starting => Next::Wait,
+                // An open task holds what is loaded for as long as it stays
+                // open, which may be for good.
+                Phase::Running(running) if task_open => Next::Held(running.model_id.clone()),
                 // Another model is in use; switch once its cohort finishes.
                 Phase::Running(_) if busy => Next::Wait,
                 _ => Next::Start,
@@ -1596,6 +1624,7 @@ impl ServerInner {
             match next {
                 Next::Lease => {
                     state.leases += 1;
+                    state.held_open += usize::from(held_open);
                     state.idle_since = None;
                     let Phase::Running(running) = &state.phase else {
                         unreachable!()
@@ -1606,7 +1635,14 @@ impl ServerInner {
                         token: running.token.clone(),
                         model_id: running.model_id.clone(),
                         model_path: running.model_path.clone(),
+                        held_open,
                     });
+                }
+                Next::Held(model_id) => {
+                    let held = catalog::entry(&model_id)
+                        .map_or(model_id.as_str(), |entry| entry.display_name)
+                        .to_string();
+                    return Err(AiError::ModelHeld { held }.into());
                 }
                 Next::Forget => {
                     log::warn!("llama-server {} exited; restarting", self.role.label());
@@ -1630,6 +1666,7 @@ impl ServerInner {
                     let result = match started {
                         Ok(running) => {
                             state.leases += 1;
+                            state.held_open += usize::from(held_open);
                             state.idle_since = None;
                             let lease = Lease {
                                 server: self.clone(),
@@ -1637,6 +1674,7 @@ impl ServerInner {
                                 token: running.token.clone(),
                                 model_id: running.model_id.clone(),
                                 model_path: running.model_path.clone(),
+                                held_open,
                             };
                             state.phase = Phase::Running(Box::new(running));
                             Ok(lease)
@@ -2131,6 +2169,7 @@ impl RuntimeManager {
                 state: Mutex::new(ServerState {
                     phase: Phase::Stopped,
                     leases: 0,
+                    held_open: 0,
                     idle_since: None,
                     desired: None,
                 }),
@@ -2419,6 +2458,13 @@ impl RuntimeManager {
     /// Leases the Think server with `model`.
     pub fn main_server(&self, model: &ModelEntry) -> Result<Lease> {
         self.lease(Role::Main, model)
+    }
+
+    /// The Think server for an Agent Mode task, which keeps its model loaded
+    /// until the task is closed. See [`LlamaServer::lease_model_for_task`].
+    pub fn main_server_for_task(&self, model: &ModelEntry) -> Result<Lease> {
+        self.start_reaper();
+        self.server(Role::Main).lease_model_for_task(model)
     }
 
     /// Leases the embedder (EmbeddingGemma 2).
@@ -3225,6 +3271,7 @@ mod tests {
             state: Mutex::new(ServerState {
                 phase: Phase::Stopped,
                 leases: 0,
+                held_open: 0,
                 idle_since: None,
                 desired: None,
             }),
@@ -3259,6 +3306,69 @@ mod tests {
             error.to_string(),
             format!("Local LLM server failed to start: {MISSING_GOMP}")
         );
+    }
+
+    /// A Think server that counts as running `model`, with no process behind
+    /// it that a test could stop.
+    fn running_server(manager: &RuntimeManager, model: &ModelEntry) -> Arc<ServerInner> {
+        let path = catalog::model_path(manager.paths(), model);
+        Arc::new(ServerInner {
+            role: Role::Main,
+            port: 9,
+            installer: manager.shared.installer.clone(),
+            state: Mutex::new(ServerState {
+                phase: Phase::Running(Box::new(Running {
+                    pid: std::process::id(),
+                    child: None,
+                    borrowed: true,
+                    model_path: path,
+                    model_id: model.id.to_string(),
+                    binary: PathBuf::new(),
+                    token: "t".into(),
+                    tail: Default::default(),
+                    backend: LlamaBackend::Cpu,
+                })),
+                leases: 0,
+                held_open: 0,
+                idle_since: None,
+                desired: None,
+            }),
+            changed: Condvar::new(),
+        })
+    }
+
+    #[test]
+    fn another_model_is_refused_at_once_while_an_open_task_holds_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &Settings::default());
+        let loaded = catalog::entry("qwen3.5-4b").unwrap();
+        let other = catalog::entry("qwen3.5-0.8b").unwrap();
+        let server = running_server(&manager, loaded);
+        let loaded_path = catalog::model_path(manager.paths(), loaded);
+        let other_path = catalog::model_path(manager.paths(), other);
+
+        let task = server.lease_path(loaded.id, &loaded_path, true).unwrap();
+        let asked = Instant::now();
+        let Err(refused) = server.lease_path(other.id, &other_path, false) else {
+            panic!("the model changed under an open task");
+        };
+        assert!(
+            asked.elapsed() < Duration::from_millis(500),
+            "it waited for the task"
+        );
+        assert_eq!(
+            refused.to_string(),
+            format!(
+                "An open Agent Mode task is keeping {} loaded, so the built-in model can't be changed. Close that task, then try again.",
+                loaded.display_name
+            )
+        );
+        // The model the task uses is still shared with everyone else.
+        drop(server.lease_path(loaded.id, &loaded_path, false).unwrap());
+        assert_eq!(server.state.lock().held_open, 1);
+        drop(task);
+        let state = server.state.lock();
+        assert_eq!((state.leases, state.held_open), (0, 0));
     }
 
     #[test]
@@ -3388,6 +3498,7 @@ mod tests {
             state: Mutex::new(ServerState {
                 phase: Phase::Stopped,
                 leases: 0,
+                held_open: 0,
                 idle_since: None,
                 desired: None,
             }),

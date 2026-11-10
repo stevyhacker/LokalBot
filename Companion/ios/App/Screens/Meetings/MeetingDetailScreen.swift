@@ -125,7 +125,8 @@ struct MeetingDetailScreen: View {
                     VStack(spacing: 0) {
                         ForEach(meeting.actions) { action in
                             ActionRowView(action: action, meetingID: meeting.id,
-                                          pending: model.pendingActionIDs.contains(action.id), today: session.today,
+                                          pending: model.pendingActionIDs.contains(action.id), note: action.syncNote,
+                                          today: session.today,
                                           evidence: .handle { model.focus(at: $0.start, citation: $0) }) {
                                 Task { await model.setStatus(action.status == .done ? .open : .done, for: action, session: session) }
                             }

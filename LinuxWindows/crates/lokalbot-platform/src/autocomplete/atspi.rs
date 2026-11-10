@@ -1239,20 +1239,58 @@ impl VisibleSource for AtspiSource<'_> {
     }
 }
 
-/// Characters (code points) taken by the last `graphemes` grapheme clusters
-/// of `text`, or the first ones when `from_start`.
-fn chars_in_graphemes(text: &str, graphemes: usize, from_start: bool) -> usize {
-    if from_start {
-        text.graphemes(true)
-            .take(graphemes)
-            .map(|g| g.chars().count())
-            .sum()
-    } else {
-        text.graphemes(true)
-            .rev()
-            .take(graphemes)
-            .map(|g| g.chars().count())
-            .sum()
+/// What a toolkit counts in `EditableText` and `Text` calls. AT-SPI says
+/// characters; these are what GTK 3.24, GTK 4.14, Qt 5.15 and Qt 6.4 fields
+/// did when driven live. A toolkit not checked that way keeps characters.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Counting {
+    /// Offsets in characters; `InsertText`'s length in UTF-8 bytes (a GTK 4
+    /// entry ignores the length).
+    Gtk,
+    /// Everything in UTF-16 units, the index of Qt's strings.
+    Qt,
+    Characters,
+}
+
+impl Counting {
+    fn of(toolkit: Option<(String, u32)>) -> Self {
+        match toolkit {
+            Some((name, 3 | 4)) if name.eq_ignore_ascii_case("gtk") => Counting::Gtk,
+            Some((name, 5 | 6)) if name.eq_ignore_ascii_case("qt") => Counting::Qt,
+            _ => Counting::Characters,
+        }
+    }
+
+    /// How far `text` moves an offset.
+    fn offsets(self, text: &str) -> usize {
+        match self {
+            Counting::Qt => text.encode_utf16().count(),
+            Counting::Gtk | Counting::Characters => text.chars().count(),
+        }
+    }
+
+    /// `InsertText`'s length for `text`. Too small cuts the text short; too
+    /// large makes Qt pad it with NUL characters.
+    fn insert_length(self, text: &str) -> usize {
+        match self {
+            Counting::Gtk => text.len(),
+            Counting::Qt | Counting::Characters => self.offsets(text),
+        }
+    }
+
+    /// Offsets taken by the last `graphemes` grapheme clusters of `text`, or
+    /// the first ones when `from_start`.
+    fn offsets_in_graphemes(self, text: &str, graphemes: usize, from_start: bool) -> usize {
+        let offsets = |cluster: &str| self.offsets(cluster);
+        if from_start {
+            text.graphemes(true).take(graphemes).map(offsets).sum()
+        } else {
+            text.graphemes(true)
+                .rev()
+                .take(graphemes)
+                .map(offsets)
+                .sum()
+        }
     }
 }
 
@@ -1294,40 +1332,47 @@ fn insert_editable(obj: &Obj, edit: &Edit) -> anyhow::Result<()> {
         state::has(states, state::FOCUSED),
         "the field no longer has focus"
     );
+    let counting = Counting::of(bus.application(obj).and_then(|app| bus.toolkit(&app)));
     let mut caret = bus.caret_offset(obj).context("no caret")?;
     if edit.backward > 0 {
         let start = (caret - 256).max(0);
         let before = bus
             .text(obj, start, caret)
             .context("no text before the caret")?;
-        let chars = chars_in_graphemes(&before, edit.backward, false) as i32;
-        let deleted: bool = bus.call(obj, EDITABLE_TEXT, "DeleteText", &(caret - chars, caret))?;
+        let count = counting.offsets_in_graphemes(&before, edit.backward, false) as i32;
+        let deleted: bool = bus.call(obj, EDITABLE_TEXT, "DeleteText", &(caret - count, caret))?;
         anyhow::ensure!(deleted, "the field refused the deletion");
-        caret -= chars;
+        caret -= count;
     }
     if edit.forward > 0 {
-        let count = bus.character_count(obj).unwrap_or(caret);
+        let end = bus.character_count(obj).unwrap_or(caret);
         let after = bus
-            .text(obj, caret, (caret + 256).min(count))
+            .text(obj, caret, (caret + 256).min(end))
             .unwrap_or_default();
-        let chars = chars_in_graphemes(&after, edit.forward, true) as i32;
-        let deleted: bool = bus.call(obj, EDITABLE_TEXT, "DeleteText", &(caret, caret + chars))?;
+        let count = counting.offsets_in_graphemes(&after, edit.forward, true) as i32;
+        let deleted: bool = bus.call(obj, EDITABLE_TEXT, "DeleteText", &(caret, caret + count))?;
         anyhow::ensure!(deleted, "the field refused the deletion");
     }
     if edit.text.is_empty() {
         return Ok(());
     }
-    let length = edit.text.chars().count() as i32;
     let inserted: bool = bus.call(
         obj,
         EDITABLE_TEXT,
         "InsertText",
-        &(caret, edit.text.as_str(), length),
+        &(
+            caret,
+            edit.text.as_str(),
+            counting.insert_length(&edit.text) as i32,
+        ),
     )?;
     anyhow::ensure!(inserted, "the field refused the text");
-    // Some toolkits leave the caret before text inserted at it.
-    if bus.caret_offset(obj) == Some(caret) {
-        let _: Result<bool, _> = bus.call(obj, TEXT, "SetCaretOffset", &(caret + length,));
+    // Some toolkits leave the caret before text inserted at it, and a Qt
+    // line edit sends it to the end of the field.
+    let wanted = caret + counting.offsets(&edit.text) as i32;
+    let now = bus.caret_offset(obj);
+    if now == Some(caret) || (counting == Counting::Qt && now != Some(wanted)) {
+        let _: Result<bool, _> = bus.call(obj, TEXT, "SetCaretOffset", &(wanted,));
     }
     Ok(())
 }
@@ -1345,10 +1390,47 @@ mod tests {
 
     #[test]
     fn grapheme_counts_become_character_counts() {
-        assert_eq!(chars_in_graphemes("abc", 2, false), 2);
+        let characters = Counting::Characters;
+        assert_eq!(characters.offsets_in_graphemes("abc", 2, false), 2);
         // "é" as e + combining acute is one grapheme of two characters.
-        assert_eq!(chars_in_graphemes("caf\u{65}\u{301}", 1, false), 2);
-        assert_eq!(chars_in_graphemes("\u{1F44D}\u{1F3FD} ok", 1, true), 2);
+        assert_eq!(
+            characters.offsets_in_graphemes("caf\u{65}\u{301}", 1, false),
+            2
+        );
+        assert_eq!(
+            characters.offsets_in_graphemes("\u{1F44D}\u{1F3FD} ok", 1, true),
+            2
+        );
+    }
+
+    #[test]
+    fn each_toolkit_is_counted_the_way_it_counts() {
+        let toolkit = |name: &str, major| Counting::of(Some((name.to_string(), major)));
+        // The ATK bridge of GTK 3 reports "gtk", GTK 4 "GTK".
+        assert_eq!(toolkit("gtk", 3), Counting::Gtk);
+        assert_eq!(toolkit("GTK", 4), Counting::Gtk);
+        assert_eq!(toolkit("Qt", 5), Counting::Qt);
+        assert_eq!(toolkit("Qt", 6), Counting::Qt);
+        // Not checked against a live field, so left as they were.
+        assert_eq!(toolkit("gtk", 2), Counting::Characters);
+        assert_eq!(toolkit("Chromium", 1), Counting::Characters);
+        assert_eq!(Counting::of(None), Counting::Characters);
+
+        // 13 characters, 15 bytes; with a skin-toned emoji, 10 characters,
+        // 16 bytes and 12 UTF-16 units.
+        for (text, characters, bytes, units) in
+            [("će doći sutra", 13, 15, 13), ("ok 👍🏽 done", 10, 16, 12)]
+        {
+            assert_eq!(Counting::Gtk.insert_length(text), bytes);
+            assert_eq!(Counting::Gtk.offsets(text), characters);
+            assert_eq!(Counting::Qt.insert_length(text), units);
+            assert_eq!(Counting::Qt.offsets(text), units);
+            assert_eq!(Counting::Characters.insert_length(text), characters);
+            assert_eq!(Counting::Characters.offsets(text), characters);
+        }
+        // One emoji before the caret is one grapheme: two offsets in Qt.
+        assert_eq!(Counting::Qt.offsets_in_graphemes("x👍", 1, false), 2);
+        assert_eq!(Counting::Gtk.offsets_in_graphemes("x👍", 1, false), 1);
     }
 
     #[test]

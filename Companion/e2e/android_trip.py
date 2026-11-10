@@ -2,7 +2,8 @@
 """Runs the Android app against a stand-in computer on a running emulator:
 opens the QR scanner, pairs, syncs the library, opens every screen, asks a
 question, records, and sends the recordings, including one cut off by a
-force-stop and one made while the computer is away.
+force-stop and one made while the computer is away. Before that, it cancels a
+pairing on the phone and then allows it on the computer, which has to stand.
 
 The emulator's microphone is silent, so this proves the recorder, the service
 and the upload, not how speech sounds. Give it the release APK, because that's
@@ -181,6 +182,30 @@ def ready_the_app(apk):
     adb("logcat", "-b", "all", "-c", check_result=False)
 
 
+def keep_a_pairing_allowed_after_cancelling(host):
+    """Cancel can't interrupt the wait for the computer's answer. If the person
+    then allows the device there, both sides are paired, so the phone has to
+    save the pairing and sync like any other."""
+    step("Cancel a pairing on the phone, then allow it on the computer")
+    adb("reverse", f"tcp:{host.port}", f"tcp:{host.port}")
+    link = shlex.quote(host.pairing_link())
+    shell(f"am start -a android.intent.action.VIEW -d {link} {PACKAGE}")
+    tap("Pair", then="Approve this device on", then_contains=True)
+    wait_until("the computer to ask about the device", host.is_asking, 45)
+    tap("Cancel", then="Try it without a computer")
+    host.allow()
+    wait_for("Meetings", timeout=60)
+    titles = {record["body"]["title"] for record in sample_library() if record["kind"] == "meeting"}
+    tap("Meetings")
+    wait_until("a meeting from the computer", lambda: next((label for label, _ in screen() if label in titles), None), 60)
+    check(True, "the library opened and synced")
+    relaunch()
+    found = wait_for("Meetings", timeout=60)
+    check(match(found, "Try it without a computer") is None, "the pairing is still there after a restart")
+    assert_no_crashes()
+    adb("reverse", "--remove", f"tcp:{host.port}", check_result=False)
+
+
 def open_the_scanner():
     step("Open the QR scanner")
     launch()
@@ -327,9 +352,15 @@ def main():
     shutil.rmtree(args.out, ignore_errors=True)
     args.out.mkdir(parents=True)
     host = StandInHost(args.host, args.out / "host", free_port())
+    asking_host = StandInHost(args.host, args.out / "asking-host", free_port(), name="Asking Computer", asks=True)
     try:
         apk = signed(args.apk, args.out)
+        asking_host.start()
+        ready_the_app(apk)
+        keep_a_pairing_allowed_after_cancelling(asking_host)
+        asking_host.stop()
         host.start()
+        # A fresh install, so the rest starts from the welcome screen.
         ready_the_app(apk)
         open_the_scanner()
         meeting_title = pair_and_sync(host)
@@ -347,6 +378,7 @@ def main():
             print(crashes[-6000:], file=sys.stderr)
         return 1
     finally:
+        asking_host.stop()
         host.stop()
     print("The Android trip passed.")
     return 0

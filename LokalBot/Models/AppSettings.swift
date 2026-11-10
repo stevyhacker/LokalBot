@@ -162,10 +162,6 @@ struct AppSettings: Codable, Equatable {
     /// or remote setting, and only after Start Radar is pressed. A library
     /// that had approved Meta Muse, which the radar used before, keeps it on.
     var liveRadarEnabled: Bool = false
-    /// The Meta Model API model for Follow-through (after a meeting). Sending
-    /// also needs a key and the api.meta.ai origin in
-    /// `approvedRemoteInferenceOrigins`.
-    var museFollowThroughModel: String = MetaModelAPI.museWonder.id
     /// Off by default: the live transcript preview streams meeting audio to
     /// Muse Voice Transcribe for text within a second of each turn, instead
     /// of transcribing chunks on this Mac. Also needs the api.meta.ai approval.
@@ -260,13 +256,16 @@ struct AppSettings: Codable, Equatable {
         if choice == .remoteServer {
             let transcriptionBaseURL = remoteTranscriptionBaseURL
             let thinkBaseURL = openAIBaseURL
-            return RemoteTranscriptionEngine(configuration: remoteTranscription, apiKey: {
+            var engine = RemoteTranscriptionEngine(configuration: remoteTranscription, apiKey: {
                 Self.remoteTranscriptionRequestKey(
                     transcriptionBaseURL: transcriptionBaseURL,
                     thinkBaseURL: thinkBaseURL,
                     ownKey: KeychainSecrets.string(account: Self.remoteTranscriptionAPIKeyAccount) ?? "",
                     thinkKey: { KeychainSecrets.string(account: "openai-compatible-api-key") ?? "" })
             })
+            // This value is a snapshot; the approval is read live.
+            engine.stillAllowed = { try RemoteTranscriptionConsent.check($0) }
+            return engine
         }
         if choice == .funASRNano { return FunASRNanoEngine(directory: funASRNanoModelDirectory) }
         return choice.engine
@@ -651,7 +650,7 @@ struct AppSettings: Codable, Equatable {
         return openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Live Radar and Follow-through may send meeting text to api.meta.ai.
+    /// Fast live text may send meeting audio to api.meta.ai.
     var metaModelAPIApproved: Bool {
         InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins)
     }
@@ -993,7 +992,6 @@ struct AppSettings: Codable, Equatable {
         case autoTranscriptionVocabulary
         case suggestActionCompletion
         case liveRadarEnabled
-        case museFollowThroughModel
         case museLiveTextEnabled
         case museScreenAnswersEnabled
         case liveRadarPanelEnabled
@@ -1223,7 +1221,6 @@ struct AppSettings: Codable, Equatable {
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
         try c.encode(liveRadarEnabled, forKey: .liveRadarEnabled)
-        try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
         try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
         try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
         try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
@@ -1432,7 +1429,6 @@ struct AppSettings: Codable, Equatable {
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
-        museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
         museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
         museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
         liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)

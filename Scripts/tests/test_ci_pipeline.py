@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import struct
 import plistlib
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -20,6 +21,24 @@ def module(name, file):
     value = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(value)
     return value
+
+
+def run_step(job, name, **variables):
+    """Runs the named step's `run: |` script from a job's text as the runner would.
+
+    Returns (exit code, the lines it wrote to GITHUB_OUTPUT, what it printed)."""
+    step = job.split(f'      - name: {name}\n', 1)[1]
+    body = []
+    for line in step.split('        run: |\n', 1)[1].splitlines():
+        if line.strip() and not line.startswith(' ' * 10):
+            break
+        body.append(line[10:])
+    with tempfile.TemporaryDirectory() as folder:
+        output = Path(folder) / 'output'
+        output.touch()
+        done = subprocess.run(['bash', '-e', '-c', '\n'.join(body)], capture_output=True, text=True,
+                              env=dict(os.environ, GITHUB_OUTPUT=str(output), **variables))
+        return done.returncode, output.read_text().strip(), done.stdout + done.stderr
 
 
 release = module('release_candidate', 'release-candidate.py')
@@ -486,6 +505,97 @@ class NightlyTests(unittest.TestCase):
         self.assertIn('needs: build', failed)
         self.assertIn("if: failure() && github.event_name == 'schedule'", failed)
         self.assertIn('gh issue create', failed)
+
+    def test_a_drift_run_that_could_not_record_opens_an_issue(self):
+        nightly = (ROOT / '.github/workflows/nightly.yml').read_text()
+        job = nightly.split('\n  model-drift:\n', 1)[1].split('\n  day-in-the-life-real:\n', 1)[0]
+        compare = job.split('      - name: Compare with committed recordings\n', 1)[1].split('      - ', 1)[0]
+        # The comparison's exit code is what fails the job; nothing may mask it.
+        self.assertNotIn('continue-on-error', job)
+        self.assertNotIn('|| true', compare)
+        unchecked = job.split('      - name: Open or update the unchecked-drift issue\n', 1)[1]
+        self.assertIn("if: failure() && github.event_name != 'pull_request'", unchecked)
+        self.assertIn('gh issue create', unchecked)
+
+    def test_a_drift_run_without_the_key_is_a_notice_on_pull_requests_and_a_failure_elsewhere(self):
+        nightly = (ROOT / '.github/workflows/nightly.yml').read_text()
+        job = nightly.split('\n  model-drift:\n', 1)[1].split('\n  day-in-the-life-real:\n', 1)[0]
+
+        def key_step(key, event):
+            return run_step(job, 'Check for the recording key', OPENROUTER_API_KEY=key, GITHUB_EVENT_NAME=event)
+
+        # With a key, every kind of run records, and an empty recording then fails the comparison.
+        for event in ['schedule', 'pull_request', 'workflow_dispatch']:
+            with self.subTest(event=event):
+                self.assertEqual(key_step('sk-or-fixture', event)[:2], (0, 'available=true'))
+        # A pull request from a fork has no secrets: its author gets a notice, not a failure.
+        code, output, printed = key_step('', 'pull_request')
+        self.assertEqual((code, output), (0, 'available=false'))
+        self.assertIn('::notice', printed)
+        self.assertIn('was not checked', printed)
+        # A nightly or manual run without the key has the check switched off: that fails.
+        for event in ['schedule', 'workflow_dispatch']:
+            with self.subTest(event=event):
+                code, output, printed = key_step('', event)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(output, '')
+                self.assertIn('::error', printed)
+
+        # Recording, comparing and the upload wait on that answer; the key check comes first.
+        for name in ['Record fresh responses', 'Compare with committed recordings']:
+            step = job.split(f'      - name: {name}\n', 1)[1].split('      - ', 1)[0]
+            self.assertIn("        if: steps.key.outputs.available == 'true'\n", step)
+        self.assertLess(job.index('- name: Check for the recording key'), job.index('- name: Record fresh responses'))
+        upload = job.split('actions/upload-artifact@', 1)[1].split('      - ', 1)[0]
+        self.assertIn("steps.key.outputs.available == 'true'", upload)
+        # A secret in an `if:` is not readable there; presence travels through env.
+        for line in nightly.splitlines():
+            if line.strip().startswith('if:'):
+                self.assertNotIn('secrets.', line)
+
+
+class ReleaseBundleAndRegistryTests(unittest.TestCase):
+    """A stable tag must get its MCP bundle and its registry entry with no repository setup."""
+
+    def setUp(self):
+        self.workflow = (ROOT / '.github/workflows/mcp-registry.yml').read_text()
+        self.bundle = self.workflow.split('\n  bundle:\n', 1)[1].split('\n  publish:\n', 1)[0]
+
+    def gate(self, tag, switch):
+        """Runs the bundle job's first step as the runner would; returns (exit code, output)."""
+        return run_step(self.bundle, 'Check the tag and the switch', TAG=tag, MCP_REGISTRY_PUBLISH=switch)[:2]
+
+    def test_release_calls_the_job_for_every_stable_tag(self):
+        release = (ROOT / '.github/workflows/release.yml').read_text()
+        call = release.split('\n  mcp-registry:\n', 1)[1].split('\n\n', 1)[0]
+        self.assertIn("if: github.event_name == 'push' && !contains(github.ref_name, '-')", call)
+        self.assertIn('needs: release', call)
+        self.assertIn('uses: ./.github/workflows/mcp-registry.yml', call)
+        self.assertIn('tag: ${{ github.ref_name }}', call)
+        for grant in ['contents: write', 'id-token: write']:
+            self.assertIn(grant, call)
+
+    def test_the_bundle_is_attached_whatever_the_registry_switch_says(self):
+        self.assertIn("    if: github.event_name != 'pull_request'\n", self.bundle)
+        steps = self.bundle.split('    steps:\n', 1)[1]
+        self.assertIn('./Scripts/build-mcpb.sh', steps)
+        self.assertIn('gh release upload "$TAG"', steps)
+        # A step-level condition here is how the bundle went missing from releases.
+        self.assertNotIn('        if:', steps)
+
+    def test_listing_is_on_until_the_variable_says_false(self):
+        # No repository variable is set, so an unset one has to mean yes.
+        self.assertEqual(self.gate('v1.2.3', ''), (0, 'publish=true'))
+        self.assertEqual(self.gate('v1.2.3', 'true'), (0, 'publish=true'))
+        self.assertEqual(self.gate('v1.2.3', 'false'), (0, 'publish=false'))
+        for tag in ['v1.2.3-beta.1', '1.2.3', 'master']:
+            with self.subTest(tag=tag):
+                code, output = self.gate(tag, '')
+                self.assertNotEqual(code, 0)
+                self.assertEqual(output, '')
+        publish = self.workflow.split('\n  publish:\n', 1)[1].split('    steps:', 1)[0]
+        self.assertIn('needs: bundle', publish)
+        self.assertIn("if: needs.bundle.outputs.publish == 'true'", publish)
 
 
 class WorkdayBesideUnitTestsTests(unittest.TestCase):

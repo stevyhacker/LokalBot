@@ -20,6 +20,7 @@ final class SettingsStore: ObservableObject {
             guard current != oldValue else { return }
             SpeakerAttribution.microphoneIsUser = current.microphoneIsUser
             ModelDownloadRouting.source = current.modelDownloadSource
+            RemoteTranscriptionConsent.current = .init(settings: current)
             persistTask?.cancel()
             let snapshot = current
             persistTask = Task { @MainActor [weak self] in
@@ -37,6 +38,7 @@ final class SettingsStore: ObservableObject {
         // model-layer call sites; the store is the one place they enter the process.
         SpeakerAttribution.microphoneIsUser = current.microphoneIsUser
         ModelDownloadRouting.source = current.modelDownloadSource
+        RemoteTranscriptionConsent.current = .init(settings: current)
     }
 
     /// Flush debounced text-field edits before application termination.

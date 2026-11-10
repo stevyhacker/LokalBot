@@ -23,6 +23,7 @@ private struct SpeakerVoiceProfileManager: View {
     @State private var people: [SpeakerVoiceProfile] = []
     @State private var error: String?
     @State private var busy = false
+    @State private var confirmingClearAll = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -47,8 +48,16 @@ private struct SpeakerVoiceProfileManager: View {
             .frame(maxHeight: 320)
             if let error { Text(error).font(.scaled(.caption)).foregroundStyle(.red) }
             HStack {
-                Button("Clear all", role: .destructive) { perform { try await identity.forgetProfile(nil) } }
+                // Profiles are built from speakers confirmed across many
+                // meetings and cannot be brought back, so one click next to
+                // Done must not remove them all.
+                Button("Clear all", role: .destructive) { confirmingClearAll = true }
                     .disabled(people.isEmpty)
+                    .confirmationDialog("Forget every remembered voice?", isPresented: $confirmingClearAll,
+                                        titleVisibility: .visible) {
+                        Button("Clear all", role: .destructive) { perform { try await identity.forgetProfile(nil) } }
+                        Button("Cancel", role: .cancel) {}
+                    }
                 Spacer()
                 Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
             }

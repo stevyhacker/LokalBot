@@ -105,11 +105,68 @@ struct RemoteTranscriptionConfiguration: Hashable, Sendable {
     }
 }
 
+/// What the person allows the transcription server right now. An engine is
+/// built from a settings snapshot, and one meeting keeps it for hundreds of
+/// uploads, so each upload asks here instead of trusting that snapshot.
+/// `SettingsStore` is the one place it enters the process, as with
+/// `ModelDownloadRouting.source`.
+enum RemoteTranscriptionConsent {
+    struct State: Equatable, Sendable {
+        /// The transcription server is the selected Transcribe model.
+        var serverSelected: Bool
+        var approvedOrigins: [String]
+
+        init(serverSelected: Bool, approvedOrigins: [String]) {
+            self.serverSelected = serverSelected
+            self.approvedOrigins = approvedOrigins
+        }
+
+        init(settings: AppSettings) {
+            self.init(serverSelected: settings.transcriptionModel.isRemote,
+                      approvedOrigins: settings.approvedRemoteTranscriptionOrigins)
+        }
+    }
+
+    /// Nil until a `SettingsStore` exists; the engine's own snapshot, checked
+    /// when its transcription starts, then stands.
+    static var current: State? {
+        get { state.withLock { $0 } }
+        set { state.withLock { $0 = newValue } }
+    }
+    private static let state = OSAllocatedUnfairLock<State?>(initialState: nil)
+
+    /// Throws when audio may no longer go to `endpoint`. A server on this Mac
+    /// needs no approval and receives nothing that leaves the Mac, so it is
+    /// never interrupted.
+    static func check(_ endpoint: URL, against state: State? = current) throws {
+        guard let state, !InferenceEndpointPolicy.isLoopback(endpoint) else { return }
+        guard state.serverSelected else { throw RemoteTranscriptionError.noLongerSelected }
+        do {
+            try InferenceEndpointPolicy.validate(
+                endpoint, approvedOrigins: state.approvedOrigins, allowsPrivateNetworkHTTP: true)
+        } catch {
+            throw RemoteTranscriptionError.approvalRequired(
+                InferenceEndpointPolicy.origin(for: endpoint) ?? endpoint.absoluteString)
+        }
+    }
+}
+
 enum RemoteTranscriptionError: LocalizedError, Equatable {
     case notConfigured
     case invalidURL
     case insecure(String)
     case approvalRequired(String)
+    /// An on-device model was chosen while this server was still transcribing.
+    case noLongerSelected
+
+    /// The person withdrew the server while it was in use; the audio not yet
+    /// sent stays on this Mac.
+    var isConsentWithdrawn: Bool {
+        switch self {
+        case .approvalRequired, .noLongerSelected: true
+        default: false
+        }
+    }
     case rejected(status: Int, detail: String)
     case unreachable(String)
     case invalidResponse
@@ -124,6 +181,8 @@ enum RemoteTranscriptionError: LocalizedError, Equatable {
             "Transcription server \(origin) is not encrypted. Use HTTPS, or a server on this Mac, your local network, or your tailnet."
         case .approvalRequired(let origin):
             "Allow sending audio to \(origin) under Settings → Models → Transcribe before transcribing with it."
+        case .noLongerSelected:
+            "The transcription server is no longer the selected Transcribe model, so no more audio was sent to it."
         case .rejected(let status, let detail):
             Self.rejection(status: status, detail: detail)
         case .unreachable(let detail):
@@ -184,6 +243,10 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
     var session: URLSession = RemoteTranscriptionEngine.sharedSession
     var sleep: @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
     var wordTimingRejections: WordTimingRejections = .shared
+    /// Asked before every upload, retries included: revoking the server or
+    /// choosing an on-device model stops the audio that has not been sent
+    /// yet. `AppSettings.transcriptionEngine` wires it to the live settings.
+    var stillAllowed: @Sendable (URL) throws -> Void = { _ in }
 
     var displayName: String { configuration.displayName }
     var supportsStreaming: Bool { false }
@@ -226,6 +289,7 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
     private func transcribe(audio url: URL, language: String?, prompt: String?,
                             windowing: Windowing, wordTimings: Bool) async throws -> WordTimedTranscript {
         let endpoint = try configuration.validatedEndpoint()
+        try stillAllowed(endpoint)
         let key = apiKey()
         let model = configuration.trimmedModel
         let hint = TranscriptionPrompt.normalized(prompt)
@@ -309,6 +373,7 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         var wordTimingsRejected = false
         while true {
             try Task.checkCancellation()
+            try stillAllowed(endpoint)
             let request = Self.makeRequest(
                 endpoint: endpoint, apiKey: apiKey, model: model,
                 boundary: "lokalbot-\(UUID().uuidString)", wav: wav,

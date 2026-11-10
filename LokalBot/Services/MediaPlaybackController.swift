@@ -1,6 +1,7 @@
 import AppKit
 import Darwin
 import Foundation
+import os
 
 /// Pauses media that was actively playing when dictation begins and resumes
 /// exactly that media when the dictation capture ends. AppleScript work runs in
@@ -21,12 +22,47 @@ enum MediaPlaybackController {
         var processNames: Set<String> = []
     }
 
-    fileprivate struct PausedTarget: Sendable {
+    struct PausedTarget: Sendable, Equatable {
         let controlBundleID: String
         let processNames: [String]
         /// Opaque state returned by the pause script. QuickTime uses document
         /// names; browsers use a per-dictation DOM marker token.
         let resumeToken: String
+    }
+
+    /// How a pause script ended.
+    enum ScriptOutcome: Sendable, Equatable {
+        case output(String)
+        /// Stopped at the time limit, possibly part of the way through.
+        case cutOff
+        case failed
+    }
+
+    /// Browsers whose tabs are paused one by one and marked with the
+    /// dictation's token, so only what this dictation paused plays again.
+    static let markerBrowserBundleIDs: Set<String> = [
+        "com.google.Chrome", "com.microsoft.edgemac", "com.brave.Browser",
+        "company.thebrowser.Browser", "com.apple.Safari",
+    ]
+
+    /// What to resume after a pause script, or nil when it paused nothing.
+    /// A browser script that ran out of time may already have paused some
+    /// tabs: with many tabs open it used to be stopped after pausing the
+    /// video, nothing was recorded, and the video stayed paused after the
+    /// dictation. Resuming by the token is safe when nothing carries it.
+    static func pausedTarget(controlBundleID: String, processNames: [String], outcome: ScriptOutcome,
+                             token: String) -> PausedTarget? {
+        switch outcome {
+        case .cutOff:
+            guard markerBrowserBundleIDs.contains(controlBundleID) else { return nil }
+            return PausedTarget(controlBundleID: controlBundleID, processNames: processNames, resumeToken: token)
+        case .failed:
+            return nil
+        case .output(let result):
+            guard !result.isEmpty, result != "false", result != "0" else { return nil }
+            return PausedTarget(controlBundleID: controlBundleID, processNames: processNames,
+                                resumeToken: result == "browser" ? token : result)
+        }
     }
 
     static func pauseActiveMediaPlayers(reason: String) async -> PauseSession {
@@ -42,15 +78,12 @@ enum MediaPlaybackController {
                 group.addTask {
                     guard let script = pauseScript(
                         for: target.controlBundleID,
-                        browserMarker: token),
-                          let result = await runAppleScript(script),
-                          !result.isEmpty,
-                          result != "false",
-                          result != "0" else { return nil }
-                    return PausedTarget(
+                        browserMarker: token) else { return nil }
+                    return pausedTarget(
                         controlBundleID: target.controlBundleID,
                         processNames: target.processNames.sorted(),
-                        resumeToken: result == "browser" ? token : result)
+                        outcome: await runAppleScript(script, timeoutSeconds: pauseTimeoutSeconds),
+                        token: token)
                 }
             }
             var result: [PausedTarget] = []
@@ -76,7 +109,7 @@ enum MediaPlaybackController {
                     guard let script = resumeScript(
                         for: target.controlBundleID,
                         token: target.resumeToken) else { return }
-                    _ = await runAppleScript(script)
+                    _ = await runAppleScript(script, timeoutSeconds: resumeTimeoutSeconds)
                 }
             }
             await group.waitForAll()
@@ -309,7 +342,12 @@ enum MediaPlaybackController {
             .replacingOccurrences(of: "'", with: "\\'")
     }
 
-    private static func runAppleScript(_ source: String) async -> String? {
+    /// Pausing delays the start of a dictation, so it gets little time.
+    static let pauseTimeoutSeconds = 1.5
+    /// Resuming delays nothing, and has to reach every tab the pause reached.
+    static let resumeTimeoutSeconds = 5.0
+
+    private static func runAppleScript(_ source: String, timeoutSeconds: Double) async -> ScriptOutcome {
         let controller = ScriptProcessController()
         let execution = Task.detached(priority: .utility) { () -> String? in
             let process = Process()
@@ -328,15 +366,19 @@ enum MediaPlaybackController {
             return String(decoding: data, as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        let cutOff = OSAllocatedUnfairLock(initialState: false)
         let timeout = Task.detached {
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: .seconds(timeoutSeconds))
             guard !Task.isCancelled else { return }
+            cutOff.withLock { $0 = true }
             controller.cancel()
         }
         defer { timeout.cancel() }
         return await withTaskCancellationHandler {
             let value = await execution.value
-            return Task.isCancelled ? nil : value
+            if Task.isCancelled { return .failed }
+            if let value { return .output(value) }
+            return cutOff.withLock { $0 } ? .cutOff : .failed
         } onCancel: {
             controller.cancel()
             execution.cancel()

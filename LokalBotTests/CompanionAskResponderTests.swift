@@ -139,8 +139,12 @@ final class CompanionAskResponderTests: XCTestCase {
         var settings = AppSettings()
         settings.companionSharingEnabled = true
         let meeting = meeting
+        let other = Meeting(
+            id: UUID(), title: "Planning", appName: "Zoom",
+            startedAt: Date().addingTimeInterval(-400_000), endedAt: Date().addingTimeInterval(-399_000),
+            relativePath: "meetings/2026/10/26-planning")
         let responder = CompanionAskResponder(dependencies: .init(
-            settings: { settings }, makeEngine: { engine }, tools: { runner }, meetings: { [meeting] }))
+            settings: { settings }, makeEngine: { engine }, tools: { runner }, meetings: { [meeting, other] }))
         let output = CompanionCollectingOutput()
         responder.answer(try CompanionJSON.encode(CompanionAskRequest(
             requestId: "r6", question: "What did we decide?",
@@ -148,8 +152,11 @@ final class CompanionAskResponderTests: XCTestCase {
         await fulfillment(of: [output.finished], timeout: 10)
 
         XCTAssertNil(output.failure)
-        XCTAssertNil(runner.arguments.first?["_lokalbot_meeting_ids"], "the meeting must not limit the tools")
+        XCTAssertEqual(runner.arguments.first?["_lokalbot_meeting_ids"],
+                       [meeting.id, other.id].map(\.uuidString).sorted().joined(separator: ","),
+                       "the tools reach every shared meeting, not only the one the question started from")
         let system = try XCTUnwrap(engine.systems.first)
+        XCTAssertFalse(system.contains("This question is limited to"), system)
         XCTAssertTrue(system.contains(
             "The user started this conversation from the meeting “Design review — onboarding” [\(shortID)] on "),
                       system)
@@ -181,6 +188,153 @@ final class CompanionAskResponderTests: XCTestCase {
             "This question is limited to meetings from the last 30 days, the history the user shares with this device."),
                       system)
         XCTAssertFalse(system.contains("remove the date limit"), "the device cannot widen what the Mac shares")
+    }
+
+    /// The shared copy leaves out the sample meeting and a meeting still being
+    /// recorded, so questions from a device must not read them either, even
+    /// with all history shared.
+    func testToolsReachOnlySharedMeetingsWithAllHistory() async throws {
+        let engine = CompanionScriptedEngine([
+            #"{"tool": "list_meetings", "arguments": {}}"#,
+            "FINAL_ANSWER:\nOne meeting.",
+        ])
+        let runner = CompanionFakeRunner(evidence: ChatEvidence())
+        var settings = AppSettings()
+        settings.companionSharingEnabled = true
+        XCTAssertEqual(settings.companionHistory, .all)
+        let meeting = meeting
+        var sample = Meeting(
+            id: UUID(), title: "Sample meeting", appName: "LokalBot",
+            startedAt: Date().addingTimeInterval(-7_200), endedAt: Date().addingTimeInterval(-3_600),
+            relativePath: "meetings/2026/11/sample")
+        sample.sampleID = "tour"
+        let recording = Meeting(
+            id: UUID(), title: "Still recording", appName: "Zoom",
+            startedAt: Date().addingTimeInterval(-600), endedAt: nil,
+            relativePath: "meetings/2026/11/recording")
+        let responder = CompanionAskResponder(dependencies: .init(
+            settings: { settings }, makeEngine: { engine }, tools: { runner },
+            meetings: { [recording, sample, meeting] }))
+        let output = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r8", question: "Which meetings do I have?")), output: output)
+        await fulfillment(of: [output.finished], timeout: 10)
+
+        XCTAssertNil(output.failure)
+        XCTAssertEqual(runner.arguments.first?["_lokalbot_meeting_ids"], meeting.id.uuidString)
+        let system = try XCTUnwrap(engine.systems.first)
+        XCTAssertFalse(system.contains("This question is limited to"), system)
+
+        let fromSample = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r9", question: "What was decided?",
+            scope: .init(meetingId: sample.id.uuidString))), output: fromSample)
+        await fulfillment(of: [fromSample.finished], timeout: 1)
+        XCTAssertEqual(fromSample.failure, "That meeting is not shared with this device.")
+    }
+
+    /// A new install's library holds only the sample meeting, so nothing is
+    /// shared. The empty shared set once reached the tools as "no limit", and
+    /// a phone's question was answered from the sample.
+    func testALibraryWithNothingSharedAnswersFromNoMeeting() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-companion-empty-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let sqlite = root.appendingPathComponent("lokalbotv3.sqlite")
+        var sample = Meeting(
+            id: UUID(), title: "Sample walkthrough", appName: "LokalBot",
+            startedAt: Date().addingTimeInterval(-7_200), endedAt: Date().addingTimeInterval(-3_600),
+            relativePath: "meetings/2026/11/sample")
+        sample.sampleID = "tour"
+        let folder = sample.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("## TL;DR\nThe sample orchard conversation.".utf8)
+            .write(to: folder.appendingPathComponent("summary.md"))
+        let searchIndex = SearchIndex(databaseURL: sqlite)
+        searchIndex.reindex(sample, storage: storage)
+        var settings = AppSettings()
+        settings.companionSharingEnabled = true
+        settings.semanticSearchEnabled = false
+        let library = [sample]
+        let tools = MeetingChatTools(
+            meetings: { library }, storage: storage, searchIndex: searchIndex,
+            embeddingIndex: EmbeddingIndex(databaseURL: sqlite, storage: storage),
+            activityStore: ActivityStore(databaseURL: sqlite), settings: { settings })
+
+        let engine = CompanionScriptedEngine([
+            #"{"tool": "list_meetings", "arguments": {}}"#,
+            #"{"tool": "get_meeting", "arguments": {"id": "latest"}}"#,
+            #"{"tool": "search_meetings", "arguments": {"query": "orchard"}}"#,
+            "FINAL_ANSWER:\nNo meetings are shared with this device yet.",
+        ])
+        let responder = CompanionAskResponder(dependencies: .init(
+            settings: { settings }, makeEngine: { engine }, tools: { tools }, meetings: { library }))
+        let output = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r11", question: "What meetings do I have?")), output: output)
+        await fulfillment(of: [output.finished], timeout: 10)
+
+        XCTAssertNil(output.failure)
+        let seen = engine.contexts.flatMap { $0 }.joined(separator: "\n") + engine.systems.joined(separator: "\n")
+        XCTAssertFalse(seen.contains("Sample walkthrough"), seen)
+        XCTAssertFalse(seen.contains("sample orchard"), seen)
+        XCTAssertEqual(engine.contexts.count, 4, "all three tools were called")
+    }
+
+    /// The Timeline tool takes any day the model names. With a history
+    /// window, a day before it must come back empty-handed: that activity was
+    /// never sent to the device.
+    func testActivityBeforeTheSharedWindowIsNotRead() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-companion-ask-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sqlite = root.appendingPathComponent("lokalbotv3.sqlite")
+        let storage = StorageManager(rootURL: root)
+        let activityStore = ActivityStore(databaseURL: sqlite)
+        let calendar = Calendar.current
+        let now = Date()
+        let oldNoon = try XCTUnwrap(calendar.date(
+            byAdding: .day, value: -45, to: calendar.startOfDay(for: now))).addingTimeInterval(12 * 3_600)
+        let recentNoon = try XCTUnwrap(calendar.date(
+            byAdding: .day, value: -2, to: calendar.startOfDay(for: now))).addingTimeInterval(12 * 3_600)
+        activityStore.insert(ActivityBlock(app: "Safari", title: "Old private window",
+                                           start: oldNoon, end: oldNoon.addingTimeInterval(1_800)))
+        activityStore.insert(ActivityBlock(app: "Xcode", title: "Recent window",
+                                           start: recentNoon, end: recentNoon.addingTimeInterval(1_800)))
+        var settings = AppSettings()
+        settings.companionSharingEnabled = true
+        settings.companionHistory = .days30
+        settings.semanticSearchEnabled = false
+        let tools = MeetingChatTools(
+            meetings: { [] }, storage: storage,
+            searchIndex: SearchIndex(databaseURL: sqlite),
+            embeddingIndex: EmbeddingIndex(databaseURL: sqlite, storage: storage),
+            activityStore: activityStore,
+            settings: { settings })
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        let engine = CompanionScriptedEngine([
+            #"{"tool": "activity_summary", "arguments": {"day": "\#(formatter.string(from: oldNoon))"}}"#,
+            #"{"tool": "activity_summary", "arguments": {"day": "\#(formatter.string(from: recentNoon))"}}"#,
+            "FINAL_ANSWER:\nNothing from that day is shared.",
+        ])
+        let responder = CompanionAskResponder(dependencies: .init(
+            settings: { settings }, makeEngine: { engine }, tools: { tools }, meetings: { [] }))
+        let output = CompanionCollectingOutput()
+        responder.answer(try CompanionJSON.encode(CompanionAskRequest(
+            requestId: "r10", question: "What was I doing 45 days ago?")), output: output)
+        await fulfillment(of: [output.finished], timeout: 10)
+
+        XCTAssertNil(output.failure)
+        let seen = engine.contexts.flatMap { $0 }.joined(separator: "\n")
+        XCTAssertFalse(seen.contains("Old private window"), seen)
+        XCTAssertTrue(seen.contains("outside the history this question can read"), seen)
+        XCTAssertTrue(seen.contains("Recent window"), "a day inside the window is still read: \(seen)")
     }
 
     func testAnsweringOffFailsWithoutRunningTheModel() async throws {
