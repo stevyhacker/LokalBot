@@ -244,6 +244,46 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertTrue(steps.contains { $0.contains("hiddenFromSharing") })
     }
 
+    /// The same loop on the Think model, as the app runs it: each turn comes
+    /// back as one JSON object, and a lookup's result reaches the next turn
+    /// as an observation.
+    @MainActor
+    func testTheThinkModelLooksUpAndAnswers() async throws {
+        let place = try await makeRepository()
+        let environment = StubAnswerEnvironment()
+        environment.placeList = [place]
+        let engine = RadarThinkEngine(replies: [
+            #"{"call": {"tool": "search_code", "arguments": {"repository": "Widget", "query": "hiddenFromSharing"}}}"#,
+            #"Found it. {"call": {"tool": "answer", "arguments": {"text": "Yes, it is hidden.", "#
+                + #""sources": [{"id": "R1", "quote": "let hiddenFromSharing = true"}]}}}"#,
+        ])
+        let outcome = try await LiveAnswerSession.run(
+            question: "Is the panel hidden when sharing?", quote: "", meeting: .init(title: "Sync", date: Date(), recentLines: []),
+            environment: environment, model: "Think",
+            call: { messages, tools, _ in
+                try await ThinkChat.toolCall(from: engine, messages: messages, tools: tools,
+                                             options: MeetingRadar.answerOptions)
+            },
+            progress: { _ in })
+        XCTAssertEqual(outcome.answer?.text, "Yes, it is hidden.")
+        XCTAssertEqual(outcome.answer?.sources.first?.title, "Panel.swift:2")
+        XCTAssertEqual(outcome.turns, 2)
+
+        XCTAssertEqual(engine.requests.count, 2)
+        // First turn: the tools and the task, nothing looked up yet.
+        XCTAssertTrue(engine.requests[0].system.hasPrefix(LiveAnswerSession.system))
+        XCTAssertTrue(engine.requests[0].system.contains("search_code: "))
+        XCTAssertEqual(engine.requests[0].prompt, ThinkChat.nextCall)
+        XCTAssertEqual(engine.requests[0].context.count, 1)
+        XCTAssertTrue(engine.requests[0].context[0].contains("QUESTION: Is the panel hidden when sharing?"))
+        XCTAssertEqual(engine.requests[0].options, MeetingRadar.answerOptions)
+        // Second turn: the call it made, then what came back.
+        XCTAssertEqual(engine.requests[1].context.count, 3)
+        XCTAssertTrue(engine.requests[1].context[1].hasPrefix(#"Assistant: {"call":"#), engine.requests[1].context[1])
+        XCTAssertTrue(engine.requests[1].context[2].hasPrefix("Observation: [R1]"), engine.requests[1].context[2])
+        XCTAssertTrue(engine.requests[1].context[2].contains("Panel.swift:2"))
+    }
+
     @MainActor
     func testNoAnswerIsAcceptedWithoutGuessing() async throws {
         let outcome = try await LiveAnswerSession.run(

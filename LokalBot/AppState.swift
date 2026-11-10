@@ -1135,18 +1135,37 @@ final class AppState: ObservableObject {
     private(set) lazy var liveTranscriber = LiveMeetingTranscriber(
         storageRoot: storage.rootURL,
         settings: { [store = settingsStore] in store.current })
-    /// Live Radar reads the live transcript with Muse while recording; it
-    /// runs only after the person starts it for that meeting.
-    private(set) lazy var meetingRadar = MeetingRadar(
-        transcriber: liveTranscriber,
-        evidenceSource: LibraryRadarEvidenceSource(
+    /// Live Radar reads the live transcript with the Think model while
+    /// recording; it runs only after the person starts it for that meeting.
+    private(set) lazy var meetingRadar: MeetingRadar = {
+        let settings: () -> AppSettings = { [store = settingsStore] in store.current }
+        let evidence = LibraryRadarEvidenceSource(
             meetings: { [weak self] in self?.meetings ?? [] },
             searchIndex: searchIndex,
             embeddingIndex: embeddingIndex,
-            settings: { [store = settingsStore] in store.current }),
-        screenSource: Self.radarScreenSource(store: activityStore),
-        answerEnvironment: AppLiveAnswerEnvironment(app: self),
-        settings: { [store = settingsStore] in store.current })
+            settings: settings)
+        let screens = Self.radarScreenSource(store: activityStore)
+        let answers = AppLiveAnswerEnvironment(app: self)
+#if LOKALBOT_UI_TEST_HOST
+        // The hosted film of Live Radar runs on scripted replies, or on
+        // Meta's models with the film's key. Both speak Meta's wire format.
+        if MuseUITestTransport.isEnabled {
+            return MeetingRadar(
+                transcriber: liveTranscriber, evidenceSource: evidence, screenSource: screens,
+                answerEnvironment: answers, answerCall: MuseUITestTransport.answerCall(settings: settings),
+                settings: settings, call: MuseUITestTransport.radarCall(settings: settings),
+                modelName: { _ in MetaModelAPI.museSpark.id }, sendsScreenCrops: true)
+        }
+#endif
+        return MeetingRadar(
+            transcriber: liveTranscriber, evidenceSource: evidence, screenSource: screens,
+            answerEnvironment: answers, settings: settings,
+            engine: { [weak self] purpose in
+                guard let self else { throw CancellationError() }
+                return try await self.thinkExecution.makeTextEngine(
+                    self.settings, priority: .interactive, purpose: purpose)
+            })
+    }()
 
     /// The floating Live Radar window, for checking the radar from the
     /// meeting app.
@@ -1409,7 +1428,7 @@ final class AppState: ObservableObject {
         }
         if active, let meeting = recording.currentMeeting {
             liveTranscriber.prepare(folder: meeting.folderURL(in: storage))
-            // With Meta Muse set up, the panel offers Start Radar over the call.
+            // With Live Radar on, the panel offers Start Radar over the call.
             if settings.liveRadarPanelEnabled, MeetingRadar.unavailableReason(settings) == nil {
                 liveRadarPanel.show()
             }

@@ -5,8 +5,7 @@ import UniformTypeIdentifiers
 import Vision
 
 /// The answer to a question asked in the meeting, read from something the
-/// person had on screen earlier. Built for the Meta Global AI Developer
-/// Hackathon (2026).
+/// person had on screen earlier.
 struct RadarScreenAnswer: Codable, Equatable, Sendable {
     var text: String
     /// What the screenshot says, as read on this Mac; the model's quote had
@@ -16,7 +15,7 @@ struct RadarScreenAnswer: Codable, Equatable, Sendable {
     var capturedAt: Date
     var app: String
     var windowTitle: String
-    /// The crop Muse saw, relative to the meeting folder.
+    /// The crop the answer was read from, relative to the meeting folder.
     var image: String
     var model: String
 }
@@ -46,10 +45,10 @@ struct RadarScreenCrop: Sendable {
 
 /// Screen answers: when Live Radar catches a question, local screen search
 /// finds earlier captures that mention it, Vision on this Mac crops each one
-/// to the rows that do, and Muse Spark reads the crops. An answer counts only
-/// when its quote is in the crop's own text, so the model can't invent one.
-/// Off by default; only the crops (with their app, window title, and time)
-/// are sent.
+/// to the rows that do, and the Think model reads the text of the crops. An
+/// answer counts only when its quote is in the crop's own text, so the model
+/// can't invent one. Off by default; only that text (with each crop's app,
+/// window title, and time) is given to the model.
 enum RadarScreenAnswers {
     static let maximumCrops = 3
     static let maximumCropWidth = 1_600
@@ -217,6 +216,8 @@ enum RadarScreenAnswers {
 
     // MARK: - Request and grounding
 
+    /// The request for a model that reads images: each crop as a picture.
+    /// The Think model reads text, so Live Radar sends `textMessages`.
     static func messages(question: String, meetingTitle: String, meetingDate: Date,
                          crops: [(capture: RadarScreenCapture, crop: RadarScreenCrop)]) -> [[String: Any]] {
         var content: [[String: Any]] = [[
@@ -231,6 +232,32 @@ enum RadarScreenAnswers {
                             "image_url": ["url": "data:image/jpeg;base64," + entry.crop.jpeg.base64EncodedString()]])
         }
         return [["role": "system", "content": system], ["role": "user", "content": content]]
+    }
+
+    static let textSystem = """
+    You answer a question that was just asked in a meeting, using only the screen text below. \
+    It was read from crops of the person's own screen from before the question, found by searching their screen history.
+
+    - Answer only when one capture plainly shows the answer. Give it in a few words, as the person would say it, \
+    and the number of that capture as "image".
+    - Quote the whole line the answer is on, its label and its value together (for example "Trial to paid, \
+    September 4.1%"), copied character for character from the capture's text.
+    - Use the meeting date to read relative words like "last month".
+    - If no capture answers the question, reply with an empty answer, image 0, and an empty quote. Never guess or \
+    use outside knowledge.
+    """
+
+    /// The same request with each crop as the text read from it on this Mac,
+    /// which is also what the quote is checked against. No pixels are sent.
+    static func textMessages(question: String, meetingTitle: String, meetingDate: Date,
+                             crops: [(capture: RadarScreenCapture, crop: RadarScreenCrop)]) -> [[String: Any]] {
+        var parts = ["Meeting: \(meetingTitle), \(meetingDate.formatted(date: .complete, time: .shortened))\nQuestion: \(question)"]
+        for (index, entry) in crops.enumerated() {
+            let title = entry.capture.windowTitle.isEmpty ? "" : " — \(entry.capture.windowTitle)"
+            parts.append("Capture \(index + 1): \(entry.capture.app)\(title), on screen "
+                + entry.capture.capturedAt.formatted(date: .abbreviated, time: .shortened) + "\n" + entry.crop.text)
+        }
+        return [["role": "system", "content": textSystem], ["role": "user", "content": parts.joined(separator: "\n\n")]]
     }
 
     /// The answer and which crop it came from, when its quote is in that

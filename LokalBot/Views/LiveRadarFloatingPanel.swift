@@ -309,7 +309,7 @@ struct LiveRadarPanelView: View {
                 Text(verbatim: reason).font(.scaled(.callout)).foregroundStyle(.secondary)
                 Button("Set Up…") { app.openSettings(tab: .recording) }
             } else {
-                Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. Sends \(MetaModelAPI.displayName(for: app.settings.museRadarModel)) new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings at api.meta.ai. Starts the live preview if it is off.")
+                Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. \(app.settings.thinkModelDisplayName) reads new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings. Starts the live preview if it is off.")
                     .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

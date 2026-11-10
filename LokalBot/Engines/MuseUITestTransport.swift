@@ -32,6 +32,30 @@ enum MuseUITestTransport {
         return key
     }
 
+    /// Live Radar's passes and screen answers for the film. The app itself
+    /// runs them on the Think model; the film keeps Meta's wire format so its
+    /// scripted replies, and a live run with the film's key, work as before.
+    @MainActor
+    static func radarCall(settings: @escaping () -> AppSettings) -> MeetingRadar.ModelCall {
+        { messages, schema, _ in
+            let client = try MetaModelAPI.client(
+                settings: settings(), model: MetaModelAPI.museSpark.id, reasoningEffort: "minimal",
+                maxTokens: 4_000, priority: .interactive, purpose: "live radar")
+            return try await client.send(messages: messages, schema: (name: "radar", schema: schema))
+        }
+    }
+
+    /// Live answers for the film, as `radarCall`.
+    @MainActor
+    static func answerCall(settings: @escaping () -> AppSettings) -> LiveAnswerSession.Call {
+        { messages, tools, _ in
+            let client = try MetaModelAPI.client(
+                settings: settings(), model: MetaModelAPI.museWonder.id, reasoningEffort: "low",
+                maxTokens: 4_000, priority: .interactive, purpose: "live answer")
+            return try await client.send(messages: messages, tools: tools)
+        }
+    }
+
     static func reply(to request: URLRequest) async throws -> (Data, URLResponse) {
         // Long enough for the in-flight states to be visible.
         try await Task.sleep(for: .milliseconds(1_200))

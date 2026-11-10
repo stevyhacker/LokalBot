@@ -224,7 +224,7 @@ struct SettingsView: View {
         case .general:
             generalSection; updatesSection; aboutSection
         case .recording:
-            meetingsSection; processingSection; summarizationSection; MetaMuseSettingsSection(); meetingNoteExportSection
+            meetingsSection; processingSection; summarizationSection; LiveRadarSettingsSection(); MetaMuseSettingsSection(); meetingNoteExportSection
         case .dayMemory:
             screenCaptureSection; retentionSection; exclusionsSection; codingAgentsSection
             AgentKindAccessSection(access: app.agentReadAccess, kind: .screenMemory)

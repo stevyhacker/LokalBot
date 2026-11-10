@@ -84,11 +84,11 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(1.5)
         // Fast live text, screen answers, and live answers over this checkout
         // are on in this library's settings.
-        let screenAnswers = app.descendants(matching: .any)["settings.metaMuse.screenAnswers"].firstMatch
+        let screenAnswers = app.descendants(matching: .any)["settings.liveRadar.screenAnswers"].firstMatch
         UITestHarness.scrollTo(screenAnswers, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(film.wait(for: screenAnswers, timeout: 5), "the screen answers switch did not render")
         film.hold(2)
-        let folders = app.buttons["settings.metaMuse.addFolder"].firstMatch
+        let folders = app.buttons["settings.liveRadar.addFolder"].firstMatch
         UITestHarness.scrollTo(folders, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(film.wait(for: folders, timeout: 5), "the live answers folders did not render")
         film.hold(3)
@@ -285,6 +285,7 @@ private enum FilmFixture {
           "semanticSearchEnabled": false,
           "cotypingEnabled": false,
           "cotypingUserName": "Stevan",
+          "liveRadarEnabled": true,
           "museLiveTextEnabled": true,
           "museScreenAnswersEnabled": true,
           "liveAnswersEnabled": true,

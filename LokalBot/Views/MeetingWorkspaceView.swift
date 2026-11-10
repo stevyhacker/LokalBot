@@ -767,8 +767,16 @@ private struct MeetingWorkspaceDetail: View {
                               openSource: { revealEvidence(at: $0.time) },
                               folder: meeting.folderURL(in: app.storage),
                               scrolls: false)
-                Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · \(RadarItemList.costLabel(radar.cost))")
-                    .font(.scaled(.caption)).foregroundStyle(.secondary)
+                // The Think model reports no cost; a cost is shown where a
+                // meeting has one from when the radar ran on Meta's models.
+                Group {
+                    if radar.cost > 0 {
+                        Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · \(RadarItemList.costLabel(radar.cost))")
+                    } else {
+                        Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes")
+                    }
+                }
+                .font(.scaled(.caption)).foregroundStyle(.secondary)
             }
         }
         if !screenContext.materials.isEmpty {
