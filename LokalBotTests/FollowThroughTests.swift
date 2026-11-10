@@ -251,6 +251,57 @@ final class FollowThroughSessionTests: XCTestCase {
         XCTAssertEqual(turns[1].last?["role"] as? String, "tool")
     }
 
+    /// Follow-through runs on the Think model, which returns text, not tool
+    /// calls: each turn is one JSON call that `ThinkChat` reads, and earlier
+    /// calls travel as context with what they returned.
+    func testTheLoopRunsOnAThinkEngine() async throws {
+        let environment = StubEnvironment()
+        let engine = RadarThinkEngine(replies: [
+            #"{"call": {"tool": "search_meetings", "arguments": {"query": "pricing deck"}}}"#,
+            // A model without a schema to hold it wraps the call in prose.
+            #"""
+            Here is the draft:
+            {"call": {"tool": "draft_email", "arguments": {"to": ["Marko"], "cc": null, "subject": "Pricing deck",
+             "body": "Hi Marko,\n[deck link]", "why": "It was promised for Friday."}}}
+            """#,
+            #"{"call": {"tool": "finish", "arguments": {"summary": "Drafted the email to Marko."}}}"#,
+        ])
+        let session = FollowThroughSession(
+            target: target, briefing: "ACTION: Send the revised pricing deck to Marko", model: "Local model",
+            environment: environment,
+            call: { messages, tools in
+                try await ThinkChat.toolCall(from: engine, messages: messages, tools: tools,
+                                             options: FollowThroughSession.turnOptions)
+            })
+        session.start()
+        await waitUntil(session.state == .waitingForApproval)
+        XCTAssertEqual(environment.reads.first?.arguments["query"], "pricing deck")
+        guard case .proposal(let proposal) = try XCTUnwrap(session.steps.last),
+              case .email(let to, let cc, let subject, _) = proposal.kind else { return XCTFail("no email proposal") }
+        XCTAssertEqual(to, ["Marko"])
+        XCTAssertEqual(cc, [])
+        XCTAssertEqual(subject, "Pricing deck")
+        session.approve(proposal)
+        await waitUntil(session.state == .finished)
+
+        XCTAssertEqual(session.state, .finished)
+        XCTAssertEqual(session.summary, "Drafted the email to Marko.")
+        XCTAssertEqual(environment.performed.count, 1)
+        XCTAssertEqual(session.cost, 0, "the Think engines report no token use")
+        XCTAssertEqual(engine.requests.count, 3)
+        let first = try XCTUnwrap(engine.requests.first)
+        XCTAssertTrue(first.system.hasPrefix(FollowThroughSession.system(now: Date()).prefix(40)))
+        XCTAssertTrue(first.system.contains("draft_email: Propose an email"), "the tools are described in the system prompt")
+        XCTAssertEqual(first.context, ["ACTION: Send the revised pricing deck to Marko"])
+        XCTAssertEqual(first.options, FollowThroughSession.turnOptions)
+        let last = try XCTUnwrap(engine.requests.last)
+        let approval = try XCTUnwrap(last.context.first { $0.hasPrefix("Observation: Approved by the person") },
+                                     "\(last.context)")
+        XCTAssertFalse(approval.contains("@"), "addresses stay on this Mac")
+        XCTAssertTrue(last.context.contains { $0.hasPrefix(#"Assistant: {"call":{"arguments":{"query":"pricing deck"}"#) },
+                      "earlier calls travel as context: \(last.context)")
+    }
+
     func testDeclineIsReportedAndMalformedCallsGoBackToTheModel() async throws {
         let environment = StubEnvironment()
         var turns: [[[String: Any]]] = []

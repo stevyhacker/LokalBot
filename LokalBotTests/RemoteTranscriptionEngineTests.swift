@@ -521,6 +521,106 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         }
     }
 
+    // MARK: - Approval while transcribing
+
+    /// A long meeting is hundreds of uploads from one engine. Revoking the
+    /// server after the first must keep the rest of the audio on this Mac.
+    func testUploadsStopOnceTheServerIsRevoked() async throws {
+        for _ in 0..<2 {
+            RemoteTranscriptionURLProtocolStub.enqueue(
+                status: 200, headers: ["Content-Type": "application/json"], body: #"{"text":"Hello"}"#)
+        }
+        let session = RemoteTranscriptionURLProtocolStub.session()
+        defer { session.invalidateAndCancel() }
+        let consent = ConsentBox(.init(serverSelected: true, approvedOrigins: ["https://api.openai.com"]))
+        var engine = RemoteTranscriptionEngine(
+            configuration: configuration("https://api.openai.com/v1", approved: ["https://api.openai.com"]),
+            apiKey: { "" }, session: session)
+        engine.stillAllowed = { try RemoteTranscriptionConsent.check($0, against: consent.state) }
+        let wav = OnnxTranscriptionEngine.wavData([0, 0])
+
+        _ = try await engine.upload(wav, endpoint: try endpoint(), apiKey: "", model: "whisper-1",
+                                    language: nil, prompt: nil)
+        consent.state = .init(serverSelected: true, approvedOrigins: [])
+        do {
+            _ = try await engine.upload(wav, endpoint: try endpoint(), apiKey: "", model: "whisper-1",
+                                        language: nil, prompt: nil)
+            XCTFail("A revoked server must not receive the next clip")
+        } catch {
+            XCTAssertEqual(error as? RemoteTranscriptionError, .approvalRequired("https://api.openai.com"))
+        }
+        XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.count, 1)
+    }
+
+    func testARetryDoesNotResendTheClipAfterAnOnDeviceModelIsChosen() async throws {
+        RemoteTranscriptionURLProtocolStub.enqueue(status: 503, headers: [:], body: "busy")
+        RemoteTranscriptionURLProtocolStub.enqueue(
+            status: 200, headers: ["Content-Type": "application/json"], body: #"{"text":"Hello"}"#)
+        let session = RemoteTranscriptionURLProtocolStub.session()
+        defer { session.invalidateAndCancel() }
+        let consent = ConsentBox(.init(serverSelected: true, approvedOrigins: ["https://api.openai.com"]))
+        var engine = RemoteTranscriptionEngine(
+            configuration: configuration("https://api.openai.com/v1", approved: ["https://api.openai.com"]),
+            apiKey: { "" }, session: session,
+            // The person changes the model while the engine waits to retry.
+            sleep: { _ in consent.state = .init(serverSelected: false, approvedOrigins: ["https://api.openai.com"]) })
+        engine.stillAllowed = { try RemoteTranscriptionConsent.check($0, against: consent.state) }
+
+        do {
+            _ = try await engine.upload(
+                OnnxTranscriptionEngine.wavData([0, 0]), endpoint: try endpoint(), apiKey: "",
+                model: "whisper-1", language: nil, prompt: nil)
+            XCTFail("The retry must not send the clip")
+        } catch {
+            XCTAssertEqual(error as? RemoteTranscriptionError, .noLongerSelected)
+        }
+        XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.count, 1)
+    }
+
+    func testConsentCheckFollowsTheLiveSettings() throws {
+        let cloud = try endpoint()
+        let approved = RemoteTranscriptionConsent.State(
+            serverSelected: true, approvedOrigins: ["https://api.openai.com"])
+        XCTAssertNoThrow(try RemoteTranscriptionConsent.check(cloud, against: approved))
+        XCTAssertNoThrow(try RemoteTranscriptionConsent.check(cloud, against: nil),
+                         "without live settings the engine's own snapshot stands")
+        XCTAssertThrowsError(try RemoteTranscriptionConsent.check(
+            cloud, against: .init(serverSelected: true, approvedOrigins: ["https://api.groq.com"]))) {
+            XCTAssertEqual($0 as? RemoteTranscriptionError, .approvalRequired("https://api.openai.com"))
+        }
+        XCTAssertThrowsError(try RemoteTranscriptionConsent.check(
+            cloud, against: .init(serverSelected: false, approvedOrigins: ["https://api.openai.com"]))) {
+            XCTAssertEqual($0 as? RemoteTranscriptionError, .noLongerSelected)
+        }
+        // A server on this Mac sends nothing off it, so it is never cut short.
+        let loopback = try XCTUnwrap(URL(string: "http://127.0.0.1:8080/inference"))
+        XCTAssertNoThrow(try RemoteTranscriptionConsent.check(
+            loopback, against: .init(serverSelected: false, approvedOrigins: [])))
+    }
+
+    @MainActor
+    func testTheEngineSettingsBuildAsksTheSettingsStore() throws {
+        let previous = RemoteTranscriptionConsent.current
+        defer { RemoteTranscriptionConsent.current = previous }
+        var settings = AppSettings()
+        settings.transcriptionModel = .remoteServer
+        settings.remoteTranscriptionBaseURL = "https://api.openai.com/v1"
+        settings.approvedRemoteTranscriptionOrigins = ["https://api.openai.com"]
+        let engine = try XCTUnwrap(settings.transcriptionEngine() as? RemoteTranscriptionEngine)
+        let cloud = try endpoint()
+
+        _ = SettingsStore(initialSettings: settings)
+        XCTAssertEqual(RemoteTranscriptionConsent.current, .init(settings: settings))
+        XCTAssertNoThrow(try engine.stillAllowed(cloud))
+
+        // The engine keeps its snapshot; the store has moved on.
+        settings.approvedRemoteTranscriptionOrigins = []
+        _ = SettingsStore(initialSettings: settings)
+        XCTAssertThrowsError(try engine.stillAllowed(cloud)) {
+            XCTAssertEqual($0 as? RemoteTranscriptionError, .approvalRequired("https://api.openai.com"))
+        }
+    }
+
     // MARK: - Spans
 
     func testSpeakerTurnsAreAttributedAfterTranscription() {
@@ -686,6 +786,19 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
 private actor UploadLog {
     private(set) var clips: [Data] = []
     func record(_ clip: Data) { clips.append(clip) }
+}
+
+/// The live approval a test changes while an engine is in use.
+private final class ConsentBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: RemoteTranscriptionConsent.State
+
+    init(_ value: RemoteTranscriptionConsent.State) { self.value = value }
+
+    var state: RemoteTranscriptionConsent.State {
+        get { lock.withLock { value } }
+        set { lock.withLock { value = newValue } }
+    }
 }
 
 private actor DelayLog {

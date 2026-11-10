@@ -92,6 +92,56 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertTrue(nextDay.shouldPrune(at: start.addingTimeInterval(3_600 + 86_400)))
     }
 
+    /// A pass that hit a busy database used to count as the day's pass, so
+    /// expired screen data stayed another 24 hours, across relaunches too.
+    func testFailedRetentionPassIsRetriedWithinTheHour() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("retention-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let marker = root.appendingPathComponent(ScreenshotRetentionSchedule.markerFileName)
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let hour = ScreenshotRetentionSchedule.retryInterval
+
+        var schedule = ScreenshotRetentionSchedule.load(markerURL: marker)
+        XCTAssertTrue(schedule.shouldPrune(at: start))
+        schedule.passFailed(at: start)
+        XCTAssertFalse(schedule.shouldPrune(at: start.addingTimeInterval(hour - 1)),
+                       "the hourly check, not every trigger, retries")
+        var relaunched = ScreenshotRetentionSchedule.load(markerURL: marker)
+        XCTAssertFalse(relaunched.shouldPrune(at: start.addingTimeInterval(hour - 1)))
+        XCTAssertTrue(relaunched.shouldPrune(at: start.addingTimeInterval(hour)), "a relaunch retries too")
+        XCTAssertTrue(schedule.shouldPrune(at: start.addingTimeInterval(hour)))
+
+        // The service checks once an hour, and its timer is not exact: the
+        // check after a failed pass arrives about one interval later, a
+        // moment early or a few minutes late. Due "in an hour" was missed by
+        // the early ones, and the retry slipped to two hours.
+        var checked = ScreenshotRetentionSchedule()
+        XCTAssertTrue(checked.shouldPrune(at: start))
+        checked.passFailed(at: start)
+        XCTAssertTrue(checked.shouldPrune(
+            at: start.addingTimeInterval(ScreenshotRetentionSchedule.checkInterval - 1)))
+
+        // A pass that works restores the daily rhythm.
+        schedule.passSucceeded()
+        XCTAssertFalse(schedule.shouldPrune(at: start.addingTimeInterval(2 * hour)))
+        XCTAssertFalse(schedule.shouldPrune(at: start.addingTimeInterval(hour + 86_399)))
+
+        // A failure that never clears stops being retried hourly.
+        var stuck = ScreenshotRetentionSchedule()
+        var now = start
+        for _ in 0..<ScreenshotRetentionSchedule.maximumRetries {
+            XCTAssertTrue(stuck.shouldPrune(at: now))
+            stuck.passFailed(at: now)
+            now = now.addingTimeInterval(hour)
+        }
+        XCTAssertTrue(stuck.shouldPrune(at: now))
+        stuck.passFailed(at: now)
+        XCTAssertFalse(stuck.shouldPrune(at: now.addingTimeInterval(hour)))
+        XCTAssertFalse(stuck.shouldPrune(at: now.addingTimeInterval(86_399)))
+        XCTAssertTrue(stuck.shouldPrune(at: now.addingTimeInterval(86_400)))
+    }
+
     func testRetentionScheduleRunsDailyAndRespondsToPrivacyChanges() {
         var schedule = ScreenshotRetentionSchedule()
         let start = Date(timeIntervalSince1970: 1_700_000_000)

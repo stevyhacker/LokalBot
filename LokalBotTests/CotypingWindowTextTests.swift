@@ -243,6 +243,34 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertEqual(reads.count, 1)
     }
 
+    /// Reading a chat window and then clicking into another app without
+    /// typing never asked for a new read, so the chat's text stayed in memory.
+    func testFocusInAnotherAppOrFieldForgetsTheTextWithoutARead() {
+        let clock = Clock()
+        let reads = Reads([Self.chat, Self.chat, Self.chat])
+        let capture = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in reads.next() })
+        let frame = CGRect(x: 320, y: 90, width: 640, height: 44)
+        let key = CotypingWindowText.key(processID: 42, role: "AXTextArea", windowTitle: "Team chat", fieldFrame: frame)
+        expectUpdate(capture) { _ = capture.snapshot(forKey: key) { Self.request(key) } }
+
+        // The reply box grows and moves down as you type: still the same field.
+        capture.forget(unlessForProcess: 42, role: "AXTextArea",
+                       fieldFrame: CGRect(x: 320, y: 60, width: 640, height: 88))
+        XCTAssertNotNil(capture.cachedSnapshot())
+
+        capture.forget(unlessForProcess: 42, role: "AXTextField", fieldFrame: frame)
+        XCTAssertNil(capture.cachedSnapshot(), "another field in the same app")
+
+        expectUpdate(capture) { _ = capture.snapshot(forKey: key) { Self.request(key) } }
+        XCTAssertNotNil(capture.cachedSnapshot())
+        capture.forget(unlessForProcess: 77, role: "AXTextArea", fieldFrame: frame)
+        XCTAssertNil(capture.cachedSnapshot(), "a field in another app")
+
+        expectUpdate(capture) { _ = capture.snapshot(forKey: key) { Self.request(key) } }
+        capture.forget(unlessForProcess: 42, role: "AXTextArea", fieldFrame: nil)
+        XCTAssertNil(capture.cachedSnapshot(), "a field with no frame has no window text of its own")
+    }
+
     func testAnotherFieldOrWindowForgetsTheTextAndRevokedReadsAreDiscarded() {
         let clock = Clock()
         let reads = Reads([Self.chat, Self.chat])

@@ -171,6 +171,10 @@ final class AgentSetupTests: XCTestCase {
         XCTAssertTrue(AppControlProtocol.modelPresets.contains(plan["models"]?.stringValue ?? ""))
         guard case .array(let needsApproval)? = plan["notes"]?["needsApproval"] else { return XCTFail("no notes") }
         XCTAssertTrue(needsApproval.contains("trackingEnabled"))
+        // Setup in the app shows this choice with the other capture choices;
+        // an agent walking the person through the plan has to show it too.
+        XCTAssertEqual(plan["settings"]?["codingAgentEvidenceEnabled"], true)
+        XCTAssertTrue(needsApproval.contains("codingAgentEvidenceEnabled"))
         XCTAssertFalse(needsApproval.contains("noteTemplate"))
         // The printed plan is what setup apply reads.
         XCTAssertNoThrow(try SetupPlan(json: plan))

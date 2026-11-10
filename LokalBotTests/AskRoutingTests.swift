@@ -150,28 +150,6 @@ final class AskRoutingTests: XCTestCase {
         XCTAssertEqual(AskDayScope.key(for: restored, calendar: destination), key)
     }
 
-    func testPinnedScreenContextEnablesScreenWithoutWideningSelectedDay() throws {
-        let calendar = Calendar(identifier: .gregorian)
-        let selected = try XCTUnwrap(calendar.date(from: DateComponents(
-            year: 2026, month: 8, day: 31)))
-        let reconciled = AskScopeReconciler.addingScreenContext(
-            to: [.meetings], dayScope: selected)
-
-        XCTAssertEqual(reconciled.scopes, [.meetings, .screen])
-        XCTAssertEqual(reconciled.dayScope, selected)
-    }
-
-    func testSearchEscalationPreservesReviewedScope() throws {
-        let day = try XCTUnwrap(Calendar.current.date(from: DateComponents(
-            year: 2026, month: 8, day: 31)))
-
-        let scope = AskEscalationScope.resolve(
-            mode: .keyword, selectedSources: [.screen], selectedDay: day)
-
-        XCTAssertEqual(scope.sources, [.screen])
-        XCTAssertEqual(scope.dayScope, day)
-    }
-
     func testExplicitMeetingAndScreenScopesCannotBeOverriddenByToolArguments() async {
         let base = RecordingToolRunner()
         let meetingID = UUID()

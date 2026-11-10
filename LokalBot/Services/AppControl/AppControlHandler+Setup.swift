@@ -13,7 +13,7 @@ extension AppControlHandler {
         case .setupPlan:
             return try Self.setupPlan(params, in: app)
         case .setupFinish:
-            UserDefaults.standard.set(true, forKey: AppState.onboardingShownKey)
+            app.markSetupFinished()
             WindowAccess.shared.close("onboarding")
             WindowAccess.shared.close("agent-setup")
             DockPolicy.sync()

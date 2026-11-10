@@ -1,8 +1,9 @@
 import Foundation
 
 /// Chat-shaped requests answered by the Think model chosen in Settings →
-/// Models. Live Radar is written against chat messages: a structured reply
-/// per pass, and one tool call per live-answer turn. The Think engines take a
+/// Models. Live Radar and Follow-through are written against chat messages:
+/// a structured reply per radar pass, and one tool call per live-answer or
+/// Follow-through turn. The Think engines take a
 /// system prompt, a prompt and context, and return text. This turns one into
 /// the other the way Ask's tool loop does: the tools are described in the
 /// system prompt, each turn is asked for as one JSON object (held to a schema

@@ -24,6 +24,10 @@ enum SystemSettingsWindowLocator {
         NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundleIdentifier
     }
 
+    static var isRunning: Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).isEmpty
+    }
+
     static func frontmostWindow() -> SystemSettingsWindowSnapshot? {
         guard isFrontmost,
               let application = NSRunningApplication

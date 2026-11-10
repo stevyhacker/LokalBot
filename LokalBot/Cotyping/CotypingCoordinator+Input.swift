@@ -55,7 +55,7 @@ extension CotypingCoordinator {
         resolveInsertionCheck(live: focus.field)
         // Text read from the screen is forgotten as soon as focus leaves the
         // field it was read for.
-        CotypingAXHelper.forgetVisibleContext(exceptFor: focus.field?.focusIdentityKey)
+        CotypingAXHelper.forgetVisibleContext(exceptFor: focus.field?.focusIdentityKey, field: focus.field)
         if activeVisibleContext != nil, focus.field == nil {
             cancelPendingGenerationWork()
             acceptedSuggestionBatch.discardLearningRecord()

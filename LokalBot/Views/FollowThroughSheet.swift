@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Follow-through for one action: Muse's reads, then each proposed step as an
-/// editable card. Approving opens the step as a draft in the person's own app.
+/// Follow-through for one action: what the Think model read, then each
+/// proposed step as an editable card. Approving opens the step as a draft in
+/// the person's own app.
 struct FollowThroughSheet: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var session: FollowThroughSession
@@ -77,7 +78,7 @@ struct FollowThroughSheet: View {
     @ViewBuilder private var progress: some View {
         switch session.state {
         case .idle, .working:
-            LoadingStateLabel("Muse is planning the next step…")
+            LoadingStateLabel(app.settings.appLanguage.localized("Planning the next step…"))
         case .waitingForApproval:
             Text("Waiting for you to approve or decline the step above.").workspaceTextRole(.supporting)
         case .finished:
@@ -106,7 +107,8 @@ struct FollowThroughSheet: View {
 
     private var footer: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Sends the action, its source passages, the meeting notes, and what Muse reads from your meetings to api.meta.ai. Nothing is sent to anyone until you approve a step, and approved steps open as drafts. \(RadarItemList.costLabel(session.cost)) so far.")
+            (destination + Text(verbatim: " ")
+                + Text("Nothing is sent to anyone until you approve a step, and approved steps open as drafts."))
                 .font(.scaled(.caption)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 16)
@@ -115,6 +117,17 @@ struct FollowThroughSheet: View {
             }
             Button("Close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
+        }
+    }
+
+    /// Where the action and what is read about it go: wherever the Think
+    /// model runs. A blocked connection shows as the run's own error.
+    private var destination: Text {
+        switch InferencePresentation(settings: app.settings) {
+        case .remote(let host):
+            Text("Sends the action, its source passages, the meeting notes, and what is read from your meetings to \(host), your Think model.")
+        case .onDevice, .blocked:
+            Text("Your Think model reads the action and your meetings on this Mac.")
         }
     }
 

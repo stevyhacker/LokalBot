@@ -172,6 +172,16 @@ enum CotypingWindowText {
             .joined(separator: "\u{1f}")
     }
 
+    /// Whether `key` can be for a field at this place: the same process,
+    /// role and column. The window title takes another Accessibility read,
+    /// so a match may still be another document; the next read settles that.
+    static func key(_ key: String, mayBelongToProcess processID: pid_t, role: String, fieldFrame: CGRect?) -> Bool {
+        let parts = key.components(separatedBy: "\u{1f}")
+        guard let fieldFrame, parts.count >= 5, parts[0] == String(processID), parts[1] == role,
+              let x = Int(parts[parts.count - 2]), let width = Int(parts[parts.count - 1]) else { return false }
+        return abs(x - Int(fieldFrame.minX.rounded())) <= 1 && abs(width - Int(fieldFrame.width.rounded())) <= 1
+    }
+
     /// Drops credential-bearing lines rather than teaching the model to
     /// complete a redaction marker, and lines with no letters or digits.
     static func cleaned(_ raw: String) -> String? {

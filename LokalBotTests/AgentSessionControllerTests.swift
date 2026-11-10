@@ -316,6 +316,10 @@ final class AgentSessionControllerTests: XCTestCase {
         var settings = AppSettings()
     }
 
+    private final class LeaseBox {
+        var lease: InferenceLease?
+    }
+
     func testAgentReasoningLevelIsWrittenForTheExtensionAndFollowsChanges() async throws {
         let box = SettingsBox()
         box.settings.summarizerBackend = .openAICompatible
@@ -447,6 +451,77 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
+    /// During a turn the agent talks to its server at every model step
+    /// without going through `send`, so revoking the server must end the
+    /// turn itself, not only refuse the next prompt.
+    func testRevokingTheServerStopsARunningTurn() async throws {
+        let box = SettingsBox()
+        box.settings.summarizerBackend = .openAICompatible
+        box.settings.openAIBaseURL = "https://reviewed.example/v1"
+        box.settings.openAIModel = "test-model"
+        box.settings.approvedRemoteInferenceOrigins = ["https://reviewed.example"]
+        let fake = FakeTransport()
+        let controller = AgentSessionController(
+            settings: { box.settings },
+            storage: fixtureStorage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
+            makeTransport: { _ in fake },
+            approvalModeDefaults: makeApprovalModeDefaults())
+        await controller.start()
+        XCTAssertEqual(controller.state, .ready)
+
+        // Still approved: nothing happens, running or not.
+        await controller.remoteApprovalsDidChange()
+        XCTAssertEqual(controller.state, .ready)
+
+        let send = Task { await controller.send(prompt: "Read the repository and summarize it") }
+        try await pump()
+        fake.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await send.value
+        fake.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        XCTAssertEqual(controller.state, .running)
+
+        box.settings.approvedRemoteInferenceOrigins = []
+        await controller.remoteApprovalsDidChange()
+
+        guard case .failed(let message) = controller.state else {
+            return XCTFail("the turn kept running on a revoked server: \(controller.state)")
+        }
+        XCTAssertTrue(message.contains("https://reviewed.example"), message)
+        XCTAssertEqual(controller.recoveryAction, .openModels)
+        XCTAssertFalse(controller.hasLiveRuntime)
+        XCTAssertEqual(controller.failedPrompt?.text, "Read the repository and summarize it",
+                       "the prompt stays available to send again once a server is approved")
+    }
+
+    func testRevokingTheServerLeavesAWaitingSessionForSendToRefuse() async throws {
+        let box = SettingsBox()
+        box.settings.summarizerBackend = .openAICompatible
+        box.settings.openAIBaseURL = "https://reviewed.example/v1"
+        box.settings.openAIModel = "test-model"
+        box.settings.approvedRemoteInferenceOrigins = ["https://reviewed.example"]
+        let fake = FakeTransport()
+        let controller = AgentSessionController(
+            settings: { box.settings },
+            storage: fixtureStorage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
+            makeTransport: { _ in fake },
+            approvalModeDefaults: makeApprovalModeDefaults())
+        await controller.start()
+        box.settings.approvedRemoteInferenceOrigins = []
+        await controller.remoteApprovalsDidChange()
+
+        XCTAssertEqual(controller.state, .ready)
+        let sent = await controller.send(prompt: "Go")
+        XCTAssertFalse(sent)
+        XCTAssertNotNil(controller.composerError)
+        XCTAssertFalse(fake.sentLines.contains { $0.contains(#""type":"prompt""#) })
+        await controller.shutdown()
+    }
+
     func testUnsupportedBackendFailsWithoutSpawning() async throws {
         let controller = makeController(backend: .appleIntelligence)
         await controller.start()
@@ -515,6 +590,158 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(active, 0)
         XCTAssertEqual(controller.state, .idle)
         XCTAssertEqual(transportCalls, 0, "a closed tab must not spawn pi after ensure returns")
+    }
+
+    /// An open task on the built-in model used to keep the model server for
+    /// as long as its tab stayed open, so work on any other model (a changed
+    /// Think model, a separate dictation model) waited until the tab closed.
+    func testBuiltInModelIsHeldOnlyWhileATurnRuns() async throws {
+        let root = fixtureRoot.appendingPathComponent("lease-library")
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent("models"), withIntermediateDirectories: true)
+        let entry = ModelCatalog.Entry(
+            id: "agent-turn-fixture", displayName: "Agent Turn Fixture",
+            fileName: "agent-turn-fixture.gguf", url: "", sizeGB: 0,
+            blurb: "", disablesThinking: false)
+        try Data("GGUF".utf8).write(to: root.appendingPathComponent("models/\(entry.fileName)"))
+        let otherModel = root.appendingPathComponent("models/other.gguf")
+        try Data("GGUF".utf8).write(to: otherModel)
+        var settings = AppSettings()
+        settings.summarizerBackend = .builtIn
+        settings.builtInModelID = entry.id
+        settings.customBuiltInModels = [entry]
+        var hooks: [InferenceRole: InferenceBroker.RuntimeHooks] = [:]
+        for role in InferenceRole.allCases { hooks[role] = .init(ensure: { _ in }, stop: {}) }
+        let broker = InferenceBroker(hooks: hooks, leaseStateSink: { _, _ in })
+        let fake = FakeTransport()
+        let controller = AgentSessionController(
+            settings: { settings },
+            storage: StorageManager(rootURL: root),
+            sessionsDirectory: root.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
+            broker: broker,
+            makeTransport: { _ in fake },
+            approvalModeDefaults: makeApprovalModeDefaults())
+        func leases(become count: Int) async throws -> Bool {
+            for _ in 0..<120 {
+                if await broker.activeLeaseCount(.mainLLM) == count { return true }
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            return false
+        }
+
+        await controller.start()
+        XCTAssertEqual(controller.state, .ready)
+        let idleAfterStart = try await leases(become: 0)
+        XCTAssertTrue(idleAfterStart, "a task that is open but waiting must not hold the model")
+
+        // Work on another model gets the server at once while the task waits.
+        // Behind a held lease this request would wait until the tab closed,
+        // so it is given a few seconds, not awaited outright.
+        let other = Task {
+            try await broker.lease(.mainLLM, model: otherModel, priority: .background, purpose: "other model")
+        }
+        let granted = LeaseBox()
+        let collect = Task { granted.lease = try? await other.value }
+        for _ in 0..<120 where granted.lease == nil { try await Task.sleep(for: .milliseconds(25)) }
+        guard let otherLease = granted.lease else {
+            other.cancel()
+            await collect.value
+            XCTFail("work on another model waited behind a task that was only open")
+            await controller.shutdown()
+            return
+        }
+        await broker.release(otherLease)
+        let freedAgain = try await leases(become: 0)
+        XCTAssertTrue(freedAgain)
+
+        let send = Task { await controller.send(prompt: "hello") }
+        try await pump()
+        fake.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        let sent = await send.value
+        XCTAssertTrue(sent)
+        fake.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        XCTAssertEqual(controller.state, .running)
+        let heldDuringTurn = await broker.activeLeaseCount(.mainLLM)
+        XCTAssertEqual(heldDuringTurn, 1, "the model stays put for the whole turn")
+
+        fake.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        XCTAssertEqual(controller.state, .ready)
+        let idleAfterTurn = try await leases(become: 0)
+        XCTAssertTrue(idleAfterTurn)
+        await controller.shutdown()
+    }
+
+    /// A turn the agent starts by itself and a send that arrives while the
+    /// model is still being fetched each ask for the model. Exactly one lease
+    /// is kept for the turn, and it goes back when the turn settles.
+    func testATurnTheAgentStartedAndASendKeepOneLeaseBetweenThem() async throws {
+        let root = fixtureRoot.appendingPathComponent("two-callers-library")
+        try FileManager.default.createDirectory(
+            at: root.appendingPathComponent("models"), withIntermediateDirectories: true)
+        let entry = ModelCatalog.Entry(
+            id: "agent-two-callers-fixture", displayName: "Agent Two Callers Fixture",
+            fileName: "agent-two-callers-fixture.gguf", url: "", sizeGB: 0,
+            blurb: "", disablesThinking: false)
+        try Data("GGUF".utf8).write(to: root.appendingPathComponent("models/\(entry.fileName)"))
+        var settings = AppSettings()
+        settings.summarizerBackend = .builtIn
+        settings.builtInModelID = entry.id
+        settings.customBuiltInModels = [entry]
+        let gate = BlockingBrokerEnsure()
+        let ensures = EnsureCount()
+        var hooks: [InferenceRole: InferenceBroker.RuntimeHooks] = [:]
+        for role in InferenceRole.allCases {
+            hooks[role] = .init(
+                ensure: { _ in
+                    // The first ensure is the start-up; hold the ones a turn asks for.
+                    if role == .mainLLM, await ensures.next() > 1 { await gate.block() }
+                },
+                stop: {})
+        }
+        let broker = InferenceBroker(hooks: hooks, leaseStateSink: { _, _ in })
+        let fake = FakeTransport()
+        let controller = AgentSessionController(
+            settings: { settings },
+            storage: StorageManager(rootURL: root),
+            sessionsDirectory: root.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
+            broker: broker,
+            makeTransport: { _ in fake },
+            approvalModeDefaults: makeApprovalModeDefaults())
+        await controller.start()
+        XCTAssertEqual(controller.state, .ready)
+
+        fake.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        XCTAssertEqual(controller.state, .running)
+        await gate.waitUntilStarted()
+        let send = Task { await controller.send(prompt: "one more thing", steer: true) }
+        try await pump()
+        await gate.release()
+        try await pump()
+        fake.inject(#"{"type":"response","id":"steer1","command":"steer","success":true}"#)
+        let sent = await send.value
+        XCTAssertTrue(sent)
+        let held = await broker.activeLeaseCount(.mainLLM)
+        XCTAssertEqual(held, 1, "one lease for the turn, however many callers asked")
+
+        fake.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        var after = await broker.activeLeaseCount(.mainLLM)
+        for _ in 0..<80 where after != 0 {
+            try await Task.sleep(for: .milliseconds(25))
+            after = await broker.activeLeaseCount(.mainLLM)
+        }
+        XCTAssertEqual(after, 0)
+        await controller.shutdown()
+    }
+
+    private actor EnsureCount {
+        private var count = 0
+        func next() -> Int { count += 1; return count }
     }
 
     func testSendFoldsUserAndStreamsAssistant() async throws {

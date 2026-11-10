@@ -280,6 +280,10 @@ final class AppState: ObservableObject {
                 if Self.companionChanged(from: oldValue, to: settings) {
                     applyCompanionSetting()
                 }
+                let approved = Set(settings.approvedRemoteInferenceOrigins)
+                if !Set(oldValue.approvedRemoteInferenceOrigins).isSubset(of: approved) {
+                    agentSessions.remoteApprovalsDidChange()
+                }
             }
         }
     }
@@ -426,7 +430,7 @@ final class AppState: ObservableObject {
 
     /// The meeting whose follow-up draft sheet is open, from any entry point.
     @Published var followUpDraftMeeting: Meeting?
-    /// The open Follow-through run (Muse plans one action; each step waits for approval).
+    /// The open Follow-through run (the Think model plans one action; each step waits for approval).
     @Published var followThroughSession: FollowThroughSession?
     /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
     @Published var showsSampleSetup = false
@@ -2781,8 +2785,15 @@ final class AppState: ObservableObject {
     /// new install has read no coding-agent session until now, so reading
     /// starts here if the person kept it on.
     func finishOnboarding(applying draft: CaptureSetupDraft) {
-        let firstFinish = !UserDefaults.standard.bool(forKey: Self.onboardingShownKey)
         settings = draft.applying(to: settings)
+        markSetupFinished()
+    }
+
+    /// Setup is finished, here or by an agent through `lokalbot-cli setup
+    /// finish`. Coding-agent sessions are not read before this, and the
+    /// first time, reading starts now rather than at the next launch.
+    func markSetupFinished() {
+        let firstFinish = !UserDefaults.standard.bool(forKey: Self.onboardingShownKey)
         UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
         if firstFinish && interactive { applyCodingAgentEvidenceSetting() }
     }

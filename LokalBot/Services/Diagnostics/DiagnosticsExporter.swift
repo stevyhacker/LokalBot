@@ -21,7 +21,7 @@ enum DiagnosticsPaths {
 /// OCR text, so meeting audio, transcripts, notes, and screen content cannot
 /// end up in the archive.
 enum DiagnosticsExporter {
-    struct Sources {
+    struct Sources: Sendable {
         var logURLs: [URL]
         var healthReportsDirectory: URL
         var captureTracesDirectory: URL

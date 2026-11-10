@@ -59,9 +59,9 @@ extension AppState {
             source: nil, title: package.title,
             prompt: package.agentModePrompt(folder: folder, attachesPage: attachesPage),
             attachments: [], folder: folder)
-        // Nothing runs until this method returns, so the copy and the
-        // attachment are in place before an automatic start sends the task.
-        guard let id = agentSessions.handOff([handoff], start: start).first,
+        // The task starts only after the copy and the attachment are in
+        // place: its prompt points at them.
+        guard let id = agentSessions.handOff([handoff], start: false).first,
               let tab = agentSessions.tabs.first(where: { $0.id == id }) else {
             return "Couldn't open an Agent Mode task."
         }
@@ -70,6 +70,9 @@ extension AppState {
             try package.copy(into: destination)
         } catch {
             lokalbotLog("hand off copy into agent workspace failed: \(error.localizedDescription)")
+            // Its prompt names files that are not there. Put the task away
+            // instead of leaving it among the tasks waiting to be sent.
+            Task { await agentSessions.setArchived(id, true) }
             return "Couldn't copy the handoff into Agent Mode's working folder: \(error.localizedDescription)"
         }
         if attachesPage {
@@ -82,6 +85,7 @@ extension AppState {
         openAgent()
         WindowAccess.shared.open("main")
         package.recordDelivery(target: WindowHandoffTarget.agentMode.manifestID, route: nil)
+        if start { agentSessions.startHandoffs([id]) }
         return nil
     }
 }

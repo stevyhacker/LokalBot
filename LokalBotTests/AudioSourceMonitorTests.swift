@@ -413,6 +413,40 @@ final class AudioSourceMonitorTests: XCTestCase {
         }
     }
 
+    /// A candidate is held for up to 20 seconds. A muted-microphone call that
+    /// started in that time went into the "already playing" set and was never
+    /// reported, so it was not recorded.
+    @MainActor
+    func testACallThatStartsWhileAnotherSoundIsHeldIsStillReported() {
+        func process(_ id: Int, _ bundleID: String) -> AudioProcess {
+            AudioProcess(id: pid_t(id), name: bundleID, bundleID: bundleID,
+                         objectID: AudioObjectID(id), isRunningOutput: true)
+        }
+        let chime = process(700, "com.example.ChatApp")
+        let zoom = process(701, "us.zoom.xos")
+        let meet = process(702, "com.google.Chrome")
+        let monitor = AudioSourceMonitor()
+        defer { monitor.stop() }
+
+        monitor.apply([chime])
+        XCTAssertEqual(monitor.detectedProcess?.objectID, chime.objectID)
+        // A meeting app takes the place of a held sound from another app.
+        monitor.apply([chime, zoom])
+        XCTAssertEqual(monitor.detectedProcess?.objectID, zoom.objectID)
+
+        // A second call behind a held meeting app waits for the slot.
+        monitor.apply([chime, zoom, meet])
+        XCTAssertEqual(monitor.detectedProcess?.objectID, zoom.objectID)
+        monitor.accept()
+        monitor.apply([chime, zoom, meet])
+        XCTAssertEqual(monitor.detectedProcess?.objectID, meet.objectID, "it was not swallowed while the slot was busy")
+
+        // Audio that was already playing is never a fresh candidate.
+        monitor.accept()
+        monitor.apply([chime, zoom, meet])
+        XCTAssertNil(monitor.detectedProcess)
+    }
+
     // MARK: - Choosing a target when nothing is emitting
 
     private func teamsApp(pid: pid_t = 100) -> MeetingDetector.DetectedApp {

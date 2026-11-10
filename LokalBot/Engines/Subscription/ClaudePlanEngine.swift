@@ -114,11 +114,19 @@ struct ClaudePlanEngine: TextEngine {
 
     // MARK: Arguments
 
-    /// Pure argument construction, covered offline. Claude Code accepts
-    /// LokalBot's schemas unchanged (`maxItems`, `minimum` included).
-    func arguments(schema: [String: Any]?, options: TextGenerationOptions?, streaming: Bool) throws -> [String] {
-        var arguments = ["-p", "--output-format", streaming ? "stream-json" : "json"]
-        if streaming { arguments += ["--verbose", "--include-partial-messages"] }
+    /// Pure argument construction, covered offline. Nothing a caller supplies
+    /// is in it: a command line is readable by every process of the same
+    /// user, and a schema can hold meeting text (the notes repair lists the
+    /// meeting's action items as allowed values). A structured request
+    /// therefore reads its schema from stdin, which takes Claude Code's
+    /// stream-json input (`structuredInput`).
+    func arguments(structured: Bool, options: TextGenerationOptions?, streaming: Bool) -> [String] {
+        var arguments = ["-p"]
+        if structured { arguments += ["--input-format", "stream-json"] }
+        arguments += ["--output-format", streaming || structured ? "stream-json" : "json"]
+        // Claude Code refuses stream-json output without --verbose.
+        if streaming || structured { arguments.append("--verbose") }
+        if streaming { arguments.append("--include-partial-messages") }
         arguments += [
             "--no-session-persistence",
             "--safe-mode",
@@ -131,16 +139,35 @@ struct ClaudePlanEngine: TextEngine {
         let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
         if !model.isEmpty { arguments += ["--model", model] }
         if let effort = effort(for: options) { arguments += ["--effort", effort.rawValue] }
-        if let schema {
-            let data = try JSONSerialization.data(withJSONObject: schema, options: [.sortedKeys])
-            arguments += ["--json-schema", String(decoding: data, as: UTF8.self)]
-        }
         return arguments
     }
 
     static func input(prompt: String, context: [String]) -> Data {
         let parts = (context + [prompt]).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         return Data(parts.joined(separator: "\n\n").utf8)
+    }
+
+    /// Stdin for a structured request, one JSON object per line: the
+    /// `initialize` request Claude Code's own SDK sends, carrying the schema
+    /// unchanged (`maxItems`, `minimum` included), then the prompt as a user
+    /// message. Checked against Claude Code 2.1.318.
+    static func structuredInput(prompt: String, context: [String], schema: [String: Any]) throws -> Data {
+        let text = String(decoding: input(prompt: prompt, context: context), as: UTF8.self)
+        let initialize: [String: Any] = [
+            "type": "control_request",
+            "request_id": "lokalbot-schema",
+            "request": ["subtype": "initialize", "jsonSchema": schema] as [String: Any],
+        ]
+        let message: [String: Any] = [
+            "type": "user",
+            "message": ["role": "user", "content": [["type": "text", "text": text]]] as [String: Any],
+        ]
+        var data = Data()
+        for line in [initialize, message] {
+            data.append(try JSONSerialization.data(withJSONObject: line, options: [.sortedKeys]))
+            data.append(0x0A)
+        }
+        return data
     }
 
     // MARK: Result
@@ -164,13 +191,24 @@ struct ClaudePlanEngine: TextEngine {
             throw TextEngineError.badResponse("model refusal: Claude declined this request")
         }
         var text = message
+        var isStructured = false
         if wantsStructured, let structured = json["structured_output"],
            JSONSerialization.isValidJSONObject(structured),
            let data = try? JSONSerialization.data(withJSONObject: structured, options: [.sortedKeys]) {
             text = String(decoding: data, as: UTF8.self)
+            isStructured = true
         }
         let truncated = stopReason == "max_tokens" || stopReason == "model_context_window_exceeded"
         guard truncated || !text.isEmpty else { throw TextEngineError.badResponse("Claude returned no text") }
+        // A Claude Code that does not take the schema from stdin answers in
+        // its own words. The caller asked for JSON, so prose is a failed
+        // request here, not a reply handed on as if it were structured.
+        if wantsStructured, !isStructured, !truncated {
+            guard let object = Self.jsonText(in: text) else {
+                throw TextEngineError.badResponse("Claude returned no structured output")
+            }
+            text = object
+        }
         let usage = json["usage"] as? [String: Any]
         let uncached = usage?["input_tokens"] as? Int
         let cacheWrite = usage?["cache_creation_input_tokens"] as? Int ?? 0
@@ -179,6 +217,17 @@ struct ClaudePlanEngine: TextEngine {
                      inputTokens: uncached.map { $0 + cacheWrite + (cacheRead ?? 0) },
                      outputTokens: usage?["output_tokens"] as? Int,
                      cachedTokens: cacheRead)
+    }
+
+    /// `text` when it is JSON, or the JSON object inside it when the model
+    /// wrapped one in a sentence or a code fence; nil when there is none.
+    static func jsonText(in text: String) -> String? {
+        func parses(_ candidate: String) -> Bool {
+            (try? JSONSerialization.jsonObject(with: Data(candidate.utf8))) != nil
+        }
+        if parses(text) { return text }
+        guard let object = ChatPrompt.extractJSONObject(text), parses(object) else { return nil }
+        return object
     }
 
     /// Plan limits and a missing sign-in stop without retrying; overloads
@@ -224,7 +273,9 @@ struct ClaudePlanEngine: TextEngine {
                          schema: [String: Any]?, options: TextGenerationOptions?,
                          onPartial: (@MainActor (String) -> Void)?) async throws -> String {
         let streaming = onPartial != nil
-        let arguments = try arguments(schema: schema, options: options, streaming: streaming)
+        let arguments = arguments(structured: schema != nil, options: options, streaming: streaming)
+        let input = try schema.map { try Self.structuredInput(prompt: prompt, context: context, schema: $0) }
+            ?? Self.input(prompt: prompt, context: context)
         let systemPrompt = system.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? Self.fallbackSystemPrompt : system
         let budget = MeetingGenerationBudget.current
@@ -238,7 +289,7 @@ struct ClaudePlanEngine: TextEngine {
             do {
                 output = try await runner.run(
                     arguments: arguments,
-                    input: Self.input(prompt: prompt, context: context),
+                    input: input,
                     files: [Self.systemPromptFile: Data(systemPrompt.utf8)],
                     onLine: partials.map { forwarder in { @Sendable line in forwarder.consume(line) } })
                 partials?.finish()
@@ -246,7 +297,8 @@ struct ClaudePlanEngine: TextEngine {
                 partials?.finish()
                 throw error
             }
-            let reply = try Self.reply(from: output, streaming: streaming, wantsStructured: schema != nil)
+            let reply = try Self.reply(from: output, streaming: streaming || schema != nil,
+                                       wantsStructured: schema != nil)
             metric.inputTokens = reply.inputTokens
             metric.outputTokens = reply.outputTokens
             metric.cachedTokens = reply.cachedTokens
@@ -268,6 +320,8 @@ struct ClaudePlanEngine: TextEngine {
         }
     }
 
+    /// `streaming` says the output is stream-json: one object per line, the
+    /// result last.
     static func reply(from output: ClaudeCodeProcess.Output, streaming: Bool, wantsStructured: Bool) throws -> Reply {
         var result: [String: Any]?
         if streaming {

@@ -172,7 +172,7 @@ final class AudioSourceMonitor: ObservableObject {
         let newlyActiveIDs = activeIDs.subtracting(knownActiveObjectIDs)
         knownActiveObjectIDs = activeIDs
 
-        guard !newlyActiveIDs.isEmpty, detectedProcess == nil else { return }
+        guard !newlyActiveIDs.isEmpty else { return }
 
         let candidates = active.filter { process in
             guard newlyActiveIDs.contains(process.objectID) else { return false }
@@ -183,15 +183,31 @@ final class AudioSourceMonitor: ObservableObject {
             return true
         }
 
-        let meetingApp = candidates.first { process in
-            guard let bundleID = process.bundleID else { return false }
-            return Self.meetingBundleIDs.contains(bundleID)
+        let meetingApp = candidates.first(where: Self.isMeetingApp)
+
+        if let held = detectedProcess {
+            // One candidate is held for up to 20 seconds. A call that starts
+            // meanwhile must not be lost behind it: a meeting app takes the
+            // place of a held sound from some other app at once, and anything
+            // else stays unknown, so it is reported when the slot is free.
+            if let meetingApp, !Self.isMeetingApp(held) {
+                detectedProcess = meetingApp
+                scheduleCandidateExpiry()
+                knownActiveObjectIDs.subtract(candidates.map(\.objectID).filter { $0 != meetingApp.objectID })
+            } else {
+                knownActiveObjectIDs.subtract(candidates.map(\.objectID))
+            }
+            return
         }
 
         if let best = meetingApp ?? candidates.first {
             detectedProcess = best
             scheduleCandidateExpiry()
         }
+    }
+
+    private static func isMeetingApp(_ process: AudioProcess) -> Bool {
+        process.bundleID.map(meetingBundleIDs.contains) ?? false
     }
 
     private func scheduleCandidateExpiry() {

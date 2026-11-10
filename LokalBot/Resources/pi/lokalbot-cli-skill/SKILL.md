@@ -56,7 +56,7 @@ lokalbot-cli personal-context --task "Plan next quarter"
 lokalbot-cli personal-context --task "Evaluate a job offer in Berlin" --kind goal --kind principle --limit 5
 ```
 
-Items are the user's own statements, shared for agents, most relevant to the task first. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, and they are not evidence about meetings or other people.
+Items are what the user chose to share with agents, most relevant to the task first. Each has an `authority`: `"stated"` items are the user's own words; `"learned"` items were picked up by LokalBot from what the user said in meetings, typed or dictated, or from their work, and may be out of date, so don't present one as something the user told you. Each item's `source` says where it came from. Use them only when they bear on the task, and say which ones shaped your answer. Items not returned are unknown, not false, and they are not evidence about meetings or other people.
 
 ## Files
 

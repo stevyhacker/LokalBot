@@ -180,20 +180,47 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             } else if split.holdingPriorityForSubview(at: index) != holding {
                 split.setHoldingPriority(holding, forSubviewAt: index)
             }
+            let shown = Self.shownWidth(of: pane)
             guard initialWidthPending else {
                 // A restored divider position counts as settled too.
-                if held.width == nil { held.settle(at: pane.frame.width) }
+                if held.width == nil { held.settle(at: shown) }
                 return
             }
-            guard split.bounds.width > width + split.dividerThickness else { return }
-            if abs(pane.frame.width - width) <= 1 || initialWidthAttempts >= Self.maximumInitialWidthAttempts {
+            guard split.bounds.width > width + Self.coveredWidth(of: pane) + split.dividerThickness else { return }
+            if abs(shown - width) <= 1 {
                 initialWidthPending = false
-                held.settle(at: pane.frame.width)
+                held.settle(at: shown)
                 return
             }
             initialWidthAttempts += 1
-            let position = index == 0 ? width : split.bounds.width - width - split.dividerThickness
-            split.setPosition(position, ofDividerAt: 0)
+            split.setPosition(Self.dividerPosition(showing: width, of: pane, at: index, in: split), ofDividerAt: 0)
+            if initialWidthAttempts >= Self.maximumInitialWidthAttempts {
+                // Out of attempts: hold what this placement reached. Waiting for
+                // the next layout pass would hold whatever a re-division left.
+                initialWidthPending = false
+                held.settle(at: Self.shownWidth(of: pane))
+            }
+        }
+
+        /// The part of a pane that lies under the main window's sidebar. From
+        /// macOS 26 the detail column runs under the sidebar, so the pane beside
+        /// it is wider than what shows; AppKit reports the hidden part as the
+        /// pane's safe-area inset. Widths are chosen, held and compared as the
+        /// person sees them.
+        private static func coveredWidth(of pane: NSView) -> CGFloat {
+            pane.safeAreaInsets.left + pane.safeAreaInsets.right
+        }
+
+        private static func shownWidth(of pane: NSView) -> CGFloat {
+            pane.frame.width - coveredWidth(of: pane)
+        }
+
+        /// The divider position that shows `width` of `pane`. Positions run
+        /// from the first pane's outer edge in both layout directions.
+        private static func dividerPosition(showing width: CGFloat, of pane: NSView, at index: Int,
+                                            in split: NSSplitView) -> CGFloat {
+            let paneWidth = width + coveredWidth(of: pane)
+            return index == 0 ? paneWidth : split.bounds.width - paneWidth - split.dividerThickness
         }
 
         /// Only a divider drag chooses a width; every other resize is a
@@ -216,12 +243,12 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
         private func splitDidResize(pane: NSView?, byUser: Bool) {
             guard let pane, let split = observedSplit, !initialWidthPending, !restoringHeldWidth,
                   let index = split.arrangedSubviews.firstIndex(where: { $0 === pane }),
-                  let target = held.resized(to: pane.frame.width, byUser: byUser) else { return }
+                  let target = held.resized(to: Self.shownWidth(of: pane), byUser: byUser) else { return }
             restoringHeldWidth = true
             defer { restoringHeldWidth = false }
-            let position = index == 0 ? target : split.bounds.width - target - split.dividerThickness
-            split.setPosition(position, ofDividerAt: 0)
-            if abs(pane.frame.width - target) > 1 { held.restoreFailed(at: pane.frame.width) }
+            split.setPosition(Self.dividerPosition(showing: target, of: pane, at: index, in: split), ofDividerAt: 0)
+            let restored = Self.shownWidth(of: pane)
+            if abs(restored - target) > 1 { held.restoreFailed(at: restored) }
         }
 
         private static func hasSavedFrames(_ autosaveName: String) -> Bool {
@@ -230,18 +257,84 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
     }
 }
 
+/// macOS 26 mirrors the main window's NavigationSplitView for a right-to-left
+/// interface with the detail's toolbar squeezed into the sidebar's strip, and
+/// a split view that then appears in the detail never finishes updating its
+/// constraints: AppKit throws, and opening Settings in Arabic or Urdu quit the
+/// app. A split built left-to-right has neither problem, and is what changing
+/// the language in a running app leaves. So on macOS 26 the splits stay
+/// left-to-right and every pane's content takes the interface's direction back.
+enum SplitStructureDirection {
+    static func isHeldLeftToRight(
+        onMacOS majorVersion: Int = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+    ) -> Bool {
+        majorVersion == 26
+    }
+}
+
+private struct HoldsSplitStructureLeftToRightKey: EnvironmentKey {
+    static let defaultValue = SplitStructureDirection.isHeldLeftToRight()
+}
+
+private struct SplitPaneContentDirectionKey: EnvironmentKey {
+    static let defaultValue: LayoutDirection? = nil
+}
+
+extension EnvironmentValues {
+    /// Whether split views are built left-to-right whatever the interface's
+    /// direction. Tests set it to check either arrangement on any macOS.
+    var holdsSplitStructureLeftToRight: Bool {
+        get { self[HoldsSplitStructureLeftToRightKey.self] }
+        set { self[HoldsSplitStructureLeftToRightKey.self] = newValue }
+    }
+
+    /// The interface's direction, handed past a split that is held
+    /// left-to-right to the panes inside it.
+    var splitPaneContentDirection: LayoutDirection? {
+        get { self[SplitPaneContentDirectionKey.self] }
+        set { self[SplitPaneContentDirectionKey.self] = newValue }
+    }
+}
+
+private struct HeldSplitStructure: ViewModifier {
+    @Environment(\.layoutDirection) private var direction
+    @Environment(\.holdsSplitStructureLeftToRight) private var held
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.splitPaneContentDirection, held ? direction : nil)
+            .environment(\.layoutDirection, held ? .leftToRight : direction)
+    }
+}
+
+private struct SplitPaneContentDirection: ViewModifier {
+    @Environment(\.layoutDirection) private var direction
+    @Environment(\.splitPaneContentDirection) private var contentDirection
+
+    func body(content: Content) -> some View {
+        content.environment(\.layoutDirection, contentDirection ?? direction)
+    }
+}
+
 extension View {
     /// Names a split pane for VoiceOver. `autosaveName` gives the split its own
     /// saved divider position; `initialWidth` sets this pane's width the first
-    /// time the split appears without one.
+    /// time the split appears without one. The pane's content follows the
+    /// interface's direction even where the split itself is held left-to-right.
     func splitPaneAccessibilityLabel(
         _ label: String,
         autosaveName: String? = nil,
         initialWidth: CGFloat? = nil
     ) -> some View {
-        background {
+        modifier(SplitPaneContentDirection()).background {
             SplitPaneAccessibility(label: label, autosaveName: autosaveName, initialWidth: initialWidth)
         }
+    }
+
+    /// Apply to every split view in the main window, the NavigationSplitView
+    /// included. See `SplitStructureDirection`.
+    func splitStructureDirection() -> some View {
+        modifier(HeldSplitStructure())
     }
 
     /// The minimum width of an `HSplitView` in the main window's detail column:
@@ -251,6 +344,7 @@ extension View {
     /// again, so Meetings could not shrink below about 1,100 pt. Stating the
     /// panes' real minimum keeps the window resizable down to sidebar + panes.
     func detailSplitMinimumWidth(_ paneMinimums: [CGFloat]) -> some View {
-        frame(minWidth: paneMinimums.reduce(0, +) + CGFloat(max(paneMinimums.count - 1, 0)))
+        splitStructureDirection()
+            .frame(minWidth: paneMinimums.reduce(0, +) + CGFloat(max(paneMinimums.count - 1, 0)))
     }
 }

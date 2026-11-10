@@ -1,0 +1,27 @@
+{
+  "calls" : [
+    {
+      "completionTokens" : 609,
+      "content" : "{\n  \"actions\": [\n    {\n      \"basis\": \"commitment\",\n      \"context\": [\"s7\", \"s8\"],\n      \"due\": \"\",\n      \"importance\": 3,\n      \"owner\": \"p1\",\n      \"quote\": \"export change is something I I have to update\",\n      \"source\": \"s6\",\n      \"text\": \"Update the export change and confirm the plan is still true because it was written before the last merges\"\n    },\n    {\n      \"basis\": \"commitment\",\n      \"context\": [\"s10\", \"s11\"],\n      \"due\": \"\",\n      \"importance\": 3,\n      \"owner\": \"p1\",\n      \"quote\": \"those can be a bit more simplified if we update the plan but I'll ping you Mira and Jonas to to get that resolved in chat\",\n      \"source\": \"s12\",\n      \"text\": \"Ping Mira and Jonas in chat to resolve simplifying the nightly export queue plan\"\n    },\n    {\n      \"basis\": \"commitment\",\n      \"context\": [],\n      \"due\": \"\",\n      \"importance\": 3,\n      \"owner\": \"p2\",\n      \"quote\": \"one more thing we need to do is once the pricing work is merged speak with Mira and figure out which alerts we still need\",\n      \"source\": \"s14\",\n      \"text\": \"Speak with Mira once the pricing work is merged to figure out which alerts are still needed\"\n    }\n  ],\n  \"has_more\": false,\n  \"notes\": [\n    {\n      \"section\": \"TL;DR\",\n      \"source\": \"s2\",\n      \"text\": \"Export proof of concept is being drafted; the export plan needs revisiting after recent merges, and two reporting changes will be merged after review\"\n    },\n    {\n      \"section\": \"Key points\",\n      \"source\": \"s2\",\n      \"text\": \"Drafting a small export proof of concept and responded to comments on the billing change\"\n    },\n    {\n      \"section\": \"Key points\",\n      \"source\": \"s10\",\n      \"text\": \"Nightly export is currently a separate queue from the main queue\"\n    },\n    {\n      \"section\": \"Key points\",\n      \"source\": \"s13\",\n      \"text\": \"Nico reviewed two open reporting changes, so they are ready to be merged\"\n    },\n    {\n      \"section\": \"Decisions\",\n      \"source\": \"s13\",\n      \"text\": \"Merge the two reporting changes after Nico's review\"\n    },\n    {\n      \"section\": \"Open questions\",\n      \"source\": \"s14\",\n      \"text\": \"Which alerts are still needed after the pricing work is merged is not yet determined\"\n    }\n  ]\n}",
+      "finishReason" : "stop",
+      "latencyMilliseconds" : 4548,
+      "maxTokens" : 4096,
+      "purpose" : "notes",
+      "reasoningBudgetTokens" : 0,
+      "reasoningTokens" : 34
+    },
+    {
+      "completionTokens" : 89,
+      "content" : "{\"actions\":[{\"importance\":1,\"owner\":\"p2\",\"basis\":\"request\",\"quote\":\"one more thing we need to do is once the pricing work is merged speak with Mira and figure out which alerts we still need\",\"source\":\"s14\",\"context\":[\"s13\"],\"text\":\"Speak with Mira once the pricing work is merged to figure out which alerts are still needed\",\"due\":\"\"}],\"has_more\":false,\"notes\":[]}",
+      "finishReason" : "stop",
+      "latencyMilliseconds" : 988,
+      "maxTokens" : 2048,
+      "purpose" : "notesRepair",
+      "reasoningBudgetTokens" : 0,
+      "reasoningTokens" : 0
+    }
+  ],
+  "caseName" : "notes-run-on-standup",
+  "model" : "z-ai\/glm-5.3-flash",
+  "recordedAt" : "2026-11-09T10:46:48Z"
+}

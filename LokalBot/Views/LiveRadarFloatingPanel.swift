@@ -4,8 +4,8 @@ import SwiftUI
 
 /// A small always-on-top window with Live Radar, for checking it from the
 /// meeting app: it floats over other apps and full-screen calls and never
-/// takes focus from them. It opens when a recording starts (if Meta Muse is
-/// set up, with Start Radar in it) and when the radar starts, remembers where
+/// takes focus from them. It opens when a recording starts (if Live Radar is
+/// on, with Start Radar in it) and when the radar starts, remembers where
 /// it was dragged, and collapses to its header. By default it is left out of
 /// screen sharing and screen recordings.
 @MainActor
@@ -30,6 +30,11 @@ final class LiveRadarPanelController {
         // opened. The published value is the new one; `app.settings` is not yet.
         app.$settings.map { Self.sharingType($0) }.removeDuplicates()
             .sink { [weak self] sharingType in self?.panel?.sharingType = sharingType }
+            .store(in: &observers)
+        // Turning "Show the floating Live Radar panel" off also takes down a
+        // panel that is already up. The menu bar item still opens it on request.
+        app.$settings.map(\.liveRadarPanelEnabled).removeDuplicates()
+            .sink { [weak self] enabled in if !enabled { self?.hide() } }
             .store(in: &observers)
     }
 

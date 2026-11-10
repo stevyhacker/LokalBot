@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import LokalBot
 
@@ -64,6 +65,75 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         XCTAssertFalse(pipeline.deferUntilNextLaunch(makeMeeting(), summarize: true))
         XCTAssertFalse(pipeline.hasActiveWork)
         XCTAssertTrue(pipeline.stages.isEmpty)
+    }
+
+    /// Revoking the transcription server while a meeting is uploading stops
+    /// the uploads; the meeting must then wait for a model, not sit failed.
+    func testMeetingWaitsWhenItsTranscriptionServerIsRevokedMidRun() async throws {
+        let previous = RemoteTranscriptionConsent.current
+        addTeardownBlock { RemoteTranscriptionConsent.current = previous }
+        let root = try makeRoot()
+        let meeting = makeMeeting()
+        let folder = root.appendingPathComponent(meeting.relativePath, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try writeTone(to: folder.appendingPathComponent("mic.m4a"), seconds: 2)
+
+        var settings = AppSettings()
+        settings.multiSpeakerDiarization = false
+        settings.echoCancellation = false
+        settings.autoTranscriptionVocabulary = false
+        settings.transcriptionModel = .remoteServer
+        settings.remoteTranscriptionBaseURL = "https://transcribe.example.invalid/v1"
+        settings.approvedRemoteTranscriptionOrigins = ["https://transcribe.example.invalid"]
+        RemoteTranscriptionConsent.current = .init(settings: settings)
+        let jobs = PipelineJobStore(databaseURL: root.appendingPathComponent("jobs.sqlite"))
+        var starts = 0
+        let pipeline = ProcessingPipeline(
+            storage: StorageManager(rootURL: root),
+            jobStore: jobs,
+            settings: { settings },
+            automationReadiness: .init(
+                transcription: { $0.remoteTranscription.isReady }, think: { _, _ in true }),
+            transcriptionStarted: { _ in
+                starts += 1
+                // The person revokes the server once the meeting is under way.
+                settings.approvedRemoteTranscriptionOrigins = []
+                RemoteTranscriptionConsent.current = .init(settings: settings)
+            },
+            speechSeconds: { _ in 2 })
+
+        XCTAssertEqual(pipeline.enqueue(meeting, transcribe: true, summarize: false, origin: .automatic), .enqueued)
+        await waitUntil { pipeline.stages[meeting.id] == .waitingForModels || pipeline.stages[meeting.id]?.isFailure == true }
+
+        XCTAssertEqual(pipeline.stages[meeting.id], .waitingForModels)
+        XCTAssertTrue(pipeline.hasJobsWaitingForModels)
+        XCTAssertEqual(starts, 1, "the meeting is not sent to the revoked server again")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("transcript.json").path))
+
+        // A server that was never approved still fails with its message
+        // instead of going round again.
+        let other = makeMeeting()
+        let otherFolder = root.appendingPathComponent(other.relativePath, isDirectory: true)
+        try FileManager.default.createDirectory(at: otherFolder, withIntermediateDirectories: true)
+        try writeTone(to: otherFolder.appendingPathComponent("mic.m4a"), seconds: 2)
+        XCTAssertEqual(pipeline.enqueue(other, transcribe: true, summarize: false, origin: .userInitiated), .enqueued)
+        await waitUntil { pipeline.stages[other.id]?.isFailure == true }
+        XCTAssertEqual(pipeline.stages[other.id], .failed(
+            RemoteTranscriptionError.approvalRequired("https://transcribe.example.invalid").localizedDescription))
+    }
+
+    private func writeTone(to url: URL, seconds: Double) throws {
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let file = try AVAudioFile(forWriting: url, settings: [
+            AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 16_000, AVNumberOfChannelsKey: 1,
+        ], commonFormat: .pcmFormatFloat32, interleaved: false)
+        let frames = AVAudioFrameCount(seconds * 16_000)
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames))
+        buffer.frameLength = frames
+        if let samples = buffer.floatChannelData?[0] {
+            for index in 0..<Int(frames) { samples[index] = sinf(Float(index) * 0.2) * 0.2 }
+        }
+        try file.write(from: buffer)
     }
 
     private func makeRoot() throws -> URL {

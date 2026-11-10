@@ -1209,6 +1209,9 @@ final class ActivityStore {
         try database.runChecked("UPDATE screenshots SET path = '' WHERE path = ?1 AND path != ''", bind: [path])
     }
 
+    /// Not the retention path, and only tests call it. Retention is
+    /// `retentionReview` with `clearRetainedText`, which also clears the
+    /// window titles, addresses and document names this leaves in place.
     @discardableResult
     func clearOCRText(olderThan cutoff: Date) -> Bool {
         do {

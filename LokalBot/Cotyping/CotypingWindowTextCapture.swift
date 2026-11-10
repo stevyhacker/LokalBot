@@ -177,6 +177,22 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         Self.recognized.clear()
     }
 
+    /// Forgets the text in use unless it can be for the field that now has
+    /// focus. Asking for a read is what forgets another field's text, and
+    /// focus that moves on without typing never asks, so the window just
+    /// left stayed in memory.
+    func forget(unlessForProcess processID: pid_t, role: String, fieldFrame: CGRect?) {
+        let forgot = lock.withLock { () -> Bool in
+            guard let key = entry?.key,
+                  !CotypingWindowText.key(key, mayBelongToProcess: processID, role: role, fieldFrame: fieldFrame)
+            else { return false }
+            entry = nil
+            generation &+= 1
+            return true
+        }
+        if forgot { Self.recognized.clear() }
+    }
+
     /// The text in use without starting a read. For tests.
     func cachedSnapshot() -> CotypingVisibleContext.Snapshot? {
         lock.withLock { entry?.snapshot }

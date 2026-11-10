@@ -94,6 +94,9 @@ enum FilesSearchTool {
     static let name = "search_files"
     static let defaultLimit = 10
     static let maximumLimit = 50
+    /// The most ranked matches one search looks through for ones inside the
+    /// chosen folders and dates.
+    static let widestSearch = 4_096
     /// A passage longer than this is cut, with an ellipsis.
     static let passageCharacters = 1_500
 
@@ -240,36 +243,58 @@ enum FilesSearchTool {
               FileManager.default.fileExists(atPath: gate.indexDirectory.appendingPathComponent(IndexStore.mainFile).path)
         else { return .failure(.unavailable) }
 
-        let found: [SearchHit]
         let searcher: Searcher
         do {
             searcher = try Searcher(store: try IndexStore(directory: gate.indexDirectory), loadVectors: false)
-            // Ask for more than the limit: hits outside the folders or dates drop out.
-            found = try searcher.search(query, queryVector: nil, kinds: wanted, limit: count * 4)
         } catch {
             return .failure(.unavailable)
         }
         // A walk reports a folder by its real path (/private/var for /var).
         let roots = projection.folders.flatMap { [$0, FolderSelection.realPath($0)] }
         let stamp = ISO8601DateFormatter()
-        var items: [Report.Item] = []
-        for hit in found where items.count < count {
-            guard roots.contains(where: { FolderSelection.isInside(hit.path, $0) }),
-                  FileManager.default.fileExists(atPath: hit.path) else { continue }
-            let modified = Date(timeIntervalSince1970: hit.modified)
-            let taken = hit.info["taken"].flatMap(exifDate)
-            let date = taken ?? modified
-            if let from, date < from { continue }
-            if let until, date >= until { continue }
+        /// The hits inside the chosen folders and dates, best first, up to `count`.
+        func kept(_ found: [SearchHit]) -> [(hit: SearchHit, modified: Date, taken: Date?)] {
+            var kept: [(hit: SearchHit, modified: Date, taken: Date?)] = []
+            for hit in found where kept.count < count {
+                guard roots.contains(where: { FolderSelection.isInside(hit.path, $0) }),
+                      FileManager.default.fileExists(atPath: hit.path) else { continue }
+                let modified = Date(timeIntervalSince1970: hit.modified)
+                let taken = hit.info["taken"].flatMap(exifDate)
+                let date = taken ?? modified
+                if let from, date < from { continue }
+                if let until, date >= until { continue }
+                kept.append((hit, modified, taken))
+            }
+            return kept
+        }
+        // The folders and dates are applied after ranking, so the best few
+        // matches can all fall outside them: forty older invoices hid the
+        // one from this month. Look further down the ranking until enough
+        // are inside, or there is nothing more to look at.
+        var window = count * 4
+        var matches: [(hit: SearchHit, modified: Date, taken: Date?)] = []
+        while true {
+            let found: [SearchHit]
+            do {
+                found = try searcher.search(query, queryVector: nil, kinds: wanted, limit: window)
+            } catch {
+                return .failure(.unavailable)
+            }
+            matches = kept(found)
+            guard matches.count < count, found.count >= window, window < widestSearch else { break }
+            window = min(window * 4, widestSearch)
+        }
+        let items = matches.map { match -> Report.Item in
+            let hit = match.hit
             let isMedia = hit.kind == .audio || hit.kind == .video
             let text = isMedia ? nil : try? searcher.text(ofSegment: hit.segmentID)
-            items.append(Report.Item(
+            return Report.Item(
                 id: hit.segmentID, path: hit.path, name: URL(fileURLWithPath: hit.path).lastPathComponent,
                 kind: hit.kind.rawValue,
                 page: hit.kind == .pdf ? hit.loc.map { Int($0) } : nil,
                 seconds: isMedia ? hit.loc : nil,
-                modified: stamp.string(from: modified), taken: taken.map(stamp.string(from:)), size: hit.size,
-                excerpt: hit.excerpt, passage: text.map(clipped)))
+                modified: stamp.string(from: match.modified), taken: match.taken.map(stamp.string(from:)),
+                size: hit.size, excerpt: hit.excerpt, passage: text.map(clipped))
         }
         return .success(Report(query: query, results: items, note: note))
     }

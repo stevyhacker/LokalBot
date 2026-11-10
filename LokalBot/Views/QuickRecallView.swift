@@ -62,7 +62,6 @@ private struct QuickRecallContent: View {
             }
         }
         .onAppear {
-            inputFocused = true
             savedMoments = app.activityStore.savedMoments(limit: 200)
             if model.isResponding {
                 showingConversation = true
@@ -122,6 +121,7 @@ private struct QuickRecallContent: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 22))
                 .focused($inputFocused)
+                .focusOnAppear($inputFocused)
                 .onSubmit { runSelectedResult() }
                 .accessibilityIdentifier("quickRecall.input")
             if showingConversation && model.isResponding {

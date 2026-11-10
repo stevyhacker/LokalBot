@@ -114,22 +114,25 @@ final class CompanionAskResponder {
             return
         }
         let now = dependencies.now()
-        // The history window is the only limit: it is what the Mac shares.
-        var meetingIDs: Set<UUID>?
-        var meetingScope: String?
-        if sharing.history != .all {
-            meetingIDs = Set(dependencies.meetings()
-                .filter { CompanionLibrary.isShared($0, history: sharing.history, now: now, calendar: .current) }
-                .map(\.id))
-            meetingScope = "meetings from the \(sharing.history.displayName.lowercased()), "
+        // The tools read what the Mac shares and nothing else: the person's
+        // own finished meetings inside the history window, which leaves out
+        // the sample meeting, and no Timeline day before that window.
+        let meetingIDs = Set(dependencies.meetings()
+            .filter { CompanionLibrary.isShared($0, history: sharing.history, now: now, calendar: .current) }
+            .map(\.id))
+        // With all history shared there is no limit to tell the model about.
+        let historyIsLimited = sharing.history != .all
+        let meetingScope = historyIsLimited
+            ? "meetings from the \(sharing.history.displayName.lowercased()), "
                 + "the history the user shares with this device"
-        }
+            : nil
+        let activityNotBefore = sharing.history.startOfWindow(now: now)
         // The day or meeting a question was asked about is where the answer
         // starts, never a limit: "Ask About Today" on a tablet once answered
         // "the library has only one meeting".
         var focus: [String] = []
         if let raw = request.scope?.meetingId {
-            guard let id = UUID(uuidString: raw), meetingIDs?.contains(id) ?? true,
+            guard let id = UUID(uuidString: raw), meetingIDs.contains(id),
                   let meeting = dependencies.meetings().first(where: { $0.id == id }) else {
                 output.failed("That meeting is not shared with this device.")
                 return
@@ -160,6 +163,8 @@ final class CompanionAskResponder {
                 try Task.checkCancellation()
                 let runner = ScopedChatToolRunner(base: dependencies.tools(), scopes: scopes,
                                                   meetingIDs: meetingIDs, meetingScope: meetingScope,
+                                                  namesMeetingLimit: historyIsLimited,
+                                                  activityNotBefore: activityNotBefore,
                                                   focus: startingPoint)
                 var agent = ChatAgent(engine: engine, runner: runner)
                 agent.adaptLimits(to: engine)

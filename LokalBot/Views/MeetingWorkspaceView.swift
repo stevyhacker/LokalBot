@@ -1879,7 +1879,7 @@ private struct OutcomeActionRow: View {
                 app.handOff(reference, owner: displayOwner, to: target)
             }))
         }
-        items.append(.init(title: "Follow Through with Muse…", action: { app.followThrough(reference) }))
+        items.append(.init(title: "Follow Through…", action: { app.followThrough(reference) }))
         return items
     }
 

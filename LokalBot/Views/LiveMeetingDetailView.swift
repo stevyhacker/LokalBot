@@ -50,6 +50,7 @@ struct LiveMeetingDetailView: View {
                 .padding(.leading, 12)
                 .frame(minWidth: 300, idealWidth: 400, maxWidth: 560, maxHeight: .infinity)
             }
+            .splitStructureDirection()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(.horizontal, LBTokens.Metric.detailPadding)

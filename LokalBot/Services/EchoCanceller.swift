@@ -94,8 +94,9 @@ struct EchoCanceller {
 
     /// Cancels `reference` out of `microphone`, sample for sample. The two must
     /// already be aligned (see `EchoDelayEstimator`) and equally long. Filter
-    /// state carries across calls, so a long track is streamed in chunks
-    /// rather than decoded whole.
+    /// state carries across calls on one canceller. `EchoCancelledTrack`
+    /// starts a new one for each chunk instead: every chunk gets its own
+    /// alignment and is kept or dropped on its own result.
     mutating func process(microphone: [Float], reference: [Float]) throws -> [Float] {
         precondition(microphone.count == reference.count,
                      "microphone and reference must be aligned to the same length")

@@ -736,23 +736,3 @@ enum CotypingBenchmarkRunner {
         }
     }
 }
-
-/// Result of running both cotyping engines over the same scenarios. Deltas are
-/// `http − local`, so a positive value means the in-process engine is faster.
-struct CotypingABComparison: Equatable, Sendable {
-    let local: CotypingBenchmarkSummary
-    let http: CotypingBenchmarkSummary
-
-    /// p95 end-to-end latency improvement (ms), or nil if either side has no data.
-    var p95DeltaMs: Int? {
-        guard let l = local.p95LatencyMs, let h = http.p95LatencyMs else { return nil }
-        return h - l
-    }
-
-    /// Time-to-first-visible-token improvement (ms), or nil if either side lacks it.
-    var ttftDeltaMs: Int? {
-        guard let l = local.averageFirstVisibleLatencyMs,
-              let h = http.averageFirstVisibleLatencyMs else { return nil }
-        return h - l
-    }
-}

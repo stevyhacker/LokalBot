@@ -1,11 +1,11 @@
 import Foundation
 
 /// Meta's Model API (`https://api.meta.ai/v1`, OpenAI-compatible chat
-/// completions). Follow-through plans and proposes the work after a meeting
-/// with Muse Wonder, as text only: audio, speaker labels, and search stay on
-/// this Mac. Live Radar began here, for the Meta Global AI Developer
-/// Hackathon (2026), and now reads with the Think model (`ThinkChat`); the
-/// hosted film of it and the replay harness still speak this wire format.
+/// completions). Live Radar and Follow-through began here, for the Meta
+/// Global AI Developer Hackathon (2026), and now run on the Think model
+/// (`ThinkChat`); the hosted film of them and the replay harnesses still
+/// speak this wire format. In the app, only fast live text (`MuseLiveText`)
+/// still uses Meta: it shares this key and origin approval.
 enum MetaModelAPI {
     static let baseURL = URL(string: "https://api.meta.ai/v1")!
     static var origin: String { RemoteInferenceGate.origin(for: baseURL) }
@@ -56,7 +56,7 @@ enum MetaModelAPI {
             case .missingKey:
                 String(localized: "Add a Meta Model API key in Settings → Meetings → Meta Muse.")
             case .notApproved:
-                String(localized: "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse.")
+                String(localized: "Allow LokalBot to send meeting audio to api.meta.ai in Settings → Meetings → Meta Muse.")
             }
         }
     }
@@ -79,10 +79,11 @@ enum MetaModelAPI {
 }
 
 /// One `/chat/completions` call with optional function tools or a strict JSON
-/// schema. `TextEngine` returns text only; Follow-through needs tool calls and
-/// reports token use, so it gets this small client. Requests
-/// share the origin's `RemoteInferenceGate` with Think and stay on the
-/// approved origin (`InferenceURLSession` rejects cross-origin redirects).
+/// schema, with token use, for the hosted film and the replay harnesses. Its
+/// reply and message shapes are also what `ThinkChat` hands the radar and
+/// Follow-through loops. Requests share the origin's `RemoteInferenceGate`
+/// with Think and stay on the approved origin (`InferenceURLSession` rejects
+/// cross-origin redirects).
 struct MuseChatClient {
     struct ToolCall: Equatable, Sendable {
         let id: String

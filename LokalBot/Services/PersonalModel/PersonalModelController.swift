@@ -58,13 +58,17 @@ final class PersonalModelController: ObservableObject {
     }
 
     /// Confirmed claims safe to put in a prompt now. Scoped Ask questions pass
-    /// `includeEvidenceBacked: false`: like work memory, learned claims would
-    /// carry meeting content past the question's source boundary.
+    /// `includeEvidenceBacked: false` and get only what the person stated:
+    /// like work memory, learned claims would carry meeting content past the
+    /// question's source boundary. A claim learned from an Ask question or a
+    /// dictation has no evidence to depend on, but it is learned all the same.
     func usableClaims(includeEvidenceBacked: Bool = true) -> [PersonalClaim] {
         loadIfNeeded()
         let evidenceUsable = includeEvidenceBacked && retractInvalidated()
         return model.claims.filter { claim in
-            claim.status == .confirmed && (claim.evidence == nil || evidenceUsable)
+            guard claim.status == .confirmed else { return false }
+            if includeEvidenceBacked { return claim.evidence == nil || evidenceUsable }
+            return claim.evidence == nil && claim.authority == .stated
         }
     }
 

@@ -56,6 +56,17 @@ enum MuseUITestTransport {
         }
     }
 
+    /// Follow-through for the film, as `radarCall`.
+    @MainActor
+    static func followThroughCall(settings: @escaping () -> AppSettings) -> FollowThroughSession.ModelCall {
+        { messages, tools in
+            let client = try MetaModelAPI.client(
+                settings: settings(), model: MetaModelAPI.museWonder.id, reasoningEffort: "low",
+                maxTokens: 8_000, priority: .agent, purpose: "follow-through")
+            return try await client.send(messages: messages, tools: tools)
+        }
+    }
+
     static func reply(to request: URLRequest) async throws -> (Data, URLResponse) {
         // Long enough for the in-flight states to be visible.
         try await Task.sleep(for: .milliseconds(1_200))

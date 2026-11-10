@@ -416,11 +416,13 @@ private struct TimelineMeetingPreview: View {
     private var projection: MeetingOutcomeProjection? {
         app.outcomeIndex.projection(for: meeting.id)
     }
-    private var summary: String? {
+    private var savedSummary: String? {
         try? String(contentsOf: folder.appendingPathComponent("summary.md"), encoding: .utf8)
     }
 
     var body: some View {
+        // One read per render: the recap and the empty state both need it.
+        let summary = savedSummary
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 TimelinePanelHeader(
