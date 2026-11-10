@@ -623,7 +623,7 @@ GUIDES = [
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
         <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac.</p>
-        <p>In Claude Code you can also install the LokalBot plugin. It adds the skill and three commands: <code>/lokalbot:brief</code> to catch up on your work, <code>/lokalbot:recall</code> to find what you said, saw or saved, and <code>/lokalbot:setup</code> to install LokalBot with you. Run <code>/plugin marketplace add stevyhacker/lokalbot</code>, then <code>/plugin install lokalbot@lokalbot</code>. The plugin doesn't start the MCP server, so keep the command above for screen memory. Codex has the same skills as a plugin: <code>codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin</code>, then <code>codex plugin add lokalbot@lokalbot</code>. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
+        <p>Claude Code and Codex can also install the <a href="claude-code-codex-plugins">LokalBot plugin</a>, which adds a catch-up brief, recall with citations, and guided setup. The plugin doesn't start the MCP server, so keep the command above for screen memory. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
 
         <h2>What the agent can do</h2>
         <ul>
@@ -637,7 +637,7 @@ GUIDES = [
         <p>The <strong>Files</strong> box on a Mac, or <strong>Allow external agents to search your files</strong> on Windows and Linux, lets the agent search the folders you chose under Files with <code>search_files</code>, by their words. It gets each matching file's path, a short excerpt, and the passage that matched. LokalBot never changes the files.</p>
 
         <h2>Where your meetings go once an agent reads them</h2>
-        <p>LokalBot doesn't upload your library, and its agent access is read-only, so the agent can't change or delete meetings. But whatever a tool returns becomes part of the agent's conversation, and Claude Code and Codex send that conversation to Anthropic or OpenAI under their own terms. Treat it like pasting the text in yourself:</p>
+        <p>LokalBot doesn't upload your library, and its agent tools only read it, so the agent can't change or delete meetings. Changing LokalBot's settings is a separate switch, <strong>Allow external agents to change LokalBot settings</strong>, and anything that widens what LokalBot captures waits for your approval in the app. But whatever a tool returns becomes part of the agent's conversation, and Claude Code and Codex send that conversation to Anthropic or OpenAI under their own terms. Treat it like pasting the text in yourself:</p>
         <ul>
           <li>Prefer <code>search_meetings</code> and <code>ask_library</code> to pulling whole transcripts.</li>
           <li>Turn access on only for agents you trust with that content, tick only what they need, and turn the switch off to cut access again.</li>
@@ -646,10 +646,75 @@ GUIDES = [
         """,
         "faq": [
             ("Does the agent get my audio?", "No. The MCP tools return text: meeting metadata, summaries, transcripts, action items, names, and answers. They don't return audio."),
-            ("Can the agent edit or delete meetings?", "No. The CLI and MCP server are read-only. Changes happen in the LokalBot app."),
+            ("Can the agent edit or delete meetings?", "No. The CLI and MCP server only read your meetings; changes to them happen in the LokalBot app. Changing LokalBot's settings is a separate permission, off until you turn it on."),
             ("Does this work with other MCP clients?", "Yes. Any MCP client that can start a local command can run lokalbot-cli mcp, for example Cursor. Each client's own data handling applies."),
         ],
-        "related": ["local-ai-meeting-notes-mac", "open-source-ai-meeting-notes", "ai-notetaker-bots-blocked-at-work"],
+        "related": ["claude-code-codex-plugins", "local-ai-meeting-notes-mac", "open-source-ai-meeting-notes"],
+    },
+    {
+        "slug": "claude-code-codex-plugins",
+        "published": "2026-11-09",
+        "updated": "2026-11-09",
+        "updated_label": "November 9, 2026",
+        "title": "LokalBot Plugins for Claude Code and Codex",
+        "description": "Add LokalBot to Claude Code or Codex to catch up on your work and find what was said in meetings, from a library that stays on your computer.",
+        "eyebrow": "Agent plugins",
+        "h1": "LokalBot plugins for Claude Code and Codex",
+        "lead": "Your coding agent can catch you up on your own work and find what was said in a meeting, straight from the LokalBot library on your computer. The plugins add a catch-up brief, recall with citations, and guided setup, and each kind of data stays off until you allow it.",
+        "read_time": "4 min read",
+        "body": """
+        <h2>What the plugins add</h2>
+        <p>LokalBot keeps a library on your computer: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself. The plugins teach your agent when and how to use it. Both have the same four skills:</p>
+        <ul>
+          <li><strong>Brief.</strong> A short catch-up on your own work, with sources: what's in flight, what you owe and to whom, recent decisions, and which LokalBot sources are off.</li>
+          <li><strong>Recall.</strong> Finds what you said, saw, agreed, or saved, picks the source that fits, and cites it.</li>
+          <li><strong>Setup.</strong> Installs LokalBot and sets it up with you. You allow access, approve changes to what LokalBot captures, and grant system permissions in LokalBot; the agent does the rest from the terminal. The full journey is on a Mac; on Windows and Linux, the agent walks you through the install and then uses the same commands.</li>
+          <li><strong>The <code>lokalbot-cli</code> skill.</strong> Tells the agent to check LokalBot at the start of a session on your own work and before asking you about past work, decisions, or commitments, and explains every command.</li>
+        </ul>
+        <p>In Claude Code they're commands: <code>/lokalbot:brief</code>, <code>/lokalbot:recall what did we decide about pricing?</code>, and <code>/lokalbot:setup</code>. In Codex they're the skills <code>lokalbot-brief</code>, <code>lokalbot-recall</code>, and <code>lokalbot-setup</code>, which Codex uses when a request fits, such as “catch me up on what I owe people”.</p>
+
+        <h2>Install in Claude Code</h2>
+        <pre class="code" aria-label="Install the LokalBot plugin in Claude Code"><span class="c-op"># Inside Claude Code</span>
+/plugin marketplace add stevyhacker/lokalbot
+/plugin install lokalbot@lokalbot
+/reload-plugins</pre>
+        <p>The first command adds LokalBot's repository as a plugin marketplace, and the second installs the plugin.</p>
+
+        <h2>Install in Codex</h2>
+        <pre class="code" aria-label="Install the LokalBot plugin in Codex"><span class="c-prompt">$</span> codex plugin marketplace add stevyhacker/lokalbot <span class="c-flag">--sparse</span> .agents/plugins <span class="c-flag">--sparse</span> Distribution/openai-plugin
+<span class="c-prompt">$</span> codex plugin add lokalbot@lokalbot</pre>
+        <p>The <code>--sparse</code> options fetch only the plugin, not the whole repository. Then ask Codex to set up LokalBot, or to catch you up.</p>
+
+        <h2>Before the agent can read anything</h2>
+        <ol>
+          <li><strong>Install LokalBot.</strong> The plugins work through <code>lokalbot-cli</code>, which comes with the app. The setup skill can install it with you, or you can <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">download it</a>. The Windows and Linux apps are in alpha; see the <a href="system-requirements">system requirements</a>.</li>
+          <li><strong>Turn on access.</strong> On a Mac, in <strong>Settings → External Agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong>, then tick Meetings, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in <strong>Settings → Privacy &amp; Data</strong>. Everything is off until you turn it on.</li>
+          <li><strong>Put the CLI on your PATH.</strong> The plugins run <code>lokalbot-cli</code> by name. <strong>Install for your coding agent…</strong>, in <strong>Settings → External Agents → Agent CLI</strong> on a Mac or <strong>Settings → Advanced → Agent CLI</strong> on Windows and Linux, puts it in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code>; add that folder to your PATH. The setup skill asks before doing this for you.</li>
+        </ol>
+
+        <h2>Screen memory needs the MCP server</h2>
+        <p>Neither plugin starts LokalBot's MCP server, so screen memory, which only that server serves, isn't part of them. To add it, connect the server yourself and tick <strong>Screen memory</strong> in LokalBot:</p>
+        <pre class="code" aria-label="Connect LokalBot's MCP server to Claude Code or Codex"><span class="c-op"># Claude Code</span>
+<span class="c-prompt">$</span> claude mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp
+
+<span class="c-op"># Codex</span>
+<span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
+        <p><a href="claude-code-codex-meeting-notes">How to let Claude Code or Codex search your meeting notes</a> lists every MCP tool and what each permission opens.</p>
+
+        <h2>What the agent can and can't do</h2>
+        <ul>
+          <li><strong>It reads only what you allowed.</strong> When a source is off, the agent tells you where to turn it on instead of working around it.</li>
+          <li><strong>It never changes your meetings or your files.</strong> Those changes happen in the LokalBot app.</li>
+          <li><strong>Settings need their own switch.</strong> With <strong>Allow external agents to change LokalBot settings</strong> on, the agent can apply your preferences. Anything that widens what LokalBot captures, reads, records, or sends, and every API key, waits for your approval in LokalBot.</li>
+          <li><strong>Your agent's provider sees what it reads.</strong> LokalBot doesn't upload your library, but Claude Code and Codex send what a command returns to Anthropic or OpenAI under their own terms. The skills retrieve only what a question needs; allow only what you'd paste in yourself.</li>
+        </ul>
+        """,
+        "faq": [
+            ("Do I need LokalBot installed?", "Yes. The plugins read your library through lokalbot-cli, which comes with LokalBot. The setup skill can install it with you, or you can download it from the LokalBot releases page."),
+            ("Do the plugins cost anything?", "No. The plugins and LokalBot are free and open source under GPLv3, and there's no account."),
+            ("Can other agents use LokalBot?", "Yes. Install for your coding agent… installs the lokalbot-cli skill for agents that read skills, and any MCP client that can start a local command, such as Cursor, can run lokalbot-cli mcp."),
+        ],
+        "related": ["claude-code-codex-meeting-notes", "local-ai-meeting-notes-mac", "system-requirements"],
     },
     {
         "slug": "ai-notetaker-bots-blocked-at-work",

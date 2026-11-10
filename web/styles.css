@@ -621,7 +621,9 @@ kbd {
 .guide-article li { color: var(--text-dim); font-size: 1.02rem; line-height: 1.78; }
 .guide-article p + p { margin-top: 1rem; }
 .guide-article ul,
-.guide-article ol { display: grid; gap: 0.7rem; margin: 1rem 0 0; padding-left: 1.4rem; }
+.guide-article ol { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.7rem; margin: 1rem 0 0; padding-left: 1.4rem; }
+/* Long paths and commands in prose would otherwise widen the page on phones. */
+.guide-article :not(pre) > code { overflow-wrap: anywhere; }
 .guide-article ul { list-style: disc; }
 .guide-article ol { list-style: decimal; }
 .guide-article li { padding-left: 0.25rem; }
