@@ -8,7 +8,7 @@ Date: 2026-10-26. Status: in progress.
 - the conversations-only filter;
 - Gmail's change history and the check schedule (morning, every three hours, and before meetings);
 - the sealed thread store;
-- Settings → Personal Context → Email, and PRIVACY.md.
+- Settings → Personal Context → Email (a page of its own, Settings → Email, since 1 November), and PRIVACY.md.
 
 The second PR (`claude/gmail-meeting-brief`) adds the "From email" rows and email evidence to the meeting brief, and matches earlier meetings by attendee address. It does not include per-thread model digests, the morning brief for every meeting, notifications, or the invitation-thread link; those remain for step 3.
 

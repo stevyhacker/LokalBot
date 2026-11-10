@@ -4,8 +4,9 @@ This directory contains the Homebrew cask for [LokalBot](https://www.lokalbot.co
 (`lokalbot.rb`) and notes on validating it and shipping it to users.
 
 - Cask token: `lokalbot`
-- Cask snapshot packaged here: **0.8.3**. The live tap is authoritative for
-  installation and follows stable releases automatically (see below).
+- The cask packaged here is a snapshot of the live tap's, last copied from it on
+  2026-11-10 (0.12.2). The live tap is authoritative for installation and follows
+  stable releases automatically (see below), so this copy can be a release behind.
 - Requirements enforced by the cask: Apple Silicon (M1+), macOS 15.0+
 - Style verified against `Homebrew/homebrew-cask` `CONTRIBUTING.md`, the
   [Cask Cookbook stanza order](https://docs.brew.sh/Cask-Cookbook#stanza-order),
@@ -38,11 +39,11 @@ Expected results:
 | --- | --- |
 | `ruby -c …` | `Syntax OK` |
 | `brew style …` | `1 file inspected, no offenses detected` |
-| `brew info …` | shows `lokalbot (LokalBot): 0.6.2 (auto_updates)`, the desc, and `Required: arm64 architecture, macOS >= 15` |
-| `brew livecheck …` | shows `0.6.2 ==> 0.6.2` |
-| `brew audit …` | must exit 0 before an upstream submission can proceed (downloads the ~55 MB DMG, verifies sha256, checks signing and policy eligibility) |
+| `brew info …` | shows `lokalbot (LokalBot): <version> (auto_updates)` with the snapshot's version, the desc, and `Required: arm64 architecture, macOS >= 15` |
+| `brew livecheck …` | shows `<version> ==> <latest stable release>` |
+| `brew audit …` | must exit 0 before an upstream submission can proceed (downloads the DMG, verifies sha256, checks signing and policy eligibility) |
 
-Verified on this machine: `ruby -c`, `brew style`, `brew info`, and
+Verified on 2026-08-21 with the 0.6.2 cask: `ruby -c`, `brew style`, `brew info`, and
 `brew livecheck local/scratch/lokalbot` (`0.6.2 ==> 0.6.2`, proving the
 `:github_releases` strategy resolves the version). A clean install put
 `LokalBot.app` in `/Applications`; Gatekeeper accepted the notarized Developer
@@ -50,7 +51,8 @@ ID app; uninstall removed it; and the previous installation was restored
 byte-for-byte. The full local audit was blocked because Homebrew's current
 toolchain requires Xcode 27 while this machine has Xcode 26.6. Hosted CI did
 run the audit and rejected the upstream submission on Homebrew's notability
-policy. The sha256 was also verified independently:
+policy. The sha256 was also verified independently (0.6.2's DMG, from before
+release files carried the version and platform in their names):
 
 ```sh
 curl -sLO https://github.com/stevyhacker/lokalbot/releases/download/v0.6.2/LokalBot.dmg
@@ -106,7 +108,7 @@ Steps:
 
    ```sh
    git add Casks/l/lokalbot.rb
-   git commit -m "lokalbot 0.6.2 (new cask)"
+   git commit -m "lokalbot <version> (new cask)"
    ```
 
 5. Push the branch to the fork and open the PR against
@@ -115,7 +117,7 @@ Steps:
    items and add):
 
    ```markdown
-   Create lokalbot 0.6.2 (new cask)
+   Create lokalbot <version> (new cask)
 
    - Website: https://www.lokalbot.com
    - Repo (source): https://github.com/stevyhacker/lokalbot

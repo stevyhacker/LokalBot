@@ -1,7 +1,9 @@
 # Personal World Model v1
 
-Date: 2026-10-14. Status: accepted direction; Phases 1–3 in progress in
-draft PR 251. Code references are to master at `04f12f6`.
+Date: 2026-10-14. Status: accepted direction; Phases 1–3 merged in PR 251
+(2026-10-18). The page shipped as Settings → Personal Context, not the "About
+you" section in Settings → Day Memory described below. Code references are to
+master at `04f12f6`.
 
 ## Summary
 

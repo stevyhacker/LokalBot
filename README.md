@@ -61,7 +61,7 @@ As you type in other apps, gray text suggests how your sentence ends. Press **Ta
 - **Knows what you're answering.** It reads the message or page above the field, so a reply fits the thread.
 - **Remembers your meetings, if you let it.** Turn on meeting and work memory, and it can bring in what was decided, like the ship date above.
 - **Writes in your language.** On Mac, the same small model keeps up in German, French, Italian, Spanish, and more.
-- **Stays on your computer.** A small model runs inside the app: Gemma 4 E2B on Mac, LFM2.5 1.2B on Windows and Linux. What you type and the context it reads never leave your computer.
+- **Stays on your computer.** A small model runs inside the app: Gemma 4 E2B on Mac, LFM2.5 1.2B on Windows and Linux. What you type and the context it reads stay on your computer, unless you choose an autocomplete server and approve it.
 
 Turn it on in **Settings → Autocomplete**, where you can try it on a sample conversation first and later see how much it wrote for you.
 
@@ -284,6 +284,8 @@ Different jobs use different models. These are the Mac defaults on a fresh insta
 | Autocomplete | Gemma 4 E2B Base | `Q6_K` | 3.85 GB |
 | Semantic search | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
 | Speaker diarization | Nemotron 3 (preview) via FluidAudio | Core ML | ~0.20 GB |
+
+The table leaves out helper models, which download when a feature first needs them: with Qwen3-ASR, speaker separation adds a word-timing model of about 1 GB, and turning on Files adds a 555 MB image and audio projector.
 
 Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include Parakeet, Granite Speech, Whisper large-v3 turbo, SenseVoice for Chinese, Japanese, and Korean, and GigaAM for Russian; Pyannote Community-1 remains available for diarization. The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Model choices can vary by release; Settings shows the active selections and available presets. Speed and memory use depend on your computer, model, context length, and other workloads.
 

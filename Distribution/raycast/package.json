@@ -14,7 +14,7 @@
     {
       "name": "quick-recall",
       "title": "Quick Recall",
-      "description": "Search your LokalBot meeting memory by keyword across titles and summaries.",
+      "description": "Search your LokalBot meeting memory by keyword across titles, summaries, and transcripts.",
       "mode": "view",
       "arguments": [
         {

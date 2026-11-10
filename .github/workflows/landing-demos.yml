@@ -100,7 +100,7 @@ jobs:
         run: Scripts/ui-tests.sh --build-only
       - name: Package the UI Test Host
         run: ditto -c -k --keepParent ".build/dd/Build/Products/Debug/LokalBot UI Test Host.app" .build/ui-host.zip
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: landing-ui-host
           path: .build/ui-host.zip
@@ -128,7 +128,7 @@ jobs:
           xcode-version: "26.4.1"
       - name: Download the apps from the earlier run
         if: needs.plan.outputs.apps-run != ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: landing-apps
           path: .build/apps
@@ -136,13 +136,13 @@ jobs:
           github-token: ${{ github.token }}
       - name: Download this run's Debug app
         if: needs.plan.outputs.apps-run == ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: unit-products
           path: .build/transfer
       - name: Download this run's UI Test Host
         if: needs.plan.outputs.apps-run == ''
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: landing-ui-host
           path: .build/ui-host
@@ -156,7 +156,7 @@ jobs:
           cp .build/ui-host/ui-host.zip .build/apps/ui-host.zip
       - name: Keep the apps for later takes
         if: needs.plan.outputs.apps-run == '' && matrix.mac == 1
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: landing-apps
           path: .build/apps
@@ -203,7 +203,7 @@ jobs:
             echo "Hardware: $(sysctl -n machdep.cpu.brand_string), $(($(sysctl -n hw.memsize) / 1073741824)) GB."
             echo "macOS: $(sw_vers -productVersion)."
           } > "$PUB/README.md"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
           name: landing-demos-footage-${{ matrix.mac }}

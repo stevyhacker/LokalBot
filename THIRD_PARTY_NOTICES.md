@@ -258,6 +258,15 @@ curve25519-dalek (BSD-3-Clause) and the RustCrypto ChaCha20-Poly1305 and
 BLAKE2 crates (MIT or Apache-2.0). The Rust standard library is compiled in as
 well, under MIT or Apache-2.0.
 
+That file is generated for the Linux and Windows targets. Two crates are
+compiled in only on the others, both through chrono's time-zone lookup, and
+are used under MIT ([`LICENSES/MIT.txt`](LICENSES/MIT.txt)):
+
+| Crate | Compiled for | License | Source |
+| --- | --- | --- | --- |
+| core-foundation-sys 0.8.7 | macOS, iOS and iPadOS | MIT OR Apache-2.0. Copyright (c) 2012-2013 Mozilla Foundation | https://github.com/servo/core-foundation-rs |
+| android_system_properties 0.1.6 | Android | MIT OR Apache-2.0. Copyright (c) 2013 Nicolas Silva | https://github.com/nical/android_system_properties |
+
 The iPhone and iPad app otherwise uses only Apple's SDKs. The Android app
 also includes:
 

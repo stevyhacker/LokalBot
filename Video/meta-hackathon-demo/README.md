@@ -4,7 +4,7 @@ A three-minute film for the Meta Global AI Developer Hackathon entry, cut from t
 
 ## What is real
 
-- Every shot of the app is the CI film unchanged: `HackathonFilmUITests` driving LokalBot's UI-test host on a GitHub-hosted Mac, with Muse Spark 1.3 and Muse Wonder 1.0 answering live through the Meta Model API. The hosted Mac's own screen isn't Retina, so the workflow gives it a 1600×1000 point virtual HiDPI display (`Scripts/film/virtual-display.m`) and films its 3200×2000 pixels (`Scripts/film/capture.py`), at about 2 frames a second. The run id is in `production/anchors.json` and `assets/footage/run-id.txt`.
+- Every shot of the app is the CI film unchanged: `HackathonFilmUITests` driving LokalBot's UI-test host on a GitHub-hosted Mac, with Muse Spark 1.3 and Muse Wonder 1.0 answering live through the Meta Model API. The hosted Mac's own screen isn't Retina, so the workflow gave it a 1600×1000 point virtual HiDPI display (`Scripts/film/virtual-display.m`) and filmed its 3200×2000 pixels (`Scripts/film/capture.py`), at about 2 frames a second. That workflow (`.github/workflows/meta-hackathon-film.yml`) and `Scripts/film/` were removed after the hackathon; they are in the repository's history up to commit `648005e`. The run id is in `production/anchors.json` and `assets/footage/run-id.txt`.
 - One shot comes from another run of the same test: the press of Start Radar. The screen capture stalled for about ten seconds there in the take this film uses, so the first attempt of run 41453444742 fills it, appended to `film.mp4` after the take as `assets/footage/start-radar-press.mp4` (`press` in `production/anchors-manual.json`).
 - The call is a stand-in window in the UI-test host (`LokalBot/Views/FilmCallWindow.swift`), and its words are the test's script: the runner has no meeting audio. Muse Voice Transcribe is named in the narration because it is the feature, but the film's transcript comes from the script. The end card says so.
 - The radar items, screen answer, live answers, their sources, and the Follow-through drafts are what Muse returned in that run. Slowed footage only stretches moments where the UI waits. App footage at 1.25× or faster shows a speed badge; the scripted call's typing is retimed to the voices.
@@ -17,6 +17,8 @@ A three-minute film for the Meta Global AI Developer Hackathon entry, cut from t
 The camera is per-frame transforms and a clip path, zooming around the one film point its two poses share, rendered at 60 fps. Layout properties snap to whole pixels, and a 1.3 s move at 30 fps stepped visibly. The transforms sit on a wrapper around the `<video>`: on the element itself, the renderer only applied them when a new video frame was shown, so zooms over slowed footage stepped at 60 × the footage rate. The board dissolves across its scroll hops, which are the gaps between captures.
 
 ## Rebuild
+
+The footage is not in the repository. `fetch_assets.sh` downloads it from a run of the removed film workflow, whose artifacts GitHub keeps for 30 days after the run; after that, a rebuild needs a copy of `assets/footage/film.mp4` from an earlier checkout.
 
 ```sh
 bash fetch_assets.sh <meta-hackathon-film run id>   # footage + fonts; append the Start Radar clip if the take's capture stalled there

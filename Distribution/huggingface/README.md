@@ -4,7 +4,7 @@ Everything in this directory ships LokalBot's Hugging Face presence: a curated m
 
 ## Live resources
 
-- [LokalBot recommended local stack](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) — public Collection with the five default-stack model links and curation notes, refreshed 2026-09-30.
+- [LokalBot recommended local stack](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) — public Collection with the five default-stack model links and curation notes, refreshed 2026-09-30. It still lists LFM2.5 1.2B for autocomplete; `COLLECTION.md` has the current list (Gemma 4 E2B Base), which the next sync publishes.
 - [LokalBot Local-Stack Benchmarks](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) — public Static Space, refreshed for the current default stack at Space commit `933968b` (2026-09-30).
 
 ## Files
@@ -27,7 +27,7 @@ Everything in this directory ships LokalBot's Hugging Face presence: a curated m
 
 ## Step 1 — Create the Collection
 
-All referenced repo ids were verified against the HF API on 2026-09-30. With a token that has Collection write permission, create or sync the Collection:
+All referenced repo ids were verified against the HF API on 2026-09-30, and the autocomplete model's on 2026-11-10. With a token that has Collection write permission, create or sync the Collection:
 
 ```sh
 uv run --with huggingface_hub python Distribution/huggingface/scripts/create_collection.py

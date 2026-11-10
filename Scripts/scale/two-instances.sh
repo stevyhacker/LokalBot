@@ -29,5 +29,6 @@ for _ in $(seq 1 75); do kill -0 "$(cat "$LIB/second.pid")" 2>/dev/null || break
 if kill -0 "$(cat "$LIB/second.pid")" 2>/dev/null; then echo "second copy kept running on a locked library"; exit 1; fi
 kill $FIRST
 wait $FIRST 2>/dev/null || true
-[[ "$(sqlite3 "$LIB/lokalbotv3.sqlite" 'PRAGMA integrity_check')" == "ok" ]]
+# A plain `[ ]`: macOS's own bash (3.2) does not stop a `set -e` script on a false `[[ ]]`.
+[ "$(sqlite3 "$LIB/lokalbotv3.sqlite" 'PRAGMA integrity_check')" = "ok" ] || { echo "the library failed its integrity check"; exit 1; }
 echo "second copy exited; library intact"

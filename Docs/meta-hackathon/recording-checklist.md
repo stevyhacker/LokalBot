@@ -1,6 +1,8 @@
 # Recording checklist: the Meta hackathon demo
 
-Steps for the live take in [demo-script.md](demo-script.md). The demo runs LokalBot Dev on its own library and its own settings, so your meetings, settings, and screen memory are never read or written. [`Scripts/meta-hackathon-demo.sh`](../../Scripts/meta-hackathon-demo.sh) does the setup.
+> Historical. The hackathon ended on 4 November 2026, and this live take was never needed: the submission was cut from the CI film. `Scripts/meta-hackathon-demo.sh`, which every step below runs, was removed afterwards with the film workflow; it is in the repository's history up to commit `648005e`. Live Radar has since moved to the Think model and has its own switch, so the settings below no longer match the app.
+
+Steps for the live take in [demo-script.md](demo-script.md). The demo runs LokalBot Dev on its own library and its own settings, so your meetings, settings, and screen memory are never read or written. `Scripts/meta-hackathon-demo.sh` did the setup.
 
 ## Already done
 

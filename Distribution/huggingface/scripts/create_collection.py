@@ -19,7 +19,7 @@ from huggingface_hub.errors import HfHubHTTPError
 NAMESPACE = "stevyhacker"
 TITLE = "LokalBot recommended local stack"
 DESCRIPTION = (
-    "LokalBot 6.5 GB default stack: transcription, diarization, summaries, "
+    "LokalBot 9.6 GB default stack: transcription, diarization, summaries, "
     "search, autocomplete. Links only. https://github.com/stevyhacker/lokalbot"
 )
 
@@ -44,9 +44,10 @@ ITEMS = [
         "Correct passage first for 43/48 test queries vs 40/48 for Harrier 0.6B, at half the size. Apache-2.0.",
     ),
     (
-        "unsloth/LFM2.5-1.2B-Instruct-GGUF",
-        "Default autocomplete. Q4_K_M (0.73 GB) of LiquidAI's model; 484 ms p95 in LokalBot's cotyping gate. "
-        "LFM Open License: check revenue eligibility.",
+        "mradermacher/gemma-4-E2B-i1-GGUF",
+        "Default autocomplete. Q6_K (3.85 GB) imatrix GGUF of google/gemma-4-E2B. 23.1% next-word accuracy "
+        "vs 20.7% for LFM2.5 1.2B on 96 phrases (a tie in English), right when shown 50%; 56 ms median per "
+        "keystroke. Apache-2.0.",
     ),
 ]
 
@@ -55,8 +56,8 @@ VERIFICATION = {
     "FluidInference/nemotron-3-diarization-coreml": ("Nemotron3Diarizer_offline.mlmodelc",),
     "unsloth/Qwen3.5-4B-GGUF": ("Q4_K_M",),
     "ggml-org/embeddinggemma-2-GGUF": ("Q8_0",),
-    "LiquidAI/LFM2.5-1.2B-Instruct": (),
-    "unsloth/LFM2.5-1.2B-Instruct-GGUF": ("Q4_K_M",),
+    "google/gemma-4-E2B": (),
+    "mradermacher/gemma-4-E2B-i1-GGUF": ("gemma-4-E2B.i1-Q6_K.gguf",),
 }
 
 

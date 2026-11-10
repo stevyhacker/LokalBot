@@ -57,7 +57,7 @@ The mean cost increases by **15.47 ms** with width 2 and **24.87 ms** with width
 
 The worktree was fast-forwarded from `32381e9` to `193460c`, preserving the uncommitted experiment and existing untracked files. The overlapping replay harness now supports both the merged remote benchmark path and the native candidate experiment. Native widths 2 and 4 are explicitly rejected for hosted engines by both the Python CLI and Swift replay before inference starts; remote runs cannot silently ignore the requested decoder.
 
-The native decoder implementation itself is byte-identical to the previous experiment. Candidate expansion, per-branch token healing/UTF-8/confidence/stop state, shared KV cache, batched branch decoding and mean-log-probability final ranking are unchanged. The normal app selector still uses the original single sampled continuation. See the [algorithm and interpretation](../2026-10-10-candidates/REPORT.md#what-the-experiment-actually-changes) and [reproduction instructions](../../README.md#two--and-four-candidate-decoder-experiment).
+The native decoder implementation itself is byte-identical to the previous experiment. Candidate expansion, per-branch token healing/UTF-8/confidence/stop state, shared KV cache, batched branch decoding and mean-log-probability final ranking are unchanged. The normal app selector still uses the original single sampled continuation. See the [algorithm and interpretation](../2026-10-10-candidates/REPORT.md#what-the-experiment-actually-changes) and [reproduction instructions (archive)](../2026-10-10-experiments.tar.gz).
 
 The [cross-revision comparison](prior-comparison.json) verifies:
 

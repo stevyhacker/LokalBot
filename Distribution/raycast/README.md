@@ -26,7 +26,7 @@ destination application's privacy terms.
 
 ### Quick Recall
 
-Search meeting titles and summaries, inspect matching snippets, copy a snippet,
+Search meeting titles, summaries, and transcripts, inspect matching snippets, copy a snippet,
 or reveal the meeting's local files in Finder.
 
 ### Ask LokalBot

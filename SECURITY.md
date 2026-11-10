@@ -35,7 +35,11 @@ assessment, and coordinated release notes for a confirmed fix.
   receive the context needed for the requested feature.
 - Agent Mode commands execute only after the configured approval policy allows
   them, but approved commands run with the current user's permissions.
-- The external-agent CLI/MCP surface is read-only. On macOS it is gated by
+- The external-agent CLI and MCP server can read the library and never change
+  it. A separate switch, off by default, lets `lokalbot-cli` read and change
+  LokalBot's settings in the running app; a change that widens what LokalBot
+  captures or sends, and every API key, waits for approval in the app. On
+  macOS, reading is gated by
   **Allow external agents to read your LokalBot data** in Settings → External Agents,
   with a separate grant for each box under it: meetings, screen memory, shared
   Personal Context, and Files. On Windows and Linux, each of the four has its

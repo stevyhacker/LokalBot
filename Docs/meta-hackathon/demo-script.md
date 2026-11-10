@@ -1,5 +1,7 @@
 # Demo script: From meeting to done
 
+> Historical. The hackathon ended on 4 November 2026 and the submission is published. The workflow that filmed `HackathonFilmUITests` (`.github/workflows/meta-hackathon-film.yml`, with `Scripts/film/`) and the live-take helper `Scripts/meta-hackathon-demo.sh` were removed afterwards; they are in the repository's history up to commit `648005e`. The test itself still runs in the UI suite with scripted replies. Live Radar has since moved to the Think model and has its own switch, so the settings named below no longer match the app.
+
 A three-minute video for the Meta Global AI Developer Hackathon. The judges weigh impact 30%, use of Meta tooling 25%, technical depth 20%, and the demo 25%, and they ask whether the video is "genuinely cool to watch". The rules allow showing only hackathon-built work, so every shot is a hackathon feature. Recording, transcription, and screen memory appear only as the setting.
 
 The submission video is cut from the CI film instead of a live take: [Video/meta-hackathon-demo](../../Video/meta-hackathon-demo/README.md) edits `HackathonFilmUITests`' recording, with live Muse replies and a scripted call, into 2:59 with narration. This script stays as the live-take alternative.
@@ -13,7 +15,7 @@ The video is built around four moments:
 
 ## Before recording
 
-Follow [recording-checklist.md](recording-checklist.md). [`Scripts/meta-hackathon-demo.sh`](../../Scripts/meta-hackathon-demo.sh) runs LokalBot Dev on a separate demo library and settings. That library already holds the earlier "Launch planning" meeting the radar contradicts, and the two folders live answers read: the Northwind pricing sheet and launch brief, and a copy of the LokalBot repository. The checklist covers:
+Follow [recording-checklist.md](recording-checklist.md). `Scripts/meta-hackathon-demo.sh` (removed, see above) ran LokalBot Dev on a separate demo library and settings. That library already holds the earlier "Launch planning" meeting the radar contradicts, and the two folders live answers read: the Northwind pricing sheet and launch brief, and a copy of the LokalBot repository. The checklist covers:
 - the permissions and the Meta key;
 - capturing the two synthetic pages in [demo-pages/](demo-pages/) into screen memory;
 - keeping the floating panel visible to the screen recording;

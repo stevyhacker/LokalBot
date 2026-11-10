@@ -51,7 +51,7 @@
 
 ### 找到你看过的东西
 
-一次搜索覆盖会议转写，以及（开启后）你在屏幕上看到过的文字。可以按关键词或按含义搜索，然后直接打开对应的段落或屏幕画面，不用在各个应用之间来回翻找。
+一次搜索覆盖会议转写，以及（开启后）你在屏幕上看到过的文字。可以按关键词或按含义搜索，然后直接打开对应的段落或屏幕画面，不用在各个应用之间来回翻找。同一个窗口（**⌃⇧ Space**，Windows 和 Linux 上是 **Ctrl+Shift+Space**；需要先在 **Settings → Ask** 中开启快捷键，Windows 和 Linux 上是 **Settings → General**）还能在任何应用里直接执行应用命令，例如 **Record now** 或 **Start dictation**。
 
 <div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/search-dark.png" /><img src="Assets/readme/search-light.png" width="640" alt="Quick Recall 同时找到在屏幕上看过的 Keynote 文稿和 Mail 回复，以及两场提到演示文稿的会议（英文演示数据）" /></picture></div>
 
@@ -66,7 +66,7 @@
 - **知道你在回复什么。** 它会读取输入框上方的消息或页面，让回复贴合上下文。
 - **记得你的会议（需要你允许）。** 开启会议和工作记忆后，它能用上会上定下的事，比如上面的发布日期。
 - **用你的语言写。** 在 Mac 上，同一个小模型可以用德语、法语、意大利语、西班牙语等语言补全。
-- **留在你的电脑上。** 小模型在应用内运行：Mac 上是 Gemma 4 E2B，Windows 和 Linux 上是 LFM2.5 1.2B。你输入的内容和它读取的上下文都不会离开你的电脑。
+- **留在你的电脑上。** 小模型在应用内运行：Mac 上是 Gemma 4 E2B，Windows 和 Linux 上是 LFM2.5 1.2B。你输入的内容和它读取的上下文都留在你的电脑上，除非你自己选择并批准了一个自动补全服务器。
 
 在 **Settings → Autocomplete** 中开启。可以先在示例对话里试用，之后还能看到它帮你写了多少字。
 
@@ -114,6 +114,10 @@
 
 <div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/dictation-dark.gif" /><img src="Assets/readme/dictation-light.gif" width="720" alt="按住 Option-Space 向空白文档听写：小面板开始聆听，随后光标处出现一段带发布价格的团队通知（英文演示）" /></picture></div>
 
+### 改写你选中的文字
+
+在 **Settings → Ask**（Windows 和 Linux 上是 **Settings → General**）中开启选择文字操作，在任何应用里选中文字，然后按 **⌃⇧ W**。可以修正语法、缩短、翻译、总结，或者输入你自己的指令，然后替换选中的文字或复制结果。**Draft a reply with my memory** 还会搜索你的会议，让回复用上当时真正商定的内容，并列出它用到的会议。它使用你的 Think 模型，除非你选择并批准了某个服务器，否则内容留在你的电脑上。Windows 和 Linux 上的快捷键是 **Ctrl+Alt+Space**，因为 ⌃⇧ W 在那里会关闭标签页和窗口；在 Wayland 上，请在桌面环境的设置里把 `lokalbot selection-actions` 绑定到一个快捷键。
+
 ### 它记得你的工作方式
 
 Personal Context（个人上下文）是一份加密的列表，保存你的事实、偏好、目标和原则。你可以对 Ask 说“记住我希望提前一天拿到议程”，在设置中添加，也可以让夜间回顾从你在会议里说的话中提取事实和偏好。Ask 会用上这些内容，让回答更贴合你的工作。
@@ -133,7 +137,7 @@ Personal Context（个人上下文）是一份加密的列表，保存你的事�
 
 ### Windows 和 Linux 版（alpha）
 
-用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、与手机和平板共享、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
+用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
 
 <a id="chinese"></a>
 
@@ -291,7 +295,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 ## 本地 AI，由你选择
 
-先用内置模型，之后可以在 **Settings → Models** 中更换。LokalBot 支持内置的 llama.cpp 运行时、Ollama、OpenAI 兼容服务器，以及 macOS 26 及以上受支持 Mac 上的 Apple Intelligence。Think 角色也可以使用你自己的 ChatGPT 套餐（Sign in with ChatGPT）或 Claude 套餐（通过已登录的 Claude Code），不需要 API Key。远程服务器和套餐在收到任何内容之前都需要你批准。
+先用内置模型，之后可以在 **Settings → Models** 中更换。LokalBot 支持内置的 llama.cpp 运行时、Ollama、OpenAI 兼容服务器，以及 macOS 26 及以上受支持 Mac 上的 Apple Intelligence。Think 角色也可以使用你自己的 ChatGPT 套餐（Sign in with ChatGPT）或 Claude 套餐（通过已登录的 Claude Code），不需要 API Key；Agent Mode 也可以使用 ChatGPT 套餐。远程服务器和套餐在收到任何内容之前都需要你批准。
 
 不同的任务使用不同的模型。下面是 Mac 上全新安装时的默认模型，全部角色加起来约 9.6 GB 模型文件，这不是内存要求：
 
@@ -302,6 +306,8 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 | 自动补全 | Gemma 4 E2B Base | `Q6_K` | 3.85 GB |
 | 语义搜索 | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
 | 发言人分离 | Nemotron 3（预览），通过 FluidAudio | Core ML | ~0.20 GB |
+
+表中不包括辅助模型，它们会在功能第一次需要时下载：使用 Qwen3-ASR 时，发言人分离会另外下载一个约 1 GB 的逐词对齐模型；开启文件搜索（Files）会另外下载一个 555 MB 的图像和音频投影器。
 
 Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、Granite Speech、Whisper large-v3 turbo、用于中日韩语的 SenseVoice，以及用于俄语的 GigaAM；发言人分离也可以继续使用 Pyannote Community-1。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。不同版本的模型选择可能变化，以 Settings 中显示的为准。速度和内存占用取决于你的电脑、模型、上下文长度和其他负载。
 
@@ -339,7 +345,7 @@ open LokalBot.xcodeproj
 
 欢迎提交 Bug 报告、改进文档和贡献代码，用中文提 Issue 也可以。[提交 Issue](https://github.com/stevyhacker/lokalbot/issues/new/choose) 时，请写明复现步骤、预期和实际行为、应用版本、操作系统及其版本（Linux 还请注明发行版、桌面环境以及 X11 或 Wayland）、芯片或 CPU 和 GPU、内存，以及所选的模型。请不要在报告里附上私人录音或转写。
 
-较大的改动请先[开一个 Issue](https://github.com/stevyhacker/lokalbot/issues) 讨论思路。请遵循[协作约定](AGENTS.md)和[开发指南](DEVELOPMENT.md)，保持 PR 聚焦，并按照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 记录你做过的检查。UI 改动请附上截图。
+较大的改动请先[开一个 Issue](https://github.com/stevyhacker/lokalbot/issues) 讨论思路。请遵循[协作约定](AGENTS.md)和[开发指南](DEVELOPMENT.md)，保持 PR 聚焦，并按照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 记录你做过的检查。UI 改动请附上截图；UI 测试请在托管 CI 或远程运行器上运行。
 
 ## 许可与致谢
 
@@ -347,4 +353,4 @@ LokalBot 是基于 [GPLv3](LICENSE) 协议的自由软件。自动补全引擎�
 
 基于 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[MLX Swift](https://github.com/ml-explore/mlx-swift)、[speech-swift](https://github.com/soniqo/speech-swift)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[WhisperKit](https://github.com/argmaxinc/WhisperKit)、[FluidAudio](https://github.com/FluidInference/FluidAudio)、[Sparkle](https://github.com/sparkle-project/Sparkle)、[XcodeGen](https://github.com/yonaskolb/XcodeGen)、[GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)、[GPUI Kit](https://github.com/longbridge/gpui-kit) 和 [ONNX Runtime](https://github.com/microsoft/onnxruntime) 构建，使用的模型包括 [Qwen3-ASR](https://huggingface.co/Qwen)、[IBM Granite Speech](https://huggingface.co/ibm-granite)、[Parakeet](https://huggingface.co/nvidia) 和 [LFM2.5](https://huggingface.co/LiquidAI)。自动补全引擎最初基于 [Cotabby](https://cotabby.app) 的开源代码。
 
-<sub>本文译自英文版 README（2026 年 11 月 5 日），如有出入，以英文版为准。</sub>
+<sub>本文译自英文版 README（2026 年 11 月 10 日），如有出入，以英文版为准。</sub>

@@ -21,7 +21,8 @@ for ((attempt=0; attempt<100; attempt++)); do
   kill -0 "$writer_pid"
   sleep 0.1
 done
-[[ -f "$probe_dir/ready" ]]
+# A plain `[ ]`: macOS's own bash (3.2) does not stop a `set -e` script on a false `[[ ]]`.
+[ -f "$probe_dir/ready" ] || { echo "the probe never started writing"; exit 1; }
 kill -KILL "$writer_pid"
 wait "$writer_pid" 2>/dev/null || true
 writer_pid=""

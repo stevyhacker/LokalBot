@@ -20,7 +20,7 @@ Usage:
         --archive build/LokalBot.dmg \
         --archive-filename LokalBot-1.0.0-macos-arm64.dmg \
         --app build/export/LokalBot.app \
-        --repo OWNER/REPO \
+        --repo stevyhacker/lokalbot \
         --ed-key-file ~/secure/LokalBot-sparkle-key.txt
 """
 
@@ -37,7 +37,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-# OWNER/REPO is a placeholder for forks and manual runs: pass --repo (CI passes
+# OWNER/REPO is a placeholder, refused in main(): pass --repo (CI passes
 # --repo "$GITHUB_REPOSITORY"; the canonical slug is stevyhacker/lokalbot).
 DEFAULT_REPO = "OWNER/REPO"
 # Matches sign_update's stdout when signing a non-feed archive:
@@ -266,11 +266,19 @@ def render_appcast(template_path: Path, replacements: dict[str, str]) -> str:
     rendered = template_path.read_text(encoding="utf-8")
     for token, value in replacements.items():
         rendered = rendered.replace(token, escape_xml(value))
+    # A token nobody filled would ship in the feed every installed copy reads.
+    unfilled = sorted(set(re.findall(r"\{\{[A-Z_]+\}\}", rendered)))
+    if unfilled:
+        raise SystemExit(f"{template_path.name} has placeholders with no value: {', '.join(unfilled)}")
     return rendered
 
 
 def main() -> int:
     args = parse_args()
+    if args.repo == DEFAULT_REPO:
+        # Its enclosure and release URLs would point at github.com/OWNER/REPO,
+        # and a feed like that stops updates for everyone who reads it.
+        raise SystemExit('Pass --repo with the real "owner/repo" slug, for example stevyhacker/lokalbot.')
 
     archive = Path(args.archive).expanduser().resolve()
     if not archive.is_file():
@@ -330,12 +338,6 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(rendered, encoding="utf-8")
 
-    if args.repo == DEFAULT_REPO:
-        print(
-            "WARNING: --repo is still the OWNER/REPO placeholder; the enclosure "
-            "and feed URLs will not resolve until the real slug is set.",
-            file=sys.stderr,
-        )
     print(f"Generated appcast: {output_path}")
     print(f"Version: {short_version} ({build_version}), min macOS {minimum_system}")
     print(f"Archive URL: {archive_url}")

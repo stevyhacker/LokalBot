@@ -1,5 +1,7 @@
 # Speaker attribution follow-up — 14 September 2026
 
+Historical report: the Google Meet participant observer described here was removed in LokalBot 0.9.1, and LokalBot no longer reads Meet participant names or speaking activity. What it says about that observer is retained as context, not current behavior. See [DEVELOPMENT.md](../DEVELOPMENT.md#transcription--speakers).
+
 ## Observed failure
 
 The affected 35-minute recording logged 4,030 speaker-observation attempts, zero

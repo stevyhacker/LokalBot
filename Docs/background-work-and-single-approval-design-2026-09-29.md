@@ -1,6 +1,6 @@
 # Background work: single approval, catch-up, and progress card
 
-Date: 2026-09-29. Status: approved design.
+Date: 2026-09-29. Status: implemented in #113 (2026-09-29).
 
 ## Problem
 

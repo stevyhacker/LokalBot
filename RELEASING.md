@@ -581,6 +581,12 @@ silicon) and checks its SHA-256. With `--check` it only compares. The
 crates, and the Linux release job runs it before packaging, so a stale list
 fails both.
 
+The generated list covers the Linux and Windows targets. The Mac app and the
+phone apps compile `lokalbot-sync` for Apple and Android targets, where a
+dependency can bring in a crate the list lacks. The same workflow runs
+`Scripts/ci/check-sync-crate-notices.py`, which fails until such a crate is
+named, with its version, in the companion section of `THIRD_PARTY_NOTICES.md`.
+
 - A crate whose license `about.toml` doesn't accept stops the script. Add the
   license to `accepted` only if it is compatible with GPL-3.0.
 - A crate whose section shows the standard license text and its authors
@@ -667,13 +673,14 @@ and the token are set up once; see
 ## MCP Registry
 
 For a stable tag, the `mcp-registry` job (`.github/workflows/mcp-registry.yml`)
-runs after the macOS job publishes the release. While the
-`MCP_REGISTRY_PUBLISH` repository variable is `true`, it attaches
-`LokalBot.mcpb` (built from the tag) when the release lacks it, writes the
-bundle's URL and SHA-256 into `Distribution/mcp-registry/server.json`, and
-publishes `io.github.stevyhacker/lokalbot` `<version>` to the official MCP
-Registry with GitHub OIDC, so there is no secret. Without the variable, or when
-the registry already has the version, it says so and succeeds. Don't replace a
+runs after the macOS job publishes the release. It attaches `LokalBot.mcpb`
+(built from the tag) when the release lacks it, writes the bundle's URL and
+SHA-256 into `Distribution/mcp-registry/server.json`, and publishes
+`io.github.stevyhacker/lokalbot` `<version>` to the official MCP Registry with
+GitHub OIDC, so there is no secret and nothing to set up. When the registry
+already has the version, when the `MCP_REGISTRY_PUBLISH` repository variable is
+`false`, or in a fork (whose owner the entry's namespace doesn't name), it
+says so and succeeds; the bundle is attached in every case. Don't replace a
 release's `LokalBot.mcpb` after the registry has it. To publish by hand:
 `gh workflow run mcp-registry.yml -f tag=v<version>`. See
 [Distribution/mcp-registry/README.md](Distribution/mcp-registry/README.md).
@@ -805,8 +812,8 @@ release push the `lokalbot-bin` AUR package once the `AUR_PUBLISH` repository
 variable is `true` ([AUR package](#aur-package)).
 
 Optional, with no secret: the `MCP_REGISTRY_PUBLISH` repository variable set to
-`true` lists each stable release's `LokalBot.mcpb` in the official MCP Registry
-([MCP Registry](#mcp-registry)).
+`false` keeps stable releases out of the official MCP Registry; without it each
+one is listed ([MCP Registry](#mcp-registry)).
 
 `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` sign the Android APK.
 A release has no APK until its key is set up, and a missing secret fails the
@@ -829,8 +836,8 @@ gh secret set SPARKLE_PRIVATE_KEY --repo stevyhacker/lokalbot
 `NOTARY_APPLE_PWD` is an app-specific password for the Apple ID, not the
 account's normal password.
 
-CI passes `--repo "$GITHUB_REPOSITORY"`, so the `OWNER/REPO` placeholder is
-resolved automatically there.
+CI passes `--repo "$GITHUB_REPOSITORY"`. `generate_appcast.py` refuses to run
+without `--repo`, so a feed never points at the `OWNER/REPO` placeholder.
 
 ## Linux package repositories
 

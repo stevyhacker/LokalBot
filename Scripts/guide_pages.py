@@ -258,7 +258,7 @@ GUIDES = [
         <p>Source access lets you inspect what a meeting app records, where it stores the result, which hosts it contacts, and what changes when you enable an optional service. It does not automatically prove that a particular downloadable build matches the repository, or that every dependency is harmless. Treat the code as an unusually strong verification tool, then check the actual release and runtime behavior too.</p>
 
         <h2>Start with the license</h2>
-        <p>LokalBot is released under GPLv3. You can read, modify, and build the code, and distributed derivative versions must preserve the license obligations. That differs from “source available” products whose licenses restrict commercial use, redistribution, or forks. The repository's license file is the authoritative text.</p>
+        <p>LokalBot is released under GPLv3. Code in the Autocomplete engine that was ported from <a href="https://github.com/FuJacob/cotabby" target="_blank" rel="noopener">Cotabby</a> stays under <a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSES/AGPL-3.0.txt" target="_blank" rel="noopener">AGPLv3</a>, and other third-party components and models retain their own licenses; see the <a href="https://github.com/stevyhacker/lokalbot/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">third-party notices</a>. You can read, modify, and build the code, and distributed derivative versions must preserve the license obligations. That differs from “source available” products whose licenses restrict commercial use, redistribution, or forks. The repository's license files are the authoritative text.</p>
 
         <h2>Trace the meeting data path</h2>
         <p>For a private notetaker, follow the recording from capture to deletion:</p>
@@ -299,7 +299,7 @@ GUIDES = [
         </ul>
         """,
         "faq": [
-            ("Is LokalBot free for commercial work?", "LokalBot is GPLv3 software and has no usage subscription. Review the license itself for obligations that apply when you modify or distribute it."),
+            ("Is LokalBot free for commercial work?", "LokalBot is GPLv3 software, with Autocomplete code ported from Cotabby under AGPLv3, and has no usage subscription. Review the licenses themselves for obligations that apply when you modify or distribute it."),
             ("Can I audit network access?", "Yes. The source is public, and the privacy policy names the normal network paths: models, updates, optional Agent Mode setup, and approved remote inference."),
             ("Do I need an API key?", "No. The built-in local models work without one. API keys are relevant only if you choose an external compatible backend that requires them."),
         ],
@@ -720,8 +720,8 @@ GUIDES = [
         "slug": "ai-notetaker-bots-blocked-at-work",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-10",
+        "updated_label": "November 10, 2026",
         "title": "AI Notetaker Bots Blocked at Work? What IT Should Check",
         "description": "Why companies block meeting bots, what a bot-free local recorder changes and what it doesn't, and a checklist IT can use before approving one.",
         "eyebrow": "IT approval",
@@ -756,7 +756,7 @@ GUIDES = [
           <li><strong>Storage.</strong> Recordings, transcripts, and the search index are ordinary files and SQLite under the user's account, so disk encryption (FileVault, BitLocker, or LUKS) and your device policies protect them at rest. Day tracking saves app names and window titles by default; screen text and encrypted screenshots are separate opt-ins that expire after 14 days by default.</li>
           <li><strong>Consent behavior.</strong> On a fresh install, LokalBot asks through a notification before it records a detected meeting. Automatic recording is a setting the user has to turn on.</li>
           <li><strong>Ways data can leave.</strong> Markdown exports and the Obsidian and Logseq note exports are plain files in a folder the user picks. Agent access through the CLI and MCP server, and the optional Agent Mode, are off by default; once enabled, an agent's own provider receives what the agent reads.</li>
-          <li><strong>Code and builds.</strong> The source is public under GPLv3. Mac releases are signed with a Developer ID and notarized by Apple, and install from the DMG or Homebrew. The Windows build (alpha) is a per-user installer or a portable zip, neither code-signed yet, so SmartScreen warns before it runs. The Linux build (alpha) comes as .deb, .rpm and Arch packages or an archive with an install script. On every platform, updates are signed and install only when the user chooses Install and Relaunch. Any version can be built from source.</li>
+          <li><strong>Code and builds.</strong> The source is public under GPLv3, with Autocomplete code ported from Cotabby under AGPLv3. Mac releases are signed with a Developer ID and notarized by Apple, and install from the DMG or Homebrew. The Windows build (alpha) is a per-user installer or a portable zip, neither code-signed yet, so SmartScreen warns before it runs. The Linux build (alpha) comes as .deb, .rpm and Arch packages or an archive with an install script. On every platform, updates are signed and install only when the user chooses Install and Relaunch. Any version can be built from source.</li>
         </ol>
 
         <h2>What it doesn't have</h2>

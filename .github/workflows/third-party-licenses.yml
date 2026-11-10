@@ -2,6 +2,10 @@
 # Linux and Windows app, no longer matches LinuxWindows/Cargo.lock. Fix it by
 # running LinuxWindows/scripts/third-party-licenses.sh and committing the
 # result (RELEASING.md, "Third-party licenses").
+#
+# Also fails when the sync library, as built for the Mac app and the phone
+# apps, compiles in a crate that neither that file nor THIRD_PARTY_NOTICES.md
+# names: the generated file covers the Linux and Windows targets only.
 
 name: Third-party licenses
 
@@ -16,6 +20,8 @@ on:
       - "LinuxWindows/about.hbs"
       - "LinuxWindows/scripts/third-party-licenses.sh"
       - "LICENSES/rust-crates.md"
+      - "THIRD_PARTY_NOTICES.md"
+      - "Scripts/ci/check-sync-crate-notices.py"
       - ".github/workflows/third-party-licenses.yml"
   push:
     branches: [master, dev]
@@ -27,6 +33,8 @@ on:
       - "LinuxWindows/about.hbs"
       - "LinuxWindows/scripts/third-party-licenses.sh"
       - "LICENSES/rust-crates.md"
+      - "THIRD_PARTY_NOTICES.md"
+      - "Scripts/ci/check-sync-crate-notices.py"
       - ".github/workflows/third-party-licenses.yml"
   workflow_dispatch:
 
@@ -52,3 +60,8 @@ jobs:
       # compiled.
       - name: Check LICENSES/rust-crates.md
         run: scripts/third-party-licenses.sh --check
+
+      # Resolves the tree for the Apple and Android targets from Cargo.lock;
+      # nothing is compiled.
+      - name: Check the sync library's crates on Apple and Android
+        run: python3 ../Scripts/ci/check-sync-crate-notices.py

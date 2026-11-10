@@ -3,6 +3,12 @@
 _Status: 2026-08-20 · code-grounded at `9fe1223` · current release line:
 v0.6.x_
 
+> Not refreshed since that date. Two items below have shipped and stay only until
+> the next refresh: new installs ask before they record (**Make consent the first
+> meeting decision**), and selection actions rewrite, fix, translate and summarize
+> selected text (**Make the writing tools easier to discover**). LokalBot also runs
+> on Windows and Linux in alpha, which the thesis below predates.
+
 This document records product direction, not dates or launch promises. A roadmap
 item stays here only while it changes the user experience; implementation plans
 belong in issues or short-lived design documents.

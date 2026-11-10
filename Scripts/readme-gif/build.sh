@@ -1,13 +1,15 @@
 #!/bin/bash
 # Builds the README hero GIFs from takes recorded by film.sh.
 #
-#   Scripts/readme-gif/build.sh <takes-dir> [out-dir]   (default out-dir: Assets/hero)
+#   Scripts/readme-gif/build.sh <takes-dir> [out-dir]   (default out-dir: <takes-dir>/out)
 #
 # Writes lokalbot-demo-<appearance>.gif for each of APPEARANCES (default "light dark"). Needs ffmpeg and gifsicle.
+# The published hero in Assets/hero is cut by Video/lokalbot-landing-demos, so this
+# writes there only when Assets/hero is named as the out-dir.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 TAKES=$(cd "$1" && pwd)
-OUT=${2:-"$HERE/../../Assets/hero"}
+OUT=${2:-"$TAKES/out"}
 mkdir -p "$OUT"
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-readme-gif-build.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
