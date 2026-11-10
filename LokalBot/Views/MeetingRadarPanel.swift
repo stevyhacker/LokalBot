@@ -101,7 +101,7 @@ struct MeetingRadarPanel: View {
             } else if let reason = unavailableReason {
                 Text(verbatim: reason).workspaceTextRole(.supporting)
             } else {
-                Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. Sends \(modelName) new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings at api.meta.ai. Starts the live preview if it is off.")
+                Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. \(modelName) reads new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings. Starts the live preview if it is off.")
                     .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 520)
@@ -126,22 +126,29 @@ struct MeetingRadarPanel: View {
 
     private var footnote: Text {
         let sent: Text = app.settings.museScreenAnswersEnabled
-            ? Text("Muse reads new transcript lines as text and crops of screen captures that answer a question.")
-            : Text("Muse reads new transcript lines as text.")
+            ? Text("Your Think model reads new transcript lines as text and the text of screen captures that answer a question.")
+            : Text("Your Think model reads new transcript lines as text.")
         let audio: Text = app.settings.museLiveTextEnabled
             ? Text("Speakers stay on this Mac; fast live text streams audio.")
             : Text("Audio and speakers stay on this Mac.")
         return sent + Text(verbatim: " ") + audio
     }
 
+    /// The model reading this meeting, or the Think model that would.
     private var modelName: String {
-        MetaModelAPI.displayName(for: isThisMeeting ? radar.model : app.settings.museRadarModel)
+        isThisMeeting && !radar.model.isEmpty
+            ? MetaModelAPI.displayName(for: radar.model) : app.settings.thinkModelDisplayName
     }
 
+    /// The Think model reports no cost, so the cost shows only when there is one.
     private var passSummary: Text {
+        let passes = radar.totals.passes
+        let last = radar.totals.lastPassSeconds.map { String(format: "%.1f", $0) }
+        guard radar.totals.cost > 0 else {
+            return last.map { Text("Passes: \(passes) · last \($0) s") } ?? Text("Passes: \(passes)")
+        }
         let cost = RadarItemList.costLabel(radar.totals.cost)
-        guard let last = radar.totals.lastPassSeconds else { return Text("Passes: \(radar.totals.passes) · \(cost)") }
-        return Text("Passes: \(radar.totals.passes) · last \(String(format: "%.1f", last)) s · \(cost)")
+        return last.map { Text("Passes: \(passes) · last \($0) s · \(cost)") } ?? Text("Passes: \(passes) · \(cost)")
     }
 
     private func start() {

@@ -1,0 +1,47 @@
+{
+  "voice_id": "jBeSFLau956Zo30jykBV",
+  "model_id": "eleven_v4",
+  "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.8,
+    "speed": 1.0
+  },
+  "lines": [
+    {
+      "id": "c01",
+      "text": "LokalBot runs five AI models on your Mac. So how does one laptop hold them all?"
+    },
+    {
+      "id": "c02",
+      "text": "It doesn't have to. The models are files on your disk, under ten gigabytes, and they take turns in memory."
+    },
+    {
+      "id": "c03",
+      "text": "During a call, LokalBot only records. Transcription waits until you hang up, and autocomplete pauses."
+    },
+    {
+      "id": "c04",
+      "text": "Then the speech models load, turn the sound into a transcript with speakers, and two minutes after they finish, they unload."
+    },
+    {
+      "id": "c05",
+      "text": "The language model comes in next and writes the notes. It stays ten minutes, in case you ask a follow-up, then leaves."
+    },
+    {
+      "id": "c06",
+      "text": "The autocomplete model stays loaded while there's room, because it answers every keystroke in about fifty milliseconds."
+    },
+    {
+      "id": "c07",
+      "text": "A broker budgets half your memory for loaded models, and what you're waiting for goes ahead of background work."
+    },
+    {
+      "id": "c08",
+      "text": "Five models, one Mac, taking turns."
+    },
+    {
+      "id": "end",
+      "text": "LokalBot. Local by default, free and open source."
+    }
+  ]
+}

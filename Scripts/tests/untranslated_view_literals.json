@@ -78,9 +78,6 @@
     "BackgroundActivityCard.swift": [
       "+\\(…) more"
     ],
-    "BriefContextView.swift": [
-      "Overnight review uses your recorded evidence and the projects and goals below. Pin an item to keep it in future reviews."
-    ],
     "CaptureDetailView.swift": [
       "Showing \\(…) representative scenes from \\(…). Browse raw capture for every scene.",
       "\\(…) observed · \\(…) activity \\(…)"
@@ -381,9 +378,6 @@
     "ActionsWorkspaceView.swift": [
       "Could not update: ",
       "Owner unclear"
-    ],
-    "AgentSessionHistoryView.swift": [
-      "Unknown error"
     ],
     "AgentSessionView.swift": [
       "New task"

@@ -138,24 +138,9 @@ final class AppNavigator {
         open(.meetings)
     }
 
-    func openAction(_ id: String) {
-        actionSelection = id
-        open(.actions)
-    }
-
     func openDay(_ day: DayKey) {
         timelineDay = day
         open(.timeline)
-    }
-
-    func openPerson(_ id: String) {
-        personSelection = id
-        open(.people)
-    }
-
-    func openProject(_ id: String) {
-        projectSelection = id
-        open(.projects)
     }
 
     func ask(about scope: AskRequest.Scope?, draft: String? = nil) {

@@ -3,7 +3,9 @@ import Foundation
 /// Writes a follow-up email draft from one meeting's own outcomes with the
 /// on-device Think model. It is explicit (the user asks for it), grounded
 /// (only the meeting's recap, decisions, corrected actions, and open
-/// questions), and never sends anything.
+/// questions), and never sends anything. `generate` takes any engine: its
+/// caller, `FollowUpDraftSheet`, refuses unless Think runs on this Mac
+/// (`UpcomingMeetingLocalGenerationPolicy`).
 enum FollowUpDraftGenerator {
     struct Evidence: Equatable, Sendable {
         struct Action: Equatable, Sendable {

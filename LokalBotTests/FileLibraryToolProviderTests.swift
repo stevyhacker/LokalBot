@@ -424,6 +424,25 @@ final class FileLibraryToolProviderTests: XCTestCase {
         }
     }
 
+    /// A misspelt part came back as the meeting without that section, as if
+    /// it had none. The message is the Windows and Linux server's.
+    func testGetMeetingRefusesIncludeValuesItDoesNotKnow() async {
+        let refused = await provider.call(
+            name: "get_meeting",
+            arguments: ["id": "latest", "include": "summary, Transcripts,notes"])
+        XCTAssertTrue(refused.isError)
+        XCTAssertEqual(
+            refused.text,
+            "[invalid_arguments] Unknown include value(s): notes, transcripts. "
+                + "get_meeting takes \"metadata\", \"summary\" and \"transcript\".")
+
+        let known = await provider.call(
+            name: "get_meeting",
+            arguments: ["id": "latest", "include": "Summary, transcript"])
+        XCTAssertFalse(known.isError, known.text)
+        XCTAssertTrue(known.text.contains("Redis"))
+    }
+
     func testGetMeetingLatestReturnsMarkdownSections() async {
         let result = await provider.call(
             name: "get_meeting",

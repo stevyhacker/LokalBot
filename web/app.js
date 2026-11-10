@@ -56,22 +56,6 @@
     reveals.forEach(function (el) { io.observe(el); });
   }
 
-  /* ---------- demo videos: never autoplay; one at a time; pause if the user scrolls away ---------- */
-  var demos = $$(".hero__demo");
-  demos.forEach(function (video) {
-    video.addEventListener("play", function () {
-      demos.forEach(function (other) { if (other !== video) other.pause(); });
-    });
-  });
-  if (demos.length && "IntersectionObserver" in window) {
-    var demoIO = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (!e.isIntersecting) { e.target.pause(); }
-      });
-    }, { threshold: 0.05 });
-    demos.forEach(function (video) { demoIO.observe(video); });
-  }
-
   /* ---------- silent loops: GIFs in all but file format, so no controls; stills under reduced motion or Save-Data ---------- */
   var loops = $$(".home-loop");
   /* a clip with both appearances follows the visitor's */
@@ -487,75 +471,5 @@
     /* browsers can restore the typed text when you come back to the page */
     window.addEventListener("pageshow", function () { if (filterInput.value) applyFilter(); });
     filterBox.hidden = false;
-  }
-
-  /* ---------- waveform: randomize bar timing for an organic pulse ---------- */
-  if (!reduce) {
-    $$("[data-wave] span").forEach(function (bar) {
-      var dur = 560 + Math.random() * 720;
-      bar.style.animationDuration = dur.toFixed(0) + "ms";
-      bar.style.animationDelay = (-Math.random() * dur).toFixed(0) + "ms";
-    });
-  }
-
-  /* ---------- cotyping demo: ghost text + Tab to accept ---------- */
-  var input = $("#ctInput");
-  var typedEl = $("#ctTyped");
-  var ghostEl = $("#ctGhost");
-  var field = $("#cotypeField");
-  var cotype = field ? field.closest(".cotype") : null;
-
-  if (input && typedEl && ghostEl && field) {
-    var SNIPPETS = [
-      "Following up on our sync, the on-device build is ready to ship.",
-      "Thanks for the call. I'll send the recap and action items shortly.",
-      "Action item: ship the on-device summary by Friday.",
-      "Let's circle back on this once the transcript lands."
-    ];
-    var dismissed = false;
-
-    function ghostFor(val) {
-      if (!val || dismissed) return "";
-      var v = val.toLowerCase();
-      for (var i = 0; i < SNIPPETS.length; i++) {
-        if (SNIPPETS[i].toLowerCase().indexOf(v) === 0) return SNIPPETS[i].slice(val.length);
-      }
-      return "";
-    }
-    function render() {
-      typedEl.textContent = input.value;
-      ghostEl.textContent = ghostFor(input.value);
-    }
-    function acceptWord() {
-      var g = ghostFor(input.value);
-      if (!g) return false;
-      var m = g.match(/^\s*\S+/);
-      input.value += m ? m[0] : g;
-      render();
-      return true;
-    }
-
-    /* seed with the static teaser so the field is meaningful before any motion */
-    input.value = (typedEl.textContent || "").trim() === "" ? "" : typedEl.textContent;
-    render();
-
-    field.addEventListener("mousedown", function (e) {
-      e.preventDefault();
-      input.focus();
-      var L = input.value.length;
-      try { input.setSelectionRange(L, L); } catch (_) {}
-    });
-    input.addEventListener("focus", function () { if (cotype) cotype.classList.add("is-focused"); });
-    input.addEventListener("blur", function () { if (cotype) cotype.classList.remove("is-focused"); });
-    input.addEventListener("input", function () { dismissed = false; render(); });
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Tab" && ghostFor(input.value)) {
-        e.preventDefault();
-        acceptWord();
-      } else if (e.key === "Escape") {
-        dismissed = true;
-        render();
-      }
-    });
   }
 })();

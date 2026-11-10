@@ -1,6 +1,7 @@
 # Configuring LokalBot from the terminal
 
-Date: 2026-10-17, extended 2026-10-18. Status: design; Phase 1 implemented.
+Date: 2026-10-17, extended 2026-10-18. Status: design; Phases 1–4 implemented
+(see [Implementation status](#implementation-status)).
 Decisions are recorded in [Decisions](#decisions) and
 [Decisions (agent-led setup)](#decisions-agent-led-setup).
 

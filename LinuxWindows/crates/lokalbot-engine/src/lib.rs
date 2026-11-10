@@ -403,6 +403,16 @@ fn calendar_settings_changed(old: &Settings, new: &Settings) -> bool {
         || old.calendar_my_email_addresses != new.calendar_my_email_addresses
 }
 
+/// The folder of the recording a start request began, given the recording
+/// folder `before` and `after` it. A request refused because a recording was
+/// already running began nothing, so that recording keeps its live transcript.
+fn newly_recording(
+    before: Option<std::path::PathBuf>,
+    after: Option<std::path::PathBuf>,
+) -> Option<std::path::PathBuf> {
+    after.filter(|folder| before.as_ref() != Some(folder))
+}
+
 fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<Command>) {
     let models = models::Models::new(shared.clone());
     models.finish_runtime_update();
@@ -461,24 +471,26 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 let calendar = app_name
                     .as_ref()
                     .and_then(|_| shared.calendar.active_event(&shared.settings(), Utc::now()));
+                let before = recording.active_folder();
                 recording.start(RecordingStart {
                     title,
                     app_name,
                     calendar,
                     source: StartSource::User,
                 });
-                if let Some(folder) = recording.active_folder() {
+                if let Some(folder) = newly_recording(before, recording.active_folder()) {
                     live.prepare(folder);
                 }
             }
             Command::RecordCalendarEvent(event) => {
+                let before = recording.active_folder();
                 recording.start(RecordingStart {
                     title: None,
                     app_name: shared.detected_call.lock().clone(),
                     calendar: Some(*event),
                     source: StartSource::User,
                 });
-                if let Some(folder) = recording.active_folder() {
+                if let Some(folder) = newly_recording(before, recording.active_folder()) {
                     live.prepare(folder);
                 }
             }
@@ -487,13 +499,14 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 app_name,
                 calendar,
             } => {
+                let before = recording.active_folder();
                 recording.start(RecordingStart {
                     title: Some(title),
                     app_name: Some(app_name),
                     calendar: calendar.map(|event| *event),
                     source: StartSource::Detector,
                 });
-                if let Some(folder) = recording.active_folder() {
+                if let Some(folder) = newly_recording(before, recording.active_folder()) {
                     live.prepare(folder);
                 }
             }
@@ -662,4 +675,32 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
     dreaming::stop(&shared);
     pipeline.stop();
     shared.runtime.shutdown();
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::newly_recording;
+
+    /// Record pressed during a recording is refused, and the recording that
+    /// is running must keep its live transcript.
+    #[test]
+    fn a_refused_start_is_not_a_new_recording() {
+        let (first, second) = (PathBuf::from("meetings/a"), PathBuf::from("meetings/b"));
+        assert_eq!(
+            newly_recording(None, Some(first.clone())),
+            Some(first.clone())
+        );
+        assert_eq!(
+            newly_recording(Some(first.clone()), Some(first.clone())),
+            None
+        );
+        assert_eq!(
+            newly_recording(Some(first.clone()), Some(second.clone())),
+            Some(second)
+        );
+        assert_eq!(newly_recording(Some(first), None), None);
+        assert_eq!(newly_recording(None, None), None);
+    }
 }

@@ -66,10 +66,6 @@ the last 10 results for 7 days, encrypted, so you can copy one again (see
 dictation** is on (see About you below). You can delete an individual
 meeting in the app or remove the entire LokalBot Application Support directory.
 
-**Read coding agent sessions** is on by default. On a new install, setup shows
-this choice with the other capture choices, and LokalBot reads no session until
-you finish setup. When LokalBot already has microphone access, as after a
-reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
 **Imported recordings.** When you drop an audio or video file onto Meetings or
 choose **Import Recording…**, LokalBot reads the file without changing or
 moving it and saves an AAC copy of its audio as the meeting's system track.
@@ -87,7 +83,10 @@ but day memory, digests, people, projects, action lists, Personal Context, trans
 vocabulary, and note exports leave it out. **Remove sample** deletes it in one
 step, and nothing records that you tried it.
 
-**Read coding agent sessions** is on by default and can be turned off in
+**Read coding agent sessions** is on by default. On a new install, setup shows
+this choice with the other capture choices, and LokalBot reads no session until
+you finish setup. When LokalBot already has microphone access, as after a
+reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
 Settings → Screen & Activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
 `~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
@@ -375,15 +374,18 @@ The app may make these outbound connections:
   the note is missing or older than its evidence. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
-- **Optional Meta Muse (Live Radar, fast live text, screen answers, live answers, and Follow-through):** off until you add a
-  Meta Model API key and turn on "Allow sending meeting text to
-  https://api.meta.ai" in Settings → Meetings → Meta Muse. That switch adds
-  the origin to the same approved-server list Think uses, so revoking it in
-  either place stops both. Even then, nothing is sent until you start it:
+- **Optional Live Radar (with screen answers and live answers):** off until you
+  turn on "Offer Live Radar during meetings" in Settings → Meetings → Live
+  Radar. It reads with your Think model, under that model's own setting: with
+  a Think model on this Mac, nothing below leaves it; with a Think server or
+  plan, it goes only to the origin you approved for Think, and revoking that
+  approval stops it. If you had approved Meta Muse before Live Radar had its
+  own switch, it stays on, and it now reads with your Think model instead of
+  Meta's. Even then, nothing is read until you start it:
   - **Live Radar** runs only after you press Start Radar during a recording,
     for that recording, and turns on the live transcript preview if it is
     off. About every 20 seconds (or after each turn with fast live text) it
-    sends Muse Spark (or the model you choose) the preview lines that arrived
+    gives the Think model the preview lines that arrived
     since the previous request, up to 24
     earlier lines of the same meeting, the meeting title, invited names from
     the calendar, what it already found, and up to six passages from your
@@ -393,17 +395,6 @@ The app may make these outbound connections:
     email addresses are never sent. What it finds is saved to `radar.json` in
     the meeting folder and deleted with the meeting. It stops when the
     recording ends, after one last request for lines it had not sent.
-  - **Fast live text** is a separate switch in the same section, off by
-    default. While it is on and the live transcript preview runs, the
-    microphone and call audio stream to Muse Voice Transcribe
-    (`wss://api.meta.ai/v1/asr/realtime`), which returns each turn's text,
-    and the preview shows that text instead of transcribing on this Mac.
-    Streaming starts at most three seconds before you start the preview and
-    stops when you pause or stop it or the recording ends. Your name from
-    Settings → Writing is sent as a spelling hint. Who said what still comes
-    from which track the audio is on, not from Muse. The full transcript is
-    still made on this Mac after the meeting, and the recording is never
-    uploaded as a file.
   - **The floating Live Radar panel** shows the radar's items over other
     apps while a recording runs. It sends nothing itself. It is left out of
     screen sharing and screen recordings unless you turn that off in the
@@ -414,23 +405,24 @@ The app may make these outbound connections:
     memory on this Mac for earlier captures whose text matches the question,
     leaving out LokalBot's own windows. Vision on this Mac crops each match to
     a full-width band around the lines that mention the question's words, and
-    up to three crops go to Muse Spark with their app name, window title, and
-    capture time. Whole screenshots, the search, and the rest of screen memory
+    the text it reads from up to three crops goes to the Think model with
+    their app name, window title, and capture time. Screenshots and their
+    crops, the search, and the rest of screen memory
     stay on this Mac, and what screen memory never captured (excluded apps
     and sites, private windows) can't be sent. An answer is kept only when the
-    quote Muse gives is in the crop's own text, as read on this Mac; its crop
+    quote the model gives is in the crop's own text, as read on this Mac; its crop
     is saved in the meeting folder (`radar-answers/`) and deleted with the
     meeting.
   - **Live answers** is another separate switch, off by default. While it is
     on and Live Radar catches a question, or a problem that needs facts,
-    Muse Wonder (or the model you choose) looks for the answer in your work.
-    It is sent the question, the meeting title and date, the last ten
+    the Think model looks for the answer in your work.
+    It is given the question, the meeting title and date, the last ten
     preview lines, and what LokalBot remembers that bears on it: the "Where
     it stands" notes of up to two tracked projects that share words with the
     question, your open actions from the last 30 days, what you told LokalBot
     about yourself (only while Ask may use it), and work memory. It may then
     make read-only lookups, within six requests and a minute per question,
-    and is sent what they return: meeting
+    and is given what they return: meeting
     search results, meeting summaries or transcript windows, action items,
     and screen-memory text (never screenshots); and from the folders you add
     in the same section, the names and dates of matching files, the parts of
@@ -442,11 +434,27 @@ The app may make these outbound connections:
     and in a git repository the code tools read only files git tracks. An
     answer is shown only when every source it cites contains the words it
     quotes, and it is saved with its sources in `radar.json`.
+- **Optional Meta Muse (fast live text and Follow-through):** off until you add a
+  Meta Model API key and turn on "Allow sending meeting text to
+  https://api.meta.ai" in Settings → Meetings → Meta Muse. That switch adds
+  the origin to the same approved-server list Think uses, so revoking it in
+  either place stops both. Even then, nothing is sent until you start it:
+  - **Fast live text** is a separate switch in the same section, off by
+    default. While it is on and the live transcript preview runs, the
+    microphone and call audio stream to Muse Voice Transcribe
+    (`wss://api.meta.ai/v1/asr/realtime`), which returns each turn's text,
+    and the preview shows that text instead of transcribing on this Mac.
+    Streaming starts at most three seconds before you start the preview and
+    stops when you pause or stop it or the recording ends. Your name from
+    Settings → Autocomplete is sent as a spelling hint. Who said what still comes
+    from which track the audio is on, not from Muse. The full transcript is
+    still made on this Mac after the meeting, and the recording is never
+    uploaded as a file.
   - **Follow-through** runs only when you choose Follow Through with Muse on
     one action. It sends Muse Wonder (or the model you choose) the action, its
     quoted source lines, the meeting title, date, invited names, the meeting
     summary, that meeting's Live Radar items, and the name from Settings →
-    Writing, then whatever its read tools return: meeting search results,
+    Autocomplete, then whatever its read tools return: meeting search results,
     meeting summaries or transcript windows, and action items. It cannot read
     screen memory. Every step it proposes (an email draft, a calendar
     invitation, a task for Claude Code or Codex, marking the action done)
@@ -984,7 +992,7 @@ sessions like any other, so LokalBot reads them back as coding-agent evidence
 while **Read coding agent sessions** is on.
 
 **Hand off** is off until you turn on **Enable the Hand off shortcut** in
-Settings → General. Pressing the shortcut, or **Hand off this window** in the
+Settings → Ask. Pressing the shortcut, or **Hand off this window** in the
 menu bar, reads the focused window once: all of its Accessibility text,
 including text scrolled out of view, any selected text, and a screenshot when
 Screen Recording is allowed. When the window shares little text, the
@@ -1453,9 +1461,10 @@ platform differences:
   desktops may show portal prompts for screenshots and global shortcuts, some
   apps expose their text only once system accessibility is on, and GNOME needs
   the Window Calls extension for app and window activity.
-- **External agents.** The meeting-library and screen-memory toggles in
-  Settings → Privacy & Data work as on macOS. The same commands work under the
-  same toggle: the socket lives in your private runtime folder, or is a named
+- **External agents.** Settings → Privacy & Data has a separate switch for each
+  kind of data, where macOS has boxes under one switch: the meeting library,
+  files, screen memory, and What I shared about myself. The same commands work
+  under the same toggle: the socket lives in your private runtime folder, or is a named
   pipe only your user can open on Windows, and `permissions` reports what the
   desktop allows instead of showing prompts.
 - **Selection actions** work as on macOS, with Ctrl+C for ⌘C. Terminals are
@@ -1497,8 +1506,9 @@ platform differences:
   network announcement uses mDNS under the same neutral name, which also replaces
   the computer's host name in it. Windows Firewall may prompt when sharing starts,
   and a firewall can block the port on either system; Settings says what to allow.
-- **Mac-only features.** Email is not in the Windows and Linux app yet, so none
-  of its data is collected there.
+- **Mac-only features.** Email, Live Radar (with screen answers and live
+  answers), fast live text, Follow-through and Hand off are not in the Windows
+  and Linux app yet, so none of their data is collected or sent there.
 - **Network access** is limited to model and runtime downloads you request
   (models from Hugging Face, or HF-Mirror or ModelScope if you choose them, and
   GitHub, the llama.cpp runtime from GitHub, the

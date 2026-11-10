@@ -199,6 +199,28 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertFalse(reopened.screenshot(id: snapshotID)?.isBookmarked ?? true)
     }
 
+    /// The moment's detail page read its note out of the newest 200 saved
+    /// moments, so an older one opened with an empty note field.
+    func testASavedMomentsNoteIsReadByItsOwnIDHoweverManyWereSavedSince() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let insert = { (index: Int) in
+            try store.insertScreenshot(
+                ts: Date(timeIntervalSince1970: 1_800_000_000 + Double(index)), path: "", app: "Notes",
+                windowTitle: "Moment \(index)", trigger: "manual", ocr: "text \(index)")
+        }
+        let oldest = try insert(0)
+        try store.saveMoment(snapshotID: oldest, note: "Why the first one mattered")
+        for index in 1...200 { try store.saveMoment(snapshotID: try insert(index), note: "Later \(index)") }
+        let unsaved = try insert(201)
+
+        XCTAssertNil(store.savedMoments().first { $0.snapshotID == oldest }, "The list holds only the newest 200")
+        XCTAssertEqual(store.savedMomentNote(snapshotID: oldest), "Why the first one mattered")
+        XCTAssertNil(store.savedMomentNote(snapshotID: unsaved))
+    }
+
     func testPerceptualHashesPersistAndNearDuplicatesShareAGroup() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")

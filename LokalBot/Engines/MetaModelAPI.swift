@@ -1,10 +1,11 @@
 import Foundation
 
 /// Meta's Model API (`https://api.meta.ai/v1`, OpenAI-compatible chat
-/// completions). Live Radar reads the meeting with Muse Spark while it is
-/// recorded; Follow-through plans and proposes the work after it with Muse
-/// Wonder. Both send text only: audio, speaker labels, and search stay on
-/// this Mac. Built for the Meta Global AI Developer Hackathon (2026).
+/// completions). Follow-through plans and proposes the work after a meeting
+/// with Muse Wonder, as text only: audio, speaker labels, and search stay on
+/// this Mac. Live Radar began here, for the Meta Global AI Developer
+/// Hackathon (2026), and now reads with the Think model (`ThinkChat`); the
+/// hosted film of it and the replay harness still speak this wire format.
 enum MetaModelAPI {
     static let baseURL = URL(string: "https://api.meta.ai/v1")!
     static var origin: String { RemoteInferenceGate.origin(for: baseURL) }
@@ -79,7 +80,7 @@ enum MetaModelAPI {
 
 /// One `/chat/completions` call with optional function tools or a strict JSON
 /// schema. `TextEngine` returns text only; Follow-through needs tool calls and
-/// both features report token use, so they get this small client. Requests
+/// reports token use, so it gets this small client. Requests
 /// share the origin's `RemoteInferenceGate` with Think and stay on the
 /// approved origin (`InferenceURLSession` rejects cross-origin redirects).
 struct MuseChatClient {

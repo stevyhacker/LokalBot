@@ -1,0 +1,16 @@
+{
+  "note": "Every number with a unit that may appear in a scene. Sources are in FACTS.md.",
+  "allowed": [
+    "2.47 GB", "0.20 GB", "0.2 GB", "2.74 GB", "3.85 GB", "0.31 GB", "9.6 GB", "1 GB",
+    "56 ms", "102 ms", "9.0 ms", "9 ms", "243 ms",
+    "33.4 s", "33 s", "59.8 s", "60 s", "120 s", "600 s",
+    "2 min", "10 min", "26 min", "26-minute",
+    "85 tok/s",
+    "52 languages", "11 languages",
+    "768 dimensions", "768-dimensional", "768-d",
+    "14.6% DER", "17.6% WER",
+    "500× real time",
+    "48 GB",
+    "1.7B", "4B", "E2B", "0.6B", "82M"
+  ]
+}

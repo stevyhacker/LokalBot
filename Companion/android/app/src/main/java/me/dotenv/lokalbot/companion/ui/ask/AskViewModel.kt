@@ -170,13 +170,16 @@ class AskViewModel(repository: CompanionRepository) : LibraryViewModel(repositor
         }
     }
 
+    /** A turn whose answer a sync brings: cut off while the Mac answered, or queued for when it's back. */
+    private val AskTurnState.awaitsAnswer: Boolean get() = phase == TurnPhase.Waiting || phase == TurnPhase.Queued
+
     private suspend fun completeWaitingFromHistory() {
-        val waiting = _state.value.turns.filter { it.phase == TurnPhase.Waiting }.map { it.request.requestId }.toSet()
+        val waiting = _state.value.turns.filter { it.awaitsAnswer }.map { it.request.requestId }.toSet()
         if (waiting.isEmpty()) return
         val answered = repository.askHistory(200).filter { it.request.requestId in waiting }
         for (exchange in answered) {
             updateTurn(exchange.request.requestId) { turn ->
-                if (turn.phase != TurnPhase.Waiting) turn
+                if (!turn.awaitsAnswer) turn
                 else turn.copy(answer = exchange.result.answer, result = exchange.result, phase = TurnPhase.Done)
             }
         }

@@ -14,7 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -104,6 +103,3 @@ fun PaneHost(content: @Composable BoxWithConstraintsScope.(originX: Float) -> Un
         content(originX)
     }
 }
-
-/** A hinge's top edge relative to a composable at [originY] in the window, in dp. */
-fun Rect.topIn(originY: Float, toDp: (Float) -> Dp): Dp = toDp(top - originY)

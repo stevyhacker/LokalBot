@@ -143,14 +143,14 @@ Personal Context（个人上下文）是一份加密的列表，保存你的事�
 - **中英混说。** 上面的演示里，App Store、TestFlight、bug、Markdown 这些夹在中文里的英文词都被正确识别。
 - **中文纪要。** 纪要默认跟随转写的语言，中文会议会生成中文的要点、决策和待办，每一条都带有原话的时间戳。
 - **中文听写。** 听写复用同一个转写模型，按住快捷键说中文即可输入。
-- **国内会议软件。** Mac 版能识别腾讯会议、VooV Meeting、飞书、Lark、钉钉和企业微信的通话，并录下双方的声音。腾讯会议和 VooV 一接通就开始录制；飞书、Lark、钉钉和企业微信也会播放消息提示音和语音消息，所以通话声音要持续约 12 秒才开始录制（日历里有这场会议时会立即开始）。微信通话暂不自动识别。Windows 和 Linux 版录制的是电脑播放的全部声音，不依赖具体的会议软件。
+- **国内会议软件。** Mac 版能识别腾讯会议、VooV Meeting、飞书、Lark、钉钉和企业微信的通话，并录下双方的声音。腾讯会议和 VooV 一接通就开始录制；飞书、Lark、钉钉和企业微信也会播放消息提示音和语音消息，所以通话声音要持续约 12 秒才开始录制（日历里有这场会议时会立即开始）。微信通话暂不自动识别。Windows 和 Linux 版在能单独录制时只录会议软件的声音，否则录制电脑播放的全部声音。
 - **中文关键词搜索。** 在 Mac 版中，中文、日文和韩文关键词可以匹配一段话中的任意位置：搜“对比度”也能找到“深色模式下对比度不够”这样的句子。按含义搜索使用支持多语言的 EmbeddingGemma 2，用完整的短句或问题（比如“订阅价格要不要调”）同样可以找到中文内容。
-- **在国内下载模型。** 中国大陆网络可能无法直接访问 Hugging Face。在 Mac 版的 **设置 → 模型 → 模型下载来源** 中可以改用 HF-Mirror（hf-mirror.com）或魔搭 ModelScope（modelscope.cn）；Mac 的地区设为中国大陆或语言设为简体中文时，首次设置也会显示这个选项。每个文件都会核对 LokalBot 固定的大小和 SHA-256，不一致就换下一个来源。也可以继续使用系统代理（或 TUN 模式）。
+- **在国内下载模型。** 中国大陆网络可能无法直接访问 Hugging Face。在 **设置 → 模型 → 模型下载来源** 中可以改用 HF-Mirror（hf-mirror.com）或魔搭 ModelScope（modelscope.cn）；电脑的地区设为中国大陆或语言设为简体中文时，首次设置也会显示这个选项。每个文件都会核对 LokalBot 固定的大小和 SHA-256，不一致就换下一个来源。也可以继续使用系统代理（或 TUN 模式）。
 
 目前还有这些限制，我们会继续改进，也欢迎提 Issue 或 PR：
 
 - **还没有在国内实测。** 国内会议软件的识别还没有在真实的腾讯会议、飞书、钉钉或企业微信通话中验证，HF-Mirror 也还没有在中国大陆网络中测试过。如果你遇到问题，欢迎告诉我们。
-- **Windows 和 Linux 版** 暂时没有镜像下载，请用 `HTTPS_PROXY` 等环境变量设置代理来下载模型；中文关键词也只能匹配一段话的开头。屏幕文字识别（OCR）目前只识别拉丁字母，中文屏幕内容要靠应用提供的无障碍文本。
+- **Windows 和 Linux 版** 中，中文关键词只能匹配一段话的开头。屏幕文字识别（OCR）在 Windows 上使用系统自带的识别器；在 Linux 上识别中文需要安装 Tesseract，没有它时只能识别拉丁字母。
 - **发言人切换。** 中文会议里，发言人切换的地方偶尔会有一两个字被归到别的发言人名下（见上面转写截图的 00:00:35）。
 - **自动补全** 主要针对英文和欧洲语言调优，中文（包括使用中文输入法时）还没有经过系统测试。
 
@@ -171,7 +171,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself 或 Files。在 Windows 和 Linux 上，每一项在 **Settings → Privacy & Data** 的 External agents 下都有单独的开关：会议记录库、文件、屏幕记忆和 What I shared about myself。然后在 **Settings → Advanced → Agent CLI** 安装 CLI。
+访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself 或 Files。在 Windows 和 Linux 上，每一项在 **Settings → Privacy & Data** 的 External agents 下都有单独的开关：会议记录库、文件、屏幕记忆和 What I shared about myself。然后安装 CLI：Mac 上在 **Settings → External Agents → Agent CLI**，Windows 和 Linux 上在 **Settings → Advanced → Agent CLI**。
 
 **想根据会议采取行动？** 在 Claude Code 或 Codex 中打开任意待办，提示词已经填好任务和它的出处，由你检查后发送。
 
@@ -262,7 +262,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 <details>
 <summary><strong>会有机器人加入我的会议吗？</strong></summary>
 
-不会。LokalBot 在你的电脑上录制你的麦克风和会议软件的声音；Windows 和 Linux 版录制的是电脑播放的全部声音，而不只是某一个应用。音频来源和具体的发言人识别是两回事。无法捕获系统声音时，应用会提示这次只录了麦克风。录音请务必征得参与者的同意。
+不会。LokalBot 在你的电脑上录制你的麦克风和会议软件的声音；Windows 和 Linux 版在能单独录制时只录会议软件的声音，否则录制电脑播放的全部声音。音频来源和具体的发言人识别是两回事。无法捕获系统声音时，应用会提示这次只录了麦克风。录音请务必征得参与者的同意。
 
 </details>
 
@@ -305,7 +305,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、Granite Speech、Whisper large-v3 turbo、用于中日韩语的 SenseVoice，以及用于俄语的 GigaAM；发言人分离也可以继续使用 Pyannote Community-1。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。不同版本的模型选择可能变化，以 Settings 中显示的为准。速度和内存占用取决于你的电脑、模型、上下文长度和其他负载。
 
-在 Windows 和 Linux 上，转写默认通过 sherpa-onnx 使用 Qwen3-ASR 0.6B（可选 Parakeet v3、SenseVoice 和 Whisper turbo），发言人分离使用 pyannote 分割和 TitaNet，自动补全默认使用 LFM2.5 1.2B。纪要（Qwen3.5 4B）和搜索（EmbeddingGemma 2）使用和 Mac 相同的模型。默认下载约 4 GB，llama.cpp 运行在 Vulkan GPU 或 CPU 上。
+在 Windows 和 Linux 上，转写默认通过 sherpa-onnx 使用 Qwen3-ASR 0.6B（可选 Parakeet v3 和 v2、SenseVoice、俄语的 GigaAM 和 Whisper turbo），发言人分离使用 pyannote 分割和 TitaNet，自动补全默认使用 LFM2.5 1.2B。纪要（Qwen3.5 4B）和搜索（EmbeddingGemma 2）使用和 Mac 相同的模型。默认下载约 4 GB，llama.cpp 运行在 Vulkan GPU 或 CPU 上。
 
 [项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/EmbeddingIndex.swift) · [模型与运行时细节](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
 
@@ -343,8 +343,8 @@ open LokalBot.xcodeproj
 
 ## 许可与致谢
 
-LokalBot 是基于 [GPLv3](LICENSE) 协议的自由软件。第三方组件和模型保留各自的许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
+LokalBot 是基于 [GPLv3](LICENSE) 协议的自由软件。自动补全引擎中移植自 [Cotabby](https://github.com/FuJacob/cotabby) 的代码仍采用 [AGPLv3](LICENSES/AGPL-3.0.txt) 协议。其他第三方组件和模型保留各自的许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
 
-基于 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[MLX Swift](https://github.com/ml-explore/mlx-swift)、[speech-swift](https://github.com/soniqo/speech-swift)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[WhisperKit](https://github.com/argmaxinc/WhisperKit)、[FluidAudio](https://github.com/FluidInference/FluidAudio)、[Sparkle](https://github.com/sparkle-project/Sparkle)、[XcodeGen](https://github.com/yonaskolb/XcodeGen)、[GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)、[GPUI Kit](https://github.com/longbridge/gpui-kit) 和 [ONNX Runtime](https://github.com/microsoft/onnxruntime) 构建，使用的模型包括 [Qwen3-ASR](https://huggingface.co/Qwen)、[IBM Granite Speech](https://huggingface.co/ibm-granite)、[Parakeet](https://huggingface.co/nvidia) 和 [LFM2.5](https://huggingface.co/LiquidAI)。自动补全引擎与 [Cotabby](https://cotabby.app) 共享同一个核心循环。
+基于 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[MLX Swift](https://github.com/ml-explore/mlx-swift)、[speech-swift](https://github.com/soniqo/speech-swift)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[WhisperKit](https://github.com/argmaxinc/WhisperKit)、[FluidAudio](https://github.com/FluidInference/FluidAudio)、[Sparkle](https://github.com/sparkle-project/Sparkle)、[XcodeGen](https://github.com/yonaskolb/XcodeGen)、[GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)、[GPUI Kit](https://github.com/longbridge/gpui-kit) 和 [ONNX Runtime](https://github.com/microsoft/onnxruntime) 构建，使用的模型包括 [Qwen3-ASR](https://huggingface.co/Qwen)、[IBM Granite Speech](https://huggingface.co/ibm-granite)、[Parakeet](https://huggingface.co/nvidia) 和 [LFM2.5](https://huggingface.co/LiquidAI)。自动补全引擎最初基于 [Cotabby](https://cotabby.app) 的开源代码。
 
 <sub>本文译自英文版 README（2026 年 11 月 5 日），如有出入，以英文版为准。</sub>

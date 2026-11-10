@@ -1502,13 +1502,5 @@ fn save_checkpoint(
     }
 }
 
-/// The error text a person sees for a stopped notes job.
-pub fn describe_error(err: &anyhow::Error) -> String {
-    if let Some(incomplete) = err.downcast_ref::<Incomplete>() {
-        return incomplete.to_string();
-    }
-    err.to_string()
-}
-
 #[cfg(test)]
 mod tests;

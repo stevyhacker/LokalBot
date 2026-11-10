@@ -247,6 +247,37 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(store.ocrText(snapshotID: lateID), "later discovered evidence")
     }
 
+    /// A hand off package is kept 7 days. Only writing the next package used
+    /// to remove old ones, so after a single handoff the window's text and
+    /// screenshot stayed in the library.
+    func testDailyRetentionRemovesHandOffPackagesOlderThanTheirLimit() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HandoffRetentionTests-\(UUID())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let store = ActivityStore(databaseURL: root.appendingPathComponent("activity.sqlite"))
+        let sampler = ActivitySampler(store: store, notificationCenter: NotificationCenter())
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let service = ScreenshotService(store: store, storage: storage, sampler: sampler,
+                                        now: { now }, settings: { AppSettings() })
+        let handoffs = WindowHandoffPackage.root(library: root)
+        func package(_ name: String, age: TimeInterval) throws -> URL {
+            let folder = handoffs.appendingPathComponent(name, isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let created = ISO8601DateFormatter().string(from: now.addingTimeInterval(-age))
+            try JSONSerialization.data(withJSONObject: ["createdAt": created])
+                .write(to: folder.appendingPathComponent("handoff.json"))
+            return folder
+        }
+        let expired = try package("expired", age: WindowHandoffPackage.retention + 86_400)
+        let recent = try package("recent", age: 86_400)
+
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded())
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: expired.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: recent.path))
+    }
+
     func testAutomaticRetentionDoesNotDeleteWhenEvidenceScopeCannotBeRead() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("RetentionScopeFailureTests-\(UUID())", isDirectory: true)

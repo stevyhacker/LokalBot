@@ -1,0 +1,185 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    #agent-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #0e141c;
+      white-space: nowrap;
+    }
+    #agent-title span {
+      display: inline-block;
+    }
+    #agent-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #agent-stage {
+      position: absolute;
+      inset: 0;
+    }
+    /* A terminal window, 64 columns wide like the recorded one. What it prints is the
+       recorded Claude Code session (film/agent/record.py), line for line and colour for colour. */
+    #agent-term {
+      position: absolute;
+      left: 92px;
+      top: 56px;
+      width: 1640px;
+      height: 960px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #0b1119;
+      border: 1.5px solid #2a3643;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+    }
+    #agent-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      height: 56px;
+      background: #151e28;
+      border-bottom: 1.5px solid #222d39;
+      font-size: 24px;
+      font-weight: 700;
+      color: #8f99a3;
+      text-align: center;
+      line-height: 56px;
+    }
+    #agent-bar i {
+      position: absolute;
+      top: 19px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+    }
+    .agent-rows {
+      position: absolute;
+      left: 40px;
+      top: 86px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 40px;
+      line-height: 60px;
+      color: #e6edf3;
+      white-space: pre;
+    }
+    .agent-row {
+      height: 60px;
+    }
+    .agent-g {
+      display: inline-block;
+      width: 24px;
+      text-align: center;
+    }
+    .agent-dim {
+      color: #8f99a3;
+    }
+    .agent-rule {
+      color: #5d6975;
+    }
+    .agent-work {
+      color: #d78787;
+    }
+    .agent-said {
+      background: #28323e;
+      color: #ffffff;
+    }
+    .agent-caret {
+      display: inline-block;
+      width: 24px;
+      height: 46px;
+      margin-bottom: -9px;
+      background: #e6edf3;
+    }
+    .agent-ch {
+      display: inline-block;
+      width: 24px;
+    }
+    #agent-mark {
+      position: absolute;
+      left: 520px;
+      top: 332px;
+      width: 504px;
+      height: 50px;
+      border-radius: 6px;
+      background: #fbbf24;
+    }
+  </style>
+  <div id="root" data-composition-id="agent" data-width="1920" data-height="1080">
+    <div id="agent-vp" data-layout-allow-overflow>
+      <div id="agent-stage">
+        <div id="agent-term">
+          <div id="agent-bar">
+            <i style="left: 22px; background: #ff5f57"></i><i style="left: 50px; background: #febc2e"></i><i style="left: 78px; background: #28c840"></i>
+            claude — offsite
+          </div>
+          <div id="agent-mark"></div>
+          <!-- Before Return: the prompt being typed. -->
+          <div id="agent-typing" class="agent-rows"><div class="agent-row"><span class="agent-rule">────────────────────────────────────────────────────────────────</span></div><div class="agent-row"><span class="agent-g">❯</span> <span class="agent-ch" id="agent-ch-0">W</span><span class="agent-ch" id="agent-ch-1">h</span><span class="agent-ch" id="agent-ch-2">e</span><span class="agent-ch" id="agent-ch-3">r</span><span class="agent-ch" id="agent-ch-4">e</span><span class="agent-ch" id="agent-ch-5">&nbsp;</span><span class="agent-ch" id="agent-ch-6">i</span><span class="agent-ch" id="agent-ch-7">s</span><span class="agent-ch" id="agent-ch-8">&nbsp;</span><span class="agent-ch" id="agent-ch-9">t</span><span class="agent-ch" id="agent-ch-10">h</span><span class="agent-ch" id="agent-ch-11">e</span><span class="agent-ch" id="agent-ch-12">&nbsp;</span><span class="agent-ch" id="agent-ch-13">o</span><span class="agent-ch" id="agent-ch-14">f</span><span class="agent-ch" id="agent-ch-15">f</span><span class="agent-ch" id="agent-ch-16">s</span><span class="agent-ch" id="agent-ch-17">i</span><span class="agent-ch" id="agent-ch-18">t</span><span class="agent-ch" id="agent-ch-19">e</span><span class="agent-ch" id="agent-ch-20">,</span><span class="agent-ch" id="agent-ch-21">&nbsp;</span><span class="agent-ch" id="agent-ch-22">a</span><span class="agent-ch" id="agent-ch-23">n</span><span class="agent-ch" id="agent-ch-24">d</span><span class="agent-ch" id="agent-ch-25">&nbsp;</span><span class="agent-ch" id="agent-ch-26">w</span><span class="agent-ch" id="agent-ch-27">h</span><span class="agent-ch" id="agent-ch-28">e</span><span class="agent-ch" id="agent-ch-29">n</span><span class="agent-ch" id="agent-ch-30">?</span><span id="agent-caret" class="agent-caret"></span></div><div class="agent-row"><span class="agent-rule">────────────────────────────────────────────────────────────────</span></div><div class="agent-row">  <span class="agent-dim"><span class="agent-g">⏸</span> manual mode on</span>                            <span class="agent-dim"><span class="agent-g">◐</span> medium · /effort</span></div></div>
+          <!-- After Return: Claude Code calls LokalBot. -->
+          <div id="agent-calling" class="agent-rows"><div class="agent-row"><span class="agent-said"><span class="agent-dim"><span class="agent-g">❯</span> </span>Where is the offsite, and when? </span></div><div class="agent-row"></div><div class="agent-row"><span class="agent-dim"><span class="agent-g">⏺</span></span> Calling lokalbot <b>2</b> times… <span class="agent-dim">(ctrl+o to expand)</span></div><div class="agent-row"><span class="agent-dim">  <span class="agent-g">⎿</span>  "offsite"</span></div><div class="agent-row"></div><div class="agent-row"><span class="agent-work"><span id="agent-spin-a"><span class="agent-g">✶</span></span><span id="agent-spin-b"><span class="agent-g">✻</span></span> Ideating… </span><span id="agent-spin-1" class="agent-dim">(1s · <span class="agent-g">↓</span> 68 tokens)</span><span id="agent-spin-2" class="agent-dim">(1s · <span class="agent-g">↓</span> 76 tokens)</span><span id="agent-spin-3" class="agent-dim">(2s · <span class="agent-g">↓</span> 88 tokens)</span></div><div class="agent-row"></div><div class="agent-row"><span class="agent-rule">────────────────────────────────────────────────────────────────</span></div><div class="agent-row"><span class="agent-dim"><span class="agent-g">❯</span></span> <span class="agent-caret"></span></div><div class="agent-row"><span class="agent-rule">────────────────────────────────────────────────────────────────</span></div><div class="agent-row">  <span class="agent-dim"><span class="agent-g">⏸</span> manual mode on · esc to interrupt · <span class="agent-g">←</span> for agents</span></div><div class="agent-row">                                              <span class="agent-dim"><span class="agent-g">◐</span> medium · /effort</span></div></div>
+          <!-- 2.4 s after Return in the recording: the answer. -->
+          <div id="agent-final" class="agent-rows"><div class="agent-row"><span class="agent-said"><span class="agent-dim"><span class="agent-g">❯</span> </span>Where is the offsite, and when? </span></div><div class="agent-row"></div><div class="agent-row"><span class="agent-dim">  Called lokalbot <b>2</b> times (ctrl+o to expand)</span></div><div class="agent-row"></div><div class="agent-row"><span class="agent-g">⏺</span> The offsite is in <span id="agent-fact">Lisbon, May 12 to 14.</span> That was decided in</div><div class="agent-row">  the "Offsite planning" meeting on 2026-11-09. Invitations to</div><div class="agent-row">  attendees are still an open action item for Monday.</div><div class="agent-row"></div><div class="agent-row"><span class="agent-dim"><span class="agent-g">✻</span> Cogitated for 2s · done 10:07 PM</span></div><div class="agent-row"></div><div class="agent-row"><span class="agent-rule">────────────────────────────────────────────────────────────────</span></div><div class="agent-row"><span class="agent-g">❯</span> <span class="agent-caret"></span></div><div class="agent-row"><span class="agent-rule">────────────────────────────────────────────────────────────────</span></div><div class="agent-row">  <span class="agent-dim"><span class="agent-g">⏸</span> manual mode on · ? for shortcuts · <span class="agent-g">←</span> for agents</span></div><div class="agent-row">                                              <span class="agent-dim"><span class="agent-g">◐</span> medium · /effort</span></div></div>
+        </div>
+      </div>
+    </div>
+    <h1 id="agent-title" class="clip" data-start="0.4" data-duration="4.8" data-track-index="1">
+      <span class="agent-word">Your</span> <span class="agent-word">agents</span> <span class="agent-word">can</span>
+      <span class="agent-word">ask</span> <span class="agent-word">too</span>
+    </h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const TYPE_AT = 0.75, PER_KEY = 0.039, KEYS = 31;
+    const RETURN_AT = 2.05, ANSWER_AT = 3.2;
+
+    // The ground has changed; a terminal comes up on the same screen.
+    tl.fromTo("#agent-stage", { y: 940 }, { y: 0, duration: 0.5, ease: "expo.out" }, 0.12);
+    tl.fromTo(".agent-word", { opacity: 0, filter: "blur(6px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.13, stagger: 0.067, ease: "power2.out" }, 0.5);
+
+    // The question, key by key.
+    gsap.set(".agent-ch", { opacity: 0 });
+    gsap.set(["#agent-calling", "#agent-final", "#agent-mark"], { opacity: 0 });
+    gsap.set(["#agent-spin-b", "#agent-spin-2", "#agent-spin-3"], { display: "none" });
+    gsap.set("#agent-caret", { x: -KEYS * 24 });
+    for (let i = 0; i < KEYS; i++) {
+      tl.set("#agent-ch-" + i, { opacity: 1 }, TYPE_AT + i * PER_KEY);
+      tl.set("#agent-caret", { x: (i + 1 - KEYS) * 24 }, TYPE_AT + i * PER_KEY);
+    }
+
+    // Return. Claude Code calls LokalBot twice and answers: 2.4 s in the recording, 1.15 s here.
+    tl.set("#agent-typing", { opacity: 0 }, RETURN_AT);
+    tl.set("#agent-calling", { opacity: 1 }, RETURN_AT);
+    tl.set(["#agent-spin-a", "#agent-spin-1"], { display: "none" }, RETURN_AT + 0.4);
+    tl.set(["#agent-spin-b", "#agent-spin-2"], { display: "inline-block" }, RETURN_AT + 0.4);
+    tl.set(["#agent-spin-b", "#agent-spin-2"], { display: "none" }, RETURN_AT + 0.78);
+    tl.set(["#agent-spin-a", "#agent-spin-3"], { display: "inline-block" }, RETURN_AT + 0.78);
+    tl.set("#agent-calling", { opacity: 0 }, ANSWER_AT);
+    tl.set("#agent-final", { opacity: 1 }, ANSWER_AT);
+
+    // The same decision once more, now in the agent's answer.
+    tl.set("#agent-mark", { opacity: 1 }, 3.7);
+    tl.fromTo("#agent-mark", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.36, ease: "power3.out" }, 3.7);
+    tl.fromTo("#agent-fact", { color: "#e6edf3" }, { color: "#0e141c", duration: 0.24, ease: "none" }, 3.74);
+    tl.fromTo(".agent-word", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(6px)", duration: 0.15, ease: "power2.in", immediateRender: false }, 5.05);
+    // 5.2 s: the swipe to the Timeline carries the terminal off to the left.
+    tl.fromTo("#agent-stage", { x: 0 }, { x: -1900, duration: 0.5, ease: "power2.inOut", immediateRender: false }, 5.2);
+    window.__timelines["agent"] = tl;
+  </script>
+</template>

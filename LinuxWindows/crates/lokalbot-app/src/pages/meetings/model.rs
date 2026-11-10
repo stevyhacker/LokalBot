@@ -872,9 +872,25 @@ pub fn transcript_text(doc: &MeetingDoc) -> String {
         .join("\n")
 }
 
+/// The meetings a delete may remove: never the one being recorded, whose
+/// folder the recorder is still writing into.
+pub(super) fn deletable(ids: Vec<uuid::Uuid>, recording: Option<uuid::Uuid>) -> Vec<uuid::Uuid> {
+    ids.into_iter()
+        .filter(|id| Some(*id) != recording)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_meeting_being_recorded_is_never_deleted() {
+        let (live, other) = (uuid::Uuid::from_u128(1), uuid::Uuid::from_u128(2));
+        assert_eq!(deletable(vec![live, other], Some(live)), [other]);
+        assert!(deletable(vec![live], Some(live)).is_empty());
+        assert_eq!(deletable(vec![live, other], None), [live, other]);
+    }
 
     #[test]
     fn recap_prefers_the_tldr_section() {

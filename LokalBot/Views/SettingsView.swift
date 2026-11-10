@@ -224,7 +224,7 @@ struct SettingsView: View {
         case .general:
             generalSection; updatesSection; aboutSection
         case .recording:
-            meetingsSection; processingSection; summarizationSection; MetaMuseSettingsSection(); meetingNoteExportSection
+            meetingsSection; processingSection; summarizationSection; LiveRadarSettingsSection(); MetaMuseSettingsSection(); meetingNoteExportSection
         case .dayMemory:
             screenCaptureSection; retentionSection; exclusionsSection; codingAgentsSection
             AgentKindAccessSection(access: app.agentReadAccess, kind: .screenMemory)
@@ -323,6 +323,8 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.menuBarOnly", selected: app.focusedSettingID)
                         .onChange(of: app.settings.menuBarOnly) { _, menuBarOnly in
+                            // The Dock policy reads saved settings.
+                            app.settingsStore.flush()
                             DockPolicy.sync()
                             if !menuBarOnly { openWindow(id: "main") }
                         }

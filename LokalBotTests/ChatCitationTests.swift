@@ -131,6 +131,10 @@ final class ChatCitationTests: XCTestCase {
         XCTAssertEqual(ChatCitationParser.seconds(from: "2:00:05"), 7_205)
         XCTAssertNil(ChatCitationParser.seconds(from: "1:99"))
         XCTAssertNil(ChatCitationParser.seconds(from: "12"))
+        // A leading field too large to count in seconds is refused. It used
+        // to overflow and stop the app: a model's `get_meeting` call sets it.
+        XCTAssertNil(ChatCitationParser.seconds(from: "3000000000000000:00:00"))
+        XCTAssertNil(ChatCitationParser.seconds(from: "\(Int.max):59"))
     }
 
     func testEditorialMarkdownBuildsOneContinuousVisibleString() throws {

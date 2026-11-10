@@ -227,6 +227,11 @@ fn open_sheet(
         let approved = review.clone();
         dialog
             .w(px(520.))
+            // Only Cancel and Apply end the review: Cancel puts the slider
+            // back, which Esc, the X and a click outside would skip.
+            .close_button(false)
+            .overlay_closable(false)
+            .keyboard(false)
             .title(
                 div()
                     .text_size(ty::COLUMN_TITLE)

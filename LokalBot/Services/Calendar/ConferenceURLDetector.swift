@@ -27,12 +27,13 @@ enum ConferenceURLDetector {
         "meeting.dingtalk.com",
     ]
 
+    /// Built once: calendar reads ask about every event's URL, location and notes.
+    private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+
     /// First conferencing URL in `text`, or nil. Uses `NSDataDetector` so it
     /// catches bare and embedded links alike.
     static func firstMeetingURL(in text: String?) -> URL? {
-        guard let text, !text.isEmpty,
-              let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        else { return nil }
+        guard let text, !text.isEmpty, let detector = linkDetector else { return nil }
         let range = NSRange(text.startIndex..., in: text)
         for match in detector.matches(in: text, range: range) where isMeetingURL(match.url) {
             return match.url

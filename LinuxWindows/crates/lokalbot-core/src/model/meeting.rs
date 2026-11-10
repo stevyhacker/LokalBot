@@ -245,6 +245,14 @@ impl Meeting {
         self.content_range.filter(ContentRange::is_valid)
     }
 
+    /// The time `seconds` after the start. A length the calendar cannot hold
+    /// (a damaged `meta.json`) gives the start itself: chrono's `+` panics.
+    pub fn started_plus(&self, seconds: f64) -> DateTime<Utc> {
+        chrono::TimeDelta::try_milliseconds((seconds * 1000.0) as i64)
+            .and_then(|length| self.started_at.checked_add_signed(length))
+            .unwrap_or(self.started_at)
+    }
+
     /// Wall-clock span, or the recorded duration when known.
     pub fn duration_seconds(&self) -> f64 {
         if let Some(recorded) = self.recorded_duration {

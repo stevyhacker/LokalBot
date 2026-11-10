@@ -196,9 +196,12 @@ final class ActivityStore {
         guard !rows.isEmpty else { return }
         try database.withTransaction {
             for row in rows {
+                // The range lets SQLite search an index. `ABS` alone made every
+                // row that never links scan all of `screenshots` at each launch.
                 let snapshotID: Int64? = try database.queryChecked("""
                     SELECT id FROM screenshots
-                    WHERE app = ?1 COLLATE NOCASE AND ABS(ts - ?2) <= 1.0
+                    WHERE ts BETWEEN ?2 - 1.5 AND ?2 + 1.5
+                      AND app = ?1 COLLATE NOCASE AND ABS(ts - ?2) <= 1.0
                     ORDER BY ABS(ts - ?2), id
                     LIMIT 1
                     """, bind: [row.app, row.timestamp]) { statement in
@@ -787,6 +790,20 @@ final class ActivityStore {
         Set(try requiredDatabase().queryChecked("SELECT snapshot_id FROM screen_bookmarks") {
             sqlite3_column_int64($0, 0)
         })
+    }
+
+    /// One saved moment's note, or nil when the capture is not saved.
+    /// `savedMoments` returns only the newest ones.
+    func savedMomentNote(snapshotID: Int64) -> String? {
+        do {
+            return try requiredDatabase().queryChecked(
+                "SELECT note FROM screen_bookmarks WHERE snapshot_id = ?1", bind: [snapshotID]) {
+                String(cString: sqlite3_column_text($0, 0))
+            }.first
+        } catch {
+            lokalbotLog("saved-moment note query failed: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     func savedMoments(limit: Int = 200) -> [SavedMoment] {
@@ -1755,9 +1772,5 @@ final class ActivitySampler: ObservableObject {
         guard end.timeIntervalSince(block.start) >= Self.minBlock else { return }
         store.insert(ActivityBlock(app: block.app, title: block.title,
                                    start: block.start, end: end))
-    }
-
-    nonisolated static func focusedWindowTitle(pid: pid_t) -> String? {
-        FocusedWindowTitleLookup.resolveTitle(processID: pid)
     }
 }

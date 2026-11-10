@@ -63,6 +63,12 @@ final class HackathonFilmUITests: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "radar.item.\(kind)"))
     }
 
+    /// Whatever shows `fragment`: a text of its own, or one folded into the
+    /// label of the button or row it sits in.
+    private func shown(_ fragment: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", fragment)).firstMatch
+    }
+
     func testFilmLiveRadarAndFollowThrough() throws {
         XCTContext.runActivity(named: isLive ? "Muse replies: live" : "Muse replies: scripted") { _ in }
         // 1. Connect Meta Muse in Settings → Recording.
@@ -84,11 +90,11 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(1.5)
         // Fast live text, screen answers, and live answers over this checkout
         // are on in this library's settings.
-        let screenAnswers = app.descendants(matching: .any)["settings.metaMuse.screenAnswers"].firstMatch
+        let screenAnswers = app.descendants(matching: .any)["settings.liveRadar.screenAnswers"].firstMatch
         UITestHarness.scrollTo(screenAnswers, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(film.wait(for: screenAnswers, timeout: 5), "the screen answers switch did not render")
         film.hold(2)
-        let folders = app.buttons["settings.metaMuse.addFolder"].firstMatch
+        let folders = app.buttons["settings.liveRadar.addFolder"].firstMatch
         UITestHarness.scrollTo(folders, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(film.wait(for: folders, timeout: 5), "the live answers folders did not render")
         film.hold(3)
@@ -136,10 +142,16 @@ final class HackathonFilmUITests: XCTestCase {
             let decision = UITestHarness.staticText(containing: "Annual plans get 20% off", in: app)
             XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
             XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
-            XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
+            // The board keeps commitments in a lazy grid below what needs
+            // attention, which builds a card only once it is in view; the
+            // panel lists the commitment as a row either way.
+            XCTAssertTrue(shown("Send the revised pricing deck", in: app).exists,
+                          "the commitment to send the deck is not on the radar")
             let code = UITestHarness.staticText(containing: "hidden from screen sharing", in: app)
             XCTAssertTrue(film.wait(for: code, timeout: 30), "the panel question was not answered from the code")
-            XCTAssertTrue(UITestHarness.staticText(containing: "AppSettings.swift", in: app).exists,
+            // The source is a button, so the file and line may be its label
+            // and not a text of their own.
+            XCTAssertTrue(shown("AppSettings.swift", in: app).exists,
                           "the code answer doesn't cite the line it read")
         }
         film.hold(3)
@@ -285,6 +297,7 @@ private enum FilmFixture {
           "semanticSearchEnabled": false,
           "cotypingEnabled": false,
           "cotypingUserName": "Stevan",
+          "liveRadarEnabled": true,
           "museLiveTextEnabled": true,
           "museScreenAnswersEnabled": true,
           "liveAnswersEnabled": true,

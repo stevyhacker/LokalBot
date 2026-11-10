@@ -1,0 +1,49 @@
+{
+  "voice_id": "jBeSFLau956Zo30jykBV",
+  "model_id": "eleven_v4",
+  "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.8,
+    "speed": 1.0
+  },
+  "lines": [
+    {
+      "id": "01-call",
+      "text": "You decide something on a call. LokalBot records it on your Mac, and no bot joins."
+    },
+    {
+      "id": "02-notes",
+      "text": "Seconds after you hang up, it's in your notes, linked to the moment it was said."
+    },
+    {
+      "id": "03-search",
+      "text": "Later, one search brings it back, along with what you saw on screen."
+    },
+    {
+      "id": "04-type",
+      "text": "Start a sentence in any app, and autocomplete finishes it."
+    },
+    {
+      "id": "05-say",
+      "text": "Or just say it."
+    },
+    {
+      "id": "06-agent",
+      "text": "Your AI agents can ask for it too."
+    },
+    {
+      "id": "07-day",
+      "text": "And the timeline keeps the whole day in order."
+    },
+    {
+      "id": "08-end",
+      "text": "LokalBot. Your personal context engine. Local by default, free, and open source."
+    }
+  ],
+  "spoken": [
+    {
+      "id": "request",
+      "text": "Write a note telling the team where the offsite is, and when."
+    }
+  ]
+}

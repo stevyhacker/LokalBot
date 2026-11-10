@@ -16,8 +16,9 @@ import Foundation
 /// but must not mutate it.
 /// Orchestrates cotyping: focus polling → debounce → generation → ghost overlay
 /// → accept-on-Tab. Trimmed port of Cotabby's `SuggestionCoordinator`, adapted
-/// to LokalBot's HTTP completion engine. Owns the session and the work-id
-/// (`generation`) that drops superseded results.
+/// to LokalBot's completion engines (`CotypingCompleting`: in-process or
+/// HTTP). Owns the session and the work-id (`generation`) that drops
+/// superseded results.
 ///
 /// Started/stopped by `AppState` from the cotyping setting + permission state.
 @MainActor

@@ -541,7 +541,6 @@ class CompilerCacheTests(unittest.TestCase):
         self.assertFalse(compiler.validate())
 
     def test_source_content_changes_cache_key_even_with_same_timestamp(self):
-        import time
         source = Path('Source.swift')
         source.write_text('let answer = 1')
         stamp = source.stat().st_mtime_ns

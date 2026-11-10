@@ -43,6 +43,8 @@ struct SearchFilesCommand: AsyncParsableCommand {
         case .failure(.invalid(let message)):
             throw ValidationError(message)
         case .failure(let failure):
+            // A switch that is off prints its code, as the MCP tools do.
+            if let coded = failure.commandError { throw coded }
             throw failure
         }
     }

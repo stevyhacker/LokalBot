@@ -39,6 +39,23 @@ import XCTest
         XCTAssertTrue(expired.voiceSamples.isEmpty)
     }
 
+    /// The hourly pass meets every old meeting again; one it already emptied
+    /// must not be rewritten, or its revisions would advance forever.
+    func testExpiryLeavesAnAlreadyErasedJournalAsItIs() async throws {
+        var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
+        saved.voiceSamples = enrollment().2
+        _ = try await store.commit(saved, meeting: meeting, expectedRevision: 0)
+        try await store.expire(meetings: [meeting], retentionDays: 0)
+        let erased = try await store.state(meeting: meeting)
+        XCTAssertTrue(erased.voiceSamples.isEmpty)
+
+        try await store.expire(meetings: [meeting], retentionDays: 0)
+
+        let again = try await store.state(meeting: meeting)
+        XCTAssertEqual(again.revision, erased.revision)
+        XCTAssertEqual(again.evidenceRevision, erased.evidenceRevision)
+    }
+
     func testManualDecisionSurvivesRestartAndEvidenceExpiry() async throws {
         var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
         saved.audioRevision = "audio"

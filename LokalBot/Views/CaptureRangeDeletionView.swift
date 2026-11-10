@@ -130,7 +130,6 @@ struct CaptureRangeDeletionView: View {
                 try app.screenshots.applyCaptureDeletionReview(review)
             }
             deletionReview = nil
-            app.primaryEvidenceDidChange(on: Array(days))
             isExpanded = !deletionFailures.isEmpty
             onDeleted()
         } catch {

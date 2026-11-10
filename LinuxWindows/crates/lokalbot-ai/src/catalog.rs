@@ -83,9 +83,6 @@ pub const LIGHTWEIGHT_AUTOCOMPLETE_ID: &str = "lfm2.5-1.2b-instruct";
 pub const EMBEDDING_ID: &str = "embeddinggemma-2-q8";
 /// Alias the engine uses.
 pub const EMBEDDING_MODEL_ID: &str = EMBEDDING_ID;
-/// Persisted with every vector (`EmbeddingIndex.indexVersion`); vectors made
-/// under another value are stale.
-pub const EMBEDDING_INDEX_VERSION: &str = "embeddinggemma-2-q8-mean-768-v1";
 pub const EMBEDDING_DIMENSIONS: usize = 768;
 
 /// Models above this size are too slow for keystroke-latency completion.

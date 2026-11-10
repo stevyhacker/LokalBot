@@ -33,8 +33,6 @@ private func toolReply(_ name: String, _ arguments: [String: Any], id: String = 
                                 usage: .init(inputTokens: 900, outputTokens: 80), finishReason: "tool_calls")
 }
 
-private let repoRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-
 final class LiveAnswersTests: XCTestCase {
     private var folder: URL!
 
@@ -73,10 +71,13 @@ final class LiveAnswersTests: XCTestCase {
     }
 
     func testDemoSheetAndBriefAreReadable() async throws {
-        let files = repoRoot.appendingPathComponent("Docs/meta-hackathon/demo-files")
-        let sheet = try await LiveAnswerTools.documentText(files.appendingPathComponent("Northwind pricing v2.xlsx"))
+        // Copies of the two files in Docs/meta-hackathon/demo-files; see project.yml.
+        let bundle = Bundle(for: Self.self)
+        let sheetURL = try XCTUnwrap(bundle.url(forResource: "Northwind pricing v2", withExtension: "xlsx"))
+        let sheet = try await LiveAnswerTools.documentText(sheetURL)
         XCTAssertTrue(sheet.contains("Team | $12 per seat"), sheet)
-        let brief = try await LiveAnswerTools.documentText(files.appendingPathComponent("Northwind launch brief.pdf"))
+        let briefURL = try XCTUnwrap(bundle.url(forResource: "Northwind launch brief", withExtension: "pdf"))
+        let brief = try await LiveAnswerTools.documentText(briefURL)
         XCTAssertTrue(brief.contains("400 paying teams"), brief)
     }
 
@@ -138,6 +139,40 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertFalse(untracked.text.contains("secretPlan"))
         let commits = try await LiveAnswerTools.recentCommits(query: "", path: "", in: place)
         XCTAssertTrue(commits.text.contains("Hide the panel from sharing"))
+    }
+
+    /// Git tracking a file does not make it readable: hidden files and
+    /// folders, `node_modules` and secret-looking files stay out of the code
+    /// tools as they do out of the document tools. `search_code` and
+    /// `read_file` used to return them.
+    func testCodeToolsLeaveOutHiddenVendoredAndSecretFilesGitTracks() async throws {
+        let place = try await makeRepository()
+        let repo = place.url
+        let withheld = [".env", ".npmrc", ".github/workflows/ci.yml", "node_modules/pkg/index.js",
+                        "Sources/node_modules/pkg/index.js", "keys/id_rsa", "keys/server.PEM"]
+        for path in withheld {
+            let url = repo.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try "let hiddenFromSharing = \"withheld \(path)\"\n".write(to: url, atomically: true, encoding: .utf8)
+        }
+        // A tracked link with an ordinary name that leads to a withheld file.
+        try FileManager.default.createSymbolicLink(
+            atPath: repo.appendingPathComponent("Settings.swift").path, withDestinationPath: ".env")
+        _ = try await LiveAnswerTools.git(["add", "-f", "--"] + withheld + ["Settings.swift"], in: repo)
+        _ = try await LiveAnswerTools.git(["-c", "user.name=Test", "-c", "user.email=test@example.com",
+                                           "commit", "-q", "-m", "Track files the tools must not read"], in: repo)
+
+        let search = try await LiveAnswerTools.searchCode("hiddenFromSharing", in: place)
+        XCTAssertEqual(search.lines.map(\.title), ["Panel.swift:2"], search.text)
+        XCTAssertFalse(search.text.contains("withheld"), search.text)
+
+        for path in withheld + ["Settings.swift", "Sources/../.env"] {
+            let read = try await LiveAnswerTools.readFile(path, from: 1, to: 3, in: place)
+            XCTAssertNil(read.kind, "\(path) is never read")
+            XCTAssertFalse(read.text.contains("withheld"), read.text)
+        }
+        let tracked = try await LiveAnswerTools.readFile("Panel.swift", from: 1, to: 3, in: place)
+        XCTAssertTrue(tracked.text.contains("let hiddenFromSharing = true"))
     }
 
     // MARK: - Grounding
@@ -207,6 +242,46 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertEqual(outcome.answer?.sources.first?.title, "Panel.swift:2")
         XCTAssertEqual(outcome.turns, 2)
         XCTAssertTrue(steps.contains { $0.contains("hiddenFromSharing") })
+    }
+
+    /// The same loop on the Think model, as the app runs it: each turn comes
+    /// back as one JSON object, and a lookup's result reaches the next turn
+    /// as an observation.
+    @MainActor
+    func testTheThinkModelLooksUpAndAnswers() async throws {
+        let place = try await makeRepository()
+        let environment = StubAnswerEnvironment()
+        environment.placeList = [place]
+        let engine = RadarThinkEngine(replies: [
+            #"{"call": {"tool": "search_code", "arguments": {"repository": "Widget", "query": "hiddenFromSharing"}}}"#,
+            #"Found it. {"call": {"tool": "answer", "arguments": {"text": "Yes, it is hidden.", "#
+                + #""sources": [{"id": "R1", "quote": "let hiddenFromSharing = true"}]}}}"#,
+        ])
+        let outcome = try await LiveAnswerSession.run(
+            question: "Is the panel hidden when sharing?", quote: "", meeting: .init(title: "Sync", date: Date(), recentLines: []),
+            environment: environment, model: "Think",
+            call: { messages, tools, _ in
+                try await ThinkChat.toolCall(from: engine, messages: messages, tools: tools,
+                                             options: MeetingRadar.answerOptions)
+            },
+            progress: { _ in })
+        XCTAssertEqual(outcome.answer?.text, "Yes, it is hidden.")
+        XCTAssertEqual(outcome.answer?.sources.first?.title, "Panel.swift:2")
+        XCTAssertEqual(outcome.turns, 2)
+
+        XCTAssertEqual(engine.requests.count, 2)
+        // First turn: the tools and the task, nothing looked up yet.
+        XCTAssertTrue(engine.requests[0].system.hasPrefix(LiveAnswerSession.system))
+        XCTAssertTrue(engine.requests[0].system.contains("search_code: "))
+        XCTAssertEqual(engine.requests[0].prompt, ThinkChat.nextCall)
+        XCTAssertEqual(engine.requests[0].context.count, 1)
+        XCTAssertTrue(engine.requests[0].context[0].contains("QUESTION: Is the panel hidden when sharing?"))
+        XCTAssertEqual(engine.requests[0].options, MeetingRadar.answerOptions)
+        // Second turn: the call it made, then what came back.
+        XCTAssertEqual(engine.requests[1].context.count, 3)
+        XCTAssertTrue(engine.requests[1].context[1].hasPrefix(#"Assistant: {"call":"#), engine.requests[1].context[1])
+        XCTAssertTrue(engine.requests[1].context[2].hasPrefix("Observation: [R1]"), engine.requests[1].context[2])
+        XCTAssertTrue(engine.requests[1].context[2].contains("Panel.swift:2"))
     }
 
     @MainActor

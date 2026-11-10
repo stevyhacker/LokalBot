@@ -2,6 +2,33 @@ import XCTest
 @testable import LokalBot
 
 final class DayDigestEvidenceTests: XCTestCase {
+    /// Digest times were written with a new `DateFormatter` each; the
+    /// calendar's own hour and minute must read the same everywhere.
+    func testClockStampMatchesAPOSIXFormatterAcrossCalendarsAndTimeZones() throws {
+        let zones = ["UTC", "Europe/Podgorica", "America/St_Johns", "Asia/Kathmandu", "Pacific/Chatham"]
+        let calendars: [Calendar.Identifier] = [.gregorian, .buddhist, .japanese, .persian, .hebrew, .islamicUmmAlQura]
+        // Every 37 minutes across the 2026 spring clock change, and one day in each season.
+        let starts = [1_774_656_000.0, 1_782_000_000, 1_792_800_000, 1_767_225_600]
+        for zone in zones {
+            for identifier in calendars {
+                var calendar = Calendar(identifier: identifier)
+                calendar.timeZone = try XCTUnwrap(TimeZone(identifier: zone))
+                let formatter = DateFormatter()
+                formatter.calendar = calendar
+                formatter.timeZone = calendar.timeZone
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.dateFormat = "HH:mm"
+                for start in starts {
+                    for step in 0..<120 {
+                        let date = Date(timeIntervalSince1970: start + Double(step) * 37 * 60)
+                        XCTAssertEqual(calendar.clockStamp(date), formatter.string(from: date),
+                                       "\(zone) \(identifier) \(date.timeIntervalSince1970)")
+                    }
+                }
+            }
+        }
+    }
+
     private actor GenerationRecorder {
         struct Call: Equatable, Sendable {
             var isFocus: Bool

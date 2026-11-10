@@ -1,0 +1,138 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      font-family: Inter, sans-serif;
+    }
+    #ac-title {
+      position: absolute;
+      left: 96px;
+      top: 58px;
+      font-size: 92px;
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
+      color: #f2f7f5;
+      white-space: nowrap;
+    }
+    #ac-vp {
+      position: absolute;
+      left: 48px;
+      top: 200px;
+      width: 1824px;
+      height: 920px;
+      border-radius: 32px 32px 0 0;
+      overflow: hidden;
+    }
+    #ac-stage {
+      position: absolute;
+      inset: 0;
+    }
+    #ac-win {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+      border-radius: 34px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+    }
+    #ac-video {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1920px;
+      height: 1200px;
+    }
+    #ac-mark {
+      position: absolute;
+      left: 508px;
+      top: 252px;
+      width: 729px;
+      height: 80px;
+      border-radius: 8px;
+      background: #fbbf24;
+      mix-blend-mode: multiply;
+    }
+    /* The key that accepts a suggestion, pressed in time with the Tabs in the take. */
+    #ac-key {
+      position: absolute;
+      left: 1396px;
+      top: 590px;
+      width: 220px;
+      height: 132px;
+    }
+    #ac-key-cap {
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      background: #f4f6f7;
+      border: 2px solid #c9d0d6;
+      box-shadow: 0 10px 0 #b9c1c8, 0 22px 40px rgba(14, 21, 29, 0.22);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 0 24px 20px;
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #0e141c;
+    }
+    #ac-key-cap svg {
+      width: 54px;
+      height: 40px;
+      margin-bottom: 4px;
+    }
+  </style>
+  <div id="root" data-composition-id="autocomplete" data-width="1920" data-height="1080">
+    <div id="ac-vp" data-layout-allow-overflow>
+      <div id="ac-stage">
+        <div id="ac-win">
+          <video id="ac-video" class="clip" data-start="0.05" data-duration="6" data-track-index="0"
+            src="assets/footage/autocomplete.mp4" muted playsinline></video>
+          <div id="ac-mark"></div>
+        </div>
+        <div id="ac-key">
+          <div id="ac-key-cap">
+            <span>tab</span>
+            <svg viewBox="0 0 54 40" fill="none" stroke="#0e141c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 20h34M26 8l12 12-12 12M49 6v28" />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h1 id="ac-title" class="clip" data-start="0.3" data-duration="5.4" data-track-index="1">
+      <span id="ac-title-line">It finishes your sentence</span>
+    </h1>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Swiped in from the right as the search leaves to the left: another app, mid-sentence.
+    tl.fromTo("#ac-stage", { x: 1900, y: 0 }, { x: 0, y: 0, duration: 0.5, ease: "power2.inOut" }, 0);
+    gsap.set("#ac-win", { x: 120, y: 90, scale: 1.1, transformOrigin: "0 0" });
+    tl.fromTo("#ac-title-line", { opacity: 0, filter: "blur(8px)" },
+      { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power2.out" }, 0.4);
+
+    // The suggestion shows at 1.41 s. The key arrives, then goes down with each Tab.
+    tl.fromTo("#ac-key", { opacity: 0, scale: 0.8, transformOrigin: "50% 50%" },
+      { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.6)" }, 1.75);
+    [2.508, 2.82, 3.14, 3.45, 3.77, 4.08, 4.4].forEach((at) => {
+      tl.fromTo("#ac-key-cap", { y: 0, boxShadow: "0 10px 0 #b9c1c8, 0 22px 40px rgba(14, 21, 29, 0.22)" },
+        { y: 8, boxShadow: "0 2px 0 #b9c1c8, 0 8px 16px rgba(14, 21, 29, 0.2)", duration: 0.06, ease: "power2.in",
+          yoyo: true, repeat: 1, repeatDelay: 0.05, immediateRender: false }, at - 0.02);
+    });
+    tl.to("#ac-key", { opacity: 0, scale: 0.9, duration: 0.2, ease: "power2.in" }, 4.56);
+
+    // The sentence is whole. The highlighter marks what the app remembered.
+    tl.fromTo("#ac-mark", { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.38, ease: "power3.out" }, 4.6);
+    tl.fromTo("#ac-title-line", { opacity: 1, filter: "blur(0px)" },
+      { opacity: 0, filter: "blur(8px)", duration: 0.15, ease: "power2.in", immediateRender: false }, 5.45);
+    // 5.55 s: the finished page leaves upward as an empty one comes up for dictation.
+    tl.fromTo("#ac-stage", { y: 0 }, { y: -1000, duration: 0.5, ease: "power2.inOut", immediateRender: false }, 5.55);
+    window.__timelines["autocomplete"] = tl;
+  </script>
+</template>

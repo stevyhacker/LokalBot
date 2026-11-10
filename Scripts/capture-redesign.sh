@@ -25,6 +25,8 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$OUT"
+# XcodeGen needs these paths before the first build fetches the runtimes.
+mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 Scripts/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 xcodebuild -project LokalBot.xcodeproj -scheme "$SCHEME" \

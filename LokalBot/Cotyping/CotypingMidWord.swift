@@ -10,10 +10,10 @@ import Foundation
 /// When the caret sits strictly inside a word (a word character on BOTH sides),
 /// the suggestion must continue that word, not start a new one. Cotabby enforces
 /// this in-process by masking the first sampled token so it carries no leading
-/// whitespace. LokalBot talks to an HTTP `llama-server`, so it can't mask a
-/// token mid-generation; instead `CotypingTextNormalizer` reproduces the same
-/// outcome at the output layer using these pure helpers: never re-type the
-/// current partial word, and (strictly inside) never begin with whitespace or an
+/// whitespace. LokalBot's HTTP route can't mask a token mid-generation, so
+/// `CotypingTextNormalizer` reproduces the same outcome at the output layer
+/// for both routes using these pure helpers: never re-type the current
+/// partial word, and (strictly inside) never begin with whitespace or an
 /// incompatible word tail.
 enum CotypingMidWord {
     /// True only when the caret is strictly inside a word — a letter/digit

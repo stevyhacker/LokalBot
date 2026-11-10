@@ -8,21 +8,18 @@ use gpui_kit::{App, AssetSource, Result, SharedString};
 // using `Icon::new(LbIcon::…)` with it; unknown names render as nothing.
 gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     Activity, AppWindow, ArrowDownLeft, ArrowRightLeft, ArrowUpDown, ArrowUpRight, AudioLines,
-    AudioWaveform, BadgeCheck, Bookmark, BookmarkCheck, Brain, Briefcase, CalendarClock,
-    CalendarRange, Camera, ChartGantt, Circle, CircleArrowDown, CircleArrowUp, CircleCheckBig,
-    CircleDot, CircleEllipsis, CircleMinus, CirclePause, CirclePlay, CircleQuestionMark,
-    CircleStop, Clock, Contrast, CornerDownLeft, CornerDownRight, Crosshair, Disc, Expand,
-    FileSearch, Hourglass, ImageOff, Key, Keyboard, Layers, LayoutGrid, Link, ListChecks, Lock,
-    LockKeyhole, MessageSquareQuote, MessageSquareText, MessagesSquare, MicOff, Monitor,
-    MoonStar, Package, Pencil, Pin, Quote, Radio, RotateCcw, ScanText, SearchCheck, Share,
-    Share2, ShieldCheck, SlidersHorizontal, Sparkle, Sparkles, SquareArrowOutUpRight, SquarePen,
-    SquareStop, Terminal, TextCursorInput, TextQuote, TextSearch, Trash, UserRoundCheck, Users,
-    Video, Volume2, WandSparkles, X, ZoomIn, ZoomOut,
+    BadgeCheck, Bookmark, BookmarkCheck, Brain, Briefcase, Camera, ChartGantt, Circle,
+    CircleArrowDown, CircleArrowUp, CircleCheckBig, CircleDot, CircleEllipsis, CircleQuestionMark,
+    CircleStop, Clock, Contrast, CornerDownLeft, CornerDownRight, Crosshair, Expand, FileSearch,
+    Hourglass, ImageOff, Keyboard, Layers, LayoutGrid, Link, ListChecks, Lock, MessageSquareQuote,
+    MessageSquareText, MessagesSquare, Monitor, Package, Pencil, Quote, RotateCcw, ScanText, Share,
+    ShieldCheck, SlidersHorizontal, Sparkle, Sparkles, SquareArrowOutUpRight, SquarePen, Terminal,
+    TextCursorInput, TextQuote, TextSearch, Trash, UserRoundCheck, Users, Video, Volume2,
+    WandSparkles, X, ZoomIn, ZoomOut,
     // Agent Mode
-    Archive, ArchiveRestore, CirclePlus, Download, GitBranch, Hand, ListPlus, LockOpen, Paperclip,
-    PinOff,
+    Archive, CirclePlus, Download, Hand, ListPlus, LockOpen,
     // Meeting import, merge and boundaries
-    Group, Import, Scissors, Undo2,
+    Group, Import,
     // Phones and tablets
     Smartphone, Tablet,
     // Selection actions

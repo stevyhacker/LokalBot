@@ -28,6 +28,8 @@ pub(crate) fn confirm_delete(
     window: &mut Window,
     cx: &mut App,
 ) {
+    let recording = data.read(cx).recording.meeting().map(|meeting| meeting.id);
+    let ids = super::model::deletable(ids, recording);
     if ids.is_empty() {
         return;
     }

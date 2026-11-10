@@ -73,7 +73,9 @@ enum DreamCompiler {
         let start = calendar.startOfDay(for: day)
         let end = calendar.date(byAdding: .day, value: 1, to: start)
             ?? start.addingTimeInterval(86_400)
-        let all = try SessionLookup.loadAllMeetings(root: storageRoot)
+        // The sample meeting is made up: it is no prior meeting, and its
+        // actions are nobody's to follow up.
+        let all = try SessionLookup.loadAllMeetings(root: storageRoot).filter { !$0.isSample }
         let snapshot = try FileDailyEvidenceSource(
             root: storageRoot,
             calendar: calendar).snapshot(

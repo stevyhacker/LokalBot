@@ -46,10 +46,6 @@ class AppPreferences(private val context: Context) {
         context.settings.edit { it[DEVICE_NAME] = name }
     }
 
-    suspend fun clear() {
-        context.settings.edit { it.clear() }
-    }
-
     private companion object {
         val MODE = stringPreferencesKey("libraryMode")
         val APP_LOCK = booleanPreferencesKey("appLock")

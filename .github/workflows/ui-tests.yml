@@ -71,8 +71,9 @@ on:
 
 concurrency:
   # A called run uses the caller's workflow name, so it never cancels the
-  # required macOS 15 run of the same ref.
-  group: ui-tests-${{ github.workflow }}-${{ github.ref }}
+  # required macOS 15 run of the same ref. The event keeps the weekly run and
+  # a release candidate's dispatch, both on master, from cancelling each other.
+  group: ui-tests-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -116,7 +117,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Bind manual dispatch to the requested candidate
-        if: github.event_name == 'workflow_dispatch'
+        # In a called workflow github.event_name/github.workflow are the
+        # caller's, and a dispatch of ui-tests-macos26.yml has no candidate_sha.
+        if: github.event_name == 'workflow_dispatch' && github.workflow == 'UI Tests'
         env:
           REQUESTED_SHA: ${{ inputs.candidate_sha }}
         run: |

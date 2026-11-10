@@ -133,9 +133,7 @@ fn download_from(
     let manifest = with_suffix(&spec.dest, ".part.json");
 
     // Credit bytes an interrupted attempt already holds.
-    let stashed = fs::metadata(&part)
-        .map(|m| m.len().min(spec.size))
-        .unwrap_or(0);
+    let stashed = stashed_bytes(&part, spec.size);
     if let Some(available) = free_space(dir) {
         let needed = spec.size.saturating_sub(stashed);
         if available < needed {
@@ -205,6 +203,25 @@ fn download_from(
     let _ = fs::remove_file(&manifest);
     progress(spec.size, spec.size);
     Ok(())
+}
+
+/// The disk space an interrupted attempt's `.part` file already takes up. A
+/// ranged download gives the file its full length before any byte arrives
+/// (`set_len`), which most Unix filesystems store as a hole, so there only the
+/// allocated blocks count.
+fn stashed_bytes(part: &Path, size: u64) -> u64 {
+    let Ok(metadata) = fs::metadata(part) else {
+        return 0;
+    };
+    #[cfg(unix)]
+    let on_disk = {
+        use std::os::unix::fs::MetadataExt as _;
+        // `st_blocks` counts 512-byte units whatever the filesystem's block size.
+        metadata.blocks().saturating_mul(512)
+    };
+    #[cfg(not(unix))]
+    let on_disk = metadata.len();
+    on_disk.min(metadata.len()).min(size)
 }
 
 /// Why a source may not be downloaded, or `None` (`ModelDownloadManager.sourceRefusal`).
@@ -1046,6 +1063,35 @@ mod tests {
         );
         assert_eq!(source_refusal(&pinned, &sha, false), None);
         assert!(source_refusal(&pinned, "abc", false).is_some());
+    }
+
+    /// Retrying a ranged download skipped the free-space check: the `.part`
+    /// file already had its full length, with almost nothing in it.
+    #[test]
+    #[cfg(unix)]
+    fn a_part_file_sized_up_front_is_credited_only_for_what_it_holds() {
+        let dir = tempfile::tempdir().unwrap();
+        let part = dir.path().join("model.gguf.part");
+        let size = 64 * 1024 * 1024;
+        assert_eq!(stashed_bytes(&part, size), 0);
+        fs::File::create(&part).unwrap().set_len(size).unwrap();
+        assert!(stashed_bytes(&part, size) < 1024 * 1024);
+
+        // A streamed partial holds every byte of its length.
+        let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+        let noise: Vec<u8> = (0..256 * 1024)
+            .map(|_| {
+                state = state
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(1_442_695_040_888_963_407);
+                (state >> 33) as u8
+            })
+            .collect();
+        let mut file = fs::File::create(&part).unwrap();
+        file.write_all(&noise).unwrap();
+        file.sync_all().unwrap();
+        assert_eq!(stashed_bytes(&part, size), noise.len() as u64);
+        assert_eq!(stashed_bytes(&part, 1000), 1000);
     }
 
     #[test]
