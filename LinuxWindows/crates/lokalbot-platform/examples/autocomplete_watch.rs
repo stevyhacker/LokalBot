@@ -1,6 +1,8 @@
 //! Prints what autocomplete's field watcher reads, and with `--tab <text>`
 //! takes Tab while running and types `<text>` into the focused field, as
-//! accepting a suggestion does. For checking the desktop integration by hand:
+//! accepting a suggestion does. `--backward <n>` first deletes that many
+//! characters before the caret, as a correction does. For checking the
+//! desktop integration by hand:
 //!
 //! ```text
 //! cargo run -p lokalbot-platform --example autocomplete_watch -- --seconds 20 --tab " up"
@@ -30,6 +32,9 @@ fn main() -> anyhow::Result<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(15);
     let tab_text = value("--tab");
+    let backward: usize = value("--backward")
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(0);
     if let Some(ghost) = value("--ghost") {
         return run_ghost(seconds, ghost, args.iter().any(|a| a == "--pass-tab"));
     }
@@ -88,6 +93,7 @@ fn main() -> anyhow::Result<()> {
                 std::thread::spawn(move || {
                     let edit = Edit {
                         text,
+                        backward,
                         ..Default::default()
                     };
                     match insert(&field, &edit) {

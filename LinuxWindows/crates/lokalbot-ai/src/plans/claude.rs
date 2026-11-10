@@ -9,7 +9,8 @@
 //! session persistence, so the prompt is never written to
 //! `~/.claude/projects`, which LokalBot itself reads as coding-agent
 //! evidence. Content goes over stdin and a private file, never the command
-//! line. `--bare` is never used: it ignores the subscription sign-in.
+//! line, and so does a request's JSON schema, which can hold meeting text.
+//! `--bare` is never used: it ignores the subscription sign-in.
 
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -334,21 +335,37 @@ fn effort(model: &str, level: ReasoningLevel, task_budget: Option<u32>) -> Optio
     support.clamp(ceiling_for_budget(budget))
 }
 
-/// The isolation flags, copied from the Mac. Claude Code accepts LokalBot's
-/// schemas unchanged (`maxItems`, `minimum` included).
+/// The isolation flags, copied from the Mac. Nothing the caller supplies is
+/// among them: a command line can be read by every process of the same user,
+/// and a schema can hold meeting text (the notes repair lists the meeting's
+/// action items as allowed values). A structured request reads its schema
+/// from stdin instead, in Claude Code's stream-json input ([`input`]).
 pub fn arguments(
     model: &str,
     level: ReasoningLevel,
     request: &ChatRequest,
     streaming: bool,
 ) -> Vec<String> {
-    let mut arguments: Vec<String> = vec![
-        "-p".into(),
+    let structured = request.json_schema.is_some();
+    let mut arguments: Vec<String> = vec!["-p".into()];
+    if structured {
+        arguments.extend(["--input-format".into(), "stream-json".into()]);
+    }
+    arguments.extend([
         "--output-format".into(),
-        if streaming { "stream-json" } else { "json" }.into(),
-    ];
+        if streaming || structured {
+            "stream-json"
+        } else {
+            "json"
+        }
+        .into(),
+    ]);
+    // Claude Code refuses stream-json output without --verbose.
+    if streaming || structured {
+        arguments.push("--verbose".into());
+    }
     if streaming {
-        arguments.extend(["--verbose".into(), "--include-partial-messages".into()]);
+        arguments.push("--include-partial-messages".into());
     }
     arguments.extend(
         [
@@ -377,23 +394,39 @@ pub fn arguments(
             crate::think::effort_value(effort).to_string(),
         ]);
     }
-    if let Some(schema) = &request.json_schema {
-        let schema = model_json::sort_keys(schema.clone());
-        arguments.extend(["--json-schema".into(), schema.to_string()]);
-    }
     arguments
 }
 
-/// Context blocks, then the instruction, over stdin.
+/// Stdin: context blocks, then the instruction. A structured request sends
+/// one JSON object per line: the `initialize` request Claude Code's own SDK
+/// sends, carrying the schema unchanged (`maxItems`, `minimum` included),
+/// then the same text as a user message (`structuredInput`, checked on the
+/// Mac against Claude Code 2.1.318).
 pub fn input(request: &ChatRequest) -> String {
-    request
+    let text = request
         .context
         .iter()
         .chain(std::iter::once(&request.user))
         .filter(|text| !text.trim().is_empty())
         .cloned()
         .collect::<Vec<_>>()
-        .join("\n\n")
+        .join("\n\n");
+    let Some(schema) = &request.json_schema else {
+        return text;
+    };
+    let initialize = serde_json::json!({
+        "type": "control_request",
+        "request_id": "lokalbot-schema",
+        "request": {
+            "subtype": "initialize",
+            "jsonSchema": model_json::sort_keys(schema.clone()),
+        },
+    });
+    let message = serde_json::json!({
+        "type": "user",
+        "message": {"role": "user", "content": [{"type": "text", "text": text}]},
+    });
+    format!("{initialize}\n{message}\n")
 }
 
 /// The final `result` object of `--output-format json` or `stream-json`.
@@ -762,10 +795,13 @@ impl Engine {
                 usage: None,
             });
         }
-        reply(&output, streaming, request.json_schema.is_some())
+        let structured = request.json_schema.is_some();
+        reply(&output, streaming || structured, structured)
     }
 }
 
+/// `streaming` says the output is stream-json: one object per line, the
+/// result last.
 pub(crate) fn reply(
     output: &Output,
     streaming: bool,

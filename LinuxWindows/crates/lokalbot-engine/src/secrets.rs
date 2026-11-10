@@ -218,39 +218,134 @@ pub fn companion_static_key() -> Result<[u8; KEY_BYTES]> {
 
 const CALENDAR_LINKS: &str = "calendar-links";
 
+/// The credential store's item for the calendar links.
+struct CalendarItems;
+
+impl lokalbot_ai::plans::chatgpt::Store for CalendarItems {
+    fn get(&self, account: &str) -> Result<Option<String>> {
+        match entry(account)?.get_password() {
+            Ok(value) => Ok(Some(value)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(err) => Err(err).context("reading the calendar links"),
+        }
+    }
+
+    fn set(&self, account: &str, value: Option<&str>) -> Result<()> {
+        let entry = entry(account)?;
+        match value {
+            Some(value) => entry
+                .set_password(value)
+                .context("saving the calendar links"),
+            None => match entry.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(err) => Err(err).context("removing the calendar links"),
+            },
+        }
+    }
+}
+
 /// Private calendar links (iCal feeds and CalDAV collections), one per line.
 /// They grant read access to the user's calendar, so like API keys they live
 /// only in the credential store.
+///
+/// Several links are longer together than Credential Manager keeps in one
+/// item (1,280 characters), so they are split across items like the ChatGPT
+/// sign-in. A short list stays one item, as it always was.
 pub fn calendar_links() -> Result<Vec<String>> {
-    match entry(CALENDAR_LINKS)?.get_password() {
-        Ok(stored) => Ok(stored
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-            .map(str::to_string)
-            .collect()),
-        Err(keyring::Error::NoEntry) => Ok(Vec::new()),
-        Err(err) => Err(err).context("reading the calendar links"),
-    }
+    read_calendar_links(&lokalbot_ai::plans::chatgpt::Chunked::new(CalendarItems))
 }
 
 /// Saves the links, or removes the entry when there are none.
 pub fn save_calendar_links(links: &[String]) -> Result<()> {
-    let entry = entry(CALENDAR_LINKS)?;
+    write_calendar_links(
+        &lokalbot_ai::plans::chatgpt::Chunked::new(CalendarItems),
+        links,
+    )
+}
+
+fn read_calendar_links(store: &impl lokalbot_ai::plans::chatgpt::Store) -> Result<Vec<String>> {
+    Ok(store
+        .get(CALENDAR_LINKS)?
+        .unwrap_or_default()
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
+fn write_calendar_links(
+    store: &impl lokalbot_ai::plans::chatgpt::Store,
+    links: &[String],
+) -> Result<()> {
     let joined = links
         .iter()
         .map(|link| link.trim())
         .filter(|link| !link.is_empty())
         .collect::<Vec<_>>()
         .join("\n");
-    if joined.is_empty() {
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(err) => Err(err).context("removing the calendar links"),
+    store.set(
+        CALENDAR_LINKS,
+        (!joined.is_empty()).then_some(joined.as_str()),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use lokalbot_ai::plans::chatgpt::{Chunked, MemoryStore, Store};
+
+    use super::*;
+
+    /// A store with Credential Manager's limit on one item.
+    #[derive(Default)]
+    struct SmallItems(MemoryStore);
+
+    impl Store for SmallItems {
+        fn get(&self, account: &str) -> Result<Option<String>> {
+            self.0.get(account)
         }
-    } else {
-        entry
-            .set_password(&joined)
-            .context("saving the calendar links")
+
+        fn set(&self, account: &str, value: Option<&str>) -> Result<()> {
+            anyhow::ensure!(
+                value.is_none_or(|value| value.encode_utf16().count() <= 1_280),
+                "TooLong"
+            );
+            self.0.set(account, value)
+        }
+    }
+
+    #[test]
+    fn many_calendar_links_fit_a_store_with_small_items() {
+        let store = Chunked::new(SmallItems::default());
+        let links: Vec<String> = (0..12)
+            .map(|n| {
+                format!(
+                    "https://calendar.example.com/ical/{n}/{}/basic.ics",
+                    "k".repeat(150)
+                )
+            })
+            .collect();
+        write_calendar_links(&store, &links).unwrap();
+        assert_eq!(read_calendar_links(&store).unwrap(), links);
+        // Fewer links leave no part of the longer list behind.
+        write_calendar_links(&store, &links[..1]).unwrap();
+        assert_eq!(read_calendar_links(&store).unwrap(), links[..1]);
+        write_calendar_links(&store, &[]).unwrap();
+        assert!(read_calendar_links(&store).unwrap().is_empty());
+    }
+
+    #[test]
+    fn links_saved_as_one_item_are_still_read() {
+        let items = SmallItems::default();
+        items
+            .set(
+                CALENDAR_LINKS,
+                Some("https://a.example/x.ics\nhttps://b.example/y.ics"),
+            )
+            .unwrap();
+        assert_eq!(
+            read_calendar_links(&Chunked::new(items)).unwrap(),
+            ["https://a.example/x.ics", "https://b.example/y.ics"]
+        );
     }
 }

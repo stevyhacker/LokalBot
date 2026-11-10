@@ -252,17 +252,17 @@ impl SettingsPage {
             _ => lokalbot_i18n::tr("OpenAI-compatible server"),
         };
         let where_text = match (&audio_host, settings.think_is_local()) {
-            (None, true) => lokalbot_i18n::tr("Audio, transcripts, and captured context stay on this PC. Network access is limited to model downloads and optional Agent Mode setup.").to_string(),
+            (None, true) => lokalbot_i18n::tr("Audio, transcripts, and captured context stay on this PC. Network access is limited to model downloads, updates, and optional Agent Mode setup.").to_string(),
             (None, false) => lokalbot_i18n::format(
-                "Audio stays on this PC. Transcripts and approved context may be sent to your remote Think model ({backend}). Other network access is for model downloads and optional Agent Mode setup.",
+                "Audio stays on this PC. Transcripts and approved context may be sent to your remote Think model ({backend}). Other network access is for model downloads, updates, and optional Agent Mode setup.",
                 &[("backend", backend.to_string())],
             ),
             (Some(host), true) => lokalbot_i18n::format(
-                "Audio and your vocabulary go to your transcription server ({host}). Transcripts and captured context stay on this PC. Other network access is for model downloads and optional Agent Mode setup.",
+                "Audio and your vocabulary go to your transcription server ({host}). Transcripts and captured context stay on this PC. Other network access is for model downloads, updates, and optional Agent Mode setup.",
                 &[("host", host.clone())],
             ),
             (Some(host), false) => lokalbot_i18n::format(
-                "Audio and your vocabulary go to your transcription server ({host}). Transcripts and approved context may be sent to your remote Think model ({backend}). Other network access is for model downloads and optional Agent Mode setup.",
+                "Audio and your vocabulary go to your transcription server ({host}). Transcripts and approved context may be sent to your remote Think model ({backend}). Other network access is for model downloads, updates, and optional Agent Mode setup.",
                 &[("host", host.clone()), ("backend", backend.to_string())],
             ),
         };

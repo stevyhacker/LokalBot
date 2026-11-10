@@ -258,15 +258,24 @@ impl SettingsPage {
                 if raw.is_empty() {
                     return;
                 }
-                let Ok(link) = lokalbot_platform::calendar::normalize_link(&raw) else {
-                    page.update(cx, |page, cx| {
-                        page.calendar.error = Some(
-                            lokalbot_i18n::tr("Calendar links start with https:// or webcal://.")
-                                .into(),
-                        );
-                        cx.notify();
-                    });
-                    return;
+                let link = match lokalbot_platform::calendar::normalize_link(&raw) {
+                    Ok(link) => link,
+                    Err(refused) => {
+                        use lokalbot_platform::calendar::LinkRefused;
+                        let why = lokalbot_i18n::tr(match refused {
+                            LinkRefused::NotACalendarLink => {
+                                "Calendar links start with https:// or webcal://."
+                            }
+                            LinkRefused::NotEncrypted => {
+                                "That link is not encrypted, so the link and any password in it could be read on the network. Use its https:// or webcal:// address."
+                            }
+                        });
+                        page.update(cx, |page, cx| {
+                            page.calendar.error = Some(why.into());
+                            cx.notify();
+                        });
+                        return;
+                    }
                 };
                 let mut links = Vec::new();
                 page.update(cx, |page, cx| {

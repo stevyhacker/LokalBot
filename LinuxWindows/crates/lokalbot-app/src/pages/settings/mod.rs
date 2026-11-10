@@ -211,6 +211,9 @@ pub struct SettingsPage {
     retention_completion: Option<String>,
     /// The library's size and the free space on its drive, for Memory health.
     storage: Option<(u64, Option<u64>)>,
+    /// Read with the storage sizes, for Memory health.
+    latest_activity: Option<chrono::DateTime<chrono::Utc>>,
+    pending_jobs: usize,
     storage_measured_at: Option<std::time::Instant>,
     last_settings: Settings,
     _subscriptions: Vec<Subscription>,
@@ -637,6 +640,8 @@ impl SettingsPage {
             retention_error: None,
             retention_completion: None,
             storage: None,
+            latest_activity: None,
+            pending_jobs: 0,
             storage_measured_at: None,
             last_settings: settings,
             _subscriptions: subscriptions,

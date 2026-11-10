@@ -395,6 +395,9 @@ fn mcp_round_trip() {
         r#"{"jsonrpc":"2.0","id":6,"method":"ping"}"#,
         r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"list_meetings","arguments":{"include":"summary","limit":2}}}"#,
         r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"list_meetings","arguments":{"include":"transcript"}}}"#,
+        r#"{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"list_meetings","arguments":{"until":"1999-12-31"}}}"#,
+        r#"{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"list_meetings","arguments":{"until":"2999-12-31","limit":1}}}"#,
+        r#"{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"list_meetings","arguments":{"until":"last week"}}}"#,
     ];
     {
         let stdin = child.stdin.as_mut().unwrap();
@@ -407,7 +410,11 @@ fn mcp_round_trip() {
         .lines()
         .map(|l| serde_json::from_str(l).unwrap())
         .collect();
-    assert_eq!(lines.len(), 8, "notifications and blank lines get no reply");
+    assert_eq!(
+        lines.len(),
+        11,
+        "notifications and blank lines get no reply"
+    );
     assert_eq!(lines[0]["result"]["protocolVersion"], "2025-06-18");
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "lokalbot");
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
@@ -440,6 +447,18 @@ fn mcp_round_trip() {
     assert_eq!(
         lines[7]["result"]["content"][0]["text"],
         "[invalid_arguments] list_meetings doesn't include transcripts. Read one meeting's with get_meeting."
+    );
+    // `until` keeps meetings on or before that local day.
+    let text = |line: &serde_json::Value| line["result"]["content"][0]["text"].clone();
+    let before_any: serde_json::Value =
+        serde_json::from_str(text(&lines[8]).as_str().unwrap()).unwrap();
+    assert_eq!(before_any, serde_json::json!([]));
+    let before_then: serde_json::Value =
+        serde_json::from_str(text(&lines[9]).as_str().unwrap()).unwrap();
+    assert_eq!(before_then.as_array().unwrap().len(), 1);
+    assert_eq!(
+        text(&lines[10]),
+        "[invalid_arguments] \"until\" must be a real local calendar day formatted YYYY-MM-DD, got \"last week\"."
     );
     assert!(String::from_utf8_lossy(&output.stderr).contains("lokalbot-cli mcp: serving on stdio"));
 }

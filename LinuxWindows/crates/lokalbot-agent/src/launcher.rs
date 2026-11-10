@@ -187,7 +187,7 @@ impl PiLauncher {
                 if !lokalbot_ai::catalog::is_downloaded(runtime.paths(), entry) {
                     return Err(not_downloaded());
                 }
-                let lease = runtime.main_server(entry).map_err(|err| {
+                let lease = runtime.main_server_for_task(entry).map_err(|err| {
                     LaunchError::Other(format!("Couldn't start {}: {err:#}", entry.display_name))
                 })?;
                 let endpoint = LlmEndpoint {

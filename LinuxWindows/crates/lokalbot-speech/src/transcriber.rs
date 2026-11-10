@@ -15,7 +15,7 @@ use lokalbot_core::voice::{
 use lokalbot_core::{
     AttributionMethod, AttributionSource, LibraryPaths, Segment, TimingPrecision, Transcript,
 };
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 
 use crate::asr::{Asr, Decoded, max_span_seconds};
 use crate::attribution::{
@@ -211,6 +211,10 @@ pub struct Transcriber {
     diarizer: Mutex<Option<Arc<Diarizer>>>,
     voices: Mutex<Option<Arc<VoiceExtractor>>>,
     cancelled: AtomicBool,
+    /// Held for one span on the local recognizer. A dictation and a meeting
+    /// pass can then share this transcriber: each waits for the other's
+    /// current span, never for its whole recording.
+    decoding: Mutex<()>,
 }
 
 impl Transcriber {
@@ -274,6 +278,7 @@ impl Transcriber {
             diarizer: Mutex::new(None),
             voices: Mutex::new(None),
             cancelled: AtomicBool::new(false),
+            decoding: Mutex::new(()),
         }
     }
 
@@ -317,7 +322,13 @@ impl Transcriber {
         word_timings: bool,
     ) -> Result<Decoded> {
         match &self.recognizer {
-            Recognizer::Local { asr, .. } => asr.decode(samples, language, &vocabulary.hotwords),
+            Recognizer::Local { asr, .. } => {
+                let turn = self.decoding.lock();
+                let decoded = asr.decode(samples, language, &vocabulary.hotwords);
+                // To whoever waited through this span, before this caller's next one.
+                MutexGuard::unlock_fair(turn);
+                decoded
+            }
             Recognizer::Server { server, .. } => {
                 if samples.len() < SERVER_MINIMUM_SAMPLES {
                     return Ok(Decoded::default());

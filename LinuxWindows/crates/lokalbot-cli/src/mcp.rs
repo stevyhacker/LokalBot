@@ -103,6 +103,7 @@ pub fn tools() -> Vec<Value> {
                 "limit": {"type": "integer", "description": format!("Maximum meetings to return (default 20; with summaries default {}, at most {}).", session::DEFAULT_SUMMARY_LIST_COUNT, session::MAXIMUM_SUMMARY_LIST_COUNT)},
                 "include": {"type": "string", "description": format!("\"summary\" adds each meeting's summary. The summaries share {} characters; a cut one has summary_truncated, and get_meeting reads it whole.", session::LIST_SUMMARY_BUDGET)},
                 "since": {"type": "string", "description": "Only meetings on or after this local calendar day (YYYY-MM-DD)."},
+                "until": {"type": "string", "description": "Only meetings on or before this local calendar day (YYYY-MM-DD)."},
                 "query": {"type": "string", "description": "Case-insensitive title substring filter."},
             }}),
         ),
@@ -435,6 +436,21 @@ impl Provider {
             };
             let start = day_bounds(day).0;
             meetings.retain(|m| m.started_at >= start);
+        }
+        // As `list --until`: without it, one earlier week could not be asked
+        // for, and newer meetings used up the limit first.
+        if let Some(raw) = arguments.get("until").filter(|v| !v.is_null()) {
+            let text = raw.as_str().unwrap_or_default();
+            let Some(day) = local_day(text) else {
+                return Err(ToolResult::error(
+                    ToolErrorCode::InvalidArguments,
+                    &format!(
+                        "\"until\" must be a real local calendar day formatted YYYY-MM-DD, got \"{text}\"."
+                    ),
+                ));
+            };
+            let end = day_bounds(day).1;
+            meetings.retain(|m| m.started_at < end);
         }
         let limit = if include_summary {
             bounded(

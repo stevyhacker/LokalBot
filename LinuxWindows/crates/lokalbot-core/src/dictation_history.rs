@@ -15,8 +15,6 @@ use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use aes_gcm::aead::{Aead as _, AeadCore as _, KeyInit as _, OsRng};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
 use anyhow::{Context as _, Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
@@ -28,7 +26,6 @@ pub const LIMIT: usize = 10;
 /// How long a result is kept.
 pub const MAXIMUM_AGE_DAYS: i64 = 7;
 pub const KEY_BYTES: usize = 32;
-const NONCE_BYTES: usize = 12;
 
 /// Where a dictation's text went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -180,25 +177,13 @@ pub fn seal(key: &[u8; KEY_BYTES], entries: &[Entry]) -> Result<Vec<u8>> {
         version: 1,
         entries,
     })?;
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-    let sealed = cipher
-        .encrypt(&nonce, json.as_slice())
-        .map_err(|_| anyhow::anyhow!("could not encrypt the recent dictations"))?;
-    let mut out = Vec::with_capacity(NONCE_BYTES + sealed.len());
-    out.extend_from_slice(&nonce);
-    out.extend_from_slice(&sealed);
-    Ok(out)
+    crate::sealed::seal(key, &json)
+        .map_err(|_| anyhow::anyhow!("could not encrypt the recent dictations"))
 }
 
 /// `None` for another key, a damaged file or one this version can't read.
 pub fn open(key: &[u8; KEY_BYTES], sealed: &[u8]) -> Option<Vec<Entry>> {
-    if sealed.len() < NONCE_BYTES {
-        return None;
-    }
-    let (nonce, body) = sealed.split_at(NONCE_BYTES);
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-    let json = cipher.decrypt(Nonce::from_slice(nonce), body).ok()?;
+    let json = crate::sealed::open(key, sealed)?;
     Some(serde_json::from_slice::<Saved>(&json).ok()?.entries)
 }
 

@@ -139,8 +139,8 @@ static MODELS: [SpeechModel; 10] = [
         languages: PARAKEET_V3_LANGUAGES,
         archive: DownloadInfo {
             url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2",
-            sha256: "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf",
-            size: 487_170_055,
+            sha256: "1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9",
+            size: 487_211_443,
             archive_root: Some("sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"),
         },
         files: &[
@@ -196,8 +196,8 @@ static MODELS: [SpeechModel; 10] = [
         languages: &["en"],
         archive: DownloadInfo {
             url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2",
-            sha256: "157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad",
-            size: 482_468_385,
+            sha256: "6fc4426b54aa549a0019b8a75b8dea59164e71790a37ac56a045ad57f915f714",
+            size: 482_440_461,
             archive_root: Some("sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"),
         },
         files: &[
@@ -410,14 +410,35 @@ struct Marker {
     sha256: String,
 }
 
-/// Whether every file is present and the install marker matches the pinned download.
+/// Archives this app pinned before, whose installs stay in use.
+///
+/// Upstream replaced both Parakeet archives on 2026-11-07 with a new export
+/// of the same weights, under the same names. The ones below are what this
+/// app downloaded, checked against its pin and ran until then. The previous
+/// model files, still in the Hugging Face mirror's history, gave the same
+/// text as the new export on the archives' own clips and on the sample
+/// meetings, so someone who has one installed is not made to download half
+/// a gigabyte again. New downloads get the archive pinned in the catalog.
+fn earlier_archives(model: &SpeechModel) -> &'static [&'static str] {
+    match model.id {
+        "parakeet-v3" => &["5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf"],
+        "parakeet-v2" => &["157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad"],
+        _ => &[],
+    }
+}
+
+/// Whether every file is present and the install marker names the pinned
+/// download, or an earlier one that is still accepted.
 pub fn is_installed(paths: &LibraryPaths, model: &SpeechModel) -> bool {
     let dir = model_dir(paths, model);
     let marker = std::fs::read(dir.join(MARKER))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Marker>(&bytes).ok());
-    marker.is_some_and(|m| m.id == model.id && m.sha256 == model.archive.sha256)
-        && files_present(paths, model)
+    marker.is_some_and(|m| {
+        m.id == model.id
+            && (m.sha256 == model.archive.sha256
+                || earlier_archives(model).contains(&m.sha256.as_str()))
+    }) && files_present(paths, model)
 }
 
 fn files_present(paths: &LibraryPaths, model: &SpeechModel) -> bool {
@@ -537,6 +558,69 @@ mod tests {
         );
         assert_eq!(supporting_ids(false), vec!["silero-vad"]);
         assert_eq!(supporting_ids(true).len(), 3);
+    }
+
+    /// A model folder with its files and a marker naming `sha256`.
+    fn installed_from(paths: &LibraryPaths, model: &SpeechModel, sha256: &str) {
+        for file in model.files {
+            let path = model_file(paths, model, file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, b"onnx").unwrap();
+        }
+        let marker = Marker {
+            id: model.id.to_string(),
+            sha256: sha256.to_string(),
+        };
+        std::fs::write(
+            model_dir(paths, model).join(MARKER),
+            serde_json::to_vec(&marker).unwrap(),
+        )
+        .unwrap();
+    }
+
+    /// Someone who installed Parakeet before upstream replaced its archive
+    /// keeps a working model after updating the app.
+    #[test]
+    fn a_parakeet_installed_from_the_earlier_archive_is_still_installed() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = LibraryPaths::new(root.path());
+        for (id, earlier) in [
+            (
+                "parakeet-v3",
+                "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf",
+            ),
+            (
+                "parakeet-v2",
+                "157c157bc51155e03e37d2466522a3a737dd9c72bb25f36eb18912964161e1ad",
+            ),
+        ] {
+            let model = find(id).unwrap();
+            assert_ne!(
+                model.archive.sha256, earlier,
+                "new downloads use the new pin"
+            );
+            installed_from(&paths, model, earlier);
+            assert!(
+                is_installed(&paths, model),
+                "{id} would be downloaded again"
+            );
+            // Its files still have to be there.
+            std::fs::remove_file(model_file(&paths, model, "tokens.txt")).unwrap();
+            assert!(!is_installed(&paths, model));
+            // Any other archive is not this model.
+            installed_from(&paths, model, &"0".repeat(64));
+            assert!(!is_installed(&paths, model));
+            installed_from(&paths, model, model.archive.sha256);
+            assert!(is_installed(&paths, model));
+        }
+        // No other model accepts an archive it does not pin.
+        let other = find("sense-voice").unwrap();
+        installed_from(
+            &paths,
+            other,
+            "5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf",
+        );
+        assert!(!is_installed(&paths, other));
     }
 
     #[test]

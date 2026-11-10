@@ -26,6 +26,12 @@ pub enum AiError {
     ModelMissing(String),
     #[error("Local LLM server failed to start: {0}")]
     ServerStart(String),
+    /// An open task keeps `held` loaded, so the server can't change models
+    /// (or backends) until that task is closed.
+    #[error(
+        "An open Agent Mode task is keeping {held} loaded, so the built-in model can't be changed. Close that task, then try again."
+    )]
+    ModelHeld { held: String },
     /// Messages contain "cancelled" so callers can recognize them in text.
     #[error("The operation was cancelled.")]
     Cancelled,

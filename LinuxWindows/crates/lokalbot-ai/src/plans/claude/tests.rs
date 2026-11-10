@@ -8,10 +8,14 @@ fn arguments_carry_the_mac_isolation_flags() {
         .reasoning_budget(0)
         .json_schema(json!({"type": "object", "required": ["b", "a"], "properties": {"b": {"type": "string"}, "a": {"type": "array", "maxItems": 3}}}));
     let args = arguments("sonnet", ReasoningLevel::Automatic, &request, false);
-    let expected_prefix: Vec<String> = [
+    let expected: Vec<String> = [
         "-p",
+        // A request with a schema reads it from stdin and answers in lines.
+        "--input-format",
+        "stream-json",
         "--output-format",
-        "json",
+        "stream-json",
+        "--verbose",
         "--no-session-persistence",
         "--safe-mode",
         "--tools",
@@ -29,20 +33,25 @@ fn arguments_carry_the_mac_isolation_flags() {
         // Notes (budget 0) run at the lowest effort on a thinking model.
         "--effort",
         "low",
-        "--json-schema",
     ]
     .map(String::from)
     .to_vec();
-    assert_eq!(args[..expected_prefix.len()], expected_prefix[..]);
-    // Schemas pass unchanged, with stable key order.
-    assert_eq!(
-        args.last().unwrap(),
-        r#"{"properties":{"a":{"maxItems":3,"type":"array"},"b":{"type":"string"}},"required":["b","a"],"type":"object"}"#
-    );
+    assert_eq!(args, expected);
     assert!(
         !args.iter().any(|a| a == "--bare"),
         "--bare ignores the plan sign-in"
     );
+    let plain = arguments(
+        "sonnet",
+        ReasoningLevel::Automatic,
+        &ChatRequest::new("sys", "Summarize."),
+        false,
+    );
+    assert_eq!(
+        plain[..3],
+        ["-p", "--output-format", "json"].map(String::from)
+    );
+    assert!(!plain.contains(&"--verbose".to_string()));
 
     let streaming = arguments(
         "",
@@ -88,6 +97,75 @@ fn content_goes_over_stdin_without_blank_blocks() {
     let mut request = ChatRequest::new("s", "Question?");
     request.context = vec!["Transcript".into(), " ".into()];
     assert_eq!(input(&request), "Transcript\n\nQuestion?");
+}
+
+/// A command line is readable by every process of the same user, and the
+/// notes repair puts the meeting's action items in its schema.
+#[test]
+fn a_schema_travels_on_stdin_never_in_the_arguments() {
+    let schema = json!({
+        "type": "object",
+        "required": ["owner", "items"],
+        "properties": {
+            "owner": {"enum": ["Send Priya the Q3 contract by Friday"]},
+            "items": {"type": "array", "maxItems": 3},
+        },
+    });
+    let mut request = ChatRequest::new("s", "Question?").json_schema(schema.clone());
+    request.context = vec!["Transcript".into()];
+    for streaming in [false, true] {
+        let args = arguments("sonnet", ReasoningLevel::Automatic, &request, streaming);
+        assert!(!args.contains(&"--json-schema".to_string()));
+        assert!(
+            !args
+                .iter()
+                .any(|a| a.contains("Priya") || a.contains("maxItems"))
+        );
+        let input_format = args.iter().position(|a| a == "--input-format").unwrap();
+        assert_eq!(args[input_format + 1], "stream-json");
+        let output_format = args.iter().position(|a| a == "--output-format").unwrap();
+        assert_eq!(args[output_format + 1], "stream-json");
+        assert!(args.contains(&"--verbose".to_string()));
+    }
+
+    let stdin = input(&request);
+    let lines: Vec<Value> = stdin
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(
+        lines,
+        [
+            json!({
+                "type": "control_request",
+                "request_id": "lokalbot-schema",
+                "request": {"subtype": "initialize", "jsonSchema": schema},
+            }),
+            json!({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "Transcript\n\nQuestion?"}],
+                },
+            }),
+        ]
+    );
+    assert!(stdin.ends_with('\n'));
+}
+
+#[test]
+fn a_structured_reply_is_read_from_the_last_result_line() {
+    let output = Output {
+        status: Some(0),
+        stdout: [
+            r#"{"type":"system","subtype":"init"}"#,
+            r#"{"type":"control_response","response":{"subtype":"success","request_id":"lokalbot-schema"}}"#,
+            r#"{"type":"result","subtype":"success","is_error":false,"result":"done","structured_output":{"ok":true}}"#,
+        ]
+        .join("\n"),
+        ..Default::default()
+    };
+    assert_eq!(reply(&output, true, true).unwrap().text, r#"{"ok":true}"#);
 }
 
 #[test]
@@ -310,7 +388,9 @@ fn runs_claude_in_a_private_empty_folder_with_content_on_stdin() {
     // Content never appears on the command line.
     assert!(!read("args").contains("Secret transcript"));
     assert!(!read("args").contains("System prompt here."));
-    assert_eq!(read("stdin"), "Secret transcript\n\nWrite notes.");
+    assert!(!read("args").contains("--json-schema"));
+    assert_eq!(read("stdin"), input(&request));
+    assert!(read("stdin").contains("Secret transcript\\n\\nWrite notes."));
     assert_eq!(read("system"), "System prompt here.");
     assert_eq!(read("mode").trim(), "600");
     assert_eq!(read("listing").trim(), "system-prompt.txt");

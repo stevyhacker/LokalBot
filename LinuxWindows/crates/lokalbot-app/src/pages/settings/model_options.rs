@@ -56,6 +56,8 @@ pub struct OptionsState {
     /// Asked of the credential store when the form first shows, since a locked
     /// store may prompt.
     server_key_saved: Option<bool>,
+    /// The saved-key state is being read and nothing has replaced it yet.
+    server_key_loading: bool,
     server_error: Option<SharedString>,
 }
 
@@ -104,6 +106,7 @@ impl OptionsState {
             server_consent: is_approved(origin.as_deref(), settings),
             server_origin: origin,
             server_key_saved: None,
+            server_key_loading: false,
             server_error: None,
         }
     }
@@ -348,7 +351,10 @@ impl SettingsPage {
             .to_string();
         if !key.is_empty() {
             match lokalbot_engine::secrets::save_remote_transcription_api_key(&key) {
-                Ok(()) => self.models.options.server_key_saved = Some(true),
+                Ok(()) => {
+                    self.models.options.server_key_saved = Some(true);
+                    self.models.options.server_key_loading = false;
+                }
                 Err(error) => {
                     self.models.options.server_error = Some(format!("{error:#}").into());
                     cx.notify();
@@ -523,6 +529,34 @@ impl SettingsPage {
     }
 
     /// The server form (`remoteTranscriptionSetup`).
+    /// Reads whether the transcription server has a key saved, off the main
+    /// thread: a locked credential store answers only after its prompt.
+    fn load_server_key_state(&mut self, cx: &mut Context<Self>) {
+        let options = &mut self.models.options;
+        if options.server_key_saved.is_some() {
+            return;
+        }
+        options.server_key_saved = Some(false);
+        options.server_key_loading = true;
+        cx.spawn(async move |this, cx| {
+            let saved = cx
+                .background_spawn(async {
+                    lokalbot_engine::secrets::remote_transcription_api_key().is_some()
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                // A key saved or forgotten meanwhile is the newer answer.
+                let options = &mut this.models.options;
+                if options.server_key_loading {
+                    options.server_key_loading = false;
+                    options.server_key_saved = Some(saved);
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
     pub(super) fn transcription_server_page(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -548,9 +582,8 @@ impl SettingsPage {
                     .child(input)
                     .when_some(help, |this, help| this.child(settings_row::help(help, cx)))
             };
-        let key_saved = *self.models.options.server_key_saved.get_or_insert_with(|| {
-            lokalbot_engine::secrets::remote_transcription_api_key().is_some()
-        });
+        self.load_server_key_state(cx);
+        let key_saved = self.models.options.server_key_saved.unwrap_or(false);
         let options = &self.models.options;
         let uses_think_key = !key_saved
             && options.server_key.read(cx).value().is_empty()
@@ -576,7 +609,10 @@ impl SettingsPage {
                                 match lokalbot_engine::secrets::save_remote_transcription_api_key(
                                     "",
                                 ) {
-                                    Ok(()) => options.server_key_saved = Some(false),
+                                    Ok(()) => {
+                                        options.server_key_saved = Some(false);
+                                        options.server_key_loading = false;
+                                    }
                                     Err(error) => {
                                         options.server_error = Some(format!("{error:#}").into())
                                     }

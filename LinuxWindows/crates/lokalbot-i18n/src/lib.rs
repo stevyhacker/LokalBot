@@ -303,6 +303,8 @@ pub fn count(n: usize, noun: &str) -> String {
         "message" => ("{count} message", "{count} messages"),
         "work session" => ("{count} work session", "{count} work sessions"),
         "app" => ("{count} app", "{count} apps"),
+        "file" => ("{count} file", "{count} files"),
+        "retained moment" => ("{count} retained moment", "{count} retained moments"),
         _ => return format!("{} {noun}", number(n)),
     };
     format(if n == 1 { one } else { many }, &[("count", number(n))])
@@ -457,6 +459,14 @@ mod tests {
         assert_eq!(number("fr", 12_345), "12\u{202f}345");
         assert_eq!(number("bn", 1_234_567), "12,34,567");
         assert_eq!(number("ar", 12_345), "12345");
+    }
+
+    #[test]
+    fn counted_files_and_retained_moments_are_whole_phrases() {
+        assert_eq!(count(1, "file"), "1 file");
+        assert_eq!(count(3, "file"), "3 files");
+        assert_eq!(count(1, "retained moment"), "1 retained moment");
+        assert_eq!(count(12, "retained moment"), "12 retained moments");
     }
 
     #[test]

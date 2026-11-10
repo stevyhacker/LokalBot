@@ -10,7 +10,7 @@ pub mod ics;
 
 use lokalbot_core::calendar::CalendarEvent;
 
-pub use feed::{normalize as normalize_link, redacted as redacted_link};
+pub use feed::{LinkRefused, normalize as normalize_link, redacted as redacted_link};
 pub use ics::ParseOptions;
 
 /// Where events come from.

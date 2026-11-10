@@ -156,6 +156,9 @@ pub enum DictationCommand {
     DismissNotice,
     /// Tries the speech model again, keeping the audio.
     RetryPreparation,
+    /// From the engine itself: the microphone of the dictation with this
+    /// number stopped and could not be reopened.
+    MicrophoneLost(u64),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

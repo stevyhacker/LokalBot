@@ -2,7 +2,8 @@
 //! iCal format", Outlook's published calendar, iCloud's `webcal://` link) or
 //! a CalDAV collection. Credentials can ride in the link
 //! (`https://user:app-password@host/…`); the whole link is a secret, so only
-//! [`redacted`] ever reaches a log or the screen.
+//! [`redacted`] ever reaches a log or the screen, and it is sent only over an
+//! encrypted connection or to this computer.
 
 use std::io::Read as _;
 use std::time::Duration;
@@ -17,10 +18,26 @@ use super::ics::{self, ParseOptions};
 const MAX_BYTES: u64 = 64 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(45);
 
+/// Why a link is not read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+pub enum LinkRefused {
+    #[error("calendar links start with https:// or webcal://")]
+    NotACalendarLink,
+    /// `http://` to another computer. The link is fetched every few minutes,
+    /// and it and any password in it would cross the network in the clear.
+    #[error(
+        "this link is not encrypted (http://), so it is not opened; use its https:// or webcal:// address"
+    )]
+    NotEncrypted,
+}
+
 /// `scheme://host/…`: what may be shown or logged of a calendar link.
 pub fn redacted(link: &str) -> String {
-    let Ok(normalized) = normalize(link) else {
-        return "a calendar link".to_string();
+    let normalized = match normalize(link) {
+        Ok(normalized) => normalized,
+        // Still named by its host, so the person can tell which link it is.
+        Err(LinkRefused::NotEncrypted) => link.trim().to_string(),
+        Err(LinkRefused::NotACalendarLink) => return "a calendar link".to_string(),
     };
     let scheme = normalized
         .split_once("://")
@@ -31,8 +48,9 @@ pub fn redacted(link: &str) -> String {
     }
 }
 
-/// `webcal(s)://` becomes `https://`; anything but `http(s)` is refused.
-pub fn normalize(link: &str) -> Result<String> {
+/// `webcal(s)://` becomes `https://`. Plain `http://` is accepted only for
+/// a calendar server on this computer; anything else is refused.
+pub fn normalize(link: &str) -> Result<String, LinkRefused> {
     let trimmed = link.trim();
     let lower = trimmed.to_ascii_lowercase();
     for prefix in ["webcals://", "webcal://"] {
@@ -40,10 +58,19 @@ pub fn normalize(link: &str) -> Result<String> {
             return Ok(format!("https://{}", &trimmed[prefix.len()..]));
         }
     }
-    if lower.starts_with("https://") || lower.starts_with("http://") {
+    if lower.starts_with("https://") {
         return Ok(trimmed.to_string());
     }
-    bail!("calendar links start with https:// or webcal://")
+    if lower.starts_with("http://") {
+        // Judged on the address the request goes to, without the credentials.
+        let (address, _) = split_credentials(trimmed);
+        return if lokalbot_core::access::is_loopback_url(&address) {
+            Ok(trimmed.to_string())
+        } else {
+            Err(LinkRefused::NotEncrypted)
+        };
+    }
+    Err(LinkRefused::NotACalendarLink)
 }
 
 /// Events from one link overlapping `[from, to)`. A link that answers with
@@ -51,7 +78,7 @@ pub fn normalize(link: &str) -> Result<String> {
 pub fn fetch(link: &str, options: &ParseOptions) -> Result<Vec<CalendarEvent>> {
     let url = normalize(link)?;
     let (url, authorization) = split_credentials(&url);
-    let agent = agent();
+    let agent = agent(&url);
     let mut request = agent.get(&url).header("Accept", "text/calendar, */*;q=0.5");
     if let Some(authorization) = &authorization {
         request = request.header("Authorization", authorization);
@@ -167,6 +194,9 @@ fn describe(err: &ureq::Error) -> String {
         ureq::Error::BadUri(_) => "the link is not a valid address".into(),
         ureq::Error::Io(io) => format!("network error: {:?}", io.kind()),
         ureq::Error::Tls(_) => "secure connection failed".into(),
+        ureq::Error::RequireHttpsOnly(_) => {
+            "it redirects to an address that is not encrypted".into()
+        }
         _ => "the request failed".into(),
     }
 }
@@ -182,8 +212,11 @@ fn looks_like_icalendar(body: &str) -> bool {
         .is_some_and(|start| start.eq_ignore_ascii_case("BEGIN:VCALENDAR"))
 }
 
-fn agent() -> ureq::Agent {
+/// The agent for `url`. An encrypted link never follows a redirect to an
+/// unencrypted address.
+fn agent(url: &str) -> ureq::Agent {
     let config = ureq::Agent::config_builder()
+        .https_only(!url.to_ascii_lowercase().starts_with("http://"))
         .http_status_as_error(false)
         .allow_non_standard_methods(true)
         .max_redirects(5)
@@ -285,7 +318,7 @@ mod tests {
             default_zone: None,
         };
         let (url, authorization) = split_credentials(&normalize(&link).unwrap());
-        let events = caldav_query(&agent(), &url, authorization.as_deref(), &options).unwrap();
+        let events = caldav_query(&agent(&url), &url, authorization.as_deref(), &options).unwrap();
         eprintln!("{events:#?}");
         assert!(
             events
@@ -307,7 +340,10 @@ mod tests {
             normalize("webcal://p01-caldav.icloud.com/published/2/abc").unwrap(),
             "https://p01-caldav.icloud.com/published/2/abc"
         );
-        assert!(normalize("ftp://example.com/cal.ics").is_err());
+        assert_eq!(
+            normalize("ftp://example.com/cal.ics"),
+            Err(LinkRefused::NotACalendarLink)
+        );
         assert_eq!(
             redacted(
                 "https://calendar.google.com/calendar/ical/me%40gmail.com/private-0123/basic.ics"
@@ -319,6 +355,54 @@ mod tests {
             "https://dav.example.com/…"
         );
         assert_eq!(redacted("not a link"), "a calendar link");
+    }
+
+    #[test]
+    fn unencrypted_links_are_read_only_from_this_computer() {
+        for link in [
+            "http://cal.example.com/private-0123/basic.ics",
+            "HTTP://cal.example.com/private-0123/basic.ics",
+            "http://ana:hunter2@dav.example.com/cal/",
+            // The private network is still a network others can listen on.
+            "http://ana:hunter2@192.168.1.20:5232/ana/cal/",
+            // The request would go to evil.example, whatever follows the `@`.
+            "http://localhost@evil.example/cal/",
+        ] {
+            assert_eq!(normalize(link), Err(LinkRefused::NotEncrypted), "{link}");
+        }
+        for link in [
+            "http://localhost:5232/ana/cal/",
+            "http://ana:hunter2@127.0.0.1:5232/ana/cal/",
+            "http://ana:hunter2@[::1]:5232/ana/cal/",
+        ] {
+            assert_eq!(normalize(link).as_deref(), Ok(link), "{link}");
+        }
+        // A refused link is still named by its host, and nothing else of it.
+        assert_eq!(
+            redacted("http://ana:hunter2@dav.example.com/private-0123/"),
+            "http://dav.example.com/…"
+        );
+        let options = ParseOptions {
+            provider: String::new(),
+            from: Utc::now(),
+            to: Utc::now(),
+            my_addresses: Vec::new(),
+            calendar_title: None,
+            default_zone: None,
+        };
+        // 192.0.2.0/24 is reserved for documentation: nothing is contacted.
+        let error = format!(
+            "{:#}",
+            fetch(
+                "http://ana:hunter2@192.0.2.1/private-0123/basic.ics",
+                &options
+            )
+            .unwrap_err()
+        );
+        assert_eq!(
+            error,
+            "this link is not encrypted (http://), so it is not opened; use its https:// or webcal:// address"
+        );
     }
 
     #[test]
