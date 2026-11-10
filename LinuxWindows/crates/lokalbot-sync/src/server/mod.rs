@@ -7,6 +7,7 @@ pub(crate) mod store;
 mod uploads;
 
 use std::collections::{HashMap, HashSet};
+use std::io::ErrorKind;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -266,7 +267,8 @@ impl SyncServer {
     }
 
     /// Listens on 127.0.0.1 and ::1 only, for development hosts and tests.
-    /// Takes effect at the next `start`.
+    /// Takes effect at the next `start`, which then fails if 127.0.0.1 is
+    /// taken on the configured port; port 0 finds one free on both.
     pub fn set_loopback_only(&self, loopback_only: bool) {
         self.inner
             .loopback_only
@@ -619,14 +621,42 @@ pub(crate) fn listen_hosts(loopback_only: bool) -> (&'static str, &'static str) 
     }
 }
 
-/// Listeners for IPv6 and IPv4, IPv6 first. Where `[::]` is dual-stack
-/// (Linux, macOS) the IPv4 bind may fail with "address in use" and the IPv6
-/// listener serves both; where IPv6 is missing, IPv4 alone serves.
+/// Fresh ports a loopback host tries when the one `[::1]` got is already
+/// taken on 127.0.0.1.
+pub(crate) const LOOPBACK_PORT_ATTEMPTS: usize = 16;
+
+/// Listeners for IPv6 and IPv4, IPv6 first, on one port.
 fn bind(port: u16, loopback_only: bool) -> Result<Vec<TcpListener>> {
-    let (v6, v4) = listen_hosts(loopback_only);
+    bind_with(port, loopback_only, &mut |address| {
+        TcpListener::bind(address)
+    })
+}
+
+/// `bind`, with each socket bound by `bind_one`, so tests can hand it a
+/// port that is taken.
+pub(crate) fn bind_with(
+    port: u16,
+    loopback_only: bool,
+    bind_one: &mut dyn FnMut(SocketAddr) -> std::io::Result<TcpListener>,
+) -> Result<Vec<TcpListener>> {
+    if loopback_only {
+        bind_loopback(port, bind_one)
+    } else {
+        bind_wildcard(port, bind_one)
+    }
+}
+
+/// Where `[::]` is dual-stack (Linux, macOS) the IPv4 bind may fail with
+/// "address in use" and the IPv6 listener serves both; where IPv6 is
+/// missing, IPv4 alone serves.
+fn bind_wildcard(
+    port: u16,
+    bind_one: &mut dyn FnMut(SocketAddr) -> std::io::Result<TcpListener>,
+) -> Result<Vec<TcpListener>> {
+    let (v6, v4) = listen_hosts(false);
     let mut listeners = Vec::new();
     let mut errors = Vec::new();
-    match TcpListener::bind(format!("{v6}:{port}")) {
+    match bind_one(socket(v6, port)) {
         Ok(listener) => listeners.push(listener),
         Err(e) => errors.push(format!("{v6}: {e}")),
     }
@@ -634,7 +664,7 @@ fn bind(port: u16, loopback_only: bool) -> Result<Vec<TcpListener>> {
         Some(listener) => listener.local_addr()?.port(),
         None => port,
     };
-    match TcpListener::bind(format!("{v4}:{port}")) {
+    match bind_one(socket(v4, port)) {
         Ok(listener) => listeners.push(listener),
         Err(e) => errors.push(format!("{v4}: {e}")),
     }
@@ -648,4 +678,66 @@ fn bind(port: u16, loopback_only: bool) -> Result<Vec<TcpListener>> {
         log::info!("companion listener: {}", errors.join("; "));
     }
     Ok(listeners)
+}
+
+/// Every loopback host hands out 127.0.0.1 (the tests, the engine's
+/// development host, the example host), so IPv4 must be served: a host on
+/// `[::1]` alone would send phones to whatever else holds 127.0.0.1 on that
+/// port, and pairing would fail as if the code were wrong. `[::1]` is extra,
+/// for clients that resolve `localhost`, and may be missing.
+///
+/// IPv4 and IPv6 ephemeral ports are handed out separately, so with port 0
+/// the port `[::1]` got may be taken on 127.0.0.1; then another is tried.
+/// A fixed port that is taken on 127.0.0.1 is an error.
+fn bind_loopback(
+    port: u16,
+    bind_one: &mut dyn FnMut(SocketAddr) -> std::io::Result<TcpListener>,
+) -> Result<Vec<TcpListener>> {
+    let (v6, v4) = listen_hosts(true);
+    let attempts = if port == 0 { LOOPBACK_PORT_ATTEMPTS } else { 1 };
+    let mut taken = Vec::new();
+    // Held until this returns: closed, Linux may hand the same port back.
+    let mut rejected = Vec::new();
+    for _ in 0..attempts {
+        let ipv6 = match bind_one(socket(v6, port)) {
+            Ok(listener) => listener,
+            Err(e) => {
+                let ipv4 = bind_one(socket(v4, port)).map_err(|e4| {
+                    SyncError::io(format!(
+                        "Couldn't listen on port {port}: {v6}: {e}; {v4}: {e4}"
+                    ))
+                })?;
+                log::info!("companion listener: {v6}: {e}; serving {v4} only");
+                return Ok(vec![ipv4]);
+            }
+        };
+        let chosen = ipv6.local_addr()?.port();
+        match bind_one(socket(v4, chosen)) {
+            Ok(ipv4) => return Ok(vec![ipv6, ipv4]),
+            // Windows reports a port another socket holds exclusively, or
+            // one in a reserved range, as "access denied".
+            Err(e)
+                if port == 0
+                    && matches!(e.kind(), ErrorKind::AddrInUse | ErrorKind::PermissionDenied) =>
+            {
+                log::debug!("companion listener: {v4} port {chosen}: {e}; trying another port");
+                taken.push(chosen);
+                rejected.push(ipv6);
+            }
+            Err(e) => {
+                return Err(SyncError::io(format!(
+                    "Couldn't listen on {v4} port {chosen}: {e}"
+                )));
+            }
+        }
+    }
+    Err(SyncError::io(format!(
+        "Couldn't find a port free on both {v6} and {v4}; {v4} had {taken:?} taken."
+    )))
+}
+
+fn socket(host: &str, port: u16) -> SocketAddr {
+    format!("{host}:{port}")
+        .parse()
+        .expect("listen hosts are IP literals")
 }

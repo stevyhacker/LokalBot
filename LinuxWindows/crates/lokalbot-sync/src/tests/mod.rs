@@ -5,6 +5,7 @@ mod address;
 mod client_queries;
 mod host_store;
 mod keys;
+mod listen;
 mod pairing;
 mod recordings;
 mod search;
@@ -222,6 +223,11 @@ impl Host {
     }
 
     pub fn empty() -> Self {
+        Self::on_port(0).unwrap()
+    }
+
+    /// An empty loopback host on `port`, or why it couldn't start.
+    pub fn on_port(port: u16) -> crate::error::Result<Self> {
         let dir = TempDir::new().unwrap();
         let delegate = Arc::new(TestDelegate {
             approve: AtomicBool::new(true),
@@ -245,20 +251,20 @@ impl Host {
                     .into_owned(),
                 mac_name: "Test Mac".into(),
                 static_private_key: crate::generate_static_key().private_key,
-                port: 0,
+                port,
             },
             Box::new(SharedDelegate(Arc::clone(&delegate))),
         )
         .unwrap();
         server.set_tuning(fast_tuning());
         server.set_loopback_only(true);
-        server.start().unwrap();
+        server.start()?;
         delegate.server.set(Arc::downgrade(&server)).ok();
-        Self {
+        Ok(Self {
             server,
             delegate,
             _dir: dir,
-        }
+        })
     }
 
     pub fn uploads_dir(&self) -> std::path::PathBuf {

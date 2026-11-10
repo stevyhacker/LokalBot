@@ -1,3 +1,4 @@
+use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -171,13 +172,19 @@ fn a_slow_approval_keeps_the_connection_alive_with_pings() {
 #[test]
 fn an_unreachable_mac_is_reported() {
     let host = Host::new();
-    let payload = host.offer();
+    // The local end of a connection: nothing listens on its port, and no
+    // other host can be given it, as one can a port a dropped host freed.
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let held = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let port = held.local_addr().unwrap().port();
+    let payload = tampered(&host.offer(), "port", Value::from(port));
     drop(host);
     let phone = Phone::new();
-    assert!(matches!(
-        phone.client.pair(payload),
-        Err(SyncError::Unreachable(_))
-    ));
+    let result = phone.client.pair(payload);
+    assert!(
+        matches!(result, Err(SyncError::Unreachable(_))),
+        "{result:?}"
+    );
 }
 
 #[test]
