@@ -175,6 +175,9 @@ final class FileSearchService: ObservableObject {
         "mpg", "mpeg", "m2v", "mts", "m2ts", "3gp", "3g2", "ogv", "mxf", "dv", "vob",
     ]
     nonisolated static let indexFolderName = "files-index.noindex"
+    /// The state DigUp's indexer gives a file, or a long PDF's next pages, it
+    /// did not read because text recognition gave no answer.
+    nonisolated static let leftUnread = "pending"
     /// New files a sync finds, up to this many, are read on any power source;
     /// more is a big read that waits for a charger on battery (as DigUp's
     /// helper does).
@@ -229,6 +232,9 @@ final class FileSearchService: ObservableObject {
 
     static func live(storage: StorageManager) -> FileSearchService {
         PowerSourceMonitor.postSourceChanges()
+        // Before anything reads a file: DigUp's text recognition waits its
+        // turn on the app's queue, and no longer than its limit.
+        FileTextRecognition.route()
         let service = FileSearchService(
             indexFolder: storage.rootURL.appendingPathComponent(indexFolderName, isDirectory: true),
             startEmbedder: { progress in
@@ -454,6 +460,10 @@ final class FileSearchService: ObservableObject {
                 lokalbotLog("file search: read \(pass.filesRead) files in \(Int(pass.wallSeconds)) s "
                             + "(model \(Int(pass.modelSeconds)) s, rested \(Int(pass.restedSeconds)) s)")
             }
+            if result.unanswered > 0 {
+                lokalbotLog("file search: \(result.unanswered) files wait for a later pass: "
+                            + "text recognition gave no answer")
+            }
             if stop.isSet {
                 state = pauseReason.map(State.paused) ?? .ready
             } else if result.left > 0, waitsForPower() {
@@ -504,13 +514,6 @@ final class FileSearchService: ObservableObject {
 
     // MARK: - Indexing (on the index queue)
 
-    /// How long the indexer has been on the file it is reading; nil between
-    /// files. A file takes seconds, so minutes mean a read that is not
-    /// coming back, which only quitting ends.
-    nonisolated static var secondsOnCurrentFile: TimeInterval? {
-        Indexer.nowReading.map { Date().timeIntervalSince($0.since) }
-    }
-
     /// Turning recordings and video off excludes them by extension; the next
     /// sync then drops those already indexed.
     nonisolated static func indexOptions(includesMedia: Bool = true) -> IndexOptions {
@@ -539,7 +542,8 @@ final class FileSearchService: ObservableObject {
 
     /// Reads what is pending (`only` some: new files on battery). A big read
     /// stops at the next job when `waitsForPower` says so, and every job
-    /// rests as `pacer` says.
+    /// rests as `pacer` says. A screenshot or scan whose text recognition
+    /// gave no answer (`FileTextRecognition`) is left as it was, and counted.
     nonisolated static func index(store: IndexStore, options: IndexOptions, session: EmbedderSession,
                                   only: Set<Int64>? = nil, stop: FileIndexStopFlag,
                                   waitsForPower: @escaping @Sendable () -> Bool = { false },
@@ -565,10 +569,13 @@ final class FileSearchService: ObservableObject {
             outcome.seconds += event.seconds
             progress.files(done: event.done, total: event.total)
         }
-        outcome.filesRead = read.values.reduce(0, +)
+        // DigUp reports a file it left for a later pass as still "pending".
+        outcome.unanswered = read[Self.leftUnread] ?? 0
+        outcome.filesRead = read.values.reduce(0, +) - outcome.unanswered
         if bigRead, !shouldStop() {
             try indexer.finishLongFiles(shouldStop: shouldStop) { step in
                 outcome.seconds += step.seconds
+                if step.state == Self.leftUnread { outcome.unanswered += 1 }
                 progress.longFiles(left: step.files)
             }
         }
@@ -829,6 +836,9 @@ final class FileCountProgress: @unchecked Sendable {
 
 struct FilePassOutcome: Sendable {
     var filesRead = 0
+    /// Screenshots and scans whose text recognition gave no answer, and long
+    /// PDFs that stopped at such a page: left for a later pass.
+    var unanswered = 0
     var seconds = 0.0
     /// Files still waiting afterwards (a big read held for a charger, or stopped).
     var left = 0

@@ -427,6 +427,56 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertEqual(service.totals.byKind["doc"], 1)
     }
 
+    /// 2026-11-09: text recognition never answered for one screenshot the
+    /// indexer was reading. The pass waited for it, and kept the media model
+    /// it had started, until the app quit.
+    func testAPassFinishesWithoutTextRecognitionThatNeverAnswers() async throws {
+        let screenshot = "Screenshot 2026-11-09 at 10.00.00.png"
+        try writePicture(screenshot, width: 640, height: 480)
+        try write("budget.txt", String(repeating: "The quarterly budget review moved to Thursday afternoon. ", count: 6))
+        let unanswered = DispatchSemaphore(value: 0)
+        let readerBefore = TextRecognition.reader
+        defer {
+            unanswered.signal()
+            TextRecognition.reader = readerBefore
+        }
+        FileTextRecognition.route(through: TextRecognitionQueue(stallLimit: 60), within: 0.1) { _ in
+            unanswered.wait()
+            return "read too late"
+        }
+        let service = makeService()
+        defer { service.stop() }
+
+        service.apply(.init(enabled: true, folders: [chosen.path]))
+        let finished = expectation(description: "the pass finishes")
+        Task {
+            await service.waitUntilIdle()
+            finished.fulfill()
+        }
+        guard await XCTWaiter().fulfillment(of: [finished], timeout: 10) == .completed else {
+            return XCTFail("the pass is still waiting for text recognition")
+        }
+
+        // The pass went on to the document. The screenshot is not settled
+        // without its words: it waits, where failed or read it never would.
+        XCTAssertEqual(service.state, .ready)
+        XCTAssertEqual(service.totals.searchable, 1)
+        XCTAssertEqual(service.totals.pending, 1)
+        XCTAssertEqual(service.totals.failed, 0)
+        XCTAssertEqual(service.lastPass?.filesRead, 1)
+
+        // The next pass reads it, once recognition answers.
+        FileTextRecognition.route(through: TextRecognitionQueue(stallLimit: 60), within: 10) { _ in
+            "Order K7QLATER2 has shipped"
+        }
+        service.requestPass()
+        await service.waitUntilIdle()
+        XCTAssertEqual(service.totals.pending, 0)
+        XCTAssertEqual(service.totals.searchable, 2)
+        let hits = await service.search("K7QLATER2", queryVector: nil)
+        XCTAssertEqual(hits.map(\.name), [screenshot])
+    }
+
     // MARK: - Helpers
 
     private func makeService() -> FileSearchService {
