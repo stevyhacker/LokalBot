@@ -21,6 +21,14 @@ Opt-in features built for the Meta hackathon (branch `meta-hackathon`, merged in
 
 The [Hugging Face Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) presents the same numbers with their sources. It is generated from [`Distribution/huggingface/benchmark-summary.md`](../Distribution/huggingface/benchmark-summary.md).
 
+## Opt-in on this Mac
+
+Measured for a setting that is off by default and uses models the app already has.
+
+| Role | Measured | Compared with | Result | Report |
+| --- | --- | --- | --- | --- |
+| Live transcript, turn by turn (opt-in) | The Transcribe model on this Mac, each track cut at pauses | The preview's 4 to 12 second windows; Muse Voice Transcribe 1.0 (fast live text) | On the sample call as two tracks, an M4 Max showed a turn's text a median 0.5 to 0.7 s after its last word and 0.9 s at worst with Parakeet, Granite fast and Qwen3-ASR 1.7B, and 1.3 to 1.4 s with Whisper, against 1.7 to 3.2 s and 3.8 to 5.0 s at worst for windows. Word errors fell too (Qwen English 2.9% vs 8.5%, Whisper Serbian 15.6% vs 24.2%), at no more CPU time. Muse measured 0.74 s on AMI. A streaming recognizer the app links showed words 0.34 s behind the speaker at 4.7% English word error but 43.9% on the Serbian recording. One scripted call per language with synthetic voices. | [Report](LiveTurns/results/2026-11-10/REPORT.md) |
+
 ## Not adopted
 
 These alternatives were measured against what the app uses and did not replace it. Rejections already noted in the table above, such as Whisper for Serbian, are not repeated here.

@@ -1,0 +1,1831 @@
+{
+ "cuts": [
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "1 quiet",
+   "pieces": 61,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.414,
+    "p90": 0.492,
+    "max": 0.516,
+    "n": 25
+   },
+   "medianSeconds": 2.504,
+   "longestSeconds": 10.44,
+   "under2s": 22
+  },
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "2 quiet, 1 after 3 s",
+   "pieces": 38,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 23,
+   "wait": {
+    "median": 0.454,
+    "p90": 0.768,
+    "max": 5.086,
+    "n": 25
+   },
+   "medianSeconds": 4.936,
+   "longestSeconds": 11.72,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "2 quiet, 1 after 4 s",
+   "pieces": 38,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 23,
+   "wait": {
+    "median": 0.462,
+    "p90": 0.768,
+    "max": 5.086,
+    "n": 25
+   },
+   "medianSeconds": 5.064,
+   "longestSeconds": 11.72,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "2 quiet, 1 after 6 s",
+   "pieces": 31,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 21,
+   "wait": {
+    "median": 0.58,
+    "p90": 5.086,
+    "max": 8.964,
+    "n": 25
+   },
+   "medianSeconds": 6.6,
+   "longestSeconds": 12.488,
+   "under2s": 1
+  },
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "2 quiet",
+   "pieces": 25,
+   "forced": 3,
+   "handovers": 25,
+   "caught": 18,
+   "wait": {
+    "median": 0.71,
+    "p90": 6.622,
+    "max": 9.22,
+    "n": 25
+   },
+   "medianSeconds": 8.074,
+   "longestSeconds": 15.11,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "3 quiet",
+   "pieces": 15,
+   "forced": 9,
+   "handovers": 25,
+   "caught": 6,
+   "wait": {
+    "median": 6.58,
+    "p90": 13.644,
+    "max": 13.804,
+    "n": 25
+   },
+   "medianSeconds": 14.274,
+   "longestSeconds": 15.31,
+   "under2s": 0
+  },
+  {
+   "recording": "en",
+   "layout": "mixed",
+   "rule": "4 quiet",
+   "pieces": 15,
+   "forced": 11,
+   "handovers": 25,
+   "caught": 4,
+   "wait": {
+    "median": 6.068,
+    "p90": 13.774,
+    "max": 13.9,
+    "n": 25
+   },
+   "medianSeconds": 14.592,
+   "longestSeconds": 15.31,
+   "under2s": 0
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "1 quiet",
+   "pieces": 61,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.414,
+    "p90": 0.492,
+    "max": 0.516,
+    "n": 25
+   },
+   "medianSeconds": 2.504,
+   "longestSeconds": 10.44,
+   "under2s": 22
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "2 quiet, 1 after 3 s",
+   "pieces": 39,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.454,
+    "p90": 0.734,
+    "max": 0.772,
+    "n": 25
+   },
+   "medianSeconds": 4.552,
+   "longestSeconds": 11.72,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "2 quiet, 1 after 4 s",
+   "pieces": 39,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.462,
+    "p90": 0.734,
+    "max": 0.772,
+    "n": 25
+   },
+   "medianSeconds": 4.808,
+   "longestSeconds": 11.72,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "2 quiet, 1 after 6 s",
+   "pieces": 33,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.58,
+    "p90": 0.748,
+    "max": 0.772,
+    "n": 25
+   },
+   "medianSeconds": 5.064,
+   "longestSeconds": 12.488,
+   "under2s": 1
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "2 quiet",
+   "pieces": 30,
+   "forced": 1,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.67,
+    "p90": 0.748,
+    "max": 0.772,
+    "n": 25
+   },
+   "medianSeconds": 5.192,
+   "longestSeconds": 15.048,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "3 quiet",
+   "pieces": 28,
+   "forced": 3,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.926,
+    "p90": 1.004,
+    "max": 1.028,
+    "n": 25
+   },
+   "medianSeconds": 7.624,
+   "longestSeconds": 14.254,
+   "under2s": 2
+  },
+  {
+   "recording": "en",
+   "layout": "tracks",
+   "rule": "4 quiet",
+   "pieces": 28,
+   "forced": 3,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 1.182,
+    "p90": 1.26,
+    "max": 1.284,
+    "n": 25
+   },
+   "medianSeconds": 7.624,
+   "longestSeconds": 14.254,
+   "under2s": 2
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "1 quiet",
+   "pieces": 51,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.406,
+    "p90": 0.528,
+    "max": 0.54,
+    "n": 25
+   },
+   "medianSeconds": 3.272,
+   "longestSeconds": 14.536,
+   "under2s": 12
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "2 quiet, 1 after 3 s",
+   "pieces": 43,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.42,
+    "p90": 0.588,
+    "max": 0.666,
+    "n": 25
+   },
+   "medianSeconds": 4.296,
+   "longestSeconds": 14.536,
+   "under2s": 5
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "2 quiet, 1 after 4 s",
+   "pieces": 41,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 24,
+   "wait": {
+    "median": 0.5,
+    "p90": 0.666,
+    "max": 5.97,
+    "n": 25
+   },
+   "medianSeconds": 4.296,
+   "longestSeconds": 14.536,
+   "under2s": 5
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "2 quiet, 1 after 6 s",
+   "pieces": 35,
+   "forced": 1,
+   "handovers": 25,
+   "caught": 21,
+   "wait": {
+    "median": 0.57,
+    "p90": 1.758,
+    "max": 5.97,
+    "n": 25
+   },
+   "medianSeconds": 5.064,
+   "longestSeconds": 13.904,
+   "under2s": 3
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "2 quiet",
+   "pieces": 29,
+   "forced": 5,
+   "handovers": 25,
+   "caught": 15,
+   "wait": {
+    "median": 0.666,
+    "p90": 7.184,
+    "max": 11.602,
+    "n": 25
+   },
+   "medianSeconds": 5.832,
+   "longestSeconds": 15.104,
+   "under2s": 3
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "3 quiet",
+   "pieces": 18,
+   "forced": 10,
+   "handovers": 25,
+   "caught": 5,
+   "wait": {
+    "median": 4.464,
+    "p90": 11.684,
+    "max": 13.21,
+    "n": 25
+   },
+   "medianSeconds": 14.173,
+   "longestSeconds": 15.054,
+   "under2s": 0
+  },
+  {
+   "recording": "sr",
+   "layout": "mixed",
+   "rule": "4 quiet",
+   "pieces": 16,
+   "forced": 14,
+   "handovers": 25,
+   "caught": 1,
+   "wait": {
+    "median": 5.928,
+    "p90": 13.194,
+    "max": 14.864,
+    "n": 25
+   },
+   "medianSeconds": 14.557,
+   "longestSeconds": 15.054,
+   "under2s": 0
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "1 quiet",
+   "pieces": 52,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.406,
+    "p90": 0.528,
+    "max": 0.54,
+    "n": 25
+   },
+   "medianSeconds": 3.144,
+   "longestSeconds": 14.536,
+   "under2s": 13
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "2 quiet, 1 after 3 s",
+   "pieces": 45,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.47,
+    "p90": 0.612,
+    "max": 0.666,
+    "n": 25
+   },
+   "medianSeconds": 4.296,
+   "longestSeconds": 14.536,
+   "under2s": 7
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "2 quiet, 1 after 4 s",
+   "pieces": 44,
+   "forced": 0,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.528,
+    "p90": 0.662,
+    "max": 0.676,
+    "n": 25
+   },
+   "medianSeconds": 4.296,
+   "longestSeconds": 14.536,
+   "under2s": 7
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "2 quiet, 1 after 6 s",
+   "pieces": 39,
+   "forced": 1,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.582,
+    "p90": 0.746,
+    "max": 0.796,
+    "n": 25
+   },
+   "medianSeconds": 4.296,
+   "longestSeconds": 13.904,
+   "under2s": 7
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "2 quiet",
+   "pieces": 38,
+   "forced": 2,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.662,
+    "p90": 0.784,
+    "max": 0.796,
+    "n": 25
+   },
+   "medianSeconds": 4.04,
+   "longestSeconds": 15.054,
+   "under2s": 8
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "3 quiet",
+   "pieces": 31,
+   "forced": 2,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 0.918,
+    "p90": 1.04,
+    "max": 1.052,
+    "n": 25
+   },
+   "medianSeconds": 5.576,
+   "longestSeconds": 15.054,
+   "under2s": 3
+  },
+  {
+   "recording": "sr",
+   "layout": "tracks",
+   "rule": "4 quiet",
+   "pieces": 28,
+   "forced": 2,
+   "handovers": 25,
+   "caught": 25,
+   "wait": {
+    "median": 1.174,
+    "p90": 1.296,
+    "max": 1.308,
+    "n": 25
+   },
+   "medianSeconds": 8.392,
+   "longestSeconds": 15.054,
+   "under2s": 2
+  }
+ ],
+ "passes": [
+  {
+   "model": "granite-speech-5-turbo",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.175,
+   "firstDecodeSeconds": 0.04,
+   "footprintMB": 7878.913,
+   "pieces": 38,
+   "forced": 0,
+   "decode": {
+    "median": 0.022,
+    "p90": 0.028,
+    "max": 0.037,
+    "n": 38
+   },
+   "decodePerAudioSecond": 0.005,
+   "afterPause": {
+    "median": 0.183,
+    "p90": 0.432,
+    "max": 0.433,
+    "n": 38
+   },
+   "delay": {
+    "median": 0.484,
+    "p90": 0.787,
+    "max": 5.113,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.342,
+   "wer": 11.413,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.12
+  },
+  {
+   "model": "granite-speech-5-turbo",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.175,
+   "firstDecodeSeconds": 0.04,
+   "footprintMB": 7878.913,
+   "pieces": 39,
+   "forced": 0,
+   "decode": {
+    "median": 0.022,
+    "p90": 0.028,
+    "max": 0.036,
+    "n": 39
+   },
+   "decodePerAudioSecond": 0.005,
+   "afterPause": {
+    "median": 0.183,
+    "p90": 0.432,
+    "max": 0.433,
+    "n": 39
+   },
+   "delay": {
+    "median": 0.484,
+    "p90": 0.753,
+    "max": 0.791,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.323,
+   "wer": 11.232,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.119
+  },
+  {
+   "model": "granite-speech-5-turbo",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.175,
+   "firstDecodeSeconds": 0.04,
+   "footprintMB": 7878.913,
+   "pieces": 69,
+   "forced": 0,
+   "decode": {
+    "median": 0.02,
+    "p90": 0.022,
+    "max": 0.112,
+    "n": 69
+   },
+   "decodePerAudioSecond": 0.006,
+   "afterPause": null,
+   "delay": {
+    "median": 1.742,
+    "p90": 3.628,
+    "max": 3.974,
+    "n": 23
+   },
+   "missing": 2,
+   "age": 2.641,
+   "wer": 13.949,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.187
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.461,
+   "firstDecodeSeconds": 0.111,
+   "footprintMB": 2100.939,
+   "pieces": 38,
+   "forced": 0,
+   "decode": {
+    "median": 0.047,
+    "p90": 0.055,
+    "max": 0.064,
+    "n": 38
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.209,
+    "p90": 0.451,
+    "max": 0.455,
+    "n": 38
+   },
+   "delay": {
+    "median": 0.509,
+    "p90": 0.805,
+    "max": 5.148,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.366,
+   "wer": 4.891,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.433
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.461,
+   "firstDecodeSeconds": 0.111,
+   "footprintMB": 2100.939,
+   "pieces": 39,
+   "forced": 0,
+   "decode": {
+    "median": 0.045,
+    "p90": 0.052,
+    "max": 0.059,
+    "n": 39
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.207,
+    "p90": 0.451,
+    "max": 0.453,
+    "n": 39
+   },
+   "delay": {
+    "median": 0.504,
+    "p90": 0.772,
+    "max": 0.812,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.346,
+   "wer": 4.71,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.397
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.461,
+   "firstDecodeSeconds": 0.111,
+   "footprintMB": 2100.939,
+   "pieces": 73,
+   "forced": 0,
+   "decode": {
+    "median": 0.041,
+    "p90": 0.045,
+    "max": 0.191,
+    "n": 73
+   },
+   "decodePerAudioSecond": 0.012,
+   "afterPause": null,
+   "delay": {
+    "median": 2.231,
+    "p90": 3.657,
+    "max": 4.261,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 2.652,
+   "wer": 12.5,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.556
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.461,
+   "firstDecodeSeconds": 0.058,
+   "footprintMB": 1495.486,
+   "pieces": 41,
+   "forced": 0,
+   "decode": {
+    "median": 0.047,
+    "p90": 0.068,
+    "max": 0.087,
+    "n": 41
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.224,
+    "p90": 0.453,
+    "max": 0.459,
+    "n": 41
+   },
+   "delay": {
+    "median": 0.576,
+    "p90": 0.703,
+    "max": 6.038,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.918,
+   "wer": 84.221,
+   "cyrillic": 0.984,
+   "cpuPerAudioMinute": 0.464
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.461,
+   "firstDecodeSeconds": 0.058,
+   "footprintMB": 1495.486,
+   "pieces": 44,
+   "forced": 0,
+   "decode": {
+    "median": 0.047,
+    "p90": 0.061,
+    "max": 0.086,
+    "n": 44
+   },
+   "decodePerAudioSecond": 0.01,
+   "afterPause": {
+    "median": 0.236,
+    "p90": 0.454,
+    "max": 0.464,
+    "n": 44
+   },
+   "delay": {
+    "median": 0.575,
+    "p90": 0.702,
+    "max": 0.724,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.756,
+   "wer": 84.221,
+   "cyrillic": 1.0,
+   "cpuPerAudioMinute": 0.48
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.461,
+   "firstDecodeSeconds": 0.058,
+   "footprintMB": 1495.486,
+   "pieces": 77,
+   "forced": 0,
+   "decode": {
+    "median": 0.044,
+    "p90": 0.048,
+    "max": 0.197,
+    "n": 77
+   },
+   "decodePerAudioSecond": 0.013,
+   "afterPause": null,
+   "delay": {
+    "median": 2.817,
+    "p90": 4.126,
+    "max": 4.282,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.667,
+   "wer": 82.787,
+   "cyrillic": 0.997,
+   "cpuPerAudioMinute": 0.633
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "sr",
+   "optimized": true,
+   "language": "hr",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.54,
+   "firstDecodeSeconds": 0.113,
+   "footprintMB": 2548.674,
+   "pieces": 41,
+   "forced": 0,
+   "decode": {
+    "median": 0.046,
+    "p90": 0.067,
+    "max": 0.082,
+    "n": 41
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.223,
+    "p90": 0.452,
+    "max": 0.46,
+    "n": 41
+   },
+   "delay": {
+    "median": 0.568,
+    "p90": 0.703,
+    "max": 6.035,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.916,
+   "wer": 24.59,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.398
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "sr",
+   "optimized": true,
+   "language": "hr",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.54,
+   "firstDecodeSeconds": 0.113,
+   "footprintMB": 2548.674,
+   "pieces": 44,
+   "forced": 0,
+   "decode": {
+    "median": 0.044,
+    "p90": 0.054,
+    "max": 0.079,
+    "n": 44
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.225,
+    "p90": 0.452,
+    "max": 0.459,
+    "n": 44
+   },
+   "delay": {
+    "median": 0.575,
+    "p90": 0.702,
+    "max": 0.721,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.752,
+   "wer": 25.82,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.406
+  },
+  {
+   "model": "parakeet-ultra",
+   "recording": "sr",
+   "optimized": true,
+   "language": "hr",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.54,
+   "firstDecodeSeconds": 0.113,
+   "footprintMB": 2548.674,
+   "pieces": 77,
+   "forced": 0,
+   "decode": {
+    "median": 0.043,
+    "p90": 0.049,
+    "max": 0.201,
+    "n": 77
+   },
+   "decodePerAudioSecond": 0.013,
+   "afterPause": null,
+   "delay": {
+    "median": 2.575,
+    "p90": 4.126,
+    "max": 4.338,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.646,
+   "wer": 32.377,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.625
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.385,
+   "firstDecodeSeconds": 0.111,
+   "footprintMB": 1450.127,
+   "pieces": 38,
+   "forced": 0,
+   "decode": {
+    "median": 0.046,
+    "p90": 0.056,
+    "max": 0.063,
+    "n": 38
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.211,
+    "p90": 0.452,
+    "max": 0.454,
+    "n": 38
+   },
+   "delay": {
+    "median": 0.506,
+    "p90": 0.805,
+    "max": 5.148,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.366,
+   "wer": 2.899,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.398
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.385,
+   "firstDecodeSeconds": 0.111,
+   "footprintMB": 1450.127,
+   "pieces": 39,
+   "forced": 0,
+   "decode": {
+    "median": 0.044,
+    "p90": 0.052,
+    "max": 0.06,
+    "n": 39
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.207,
+    "p90": 0.451,
+    "max": 0.454,
+    "n": 39
+   },
+   "delay": {
+    "median": 0.505,
+    "p90": 0.771,
+    "max": 0.811,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.345,
+   "wer": 3.442,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.401
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.385,
+   "firstDecodeSeconds": 0.111,
+   "footprintMB": 1450.127,
+   "pieces": 74,
+   "forced": 0,
+   "decode": {
+    "median": 0.042,
+    "p90": 0.048,
+    "max": 0.081,
+    "n": 74
+   },
+   "decodePerAudioSecond": 0.013,
+   "afterPause": null,
+   "delay": {
+    "median": 1.857,
+    "p90": 3.361,
+    "max": 3.827,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.664,
+   "wer": 8.696,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.61
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.385,
+   "firstDecodeSeconds": 0.05,
+   "footprintMB": 1457.252,
+   "pieces": 41,
+   "forced": 0,
+   "decode": {
+    "median": 0.045,
+    "p90": 0.057,
+    "max": 0.264,
+    "n": 41
+   },
+   "decodePerAudioSecond": 0.01,
+   "afterPause": {
+    "median": 0.213,
+    "p90": 0.451,
+    "max": 0.457,
+    "n": 41
+   },
+   "delay": {
+    "median": 0.557,
+    "p90": 0.721,
+    "max": 6.234,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.922,
+   "wer": 83.811,
+   "cyrillic": 0.995,
+   "cpuPerAudioMinute": 0.464
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.385,
+   "firstDecodeSeconds": 0.05,
+   "footprintMB": 1457.252,
+   "pieces": 44,
+   "forced": 0,
+   "decode": {
+    "median": 0.044,
+    "p90": 0.052,
+    "max": 0.07,
+    "n": 44
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.219,
+    "p90": 0.452,
+    "max": 0.459,
+    "n": 44
+   },
+   "delay": {
+    "median": 0.574,
+    "p90": 0.701,
+    "max": 0.721,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.749,
+   "wer": 81.352,
+   "cyrillic": 0.996,
+   "cpuPerAudioMinute": 0.382
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.385,
+   "firstDecodeSeconds": 0.05,
+   "footprintMB": 1457.252,
+   "pieces": 75,
+   "forced": 0,
+   "decode": {
+    "median": 0.043,
+    "p90": 0.049,
+    "max": 0.201,
+    "n": 75
+   },
+   "decodePerAudioSecond": 0.013,
+   "afterPause": null,
+   "delay": {
+    "median": 2.093,
+    "p90": 3.684,
+    "max": 4.297,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.648,
+   "wer": 81.967,
+   "cyrillic": 0.999,
+   "cpuPerAudioMinute": 0.647
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "sr",
+   "optimized": true,
+   "language": "hr",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.539,
+   "firstDecodeSeconds": 0.122,
+   "footprintMB": 1394.142,
+   "pieces": 41,
+   "forced": 0,
+   "decode": {
+    "median": 0.045,
+    "p90": 0.063,
+    "max": 0.125,
+    "n": 41
+   },
+   "decodePerAudioSecond": 0.009,
+   "afterPause": {
+    "median": 0.219,
+    "p90": 0.452,
+    "max": 0.46,
+    "n": 41
+   },
+   "delay": {
+    "median": 0.563,
+    "p90": 0.705,
+    "max": 6.095,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.917,
+   "wer": 32.172,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.394
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "sr",
+   "optimized": true,
+   "language": "hr",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 0.539,
+   "firstDecodeSeconds": 0.122,
+   "footprintMB": 1394.142,
+   "pieces": 44,
+   "forced": 0,
+   "decode": {
+    "median": 0.047,
+    "p90": 0.056,
+    "max": 0.082,
+    "n": 44
+   },
+   "decodePerAudioSecond": 0.01,
+   "afterPause": {
+    "median": 0.228,
+    "p90": 0.452,
+    "max": 0.461,
+    "n": 44
+   },
+   "delay": {
+    "median": 0.576,
+    "p90": 0.702,
+    "max": 0.725,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.753,
+   "wer": 29.918,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.445
+  },
+  {
+   "model": "parakeet-v3",
+   "recording": "sr",
+   "optimized": true,
+   "language": "hr",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 0.539,
+   "firstDecodeSeconds": 0.122,
+   "footprintMB": 1394.142,
+   "pieces": 74,
+   "forced": 0,
+   "decode": {
+    "median": 0.044,
+    "p90": 0.051,
+    "max": 0.211,
+    "n": 74
+   },
+   "decodePerAudioSecond": 0.013,
+   "afterPause": null,
+   "delay": {
+    "median": 2.072,
+    "p90": 3.481,
+    "max": 4.296,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.637,
+   "wer": 45.492,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.657
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.552,
+   "firstDecodeSeconds": 0.567,
+   "footprintMB": 6991.224,
+   "pieces": 38,
+   "forced": 0,
+   "decode": {
+    "median": 0.139,
+    "p90": 0.224,
+    "max": 0.275,
+    "n": 38
+   },
+   "decodePerAudioSecond": 0.028,
+   "afterPause": {
+    "median": 0.337,
+    "p90": 0.502,
+    "max": 0.525,
+    "n": 38
+   },
+   "delay": {
+    "median": 0.635,
+    "p90": 0.845,
+    "max": 5.299,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.484,
+   "wer": 3.261,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 0.928
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.552,
+   "firstDecodeSeconds": 0.567,
+   "footprintMB": 6991.224,
+   "pieces": 39,
+   "forced": 0,
+   "decode": {
+    "median": 0.147,
+    "p90": 0.205,
+    "max": 0.295,
+    "n": 39
+   },
+   "decodePerAudioSecond": 0.029,
+   "afterPause": {
+    "median": 0.352,
+    "p90": 0.507,
+    "max": 0.524,
+    "n": 39
+   },
+   "delay": {
+    "median": 0.641,
+    "p90": 0.826,
+    "max": 0.864,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.466,
+   "wer": 2.899,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 1.115
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 1.552,
+   "firstDecodeSeconds": 0.567,
+   "footprintMB": 6991.224,
+   "pieces": 70,
+   "forced": 0,
+   "decode": {
+    "median": 0.093,
+    "p90": 0.123,
+    "max": 0.135,
+    "n": 70
+   },
+   "decodePerAudioSecond": 0.025,
+   "afterPause": null,
+   "delay": {
+    "median": 1.889,
+    "p90": 3.371,
+    "max": 4.29,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.713,
+   "wer": 8.514,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 1.32
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.552,
+   "firstDecodeSeconds": 0.262,
+   "footprintMB": 6990.083,
+   "pieces": 41,
+   "forced": 0,
+   "decode": {
+    "median": 0.181,
+    "p90": 0.382,
+    "max": 0.616,
+    "n": 41
+   },
+   "decodePerAudioSecond": 0.04,
+   "afterPause": {
+    "median": 0.456,
+    "p90": 0.571,
+    "max": 0.772,
+    "n": 41
+   },
+   "delay": {
+    "median": 0.714,
+    "p90": 0.922,
+    "max": 6.352,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 4.141,
+   "wer": 22.336,
+   "cyrillic": 0.465,
+   "cpuPerAudioMinute": 1.734
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.552,
+   "firstDecodeSeconds": 0.262,
+   "footprintMB": 6990.083,
+   "pieces": 44,
+   "forced": 0,
+   "decode": {
+    "median": 0.168,
+    "p90": 0.314,
+    "max": 0.569,
+    "n": 44
+   },
+   "decodePerAudioSecond": 0.04,
+   "afterPause": {
+    "median": 0.465,
+    "p90": 0.593,
+    "max": 0.725,
+    "n": 44
+   },
+   "delay": {
+    "median": 0.71,
+    "p90": 0.857,
+    "max": 0.945,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 3.968,
+   "wer": 22.336,
+   "cyrillic": 0.589,
+   "cpuPerAudioMinute": 1.725
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 1.552,
+   "firstDecodeSeconds": 0.262,
+   "footprintMB": 6990.083,
+   "pieces": 72,
+   "forced": 0,
+   "decode": {
+    "median": 0.132,
+    "p90": 0.191,
+    "max": 0.24,
+    "n": 72
+   },
+   "decodePerAudioSecond": 0.034,
+   "afterPause": null,
+   "delay": {
+    "median": 2.23,
+    "p90": 3.727,
+    "max": 4.147,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 2.765,
+   "wer": 31.762,
+   "cyrillic": 0.504,
+   "cpuPerAudioMinute": 1.86
+  },
+  {
+   "model": "whisper-large-v3-turbo",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.614,
+   "firstDecodeSeconds": 0.944,
+   "footprintMB": 2234.8,
+   "pieces": 38,
+   "forced": 0,
+   "decode": {
+    "median": 0.81,
+    "p90": 0.931,
+    "max": 1.015,
+    "n": 38
+   },
+   "decodePerAudioSecond": 0.157,
+   "afterPause": {
+    "median": 1.027,
+    "p90": 1.162,
+    "max": 1.194,
+    "n": 38
+   },
+   "delay": {
+    "median": 1.32,
+    "p90": 1.499,
+    "max": 6.017,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 4.171,
+   "wer": 5.978,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 1.109
+  },
+  {
+   "model": "whisper-large-v3-turbo",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.614,
+   "firstDecodeSeconds": 0.944,
+   "footprintMB": 2234.8,
+   "pieces": 39,
+   "forced": 0,
+   "decode": {
+    "median": 0.813,
+    "p90": 0.897,
+    "max": 1.003,
+    "n": 39
+   },
+   "decodePerAudioSecond": 0.16,
+   "afterPause": {
+    "median": 1.022,
+    "p90": 1.169,
+    "max": 1.191,
+    "n": 39
+   },
+   "delay": {
+    "median": 1.318,
+    "p90": 1.487,
+    "max": 1.523,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 4.146,
+   "wer": 5.797,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 1.166
+  },
+  {
+   "model": "whisper-large-v3-turbo",
+   "recording": "en",
+   "optimized": true,
+   "language": "en",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 1.614,
+   "firstDecodeSeconds": 0.944,
+   "footprintMB": 2234.8,
+   "pieces": 72,
+   "forced": 0,
+   "decode": {
+    "median": 0.75,
+    "p90": 0.8,
+    "max": 0.847,
+    "n": 72
+   },
+   "decodePerAudioSecond": 0.206,
+   "afterPause": null,
+   "delay": {
+    "median": 3.215,
+    "p90": 4.29,
+    "max": 5.006,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 3.449,
+   "wer": 7.609,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 1.438
+  },
+  {
+   "model": "whisper-large-v3-turbo",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "mixed",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.996,
+   "firstDecodeSeconds": 1.159,
+   "footprintMB": 2201.003,
+   "pieces": 41,
+   "forced": 0,
+   "decode": {
+    "median": 0.86,
+    "p90": 1.08,
+    "max": 1.324,
+    "n": 41
+   },
+   "decodePerAudioSecond": 0.164,
+   "afterPause": {
+    "median": 1.119,
+    "p90": 1.292,
+    "max": 1.48,
+    "n": 41
+   },
+   "delay": {
+    "median": 1.377,
+    "p90": 1.718,
+    "max": 7.05,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 4.838,
+   "wer": 16.598,
+   "cyrillic": 0.02,
+   "cpuPerAudioMinute": 1.754
+  },
+  {
+   "model": "whisper-large-v3-turbo",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "turns",
+   "rule": "2 quiet, 1 after 4 s",
+   "loadSeconds": 1.996,
+   "firstDecodeSeconds": 1.159,
+   "footprintMB": 2201.003,
+   "pieces": 44,
+   "forced": 0,
+   "decode": {
+    "median": 0.823,
+    "p90": 1.056,
+    "max": 1.3,
+    "n": 44
+   },
+   "decodePerAudioSecond": 0.17,
+   "afterPause": {
+    "median": 1.112,
+    "p90": 1.321,
+    "max": 1.456,
+    "n": 44
+   },
+   "delay": {
+    "median": 1.367,
+    "p90": 1.585,
+    "max": 1.712,
+    "n": 25
+   },
+   "missing": 0,
+   "age": 4.648,
+   "wer": 15.574,
+   "cyrillic": 0.02,
+   "cpuPerAudioMinute": 1.521
+  },
+  {
+   "model": "whisper-large-v3-turbo",
+   "recording": "sr",
+   "optimized": true,
+   "language": "sr",
+   "layout": "tracks",
+   "kind": "windows",
+   "rule": "windows",
+   "loadSeconds": 1.996,
+   "firstDecodeSeconds": 1.159,
+   "footprintMB": 2201.003,
+   "pieces": 72,
+   "forced": 0,
+   "decode": {
+    "median": 0.803,
+    "p90": 0.903,
+    "max": 1.889,
+    "n": 72
+   },
+   "decodePerAudioSecond": 0.23,
+   "afterPause": null,
+   "delay": {
+    "median": 2.435,
+    "p90": 3.681,
+    "max": 4.566,
+    "n": 24
+   },
+   "missing": 1,
+   "age": 3.558,
+   "wer": 24.18,
+   "cyrillic": 0.03,
+   "cpuPerAudioMinute": 2.121
+  }
+ ],
+ "streams": [
+  {
+   "model": "nemotron-multilingual-560",
+   "recording": "en",
+   "language": "en-US",
+   "optimized": true,
+   "chunkMilliseconds": 560,
+   "loadSeconds": 0.274,
+   "footprintMB": 806.439,
+   "pieces": 39,
+   "age": {
+    "median": 0.339,
+    "p90": 0.507,
+    "max": 0.9,
+    "n": 1309
+   },
+   "step": {
+    "median": 0.0,
+    "p90": 0.017,
+    "max": 0.34,
+    "n": 1394
+   },
+   "flush": {
+    "median": 0.015,
+    "p90": 0.019,
+    "max": 0.022,
+    "n": 39
+   },
+   "delay": {
+    "median": 0.477,
+    "p90": 0.756,
+    "max": 0.788,
+    "n": 25
+   },
+   "wer": 4.71,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 2.086
+  },
+  {
+   "model": "nemotron-multilingual-560",
+   "recording": "sr",
+   "language": "hr-HR",
+   "optimized": true,
+   "chunkMilliseconds": 560,
+   "loadSeconds": 0.274,
+   "footprintMB": 811.939,
+   "pieces": 44,
+   "age": {
+    "median": 0.336,
+    "p90": 0.5,
+    "max": 0.907,
+    "n": 1519
+   },
+   "step": {
+    "median": 0.0,
+    "p90": 0.017,
+    "max": 0.347,
+    "n": 1495
+   },
+   "flush": {
+    "median": 0.016,
+    "p90": 0.018,
+    "max": 0.026,
+    "n": 44
+   },
+   "delay": {
+    "median": 0.542,
+    "p90": 0.679,
+    "max": 0.69,
+    "n": 25
+   },
+   "wer": 43.852,
+   "cyrillic": 0.0,
+   "cpuPerAudioMinute": 2.135
+  }
+ ],
+ "replays": [
+  {
+   "model": "parakeet-v3",
+   "recording": "en",
+   "language": "en",
+   "optimized": true,
+   "seconds": 90,
+   "lines": 17,
+   "partials": 31,
+   "delay": {
+    "median": 0.624,
+    "p90": 0.943,
+    "max": 0.943,
+    "n": 11
+   },
+   "missing": 0,
+   "firstWords": {
+    "median": 2.149,
+    "p90": 2.4,
+    "max": 7.065,
+    "n": 14
+   }
+  },
+  {
+   "model": "qwen3-asr-1.7b",
+   "recording": "en",
+   "language": "en",
+   "optimized": true,
+   "seconds": 90,
+   "lines": 17,
+   "partials": 31,
+   "delay": {
+    "median": 0.696,
+    "p90": 0.931,
+    "max": 0.961,
+    "n": 11
+   },
+   "missing": 0,
+   "firstWords": {
+    "median": 2.173,
+    "p90": 2.743,
+    "max": 7.196,
+    "n": 14
+   }
+  }
+ ]
+}
