@@ -108,3 +108,8 @@ python3 build.py && npm run check
 npx --yes hyperframes@0.8.150 render --quality high --video-frame-format png -o renders/raw.mp4
 ./master.sh renders/raw.mp4 renders/lokalbot-one-decision.mp4   # to about -16 LUFS
 ```
+
+For YouTube, add `--resolution landscape-4k` to the render: the titles and the terminal are drawn
+at 3840×2160, the footage is enlarged, and YouTube gives an upload of that size its better codec.
+`ffmpeg -ss 4.6 -i <film> -frames:v 1 -vf scale=1280:720 thumbnail.png` takes the thumbnail from
+the first highlight.
