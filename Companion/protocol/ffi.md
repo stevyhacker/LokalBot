@@ -31,7 +31,7 @@ start()                         // bind 0.0.0.0:port and [::]:port, apply the ad
 stop()                          // close the listener and every session
 is_running() -> bool
 bound_port() -> u16
-set_loopback_only(loopback_only: bool)   // 127.0.0.1 and ::1 only, for development hosts and tests; applies at the next start()
+set_loopback_only(loopback_only: bool)   // 127.0.0.1 and ::1 only, for development hosts and tests; applies at the next start(), which fails if 127.0.0.1 is taken on that port
 
 publish(kind: string, key: string, body_json: string) -> bool   // true if the record changed (new version + seq), pushed live to connected clients
 remove(kind: string, key: string) -> bool                       // tombstone; true if it existed
