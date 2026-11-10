@@ -1,0 +1,667 @@
+{
+  "email": {
+    "prefix": "Hi Sam,\n\nThanks for the notes from today. Let me know if you have any ",
+    "prompt": "Visible in this window:\n• E Note to Sam.txt ~\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have any ",
+    "content": "",
+    "seconds": 4.56,
+    "probabilities": null
+  },
+  "french": {
+    "prefix": "Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des ",
+    "prompt": "Visible in this window:\n• E Camille.txt ~\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des ",
+    "content": "",
+    "seconds": 2.93,
+    "probabilities": null
+  },
+  "german": {
+    "prefix": "Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes ",
+    "prompt": "Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes ",
+    "content": "",
+    "seconds": 1.51,
+    "probabilities": null
+  },
+  "memory": {
+    "prefix": "Hi all,\n\nAfter the launch planning call, the Team plan will be $15",
+    "prompt": "Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be $15",
+    "content": " per seat, billed annually.",
+    "seconds": 4.09,
+    "probabilities": [
+      {
+        "id": 810,
+        "token": " per",
+        "bytes": [
+          32,
+          112,
+          101,
+          114
+        ],
+        "logprob": -0.4138253331184387,
+        "top_logprobs": [
+          {
+            "id": 810,
+            "token": " per",
+            "bytes": [
+              32,
+              112,
+              101,
+              114
+            ],
+            "logprob": -0.4138253331184387
+          },
+          {
+            "id": 236786,
+            "token": "/",
+            "bytes": [
+              47
+            ],
+            "logprob": -1.634812593460083
+          },
+          {
+            "id": 496,
+            "token": " a",
+            "bytes": [
+              32,
+              97
+            ],
+            "logprob": -3.7707626819610596
+          },
+          {
+            "id": 236761,
+            "token": ".",
+            "bytes": [
+              46
+            ],
+            "logprob": -4.130954265594482
+          },
+          {
+            "id": 23058,
+            "token": " USD",
+            "bytes": [
+              32,
+              85,
+              83,
+              68
+            ],
+            "logprob": -4.136317729949951
+          },
+          {
+            "id": 236771,
+            "token": "0",
+            "bytes": [
+              48
+            ],
+            "logprob": -4.259793758392334
+          }
+        ]
+      },
+      {
+        "id": 11171,
+        "token": " seat",
+        "bytes": [
+          32,
+          115,
+          101,
+          97,
+          116
+        ],
+        "logprob": -0.17006830871105194,
+        "top_logprobs": [
+          {
+            "id": 11171,
+            "token": " seat",
+            "bytes": [
+              32,
+              115,
+              101,
+              97,
+              116
+            ],
+            "logprob": -0.17006830871105194
+          },
+          {
+            "id": 2297,
+            "token": " month",
+            "bytes": [
+              32,
+              109,
+              111,
+              110,
+              116,
+              104
+            ],
+            "logprob": -2.9382357597351074
+          },
+          {
+            "id": 2430,
+            "token": " user",
+            "bytes": [
+              32,
+              117,
+              115,
+              101,
+              114
+            ],
+            "logprob": -3.548020839691162
+          },
+          {
+            "id": 1589,
+            "token": " person",
+            "bytes": [
+              32,
+              112,
+              101,
+              114,
+              115,
+              111,
+              110
+            ],
+            "logprob": -4.02717924118042
+          },
+          {
+            "id": 2434,
+            "token": " team",
+            "bytes": [
+              32,
+              116,
+              101,
+              97,
+              109
+            ],
+            "logprob": -4.117166042327881
+          },
+          {
+            "id": 4374,
+            "token": " member",
+            "bytes": [
+              32,
+              109,
+              101,
+              109,
+              98,
+              101,
+              114
+            ],
+            "logprob": -4.904819011688232
+          }
+        ]
+      },
+      {
+        "id": 236764,
+        "token": ",",
+        "bytes": [
+          44
+        ],
+        "logprob": -0.5731000304222107,
+        "top_logprobs": [
+          {
+            "id": 236764,
+            "token": ",",
+            "bytes": [
+              44
+            ],
+            "logprob": -0.5731000304222107
+          },
+          {
+            "id": 810,
+            "token": " per",
+            "bytes": [
+              32,
+              112,
+              101,
+              114
+            ],
+            "logprob": -2.20847225189209
+          },
+          {
+            "id": 80090,
+            "token": " billed",
+            "bytes": [
+              32,
+              98,
+              105,
+              108,
+              108,
+              101,
+              100
+            ],
+            "logprob": -2.35866641998291
+          },
+          {
+            "id": 236761,
+            "token": ".",
+            "bytes": [
+              46
+            ],
+            "logprob": -2.905043601989746
+          },
+          {
+            "id": 532,
+            "token": " and",
+            "bytes": [
+              32,
+              97,
+              110,
+              100
+            ],
+            "logprob": -3.0786867141723633
+          },
+          {
+            "id": 573,
+            "token": " for",
+            "bytes": [
+              32,
+              102,
+              111,
+              114
+            ],
+            "logprob": -3.904086112976074
+          }
+        ]
+      },
+      {
+        "id": 80090,
+        "token": " billed",
+        "bytes": [
+          32,
+          98,
+          105,
+          108,
+          108,
+          101,
+          100
+        ],
+        "logprob": -0.11054226011037827,
+        "top_logprobs": [
+          {
+            "id": 80090,
+            "token": " billed",
+            "bytes": [
+              32,
+              98,
+              105,
+              108,
+              108,
+              101,
+              100
+            ],
+            "logprob": -0.11054226011037827
+          },
+          {
+            "id": 810,
+            "token": " per",
+            "bytes": [
+              32,
+              112,
+              101,
+              114
+            ],
+            "logprob": -3.8441410064697266
+          },
+          {
+            "id": 532,
+            "token": " and",
+            "bytes": [
+              32,
+              97,
+              110,
+              100
+            ],
+            "logprob": -4.144247055053711
+          },
+          {
+            "id": 107,
+            "token": "\n",
+            "bytes": [
+              10
+            ],
+            "logprob": -5.036937713623047
+          },
+          {
+            "id": 6382,
+            "token": " paid",
+            "bytes": [
+              32,
+              112,
+              97,
+              105,
+              100
+            ],
+            "logprob": -5.242532730102539
+          },
+          {
+            "id": 607,
+            "token": " with",
+            "bytes": [
+              32,
+              119,
+              105,
+              116,
+              104
+            ],
+            "logprob": -5.345312118530273
+          }
+        ]
+      },
+      {
+        "id": 24321,
+        "token": " annually",
+        "bytes": [
+          32,
+          97,
+          110,
+          110,
+          117,
+          97,
+          108,
+          108,
+          121
+        ],
+        "logprob": -0.08051567524671555,
+        "top_logprobs": [
+          {
+            "id": 24321,
+            "token": " annually",
+            "bytes": [
+              32,
+              97,
+              110,
+              110,
+              117,
+              97,
+              108,
+              108,
+              121
+            ],
+            "logprob": -0.08051567524671555
+          },
+          {
+            "id": 107,
+            "token": "\n",
+            "bytes": [
+              10
+            ],
+            "logprob": -3.346142530441284
+          },
+          {
+            "id": 40731,
+            "token": " yearly",
+            "bytes": [
+              32,
+              121,
+              101,
+              97,
+              114,
+              108,
+              121
+            ],
+            "logprob": -4.27712345123291
+          },
+          {
+            "id": 3622,
+            "token": " once",
+            "bytes": [
+              32,
+              111,
+              110,
+              99,
+              101
+            ],
+            "logprob": -5.568367958068848
+          },
+          {
+            "id": 810,
+            "token": " per",
+            "bytes": [
+              32,
+              112,
+              101,
+              114
+            ],
+            "logprob": -5.628144264221191
+          },
+          {
+            "id": 580,
+            "token": " on",
+            "bytes": [
+              32,
+              111,
+              110
+            ],
+            "logprob": -5.655318260192871
+          }
+        ]
+      },
+      {
+        "id": 236761,
+        "token": ".",
+        "bytes": [
+          46
+        ],
+        "logprob": -0.28170153498649597,
+        "top_logprobs": [
+          {
+            "id": 236761,
+            "token": ".",
+            "bytes": [
+              46
+            ],
+            "logprob": -0.28170153498649597
+          },
+          {
+            "id": 236764,
+            "token": ",",
+            "bytes": [
+              44
+            ],
+            "logprob": -2.0679678916931152
+          },
+          {
+            "id": 568,
+            "token": " (",
+            "bytes": [
+              32,
+              40
+            ],
+            "logprob": -3.642587184906006
+          },
+          {
+            "id": 532,
+            "token": " and",
+            "bytes": [
+              32,
+              97,
+              110,
+              100
+            ],
+            "logprob": -4.116122722625732
+          },
+          {
+            "id": 573,
+            "token": " for",
+            "bytes": [
+              32,
+              102,
+              111,
+              114
+            ],
+            "logprob": -4.5954203605651855
+          },
+          {
+            "id": 607,
+            "token": " with",
+            "bytes": [
+              32,
+              119,
+              105,
+              116,
+              104
+            ],
+            "logprob": -5.031430721282959
+          }
+        ]
+      }
+    ]
+  },
+  "midword": {
+    "prefix": "Hi Priya,\n\nCan we go over the launch chec",
+    "prompt": "Visible in this window:\n• Tomorrow.txt ~\n\nTopic: Tomorrow.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi Priya,\n\nCan we go over the launch chec",
+    "content": "book?",
+    "seconds": 4.05,
+    "probabilities": [
+      {
+        "id": 3070,
+        "token": "book",
+        "bytes": [
+          98,
+          111,
+          111,
+          107
+        ],
+        "logprob": -2.215527296066284,
+        "top_logprobs": [
+          {
+            "id": 3070,
+            "token": "book",
+            "bytes": [
+              98,
+              111,
+              111,
+              107
+            ],
+            "logprob": -2.215527296066284
+          },
+          {
+            "id": 1390,
+            "token": "...",
+            "bytes": [
+              46,
+              46,
+              46
+            ],
+            "logprob": -2.5278470516204834
+          },
+          {
+            "id": 108,
+            "token": "\n\n",
+            "bytes": [
+              10,
+              10
+            ],
+            "logprob": -2.7417514324188232
+          },
+          {
+            "id": 107,
+            "token": "\n",
+            "bytes": [
+              10
+            ],
+            "logprob": -3.192188024520874
+          },
+          {
+            "id": 2357,
+            "token": "ks",
+            "bytes": [
+              107,
+              115
+            ],
+            "logprob": -3.262817621231079
+          },
+          {
+            "id": 237064,
+            "token": "…",
+            "bytes": [
+              226,
+              128,
+              166
+            ],
+            "logprob": -3.297302007675171
+          }
+        ]
+      },
+      {
+        "id": 236881,
+        "token": "?",
+        "bytes": [
+          63
+        ],
+        "logprob": -2.0551059246063232,
+        "top_logprobs": [
+          {
+            "id": 236881,
+            "token": "?",
+            "bytes": [
+              63
+            ],
+            "logprob": -2.0551059246063232
+          },
+          {
+            "id": 1570,
+            "token": " again",
+            "bytes": [
+              32,
+              97,
+              103,
+              97,
+              105,
+              110
+            ],
+            "logprob": -2.3837649822235107
+          },
+          {
+            "id": 573,
+            "token": " for",
+            "bytes": [
+              32,
+              102,
+              111,
+              114
+            ],
+            "logprob": -2.5132014751434326
+          },
+          {
+            "id": 532,
+            "token": " and",
+            "bytes": [
+              32,
+              97,
+              110,
+              100
+            ],
+            "logprob": -2.5980937480926514
+          },
+          {
+            "id": 607,
+            "token": " with",
+            "bytes": [
+              32,
+              119,
+              105,
+              116,
+              104
+            ],
+            "logprob": -3.478668689727783
+          },
+          {
+            "id": 1694,
+            "token": " list",
+            "bytes": [
+              32,
+              108,
+              105,
+              115,
+              116
+            ],
+            "logprob": -3.636530637741089
+          }
+        ]
+      }
+    ]
+  },
+  "spanish": {
+    "prefix": "Hola Diego,\n\nGracias por las notas. Si tienes alguna ",
+    "prompt": "Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes alguna ",
+    "content": "",
+    "seconds": 2.5,
+    "probabilities": null
+  }
+}
