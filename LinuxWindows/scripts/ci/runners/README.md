@@ -57,7 +57,7 @@ The machines are set up so a bad job can do little:
 | | Linux (`setup-linux-runner.sh`) | Windows (`setup-windows-runner.ps1`) |
 |---|---|---|
 | Account | `ghrunner` for both runners: no sudo, no docker, private home; the `kvm` group only in the Android runner's service | NETWORK SERVICE; `C:\gh` limited to SYSTEM, Administrators and that account |
-| Tailscale network | Blocked by `IPAddressDeny` on the systemd unit | Blocked by an outbound firewall rule for the runner service (unrestricted service SID) |
+| Tailscale network | Blocked by `IPAddressDeny` on the systemd unit, along with private networks (a home LAN, a hypervisor's NAT, Docker bridges) | Blocked by an outbound firewall rule for the runner service (unrestricted service SID) |
 | Sharing the host | Both runners in `system-ghrunner.slice`: `CPUWeight=50` and `MemoryMax=40G` together, `MemoryMax=32G` each; private `/tmp`; the Linux job's own X display (`:240`) | Steps run at below-normal priority, on the CPU's performance cores |
 | State between jobs | Warm targets in `~ghrunner/target` and `~ghrunner/target-android`; XDG folders per job | Warm target in `C:\gh\t`; workspace synced per job (`sync-sources.ps1`) |
 | Secrets | None: these jobs use no repository secrets | None; release builds and signing stay on GitHub's runners |
@@ -83,6 +83,17 @@ gh api -X POST repos/stevyhacker/LokalBot/actions/runners/registration-token --j
   ssh WINDOWS_HOST 'powershell -NoProfile -ExecutionPolicy Bypass -File setup-windows-runner.ps1 -Url https://github.com/stevyhacker/LokalBot'
 ```
 
+A runner is named after its label (`lokalbot-linux`, `lokalbot-android`), and
+registering a name that is already taken replaces that runner. To add a second
+machine beside the first, give its runners names of their own. They keep the
+label, so the picker sends a job to whichever matching runner is idle, and each
+machine keeps its own warm target:
+
+```bash
+gh api -X POST repos/stevyhacker/LokalBot/actions/runners/registration-token --jq .token |
+  ssh SECOND_HOST 'RUNNER_NAME=lokalbot-linux-pc bash setup-linux-runner.sh https://github.com/stevyhacker/LokalBot'
+```
+
 The Android runner also needs an Android SDK. Run this again to update what it
 installs:
 
@@ -90,7 +101,13 @@ installs:
 ssh LINUX_HOST 'bash setup-linux-android-sdk.sh'
 ```
 
-The Linux scripts need Ubuntu 24.04 and a user with sudo. The Windows script
+The Linux scripts need Ubuntu 24.04 and a user with sudo. The block on private
+networks also stops DNS to a private resolver, so the machine must resolve names
+through a local stub such as systemd-resolved (`127.0.0.53`, Ubuntu's default).
+WSL writes its own `/etc/resolv.conf` (`10.255.255.254`): there, set
+`generateResolvConf=false` under `[network]` in `/etc/wsl.conf` and link
+`/etc/resolv.conf` to `/run/systemd/resolve/stub-resolv.conf`.
+`setup-linux-runner.sh` checks this before it registers anything. The Windows script
 needs an elevated shell, Visual Studio Build Tools with the C++ workload, Git
 for Windows, 7-Zip and CMake. It installs PowerShell 7 machine-wide if it's
 missing.
