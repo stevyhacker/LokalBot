@@ -41,19 +41,6 @@
     "AgentView.swift": [
       "Downloading \\(…)…"
     ],
-    "AskView.swift": [
-      "Answer sources: \\(…) · \\(…)",
-      "Ask about results",
-      "Ask can search the selected sources within \\(…). Result-type and screen-app filters apply to search results only.",
-      "Ask stays within the selected evidence shown above, even when this search has no matches.",
-      "Attached screen · \\(…) · \\(…)",
-      "Finding sources…",
-      "Meeting · \\(…) · \\(…)",
-      "Results: \\(…)",
-      "Screen app: \\(…)",
-      "Screen · \\(…) · \\(…) · \\(…)",
-      "Waiting for sources…"
-    ],
     "AutocompleteExperienceView.swift": [
       "macOS can show its own inline predictions where you type, so two suggestions may appear at once. Turn off “Show inline predictive text” in Keyboard → Text Input → Edit…."
     ],
@@ -76,19 +63,11 @@
       "\\(…) saved moments excluded · \\(…) saved moments included"
     ],
     "ChatView.swift": [
-      "Forgotten since this answer",
-      "LokalBot used only the sources enabled for this question. Citation numbers remain stable even when a local source is later removed.",
-      "Manage what LokalBot remembers…",
       "Manage…",
       "No questions match “\\(…)”.",
       "Remembered, then forgotten",
       "Show full question",
-      "Stop reading",
-      "Stop reading aloud",
-      "This removes “\\(…)” from Ask history.",
-      "Used 1 thing you told LokalBot",
-      "Used \\(…) things you told LokalBot",
-      "\\(…) conversations"
+      "This removes “\\(…)” from Ask history."
     ],
     "CodingAgentEvidenceSettings.swift": [
       "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code and Codex keep their own session files."
@@ -174,7 +153,6 @@
       "Search off",
       "Verifying…"
     ],
-    "ModelOverviewSections.swift": [],
     "ModelPickerSheet.swift": [
       "Available on this Mac. No model download is needed.",
       "Download and use",

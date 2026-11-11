@@ -2,19 +2,18 @@ import SwiftUI
 import AppKit
 import AVFoundation
 
-// The assistant's conversation surfaces: the editorial transcript embedded
-// by the Ask section (spec §2.3), and the saved-conversation list shown in
-// Ask's content column. The assistant itself is a small ReAct agent
+// The assistant's conversation surfaces: the transcript embedded by the Ask
+// section (questions, answers with numbered citations, a sources list under
+// each answer), and the saved-conversation list shown in Ask's content column. The assistant itself is a small ReAct agent
 // (`ChatAgent`) over the summarisation `TextEngine` that can search
 // transcripts, list meetings, and read a meeting's summary or transcript
 // via tool calls — all on-device.
 
 // MARK: - Editorial transcript
 
-/// The conversation transcript, restyled from chat bubbles to an editorial
-/// layout (spec §2.3): user turns as compact teal-tinted rows, assistant
-/// turns as full-width flat text with tool activity collapsed to one
-/// "worked: …" line. Embedded by the Ask surface.
+/// The conversation transcript: each question as a heading with its time,
+/// then the answer as flat text with tool activity collapsed to one line,
+/// its sources and its actions. Embedded by the Ask surface.
 struct ChatTranscriptView: View {
     @ObservedObject var model: ChatViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -33,8 +32,9 @@ struct ChatTranscriptView: View {
                                 model: model,
                                 startsQuestion: entry.startsQuestion,
                                 dateDividerTitle: entry.dateDividerTitle,
-                                showsQuestionScope: entry.showsQuestionScope,
-                                isLatestQuestion: entry.isLatestQuestion)
+                                isLatestQuestion: entry.isLatestQuestion,
+                                question: entry.question,
+                                isLastTurn: entry.isLastTurn)
                                 .id(entry.id)
                         }
                     }
@@ -114,6 +114,7 @@ struct ChatTranscriptView: View {
 
     private var transcriptEntries: [ChatTranscriptEntry] {
         let latestUserID = model.messages.last(where: { $0.role == .user })?.id
+        let lastID = model.messages.last?.id
         var previousUser: ChatMessage?
         return model.messages.enumerated().map { index, message in
             defer {
@@ -122,14 +123,12 @@ struct ChatTranscriptView: View {
             return ChatTranscriptEntry(
                 message: message,
                 startsQuestion: index > 0 && message.role == .user,
-                dateDividerTitle: ChatTranscriptPresentation.dateDividerTitle(
+                dateDividerTitle: ChatTranscriptPresentation.visibleDateDividerTitle(
                     for: message,
                     after: previousUser),
-                showsQuestionScope: message.role == .user
-                    && ChatTranscriptPresentation.questionScopeChanged(
-                        message,
-                        after: previousUser),
-                isLatestQuestion: message.id == latestUserID)
+                isLatestQuestion: message.id == latestUserID,
+                question: message.role == .assistant ? previousUser : nil,
+                isLastTurn: message.id == lastID)
         }
     }
 
@@ -169,8 +168,10 @@ private struct ChatTranscriptEntry: Identifiable {
     let message: ChatMessage
     let startsQuestion: Bool
     let dateDividerTitle: String?
-    let showsQuestionScope: Bool
     let isLatestQuestion: Bool
+    /// For an answer, the question it replied to.
+    let question: ChatMessage?
+    let isLastTurn: Bool
     var id: UUID { message.id }
 }
 
@@ -192,6 +193,19 @@ enum ChatTranscriptPresentation {
         if calendar.isDateInToday(message.createdAt) { return "Today" }
         if calendar.isDateInYesterday(message.createdAt) { return "Yesterday" }
         return message.createdAt.formatted(date: .long, time: .omitted)
+    }
+
+    /// The divider a question shows above it. A conversation that starts
+    /// today needs none: each question already carries its time.
+    static func visibleDateDividerTitle(
+        for message: ChatMessage,
+        after previousUser: ChatMessage?,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> String? {
+        if previousUser == nil, !message.createdAtIsEstimated, calendar.isDateInToday(message.createdAt) {
+            return nil
+        }
+        return dateDividerTitle(for: message, after: previousUser, calendar: calendar)
     }
 
     static func questionScopeChanged(
@@ -233,8 +247,11 @@ private struct EditorialTurn: View {
     @ObservedObject var model: ChatViewModel
     let startsQuestion: Bool
     let dateDividerTitle: String?
-    let showsQuestionScope: Bool
     let isLatestQuestion: Bool
+    /// The question an answer replied to.
+    let question: ChatMessage?
+    /// The answer that ends the conversation; a failed one keeps its matches.
+    let isLastTurn: Bool
     @ObservedObject private var downloads = ModelDownloadManager.shared
     @State private var speechPlayer: AVAudioPlayer?
     @State private var speechError: String?
@@ -244,13 +261,15 @@ private struct EditorialTurn: View {
     @State private var speechSessionID: UUID?
     @State private var copied = false
     @State private var questionExpanded = false
+    @State private var openCitation: OpenCitation?
+    @State private var clickProbe = CitationClickProbe()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let dateDividerTitle {
                 ConversationDateDivider(title: dateDividerTitle)
             } else if startsQuestion {
-                Divider()
+                Divider().padding(.bottom, 8)
             }
             Group {
                 if message.role == .user { userRow } else { assistantBlock }
@@ -263,16 +282,24 @@ private struct EditorialTurn: View {
         }
     }
 
+    /// The question in its own words, with the time it was asked. What it
+    /// was limited to is in the time's tooltip and the spoken value; the
+    /// composer's two menus are where scope is chosen.
     private var userRow: some View {
         VStack(alignment: .leading, spacing: 7) {
-            turnMetadata(
-                "You",
-                systemImage: "person.crop.circle",
-                scopeSummary: showsQuestionScope ? questionScopeSummary : nil)
-            Text(message.text)
-                .font(AppFont.scaled(.title2).weight(.semibold))
-                .lineLimit(questionIsExpanded ? nil : 3)
-                .textSelection(.enabled)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(message.text)
+                    .font(LBTokens.Typography.question)
+                    .lineLimit(questionIsExpanded ? nil : 3)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if !message.createdAtIsEstimated {
+                    Text(message.createdAt.formatted(date: .omitted, time: .shortened))
+                        .font(AppFont.scaled(.callout).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .help(questionScopeSummary ?? "")
+                }
+            }
             if ChatTranscriptPresentation.isLongQuestion(message.text), !isLatestQuestion {
                 Button(questionExpanded ? "Show less" : "Show full question") {
                     questionExpanded.toggle()
@@ -303,90 +330,104 @@ private struct EditorialTurn: View {
 
     @ViewBuilder private var answerBlock: some View {
         let parsed = ChatCitationParser.extract(message.text)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if isStoppedTurn {
-                responseStatusRow(
-                    title: "Response stopped",
-                    detail: model.canRetry(message.id)
-                        ? "The response was interrupted. You can try the question again."
-                        : "This earlier response was not completed.",
-                    systemImage: "stop.circle",
-                    tint: Color.primary.opacity(0.55))
+                statusCard(title: "Response stopped", detail: nil, systemImage: "stop.circle",
+                           tint: Color.secondary, offersModelSettings: false)
             } else if message.isError {
-                responseStatusRow(
-                    title: "Answer unavailable",
-                    detail: message.text,
-                    systemImage: "exclamationmark.triangle",
-                    tint: Brand.error)
+                statusCard(title: "Couldn't answer", detail: message.text,
+                           systemImage: "exclamationmark.triangle",
+                           tint: LBTokens.Palette.attentionText, offersModelSettings: true)
+                if isLastTurn, let question {
+                    FailedAnswerMatches(question: question)
+                }
             } else {
-                turnMetadata(
-                    message.isPending ? "LokalBot is answering" : "LokalBot",
-                    systemImage: "sparkles")
                 if message.activity.contains(where: { !$0.done }) {
                     WorkedLine(activities: message.activity)
                 }
-            }
-            if message.isPending && message.text.isEmpty && !message.isError {
-                ModelPreparationView(
-                    presentation: assistantPreparation,
-                    style: .standard)
-                answerActions(copyText: "", allowsSpeech: false)
-            } else if !message.isError && !isStoppedTurn {
-                if !parsed.display.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Group {
-                        if message.isPending {
-                            SelectableDigestText(StreamingMarkdown.displayable(parsed.display), style: .editorial)
-                        } else {
-                            SelectableDigestText(ChatCitationParser.extract(message.text, linked: true).display, style: .editorial)
-                                .environment(\.openURL, OpenURLAction { url in
-                                    guard url.scheme == "lokalbot-citation" else { return .systemAction }
-                                    guard url.host == "source", let number = Int(url.lastPathComponent),
-                                          parsed.citations.indices.contains(number - 1) else { return .discarded }
-                                    let citation = parsed.citations[number - 1]
-                                    if let snapshotID = citation.snapshotID {
-                                        app.openScreenSnapshot(snapshotID)
-                                    } else if let fileID = citation.fileID {
-                                        app.openFileCitation(fileID)
-                                    } else {
-                                        app.openCitation(citation)
-                                    }
-                                    return .handled
-                                })
+                if message.isPending && message.text.isEmpty {
+                    ModelPreparationView(
+                        presentation: assistantPreparation,
+                        style: .standard)
+                } else {
+                    if !parsed.display.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        answerText(parsed)
+                        if let speechError {
+                            Text(speechError)
+                                .font(.scaled(.caption2))
+                                .foregroundStyle(Brand.error)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                         }
                     }
-                        .foregroundStyle(message.isError ? AnyShapeStyle(.red)
-                                                         : AnyShapeStyle(.primary))
-                        .contextMenu {
-                            Button {
-                                toggleAssistantSpeech(parsed.display)
-                            } label: {
-                                Label(readingSpeech ? "Stop reading aloud" : "Read aloud",
-                                      systemImage: assistantSpeechIcon)
-                            }
+                    if !message.isPending {
+                        let claimIDs = model.personalModel == nil ? [] : message.usedClaimIDs ?? []
+                        if !parsed.citations.isEmpty || !claimIDs.isEmpty {
+                            AnswerSourcesList(citations: parsed.citations, claimIDs: claimIDs,
+                                              personalModel: model.personalModel, open: $openCitation)
                         }
-                        .accessibilityAction(
-                            named: Text(readingSpeech ? "Stop reading aloud" : "Read aloud")) {
-                                toggleAssistantSpeech(parsed.display)
-                            }
-                    if let speechError {
-                        Text(speechError)
-                            .font(.scaled(.caption2))
-                            .foregroundStyle(Brand.error)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                        answerActions(copyText: parsed.display)
                     }
-                }
-                answerActions(copyText: parsed.display, allowsSpeech: true)
-                if !parsed.citations.isEmpty {
-                    EvidenceDisclosure(citations: parsed.citations)
-                }
-                if let claimIDs = message.usedClaimIDs, !claimIDs.isEmpty,
-                   let personalModel = model.personalModel {
-                    PersonalContextDisclosure(claimIDs: claimIDs, personalModel: personalModel)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The answer as one selectable text. A citation number is a small pill;
+    /// clicking it shows the quoted passage at the number, in place.
+    @ViewBuilder
+    private func answerText(_ parsed: (display: String, citations: [ChatCitation])) -> some View {
+        Group {
+            if message.isPending {
+                SelectableDigestText(StreamingMarkdown.displayable(parsed.display), style: .editorial)
+            } else {
+                SelectableDigestText(ChatCitationParser.extract(message.text, linked: true).display, style: .editorial)
+                    .background(CitationClickProbeView(probe: clickProbe))
+                    .environment(\.openURL, OpenURLAction { url in
+                        guard url.scheme == "lokalbot-citation" else { return .systemAction }
+                        guard url.host == "source", let number = Int(url.lastPathComponent),
+                              parsed.citations.indices.contains(number - 1) else { return .discarded }
+                        openCitation = OpenCitation(number: number, origin: .answer(clickProbe.clickRect()))
+                        return .handled
+                    })
+                    .popover(item: answerPassage, attachmentAnchor: .rect(answerPassageAnchor),
+                             arrowEdge: .bottom) { open in
+                        if parsed.citations.indices.contains(open.number - 1) {
+                            CitationPassagePopover(citation: parsed.citations[open.number - 1]) {
+                                openCitation = nil
+                            }
+                        }
+                    }
+            }
+        }
+        .contextMenu {
+            Button {
+                toggleAssistantSpeech(parsed.display)
+            } label: {
+                Label(readingSpeech ? "Stop reading aloud" : "Read aloud",
+                      systemImage: assistantSpeechIcon)
+            }
+        }
+        .accessibilityAction(
+            named: Text(readingSpeech ? "Stop reading aloud" : "Read aloud")) {
+                toggleAssistantSpeech(parsed.display)
+            }
+    }
+
+    /// The passage opened from a number in the text (the sources list opens
+    /// its own, at its own numbers).
+    private var answerPassage: Binding<OpenCitation?> {
+        Binding(
+            get: { openCitation?.isFromAnswer == true ? openCitation : nil },
+            set: { value in
+                if value == nil, openCitation?.isFromAnswer == true { openCitation = nil }
+            })
+    }
+
+    private var answerPassageAnchor: Anchor<CGRect>.Source {
+        if case .answer(let rect?) = openCitation?.origin { return .rect(rect) }
+        return .bounds
     }
 
     private var questionIsExpanded: Bool {
@@ -395,7 +436,7 @@ private struct EditorialTurn: View {
 
     private var userTurnAccessibilityValue: String {
         guard let questionScopeSummary else { return message.text }
-        return "\(message.text). Question scope: \(questionScopeSummary)"
+        return "\(message.text). \(questionScopeSummary)"
     }
 
     private var isStoppedTurn: Bool {
@@ -406,145 +447,100 @@ private struct EditorialTurn: View {
     private var questionScopeSummary: String? {
         guard message.role == .user,
               !message.sourceScopes.isEmpty || message.dayScopeKey != nil else { return nil }
-        let selected = Set(message.sourceScopes)
-        let sourceText: String
-        if selected == AskSourceScope.defaults {
-            sourceText = "All sources"
-        } else {
-            sourceText = AskSourceScope.allCases
-                .filter(selected.contains)
-                .map(\.displayName)
-                .joined(separator: ", ")
-        }
-        var parts = [sourceText]
+        let language = app.settings.appLanguage
+        var parts = [AskScopeSummary.sourcesLabel(
+            Set(message.sourceScopes), available: AskSourceScope.allCases, localize: language.catalog)]
         if let dayKey = message.dayScopeKey {
             parts.append(AskDateScope(storageKey: dayKey)?.label() ?? dayKey)
         }
         if !message.attachedScreenDayKeys.isEmpty {
             let days = message.attachedScreenDayKeys.map { key in
-                AskDayScope.date(for: key)?.formatted(date: .abbreviated, time: .omitted)
-                    ?? key
+                AskDayScope.date(for: key).map { AskDateLabel.day($0, locale: language.locale) } ?? key
             }.joined(separator: ", ")
-            parts.append("attached screen: \(days)")
+            parts.append("\(language.localized("Context")): \(days)")
         }
-        return parts.joined(separator: " · ")
+        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    private func turnMetadata(
-        _ title: String,
+    /// A short notice in place of an answer, with the way to fix it.
+    private func statusCard(
+        title: LocalizedStringKey,
+        detail: String?,
         systemImage: String,
-        scopeSummary: String? = nil
+        tint: Color,
+        offersModelSettings: Bool
     ) -> some View {
-        HStack(spacing: 7) {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: systemImage)
-                .frame(width: 14)
-            Text(title)
-                .font(AppFont.scaled(.callout).weight(.semibold))
-            if !message.createdAtIsEstimated {
-                Text("·").foregroundStyle(.tertiary)
-                Text(message.createdAt.formatted(date: .omitted, time: .shortened))
-                    .font(AppFont.scaled(.callout).monospacedDigit())
-            }
-            if let scopeSummary {
-                Text("·").foregroundStyle(.tertiary)
-                Image(systemName: "scope")
-                Text(scopeSummary).lineLimit(1)
-            }
-        }
-        .font(AppFont.scaled(.callout))
-        .foregroundStyle(Color.primary.opacity(0.68))
-        .accessibilityElement(children: .combine)
-    }
-
-    private func responseStatusRow(
-        title: String,
-        detail: String,
-        systemImage: String,
-        tint: Color
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(tint)
-                .frame(width: 20, height: 20)
-            VStack(alignment: .leading, spacing: 2) {
+                .frame(width: 18)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(AppFont.scaled(.body).weight(.semibold))
-                Text(detail)
-                    .font(AppFont.scaled(.callout))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let detail {
+                    Text(verbatim: detail)
+                        .font(AppFont.scaled(.callout))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
+            if offersModelSettings {
+                Button("Model settings") { app.openSettings(tab: .models) }
+                    .accessibilityIdentifier("chat.answer.modelSettings")
+            }
             if model.canRetry(message.id) {
                 Button {
                     model.retry(message.id)
                 } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
                 .accessibilityIdentifier("chat.answer.retry")
-            }
-        }
-        .padding(10)
-        .background(
-            .quaternary.opacity(0.18),
-            in: RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08))
-        }
-    }
-
-    @ViewBuilder
-    private func answerActions(copyText: String, allowsSpeech: Bool) -> some View {
-        HStack(spacing: 14) {
-            if !copyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Button {
-                    copyAnswer(copyText)
-                } label: {
-                    Label(copied ? "Copied" : "Copy",
-                          systemImage: copied ? "checkmark" : "doc.on.doc")
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .disabled(copied)
-                .help("Copy this answer")
-                .accessibilityIdentifier("chat.answer.copy")
-            }
-
-            if allowsSpeech {
-                Button {
-                    toggleAssistantSpeech(copyText)
-                } label: {
-                    Label(readingSpeech ? "Stop reading" : "Read aloud",
-                          systemImage: assistantSpeechIcon)
-                }
-                .help(readingSpeech ? "Stop reading aloud" : "Read this answer aloud")
-                .accessibilityIdentifier("chat.answer.readAloud")
-            }
-
-            if model.canRetry(message.id) {
-                Button {
-                    model.retry(message.id)
-                } label: {
-                    Label("Retry", systemImage: "arrow.clockwise")
-                }
-                .help("Try this question again")
-                .accessibilityIdentifier("chat.answer.retry")
-            }
-
-            if message.isPending && model.isResponding {
-                Button {
-                    model.stop()
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                }
-                .keyboardShortcut(.cancelAction)
-                .help("Stop answering (Esc)")
-                .accessibilityIdentifier("chat.answer.stop")
             }
         }
         .buttonStyle(.bordered)
-        .padding(.top, 2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .askCard(cornerRadius: LBTokens.Metric.groupRadius)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.answer.status")
+    }
+
+    /// Copy, read aloud and ask again: quiet icons, each named for VoiceOver.
+    private func answerActions(copyText: String) -> some View {
+        HStack(spacing: 2) {
+            if !copyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                answerAction(copied ? "checkmark" : "doc.on.doc", label: copied ? "Copied" : "Copy this answer",
+                             identifier: "chat.answer.copy") { copyAnswer(copyText) }
+                    .disabled(copied)
+                answerAction(assistantSpeechIcon, label: readingSpeech ? "Stop reading aloud" : "Read aloud",
+                             identifier: "chat.answer.readAloud") { toggleAssistantSpeech(copyText) }
+            }
+            if model.canAskAgain(message.id) {
+                answerAction("arrow.clockwise", label: "Ask again", identifier: "chat.answer.askAgain") {
+                    model.askAgain(message.id)
+                }
+            }
+        }
+        .padding(.leading, -6)
+        .padding(.top, -4)
+    }
+
+    private func answerAction(_ symbol: String, label: LocalizedStringKey, identifier: String,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 26, height: 26)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help(label)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     private func copyAnswer(_ text: String) {
@@ -674,7 +670,6 @@ private struct EditorialTurn: View {
     }
 }
 
-/// One compact evidence disclosure matching inline `[n]` references in the answer.
 /// The reply to a "Remember …" message: saved locally, no model involved.
 private struct RememberReceiptCard: View {
     @EnvironmentObject var app: AppState
@@ -738,204 +733,39 @@ private struct RememberReceiptCard: View {
     }
 }
 
-/// Lists what the person told LokalBot that went into this answer.
-private struct PersonalContextDisclosure: View {
-    @EnvironmentObject var app: AppState
-    let claimIDs: [UUID]
-    @ObservedObject var personalModel: PersonalModelController
-    @State private var isExpanded = false
+/// The matches for a question whose answer failed, found again on this Mac
+/// within the sources, dates and evidence limits recorded with the question.
+private struct FailedAnswerMatches: View {
+    @EnvironmentObject private var app: AppState
+    let question: ChatMessage
+    @State private var matches = AskMatches()
 
     var body: some View {
-        WorkspaceDisclosure(
-            isExpanded: $isExpanded,
-            identifier: "chat.personalContext",
-            style: .compact) {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(claimIDs, id: \.self) { id in
-                    if let claim = personalModel.claim(id: id) {
-                        Label {
-                            Text(claim.text).fixedSize(horizontal: false, vertical: true)
-                        } icon: {
-                            Image(systemName: claim.kind.systemImage).foregroundStyle(Brand.teal)
-                        }
-                    } else {
-                        Label("Forgotten since this answer", systemImage: "minus.circle")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Button("Manage what LokalBot remembers…") {
-                    app.openSettings(tab: .personalContext)
-                    app.focusedSettingID = "settings.askMemoryEnabled"
-                }
-                .buttonStyle(.borderless)
-                .padding(.top, 4)
-            }
-            .font(AppFont.scaled(.callout))
-        } label: {
-            Label(claimIDs.count == 1 ? "Used 1 thing you told LokalBot"
-                                      : "Used \(claimIDs.count) things you told LokalBot",
-                  systemImage: "person.crop.circle.badge.checkmark")
-                .font(AppFont.scaled(.body))
-        }
-        .accessibilityIdentifier("chat.personalContext")
-    }
-}
-
-private struct EvidenceDisclosure: View {
-    @EnvironmentObject var app: AppState
-    let citations: [ChatCitation]
-    @State private var isExpanded: Bool
-    /// Cited files, looked up in the Files index.
-    @State private var files: [Int64: FileSearchHit] = [:]
-
-    init(citations: [ChatCitation]) {
-        self.citations = citations
-        _isExpanded = State(initialValue: citations.count <= 3)
-    }
-
-    var body: some View {
-        WorkspaceDisclosure(
-            isExpanded: $isExpanded,
-            identifier: "chat.evidence",
-            style: .compact) {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(citations.enumerated()), id: \.element.id) { index, citation in
-                    sourceRow(number: index + 1, citation: citation)
-                }
-            }
-            Text("LokalBot used only the sources enabled for this question. Citation numbers remain stable even when a local source is later removed.")
-                .font(AppFont.scaled(.callout))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10)
-        } label: {
-            HStack(spacing: 8) {
-                Label("Evidence", systemImage: "checkmark.shield")
-                    .font(AppFont.scaled(.body))
-                Text(evidenceSummary)
-                    .font(AppFont.scaled(.callout))
+        VStack(alignment: .leading, spacing: 8) {
+            if !matches.isEmpty {
+                Text("Matches")
+                    .font(AppFont.scaled(.subheadline).weight(.bold))
                     .foregroundStyle(.secondary)
+                    .accessibilityAddTraits(.isHeader)
+                AskMatchesList(matches: matches, query: question.text)
+                    .askCard()
             }
         }
-        .accessibilityIdentifier("chat.sources")
-        .task(id: citations.compactMap(\.fileID)) { await loadCitedFiles() }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.answer.matches")
+        .task(id: question.id) { await load() }
     }
 
-    private var evidenceSummary: String {
-        guard let first = citations.first else { return "No sources" }
-        let keys = Set(citations.map { citation in
-            switch citation.kind {
-            case .meeting: "meeting:\(citation.meetingID)"
-            case .screen: "screen:\(citation.snapshotID.map(String.init) ?? "unknown")"
-            case .file: "file:\(citation.sourceID)"
-            }
-        })
-        if citations.count == 1 {
-            return "1 source · \(resolved(first).title)"
-        }
-        if keys.count == 1 {
-            return "\(citations.count) citations · \(resolved(first).title)"
-        }
-        return "\(citations.count) citations · \(keys.count) sources"
+    private func load() async {
+        var state = RecallWorkspaceState()
+        state.sources = question.sourceScopes.isEmpty ? AskSourceScope.defaults : Set(question.sourceScopes)
+        state.meetingIDs = question.meetingIDs
+        state.screenIDs = question.screenSnapshotIDs
+        let dateScope = question.dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
+        let result = await RecallSearch.search(question.text, state: state, dateScope: dateScope, app: app)
+        guard !Task.isCancelled else { return }
+        matches = AskMatches(result)
     }
-
-    @ViewBuilder private func sourceRow(number: Int, citation: ChatCitation) -> some View {
-        let source = resolved(citation)
-        Button {
-            guard source.available else { return }
-            switch citation.kind {
-            case .meeting: app.openCitation(citation)
-            case .screen:
-                if let snapshotID = citation.snapshotID { app.openScreenSnapshot(snapshotID) }
-            case .file:
-                if let hit = citation.fileID.flatMap({ files[$0] }) { FileSearchOpener.open(hit, query: nil) }
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Text("\(number)")
-                    .font(AppFont.scaled(.callout).weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.white)
-                    .frame(width: 20, height: 20)
-                    .background(Brand.tealFill, in: RoundedRectangle(cornerRadius: 4))
-                Image(systemName: source.icon)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(source.title)
-                        .font(AppFont.scaled(.body).weight(.semibold))
-                        .foregroundStyle(source.available ? .primary : .secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(source.detail)
-                        .font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if source.available {
-                    Image(systemName: "chevron.right")
-                        .font(.scaled(.caption).weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                } else {
-                    Text("Unavailable")
-                        .font(AppFont.scaled(.callout))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(12)
-            .lbGroupedSurface()
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!source.available)
-        .accessibilityHint(source.available
-            ? "Opens the cited local evidence"
-            : "The cited local source is no longer available")
-    }
-
-    private func resolved(_ citation: ChatCitation) -> (
-        title: String, detail: String, icon: String, available: Bool
-    ) {
-        switch citation.kind {
-        case .meeting:
-            let meeting = (try? SessionLookup.find(
-                id: citation.meetingID, in: app.meetings)) ?? nil
-            guard let meeting else {
-                return ("Meeting \(citation.meetingID)", "Local source missing", "person.2", false)
-            }
-            let stamp = citation.stampText.map { " · \($0)" } ?? ""
-            return (
-                meeting.displayTitle,
-                "Meeting · \(meeting.startedAt.formatted(date: .abbreviated, time: .shortened))\(stamp)",
-                "person.2",
-                true)
-        case .screen:
-            guard let snapshotID = citation.snapshotID,
-                  let shot = app.activityStore.screenshot(id: snapshotID) else {
-                return ("Screen moment", "Local source missing", "display", false)
-            }
-            return (
-                shot.windowTitle.isEmpty ? shot.app : shot.windowTitle,
-                "Screen · \(shot.ts.formatted(date: .abbreviated, time: .shortened))",
-                "display",
-                true)
-        case .file:
-            guard let hit = citation.fileID.flatMap({ files[$0] }) else {
-                return ("File", "Local source missing", "doc", false)
-            }
-            return (hit.name, "\(hit.kindLabel) · \(hit.folder)", hit.icon, true)
-        }
-    }
-
-    private func loadCitedFiles() async {
-        let ids = citations.compactMap(\.fileID)
-        guard !ids.isEmpty, app.settings.fileSearchEnabled else { return }
-        var found: [Int64: FileSearchHit] = [:]
-        for id in ids {
-            if let hit = await app.fileSearch.hit(segment: id) { found[id] = hit }
-        }
-        files = found
-    }
-
 }
 
 /// Tool activity collapsed to a single caption line ("worked: searched
@@ -1004,6 +834,7 @@ struct ChatConversationList: View {
 }
 
 private struct ConversationListContent: View {
+    @EnvironmentObject private var app: AppState
     @ObservedObject var model: ChatViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var historyQuery = ""
@@ -1071,33 +902,13 @@ private struct ConversationListContent: View {
         }
     }
 
+    /// A search field and the New button; the list below needs no heading.
     private var historyHeader: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Conversations").font(.scaled(.title3).bold())
-                    Text("\(model.conversations.count) conversations").font(.scaled(.callout)).workspaceSupportingForeground()
-                }
-                Spacer(minLength: 4)
-            Button {
-                model.newConversation()
-            } label: {
-                Label("New Conversation", systemImage: "square.and.pencil").labelStyle(.iconOnly)
-                    .font(AppFont.scaled(.body))
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.bordered)
-            .foregroundStyle(.primary)
-            .frame(minHeight: 28)
-            .keyboardShortcut("n", modifiers: [.command])
-            .help("Start a new question")
-            .accessibilityIdentifier("chat.new")
-
-            }
-
-            HStack(spacing: 7) {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 TextField("Search questions", text: $historyQuery)
                     .textFieldStyle(.plain)
                     .font(AppFont.scaled(.body))
@@ -1114,12 +925,27 @@ private struct ConversationListContent: View {
                     .accessibilityLabel("Clear question search")
                 }
             }
-            .padding(.horizontal, 9)
-            .frame(minHeight: 32)
+            .padding(.horizontal, 8)
+            .frame(minHeight: 28)
             .workspaceControl()
+
+            Button {
+                model.newConversation()
+            } label: {
+                Label("New Conversation", systemImage: "square.and.pencil").labelStyle(.iconOnly)
+                    .font(AppFont.scaled(.body))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .keyboardShortcut("n", modifiers: [.command])
+            .help("Start a new question")
+            .accessibilityIdentifier("chat.new")
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 14)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
     }
 
     private var deletionConfirmationPresented: Binding<Bool> {
@@ -1170,7 +996,10 @@ private struct ConversationListContent: View {
     }
 
     private func row(_ conversation: Conversation) -> some View {
-        let title = ChatViewModel.displayTitle(for: conversation)
+        // A conversation that has no question yet reads "New question".
+        let title = conversation.messages.isEmpty && conversation.title == ChatViewModel.newChatTitle
+            ? app.settings.appLanguage.localized("New question")
+            : ChatViewModel.displayTitle(for: conversation)
         let timestamp = historyTimestamp(conversation.updatedAt)
         return Button { model.select(conversation.id) } label: {
             VStack(alignment: .leading, spacing: 2) {

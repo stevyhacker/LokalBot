@@ -48,7 +48,9 @@ final class RecallInteractionUITests: XCTestCase {
         let field = app.textFields["search.field"]
         field.click()
         field.typeText("failover benchmark?\r")
-        XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
+        // The button keeps saying Ask; the matches heading says they are still arriving.
+        XCTAssertTrue(element("ask.waitingForSources").waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["ask.submit"].isEnabled, "A queued question must not be sent twice")
         XCTAssertFalse(element("chat.message.user").exists)
         XCTAssertTrue(element("chat.message.user").waitForExistence(timeout: 10))
         // The row identifier and scoped value are inherited by its metadata;
@@ -58,8 +60,12 @@ final class RecallInteractionUITests: XCTestCase {
         XCTAssertTrue(questions.firstMatch.waitForExistence(timeout: 4), app.debugDescription)
         XCTAssertEqual(questions.count, 1, questions.debugDescription)
         XCTAssertEqual(field.value as? String, "")
-        XCTAssertTrue(element("ask.selectedEvidence").label.contains("1 meetings"),
-                      "Submission must use the retrieved meeting boundary")
+        // The answer is limited to the meeting that matched, and the sources
+        // menu is where that shows.
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (self.element("ask.sources").value as? String) == self.fixture.designReview.title
+        }, "Submission must use the retrieved meeting boundary")
+        XCTAssertFalse(element("ask.selectedEvidence").exists, "Scope lives only in the composer menus")
     }
 
     func testEditingQueuedQuestionCancelsSubmission() throws {
@@ -67,7 +73,7 @@ final class RecallInteractionUITests: XCTestCase {
         let field = app.textFields["search.field"]
         field.click()
         field.typeText("failover benchmark?\r")
-        XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
+        XCTAssertTrue(element("ask.waitingForSources").waitForExistence(timeout: 3))
         field.typeKey("a", modifierFlags: .command)
         field.typeText("standup")
         let result = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@",
@@ -82,7 +88,7 @@ final class RecallInteractionUITests: XCTestCase {
         let field = app.textFields["search.field"]
         field.click()
         field.typeText("failover benchmark?\r")
-        XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
+        XCTAssertTrue(element("ask.waitingForSources").waitForExistence(timeout: 3))
         element("ask.sources").click()
         app.menuItems["Activity"].click()
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 10))

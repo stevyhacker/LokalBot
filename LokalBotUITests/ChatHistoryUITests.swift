@@ -77,9 +77,11 @@ final class ChatHistoryUITests: XCTestCase {
         let field = app.textFields["search.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 6), "ask search field missing")
         field.click()
-        field.typeText("a query that would otherwise mask the transcript")
+        field.typeText("a query left in the field")
         XCTAssertTrue(app.descendants(matching: .any)["ask.submit"]
-            .waitForExistence(timeout: 4), "keyword results did not appear")
+            .waitForExistence(timeout: 4), "Ask button missing")
+        XCTAssertTrue(text(containing: assistantLine).exists,
+                      "typing a follow-up must keep the conversation on screen")
 
         let older = conversationButton(olderConversationID)
         XCTAssertTrue(older.waitForExistence(timeout: 4), "older conversation missing")
@@ -88,7 +90,7 @@ final class ChatHistoryUITests: XCTestCase {
         older.click()
 
         XCTAssertTrue(text(containing: olderAssistantLine).waitForExistence(timeout: 6),
-                      "selected conversation remained hidden behind the old search query")
+                      "selected conversation did not open")
         XCTAssertEqual(field.value as? String, "", "conversation selection did not clear search")
 
         field.click(); field.typeText("another search")

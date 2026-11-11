@@ -187,6 +187,8 @@ final class RedesignUITests: XCTestCase {
         let input = app.textFields["search.field"]
         input.click(); input.typeText("failover")
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
+        // ↓ moves from the field onto the first match; Return then opens it.
+        input.typeKey(.downArrow, modifierFlags: [])
         input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists)
@@ -195,10 +197,23 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "failover")
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
-        input.typeKey(.return, modifierFlags: .command)
-        XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 5))
+        // In the field, Return asks, even for a single word. The answer is
+        // limited to the matches that were listed; the sources menu names them.
+        input.click()
+        input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["chat.message.user"].waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "")
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (self.element("ask.sources").value as? String) == self.fixture.designReview.title
+        })
+        XCTAssertFalse(element("ask.selectedEvidence").exists)
+        // The model connection is blocked here: the answer fails with the way
+        // to fix it, and the matches stay listed under it.
+        XCTAssertTrue(element("chat.answer.status").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("chat.answer.modelSettings").exists)
+        XCTAssertTrue(element("ask.inferenceStatus").exists, "A blocked model connection is named under the field")
+        XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6),
+                      "A failed answer keeps its matches")
         snapshot("bounded-ask-question")
     }
 
@@ -237,25 +252,36 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let date = element("ask.timeScope")
         XCTAssertTrue(date.waitForExistence(timeout: 5))
+        // Dates are chosen, shown and removed in the time menu alone.
         date.click()
-        app.buttons["ask.timeScope.sevenDays"].click()
-        XCTAssertTrue(date.label.contains("Last 7 days"))
-        XCTAssertTrue(element("ask.filter.date.clear").exists)
-        element("ask.sources").click()
-        XCTAssertTrue(app.menuItems["Result type"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Last 7 days"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Choose a date…"].exists)
+        app.menuItems["Last 7 days"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (date.value as? String) == "Last 7 days" })
+        XCTAssertFalse(element("ask.filter.date.clear").exists)
+        // Finer filters live in the sources menu, which then names them.
+        let sources = element("ask.sources")
+        sources.click()
+        XCTAssertTrue(app.menuItems["Match type"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Source permissions…"].exists)
         XCTAssertFalse(app.menuItems["Screen dates"].exists)
-        app.menuItems["Result type"].hover()
+        app.menuItems["Match type"].hover()
         XCTAssertTrue(app.menuItems["Summaries"].waitForExistence(timeout: 3))
         app.menuItems["Summaries"].click()
-        let typeFilter = element("ask.filter.resultType")
-        XCTAssertTrue(typeFilter.waitForExistence(timeout: 3))
-        XCTAssertTrue(typeFilter.label.contains("Summaries"))
+        XCTAssertTrue(UITestHarness.waitUntil { (sources.value as? String) == "All sources · Summaries" })
+        XCTAssertFalse(element("ask.filter.resultType").exists, "Filters are not repeated as chips")
+        XCTAssertFalse(element("ask.activeFilters").exists)
         snapshot("ask-unified-date-filters")
-        typeFilter.click()
-        XCTAssertFalse(typeFilter.exists)
-        element("ask.filter.date.clear").click()
-        XCTAssertTrue(date.label.contains("Any time"))
-        XCTAssertFalse(element("ask.filter.date.clear").exists)
+        sources.click()
+        XCTAssertTrue(app.menuItems["Match type"].waitForExistence(timeout: 3))
+        app.menuItems["Match type"].hover()
+        XCTAssertTrue(app.menuItems["Transcripts"].waitForExistence(timeout: 3))
+        app.menuItems["All"].firstMatch.click()
+        XCTAssertTrue(UITestHarness.waitUntil { (sources.value as? String) == "All sources" })
+        date.click()
+        XCTAssertTrue(app.menuItems["Any time"].waitForExistence(timeout: 3))
+        app.menuItems["Any time"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (date.value as? String) == "Any time" })
     }
 
     func testClearingResultEvidenceRestoresSearchSources() throws {
@@ -268,11 +294,16 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
         app.buttons["ask.submit"].click()
-        XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 3))
-        XCTAssertNotEqual(sources.value as? String, originalSources)
-        element("ask.selectedEvidence").click()
-        XCTAssertTrue(UITestHarness.waitUntil { sources.value as? String == originalSources })
+        // The follow-up is limited to the meeting that matched: the sources
+        // menu's button names it, and the menu offers to widen it again.
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (sources.value as? String) == self.fixture.designReview.title
+        })
         XCTAssertFalse(element("ask.selectedEvidence").exists)
+        sources.click()
+        XCTAssertTrue(app.menuItems["Only \(fixture.designReview.title)"].waitForExistence(timeout: 3))
+        app.menuItems["All sources"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { sources.value as? String == originalSources })
     }
 
     func testRecallDividerRestoresAfterVisitingOtherWorkspaces() throws {
@@ -904,7 +935,6 @@ final class RedesignUITests: XCTestCase {
 
     private func verifyRecallExplanationContrast() throws -> Set<String> {
         let labels = [
-            "Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; ⌘Return always asks.",
             "Listen to a short excerpt, then confirm a name or whether the speaker is you. Leave uncertain voices unresolved.",
             "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
         ]

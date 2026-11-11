@@ -1,7 +1,27 @@
 import XCTest
 @testable import LokalBot
 
+/// Return in Ask asks, whatever was typed. It opens a match only after the
+/// arrow keys moved onto one. (Quick Recall keeps Return for opening.)
 final class AskReturnActionTests: XCTestCase {
+    func testReturnAsksForKeywordsAndQuestionsAlike() {
+        for query in ["failover", "redis cluster", "What did we decide about Redis?",
+                      "Remember that Maya is my manager"] {
+            XCTAssertEqual(AskReturnAction.resolve(query: query, resultCount: 3, pickedWithKeyboard: false), .ask, query)
+            XCTAssertEqual(AskReturnAction.resolve(query: query, resultCount: 0, pickedWithKeyboard: false), .ask, query)
+        }
+    }
+
+    func testReturnOpensTheMatchTheArrowKeysChose() {
+        XCTAssertEqual(AskReturnAction.resolve(query: "failover", resultCount: 3, pickedWithKeyboard: true), .openResult)
+        XCTAssertEqual(AskReturnAction.resolve(query: "What did we decide?", resultCount: 3, pickedWithKeyboard: true),
+                       .openResult)
+        XCTAssertEqual(AskReturnAction.resolve(query: "failover", resultCount: 0, pickedWithKeyboard: true), .ask,
+                       "with nothing left to open, Return asks again")
+    }
+
+    /// `AskIntent` no longer decides what Return does; it is kept as the
+    /// measured baseline of the Laya benchmark, so its rules stay pinned.
     func testQuestionsAreRecognized() {
         XCTAssertTrue(AskIntent.isQuestion("What did we decide about Redis?"))
         XCTAssertTrue(AskIntent.isQuestion("what did we decide about redis"))
@@ -15,27 +35,13 @@ final class AskReturnActionTests: XCTestCase {
         XCTAssertFalse(AskIntent.isQuestion("redis cluster"))
         XCTAssertFalse(AskIntent.isQuestion("what"))
         XCTAssertFalse(AskIntent.isQuestion("redis?"))
-    }
-
-    func testRememberStatementAsksInsteadOfOpeningAResult() {
-        XCTAssertEqual(AskReturnAction.resolve(query: "Remember that Maya is my manager",
-                                               resultCount: 4, pickedWithKeyboard: false), .ask)
-        XCTAssertEqual(AskReturnAction.resolve(query: "Remember that Maya is my manager",
-                                               resultCount: 4, pickedWithKeyboard: true), .openResult)
         XCTAssertFalse(AskIntent.isQuestion("PR-1234"))
         XCTAssertFalse(AskIntent.isQuestion("  "))
         XCTAssertFalse(AskIntent.isQuestion("whatever happened"))
     }
 
-    func testReturnOpensKeywordResultsAndStaysSilentWithoutResults() {
-        XCTAssertEqual(AskReturnAction.resolve(query: "failover", resultCount: 3, pickedWithKeyboard: false), .openResult)
-        XCTAssertEqual(AskReturnAction.resolve(query: "failover", resultCount: 0, pickedWithKeyboard: false), .none)
-    }
-
-    func testReturnAsksQuestionsUnlessAResultWasPicked() {
-        let question = "What did we decide about Redis?"
-        XCTAssertEqual(AskReturnAction.resolve(query: question, resultCount: 3, pickedWithKeyboard: false), .ask)
-        XCTAssertEqual(AskReturnAction.resolve(query: question, resultCount: 0, pickedWithKeyboard: false), .ask)
-        XCTAssertEqual(AskReturnAction.resolve(query: question, resultCount: 3, pickedWithKeyboard: true), .openResult)
+    func testReturnDoesNothingInAnEmptyField() {
+        XCTAssertEqual(AskReturnAction.resolve(query: "", resultCount: 0, pickedWithKeyboard: false), .none)
+        XCTAssertEqual(AskReturnAction.resolve(query: "  \n", resultCount: 0, pickedWithKeyboard: false), .none)
     }
 }

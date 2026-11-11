@@ -73,7 +73,10 @@ final class QuickRecallUITests: XCTestCase {
         let draft = app.textFields["search.field"]
         XCTAssertTrue(draft.waitForExistence(timeout: 6))
         XCTAssertEqual(draft.value as? String, "failover")
-        XCTAssertTrue(app.descendants(matching: .any)["ask.selectedEvidence"].firstMatch.exists)
+        // The handed-over matches bound the draft, and the sources menu says so.
+        let sources = app.descendants(matching: .any)["ask.sources"].firstMatch
+        XCTAssertTrue(sources.waitForExistence(timeout: 4))
+        XCTAssertNotEqual(sources.value as? String, "All sources")
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists,
                        "Reviewing a bounded draft must not dispatch generation")
     }

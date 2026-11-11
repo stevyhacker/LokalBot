@@ -242,14 +242,28 @@ final class ScopedChatToolRunner: ChatToolRunner {
     }
 }
 
-/// Which mode the Ask surface shows (spec §2.3 "one input, two response
-/// modes"). Typing always means live search; an empty query falls back to
-/// the active conversation, or the suggestion empty state when there is none.
-enum AskPhase: Equatable {
-    case idle, searching, conversation
+/// What the Ask page shows. A new question has the field in the middle with
+/// suggestions or matches under it; a conversation keeps its thread on
+/// screen with the field docked below and matches in a tray above the field.
+/// Typing never replaces the conversation.
+struct AskPhase: Equatable {
+    enum Page: Equatable { case newQuestion, conversation }
+    enum MatchesPlacement: Equatable { case underField, trayAboveField }
+
+    var page: Page
+    /// The field holds text, so its matches are listed.
+    var isTyping: Bool
+
+    var showsSuggestions: Bool { page == .newQuestion && !isTyping }
+    var matchesPlacement: MatchesPlacement? {
+        guard isTyping else { return nil }
+        return page == .newQuestion ? .underField : .trayAboveField
+    }
 }
 
-/// Whether typed Ask input reads as a question rather than search keywords.
+/// Whether typed input reads as a question rather than search keywords. Ask
+/// no longer consults it (Return always asks); it stays as the baseline that
+/// `Benchmarks/Laya/run.py` extracts from this file and measures.
 enum AskIntent {
     private static let questionStarts: Set<String> = [
         "what", "why", "how", "when", "where", "who", "whom", "whose", "which",
@@ -267,32 +281,25 @@ enum AskIntent {
     }
 }
 
-/// What Return does in Ask. Keywords open the highlighted result and never
-/// start inference; a question or a "Remember …" statement goes through the
-/// same path as Command-Return, unless the person picked a result with the
-/// arrow keys first.
+/// What Return does in Ask: it asks. Only after the arrow keys moved into the
+/// matches does it open the selected one. Quick Recall keeps its own rule.
 enum AskReturnAction: Equatable {
     case openResult, ask, none
 
     static func resolve(query: String, resultCount: Int, pickedWithKeyboard: Bool) -> Self {
-        if !pickedWithKeyboard, AskIntent.isQuestion(query) || RememberIntent.parse(query) != nil {
-            return .ask
-        }
-        return resultCount > 0 ? .openResult : .none
+        if pickedWithKeyboard, resultCount > 0 { return .openResult }
+        return query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .none : .ask
     }
 }
 
 enum AskRouter {
     static func phase(query: String, hasMessages: Bool) -> AskPhase {
-        guard query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return .searching
-        }
-        return hasMessages ? .conversation : .idle
+        AskPhase(page: hasMessages ? .conversation : .newQuestion,
+                 isTyping: !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 }
 
-/// Kind facet chips over the unified Ask result list — replaces the old
-/// Search scope segmented control and its separate Screen mode.
+/// The match types the sources menu can narrow the listed matches to.
 enum AskFacet: String, CaseIterable, Identifiable {
     case all = "All"
     case transcripts = "Transcripts"

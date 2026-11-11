@@ -997,24 +997,25 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertEqual(title.value as? String ?? title.label, fixture.designReview.title)
     }
 
-    /// The Ask section is reachable from the sidebar and renders its merged
-    /// surface: the empty state, the single input, and — once a query is
-    /// typed — the pinned assistant-escalation row above live results.
+    /// The Ask section is reachable from the sidebar and renders its one
+    /// field with the two scope menus and the Ask button, which is enabled
+    /// once something is typed.
     /// Stops short of sending (that would spin up the real local LLM).
     func testAskSectionRendersAndAcceptsInput() {
         clickSidebar("sidebar.ask")
 
-        XCTAssertTrue(textWithContent("Ask your work memory").firstMatch
+        XCTAssertTrue(textWithContent("Ask about your meetings, screen and files").firstMatch
             .waitForExistence(timeout: 6),
                       "ask empty-state did not render")
+        XCTAssertFalse(app.buttons["ask.submit"].isEnabled, "Ask must be disabled while the field is empty")
         XCTAssertTrue(app.descendants(matching: .any)["ask.submit"].exists,
                       "explicit Ask action missing")
         XCTAssertTrue(identified("ask.sources").exists,
                       "per-question source menu missing")
         XCTAssertTrue(identified("ask.timeScope").exists,
                       "independent time-scope control missing")
-        XCTAssertTrue(identified("ask.inferenceStatus").exists,
-                      "local/remote inference status missing")
+        XCTAssertFalse(identified("ask.inferenceStatus").exists,
+                       "a model on this Mac needs no line under the field")
         XCTAssertFalse(identified("ask.retrieval").exists,
                        "live recall must not require a mode switch")
 
@@ -1085,9 +1086,8 @@ final class MainWindowUITests: XCTestCase {
            + "(history: \(conversations.frame.width), Ask field: \(field.frame.width))")
     }
 
-    /// ↵ on a question escalates it to the assistant (keywords open a
-    /// result instead): the pane switches from results to the conversation
-    /// transcript with the question as the user turn. The model reply itself is not awaited (no local LLM in the
+    /// ↵ asks, whether a question or a single word was typed: the page
+    /// becomes the conversation with the typed text as the user turn. The model reply itself is not awaited (no local LLM in the
     /// test host) — the transition and the persisted user turn are the
     /// contract under test.
     func testAskEscalationShowsConversationWithUserTurn() {

@@ -741,6 +741,46 @@ final class ChatViewModel: ObservableObject {
             meetingIDs: payload.meetingIDs, screenSnapshotIDs: payload.screenSnapshotIDs)
     }
 
+    /// Whether a finished answer's question can be asked again as it was. A
+    /// question that carried an attached screen cannot: that text was never
+    /// stored, so asking again would not be the same question.
+    func canAskAgain(_ assistantID: UUID) -> Bool {
+        guard !isResponding, askAgainQuestion(for: assistantID) != nil else { return false }
+        return true
+    }
+
+    /// Ask a finished answer's question again as a new turn, under the
+    /// sources, dates and evidence limits recorded with that question.
+    func askAgain(_ assistantID: UUID) {
+        guard canAskAgain(assistantID), let question = askAgainQuestion(for: assistantID) else { return }
+        sendResolved(
+            question.text,
+            displayText: question.text,
+            sourceScopes: Set(question.sourceScopes),
+            dayScopeKey: question.dayScopeKey,
+            attachedScreenDayKeys: [],
+            attachedScreenIDs: [],
+            meetingIDs: question.meetingIDs, screenSnapshotIDs: question.screenSnapshotIDs)
+    }
+
+    private func askAgainQuestion(for assistantID: UUID) -> ChatMessage? {
+        guard let index = messages.firstIndex(where: { $0.id == assistantID }),
+              messages[index].role == .assistant,
+              !messages[index].isError, !messages[index].isPending,
+              messages[index].rememberReceipt == nil,
+              let question = messages[..<index].last(where: { $0.role == .user }),
+              !question.legacyScopeIsAmbiguous,
+              question.attachedScreenDayKeys.isEmpty,
+              !question.sourceScopes.isEmpty else { return nil }
+        return question
+    }
+
+    /// The question an answer replied to.
+    func question(before assistantID: UUID) -> ChatMessage? {
+        guard let index = messages.firstIndex(where: { $0.id == assistantID }) else { return nil }
+        return messages[..<index].last(where: { $0.role == .user })
+    }
+
     /// Start a new, empty conversation (persisting the current one first).
     func newConversation() {
         navigationRevision &+= 1

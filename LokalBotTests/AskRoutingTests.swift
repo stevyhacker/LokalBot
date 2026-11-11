@@ -1,28 +1,41 @@
 import XCTest
 @testable import LokalBot
 
-/// The Ask surface's phase routing (spec §2.3 "one input, two response
-/// modes"): a non-empty query always shows live results; an empty query
-/// falls back to the conversation when one exists, else the empty state.
+/// What the Ask page shows: a new question or a conversation, and whether the
+/// field's text lists matches. Typing never replaces the conversation.
 @MainActor
 final class AskRoutingTests: XCTestCase {
 
-    func testNonEmptyQueryAlwaysSearches() {
-        XCTAssertEqual(AskRouter.phase(query: "failover", hasMessages: false), .searching)
-        XCTAssertEqual(AskRouter.phase(query: "failover", hasMessages: true), .searching)
+    func testTypingOnANewQuestionListsMatchesUnderTheField() {
+        let phase = AskRouter.phase(query: "failover", hasMessages: false)
+        XCTAssertEqual(phase.page, .newQuestion)
+        XCTAssertEqual(phase.matchesPlacement, .underField)
+        XCTAssertFalse(phase.showsSuggestions)
     }
 
-    func testEmptyQueryShowsConversationWhenMessagesExist() {
-        XCTAssertEqual(AskRouter.phase(query: "", hasMessages: true), .conversation)
+    func testTypingInAConversationKeepsItAndRaisesATray() {
+        let phase = AskRouter.phase(query: "failover", hasMessages: true)
+        XCTAssertEqual(phase.page, .conversation, "the thread stays on screen while a follow-up is typed")
+        XCTAssertEqual(phase.matchesPlacement, .trayAboveField)
     }
 
-    func testEmptyQueryShowsIdleWithoutMessages() {
-        XCTAssertEqual(AskRouter.phase(query: "", hasMessages: false), .idle)
+    func testEmptyFieldShowsTheConversationOrSuggestions() {
+        let conversation = AskRouter.phase(query: "", hasMessages: true)
+        XCTAssertEqual(conversation.page, .conversation)
+        XCTAssertNil(conversation.matchesPlacement)
+        XCTAssertFalse(conversation.showsSuggestions)
+
+        let empty = AskRouter.phase(query: "", hasMessages: false)
+        XCTAssertEqual(empty.page, .newQuestion)
+        XCTAssertNil(empty.matchesPlacement)
+        XCTAssertTrue(empty.showsSuggestions)
     }
 
     func testWhitespaceOnlyQueryCountsAsEmpty() {
-        XCTAssertEqual(AskRouter.phase(query: "  \n ", hasMessages: true), .conversation)
-        XCTAssertEqual(AskRouter.phase(query: "  ", hasMessages: false), .idle)
+        XCTAssertEqual(AskRouter.phase(query: "  \n ", hasMessages: true),
+                       AskPhase(page: .conversation, isTyping: false))
+        XCTAssertEqual(AskRouter.phase(query: "  ", hasMessages: false),
+                       AskPhase(page: .newQuestion, isTyping: false))
     }
 
     func testFacetKindMapping() {
