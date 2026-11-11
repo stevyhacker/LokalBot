@@ -11,6 +11,7 @@ struct QuickRecallRowModel: Identifiable {
         case screen(Int64)
         case meeting(SearchIndex.Hit)
         case file(FileSearchHit)
+        case agentNote(AgentNoteHit)
         /// A `PaletteCommand` id.
         case command(String)
     }
@@ -82,6 +83,20 @@ struct QuickRecallRowModel: Identifiable {
             captureCount: 1,
             isSaved: false,
             destination: .meeting(hit))
+    }
+
+    static func agentNote(_ hit: AgentNoteHit) -> Self {
+        .init(
+            id: "agentNote.\(hit.id)",
+            icon: "note.text",
+            appName: nil,
+            title: hit.title,
+            subtitle: hit.sourceLabel,
+            snippet: hit.snippet.isEmpty ? hit.summary : hit.snippet,
+            timestamp: hit.modified,
+            captureCount: 1,
+            isSaved: false,
+            destination: .agentNote(hit))
     }
 
     static func file(_ hit: FileSearchHit) -> Self {

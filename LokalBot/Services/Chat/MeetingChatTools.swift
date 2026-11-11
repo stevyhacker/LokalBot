@@ -250,6 +250,24 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
+    /// One block per note: its citation marker, title, agent and project,
+    /// then its text. Notes are an agent's own record, so the heading says so.
+    static func agentNoteResults(query: String, hits: [(hit: AgentNoteHit, text: String?)]) -> String {
+        guard !hits.isEmpty else {
+            return "No coding-agent notes matched “\(query)”."
+        }
+        var lines = [
+            "Coding-agent notes matching “\(query)” (written by the user's coding agents for their own later "
+                + "sessions; an agent's record, not a verified fact):",
+        ]
+        for (hit, text) in hits {
+            let date = hit.modified.formatted(date: .abbreviated, time: .omitted)
+            let body = clean(String((text ?? hit.snippet).prefix(1_200)))
+            lines.append("- [note:\(hit.id)] \(hit.title) (\(hit.sourceLabel), \(date)): \(body)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     static func activitySummary(dayLabel: String, blocks: [ActivityBlock],
                                 meetings: [Meeting]) -> String {
         guard !blocks.isEmpty else {
@@ -357,6 +375,9 @@ final class MeetingChatTools: ChatToolRunner {
     /// The Files search, while Files is on and has folders; nil otherwise, and
     /// then `search_files` is not offered at all.
     private let filesProvider: () -> FileSearchService?
+    /// The saved coding-agent notes, while Read coding agent notes is on;
+    /// nil otherwise, and then `search_agent_notes` is not offered at all.
+    private let agentNotesProvider: () -> AgentNotesIndex?
     /// Relative days ("last 7 days", "yesterday") resolve against this clock.
     private let now: () -> Date
 
@@ -367,6 +388,7 @@ final class MeetingChatTools: ChatToolRunner {
          activityStore: ActivityStore,
          settings: @escaping () -> AppSettings,
          files: @escaping () -> FileSearchService? = { nil },
+         agentNotes: @escaping () -> AgentNotesIndex? = { nil },
          now: @escaping () -> Date = Date.init) {
         self.meetingsProvider = meetings
         self.storage = storage
@@ -375,12 +397,23 @@ final class MeetingChatTools: ChatToolRunner {
         self.activityStore = activityStore
         self.settingsProvider = settings
         self.filesProvider = files
+        self.agentNotesProvider = agentNotes
         self.now = now
     }
 
     var specs: [ChatToolSpec] {
-        filesProvider() == nil ? Self.baseSpecs : Self.baseSpecs + [Self.searchFilesSpec]
+        var specs = Self.baseSpecs
+        if filesProvider() != nil { specs.append(Self.searchFilesSpec) }
+        if agentNotesProvider() != nil { specs.append(Self.searchAgentNotesSpec) }
+        return specs
     }
+
+    static let searchAgentNotesSpec = ChatToolSpec(
+        name: "search_agent_notes",
+        summary: "Search the notes the user's coding agents (Claude Code, Codex) saved for their own later sessions: project decisions, how-tos, preferences and pointers. Returns matching notes with their text.",
+        arguments: [
+            .init(name: "query", description: "Keywords to look for.", required: true),
+        ])
 
     static let searchFilesSpec = ChatToolSpec(
         name: "search_files",
@@ -447,6 +480,7 @@ final class MeetingChatTools: ChatToolRunner {
         case "search_screen": return await searchScreen(call)
         case "activity_summary": return activitySummary(call)
         case "search_files": return await searchFiles(call)
+        case "search_agent_notes": return await searchAgentNotes(call)
         default: return ChatToolResult(text: "Unknown tool '\(call.name)'.", summary: "unknown tool")
         }
     }
@@ -615,6 +649,25 @@ final class MeetingChatTools: ChatToolRunner {
             text: MeetingChatFormat.fileResults(query: query, hits: found),
             summary: "“\(query)” — \(hits.count) file\(hits.count == 1 ? "" : "s")",
             evidence: ChatEvidence(fileIDs: Set(hits.map(\.id))))
+    }
+
+    private func searchAgentNotes(_ call: ChatToolCall) async -> ChatToolResult {
+        guard let index = agentNotesProvider() else {
+            return ChatToolResult(text: "Read coding agent notes is off, so no notes can be searched.",
+                                  summary: "agent notes off")
+        }
+        guard let query = call.string("query") else {
+            return ChatToolResult(text: "Provide a 'query' argument.", summary: "missing query")
+        }
+        let found = await Task.detached(priority: .userInitiated) {
+            ((try? index.search(query, limit: 6)) ?? []).map { hit in
+                (hit: hit, text: (try? index.text(of: hit.id)).flatMap { $0 })
+            }
+        }.value
+        return ChatToolResult(
+            text: MeetingChatFormat.agentNoteResults(query: query, hits: found),
+            summary: "“\(query)” — \(found.count) note\(found.count == 1 ? "" : "s")",
+            evidence: ChatEvidence(noteIDs: Set(found.map(\.hit.id))))
     }
 
     private func searchScreen(_ call: ChatToolCall) async -> ChatToolResult {

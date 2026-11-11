@@ -221,6 +221,14 @@ enum ChatPrompt {
             screenshots in the folders they chose, described by content or by what a picture shows.
             """)
         }
+        if tools.contains(where: { $0.name == "search_agent_notes" }) {
+            lines.append("""
+            • Use search_agent_notes for what the user's coding agents wrote down for themselves: how a \
+            project is built or released, decisions and their reasons, preferences the user gave an agent, \
+            where things live. A note is an agent's record from when it was written, not a verified fact: \
+            say that it comes from an agent's note, and prefer meetings or screen evidence when they disagree.
+            """)
+        }
         lines.append("")
         lines.append("""
         Citing sources:
@@ -238,6 +246,13 @@ enum ChatPrompt {
             • When part of your final answer comes from search_files, append the exact \
             [file:ID] marker that search_files returned. The app links it to the file on this Mac. \
             Never invent a file id.
+            """)
+        }
+        if tools.contains(where: { $0.name == "search_agent_notes" }) {
+            lines.append("""
+            • When part of your final answer comes from search_agent_notes, append the exact \
+            [note:ID] marker that search_agent_notes returned. The app links it to the agent's note. \
+            Never invent a note id.
             """)
         }
         if !questionScope.isEmpty {

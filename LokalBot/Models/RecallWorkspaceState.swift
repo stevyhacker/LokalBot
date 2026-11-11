@@ -53,12 +53,16 @@ struct RecallWorkspaceState {
     /// tool that answers it whenever the question also matched a result.
     /// Files has no per-row bound yet either, so a selected Files source stays
     /// when file rows were among the results.
-    mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>, hadFiles: Bool = false) {
+    /// Agent notes follow the same rule as Files.
+    mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>, hadFiles: Bool = false,
+                                       hadAgentNotes: Bool = false) {
         let keepsActivity = sources.contains(.today)
         let keepsFiles = hadFiles && sources.contains(.files)
+        let keepsNotes = hadAgentNotes && sources.contains(.agentNotes)
         selectEvidence(meetingIDs: meetingIDs, screenIDs: screenIDs)
         if keepsActivity { sources.insert(.today) }
         if keepsFiles { sources.insert(.files) }
+        if keepsNotes { sources.insert(.agentNotes) }
     }
 
     /// An explicit source choice supersedes any earlier temporary narrowing.
@@ -117,7 +121,9 @@ extension RecallSearch {
         var meetings: [MeetingRecallGroup] = []
         var screens: [ScreenRecallGroup] = []
         var files: [FileSearchHit] = []
-        /// More meetings, screen sources or files matched than are listed.
+        /// Notes the person's coding agents saved, matched by their words.
+        var agentNotes: [AgentNoteHit] = []
+        /// More meetings, screen sources, files or notes matched than are listed.
         var isTruncated = false
         /// The share of the query's words each keyword screen hit holds, for
         /// ranking it with meaning matches (`ScreenSearch`).
@@ -137,6 +143,11 @@ extension RecallSearch {
         mutating func setFiles(_ hits: [FileSearchHit]) {
             isTruncated = isTruncated || hits.count > displayLimit
             files = Array(hits.prefix(displayLimit))
+        }
+
+        mutating func setAgentNotes(_ hits: [AgentNoteHit]) {
+            isTruncated = isTruncated || hits.count > displayLimit
+            agentNotes = Array(hits.prefix(displayLimit))
         }
     }
 
@@ -283,6 +294,10 @@ extension RecallSearch {
         let url = app.activityStore.databaseURL
         let facet = state.facet
         let searchMeetings = state.sources.contains(.meetings) && facet != .screen && facet != .files
+            && facet != .agentNotes
+        let searchNotes = state.sources.contains(.agentNotes) && (facet == .all || facet == .agentNotes)
+            && app.settings.codingAgentNotesEnabled
+        let notesIndex = app.agentNotesIndex
         let searchScreens = state.sources.contains(.screen) && (facet == .all || facet == .screen)
         let searchFiles = state.sources.contains(.files) && (facet == .all || facet == .files)
             && app.settings.fileSearchEnabled && app.fileSearch.isAvailable
@@ -297,6 +312,11 @@ extension RecallSearch {
                 let hits = SearchIndex(databaseURL: url, readOnly: true)
                     .search(query, kind: facet.kind, limit: 2_000, meetingIDs: scopedMeetingIDs)
                 result.setMeetings(groups(readable(hits, query: query), limit: displayLimit + 1))
+            }
+            if searchNotes {
+                // A date scope keeps the notes last changed inside it.
+                let found = (try? notesIndex.search(query, limit: interval == nil ? displayLimit + 1 : 400)) ?? []
+                result.setAgentNotes(found.filter { hit in interval.map { $0.contains(hit.modified) } ?? true })
             }
             guard !Task.isCancelled, searchScreens else { return result }
             let keyword = keywordScreens(in: store, query: query, filter: screenFilter)

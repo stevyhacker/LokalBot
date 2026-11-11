@@ -1880,3 +1880,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "%@ ini memindai kode di Pengaturan → Ponsel & tablet. Perangkat ini akan menerima salinan terenkripsi dari yang Anda bagikan, melalui jaringan lokal atau Tailscale. Anda dapat menghapusnya kapan saja.";
 "Paired devices" = "Perangkat yang dipasangkan";
 "%lld paired" = "%lld dipasangkan";
+"Read coding agent notes" = "Baca catatan agen pemrograman";
+"Read coding agent notes?" = "Baca catatan agen pemrograman?";
+"What is read from notes" = "Yang dibaca dari catatan";
+"Saved notes" = "Catatan tersimpan";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot membaca catatan yang disimpan Claude Code dan Codex untuk dirinya sendiri, untuk setiap proyek yang mereka kerjakan, dan menyimpan salinan yang dapat dicari di pustakanya. Tidak ada yang keluar dari Mac ini. Menonaktifkan ini akan menghapus salinan tersebut.";
+"Agent notes" = "Catatan agen";
+"Agent note" = "Catatan agen";
+"Let external agents search agent notes" = "Izinkan agen eksternal mencari di catatan agen";
+"External agent notes access" = "Akses eksternal ke catatan agen";
+"Coding agent notes are off" = "Catatan agen pemrograman nonaktif";

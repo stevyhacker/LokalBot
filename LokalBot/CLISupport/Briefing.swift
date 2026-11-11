@@ -29,6 +29,7 @@ enum Briefing {
         var vocabulary: Vocabulary = .mcp
 
         var filesGate: FilesAccessGate { FilesAccessGate(root: root) }
+        var agentNotesGate: AgentNotesAccessGate { AgentNotesAccessGate(root: root) }
     }
 
     static var definition: ToolDefinition {
@@ -160,6 +161,20 @@ enum Briefing {
         } else {
             lines.append("- Files: off. The user can turn it on in "
                 + AgentReadAccessCopy.path(ticking: "Files") + ".")
+        }
+        if context.agentNotesGate.isEnabled {
+            let saved = (try? context.agentNotesGate.index.counts().values.reduce(0, +)) ?? 0
+            if saved > 0 {
+                lines.append("- Agent notes: on, \(saved) \(saved == 1 ? "note" : "notes") saved by the user's "
+                    + "coding agents, searched by words. "
+                    + (cli ? "Command: search-notes." : "Tool: search_agent_notes."))
+            } else {
+                lines.append("- Agent notes: on, but Read coding agent notes is off in LokalBot or nothing has "
+                    + "been read yet.")
+            }
+        } else {
+            lines.append("- Agent notes: off. The user can turn it on in "
+                + AgentReadAccessCopy.path(ticking: "Agent notes") + ".")
         }
         return lines.joined(separator: "\n")
     }

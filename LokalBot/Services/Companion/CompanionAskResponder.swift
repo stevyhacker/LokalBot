@@ -20,6 +20,8 @@ enum CompanionAskCitations {
             case .screen: return .init(index: index, label: "Screen moment")
             // Files are never searched for a device; a stray marker names no file.
             case .file: return .init(index: index, label: "File")
+            // Agent notes are never searched for a device either.
+            case .note: return .init(index: index, label: "Agent note")
             }
             guard let meeting = resolve(citation.meetingID, in: meetings) else {
                 return .init(index: index, at: citation.seconds, label: "Meeting")

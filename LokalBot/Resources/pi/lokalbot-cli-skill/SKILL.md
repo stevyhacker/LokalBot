@@ -69,9 +69,20 @@ lokalbot-cli search-files "invoice" --kind pdf --after 2026-09-01 --limit 5
 
 It finds files by their words (text LokalBot read from them, and file names), best first, with the path and the passage that matched. It doesn't search by meaning, so try the words the file would contain. Cite a file by its path.
 
+## Agent notes
+
+When the user asks what their coding agents (Claude Code, Codex) already wrote down, or you need a how-to or decision another agent recorded:
+
+```bash
+lokalbot-cli search-notes "release notarization"
+lokalbot-cli search-notes "staging database" --agent codex --limit 5
+```
+
+It finds the notes those agents saved for themselves by their words, best first, with each note's text and the path of the agent's file. A note is an agent's record from when it was written, not a verified fact: check it before relying on it, and say it came from an agent's note. `[agent_notes_access_disabled]` means Agent notes isn't ticked; `[agent_notes_unavailable]` means Read coding agent notes is off in LokalBot.
+
 ## When access is off
 
-LokalBot's Settings → External Agents has one switch, "Allow external agents to read your LokalBot data", with a box for each kind: Meetings, Screen memory, What I shared about myself, and Files. `[access_disabled]` means Meetings isn't ticked, `[personal_context_disabled]` What I shared about myself, and `[files_access_disabled]` Files; `[files_unavailable]` means Files is off in LokalBot or has no folder yet. Tell the user which box it is and let them decide. Don't work around it, and never create or edit files in LokalBot's `control` folder.
+LokalBot's Settings → External Agents has one switch, "Allow external agents to read your LokalBot data", with a box for each kind: Meetings, Screen memory, What I shared about myself, Files, and Agent notes. `[access_disabled]` means Meetings isn't ticked, `[personal_context_disabled]` What I shared about myself, and `[files_access_disabled]` Files; `[files_unavailable]` means Files is off in LokalBot or has no folder yet. Tell the user which box it is and let them decide. Don't work around it, and never create or edit files in LokalBot's `control` folder.
 
 Screen history has no command here. The user can attach saved screen moments to a task from the composer.
 

@@ -1880,3 +1880,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "Это устройство (%@) отсканировало код в разделе Настройки → Телефоны и планшеты. Оно будет получать зашифрованную копию того, чем вы делитесь, через локальную сеть или Tailscale. Вы можете удалить его в любой момент.";
 "Paired devices" = "Сопряжённые устройства";
 "%lld paired" = "Сопряжено: %lld";
+"Read coding agent notes" = "Читать заметки агента программирования";
+"Read coding agent notes?" = "Читать заметки агента программирования?";
+"What is read from notes" = "Что читается из заметок";
+"Saved notes" = "Сохранённые заметки";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot читает заметки, которые Claude Code и Codex сохранили для себя по каждому проекту, в котором работали, и хранит в своей библиотеке копию с возможностью поиска. Ничто не покидает этот Mac. При выключении копия удаляется.";
+"Agent notes" = "Заметки агентов";
+"Agent note" = "Заметка агента";
+"Let external agents search agent notes" = "Разрешить внешним агентам искать в заметках агентов";
+"External agent notes access" = "Внешний доступ к заметкам агентов";
+"Coding agent notes are off" = "Заметки агента программирования выключены";

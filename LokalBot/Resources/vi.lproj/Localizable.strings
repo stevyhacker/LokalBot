@@ -1880,3 +1880,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "%@ này đã quét mã trong Cài đặt → Điện thoại và máy tính bảng. Thiết bị sẽ nhận bản sao được mã hóa của những gì bạn chia sẻ, qua mạng cục bộ hoặc Tailscale. Bạn có thể xóa thiết bị bất cứ lúc nào.";
 "Paired devices" = "Thiết bị đã ghép đôi";
 "%lld paired" = "%lld đã ghép đôi";
+"Read coding agent notes" = "Đọc ghi chú của tác nhân lập trình";
+"Read coding agent notes?" = "Đọc ghi chú của tác nhân lập trình?";
+"What is read from notes" = "Nội dung được đọc từ ghi chú";
+"Saved notes" = "Ghi chú đã lưu";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot đọc các ghi chú mà Claude Code và Codex đã lưu cho chính chúng, cho mọi dự án chúng từng làm việc, và lưu một bản sao có thể tìm kiếm trong thư viện của LokalBot. Không có gì rời khỏi Mac này. Tắt tính năng này sẽ xóa bản sao.";
+"Agent notes" = "Ghi chú của tác nhân";
+"Agent note" = "Ghi chú của tác nhân";
+"Let external agents search agent notes" = "Cho phép tác nhân bên ngoài tìm kiếm ghi chú của tác nhân";
+"External agent notes access" = "Truy cập ghi chú của tác nhân từ bên ngoài";
+"Coding agent notes are off" = "Ghi chú của tác nhân lập trình đang tắt";

@@ -149,7 +149,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in **Settings → Privacy & Data**: meeting library, files, screen memory, and What I shared about myself. Then install the CLI from **Settings → External Agents → Agent CLI** on a Mac, or **Settings → Advanced → Agent CLI** on Windows and Linux.
+Access is off by default. On a Mac, turn on **Allow external agents to read your LokalBot data** in **Settings → External Agents** and tick what agents may read: Meetings, Screen memory, What I shared about myself, Files, or Agent notes. On Windows and Linux, each has its own switch under External agents in **Settings → Privacy & Data**: meeting library, files, screen memory, and What I shared about myself. Then install the CLI from **Settings → External Agents → Agent CLI** on a Mac, or **Settings → Advanced → Agent CLI** on Windows and Linux.
 
 **Ready to act on a meeting?** Open any action item in Claude Code or Codex, and the prompt is already typed in with the task and where it came from, for you to review and send.
 
@@ -159,12 +159,13 @@ Or use the CLI from any shell or agent:
 lokalbot-cli search "database decision"
 lokalbot-cli get latest --include metadata,summary
 lokalbot-cli search-files "lease renewal" --kind pdf   # with Files access on
+lokalbot-cli search-notes "release steps"              # notes your coding agents saved (Mac, with Agent notes access on)
 lokalbot-cli mcp
 ```
 
-Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. The commands and MCP tools are the same on every platform.
+Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. The commands and MCP tools are the same on every platform, except `search-notes`, which is on the Mac for now.
 
-Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs Files access and never changes your files. External clients may send results to their own model providers.
+Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. `search_files` searches the folders you chose under Files by their words and returns file paths, excerpts, and the matched passages; it needs Files access and never changes your files. On a Mac, `search_agent_notes` searches the notes Claude Code and Codex saved for their own later sessions, once you turn on **Read coding agent notes** in **Settings → Screen & Activity** and tick Agent notes, so one agent can find what another wrote down. External clients may send results to their own model providers.
 
 The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
 

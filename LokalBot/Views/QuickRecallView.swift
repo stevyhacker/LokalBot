@@ -27,6 +27,7 @@ private struct QuickRecallContent: View {
     @State private var meetingHits: [SearchIndex.Hit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
     @State private var fileHits: [FileSearchHit] = []
+    @State private var noteHits: [AgentNoteHit] = []
     @State private var savedMoments: [ActivityStore.SavedMoment] = []
     @State private var selection = 0
     @State private var showingConversation = false
@@ -268,6 +269,8 @@ private struct QuickRecallContent: View {
             QuickRecallSection(id: "screen", title: "Screens", rows: screens),
             QuickRecallSection(id: "meetings", title: "Meetings", rows: meetings),
             QuickRecallSection(id: "files", title: "Files", rows: fileHits.map(QuickRecallRowModel.file)),
+            QuickRecallSection(id: "agentNotes", title: "Agent notes",
+                               rows: noteHits.map(QuickRecallRowModel.agentNote)),
         ].filter { !$0.rows.isEmpty }
     }
 
@@ -331,12 +334,14 @@ private struct QuickRecallContent: View {
             meetingHits = []
             screenGroups = []
             fileHits = []
+            noteHits = []
             isSearching = false
             return
         }
         meetingHits = []
         screenGroups = []
         fileHits = []
+        noteHits = []
         isSearching = true
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(120))
@@ -346,6 +351,7 @@ private struct QuickRecallContent: View {
             screenGroups = result.screens
             meetingHits = result.meetings.map(\.primary)
             fileHits = result.files
+            noteHits = result.agentNotes
             selection = 0
             isSearching = false
         }
@@ -376,6 +382,11 @@ private struct QuickRecallContent: View {
         case .file(let hit):
             // Files open in their own window or app, not in LokalBot's main window.
             FileSearchOpener.open(hit, query: trimmedQuery)
+            dismiss()
+            return
+        case .agentNote(let hit):
+            // A note opens the agent's own file, not LokalBot's main window.
+            AgentNoteOpener.open(hit)
             dismiss()
             return
         case .command(let id):
