@@ -314,7 +314,7 @@ private struct EditorialTurn: View {
                 if !message.createdAtIsEstimated {
                     Text(message.createdAt.formatted(date: .omitted, time: .shortened))
                         .font(AppFont.scaled(.callout).monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .workspaceSupportingForeground()
                         .help(questionScopeSummary ?? "")
                 }
             }
@@ -530,11 +530,14 @@ private struct EditorialTurn: View {
                 .frame(width: 18)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
+                // The turn's own identifier is pushed onto the card's group,
+                // so the card is found by its title.
                 Text(title).font(AppFont.scaled(.body).weight(.semibold))
+                    .accessibilityIdentifier("chat.answer.status")
                 if let detail {
                     Text(verbatim: detail)
                         .font(AppFont.scaled(.callout))
-                        .foregroundStyle(.secondary)
+                        .workspaceSupportingForeground()
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -557,7 +560,6 @@ private struct EditorialTurn: View {
         .padding(.vertical, 10)
         .askCard(cornerRadius: LBTokens.Metric.groupRadius)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("chat.answer.status")
     }
 
     /// Copy, read aloud and ask again: quiet icons, each named for VoiceOver.
@@ -798,14 +800,14 @@ private struct FailedAnswerMatches: View {
             if !matches.isEmpty {
                 Text("Matches")
                     .font(AppFont.scaled(.subheadline).weight(.bold))
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("chat.answer.matches")
                 AskMatchesList(matches: matches, query: question.text)
                     .askCard()
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("chat.answer.matches")
         .task(id: question.id) { await load() }
     }
 

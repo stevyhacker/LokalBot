@@ -100,6 +100,7 @@ private struct AskContent: View {
                 .padding(.top, max(28, min(150, height * 0.17)))
                 .padding(.bottom, 18)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("ask.heading")
         case .conversation:
             ChatTranscriptView(model: model)
                 .overlay(alignment: .bottom) { matchesTray }
@@ -735,7 +736,7 @@ private struct AskContent: View {
                 }
             }
             .font(AppFont.scaled(.callout))
-            .foregroundStyle(.secondary)
+            .workspaceSupportingForeground()
             .fixedSize(horizontal: false, vertical: true)
             if hasSearchFilters {
                 Button("Clear search filters", action: clearSearchFilters)
@@ -902,7 +903,7 @@ private struct AskContent: View {
                 if let hint {
                     Text(hint)
                         .font(AppFont.scaled(.callout))
-                        .foregroundStyle(.secondary)
+                        .workspaceSupportingForeground()
                         .lineLimit(1)
                 }
             }

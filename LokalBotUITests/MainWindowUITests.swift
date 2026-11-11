@@ -1051,9 +1051,12 @@ final class MainWindowUITests: XCTestCase {
     func testAskSectionRendersAndAcceptsInput() {
         clickSidebar("sidebar.ask")
 
-        XCTAssertTrue(textWithContent("Ask about your meetings, screen and files").firstMatch
-            .waitForExistence(timeout: 6),
-                      "ask empty-state did not render")
+        // The page's heading is not matched by a static-text query on the
+        // runner; it is found by its identifier and read from label or value.
+        let heading = identified("ask.heading")
+        XCTAssertTrue(heading.waitForExistence(timeout: 6), "ask empty-state did not render")
+        XCTAssertTrue([heading.label, heading.value as? String ?? ""].joined(separator: " ")
+            .contains("Ask about your meetings, screen and files"), "the empty page must say what Ask is for")
         XCTAssertFalse(app.buttons["ask.submit"].isEnabled, "Ask must be disabled while the field is empty")
         XCTAssertTrue(app.descendants(matching: .any)["ask.submit"].exists,
                       "explicit Ask action missing")

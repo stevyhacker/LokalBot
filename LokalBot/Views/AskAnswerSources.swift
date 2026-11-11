@@ -90,7 +90,7 @@ struct AnswerSourcesList: View {
         .help(source.available ? source.openHelp : "")
         Text(verbatim: source.meta)
             .font(AppFont.scaled(.callout))
-            .foregroundStyle(.secondary)
+            .workspaceSupportingForeground()
             .lineLimit(1)
             .truncationMode(.head)
             .layoutPriority(-1)
@@ -261,7 +261,7 @@ struct PersonalContextRow: View {
                 .fixedSize()
             Text(verbatim: told.joined(separator: " · "))
                 .font(AppFont.scaled(.callout))
-                .foregroundStyle(.secondary)
+                .workspaceSupportingForeground()
                 .lineLimit(1)
                 .help(told.joined(separator: "\n"))
             Spacer(minLength: 8)
@@ -338,7 +338,7 @@ struct CitationPassagePopover: View {
             case .file(let hit): filePassage(hit)
             case .note(let hit): notePassage(hit)
             case .unavailable:
-                Text("Unavailable").foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 40)
+                Text("Unavailable").workspaceSupportingForeground().frame(maxWidth: .infinity, minHeight: 40)
             }
         }
         .padding(14)
@@ -447,7 +447,7 @@ struct CitationPassagePopover: View {
                     .truncationMode(.middle)
                 Text(verbatim: meta.compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(AppFont.scaled(.callout))
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
                     .lineLimit(1)
                     .truncationMode(.head)
             }

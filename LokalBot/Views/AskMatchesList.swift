@@ -35,6 +35,8 @@ struct AskMatchesList: View {
         }
     }
 
+    /// Wide enough for "0:35 · Other speaker" beside the matched words.
+    private static let kindColumnWidth: CGFloat = 148
     /// How many matching lines a row lists before folding the rest.
     private static let foldedLineCount = 3
 
@@ -251,7 +253,7 @@ struct AskMatchesList: View {
             if let trailing {
                 Text(verbatim: trailing)
                     .font(AppFont.scaled(.callout))
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
                     .lineLimit(1)
                     .truncationMode(.head)
                     .layoutPriority(-1)
@@ -268,8 +270,8 @@ struct AskMatchesList: View {
                 if Kind.self != EmptyView.self {
                     kind()
                         .font(AppFont.scaled(.callout))
-                        .foregroundStyle(.secondary)
-                        .frame(width: style == .card ? 120 * textScale : nil, alignment: .leading)
+                        .workspaceSupportingForeground()
+                        .frame(width: style == .card ? Self.kindColumnWidth * textScale : nil, alignment: .leading)
                 }
                 if isSemantic {
                     Image(systemName: "sparkle")
@@ -280,7 +282,7 @@ struct AskMatchesList: View {
                 }
                 highlighted(snippet)
                     .font(AppFont.scaled(.body))
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
                     .lineLimit(lineLimit)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -338,14 +340,14 @@ struct AskMatchesHeader: View {
                     ProgressView().controlSize(.mini)
                     Text("Searching local sources…")
                         .font(AppFont.scaled(.callout))
-                        .foregroundStyle(.secondary)
+                        .workspaceSupportingForeground()
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier(isWaitingToAsk ? "ask.waitingForSources" : "ask.searching")
             } else if let countLabel {
                 Text(verbatim: countLabel)
                     .font(AppFont.scaled(.callout).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
                     .accessibilityIdentifier("ask.matches.count")
             }
             Spacer(minLength: 8)
@@ -373,7 +375,7 @@ struct AskMatchesHeader: View {
                 }
             }
         }
-        .foregroundStyle(.secondary)
+        .workspaceSupportingForeground()
         .fixedSize()
         // The keys are announced by the field's own hint.
         .accessibilityHidden(true)
