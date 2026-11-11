@@ -12,7 +12,7 @@ import CoreGraphics
 final class AppState: ObservableObject {
 
     enum NavSection: Hashable {
-        case today, timeline, meetings, people, projects, ask, agent, settings
+        case today, actions, timeline, meetings, people, projects, ask, agent, settings
 
         /// Section names accepted from the UI-test capture environment and
         /// deep links. Legacy names keep working: "capture" (the pre-split
@@ -22,6 +22,7 @@ final class AppState: ObservableObject {
         init?(captureName: String) {
             switch captureName.lowercased() {
             case "today": self = .today
+            case "actions": self = .actions
             case "timeline", "capture": self = .timeline
             case "meetings": self = .meetings
             case "people": self = .people
@@ -383,7 +384,6 @@ final class AppState: ObservableObject {
 
     // Navigation (main window): sidebar section and selected meeting.
     @Published var navSection: NavSection = .today
-    @Published var showingActions = false
     /// Unsaved note text, so a remounted editor resumes it. Editors read it
     /// only when they appear; publishing it re-rendered every AppState
     /// observer on each keystroke.
@@ -413,9 +413,9 @@ final class AppState: ObservableObject {
     @Published var meetingWorkspaceTabs: [UUID: MeetingWorkspaceTab] = [:]
     var meetingPlaybackPositions: [UUID: TimeInterval] = [:]
     var meetingPlaybackSpeeds: [UUID: Float] = [:]
-    func openActions() { showingActions = true; navSection = .today }
-    /// Today itself: `navSection` alone would stay on Actions when it is open.
-    func openToday() { showingActions = false; navSection = .today }
+    /// Actions is its own sidebar destination.
+    func openActions() { navSection = .actions }
+    func openToday() { navSection = .today }
 
     /// People and Projects share one derived read model.
     @Published var selectedPersonID: String?

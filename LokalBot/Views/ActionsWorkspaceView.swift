@@ -226,7 +226,6 @@ struct ActionsWorkspaceView: View {
 
     private func header(total: Int, visible: Int, threads: Int, selected: [OutcomeActionReference]) -> some View {
         HStack(spacing: 12) {
-            Button { app.showingActions = false } label: { Label("Today", systemImage: "chevron.left") }
             Text("Actions").font(.scaled(.title3).bold())
             Text(reviewMode == "threads" ? "\(threads) threads" : "\(visible) of \(total)")
                 .foregroundStyle(.secondary)

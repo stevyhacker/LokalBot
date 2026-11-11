@@ -179,7 +179,7 @@ struct ActionThreadRow: View {
                     if let due = thread.due, let spokenAt = thread.dueReferenceDate {
                         Text(ActionDuePresentation.label(due, spokenAt: spokenAt))
                             .font(AppFont.scaled(.callout))
-                            .foregroundStyle(thread.isOverdue() ? LBTokens.Palette.attentionText : .secondary)
+                            .foregroundStyle(dueColor)
                             .accessibilityLabel(thread.isOverdue()
                                 ? "Overdue. " + ActionDuePresentation.label(due, spokenAt: spokenAt)
                                 : ActionDuePresentation.label(due, spokenAt: spokenAt))
@@ -270,6 +270,12 @@ struct ActionThreadRow: View {
         } message: {
             Text(thread.references.map(\.meetingTitle).joined(separator: "\n"))
         }
+    }
+
+    /// Overdue reads red, due within the week amber, anything later quiet.
+    private var dueColor: Color {
+        if thread.isOverdue() { return LBTokens.Palette.recordingText }
+        return thread.isDueSoon() ? LBTokens.Palette.attentionText : .secondary
     }
 
     private func set(_ status: OutcomeStatus) {

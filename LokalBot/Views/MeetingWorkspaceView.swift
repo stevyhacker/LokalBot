@@ -409,7 +409,7 @@ private struct MeetingWorkspaceDetail: View {
             ToolbarItem(placement: .navigation) {
                 if let section = app.evidenceReturnSection {
                     Button(action: app.returnFromEvidence) {
-                        Label(section == .today && app.showingActions ? "Back to Actions" : "Back", systemImage: "chevron.left")
+                        Label(section == .actions ? "Back to Actions" : "Back", systemImage: "chevron.left")
                     }
                 }
             }

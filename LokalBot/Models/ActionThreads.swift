@@ -33,6 +33,16 @@ struct ActionThread: Identifiable, Equatable, Sendable {
         return resolvedDueDate < calendar.startOfDay(for: now)
     }
 
+    /// Open work due today or within the window that puts it near the top of
+    /// attention lists. Rows color these dates so they stand apart from later
+    /// ones, and overdue dates stand apart from both.
+    func isDueSoon(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard status == .open, let resolvedDueDate else { return false }
+        let today = calendar.startOfDay(for: now)
+        let soon = calendar.date(byAdding: .day, value: ActionAttentionOrder.dueSoonWindowDays, to: today) ?? today
+        return resolvedDueDate >= today && resolvedDueDate <= soon
+    }
+
     /// Open work last mentioned this long ago, with no due day still ahead,
     /// is worth asking about.
     static let staleAfterDays = 21

@@ -263,15 +263,17 @@ final class MainWindowUITests: XCTestCase {
                       "timeline section did not come back")
     }
 
-    func testSidebarUsesApprovedRememberAndWriteActHierarchy() {
+    func testSidebarUsesApprovedRememberAndAssistantHierarchy() {
         XCTAssertTrue(identified("sidebar.section.remember").exists)
-        XCTAssertTrue(identified("sidebar.section.writeAct").exists)
+        XCTAssertTrue(identified("sidebar.section.assistant").exists)
         XCTAssertFalse(app.buttons["sidebar.section.remember"].exists,
                        "Remember must be a header, not a destination")
-        XCTAssertFalse(app.buttons["sidebar.section.writeAct"].exists,
-                       "Write & Act must be a header, not a destination")
-        let ordered = ["sidebar.today", "sidebar.meetings", "sidebar.timeline",
-                       "sidebar.ask", "sidebar.agent", "sidebar.settings"]
+        XCTAssertFalse(app.buttons["sidebar.section.assistant"].exists,
+                       "Assistant must be a header, not a destination")
+        // Today and Actions lead, Settings sits in the footer under the list.
+        let ordered = ["sidebar.today", "sidebar.actions", "sidebar.meetings", "sidebar.timeline",
+                       "sidebar.people", "sidebar.projects", "sidebar.ask", "sidebar.agent",
+                       "sidebar.settings", "sidebar.localPrivacy"]
             .map(identified)
         for item in ordered {
             XCTAssertTrue(item.exists, "approved sidebar destination missing")
@@ -281,9 +283,21 @@ final class MainWindowUITests: XCTestCase {
                               "approved sidebar order changed")
         }
         XCTAssertFalse(identified("sidebar.type").exists)
-        // Storage and inference destinations remain separate claims.
-        XCTAssertTrue(textWithContent("Storage: this Mac").firstMatch.exists)
-        XCTAssertTrue(textWithContent("AI: on this Mac").firstMatch.exists)
+        // With every model local, storage and AI share one line. A remote
+        // server splits them again and names its host.
+        XCTAssertTrue(textWithContent("On this Mac").firstMatch.exists)
+        XCTAssertFalse(textWithContent("AI: local + remote").firstMatch.exists)
+    }
+
+    /// Actions is a destination of its own: it opens from the sidebar, is the
+    /// selected row while open, and needs no Back button to leave.
+    func testActionsOpensFromTheSidebar() {
+        clickSidebar("sidebar.actions")
+        XCTAssertTrue(app.textFields["actions.search"].waitForExistence(timeout: 6),
+                      "Actions did not open from the sidebar")
+        clickSidebar("sidebar.today")
+        XCTAssertTrue(UITestHarness.waitUntil { !self.app.textFields["actions.search"].exists },
+                      "Today did not replace Actions")
     }
 
     /// The Models category presents compact role rows and focused editors.

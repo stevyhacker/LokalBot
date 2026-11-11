@@ -73,7 +73,7 @@ final class AppStateFanOutTests: XCTestCase {
         let observer = scene.objectWillChange.sink { updates += 1 }
         // AppState changes no menu, window title or status glyph reads.
         app.lastError = "Could not reach the model server."
-        app.showingActions = true
+        app.actionSelection = ["action"]
         app.selectedPersonID = "person"
         app.evidenceMeetingID = UUID()
         await drainMainQueue()
