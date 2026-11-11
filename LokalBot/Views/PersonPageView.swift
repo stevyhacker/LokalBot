@@ -137,7 +137,10 @@ struct PersonDetailView: View {
                 PageSectionHeading(title: "Decided together", count: person.decisions.count)
                     .padding(.bottom, 4)
                 ForEach(shown) { decision in
-                    DecisionTogetherRow(decision: decision, locale: locale) {
+                    PageDecisionRow(
+                        text: decision.text, link: decision.meetingTitle,
+                        linkDescription: PeopleWording.meetingLink(
+                            title: decision.meetingTitle, date: decision.meetingDate, locale: locale)) {
                         app.openMeeting(decision.meetingID)
                     }
                 }
@@ -311,41 +314,6 @@ private struct NotePointRow: View {
                 MeetingPlayTimeButton(time: seek) { open(seek) }
             }
         }
-    }
-}
-
-/// A decision with the meeting it was made in.
-private struct DecisionTogetherRow: View {
-    let decision: PersonProfile.DecisionRef
-    let locale: Locale
-    let open: () -> Void
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "checkmark.circle")
-                .foregroundStyle(LBTokens.Palette.successText)
-                .frame(width: 16)
-                .accessibilityHidden(true)
-            Text(decision.text)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Button(action: open) {
-                Text(verbatim: decision.meetingTitle)
-                    .font(AppFont.scaled(.callout))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .workspaceSupportingForeground()
-            }
-            .buttonStyle(.plain)
-            // As wide as the title, up to a cap; the decision takes the rest.
-            .frame(maxWidth: 200, alignment: .trailing)
-            .fixedSize(horizontal: true, vertical: false)
-            .help(PeopleWording.meetingLink(title: decision.meetingTitle, date: decision.meetingDate, locale: locale))
-            .accessibilityLabel(Text(verbatim: PeopleWording.meetingLink(
-                title: decision.meetingTitle, date: decision.meetingDate, locale: locale)))
-        }
-        .padding(.vertical, 4)
     }
 }
 

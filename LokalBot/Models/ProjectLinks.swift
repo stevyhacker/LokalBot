@@ -73,6 +73,9 @@ struct ProjectProfile: Identifiable, Equatable, Sendable {
     var people: [String]
     /// The newest meeting, review note, or tracked window time.
     var lastActive: Date?
+    /// Every window with tracked time in the reviewed days; `windows` lists
+    /// only the longest.
+    var windowCount = 0
 
     var trackedID: UUID? {
         if case .tracked(let id) = kind { return id }
@@ -88,7 +91,8 @@ struct ProjectProfile: Identifiable, Equatable, Sendable {
         ProjectProfile(id: selectionID, name: name, kind: .tracked(trackedID), otherNames: otherNames,
                        meetings: meetings, myActions: myActions, othersActions: othersActions,
                        olderOthersActions: olderOthersActions, decisions: decisions, reviewNotes: reviewNotes,
-                       days: days, windows: windows, people: people, lastActive: lastActive)
+                       days: days, windows: windows, people: people, lastActive: lastActive,
+                       windowCount: windowCount)
     }
 }
 
@@ -309,7 +313,8 @@ enum ProjectLinks {
             myActions: mine, othersActions: others, olderOthersActions: older,
             decisions: decisions(termSets: termSets, linkedIDs: linkedIDs, projections: context.input.projections),
             reviewNotes: notes, days: time.days, windows: time.windows,
-            people: people(in: linkedIDs, from: context.input.people), lastActive: lastActive)
+            people: people(in: linkedIDs, from: context.input.people), lastActive: lastActive,
+            windowCount: time.windowCount)
     }
 
     /// Other people's work stays in view while it was mentioned recently or
@@ -384,7 +389,7 @@ enum ProjectLinks {
 
     private static func trackedTime(
         termSets: [Set<String>], activity: [ActivityBlock], windowStart: Date, now: Date, calendar: Calendar
-    ) -> (days: [ProjectProfile.DayTime], windows: [ProjectProfile.WindowTime]) {
+    ) -> (days: [ProjectProfile.DayTime], windows: [ProjectProfile.WindowTime], windowCount: Int) {
         var perDay: [String: TimeInterval] = [:]
         var perWindow: [String: ProjectProfile.WindowTime] = [:]
         for block in activity where block.end > windowStart && block.start < now {
@@ -405,7 +410,7 @@ enum ProjectLinks {
         let windows: [ProjectProfile.WindowTime] = perWindow.values.sorted {
             $0.seconds == $1.seconds ? $0.title < $1.title : $0.seconds > $1.seconds
         }
-        return (days, Array(windows.prefix(maximumWindows)))
+        return (days, Array(windows.prefix(maximumWindows)), windows.count)
     }
 
     private static func people(in linkedIDs: Set<UUID>, from people: [PersonProfile]) -> [String] {
@@ -575,7 +580,8 @@ enum ProjectLinks {
         "migration", "improvements", "support", "feature", "features", "app",
     ]
 
-    private static func dayKey(_ date: Date, calendar: Calendar) -> String {
+    /// "2026-11-10", the key of `ProjectProfile.DayTime`.
+    static func dayKey(_ date: Date, calendar: Calendar) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }

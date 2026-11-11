@@ -46,6 +46,7 @@ final class RedesignUITests: XCTestCase {
 
     /// Filmed on 2026-11-05: opening Projects showed the first project with no
     /// row highlighted, and selecting a row widened the list column to its maximum.
+    /// Also covers a project nothing names yet: one message and the names sheet.
     func testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth() throws {
         let projects = fixture.root.appendingPathComponent("projects", isDirectory: true)
         try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
@@ -75,6 +76,21 @@ final class RedesignUITests: XCTestCase {
         usleep(800_000)
         XCTAssertEqual(list.frame.width, width, accuracy: 2, "Selecting a project must not move the divider")
         snapshot("projects-selection")
+
+        // The list is headed by its search field. Nothing in the library names
+        // these two projects, so the page is one message whose button opens
+        // the names sheet on "Other names".
+        XCTAssertTrue(element("projects.search").exists, "The list column starts with the search field")
+        let addNames = element("project.addOtherNames")
+        XCTAssertTrue(addNames.waitForExistence(timeout: 5),
+                      "A project nothing names yet offers to add other names")
+        XCTAssertFalse(element("project.summary").exists, "There is no note to write for a project nothing names")
+        addNames.click()
+        XCTAssertTrue(element("project.otherNames").waitForExistence(timeout: 5), "The names sheet opens")
+        XCTAssertTrue(element("project.name").exists)
+        app.buttons["Cancel"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !self.element("project.otherNames").exists })
+        XCTAssertTrue(UITestHarness.waitUntil { selected.count == 1 }, "Cancelling leaves the selection alone")
     }
 
     func testWorkspaceVisualMatrix() throws {

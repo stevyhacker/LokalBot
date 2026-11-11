@@ -1,8 +1,9 @@
 import SwiftUI
 
-// Building blocks of a list beside a page (People; Projects has the same
-// shape): the list column's search header, a page section's heading, a page
-// with a side column of reference blocks, and a small label chip.
+// Building blocks of a list beside a page (People and Projects): the list
+// column's search header, a page section's heading, a decision with its
+// meeting, a page with a side column of reference blocks, and a small label
+// chip.
 
 /// The search field that heads a list column.
 struct ListColumnSearchField: View {
@@ -62,6 +63,54 @@ struct PageSectionHeading<Trailing: View>: View {
 extension PageSectionHeading where Trailing == EmptyView {
     init(title: LocalizedStringKey, count: Int? = nil) {
         self.init(title: title, count: count) { EmptyView() }
+    }
+}
+
+/// A decision with the meeting it was made in at the trailing edge. People
+/// names the meeting quietly; Projects, whose decisions come from many
+/// meetings, shows it with its date as a link.
+struct PageDecisionRow: View {
+    let text: String
+    /// What the link shows.
+    let link: String
+    /// The meeting with its date, on hover and for VoiceOver.
+    let linkDescription: String
+    var accentLink = false
+    let open: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "checkmark.circle")
+                .foregroundStyle(LBTokens.Palette.successText)
+                .frame(width: 16)
+                .accessibilityHidden(true)
+            Text(text)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Group {
+                if accentLink {
+                    Button(action: open) { label }
+                        .buttonStyle(.workspaceLink)
+                } else {
+                    Button(action: open) { label.workspaceSupportingForeground() }
+                        .buttonStyle(.plain)
+                }
+            }
+            // As wide as the link, up to a cap; the decision takes the rest.
+            .frame(maxWidth: accentLink ? 260 : 200, alignment: .trailing)
+            .fixedSize(horizontal: true, vertical: false)
+            .help(linkDescription)
+            .accessibilityLabel(Text(verbatim: linkDescription))
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var label: some View {
+        Text(verbatim: link)
+            .font(AppFont.scaled(.callout))
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 }
 

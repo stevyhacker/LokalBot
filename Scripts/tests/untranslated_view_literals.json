@@ -188,20 +188,6 @@
       "Use Name from Meetings",
       "\\(…) meeting\\(…)"
     ],
-    "ProjectsWorkspaceView.swift": [
-      "Add the projects you work on, and LokalBot gathers their meetings, actions, and decisions. It also suggests names that come up in \\(…) or more meetings.",
-      "Ask About \\(…)",
-      "Codenames or clients, separated by commas",
-      "Hide older",
-      "Meetings, actions, and window titles that use any of these names are linked to the project.",
-      "Not a Project",
-      "Stop Tracking",
-      "Suggested",
-      "Track \\(…)",
-      "Track a Project",
-      "Track a suggestion below, or add a project with +.",
-      "Write Note"
-    ],
     "RecordingHealthStrip.swift": [
       "Last recovery \\(…)"
     ],
@@ -299,9 +285,6 @@
     "OutcomeOverviewViews.swift": [
       "Owner unclear",
       "Owner: "
-    ],
-    "ProjectsWorkspaceView.swift": [
-      "Also: "
     ],
     "RetentionSettingsControls.swift": [
       "Keep images and activity titles for \\(…) days. "

@@ -79,7 +79,7 @@
   "RedesignUITests/testMeetingCorrectionKeepsReviewWithPageSearchOpenAndClearsReturnOrigin": 26.1,
   "RedesignUITests/testMeetingMenusHaveAccessibleActionsAndOpen": 19.5,
   "RedesignUITests/testMeetingReviewConnectsSpeakersOwnersEvidenceAndRefresh": 36.5,
-  "RedesignUITests/testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth": 6.7,
+  "RedesignUITests/testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth": 9.7,
   "RedesignUITests/testRecallDividerRestoresAfterVisitingOtherWorkspaces": 22.5,
   "RedesignUITests/testRecallKeepsInputScopeAndHistoryInPlaceAcrossModes": 8.6,
   "RedesignUITests/testRetentionReviewCancelPreservesPolicy": 16.8,

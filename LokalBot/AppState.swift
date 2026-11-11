@@ -583,7 +583,7 @@ final class AppState: ObservableObject {
         let provenance = DreamInferenceProvenance(settings: settings)
         let location: String
         if provenance.location == .local {
-            location = "this Mac"
+            location = ProjectStatusSummary.localLocation
         } else {
             location = provenance.origin.flatMap { URL(string: $0)?.host } ?? provenance.origin ?? "a server"
         }
