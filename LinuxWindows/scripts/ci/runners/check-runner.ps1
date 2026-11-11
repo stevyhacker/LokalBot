@@ -4,7 +4,8 @@
 # - lowers the job's CPU priority, so builds don't take the PC from whoever
 #   is using it, and keeps the job on the CPU's performance cores (later
 #   steps inherit both from the runner's worker process);
-# - clears the warm target directory when the disk gets too full.
+# - clears the warm target directory when the disk gets too full;
+# - removes programs another branch's build may have left in it (below).
 $ErrorActionPreference = 'Stop'
 
 $client = New-Object Net.Sockets.TcpClient
@@ -70,4 +71,38 @@ $minFree = if ($env:MIN_FREE_GB) { [int]$env:MIN_FREE_GB } else { 40 }
 if ($freeGb -lt $minFree) {
   Write-Host 'Clearing the warm target to free space.'
   Get-ChildItem -Force $target | Remove-Item -Recurse -Force
+}
+
+# On Windows (MSVC) cargo leaves the hash out of the file names of programs
+# (binaries and examples): every branch's lokalbot-cli is deps\lokalbot_cli.exe,
+# while libraries and test programs get one file per build. When a job's own
+# build of a program is still up to date in cargo's records, from an earlier
+# job, cargo doesn't link it again, and the job tests and packages the file the
+# last branch left: a 0.12.2 run tested a 0.12.3 lokalbot-cli that way.
+# Those records change with package versions, dependencies, features and the
+# toolchain, which all come from the manifests. So when the manifests differ
+# from the last job's, remove the unhashed programs and cargo builds each again.
+# Otherwise they stay warm. (On Linux, programs have hashed names too, and cargo
+# refreshes the copy tests run, so check-runner.sh needs none of this.)
+$manifests = Get-ChildItem -Recurse -File -Force -Include 'Cargo.toml', 'Cargo.lock', 'rust-toolchain', 'rust-toolchain.toml', 'config', 'config.toml' |
+  Where-Object { $_.Name -like 'Cargo.*' -or $_.Name -like 'rust-toolchain*' -or $_.Directory.Name -eq '.cargo' } |
+  Where-Object { $_.FullName -notmatch '[\\/](target|node_modules)[\\/]' } |
+  ForEach-Object { '{0} {1}' -f [IO.Path]::GetRelativePath($PWD.Path, $_.FullName), (Get-FileHash -LiteralPath $_.FullName).Hash } |
+  Sort-Object
+$stamp = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($manifests -join "`n")))
+$stampFile = Join-Path $target 'manifests.sha256'
+$last = if (Test-Path -LiteralPath $stampFile) { (Get-Content -LiteralPath $stampFile -Raw).Trim() } else { '' }
+if ($stamp -ne $last) {
+  $removed = 0
+  foreach ($profileDir in 'debug', 'release') {
+    foreach ($sub in '.', 'deps', 'examples') {
+      $dir = Join-Path (Join-Path $target $profileDir) $sub
+      if (-not (Test-Path -LiteralPath $dir)) { continue }
+      Get-ChildItem -LiteralPath $dir -File -Force |
+        Where-Object { $_.Extension -in '.exe', '.pdb' -and $_.BaseName -notmatch '-[0-9a-f]{16}$' } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force; $removed++ }
+    }
+  }
+  Set-Content -LiteralPath $stampFile -Value $stamp
+  Write-Host "The manifests changed since the last job: removed $removed programs with unhashed names, so cargo links them again."
 }
