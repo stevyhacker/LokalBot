@@ -724,7 +724,10 @@ enum PeopleDirectory {
                     meeting.participantCount = rosterSizes[meeting.id] ?? 0
                     return meeting
                 }.sorted { $0.startedAt > $1.startedAt }
-                let decisions = entry.decisions.values.sorted { $0.meetingDate > $1.meetingDate }
+                // Decisions of one meeting keep one order between rebuilds.
+                let decisions = entry.decisions.values.sorted {
+                    $0.meetingDate == $1.meetingDate ? $0.id < $1.id : $0.meetingDate > $1.meetingDate
+                }
                 return PersonProfile(
                     id: opaqueID(key),
                     name: name,

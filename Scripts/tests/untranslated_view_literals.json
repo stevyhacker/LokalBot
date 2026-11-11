@@ -177,21 +177,15 @@
       "Mark all \\(…)"
     ],
     "PeopleWorkspaceView.swift": [
-      "And \\(…) more meeting\\(…) under \\(…) other title\\(…).",
-      "Ask About \\(…)",
       "Choose who \\(…) really is. Their meetings, open work, and decisions move to that person, and \\(…) becomes another name. Separate them again from that person's More menu.",
-      "Draft Follow-up for \\(…)…",
       "Loading people…",
       "Merge",
-      "Merge Into…",
       "Merge \\(…) Into…",
-      "Not a Person",
       "People appear after meetings with calendar attendees, named speakers, or named action owners.",
       "People shows this name, and LokalBot also recognizes it in meeting notes and action owners. Names from your meetings stay listed as other names.",
       "Rename \\(…)",
       "Select a person.",
       "Use Name from Meetings",
-      "\\(…) (suggested)",
       "\\(…) meeting\\(…)"
     ],
     "ProjectsWorkspaceView.swift": [
@@ -305,9 +299,6 @@
     "OutcomeOverviewViews.swift": [
       "Owner unclear",
       "Owner: "
-    ],
-    "PeopleWorkspaceView.swift": [
-      "Also appears as "
     ],
     "ProjectsWorkspaceView.swift": [
       "Also: "

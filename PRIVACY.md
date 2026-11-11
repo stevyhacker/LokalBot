@@ -1157,8 +1157,13 @@ the names of projects you track and suggestions you mark **Not a Project**
 (`projects/summaries.json`). Deleting a meeting withdraws every note that used
 it; **Stop Tracking** deletes the project's note. People stores only the
 corrections you make there — names you choose, people you merge, and entries
-you mark **Not a Person** — in `people/curation.json`, keyed by opaque person
-ids, never by attendee addresses; undoing every correction deletes the file. Tracked project names are
+you mark **Not a person** — in `people/curation.json`, keyed by opaque person
+ids, never by attendee addresses; undoing every correction deletes the file.
+While **Use calendar to improve detection** is on and Calendar access is
+granted, People also reads the next seven days of calendar meetings to show
+who is coming up and a person's next meeting. It matches attendees to people
+on this Mac, keeps the result in memory only, and never shows an address.
+Tracked project names are
 also added to meeting transcription vocabulary when **Add names LokalBot
 already knows** is on. Your Mac account name is read
 only to leave you out of People. **Suggest actions that look done**

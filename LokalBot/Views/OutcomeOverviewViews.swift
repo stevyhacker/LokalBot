@@ -96,6 +96,9 @@ struct ActionThreadRow: View {
     /// Timeline's meeting preview lists that meeting's actions, so a row from
     /// one meeting does not name it again.
     var hidesSingleMeetingLink = false
+    /// People show the moment as a ▶ time that opens the meeting playing
+    /// from there, like the notes beside it.
+    var playsEvidence = false
     /// Set by the Actions page; every other page shows the row with its links.
     var list: ActionListRowStyle?
     @State private var showingSources = false
@@ -349,10 +352,18 @@ struct ActionThreadRow: View {
                     }
                     if !thread.hasMultipleMeetings,
                        let citation = thread.latestReference.action.citations.first {
-                        EvidencePill(citation: citation) {
-                            app.openMeeting(
-                                thread.latestReference.meetingID,
-                                seek: citation.start)
+                        if playsEvidence {
+                            MeetingPlayTimeButton(time: citation.start, excerpt: citation.excerpt) {
+                                app.openMeeting(
+                                    thread.latestReference.meetingID,
+                                    seek: citation.start, intent: .play)
+                            }
+                        } else {
+                            EvidencePill(citation: citation) {
+                                app.openMeeting(
+                                    thread.latestReference.meetingID,
+                                    seek: citation.start)
+                            }
                         }
                     }
                 }

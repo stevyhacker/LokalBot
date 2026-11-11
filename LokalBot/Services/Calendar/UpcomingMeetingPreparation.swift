@@ -578,6 +578,28 @@ enum UpcomingMeetingSchedule {
             from: app.calendar.meetingCandidates(on: now), on: now))
     }
 
+    /// Meetings from now through the next week, for People's "Coming up" and
+    /// a person's next-meeting card. Nil while Calendar use is off or access
+    /// is missing; People never asks for access.
+    @MainActor
+    static func readAhead(
+        app: AppState, now: Date, days: Int = PeopleUpcomingMeetings.windowDays
+    ) -> [CalendarMeetingCandidate]? {
+#if LOKALBOT_UI_TEST_HOST
+        if ProcessInfo.processInfo.environment["LOKALBOT_CALENDAR_DEMO"] == "1" {
+            return demoSchedule(now: now)
+        }
+#endif
+        app.calendar.refreshAuthorizationStatus()
+        return PeopleUpcomingMeetings.events(
+            calendarEnabled: app.settings.calendarDetectionEnabled,
+            authorization: app.calendar.authorizationStatus
+        ) {
+            app.calendar.meetingCandidates(from: now, days: days)
+                .filter { UpcomingMeetingSelector.kind(of: $0) != .personal }
+        }
+    }
+
 #if LOKALBOT_UI_TEST_HOST
     /// A deterministic, non-EventKit seam for screenshots and XCUITest. It
     /// exercises the real schedule, evidence compiler, Join/Record actions,
