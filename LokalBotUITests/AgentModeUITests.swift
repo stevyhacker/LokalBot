@@ -35,7 +35,7 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { (try? self.taskRecords().count) == 6 })
         XCTAssertEqual(app.textFields.matching(identifier: "agent.composer").count, 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
-        XCTAssertTrue(app.staticTexts["Ready to start"].exists)
+        XCTAssertTrue(taskRow.label.contains("Not started"), "A new task's row says it has not started")
     }
 
     func testSwitchingTasksAndReturningToAgentKeepsDrafts() {
@@ -51,10 +51,12 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testStarterOnlyPrefillsAndRuntimeWaitsForExplicitSend() {
-        XCTAssertTrue(app.staticTexts["Ready to start"].waitForExistence(timeout: 4))
+        XCTAssertTrue(UITestHarness.waitUntil { self.taskRow.label.contains("Not started") })
+        // A new task opens with its heading, what the agent may do, and the starters.
+        XCTAssertTrue(app.descendants(matching: .any)["agent.capability"].exists)
         app.buttons["agent.starter.followUp"].click()
         XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.contains("Draft a follow-up") == true })
-        XCTAssertTrue(app.staticTexts["Ready to start"].exists)
+        XCTAssertTrue(taskRow.label.contains("Not started"))
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
     }
 
@@ -135,6 +137,12 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(find.waitForExistence(timeout: 4)); find.click(); find.typeText("Agent result")
         XCTAssertTrue(app.staticTexts["1 of 1"].waitForExistence(timeout: 3))
         app.buttons["Close find"].click()
+        // Copy, retry and more belong to the answer a turn ends with, so end the turn first.
+        XCTAssertFalse(responseMore.exists, "What the agent says while it works has no actions")
+        app.buttons["agent.approve.deny"].click()
+        app.buttons["agent.stop"].click()
+        XCTAssertTrue(responseMore.waitForExistence(timeout: 4))
+        XCTAssertTrue(app.descendants(matching: .any)["agent.stoppedNote"].exists)
         UITestHarness.scrollTo(responseMore, in: app, within: app.scrollViews["agent.transcript"])
         responseMore.click()
         XCTAssertTrue(app.menuItems["Open in results"].waitForExistence(timeout: 3))
@@ -157,7 +165,9 @@ final class AgentModeUITests: XCTestCase {
         app.buttons["agent.send"].click()
         let queue = app.descendants(matching: .any)["agent.queue"]
         XCTAssertTrue(queue.waitForExistence(timeout: 4))
-        let cancel = app.buttons["Cancel"]
+        XCTAssertTrue(UITestHarness.staticText(containing: "Sends when done", in: app).exists)
+        XCTAssertTrue(app.buttons["agent.steer"].exists, "A queued message offers Send now")
+        let cancel = app.buttons["agent.queue.remove"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 3)); cancel.click()
         XCTAssertTrue(UITestHarness.waitUntil { !queue.exists })
         XCTAssertTrue(deny.exists)
@@ -181,7 +191,10 @@ final class AgentModeUITests: XCTestCase {
         let transcript = app.scrollViews["agent.transcript"]
         XCTAssertGreaterThanOrEqual(transcript.frame.height, 140,
                                     "The expanded approval must leave room to read the conversation")
-        UITestHarness.scrollTo(responseMore, in: app, within: transcript)
+        // The conversation ends with a line that points at the approval card.
+        let pointer = app.descendants(matching: .any)["agent.awaitingAnswer"]
+        XCTAssertTrue(pointer.waitForExistence(timeout: 4))
+        UITestHarness.scrollTo(pointer, in: app, within: transcript)
         let visibleAnswer = answer.frame.intersection(transcript.frame.insetBy(dx: 8, dy: 8))
         XCTAssertFalse(visibleAnswer.isNull, "The response must be visible before selecting it")
         XCTAssertGreaterThan(visibleAnswer.height, 12)

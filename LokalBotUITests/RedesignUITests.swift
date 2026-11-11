@@ -818,8 +818,14 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(rendered.contains("| --- | --- |"), "Markdown table syntax leaked into the answer")
         let deny = app.buttons["agent.approve.deny"]
         XCTAssertTrue(deny.waitForExistence(timeout: 6))
-        XCTAssertTrue(UITestHarness.staticText(containing: "Create or replace the file", in: app).exists)
-        XCTAssertTrue(UITestHarness.staticText(containing: "reviewed-note.md", in: app).exists)
+        // The card asks a question that names the file. The fixture's file is
+        // inside the library, so the card says so and shows the full path.
+        XCTAssertTrue(UITestHarness.staticText(containing: "Create reviewed-note.md?", in: app).exists)
+        XCTAssertTrue(UITestHarness.staticText(containing: "LokalBot’s own data", in: app).exists)
+        XCTAssertTrue(app.descendants(matching: .any)["agent.approval.path"].exists)
+        XCTAssertFalse(app.buttons["agent.approve.session"].exists,
+                       "A file in LokalBot's own data can only be allowed once")
+        XCTAssertTrue(UITestHarness.staticText(containing: "Waiting for your answer below", in: app).exists)
         snapshot("agent-write-approval")
         deny.click()
         XCTAssertTrue(UITestHarness.staticText(containing: "You denied this write request", in: app)

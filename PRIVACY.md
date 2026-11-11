@@ -616,7 +616,25 @@ The app may make these outbound connections:
   packages from the npm registry, installed from the lockfile LokalBot ships.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside
-  LokalBot's control. Files and meetings you explicitly attach are read locally
+  LokalBot's control. On the Mac, reads of files inside the task's working
+  folder run without an approval request at every access level. When the
+  model runs on this Mac, read-only lookups of your own LokalBot library also
+  run without a request at every level, including the default (**Ask
+  first**). A lookup is one `lokalbot-cli brief`, `list`, `get` or `search`
+  command made only of plain or quoted words and those commands' own options,
+  optionally followed by `2>&1` and by `| head` or `| tail` with a line count.
+  These four commands only read and print: your meetings through the task's
+  own library access, and anything else only under the permission that covers
+  it. What they print is given to the model, so it stays on this Mac. When the
+  task's model is a remote server or a subscription plan, or LokalBot cannot
+  tell where it runs, each lookup asks first at every level below **Full
+  access**, because its output would be sent to that destination; the one
+  exception is the hand-off described below, in the read levels only. Anything else asks first under **Ask
+  first**: every other command (including other `lokalbot-cli` commands, and a
+  lookup combined with another pipe, a redirect, `;`, `&&`, a subshell,
+  variable expansion or an option those commands do not have), every file
+  change, reads outside the working folder, and direct reads of LokalBot's own
+  files. Files and meetings you explicitly attach are read locally
   and included when you send; saved screen moments additionally require the
   current screen-memory grant and include retained text and notes, never pixels.
   Attached context goes to the task's displayed inference destination and is
@@ -637,7 +655,11 @@ The app may make these outbound connections:
   does the same on request. The attached meeting's summary is read and sent
   only when the task is sent. **Start handoffs automatically**, also off by
   default, sends those tasks without a click, up to four at a time, under the
-  selected approval mode; otherwise each waits for you to press Send.
+  selected approval mode; otherwise each waits for you to press Send. A
+  handed-off task's read-only library lookups run without a request in the
+  read levels (**Read any file** and above) wherever its model runs, as
+  before, so with a remote model their output goes to that model; at **Ask
+  first** they follow the rule above.
 
 Those services receive normal connection metadata such as your IP address and
 request headers. LokalBot does not add an advertising identifier and does not
@@ -1438,8 +1460,10 @@ platform differences:
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
-  - File changes and commands need your approval. Session history stays in
-    the library.
+  - File changes and commands need your approval. On the Mac, read-only
+    lookups of your own library (`lokalbot-cli brief`, `list`, `get`,
+    `search`) run without asking when the model runs on this Mac. Session
+    history stays in the library.
 - **The live transcript preview** runs only when you start it during a
   recording. It uses the local transcription model and is not saved; the
   full transcript replaces it after the meeting. **Turn-by-turn live text**

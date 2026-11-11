@@ -59,7 +59,11 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var sessionTitle: String?
     @Published private(set) var activeSessionFile: URL?
     /// Bound to this process's connection, even if Settings changes later.
-    @Published private(set) var modelContext: ModelContext?
+    @Published private(set) var modelContext: ModelContext? {
+        // The approval policy lets library lookups through only for a model
+        // known to run on this Mac; no bound model means it asks.
+        didSet { policy.modelRunsOnThisMac = modelContext?.destination == .onDevice }
+    }
     /// The levels the launched model accepts; nil until a launch resolves them.
     @Published private(set) var reasoningSupport: ReasoningSupport?
     @Published var workspace: URL
@@ -84,16 +88,62 @@ final class AgentSessionController: ObservableObject {
         items.compactMap { if case .approval(let request) = $0 { request } else { nil } }
     }
     var hasLiveRuntime: Bool { state == .starting || state == .ready || state == .running }
-    var taskStatus: String {
-        if !pendingApprovals.isEmpty { return "Needs approval" }
-        if turnError != nil { return "Needs attention" }
-        switch state {
-        case .idle: return items.isEmpty ? "Ready to start" : "Saved"
-        case .starting: return "Starting…"
-        case .ready: return "Ready"
-        case .running: return "Working…"
-        case .failed: return "Needs attention"
+    /// True after Stop ended a turn, until the next message or turn.
+    @Published private(set) var wasStopped = false
+    /// For each write step seen as it started, whether its file was already
+    /// there. It tells a new file from a replaced one afterwards.
+    private var writeTargetExisted: [String: Bool] = [:]
+
+    /// Where the task stands. `hasSavedConversation` covers a task whose
+    /// saved conversation has not been loaded into this controller yet.
+    func status(hasSavedConversation: Bool = false) -> AgentTaskStatus {
+        // Only a finished task counts its changed files; counting reads the disk.
+        let changed = state == .ready && pendingApprovals.isEmpty ? changedFiles(in: lastTurnItems).count : 0
+        return .resolve(state: state, pendingApprovals: pendingApprovals.count, hasTurnError: turnError != nil,
+                        wasStopped: wasStopped, items: items, hasSavedConversation: hasSavedConversation,
+                        changedFiles: changed)
+    }
+
+    /// The status in English, for logs and VoiceOver fallbacks.
+    var taskStatus: String { status().title { $0 } ?? "Saved" }
+
+    private var lastTurnItems: [AgentTranscriptItem] {
+        let start = items.lastIndex { if case .user = $0 { true } else { false } } ?? items.startIndex
+        return Array(items[start...])
+    }
+
+    /// The files the given steps wrote or edited.
+    func changedFiles(in steps: [AgentTranscriptItem]) -> [AgentChangedFile] {
+        AgentChangedFile.list(in: steps, workspace: workspace, workspaceName: workspaceDisplayName,
+                              existedBefore: writeTargetExisted)
+    }
+
+    /// The file an approval request names. A relative path starts at the
+    /// folder the request came from; where it sits is judged against this
+    /// task's working folder.
+    func approvalTarget(_ request: AgentApprovalRequest) -> AgentFileTarget? {
+        guard let path = request.path else { return nil }
+        let origin = request.workspace.map { URL(fileURLWithPath: $0) } ?? workspace
+        let asked = AgentFileTarget.resolve(path, workspace: origin, workspaceName: "")
+        return AgentFileTarget.resolve(asked.url.path, workspace: workspace, workspaceName: workspaceDisplayName)
+    }
+
+    /// Where an approval request's file sits: the working folder, LokalBot's
+    /// own data, or anywhere else.
+    func approvalPlace(_ request: AgentApprovalRequest) -> AgentApprovalPresentation.Place {
+        guard let target = approvalTarget(request) else { return .none }
+        let isProtected = policy.protectedWriteRoots.contains { root in
+            guard let root = AgentApprovalPolicy.canonicalFileURL(root) else { return true }
+            return target.url.pathComponents.starts(with: root.pathComponents)
         }
+        if isProtected { return .lokalbotData }
+        return target.place == .workingFolder ? .workingFolder : .outside
+    }
+
+    /// True when the file a write would create is already there, so the
+    /// request replaces it.
+    func approvalTargetExists(_ request: AgentApprovalRequest) -> Bool {
+        approvalTarget(request).map { FileManager.default.fileExists(atPath: $0.url.path) } ?? false
     }
     @Published private(set) var approvalMode: AgentApprovalMode {
         didSet { policy.mode = approvalMode }
@@ -373,6 +423,21 @@ final class AgentSessionController: ObservableObject {
         cancelQueued(id)
     }
 
+    /// Sends one queued message without waiting for the turn to end: as a
+    /// steering message while the agent works, as the next message otherwise.
+    /// The message returns to its place in the queue when it cannot be sent.
+    @discardableResult
+    func sendQueuedNow(_ id: UUID) async -> Bool {
+        guard let index = queuedPrompts.firstIndex(where: { $0.id == id }),
+              state == .ready || state == .running, !isSending, !isStopping else { return false }
+        let prompt = queuedPrompts.remove(at: index)
+        let sent = await send(prompt: prompt.text, attachments: prompt.attachments, steer: state == .running)
+        if !sent, !queuedPrompts.contains(where: { $0.id == id }) {
+            queuedPrompts.insert(prompt, at: min(index, queuedPrompts.count))
+        }
+        return sent
+    }
+
     func addAttachment(_ attachment: AgentAttachment) {
         guard !attachments.contains(where: { $0.id == attachment.id }) else { return }
         guard attachments.count < AgentContextResolver.maximumAttachments else {
@@ -441,6 +506,7 @@ final class AgentSessionController: ObservableObject {
         lastSubmittedPrompt = pending
         composerError = nil
         turnError = nil
+        wasStopped = false
         queueIsPaused = false
         if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: prompt) }
         folder.noteUserPrompt(prompt)
@@ -548,6 +614,7 @@ final class AgentSessionController: ObservableObject {
         guard let client, !isStopping else { return }
         let generation = lifecycleGeneration
         isStopping = true
+        if state == .running { wasStopped = true }
         defer { if generation == lifecycleGeneration { isStopping = false } }
         // Pi's confirmation promise has no abort signal. Resolve it as a
         // cancellation first or Pi's abort RPC can wait forever for idle.
@@ -592,6 +659,8 @@ final class AgentSessionController: ObservableObject {
         await shutdown()
         discardPendingTextDelta()
         folder = AgentTranscriptFolder()
+        wasStopped = false
+        writeTargetExisted.removeAll()
         resetApprovalPolicy()
         sessionTitle = nil
         draft = ""
@@ -604,6 +673,8 @@ final class AgentSessionController: ObservableObject {
         await shutdown()
         discardPendingTextDelta()
         folder = AgentTranscriptFolder()
+        wasStopped = false
+        writeTargetExisted.removeAll()
         resetApprovalPolicy()
         workspace = session.workspace
         sessionTitle = session.title
@@ -639,8 +710,9 @@ final class AgentSessionController: ObservableObject {
         }
     }
 
-    /// Read-only `lokalbot-cli` lookups run without a card in the read modes.
-    /// On for tasks handed off from a meeting's actions.
+    /// Read-only `lokalbot-cli` lookups run without a card in the read modes
+    /// even when the model is not on this Mac. On for tasks handed off from a
+    /// meeting's actions.
     var allowsLibraryLookups: Bool {
         get { policy.allowsLibraryLookups }
         set { policy.allowsLibraryLookups = newValue }
@@ -714,7 +786,10 @@ final class AgentSessionController: ObservableObject {
         case .agentStart:
             state = .running
             turnError = nil
+            wasStopped = false
             holdModelForStartedTurn()
+        case .toolExecutionStart(let callID, let name, let argsJSON):
+            noteWriteTarget(callID: callID, tool: name, argsJSON: argsJSON)
         case .agentSettled:
             state = .ready
             releaseModelBetweenTurns()
@@ -733,6 +808,14 @@ final class AgentSessionController: ObservableObject {
         // agent_end can precede automatic retry/compaction. The pinned Pi
         // runtime emits agent_settled only after the complete run is idle.
         if event == .agentSettled { scheduleQueuedDelivery() }
+    }
+
+    /// Remembers, before a write runs, whether its file is already there.
+    private func noteWriteTarget(callID: String, tool: String, argsJSON: String) {
+        guard tool.lowercased() == "write", let path = AgentStepWording.arguments(argsJSON).path else { return }
+        if writeTargetExisted.count > AgentTranscriptFolder.maximumItems { writeTargetExisted.removeAll() }
+        let target = AgentFileTarget.resolve(path, workspace: workspace, workspaceName: workspaceDisplayName)
+        writeTargetExisted[callID] = FileManager.default.fileExists(atPath: target.url.path)
     }
 
     private func handleUIRequest(_ request: PiUIRequest) async {
