@@ -275,12 +275,27 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.staticText(containing: "Require a calendar match", in: app).exists,
                       "browser strict-mode toggle missing when calendar detection is on")
         // Calendar access is asked for on Privacy & permissions, and by the
-        // header's status line while it is missing; Meetings has no row for it.
-        XCTAssertFalse(UITestHarness.staticText(containing: "Calendar access", in: app).exists,
+        // header's status line while it is missing ("Calendar access is off,
+        // so…"). Meetings no longer has a row of its own for it: no row
+        // titled "Calendar access" and no grant button under Calendar.
+        XCTAssertEqual(app.staticTexts.matching(
+            NSPredicate(format: "label ==[c] %@ OR value ==[c] %@", "Calendar access", "Calendar access")).count, 0,
+                       "Meetings must not have a Calendar access row of its own")
+        XCTAssertFalse(app.buttons["Grant Calendar Access…"].exists,
                        "Meetings must not ask for Calendar access in its own way")
+        let headerLine = app.descendants(matching: .any)["settings.status.recording.allow.calendar"]
+        let askedInHeader = headerLine.exists
+        if askedInHeader {
+            XCTAssertTrue(app.buttons["settings.status.recording.allow.calendar.action"].exists,
+                          "The header's Calendar line carries its own fix button")
+        }
         UITestHarness.selectSettingsCategory("Privacy & permissions", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings.permission.calendar"].waitForExistence(timeout: 6),
                       "calendar permission row missing on Privacy & permissions")
+        // Both places say the same about Calendar: asked for in the header
+        // exactly while Privacy & permissions offers to allow it.
+        XCTAssertEqual(app.buttons["settings.permission.calendar.allow"].exists, askedInHeader,
+                       "Meetings' header and Privacy & permissions must agree on Calendar access")
     }
 
     private func relaunch(settingsJSON: String) throws {

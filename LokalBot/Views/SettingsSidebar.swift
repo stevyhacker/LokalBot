@@ -106,8 +106,11 @@ private struct SettingsIdentityRow: View {
                 .frame(width: 32, height: 32)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
+                // Each text carries its own identifier: one on the row would
+                // replace both.
                 Text(verbatim: "LokalBot")
                     .font(.scaled(.body).weight(.semibold))
+                    .accessibilityIdentifier("settings.identity")
                 Text(verbatim: status.summary.string(app.settings.appLanguage.catalog))
                     .font(.scaled(.callout))
                     .foregroundStyle(summaryStyle)
@@ -118,7 +121,6 @@ private struct SettingsIdentityRow: View {
         }
         .padding(.vertical, 5)
         .contentShape(Rectangle())
-        .accessibilityIdentifier("settings.identity")
     }
 
     private var summaryStyle: AnyShapeStyle {
