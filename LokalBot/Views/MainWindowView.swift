@@ -11,7 +11,7 @@ struct MainWindowView: View {
     /// Native sidebar toggle and restored visibility share the same binding.
     @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
     @State private var pendingDelete: Set<Meeting.ID>?
-    /// Shared by Timeline's chronology and bounded context panel.
+    /// Timeline's day, kept across visits to other pages.
     @StateObject private var capture = CaptureModel()
 
     var body: some View {
@@ -26,15 +26,6 @@ struct MainWindowView: View {
             }
         } message: {
             Text("This permanently deletes the audio, transcript and summary files.")
-        }
-        .toolbar {
-            if app.navSection == .timeline, app.evidenceReturnSection != nil {
-                ToolbarItem(placement: .navigation) {
-                    Button(action: app.returnFromEvidence) {
-                        Label("Back", systemImage: "chevron.left")
-                    }.help("Return to the source search or conversation")
-                }
-            }
         }
         .sheet(item: $app.followUpDraftMeeting) { meeting in
             FollowUpDraftSheet(meeting: meeting)
@@ -56,10 +47,8 @@ struct MainWindowView: View {
 
     }
 
-    /// Timeline is one day-explorer workspace inside the global shell. Its
-    /// chronology/context split belongs to that workspace, rather than
-    /// becoming two more global navigation columns. Meetings and Ask retain
-    /// their native three-column information architecture.
+    /// Every workspace keeps its own list-and-page split inside the detail
+    /// column, rather than adding global navigation columns.
     private var navigation: some View {
         NavigationSplitView(columnVisibility: Binding(
             get: { sidebarVisible ? .all : .detailOnly },

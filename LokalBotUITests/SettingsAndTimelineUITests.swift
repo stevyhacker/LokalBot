@@ -297,7 +297,7 @@ final class SettingsUITests: XCTestCase {
 }
 
 /// Timeline against a fixture with no activity blocks — meetings still
-/// populate the primary chronological Work sessions stream.
+/// populate the day's list.
 final class TimelineWithoutActivityUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -317,7 +317,7 @@ final class TimelineWithoutActivityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
             .waitForExistence(timeout: 6), "timeline section did not render")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"]
-            .waitForExistence(timeout: 6), "Work sessions was not immediately visible")
+            .waitForExistence(timeout: 6), "the day's list was not immediately visible")
     }
 
     override func tearDownWithError() throws {
@@ -331,12 +331,12 @@ final class TimelineWithoutActivityUITests: XCTestCase {
     /// and the Meetings section shows the grouped list.
     func testTimelineWithoutActivityShowsMeetingBlocks() {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"].exists,
-                      "Work sessions with meeting rows missing")
+                      "the day's list with meeting rows missing")
         XCTAssertTrue(app.descendants(matching: .any)[
             "capture.meeting.\(fixture.designReview.id.uuidString)"].exists,
                       "meeting row missing without activity blocks")
-        XCTAssertFalse(UITestHarness.staticText(containing: "No activity recorded", in: app).exists,
-                       "empty state shown despite seeded meetings in the track")
+        XCTAssertFalse(UITestHarness.staticText(containing: "Nothing recorded", in: app).exists,
+                       "empty state shown despite seeded meetings in the list")
 
         UITestHarness.clickSidebar("sidebar.meetings", in: app)
         XCTAssertTrue(app.outlines["meeting.list"].waitForExistence(timeout: 6),

@@ -403,15 +403,22 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(app.textFields["timeline.search"].exists, "Retained moments search was removed")
         XCTAssertFalse(element("timeline.moments").exists, "Retained moments list was removed")
         XCTAssertFalse(element("timeline.fullDigest").exists, "The digest is always shown in full")
+        // The list stays beside the page at the narrowest captured width, so
+        // there is no drawer and nothing to toggle.
         XCTAssertFalse(app.buttons["timeline.context.toggle"].exists)
         XCTAssertFalse(element("timeline.contextPanel").exists)
+        XCTAssertTrue(element("capture.dayOverview").exists, "The digest page shows until a row is selected")
         openFirstTimelineSession()
-        XCTAssertTrue(element("timeline.contextPanel").waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Close context panel"].waitForExistence(timeout: 3))
-        app.buttons["Close context panel"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { !self.element("timeline.contextPanel").exists })
-        XCTAssertTrue(app.buttons["timeline.context.toggle"].waitForExistence(timeout: 3),
-                      "The selection's details can be reopened")
+        let page = element("timeline.contextPanel")
+        XCTAssertTrue(page.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Close context panel"].exists, "A row's page is not a drawer")
+        XCTAssertLessThanOrEqual(element("timeline.list").frame.maxX, page.frame.minX + 1,
+                                 "The list stays beside the selected row's page")
+        XCTAssertFalse(element("capture.dayOverview").exists, "The session's page replaces the digest")
+        // Day digest, the list's first row, returns to the digest.
+        app.buttons["timeline.dayDigest.row"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !page.exists })
+        XCTAssertTrue(element("capture.dayOverview").waitForExistence(timeout: 3))
     }
 
     func testTranscriptSearchIsPersistentAndCommandFStillFindsAcrossMeeting() throws {
@@ -550,30 +557,31 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-inspectable-title-evidence")
     }
 
-    func testTimelineRailResizesAgainstTheDigest() throws {
+    func testTimelineListResizesAgainstThePage() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
-        let rail = element("timeline.sessionRail")
-        let evidence = element("timeline.evidencePane")
-        XCTAssertTrue(rail.waitForExistence(timeout: 5))
-        XCTAssertTrue(evidence.waitForExistence(timeout: 5))
-        let opening = rail.frame.width
+        let list = element("timeline.list")
+        let page = element("timeline.evidencePane")
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        XCTAssertTrue(page.waitForExistence(timeout: 5))
+        XCTAssertFalse(element("timeline.sessionRail").exists, "The rail on the right was replaced by the list")
+        let opening = list.frame.width
         let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
-            abs($0.frame.midX - rail.frame.minX) < abs($1.frame.midX - rail.frame.minX)
+            abs($0.frame.midX - list.frame.maxX) < abs($1.frame.midX - list.frame.maxX)
         }, "Timeline divider missing")
 
         app.activate()
         let grip = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: -160, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { rail.frame.width >= opening + 120 },
-                      "Work sessions should widen past their opening width (\(rail.frame.width) from \(opening))")
-        XCTAssertGreaterThanOrEqual(evidence.frame.width, 420, "The digest keeps its readable minimum")
-        snapshot("timeline-wide-sessions")
+        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: 100, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { list.frame.width >= opening + 80 },
+                      "The day's list should widen past its opening width (\(list.frame.width) from \(opening))")
+        XCTAssertGreaterThanOrEqual(page.frame.width, 420, "The page keeps its readable minimum")
+        snapshot("timeline-wide-list")
 
         // Divider positions persist in the host's defaults; leave the next
         // launch at the opening width.
         let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: rail.frame.width - opening, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { abs(rail.frame.width - opening) < 8 })
+        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: opening - list.frame.width, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { abs(list.frame.width - opening) < 8 })
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
@@ -860,8 +868,7 @@ final class RedesignUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    /// Work sessions follow the day's summary sections, so the first one can
-    /// start below the fold.
+    /// The day's sessions are rows of the list beside the page.
     private func openFirstTimelineSession() {
         let session = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline.session.")).firstMatch

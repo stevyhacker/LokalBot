@@ -51,13 +51,7 @@
     "BackgroundActivityCard.swift": [
       "+\\(…) more"
     ],
-    "CaptureDetailView.swift": [
-      "Showing \\(…) representative scenes from \\(…). Browse raw capture for every scene.",
-      "\\(…) observed · \\(…) activity \\(…)"
-    ],
     "CaptureRangeDeletionView.swift": [
-      "Cancel Range Deletion",
-      "Delete Captures in a Time Range…",
       "\\(…) capture\\(…)",
       "\\(…) moments, including \\(…) image records. Their captured text, search vectors and saved notes will also be removed permanently.",
       "\\(…) saved moments excluded · \\(…) saved moments included"

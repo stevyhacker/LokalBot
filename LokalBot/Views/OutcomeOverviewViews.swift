@@ -1,57 +1,35 @@
 import SwiftUI
 
-/// Shared outcome-first building blocks used by Today and Timeline. They read
-/// the same `OutcomeIndex` as Meetings, so status changes are immediately
-/// reflected everywhere without modifying extracted source files.
+/// Shared outcome-first building blocks used by Today, Timeline, People and
+/// Projects. They read the same `OutcomeIndex` as Meetings, so status changes
+/// are immediately reflected everywhere without modifying extracted source
+/// files.
+///
+/// Today's open actions: rows on the page itself, with the link to Actions
+/// beside the heading.
 struct NeedsAttentionSection: View {
     @EnvironmentObject var app: AppState
     let threads: [ActionThread]
     var title = "Needs Attention"
     var limit = 4
-    var style: Style = .panel
-    /// Today's heading link says how many more wait in Actions; Timeline's
-    /// day view keeps the plain Review Actions link.
+    /// The heading link says how many more wait in Actions.
     var linksRemainder = false
     var headingFont = AppFont.scaled(.headline)
-    /// Space added above and below each row in the plain style.
+    /// Space added above and below each row.
     var rowSpacing: CGFloat = 8
-
-    enum Style {
-        /// A grouped panel with the review action beneath it.
-        case panel
-        /// Rows on the page itself, with the link to Actions beside the heading.
-        case plain
-    }
 
     /// Open threads the section leaves to the Actions page.
     static func remainder(total: Int, limit: Int) -> Int {
         max(0, total - max(0, limit))
     }
 
-    /// Nothing to act on means no card at all — an empty "Needs attention"
-    /// section is dead weight on a glanceable page (the Timeline test pins the
-    /// same rule for its day view).
+    /// Nothing to act on means no section at all: an empty "Needs attention"
+    /// is dead weight on a glanceable page.
     var body: some View {
-        if !threads.isEmpty, style == .plain {
-            plainBody
-        } else if !threads.isEmpty {
-            WorkspaceSection(title: title, icon: "exclamationmark.circle", localizesTitle: true) {
-                VStack(spacing: 0) {
-                    ForEach(Array(threads.prefix(limit))) { thread in
-                        ActionThreadRow(thread: thread)
-                        if thread.id != threads.prefix(limit).last?.id { Divider() }
-                    }
-                }
-                Button("Review Actions…") {
-                    app.openActions()
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("outcomes.review")
-            }
-        }
+        if !threads.isEmpty { rows }
     }
 
-    private var plainBody: some View {
+    private var rows: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 // No header trait, matching the panel style's heading: a
@@ -115,6 +93,9 @@ struct ActionThreadRow: View {
     /// People show deferred work as deferred and ask about open work nobody
     /// has mentioned for weeks.
     var showsStaleness = false
+    /// Timeline's meeting preview lists that meeting's actions, so a row from
+    /// one meeting does not name it again.
+    var hidesSingleMeetingLink = false
     /// Set by the Actions page; every other page shows the row with its links.
     var list: ActionListRowStyle?
     @State private var showingSources = false
@@ -345,7 +326,7 @@ struct ActionThreadRow: View {
                                 showingSources: $showingSources)
                                 .environmentObject(app)
                         }
-                    } else {
+                    } else if !hidesSingleMeetingLink {
                         Button(thread.latestReference.meetingTitle) {
                             app.openMeeting(thread.latestReference.meetingID)
                         }

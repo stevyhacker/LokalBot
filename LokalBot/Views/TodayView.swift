@@ -153,7 +153,6 @@ struct TodayView: View {
                 NeedsAttentionSection(
                     threads: threads,
                     limit: Self.attentionLimit,
-                    style: .plain,
                     linksRemainder: true,
                     headingFont: TodayType.sectionHeading,
                     rowSpacing: 0)

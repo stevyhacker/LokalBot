@@ -47,20 +47,13 @@ enum WorkspaceMetric {
     /// Today is a glanceable page: one column, about a reading line wide
     /// inside its side padding.
     static let todayMaxWidth: CGFloat = 780
-    /// Keep the day readable beside the work-session rail, then use a drawer.
-    static let timelineDayMinWidth: CGFloat = 440
-    static let timelineRailMinWidth: CGFloat = 260
-    static let timelineRailIdealWidth: CGFloat = 360
-    static let timelineRailMaxWidth: CGFloat = 640
-    static let timelineDrawerBreakpoint: CGFloat = 820
-    static let timelineDrawerMaxWidth: CGFloat = 520
+    /// Timeline's list column beside the day's page. Its rows carry a time, a
+    /// two-line title and a duration, so it runs wider than the Meetings list.
+    static let timelineListMinWidth: CGFloat = 260
+    static let timelineListIdealWidth: CGFloat = 320
+    static let timelineListMaxWidth: CGFloat = 440
     /// The main window's titlebar and unified toolbar.
     static let toolbarHeight: CGFloat = 52
-
-    /// The rail may widen until the day column reaches its readable minimum.
-    static func timelineRailMaxWidth(in paneWidth: CGFloat) -> CGFloat {
-        min(timelineRailMaxWidth, max(timelineRailMinWidth, paneWidth - timelineDayMinWidth))
-    }
 
 }
 
@@ -190,10 +183,6 @@ enum WorkspaceMotion {
 
     static func disclosureTransition(reduceMotion: Bool) -> AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top))
-    }
-
-    static func drawerTransition(reduceMotion: Bool) -> AnyTransition {
-        reduceMotion ? .opacity : .move(edge: .trailing).combined(with: .opacity)
     }
 
     /// Feedback pinned to the window's bottom edge enters and leaves through

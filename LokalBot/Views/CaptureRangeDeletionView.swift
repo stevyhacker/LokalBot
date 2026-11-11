@@ -2,14 +2,15 @@ import SwiftUI
 
 /// Deletes the screen captures retained in a time range of one day. Times snap
 /// to captured scenes, and a review sheet lists exactly what will be removed
-/// before anything is deleted.
+/// before anything is deleted. The page's "Delete screen moments…" button
+/// opens and closes it.
 struct CaptureRangeDeletionView: View {
     @EnvironmentObject private var app: AppState
 
     let frames: [ScreenRewindFrame]
+    @Binding var isExpanded: Bool
     let onDeleted: () -> Void
 
-    @State private var isExpanded = false
     @State private var rangeStartIndex = 0
     @State private var rangeEndIndex = 0
     @State private var includeSavedMoments = false
@@ -19,19 +20,13 @@ struct CaptureRangeDeletionView: View {
     var body: some View {
         if !frames.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Button {
-                    isExpanded.toggle()
-                    if isExpanded {
-                        rangeStartIndex = 0
-                        rangeEndIndex = frames.count - 1
-                        deletionFailures = []
-                    }
-                } label: {
-                    Label(isExpanded ? "Cancel Range Deletion" : "Delete Captures in a Time Range…",
-                          systemImage: "trash")
-                }
-                .accessibilityIdentifier("timeline.deleteRange.toggle")
                 if isExpanded { rangeControls }
+            }
+            .onChange(of: isExpanded, initial: true) { _, expanded in
+                guard expanded else { return }
+                rangeStartIndex = 0
+                rangeEndIndex = frames.count - 1
+                deletionFailures = []
             }
             .onChange(of: frames) {
                 rangeStartIndex = ScreenRewindSequence.clampedIndex(rangeStartIndex, count: frames.count)

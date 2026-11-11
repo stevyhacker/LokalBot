@@ -425,60 +425,87 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Timeline
 
-    /// Timeline is one day explorer: its persistent header and work sessions
-    /// stay put while a bounded panel swaps between the day brief, session, and
-    /// meeting previews.
+    /// Timeline is one day: a list of the day's digest, sessions and meetings
+    /// beside the page of whichever is selected. The date is in the toolbar,
+    /// and the digest page leads with the highlights and the day strip.
     func testTimelineRendersTrackAndOverview() {
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
-            .waitForExistence(timeout: 6), "persistent day header did not render")
+            .waitForExistence(timeout: 6), "the date in the toolbar did not render")
         XCTAssertTrue(identified("capture.askDay").exists,
-                      "persistent Timeline actions did not render")
+                      "Ask about this day is missing from the toolbar")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"]
-            .waitForExistence(timeout: 6), "work sessions should be visible immediately")
+            .waitForExistence(timeout: 6), "the day's sessions should be listed immediately")
         XCTAssertFalse(identified("timeline.contextPanel").exists,
                        "the day digest shows until something is selected")
-        XCTAssertFalse(identified("timeline.context.toggle").exists,
-                       "there are no details to open before a selection")
-        XCTAssertTrue(textWithContent("Needs Attention").firstMatch.waitForExistence(timeout: 6))
+        XCTAssertFalse(identified("timeline.sessionRail").exists,
+                       "the rail on the right was replaced by the list on the left")
+        // Day digest is the list's first row; the sessions follow it.
+        let digestRow = app.buttons["timeline.dayDigest.row"]
+        XCTAssertTrue(digestRow.exists, "Day digest should be the first row of the list")
         XCTAssertLessThan(
-            identified("capture.dayOverview").frame.minY,
+            digestRow.frame.minY,
             identified("timeline.workSessions").frame.minY,
-            "Day overview belongs above the work sessions")
-        // A current digest keeps Regenerate in the digest menu; the visible
-        // button appears only before the first digest and while writing.
-        let digestActions = identified("timeline.dayDigest.actions")
-        XCTAssertTrue(digestActions.waitForExistence(timeout: 5),
-                      "Timeline should expose regenerate, copy and Markdown export actions")
-        digestActions.click()
-        XCTAssertTrue(app.menuItems["Regenerate Digest"].waitForExistence(timeout: 3),
-                      "Regenerate should stay one click away in the digest menu")
-        XCTAssertTrue(app.menuItems["Copy Digest"].exists)
+            "Day digest belongs above the sessions")
+        XCTAssertLessThan(
+            identified("timeline.list").frame.minX,
+            identified("timeline.evidencePane").frame.minX,
+            "the list sits before the page")
+        // Needs Attention no longer leads the page: one line opens the day's
+        // actions in place, as the shared action rows.
+        XCTAssertFalse(textWithContent("Needs Attention").firstMatch.exists,
+                       "Needs Attention moved to Today and Actions")
+        let dayActions = app.buttons["timeline.dayActions"]
+        XCTAssertTrue(dayActions.waitForExistence(timeout: 6),
+                      "the day's actions line is missing")
+        let actionRows = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "outcome.thread.toggle."))
+        XCTAssertFalse(actionRows.firstMatch.exists, "the day's actions stay folded until asked for")
+        UITestHarness.scrollTo(dayActions, in: app)
+        dayActions.click()
+        XCTAssertTrue(actionRows.firstMatch.waitForExistence(timeout: 4),
+                      "the line should open the day's actions in place")
+        // Writing, copying and exporting the digest, pausing day memory and
+        // reloading share the toolbar's one menu.
+        let dayMenu = identified("timeline.dayDigest.actions")
+        XCTAssertTrue(dayMenu.waitForExistence(timeout: 5),
+                      "Timeline should expose its digest and day-memory menu")
+        dayMenu.click()
+        XCTAssertTrue(app.menuItems["timeline.dayDigest.regenerate"].waitForExistence(timeout: 3),
+                      "Updating or rewriting the digest should stay one click away in the menu")
+        XCTAssertTrue(app.menuItems["Copy digest"].exists)
+        XCTAssertTrue(app.menuItems["Export as Markdown…"].exists)
+        XCTAssertTrue(app.menuItems["Pause day memory"].exists)
+        XCTAssertTrue(app.menuItems["Reload"].exists)
         app.typeKey(.escape, modifierFlags: [])
         XCTAssertFalse(identified("timeline.activityEvidence").exists,
                        "the chronological track should not be hidden behind Activity evidence")
-        XCTAssertTrue(textWithContent("Needs Attention").firstMatch.exists,
-                      "Timeline should expose the same actionable commitments as Today")
         XCTAssertFalse(textWithContent("Decisions").firstMatch.exists,
                        "empty decisions section should not consume Timeline space")
+        XCTAssertTrue(textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.exists,
+                      "the digest's highlights should lead the page")
+        XCTAssertLessThan(
+            textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.frame.minY,
+            identified("capture.dayOverview").frame.minY,
+            "the highlights belong above the day's totals and strip")
         XCTAssertTrue(textWithContent("tracked").firstMatch.waitForExistence(timeout: 6),
                       "day totals missing — seeded activity did not load")
+        XCTAssertTrue(identified("timeline.dayStrip").exists, "the day strip is missing")
         XCTAssertTrue(digestTasksVisible(),
                       "digest task hierarchy is missing")
         XCTAssertTrue(textWithContent("Updated the Timeline UI").firstMatch.exists,
                       "human-facing focus summary is missing")
         XCTAssertFalse(textWithContent("User updated the Timeline UI").firstMatch.exists,
                        "model bookkeeping subject leaked into the focus summary")
-        // The day's totals open the sessions rail. They can be visible while
-        // the app legend below them is not on screen yet, so scroll the rail
-        // until the legend itself is.
-        let appLegendEntry = textWithContent("Xcode").firstMatch
-        scrollTimelineDay(to: appLegendEntry)
-        XCTAssertTrue(appLegendEntry.waitForExistence(timeout: 4),
-                      "seeded activity app 'Xcode' missing from Timeline")
+        // The fixture's digest cites a screen moment that was never kept. A
+        // source link appears only when there is a source.
+        XCTAssertFalse(textWithContent("Source moment unavailable").firstMatch.exists,
+                       "a missing source should leave no line behind")
+        XCTAssertTrue(textWithContent("Xcode").firstMatch.waitForExistence(timeout: 4),
+                      "seeded activity app 'Xcode' missing from the strip's legend")
         XCTAssertFalse(textWithContent("screen:4242").firstMatch.exists,
                        "private evidence identifier leaked into the collapsed overview")
-        XCTAssertFalse(textWithContent("No activity recorded").firstMatch.exists,
+        XCTAssertFalse(textWithContent("Nothing recorded").firstMatch.exists,
                        "empty state shown despite seeded activity blocks")
         // The grounded block title becomes the human-scale session title.
         XCTAssertTrue(app.buttons.matching(
@@ -487,16 +514,16 @@ final class MainWindowUITests: XCTestCase {
                       "seeded work-session title missing")
         // Meetings remain first-class chronological rows.
         XCTAssertTrue(app.descendants(matching: .any)["capture.meeting.\(fixture.designReview.id.uuidString)"].exists,
-                      "seeded meeting missing from Work sessions")
+                      "seeded meeting missing from the day's list")
+        // All captured activity, at the list's foot, opens the hour track.
         let rawCapture = app.buttons["timeline.rawCapture"]
         XCTAssertTrue(rawCapture.exists,
-                      "raw capture disclosure is missing")
+                      "All captured activity is missing from the list's foot")
         XCTAssertFalse(app.descendants(matching: .any)["timeline.track"].exists,
                        "raw block chart should not be the default Timeline presentation")
-        scrollTimelineDay(to: rawCapture)
         rawCapture.click()
         XCTAssertTrue(app.descendants(matching: .any)["timeline.track"]
-            .waitForExistence(timeout: 4), "raw block chart did not expand on request")
+            .waitForExistence(timeout: 4), "raw block chart did not open on request")
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "capture.activity."))
             .firstMatch.exists, "raw activity blocks are no longer inspectable")
@@ -517,33 +544,36 @@ final class MainWindowUITests: XCTestCase {
                       "work sessions must be keyboard-focusable buttons")
         session.click()
         XCTAssertTrue(app.descendants(matching: .any)["timeline.sessionPreview"]
-            .waitForExistence(timeout: 4), "session preview did not replace the empty details")
+            .waitForExistence(timeout: 4), "the session's page did not replace the digest")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"].exists,
-                      "session selection replaced the persistent day header")
+                      "session selection replaced the date in the toolbar")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"].exists,
                       "session selection replaced the session list")
-        XCTAssertTrue(textWithContent("Representative evidence").firstMatch.exists,
-                      "session preview does not explain its evidence")
+        XCTAssertTrue(textWithContent("What was open").firstMatch.exists,
+                      "the session's page does not list what was open")
 
-        // Returning to Timeline should restore both the selected session and
-        // its inspector, including on the narrow hosted desktop.
+        // Returning to Timeline should restore the selected session and its
+        // page, including on the narrow hosted desktop.
         clickSidebar("sidebar.ask")
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.sessionPreview"]
             .waitForExistence(timeout: 4), "navigation discarded the selected work session")
 
-        let back = app.buttons["Back to day"].firstMatch
-        XCTAssertTrue(back.waitForExistence(timeout: 3))
-        back.click()
+        // Day digest, the list's first row, is the way back to the digest.
+        XCTAssertFalse(app.buttons["Back to day"].exists,
+                       "a row's page needs no Back: the list is beside it")
+        let digestRow = app.buttons["timeline.dayDigest.row"]
+        XCTAssertTrue(digestRow.waitForExistence(timeout: 3))
+        digestRow.click()
         let sessionPreview = app.descendants(matching: .any)["timeline.sessionPreview"]
         XCTAssertTrue(UITestHarness.waitUntil { !sessionPreview.exists },
-                      "Back did not return to the day")
-        closeTimelineContext()
+                      "Day digest did not return to the digest")
+        XCTAssertTrue(identified("capture.dayOverview").waitForExistence(timeout: 3),
+                      "the digest page did not come back")
 
         let meeting = app.buttons["capture.meeting.\(fixture.designReview.id.uuidString)"]
         XCTAssertTrue(meeting.waitForExistence(timeout: 4),
-                      "meeting block is not an accessible Timeline button")
-        scrollTimelineDay(to: meeting)
+                      "meeting row is not an accessible Timeline button")
         meeting.click()
         XCTAssertTrue(app.descendants(matching: .any)["timeline.meetingPreview"]
             .waitForExistence(timeout: 4), "Timeline did not open its compact meeting preview")
@@ -552,7 +582,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Open meeting"].exists,
                       "compact preview must provide the explicit Meetings handoff")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"].exists,
-                      "meeting selection replaced Work sessions")
+                      "meeting selection replaced the day's list")
     }
 
     /// A date change is one state transition for the whole day workspace: it
@@ -1358,21 +1388,6 @@ final class MainWindowUITests: XCTestCase {
     private func switchToKeywordSearch() {
         XCTAssertTrue(identified("search.field").waitForExistence(timeout: 5))
         XCTAssertFalse(identified("ask.retrieval").exists)
-    }
-
-    /// Narrow layouts place the day's totals, work sessions and raw capture
-    /// after the digest and Needs Attention, so they can start below the fold.
-    private func scrollTimelineDay(to element: XCUIElement) {
-        let rail = app.scrollViews["timeline.sessionRail"]
-        UITestHarness.scrollTo(element, in: app, within: rail.exists ? rail : nil)
-    }
-
-    private func closeTimelineContext() {
-        let close = app.buttons["Close context panel"].firstMatch
-        guard close.exists else { return }
-        close.click()
-        XCTAssertTrue(UITestHarness.waitUntil { !close.exists },
-                      "Timeline context drawer did not close")
     }
 
     /// True when the meeting list shows a day-group header beginning with

@@ -26,9 +26,24 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     /// True when the title names the session's project and the task its
     /// agents worked on, instead of a window or its apps.
     private(set) var titleNamesProject = false
+    /// The projects the title names, as in "bizstats, alpha". Nil when the
+    /// title names a window or the session's apps.
+    private(set) var projectLabel: String?
+    /// What a project session was about, without the project: its agents'
+    /// task, else the window that named it. Nil when only the project is known.
+    private(set) var taskTitle: String?
     var notableTitles: [String] { titleEvidence.map(\.title) }
 
     var appCount: Int { apps.count }
+
+    /// Apps used for at least a minute, busiest first. Apps glanced at for
+    /// seconds (a password prompt, a notification) are left out, unless that
+    /// leaves none.
+    var usedApps: [String] {
+        let seconds = Dictionary(grouping: blocks, by: \.app).mapValues(Self.mergedDuration)
+        let used = apps.filter { (seconds[$0] ?? 0) >= 60 }
+        return used.isEmpty ? apps : used
+    }
 
     /// The project the title names.
     var project: String? { titleNamesProject ? projectShares.first?.project : nil }
@@ -265,13 +280,10 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
                 task = burst.workTitle
             }
         }
-        if let task {
-            title = "\(projects) · \(task)"
-        } else if !titleNamesApps {
-            title = "\(projects) · \(title)"
-        } else {
-            title = projects
-        }
+        // The list shows the project and the task on separate lines.
+        taskTitle = task ?? (titleNamesApps ? nil : title)
+        projectLabel = projects
+        title = taskTitle.map { "\(projects) · \($0)" } ?? projects
         titleNamesProject = true
     }
 
@@ -477,6 +489,11 @@ enum TimelineDayItem: Identifiable {
         }
     }
 
+    var isMeeting: Bool {
+        if case .meeting = self { return true }
+        return false
+    }
+
     var start: Date {
         switch self {
         case .work(let session): session.start
@@ -501,38 +518,5 @@ enum TimelineDayItem: Identifiable {
         }
         return (sessions.map(TimelineDayItem.work) + meetingItems)
             .sorted { $0.start < $1.start }
-    }
-}
-
-/// A row of the Timeline session rail: a session or meeting, or a long
-/// stretch with no recorded activity between them.
-enum TimelineRailRow: Identifiable {
-    case item(TimelineDayItem)
-    case away(start: Date, end: Date)
-
-    var id: String {
-        switch self {
-        case .item(let item): item.id
-        case .away(let start, _): "away-\(Int(start.timeIntervalSince1970))"
-        }
-    }
-
-    /// Inserts an away row wherever nothing was recorded for at least
-    /// `minimumGap`. Items overlap (a meeting runs over its sessions), so a
-    /// gap starts at the latest end seen so far.
-    static func rows(
-        items: [TimelineDayItem],
-        minimumGap: TimeInterval = 30 * 60
-    ) -> [TimelineRailRow] {
-        var rows: [TimelineRailRow] = []
-        var latestEnd: Date?
-        for item in items {
-            if let latestEnd, item.start.timeIntervalSince(latestEnd) >= minimumGap {
-                rows.append(.away(start: latestEnd, end: item.start))
-            }
-            rows.append(.item(item))
-            latestEnd = max(latestEnd ?? item.end, item.end)
-        }
-        return rows
     }
 }
