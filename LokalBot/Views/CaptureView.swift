@@ -363,6 +363,13 @@ struct TimelineContentView: View {
                 }
             }
         }
+        // Without the system title nothing pushes the actions to the
+        // trailing edge, so they sat against the date.
+        if #available(macOS 26.0, *) {
+            ToolbarSpacer(.flexible, placement: .primaryAction)
+        } else {
+            ToolbarItem(placement: .primaryAction) { Spacer() }
+        }
         ToolbarItemGroup(placement: .primaryAction) {
             if !isToday {
                 Button("Today") { changeDay(to: Date()) }
@@ -543,6 +550,7 @@ private struct TimelineEmptyDay: View {
                 ? "LokalBot keeps only what happens on this Mac while day memory is on."
                 : "Day tracking is off — enable it in Settings."))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("timeline.emptyDay")
     }
 }

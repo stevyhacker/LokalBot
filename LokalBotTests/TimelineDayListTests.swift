@@ -308,6 +308,21 @@ final class TimelineDayListTests: XCTestCase {
             TimelineDayList.interval(fromTimeRange: "23:30–00:15", day: self.day, calendar: calendar)?.duration, 1_800)
     }
 
+    /// The list is under Morning, Afternoon and Evening, so a 12-hour clock
+    /// shows "9:10" and "1:05": no AM or PM, and no leading zero (the first
+    /// hosted run showed "09:00").
+    func testListTimesDropTheDayPeriodAndTheLeadingZeroOnATwelveHourClock() {
+        var style = TimelineListMetrics.timeStyle
+        style.timeZone = calendar.timeZone
+        style.locale = Locale(identifier: "en_US")
+        XCTAssertEqual(at(9, 10).formatted(style), "9:10")
+        XCTAssertEqual(at(13, 5).formatted(style), "1:05")
+        // A 24-hour clock keeps its own form.
+        style.locale = Locale(identifier: "de_DE")
+        XCTAssertEqual(at(9, 10).formatted(style), "09:10")
+        XCTAssertEqual(at(13, 5).formatted(style), "13:05")
+    }
+
     func testArrowKeysStepFromTheDigestThroughTheRowsToAllCapturedActivity() {
         let day = list([
             session(1, app: "Xcode", title: "A.swift", from: at(9), to: at(9, 30)),

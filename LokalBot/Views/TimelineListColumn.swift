@@ -298,8 +298,13 @@ struct TimelineListMetrics {
         return center - 0.75
     }
 
+    /// "9:10", without AM or PM and without a leading zero on a 12-hour
+    /// clock; a 24-hour clock keeps its own form.
+    static let timeStyle = Date.FormatStyle.dateTime
+        .hour(.conversationalDefaultDigits(amPM: .omitted)).minute()
+
     static func time(_ date: Date) -> Text {
-        Text(date, format: .dateTime.hour(.defaultDigits(amPM: .omitted)).minute())
+        Text(date, format: timeStyle)
     }
 }
 

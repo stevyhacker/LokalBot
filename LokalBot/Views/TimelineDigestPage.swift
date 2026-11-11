@@ -293,6 +293,8 @@ struct TimelineDayStripView: View {
         // times, so assistive technologies read the strip as one picture.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Day chronology")
+        // Without a trait the strip has no role at all.
+        .accessibilityAddTraits(.isImage)
         .accessibilityIdentifier("timeline.dayStrip")
     }
 

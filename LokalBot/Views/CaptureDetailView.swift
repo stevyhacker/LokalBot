@@ -15,9 +15,10 @@ struct TimelineContextPanel: View {
         VStack(spacing: 0) {
             selectedContent
         }
+        // No identifier here: this wrapper and the pane around it reach
+        // assistive tools as one element, which keeps the pane's. Each page's
+        // title carries the page's identifier instead.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("timeline.contextPanel")
         .onChange(of: model.selectedSessionID) {
             showsAllMoments = false
             expandedTitles = []
@@ -100,15 +101,17 @@ struct TimelineContextPanel: View {
                     title: Text("All captured activity"),
                     subtitle: "",
                     subtitleText: TimelineCaptureCounts.text(
-                        entries: model.blocks.count, moments: model.rewindFrames.count)) {
+                        entries: model.blocks.count, moments: model.rewindFrames.count),
+                    identifier: "timeline.rawCapturePanel") {
                     Image(systemName: "waveform.path.ecg.rectangle")
                 }
-                .accessibilityIdentifier("timeline.rawCapturePanel")
                 if !model.rewindFrames.isEmpty {
-                    Button(deletingRange ? "Cancel" : "Delete screen moments…") {
-                        deletingRange.toggle()
-                    }
-                    .accessibilityIdentifier("timeline.deleteRange.toggle")
+                    // A toggle, so it keeps its name while the range controls
+                    // are open and reads as on; a second "Cancel" beside the
+                    // review sheet's own would say nothing about what it cancels.
+                    Toggle("Delete screen moments…", isOn: $deletingRange)
+                        .toggleStyle(.button)
+                        .accessibilityIdentifier("timeline.deleteRange.toggle")
                 }
             }
             Text("Every app and window LokalBot saw, hour by hour. Use it to check exact times.")
@@ -139,11 +142,11 @@ struct TimelineContextPanel: View {
         return TimelinePage {
             TimelinePageHeader(
                 title: Text(verbatim: text.title),
-                subtitle: TimelineSessionWording.subtitle(for: session, localize: language.catalog)) {
+                subtitle: TimelineSessionWording.subtitle(for: session, localize: language.catalog),
+                identifier: "timeline.sessionPreview") {
                 StatusDot(color: TimelineRowColor.color(for: colorKey), size: 12)
                     .padding(.top, 7)
             }
-            .accessibilityIdentifier("timeline.sessionPreview")
 
             if !tasks.isEmpty {
                 TimelinePageSection(title: "Coding agent") {
@@ -305,11 +308,11 @@ struct TimelineContextPanel: View {
                 }
                 TimelinePageHeader(
                     title: Text(verbatim: block.app),
-                    subtitle: "\(Self.timeRange(block.start, block.end)) · \(CaptureStyle.hm(block.duration))") {
+                    subtitle: "\(Self.timeRange(block.start, block.end)) · \(CaptureStyle.hm(block.duration))",
+                    identifier: "timeline.activityPreview") {
                     StatusDot(color: CaptureStyle.color(for: block.app), size: 12)
                         .padding(.top, 7)
                 }
-                .accessibilityIdentifier("timeline.activityPreview")
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -438,6 +441,9 @@ private struct TimelinePageHeader<Mark: View>: View {
     let title: Text
     let subtitle: String
     var subtitleText: Text?
+    /// Names the page for UI tests. It goes on the title alone: on the whole
+    /// header it would be copied onto every text inside.
+    var identifier = ""
     @ViewBuilder let mark: Mark
 
     var body: some View {
@@ -447,12 +453,14 @@ private struct TimelinePageHeader<Mark: View>: View {
                 .foregroundStyle(LBTokens.Palette.accentText)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
+                // A heading stays plain text: selectable text with the
+                // header trait reaches assistive tools without its words.
                 title
                     .font(AppFont.scaledSystem(size: 20, weight: .bold))
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier(identifier)
                 (subtitleText ?? Text(verbatim: subtitle))
                     .font(AppFont.scaled(.callout))
                     .foregroundStyle(.secondary)
@@ -558,10 +566,10 @@ private struct TimelineMeetingPreview: View {
         TimelinePage {
             TimelinePageHeader(
                 title: Text(verbatim: meeting.displayTitle),
-                subtitle: facts.filter { !$0.isEmpty }.joined(separator: " · ")) {
+                subtitle: facts.filter { !$0.isEmpty }.joined(separator: " · "),
+                identifier: "timeline.meetingPreview") {
                 Image(systemName: "waveform")
             }
-            .accessibilityIdentifier("timeline.meetingPreview")
 
             if meeting.endedAt == nil {
                 Label("Recording in progress", systemImage: "record.circle.fill")

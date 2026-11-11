@@ -26,7 +26,9 @@ final class RecallInteractionUITests: XCTestCase {
         raw.click()
         XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Play context rewind"].exists, "Context rewind was removed")
-        let toggle = app.buttons["timeline.deleteRange.toggle"]
+        // "Delete screen moments…" is a toggle button: it keeps its name and
+        // reads as on while the range controls are open.
+        let toggle = element("timeline.deleteRange.toggle")
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.click()
         let review = app.buttons["timeline.deleteRange"]
@@ -35,11 +37,15 @@ final class RecallInteractionUITests: XCTestCase {
         review.click()
         XCTAssertTrue(UITestHarness.staticText(containing: "Review capture deletion", in: app)
             .waitForExistence(timeout: 3))
-        app.buttons["Cancel"].click()
+        // The review's own Cancel, in its sheet.
+        app.sheets.firstMatch.buttons["Cancel"].click()
         XCTAssertTrue(UITestHarness.waitUntil {
             !UITestHarness.staticText(containing: "Review capture deletion", in: self.app).exists
         })
         XCTAssertTrue(element("timeline.track").exists, "Cancelling the review deletes nothing")
+        XCTAssertTrue(review.exists, "Cancelling the review leaves the range controls open")
+        toggle.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !review.exists }, "The toggle closes the range controls")
     }
 
     func testQuestionReturnWaitsForSourcesAndSubmitsOnce() throws {

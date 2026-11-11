@@ -423,14 +423,18 @@ final class RedesignUITests: XCTestCase {
         // The list stays beside the page at the narrowest captured width, so
         // there is no drawer and nothing to toggle.
         XCTAssertFalse(app.buttons["timeline.context.toggle"].exists)
-        XCTAssertFalse(element("timeline.contextPanel").exists)
+        // A session's page is known by its title: the page's wrapper is not
+        // an accessibility element of its own.
+        let page = element("timeline.sessionPreview")
+        XCTAssertFalse(page.exists)
         XCTAssertTrue(element("capture.dayOverview").exists, "The digest page shows until a row is selected")
         openFirstTimelineSession()
-        let page = element("timeline.contextPanel")
         XCTAssertTrue(page.waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["Close context panel"].exists, "A row's page is not a drawer")
-        XCTAssertLessThanOrEqual(element("timeline.list").frame.maxX, page.frame.minX + 1,
+        let list = element("timeline.list")
+        XCTAssertLessThanOrEqual(list.frame.maxX, element("timeline.evidencePane").frame.minX + 1,
                                  "The list stays beside the selected row's page")
+        XCTAssertGreaterThan(page.frame.minX, list.frame.maxX, "The session's page is beside the list")
         XCTAssertFalse(element("capture.dayOverview").exists, "The session's page replaces the digest")
         // Day digest, the list's first row, returns to the digest.
         app.buttons["timeline.dayDigest.row"].click()

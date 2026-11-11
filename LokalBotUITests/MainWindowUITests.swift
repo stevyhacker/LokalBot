@@ -446,7 +446,7 @@ final class MainWindowUITests: XCTestCase {
                       "Ask about this day is missing from the toolbar")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"]
             .waitForExistence(timeout: 6), "the day's sessions should be listed immediately")
-        XCTAssertFalse(identified("timeline.contextPanel").exists,
+        XCTAssertFalse(identified("timeline.sessionPreview").exists,
                        "the day digest shows until something is selected")
         XCTAssertFalse(identified("timeline.sessionRail").exists,
                        "the rail on the right was replaced by the list on the left")
@@ -559,8 +559,12 @@ final class MainWindowUITests: XCTestCase {
                       "session selection replaced the date in the toolbar")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"].exists,
                       "session selection replaced the session list")
-        XCTAssertTrue(textWithContent("What was open").firstMatch.exists,
+        // "What was open" is a heading, which a static-text query does not
+        // match on the runner; the list under it carries the same name.
+        let whatWasOpen = identified("timeline.session.titleEvidence")
+        XCTAssertTrue(whatWasOpen.waitForExistence(timeout: 4),
                       "the session's page does not list what was open")
+        XCTAssertEqual(whatWasOpen.label, "What was open")
 
         // Returning to Timeline should restore the selected session and its
         // page, including on the narrow hosted desktop.
@@ -608,7 +612,9 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
             .waitForExistence(timeout: 6), "Timeline did not render")
 
-        let previousDay = app.buttons["timeline.previousDay"]
+        // A toolbar button is exposed twice, as the toolbar's item and as
+        // the button inside it, both with the identifier.
+        let previousDay = app.buttons.matching(identifier: "timeline.previousDay").firstMatch
         XCTAssertTrue(previousDay.waitForExistence(timeout: 4),
                       "previous-day control is missing")
         previousDay.click()
