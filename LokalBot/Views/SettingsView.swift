@@ -23,114 +23,70 @@ struct SettingsView: View {
     @StateObject private var power = PowerSourceMonitor()
     @StateObject private var permissions = PermissionManager.shared
     @ObservedObject private var metrics = GenerationMetricsStore.shared
+    /// What every part of the window says about each feature's state.
+    @State private var status = SettingsStatus(.init())
+    @State private var history = SettingsPageHistory(current: .overview)
+
+    /// The window opens at this size and can be resized.
+    static let defaultSize = CGSize(width: 1020, height: 816)
 
     var body: some View {
-        HSplitView {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Settings")
-                    .font(.scaled(.title3).bold())
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-                Text("LokalBot " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""))
-                    .font(.scaled(.callout)).foregroundStyle(.secondary)
-                    .padding(.horizontal, 20)
-                settingsSearchField.padding(.horizontal, 14)
-                List(selection: Binding(get: { queryIsEmpty ? Optional(app.settingsTab) : nil }, set: {
-                    if let category = $0 { app.selectSettingsTab(category); settingsQuery = "" }
-                })) {
-                    ForEach(AppState.SettingsTab.allCases.filter { $0.group == nil }, id: \.self) { category in
-                        SettingsCategoryLabel(category: category)
-                            .padding(.vertical, 3)
-                            .tag(category)
-                    }
-                    // Headings are plain rows, like the main sidebar's: a List
-                    // Section reaches accessibility as a group with no name.
-                    ForEach(AppState.SettingsTab.Group.allCases, id: \.self) { group in
-                        Text(LocalizedStringKey(group.rawValue))
-                            .font(.scaled(.subheadline).bold())
-                            .settingsSecondary()
-                            .padding(.top, 8)
-                            .accessibilityAddTraits(.isHeader)
-                            .selectionDisabled(true)
-                            .listRowSeparator(.hidden)
-                            .accessibilityIdentifier("settings.group.\(group)")
-                        ForEach(AppState.SettingsTab.allCases.filter { $0.group == group }, id: \.self) { category in
-                            SettingsCategoryLabel(category: category)
-                                .padding(.vertical, 3)
-                                .tag(category)
-                        }
-                    }
-                }
-                .listStyle(.inset)
-                .scrollContentBackground(.hidden)
-                .tint(Brand.tealFill)
-                .accessibilityLabel("Settings categories")
-                .accessibilityIdentifier("settings.categories")
-            }
-            .frame(minWidth: 210, idealWidth: LBTokens.Metric.settingsCategoriesWidth, maxWidth: 280)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Settings navigation")
-            .splitPaneAccessibilityLabel("Settings navigation", autosaveName: "LokalBot.settings", initialWidth: LBTokens.Metric.settingsCategoriesWidth)
+        HStack(spacing: 0) {
+            SettingsSidebar(status: status, query: $settingsQuery)
+                .frame(width: LBTokens.Metric.settingsCategoriesWidth)
+                .background(LBTokens.Palette.groupFill)
+            Divider()
             VStack(alignment: .leading, spacing: 0) {
-                settingsHeaderTitle
-                    .frame(maxWidth: LBTokens.Metric.readingMaxWidth, alignment: .leading)
-                    .padding(.horizontal, LBTokens.Metric.detailPadding)
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
-                    .frame(maxWidth: .infinity)
-                if !queryIsEmpty {
-                    searchResults
-                } else if app.settingsTab == .overview {
-                    SettingsOverview(permissions: permissions, access: app.agentReadAccess,
-                                     email: app.email, personalModel: app.personalModel,
-                                     companion: app.companion)
-                } else if app.settingsTab == .models {
-                    ModelsView()
-                    .settingTarget("settings.models", selected: app.focusedSettingID)
-                } else {
-                    ScrollViewReader { proxy in
-                        Form { sections(for: app.settingsTab) }
-                            .formStyle(.grouped)
-                            .toggleStyle(LBAccentSwitchStyle())
-                            .frame(maxWidth: LBTokens.Metric.readingMaxWidth + 56)
-                            .frame(maxWidth: .infinity)
-                            .scrollContentBackground(.hidden)
-                            .accessibilityIdentifier("settings.form")
-                            .onChange(of: app.focusedSettingID, initial: true) {
-                                guard let id = app.focusedSettingID else { return }
-                                DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
-                            }
-                    }
-                    .id(app.settingsTab)
+                topBar
+                Divider()
+                page
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(minWidth: 520, maxWidth: .infinity, maxHeight: .infinity)
+            .sheet(item: $sheet) { sheet in
+                switch sheet {
+                case .model(let role):
+                    ModelPickerSheet(app: app, role: role, openConnections: {
+                        self.sheet = nil
+                        app.openSettings(tab: .models)
+                        app.focusedSettingID = "settings.openAIBaseURL"
+                    })
+                case .transcriptionOptions:
+                    ModelTranscriptionOptionsSheet(app: app)
                 }
-            }.frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
-                .sheet(item: $sheet) { sheet in
-                    switch sheet {
-                    case .model(let role):
-                        ModelPickerSheet(app: app, role: role, openConnections: {
-                            self.sheet = nil
-                            app.openSettings(tab: .models)
-                            app.focusedSettingID = "settings.openAIBaseURL"
-                        })
-                    case .transcriptionOptions:
-                        ModelTranscriptionOptionsSheet(app: app)
-                    }
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel(Text(LocalizedStringKey(queryIsEmpty ? app.settingsTab.displayName : "Search settings")))
-                .splitPaneAccessibilityLabel(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(Text(LocalizedStringKey(title)))
         }
-        .splitStructureDirection()
-        .frame(minWidth: 700)
-        .workspaceMinimumHeight(600)
+        // The list and the top bar run to the window's top edge, beside and
+        // under the traffic lights.
+        .ignoresSafeArea(.container, edges: .top)
+        .frame(minWidth: 780, minHeight: 520)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Settings no longer sits above the main window's error bar.
+            if let error = app.lastError {
+                ErrorToast(message: error) { app.lastError = nil }
+            }
+        }
         .tint(Brand.teal)
-        .navigationTitle(Text(LocalizedStringKey(queryIsEmpty ? app.settingsTab.displayName : "Search settings")))
+        .navigationTitle(Text(LocalizedStringKey(title)))
+        .background(SettingsStatusObserver(
+            app: app, permissions: permissions, modelRoles: app.modelRoles, access: app.agentReadAccess,
+            settingsControl: app.settingsControl, email: app.email, companion: app.companion,
+            calendar: app.calendar, status: $status))
+        .task {
+            // Lets a window opened from the menu bar alone open the others.
+            WindowAccess.shared.register { openWindow(id: $0) }
+        }
         .onAppear {
+            history = SettingsPageHistory(current: app.settingsTab)
             power.start()
             permissions.startPolling()
             app.calendar.refreshAuthorizationStatus()
             app.refreshDreamMemory()
         }
+        .onChange(of: app.settingsTab) { _, page in history.visit(page) }
         .onDisappear {
             power.stop()
             permissions.stopPolling()
@@ -142,83 +98,108 @@ struct SettingsView: View {
         settingsQuery.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// Search field + tab strip, above the tabbed content so search works
-    /// from any tab (including Models).
-    private var settingsHeaderTitle: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey(queryIsEmpty ? app.settingsTab.displayName : "Search settings"))
-                    .font(AppFont.scaled(.largeTitle).bold())
-                Text(LocalizedStringKey(queryIsEmpty ? settingsTabSubtitle : "Results across all categories. Choose a setting to edit its value."))
+    /// The window's and the top bar's title: the page, or search.
+    private var title: String {
+        queryIsEmpty ? app.settingsTab.displayName : "Search settings"
+    }
+
+    /// Back and forward through the pages visited, then the page's name.
+    private var topBar: some View {
+        HStack(spacing: 2) {
+            Button {
+                if let page = history.goBack() { settingsQuery = ""; app.selectSettingsTab(page) }
+            } label: {
+                Image(systemName: "chevron.backward").frame(width: 26, height: 26).contentShape(Rectangle())
+            }
+            .disabled(!history.canGoBack)
+            .help("Back")
+            .accessibilityLabel("Back")
+            .accessibilityIdentifier("settings.back")
+            Button {
+                if let page = history.goForward() { settingsQuery = ""; app.selectSettingsTab(page) }
+            } label: {
+                Image(systemName: "chevron.forward").frame(width: 26, height: 26).contentShape(Rectangle())
+            }
+            .disabled(!history.canGoForward)
+            .help("Forward")
+            .accessibilityLabel("Forward")
+            .accessibilityIdentifier("settings.forward")
+            Text(LocalizedStringKey(title))
+                .font(AppFont.scaled(.title3).weight(.bold))
+                .lineLimit(1)
+                .padding(.leading, 8)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("settings.title")
+            Spacer(minLength: 0)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 14)
+        .frame(height: SettingsChrome.topBarHeight)
+    }
+
+    /// Search results, or the selected page. Every page opens with the
+    /// shared header; Overview opens with what needs you instead.
+    @ViewBuilder private var page: some View {
+        if !queryIsEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Results across all categories. Choose a setting to edit its value.")
                     .font(AppFont.scaled(.callout))
                     .settingsSecondary()
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, LBTokens.Metric.detailPadding)
+                    .padding(.vertical, 12)
+                searchResults
             }
-        }
-    }
-
-    private var settingsSearchField: some View {
-        HStack(spacing: 7) {
-            Image(systemName: "magnifyingglass")
-                .settingsSecondary()
-                .accessibilityHidden(true)
-            TextField("Search settings…", text: $settingsQuery)
-                .textFieldStyle(.plain)
-                .font(AppFont.scaled(.body))
-                .accessibilityIdentifier("settings.search")
-            if !settingsQuery.isEmpty {
-                Button { settingsQuery = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
+        } else if app.settingsTab == .overview {
+            SettingsOverview(status: status, personalModel: app.personalModel)
+        } else if app.settingsTab == .models {
+            ModelsView(status: status)
+                .settingTarget("settings.models", selected: app.focusedSettingID)
+        } else {
+            ScrollViewReader { proxy in
+                Form {
+                    Section { header(for: app.settingsTab) }
+                    sections(for: app.settingsTab)
                 }
-                .buttonStyle(.plain)
-                .settingsSecondary()
-                .accessibilityLabel("Clear settings search")
+                .formStyle(.grouped)
+                .toggleStyle(LBAccentSwitchStyle())
+                .frame(maxWidth: LBTokens.Metric.readingMaxWidth + 56)
+                .frame(maxWidth: .infinity)
+                .scrollContentBackground(.hidden)
+                .accessibilityIdentifier("settings.form")
+                .onChange(of: app.focusedSettingID, initial: true) {
+                    guard let id = app.focusedSettingID else { return }
+                    DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
+                }
             }
+            .id(app.settingsTab)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 36)
-        .settingsPanel()
     }
 
-    private var settingsTabSubtitle: String {
-        switch app.settingsTab {
-        case .overview:
-            "Everything LokalBot can do on this Mac, and what’s on."
-        case .recording:
-            "Detection, transcription, speakers, notes, and export."
-        case .dayMemory:
-            "What LokalBot sees on screen, how long it keeps it, and what it never captures."
-        case .files:
-            "Folders LokalBot reads, so Ask can find files by what’s in them."
-        case .email:
-            "Read-only Gmail, so briefs and Ask know the conversation."
-        case .ask:
-            "Ask from any app, act on selected text, and choose what answers use."
-        case .personalContext:
-            "What you told LokalBot about yourself, and what it learns."
-        case .daily:
-            "The day digest, the overnight review, routines, and the daily note."
+    /// The shared header, with the main switch on the pages that have one
+    /// and "Try it…" where the feature can be tried. Until each has a sheet
+    /// of its own, "Try it…" goes to the rehearsal further down the page.
+    @ViewBuilder private func header(for tab: AppState.SettingsTab) -> some View {
+        switch tab {
         case .writing:
-            "Suggestions as you type in other apps, and your writing profile."
+            SettingsPageHeader(page: tab, status: status,
+                               tryIt: { app.focusedSettingID = "settings.autocompletePreview" },
+                               isOn: $app.settings.cotypingEnabled, switchLabel: "Enable autocomplete",
+                               switchSettingID: "settings.cotypingEnabled")
         case .dictation:
-            "The dictation shortcut, speech model, and where the text goes."
-        case .models:
-            "Choose the models behind Transcribe, Think, and Autocomplete."
-        case .agents:
-            "What Claude, Codex, Cursor, and other agents can read or change."
-        case .devices:
-            "Read your work memory on your own iPhone, iPad, or Android device."
-        case .general:
-            "Startup, appearance, and updates."
-        case .privacy:
-            "Where your data lives and every permission LokalBot uses."
-        case .advanced:
-            "Memory health, resources, and files for support."
+            SettingsPageHeader(page: tab, status: status,
+                               tryIt: { app.focusedSettingID = "settings.dictationPreview" },
+                               isOn: $app.settings.dictationEnabled, switchLabel: "Enable dictation shortcut",
+                               switchSettingID: "settings.dictationEnabled")
+        default:
+            SettingsPageHeader(page: tab, status: status)
         }
     }
 
     /// Each page holds one feature: everything that turns it on and sets it
-    /// up. Models is ModelsView and Overview is SettingsOverview.
+    /// up, under the shared header. Models is ModelsView and Overview is
+    /// SettingsOverview.
     @ViewBuilder private func sections(for tab: AppState.SettingsTab) -> some View {
         switch tab {
         case .overview, .models:
@@ -248,14 +229,14 @@ struct SettingsView: View {
             AutocompleteStatisticsView()
             cotypingSection
         case .dictation:
-            Section("Dictation") { DictationSettingsControls() }
+            Section("Dictation") { DictationSettingsControls(showsEnableToggle: false) }
             DictationView(dictation: app.dictation, embedded: true)
         case .agents:
             agentAccessSection; agentCLISection
         case .devices:
             CompanionSettingsSections()
         case .privacy:
-            privacySection; permissionsSection; privacyLinksSection
+            SettingsPrivacySections(status: status, calendar: app.calendar)
         case .advanced:
             memoryHealthSection; resourceMonitorSection; systemSection
         }
@@ -673,24 +654,6 @@ struct SettingsView: View {
                                         screenRecordingGranted: permissions.granted[.screenRecording] ?? false)
     }
 
-    @ViewBuilder private var permissionsSection: some View {
-                Section("Permissions") {
-                    PermissionRow(permission: .microphone).settingTarget("settings.permissions", selected: app.focusedSettingID)
-                    PermissionRow(permission: .accessibility,
-                                  why: "Optional — window titles for the day timeline and browser-meeting detection.")
-                    PermissionRow(permission: .screenRecording,
-                                  why: "Optional — only used while visual capture (Screen & Activity) is on. System audio does not need it.")
-                    PermissionRow(permission: .inputMonitoring,
-                                  why: "Optional — powers the dictation and autocomplete shortcuts.")
-                    HStack {
-                        SettingsHelp("Accessibility and Input Monitoring grants apply at launch.")
-                        Spacer()
-                        Button("Relaunch") { PermissionManager.relaunch() }
-                    }
-                    LabeledContent("Calendar access") { calendarAccessControl }
-                }
-    }
-
     @ViewBuilder private var meetingsSection: some View {
                 Section("Meetings") {
                     Picker(selection: $app.settings.autoRecordMode) {
@@ -741,7 +704,6 @@ struct SettingsView: View {
                                           help: "Off by default. Saves the invitation's agenda (without joining details, links, phone numbers, or addresses) with calendar-matched recordings, and uses it for meeting notes and meeting preparation. Agendas already saved stay with their meeting until it is deleted.")
                         }
                         .settingTarget("settings.useCalendarAgenda", selected: app.focusedSettingID)
-                        LabeledContent("Calendar access") { calendarAccessControl }
                     }
                 }
     }
@@ -896,16 +858,6 @@ struct SettingsView: View {
                                       help: "Records which app and window you're using for the Timeline and day digest.")
                     }
                     .settingTarget("settings.trackingEnabled", selected: app.focusedSettingID)
-                    LabeledContent("Window titles") {
-                        if ActivitySampler.hasAccessibility {
-                            Text("Accessibility granted").settingsSecondary()
-                        } else {
-                            Button("Grant Accessibility access…") {
-                                PermissionGuidanceController.shared.requestAccess(
-                                    for: .accessibility)
-                            }
-                        }
-                    }
                     Picker(selection: Binding(
                         get: { app.settings.effectiveScreenContextCaptureMode },
                         set: { mode in app.changeSettings { $0.screenContextCaptureMode = mode } })) {
@@ -1235,37 +1187,6 @@ struct SettingsView: View {
             .disabled(app.dreaming.isDreaming)
     }
 
-    @ViewBuilder private var privacySection: some View {
-                Section("Where your data lives") {
-                    if case .remote(let host) = app.settings.transcriptionPresentation {
-                        if InferencePresentation(settings: app.settings) == .onDevice {
-                            InferenceDisclosure(
-                                destination: .remote(host: host),
-                                localText: "",
-                                remoteText: "Meeting and dictation audio is sent to your transcription server. Transcripts and captured context stay on this Mac. Other network access is limited to model downloads, updates, and optional Agent Mode setup.")
-                        } else {
-                            InferenceDisclosure(
-                                settings: app.settings,
-                                localText: "",
-                                remoteText: "Meeting and dictation audio is sent to your transcription server (\(host)). Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
-                        }
-                    } else {
-                        InferenceDisclosure(
-                            settings: app.settings,
-                            localText: "Audio, transcripts, and captured context stay on this Mac. Network access is limited to model downloads, updates, and optional Agent Mode setup.",
-                            remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
-                    }
-                    storageLocationRow
-                        .settingTarget("settings.libraryLocation", selected: app.focusedSettingID)
-                    if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
-                        Label("Autocomplete also sends what you type, with the context you turn on under Autocomplete, to \(host).",
-                              systemImage: "network")
-                            .settingsSecondary()
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-    }
-
     // MARK: - External Agents
 
     private var agentAccessSection: some View {
@@ -1274,33 +1195,6 @@ struct SettingsView: View {
             SettingsControlAccessToggleRow(manager: app.settingsControl)
                 .settingTarget("settings.settingsControlAccess", selected: app.focusedSettingID)
             AgentSettingsChangesList(changes: app.agentSettingsChanges)
-        }
-    }
-
-    private var storageLocationRow: some View {
-        LabeledContent {
-            Button(app.storage.rootURL.path(percentEncoded: false)) {
-                NSWorkspace.shared.activateFileViewerSelecting([app.storage.rootURL])
-            }
-            .buttonStyle(.workspaceLink)
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .help("Show in Finder")
-        } label: {
-            SettingsLabel("Library location", help: "Meetings, day memory, and the search index.")
-        }
-    }
-
-    /// Policy and support links close the Privacy & Permissions page.
-    private var privacyLinksSection: some View {
-        Section {
-            HStack(spacing: 16) {
-                Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
-                    .buttonStyle(.workspaceLink)
-                Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
-                    .buttonStyle(.workspaceLink)
-            }
-            .font(AppFont.scaled(.body))
         }
     }
 
@@ -1474,32 +1368,6 @@ struct SettingsView: View {
         #endif
     }
 
-    /// Calendar permission state + action for the Meetings section.
-    @ViewBuilder private var calendarAccessControl: some View {
-        switch app.calendar.authorizationStatus {
-        case .fullAccess:
-            Label("Granted", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .notDetermined:
-            VStack(alignment: .trailing, spacing: 4) {
-                Button("Grant Calendar Access…") { app.calendar.requestAccess { _ in } }
-                if let error = app.calendar.accessRequestError {
-                    Text(error)
-                        .font(.scaled(.callout))
-                        .foregroundStyle(Brand.error)
-                        .multilineTextAlignment(.trailing)
-                        .frame(maxWidth: 320, alignment: .trailing)
-                }
-            }
-        default:
-            Button("Open System Settings…") {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-        }
-    }
-
     private func chooseDailyExportFolder() {
         let panel = NSOpenPanel()
         panel.title = app.settings.appLanguage.localized("Choose daily memory export folder")
@@ -1580,24 +1448,6 @@ struct SettingsView: View {
         return symbols[weekday - 1]
     }
 
-}
-
-/// Category glyphs carry the accent like Agent's starters. A selected row on
-/// the prominent accent highlight falls back to the row's own foreground so
-/// the glyph never disappears into a teal fill.
-private struct SettingsCategoryLabel: View {
-    @Environment(\.backgroundProminence) private var prominence
-    let category: AppState.SettingsTab
-
-    var body: some View {
-        Label {
-            Text(LocalizedStringKey(category.displayName))
-        } icon: {
-            Image(systemName: category.icon)
-                .foregroundStyle(prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(Brand.teal))
-        }
-        .font(.scaled(.body))
-    }
 }
 
 /// Binds the cached registration, never `SMAppService` itself: SwiftUI re-reads

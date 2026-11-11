@@ -8,6 +8,8 @@ struct ModelsView: View {
     @SceneStorage("settings.models.page") private var pageValue = ModelsSettingsPage.active.rawValue
     @State private var sheet: ModelsSettingsSheet?
     @State private var selectedPreset = ModelStackPreset.recommended
+    /// In Settings, what the shared page header says about the models.
+    var status: SettingsStatus?
 
     private var page: Binding<ModelsSettingsPage> {
         Binding(get: { ModelsSettingsPage(rawValue: pageValue) ?? .active }, set: { pageValue = $0.rawValue })
@@ -15,19 +17,25 @@ struct ModelsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // The page title and subtitle come from the shared Settings header.
-            HStack(spacing: 12) {
-                if page.wrappedValue != .active {
-                    Button { page.wrappedValue = .active } label: {
-                        Label("Models", systemImage: "chevron.left")
+            // The page opens with the shared Settings header, which carries
+            // Check Setup; Downloaded and Connections keep their way back.
+            Group {
+                if let status, page.wrappedValue == .active {
+                    SettingsPageHeader(page: .models, status: status) { checkSetupButton }
+                        .settingsPageHeaderCard()
+                } else {
+                    HStack(spacing: 12) {
+                        if page.wrappedValue != .active {
+                            Button { page.wrappedValue = .active } label: {
+                                Label("Models", systemImage: "chevron.left")
+                            }
+                            .accessibilityIdentifier("models.back")
+                            Text(page.wrappedValue.title).font(.scaled(.headline))
+                        }
+                        Spacer(minLength: 12)
+                        checkSetupButton
                     }
-                    .accessibilityIdentifier("models.back")
-                    Text(page.wrappedValue.title).font(.scaled(.headline))
                 }
-                Spacer(minLength: 12)
-                Button("Check Setup…") { sheet = .checks }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("models.testAll")
             }
             .frame(maxWidth: Self.contentWidth)
             .frame(maxWidth: .infinity)
@@ -86,6 +94,12 @@ struct ModelsView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("models.settings")
+    }
+
+    private var checkSetupButton: some View {
+        Button("Check Setup…") { sheet = .checks }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("models.testAll")
     }
 
     private func showConnections() {

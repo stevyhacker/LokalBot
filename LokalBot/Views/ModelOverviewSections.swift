@@ -92,29 +92,6 @@ struct ModelRemoteOverview: View {
             }
         }
         .padding(16).settingsPanel()
-        .confirmationDialog("Revoke access to \(revokingOrigin.map(SubscriptionPlan.approvalDisplayName) ?? "this server")?",
-                            isPresented: Binding(
-            get: { revokingOrigin != nil }, set: { if !$0 { revokingOrigin = nil } })) {
-            Button("Revoke Access", role: .destructive) {
-                guard let origin = revokingOrigin else { return }
-                app.settings.approvedRemoteInferenceOrigins.removeAll { $0 == origin }
-                revokingOrigin = nil
-            }
-        } message: {
-            Text("This also revokes scheduled processing for this origin. Any model using it will require approval again.")
-        }
-        .confirmationDialog(
-            "Stop sending audio to \(revokingTranscriptionOrigin.map(SubscriptionPlan.approvalDisplayName) ?? "this server")?",
-            isPresented: Binding(
-                get: { revokingTranscriptionOrigin != nil },
-                set: { if !$0 { revokingTranscriptionOrigin = nil } })) {
-            Button("Revoke Access", role: .destructive) {
-                guard let origin = revokingTranscriptionOrigin else { return }
-                app.settings.approvedRemoteTranscriptionOrigins.removeAll { $0 == origin }
-                revokingTranscriptionOrigin = nil
-            }
-        } message: {
-            Text("Meetings will wait for transcription until you approve this server again or choose a model on this Mac.")
-        }
+        .remoteOriginRevocation(app: app, inference: $revokingOrigin, transcription: $revokingTranscriptionOrigin)
     }
 }

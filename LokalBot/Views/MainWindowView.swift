@@ -151,9 +151,6 @@ struct MainWindowView: View {
             .id("workspace.recall")
         case .agent:
             AgentView(sessions: app.agentSessions, installer: app.agentInstaller)
-        case .settings:
-            SettingsView()
-                .id("workspace.settings")
         }
     }
 
@@ -205,7 +202,6 @@ struct MainWindowView: View {
     /// Native source-list selection gives VoiceOver and keyboard navigation
     /// one semantic destination per row. Section headings remain static text.
     /// Scripted exports leave it empty; `sidebarRowBackground` marks the row.
-    /// Settings lives in the footer, so no row is selected while it is open.
     private var sidebarSelection: Binding<AppState.NavSection?> {
         Binding(
             get: { isScriptedCapture ? nil : app.navSection },
@@ -372,12 +368,11 @@ private struct SidebarFooter: View {
 }
 
 /// Settings is a place you visit rarely, so it sits at the foot and not among
-/// the destinations. It looks and behaves like a sidebar row.
+/// the destinations. It looks like a sidebar row and opens the Settings
+/// window, so it never shows as selected: the main window stays where it was.
 private struct SidebarSettingsRow: View {
     @EnvironmentObject private var app: AppState
     let scriptedLabelColor: Color?
-
-    private var selected: Bool { app.navSection == .settings }
 
     var body: some View {
         Button { app.openSettings() } label: {
@@ -397,14 +392,7 @@ private struct SidebarSettingsRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background {
-            if selected {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color(nsColor: .unemphasizedSelectedContentBackgroundColor))
-            }
-        }
         .accessibilityIdentifier("sidebar.settings")
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

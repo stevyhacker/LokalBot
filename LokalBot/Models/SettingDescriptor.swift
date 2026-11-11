@@ -63,10 +63,11 @@ struct SettingDescriptor: Identifiable {
     static func search(_ query: String, language: AppLanguage = .system) -> [Self] {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return all.filter {
+            // A page's earlier names still find its settings.
             SettingsSearchRanker.matches(query: query, haystack: [
                 $0.title, $0.aliases, $0.category.displayName,
                 language.localized($0.title), language.localized($0.category.displayName)
-            ])
+            ] + $0.category.formerNames.flatMap { [$0, language.localized($0)] })
         }
             .sorted { lhs, rhs in
                 func score(_ entry: Self) -> Int {

@@ -14,7 +14,7 @@ enum SettingsSheet: Identifiable {
 }
 
 /// One kind of agent read access, shown on the page of the data it covers.
-/// It is the same grant as that kind's box on External Agents.
+/// It is the same grant as that kind's box on AI agents.
 struct AgentKindAccessSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var access: AgentReadAccess
@@ -47,7 +47,7 @@ struct AgentKindAccessSection: View {
         } header: {
             Text("External agents")
         } footer: {
-            SettingsHelp("The same switch as on External Agents. Agents read only; they never change anything.")
+            SettingsHelp("The same switch as on AI agents. Agents read only; they never change anything.")
         }
     }
 

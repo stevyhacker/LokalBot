@@ -1216,7 +1216,6 @@
   "Transcribing…": "Расшифровка идёт",
   "Transcript copied.": "Расшифровка скопирована.",
   "Transcription server": "Сервер расшифровки",
-  "Transcription server. Receives meeting and dictation audio, the language hint, and transcription vocabulary, including automatic processing after meetings.": "Сервер расшифровки. Получает аудио встреч и диктовки, подсказку о языке и словарь расшифровки, в том числе при автоматической обработке после встреч.",
   "Transcripts": "Стенограммы",
   "Treats speech from this PC's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items.": "Считает речь, исходящую из микрофона этого компьютера, вашей, поэтому ваши обязательства определяют действия каждой встречи. Выключайте, если этим микрофоном пользуются несколько человек, например в конференц-зале. Подведите итоги собрания еще раз, чтобы обновить элементы действий.",
   "Try here": "Попробуйте здесь",

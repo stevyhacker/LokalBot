@@ -3,15 +3,19 @@ import SwiftUI
 struct DictationSettingsControls: View {
     @EnvironmentObject private var app: AppState
     @State private var microphones: [DictationMicrophone.Option] = []
+    /// False in Settings, where the page header carries the switch.
+    var showsEnableToggle = true
 
     /// Separate Form rows, so each control gets the same row rhythm and
     /// dividers as the rest of Settings.
     var body: some View {
         Group {
-            Toggle("Enable dictation shortcut", isOn: $app.settings.dictationEnabled)
-                .accessibilityLabel("Enable dictation shortcut")
-                .accessibilityIdentifier("settings.dictationEnabled")
-                .settingTarget("settings.dictationEnabled", selected: app.focusedSettingID)
+            if showsEnableToggle {
+                Toggle("Enable dictation shortcut", isOn: $app.settings.dictationEnabled)
+                    .accessibilityLabel("Enable dictation shortcut")
+                    .accessibilityIdentifier("settings.dictationEnabled")
+                    .settingTarget("settings.dictationEnabled", selected: app.focusedSettingID)
+            }
             LabeledContent("Shortcut") {
                 ShortcutRecorder(
                     shortcut: $app.settings.dictationShortcut,

@@ -41,7 +41,15 @@ struct DictationView: View {
             }
         }
         modelSection
-        if app.settings.dictationEnabled { permissionsSection }
+        // In Settings the page header says which permission is missing and
+        // asks for it; only the relaunch a granted shortcut may need stays here.
+        if app.settings.dictationEnabled {
+            if !embedded {
+                permissionsSection
+            } else if !app.dictation.isShortcutMonitoringActive, permissions.granted[.inputMonitoring] == true {
+                Section { shortcutRelaunchRow }
+            }
+        }
         if let result = app.dictation.lastComposedText {
             lastResultSection(result)
         } else if let transcript = app.dictation.lastTranscript {
@@ -150,14 +158,16 @@ struct DictationView: View {
             if app.settings.dictationIntent == .compose && app.settings.dictationUseScreenContext {
                 PermissionRow(permission: .screenRecording, why: "Reads only the focused window for this request. The image and OCR text are never stored.")
             }
-            if !app.dictation.isShortcutMonitoringActive {
-                HStack {
-                    SettingsHelp("Relaunch after granting Input Monitoring if the shortcut is still inactive.")
-                    Spacer()
-                    Button("Relaunch") { PermissionManager.relaunch() }
-                        .controlSize(.small)
-                }
-            }
+            if !app.dictation.isShortcutMonitoringActive { shortcutRelaunchRow }
+        }
+    }
+
+    private var shortcutRelaunchRow: some View {
+        HStack {
+            SettingsHelp("Relaunch after granting Input Monitoring if the shortcut is still inactive.")
+            Spacer()
+            Button("Relaunch") { PermissionManager.relaunch() }
+                .controlSize(.small)
         }
     }
 

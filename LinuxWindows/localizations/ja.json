@@ -1216,7 +1216,6 @@
   "Transcribing…": "文字起こし中",
   "Transcript copied.": "トランスクリプトがコピーされました。",
   "Transcription server": "文字起こしサーバー",
-  "Transcription server. Receives meeting and dictation audio, the language hint, and transcription vocabulary, including automatic processing after meetings.": "文字起こしサーバー。会議と音声入力の音声、言語のヒント、文字起こしの語彙を受け取ります。各会議のあとの自動処理も含みます。",
   "Transcripts": "成績証明書",
   "Treats speech from this PC's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items.": "この PC のマイクからの音声を自分のものとして扱うので、あなたの約束が各会議のアクションアイテムにつながります。会議室などで複数人でこのマイクを共有する場合はオフにしてください。会議を再度要約して、そのアクションアイテムを更新します。",
   "Try here": "ここで試してください",

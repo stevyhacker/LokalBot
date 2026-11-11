@@ -284,9 +284,10 @@ final class ModelsSettingsUITests: XCTestCase {
                 }
                 XCTAssertFalse(UITestHarness.staticText(containing: "Check passed", in: app).exists,
                                "Configured models must not claim a successful test")
-                XCTAssertTrue(app.descendants(matching: .any)["sidebar.today"].exists,
-                              "Settings must remain inside the main workspace")
-                XCTAssertEqual(app.windows.count, 1, "Opening Models must not create a separate Settings window")
+                XCTAssertTrue(UITestHarness.settingsWindow(in: app).exists, "Models is a page of the Settings window")
+                XCTAssertFalse(app.descendants(matching: .any)["sidebar.today"].exists,
+                               "Launching on Models opens Settings alone, without the main workspace")
+                XCTAssertEqual(app.windows.count, 1, "Launching on Models must open one Settings window")
                 capture("models-\(size)-\(appearance)-overview")
                 think.click()
                 XCTAssertTrue(app.textFields["models.picker.modelID"].waitForExistence(timeout: 5))

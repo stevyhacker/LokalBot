@@ -35,6 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static var appState: AppState?
 
     private var uiTestWindow: NSWindow?
+    /// Settings, when it was opened beside the UI-test host's launch window.
+    private var uiTestSettingsWindow: NSWindow?
     private var terminationCleanupStarted = false
     private var terminationCleanupFinished = false
 
@@ -70,6 +72,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             applyCaptureEnvironment(to: app)
 #endif
             openUITestWindow(app: app)
+            // Settings opened later (the sidebar row, ⌘, or a deep link) gets a
+            // window built the same way, beside the launch window.
+            WindowAccess.shared.hostOpener = { [weak self, weak app] id in
+                guard id == WindowAccess.settingsID, let self, let app else { return false }
+                self.openUITestWindow(app: app, kind: "settings", secondary: true)
+                return true
+            }
             forceActivateForUITests()
             return
         }
@@ -164,17 +173,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
+    /// The launch window, or with `secondary` a Settings window opened beside
+    /// it. Captures and the readiness handshake follow the launch window.
     @MainActor
-    private func openUITestWindow(app: AppState, kind: String? = nil) {
-        let windowKind = kind ?? ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_WINDOW"] ?? "main"
-        if let uiTestWindow, uiTestWindow.identifier?.rawValue == "\(windowKind).window" {
-            uiTestWindow.makeKeyAndOrderFront(nil)
-            uiTestWindow.orderFrontRegardless()
+    private func openUITestWindow(app: AppState, kind: String? = nil, secondary: Bool = false) {
+        let environment = ProcessInfo.processInfo.environment
+        let windowKind = kind ?? environment["LOKALBOT_UI_TEST_WINDOW"] ?? Self.launchWindowKind(environment)
+        let open = [uiTestWindow, uiTestSettingsWindow].compactMap { $0 }
+        if let existing = open.first(where: { $0.identifier?.rawValue == "\(windowKind).window" }) {
+            existing.makeKeyAndOrderFront(nil)
+            existing.orderFrontRegardless()
             return
         }
 
         let showsOnboarding = windowKind == "onboarding"
         let showsQuickRecall = windowKind == "quick-recall"
+        let showsSettings = windowKind == "settings"
         let contentSize: NSSize
         if showsOnboarding {
             contentSize = NSSize(width: OnboardingView.size.width, height: OnboardingView.size.height)
@@ -186,9 +200,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // right-edge controls remain genuinely hittable by XCUITest.
             let visible = NSScreen.main?.visibleFrame.size
                 ?? NSSize(width: 1180, height: 740)
+            let ideal = showsSettings ? SettingsView.defaultSize : CGSize(width: 1180, height: 740)
             contentSize = NSSize(
-                width: min(1180, max(900, visible.width - 40)),
-                height: min(740, max(620, visible.height - 40)))
+                width: min(ideal.width, max(900, visible.width - 40)),
+                height: min(ideal.height, max(620, visible.height - 40)))
         }
         // Match a SwiftUI window's titlebar safe area. In particular, the
         // native compact sidebar on macOS 26 draws its toolbar background
@@ -215,9 +230,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return true
         }
-        window.title = showsOnboarding ? "Welcome to LokalBot" : (showsQuickRecall ? "Ask" : "LokalBot")
-        // Quick Recall has no title bar; setup's stepper is its top bar.
-        if showsQuickRecall || showsOnboarding {
+        window.title = showsOnboarding ? "Welcome to LokalBot"
+            : (showsQuickRecall ? "Ask" : (showsSettings ? "Settings" : "LokalBot"))
+        // Quick Recall has no title bar; setup's stepper and Settings' page
+        // title are their own top bars.
+        if showsQuickRecall || showsOnboarding || showsSettings {
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
         }
@@ -226,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A capture size is an outer-window size. Apply it before the content
         // exists so the first layout happens at the final size; macOS 15 grows
         // split panes proportionally when a window is widened afterwards.
-        let captureSize = (ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_SIZE"] ?? "")
+        let captureSize = secondary ? [] : (ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_SIZE"] ?? "")
             .split(separator: "x").compactMap { Double($0) }
         if captureSize.count == 2 {
             window.setFrame(NSRect(origin: .zero, size: NSSize(width: captureSize[0], height: captureSize[1])),
@@ -235,7 +252,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #endif
         let hostingView = NSHostingView(rootView: uiTestRootView(app: app, windowKind: windowKind))
         hostingView.identifier = NSUserInterfaceItemIdentifier("\(windowKind).window.host")
-        hostingView.setAccessibilityLabel(showsOnboarding ? "LokalBot setup" : (showsQuickRecall ? "Quick Recall" : "LokalBot workspace"))
+        hostingView.setAccessibilityLabel(showsOnboarding ? "LokalBot setup"
+            : (showsQuickRecall ? "Quick Recall" : (showsSettings ? "LokalBot settings" : "LokalBot workspace")))
 #if LOKALBOT_UI_TEST_HOST
         // This full-size-content window counts the 52 pt titlebar and toolbar
         // twice when the SwiftUI minimum becomes a window minimum, so Settings'
@@ -248,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = hostingView
         window.center()
         window.isReleasedWhenClosed = false
-        uiTestWindow = window
+        if secondary { uiTestSettingsWindow = window } else { uiTestWindow = window }
         window.makeKeyAndOrderFront(nil)
         window.makeMain()
         window.orderFrontRegardless()
@@ -263,6 +281,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Launching on a Settings page ("settings", "models", "dictation", …)
+    /// makes Settings the launch window, as those names once made it the
+    /// main window's section.
+    static func launchWindowKind(_ environment: [String: String]) -> String {
+#if LOKALBOT_UI_TEST_HOST
+        if let raw = environment["LOKALBOT_INITIAL_SECTION"],
+           AppState.SettingsTab.opensSettings(sectionName: raw) { return "settings" }
+#endif
+        return "main"
+    }
+
     @MainActor
     private func uiTestRootView(app: AppState, windowKind: String) -> some View {
         Group {
@@ -272,6 +301,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     .brandTinted()
             } else if windowKind == "quick-recall" {
                 QuickRecallView()
+                    .environmentObject(app)
+                    .brandTinted()
+            } else if windowKind == "settings" {
+                SettingsView()
                     .environmentObject(app)
                     .brandTinted()
             } else if windowKind == "menu-bar" {
@@ -312,12 +345,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.appearance = NSAppearance(
                 named: style == "contrast-dark" ? .accessibilityHighContrastDarkAqua : (style == "dark" ? .darkAqua : .aqua))
         }
-        if let raw = env["LOKALBOT_INITIAL_SECTION"],
-           let section = AppState.NavSection(captureName: raw) {
-            app.navSection = section
-            if let tab = AppState.TypeTab(captureName: raw) { app.openType(tab) }
-            if ["write", "type"].contains(raw.lowercased()) { app.settingsTab = .writing }
-            if let tab = AppState.SettingsTab(captureName: raw) { app.settingsTab = tab }
+        if let raw = env["LOKALBOT_INITIAL_SECTION"] {
+            if let section = AppState.NavSection(captureName: raw) {
+                app.navSection = section
+            } else if AppState.SettingsTab.opensSettings(sectionName: raw) {
+                // Settings is the launch window here (`launchWindowKind`), so
+                // only its page and highlighted setting are chosen.
+                if ["write", "type"].contains(raw.lowercased()) { app.settingsTab = .writing }
+                if let tab = AppState.SettingsTab(captureName: raw) { app.settingsTab = tab }
+                if let tab = AppState.TypeTab(captureName: raw) {
+                    app.settingsTab = tab == .cotyping ? .writing : .dictation
+                    app.focusedSettingID = tab == .cotyping ? "settings.autocompletePreview" : "settings.dictationPreview"
+                }
+            }
         }
         applyCaptureMeetingSelection(to: app, environment: env)
         applyRedesignCaptureState(to: app, environment: env)
@@ -740,6 +780,13 @@ final class WindowAccess {
         queued.forEach(open)
     }
 
+    /// The Settings window's scene identifier.
+    static let settingsID = "settings"
+
+    /// The UI-test host builds its windows by hand. It answers true for the
+    /// identifiers it opens itself, so those never reach the SwiftUI scenes.
+    var hostOpener: ((String) -> Bool)?
+
     func open(_ id: String) {
         // An explicit, user-initiated open: cancel any launch-time window
         // eviction, then switch to a regular, Dock-visible app so the window
@@ -752,10 +799,12 @@ final class WindowAccess {
         }
         application.setActivationPolicy(.regular)
         application.activate()
-        if id == "main", let existing = Self.visibleMainWindow(in: application) {
+        // Main and Settings are single windows: one on screen comes forward.
+        if id == "main" || id == Self.settingsID, let existing = Self.visibleWindow(id, in: application) {
             existing.makeKeyAndOrderFront(nil)
             return
         }
+        if let hostOpener, hostOpener(id) { return }
         if let opener {
             opener(id)
         } else {
@@ -772,12 +821,18 @@ final class WindowAccess {
     }
 
     static func visibleMainWindow(in application: NSApplication) -> NSWindow? {
+        visibleWindow("main", in: application)
+    }
+
+    /// The visible window of a single-window scene. The UI-test host names
+    /// the windows it builds by hand "<id>.window".
+    static func visibleWindow(_ id: String, in application: NSApplication) -> NSWindow? {
         application.windows.first { window in
             guard window.isVisible else { return false }
 #if LOKALBOT_UI_TEST_HOST
-            if window.identifier?.rawValue == "main.window" { return true }
+            if window.identifier?.rawValue == "\(id).window" { return true }
 #endif
-            return window.identifier?.rawValue == "main"
+            return window.identifier?.rawValue == id
         }
     }
 }

@@ -97,7 +97,7 @@
   "SettingsUITests/testInterfaceLanguageUpdatesOpenHostAndPersistsAfterRelaunch": 37.6,
   "SettingsUITests/testKoreanInterfaceRendersAndPersists": 32.3,
   "SettingsUITests/testMarathiVietnameseTeluguSwahiliAndHausaRender": 66.6,
-  "SettingsUITests/testOverviewTurnsFeaturesOnAndOpensTheirPages": 19.7,
+  "SettingsUITests/testOverviewShowsStatusAndOpensThePagesThatFixIt": 19.7,
   "SettingsUITests/testPermissionRepairPaneRendersCorePermissions": 13.3,
   "SettingsUITests/testRememberingSpeakersIsAlwaysOnWithoutMeetNaming": 22.7,
   "SettingsUITests/testResourceMonitorRendersUsageAndModelState": 15.8,

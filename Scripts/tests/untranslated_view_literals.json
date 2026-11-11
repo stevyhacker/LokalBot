@@ -178,8 +178,6 @@
       "Verifying…"
     ],
     "ModelOverviewSections.swift": [
-      "Meetings will wait for transcription until you approve this server again or choose a model on this Mac.",
-      "Transcription server. Receives meeting and dictation audio, the language hint, and transcription vocabulary, including automatic processing after meetings."
     ],
     "ModelPickerSheet.swift": [
       "Available on this Mac. No model download is needed.",

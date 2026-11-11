@@ -47,21 +47,31 @@ final class DictationSettingsUITests: XCTestCase {
         XCTAssertFalse(formText(containing: "Listening").exists)
     }
 
+    /// The page header says where Dictation stands: "Off" while the switch
+    /// is off, and once it is on, one line for each thing it still needs,
+    /// with the button that asks for it. The page has no permission list
+    /// of its own any more; Privacy & permissions is the one home for those.
     func testEnablingGlobalShortcutRevealsPermissionRepairRows() {
         let toggle = UITestHarness.toggle("Enable dictation shortcut", in: app)
         UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(toggle.waitForExistence(timeout: 4))
+        let off = app.descendants(matching: .any)["settings.status.dictation.off"]
+        XCTAssertTrue(off.waitForExistence(timeout: 4), "With the switch off the header says Off")
         toggle.click()
         XCTAssertTrue(UITestHarness.waitUntil { String(describing: toggle.value ?? "") == "1" },
                       "The dictation shortcut switch must turn on before leaving settings")
+        XCTAssertTrue(UITestHarness.waitUntil { !off.exists }, "Once on, the header shows what Dictation needs instead")
+        let lines = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "settings.status.dictation."))
+        XCTAssertGreaterThan(lines.count, 0, "The header must say whether Dictation is ready or what it needs")
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Dictation", in: app)
-        UITestHarness.scrollTo(formText(containing: "Records your voice for the current dictation"), in: app, within: app.scrollViews["settings.form"], attempts: 16)
-        XCTAssertTrue(formText(containing: "Records your voice for the current dictation").waitForExistence(timeout: 5))
-        XCTAssertTrue(formText(containing: "Detects the global dictation shortcut").exists)
+        XCTAssertFalse(formText(containing: "Records your voice for the current dictation").exists,
+                       "Dictation no longer lists permissions itself")
         UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
         toggle.click()
         XCTAssertTrue(UITestHarness.waitUntil { String(describing: toggle.value ?? "") == "0" })
+        XCTAssertTrue(off.waitForExistence(timeout: 4))
     }
 
     func testDedicatedCompositionModelSelectionPersistsAcrossRelaunch() throws {

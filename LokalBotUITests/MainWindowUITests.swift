@@ -257,19 +257,25 @@ final class MainWindowUITests: XCTestCase {
         search.typeKey(.delete, modifierFlags: [])
     }
 
-    /// Sidebar selection swaps the content column. Settings is the most
-    /// distinctive surface (rich form). It stays in the same main window and
-    /// the workspace sidebar can return directly to another destination.
+    /// Sidebar selection swaps the content column. Settings is the exception:
+    /// its row opens the Settings window, and the main window stays on what
+    /// it was showing, ready to go to another destination.
     func testSidebarNavigationSwitchesSections() {
         clickSidebar("sidebar.settings")
-        XCTAssertTrue(app.descendants(matching: .any)["settings.overview"]
-            .waitForExistence(timeout: 6),
+        let settings = UITestHarness.settingsWindow(in: app)
+        XCTAssertTrue(settings.waitForExistence(timeout: 6), "Settings did not open in its own window")
+        XCTAssertTrue(settings.descendants(matching: .any)["settings.overview"].waitForExistence(timeout: 6),
                       "Settings did not open on Overview")
-        XCTAssertTrue(identified("settings.categories").exists,
+        XCTAssertTrue(settings.descendants(matching: .any)["settings.categories"].exists,
                       "Settings category navigation missing")
-        XCTAssertEqual(app.windows.count, 1, "Settings must stay in the main window")
+        XCTAssertEqual(app.windows.count, 2, "Settings must open beside the main window, not replace it")
+        XCTAssertTrue(identified("today.header").exists, "The main window must stay on Today behind Settings")
         XCTAssertTrue(identified("sidebar.timeline").exists)
+        // The row opens no second Settings window.
+        app.typeKey(",", modifierFlags: .command)
+        XCTAssertEqual(app.windows.count, 2, "⌘, must bring the open Settings window forward")
         clickSidebar("sidebar.timeline")
+        XCTAssertFalse(settings.exists)
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
             .waitForExistence(timeout: 4),
                       "timeline section did not come back")
@@ -1232,13 +1238,13 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertEqual(picker.value as? String, "Nemotron 3 (Preview)")
     }
 
-    /// ⌘, must land on the one in-window Settings home — the separate
-    /// macOS Settings scene is gone (spec: one home per concern).
+    /// ⌘, opens LokalBot's own Settings window, the one home for settings.
     func testSettingsShortcutLandsInWindow() {
         app.typeKey(",", modifierFlags: .command)
-        XCTAssertTrue(app.descendants(matching: .any)["settings.categories"]
+        XCTAssertTrue(UITestHarness.settingsWindow(in: app).descendants(matching: .any)["settings.categories"]
             .waitForExistence(timeout: 6),
-                      "⌘, did not open Settings in the main window")
+                      "⌘, did not open the Settings window")
+        XCTAssertTrue(identified("today.header").exists, "The main window must stay where it was")
     }
 
     // MARK: - Helpers

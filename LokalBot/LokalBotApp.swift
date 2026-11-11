@@ -327,7 +327,8 @@ struct LokalBotApp: App {
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(!scene.values.agentActive && !scene.values.canSearchSelectedMeeting)
             }
-            // Keep the standard Settings shortcut inside the main workspace.
+            // The standard Settings item and ⌘, open LokalBot's own Settings
+            // window; `openSettings` also lands deep links on a page of it.
             CommandGroup(replacing: .appSettings) {
                 Button(language.localized("Settings…")) {
                     app.openSettings()
@@ -335,6 +336,23 @@ struct LokalBotApp: App {
                 .keyboardShortcut(",", modifiers: .command)
             }
         }
+
+        // Settings has its own window, so the main window stays on your work.
+        // A `Window` with an id, not a `Settings` scene: `WindowAccess` opens
+        // it by id from the menu bar extra, deep links and the app delegate,
+        // also while LokalBot runs with only its menu bar icon.
+        Window(language.localized("Settings"), id: WindowAccess.settingsID) {
+            SettingsView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .defaultSize(width: SettingsView.defaultSize.width, height: SettingsView.defaultSize.height)
+        .windowResizability(.contentMinSize)
+        // The category list runs to the top edge, under the traffic lights.
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
 
         Window(language.localized("Welcome to LokalBot"), id: "onboarding") {
             OnboardingView()

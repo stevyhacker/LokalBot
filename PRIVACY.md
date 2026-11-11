@@ -92,7 +92,7 @@ step, and nothing records that you tried it.
 this choice with the other capture choices, and LokalBot reads no session until
 you finish setup. When LokalBot already has microphone access, as after a
 reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
-Settings → Screen & Activity. While it is on, LokalBot reads Claude Code session files
+Settings → Screen & activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
 `~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
 titles. It never opens the agents' credentials, settings, or databases, and
@@ -157,7 +157,7 @@ expired. Delete a day's journal from the library's `journal` folder to remove
 it. Edited and legacy unsigned journals are user-owned files and remain there
 until you remove them.
 
-**Personal Context** (Settings → Personal Context) holds what you tell Ask to remember
+**Personal Context** (Settings → About you) holds what you tell Ask to remember
 about yourself: messages that start with "Remember …" in Ask or Quick Recall,
 and items you add there. With **Learn about me from my meetings and work**
 (on by default, part of the overnight review) it also learns about you.
@@ -530,7 +530,8 @@ The app may make these outbound connections:
   server's origin matches the Think OpenAI-compatible server, Think's key is
   used. Once approved, recordings are transcribed automatically after each
   meeting without a prompt each time. Revoking the approval in Settings →
-  Models, or choosing an on-device model, stops audio uploads; meetings then
+  Models or Settings → Privacy & permissions, or choosing an on-device model,
+  stops audio uploads; meetings then
   wait for transcription. The operator of that server controls its privacy
   terms and what it keeps.
 - **Optional subscription plans:** Think can run on your own ChatGPT or Claude
@@ -869,7 +870,7 @@ before recording other people.
 
 The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
 access until you turn on **Allow external agents to read your LokalBot data**
-under Settings → External Agents. It is off by default. Under it is a
+under Settings → AI agents. It is off by default. Under it is a
 box for each kind of data: **Meetings**, **Screen memory**, **What I shared
 about myself**, and **Files**. Agents can read only the kinds you tick, and
 ticking one never grants another. The first time you turn the switch on, only
@@ -1276,7 +1277,7 @@ A result older than 7 days is dropped when LokalBot starts or saves the next
 dictation, and any beyond the newest 10 right away; **Clear** deletes the file. They are never logged or sent anywhere. Text meant
 for a password field is never kept.
 
-Selection actions are off by default (Settings → Ask, or Turn On on Settings → Overview). When
+Selection actions are off by default (Settings → Ask). When
 enabled, pressing their shortcut reads the text selected in the frontmost app
 once, through Accessibility. Apps on the shared exclusion list and secure
 fields are not read. When an app does not expose its selection that way,

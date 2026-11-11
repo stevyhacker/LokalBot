@@ -241,11 +241,8 @@ struct AutocompleteExperienceView: View {
                     VStack(alignment: .leading, spacing: 6) { readiness }
                 }
             }
+            // The switch is in the page header.
             Spacer(minLength: 12)
-            Toggle("Enable autocomplete", isOn: $app.settings.cotypingEnabled)
-                .labelsHidden()
-                .accessibilityLabel("Enable autocomplete")
-                .settingTarget("settings.cotypingEnabled", selected: app.focusedSettingID)
         }
         .padding(.vertical, 4)
         .accessibilityIdentifier("autocomplete.home")

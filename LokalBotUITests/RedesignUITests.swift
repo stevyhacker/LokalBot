@@ -666,7 +666,7 @@ final class RedesignUITests: XCTestCase {
     func testRetentionReviewCancelPreservesPolicy() throws {
         try launch(["LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Screen & Activity", in: app)
+        UITestHarness.selectSettingsCategory("Screen & activity", in: app)
         let before = UserDefaults(suiteName: suite!)?.data(forKey: "lokalbotv3.settings")
         let review = app.buttons["Review expired context…"]
         UITestHarness.scrollTo(review, in: app)
