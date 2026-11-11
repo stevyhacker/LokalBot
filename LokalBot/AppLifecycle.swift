@@ -353,9 +353,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // only its page and highlighted setting are chosen.
                 if ["write", "type"].contains(raw.lowercased()) { app.settingsTab = .writing }
                 if let tab = AppState.SettingsTab(captureName: raw) { app.settingsTab = tab }
+                // The page itself, not its "Try it…" sheet, which the
+                // Autocomplete and Dictation commands open (`openType`).
                 if let tab = AppState.TypeTab(captureName: raw) {
                     app.settingsTab = tab == .cotyping ? .writing : .dictation
-                    app.focusedSettingID = tab == .cotyping ? "settings.autocompletePreview" : "settings.dictationPreview"
                 }
             }
         }

@@ -1,77 +1,13 @@
 import SwiftUI
 
-/// Writing-settings readiness and preview. The real completion engine is used
-/// without touching production acceptance statistics or the learning store.
-struct AutocompleteExperienceView: View {
-    @EnvironmentObject var app: AppState
-    /// Autocomplete on a chosen server, for its last problem.
-    @ObservedObject var server: RemoteCotypingEngine
-    @ObservedObject private var permissions = PermissionManager.shared
-    @ObservedObject private var stats = CotypingStatsStore.shared
+/// What autocomplete runs on and whether it can run, shared by the page's
+/// notices and the "Try it…" sheet.
+@MainActor
+struct AutocompleteReadiness {
+    let app: AppState
+    let server: RemoteCotypingEngine
 
-    private static let openingText = "Hi Sarah, thanks for the update. I wanted to follow"
-
-    @State private var text = AutocompleteExperienceView.openingText
-    @State private var rehearsal = AutocompleteExperienceView.openingRehearsal
-    /// What the visible suggestion drew on; nil until one has been generated.
-    @State private var contextUse: CotypingContextUse?
-    @State private var generating = false
-    @State private var error: String?
-    /// Why the model's last answer became no suggestion.
-    @State private var emptyReason: CotypingSuppressionReason?
-    @State private var task: Task<Void, Never>?
-    @State private var topUpTask: Task<Void, Never>?
-    @State private var focusRevision = 0
-    /// macOS's own inline predictions, read again each time LokalBot comes forward.
-    @State private var systemPredictionsOn = AutocompleteExperienceView.readSystemPredictions()
-
-    private static var openingRehearsal: CotypingRehearsal {
-        var rehearsal = CotypingRehearsal()
-#if LOKALBOT_UI_TEST_HOST
-        if ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_DEMO"] == "1" {
-            rehearsal.present(" up on the migration timeline we scoped yesterday.", after: openingText)
-        }
-#endif
-        return rehearsal
-    }
-
-    private var selectedModel: ModelCatalog.Entry? {
-        ModelCatalog.entry(
-            id: app.settings.cotypingBuiltInModelID,
-            custom: app.settings.customBuiltInModels)
-    }
-
-    private var modelReady: Bool {
-#if LOKALBOT_UI_TEST_HOST
-        if ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_DEMO"] == "1" { return true }
-#endif
-        guard !usesServer else { return serverSetupProblem == nil }
-        return selectedModel.flatMap { ModelCatalog.localURL(for: $0, storage: app.storage) } != nil
-    }
-
-    /// Autocomplete runs on a server: nothing to download, only setup to finish.
-    private var usesServer: Bool { app.settings.cotypingBackend != .onDevice }
-
-    /// What to change before the selected server can be used.
-    private var serverSetupProblem: String? {
-        if case .unavailable(let reason) = app.settings.cotypingRoute(includingCredentials: false) { return reason }
-        return nil
-    }
-
-    /// Why the selected server's last request brought no suggestion.
-    private var serverProblem: String? {
-        guard usesServer, let problem = server.problem,
-              case .server(let endpoint) = app.settings.cotypingRoute(includingCredentials: false),
-              endpoint.identity == problem.identity else { return nil }
-        return problem.message
-    }
-
-    /// The model suggestions come from, on this Mac or a server.
-    private var modelName: String {
-        usesServer ? app.settings.cotypingModelDisplayName : selectedModel?.displayName ?? "LFM2.5 1.2B Instruct"
-    }
-
-    private var demoReady: Bool {
+    var demoReady: Bool {
 #if LOKALBOT_UI_TEST_HOST
         ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_DEMO"] == "1"
 #else
@@ -79,58 +15,79 @@ struct AutocompleteExperienceView: View {
 #endif
     }
 
-    /// The context grants a suggestion depends on.
-    private var contextGrants: [Bool] {
-        [app.settings.cotypingUseVisibleContext, app.settings.cotypingUseMeetingMemory,
-         app.settings.cotypingUseScreenMemory]
+    var selectedModel: ModelCatalog.Entry? {
+        ModelCatalog.entry(id: app.settings.cotypingBuiltInModelID, custom: app.settings.customBuiltInModels)
     }
 
-    private var contextStatuses: [CotypingContextStatus] {
-        CotypingContextStatus.rehearsal(
-            availability: app.cotypingContextAvailability(
-                accessibilityGranted: demoReady || (permissions.granted[.accessibility] ?? false)),
-            use: contextUse)
+    /// Autocomplete runs on a server: nothing to download, only setup to finish.
+    var usesServer: Bool { app.settings.cotypingBackend != .onDevice }
+
+    var modelReady: Bool {
+        if demoReady { return true }
+        guard !usesServer else { return serverSetupProblem == nil }
+        return selectedModel.flatMap { ModelCatalog.localURL(for: $0, storage: app.storage) } != nil
     }
 
-    /// Returns Form sections: a readiness summary, then the live preview. Both
-    /// use the Settings row type scale instead of nested workspace panels, and
-    /// the preview stays near the top of Writing without scrolling.
+    /// What to change before the selected server can be used.
+    var serverSetupProblem: String? {
+        guard usesServer, case .unavailable(let reason) = app.settings.cotypingRoute(includingCredentials: false)
+        else { return nil }
+        return reason
+    }
+
+    /// Why the selected server's last request brought no suggestion.
+    var serverProblem: String? {
+        guard usesServer, let problem = server.problem,
+              case .server(let endpoint) = app.settings.cotypingRoute(includingCredentials: false),
+              endpoint.identity == problem.identity else { return nil }
+        return problem.message
+    }
+
+    /// The model suggestions come from, on this Mac or a server.
+    var modelName: String {
+        usesServer ? app.settings.cotypingModelDisplayName
+            : selectedModel?.displayName ?? app.settings.cotypingBuiltInModelID
+    }
+}
+
+/// What the Autocomplete page has to say that its header does not: macOS's
+/// own predictions showing beside LokalBot's, and a server that is not set
+/// up or has just failed. Nothing when there is nothing to say.
+struct AutocompleteNotices: View {
+    @EnvironmentObject private var app: AppState
+    /// Autocomplete on a chosen server, for its last problem.
+    @ObservedObject var server: RemoteCotypingEngine
+    /// macOS's own inline predictions, read again each time LokalBot comes forward.
+    @State private var systemPredictionsOn = AutocompleteNotices.readSystemPredictions()
+
     var body: some View {
+        let readiness = AutocompleteReadiness(app: app, server: server)
+        let showsPredictions = app.settings.cotypingEnabled && systemPredictionsOn
         Group {
-            Section {
-                summary
-                if app.settings.cotypingEnabled && systemPredictionsOn {
-                    systemPredictionsNotice
+            if showsPredictions || readiness.serverSetupProblem != nil || readiness.serverProblem != nil {
+                Section {
+                    if showsPredictions { systemPredictionsNotice }
+                    if let problem = readiness.serverSetupProblem {
+                        Label { Text(verbatim: problem) } icon: { Image(systemName: "exclamationmark.triangle") }
+                            .font(AppFont.scaled(.callout))
+                            .settingsSecondary()
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if let problem = readiness.serverProblem {
+                        Label { Text(verbatim: problem) } icon: { Image(systemName: "exclamationmark.triangle") }
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(Brand.error)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("autocomplete.serverProblem")
+                    }
                 }
-                if let serverSetupProblem, usesServer {
-                    Label(serverSetupProblem, systemImage: "exclamationmark.triangle")
-                        .font(AppFont.scaled(.callout))
-                        .settingsSecondary()
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if let serverProblem, serverProblem != error {
-                    // Said once when the rehearsal below hit the same problem.
-                    Label(serverProblem, systemImage: "exclamationmark.triangle")
-                        .font(AppFont.scaled(.callout))
-                        .foregroundStyle(Brand.error)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("autocomplete.serverProblem")
-                } else if !modelReady {
-                    CotypingModelPreparationView(compact: true)
-                }
-            }
-            Section("Try the real autocomplete") {
-                preview
-                    .settingTarget("settings.autocompletePreview", selected: app.focusedSettingID)
-                DisclosureGroup("Usage and timing") { usage }
             }
         }
-        .onDisappear { task?.cancel() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             systemPredictionsOn = Self.readSystemPredictions()
         }
     }
 
-    private static func readSystemPredictions() -> Bool {
+    static func readSystemPredictions() -> Bool {
 #if LOKALBOT_UI_TEST_HOST
         // The test runner's own keyboard settings must not change the layout under test.
         return ProcessInfo.processInfo.environment["LOKALBOT_SYSTEM_PREDICTIONS_ON"] == "1"
@@ -155,129 +112,128 @@ struct AutocompleteExperienceView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("autocomplete.systemPredictions")
     }
+}
 
-    /// Counters and timings from typing in other apps. They answer what a
-    /// model benchmark cannot: whether suggestions arrive in time, whether an
-    /// accepted one lands in the field, and whether it is kept.
-    private var usage: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                StatTile(icon: "text.badge.plus", value: "\(stats.stats.generations)", label: "suggested")
-                StatTile(icon: "checkmark", value: "\(stats.stats.accepts)", label: "accepted")
+/// "Try it…" on Autocomplete: the rehearsal, over the page. It runs the real
+/// prompt, model and normalizer with the page's settings, without touching
+/// the acceptance statistics or the learning store.
+struct AutocompleteTrySheet: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var server: RemoteCotypingEngine
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let readiness = AutocompleteReadiness(app: app, server: server)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Try autocomplete").font(AppFont.scaled(.title2).weight(.bold))
+                    .accessibilityAddTraits(.isHeader)
+                Text(verbatim: explanation)
+                    .font(AppFont.scaled(.callout)).settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            let rows = stats.stats.liveRows
-            if !rows.isEmpty {
-                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
-                    GridRow {
-                        Text("Where")
-                        Text("Shown")
-                        Text("Keystroke to visible")
-                        Text("Accepted")
-                        Text("Arrived in the field")
-                        Text("Taken back")
+            .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 12)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let problem = readiness.serverSetupProblem ?? readiness.serverProblem {
+                        Label { Text(verbatim: problem) } icon: { Image(systemName: "exclamationmark.triangle") }
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(LBTokens.Palette.attentionText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if !readiness.modelReady {
+                        // Download it here to try it; its licence is linked beside it.
+                        CotypingModelPreparationView(compact: true)
                     }
-                    .fontWeight(.semibold)
-                    ForEach(rows, id: \.title) { row in
-                        GridRow {
-                            Text(row.title)
-                            Text("\(row.measure.shown)")
-                            Text(Self.timing(row.measure))
-                            Text("\(row.measure.accepts)")
-                            Text(Self.insertions(row.measure))
-                            Text("\(row.measure.acceptsCorrected)")
-                        }
-                        .monospacedDigit()
-                    }
+                    AutocompleteRehearsal(readiness: readiness)
                 }
-                .font(AppFont.scaled(.callout))
-                .accessibilityIdentifier("autocomplete.measurements")
+                .padding(.horizontal, 22).padding(.bottom, 16)
             }
-            HStack {
-                Button("Copy measurements") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(
-                        stats.stats.report(model: usesServer ? app.settings.cotypingModelDisplayName
-                                           : selectedModel?.displayName ?? app.settings.cotypingBuiltInModelID),
-                        forType: .string)
-                }
-                Button("Reset") { stats.clear() }
-                    .disabled(stats.stats == CotypingStats())
+            Divider()
+            HStack(spacing: 12) {
+                Text("Uses the same settings and model as in other apps.")
+                    .font(AppFont.scaled(.callout)).settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 12)
+                // No Return or Escape shortcut: both belong to the reply field,
+                // where Escape dismisses a suggestion.
+                Button("Done") { dismiss() }
+                    .primaryActionButton()
+                    .accessibilityIdentifier("autocomplete.try.done")
             }
-            SettingsHelp("Measured while you type in other apps: the wait from your last keystroke to a visible suggestion, whether accepted text arrived in the field, and whether you deleted or undid it straight away. Counts and timings only, kept on this Mac; no text, app names or window titles are stored.")
+            .padding(.horizontal, 22).padding(.vertical, 14)
         }
-        .padding(.top, 8)
+        .frame(width: 600)
+        .frame(minHeight: 420, maxHeight: 640)
+        .toggleStyle(LBAccentSwitchStyle())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("autocomplete.try")
     }
 
-    private static func timing(_ measure: CotypingLiveMeasure) -> String {
-        guard let median = measure.medianVisibleMs else { return "n/a" }
-        return "\(median) ms (p95 \(measure.p95VisibleMs ?? median))"
+    /// What typing here does and does not send. A server receives the
+    /// rehearsal's text as it receives typing in other apps.
+    private var explanation: String {
+        let language = app.settings.appLanguage
+        if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
+            return String(format: language.localized(
+                "Type in the box. What you type here is sent to %@, as it is in other apps. Nothing is saved."), host)
+        }
+        return language.localized("Type in the box. Nothing here leaves this Mac or is saved.")
+    }
+}
+
+/// The rehearsal itself: a sample conversation, a reply field that shows the
+/// real suggestion, and what the suggestion drew on.
+struct AutocompleteRehearsal: View {
+    @EnvironmentObject var app: AppState
+    @ObservedObject private var permissions = PermissionManager.shared
+    let readiness: AutocompleteReadiness
+
+    private static let openingText = "Hi Sarah, thanks for the update. I wanted to follow"
+
+    @State private var text = AutocompleteRehearsal.openingText
+    @State private var rehearsal = AutocompleteRehearsal.openingRehearsal
+    /// What the visible suggestion drew on; nil until one has been generated.
+    @State private var contextUse: CotypingContextUse?
+    @State private var generating = false
+    @State private var error: String?
+    /// Why the model's last answer became no suggestion.
+    @State private var emptyReason: CotypingSuppressionReason?
+    @State private var task: Task<Void, Never>?
+    @State private var topUpTask: Task<Void, Never>?
+    @State private var focusRevision = 0
+
+    private static var openingRehearsal: CotypingRehearsal {
+        var rehearsal = CotypingRehearsal()
+#if LOKALBOT_UI_TEST_HOST
+        if ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_DEMO"] == "1" {
+            rehearsal.present(" up on the migration timeline we scoped yesterday.", after: openingText)
+        }
+#endif
+        return rehearsal
     }
 
-    private static func insertions(_ measure: CotypingLiveMeasure) -> String {
-        var text = "\(measure.insertionsConfirmed) of \(measure.insertionsChecked)"
-        if measure.insertionsUnconfirmed > 0 { text += ", \(measure.insertionsUnconfirmed) not readable" }
-        return text
+    private var demoReady: Bool { readiness.demoReady }
+
+    /// The context grants a suggestion depends on.
+    private var contextGrants: [Bool] {
+        [app.settings.cotypingUseVisibleContext, app.settings.cotypingUseMeetingMemory,
+         app.settings.cotypingUseScreenMemory]
     }
 
-    /// The page's switch sits with what it controls: whether autocomplete is
-    /// on, which model it uses, and whether it can run.
-    private var summary: some View {
-        HStack(alignment: .top, spacing: 12) {
-            IconTile(systemImage: "text.cursor",
-                     tint: app.settings.cotypingEnabled ? Brand.teal : Color(nsColor: .systemGray),
-                     size: 32)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(app.settings.cotypingEnabled ? "Autocomplete on" : "Autocomplete off")
-                        .font(AppFont.scaled(.body).weight(.semibold))
-                    Text(summaryDetail)
-                        .font(AppFont.scaled(.callout))
-                        .settingsSecondary()
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 14) { readiness }
-                    VStack(alignment: .leading, spacing: 6) { readiness }
-                }
+    private var contextStatuses: [CotypingContextStatus] {
+        CotypingContextStatus.rehearsal(
+            availability: app.cotypingContextAvailability(
+                accessibilityGranted: demoReady || (permissions.granted[.accessibility] ?? false)),
+            use: contextUse)
+    }
+
+    var body: some View {
+        preview
+            .onDisappear {
+                task?.cancel()
+                topUpTask?.cancel()
             }
-            // The switch is in the page header.
-            Spacer(minLength: 12)
-        }
-        .padding(.vertical, 4)
-        .accessibilityIdentifier("autocomplete.home")
-    }
-
-    @ViewBuilder private var readiness: some View {
-        if let serverProblem {
-            MemoryHealthStatus(value: "Server problem", tone: .attention)
-                .help(serverProblem)
-        } else {
-            MemoryHealthStatus(value: usesServer ? (modelReady ? "Server ready" : "Server setup needed")
-                                                 : (modelReady ? "Model ready" : "Model needed"),
-                               tone: modelReady ? .good : .attention)
-                .help(modelName)
-        }
-        permissionStatus("Accessibility", .accessibility)
-        permissionStatus("Input Monitoring", .inputMonitoring)
-    }
-
-    private var summaryDetail: String {
-        if app.settings.cotypingEnabled { return "\(modelName) · suggestions appear as you type in other apps." }
-        if usesServer {
-            return modelReady
-                ? "The server is ready. Turn on autocomplete to start."
-                : "Finish the server setup under Settings → Models to try it."
-        }
-        return modelReady
-            ? "The model is ready. Turn on autocomplete to start."
-            : "Download the Autocomplete model to try it."
-    }
-
-    private func permissionStatus(_ title: String, _ permission: AppPermission) -> some View {
-        let granted = demoReady || (permissions.granted[permission] ?? false)
-        return MemoryHealthStatus(value: granted ? "\(title) granted" : "\(title) needed",
-                                  tone: granted ? .good : .attention)
+            .accessibilityIdentifier("autocomplete.rehearsal")
     }
 
     private var preview: some View {
@@ -501,6 +457,83 @@ struct AutocompleteExperienceView: View {
         contextUse = nil
         emptyReason = nil
         generating = false
+    }
+}
+
+/// Counters and timings from typing in other apps. They answer what a model
+/// benchmark cannot: whether suggestions arrive in time, whether an accepted
+/// one lands in the field, and whether it is kept.
+struct AutocompleteMeasurements: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var server: RemoteCotypingEngine
+    @ObservedObject private var stats = CotypingStatsStore.shared
+
+    var body: some View { usage }
+
+    private var usesServer: Bool { app.settings.cotypingBackend != .onDevice }
+
+    private var selectedModel: ModelCatalog.Entry? {
+        ModelCatalog.entry(id: app.settings.cotypingBuiltInModelID, custom: app.settings.customBuiltInModels)
+    }
+
+    private var usage: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                StatTile(icon: "text.badge.plus", value: "\(stats.stats.generations)", label: "suggested")
+                StatTile(icon: "checkmark", value: "\(stats.stats.accepts)", label: "accepted")
+            }
+            let rows = stats.stats.liveRows
+            if !rows.isEmpty {
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+                    GridRow {
+                        Text("Where")
+                        Text("Shown")
+                        Text("Keystroke to visible")
+                        Text("Accepted")
+                        Text("Arrived in the field")
+                        Text("Taken back")
+                    }
+                    .fontWeight(.semibold)
+                    ForEach(rows, id: \.title) { row in
+                        GridRow {
+                            Text(row.title)
+                            Text("\(row.measure.shown)")
+                            Text(Self.timing(row.measure))
+                            Text("\(row.measure.accepts)")
+                            Text(Self.insertions(row.measure))
+                            Text("\(row.measure.acceptsCorrected)")
+                        }
+                        .monospacedDigit()
+                    }
+                }
+                .font(AppFont.scaled(.callout))
+                .accessibilityIdentifier("autocomplete.measurements")
+            }
+            HStack {
+                Button("Copy measurements") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(
+                        stats.stats.report(model: usesServer ? app.settings.cotypingModelDisplayName
+                                           : selectedModel?.displayName ?? app.settings.cotypingBuiltInModelID),
+                        forType: .string)
+                }
+                Button("Reset") { stats.clear() }
+                    .disabled(stats.stats == CotypingStats())
+            }
+            SettingsHelp("Measured while you type in other apps: the wait from your last keystroke to a visible suggestion, whether accepted text arrived in the field, and whether you deleted or undid it straight away. Counts and timings only, kept on this Mac; no text, app names or window titles are stored.")
+        }
+        .padding(.top, 8)
+    }
+
+    private static func timing(_ measure: CotypingLiveMeasure) -> String {
+        guard let median = measure.medianVisibleMs else { return "n/a" }
+        return "\(median) ms (p95 \(measure.p95VisibleMs ?? median))"
+    }
+
+    private static func insertions(_ measure: CotypingLiveMeasure) -> String {
+        var text = "\(measure.insertionsConfirmed) of \(measure.insertionsChecked)"
+        if measure.insertionsUnconfirmed > 0 { text += ", \(measure.insertionsUnconfirmed) not readable" }
+        return text
     }
 }
 

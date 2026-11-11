@@ -9,6 +9,7 @@
   "ChatHistoryUITests/testSelectingConversationClearsActiveSearch": 21.8,
   "CotypingSettingsUITests/testAutocompleteExperienceShowsReadinessPreviewAndPrivacy": 14.3,
   "CotypingSettingsUITests/testAutocompleteHasNoExperimentalDecoderToggle": 29.0,
+  "CotypingSettingsUITests/testAutocompleteRowsOpenTheirPagesAndComeBack": 30.0,
   "CotypingSettingsUITests/testAutocompleteSettingsAndPreviewShareWriting": 16.5,
   "CotypingSettingsUITests/testAutocompleteTabPersistsAcrossNavigation": 24.2,
   "DictationSettingsUITests/testComposeByDefaultControlsRenderWithoutStartingRecording": 14.7,

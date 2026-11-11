@@ -207,8 +207,9 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { (consent.value as? Int) == 1 })
         app.buttons["models.back"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !server.exists })
-        UITestHarness.scrollTo(app.buttons["models.connections"], in: app, within: app.scrollViews["models.content"])
-        app.buttons["models.connections"].click()
+        // Online services is a row under More now.
+        UITestHarness.scrollTo(app.buttons["models.more.connections"], in: app, within: app.scrollViews["models.content"])
+        app.buttons["models.more.connections"].click()
         XCTAssertEqual(model.value as? String, "example/test-model", "Changing pages must preserve the saved model")
         UITestHarness.scrollTo(consent, in: app, within: app.scrollViews["models.content"])
         XCTAssertEqual(consent.value as? Int, 1, "Changing pages must preserve explicit consent")

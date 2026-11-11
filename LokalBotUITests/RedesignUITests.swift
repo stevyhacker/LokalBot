@@ -155,13 +155,11 @@ final class RedesignUITests: XCTestCase {
             "review": "meeting.namingSheet",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
             "ask": "ask.submit", "settings": "settings.overview", "models": "models.overview",
-            "dictation": "dictation.form", "agent": "agent.composer",
+            // Autocomplete opens on its settings; the rehearsal is its "Try it…" sheet.
+            "dictation": "dictation.form", "autocomplete": "settings.header.writing", "agent": "agent.composer",
         ]
-        if let identifier = anchors[route] {
-            XCTAssertTrue(element(identifier).waitForExistence(timeout: 10), "Capture content not ready: \(route)")
-        } else {
-            XCTAssertTrue(app.staticTexts["Try the real autocomplete"].waitForExistence(timeout: 10))
-        }
+        let identifier = try XCTUnwrap(anchors[route], "No capture anchor for \(route)")
+        XCTAssertTrue(element(identifier).waitForExistence(timeout: 10), "Capture content not ready: \(route)")
         if route == "timeline" {
             XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
                 .firstMatch.waitForExistence(timeout: 5), "Capture must include the seeded work session")
@@ -601,8 +599,11 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_COTYPING_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Autocomplete", in: app)
+        let tryIt = app.buttons["settings.header.writing.tryIt"]
+        XCTAssertTrue(tryIt.waitForExistence(timeout: 6))
+        tryIt.click()
         let editor = app.textViews["autocomplete.rehearsal.editor"]
-        UITestHarness.scrollTo(editor, in: app)
+        XCTAssertTrue(editor.waitForExistence(timeout: 6), "Try it… did not open the rehearsal")
         editor.click()
         let original = editor.value as? String
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["Insert suggestion"].isEnabled })

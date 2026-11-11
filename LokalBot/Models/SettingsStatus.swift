@@ -209,6 +209,10 @@ struct SettingsStatus: Equatable {
         var models: [Model] = []
         /// Free space on the volume that holds the models.
         var freeBytes: Int64?
+        /// Whole minutes until the running downloads finish, once that can be told.
+        var downloadMinutesLeft: Int?
+        /// Models that are here and did not answer their check.
+        var failedChecks: [ModelRole] = []
         var emailConnected = false
         /// The kinds of data external agents may read.
         var agentKinds = 0
@@ -358,6 +362,15 @@ struct SettingsStatus: Equatable {
             arrived += Double(bytes) * min(1, max(0, progress))
         }
         return total > 0 ? arrived / Double(total) : nil
+    }
+
+    /// How much of the running downloads has arrived, and what they weigh
+    /// together, for telling how long they still take.
+    var runningDownload: (arrived: Int64, total: Int64)? {
+        guard let total = Self.totalBytes(modelsDownloading), total > 0, let fraction = downloadFraction else {
+            return nil
+        }
+        return (Int64((Double(total) * fraction).rounded()), total)
     }
 
     private static func totalBytes(_ models: [Model]) -> Int64? {
@@ -543,6 +556,7 @@ struct SettingsStatus: Equatable {
     private var modelLines: [SettingsStatusLine] {
         var lines: [SettingsStatusLine] = []
         let downloads = modelsToDownload
+        let working = modelsDownloading
         if !downloads.isEmpty {
             let text: SettingsText
             if let bytes = Self.totalBytes(downloads), bytes > 0, let free = input.freeBytes {
@@ -552,26 +566,69 @@ struct SettingsStatus: Equatable {
                 text = SettingsText("%@ isn’t downloaded yet.",
                                     .verbatim(downloads.map(\.nameAndSize).joined(separator: ", ")))
             }
-            lines.append(SettingsStatusLine(id: "download", tone: .need, text: text, action: .download))
+            // The header's own button downloads them all. While it shows
+            // Cancel for a running download, this line keeps the button.
+            lines.append(SettingsStatusLine(id: "download", tone: .need, text: text,
+                                            action: working.isEmpty ? nil : .download))
         }
         lines += modelsNeedingAttention.map { model in
             SettingsStatusLine(id: "attention.\(model.role.rawValue)", tone: .need,
                                text: SettingsText("%@ can’t be used yet.", .verbatim(model.name)))
         }
-        let working = modelsDownloading
         if !working.isEmpty {
-            lines.append(SettingsStatusLine(
-                id: "downloading", tone: .progress(downloadFraction),
-                text: SettingsText("%@ is downloading.", .verbatim(working.map(\.name).joined(separator: ", ")))))
+            lines.append(SettingsStatusLine(id: "downloading", tone: .progress(downloadFraction),
+                                            text: downloadingText(working)))
+        }
+        lines += input.failedChecks.compactMap { role in
+            guard let model = model(role), model.status == .ready else { return nil }
+            return SettingsStatusLine(id: "check.\(role.rawValue)", tone: .need,
+                                      text: SettingsText("%@ didn’t pass its check.", .verbatim(model.name)),
+                                      action: .open(.models, focus: Self.modelChecksFocus), actionTitle: "Review…")
         }
         guard lines.isEmpty else { return lines }
         if remoteHosts.isEmpty {
+            // The same sizes the download was announced with.
+            let here = requiredModels.filter { $0.downloads && $0.status == .ready }
+            if let stored = Self.totalBytes(here), stored > 0, let free = input.freeBytes {
+                return [SettingsStatusLine(
+                    id: "ready", tone: .ok,
+                    text: SettingsText("All ready. The models take about %@ on this Mac, and %@ is free.",
+                                       .verbatim(Self.size(stored)), .verbatim(Self.size(free))))]
+            }
             return [SettingsStatusLine(id: "ready", tone: .ok,
                                        text: SettingsText("All set. Every model runs on this Mac."))]
         }
         return [SettingsStatusLine(id: "ready", tone: .online,
                                    text: SettingsText("All set. Some AI runs online at %@.",
                                                       .verbatim(remoteHosts.joined(separator: ", "))))]
+    }
+
+    /// The setting a failed check's line opens: the sheet that runs the checks.
+    static let modelChecksFocus = "settings.modelChecks"
+
+    /// What every model that still has to arrive weighs together, for the
+    /// header's "Download all" button. Nil when nothing is missing or a size
+    /// is unknown.
+    var bytesToDownload: Int64? {
+        let downloads = modelsToDownload
+        guard !downloads.isEmpty, let bytes = Self.totalBytes(downloads), bytes > 0 else { return nil }
+        return bytes
+    }
+
+    /// "Downloading · 3.7 GB of 9 GB · about 5 minutes left", with as much
+    /// of that as is known.
+    private func downloadingText(_ working: [Model]) -> SettingsText {
+        guard let total = Self.totalBytes(working), total > 0, let fraction = downloadFraction else {
+            return SettingsText("%@ is downloading.", .verbatim(working.map(\.name).joined(separator: ", ")))
+        }
+        let arrived = SettingsText.Argument.verbatim(Self.size(Int64((Double(total) * fraction).rounded())))
+        let all = SettingsText.Argument.verbatim(Self.size(total))
+        switch input.downloadMinutesLeft {
+        case 1?: return SettingsText("Downloading · %@ of %@ · about 1 minute left", arrived, all)
+        case let minutes?: return SettingsText("Downloading · %@ of %@ · about %lld minutes left",
+                                               arrived, all, .count(minutes))
+        case nil: return SettingsText("Downloading · %@ of %@", arrived, all)
+        }
     }
 
     /// Whether the model is missing, on its way, stopped or ready.

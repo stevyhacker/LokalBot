@@ -1592,6 +1592,11 @@ final class AppState: ObservableObject {
         // Not download progress: the model views observe ModelRoles directly.
         modelRolesObserver = modelRoles.readinessChanges.sink { [weak self] in
             self?.objectWillChange.send()
+            // The publisher fires before the roles hold their new state.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.modelChecks.readinessChanged(app: self)
+            }
         }
         navigationHandoffObserver = navigationHandoff.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()

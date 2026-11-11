@@ -1,10 +1,292 @@
 import SwiftUI
 
+/// Settings › Dictation, under the shared header: the shortcut, what it
+/// writes, what shows while dictating, and a row that opens the recent
+/// dictations. Trying it out is the header's "Try it…" sheet.
+struct DictationSettingsSections: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var dictation: DictationCoordinator
+    @ObservedObject private var permissions = PermissionManager.shared
+    /// The page a row opened, when one is open.
+    let subpage: SettingsSubpage?
+    let open: (SettingsSubpage) -> Void
+    /// Opens a model picker over the page.
+    let changeModel: (ModelPickerRole) -> Void
+    @State private var microphones: [DictationMicrophone.Option] = []
+
+    private var operation: AppSettings { dictation.presentedConfiguration }
+    private var localized: (String) -> String { app.settings.appLanguage.catalog }
+    /// A recording keeps the settings it started with.
+    private var busy: Bool { dictation.state != .idle || dictation.isStarting }
+
+    var body: some View {
+        Group {
+            switch subpage {
+            case .dictationProfile: profileSection
+            case .dictationRecent: recentSection
+            default: mainSections
+            }
+        }
+        .accessibilityIdentifier("dictation.form")
+        .onAppear { app.dictation.applySettings() }
+        .onDisappear { PermissionGuidanceController.shared.dismiss() }
+        .onChange(of: permissions.granted) { _, _ in app.dictation.applySettings() }
+    }
+
+    @ViewBuilder private var mainSections: some View {
+        // The page header says which permission is missing and asks for it;
+        // only the relaunch a granted shortcut may need stays here.
+        if app.settings.dictationEnabled, !app.dictation.isShortcutMonitoringActive,
+           permissions.granted[.inputMonitoring] == true {
+            Section {
+                HStack {
+                    SettingsHelp("Relaunch after granting Input Monitoring if the shortcut is still inactive.")
+                    Spacer()
+                    Button("Relaunch") { PermissionManager.relaunch() }
+                        .controlSize(.small)
+                }
+            }
+        }
+        shortcutSection
+        writingSection
+        whileDictatingSection
+        Section("More") {
+            SettingsDrillRow(title: "Recent dictations",
+                             detail: "The last 10, kept encrypted for 7 days",
+                             value: dictation.history.entries.isEmpty
+                                ? localized("None yet") : String(dictation.history.entries.count),
+                             identifier: "settings.dictation.recent") { open(.dictationRecent) }
+        }
+    }
+
+    // MARK: - Shortcut
+
+    private var shortcutSection: some View {
+        Section("Shortcut") {
+            LabeledContent("Shortcut") {
+                ShortcutRecorder(
+                    shortcut: $app.settings.dictationShortcut,
+                    defaultShortcut: .handyDefault,
+                    accessibilityIdentifier: "settings.dictationShortcut",
+                    changeHelp: "Change the dictation shortcut",
+                    validate: { candidate in
+                        candidate.problem
+                            ?? (candidate == app.settings.quickRecallShortcut ? .usedByAsk : nil)
+                            ?? (candidate == app.settings.selectionActionsShortcut ? .usedBySelectionActions : nil)
+                            ?? (candidate == app.settings.windowHandoffShortcut ? .usedByWindowHandoff : nil)
+                    },
+                    onRecordingChanged: { app.setShortcutRecording($0) })
+            }
+            .settingTarget("settings.dictationShortcut", selected: app.focusedSettingID)
+            Picker("Start and stop", selection: $app.settings.dictationTriggerMode) {
+                ForEach(DictationTriggerMode.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
+            }
+            .settingTarget("settings.dictationTriggerMode", selected: app.focusedSettingID)
+            Picker("When you finish", selection: $app.settings.dictationOutputMode) {
+                ForEach(DictationOutputMode.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
+            }
+            .settingTarget("settings.dictationOutputMode", selected: app.focusedSettingID)
+            LabeledContent("Microphone") {
+                HStack(spacing: 8) {
+                    SettingsInfoButton("With AirPods, choose the MacBook microphone to keep the headset's audio quality while you dictate.")
+                    Picker("Microphone", selection: $app.settings.dictationMicrophoneID) {
+                        ForEach(DictationMicrophone.options(
+                            preferredID: app.settings.dictationMicrophoneID, available: microphones,
+                            defaultName: app.settings.appLanguage.localized("System default"))) { option in
+                            Text(LocalizedStringKey(option.name)).tag(option.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+            }
+            .settingTarget("settings.dictationMicrophoneID", selected: app.focusedSettingID)
+            .onAppear { microphones = DictationMicrophone.available() }
+        }
+    }
+
+    // MARK: - What it writes
+
+    private var writingSection: some View {
+        Section("What it writes") {
+            Picker(selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
+                ForEach(DictationIntent.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
+            } label: {
+                SettingsLabel("Mode", help: operation.dictationIntent == .compose
+                              ? "Say “reply…”, “write…” or “draft…” and it writes the text for you. Anything else is typed as you said it, cleaned up."
+                              : "Types what you say. Nothing is rewritten, and nothing on screen is read.")
+            }
+            .pickerStyle(.segmented).tint(Brand.tealFill).disabled(busy)
+            .accessibilityIdentifier("settings.dictationIntent")
+            .settingTarget("settings.dictationIntent", selected: app.focusedSettingID)
+            if operation.dictationIntent == .compose {
+                SettingsHelp("Compose may read, only for that request:")
+                Group {
+                    SettingsSwitchRow("The focused window", detail: "Needs Screen Recording",
+                                      info: "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved.",
+                                      isOn: Binding(get: { operation.dictationUseScreenContext },
+                                                    set: { app.settings.dictationUseScreenContext = $0 }))
+                        .disabled(busy)
+                        .settingTarget("settings.dictationUseScreenContext", selected: app.focusedSettingID)
+                    SettingsSwitchRow("Text above where you type",
+                                      info: "Reads nearby messages and labels through Accessibility. No screenshot is needed, and the excerpts are not saved.",
+                                      isOn: $app.settings.dictationUseVisibleContext)
+                        .disabled(busy)
+                        .settingTarget("settings.dictationUseVisibleContext", selected: app.focusedSettingID)
+                    SettingsSwitchRow("Facts from your meetings",
+                                      info: "Adds relevant saved facts when you ask Compose to draft or reply. Reads what is already saved; it does not start an overnight review.",
+                                      isOn: $app.settings.dictationUseMeetingMemory)
+                        .disabled(busy)
+                        .settingTarget("settings.dictationUseMeetingMemory", selected: app.focusedSettingID)
+                    SettingsSwitchRow("Facts from your screen history",
+                                      info: "Adds relevant saved facts when you ask Compose to draft or reply. Reads what is already saved; it does not start an overnight review.",
+                                      isOn: $app.settings.dictationUseScreenMemory)
+                        .disabled(busy)
+                        .settingTarget("settings.dictationUseScreenMemory", selected: app.focusedSettingID)
+                    SettingsDrillRow(title: "Writing profile", detail: "Shared with Autocomplete",
+                                     value: DictationView.writingProfileSummary(app.settings, localized: localized),
+                                     identifier: "dictation.writingProfile.edit") { open(.dictationProfile) }
+                        .settingTarget("settings.dictationWritingProfile", selected: app.focusedSettingID)
+                }
+                .padding(.leading, 14)
+            }
+            writerRow
+        }
+    }
+
+    /// Where the dictated words become the text that is pasted. When that is
+    /// a service, the row says that what is dictated goes there.
+    @ViewBuilder private var writerRow: some View {
+        let writer = DictationWriterPresentation(settings: operation)
+        LabeledContent {
+            Button("Change…") { changeModel(writer.pickerRole) }
+                .accessibilityIdentifier("settings.dictation.writer.change")
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Who writes the text")
+                Text(verbatim: writer.text.string(localized))
+                    .font(.scaled(.callout))
+                    .foregroundStyle(writer.online ? AnyShapeStyle(LBTokens.Palette.attentionText)
+                                     : AnyShapeStyle(.secondary))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.dictation.writer")
+            }
+        }
+        .padding(.leading, operation.dictationIntent == .compose ? 14 : 0)
+        if operation.dictationIntent == .compose, writer.online {
+            // What else travels with the dictated words, said in full.
+            InferenceDisclosure(
+                settings: operation.dictationCompositionTextEngineSettings,
+                localText: "Speech uses the meeting ASR model; final wording uses your local composition model and writing profile. Everything stays on this Mac.",
+                remoteText: "Final wording uses your approved remote Think model (\(operation.summarizerBackend.displayName)). What you dictate, and any enabled screen context or saved facts it uses, is sent to that server.")
+                .padding(.leading, 14)
+                .accessibilityIdentifier("dictation.remoteNotice")
+        }
+    }
+
+    // MARK: - While dictating
+
+    private var whileDictatingSection: some View {
+        Section("While dictating") {
+            SettingsSwitchRow("Show a small status window", isOn: $app.settings.dictationShowOverlay)
+                .settingTarget("settings.dictationShowOverlay", selected: app.focusedSettingID)
+            SettingsSwitchRow("Show the words as you speak", isOn: $app.settings.dictationLivePreview)
+                .settingTarget("settings.dictationLivePreview", selected: app.focusedSettingID)
+            SettingsSwitchRow("Play a sound when the microphone is ready", isOn: $app.settings.dictationPlaysStartSound)
+                .settingTarget("settings.dictationPlaysStartSound", selected: app.focusedSettingID)
+            SettingsSwitchRow("Keep the audio files", isOn: $app.settings.dictationRetainAudio)
+                .settingTarget("settings.dictationRetainAudio", selected: app.focusedSettingID)
+        }
+    }
+
+    // MARK: - The pages the rows open
+
+    /// Compose takes tone, name and terminology from the writing profile it
+    /// shares with Autocomplete, so its fields are edited here too.
+    private var profileSection: some View {
+        Section {
+            WritingProfileFields()
+        } footer: {
+            SettingsHelp("Compose uses it for tone, your name and terminology. Autocomplete uses the same profile.")
+        }
+    }
+
+    @ViewBuilder private var recentSection: some View {
+        if dictation.history.entries.isEmpty {
+            Section {
+                SettingsHelp("Nothing dictated in the last 7 days.")
+                    .accessibilityIdentifier("dictation.recent.empty")
+            }
+        } else {
+            RecentDictationsSection(
+                entries: dictation.history.entries,
+                localized: { app.settings.appLanguage.localized($0) },
+                copy: { dictation.copyFromHistory($0) },
+                clear: { dictation.clearHistory() })
+        }
+    }
+}
+
+/// "Try it…" on Dictation: speak, and the result shows here. Nothing is
+/// pasted into another app and the clipboard is left alone.
+struct DictationTrySheet: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var dictation: DictationCoordinator
+    /// What the page header says, for what still stands in the way.
+    let status: SettingsStatus
+    @Environment(\.dismiss) private var dismiss
+
+    /// The header's lines that stop a try-out: the microphone and the model.
+    /// The header shows them only while the shortcut is on.
+    private var blockers: [SettingsStatusLine] {
+        var input = status.input
+        input.settings.dictationEnabled = true
+        return SettingsStatus(input).lines(for: .dictation).filter { line in
+            line.id == "allow.microphone" || line.id.hasPrefix("model.")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Try dictation").font(AppFont.scaled(.title2).weight(.bold))
+                    .accessibilityAddTraits(.isHeader)
+                Text("The result shows here. Nothing is pasted into another app, and your clipboard is left alone.")
+                    .font(AppFont.scaled(.callout)).settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 12)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(blockers) { line in
+                        SettingsStatusLineRow(line: line, page: .dictation)
+                    }
+                    DictationView(dictation: dictation)
+                }
+                .padding(.horizontal, 22).padding(.bottom, 16)
+            }
+            Divider()
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .primaryActionButton()
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("dictation.try.done")
+            }
+            .padding(.horizontal, 22).padding(.vertical, 14)
+        }
+        .frame(width: 560)
+        .frame(minHeight: 340, maxHeight: 620)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dictation.try")
+    }
+}
+
+/// The try-out itself: the button that starts and stops a recording, where
+/// it stands, and the last result.
 struct DictationView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var dictation: DictationCoordinator
-    var embedded = false
-    @StateObject private var permissions = PermissionManager.shared
     /// Nil when Secure Input is off; otherwise the app holding it, if known.
     @State private var secureInputHolder: String??
     private let secureInputPoll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
@@ -12,72 +294,24 @@ struct DictationView: View {
     private var operation: AppSettings { dictation.presentedConfiguration }
 
     var body: some View {
-        Group {
-            if embedded { content } else { Form { content }.formStyle(.grouped) }
-        }
-        .accessibilityIdentifier("dictation.form")
-        .onAppear {
-            if !embedded { permissions.startPolling() }
-            app.dictation.applySettings()
-        }
-        .onDisappear {
-            if !embedded { permissions.stopPolling() }
-            PermissionGuidanceController.shared.dismiss()
-        }
-        .onChange(of: permissions.granted) { _, _ in app.dictation.applySettings() }
-        .onAppear { secureInputHolder = DictationSecureInput.holder() }
-        .onReceive(secureInputPoll) { _ in secureInputHolder = DictationSecureInput.holder() }
-    }
-
-    @ViewBuilder private var content: some View {
-        statusSection
-        if !embedded {
-            Section("Shortcut and output") {
-                LabeledContent(
-                    "Shortcut",
-                    value: app.settings.dictationEnabled ? app.settings.dictationShortcut.displayLabel : "Off")
-                LabeledContent("Shortcut output", value: app.settings.dictationOutputMode.label)
-                Button("Dictation settings…") { app.openSettings(tab: .dictation) }
-            }
-        }
-        modelSection
-        // In Settings the page header says which permission is missing and
-        // asks for it; only the relaunch a granted shortcut may need stays here.
-        if app.settings.dictationEnabled {
-            if !embedded {
-                permissionsSection
-            } else if !app.dictation.isShortcutMonitoringActive, permissions.granted[.inputMonitoring] == true {
-                Section { shortcutRelaunchRow }
-            }
-        }
-        if let result = app.dictation.lastComposedText {
-            lastResultSection(result)
-        } else if let transcript = app.dictation.lastTranscript {
-            lastSpokenRequestSection(transcript)
-        }
-        recentSection
-    }
-
-    private var statusSection: some View {
-        Section {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
-                IconTile(systemImage: "mic", tint: Brand.teal, size: 32)
+                IconTile(systemImage: "mic", tint: Brand.teal, size: 36)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Dictation").font(AppFont.scaled(.body).weight(.semibold))
                     Text(statusText)
+                        .font(AppFont.scaled(.body))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Mode: \(app.settings.appLanguage.localized(operation.dictationIntent.rawValue))")
                         .font(AppFont.scaled(.callout))
                         .settingsSecondary()
                 }
-                Spacer()
+                Spacer(minLength: 12)
                 Button(actionTitle) { app.dictation.toggle(source: "rehearsal") }
                     .buttonStyle(.borderedProminent)
                     .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.tealFill)
+                    .accessibilityIdentifier("dictation.try.action")
             }
-            .padding(.vertical, 4)
-            // The Dictation command lands on this row; highlight it alone,
-            // never every row of the sections below.
-            .settingTarget("settings.dictationPreview", selected: embedded ? app.focusedSettingID : nil)
             if app.settings.dictationEnabled, let holder = secureInputHolder {
                 Label {
                     Text(verbatim: DictationSecureInput.message(appName: holder) { app.settings.appLanguage.localized($0) })
@@ -88,118 +322,36 @@ struct DictationView: View {
                 .font(AppFont.scaled(.callout))
                 .accessibilityIdentifier("dictation.secureInputWarning")
             }
-            Picker(selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
-                ForEach(DictationIntent.allCases) { Text($0.rawValue).tag($0) }
-            } label: {
-                SettingsLabel("Intent", help: operation.dictationIntent.detail)
-            }.pickerStyle(.segmented).tint(Brand.tealFill).disabled(app.dictation.state != .idle || app.dictation.isStarting)
-            if operation.dictationIntent == .compose {
-                SettingsHelp("The sources below are read only when you start with a writing request, such as “reply…”, “write…” or “draft…”. Other dictation is only cleaned up.")
-                Toggle("Use the focused window as context", isOn: Binding(
-                    get: { operation.dictationUseScreenContext }, set: { app.settings.dictationUseScreenContext = $0 }))
-                    .disabled(app.dictation.state != .idle || app.dictation.isStarting)
-                    .settingTarget("settings.dictationUseScreenContext", selected: app.focusedSettingID)
-                SettingsHelp("Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved.")
-                Toggle("Use visible text above the field", isOn: $app.settings.dictationUseVisibleContext)
-                    .disabled(app.dictation.state != .idle || app.dictation.isStarting)
-                    .settingTarget("settings.dictationUseVisibleContext", selected: app.focusedSettingID)
-                SettingsHelp("Reads nearby messages and labels through Accessibility. No screenshot is needed, and the excerpts are not saved.")
-                Toggle("Use meeting and work memory", isOn: $app.settings.dictationUseMeetingMemory)
-                    .disabled(app.dictation.state != .idle || app.dictation.isStarting)
-                    .settingTarget("settings.dictationUseMeetingMemory", selected: app.focusedSettingID)
-                Toggle("Use screen-derived work memory", isOn: $app.settings.dictationUseScreenMemory)
-                    .disabled(app.dictation.state != .idle || app.dictation.isStarting)
-                    .settingTarget("settings.dictationUseScreenMemory", selected: app.focusedSettingID)
-                SettingsHelp("Adds relevant saved facts when you ask Compose to draft or reply. Reads what is already saved; it does not start an overnight review.")
-                writingProfileRow
-            }
-            SettingsHelp("Trying here shows the result below. It never inserts into another app or changes your clipboard; the shortcut uses the output setting above.")
-        } header: {
-            if embedded { Text("Try dictation") }
-        }
-    }
-
-    private var modelSection: some View {
-        Section("Model") {
-            LabeledContent("Transcribe model") {
-                Text(operation.transcriptionModelDisplayName)
-                    .foregroundStyle(.secondary)
-            }
-            LabeledContent("Language") {
-                Text(operation.transcriptionLanguage.displayName)
-                    .foregroundStyle(.secondary)
-            }
-            if operation.dictationIntent == .compose {
-            LabeledContent("Compose") {
-                Text(operation.dictationCompositionTextEngineSettings.thinkModelDisplayName)
-                    .foregroundStyle(.secondary)
-            }
-            // Where the words go changes what dictation means, so the remote
-            // case reads as a first-class notice, not caption fine print.
-            InferenceDisclosure(
-                settings: operation.dictationCompositionTextEngineSettings,
-                localText: "Speech uses the meeting ASR model; final wording uses your local composition model and writing profile. Everything stays on this Mac.",
-                remoteText: "Final wording uses your approved remote Think model (\(operation.summarizerBackend.displayName)). What you dictate, and any enabled screen context or saved facts it uses, is sent to that server.")
-                .accessibilityIdentifier("dictation.remoteNotice")
+            if let result = app.dictation.lastComposedText {
+                lastResult(result)
+            } else if let transcript = app.dictation.lastTranscript {
+                lastSpokenRequest(transcript)
             } else {
-                Label("Speech recognition runs on this Mac. No screen context or rewrite model is used.", systemImage: "desktopcomputer")
-                    .workspaceTextRole(.trust)
-            }
-        }
-    }
-
-    private var permissionsSection: some View {
-        Section("Permissions") {
-            PermissionRow(permission: .microphone, why: "Records your voice for the current dictation.")
-            PermissionRow(permission: .inputMonitoring, why: "Detects the global dictation shortcut.")
-            if app.settings.dictationOutputMode == .pasteIntoFocusedApp || app.settings.dictationUseVisibleContext {
-                PermissionRow(permission: .accessibility, why: "Validates the focused field and inserts your text safely.")
-            }
-            if app.settings.dictationIntent == .compose && app.settings.dictationUseScreenContext {
-                PermissionRow(permission: .screenRecording, why: "Reads only the focused window for this request. The image and OCR text are never stored.")
-            }
-            if !app.dictation.isShortcutMonitoringActive { shortcutRelaunchRow }
-        }
-    }
-
-    private var shortcutRelaunchRow: some View {
-        HStack {
-            SettingsHelp("Relaunch after granting Input Monitoring if the shortcut is still inactive.")
-            Spacer()
-            Button("Relaunch") { PermissionManager.relaunch() }
-                .controlSize(.small)
-        }
-    }
-
-    /// Compose takes tone, name and terminology from the writing profile it
-    /// shares with Autocomplete. In Settings its fields are edited right here;
-    /// the standalone window links to this page.
-    @ViewBuilder private var writingProfileRow: some View {
-        if embedded {
-            SettingsLabel("Writing profile", help: "Compose uses it for tone, your name and terminology. Autocomplete uses the same profile.")
-                .settingTarget("settings.dictationWritingProfile", selected: app.focusedSettingID)
-            WritingProfileFields()
-        } else {
-            writingProfileSummaryRow
-        }
-    }
-
-    private var writingProfileSummaryRow: some View {
-        LabeledContent {
-            HStack(spacing: 8) {
-                Text(verbatim: Self.writingProfileSummary(app.settings) { app.settings.appLanguage.localized($0) })
-                    .settingsSecondary()
-                    .lineLimit(1)
-                Button("Edit…") {
-                    app.openSettings(tab: .dictation)
-                    app.focusedSettingID = "settings.dictationWritingProfile"
+                resultBox(nil) {
+                    Text("Your words appear here.").settingsSecondary()
                 }
-                .accessibilityIdentifier("dictation.writingProfile.edit")
             }
-        } label: {
-            SettingsLabel("Writing profile", help: "Compose uses it for tone, your name and terminology.")
         }
-        .settingTarget("settings.dictationWritingProfile", selected: app.focusedSettingID)
+        .onAppear { secureInputHolder = DictationSecureInput.holder() }
+        .onReceive(secureInputPoll) { _ in secureInputHolder = DictationSecureInput.holder() }
+    }
+
+    private func resultBox<Content: View>(_ title: String?, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let title {
+                Text(LocalizedStringKey(title)).font(AppFont.scaled(.callout).weight(.semibold)).settingsSecondary()
+            }
+            VStack(alignment: .leading, spacing: 8, content: content)
+                .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+                .padding(12)
+                .background(Color(nsColor: .textBackgroundColor),
+                            in: RoundedRectangle(cornerRadius: Brand.Radius.control))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Brand.Radius.control)
+                        .strokeBorder(Color(nsColor: .separatorColor))
+                        .allowsHitTesting(false)
+                }
+        }
     }
 
     static func writingProfileSummary(_ settings: AppSettings, localized: (String) -> String = { $0 }) -> String {
@@ -213,8 +365,8 @@ struct DictationView: View {
         return parts.isEmpty ? localized("Not set") : parts.joined(separator: ", ")
     }
 
-    private func lastResultSection(_ result: String) -> some View {
-        Section("Last result") {
+    private func lastResult(_ result: String) -> some View {
+        resultBox("Last result") {
             Text(result)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -240,8 +392,8 @@ struct DictationView: View {
         }
     }
 
-    private func lastSpokenRequestSection(_ transcript: String) -> some View {
-        Section("Last spoken request") {
+    private func lastSpokenRequest(_ transcript: String) -> some View {
+        resultBox("Last spoken request") {
             Text(transcript)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -256,18 +408,6 @@ struct DictationView: View {
         guard let latest = dictation.history.entries.first,
               latest.text == (dictation.lastComposedText ?? dictation.lastTranscript) else { return nil }
         return latest
-    }
-
-    @ViewBuilder private var recentSection: some View {
-        let entries = dictation.history.entries
-        let earlier = latestShownAbove == nil ? entries : Array(entries.dropFirst())
-        if !earlier.isEmpty {
-            RecentDictationsSection(
-                entries: earlier,
-                localized: { app.settings.appLanguage.localized($0) },
-                copy: { dictation.copyFromHistory($0) },
-                clear: { dictation.clearHistory() })
-        }
     }
 
     static func readyText(triggerMode: DictationTriggerMode, shortcut: DictationShortcut) -> String {

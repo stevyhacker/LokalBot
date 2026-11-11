@@ -6,7 +6,7 @@ import SwiftUI
 extension SettingsStatus.Input {
     /// The state Settings describes, read from the running app.
     @MainActor
-    init(app: AppState, permissions: PermissionManager) {
+    init(app: AppState, permissions: PermissionManager, downloadMinutesLeft: Int? = nil) {
         let settings = app.settings
         let snapshot = app.modelRoles.snapshot
         // The download plan already knows each role's model, its size and
@@ -35,6 +35,8 @@ extension SettingsStatus.Input {
                   calendar: calendar,
                   models: models,
                   freeBytes: snapshot.readiness.availableBytes,
+                  downloadMinutesLeft: downloadMinutesLeft,
+                  failedChecks: ModelRole.allCases.filter { app.modelChecks.results[$0]?.failure != nil },
                   emailConnected: !app.email.accounts.isEmpty,
                   agentKinds: app.agentReadAccess.granted.count,
                   agentsCanChangeSettings: app.settingsControl.isEnabled,
@@ -54,14 +56,28 @@ struct SettingsStatusObserver: View {
     @ObservedObject var email: EmailController
     @ObservedObject var companion: CompanionHost
     @ObservedObject var calendar: EventKitCalendarEventProvider
+    @ObservedObject var checks: ModelCheckController
     @Binding var status: SettingsStatus
+    /// Watches the bytes arrive, to say how long a download still takes.
+    @State private var estimator = DownloadTimeEstimator()
+    @State private var minutesLeft: Int?
 
     var body: some View {
-        let current = SettingsStatus(.init(app: app, permissions: permissions))
+        let current = SettingsStatus(.init(app: app, permissions: permissions, downloadMinutesLeft: minutesLeft))
         Color.clear
             .accessibilityHidden(true)
             .onChange(of: current, initial: true) { _, latest in
                 if status != latest { status = latest }
+            }
+            .onChange(of: current.runningDownload?.arrived) { _, _ in
+                guard let running = current.runningDownload else {
+                    estimator.reset()
+                    minutesLeft = nil
+                    return
+                }
+                estimator.record(downloadedBytes: running.arrived, at: Date())
+                let left = estimator.minutesLeft(totalBytes: running.total)
+                if left != minutesLeft { minutesLeft = left }
             }
     }
 }

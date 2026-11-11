@@ -237,6 +237,37 @@ final class ModelRolesTests: XCTestCase {
         await gate.waitUntilCompleted()
     }
 
+    /// Settings › Models' Cancel stops the selected models' downloads the
+    /// way each one's own Cancel on Downloaded does.
+    func testCancellingTheCoreDownloadsStopsTheSelectedTranscriptionPreparation() async {
+        let storage = temporaryStorage()
+        defer { try? FileManager.default.removeItem(at: storage.rootURL) }
+        let settings = isolatedSettings(transcription: .qwenASR06B)
+        let gate = PreparationGate()
+        var readinessChanges = 0
+        let roles = ModelRoles(
+            settings: { settings },
+            storage: storage,
+            downloads: ModelDownloadManager(),
+            prepareTranscription: { _, _, _ in await gate.run() },
+            downloadedTranscriptionModels: { _ in [] },
+            onReadinessChanged: { readinessChanges += 1 })
+
+        roles.startCoreModelDownloads(includeAutocomplete: false)
+        await gate.waitUntilStarted()
+        XCTAssertTrue(roles.isPreparingTranscription)
+        XCTAssertTrue(roles.snapshot[.transcribe].isWorking)
+
+        let before = readinessChanges
+        roles.cancelCoreModelDownloads()
+        XCTAssertFalse(roles.isPreparingTranscription)
+        XCTAssertEqual(roles.snapshot[.transcribe], .unavailable, "a cancelled download is not a failed one")
+        XCTAssertGreaterThan(readinessChanges, before)
+
+        await gate.release()
+        await gate.waitUntilCompleted()
+    }
+
     func testGraniteConfigurationChangeClearsFailureFromPreviousConfiguration() async throws {
         let storage = temporaryStorage()
         defer { try? FileManager.default.removeItem(at: storage.rootURL) }

@@ -318,29 +318,55 @@ final class MainWindowUITests: XCTestCase {
                       "Today did not replace Actions")
     }
 
-    /// The Models category presents compact role rows and focused editors.
+    /// The Models category says what each of the three models does, with
+    /// focused editors; the rest is behind More rows and a folded Advanced.
     func testModelsSectionRendersRoleCards() {
         clickSidebar("sidebar.settings")
         UITestHarness.selectSettingsCategory("Models", in: app)
+        let content = app.scrollViews["models.content"]
         XCTAssertTrue(app.descendants(matching: .any)["models.overview"]
             .waitForExistence(timeout: 6), "core readiness overview missing")
-        XCTAssertTrue(app.descendants(matching: .any)["models.storage"].exists,
-                      "model storage summary missing")
-        XCTAssertTrue(textWithContent("Core Roles").firstMatch.exists)
-        XCTAssertFalse(app.buttons["models.advanced"].exists,
-                       "Models should not hide configuration behind Advanced details")
+        XCTAssertTrue(textWithContent("What each model does").firstMatch.exists)
+        XCTAssertTrue(textWithContent("Turns meeting audio and dictation into text").firstMatch.exists,
+                      "each role says what it does in plain words")
         XCTAssertTrue(app.buttons["models.stack.change.transcribe"]
             .waitForExistence(timeout: 6),
                       "Core Transcribe row did not render its Change button")
-        XCTAssertTrue(app.descendants(matching: .any)["models.supporting.dictation"].exists,
+        for role in ["transcribe", "think", "autocomplete"] {
+            XCTAssertTrue(app.descendants(matching: .any)["models.stack.chip.\(role)"].exists,
+                          "\(role) has no status chip")
+        }
+
+        // Advanced is folded: storage and the checks are inside it.
+        let advanced = app.buttons["models.advanced"]
+        UITestHarness.scrollTo(advanced, in: app, within: content)
+        XCTAssertTrue(advanced.exists, "Advanced group missing")
+        XCTAssertFalse(app.descendants(matching: .any)["models.storage"].exists,
+                       "Advanced starts folded")
+        XCTAssertFalse(app.buttons["models.testAll"].exists,
+                       "Check Setup is no longer a button on the page")
+        advanced.click()
+        let checks = app.buttons["models.testAll"]
+        UITestHarness.scrollTo(checks, in: app, within: content)
+        XCTAssertTrue(checks.waitForExistence(timeout: 4), "the checks stay reachable under Advanced")
+        XCTAssertTrue(app.descendants(matching: .any)["models.storage"].exists,
+                      "model storage summary missing")
+        advanced.click()
+
+        // The other models are a page of their own.
+        let other = app.buttons["models.more.other"]
+        UITestHarness.scrollTo(other, in: app, within: content)
+        other.click()
+        XCTAssertTrue(app.descendants(matching: .any)["models.supporting.dictation"].waitForExistence(timeout: 4),
                       "dictation composition model card identifier missing")
         XCTAssertTrue(app.descendants(matching: .any)["models.supporting.search"].exists,
                       "embeddings model card identifier missing")
+        app.buttons["models.back"].click()
 
         for change in ["models.stack.change.transcribe", "models.stack.change.think", "models.stack.change.type"] {
             let button = app.buttons[change]
             XCTAssertTrue(button.waitForExistence(timeout: 4), "\(change) button missing")
-            UITestHarness.scrollTo(button, in: app, within: app.scrollViews["models.content"])
+            UITestHarness.scrollTo(button, in: app, within: content)
             button.click()
             let cancel = app.buttons["models.picker.cancel"]
             XCTAssertTrue(cancel.waitForExistence(timeout: 4), "The focused model editor must open as a sheet")
@@ -380,10 +406,14 @@ final class MainWindowUITests: XCTestCase {
         clickSidebar("sidebar.settings")
         UITestHarness.selectSettingsCategory("Models", in: app)
 
-        let preset = app.buttons["models.choosePreset"]
+        // The model set is a menu; choosing a set opens its review.
+        let preset = app.descendants(matching: .any)["models.choosePreset"].firstMatch
+        XCTAssertTrue(preset.waitForExistence(timeout: 5), "Model set menu missing")
         UITestHarness.scrollTo(preset, in: app)
-        XCTAssertTrue(preset.waitForExistence(timeout: 5), "Choose preset button missing")
         preset.click()
+        let lighter = app.menuItems.matching(NSPredicate(format: "title BEGINSWITH %@", "Lightweight local")).firstMatch
+        XCTAssertTrue(lighter.waitForExistence(timeout: 4), "The menu must offer the app's own presets")
+        lighter.click()
         XCTAssertTrue(app.buttons["models.preset.apply"]
             .waitForExistence(timeout: 4), "preset applied without a review step")
         XCTAssertTrue(textWithContent("Estimated new download").firstMatch.exists)

@@ -27,7 +27,6 @@ final class DictationSettingsUITests: XCTestCase {
             .waitForExistence(timeout: 10), "main window never rendered its Today landing")
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Dictation", in: app)
-        UITestHarness.scrollTo(app.buttons["Try here"], in: app, within: app.scrollViews["settings.form"], attempts: 16)
         XCTAssertTrue(dictationForm.waitForExistence(timeout: 8),
                       "Dictation tab did not render")
     }
@@ -38,13 +37,33 @@ final class DictationSettingsUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
+    /// The page holds the settings: the mode, with Compose's sources under
+    /// it, and who writes the text. Trying it out is the header's sheet.
     func testComposeByDefaultControlsRenderWithoutStartingRecording() {
-        XCTAssertTrue(app.buttons["Try here"].exists)
-        XCTAssertTrue(formText(containing: "never inserts into another app").exists)
+        XCTAssertFalse(app.buttons["dictation.try.action"].exists, "The try-out opens over the page")
         XCTAssertFalse(app.buttons["Dictation settings…"].exists)
-        XCTAssertTrue(formText(containing: "Speech uses the meeting ASR model").exists)
-        XCTAssertTrue(formText(containing: "Compose").exists)
+        let form = app.scrollViews["settings.form"]
+        let mode = app.descendants(matching: .any)["settings.dictationIntent"]
+        UITestHarness.scrollTo(mode, in: app, within: form, attempts: 16)
+        XCTAssertTrue(mode.exists, "Mode is a setting of the page")
+        UITestHarness.selectSegment("Compose", pickerIdentifier: "settings.dictationIntent", in: app)
+        let window = UITestHarness.toggle("The focused window", in: app)
+        UITestHarness.scrollTo(window, in: app, within: form, attempts: 16)
+        XCTAssertTrue(window.waitForExistence(timeout: 4), "Compose's sources are settings under Mode")
+        let writer = app.descendants(matching: .any)["settings.dictation.writer"]
+        UITestHarness.scrollTo(writer, in: app, within: form, attempts: 16)
+        let who = writer.label.isEmpty ? (writer.value as? String ?? "") : writer.label
+        XCTAssertTrue(who.contains("on this Mac"), "The row must say where the text is written, not '\(who)'")
+
+        UITestHarness.scrollTo(app.buttons["settings.header.dictation.tryIt"], in: app, within: form, attempts: 16)
+        app.buttons["settings.header.dictation.tryIt"].click()
+        let action = app.buttons["dictation.try.action"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5), "Try it… opens the try-out")
+        XCTAssertEqual(action.label, "Try here")
+        XCTAssertTrue(formText(containing: "Nothing is pasted into another app").exists)
         XCTAssertFalse(formText(containing: "Listening").exists)
+        app.buttons["dictation.try.done"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !action.exists }, "Done closes the try-out")
     }
 
     /// The page header says where Dictation stands: "Off" while the switch
@@ -123,10 +142,17 @@ final class DictationSettingsUITests: XCTestCase {
         UITestHarness.staticText(containing: fragment, in: app)
     }
 
+    /// Dictation's Compose model is one of the "Other models" on Models.
     private func openModels() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Models", in: app)
         let composition = compositionModelPicker
+        let other = app.buttons["models.more.other"]
+        if !composition.exists {
+            XCTAssertTrue(other.waitForExistence(timeout: 8), "Models has no Other models row")
+            UITestHarness.scrollTo(other, in: app, within: app.scrollViews["models.content"])
+            other.click()
+        }
         UITestHarness.scrollTo(composition, in: app, within: app.scrollViews["models.content"])
         XCTAssertTrue(composition.waitForExistence(timeout: 8),
                       "Models pane did not render Dictation composition")

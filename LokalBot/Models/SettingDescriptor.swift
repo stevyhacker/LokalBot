@@ -2,9 +2,16 @@ import Foundation
 
 struct SettingDescriptor: Identifiable {
     let id: String
+    /// The setting's name, the same as in `SettingRegistry` and the CLI.
     let title: String
     let category: AppState.SettingsTab
     let aliases: String
+    /// What its row on the page says, where that is plainer than the name.
+    /// Search shows this and finds the setting by either.
+    var label: String?
+
+    /// The name search results show: the row's own words.
+    var displayTitle: String { label ?? title }
 
     func currentValue(in settings: AppSettings, language: AppLanguage = .english) -> String {
         if id == "settings.models" { return InferencePresentation(settings: settings).label }
@@ -67,22 +74,24 @@ struct SettingDescriptor: Identifiable {
             SettingsSearchRanker.matches(query: query, haystack: [
                 $0.title, $0.aliases, $0.category.displayName,
                 language.localized($0.title), language.localized($0.category.displayName)
-            ] + $0.category.formerNames.flatMap { [$0, language.localized($0)] })
+            ] + ($0.label.map { [$0, language.localized($0)] } ?? [])
+                + $0.category.formerNames.flatMap { [$0, language.localized($0)] })
         }
             .sorted { lhs, rhs in
                 func score(_ entry: Self) -> Int {
-                    if entry.title.lowercased() == normalized { return 3 }
-                    if entry.title.lowercased().hasPrefix(normalized) { return 2 }
+                    let names = [entry.title.lowercased(), entry.displayTitle.lowercased()]
+                    if names.contains(normalized) { return 3 }
+                    if names.contains(where: { $0.hasPrefix(normalized) }) { return 2 }
                     return 1
                 }
                 if score(lhs) != score(rhs) { return score(lhs) > score(rhs) }
-                return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+                return lhs.displayTitle.localizedStandardCompare(rhs.displayTitle) == .orderedAscending
             }
     }
 
     static let all: [Self] = [
         .init(id: "settings.stopDebounceSeconds", title: "Wait before stopping", category: .recording, aliases: "stop debounce delay seconds audio"),
-        .init(id: "settings.cotypingDebounceMs", title: "Pause before suggesting", category: .writing, aliases: "autocomplete delay latency milliseconds"),
+        .init(id: "settings.cotypingDebounceMs", title: "Pause before suggesting", category: .writing, aliases: "autocomplete delay latency milliseconds", label: "Wait after you stop typing"),
         .init(id: "settings.screenshotIntervalMinutes", title: "Idle capture interval", category: .dayMemory, aliases: "screenshot frequency fallback minutes"),
         .init(id: "settings.personalLearningEnabled", title: "Learn about me from my meetings and work", category: .personalContext, aliases: "learn about me automatic facts goals profile overnight typing coding agents work memory"),
         .init(id: "settings.personalLearningFromDictation", title: "Learn from my dictation", category: .personalContext, aliases: "about you learn dictation dictated speech voice typing messages review"),
@@ -92,9 +101,9 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.openAIModel", title: "OpenAI-compatible model", category: .models, aliases: "remote inference model name"),
         .init(id: "settings.ollamaBaseURL", title: "Ollama server URL", category: .models, aliases: "local remote endpoint host"),
         .init(id: "settings.generationBudgetPreset", title: "Think processing budget", category: .models,
-              aliases: "generation budget limit tokens time requests unlimited conservative generous summary meeting notes"),
+              aliases: "generation budget limit tokens time requests unlimited conservative generous summary meeting notes", label: "Effort on long meetings"),
         .init(id: "settings.thinkReasoningLevel", title: "Think reasoning level", category: .models,
-              aliases: "reasoning effort thinking budget think off low medium high"),
+              aliases: "reasoning effort thinking budget think off low medium high", label: "How long Think reasons"),
         .init(id: "settings.transcriptionModel", title: "Transcribe model", category: .models, aliases: "ASR speech whisper qwen"),
         .init(id: "settings.modelDownloadSource", title: "Download models from", category: .models,
               aliases: "model download source mirror hf-mirror modelscope hugging face china mainland blocked 下载 模型下载 下载源 镜像 魔搭 中国 大陆"),
@@ -120,29 +129,30 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.windowHandoffShortcut", title: "Hand off shortcut", category: .ask,
               aliases: "hand off handoff hotkey keyboard key combination change"),
         .init(id: "settings.cotypingEnabled", title: "Enable autocomplete", category: .writing, aliases: "cotypingEnabled"),
+        .init(id: "settings.cotypingMaxWords", title: "Suggestion length", category: .writing, aliases: "autocomplete words up to cotypingMaxWords"),
         .init(id: "settings.autocompleteStatistics", title: "Autocomplete statistics", category: .writing,
               aliases: "stats usage acceptance accepted words saved time typing speed wpm chart"),
-        .init(id: "settings.cotypingMultiLine", title: "Allow multi-line suggestions", category: .writing, aliases: "cotypingMultiLine"),
-        .init(id: "settings.cotypingAcceptKey", title: "Accept next", category: .writing, aliases: "cotypingAcceptKey"),
-        .init(id: "settings.cotypingAcceptGranularity", title: "Each accept takes", category: .writing, aliases: "cotypingAcceptGranularity"),
-        .init(id: "settings.cotypingAutoAcceptTrailingPunctuation", title: "Accept punctuation with the word", category: .writing, aliases: "autocomplete tab full stop comma period"),
+        .init(id: "settings.cotypingMultiLine", title: "Allow multi-line suggestions", category: .writing, aliases: "cotypingMultiLine", label: "Suggestions longer than one line"),
+        .init(id: "settings.cotypingAcceptKey", title: "Accept next", category: .writing, aliases: "cotypingAcceptKey", label: "Accept with"),
+        .init(id: "settings.cotypingAcceptGranularity", title: "Each accept takes", category: .writing, aliases: "cotypingAcceptGranularity", label: "Each press accepts"),
+        .init(id: "settings.cotypingAutoAcceptTrailingPunctuation", title: "Accept punctuation with the word", category: .writing, aliases: "autocomplete tab full stop comma period", label: "Take punctuation with the word"),
         .init(id: "settings.cotypingEscapeBehavior", title: "Escape on a suggestion", category: .writing, aliases: "autocomplete esc dismiss pause suggestion"),
-        .init(id: "settings.cotypingUseAppContext", title: "Use app and window context", category: .writing, aliases: "cotypingUseAppContext"),
-        .init(id: "settings.cotypingUseClipboard", title: "Use clipboard as temporary context", category: .writing, aliases: "cotypingUseClipboard"),
-        .init(id: "settings.cotypingUseVisibleContext", title: "Use visible text above the field", category: .writing, aliases: "autocomplete screen context reply message email"),
-        .init(id: "settings.cotypingUseWindowText", title: "Use the focused window as context", category: .writing, aliases: "autocomplete window screen recording ocr text recognition whole screen conversation"),
-        .init(id: "settings.cotypingUseMeetingMemory", title: "Use meeting and work memory", category: .writing, aliases: "autocomplete context notes decisions projects people"),
-        .init(id: "settings.cotypingUseScreenMemory", title: "Use screen-derived work memory", category: .writing, aliases: "autocomplete saved context screen activity"),
+        .init(id: "settings.cotypingUseAppContext", title: "Use app and window context", category: .writing, aliases: "cotypingUseAppContext", label: "App and window name"),
+        .init(id: "settings.cotypingUseClipboard", title: "Use clipboard as temporary context", category: .writing, aliases: "cotypingUseClipboard", label: "Clipboard"),
+        .init(id: "settings.cotypingUseVisibleContext", title: "Use visible text above the field", category: .writing, aliases: "autocomplete screen context reply message email", label: "Text above where you type"),
+        .init(id: "settings.cotypingUseWindowText", title: "Use the focused window as context", category: .writing, aliases: "autocomplete window screen recording ocr text recognition whole screen conversation", label: "The whole window"),
+        .init(id: "settings.cotypingUseMeetingMemory", title: "Use meeting and work memory", category: .writing, aliases: "autocomplete context notes decisions projects people", label: "Facts from your meetings"),
+        .init(id: "settings.cotypingUseScreenMemory", title: "Use screen-derived work memory", category: .writing, aliases: "autocomplete saved context screen activity", label: "Facts from your screen history"),
         .init(id: "settings.cotypingUseLocalLearning", title: "Learn locally from accepted completions", category: .writing, aliases: "cotypingUseLocalLearning"),
         .init(id: "settings.cotypingUserName", title: "Your name (optional)", category: .writing, aliases: "cotypingUserName"),
         .init(id: "settings.cotypingStyleNote", title: "Writing style (optional)", category: .writing, aliases: "cotypingStyleNote"),
         .init(id: "settings.cotypingLanguages", title: "Languages (optional)", category: .writing, aliases: "cotypingLanguages"),
         .init(id: "settings.cotypingSuggestInIntegratedTerminals", title: "Suggest in integrated terminals", category: .writing, aliases: "cotypingSuggestInIntegratedTerminals"),
         .init(id: "settings.cotypingInProcessRuntime", title: "Use fast in-process runtime", category: .writing, aliases: "cotypingInProcessRuntime"),
-        .init(id: "settings.cotypingMatchHostStyle", title: "Match the app font and text color", category: .writing, aliases: "cotypingMatchHostStyle"),
+        .init(id: "settings.cotypingMatchHostStyle", title: "Match the app font and text color", category: .writing, aliases: "cotypingMatchHostStyle", label: "Match the app’s font and text color"),
         .init(id: "settings.cotypingChromiumEnhancedAccessibility", title: "Use enhanced accessibility in Chrome-based browsers", category: .writing, aliases: "cotypingChromiumEnhancedAccessibility"),
-        .init(id: "settings.cotypingAutocorrect", title: "Autocorrect the current word", category: .writing, aliases: "cotypingAutocorrect"),
-        .init(id: "settings.cotypingEmoji", title: "Emoji autocomplete", category: .writing, aliases: "cotypingEmoji"),
+        .init(id: "settings.cotypingAutocorrect", title: "Autocorrect the current word", category: .writing, aliases: "cotypingAutocorrect", label: "Fix typos in the current word"),
+        .init(id: "settings.cotypingEmoji", title: "Emoji autocomplete", category: .writing, aliases: "cotypingEmoji", label: "Suggest emoji"),
         .init(id: "settings.cotypingMacros", title: "Macros", category: .writing, aliases: "cotypingMacros"),
         .init(id: "settings.autoRecordMode", title: "When a meeting is detected", category: .recording, aliases: "autoRecordMode"),
         .init(id: "settings.calendarDetectionEnabled", title: "Use calendar to improve detection", category: .recording, aliases: "calendarDetectionEnabled"),
@@ -216,19 +226,20 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.cotypingExcludedDomains", title: "Never suggest on these sites", category: .writing, aliases: "exclude autocomplete websites"),
         .init(id: "settings.dayDigestCustomPrompt", title: "Digest instructions", category: .daily, aliases: "prompt daily journal"),
         .init(id: "settings.dictationEnabled", title: "Enable dictation shortcut", category: .dictation, aliases: "speech voice global"),
+        .init(id: "settings.dictationIntent", title: "Dictation mode", category: .dictation, aliases: "intent transcribe compose rewrite"),
         .init(id: "settings.dictationShortcut", title: "Dictation shortcut", category: .dictation, aliases: "hotkey keyboard key combination change"),
-        .init(id: "settings.dictationTriggerMode", title: "Dictation trigger", category: .dictation, aliases: "push to talk toggle"),
-        .init(id: "settings.dictationOutputMode", title: "Dictation output", category: .dictation, aliases: "clipboard paste focused app"),
+        .init(id: "settings.dictationTriggerMode", title: "Dictation trigger", category: .dictation, aliases: "push to talk toggle", label: "Start and stop"),
+        .init(id: "settings.dictationOutputMode", title: "Dictation output", category: .dictation, aliases: "clipboard paste focused app", label: "When you finish"),
         .init(id: "settings.dictationMicrophoneID", title: "Microphone", category: .dictation, aliases: "dictation input device airpods headset bluetooth built-in macbook mic"),
         .init(id: "settings.dictationPlaysStartSound", title: "Play a sound when the microphone is ready", category: .dictation, aliases: "dictation start cue chime beep tone"),
-        .init(id: "settings.dictationShowOverlay", title: "Show floating dictation status", category: .dictation, aliases: "overlay pill"),
-        .init(id: "settings.dictationLivePreview", title: "Show live transcript", category: .dictation, aliases: "speech preview"),
-        .init(id: "settings.dictationRetainAudio", title: "Keep dictation audio files", category: .dictation, aliases: "speech recording retention"),
-        .init(id: "settings.dictationUseScreenContext", title: "Use the focused window as context", category: .dictation, aliases: "dictation compose screenshot screen recording ocr window"),
+        .init(id: "settings.dictationShowOverlay", title: "Show floating dictation status", category: .dictation, aliases: "overlay pill", label: "Show a small status window"),
+        .init(id: "settings.dictationLivePreview", title: "Show live transcript", category: .dictation, aliases: "speech preview", label: "Show the words as you speak"),
+        .init(id: "settings.dictationRetainAudio", title: "Keep dictation audio files", category: .dictation, aliases: "speech recording retention", label: "Keep the audio files"),
+        .init(id: "settings.dictationUseScreenContext", title: "Use the focused window as context", category: .dictation, aliases: "dictation compose screenshot screen recording ocr window", label: "The focused window"),
         .init(id: "settings.dictationWritingProfile", title: "Writing profile", category: .dictation, aliases: "dictation compose tone name style terminology"),
-        .init(id: "settings.dictationUseVisibleContext", title: "Use visible text above the field", category: .dictation, aliases: "dictation compose screen context messages accessibility"),
-        .init(id: "settings.dictationUseMeetingMemory", title: "Use meeting and work memory", category: .dictation, aliases: "dictation compose saved facts notes context"),
-        .init(id: "settings.dictationUseScreenMemory", title: "Use screen-derived work memory", category: .dictation, aliases: "dictation compose saved screen facts context"),
+        .init(id: "settings.dictationUseVisibleContext", title: "Use visible text above the field", category: .dictation, aliases: "dictation compose screen context messages accessibility", label: "Text above where you type"),
+        .init(id: "settings.dictationUseMeetingMemory", title: "Use meeting and work memory", category: .dictation, aliases: "dictation compose saved facts notes context", label: "Facts from your meetings"),
+        .init(id: "settings.dictationUseScreenMemory", title: "Use screen-derived work memory", category: .dictation, aliases: "dictation compose saved screen facts context", label: "Facts from your screen history"),
         .init(id: "settings.models", title: "Configured models", category: .models, aliases: "transcribe think autocomplete LLM backend download ollama openai"),
         .init(id: "settings.permissions", title: "Permissions", category: .privacy, aliases: "microphone screen recording accessibility input monitoring"),
         .init(id: "settings.memoryHealth", title: "Memory health", category: .advanced, aliases: "diagnostics capture recovery"),

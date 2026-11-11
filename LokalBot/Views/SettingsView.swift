@@ -10,10 +10,9 @@ struct SettingsView: View {
     @StateObject private var updates = AppUpdateManager.shared
     @State private var cliMessage: String?
     @State private var exportingDiagnostics = false
-    @State private var writingAdvancedExpanded = false
-    @State private var forgettingCotypingLearning = false
     @State private var confirmingDreamMemoryClear = false
-    @State private var cotypingLearningMessage: String?
+    /// The page a row of Autocomplete or Dictation opened in its place.
+    @State private var subpage: SettingsSubpage?
     /// Model choices and transcription options open over the page that uses
     /// them, so no setting sends you to another page to finish.
     @State private var sheet: SettingsSheet?
@@ -53,6 +52,12 @@ struct SettingsView: View {
                     })
                 case .transcriptionOptions:
                     ModelTranscriptionOptionsSheet(app: app)
+                case .tryAutocomplete:
+                    AutocompleteTrySheet(server: app.cotypingServer)
+                        .environmentObject(app)
+                case .tryDictation:
+                    DictationTrySheet(dictation: app.dictation, status: status)
+                        .environmentObject(app)
                 }
             }
             .accessibilityElement(children: .contain)
@@ -74,7 +79,7 @@ struct SettingsView: View {
         .background(SettingsStatusObserver(
             app: app, permissions: permissions, modelRoles: app.modelRoles, access: app.agentReadAccess,
             settingsControl: app.settingsControl, email: app.email, companion: app.companion,
-            calendar: app.calendar, status: $status))
+            calendar: app.calendar, checks: app.modelChecks, status: $status))
         .task {
             // Lets a window opened from the menu bar alone open the others.
             WindowAccess.shared.register { openWindow(id: $0) }
@@ -86,12 +91,38 @@ struct SettingsView: View {
             app.calendar.refreshAuthorizationStatus()
             app.refreshDreamMemory()
         }
-        .onChange(of: app.settingsTab) { _, page in history.visit(page) }
+        .onChange(of: app.settingsTab) { _, page in
+            history.visit(page)
+            // A row's page belongs to the Settings page that opened it.
+            if subpage?.page != page { subpage = nil }
+        }
+        .onChange(of: app.focusedSettingID, initial: true) { revealFocusedSetting() }
         .onDisappear {
             power.stop()
             permissions.stopPolling()
             PermissionGuidanceController.shared.dismiss()
         }
+    }
+
+    /// Search and deep links land on settings that a row's page holds, and
+    /// the Autocomplete and Dictation commands open the try-out sheet.
+    private func revealFocusedSetting() {
+        guard let id = app.focusedSettingID else { return }
+        if let sheet = SettingsSheet(focusedSettingID: id, on: app.settingsTab) {
+            self.sheet = sheet
+            // Consumed, so reopening Settings does not open the sheet again.
+            app.focusedSettingID = nil
+        } else if let holder = SettingsSubpage.containing(settingID: id, on: app.settingsTab) {
+            subpage = holder
+        } else if subpage?.page == app.settingsTab {
+            // The setting is on the page itself.
+            subpage = nil
+        }
+    }
+
+    /// The open row's page, while its own Settings page is the one shown.
+    private var openSubpage: SettingsSubpage? {
+        subpage.flatMap { $0.page == app.settingsTab ? $0 : nil }
     }
 
     private var queryIsEmpty: Bool {
@@ -157,39 +188,48 @@ struct SettingsView: View {
             ModelsView(status: status)
                 .settingTarget("settings.models", selected: app.focusedSettingID)
         } else {
-            ScrollViewReader { proxy in
-                Form {
-                    Section { header(for: app.settingsTab) }
-                    sections(for: app.settingsTab)
+            VStack(spacing: 0) {
+                if let openSubpage {
+                    SettingsSubpageBar(subpage: openSubpage) { subpage = nil }
+                        .frame(maxWidth: LBTokens.Metric.readingMaxWidth + 16)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 2)
                 }
-                .formStyle(.grouped)
-                .toggleStyle(LBAccentSwitchStyle())
-                .frame(maxWidth: LBTokens.Metric.readingMaxWidth + 56)
-                .frame(maxWidth: .infinity)
-                .scrollContentBackground(.hidden)
-                .accessibilityIdentifier("settings.form")
-                .onChange(of: app.focusedSettingID, initial: true) {
-                    guard let id = app.focusedSettingID else { return }
-                    DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
+                ScrollViewReader { proxy in
+                    Form {
+                        // A row's page opens with the way back instead of the header.
+                        if openSubpage == nil { Section { header(for: app.settingsTab) } }
+                        sections(for: app.settingsTab)
+                    }
+                    .formStyle(.grouped)
+                    .toggleStyle(LBAccentSwitchStyle())
+                    .frame(maxWidth: LBTokens.Metric.readingMaxWidth + 56)
+                    .frame(maxWidth: .infinity)
+                    .scrollContentBackground(.hidden)
+                    .accessibilityIdentifier("settings.form")
+                    .onChange(of: app.focusedSettingID, initial: true) {
+                        guard let id = app.focusedSettingID else { return }
+                        DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
+                    }
                 }
+                // Each page, and each row's page, starts at its own top.
+                .id(openSubpage?.rawValue ?? app.settingsTab.rawValue)
             }
-            .id(app.settingsTab)
         }
     }
 
     /// The shared header, with the main switch on the pages that have one
-    /// and "Try it…" where the feature can be tried. Until each has a sheet
-    /// of its own, "Try it…" goes to the rehearsal further down the page.
+    /// and "Try it…" where the feature can be tried, in a sheet over the page.
     @ViewBuilder private func header(for tab: AppState.SettingsTab) -> some View {
         switch tab {
         case .writing:
             SettingsPageHeader(page: tab, status: status,
-                               tryIt: { app.focusedSettingID = "settings.autocompletePreview" },
+                               tryIt: { sheet = .tryAutocomplete },
                                isOn: $app.settings.cotypingEnabled, switchLabel: "Enable autocomplete",
                                switchSettingID: "settings.cotypingEnabled")
         case .dictation:
             SettingsPageHeader(page: tab, status: status,
-                               tryIt: { app.focusedSettingID = "settings.dictationPreview" },
+                               tryIt: { sheet = .tryDictation },
                                isOn: $app.settings.dictationEnabled, switchLabel: "Enable dictation shortcut",
                                switchSettingID: "settings.dictationEnabled")
         default:
@@ -225,12 +265,11 @@ struct SettingsView: View {
         case .daily:
             dayDigestSection; dreamingSection; routinesSection; dailyNoteExportSection
         case .writing:
-            AutocompleteExperienceView(server: app.cotypingServer)
-            AutocompleteStatisticsView()
-            cotypingSection
+            AutocompleteSettingsSections(server: app.cotypingServer, subpage: openSubpage,
+                                         open: { subpage = $0 }, changeModel: { sheet = .model(.autocomplete) })
         case .dictation:
-            Section("Dictation") { DictationSettingsControls(showsEnableToggle: false) }
-            DictationView(dictation: app.dictation, embedded: true)
+            DictationSettingsSections(dictation: app.dictation, subpage: openSubpage,
+                                      open: { subpage = $0 }, changeModel: { sheet = .model($0) })
         case .agents:
             agentAccessSection; agentCLISection
         case .devices:
@@ -251,11 +290,10 @@ struct SettingsView: View {
             Button {
                 app.settingsTab = result.category
                 app.focusedSettingID = result.focusTarget(in: app.settings)
-                writingAdvancedExpanded = result.category == .writing
                 settingsQuery = ""
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(LocalizedStringKey(result.title)).font(AppFont.scaled(.body).weight(.semibold))
+                    Text(LocalizedStringKey(result.displayTitle)).font(AppFont.scaled(.body).weight(.semibold))
                     Text("\(result.currentValue(in: app.settings, language: app.settings.appLanguage)) · \(app.settings.appLanguage.localized(result.category.displayName))")
                         .font(AppFont.scaled(.callout)).settingsSecondary()
                     if let prerequisite = result.prerequisite(in: app.settings) {
@@ -485,173 +523,6 @@ struct SettingsView: View {
         } label: {
             SettingsLabel(title, help: help)
         }
-    }
-
-    @ViewBuilder private var cotypingSection: some View {
-            Section("Autocomplete") {
-                // The model, or a server, is chosen in the same picker Models uses.
-                modelRow(.autocomplete, title: "Autocomplete model", value: app.settings.cotypingModelDisplayName)
-                Stepper("Suggestion length: up to \(app.settings.cotypingMaxWords) words",
-                        value: $app.settings.cotypingMaxWords, in: 2...50)
-                Toggle("Allow multi-line suggestions", isOn: $app.settings.cotypingMultiLine)
-                    .settingTarget("settings.cotypingMultiLine", selected: app.focusedSettingID)
-                LabeledContent("Pause before suggesting") {
-                    HStack(spacing: 10) {
-                        Slider(value: Binding(
-                            get: { Double(app.settings.cotypingDebounceMs) },
-                            set: { app.settings.cotypingDebounceMs = Int($0) }),
-                            in: 20...1_000, step: 20)
-                            .frame(maxWidth: 220)
-                            .accessibilityLabel("Pause before suggesting")
-                        Text("\(app.settings.cotypingDebounceMs) ms")
-                            .monospacedDigit()
-                            .settingsSecondary()
-                            .frame(minWidth: 56, alignment: .trailing)
-                    }
-                }
-                .settingTarget("settings.cotypingDebounceMs", selected: app.focusedSettingID)
-                Picker("Accept next", selection: $app.settings.cotypingAcceptKey) {
-                    ForEach(CotypingAcceptKey.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
-                }
-                    .settingTarget("settings.cotypingAcceptKey", selected: app.focusedSettingID)
-                Picker("Each accept takes", selection: $app.settings.cotypingAcceptGranularity) {
-                    ForEach(CotypingAcceptGranularity.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
-                }
-                    .settingTarget("settings.cotypingAcceptGranularity", selected: app.focusedSettingID)
-                Toggle(isOn: $app.settings.cotypingAutoAcceptTrailingPunctuation) {
-                    SettingsLabel("Accept punctuation with the word",
-                                  help: "When off, a full stop or comma after a word takes its own press, so you can still end the sentence differently.")
-                }
-                    .settingTarget("settings.cotypingAutoAcceptTrailingPunctuation", selected: app.focusedSettingID)
-                Picker(selection: $app.settings.cotypingEscapeBehavior) {
-                    ForEach(CotypingEscapeBehavior.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
-                } label: {
-                    SettingsLabel("Escape on a suggestion",
-                                  help: "Pausing keeps Escape from also reaching the app and holds suggestions in that field for a few seconds. Escape is never touched when no suggestion is showing.")
-                }
-                    .settingTarget("settings.cotypingEscapeBehavior", selected: app.focusedSettingID)
-            }
-            Section("Context") {
-                let context = cotypingContext
-                if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
-                    Label("Context you turn on here is sent to \(host) with what you type.", systemImage: "network")
-                        .settingsSecondary()
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Toggle("Use app and window context", isOn: $app.settings.cotypingUseAppContext)
-                    .settingTarget("settings.cotypingUseAppContext", selected: app.focusedSettingID)
-                Toggle("Use clipboard as temporary context", isOn: $app.settings.cotypingUseClipboard)
-                    .settingTarget("settings.cotypingUseClipboard", selected: app.focusedSettingID)
-                Toggle(isOn: $app.settings.cotypingUseVisibleContext) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        SettingsLabel("Use visible text above the field",
-                                      help: "Use nearby messages and labels to suggest relevant replies. Processed locally, never saved; capture exclusions apply and private browser windows are skipped.")
-                        CotypingContextStateLabel(state: context.visibleText)
-                    }
-                }
-                .settingTarget("settings.cotypingUseVisibleContext", selected: app.focusedSettingID)
-                Toggle(isOn: $app.settings.cotypingUseWindowText) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        SettingsLabel("Use the focused window as context",
-                                      help: "Read the whole window you are typing in with on-device text recognition, so suggestions follow the full conversation or page. Needs Screen Recording. The image and text stay on this Mac and are never saved; capture exclusions apply and private browser windows are skipped.")
-                        CotypingContextStateLabel(state: context.windowText)
-                    }
-                }
-                .settingTarget("settings.cotypingUseWindowText", selected: app.focusedSettingID)
-                Toggle(isOn: $app.settings.cotypingUseMeetingMemory) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        SettingsLabel("Use meeting and work memory",
-                                      help: "Use up to two relevant facts from recent meeting notes, decisions, and work memory to help with names and details. Processed on this Mac.")
-                        CotypingContextStateLabel(state: context.meetingMemory)
-                    }
-                }
-                .settingTarget("settings.cotypingUseMeetingMemory", selected: app.focusedSettingID)
-                Toggle(isOn: $app.settings.cotypingUseScreenMemory) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        SettingsLabel("Use screen-derived work memory",
-                                      help: "Also allow relevant work memory derived from screen activity and daily journals. Reads what is already saved; it does not capture new screens or start an overnight review. Mixed meeting and screen memories require both settings.")
-                        CotypingContextStateLabel(state: context.screenMemory)
-                    }
-                }
-                .settingTarget("settings.cotypingUseScreenMemory", selected: app.focusedSettingID)
-                if !app.cotyping.memoryContextSources.isEmpty {
-                    Text("Last suggestion used: " + app.cotyping.memoryContextSources.joined(separator: ", "))
-                        .settingsSecondary()
-                } else if app.cotyping.memoryContextSearched {
-                    Text("Last suggestion: no relevant memory found.")
-                        .settingsSecondary()
-                }
-            }
-            Section {
-                WritingProfileFields()
-                Toggle(isOn: $app.settings.cotypingUseLocalLearning) {
-                    SettingsLabel("Learn locally from accepted completions",
-                                  help: "Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.")
-                }
-                    .settingTarget("settings.cotypingUseLocalLearning", selected: app.focusedSettingID)
-                Button(LocalizedStringKey(forgettingCotypingLearning ? "Forgetting…" : "Forget learned text")) {
-                    forgettingCotypingLearning = true
-                    cotypingLearningMessage = nil
-                    Task {
-                        defer { forgettingCotypingLearning = false }
-                        do {
-                            try await app.cotyping.forgetLearnedText()
-                            cotypingLearningMessage = "Learned text deleted."
-                        } catch {
-                            cotypingLearningMessage = "Could not delete learned text. Please try again."
-                        }
-                    }
-                }
-                .disabled(forgettingCotypingLearning)
-                if let cotypingLearningMessage {
-                    Text(cotypingLearningMessage).settingsSecondary()
-                }
-            } header: {
-                Text("Writing profile")
-            } footer: {
-                SettingsHelp("Dictation’s Compose uses the same profile.")
-            }
-            Section("Exclusions") {
-                ExclusionRulesEditor(title: "Never suggest in these apps", value: $app.settings.cotypingExcludedApps, kind: .applications)
-                    .settingTarget("settings.cotypingExcludedApps", selected: app.focusedSettingID)
-                ExclusionRulesEditor(title: "Never suggest on these sites", value: $app.settings.cotypingExcludedDomains, kind: .writingDomains)
-                    .settingTarget("settings.cotypingExcludedDomains", selected: app.focusedSettingID)
-                Toggle("Suggest in integrated terminals",
-                       isOn: $app.settings.cotypingSuggestInIntegratedTerminals)
-                    .settingTarget("settings.cotypingSuggestInIntegratedTerminals", selected: app.focusedSettingID)
-            }
-            // Visible by default: hidden under Advanced, few people found them.
-            Section("Extras") {
-                Toggle("Autocorrect the current word",
-                       isOn: $app.settings.cotypingAutocorrect)
-                .settingTarget("settings.cotypingAutocorrect", selected: app.focusedSettingID)
-                Toggle("Emoji autocomplete", isOn: $app.settings.cotypingEmoji)
-                .settingTarget("settings.cotypingEmoji", selected: app.focusedSettingID)
-                Toggle("Macros", isOn: $app.settings.cotypingMacros)
-                .settingTarget("settings.cotypingMacros", selected: app.focusedSettingID)
-                Toggle("Match the app font and text color",
-                       isOn: $app.settings.cotypingMatchHostStyle)
-                .settingTarget("settings.cotypingMatchHostStyle", selected: app.focusedSettingID)
-            }
-            Section {
-                DisclosureGroup("Advanced", isExpanded: Binding(
-                    get: { writingAdvancedExpanded || app.focusedSettingID != nil },
-                    set: { writingAdvancedExpanded = $0 })) {
-                    Toggle("Use fast in-process runtime",
-                           isOn: $app.settings.cotypingInProcessRuntime)
-                    .disabled(app.settings.cotypingBackend != .onDevice)
-                    .settingTarget("settings.cotypingInProcessRuntime", selected: app.focusedSettingID)
-                    Toggle("Use enhanced accessibility in Chrome-based browsers",
-                           isOn: $app.settings.cotypingChromiumEnhancedAccessibility)
-                    .settingTarget("settings.cotypingChromiumEnhancedAccessibility", selected: app.focusedSettingID)
-                }
-            }
-    }
-
-    /// What each optional autocomplete context source can do right now.
-    private var cotypingContext: CotypingContextAvailability {
-        app.cotypingContextAvailability(accessibilityGranted: permissions.granted[.accessibility] ?? false,
-                                        screenRecordingGranted: permissions.granted[.screenRecording] ?? false)
     }
 
     @ViewBuilder private var meetingsSection: some View {

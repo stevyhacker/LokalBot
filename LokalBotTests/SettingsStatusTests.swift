@@ -46,7 +46,9 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(status.badge(.privacy), 0)
         XCTAssertEqual(status.badge(.models), 0)
         XCTAssertEqual(status.lines(for: .privacy).map(\.text.key), ["All set. Nothing leaves this Mac."])
-        XCTAssertEqual(status.lines(for: .models).map(\.text.key), ["All set. Every model runs on this Mac."])
+        // Ready models say what they take and what is free.
+        XCTAssertEqual(status.lines(for: .models).map(\.text.key),
+                       ["All ready. The models take about %@ on this Mac, and %@ is free."])
     }
 
     /// A permission that has not been read yet counts as granted, so no
@@ -183,10 +185,94 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(text(status.detail(of: need)),
                        "\(SettingsStatus.size(5_000_000_000)) · New meetings wait to be transcribed until then.")
         let line = status.lines(for: .models).first
-        XCTAssertEqual(line?.action, .download)
+        // The header's "Download all" button downloads them, so the line has none of its own.
+        XCTAssertNil(line?.action)
+        XCTAssertEqual(status.bytesToDownload, 5_000_000_000)
         XCTAssertEqual(line.map { text($0.text) },
                        "Not downloaded yet. They need \(SettingsStatus.size(5_000_000_000)), and this Mac has "
                            + "\(SettingsStatus.size(50_000_000_000)) free.")
+    }
+
+    /// While the header shows Cancel for a running download, a model that
+    /// still has to be asked for keeps its own Download button.
+    func testAMissingModelKeepsItsDownloadButtonWhileAnotherDownloads() {
+        let status = status {
+            $0.models = [self.model(.transcribe, .unavailable, bytes: 2_000_000_000),
+                         self.model(.think, .downloading(progress: 0.25), bytes: 4_000_000_000),
+                         self.model(.autocomplete, .ready)]
+        }
+
+        let lines = status.lines(for: .models)
+        XCTAssertEqual(lines.map(\.id), ["download", "downloading"])
+        XCTAssertEqual(lines.first?.action, .download)
+        XCTAssertEqual(status.bytesToDownload, 2_000_000_000)
+    }
+
+    func testADownloadSaysHowMuchHasArrivedAndHowLongItStillTakes() {
+        func line(minutes: Int?) -> String? {
+            let status = status {
+                $0.downloadMinutesLeft = minutes
+                $0.models = [self.model(.transcribe, .ready),
+                             self.model(.think, .downloading(progress: 0.5), bytes: 2_000_000_000),
+                             self.model(.autocomplete, .downloading(progress: 0.25), bytes: 4_000_000_000)]
+            }
+            XCTAssertEqual(status.runningDownload?.arrived, 2_000_000_000)
+            XCTAssertEqual(status.runningDownload?.total, 6_000_000_000)
+            return status.lines(for: .models).first.map { text($0.text) }
+        }
+        let arrived = SettingsStatus.size(2_000_000_000), total = SettingsStatus.size(6_000_000_000)
+
+        XCTAssertEqual(line(minutes: nil), "Downloading · \(arrived) of \(total)")
+        XCTAssertEqual(line(minutes: 1), "Downloading · \(arrived) of \(total) · about 1 minute left")
+        XCTAssertEqual(line(minutes: 5), "Downloading · \(arrived) of \(total) · about 5 minutes left")
+
+        // Without a size or a progress there is nothing to count.
+        let unknown = status {
+            $0.models = [self.model(.transcribe, .ready), self.model(.think, .downloading(progress: nil)),
+                         self.model(.autocomplete, .ready)]
+        }
+        XCTAssertNil(unknown.runningDownload)
+        XCTAssertEqual(unknown.lines(for: .models).first.map { text($0.text) }, "Thinker is downloading.")
+    }
+
+    func testReadyModelsSayWhatTheyTakeAndWhatIsFree() {
+        let ready = status {
+            $0.models = [self.model(.transcribe, .ready, bytes: 3_000_000_000),
+                         self.model(.think, .ready, bytes: 2_000_000_000),
+                         // Autocomplete is off and its model is not here: it is not counted.
+                         self.model(.autocomplete, .unavailable, bytes: 4_000_000_000)]
+        }
+        let line = ready.lines(for: .models).first
+        XCTAssertEqual(line?.tone, .ok)
+        XCTAssertEqual(line.map { text($0.text) },
+                       "All ready. The models take about \(SettingsStatus.size(5_000_000_000)) on this Mac, and "
+                           + "\(SettingsStatus.size(50_000_000_000)) is free.")
+
+        let unknown = status { $0.freeBytes = nil }
+        XCTAssertEqual(unknown.lines(for: .models).first.map { text($0.text) },
+                       "All set. Every model runs on this Mac.")
+    }
+
+    /// A model that is here and did not answer its check is said on Models,
+    /// with the way to the sheet that checks it again. It is not a count
+    /// badge: the model may still work.
+    func testAFailedCheckIsALineOnModels() {
+        let status = status { $0.failedChecks = [.think] }
+
+        let line = status.lines(for: .models).first
+        XCTAssertEqual(line?.id, "check.think")
+        XCTAssertEqual(line?.tone, .need)
+        XCTAssertEqual(line.map { text($0.text) }, "Thinker didn’t pass its check.")
+        XCTAssertEqual(line?.action, .open(.models, focus: SettingsStatus.modelChecksFocus))
+        XCTAssertEqual(line?.buttonTitle, "Review…")
+        XCTAssertEqual(status.badge(.models), 0)
+
+        // A check of a model that has since gone says nothing.
+        let gone = self.status {
+            $0.failedChecks = [.think]
+            $0.models[1].status = .unavailable
+        }
+        XCTAssertFalse(gone.lines(for: .models).contains { $0.id == "check.think" })
     }
 
     func testAutocompleteModelIsNeededOnlyWhileAutocompleteIsOn() {
@@ -433,6 +519,15 @@ final class SettingsStatusTests: XCTestCase {
                          self.model(.autocomplete, .downloading(progress: nil))]
         })
         collect(status { $0.settings.trackingEnabled = false; $0.freeBytes = nil; $0.models[0].status = .unavailable })
+        for minutes in [nil, 1, 7] as [Int?] {
+            collect(status {
+                $0.downloadMinutesLeft = minutes
+                $0.models[1].status = .downloading(progress: 0.4)
+                $0.models[2].status = .unavailable
+                $0.settings.cotypingEnabled = true
+            })
+        }
+        collect(status { $0.failedChecks = [.transcribe] })
         for permission in SettingsPermission.allCases {
             keys.formUnion([permission.title, permission.usedBy, permission.allowTitle])
         }

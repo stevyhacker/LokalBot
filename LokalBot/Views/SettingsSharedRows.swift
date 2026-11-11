@@ -4,11 +4,141 @@ import SwiftUI
 enum SettingsSheet: Identifiable {
     case model(ModelPickerRole)
     case transcriptionOptions
+    /// "Try it…" on Autocomplete and Dictation.
+    case tryAutocomplete
+    case tryDictation
 
     var id: String {
         switch self {
         case .model(let role): "model.\(role.rawValue)"
         case .transcriptionOptions: "transcriptionOptions"
+        case .tryAutocomplete: "tryAutocomplete"
+        case .tryDictation: "tryDictation"
+        }
+    }
+
+    /// The sheet a deep link to a feature's try-out opens.
+    init?(focusedSettingID: String?, on page: AppState.SettingsTab) {
+        switch (focusedSettingID, page) {
+        case ("settings.autocompletePreview", .writing): self = .tryAutocomplete
+        case ("settings.dictationPreview", .dictation): self = .tryDictation
+        default: return nil
+        }
+    }
+}
+
+// MARK: - Rows
+
+/// A longer explanation behind an "i", so the row itself stays one line.
+struct SettingsInfoButton: View {
+    let text: String
+    @State private var shown = false
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Button { shown.toggle() } label: {
+            Image(systemName: "info.circle")
+                .font(AppFont.scaled(.body))
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .settingsSecondary()
+        .help(Text(LocalizedStringKey(text)))
+        .accessibilityLabel("More information")
+        .accessibilityHint(Text(LocalizedStringKey(text)))
+        .popover(isPresented: $shown, arrowEdge: .bottom) {
+            Text(LocalizedStringKey(text))
+                .font(AppFont.scaled(.callout))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: 300, alignment: .leading)
+                .padding(14)
+        }
+    }
+}
+
+/// A switch with its name at the left, an optional line under the name, an
+/// optional "i", and an optional line of state that the caller draws.
+struct SettingsSwitchRow<Status: View>: View {
+    let title: String
+    var detail: String?
+    var info: String?
+    @Binding var isOn: Bool
+    @ViewBuilder var status: Status
+
+    var body: some View {
+        LabeledContent {
+            HStack(spacing: 8) {
+                if let info { SettingsInfoButton(info) }
+                Toggle(isOn: $isOn) { Text(LocalizedStringKey(title)) }
+                    .labelsHidden()
+                    .accessibilityLabel(Text(LocalizedStringKey(title)))
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(LocalizedStringKey(title))
+                if let detail { SettingsHelp(detail) }
+                status
+            }
+        }
+    }
+}
+
+extension SettingsSwitchRow where Status == EmptyView {
+    init(_ title: String, detail: String? = nil, info: String? = nil, isOn: Binding<Bool>) {
+        self.init(title: title, detail: detail, info: info, isOn: isOn) { EmptyView() }
+    }
+}
+
+/// A row that opens another page: its name, an optional line under it, an
+/// optional value, and a chevron.
+struct SettingsDrillRow: View {
+    let title: String
+    var detail: String?
+    var value: String?
+    let identifier: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            LabeledContent {
+                HStack(spacing: 6) {
+                    if let value {
+                        Text(verbatim: value).settingsSecondary().lineLimit(1).truncationMode(.middle)
+                    }
+                    Image(systemName: "chevron.forward").font(.scaled(.caption)).settingsSecondary()
+                        .accessibilityHidden(true)
+                }
+            } label: {
+                SettingsLabel(title, help: detail)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+/// The way back from a page a row opened, and that page's name.
+struct SettingsSubpageBar: View {
+    let subpage: SettingsSubpage
+    let back: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: back) {
+                Label { Text(LocalizedStringKey(subpage.page.displayName)) } icon: {
+                    Image(systemName: "chevron.backward")
+                }
+            }
+            .accessibilityIdentifier("settings.subpage.back")
+            Text(LocalizedStringKey(subpage.title)).font(.scaled(.headline))
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("settings.subpage.title")
+            Spacer(minLength: 12)
         }
     }
 }

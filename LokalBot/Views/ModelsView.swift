@@ -8,8 +8,8 @@ struct ModelsView: View {
     @SceneStorage("settings.models.page") private var pageValue = ModelsSettingsPage.active.rawValue
     @State private var sheet: ModelsSettingsSheet?
     @State private var selectedPreset = ModelStackPreset.recommended
-    /// In Settings, what the shared page header says about the models.
-    var status: SettingsStatus?
+    /// What the shared page header says about the models.
+    let status: SettingsStatus
 
     private var page: Binding<ModelsSettingsPage> {
         Binding(get: { ModelsSettingsPage(rawValue: pageValue) ?? .active }, set: { pageValue = $0.rawValue })
@@ -18,22 +18,20 @@ struct ModelsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // The page opens with the shared Settings header, which carries
-            // Check Setup; Downloaded and Connections keep their way back.
+            // the download; the pages it opens keep their way back.
             Group {
-                if let status, page.wrappedValue == .active {
-                    SettingsPageHeader(page: .models, status: status) { checkSetupButton }
+                if page.wrappedValue == .active {
+                    SettingsPageHeader(page: .models, status: status) { downloadControl }
                         .settingsPageHeaderCard()
                 } else {
                     HStack(spacing: 12) {
-                        if page.wrappedValue != .active {
-                            Button { page.wrappedValue = .active } label: {
-                                Label("Models", systemImage: "chevron.left")
-                            }
-                            .accessibilityIdentifier("models.back")
-                            Text(page.wrappedValue.title).font(.scaled(.headline))
+                        Button { page.wrappedValue = .active } label: {
+                            Label("Models", systemImage: "chevron.backward")
                         }
+                        .accessibilityIdentifier("models.back")
+                        Text(LocalizedStringKey(page.wrappedValue.title)).font(.scaled(.headline))
+                            .accessibilityAddTraits(.isHeader)
                         Spacer(minLength: 12)
-                        checkSetupButton
                     }
                 }
             }
@@ -51,13 +49,18 @@ struct ModelsView: View {
                     Group {
                         switch page.wrappedValue {
                         case .active:
-                            ModelStackOverviewView(app: app, present: { sheet = $0 }, connections: showConnections,
-                                                   choosePreset: { selectedPreset = $0; sheet = .presets },
-                                                   manageDownloads: { page.wrappedValue = .downloaded })
+                            ModelStackOverviewView(app: app, present: { sheet = $0 },
+                                                   open: { page.wrappedValue = $0 },
+                                                   choosePreset: { selectedPreset = $0; sheet = .presets })
                         case .downloaded:
                             ModelDownloadsView(app: app)
                         case .connections:
-                            ModelConnectionsView(app: app)
+                            VStack(alignment: .leading, spacing: 18) {
+                                ModelRemoteOverview(app: app)
+                                ModelConnectionsView(app: app)
+                            }
+                        case .other:
+                            ModelOtherModelsView(app: app, present: { sheet = $0 })
                         }
                     }
                     // Every page shares one centered column, like other Settings tabs.
@@ -69,8 +72,8 @@ struct ModelsView: View {
                 .accessibilityIdentifier("models.content")
                 .id(page.wrappedValue)
                 .onChange(of: app.focusedSettingID, initial: true) {
-                    guard app.focusedSettingID == "settings.generationBudgetPreset" else { return }
-                    DispatchQueue.main.async { proxy.scrollTo("settings.generationBudgetPreset", anchor: .center) }
+                    guard let id = app.focusedSettingID, Self.settingsOnThePage.contains(id) else { return }
+                    DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
                 }
             }
 
@@ -96,10 +99,31 @@ struct ModelsView: View {
         .accessibilityIdentifier("models.settings")
     }
 
-    private var checkSetupButton: some View {
-        Button("Check Setup…") { sheet = .checks }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("models.testAll")
+    /// The settings that are rows of the page itself, under Advanced.
+    private static let settingsOnThePage = ModelStackOverviewView.advancedSettings
+        .union([SettingsStatus.modelChecksFocus])
+
+    /// One button for every model that is missing, and Cancel while they
+    /// arrive. Nothing once they are all here.
+    @ViewBuilder private var downloadControl: some View {
+        if !status.modelsDownloading.isEmpty {
+            Button("Cancel") { app.modelRoles.cancelCoreModelDownloads() }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Cancel the download")
+                .accessibilityIdentifier("models.cancelDownloads")
+        } else if !status.modelsToDownload.isEmpty {
+            Button {
+                SettingsStatusActions.perform(.download, in: app)
+            } label: {
+                if let bytes = status.bytesToDownload {
+                    Text("Download all · \(SettingsStatus.size(bytes))")
+                } else {
+                    Text("Download all")
+                }
+            }
+            .primaryActionButton()
+            .accessibilityIdentifier("models.downloadAll")
+        }
     }
 
     private func showConnections() {
@@ -118,7 +142,11 @@ struct ModelsView: View {
         case "settings.speechVoice": sheet = .speech
         case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey":
             page.wrappedValue = .connections
-        case "settings.generationBudgetPreset", "settings.thinkReasoningLevel", "settings.modelDownloadSource":
+        case SettingsStatus.modelChecksFocus:
+            // A check that failed: the page's line opens the sheet that says why.
+            page.wrappedValue = .active
+            sheet = .checks
+        case _ where ModelStackOverviewView.advancedSettings.contains(id):
             page.wrappedValue = .active
         default: sheet = .assistant
         }
@@ -191,61 +219,5 @@ struct ModelDownloadSourcePicker: View {
             .fixedSize()
             .accessibilityIdentifier(accessibilityIdentifier)
         }
-    }
-}
-
-struct ModelStorageSection: View {
-    @ObservedObject var app: AppState
-    @ObservedObject private var roles: ModelRoles
-    @ObservedObject private var residency = ModelResidency.shared
-    @ObservedObject private var speech: ModelSpeechDownloadController
-    let manage: () -> Void
-
-    init(app: AppState, manage: @escaping () -> Void) {
-        self.app = app
-        roles = app.modelRoles
-        speech = app.speechModelDownload
-        self.manage = manage
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Model Storage").font(.scaled(.headline))
-            HStack(spacing: 12) {
-                Image(systemName: "internaldrive").font(.system(size: 20)).settingsSecondary()
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Text models: \(roles.snapshot.storageSummary)").font(.scaled(.body))
-                    Text(memorySummary).font(.scaled(.callout)).settingsSecondary()
-                }
-                Spacer(minLength: 8)
-                Button("Show in Finder") {
-                    let directory = app.storage.rootURL.appendingPathComponent("models", isDirectory: true)
-                    NSWorkspace.shared.selectFile(directory.path, inFileViewerRootedAtPath: app.storage.rootURL.path)
-                }
-                .buttonStyle(.bordered)
-                Button(activeDownloads > 0
-                       ? "Downloads (\(activeDownloads))" : "Manage Downloads", action: manage)
-                    .buttonStyle(.workspaceLink)
-                    .accessibilityIdentifier("models.manageDownloads")
-            }
-            Divider()
-            ModelDownloadSourcePicker(source: $app.settings.modelDownloadSource,
-                                      accessibilityIdentifier: "models.downloadSource")
-                .settingTarget("settings.modelDownloadSource", selected: app.focusedSettingID)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("models.storage")
-        .padding(16)
-        .settingsPanel()
-    }
-
-    private var activeDownloads: Int {
-        roles.downloadProgress.count + roles.transcriptionPreparations.count + (speech.isPreparing ? 1 : 0)
-    }
-
-    private var memorySummary: String {
-        guard !residency.residents.isEmpty else { return "No models loaded in memory." }
-        let used = ByteCountFormatter.string(fromByteCount: residency.totalBytes, countStyle: .memory)
-        return "\(used) in memory · Models unload automatically when idle."
     }
 }

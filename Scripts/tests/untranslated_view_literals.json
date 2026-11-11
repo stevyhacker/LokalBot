@@ -55,8 +55,6 @@
       "Waiting for sources…"
     ],
     "AutocompleteExperienceView.swift": [
-      "Autocomplete off",
-      "Autocomplete on",
       "macOS can show its own inline predictions where you type, so two suggestions may appear at once. Turn off “Show inline predictive text” in Keyboard → Text Input → Edit…."
     ],
     "AutocompleteServerSetup.swift": [
@@ -83,7 +81,6 @@
       "Manage what LokalBot remembers…",
       "Manage…",
       "No questions match “\\(…)”.",
-      "Read aloud",
       "Remembered, then forgotten",
       "Show full question",
       "Stop reading",
@@ -177,8 +174,7 @@
       "Search off",
       "Verifying…"
     ],
-    "ModelOverviewSections.swift": [
-    ],
+    "ModelOverviewSections.swift": [],
     "ModelPickerSheet.swift": [
       "Available on this Mac. No model download is needed.",
       "Download and use",
@@ -200,7 +196,7 @@
       "Existing models are kept. Your current setup stays active until preparation finishes. You can undo the switch."
     ],
     "ModelStackOverviewView.swift": [
-      "Using \\(…)"
+      "Text models: \\(…)"
     ],
     "ModelSupportingSettings.swift": [
       "Download once to use this voice offline.",
@@ -212,10 +208,7 @@
       "\\(…) ignores vocabulary. Whisper and Qwen3-ASR use it."
     ],
     "ModelsView.swift": [
-      "Downloads (\\(…))",
-      "Manage Downloads",
       "Preparing \\(…)…",
-      "Text models: \\(…)",
       "Using \\(…)"
     ],
     "OnboardingDownloadStep.swift": [
@@ -300,7 +293,6 @@
     ],
     "SettingsView.swift": [
       "Idle fallback: at least every \\(…) min",
-      "\\(…) ms",
       "\\(…) of \\(…) characters",
       "\\(…) of \\(…) characters. Only the first \\(…) are used; shorten the rest.",
       "\\(…) s after audio stops"
@@ -360,7 +352,6 @@
     ],
     "ModelStackOverviewView.swift": [
       "6 hours. On a paid API this can run up significant token costs; on a ",
-      "Applies to every Think model — built-in, Apple Intelligence, and servers. ",
       "Unlimited removes practical caps: a single meeting can process for up to "
     ],
     "ModelSupportingSettings.swift": [
@@ -381,9 +372,6 @@
     ],
     "SettingsApprovalView.swift": [
       "Keep images and activity titles for \\(…) days. "
-    ],
-    "SettingsView.swift": [
-      "Last suggestion used: "
     ],
     "SpeakerIdentityViews.swift": [
       "Unnamed"
