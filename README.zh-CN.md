@@ -175,7 +175,7 @@ claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-
 claude mcp add lokalbot -- lokalbot-cli mcp
 ```
 
-访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself 或 Files。在 Windows 和 Linux 上，每一项在 **Settings → Privacy & Data** 的 External agents 下都有单独的开关：会议记录库、文件、屏幕记忆和 What I shared about myself。然后安装 CLI：Mac 上在 **Settings → External Agents → Agent CLI**，Windows 和 Linux 上在 **Settings → Advanced → Agent CLI**。
+访问默认关闭。在 Mac 上，到 **Settings → External Agents** 开启 **Allow external agents to read your LokalBot data**，并勾选智能体可以读取的内容：Meetings、Screen memory、What I shared about myself、Files 或 Agent notes。在 Windows 和 Linux 上，每一项在 **Settings → Privacy & Data** 的 External agents 下都有单独的开关：会议记录库、文件、屏幕记忆和 What I shared about myself。然后安装 CLI：Mac 上在 **Settings → External Agents → Agent CLI**，Windows 和 Linux 上在 **Settings → Advanced → Agent CLI**。
 
 **想根据会议采取行动？** 在 Claude Code 或 Codex 中打开任意待办，提示词已经填好任务和它的出处，由你检查后发送。
 
@@ -185,12 +185,13 @@ claude mcp add lokalbot -- lokalbot-cli mcp
 lokalbot-cli search "database decision"
 lokalbot-cli get latest --include metadata,summary
 lokalbot-cli search-files "lease renewal" --kind pdf   # 需开启 Files 访问
+lokalbot-cli search-notes "release steps"              # 编程智能体保存的笔记（仅 Mac，需开启 Agent notes 访问）
 lokalbot-cli mcp
 ```
 
-在 Mac 上，没有安装到 PATH 时，可以直接使用 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`。在 Windows 和 Linux 上，**Settings → Advanced → Agent CLI** 同样会安装 CLI，安装位置和加入 PATH 的方法见[编程智能体（英文）](LinuxWindows/README.md#coding-agents)。各平台的命令和 MCP 工具完全相同。
+在 Mac 上，没有安装到 PATH 时，可以直接使用 `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`。在 Windows 和 Linux 上，**Settings → Advanced → Agent CLI** 同样会安装 CLI，安装位置和加入 PATH 的方法见[编程智能体（英文）](LinuxWindows/README.md#coding-agents)。各平台的命令和 MCP 工具完全相同，只有 `search-notes` 目前仅在 Mac 上提供。
 
-屏幕记忆的 MCP 工具需要单独授权，范围可以是今天、最近七天或全部保留的历史。它们返回文字和元数据，不返回解密后的截图。`search_files` 按内容搜索你在 Files 中选择的文件夹，返回文件路径、摘录和匹配的段落；它需要开启 Files 访问，并且不会更改你的文件。外部客户端可能会把结果发送给它们自己的模型提供商。
+屏幕记忆的 MCP 工具需要单独授权，范围可以是今天、最近七天或全部保留的历史。它们返回文字和元数据，不返回解密后的截图。`search_files` 按内容搜索你在 Files 中选择的文件夹，返回文件路径、摘录和匹配的段落；它需要开启 Files 访问，并且不会更改你的文件。在 Mac 上，在 **Settings → Screen & Activity** 开启 **Read coding agent notes** 并勾选 Agent notes 后，`search_agent_notes` 可以搜索 Claude Code 和 Codex 为自己之后的会话保存的笔记，这样一个智能体就能找到另一个智能体记下的内容。外部客户端可能会把结果发送给它们自己的模型提供商。
 
 应用还提供可选的 **Agent Mode**，用来处理经过你审阅的上下文。文件和命令操作遵循它的审批设置，与只读的 CLI/MCP 接口相互独立。
 

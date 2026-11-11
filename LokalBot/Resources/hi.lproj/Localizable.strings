@@ -1880,3 +1880,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "इस %@ ने सेटिंग्स → फ़ोन और टैबलेट में कोड स्कैन किया है। इसे आपके स्थानीय नेटवर्क या Tailscale के ज़रिए आपकी साझा की गई चीज़ों की एन्क्रिप्ट की गई कॉपी मिलेगी। आप इसे कभी भी हटा सकते हैं।";
 "Paired devices" = "पेयर किए गए डिवाइस";
 "%lld paired" = "%lld पेयर किए गए";
+"Read coding agent notes" = "कोडिंग एजेंट नोट पढ़ें";
+"Read coding agent notes?" = "कोडिंग एजेंट नोट पढ़ें?";
+"What is read from notes" = "नोट से क्या पढ़ा जाता है";
+"Saved notes" = "सहेजे गए नोट";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot वे नोट पढ़ता है जो Claude Code और Codex ने हर उस प्रोजेक्ट के लिए, जिसमें उन्होंने काम किया, अपने लिए सहेजे हैं, और उनकी खोजने योग्य कॉपी अपनी लाइब्रेरी में रखता है। कुछ भी इस Mac से बाहर नहीं जाता। इसे बंद करने पर कॉपी हट जाती है।";
+"Agent notes" = "एजेंट नोट";
+"Agent note" = "एजेंट नोट";
+"Let external agents search agent notes" = "बाहरी एजेंटों को एजेंट नोट खोजने दें";
+"External agent notes access" = "एजेंट नोट तक बाहरी पहुँच";
+"Coding agent notes are off" = "कोडिंग एजेंट नोट बंद हैं";

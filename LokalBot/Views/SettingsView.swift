@@ -1759,8 +1759,26 @@ private struct AgentReadAccessRows: View {
                 }
                 .padding(.leading, 20)
             }
+            box(.agentNotes, "Agent notes",
+                help: "Search the notes Claude Code and Codex saved for themselves by their words. The notes are never changed.")
+                .accessibilityIdentifier("settings.agentNotesAccess")
+                .settingTarget("settings.agentNotesAccess", selected: focusedSettingID)
+            if access.isTicked(.agentNotes), !app.settings.codingAgentNotesEnabled {
+                LabeledContent {
+                    Button("Read coding agent notes") {
+                        app.selectSettingsTab(.dayMemory)
+                        app.focusedSettingID = "settings.codingAgentNotesEnabled"
+                    }
+                    .buttonStyle(.workspaceLink)
+                } label: {
+                    SettingsLabel("Coding agent notes are off",
+                                  help: "Agents can search the notes only while Read coding agent notes is on.")
+                }
+                .padding(.leading, 20)
+            }
         }
-        ForEach([access.personalContext.lastError, access.files.lastError].compactMap { $0 }, id: \.self) { error in
+        ForEach([access.personalContext.lastError, access.files.lastError, access.agentNotes.lastError]
+            .compactMap { $0 }, id: \.self) { error in
             Text(error).workspaceTextRole(.warning)
         }
     }

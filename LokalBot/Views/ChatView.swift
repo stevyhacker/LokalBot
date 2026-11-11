@@ -347,6 +347,8 @@ private struct EditorialTurn: View {
                                         app.openScreenSnapshot(snapshotID)
                                     } else if let fileID = citation.fileID {
                                         app.openFileCitation(fileID)
+                                    } else if let noteID = citation.noteID {
+                                        app.openAgentNoteCitation(noteID)
                                     } else {
                                         app.openCitation(citation)
                                     }
@@ -787,6 +789,8 @@ private struct EvidenceDisclosure: View {
     @State private var isExpanded: Bool
     /// Cited files, looked up in the Files index.
     @State private var files: [Int64: FileSearchHit] = [:]
+    /// Cited coding-agent notes, looked up in the saved notes.
+    @State private var notes: [String: AgentNoteHit] = [:]
 
     init(citations: [ChatCitation]) {
         self.citations = citations
@@ -819,6 +823,7 @@ private struct EvidenceDisclosure: View {
         }
         .accessibilityIdentifier("chat.sources")
         .task(id: citations.compactMap(\.fileID)) { await loadCitedFiles() }
+        .task(id: citations.compactMap(\.noteID)) { await loadCitedNotes() }
     }
 
     private var evidenceSummary: String {
@@ -828,6 +833,7 @@ private struct EvidenceDisclosure: View {
             case .meeting: "meeting:\(citation.meetingID)"
             case .screen: "screen:\(citation.snapshotID.map(String.init) ?? "unknown")"
             case .file: "file:\(citation.sourceID)"
+            case .note: "note:\(citation.sourceID)"
             }
         })
         if citations.count == 1 {
@@ -849,6 +855,8 @@ private struct EvidenceDisclosure: View {
                 if let snapshotID = citation.snapshotID { app.openScreenSnapshot(snapshotID) }
             case .file:
                 if let hit = citation.fileID.flatMap({ files[$0] }) { FileSearchOpener.open(hit, query: nil) }
+            case .note:
+                if let hit = citation.noteID.flatMap({ notes[$0] }) { AgentNoteOpener.open(hit) }
             }
         } label: {
             HStack(spacing: 10) {
@@ -923,7 +931,25 @@ private struct EvidenceDisclosure: View {
                 return ("File", "Local source missing", "doc", false)
             }
             return (hit.name, "\(hit.kindLabel) · \(hit.folder)", hit.icon, true)
+        case .note:
+            guard let hit = citation.noteID.flatMap({ notes[$0] }) else {
+                return ("Agent note", "Local source missing", "note.text", false)
+            }
+            return (hit.title, "Agent note · \(hit.sourceLabel)", "note.text", true)
         }
+    }
+
+    private func loadCitedNotes() async {
+        let ids = citations.compactMap(\.noteID)
+        guard !ids.isEmpty, app.settings.codingAgentNotesEnabled else { return }
+        let index = app.agentNotesIndex
+        notes = await Task.detached(priority: .userInitiated) {
+            var found: [String: AgentNoteHit] = [:]
+            for id in ids {
+                if let hit = try? index.hit(id: id) { found[id] = hit }
+            }
+            return found
+        }.value
     }
 
     private func loadCitedFiles() async {

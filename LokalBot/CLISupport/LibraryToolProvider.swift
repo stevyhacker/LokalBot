@@ -23,6 +23,8 @@ enum ToolErrorCode: String {
     case personalContextUnavailable = "personal_context_unavailable"
     case filesAccessDisabled = "files_access_disabled"
     case filesUnavailable = "files_unavailable"
+    case agentNotesAccessDisabled = "agent_notes_access_disabled"
+    case agentNotesUnavailable = "agent_notes_unavailable"
     case screenMemoryUnavailable = "screen_memory_unavailable"
     case screenshotNotFound = "screenshot_not_found"
     case appNotRunning = "app_not_running"

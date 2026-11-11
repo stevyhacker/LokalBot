@@ -42,6 +42,7 @@ private struct AskContent: View {
     @State private var resultsTruncated = false
     @State private var ocrHits: [ActivityStore.OCRHit] = []
     @State private var fileHits: [FileSearchHit] = []
+    @State private var noteHits: [AgentNoteHit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
     private var selectedScreenApp: String? {
         get { recall.state.screenApp }
@@ -288,9 +289,14 @@ private struct AskContent: View {
     }
 
     private var groupedMeetings: [MeetingRecallGroup] { RecallSearch.groups(hits) }
-    private var resultCount: Int { groupedMeetings.count + screenGroups.count + fileHits.count }
+    private var resultCount: Int {
+        groupedMeetings.count + screenGroups.count + fileHits.count + noteHits.count
+    }
     private var filesEnabled: Bool { app.settings.fileSearchEnabled }
-    private var availableSources: [AskSourceScope] { AskSourceScope.available(filesEnabled: filesEnabled) }
+    private var agentNotesEnabled: Bool { app.settings.codingAgentNotesEnabled }
+    private var availableSources: [AskSourceScope] {
+        AskSourceScope.available(filesEnabled: filesEnabled, agentNotesEnabled: agentNotesEnabled)
+    }
     /// A search that found more than the list holds says so instead of
     /// presenting the listed count as the total.
     private var resultCountLabel: String {
@@ -323,6 +329,8 @@ private struct AskContent: View {
                 app.openScreenSnapshot(screenGroups[index].primary.snapshotID)
             } else if fileHits.indices.contains(index - screenGroups.count) {
                 FileSearchOpener.open(fileHits[index - screenGroups.count], query: searchedQuery)
+            } else if noteHits.indices.contains(index - screenGroups.count - fileHits.count) {
+                AgentNoteOpener.open(noteHits[index - screenGroups.count - fileHits.count])
             }
         }
     }
@@ -384,7 +392,7 @@ private struct AskContent: View {
             recall.state.selectResultEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
                 screenIDs: answerScreenIDs,
-                hadFiles: !fileHits.isEmpty)
+                hadFiles: !fileHits.isEmpty, hadAgentNotes: !noteHits.isEmpty)
         }
         escalate()
     }
@@ -445,7 +453,7 @@ private struct AskContent: View {
                 selected: sources.contains(source), action: { toggleSource(source) })
         }
         items += [.separator, .init(title: "Result type", children: AskFacet.allCases.filter {
-            $0 != .files || filesEnabled
+            ($0 != .files || filesEnabled) && ($0 != .agentNotes || agentNotesEnabled)
         }.map { option in
             .init(title: option.rawValue, selected: facet == option, action: { facet = option })
         })]
@@ -780,6 +788,12 @@ private struct AskContent: View {
                         .id(position)
                         .listRowBackground(position == selectedResult ? Brand.teal.opacity(0.12) : Color.clear)
                 }
+                ForEach(Array(noteHits.enumerated()), id: \.element.id) { index, hit in
+                    let position = groupedMeetings.count + screenGroups.count + fileHits.count + index
+                    AgentNoteResultRow(hit: hit) { AgentNoteOpener.open(hit) }
+                        .id(position)
+                        .listRowBackground(position == selectedResult ? Brand.teal.opacity(0.12) : Color.clear)
+                }
             }
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
@@ -840,7 +854,7 @@ private struct AskContent: View {
         let q = query, request = recall.state, dateScope = app.askDateScope
         searchedQuery = q
         // Never leave rows from a previous query available to Return.
-        hits = []; ocrHits = []; screenGroups = []; fileHits = []; resultsTruncated = false
+        hits = []; ocrHits = []; screenGroups = []; fileHits = []; noteHits = []; resultsTruncated = false
         isSearching = !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
@@ -867,6 +881,7 @@ private struct AskContent: View {
         resultsTruncated = result.isTruncated
         screenGroups = result.screens
         fileHits = result.files
+        noteHits = result.agentNotes
         ocrHits = result.screens.flatMap(\.matches)
         screenApps = Array(Set(ocrHits.map(\.app) + [selectedScreenApp].compactMap { $0 })).sorted()
         selectedResult = min(selectedResult, max(0, resultCount - 1))

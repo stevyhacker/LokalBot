@@ -1880,3 +1880,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "جهاز الـ %@ ده مسح الكود من الإعدادات ← الموبايلات والتابلت. هيستقبل نسخة مشفرة من اللي بتشاركه عن طريق شبكتك المحلية أو Tailscale. تقدر تشيله في أي وقت.";
 "Paired devices" = "الأجهزة المقترنة";
 "%lld paired" = "مقترنة: %lld";
+"Read coding agent notes" = "قراءة ملاحظات وكيل البرمجة";
+"Read coding agent notes?" = "تقرا ملاحظات وكيل البرمجة؟";
+"What is read from notes" = "إيه اللي بيتقري من الملاحظات";
+"Saved notes" = "الملاحظات المحفوظة";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot بيقرا الملاحظات اللي Claude Code وCodex حفظوها لنفسهم، لكل مشروع اشتغلوا فيه، وبيحتفظ في مكتبته بنسخة تقدر تدوّر فيها. مفيش حاجة بتخرج من الـ Mac ده. لو قفلت الميزة دي النسخة بتتمسح.";
+"Agent notes" = "ملاحظات الوكلاء";
+"Agent note" = "ملاحظة وكيل";
+"Let external agents search agent notes" = "اسمح للوكلاء الخارجيين يدوّروا في ملاحظات الوكلاء";
+"External agent notes access" = "الوصول الخارجي إلى ملاحظات الوكلاء";
+"Coding agent notes are off" = "ملاحظات وكيل البرمجة مقفولة";

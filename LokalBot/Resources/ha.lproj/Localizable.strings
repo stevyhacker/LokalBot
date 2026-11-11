@@ -1880,3 +1880,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "Wannan %@ ya duba lambar a Saituna → Wayoyi da kwamfutocin hannu. Zai karɓi kwafin da aka ɓoye na abin da kake rabawa, ta cibiyar sadarwarka ta gida ko Tailscale. Za ka iya cire shi a kowane lokaci.";
 "Paired devices" = "Na'urorin da aka haɗa";
 "%lld paired" = "%lld an haɗa";
+"Read coding agent notes" = "Karanta bayanin kula na wakilin rubuta lamba";
+"Read coding agent notes?" = "A karanta bayanin kula na wakilin rubuta lamba?";
+"What is read from notes" = "Abin da ake karantawa daga bayanin kula";
+"Saved notes" = "Bayanin kula da aka adana";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot yana karanta bayanin kula waɗanda Claude Code da Codex suka adana wa kansu, na kowane aikin da suka yi aiki a ciki, kuma yana adana kwafi da za a iya bincika a ɗakin ajiyarsa. Babu abin da ke barin wannan Mac. Kashe wannan yana goge kwafin.";
+"Agent notes" = "Bayanin kula na wakilai";
+"Agent note" = "Bayanin kula na wakili";
+"Let external agents search agent notes" = "Bari wakilan waje su bincika bayanin kula na wakilai";
+"External agent notes access" = "Damar bayanin kula na wakilai daga waje";
+"Coding agent notes are off" = "Bayanin kula na wakilin rubuta lamba a kashe yake";

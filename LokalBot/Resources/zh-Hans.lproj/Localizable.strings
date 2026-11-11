@@ -1879,3 +1879,13 @@
 "This %@ scanned the code in Settings → Phones & tablets. It will receive an encrypted copy of what you share, over your local network or Tailscale. You can remove it at any time." = "此 %@ 已在“设置 → 手机与平板”中扫描了二维码。它将通过本地网络或 Tailscale 接收你所共享内容的加密副本。你可以随时将其移除。";
 "Paired devices" = "已配对的设备";
 "%lld paired" = "已配对 %lld 台";
+"Read coding agent notes" = "读取编程智能体笔记";
+"Read coding agent notes?" = "要读取编程智能体笔记吗？";
+"What is read from notes" = "从笔记中读取的内容";
+"Saved notes" = "已保存笔记";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot 会读取 Claude Code 和 Codex 在其工作过的每个项目中为自己保存的笔记，并在资料库中保留一份可搜索的副本。任何数据都不会离开这台 Mac。关闭此功能会删除该副本。";
+"Agent notes" = "智能体笔记";
+"Agent note" = "智能体笔记";
+"Let external agents search agent notes" = "允许外部智能体搜索智能体笔记";
+"External agent notes access" = "智能体笔记的外部访问";
+"Coding agent notes are off" = "编程智能体笔记已关闭";

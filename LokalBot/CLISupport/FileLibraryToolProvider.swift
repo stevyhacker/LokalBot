@@ -7,6 +7,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     var screenGate: ScreenMemoryAccessGate
     var personalGate: PersonalContextAccessGate
     var filesGate: FilesAccessGate
+    var agentNotesGate: AgentNotesAccessGate
     var screenReader: any ScreenMemoryReading
     var now: () -> Date
     var ask: (String) async -> ToolResult
@@ -16,6 +17,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         screenGate: ScreenMemoryAccessGate? = nil,
         personalGate: PersonalContextAccessGate? = nil,
         filesGate: FilesAccessGate? = nil,
+        agentNotesGate: AgentNotesAccessGate? = nil,
         screenReader: (any ScreenMemoryReading)? = nil,
         now: @escaping () -> Date = Date.init,
         ask: @escaping (String) async -> ToolResult
@@ -24,6 +26,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         self.screenGate = screenGate ?? ScreenMemoryAccessGate(root: gate.root)
         self.personalGate = personalGate ?? PersonalContextAccessGate(root: gate.root)
         self.filesGate = filesGate ?? FilesAccessGate(root: gate.root)
+        self.agentNotesGate = agentNotesGate ?? AgentNotesAccessGate(root: gate.root)
         self.screenReader = screenReader ?? SQLiteScreenMemoryReader(
             databaseURL: gate.root.appendingPathComponent("lokalbotv3.sqlite"))
         self.now = now
@@ -233,6 +236,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                 ]),
             PersonalContextTool.definition,
             FilesSearchTool.definition,
+            AgentNotesSearchTool.definition,
         ]
     }
 
@@ -280,6 +284,8 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             return getPersonalContext(arguments)
         case FilesSearchTool.name:
             return searchFiles(arguments)
+        case AgentNotesSearchTool.name:
+            return searchAgentNotes(arguments)
         case Briefing.toolName:
             return .text(briefing())
         default:
@@ -347,6 +353,40 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             return .error(.filesAccessDisabled, FilesSearchTool.disabledMessage)
         case .failure(.unavailable):
             return .error(.filesUnavailable, FilesSearchTool.unavailableMessage)
+        case .failure(.invalid(let message)):
+            return .error(.invalidArguments, message)
+        }
+    }
+
+    /// Independent of every other grant: only the Agent notes marker, and
+    /// the notes LokalBot saved while Read coding agent notes is on.
+    private func searchAgentNotes(_ arguments: JSONValue?) -> ToolResult {
+        guard agentNotesGate.isEnabled else {
+            return .error(.agentNotesAccessDisabled, AgentNotesSearchTool.disabledMessage)
+        }
+        guard let query = arguments?["query"]?.stringValue else {
+            return .error(.invalidArguments, "\(AgentNotesSearchTool.name) requires a \"query\" string.")
+        }
+        if arguments?["agent"] != nil, arguments?["agent"]?.stringValue == nil {
+            return .error(.invalidArguments,
+                          "\"agent\" must be one of \(AgentNotesSearchTool.agents.joined(separator: ", ")).")
+        }
+        var limit: Int?
+        if let raw = arguments?["limit"] {
+            guard let value = raw.intValue else {
+                return .error(.invalidArguments,
+                              "\"limit\" must be an integer between 1 and \(AgentNotesSearchTool.maximumLimit).")
+            }
+            limit = value
+        }
+        switch AgentNotesSearchTool.report(query: query, agent: arguments?["agent"]?.stringValue, limit: limit,
+                                           gate: agentNotesGate) {
+        case .success(let report):
+            return .text(AgentNotesSearchTool.json(report))
+        case .failure(.disabled):
+            return .error(.agentNotesAccessDisabled, AgentNotesSearchTool.disabledMessage)
+        case .failure(.unavailable):
+            return .error(.agentNotesUnavailable, AgentNotesSearchTool.unavailableMessage)
         case .failure(.invalid(let message)):
             return .error(.invalidArguments, message)
         }
