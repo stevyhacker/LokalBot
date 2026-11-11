@@ -1187,7 +1187,7 @@ final class ProcessingPipeline: ObservableObject {
         let transcript = try await AttributedTrackTranscriber.transcribe(url: url, duration: duration,
             diarization: diarization, source: source, engine: engine, language: language, prompt: prompt,
             contentRange: contentRange, speech: speech)
-        return cleanedTrack(transcript, language: language, prompt: prompt, trackName: trackName)
+        return cleanedTrack(transcript, engine: engine, language: language, prompt: prompt, trackName: trackName)
     }
 
     /// Where the track has speech, from the same detection that gated it
@@ -1198,10 +1198,18 @@ final class ProcessingPipeline: ObservableObject {
         }
     }
 
-    /// Cleanup of one track's attributed transcript: pathological repetition
-    /// and prompt echoes, then script.
-    static func cleanedTrack(_ transcript: Transcript, language: String?, prompt: String?,
-                             trackName: String = "replay") -> Transcript {
+    /// Cleanup of one track's attributed transcript: Whisper's stock phrases,
+    /// pathological repetition and prompt echoes, then script.
+    static func cleanedTrack(_ transcript: Transcript, engine: TranscriptionEngine, language: String?,
+                             prompt: String?, trackName: String = "replay") -> Transcript {
+        var transcript = transcript
+        if engine is WhisperEngine {
+            let stock = WhisperStockPhrases.removing(from: transcript, language: language)
+            if stock.removedSegments > 0 {
+                lokalbotLog("transcript cleanup track=\(trackName) removedStockPhrases=\(stock.removedSegments)")
+                transcript = stock.transcript
+            }
+        }
         let sanitization = TranscriptSanitizer.sanitize(transcript, prompt: prompt)
         if sanitization.changed {
             lokalbotLog(

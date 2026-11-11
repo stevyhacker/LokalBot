@@ -73,7 +73,7 @@ final class TranscriptionLanguageReplayTests: XCTestCase {
                     engine: engine, language: condition.language, prompt: prompt, contentRange: contentRange,
                     speech: speech)
                 let transcript = ProcessingPipeline.cleanedTrack(
-                    raw, language: condition.language, prompt: prompt, trackName: track.name)
+                    raw, engine: engine, language: condition.language, prompt: prompt, trackName: track.name)
                 let label = "\(condition.engine)-\(condition.language ?? "auto")-\(track.name)"
                 try encoder.encode(raw).write(to: output.appendingPathComponent("\(label).raw.json"))
                 try encoder.encode(transcript).write(to: output.appendingPathComponent("\(label).json"))
