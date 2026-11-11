@@ -1533,10 +1533,10 @@ platform differences:
   the Window Calls extension for app and window activity.
 - **External agents.** Settings → Privacy & Data has a separate switch for each
   kind of data, where macOS has boxes under one switch: the meeting library,
-  files, screen memory, and What I shared about myself. The same commands work
-  under the same toggle: the socket lives in your private runtime folder, or is a named
-  pipe only your user can open on Windows, and `permissions` reports what the
-  desktop allows instead of showing prompts.
+  files, agent notes, screen memory, and What I shared about myself. The same
+  commands work under the same toggle: the socket lives in your private
+  runtime folder, or is a named pipe only your user can open on Windows, and
+  `permissions` reports what the desktop allows instead of showing prompts.
 - **Selection actions** work as on macOS, with Ctrl+C for ⌘C. Terminals are
   never sent Ctrl+C. On X11 the primary selection is read only when the
   frontmost app owns it; on Wayland it is not read. Apps without accessibility
@@ -1546,6 +1546,16 @@ platform differences:
   Settings → Day Memory, even if an earlier version or a Mac saved the setting as
   on. Until then nothing under `~/.claude` or `~/.codex` is opened, and sessions a
   Mac recorded in the library aren't used.
+- **Coding-agent notes.** **Read coding agent notes** is under Settings → Day
+  Memory, off until you turn it on after a notice, and works as described under
+  [Data stored on your Mac](#data-stored-on-your-mac): the same files are read
+  from `.claude/projects/*/memory` and `.codex/memories` in your home folder
+  (`%USERPROFILE%` on Windows), never instruction files, and the notes are a
+  search source only, in Ask and Quick Recall. The copy is `agent-notes.sqlite`
+  in the library, with mode 0600 on Linux; on Windows it is protected by your
+  user profile's folder permissions. Turning the setting off deletes it.
+  External agents can search the notes only while **Allow external agents to
+  search agent notes** is on in Settings → Privacy & Data.
 - **Review the day overnight** is under Settings → Day Memory, on by default as
   on macOS.
 - **Remembered voices.** The key is in the system credential store; without one,

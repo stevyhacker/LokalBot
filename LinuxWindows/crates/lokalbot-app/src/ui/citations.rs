@@ -1,7 +1,7 @@
 //! Evidence markers in Ask answers (`ChatCitationParser.swift`).
 //!
 //! The assistant writes `[meeting:<id>@m:ss]`, `[meeting:<id>]` or
-//! `[screen:<n>]` or `[file:<n>]` inline. The UI shows them as numbered `[n]` references,
+//! `[screen:<n>]`, `[file:<n>]` or `[note:<hex id>]` inline. The UI shows them as numbered `[n]` references,
 //! deduped in order of first appearance, so a repeated source keeps its number.
 
 use std::collections::HashMap;
@@ -31,6 +31,22 @@ pub fn remember_file_citation(id: i64, hit: Option<lokalbot_core::files::FileHit
     }
 }
 
+/// Saved coding-agent notes that citations name, loaded off the UI thread;
+/// `None` once a note has left the saved copy.
+static NOTE_CITATIONS: LazyLock<
+    Mutex<HashMap<String, Option<lokalbot_core::agent_notes::NoteHit>>>,
+> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+pub fn known_note_citation(id: &str) -> Option<Option<lokalbot_core::agent_notes::NoteHit>> {
+    NOTE_CITATIONS.lock().ok()?.get(id).cloned()
+}
+
+pub fn remember_note_citation(id: &str, hit: Option<lokalbot_core::agent_notes::NoteHit>) {
+    if let Ok(mut known) = NOTE_CITATIONS.lock() {
+        known.insert(id.to_string(), hit);
+    }
+}
+
 /// One cited source. Meeting ids may be full UUIDs or short-id prefixes.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CitationSource {
@@ -44,6 +60,10 @@ pub enum CitationSource {
     /// A passage from the folders chosen under Files.
     File {
         id: i64,
+    },
+    /// A note one of the person's coding agents saved, by its lowercase hex id.
+    Note {
+        id: String,
     },
 }
 
@@ -62,6 +82,7 @@ impl CitationSource {
             CitationSource::Meeting { id, .. } => format!("meeting:{}", id.to_lowercase()),
             CitationSource::Screen { snapshot_id } => format!("screen:{snapshot_id}"),
             CitationSource::File { id } => format!("file:{id}"),
+            CitationSource::Note { id } => format!("note:{id}"),
         }
     }
 }
@@ -255,6 +276,24 @@ pub fn resolve(
                 is_screen: false,
             },
         },
+        CitationSource::Note { id } => match known_note_citation(id) {
+            Some(Some(hit)) => ResolvedCitation {
+                detail: lokalbot_i18n::format("Agent note · {0}", &[("0", hit.source_label())]),
+                title: hit.title,
+                available: true,
+                is_screen: false,
+            },
+            known => ResolvedCitation {
+                title: lokalbot_i18n::tr("Agent note").into(),
+                detail: if known.is_some() {
+                    lokalbot_i18n::tr("Local source missing").into()
+                } else {
+                    lokalbot_i18n::tr("Agent note · Loading…").into()
+                },
+                available: false,
+                is_screen: false,
+            },
+        },
         CitationSource::Screen { snapshot_id } => match screens.get(snapshot_id) {
             Some(Some(moment)) => {
                 let title = [&moment.window_title, &moment.document_name]
@@ -318,13 +357,12 @@ pub fn resolve_meeting<'a>(id: &str, meetings: &'a [Meeting]) -> Option<&'a Meet
 /// Parses one marker at the start of `text`; returns its byte length.
 fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
     let body = text.strip_prefix('[')?;
-    let (kind, rest) = match body.strip_prefix("meeting:") {
-        Some(rest) => ("meeting", rest),
-        None => match body.strip_prefix("file:") {
-            Some(rest) => ("file", rest),
-            None => ("screen", body.strip_prefix("screen:")?),
-        },
-    };
+    let (kind, rest) = ["meeting", "file", "note", "screen"]
+        .into_iter()
+        .find_map(|kind| {
+            let rest = body.strip_prefix(kind)?.strip_prefix(':')?;
+            Some((kind, rest))
+        })?;
     let id_len = rest
         .bytes()
         .take_while(|b| b.is_ascii_alphanumeric() || *b == b'_' || *b == b'-')
@@ -355,6 +393,14 @@ fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
             return None;
         }
         CitationSource::File { id }
+    } else if kind == "note" {
+        // At least eight hex characters, never with a time.
+        if stamp.is_some() || id.len() < 8 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return None;
+        }
+        CitationSource::Note {
+            id: id.to_lowercase(),
+        }
     } else if kind == "screen" {
         let snapshot_id: i64 = id.parse().ok().filter(|n| *n > 0)?;
         if stamp.is_some() {
@@ -503,6 +549,52 @@ mod tests {
         remember_file_citation(12, None);
         let gone = resolve(&files[0], &[], &HashMap::new());
         assert!(!gone.available);
+        let noted = extract(
+            "Releases are tagged by SHA [note:c0ffee000001]. Builds use Bazel [note:C0FFEE0000FF], as said [note:c0ffee000001].",
+        );
+        assert_eq!(
+            noted.citations,
+            [
+                CitationSource::Note {
+                    id: "c0ffee000001".into()
+                },
+                CitationSource::Note {
+                    id: "c0ffee0000ff".into()
+                }
+            ]
+        );
+        assert_eq!(
+            noted.text,
+            "Releases are tagged by SHA [1]. Builds use Bazel [2], as said [1]."
+        );
+        assert!(
+            split("[note:xyz] [note:12] [note:C0FFEE000001@00:10]")
+                .1
+                .is_empty()
+        );
+        let loading = resolve(&noted.citations[0], &[], &HashMap::new());
+        assert!(!loading.available && !loading.is_screen);
+        assert_eq!(loading.title, "Agent note");
+        remember_note_citation(
+            "c0ffee000001",
+            Some(lokalbot_core::agent_notes::NoteHit {
+                id: "c0ffee000001".into(),
+                agent: "claude-code".into(),
+                title: "Release runbook".into(),
+                summary: None,
+                category: None,
+                working_directory: Some("/Users/me/GitHub/app".into()),
+                path: "/Users/me/.claude/projects/-Users-me-GitHub-app/memory/release.md".into(),
+                modified: Utc::now(),
+                snippet: String::new(),
+            }),
+        );
+        let note = resolve(&noted.citations[0], &[], &HashMap::new());
+        assert!(note.available);
+        assert_eq!(note.title, "Release runbook");
+        assert_eq!(note.detail, "Agent note · Claude Code · app");
+        remember_note_citation("c0ffee0000ff", None);
+        assert!(!resolve(&noted.citations[1], &[], &HashMap::new()).available);
         let resolved = resolve(&one.citations[0], &[], &screens);
         assert!(resolved.available && resolved.is_screen);
         assert_eq!(resolved.title, "Quarterly plan");

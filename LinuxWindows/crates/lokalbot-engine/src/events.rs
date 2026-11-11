@@ -188,6 +188,9 @@ pub struct AskScope {
     pub include_screen: bool,
     /// The folders chosen under Files. Only takes effect while Files is on.
     pub include_files: bool,
+    /// Notes the person's coding agents saved. Only takes effect while Read
+    /// coding agent notes is on.
+    pub include_agent_notes: bool,
     /// Screens this question is bound to: the moments among asked-about results,
     /// or the ones attached.
     pub screen_ids: Vec<i64>,
@@ -218,6 +221,8 @@ pub enum EngineEvent {
     Ask(AskUpdate),
     /// What Files is doing now.
     Files(crate::files::FileSearchStatus),
+    /// How many coding-agent notes are saved, or why none could be.
+    AgentNotes(crate::agent_notes::AgentNotesStatus),
     Download(DownloadUpdate),
     Models(ModelStatus),
     Digest {

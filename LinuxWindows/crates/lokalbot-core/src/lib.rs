@@ -11,6 +11,7 @@ pub mod access;
 pub mod action_completion;
 pub mod actions;
 pub mod agent_handoff;
+pub mod agent_notes;
 pub mod audio_files;
 pub mod calendar;
 pub mod chats;

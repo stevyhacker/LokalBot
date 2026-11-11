@@ -12,7 +12,9 @@ use serde_json::{Value, json};
 use crate::session::{
     GetOptions, Session, day_bounds, local_day, local_now_day, seconds_from_stamp,
 };
-use crate::{ask, briefing, files, json as swift_json, personal, reports, screen, search, session};
+use crate::{
+    ask, briefing, files, json as swift_json, notes, personal, reports, screen, search, session,
+};
 
 pub const PROTOCOL_VERSIONS: [&str; 3] = ["2024-11-05", "2025-03-26", "2025-06-18"];
 pub const MAXIMUM_RECORD_BYTES: usize = 1_048_576;
@@ -26,6 +28,8 @@ pub enum ToolErrorCode {
     PersonalContextUnavailable,
     FilesAccessDisabled,
     FilesUnavailable,
+    AgentNotesAccessDisabled,
+    AgentNotesUnavailable,
     ScreenMemoryUnavailable,
     ScreenshotNotFound,
     AppNotRunning,
@@ -46,6 +50,8 @@ impl ToolErrorCode {
             Self::PersonalContextUnavailable => "personal_context_unavailable",
             Self::FilesAccessDisabled => "files_access_disabled",
             Self::FilesUnavailable => "files_unavailable",
+            Self::AgentNotesAccessDisabled => "agent_notes_access_disabled",
+            Self::AgentNotesUnavailable => "agent_notes_unavailable",
             Self::ScreenMemoryUnavailable => "screen_memory_unavailable",
             Self::ScreenshotNotFound => "screenshot_not_found",
             Self::AppNotRunning => "app_not_running",
@@ -220,6 +226,15 @@ pub fn tools() -> Vec<Value> {
                 "limit": {"type": "integer", "description": format!("Maximum files (default {}, maximum {}).", files::DEFAULT_LIMIT, files::MAXIMUM_LIMIT)},
             }, "required": ["query"]}),
         ),
+        tool(
+            notes::NAME,
+            "Search the notes the user's coding agents (Claude Code and Codex) saved for their own later sessions: project decisions, how-tos, preferences and pointers. Returns matching notes, best first, with their text. Use it to find what another agent or an earlier session already learned. Requires the separate agent-notes permission.",
+            json!({"type": "object", "properties": {
+                "query": {"type": "string", "description": "Words to find."},
+                "agent": {"type": "string", "enum": notes::AGENTS, "description": "Optional: only this agent's notes."},
+                "limit": {"type": "integer", "description": format!("Maximum notes (default {}, maximum {}).", notes::DEFAULT_LIMIT, notes::MAXIMUM_LIMIT)},
+            }, "required": ["query"]}),
+        ),
     ]
 }
 
@@ -383,6 +398,7 @@ impl Provider {
             "get_screenshot_detail" => self.screenshot_detail(arguments),
             personal::NAME => self.personal_context(arguments),
             files::NAME => self.search_files(arguments),
+            notes::NAME => self.search_agent_notes(arguments),
             briefing::TOOL_NAME => Ok(ToolResult::text(&self.briefing())),
             _ => {
                 let names: Vec<String> = tools()
@@ -897,6 +913,61 @@ impl Provider {
                 files::UNAVAILABLE_MESSAGE,
             )),
             Err(files::Failure::Invalid(message)) => {
+                Err(ToolResult::error(ToolErrorCode::InvalidArguments, &message))
+            }
+        }
+    }
+
+    /// Independent of every other grant: only the Agent notes marker, and the
+    /// notes LokalBot saved while Read coding agent notes is on.
+    fn search_agent_notes(&self, arguments: &Value) -> Result<ToolResult, ToolResult> {
+        let paths = &self.session.paths;
+        if !lokalbot_core::agent_notes::access::is_enabled(paths) {
+            return Err(ToolResult::error(
+                ToolErrorCode::AgentNotesAccessDisabled,
+                notes::DISABLED_MESSAGE,
+            ));
+        }
+        let Some(query) = arguments.get("query").and_then(Value::as_str) else {
+            return Err(ToolResult::error(
+                ToolErrorCode::InvalidArguments,
+                &format!("{} requires a \"query\" string.", notes::NAME),
+            ));
+        };
+        let mut agent: Option<&str> = None;
+        if let Some(raw) = arguments.get("agent").filter(|v| !v.is_null()) {
+            let Some(text) = raw.as_str() else {
+                return Err(ToolResult::error(
+                    ToolErrorCode::InvalidArguments,
+                    &format!("\"agent\" must be one of {}.", notes::AGENTS.join(", ")),
+                ));
+            };
+            agent = Some(text);
+        }
+        let mut limit: Option<i64> = None;
+        if let Some(raw) = arguments.get("limit").filter(|v| !v.is_null()) {
+            let Some(value) = raw.as_i64() else {
+                return Err(ToolResult::error(
+                    ToolErrorCode::InvalidArguments,
+                    &format!(
+                        "\"limit\" must be an integer between 1 and {}.",
+                        notes::MAXIMUM_LIMIT
+                    ),
+                ));
+            };
+            limit = Some(value);
+        }
+        match notes::report(paths, query, agent, limit) {
+            Ok(report) => Ok(ToolResult::text(&swift_json::pretty(&report, false))),
+            Err(notes::Failure::Disabled) => Err(ToolResult::error(
+                ToolErrorCode::AgentNotesAccessDisabled,
+                notes::DISABLED_MESSAGE,
+            )),
+            Err(notes::Failure::Unavailable) => Err(ToolResult::error(
+                ToolErrorCode::AgentNotesUnavailable,
+                notes::UNAVAILABLE_MESSAGE,
+            )),
+            Err(notes::Failure::Invalid(message)) => {
                 Err(ToolResult::error(ToolErrorCode::InvalidArguments, &message))
             }
         }

@@ -822,7 +822,7 @@ impl AgentPage {
                             a.kind == AttachmentKind::Moment
                                 && a.reference == snapshot_id.to_string()
                         }
-                        CitationSource::File { .. } => false,
+                        CitationSource::File { .. } | CitationSource::Note { .. } => false,
                     })
                     .cloned()
             });

@@ -403,6 +403,13 @@ pub const ENTRIES: &[Entry] = &[
         value: |s| on_off(!s.enabled_coding_agents().is_empty()),
     },
     Entry {
+        id: "settings.codingAgentNotesEnabled",
+        title: "Read coding agent notes",
+        category: DayMemory,
+        aliases: "claude code codex agent memory notes memories search",
+        value: |s| on_off(s.coding_agent_notes_enabled),
+    },
+    Entry {
         id: "settings.codingAgentExcludedFolders",
         title: "Never read sessions in these folders",
         category: DayMemory,
@@ -1191,6 +1198,13 @@ pub const ENTRIES: &[Entry] = &[
         value: details,
     },
     Entry {
+        id: "settings.agentNotesAccess",
+        title: "External agent notes access",
+        category: Privacy,
+        aliases: "mcp agent notes memory claude code codex search_agent_notes search-notes",
+        value: details,
+    },
+    Entry {
         id: "settings.agentAccess",
         title: "Allow external agents to read your meeting library",
         category: Privacy,
@@ -1668,6 +1682,16 @@ mod tests {
             search("sessions")
                 .iter()
                 .any(|e| e.id == "settings.codingAgentEvidenceEnabled")
+        );
+        assert!(
+            search("agent notes")
+                .iter()
+                .any(|e| e.id == "settings.codingAgentNotesEnabled")
+        );
+        assert!(
+            search("search_agent_notes")
+                .iter()
+                .any(|e| e.id == "settings.agentNotesAccess")
         );
         assert!(
             search("obsidian")

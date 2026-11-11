@@ -60,6 +60,7 @@ struct Results {
     meetings: Vec<MeetingGroup>,
     screens: Vec<ScreenResult>,
     files: Vec<lokalbot_core::files::FileHit>,
+    notes: Vec<lokalbot_core::agent_notes::NoteHit>,
     truncated: bool,
     selected: usize,
     /// Arrow keys picked a row, so Return opens it even for a question.
@@ -68,9 +69,9 @@ struct Results {
 }
 
 impl Results {
-    /// Meeting groups, screen moments and files, in list order.
+    /// Meeting groups, screen moments, files and agent notes, in list order.
     fn count(&self) -> usize {
-        self.meetings.len() + self.screens.len() + self.files.len()
+        self.meetings.len() + self.screens.len() + self.files.len() + self.notes.len()
     }
 }
 
@@ -133,6 +134,8 @@ pub struct AskPage {
     /// Asked about results: a selected Activity source stays, and Files with file rows.
     scope_from_results: bool,
     scope_had_files: bool,
+    /// Asking about results kept Agent notes: note rows were among them.
+    scope_had_notes: bool,
     /// Screens attached to the next question as primary evidence.
     pins: Vec<lokalbot_core::ScreenMoment>,
     thumbnails: ScreenThumbnails,
@@ -153,6 +156,7 @@ pub struct AskPage {
     screen_citations: crate::ui::citations::ScreenCitations,
     loading_screen_citations: HashSet<i64>,
     loading_file_citations: HashSet<i64>,
+    loading_note_citations: HashSet<String>,
     transcript_scroll: ScrollHandle,
     results_scroll: ScrollHandle,
     history_scroll: ScrollHandle,
@@ -271,6 +275,7 @@ impl AskPage {
             sources_before_evidence: None,
             scope_from_results: false,
             scope_had_files: false,
+            scope_had_notes: false,
             pins: Vec::new(),
             thumbnails: ScreenThumbnails::default(),
             screen_app: None,
@@ -285,6 +290,7 @@ impl AskPage {
             screen_citations: Default::default(),
             loading_screen_citations: HashSet::new(),
             loading_file_citations: HashSet::new(),
+            loading_note_citations: HashSet::new(),
             transcript_scroll: ScrollHandle::new(),
             results_scroll: ScrollHandle::new(),
             history_scroll: ScrollHandle::new(),
@@ -462,6 +468,7 @@ impl AskPage {
         self.restore_sources();
         self.scope_from_results = false;
         self.scope_had_files = false;
+        self.scope_had_notes = false;
         // A single moment is an attachment, not a retrieval boundary.
         self.pins.clear();
         if let Some(moment) = self.data.update(cx, |data, _| data.ask_screen.take()) {
@@ -494,6 +501,7 @@ impl AskPage {
         self.sources_before_evidence = None;
         self.scope_from_results = false;
         self.scope_had_files = false;
+        self.scope_had_notes = false;
         self.pins.clear();
         self.screen_app = None;
         self.date_scope = DateScope::AnyTime;
@@ -523,6 +531,7 @@ impl AskPage {
         self.screen_scope = restored.evidence.screens;
         self.scope_from_results = restored.evidence.from_results;
         self.scope_had_files = restored.evidence.had_file_results;
+        self.scope_had_notes = restored.evidence.had_note_results;
         self.screen_app = restored.evidence.screen_app;
     }
 
@@ -662,6 +671,7 @@ impl AskPage {
             self.screen_scope = Some(self.results.screens.iter().map(|s| s.moment.id).collect());
             self.scope_from_results = true;
             self.scope_had_files = !self.results.files.is_empty();
+            self.scope_had_notes = !self.results.notes.is_empty();
         }
         let conversation_id = *self.selected.get_or_insert_with(Uuid::new_v4);
         let scope = scope::ask_scope(self.sources, self.date_scope, &self.evidence());
@@ -672,6 +682,7 @@ impl AskPage {
             self.sources.screen = true;
             self.scope_from_results = true;
             self.scope_had_files = self.sources.files;
+            self.scope_had_notes = self.sources.agent_notes;
             self.pins.clear();
         }
         self.follow_stream = true;
@@ -766,15 +777,16 @@ impl AskPage {
             screens: self.screen_scope.clone(),
             from_results: self.scope_from_results,
             had_file_results: self.scope_had_files,
+            had_note_results: self.scope_had_notes,
             pins: self.pins.iter().map(|moment| moment.id).collect(),
             pin_days: scope::pin_days(&self.pins),
             screen_app: self.screen_app.clone(),
         }
     }
 
-    /// Files is on with a folder, so it can be offered and searched.
-    fn files_enabled(&self, cx: &App) -> bool {
-        self.data.read(cx).settings.file_search_enabled
+    /// The optional sources that are on, so they can be offered and searched.
+    fn offered(&self, cx: &App) -> scope::Offered {
+        scope::Offered::new(&self.data.read(cx).settings)
     }
 
     fn run_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -783,11 +795,15 @@ impl AskPage {
         self.results.meetings.clear();
         self.results.screens.clear();
         self.results.files.clear();
+        self.results.notes.clear();
         self.results.truncated = false;
         self.results.expanded.clear();
-        let files_enabled = self.files_enabled(cx);
-        let searches_files = self.sources.files && files_enabled;
-        if text.is_empty() || !(self.sources.meetings || self.sources.screen || searches_files) {
+        let offered = self.offered(cx);
+        let searches_files = self.sources.files && offered.files;
+        let searches_notes = self.sources.agent_notes && offered.agent_notes;
+        if text.is_empty()
+            || !(self.sources.meetings || self.sources.screen || searches_files || searches_notes)
+        {
             self.results.running = false;
             self.search_task = None;
             return;
@@ -812,6 +828,7 @@ impl AskPage {
             meetings: self.sources.meetings,
             screen: self.sources.screen,
             file_folders,
+            agent_notes: searches_notes,
             screen_app: self.screen_app.clone(),
             screen_ids: self.screen_scope.clone(),
             meeting_ids: self.meeting_scope.clone(),
@@ -839,6 +856,7 @@ impl AskPage {
                 this.results.meetings = found.meetings.clone();
                 this.results.screens = found.screens.clone();
                 this.results.files = found.files.clone();
+                this.results.notes = found.notes.clone();
                 this.results.truncated = found.truncated;
                 this.results.running = false;
                 this.results.selected = this
@@ -874,6 +892,7 @@ impl AskPage {
                 this.results.meetings = refined.meetings;
                 this.results.screens = refined.screens;
                 this.results.files = refined.files;
+                this.results.notes = refined.notes;
                 this.results.truncated = refined.truncated;
                 this.results.selected = this
                     .results
@@ -903,6 +922,13 @@ impl AskPage {
             .get(selected - self.results.meetings.len() - self.results.screens.len())
         {
             search::open_file(hit);
+        } else if let Some(hit) = self.results.notes.get(
+            selected
+                - self.results.meetings.len()
+                - self.results.screens.len()
+                - self.results.files.len(),
+        ) {
+            search::open_note(hit);
         }
     }
 

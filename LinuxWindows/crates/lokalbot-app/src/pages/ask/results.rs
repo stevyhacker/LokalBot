@@ -90,10 +90,7 @@ impl AskPage {
                 "No results for “{0}” in {1} · {2}.",
                 &[
                     ("0", self.query.trim().to_string()),
-                    (
-                        "1",
-                        self.sources.summary(self.files_enabled(cx)).to_string(),
-                    ),
+                    ("1", self.sources.summary(self.offered(cx)).to_string()),
                     ("2", self.date_scope.label().to_string()),
                 ],
             );
@@ -140,6 +137,13 @@ impl AskPage {
         for (offset, hit) in files.iter().enumerate() {
             let index = groups.len() + screens.len() + offset;
             rows.push(column(self.render_file(index, hit, cx).into_any_element()));
+        }
+        let notes = self.results.notes.clone();
+        for (offset, hit) in notes.iter().enumerate() {
+            let index = groups.len() + screens.len() + files.len() + offset;
+            rows.push(column(
+                self.render_note(index, offset, hit, cx).into_any_element(),
+            ));
         }
         rows.push(div().h(px(12.)).into_any_element());
 
@@ -463,5 +467,96 @@ impl AskPage {
                     ),
             )
             .on_click(move |_, _, _| super::search::open_file(&opened))
+    }
+
+    /// One coding-agent note: its title, the agent and project, the date its
+    /// file last changed, then the matched words. Opens the agent's own file.
+    fn render_note(
+        &self,
+        index: usize,
+        offset: usize,
+        hit: &lokalbot_core::agent_notes::NoteHit,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let lb = cx.lb().clone();
+        let selected = index == self.results.selected;
+        let when = hit
+            .modified
+            .with_timezone(&chrono::Local)
+            .format_localized(
+                lokalbot_i18n::date_pattern("%b %-d, %Y"),
+                lokalbot_i18n::date_locale(),
+            )
+            .to_string();
+        let meta = format!("{} · {when}", hit.source_label());
+        let snippet = super::search::note_snippet(hit);
+        let opened = hit.clone();
+        let revealed = hit.path.clone();
+        h_flex()
+            .id(("ask-note", offset))
+            .w_full()
+            .gap(px(12.))
+            .items_start()
+            .px(px(10.))
+            .py(px(8.))
+            .rounded(metric::ROW_RADIUS)
+            .cursor_pointer()
+            .when(selected, |this| this.bg(lb.accent_wash))
+            .when(!selected, |this| this.hover(|s| s.bg(lb.hover)))
+            .child(ui::icon(Ico::FileText, px(24.), lb.text_secondary))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(3.))
+                    .child(
+                        h_flex()
+                            .gap(px(6.))
+                            .items_center()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_size(ty::BODY)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(lb.text)
+                                    .child(hit.title.clone()),
+                            )
+                            .child(result_row::kind_chip(lokalbot_i18n::tr("Agent notes"), cx))
+                            .child(
+                                Button::new(("ask-reveal-note", offset))
+                                    .ghost()
+                                    .xsmall()
+                                    .icon(Icon::new(Ico::Folder))
+                                    .tooltip(lokalbot_i18n::tr("Show in folder"))
+                                    .on_click(move |_, _, cx| {
+                                        cx.stop_propagation();
+                                        if let Err(err) =
+                                            lokalbot_platform::opener::reveal_in_file_manager(
+                                                std::path::Path::new(&revealed),
+                                            )
+                                        {
+                                            log::warn!("could not show a note: {err:#}");
+                                        }
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.supporting)
+                            .child(meta),
+                    )
+                    .child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .line_height(px(19.))
+                            .text_color(lb.supporting)
+                            .line_clamp(2)
+                            .child(result_row::highlighted(&snippet, lb.text)),
+                    ),
+            )
+            .on_click(move |_, _, _| super::search::open_note(&opened))
     }
 }

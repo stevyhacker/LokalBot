@@ -207,6 +207,38 @@ impl SettingsPage {
         .detach();
     }
 
+    /// The Agent notes grant: only a marker. Agents find notes only while Read
+    /// coding agent notes is on, because turning that off deletes the copy.
+    fn set_agent_notes_access(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.agent_notes_access = Some(enabled);
+        let paths = self.data.read(cx).library.paths().clone();
+        let data = self.data.clone();
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move {
+                    lokalbot_core::agent_notes::access::set_enabled(&paths, enabled)
+                })
+                .await;
+            if let Err(err) = result {
+                let _ = this.update(cx, |this, cx| {
+                    this.agent_notes_access = Some(!enabled);
+                    cx.notify();
+                });
+                data.update(cx, |data, cx| {
+                    data.show_error(
+                        lokalbot_i18n::format(
+                            "LokalBot couldn't turn on agent-notes access: {err}",
+                            &[("err", format!("{err:#}"))],
+                        ),
+                        cx,
+                    )
+                });
+            }
+        })
+        .detach();
+        cx.notify();
+    }
+
     fn set_screen_access(&mut self, scope: Option<ScreenScope>, cx: &mut Context<Self>) {
         self.screen_access = Some(scope);
         let paths = self.data.read(cx).library.paths().clone();
@@ -434,6 +466,10 @@ impl SettingsPage {
         let files_on = self.files_access.unwrap_or_else(|| {
             lokalbot_core::files::access::is_enabled(self.data.read(cx).library.paths())
         });
+        let notes_page = cx.entity();
+        let notes_on = self.agent_notes_access.unwrap_or_else(|| {
+            lokalbot_core::agent_notes::access::is_enabled(self.data.read(cx).library.paths())
+        });
         let meetings_on = self.meetings_access.unwrap_or(false);
         let screen_scope = self.screen_access.flatten();
         let mut agents = Section::new(lokalbot_i18n::tr("External agents"))
@@ -460,6 +496,19 @@ impl SettingsPage {
                         files_page.update(cx, |page, cx| page.set_files_access(on, cx))
                     }),
                     self.is_focused("settings.filesAccess"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.agentNotesAccess",
+                settings_row::row(
+                    "settings.agentNotesAccess",
+                    lokalbot_i18n::tr("Allow external agents to search agent notes"),
+                    Some(lokalbot_i18n::tr("Lets MCP clients and the lokalbot-cli skill search the notes Claude Code and Codex saved for themselves, by their words. What they read then goes wherever that agent sends it. Off by default.").into()),
+                    settings_row::switch("settings.agentNotesAccess", notes_on, move |on, _, cx| {
+                        notes_page.update(cx, |page, cx| page.set_agent_notes_access(on, cx))
+                    }),
+                    self.is_focused("settings.agentNotesAccess"),
                     cx,
                 ),
             )
@@ -534,6 +583,35 @@ impl SettingsPage {
                         move |window, cx| {
                             choose_page.update(cx, |page, cx| {
                                 page.reveal("settings.fileSearchEnabled", window, cx)
+                            })
+                        },
+                        cx,
+                    ),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        // Agents find notes only while they are being read.
+        if notes_on && !settings.coding_agent_notes_enabled {
+            let notes_page = page.clone();
+            agents = agents.row(
+                "settings.agentNotesAccessOff",
+                settings_row::row(
+                    "settings.agentNotesAccessOff",
+                    lokalbot_i18n::tr("Coding agent notes are off"),
+                    Some(
+                        lokalbot_i18n::tr(
+                            "Agents can search the notes only while Read coding agent notes is on.",
+                        )
+                        .into(),
+                    ),
+                    settings_row::link_button(
+                        "settings-read-agent-notes",
+                        lokalbot_i18n::tr("Read coding agent notes"),
+                        move |window, cx| {
+                            notes_page.update(cx, |page, cx| {
+                                page.reveal("settings.codingAgentNotesEnabled", window, cx)
                             })
                         },
                         cx,

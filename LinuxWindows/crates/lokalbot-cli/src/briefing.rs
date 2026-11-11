@@ -162,6 +162,27 @@ pub fn render(
     } else {
         lines.push("- Files: off. The user can turn it on in Settings → Privacy & Data → \"Allow external agents to search your files\".".into());
     }
+    if lokalbot_core::agent_notes::access::is_enabled(&session.paths) {
+        let saved = lokalbot_core::agent_notes::NotesIndex::new(session.paths.root()).total();
+        if saved > 0 {
+            lines.push(format!(
+                "- Agent notes: on, {saved} {} saved by the user's coding agents, searched by words. {}",
+                if saved == 1 { "note" } else { "notes" },
+                if cli {
+                    "Command: search-notes."
+                } else {
+                    "Tool: search_agent_notes."
+                }
+            ));
+        } else {
+            lines.push(
+                "- Agent notes: on, but Read coding agent notes is off in LokalBot or nothing has been read yet."
+                    .into(),
+            );
+        }
+    } else {
+        lines.push("- Agent notes: off. The user can turn it on in Settings → Privacy & Data → \"Allow external agents to search agent notes\".".into());
+    }
     sections.push(lines.join("\n"));
 
     if let Some(projection) = &projection

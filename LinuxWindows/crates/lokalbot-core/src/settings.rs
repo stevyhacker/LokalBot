@@ -187,6 +187,11 @@ pub struct Settings {
     // Day memory, beyond the group above
     pub meeting_visual_context_enabled: bool,
     pub coding_agent_excluded_folders: String,
+    /// Read the notes Claude Code and Codex keep for their own later sessions
+    /// into a searchable index. Off until the person turns it on: the notes are
+    /// the agents' words about any project they worked in. The per-agent
+    /// switches and folder exclusions apply here too.
+    pub coding_agent_notes_enabled: bool,
     pub daily_memory_export_enabled: bool,
     pub daily_memory_export_folder: String,
     pub daily_memory_export_format: DailyMemoryExportFormat,
@@ -393,6 +398,7 @@ impl Default for Settings {
             diarization_model: "community1".into(),
             meeting_visual_context_enabled: false,
             coding_agent_excluded_folders: String::new(),
+            coding_agent_notes_enabled: false,
             daily_memory_export_enabled: false,
             daily_memory_export_folder: String::new(),
             daily_memory_export_format: DailyMemoryExportFormat::default(),
@@ -619,6 +625,23 @@ impl Settings {
     pub fn enabled_coding_agents(&self) -> Vec<crate::coding_agents::CodingAgentKind> {
         use crate::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
         if !self.coding_agent_evidence_active() {
+            return Vec::new();
+        }
+        [
+            (ClaudeCode, self.coding_agent_reads_claude_code),
+            (Codex, self.coding_agent_reads_codex),
+        ]
+        .into_iter()
+        .filter_map(|(agent, reads)| reads.then_some(agent))
+        .collect()
+    }
+
+    /// The agents whose notes are read now; empty while Read coding agent notes
+    /// is off. Notes don't depend on reading sessions, only on the per-agent
+    /// switches.
+    pub fn coding_agent_note_agents(&self) -> Vec<crate::coding_agents::CodingAgentKind> {
+        use crate::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
+        if !self.coding_agent_notes_enabled {
             return Vec::new();
         }
         [

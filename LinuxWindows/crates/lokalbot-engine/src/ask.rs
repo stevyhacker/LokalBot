@@ -350,6 +350,11 @@ fn ask_model(
         } else {
             Vec::new()
         },
+        // Agent notes only while they are being read and some are saved: then
+        // `search_agent_notes` is offered.
+        include_agent_notes: scope.include_agent_notes
+            && settings.coding_agent_notes_enabled
+            && lokalbot_core::agent_notes::NotesIndex::new(library.paths().root()).exists(),
         screen_ids: scope.screen_ids.clone(),
         screen_app: scope.screen_app.clone(),
         attached_context: None,
@@ -416,6 +421,7 @@ fn question_scope(scope: &AskScope) -> QuestionScope {
         (AskSourceScope::Today, scope.include_activity),
         (AskSourceScope::Screen, scope.include_screen),
         (AskSourceScope::Files, scope.include_files),
+        (AskSourceScope::AgentNotes, scope.include_agent_notes),
     ];
     QuestionScope {
         sources: on
@@ -484,7 +490,9 @@ struct Ambient {
 /// A question limited to some sources or days doesn't get what was distilled from
 /// everything: work memory and learned items would carry content past its
 /// boundary. The person's own statements carry no source, so they still apply.
-fn is_unscoped(scope: &AskScope) -> bool {
+/// Leaving out agent notes limits nothing while none are being read, so
+/// questions asked before that source existed stay as they were.
+fn is_unscoped(scope: &AskScope, reads_agent_notes: bool) -> bool {
     scope.meeting_ids.is_empty()
         && scope.screen_ids.is_empty()
         && scope.screen_app.is_none()
@@ -494,6 +502,7 @@ fn is_unscoped(scope: &AskScope) -> bool {
         && scope.include_activity
         && scope.include_screen
         && scope.include_files
+        && (scope.include_agent_notes || !reads_agent_notes)
 }
 
 fn ambient_context(
@@ -503,7 +512,7 @@ fn ambient_context(
     history: &[ChatMessage],
     scope: &AskScope,
 ) -> (Ambient, Vec<Uuid>) {
-    let unscoped = is_unscoped(scope);
+    let unscoped = is_unscoped(scope, settings.coding_agent_notes_enabled);
     let mut ambient = Ambient::default();
     if unscoped {
         ambient.work_memory =
@@ -694,6 +703,7 @@ mod tests {
             include_activity: sources.contains(&AskSourceScope::Today),
             include_screen: sources.contains(&AskSourceScope::Screen),
             include_files: sources.contains(&AskSourceScope::Files),
+            include_agent_notes: sources.contains(&AskSourceScope::AgentNotes),
             saved: QuestionScope {
                 sources: sources.to_vec(),
                 ..Default::default()
@@ -911,6 +921,7 @@ mod tests {
             include_activity: true,
             include_screen: true,
             include_files: true,
+            include_agent_notes: true,
             screen_ids: Vec::new(),
             attached_screens: false,
             screen_app: None,
@@ -918,7 +929,15 @@ mod tests {
             until: None,
             saved: QuestionScope::default(),
         };
-        assert!(is_unscoped(&all));
+        assert!(is_unscoped(&all, true));
+        assert!(is_unscoped(&all, false));
+        // A question from before agent notes existed names every other source.
+        let before_notes = AskScope {
+            include_agent_notes: false,
+            ..all.clone()
+        };
+        assert!(is_unscoped(&before_notes, false));
+        assert!(!is_unscoped(&before_notes, true));
         for restricted in [
             AskScope {
                 include_meetings: false,
@@ -934,6 +953,10 @@ mod tests {
             },
             AskScope {
                 include_files: false,
+                ..all.clone()
+            },
+            AskScope {
+                include_agent_notes: false,
                 ..all.clone()
             },
             AskScope {
@@ -957,7 +980,7 @@ mod tests {
                 ..all.clone()
             },
         ] {
-            assert!(!is_unscoped(&restricted), "{restricted:?}");
+            assert!(!is_unscoped(&restricted, true), "{restricted:?}");
         }
     }
 }

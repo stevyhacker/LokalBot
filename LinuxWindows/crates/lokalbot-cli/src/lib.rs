@@ -10,6 +10,7 @@ pub mod files;
 pub mod install;
 pub mod json;
 pub mod mcp;
+pub mod notes;
 pub mod personal;
 pub mod reports;
 pub mod screen;
@@ -29,7 +30,7 @@ pub const MAXIMUM_MEETING_COUNT: usize = 1000;
     name = "lokalbot-cli",
     version,
     about = "Read your local LokalBot meeting library and inspect app settings.",
-    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, search-files needs file access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → Privacy & Data. setup start asks the person for it."
+    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, search-files needs file access, search-notes needs agent-notes access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → Privacy & Data. setup start asks the person for it."
 )]
 pub struct Cli {
     /// Read another library (same as LOKALBOT_STORAGE_ROOT).
@@ -181,6 +182,26 @@ pub enum Command {
         #[arg(long)]
         table: bool,
     },
+    /// Word search across the notes the user's coding agents (Claude Code and
+    /// Codex) saved for their own later sessions: project decisions, how-tos,
+    /// preferences and pointers, best match first, with each note's text. Use
+    /// it to find what another agent or an earlier session already learned. A
+    /// note is an agent's record, not a verified fact. Works without launching
+    /// the app.
+    #[command(name = "search-notes")]
+    SearchNotes {
+        /// Words to find.
+        query: String,
+        /// Only this agent's notes: claude-code or codex.
+        #[arg(long)]
+        agent: Option<String>,
+        /// Maximum notes (1–30).
+        #[arg(long, default_value_t = notes::DEFAULT_LIMIT)]
+        limit: i64,
+        /// Plain-text table instead of JSON.
+        #[arg(long)]
+        table: bool,
+    },
     /// Show what the user shared about themselves that is relevant to a task
     /// (chosen in the Personal Context settings).
     #[command(name = "personal-context")]
@@ -284,7 +305,7 @@ pub enum Command {
         #[command(flatten)]
         launch: control::LaunchOptions,
     },
-    /// Serve the meeting library, and optionally screen memory, shared Personal Context, and Files, over MCP.
+    /// Serve the meeting library, and optionally screen memory, shared Personal Context, Files, and agent notes, over MCP.
     Mcp,
     /// Install the LokalBot skill and CLI link for coding agents.
     #[command(name = "install-skill")]
@@ -676,6 +697,25 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 )),
             }
         }
+        Command::SearchNotes {
+            query,
+            agent,
+            limit,
+            table,
+        } => match notes::report(&paths, &query, agent.as_deref(), Some(limit)) {
+            Ok(report) if table => Ok(notes::table(&report)),
+            Ok(report) => Ok(json::pretty(&report, false)),
+            Err(notes::Failure::Invalid(message)) => Err(validation(message)),
+            // A switch that is off prints its code, as the MCP tools do.
+            Err(failure @ notes::Failure::Disabled) => Err(coded(
+                mcp::ToolErrorCode::AgentNotesAccessDisabled,
+                &failure.message(),
+            )),
+            Err(failure @ notes::Failure::Unavailable) => Err(coded(
+                mcp::ToolErrorCode::AgentNotesUnavailable,
+                &failure.message(),
+            )),
+        },
         Command::PersonalContext {
             task,
             kind,

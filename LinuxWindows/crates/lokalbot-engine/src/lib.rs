@@ -3,6 +3,7 @@
 //! The app sends [`Command`]s; the engine does the work on its own threads and
 //! reports back through [`EngineEvent`]s. Nothing here touches the UI.
 
+pub mod agent_notes;
 mod ask;
 mod autocomplete;
 mod autocomplete_measure;
@@ -99,6 +100,8 @@ pub(crate) struct Shared {
     /// That call in full: whose sound to record, and its room when known.
     pub detected_meeting: Mutex<Option<lokalbot_platform::DetectedMeeting>>,
     pub coding_agents: coding_agents::Ingestor,
+    /// The notes coding agents keep for themselves, as a search source.
+    pub agent_notes: agent_notes::Ingestor,
     pub exports: exports::Exports,
     pub routines: routines::Routines,
     pub dreams: dreaming::Dreams,
@@ -144,6 +147,7 @@ impl Shared {
             detected_call: Mutex::new(None),
             detected_meeting: Mutex::new(None),
             coding_agents: coding_agents::Ingestor::default(),
+            agent_notes: agent_notes::Ingestor::default(),
             exports: exports::Exports::default(),
             routines: routines::Routines::default(),
             dreams: dreaming::Dreams::default(),
@@ -451,6 +455,7 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
     *shared.screen_vectors.lock() = Some(screen_vectors.clone());
     retention::start(shared.clone());
     coding_agents::start(shared.clone());
+    agent_notes::start(shared.clone());
     exports::start(shared.clone());
     routines::start(shared.clone());
     dreaming::start(shared.clone(), models.clone());
@@ -582,6 +587,10 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                     && (before.enabled_coding_agents() != settings.enabled_coding_agents()
                         || before.coding_agent_excluded_folders
                             != settings.coding_agent_excluded_folders);
+                // Notes are read, narrowed or deleted as soon as their setting,
+                // an agent switch or an exclusion changes.
+                let read_notes = agent_notes::Configuration::new(&before)
+                    != agent_notes::Configuration::new(&settings);
                 let reviews_changed = before.dreaming_enabled != settings.dreaming_enabled
                     || before.dreaming_hour != settings.dreaming_hour
                     || before.dreaming_first_eligible_day_key()
@@ -629,6 +638,10 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 if read_sessions {
                     let shared = shared.clone();
                     std::thread::spawn(move || coding_agents::refresh(&shared, None));
+                }
+                if read_notes {
+                    let shared = shared.clone();
+                    std::thread::spawn(move || agent_notes::refresh(&shared));
                 }
             }
             Command::Dictation(command) => dictation.handle(command),

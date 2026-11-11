@@ -136,6 +136,7 @@ impl AskPage {
                                 this.restore_sources();
                                 this.scope_from_results = false;
                                 this.scope_had_files = false;
+                                this.scope_had_notes = false;
                                 this.scope_changed(window, cx);
                             })),
                     )
@@ -292,9 +293,10 @@ impl AskPage {
         let count = self.results.meetings.len();
         let screens = self.results.screens.len();
         let files = self.results.files.len();
+        let notes = self.results.notes.len();
         let label = if self.results.running {
             lokalbot_i18n::tr("Finding sources…").to_string()
-        } else if count + screens + files > 0 {
+        } else if count + screens + files + notes > 0 {
             let mut label = lokalbot_i18n::format(
                 "Answer sources: {0} · {1}",
                 &[
@@ -312,15 +314,16 @@ impl AskPage {
                 label.push_str(" · ");
                 label.push_str(&super::history::count_label(files, "file"));
             }
+            if notes > 0 {
+                label.push_str(" · ");
+                label.push_str(&super::history::count_label(notes, "note"));
+            }
             label
         } else {
             lokalbot_i18n::format(
                 "Answer sources: {0} · {1}",
                 &[
-                    (
-                        "0",
-                        self.sources.summary(self.files_enabled(cx)).to_string(),
-                    ),
+                    ("0", self.sources.summary(self.offered(cx)).to_string()),
                     ("1", self.date_scope.label().to_string()),
                 ],
             )
@@ -397,6 +400,18 @@ impl AskPage {
                                     ("0", hit.name()),
                                     ("1", super::search::file_kind_label(hit)),
                                 ],
+                            )))
+                            .into_any_element(),
+                    );
+                }
+                for hit in &self.results.notes {
+                    details.push(
+                        div()
+                            .truncate()
+                            .text_color(lb.text_secondary)
+                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
+                                "Agent note · {0}",
+                                &[("0", hit.title.clone())],
                             )))
                             .into_any_element(),
                     );
@@ -543,28 +558,28 @@ impl AskPage {
         let page = cx.entity();
         let sources = self.sources;
         let facet = self.facet;
-        let files_enabled = self.files_enabled(cx);
+        let offered = self.offered(cx);
         let screen_app = self.screen_app.clone();
         let screen_apps = self.screen_apps.clone();
         Button::new("ask-sources")
             .ghost()
             .small()
-            .label(sources.summary(files_enabled))
+            .label(sources.summary(offered))
             .font_weight(FontWeight::SEMIBOLD)
             .dropdown_caret(true)
             .tooltip(lokalbot_i18n::tr("Choose sources and result filters"))
             .dropdown_menu(move |menu, window, cx| {
                 let mut menu = menu.min_w(px(220.));
-                for source in Source::available(files_enabled) {
+                for source in Source::available(offered) {
                     let page = page.clone();
                     let checked = sources.contains(source);
                     menu = menu.item(
                         PopupMenuItem::new(lokalbot_i18n::tr(source.label()))
                             .checked(checked)
-                            .disabled(checked && sources.count(files_enabled) == 1)
+                            .disabled(checked && sources.count(offered) == 1)
                             .on_click(move |_, window, cx| {
                                 page.update(cx, |page, cx| {
-                                    page.sources.toggle(source, files_enabled);
+                                    page.sources.toggle(source, offered);
                                     page.scope_changed(window, cx);
                                 })
                             }),
@@ -572,10 +587,11 @@ impl AskPage {
                 }
                 let facet_page = page.clone();
                 let facets = PopupMenu::build(window, cx, move |mut menu, _, _| {
-                    for option in Facet::ALL
-                        .into_iter()
-                        .filter(|option| *option != Facet::Files || files_enabled)
-                    {
+                    for option in Facet::ALL.into_iter().filter(|option| match option {
+                        Facet::Files => offered.files,
+                        Facet::AgentNotes => offered.agent_notes,
+                        _ => true,
+                    }) {
                         let page = facet_page.clone();
                         menu = menu.item(
                             PopupMenuItem::new(lokalbot_i18n::tr(option.label()))
