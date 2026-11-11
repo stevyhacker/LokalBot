@@ -261,7 +261,7 @@ Built during the Meta Global AI Developer Hackathon on top of v0.11.4; see [HACK
 
 ### Interface languages
 
-Settings → General → Appearance → App language and the setup wizard offer English, Simplified
+Settings → General → Appearance → App language and the setup wizard's first step offer English, Simplified
 Chinese, Hindi, Spanish, Modern Standard Arabic, French, Bengali, Portuguese,
 Indonesian, Urdu, Russian, German, Japanese, Nigerian Pidgin, Egyptian Arabic,
 Marathi, Vietnamese, Telugu, Swahili, and Hausa. These are the first twenty entries
@@ -377,6 +377,14 @@ Everything lives in **Settings**, one page per feature, so everything that turns
 - **App:** **Privacy & Permissions** (`privacy`) — where data lives, every macOS permission in one list, and the library location. **Diagnostics** (`advanced`) — Memory Health, the live resource monitor, hardware, recent generations, and diagnostics export.
 
 Category switches start at the top rather than inheriting another page's scroll position.
+
+### First-run setup
+
+`OnboardingView` is three steps (`OnboardingStep`: Choose, Allow access, Download), named in a stepper that sits in the window's title bar; a finished step is a button that goes back. The choices are a `CaptureSetupDraft` started from the current settings, so a new install keeps its defaults, and nothing is applied until **Start using LokalBot** or **Skip for now** calls `AppState.finishOnboarding`. The app language menu is on the first step only.
+
+- **Choose:** Meeting notes is a switch over `autoRecordMode` (off is `.manual`; the draft remembers the automatic or ask choice behind it), Your workday is `trackingEnabled` with the capture mode beside it, and Coding agent sessions is the master switch.
+- **Allow access:** `OnboardingAccess` lists only what the draft needs (the microphone always, Accessibility for the workday, Screen Recording for screenshots) and gives each row its state from `PermissionManager`: needed, waiting after System Settings was opened, allowed, allowed after a restart (granted since `grantedAtLaunch`), or turned off (`turnedOff`, a refused microphone). **Restart now** saves an `OnboardingResumeState` (step, draft, the settings the draft started from, the two download options) through `OnboardingResumeStore` and relaunches; the window keeps that state current while it is open, since macOS can also ask to quit after a Screen Recording grant. At launch `OnboardingLaunch.decision` reopens an unfinished setup that has saved state even when the microphone is already granted, and a finished one only after its own Restart now. Saved state is ignored once the settings no longer match the ones the draft started from, and `markSetupFinished` clears it.
+- **Download:** `OnboardingDownloadPlan` turns the `ModelRoles` statuses into rows with each model's job, name and size (`ModelSettingsPresentation.estimatedTranscriptionBytes` and the catalog's byte counts), the total still to fetch, and the free space from the readiness snapshot. Nothing downloads until the button that names the size is pressed. While it runs, the plan counts only the models that were missing when it began; `DownloadTimeEstimator` gives minutes left from the last 30 seconds of progress once it has watched for 5, and the amount alone before that. A failed model reads Stopped with Retry, which calls `startCoreModelDownloads` again. The sample-meeting option sets `AppState.sampleMeetingWaitsForModels`; `openWaitingSampleMeeting` adds the sample when the models become ready, also after the window has closed, until LokalBot quits.
 
 ## Agent CLI & MCP
 

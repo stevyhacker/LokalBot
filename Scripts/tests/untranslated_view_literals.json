@@ -220,7 +220,7 @@
       "Text models: \\(…)",
       "Using \\(…)"
     ],
-    "OnboardingView.swift": [
+    "OnboardingDownloadStep.swift": [
       "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Autocomplete."
     ],
     "OutcomeOverviewViews.swift": [
@@ -367,9 +367,6 @@
     ],
     "ModelSupportingSettings.swift": [
       "Preparing voice…"
-    ],
-    "OnboardingView.swift": [
-      "Still unavailable: "
     ],
     "OutcomeOverviewViews.swift": [
       "Owner unclear",

@@ -434,6 +434,9 @@ final class AppState: ObservableObject {
     @Published var followThroughSession: FollowThroughSession?
     /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
     @Published var showsSampleSetup = false
+    /// Setup asked for the sample meeting before its models were here; it is
+    /// added when they are. Forgotten when LokalBot quits.
+    var sampleMeetingWaitsForModels = false
 
     func draftFollowUp(for meeting: Meeting) {
         followUpDraftMeeting = meeting
@@ -970,6 +973,7 @@ final class AppState: ObservableObject {
         storage: storage,
         onReadinessChanged: { [weak self] in
             self?.processMeetingsWaitingForModels()
+            self?.openWaitingSampleMeeting()
         })
 
     private(set) lazy var modelSetup = ModelSetupController(
@@ -1691,14 +1695,22 @@ final class AppState: ObservableObject {
         // so quitting mid-wizard re-opens it next launch. Fully-permissioned
         // installs that predate the flag are recognised as established right
         // away and start menu-bar-only next launch.
-        if !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) {
-            if PermissionManager.shared.allGranted {
-                UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
-            } else if agentSetup.pending == nil {
-                // An agent's setup request replaces the wizard; declining it
-                // opens onboarding instead.
-                WindowAccess.shared.open("onboarding")
-            }
+        // A setup interrupted by the restart a permission grant needs
+        // reopens where it was (`OnboardingResumeStore`).
+        let resume = OnboardingResumeStore.live
+        switch OnboardingLaunch.decision(
+            finished: UserDefaults.standard.bool(forKey: Self.onboardingShownKey),
+            coreGranted: PermissionManager.shared.allGranted,
+            resume: resume.load(for: settings),
+            // An agent's setup request replaces the wizard; declining it
+            // opens onboarding instead.
+            agentSetupPending: agentSetup.pending != nil) {
+        case .markFinished:
+            UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        case .open:
+            WindowAccess.shared.open("onboarding")
+        case .stayClosed(let clearsResume):
+            if clearsResume { resume.clear() }
         }
         // After the first-run check: until setup is finished, a new install
         // reads no coding-agent session (`finishOnboarding` starts it).
@@ -2785,9 +2797,10 @@ final class AppState: ObservableObject {
     /// Setup's final step: applies its choices and marks setup finished. A
     /// new install has read no coding-agent session until now, so reading
     /// starts here if the person kept it on.
-    func finishOnboarding(applying draft: CaptureSetupDraft) {
+    func finishOnboarding(applying draft: CaptureSetupDraft, opensSampleMeeting: Bool = false) {
         settings = draft.applying(to: settings)
         markSetupFinished()
+        if opensSampleMeeting { openSampleMeetingWhenReady() }
     }
 
     /// Setup is finished, here or by an agent through `lokalbot-cli setup
@@ -2796,6 +2809,8 @@ final class AppState: ObservableObject {
     func markSetupFinished() {
         let firstFinish = !UserDefaults.standard.bool(forKey: Self.onboardingShownKey)
         UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        // Nothing is left to resume. Unit tests share the real preferences.
+        if !UITestRuntime.isUnitTesting { OnboardingResumeStore.live.clear() }
         if firstFinish && interactive { applyCodingAgentEvidenceSetting() }
     }
 

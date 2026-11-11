@@ -177,7 +177,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let showsQuickRecall = windowKind == "quick-recall"
         let contentSize: NSSize
         if showsOnboarding {
-            contentSize = NSSize(width: 640, height: 720)
+            contentSize = NSSize(width: OnboardingView.size.width, height: OnboardingView.size.height)
         } else if showsQuickRecall {
             contentSize = NSSize(width: 660, height: 480)
         } else {
@@ -216,7 +216,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
         window.title = showsOnboarding ? "Welcome to LokalBot" : (showsQuickRecall ? "Ask" : "LokalBot")
-        if showsQuickRecall {
+        // Quick Recall has no title bar; setup's stepper is its top bar.
+        if showsQuickRecall || showsOnboarding {
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
         }

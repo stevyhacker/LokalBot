@@ -343,6 +343,8 @@ struct LokalBotApp: App {
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
+        // The steps sit in the window's top bar, beside the traffic lights.
+        .windowStyle(.hiddenTitleBar)
 
         // The ⌘K command palette. A lightweight, keyboard-first launcher that
         // records, navigates, and opens recent meetings without the sidebar.
