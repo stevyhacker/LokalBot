@@ -647,8 +647,10 @@ final class MainWindowUITests: XCTestCase {
         let review = app.buttons["outcomes.review"]
         UITestHarness.scrollTo(review, in: app)
         review.click()
-        UITestHarness.selectSegment("Threads", pickerIdentifier: "actions.reviewMode", in: app)
-        XCTAssertTrue(identified("actions.threads").waitForExistence(timeout: 5))
+        // Actions always lists threads: the action said in two meetings is one row.
+        XCTAssertTrue(identified("actions.list").waitForExistence(timeout: 5))
+        XCTAssertTrue(UITestHarness.staticText(containing: "In 2 meetings", in: app).waitForExistence(timeout: 5),
+                      "A thread's row should say how many meetings it was said in")
         let capture = XCTAttachment(screenshot: app.screenshot())
         capture.name = "action-thread-review"
         capture.lifetime = .keepAlways

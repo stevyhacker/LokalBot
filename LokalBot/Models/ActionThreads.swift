@@ -127,19 +127,30 @@ struct ActionThread: Identifiable, Equatable, Sendable {
 enum ActionAttentionOrder {
     static let dueSoonWindowDays = 7
 
+    /// The three groups of the order, which the Actions page shows as
+    /// headings. A due phrase that names no day counts as no date.
+    enum Bucket: Int, Comparable, Sendable {
+        case overdue, soon, later
+
+        static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+    }
+
+    static func bucket(for thread: ActionThread, now: Date = Date(),
+                       calendar: Calendar = .current) -> Bucket {
+        guard let due = thread.resolvedDueDate else { return .later }
+        let today = calendar.startOfDay(for: now)
+        if due < today { return .overdue }
+        let soon = calendar.date(byAdding: .day, value: dueSoonWindowDays, to: today) ?? today
+        return due <= soon ? .soon : .later
+    }
+
     static func sorted(_ threads: [ActionThread], now: Date = Date(),
                        calendar: Calendar = .current) -> [ActionThread] {
-        let today = calendar.startOfDay(for: now)
-        let soon = calendar.date(byAdding: .day, value: dueSoonWindowDays, to: today) ?? today
-        func bucket(_ thread: ActionThread) -> Int {
-            guard let due = thread.resolvedDueDate else { return 2 }
-            if due < today { return 0 }
-            return due <= soon ? 1 : 2
-        }
+        let buckets = threads.map { bucket(for: $0, now: now, calendar: calendar) }
         return threads.enumerated().sorted { lhs, rhs in
-            let left = bucket(lhs.element), right = bucket(rhs.element)
+            let left = buckets[lhs.offset], right = buckets[rhs.offset]
             if left != right { return left < right }
-            if left < 2, let first = lhs.element.resolvedDueDate,
+            if left < .later, let first = lhs.element.resolvedDueDate,
                let second = rhs.element.resolvedDueDate, first != second {
                 return first < second
             }

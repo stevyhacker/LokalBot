@@ -9,18 +9,6 @@
       "Forget everything…",
       "Stop Always Using"
     ],
-    "ActionEvidencePassages.swift": [
-      "Pause",
-      "Play Passage"
-    ],
-    "ActionsWorkspaceView.swift": [
-      "A thread groups the same action across meetings. Changing its status updates every linked meeting.",
-      "Original due phrase: \\(…)",
-      "Select",
-      "\\(…) of \\(…)",
-      "\\(…) selected outside these filters.",
-      "\\(…) threads"
-    ],
     "AgentApprovalDock.swift": [
       "(empty)",
       "Allow \\(…) for Session",
@@ -236,13 +224,9 @@
       "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Autocomplete."
     ],
     "OutcomeOverviewViews.swift": [
-      "Allow matching across meetings",
       "Corrected to: \\(…)",
-      "Defer",
-      "Deferred",
       "Due: \\(…)",
-      "Mark all \\(…)",
-      "Still open?"
+      "Mark all \\(…)"
     ],
     "PeopleWorkspaceView.swift": [
       "And \\(…) more meeting\\(…) under \\(…) other title\\(…).",
@@ -344,10 +328,6 @@
     ]
   },
   "verbatim": {
-    "ActionsWorkspaceView.swift": [
-      "Could not update: ",
-      "Owner unclear"
-    ],
     "AgentSessionView.swift": [
       "New task"
     ],

@@ -683,10 +683,15 @@ final class RedesignUITests: XCTestCase {
         let folder = fixture.folder(for: fixture.designReview)
         // Large-list persistence belongs to RedesignContractTests, which
         // covers 0, 40 and 400 actions without an accessibility snapshot of every row.
-        // Two distinct actions exercise filtering and hidden selection here.
+        // Two distinct actions exercise filtering and selection here. The
+        // dated one lists ahead of the other, which is therefore never the
+        // row the page selects by default.
         let actions: [[String: Any]] = (0..<2).map { index in
-            ["id": "search-action-\(index)", "schemaVersion": 2, "text": "Synthetic commitment \(index)",
-             "owner": "Me", "isForUser": true, "due": "Friday", "citations": []]
+            var action: [String: Any] = [
+                "id": "search-action-\(index)", "schemaVersion": 2, "text": "Synthetic commitment \(index)",
+                "owner": "Me", "isForUser": true, "citations": []]
+            if index == 0 { action["due"] = "Friday" }
+            return action
         }
         let data = try JSONSerialization.data(withJSONObject: ["schemaVersion": 2, "actionItems": actions])
         try data.write(to: folder.appendingPathComponent("outcomes.json"))
@@ -694,38 +699,63 @@ final class RedesignUITests: XCTestCase {
         app.buttons["outcomes.review"].click()
         let search = app.textFields["actions.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.click(); search.typeText("Synthetic commitment 1")
-        // Failure messages repeat the action title; inspect only its list row.
-        let action = element("actions.list").staticTexts.matching(
-            NSPredicate(format: "label == %@ OR value == %@",
-                        "Synthetic commitment 1", "Synthetic commitment 1")).firstMatch
+        // The details pane is open beside the list with the first row selected.
+        let detailsTitle = element("actions.details.title")
+        func detailsShow(_ text: String) -> Bool {
+            UITestHarness.waitUntil { detailsTitle.exists && (detailsTitle.value as? String ?? detailsTitle.label) == text }
+        }
+        XCTAssertTrue(detailsTitle.waitForExistence(timeout: 5), "The first action should be selected when the page opens")
+        // Failure messages and the details pane repeat the action title; inspect only its list row.
+        func row(_ text: String) -> XCUIElement {
+            element("actions.list").staticTexts.matching(
+                NSPredicate(format: "label == %@ OR value == %@", text, text)).firstMatch
+        }
+        let action = row("Synthetic commitment 1")
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         action.click()
+        XCTAssertTrue(detailsShow("Synthetic commitment 1"))
+        search.click(); search.typeText("Synthetic commitment 0")
+        XCTAssertTrue(detailsShow("Synthetic commitment 0"),
+                      "A search that hides the selected action shows the first listed one instead")
+        XCTAssertFalse(action.exists)
         search.click(); search.typeKey("a", modifierFlags: .command)
-        search.typeText("Synthetic commitment 0")
-        XCTAssertTrue(element("actions.selection.hidden").waitForExistence(timeout: 5),
-                      "Filtering should preserve the selected action while excluding it from the batch")
-        XCTAssertFalse(element("actions.batch").exists, "The batch menu appears only for visible selections")
-        search.click(); search.typeKey("a", modifierFlags: .command)
-        search.typeText("Synthetic commitment 1")
+        search.typeKey(.delete, modifierFlags: [])
         XCTAssertTrue(action.waitForExistence(timeout: 5))
-        XCTAssertTrue(element("actions.batch").waitForExistence(timeout: 3), "Returning to the action should restore its selection")
-        XCTAssertFalse(element("actions.selection.hidden").exists)
-        let complete = app.buttons["outcome.action.toggle.\(fixture.designReview.id.uuidString):search-action-1"]
+        XCTAssertTrue(detailsShow("Synthetic commitment 1"), "Clearing the search should restore the selection")
+        // ⌘-click adds a row, and the details pane offers the batch changes.
+        XCTAssertFalse(element("actions.batch").exists, "The batch pane appears only for several selected rows")
+        XCUIElement.perform(withKeyModifiers: .command) { row("Synthetic commitment 0").click() }
+        XCTAssertTrue(element("actions.batch").waitForExistence(timeout: 3), "⌘-click should select a second action")
+        XCTAssertTrue(app.buttons["actions.batch.done"].exists)
+        action.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !self.element("actions.batch").exists },
+                      "A plain click should return to one selected action")
+        let complete = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND value == %@", "outcome.thread.toggle.", "Synthetic commitment 1")).firstMatch
         XCTAssertTrue(complete.waitForExistence(timeout: 4))
         let stateFile = folder.appendingPathComponent("outcome-state.json")
         try withBlockedStateFile(stateFile) {
             complete.click()
             XCTAssertTrue(UITestHarness.staticText(containing: "Could not update this action", in: app)
                 .waitForExistence(timeout: 4))
-            XCTAssertTrue(action.exists, "A failed save must preserve the open action")
+            XCTAssertEqual(complete.label, "Mark action thread done", "A failed save must leave the action open")
             snapshot("action-complete-write-failure")
         }
         complete.click()
-        XCTAssertTrue(UITestHarness.waitUntil { !action.exists })
+        // A completed action stays in the list, ticked, until the view changes.
+        XCTAssertTrue(UITestHarness.waitUntil { complete.exists && complete.label == "Reopen action thread" })
+        XCTAssertTrue(action.exists, "The ticked action should stay listed until the view changes")
         XCTAssertFalse(UITestHarness.staticText(containing: "Could not update this action", in: app).exists,
                        "A successful retry should clear the previous save error")
         XCTAssertFalse(app.windows.buttons["Undo"].exists, "Completing an action must not leave a persistent Undo bar")
+        let saved = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: stateFile)) as? [String: Any])
+        let states = try XCTUnwrap(saved["actions"] as? [String: [String: Any]])
+        XCTAssertEqual(states["search-action-1"]?["status"] as? String, "done")
+        // Leaving Open and coming back closes the list up.
+        UITestHarness.selectSegment("Done", pickerIdentifier: "actions.status", in: app)
+        XCTAssertTrue(action.waitForExistence(timeout: 4), "The completed action belongs to the Done list")
+        UITestHarness.selectSegment("Open", pickerIdentifier: "actions.status", in: app)
+        XCTAssertTrue(UITestHarness.waitUntil { !action.exists }, "A completed action left the Open list")
     }
 
     func testAgentApprovalDescribesEffectAndDenialAndStopReachTheController() throws {

@@ -1,413 +1,289 @@
 import SwiftUI
 
-/// Full personal-action review under Today. It reads every projection, while
-/// the Today preview stays deliberately small. Corrections never alter evidence.
+/// The user's own actions from meetings, each said once however many
+/// meetings it came up in. The list shows one status at a time in attention
+/// order; the pane beside it shows the selected action and the evidence
+/// behind it. Status changes and corrections go through `OutcomeIndex` and
+/// never alter what was extracted.
 struct ActionsWorkspaceView: View {
     @EnvironmentObject private var app: AppState
+
+    var body: some View {
+        ActionsWorkspace(connections: app.connections)
+    }
+}
+
+/// People and Projects publish on their own object, so the page observes it
+/// to show an action's people and project as soon as they are known.
+private struct ActionsWorkspace: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var connections: WorkMemoryConnections
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @SceneStorage("actions.query") private var query = ""
-    @SceneStorage("actions.status") private var status = "open"
-    @SceneStorage("actions.due") private var dueFilter = "all"
-    @SceneStorage("actions.sort") private var sort = "due"
-    @SceneStorage("actions.reviewMode") private var reviewMode = "actions"
-    @SceneStorage("actions.meetingID") private var storedMeetingID = ""
+    @SceneStorage("actions.status") private var status = OutcomeStatus.open.rawValue
+    @SceneStorage("actions.due") private var due = ActionsListFilter.Due.any.rawValue
     @SceneStorage("actions.personID") private var personID = ""
-    private var meetingID: UUID? { UUID(uuidString: storedMeetingID) }
-    /// The user's open actions that name a person or came from a small
-    /// meeting with them, using the same rules as the People workspace.
-    private var personActionIDs: Set<String>? {
-        guard !personID.isEmpty,
-              let person = app.connections.people.first(where: { $0.id == personID }) else { return nil }
-        return Set(person.myActions.flatMap(\.references).map(\.id))
-    }
-    private var selection: Set<String> {
-        get { app.actionSelection }
-        nonmutating set { app.actionSelection = newValue }
-    }
+    @SceneStorage("actions.projectID") private var projectID = ""
+    @SceneStorage("actions.meeting") private var meetingTitle = ""
+    @SceneStorage("actions.stale") private var staleOnly = false
+    @SceneStorage("actions.group") private var grouping = ActionsListFilter.Grouping.due.rawValue
+    @SceneStorage("actions.detailsHidden") private var detailsHidden = false
+    @State private var cache = ActionsListCache()
+    /// Threads whose status just changed here; they stay listed until the
+    /// view or its filters change.
+    @State private var kept: Set<String> = []
+    @State private var anchor: String?
+    @State private var lead: String?
     @State private var correction: OutcomeActionReference?
-    @State private var failures: [String] = []
-    /// Shows a checkbox per row so several actions can be chosen without ⌘-click.
-    @State private var selecting = false
+    @State private var pendingStatus: PendingStatusChange?
 
-    private var all: [OutcomeActionReference] {
-        app.outcomeIndex.all.flatMap(\.actionReferences).filter(\.isForUser)
-    }
-    private func visibleActions(in actions: [OutcomeActionReference]) -> [OutcomeActionReference] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let personActionIDs = personActionIDs
-        return actions.filter { action in
-            (status.isEmpty || action.status.rawValue == status)
-                && (meetingID == nil || action.meetingID == meetingID)
-                && (personActionIDs?.contains(action.id) ?? true)
-                && (needle.isEmpty || [action.text, action.meetingTitle, action.due ?? ""].contains { $0.localizedCaseInsensitiveContains(needle) })
-                && matchesDue(action)
-        }.sorted { lhs, rhs in
-            if sort != "recent" {
-                return ActionDueSort(order: sort == "dueDescending" ? .reverse : .forward)
-                    .compare(lhs, rhs) == .orderedAscending
-            }
-            if lhs.meetingStartedAt != rhs.meetingStartedAt { return lhs.meetingStartedAt > rhs.meetingStartedAt }
-            return lhs.id < rhs.id
+    /// A status change that reaches into several meetings waits for a yes.
+    private struct PendingStatusChange {
+        let status: OutcomeStatus
+        let threads: [ActionThread]
+
+        var meetingTitles: [String] {
+            var seen = Set<UUID>()
+            return threads.filter(\.hasMultipleMeetings).flatMap(\.references)
+                .filter { seen.insert($0.meetingID).inserted }
+                .map(\.meetingTitle)
         }
     }
-    private var tableSort: Binding<[ActionDueSort]> {
-        Binding(get: {
-            sort == "recent" ? [] : [ActionDueSort(order: sort == "dueDescending" ? .reverse : .forward)]
-        }, set: { comparators in
-            sort = comparators.first.map { $0.order == .forward ? "due" : "dueDescending" } ?? "recent"
-        })
+
+    private static let listMinWidth: CGFloat = 400
+    private static let detailsMinWidth: CGFloat = 280
+    private static let detailsMaxWidth: CGFloat = 440
+
+    private var filter: ActionsListFilter {
+        get {
+            ActionsListFilter(
+                status: OutcomeStatus(rawValue: status) ?? .open, query: query,
+                due: .init(rawValue: due) ?? .any,
+                personID: personID.isEmpty ? nil : personID,
+                projectID: projectID.isEmpty ? nil : projectID,
+                meetingTitle: meetingTitle.isEmpty ? nil : meetingTitle,
+                staleOnly: staleOnly,
+                grouping: .init(rawValue: grouping) ?? .due)
+        }
+        nonmutating set {
+            status = newValue.status.rawValue
+            query = newValue.query
+            due = newValue.due.rawValue
+            personID = newValue.personID ?? ""
+            projectID = newValue.projectID ?? ""
+            meetingTitle = newValue.meetingTitle ?? ""
+            staleOnly = newValue.staleOnly
+            grouping = newValue.grouping.rawValue
+        }
     }
-    private func threads(matching visible: [OutcomeActionReference]) -> [ActionThread] {
-        let positions = Dictionary(uniqueKeysWithValues: visible.enumerated().map { ($0.element.id, $0.offset) })
-        return app.outcomeIndex.userActionThreads.compactMap { thread -> (ActionThread, Int)? in
-            guard let position = thread.references.compactMap({ positions[$0.id] }).min() else { return nil }
-            return (thread, position)
-        }.sorted { $0.1 < $1.1 }.map(\.0)
-    }
-    private func listSelection(visibleIDs: Set<String>) -> Binding<Set<String>> {
-        // AppKit reads selection repeatedly while building table accessibility.
-        // Capture this render's IDs so those reads never rebuild/sort the library.
-        Binding(get: { selection.intersection(visibleIDs) }, set: { updated in
-            selection = selection.subtracting(visibleIDs).union(updated)
-        })
+
+    private var selection: ActionListSelection {
+        get { ActionListSelection(chosen: app.actionSelection, anchor: anchor, lead: lead) }
+        nonmutating set {
+            if app.actionSelection != newValue.chosen { app.actionSelection = newValue.chosen }
+            anchor = newValue.anchor
+            lead = newValue.lead
+        }
     }
 
     var body: some View {
-        // Share one projection across counts, selection, rows, and the inspector.
-        let actions = all
-        let visible = visibleActions(in: actions)
-        let visibleIDs = Set(visible.map(\.id))
-        let selected = visible.filter { selection.contains($0.id) }
-        let visibleThreads = reviewMode == "threads" ? threads(matching: visible) : []
-        VStack(spacing: 0) {
-            header(total: actions.count, visible: visible.count, threads: visibleThreads.count, selected: selected)
-            filters(hiddenSelectionCount: selection.count - selected.count)
-            if !failures.isEmpty {
-                Text("Could not update: " + failures.joined(separator: "; "))
-                    .workspaceTextRole(.warning).padding(.horizontal, 20)
+        // One list serves the rows, the selection and the details pane, and
+        // is rebuilt only when what it is made of changes.
+        let filter = filter
+        let language = app.settings.appLanguage
+        let links = cache.links(people: connections.people, projects: connections.projects)
+        let content = cache.content(threads: app.outcomeIndex.userActionThreads, filter: filter, links: links,
+                                    kept: kept, language: language)
+        let current = selection.current(in: content.order)
+        HSplitView {
+            VStack(spacing: 0) {
+                ActionsFilterBar(
+                    filter: Binding(get: { self.filter }, set: { self.filter = $0 }),
+                    chips: filter.chips(links: links, localize: language.catalog),
+                    links: links, meetingTitles: content.meetingTitles)
+                Divider()
+                ActionsList(
+                    content: content, current: Set(current),
+                    emptyText: ActionListWording.emptyText(for: filter, localize: language.catalog),
+                    offersClearFilters: filter.narrowsList,
+                    onClick: { id, command, shift in
+                        selection.click(id, command: command, shift: shift, order: content.order)
+                    },
+                    onMove: { step, extending in
+                        selection.move(by: step, extending: extending, order: content.order)
+                    },
+                    onSelectAll: { selection.selectAll(in: content.order) },
+                    onCollapse: { selection.collapse(in: content.order) },
+                    onStatus: { requestStatus($0, for: [$1]) },
+                    onEdit: { correction = $0.latestReference },
+                    onNotMine: markNotMine,
+                    onClearFilters: { self.filter.clearFilters() })
+                if filter.status == .open, !filter.staleOnly, content.staleCount > 0 {
+                    Divider()
+                    ActionsStaleBar(summary: ActionListWording.staleSummary(
+                        count: content.staleCount, localize: language.catalog)) {
+                        self.filter.staleOnly = true
+                    }
+                }
             }
-            if reviewMode == "threads" {
-                threadList(visibleThreads)
-            } else {
-                actionList(visible, visibleIDs: visibleIDs, inspected: selected.first)
+            .frame(minWidth: Self.listMinWidth, maxWidth: .infinity, maxHeight: .infinity)
+            .background(.background)
+            .splitPaneAccessibilityLabel("Action list")
+            if !detailsHidden {
+                ActionDetailsPane(
+                    rows: current.compactMap(content.row), links: links, listing: filter.status,
+                    listedCount: content.order.count, onStatus: requestStatus,
+                    onSelectAll: { selection.selectAll(in: content.order) })
+                    .frame(minWidth: Self.detailsMinWidth, idealWidth: LBTokens.Metric.detailsPaneWidth,
+                           maxWidth: Self.detailsMaxWidth)
+                    .splitPaneAccessibilityLabel("Action details", autosaveName: "LokalBot.actions",
+                                                 initialWidth: LBTokens.Metric.detailsPaneWidth)
             }
         }
+        .detailSplitMinimumWidth(detailsHidden ? [Self.listMinWidth] : [Self.listMinWidth, Self.detailsMinWidth])
         .navigationTitle("Actions")
+        .navigationSubtitle(Text("\(content.openCount) open"))
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                // Planning the open actions with Agent moved here from Today.
+                if content.openCount > 0 {
+                    Button(action: planInAgent) {
+                        Label("Plan in Agent…", systemImage: "wand.and.sparkles")
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .help("Open a new Agent task with these action threads")
+                    .accessibilityIdentifier("outcomes.planInAgent")
+                }
+                Toggle(isOn: Binding(get: { !detailsHidden }, set: { detailsHidden = !$0 })) {
+                    Label("Details", systemImage: "sidebar.trailing")
+                }
+                .help("Details")
+                .accessibilityIdentifier("actions.detailsToggle")
+            }
+        }
         .task {
             app.refreshConnections()
             app.refreshActionCompletionHints()
         }
-        .onChange(of: actions.map(\.id)) { _, ids in app.actionSelection.formIntersection(ids) }
+        .onChange(of: filter) { kept = [] }
         .sheet(item: $correction) { reference in
             ActionEditorSheet(reference: reference)
         }
-    }
-
-    private func threadList(_ visibleThreads: [ActionThread]) -> some View {
-        VStack(spacing: 8) {
-            Text("A thread groups the same action across meetings. Changing its status updates every linked meeting.")
-                .workspaceTextRole(.supporting)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-            List(visibleThreads) { thread in
-                ActionThreadRow(thread: thread)
-            }
-            .accessibilityIdentifier("actions.threads")
-            .accessibilityLabel("Action threads")
-            .overlay {
-                if visibleThreads.isEmpty {
-                    ContentUnavailableView("No matching threads", systemImage: "checklist",
-                                           description: Text("Choose All statuses to review completed and deferred actions."))
-                }
-            }
+        .confirmationDialog(
+            "Update actions in \(pendingStatus?.meetingTitles.count ?? 0) meetings?",
+            isPresented: Binding(get: { pendingStatus != nil }, set: { if !$0 { pendingStatus = nil } }),
+            titleVisibility: .visible,
+            presenting: pendingStatus
+        ) { change in
+            Button(Self.confirmationTitle(for: change.status)) { applyStatus(change.status, to: change.threads) }
+            Button("Cancel", role: .cancel) {}
+        } message: { change in
+            Text(verbatim: change.meetingTitles.joined(separator: "\n"))
         }
     }
 
-    private func actionList(
-        _ visible: [OutcomeActionReference],
-        visibleIDs: Set<String>,
-        inspected: OutcomeActionReference?
-    ) -> some View {
-        HSplitView {
-            Table(visible, selection: listSelection(visibleIDs: visibleIDs), sortOrder: tableSort) {
-                TableColumn("") { reference in
-                    HStack(spacing: 6) {
-                        if selecting { selectionToggle(reference.id) }
-                        Button { setStatus(reference.status == .done ? .open : .done, for: reference) } label: {
-                            Image(systemName: reference.status == .done ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: LBTokens.Metric.actionToggleSize))
-                                .foregroundStyle(reference.status == .done ? Brand.teal : .secondary)
-                                .contentTransition(.symbolEffect(.replace))
-                                .animation(WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion),
-                                           value: reference.status)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(reference.status == .done ? "Reopen action" : "Complete action")
-                        .accessibilityValue(reference.text)
-                        .accessibilityIdentifier("outcome.action.toggle.\(reference.id)")
-                    }
-                    .frame(minHeight: LBTokens.Metric.tableRowHeight)
-                }.width(selecting ? 64 : 28)
-                TableColumn("Action") { reference in
-                    Text(reference.text).lineLimit(1)
-                        .strikethrough(reference.status == .done)
-                        .help(reference.text)
-                        .accessibilityIdentifier("outcome.action.\(reference.id)")
-                }.width(min: 150, ideal: 300)
-                TableColumn("Owner") { reference in
-                    Text(reference.owner.map { SpeakerDisplayName.label($0, identity: reference.isForUser ? .user : .unresolved) } ?? "Owner unclear")
-                        .foregroundStyle(reference.owner == nil ? LBTokens.Palette.attentionText : .secondary)
-                }.width(90)
-                TableColumn("Due", sortUsing: ActionDueSort()) { reference in
-                    Text(reference.due.map { ActionDuePresentation.label($0, spokenAt: reference.dueReferenceDate) } ?? "—")
-                        .foregroundStyle(isOverdue(reference) ? LBTokens.Palette.recordingText : .secondary)
-                }.width(110)
-                TableColumn("Meeting") { reference in
-                    Button(reference.meetingTitle) { app.openMeeting(reference.meetingID) }
-                        .buttonStyle(.plain).lineLimit(1).help(reference.meetingTitle)
-                }.width(160)
-                TableColumn("Passage") { reference in
-                    if let citation = reference.action.citations.first {
-                        EvidencePill(citation: citation) { app.openMeeting(reference.meetingID, seek: citation.start) }
-                    }
-                }.width(100)
-                TableColumn("") { reference in
-                    Menu {
-                        ForEach(OutcomeStatus.allCases, id: \.rawValue) { next in
-                            Button(next.label) { setStatus(next, for: reference) }
-                        }
-                        Divider()
-                        Button("Correct Action…") { correction = reference }
-                        Button("Show Details") { selection = [reference.id] }
-                        Button("Open Meeting") { app.openMeeting(reference.meetingID) }
-                        Button("Open in Agent") {
-                            app.openAgent(.init(title: reference.text,
-                                prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
-                                meetingID: reference.meetingID, actionID: reference.action.id))
-                        }
-                        Button("Follow Through…") { app.followThrough(reference) }
-                        ForEach(ActionAgentAvailability.installed) { target in
-                            Button("Open in \(target.rawValue)") { app.handOff(reference, to: target) }
-                        }
-                    } label: { Image(systemName: "ellipsis") }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden)
-                    .accessibilityLabel("Action options")
-                    .accessibilityIdentifier("outcome.action.status.\(reference.id)")
-                }.width(28)
-            }
-            .tableStyle(.inset(alternatesRowBackgrounds: true))
-            .tint(Brand.tealFill)
-            .contextMenu(forSelectionType: String.self) { ids in
-                if let reference = visible.first(where: { ids.contains($0.id) }) {
-                    Button("Correct Action…") { correction = reference }
-                    Button("Show Details") { selection = [reference.id] }
-                }
-            }
-            .frame(minWidth: Self.listMinWidth, maxWidth: .infinity)
-            .accessibilityIdentifier("actions.list")
-            .accessibilityLabel("Actions")
-            .overlay {
-                if visible.isEmpty {
-                    ContentUnavailableView("No matching actions", systemImage: "checklist",
-                                           description: Text("Choose All statuses to review completed and deferred actions."))
-                }
-            }
-            .splitPaneAccessibilityLabel("Action list")
-            if let inspected {
-                inspector(inspected).frame(minWidth: Self.inspectorMinWidth, idealWidth: LBTokens.Metric.detailsPaneWidth, maxWidth: 380)
-                    .splitPaneAccessibilityLabel("Action details", autosaveName: "LokalBot.actions", initialWidth: LBTokens.Metric.detailsPaneWidth)
-            }
-        }
-        .detailSplitMinimumWidth(inspected == nil ? [Self.listMinWidth] : [Self.listMinWidth, Self.inspectorMinWidth])
-    }
-
-    private static let listMinWidth: CGFloat = 360
-    private static let inspectorMinWidth: CGFloat = 280
-
-    private func header(total: Int, visible: Int, threads: Int, selected: [OutcomeActionReference]) -> some View {
-        HStack(spacing: 12) {
-            Text("Actions").font(.scaled(.title3).bold())
-            Text(reviewMode == "threads" ? "\(threads) threads" : "\(visible) of \(total)")
-                .foregroundStyle(.secondary)
-            Spacer()
-            // Planning the open threads with Agent moved here from Today.
-            if let plan = ActionThreadPlan.launchContext(
-                for: ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads)) {
-                Button {
-                    app.openAgent(plan)
-                } label: {
-                    Label("Plan in Agent…", systemImage: "wand.and.sparkles")
-                }
-                .help("Open a new Agent task with these action threads")
-                .accessibilityIdentifier("outcomes.planInAgent")
-            }
-            if reviewMode == "actions" {
-                if selected.isEmpty {
-                    if selecting {
-                        Text("Choose actions to change together")
-                            .font(AppFont.scaled(.callout))
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("actions.batch.hint")
-                    }
-                } else {
-                    Menu("Change \(CountLabel.format(selected.count, "selected action"))") {
-                        ForEach(OutcomeStatus.allCases, id: \.rawValue) { next in
-                            Button(next.label) {
-                                failures = app.outcomeIndex.setStatus(next, for: selected)
-                            }
-                        }
-                    }
-                    .fixedSize()
-                    .accessibilityIdentifier("actions.batch")
-                }
-                Button(selecting ? "Done" : "Select") {
-                    selecting.toggle()
-                    if !selecting { selection = [] }
-                }
-                .help(selecting ? "Stop selecting actions" : "Select several actions to change their status together")
-                .accessibilityIdentifier("actions.selectMode")
-            }
-        }.padding(.horizontal, 20).padding(.vertical, 12)
-    }
-
-    private func filters(hiddenSelectionCount: Int) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Picker("Review", selection: $reviewMode) {
-                    Text("Actions").tag("actions")
-                    Text("Threads").tag("threads")
-                }.pickerStyle(.menu).frame(width: 170)
-                    .accessibilityIdentifier("actions.reviewMode")
-                TextField("Search actions and meetings", text: $query).textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("actions.search")
-            }
-            ViewThatFits(in: .horizontal) {
-                HStack { statusPicker; duePicker; meetingPicker; personPicker; sortPicker }
-                VStack {
-                    HStack { statusPicker; duePicker; personPicker }
-                    HStack { meetingPicker; sortPicker }
-                }
-            }
-            if hiddenSelectionCount > 0 && reviewMode == "actions" {
-                HStack {
-                    Text("\(hiddenSelectionCount) selected outside these filters.")
-                        .accessibilityIdentifier("actions.selection.hidden")
-                    Button("Clear selection") { selection = [] }
-                    Spacer()
-                }.font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
-            }
-        }.padding(.horizontal, 20).padding(.bottom, 12)
-    }
-    private func selectionToggle(_ id: String) -> some View {
-        let isSelected = selection.contains(id)
-        return Button {
-            if isSelected { selection.remove(id) } else { selection.insert(id) }
-        } label: {
-            Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                .font(.system(size: 15))
-                .foregroundStyle(isSelected ? Brand.teal : .secondary)
-                .frame(width: 24, height: 24)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isSelected ? "Deselect action" : "Select action")
-        .accessibilityIdentifier("actions.select.\(id)")
-    }
-
-    private var statusPicker: some View {
-        Picker("Status", selection: $status) {
-            Text("All").tag("")
-            ForEach(OutcomeStatus.allCases, id: \.rawValue) { Text($0.label).tag($0.rawValue) }
-        }.accessibilityIdentifier("actions.status")
-    }
-    private var duePicker: some View {
-        Picker("Due", selection: $dueFilter) {
-            Text("Any").tag("all")
-            Text("Overdue").tag("overdue")
-            Text("Known date").tag("dated")
-            Text("Resolve date").tag("unresolved")
-        }
-    }
-    private var meetingPicker: some View {
-        Picker("Meeting", selection: Binding(get: { meetingID }, set: { storedMeetingID = $0?.uuidString ?? "" })) {
-            Text("All meetings").tag(nil as UUID?)
-            ForEach(app.outcomeIndex.all) { Text($0.meeting.displayTitle).tag(Optional($0.id)) }
-        }
-    }
-    private var personPicker: some View {
-        Picker("With", selection: $personID) {
-            Text("Anyone").tag("")
-            ForEach(app.connections.people.filter { !$0.myActions.isEmpty || $0.id == personID }) { person in
-                Text(person.name).tag(person.id)
-            }
-        }
-        .accessibilityIdentifier("actions.person")
-        .help("Your commitments that name this person or came from a small meeting with them")
-    }
-    private var sortPicker: some View {
-        Picker("Sort", selection: $sort) {
-            Text("Due, then recent").tag("due")
-            Text("Latest due first").tag("dueDescending")
-            Text("Most recent").tag("recent")
+    private static func confirmationTitle(for status: OutcomeStatus) -> LocalizedStringKey {
+        switch status {
+        case .done: "Mark all done"
+        case .deferred: "Mark all deferred"
+        case .open: "Mark all open"
         }
     }
 
-    private func matchesDue(_ action: OutcomeActionReference) -> Bool {
-        guard dueFilter != "all" else { return true }
-        let date = action.resolvedDueDate
-        switch dueFilter {
-        case "overdue": return date.map { $0 < Calendar.current.startOfDay(for: Date()) } == true && action.status == .open
-        case "dated": return date != nil
-        case "unresolved": return action.due != nil && date == nil
-        default: return true
-        }
-    }
-
-    private func inspector(_ reference: OutcomeActionReference) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Action Details").font(.scaled(.title3).bold())
-                Text(reference.text).font(.scaled(.body).weight(.semibold)).textSelection(.enabled)
-                Button(reference.meetingTitle) { app.openMeeting(reference.meetingID) }
-                    .buttonStyle(.workspaceLink)
-                Picker("Status", selection: Binding(get: { reference.status }, set: { setStatus($0, for: reference) })) {
-                    ForEach(OutcomeStatus.allCases, id: \.rawValue) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.menu)
-                LabeledContent(
-                    "Owner",
-                    value: reference.owner.map {
-                        SpeakerDisplayName.label(
-                            $0,
-                            identity: reference.isForUser ? .user : .unresolved)
-                    } ?? "Not stated")
-                if let due = reference.due { Text(ActionDuePresentation.label(due, spokenAt: reference.dueReferenceDate)) }
-                Button("Correct Action or Resolve Date…") { correction = reference }
-                Divider()
-                Text("Original Wording").font(AppFont.scaled(.callout).weight(.semibold))
-                Text(reference.action.displayText).textSelection(.enabled)
-                if let originalDue = reference.action.due { Text("Original due phrase: \(originalDue)") }
-                ActionEvidencePassages(reference: reference).id(reference.id)
-                Text("Saved corrections stay separate from the original action and its supporting passage.")
-                    .font(.scaled(.callout)).foregroundStyle(.secondary)
-                if reference.action.citations.isEmpty { Text("No supporting passage was stored.").foregroundStyle(.secondary) }
-            }.padding(20)
-        }
-        .background(.background.secondary)
-    }
-
-    private func isOverdue(_ reference: OutcomeActionReference) -> Bool {
-        reference.status == .open && reference.resolvedDueDate.map {
-            $0 < Calendar.current.startOfDay(for: Date())
-        } == true
-    }
-
-    private func setStatus(_ status: OutcomeStatus, for reference: OutcomeActionReference) {
-        if app.outcomeIndex.setStatus(status, actionID: reference.action.id, meetingID: reference.meetingID) {
-            app.lastError = nil
+    /// One action said in several meetings changes in each of them, so that
+    /// change is confirmed first, for one row or for a batch.
+    private func requestStatus(_ status: OutcomeStatus, for threads: [ActionThread]) {
+        let changing = threads.filter { $0.status != status || $0.hasMixedStatus }
+        guard !changing.isEmpty else { return }
+        if changing.contains(where: \.hasMultipleMeetings) {
+            pendingStatus = PendingStatusChange(status: status, threads: changing)
         } else {
-            app.lastError = "Could not update this action. " + (app.outcomeIndex.lastError ?? "The action is no longer available.")
+            applyStatus(status, to: changing)
         }
+    }
+
+    private func applyStatus(_ status: OutcomeStatus, to threads: [ActionThread]) {
+        var failed: [String] = []
+        var reason: String?
+        // Changed rows stay where they are; the list closes up when the view changes.
+        kept.formUnion(threads.map(\.id))
+        withAnimation(WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion)) {
+            for thread in threads where !app.outcomeIndex.setStatus(status, thread: thread) {
+                failed.append(thread.text)
+                reason = reason ?? app.outcomeIndex.lastError
+            }
+        }
+        if failed.isEmpty {
+            app.lastError = nil
+        } else if threads.count == 1 {
+            app.lastError = "Could not update this action thread. " + (reason ?? "The action is no longer available.")
+        } else {
+            app.lastError = "Could not update: " + failed.joined(separator: "; ")
+        }
+    }
+
+    /// "Not mine" clears the owner of every mention through the same
+    /// correction path as the editor, so the action leaves this list.
+    private func markNotMine(_ thread: ActionThread) {
+        for change in ActionDetailsPresentation.notMineCorrections(for: thread)
+        where !app.outcomeIndex.correctAction(actionID: change.actionID, meetingID: change.meetingID,
+                                             text: change.text, owner: change.owner, due: change.due) {
+            app.lastError = app.outcomeIndex.lastError ?? "The correction could not be saved."
+            return
+        }
+        app.lastError = nil
+    }
+
+    private func planInAgent() {
+        guard let plan = ActionThreadPlan.launchContext(
+            for: ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads)) else { return }
+        app.openAgent(plan)
+    }
+}
+
+/// Keeps the built list between renders. The page redraws for every change
+/// to the app's state; filtering, ordering and wording run again only when
+/// the threads, the filter, the people and projects, the day or the
+/// interface language change.
+@MainActor
+private final class ActionsListCache {
+    private struct Key: Equatable {
+        let threads: [ActionThread]
+        let filter: ActionsListFilter
+        /// Which build of the links, so two dictionaries are never compared.
+        let linksRevision: Int
+        let kept: Set<String>
+        let day: Date
+        let language: AppLanguage
+    }
+
+    private var people: [PersonProfile] = []
+    private var projects: [ProjectProfile] = []
+    private var builtLinks: ActionThreadLinks?
+    private var linksRevision = 0
+    private var key: Key?
+    private var built = ActionsListContent()
+
+    func links(people: [PersonProfile], projects: [ProjectProfile]) -> ActionThreadLinks {
+        if let builtLinks, self.people == people, self.projects == projects { return builtLinks }
+        let links = ActionThreadLinks(people: people, projects: projects)
+        self.people = people
+        self.projects = projects
+        builtLinks = links
+        linksRevision &+= 1
+        return links
+    }
+
+    func content(threads: [ActionThread], filter: ActionsListFilter, links: ActionThreadLinks,
+                 kept: Set<String>, language: AppLanguage, now: Date = Date()) -> ActionsListContent {
+        let key = Key(threads: threads, filter: filter, linksRevision: linksRevision, kept: kept,
+                      day: Calendar.current.startOfDay(for: now), language: language)
+        if key == self.key { return built }
+        built = ActionsListContent.build(
+            threads: threads, filter: filter, links: links, kept: kept, now: now,
+            locale: language.locale, localize: language.catalog)
+        self.key = key
+        return built
     }
 }
 

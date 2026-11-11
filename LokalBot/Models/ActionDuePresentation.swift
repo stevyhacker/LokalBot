@@ -17,7 +17,8 @@ enum ActionDuePresentation {
         return "Due \(resolved) · said “\(phrase.trimmingCharacters(in: .whitespacesAndNewlines))”"
     }
 
-    private static func isExplicitDate(_ phrase: String) -> Bool {
+    /// "2026-11-12": a day someone chose rather than said.
+    static func isExplicitDate(_ phrase: String) -> Bool {
         phrase.trimmingCharacters(in: .whitespacesAndNewlines)
             .range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
     }

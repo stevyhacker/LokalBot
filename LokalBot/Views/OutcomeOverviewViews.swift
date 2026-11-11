@@ -91,34 +91,221 @@ struct NeedsAttentionSection: View {
     }
 }
 
+/// How the Actions page shows the shared row: its own source and due wording,
+/// a selection it owns, and status changes it confirms and keeps in view.
+/// The links a row has elsewhere live in that page's details pane.
+struct ActionListRowStyle {
+    let source: String
+    let due: ActionsListContent.DueLabel?
+    var isSelected = false
+    /// Several rows are selected: a row's menu shows only under the pointer.
+    var isBatch = false
+    let onStatus: (OutcomeStatus) -> Void
+    let onEdit: () -> Void
+    let onNotMine: () -> Void
+}
+
 struct ActionThreadRow: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     let thread: ActionThread
     /// Projects show whose work it is when it is someone else's.
     var showsOwner = false
     /// People show deferred work as deferred and ask about open work nobody
     /// has mentioned for weeks.
     var showsStaleness = false
+    /// Set by the Actions page; every other page shows the row with its links.
+    var list: ActionListRowStyle?
     @State private var showingSources = false
     @State private var showingStatusConfirmation = false
     @State private var pendingStatus: OutcomeStatus = .done
+    @State private var hovered = false
 
     var body: some View {
+        if let list {
+            listBody(list)
+        } else {
+            standardBody
+        }
+    }
+
+    private func toggle(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: thread.hasMixedStatus ? "minus.circle" : thread.status == .done
+                  ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: LBTokens.Metric.actionToggleSize))
+                .foregroundStyle(thread.status == .done ? Brand.teal : .secondary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(thread.status == .done ? "Reopen action thread" : "Mark action thread done")
+        .accessibilityValue(thread.text)
+        .accessibilityIdentifier("outcome.thread.toggle.\(thread.id)")
+    }
+
+    // MARK: Actions page
+
+    private func listBody(_ list: ActionListRowStyle) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Button {
-                set(thread.status == .done ? .open : .done)
-            } label: {
-                Image(systemName: thread.hasMixedStatus ? "minus.circle" : thread.status == .done
-                      ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: LBTokens.Metric.actionToggleSize))
-                    .foregroundStyle(thread.status == .done ? Brand.teal : .secondary)
-                    .contentTransition(.symbolEffect(.replace))
+            toggle { list.onStatus(thread.status == .done ? .open : .done) }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(thread.text)
+                    .font(.scaled(.body))
+                    .strikethrough(thread.status == .done)
+                    .foregroundStyle(thread.status == .done ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if !list.source.isEmpty || list.due != nil || thread.hasMixedStatus {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if !list.source.isEmpty {
+                            Text(verbatim: list.source)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        if let due = list.due {
+                            Text(verbatim: due.text)
+                                .foregroundStyle(Self.color(for: due.tone))
+                                .lineLimit(1)
+                                .layoutPriority(1)
+                        }
+                        if thread.hasMixedStatus {
+                            Text("Mixed status")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .font(AppFont.scaled(.callout))
+                }
+                if let hint = app.actionCompletionHints[thread.id] {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("Looks done?")
+                            .font(AppFont.scaled(.callout).weight(.semibold))
+                            .foregroundStyle(Brand.teal)
+                        Text(verbatim: ActionListWording.completionHint(
+                            hint, locale: app.settings.appLanguage.locale,
+                            localize: app.settings.appLanguage.catalog))
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("outcome.thread.completionHint")
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(thread.status == .done ? "Reopen action thread" : "Mark action thread done")
-            .accessibilityValue(thread.text)
-            .accessibilityIdentifier("outcome.thread.toggle.\(thread.id)")
+            // The menu shows on the selected row and under the pointer. It
+            // stays in the view tree either way, so it cannot go away while
+            // it is open and the pointer has moved onto its items.
+            let showsMenu = hovered || (list.isSelected && !list.isBatch)
+            Menu {
+                listMenuItems(list)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(width: 28, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .opacity(showsMenu ? 1 : 0)
+            .allowsHitTesting(showsMenu)
+            .accessibilityHidden(!showsMenu)
+            .accessibilityLabel("Action thread options")
+            .accessibilityIdentifier("outcome.thread.status.\(thread.id)")
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 10)
+        .background(
+            list.isSelected ? Brand.teal.opacity(0.12) : hovered ? Color.primary.opacity(0.04) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            if list.isSelected, contrast == .increased {
+                RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Brand.teal)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .contextMenu { listMenuItems(list) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("outcome.thread.\(thread.id)")
+        .accessibilityAddTraits(list.isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder private func listMenuItems(_ list: ActionListRowStyle) -> some View {
+        Button(thread.status == .done ? "Mark open" : "Mark Done") {
+            list.onStatus(thread.status == .done ? .open : .done)
+        }
+        Button(thread.status == .deferred ? "Move back to open" : "Defer") {
+            list.onStatus(thread.status == .deferred ? .open : .deferred)
+        }
+        Divider()
+        Button("Edit…", action: list.onEdit)
+        Button("Not mine", action: list.onNotMine)
+        Button("Open meeting") { app.openMeeting(thread.latestReference.meetingID) }
+        if thread.hasMultipleMeetings {
+            Menu("Keep as separate action") {
+                ForEach(thread.references) { reference in
+                    Button {
+                        setThreadExcluded(true, for: reference)
+                    } label: {
+                        Text(verbatim: reference.meetingTitle + " · "
+                             + reference.meetingStartedAt.formatted(date: .abbreviated, time: .omitted))
+                    }
+                }
+            }
+        } else {
+            let reference = thread.latestReference
+            Button(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action") {
+                setThreadExcluded(!reference.isThreadExcluded, for: reference)
+            }
+        }
+        Divider()
+        Button("Draft next steps…") { app.followThrough(thread.latestReference) }
+        Menu("Hand off") { Self.handOffItems(for: thread, app: app) }
+    }
+
+    /// Agent, then the external agents installed on this Mac.
+    @ViewBuilder static func handOffItems(for thread: ActionThread, app: AppState) -> some View {
+        Button("Agent") { app.openAgent(agentContext(for: thread)) }
+        ForEach(ActionAgentAvailability.installed) { target in
+            Button {
+                app.handOff(thread, to: target)
+            } label: {
+                Text(verbatim: target.rawValue)
+            }
+        }
+    }
+
+    static func agentContext(for thread: ActionThread) -> AgentLaunchContext {
+        let sourceNote = thread.meetingCount == 1
+            ? thread.latestReference.meetingTitle
+            : "\(thread.meetingCount) source meetings"
+        return AgentLaunchContext(
+            title: thread.text,
+            prompt: "Help me complete this action thread from \(sourceNote): " + thread.text,
+            meetingID: thread.latestReference.meetingID,
+            actionID: thread.latestReference.action.id)
+    }
+
+    static func color(for tone: ActionsListContent.DueLabel.Tone) -> Color {
+        switch tone {
+        case .late: LBTokens.Palette.recordingText
+        case .soon: LBTokens.Palette.attentionText
+        case .calm: Color(nsColor: WorkspaceTextColor.supporting)
+        }
+    }
+
+    private func setThreadExcluded(_ excluded: Bool, for reference: OutcomeActionReference) {
+        if !app.outcomeIndex.setThreadExcluded(
+            excluded, actionID: reference.action.id, meetingID: reference.meetingID) {
+            app.lastError = app.outcomeIndex.lastError
+        }
+    }
+
+    // MARK: Today, Timeline, People and Projects
+
+    private var standardBody: some View {
+        HStack(alignment: .top, spacing: 10) {
+            toggle { set(thread.status == .done ? .open : .done) }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(thread.text)
@@ -215,23 +402,10 @@ struct ActionThreadRow: View {
                 } else {
                     let reference = thread.latestReference
                     Button(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action") {
-                        if !app.outcomeIndex.setThreadExcluded(
-                            !reference.isThreadExcluded, actionID: reference.action.id, meetingID: reference.meetingID) {
-                            app.lastError = app.outcomeIndex.lastError
-                        }
+                        setThreadExcluded(!reference.isThreadExcluded, for: reference)
                     }
                 }
-                Button("Open in Agent") {
-                    let sourceNote = thread.meetingCount == 1
-                        ? thread.latestReference.meetingTitle
-                        : "\(thread.meetingCount) source meetings"
-                    app.openAgent(.init(
-                        title: thread.text,
-                        prompt: "Help me complete this action thread from \(sourceNote): "
-                            + thread.text,
-                        meetingID: thread.latestReference.meetingID,
-                        actionID: thread.latestReference.action.id))
-                }
+                Button("Open in Agent") { app.openAgent(Self.agentContext(for: thread)) }
                 ForEach(ActionAgentAvailability.installed) { target in
                     Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
                 }
