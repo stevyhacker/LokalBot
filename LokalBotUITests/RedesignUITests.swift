@@ -514,9 +514,12 @@ final class RedesignUITests: XCTestCase {
         for appearance in ["light", "dark"] {
             try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
                         "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": appearance])
-            // This launch opens the sheet that names speakers.
-            XCTAssertTrue(element("meeting.namingSheet").waitForExistence(timeout: 5))
-            try auditWorkspaceAccessibility(includeContrast: true)
+            // This launch opens the sheet that names speakers. The window
+            // behind a sheet is dimmed and cannot be used, so its contrast is
+            // audited once the sheet has closed, a few lines down.
+            let namingSheet = element("meeting.namingSheet")
+            XCTAssertTrue(namingSheet.waitForExistence(timeout: 5))
+            try auditWorkspaceAccessibility(includeContrast: true, contrastScope: namingSheet)
             snapshot("meeting-naming-sheet-\(appearance)")
             app.buttons["meeting.naming.cancel"].click()
             XCTAssertTrue(UITestHarness.waitUntil { !self.element("meeting.namingSheet").exists })
@@ -916,7 +919,10 @@ final class RedesignUITests: XCTestCase {
                       "Dismiss native hover help before measuring workspace accessibility")
     }
 
-    private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil) throws {
+    /// `contrastScope` limits the contrast audit to that element's own
+    /// descendants, for a sheet or popover in front of dimmed content.
+    private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil,
+                                             contrastScope: XCUIElement? = nil) throws {
         dismissHoverHelpBeforeAuditing()
         // Report every app issue. The hosted virtual Mac also exposes a
         // system-generated Touch Bar and its Emoji picker outside our window;
@@ -939,6 +945,11 @@ final class RedesignUITests: XCTestCase {
                 // each scroll region and open popover is audited separately.
                 let bounds = contrastBounds ?? self.app.windows.firstMatch.frame
                 if !bounds.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
+                // Text behind a sheet can share its bounds; tell the sheet's
+                // own text apart by its exact frame.
+                if let contrastScope,
+                   !contrastScope.descendants(matching: affected.elementType).allElementsBoundByIndex
+                    .contains(where: { $0.frame == affected.frame }) { return true }
                 let content = self.app.scrollViews["meeting.content.scroll"]
                 if content.exists,
                    content.descendants(matching: affected.elementType).matching(NSPredicate(
@@ -971,9 +982,11 @@ final class RedesignUITests: XCTestCase {
     }
 
     private func verifyRecallExplanationContrast() throws -> Set<String> {
+        // The explanations in the sheet that names speakers, which replaced
+        // the Review tab's.
         let labels = [
-            "Listen to a short excerpt, then confirm a name or whether the speaker is you. Leave uncertain voices unresolved.",
-            "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
+            "Play a voice, then pick who it is. LokalBot learns each voice for later meetings. Voices stay encrypted on this Mac.",
+            "Skip any voice you are not sure about.",
         ]
         var verified = Set<String>()
         let content = app.scrollViews["meeting.content.scroll"]

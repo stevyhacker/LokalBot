@@ -72,7 +72,26 @@ struct MeetingLibraryDetailView: View {
         }
     }
 
+    /// A recording in progress keeps its own live surface and title.
+    private var showsLiveMeeting: Bool {
+        app.selectedMeetingIDs.count <= 1 && app.selectedMeeting.map { $0.endedAt == nil } == true
+    }
+
     @ViewBuilder private var selectionContent: some View {
+        if showsLiveMeeting, let meeting = app.selectedMeeting {
+            LiveMeetingDetailView(meeting: meeting, transcriber: app.liveTranscriber).id(meeting.id)
+        } else {
+            // Every state of the saved library shares one toolbar: a meeting's
+            // page carries its own title, and a toolbar that showed a title
+            // only for "2 meetings selected", loading or no selection was
+            // taller there and pushed the list and sidebar down.
+            libraryContent
+                .navigationTitle("Meetings")
+                .toolbar(removing: .title)
+        }
+    }
+
+    @ViewBuilder private var libraryContent: some View {
         if app.selectedMeetingIDs.count > 1 {
             ContentUnavailableView {
                 Label("\(app.selectedMeetingIDs.count) meetings selected", systemImage: "checklist")
@@ -85,9 +104,7 @@ struct MeetingLibraryDetailView: View {
                 .accessibilityIdentifier("meeting.multiSelect.delete")
             }
         } else if let meeting = app.selectedMeeting {
-            if meeting.endedAt == nil {
-                LiveMeetingDetailView(meeting: meeting, transcriber: app.liveTranscriber).id(meeting.id)
-            } else if let prepared {
+            if let prepared {
                 let changing = prepared.meeting.id != meeting.id
                 MeetingWorkspaceDetail(meeting: changing ? prepared.meeting : meeting, document: prepared.document)
                     .id(prepared.meeting.id)
@@ -303,9 +320,6 @@ private struct MeetingWorkspaceDetail: View {
                 }
             }
         }
-        .navigationTitle("Meetings")
-        // The header inside the page carries the meeting's one title.
-        .toolbar(removing: .title)
         .task(id: loadRevision) {
 #if LOKALBOT_UI_TEST_HOST
             // Establish the requested capture route before asynchronous document
@@ -840,7 +854,7 @@ private struct MeetingWorkspaceDetail: View {
                 if groups.forYou.isEmpty {
                     Text("Nothing for you from this meeting.")
                         .font(AppFont.scaled(.body))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                         .padding(.vertical, 6)
                 } else {
                     actionRows(groups.forYou, showsOwner: false)
@@ -855,6 +869,7 @@ private struct MeetingWorkspaceDetail: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Actions")
         .accessibilityIdentifier("meeting.actions")
     }
 
@@ -1270,8 +1285,7 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func setOwner(_ option: MeetingDetailPresentation.OwnerOption, for reference: OutcomeActionReference) {
-        guard !option.isSelected else { return }
-        let change = MeetingDetailPresentation.ownerCorrection(option, for: reference)
+        guard let change = MeetingDetailPresentation.ownerCorrection(option, for: reference) else { return }
         let saved = app.outcomeIndex.correctAction(
             actionID: reference.action.id,
             meetingID: meeting.id,

@@ -20,6 +20,7 @@ struct MeetingSpeakerNamingSheet: View {
     @State private var draft: MeetingSpeakerNamingDraft
     @State private var listHeight: CGFloat = 0
     @FocusState private var focusedVoice: String?
+    @Environment(\.locale) private var locale
 
     init(voices: [MeetingSpeakerNamingVoice], known: [MeetingSpeakerNamingKnown],
          suggestions: [MeetingSpeakerSuggestion], assignedCalendarIdentityIDs: Set<String>,
@@ -98,6 +99,10 @@ struct MeetingSpeakerNamingSheet: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Name speakers")
         .accessibilityIdentifier("meeting.namingSheet")
+        .background {
+            SheetContainerName(name: AppLanguage.matching(locale).localized("Name speakers"))
+                .accessibilityHidden(true)
+        }
     }
 
     private func voiceRow(_ voice: MeetingSpeakerNamingVoice) -> some View {
@@ -233,6 +238,40 @@ struct MeetingSpeakerNamingSheet: View {
     private func beginTyping(_ voice: MeetingSpeakerNamingVoice) {
         draft.typeName(for: voice.id)
         focusedVoice = draft.isTyping(for: voice.id) ? voice.id : nil
+    }
+}
+
+/// Names the view a sheet is hosted in. Assistive tools see that host as a
+/// group around the sheet's content, and it has no name of its own.
+private struct SheetContainerName: NSViewRepresentable {
+    let name: String
+
+    func makeNSView(context: Context) -> Probe {
+        let probe = Probe()
+        probe.name = name
+        return probe
+    }
+
+    func updateNSView(_ probe: Probe, context: Context) {
+        probe.name = name
+        probe.apply()
+    }
+
+    final class Probe: NSView {
+        var name = ""
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+
+        /// Only an unnamed host is named, so a window that says what it is
+        /// keeps its own words.
+        func apply() {
+            guard let host = window?.contentView, host !== self,
+                  (host.accessibilityLabel() ?? "").isEmpty || host.accessibilityLabel() == name else { return }
+            host.setAccessibilityLabel(name)
+        }
     }
 }
 

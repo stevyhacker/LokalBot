@@ -44,7 +44,10 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? nsView.intrinsicContentSize.width,
+        // No wider than the name: the button used to fill the whole line, so
+        // a click anywhere beside the name opened the rename sheet. A long
+        // name still truncates inside the width it is offered.
+        CGSize(width: min(proposal.width ?? .infinity, nsView.intrinsicContentSize.width),
                height: proposal.height ?? nsView.intrinsicContentSize.height)
     }
 

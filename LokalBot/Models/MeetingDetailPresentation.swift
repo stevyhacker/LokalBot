@@ -178,8 +178,10 @@ enum MeetingDetailPresentation {
             let stored = storedNames[speaker.id] ?? speaker.name
             guard taken.insert(ownerKey(speaker.name)).inserted else { continue }
             taken.insert(ownerKey(stored))
+            // By name, not by voice: "Them" on an action is not the person
+            // that voice was named as afterwards, until someone says so.
             let selected = !anySelected && !current.isEmpty
-                && [speaker.name, stored, speaker.id].map(ownerKey).contains(current)
+                && [speaker.name, stored].map(ownerKey).contains(current)
             anySelected = anySelected || selected
             options.append(.init(id: "speaker:\(speaker.id)", title: speaker.name, value: stored,
                                  kind: .speaker, isSelected: selected))
@@ -204,9 +206,12 @@ enum MeetingDetailPresentation {
     }
 
     /// Saving a new owner from the row's menu keeps a corrected wording and a
-    /// corrected or cleared due date exactly as they are.
-    static func ownerCorrection(_ option: OwnerOption, for reference: OutcomeActionReference) -> OwnerCorrection {
-        OwnerCorrection(
+    /// corrected or cleared due date exactly as they are. Nil when the choice
+    /// is already the action's owner.
+    static func ownerCorrection(_ option: OwnerOption, for reference: OutcomeActionReference) -> OwnerCorrection? {
+        let sameOwner = ownerKey(option.value) == ownerKey(reference.owner ?? "")
+        if sameOwner, option.kind != .you || reference.isForUser { return nil }
+        return OwnerCorrection(
             text: reference.textWasCorrected ? reference.text : nil,
             owner: option.value,
             due: reference.dueWasCorrected ? (reference.due ?? "") : nil)

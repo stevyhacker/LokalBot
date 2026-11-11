@@ -29,9 +29,11 @@ struct MeetingSectionHeading<Trailing: View>: View {
             }
             .font(AppFont.scaled(.headline))
             if let count {
+                // The supporting grey: the system's secondary label measured
+                // under 4.5:1 at this size.
                 Text(count, format: .number)
                     .font(AppFont.scaled(.callout).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
             }
             Spacer(minLength: 8)
             trailing
@@ -197,6 +199,8 @@ struct MeetingActionRow: View {
                         owner: displayOwner,
                         needsAttention: ownerNeedsAttention,
                         options: ownerOptions,
+                        identifier: "meeting.action.owner.\(reference.action.id)",
+                        language: app.settings.appLanguage,
                         offersNaming: canNameSpeakers && ownerNeedsAttention && displayOwner != nil,
                         searchQuery: searchQuery,
                         activeMatchIndex: activeOccurrence(for: .owner),
@@ -204,7 +208,6 @@ struct MeetingActionRow: View {
                         onNameSpeakers: onNameSpeakers)
                         .id(MeetingPageSearchMatch.Location.action(id: reference.action.id, field: .owner))
                         .disabled(!isEditable)
-                        .accessibilityIdentifier("meeting.action.owner.\(reference.action.id)")
                 }
                 if let due = reference.due {
                     SearchHighlightedText(
@@ -247,8 +250,10 @@ struct MeetingActionRow: View {
         }
         items.append(.separator)
         if !ownerOptions.isEmpty {
-            items.append(.init(title: "Owner", children: ownerOptions.map { option in
-                .init(title: option.title, selected: option.isSelected, action: { onOwner(option) })
+            let language = app.settings.appLanguage
+            items.append(.init(title: language.localized("Owner"), children: ownerOptions.map { option in
+                .init(title: MeetingActionOwnerMenu.title(of: option, in: language), selected: option.isSelected,
+                      action: { onOwner(option) })
             }))
         }
         items += [.init(title: "Correct owner or due date", action: onCorrect),
@@ -276,11 +281,15 @@ struct MeetingActionRow: View {
 }
 
 /// An action's owner as a small menu on its row: you, this meeting's
-/// speakers, people invited to it, or no owner.
+/// speakers, people invited to it, or no owner. The chip is drawn here and the
+/// app's native pull-down lies over it undrawn, because a SwiftUI `Menu` gives
+/// assistive tools no way to open it.
 struct MeetingActionOwnerMenu: View {
     let owner: String?
     let needsAttention: Bool
     let options: [MeetingDetailPresentation.OwnerOption]
+    let identifier: String
+    let language: AppLanguage
     var offersNaming = false
     var searchQuery = ""
     var activeMatchIndex: Int?
@@ -289,75 +298,71 @@ struct MeetingActionOwnerMenu: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        Menu {
-            ForEach(options.filter { $0.kind == .you || $0.kind == .speaker }) { option in
-                choice(option)
+        let shown = owner ?? language.localized(Self.missingOwnerText)
+        HStack(spacing: 3) {
+            if let owner {
+                SearchHighlightedText(owner, query: searchQuery, activeMatchIndex: activeMatchIndex)
+            } else if searchQuery.isEmpty {
+                Text("No owner")
+            } else {
+                SearchHighlightedText(Self.missingOwnerText, query: searchQuery,
+                                      activeMatchIndex: activeMatchIndex)
             }
-            let invited = options.filter { $0.kind == .invited }
-            if !invited.isEmpty {
-                Section("Invited") {
-                    ForEach(invited) { option in choice(option) }
-                }
-            }
-            Divider()
-            if offersNaming {
-                Button("Name this speaker…", action: onNameSpeakers)
-            }
-            ForEach(options.filter { $0.kind == .none }) { option in
-                choice(option)
-            }
-        } label: {
-            HStack(spacing: 3) {
-                if let owner {
-                    SearchHighlightedText(owner, query: searchQuery, activeMatchIndex: activeMatchIndex)
-                } else if searchQuery.isEmpty {
-                    Text("No owner")
-                } else {
-                    SearchHighlightedText(Self.missingOwnerText, query: searchQuery,
-                                          activeMatchIndex: activeMatchIndex)
-                }
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 7, weight: .semibold))
-                    .opacity(0.7)
-                    .accessibilityHidden(true)
-            }
-            .font(AppFont.scaled(.callout))
-            .lineLimit(1)
-            .foregroundStyle(needsAttention ? AnyShapeStyle(LBTokens.Palette.attentionText) : AnyShapeStyle(.primary))
-            .padding(.leading, 7)
-            .padding(.trailing, 5)
-            .padding(.vertical, 2)
-            .background(needsAttention ? LBTokens.Palette.attention.opacity(0.12) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .strokeBorder(stroke)
-            }
-            .contentShape(Rectangle())
+            Image(systemName: "chevron.down")
+                .font(.system(size: 7, weight: .semibold))
+                .opacity(0.7)
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
+        .font(AppFont.scaled(.callout))
+        .lineLimit(1)
+        .foregroundStyle(needsAttention ? AnyShapeStyle(LBTokens.Palette.attentionText) : AnyShapeStyle(.primary))
+        .padding(.leading, 7)
+        .padding(.trailing, 5)
+        .padding(.vertical, 2)
+        .background(needsAttention ? LBTokens.Palette.attention.opacity(0.12) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .strokeBorder(stroke)
+        }
+        // The pull-down over the chip is what assistive tools read and press.
+        .accessibilityHidden(true)
+        .overlay {
+            WorkspaceMenu(title: shown, label: "\(language.localized("Owner")): \(shown)",
+                          identifier: identifier, items: menuItems, drawsButton: false)
+        }
         .fixedSize()
-        .help("Owner")
-        .accessibilityLabel(owner.map { "Owner: \($0)" } ?? "Owner: \(Self.missingOwnerText)")
     }
 
     /// Search and VoiceOver read the same words the chip shows.
     static let missingOwnerText = "No owner"
 
+    /// "You" and "No owner" in the app's language; a person's name as it is.
+    static func title(of option: MeetingDetailPresentation.OwnerOption, in language: AppLanguage) -> String {
+        switch option.kind {
+        case .you, .none: language.localized(option.title)
+        case .speaker, .invited: option.title
+        }
+    }
+
+    private var menuItems: [WorkspaceMenu.Item] {
+        func item(_ option: MeetingDetailPresentation.OwnerOption) -> WorkspaceMenu.Item {
+            .init(title: Self.title(of: option, in: language), selected: option.isSelected,
+                  action: { onChoose(option) })
+        }
+        var items = options.filter { $0.kind == .you || $0.kind == .speaker }.map(item)
+        let invited = options.filter { $0.kind == .invited }
+        if !invited.isEmpty {
+            items += [.separator, .init(title: language.localized("Invited"), enabled: false)] + invited.map(item)
+        }
+        items.append(.separator)
+        if offersNaming {
+            items.append(.init(title: language.localized("Name this speaker…"), action: onNameSpeakers))
+        }
+        return items + options.filter { $0.kind == .none }.map(item)
+    }
+
     private var stroke: Color {
         if contrast == .increased { return needsAttention ? LBTokens.Palette.attentionText : .primary.opacity(0.5) }
         return needsAttention ? LBTokens.Palette.attention.opacity(0.4) : .primary.opacity(0.16)
-    }
-
-    private func choice(_ option: MeetingDetailPresentation.OwnerOption) -> some View {
-        Toggle(isOn: Binding(get: { option.isSelected }, set: { _ in onChoose(option) })) {
-            switch option.kind {
-            case .you: Text("You")
-            case .none: Text("No owner")
-            case .speaker, .invited: Text(verbatim: option.title)
-            }
-        }
     }
 }

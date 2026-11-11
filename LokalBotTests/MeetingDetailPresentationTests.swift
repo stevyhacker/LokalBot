@@ -194,6 +194,47 @@ final class MeetingDetailPresentationTests: XCTestCase {
         XCTAssertEqual(selected("Someone not listed"), [], "a typed owner is none of the menu's choices")
     }
 
+    /// Filmed by CI: after "Them" was named Ana Petrović, the action still
+    /// said "Other speaker", yet Ana's menu item counted as already chosen,
+    /// so choosing it did nothing.
+    func testAnOwnerLeftAsAPlaceholderIsNotTheNamedSpeakerUntilChosen() throws {
+        let transcript = Transcript(segments: [
+            segment(0, 10, "me", "I'll draft the synthetic policy.", user: true),
+            segment(10, 20, "them", "Please benchmark the synthetic failover."),
+        ], engine: "fixture", speakerAliases: ["them": "Ana Petrović"])
+        let speakers = MeetingDetailPresentation.speakers(
+            in: transcript, presentation: MeetingSpeakerPresentation(transcript: transcript))
+        let options = MeetingDetailPresentation.ownerOptions(
+            owner: "Them", isForUser: false, speakers: speakers,
+            storedNames: MeetingDetailPresentation.storedSpeakerNames(in: transcript, speakers: speakers),
+            invited: ["Ana Petrović", "Marko Marković"])
+        XCTAssertEqual(options.map(\.title), ["You", "Ana Petrović", "Marko Marković", "No owner"])
+        XCTAssertEqual(options.filter(\.isSelected).map(\.title), [], "the page still shows Other speaker")
+        let action = try XCTUnwrap(references([
+            .init(id: "a", text: "Benchmark the synthetic failover", owner: "Them"),
+        ]).first)
+        let ana = try XCTUnwrap(options.first { $0.title == "Ana Petrović" })
+        XCTAssertEqual(MeetingDetailPresentation.ownerCorrection(ana, for: action),
+                       .init(text: nil, owner: "Ana Petrović", due: nil))
+    }
+
+    func testChoosingTheCurrentOwnerAgainChangesNothing() throws {
+        let actions = references([
+            .init(id: "a", text: "Run the synthetic load test", owner: "Maya Chen"),
+            .init(id: "b", text: "Write the synthetic announcement", owner: "Me"),
+            .init(id: "c", text: "Start the synthetic legal review"),
+        ])
+        func option(_ value: String, _ kind: MeetingDetailPresentation.OwnerOption.Kind)
+            -> MeetingDetailPresentation.OwnerOption {
+            .init(id: value, title: value, value: value, kind: kind, isSelected: false)
+        }
+        XCTAssertNil(MeetingDetailPresentation.ownerCorrection(option("maya chen", .speaker), for: actions[0]))
+        XCTAssertNil(MeetingDetailPresentation.ownerCorrection(option("Me", .you), for: actions[1]))
+        XCTAssertNil(MeetingDetailPresentation.ownerCorrection(option("", .none), for: actions[2]))
+        XCTAssertNotNil(MeetingDetailPresentation.ownerCorrection(option("Me", .you), for: actions[0]))
+        XCTAssertNotNil(MeetingDetailPresentation.ownerCorrection(option("", .none), for: actions[0]))
+    }
+
     func testChangingOnlyTheOwnerKeepsCorrectedWordingAndDueDate() {
         var state = MeetingOutcomeState()
         state.actions["a"] = .init(dueOverride: "next Friday", textCorrection: "Run the full synthetic load test",

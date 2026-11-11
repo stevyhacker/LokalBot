@@ -952,7 +952,8 @@ final class MainWindowUITests: XCTestCase {
             XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing meeting action: \(label)")
         }
         // The three ways to process a meeting again sit one level down.
-        app.menuItems["Reprocess"].click()
+        // Pointing at the item opens its submenu; a click on it closes the menu.
+        app.menuItems["Reprocess"].hover()
         for label in ["Transcribe & Summarize", "Transcribe only", "Summarize again"] {
             XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing reprocess action: \(label)")
         }
