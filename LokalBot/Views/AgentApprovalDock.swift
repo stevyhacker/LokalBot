@@ -45,8 +45,10 @@ struct AgentApprovalDock: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
+                    // A plain heading: a selectable one reached accessibility with no
+                    // words on the hosted macOS runner, so the question went unread.
                     Text(verbatim: presentation.title)
-                        .font(.scaled(.headline)).textSelection(.enabled)
+                        .font(.scaled(.headline))
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("agent.approval.title")

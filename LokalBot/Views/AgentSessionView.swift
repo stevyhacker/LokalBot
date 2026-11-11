@@ -10,6 +10,8 @@ struct AgentSessionView: View {
     @ObservedObject var sessions: AgentSessionTabs
     let taskID: UUID
     @State private var followingOutput = true
+    /// The end of the conversation is in view, so there is nothing to jump to.
+    @State private var endInView = true
     @State private var showingResults = false
     @State private var preview: AgentResultPreview?
     @State private var findVisible = false
@@ -62,6 +64,9 @@ struct AgentSessionView: View {
         .toolbar(removing: .title)
         .toolbar {
             ToolbarItem(placement: .navigation) { titleAndStatus }
+            // Without the system title nothing pushes the actions to the
+            // trailing edge, so they sat against the task's title.
+            ToolbarItem(placement: .primaryAction) { Spacer() }
             ToolbarItemGroup(placement: .primaryAction) { taskActions }
         }
         .inspector(isPresented: $showingResults) {
@@ -228,9 +233,11 @@ struct AgentSessionView: View {
             .scrollPosition(id: $controller.visibleTranscriptID)
             .onScrollGeometryChange(for: Bool.self) {
                 $0.contentSize.height - $0.visibleRect.maxY < 120
-            } action: { _, nearEnd in followingOutput = nearEnd }
+            } action: { _, nearEnd in followingOutput = nearEnd; endInView = nearEnd }
             .overlay(alignment: .bottomTrailing) {
-                if !followingOutput && !controller.items.isEmpty {
+                // Find stops following new output without scrolling a short
+                // conversation, which left this button over text already in view.
+                if !followingOutput && !endInView && !controller.items.isEmpty {
                     Button("Jump to latest", systemImage: "arrow.down") {
                         followingOutput = true; proxy.scrollTo("agent.transcript.end", anchor: .bottom)
                     }.buttonStyle(.bordered).padding(12)

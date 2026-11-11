@@ -836,12 +836,19 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(deny.waitForExistence(timeout: 6))
         // The card asks a question that names the file. The fixture's file is
         // inside the library, so the card says so and shows the full path.
-        XCTAssertTrue(UITestHarness.staticText(containing: "Create reviewed-note.md?", in: app).exists)
-        XCTAssertTrue(UITestHarness.staticText(containing: "LokalBot’s own data", in: app).exists)
+        // The question is a heading, which macOS reports with a label; plain
+        // text reports a value. Read both, as VoiceOver reads either.
+        let question = app.descendants(matching: .any)["agent.approval.title"]
+        XCTAssertTrue(question.waitForExistence(timeout: 4), "The approval card has no question")
+        let asked = [question.label, question.value as? String ?? ""].joined(separator: " ")
+        XCTAssertTrue(asked.contains("Create reviewed-note.md?"), "The card asked: \(asked)")
+        XCTAssertTrue(UITestHarness.staticText(containing: "own data", in: app).exists,
+                      "The card says the file is inside LokalBot's own data")
         XCTAssertTrue(app.descendants(matching: .any)["agent.approval.path"].exists)
         XCTAssertFalse(app.buttons["agent.approve.session"].exists,
                        "A file in LokalBot's own data can only be allowed once")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Waiting for your answer below", in: app).exists)
+        XCTAssertTrue(app.descendants(matching: .any)["agent.awaitingAnswer"].exists,
+                      "The conversation ends with a line that points at the card")
         snapshot("agent-write-approval")
         deny.click()
         XCTAssertTrue(UITestHarness.staticText(containing: "You denied this write request", in: app)

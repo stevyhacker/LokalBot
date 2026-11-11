@@ -180,21 +180,10 @@ struct ActionThreadRow: View {
             // stays in the view tree either way, so it cannot go away while
             // it is open and the pointer has moved onto its items.
             let showsMenu = hovered || (list.isSelected && !list.isBatch)
-            Menu {
-                listMenuItems(list)
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 28, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .opacity(showsMenu ? 1 : 0)
-            .allowsHitTesting(showsMenu)
-            .accessibilityHidden(!showsMenu)
-            .accessibilityLabel("Action thread options")
-            .accessibilityIdentifier("outcome.thread.status.\(thread.id)")
+            optionsMenu(listMenu(list))
+                .opacity(showsMenu ? 1 : 0)
+                .allowsHitTesting(showsMenu)
+                .disabled(!showsMenu)
         }
         .padding(.vertical, 7)
         .padding(.horizontal, 10)
@@ -245,6 +234,84 @@ struct ActionThreadRow: View {
         Divider()
         Button("Draft next steps…") { app.followThrough(thread.latestReference) }
         Menu("Hand off") { Self.handOffItems(for: thread, app: app) }
+    }
+
+    /// The row's "…" menu. SwiftUI's Menu proxy leaves out the Press and Show
+    /// Menu accessibility actions, so VoiceOver and Switch Control could not
+    /// open it; `WorkspaceMenu` is the app's native pull-down that has them.
+    private func optionsMenu(_ items: [WorkspaceMenu.Item]) -> some View {
+        WorkspaceMenu(title: text("Action thread options"), symbol: "ellipsis",
+                      label: text("Action thread options") + ": " + thread.text,
+                      identifier: "outcome.thread.status.\(thread.id)", items: items)
+            .frame(minWidth: 32, minHeight: 24)
+            .fixedSize()
+    }
+
+    /// A catalog string in the app's chosen language, for the native menu.
+    private func text(_ key: String) -> String { app.settings.appLanguage.localized(key) }
+
+    private var separateOrAllowItem: WorkspaceMenu.Item {
+        let reference = thread.latestReference
+        return .init(title: text(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action"),
+                     action: { setThreadExcluded(!reference.isThreadExcluded, for: reference) })
+    }
+
+    private var handOffMenuItems: [WorkspaceMenu.Item] {
+        ActionAgentAvailability.installed.map { target in
+            .init(title: target.rawValue, action: { app.handOff(thread, to: target) })
+        }
+    }
+
+    /// The menu on Today, Timeline, People and Projects.
+    private var defaultMenu: [WorkspaceMenu.Item] {
+        var items = OutcomeStatus.allCases.map { status in
+            WorkspaceMenu.Item(title: status.label, selected: !thread.hasMixedStatus && thread.status == status,
+                               action: { set(status) })
+        }
+        items.append(.separator)
+        items.append(.init(title: text("Open latest meeting"),
+                           action: { app.openMeeting(thread.latestReference.meetingID) }))
+        if thread.hasMultipleMeetings {
+            items.append(.init(title: text("Review source meetings"), action: { showingSources = true }))
+        } else {
+            items.append(separateOrAllowItem)
+        }
+        items.append(.init(title: text("Open in Agent"), action: { app.openAgent(Self.agentContext(for: thread)) }))
+        items += ActionAgentAvailability.installed.map { target in
+            .init(title: String(format: text("Open in %@"), target.rawValue),
+                  action: { app.handOff(thread, to: target) })
+        }
+        items.append(.init(title: text("Follow Through…"), action: { app.followThrough(thread.latestReference) }))
+        return items
+    }
+
+    /// The menu on the Actions page; the same entries as its context menu.
+    private func listMenu(_ list: ActionListRowStyle) -> [WorkspaceMenu.Item] {
+        var items: [WorkspaceMenu.Item] = [
+            .init(title: text(thread.status == .done ? "Mark open" : "Mark Done"),
+                  action: { list.onStatus(thread.status == .done ? .open : .done) }),
+            .init(title: text(thread.status == .deferred ? "Move back to open" : "Defer"),
+                  action: { list.onStatus(thread.status == .deferred ? .open : .deferred) }),
+            .separator,
+            .init(title: text("Edit…"), action: list.onEdit),
+            .init(title: text("Not mine"), action: list.onNotMine),
+            .init(title: text("Open meeting"), action: { app.openMeeting(thread.latestReference.meetingID) }),
+        ]
+        if thread.hasMultipleMeetings {
+            items.append(.init(title: text("Keep as separate action"), children: thread.references.map { reference in
+                .init(title: reference.meetingTitle + " · "
+                        + reference.meetingStartedAt.formatted(date: .abbreviated, time: .omitted),
+                      action: { setThreadExcluded(true, for: reference) })
+            }))
+        } else {
+            items.append(separateOrAllowItem)
+        }
+        items.append(.separator)
+        items.append(.init(title: text("Draft next steps…"), action: { app.followThrough(thread.latestReference) }))
+        items.append(.init(title: text("Hand off"), children: [
+            .init(title: text("Agent"), action: { app.openAgent(Self.agentContext(for: thread)) }),
+        ] + handOffMenuItems))
+        return items
     }
 
     /// Agent, then the external agents installed on this Mac.
@@ -381,37 +448,7 @@ struct ActionThreadRow: View {
                 }
             }
 
-            Menu {
-                ForEach(OutcomeStatus.allCases, id: \.rawValue) { status in
-                    Button(status.label) { set(status) }
-                }
-                Divider()
-                Button("Open latest meeting") {
-                    app.openMeeting(thread.latestReference.meetingID)
-                }
-                if thread.hasMultipleMeetings {
-                    Button("Review source meetings") { showingSources = true }
-                } else {
-                    let reference = thread.latestReference
-                    Button(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action") {
-                        setThreadExcluded(!reference.isThreadExcluded, for: reference)
-                    }
-                }
-                Button("Open in Agent") { app.openAgent(Self.agentContext(for: thread)) }
-                ForEach(ActionAgentAvailability.installed) { target in
-                    Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
-                }
-                Button("Follow Through…") { app.followThrough(thread.latestReference) }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 28, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel("Action thread options")
-            .accessibilityIdentifier("outcome.thread.status.\(thread.id)")
+            optionsMenu(defaultMenu)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
         .accessibilityElement(children: .contain)

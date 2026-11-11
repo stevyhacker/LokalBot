@@ -43,11 +43,12 @@ struct SettingsSidebar: View {
                         .accessibilityIdentifier("settings.group.\(group)")
                     ForEach(AppState.SettingsTab.allCases.filter { $0.group == group }, id: \.self) { row($0) }
                 }
-                Color.clear.frame(height: 4)
-                    .selectionDisabled(true)
-                    .listRowSeparator(.hidden)
-                    .accessibilityHidden(true)
-                ForEach(AppState.SettingsTab.trailingPages, id: \.self) { row($0) }
+                // The gap above the last page is padding on its row. An empty
+                // spacer row was a list cell with nothing to read, which
+                // VoiceOver stopped on and the accessibility audit flagged.
+                ForEach(AppState.SettingsTab.trailingPages, id: \.self) { page in
+                    row(page).padding(.top, page == AppState.SettingsTab.trailingPages.first ? 14 : 0)
+                }
             }
             .listStyle(.inset)
             .scrollContentBackground(.hidden)

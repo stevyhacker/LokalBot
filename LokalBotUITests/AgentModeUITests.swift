@@ -35,7 +35,7 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { (try? self.taskRecords().count) == 6 })
         XCTAssertEqual(app.textFields.matching(identifier: "agent.composer").count, 1)
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
-        XCTAssertTrue(taskRow.label.contains("Not started"), "A new task's row says it has not started")
+        XCTAssertTrue(taskRowText.contains("Not started"), "A new task's row says it has not started")
     }
 
     func testSwitchingTasksAndReturningToAgentKeepsDrafts() {
@@ -51,12 +51,13 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testStarterOnlyPrefillsAndRuntimeWaitsForExplicitSend() {
-        XCTAssertTrue(UITestHarness.waitUntil { self.taskRow.label.contains("Not started") })
+        XCTAssertTrue(UITestHarness.waitUntil { self.taskRowText.contains("Not started") },
+                      "A new task's row says it has not started")
         // A new task opens with its heading, what the agent may do, and the starters.
         XCTAssertTrue(app.descendants(matching: .any)["agent.capability"].exists)
         app.buttons["agent.starter.followUp"].click()
         XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.contains("Draft a follow-up") == true })
-        XCTAssertTrue(taskRow.label.contains("Not started"))
+        XCTAssertTrue(taskRowText.contains("Not started"), "Choosing a starter does not start the task")
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
     }
 
@@ -308,6 +309,13 @@ final class AgentModeUITests: XCTestCase {
     }
     private var taskRow: XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'agent.task.'")).firstMatch
+    }
+    /// What VoiceOver reads for the first task row: its title and its status.
+    /// The row is one static text, and macOS reports a static text's words
+    /// as its value, not its label.
+    private var taskRowText: String {
+        let row = taskRow
+        return [row.label, row.value as? String ?? ""].joined(separator: " ")
     }
     private func taskRecords() throws -> [[String: Any]] {
         let data = try Data(contentsOf: fixture.root.appendingPathComponent("agent/sessions/tasks.json"))
