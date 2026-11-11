@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: Live Radar and Follow-through</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Scripts/render_explainer.py Docs/explainers/live-radar.html web/explainers/live-radar.pdf
+  One A4 sheet. The example cards are made up.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12.5px; line-height: 1.46; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 15mm 9mm; display: flex; flex-direction: column; gap: 9px; background: var(--bg); }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p, ul { margin: 0; }
+h1 { font-size: 31px; line-height: 1.1; letter-spacing: -0.022em; font-weight: 750; }
+ul { padding-left: 15px; display: grid; gap: 3px; }
+.lede { font-size: 14px; color: var(--text-dim); max-width: 62ch; }
+.eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.sec { display: grid; gap: 8px; }
+.flow { display: grid; grid-template-columns: 1fr 22px 1fr 22px 1fr 22px 1fr; align-items: center; gap: 4px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; height: 100%; }
+.box h3 { font-size: 12.5px; margin: 0 0 3px; font-weight: 650; }
+.box p { color: var(--text-dim); font-size: 11px; }
+.arrow { text-align: center; color: var(--accent-text); font-size: 15px; }
+.field { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 7px; padding: 9px 12px; font-size: 13.5px; }
+.ghost { color: var(--text-faint); text-decoration: underline; }
+table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+th { text-align: left; color: var(--text-faint); font-weight: 600; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line-strong); }
+td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--text-dim); }
+td:first-child { color: var(--text); white-space: nowrap; }
+.warn { color: var(--warn-text); }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 7px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-text); margin-bottom: 4px; }
+.card { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 7px; padding: 8px 11px; font-size: 11.5px; }
+.card b { color: var(--accent-text); font-weight: 650; }
+.card span { color: var(--text-dim); }
+.stack { display: grid; gap: 5px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Mac · Meetings · off by default</div>
+  <h1>Live Radar and Follow-through</h1>
+  <p class="lede">Live Radar catches commitments, decisions, open questions and conflicts with earlier meetings while you record. Follow-through then plans the work for one of your actions and drafts each step for your approval. Both read with the Think model you chose in Settings → Models.</p>
+  <div class="cols">
+    <div class="stack">
+      <div class="tag">During the meeting (made-up example)</div>
+      <div class="card"><b>Commitment</b> · <span>“I'll send the revised pricing deck by Friday.”</span></div>
+      <div class="card"><b>Decision</b> · <span>“Let's keep the Team plan at five seats.”</span></div>
+      <div class="card"><b>Conflict</b> · <span>Launch “the week after”, but on 19 Oct you agreed Monday the 3rd.</span></div>
+      <div class="card"><b>Question</b> · <span>“What was conversion in September?” Answered from your screen, with the line it rests on.</span></div>
+    </div>
+    <div class="stack">
+      <div class="tag">After the meeting</div>
+      <div class="card"><b>Follow Through…</b> <span>on one action</span></div>
+      <div class="card"><b>Proposes</b> · <span>an email draft, a calendar invitation, a task for Claude Code or Codex, or marking the action done</span></div>
+      <div class="card"><b>You approve each step</b> · <span>edit it first if you like</span></div>
+      <div class="card"><b>Opens as a draft</b> · <span>in your mail app, Calendar or coding agent. LokalBot never sends anything itself.</span></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">Turn it on</div>
+    <table>
+      <tr><th>What</th><th>Where</th></tr>
+      <tr><td>Live Radar</td><td>Settings → Meetings → Live Radar → <b>Offer Live Radar during meetings</b>. Then press <b>Start Radar</b> during a recording; it runs for that recording only. A small panel can float over your meeting app, and is left out of screen sharing.</td></tr>
+      <tr><td>Screen answers, live answers</td><td>Two more switches in the same section, both off. Screen answers read your screen memory; live answers also read the folders you add there.</td></tr>
+      <tr><td>Follow-through</td><td>No setting. Choose <b>Follow Through…</b> on an action.</td></tr>
+      <tr><td>Turn-by-turn live text</td><td>Settings → Meetings → Processing. The live preview transcribes one turn at a time, about half a second to a second behind the speaker, where it otherwise takes about two and up to five. Live Radar then reads after each turn.</td></tr>
+    </table>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">What it reads, keeps and sends</div>
+    <ul>
+      <li>With a Think model on this Mac, nothing here leaves it. With a Think server or plan, it goes only to the origin you approved for Think, and revoking that approval stops it.</li>
+      <li><b>Live Radar</b> gives the model the new preview lines, up to 24 earlier lines, the meeting title, invited names, and up to six passages local search found in earlier meetings. Audio, speaker separation and search stay on this Mac. Email addresses are never sent.</li>
+      <li>Every item must quote a line that was said, and an answer must quote the source it cites. Anything else is dropped. Findings are saved with the meeting and deleted with it.</li>
+      <li><b>Screen answers</b> send text read from up to three crops of earlier captures, never the pictures. <b>Live answers</b> never read hidden files, <code>node_modules</code>, secret-looking files, or files git doesn't track.</li>
+      <li><b>Follow-through</b> gets the action, its source lines, the meeting's summary and what its read tools return from your meetings. It can't read screen memory, and email addresses are filled in on this Mac. Full details are in <code>PRIVACY.md</code>.</li>
+    </ul>
+  </div>
+  <div class="sec">
+    <div class="eyebrow">Limits</div>
+    <ul>
+      <li>Mac only. Live Radar reads about every 20 seconds, or after each turn with turn-by-turn live text. That means more requests to a Think server, or more load on a local model during the meeting.</li>
+      <li>Turn-by-turn timings are from one scripted call per language on an M4 Max. A slower Mac takes longer.</li>
+      <li class="warn">Live Radar and Follow-through were built on a hosted model for a hackathon. On a local Think model they are covered by tests with a scripted model, not yet by a real meeting, and speed on a small local model hasn't been measured.</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>LokalBot · Live Radar and Follow-through</span><span>1 of 1</span></div>
+</section>
+</body>
+</html>

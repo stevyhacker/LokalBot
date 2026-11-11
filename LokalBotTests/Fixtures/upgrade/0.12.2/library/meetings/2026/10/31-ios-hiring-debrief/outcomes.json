@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000009-1",
+      "schemaVersion": 2,
+      "text": "Request references",
+      "citations": [
+        {
+          "meetingID": "00000009-0000-4000-8000-000000000009",
+          "segmentID": "segment-0001-0000016000-0000032000",
+          "start": 16,
+          "end": 32,
+          "speaker": "them",
+          "excerpt": "Same read. Let's move to references this week."
+        }
+      ],
+      "owner": "Them",
+      "isForUser": false
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}
