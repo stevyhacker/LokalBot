@@ -961,7 +961,8 @@ final class AppState: ObservableObject {
         thinkExecution: thinkExecution,
         speakerIdentity: speakerIdentity,
         automationReadiness: ProcessingPipeline.defaultAutomationReadiness)
-    /// Today's one-time GitHub star request and the permanent links to it.
+    /// The GitHub star request: Settings › General › About and the menu bar
+    /// link. Today no longer shows a card for it.
     private(set) lazy var githubStar = GitHubStarPromptStore.live(libraryRoot: storage.rootURL)
     /// Canonical state machine for Transcribe, Think, and Autocomplete.
     private(set) lazy var modelRoles = ModelRoles(

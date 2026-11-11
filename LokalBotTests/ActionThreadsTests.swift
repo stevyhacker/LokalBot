@@ -251,6 +251,27 @@ final class ActionThreadsTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(ActionThreadClusterer.cluster([remote]).first).isForUser)
     }
 
+    func testPlanInAgentListsOpenThreadsAndNamesTheFirstSource() throws {
+        XCTAssertNil(ActionThreadPlan.launchContext(for: []), "Nothing open means no plan to offer")
+        let start = Date(timeIntervalSince1970: 1_780_000_000)
+        let first = reference(meetingID: UUID(), meetingTitle: "Planning", startedAt: start,
+                              text: "Send the revised launch proposal")
+        let threads = ActionThreadClusterer.cluster(
+            [first] + (0..<ActionThreadPlan.maximumThreads + 2).map { index in
+                reference(meetingID: UUID(), meetingTitle: "Sync \(index)",
+                          startedAt: start.addingTimeInterval(TimeInterval(index + 1) * 60),
+                          text: "Distinct commitment number \(index)")
+            })
+        let plan = try XCTUnwrap(ActionThreadPlan.launchContext(for: threads))
+        let lines = plan.prompt.split(separator: "\n").filter { $0.hasPrefix("- ") }
+        XCTAssertEqual(lines.count, ActionThreadPlan.maximumThreads)
+        XCTAssertEqual(String(lines[0]), "- " + threads[0].text)
+        XCTAssertEqual(plan.meetingID, threads[0].latestReference.meetingID)
+        XCTAssertEqual(plan.actionID, threads[0].latestReference.action.id)
+        XCTAssertEqual(NeedsAttentionSection.remainder(total: 7, limit: 3), 4)
+        XCTAssertEqual(NeedsAttentionSection.remainder(total: 2, limit: 3), 0)
+    }
+
     private func reference(
         meetingID: UUID,
         meetingTitle: String,

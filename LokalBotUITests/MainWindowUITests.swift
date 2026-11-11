@@ -39,22 +39,34 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Today
 
-    /// Today keeps the task-first digest hierarchy without repeating the host
-    /// page's time chart or exposing capture/evidence bookkeeping.
+    /// Today shows the digest's highlights and one line about when it was
+    /// written. Tasks, sessions, digest export and the activity log stay on
+    /// Timeline, and Record is in the toolbar instead of a bar on the page.
     func testTodayUsesCompactDigestHierarchy() {
-        XCTAssertTrue(identified("today.dayDigest.generate").waitForExistence(timeout: 6))
-        UITestHarness.scrollTo(identified("today.dayDigest.generate"), in: app)
-        XCTAssertTrue(identified("today.dayDigest.actions").exists)
-        XCTAssertTrue(textWithContent("Updated the Timeline UI").firstMatch.exists)
+        XCTAssertTrue(identified("today.dayDigest.text").waitForExistence(timeout: 6))
+        UITestHarness.scrollTo(identified("today.dayDigest.text"), in: app)
+        XCTAssertTrue(textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.exists)
+        XCTAssertTrue(textWithContent("Digest written").firstMatch.exists)
+        XCTAssertFalse(textWithContent("Fixture implementation").firstMatch.exists,
+                       "the digest's tasks belong to Timeline")
         XCTAssertFalse(textWithContent("screen:4242").firstMatch.exists)
-        XCTAssertTrue(textWithContent("Updated").firstMatch.exists)
+        XCTAssertFalse(identified("today.dayDigest.actions").exists)
+        XCTAssertFalse(identified("today.sessions").exists, "work sessions belong to Timeline")
         XCTAssertFalse(identified("dayDigest.fullActivityLog").exists)
+        // Both of the day's recordings are listed once, in one list.
+        for meeting in [fixture.designReview, fixture.standup] {
+            XCTAssertTrue(identified("today.meeting.recording-\(meeting.id.uuidString)").exists)
+        }
         XCTAssertTrue(app.buttons["outcomes.review"].exists)
+        XCTAssertFalse(app.buttons["outcomes.planInAgent"].exists, "planning with Agent moved to Actions")
         XCTAssertFalse(identified("today.memoryStatus").exists)
+        XCTAssertFalse(identified("today.githubStar").exists)
         XCTAssertFalse(textWithContent("Morning brief").firstMatch.exists)
         XCTAssertFalse(textWithContent("Today’s brief").firstMatch.exists)
+        XCTAssertFalse(textWithContent("Nothing recording right now").firstMatch.exists)
         XCTAssertFalse(app.toolbars.firstMatch.buttons["toolbar.record"].exists)
-        XCTAssertTrue(app.buttons["today.record"].exists)
+        XCTAssertTrue(app.buttons["today.record"].exists, "Record lives in Today's toolbar")
+        XCTAssertFalse(identified("today.live").exists, "no card leads while nothing is recording")
     }
 
     // MARK: - Library

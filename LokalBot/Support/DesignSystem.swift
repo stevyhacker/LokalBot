@@ -44,9 +44,9 @@ enum WorkspaceMetric {
     static let contentMaxWidth: CGFloat = 1360
     /// Long-form answers and summaries stay within a comfortable reading line.
     static let readingMaxWidth: CGFloat = LBTokens.Metric.readingMaxWidth
-    /// Today is a glanceable page: wide enough for a row of session cards,
-    /// with prose still held to `readingMaxWidth`.
-    static let todayMaxWidth: CGFloat = 956
+    /// Today is a glanceable page: one column, about a reading line wide
+    /// inside its side padding.
+    static let todayMaxWidth: CGFloat = 780
     /// Keep the day readable beside the work-session rail, then use a drawer.
     static let timelineDayMinWidth: CGFloat = 440
     static let timelineRailMinWidth: CGFloat = 260

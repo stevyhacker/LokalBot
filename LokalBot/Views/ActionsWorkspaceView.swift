@@ -230,6 +230,17 @@ struct ActionsWorkspaceView: View {
             Text(reviewMode == "threads" ? "\(threads) threads" : "\(visible) of \(total)")
                 .foregroundStyle(.secondary)
             Spacer()
+            // Planning the open threads with Agent moved here from Today.
+            if let plan = ActionThreadPlan.launchContext(
+                for: ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads)) {
+                Button {
+                    app.openAgent(plan)
+                } label: {
+                    Label("Plan in Agent…", systemImage: "wand.and.sparkles")
+                }
+                .help("Open a new Agent task with these action threads")
+                .accessibilityIdentifier("outcomes.planInAgent")
+            }
             if reviewMode == "actions" {
                 if selected.isEmpty {
                     if selecting {

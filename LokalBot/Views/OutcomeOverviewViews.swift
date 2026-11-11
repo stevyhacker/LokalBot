@@ -8,16 +8,24 @@ struct NeedsAttentionSection: View {
     let threads: [ActionThread]
     var title = "Needs Attention"
     var limit = 4
-    /// Today offers planning the open threads with Agent; Timeline's day view
-    /// keeps the section to review only.
-    var showsPlanInAgent = false
     var style: Style = .panel
+    /// Today's heading link says how many more wait in Actions; Timeline's
+    /// day view keeps the plain Review Actions link.
+    var linksRemainder = false
+    var headingFont = AppFont.scaled(.headline)
+    /// Space added above and below each row in the plain style.
+    var rowSpacing: CGFloat = 8
 
     enum Style {
-        /// A grouped panel with the review actions beneath it.
+        /// A grouped panel with the review action beneath it.
         case panel
-        /// Rows on the page itself, with Review Actions beside the heading.
+        /// Rows on the page itself, with the link to Actions beside the heading.
         case plain
+    }
+
+    /// Open threads the section leaves to the Actions page.
+    static func remainder(total: Int, limit: Int) -> Int {
+        max(0, total - max(0, limit))
     }
 
     /// Nothing to act on means no card at all — an empty "Needs attention"
@@ -34,23 +42,11 @@ struct NeedsAttentionSection: View {
                         if thread.id != threads.prefix(limit).last?.id { Divider() }
                     }
                 }
-                HStack(spacing: 8) {
-                    Button("Review Actions…") {
-                        app.openActions()
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("outcomes.review")
-                    if showsPlanInAgent {
-                        Button {
-                            planInAgent()
-                        } label: {
-                            Label("Plan in Agent…", systemImage: "wand.and.sparkles")
-                        }
-                        .buttonStyle(.bordered)
-                        .help("Open a new Agent task with these action threads")
-                        .accessibilityIdentifier("outcomes.planInAgent")
-                    }
+                Button("Review Actions…") {
+                    app.openActions()
                 }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("outcomes.review")
             }
         }
     }
@@ -62,13 +58,15 @@ struct NeedsAttentionSection: View {
                 // header becomes a different accessibility element, which
                 // static-text queries no longer find.
                 Text(LocalizedStringKey(title))
-                    .font(.scaled(.headline))
+                    .font(headingFont)
                 Text(threads.count, format: .number)
                     .font(AppFont.scaled(.callout).monospacedDigit())
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Button("Review Actions…") {
+                Button {
                     app.openActions()
+                } label: {
+                    actionsLinkLabel
                 }
                 .buttonStyle(.workspaceLink)
                 .font(AppFont.scaled(.callout))
@@ -78,7 +76,7 @@ struct NeedsAttentionSection: View {
             VStack(spacing: 0) {
                 ForEach(Array(threads.prefix(limit))) { thread in
                     ActionThreadRow(thread: thread)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, rowSpacing)
                     if thread.id != threads.prefix(limit).last?.id { Divider() }
                 }
             }
@@ -86,18 +84,10 @@ struct NeedsAttentionSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func planInAgent() {
-        let lines = threads.prefix(8).map { thread in
-            let sources = thread.meetingCount == 1
-                ? "" : " (mentioned in \(thread.meetingCount) meetings)"
-            return "- \(thread.text)\(sources)"
-        }
-        app.openAgent(.init(
-            title: "Today's action threads",
-            prompt: "Help me plan today's open meeting action threads:\n"
-                + lines.joined(separator: "\n"),
-            meetingID: threads.first?.latestReference.meetingID,
-            actionID: threads.first?.latestReference.action.id))
+    private var actionsLinkLabel: Text {
+        guard linksRemainder else { return Text("Review Actions…") }
+        let more = Self.remainder(total: threads.count, limit: limit)
+        return more > 0 ? Text("\(more) more in Actions") : Text("All actions")
     }
 }
 

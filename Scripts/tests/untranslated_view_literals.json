@@ -135,7 +135,6 @@
       "Create one timeline and fold the originals into it",
       "Delete \\(…)…",
       "Merge \\(…) meetings…",
-      "Record",
       "Select completed meetings that are not processing",
       "\\(…) failed",
       "\\(…) meetings selected"
@@ -275,7 +274,6 @@
       "Track \\(…)",
       "Track a Project",
       "Track a suggestion below, or add a project with +.",
-      "Update",
       "Write Note"
     ],
     "QuickRecallFooter.swift": [
@@ -288,9 +286,7 @@
       "Type to search meetings, screens, and saved moments, or to run a command like Record now. Return opens a result; Ask is a separate action."
     ],
     "RecordingHealthStrip.swift": [
-      "Last recovery \\(…)",
-      "Mic · \\(…)",
-      "System · \\(…)"
+      "Last recovery \\(…)"
     ],
     "RetentionSettingsControls.swift": [
       "Affected captures: \\(…) – \\(…)"
@@ -345,15 +341,6 @@
     "SummaryPresentation.swift": [
       "Show Less",
       "Show \\(…) More Points"
-    ],
-    "TodaySessionsSection.swift": [
-      "Show All \\(…) Sessions",
-      "Show Fewer Sessions"
-    ],
-    "UpcomingMeetingView.swift": [
-      "Generate brief",
-      "Record",
-      "\\(…) more today"
     ]
   },
   "verbatim": {

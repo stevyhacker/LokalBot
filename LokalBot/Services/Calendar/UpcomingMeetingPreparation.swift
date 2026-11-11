@@ -627,10 +627,13 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
             clear(status: .noMeetingsToday)
             return
         }
+        // An event a recording already covers, the one being recorded
+        // included, is not coming up again. Today lists it as that recording.
+        let recorded = TodayAgenda.recordedEventIDs(
+            in: (app.currentMeeting.map { [$0] } ?? []) + app.meetings)
         let primary = UpcomingMeetingSelector.primary(
-            from: schedule,
-            now: now,
-            excludingEventID: app.currentMeeting?.calendarEventID)
+            from: schedule.filter { !recorded.contains($0.externalID) },
+            now: now)
 
         meetingsToday = schedule
         primaryEventID = primary?.externalID

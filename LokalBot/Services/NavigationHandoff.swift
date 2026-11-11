@@ -26,6 +26,26 @@ struct AgentLaunchContext: Equatable, Sendable {
     let actionID: String?
 }
 
+/// The Agent task that plans the open action threads, offered on Actions.
+enum ActionThreadPlan {
+    static let maximumThreads = 8
+
+    static func launchContext(for threads: [ActionThread]) -> AgentLaunchContext? {
+        guard let first = threads.first else { return nil }
+        let lines = threads.prefix(maximumThreads).map { thread in
+            let sources = thread.meetingCount == 1
+                ? "" : " (mentioned in \(thread.meetingCount) meetings)"
+            return "- \(thread.text)\(sources)"
+        }
+        return AgentLaunchContext(
+            title: "Today's action threads",
+            prompt: "Help me plan today's open meeting action threads:\n"
+                + lines.joined(separator: "\n"),
+            meetingID: first.latestReference.meetingID,
+            actionID: first.latestReference.action.id)
+    }
+}
+
 /// Owns the short-lived payloads passed between navigation destinations.
 /// Each destination consumes its complete payload at once, so SwiftUI view
 /// mounting and coalesced state updates cannot split or misroute a handoff.

@@ -1,50 +1,7 @@
 import SwiftUI
 
-/// One digest presentation for Today and Timeline, with the same generation,
-/// export, freshness and inference behavior in each destination.
-struct DayDigestCard: View {
-    @EnvironmentObject private var app: AppState
-    @ObservedObject var model: CaptureModel
-    var yesterday: DreamReport?
-    let identifier: String
-    var showsControls = true
-    var mode: DayDigestView.Mode = .timeline
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if showsControls { DayDigestControls(model: model, identifier: identifier) }
-            if let digest = model.digest {
-                DayDigestView(digest, mode: mode)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("\(identifier).dayDigest.text")
-            } else {
-                Text("Your digest brings together this day's meetings and captured activity.")
-                    .workspaceTextRole(.supporting)
-            }
-            if model.digestUpdatedAt != nil || model.digestIsStale {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let updated = model.digestUpdatedAt {
-                        Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
-                    }
-                    if model.digestIsStale {
-                        Text("New activity available · Update digest to include it")
-                            .accessibilityIdentifier("\(identifier).dayDigest.stale")
-                    }
-                }
-                .font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            if let yesterday {
-                Divider()
-                YesterdayDigestLine(report: yesterday, day: model.day)
-            }
-            if let error = model.digestError {
-                Label(error, systemImage: "exclamationmark.triangle").workspaceTextRole(.warning)
-            }
-        }
-    }
-}
-
+/// Timeline's digest buttons: ask about the day, write or regenerate, and
+/// copy or export.
 struct DayDigestControls: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
@@ -159,9 +116,11 @@ struct YesterdayDigestLine: View {
     let day: Date
     @State private var expanded = false
 
-    private var label: String {
-        TodayDreamSelection.isCurrent(report, referenceDate: day) ? "Yesterday"
-            : DreamDay.date(fromKey: report.day)?.formatted(date: .abbreviated, time: .omitted) ?? "Previous workday"
+    /// "Yesterday", or the day an older brief covers.
+    private var label: Text {
+        if TodayDreamSelection.isCurrent(report, referenceDate: day) { return Text("Yesterday") }
+        return Text(verbatim: DreamDay.date(fromKey: report.day)?
+            .formatted(date: .abbreviated, time: .omitted) ?? report.day)
     }
 
     private func linkedThread(_ id: String?) -> ActionThread? {
@@ -199,7 +158,7 @@ struct YesterdayDigestLine: View {
             }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(label).font(AppFont.scaled(.body).weight(.semibold))
+                label.font(TodayType.sectionHeading)
                 Text(report.narrative).lineLimit(1).foregroundStyle(.secondary)
             }
         }
