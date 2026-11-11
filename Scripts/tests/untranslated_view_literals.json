@@ -147,26 +147,11 @@
       "Runs on the merged transcript after the new meeting is created.",
       "\\(…) recordings · \\(…)"
     ],
-    "MeetingReviewView.swift": [
-      "Linked to \\(…) action\\(…)",
-      "Listen to a short excerpt, then confirm a name or whether the speaker is you. Leave uncertain voices unresolved.",
-      "Name Speaker…",
-      "No derived notes yet",
-      "Notes need a refresh",
-      "Notes use the latest saved speaker details",
-      "Processing…",
-      "Refresh Notes and Owners",
-      "Refresh the summary and extracted owners after reviewing speakers. Saved action corrections stay separate; unmatched edits remain available for review.",
-      "Review Name…",
-      "Show Fewer Speakers",
-      "Show \\(…) More Speakers"
-    ],
     "MeetingScreenContextViews.swift": [
       "On screen at \\(…)",
       "The call"
     ],
     "MeetingWorkspaceView.swift": [
-      "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
       "Audio capture was interrupted or saving reported an error. Review the saved recording for missing audio.",
       "Back to Actions",
       "Delete \\(…) meetings",
@@ -177,10 +162,7 @@
       "Remove this merged meeting and restore \\(…) original meetings? Their source folders will stay intact.",
       "Some recovery audio could not be verified. Saved audio and original checkpoints are retained.",
       "Source-linked notes and actions are saved below. Actions become editable when the notes finish.",
-      "These actions are from the previous notes. Review their owners, then refresh to regenerate notes from the corrected transcript.",
       "These saved edits did not match a single regenerated action. Apply them to the correct action after reviewing its source.",
-      "\\(…) \\(…). Review action-linked voices first.",
-      "\\(…) calendar guests are available as name suggestions. Attendance alone does not identify a voice.",
       "\\(…) meetings selected"
     ],
     "MemoryHealthSection.swift": [

@@ -43,7 +43,7 @@
   "MainWindowUITests/testSidebarNavigationSwitchesSections": 11.6,
   "MainWindowUITests/testSidebarStaysAtLeadingEdgeAfterColumnResizeAndToggle": 14.2,
   "MainWindowUITests/testSidebarTogglesBetweenTimelineAndMeetings": 14.6,
-  "MainWindowUITests/testSidebarUsesApprovedRememberAndWriteActHierarchy": 6.2,
+  "MainWindowUITests/testSidebarUsesApprovedRememberAndAssistantHierarchy": 6.2,
   "MainWindowUITests/testSpeakerRenameOffersCalendarAttendeeIdentities": 20.7,
   "MainWindowUITests/testSpeakerRenameReturnFillsInTopSuggestion": 21.4,
   "MainWindowUITests/testTimelineDateChangeRefreshesOverviewAndDigest": 17.9,

@@ -564,18 +564,18 @@ final class MainWindowUITests: XCTestCase {
             // formatted accessibility description is not its numeric value.
             XCTAssertEqual((position.value as? NSNumber)?.doubleValue, seconds,
                            "Unexpected slider value: \(String(describing: position.value))")
-            XCTAssertTrue(app.staticTexts["\(displayedTime) / 00:01:00"].exists,
+            XCTAssertTrue(app.staticTexts["\(displayedTime) / 1:00"].exists,
                           "the visible playback time must follow keyboard seeking")
         }
         position.click()
         app.typeKey(.home, modifierFlags: [])
-        assertPosition(0, displayedTime: "00:00:00")
+        assertPosition(0, displayedTime: "0:00")
         app.typeKey(.rightArrow, modifierFlags: [])
-        assertPosition(5, displayedTime: "00:00:05")
+        assertPosition(5, displayedTime: "0:05")
         app.typeKey(.leftArrow, modifierFlags: [])
-        assertPosition(0, displayedTime: "00:00:00")
+        assertPosition(0, displayedTime: "0:00")
         app.typeKey(.end, modifierFlags: [])
-        assertPosition(60, displayedTime: "00:01:00")
+        assertPosition(60, displayedTime: "1:00")
     }
 
     func testMeetingRowOpensFullWorkspaceWithAudioPlayer() {
@@ -592,8 +592,8 @@ final class MainWindowUITests: XCTestCase {
         let actions = identified("meeting.export")
         XCTAssertTrue(actions.exists, "full workspace should retain meeting copy/export actions")
         actions.click()
-        XCTAssertTrue(app.menuItems["Copy Meeting as Markdown"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.menuItems["Export Meeting as Markdown…"].exists)
+        XCTAssertTrue(app.menuItems["Copy as Markdown"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Export as Markdown…"].exists)
         app.typeKey(.escape, modifierFlags: [])
     }
 
@@ -835,8 +835,10 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { speaker.label == longName })
         let text = app.staticTexts["transcript.segment.1.text"]
         XCTAssertTrue(text.waitForExistence(timeout: 3))
-        XCTAssertLessThanOrEqual(speaker.frame.width, 133)
-        XCTAssertLessThanOrEqual(speaker.frame.maxX + 8, text.frame.minX)
+        // A turn's speaker sits on its own line above what was said.
+        XCTAssertLessThanOrEqual(speaker.frame.maxY, text.frame.minY + 1)
+        XCTAssertGreaterThanOrEqual(speaker.frame.minX + 24, text.frame.minX)
+        XCTAssertLessThanOrEqual(speaker.frame.maxX, text.frame.maxX + 1)
         XCTAssertGreaterThan(text.frame.width, 100)
         let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         screenshot.name = "transcript-long-speaker-name"
@@ -848,33 +850,40 @@ final class MainWindowUITests: XCTestCase {
         app.sheets.firstMatch.buttons["Cancel"].click()
     }
 
-    /// Frequent processing actions stay direct, while copy/export and speech
-    /// utilities remain available in one clearly labelled overflow.
+    /// Asking stays a direct toolbar button. Copying and exporting are under
+    /// Share, and the short More menu keeps reprocessing one level down.
     func testMeetingProcessingActionsAreDirectToolbarButtons() {
         openLibrary()
         selectMeeting(fixture.designReview)
         XCTAssertTrue(identified("meeting.ask").exists)
         identified("meeting.export").click()
-        for label in ["Copy Summary", "Copy Transcript", "Copy Meeting as Markdown", "Export Meeting as Markdown…"] {
-            XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3))
+        // Everything that copies or exports is under Share.
+        for label in ["Copy summary", "Copy transcript", "Copy as Markdown", "Export as Markdown…",
+                      "Export audio…", "Export spoken summary…", "Copy meeting path"] {
+            XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing share action: \(label)")
         }
         app.typeKey(.escape, modifierFlags: [])
         identified("toolbar.meetingActions").click()
-        for label in ["Transcribe & Summarize", "Transcribe only", "Summarize again", "Export audio",
-                      "Copy Meeting Path"] {
+        for label in ["Draft follow-up…", "Read summary aloud", "Edit start and end…", "Reprocess", "Show in Finder"] {
             XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing meeting action: \(label)")
         }
+        // The three ways to process a meeting again sit one level down.
+        app.menuItems["Reprocess"].click()
+        for label in ["Transcribe & Summarize", "Transcribe only", "Summarize again"] {
+            XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing reprocess action: \(label)")
+        }
+        app.typeKey(.escape, modifierFlags: [])
         app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// Command-F and the visible toolbar action search every visible meeting
-    /// content node. Matches move through outcomes and summary prose into
+    /// Command-F searches every visible meeting content node. Matches move through outcomes and summary prose into
     /// collapsed transcript evidence without switching to library-wide Ask.
     func testMeetingFindSearchesAllVisibleContent() {
         openLibrary()
         selectMeeting(fixture.designReview)
         XCTAssertTrue(identified("detail.title").waitForExistence(timeout: 4))
-        XCTAssertTrue(identified("toolbar.meetingSearch").exists)
+        XCTAssertFalse(identified("toolbar.meetingSearch").exists,
+                       "Find lives in the Edit menu and on Command-F, not in the toolbar")
 
         app.typeKey("f", modifierFlags: .command)
         let field = app.textFields["meeting.search.field"]

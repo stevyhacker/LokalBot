@@ -534,6 +534,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.effectiveAppearance.performAsCurrentDrawingAppearance { raise(root) }
     }
 
+    /// A sheet is a window of its own, so the parent's capture leaves it out.
+    /// Draw it where it sits, over a dimmed parent, as a person sees it.
+    @MainActor
+    private static func drawAttachedSheet(of window: NSWindow, into rep: NSBitmapImageRep) {
+        guard let sheet = window.attachedSheet, let content = sheet.contentView else { return }
+        let view: NSView = content.superview ?? content
+        let bounds = view.bounds
+        guard bounds.width > 0, bounds.height > 0,
+              let sheetRep = view.bitmapImageRepForCachingDisplay(in: bounds),
+              let context = NSGraphicsContext(bitmapImageRep: rep) else { return }
+        view.cacheDisplay(in: bounds, to: sheetRep)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        NSColor.black.withAlphaComponent(0.16).setFill()
+        NSRect(origin: .zero, size: rep.size).fill(using: .sourceOver)
+        let origin = NSPoint(x: sheet.frame.minX - window.frame.minX, y: sheet.frame.minY - window.frame.minY)
+        sheetRep.draw(in: NSRect(origin: origin, size: bounds.size), from: .zero,
+                      operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        context.flushGraphics()
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
     /// Render the window's frame view (titlebar + content) into a configurable
     /// high-density PNG via `cacheDisplay`, independent of the display's
     /// backing scale. README captures default to 2x; website and video
@@ -554,6 +576,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                          bytesPerRow: 0, bitsPerPixel: 0) else { return }
         rep.size = bounds.size
         view.cacheDisplay(in: bounds, to: rep)
+        drawAttachedSheet(of: window, into: rep)
         // cacheDisplay renders through the current display profile. Convert the
         // samples before tagging the web asset so P3 captures are not mislabeled.
         guard let export = rep.converting(to: .sRGB,

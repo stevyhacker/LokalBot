@@ -151,7 +151,8 @@ final class RedesignUITests: XCTestCase {
         let anchors = [
             "today": "today.dayDigest.text", "actions": "actions.search",
             "meeting": "meeting.audioPlayer", "transcript": "transcript.segment.0.text",
-            "review": "meeting.review.speakers",
+            // The Review tab is gone; this route shows the sheet that names speakers.
+            "review": "meeting.namingSheet",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
             "ask": "ask.submit", "settings": "settings.overview", "models": "models.overview",
             "dictation": "dictation.form", "agent": "agent.composer",
@@ -297,51 +298,73 @@ final class RedesignUITests: XCTestCase {
         snapshot("recall-restored-divider")
     }
 
+    /// The removed Review tab's three jobs, in place: one sheet names the
+    /// unnamed voices, an action's owner is a menu on its row, and a refresh
+    /// of the summary is offered only once speaker names have changed. A ▶
+    /// time plays where it is, and the player leads to the transcript.
+    /// The test keeps its name so its measured duration still plans the shards.
     func testMeetingReviewConnectsSpeakersOwnersEvidenceAndRefresh() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review"])
-        let speaker = app.buttons["meeting.review.speaker.them"]
-        XCTAssertTrue(speaker.waitForExistence(timeout: 5))
-        let listen = app.buttons["meeting.review.listen.them"]
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
+        let nameSpeakers = app.buttons["meeting.reviewSpeakers"]
+        XCTAssertTrue(nameSpeakers.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["meeting.review.refresh"].exists,
+                       "A summary refresh is offered only after speaker names change")
+        let transport = element("meeting.audioPlayer")
+        XCTAssertTrue(transport.waitForExistence(timeout: 5))
+        nameSpeakers.click()
+        XCTAssertTrue(element("meeting.namingSheet").waitForExistence(timeout: 3))
+        let listen = app.buttons["meeting.naming.play.them"]
         XCTAssertTrue(UITestHarness.waitUntil { listen.isEnabled })
         listen.click()
-        let transport = element("meeting.audioPlayer")
         XCTAssertTrue(transport.buttons["Pause"].waitForExistence(timeout: 3))
         XCTAssertTrue(UITestHarness.waitUntil(timeout: 15) { transport.buttons["Play"].exists },
-                      "A review excerpt must stop instead of continuing through the meeting")
-        speaker.click()
-        let candidate = element("speaker.rename.calendarCandidate.0")
-        XCTAssertTrue(candidate.waitForExistence(timeout: 3))
-        candidate.click()
-        element("speaker.rename.save").click()
-        XCTAssertTrue(UITestHarness.waitUntil { speaker.label.contains("Ana Petrović") })
-        XCTAssertTrue(element("meeting.review").exists, "Naming a speaker must return to the review")
+                      "A voice sample must stop instead of continuing through the meeting")
+        let save = app.buttons["meeting.naming.save"]
+        XCTAssertFalse(save.isEnabled, "Nothing is saved until a name is picked")
+        let guest = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label == %@", "meeting.naming.choice.them.", "Ana Petrović")).firstMatch
+        XCTAssertTrue(guest.waitForExistence(timeout: 3), "Invited people are offered as names")
+        guest.click()
+        XCTAssertTrue(save.isEnabled)
+        save.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !self.element("meeting.namingSheet").exists })
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["meeting.speaker.them"].label.contains("Ana Petrović") })
+        XCTAssertFalse(nameSpeakers.exists, "With every voice named, the header stops asking")
 
-        let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
-        let reviewContent = app.scrollViews["meeting.content.scroll"]
-        UITestHarness.scrollTo(owner, in: app, within: reviewContent)
+        let content = app.scrollViews["meeting.content.scroll"]
+        let owner = element("meeting.action.owner.fixture-action-design-2")
+        UITestHarness.scrollTo(owner, in: app, within: content)
         XCTAssertTrue(owner.isHittable)
         owner.click()
-        let field = app.textFields["meeting.action.correction.owner"]
-        XCTAssertTrue(field.waitForExistence(timeout: 3))
-        field.click(); field.typeKey("a", modifierFlags: .command); field.typeText("Ana Petrović")
-        app.buttons["meeting.action.correction.save"].click()
+        let choice = app.menuItems["Ana Petrović"].firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 3), "This meeting's speakers are owner choices")
+        choice.click()
         XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("Ana Petrović") })
 
-        let evidence = app.buttons["Jump to evidence at 00:00:35"]
-        UITestHarness.scrollTo(evidence, in: app, within: reviewContent)
-        XCTAssertTrue(evidence.isHittable)
-        evidence.click()
+        let play = app.buttons["meeting.action.play.fixture-action-design-2"]
+        UITestHarness.scrollTo(play, in: app, within: content)
+        XCTAssertTrue(play.isHittable)
+        play.click()
+        XCTAssertTrue(transport.buttons["Pause"].waitForExistence(timeout: 3), "A cited time plays from there")
+        XCTAssertTrue(owner.exists, "Playing a cited time must not leave the summary")
+        XCTAssertFalse(app.staticTexts["transcript.segment.3.text"].exists)
+        app.buttons["meeting.player.showInTranscript"].click()
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
-        app.buttons["meeting.review.return"].click()
+        transport.buttons["Pause"].click()
+
+        UITestHarness.selectSegment("Summary", pickerIdentifier: "meeting.contentTabs", in: app)
         let refresh = app.buttons["meeting.review.refresh"]
-        UITestHarness.scrollTo(refresh, in: app, within: reviewContent)
+        XCTAssertTrue(refresh.waitForExistence(timeout: 5))
         XCTAssertTrue(refresh.isHittable)
         XCTAssertTrue(refresh.isEnabled)
-        XCTAssertTrue(UITestHarness.staticText(containing: "Notes need a refresh", in: app).exists)
-        XCTAssertTrue(UITestHarness.staticText(containing: "Refreshing processes the transcript on this Mac", in: app).exists)
-        XCTAssertTrue(owner.label.contains("Ana Petrović"), "Evidence navigation must preserve the correction")
-        snapshot("meeting-review-ready-to-refresh")
+        XCTAssertTrue(UITestHarness.staticText(
+            containing: "Speaker names changed after this summary was written", in: app).exists)
+        XCTAssertTrue(UITestHarness.staticText(containing: "Runs on this Mac", in: app).exists)
+        XCTAssertTrue(app.staticTexts["meeting.action.text.fixture-action-design-2"].exists,
+                      "The earlier summary stays on the page until it is refreshed")
+        UITestHarness.scrollTo(owner, in: app, within: content)
+        XCTAssertTrue(owner.label.contains("Ana Petrović"), "Leaving and returning must preserve the owner")
+        snapshot("meeting-summary-ready-to-refresh")
     }
 
     func testTimelineOpensDetailsOnlyForASelection() throws {
@@ -367,7 +390,7 @@ final class RedesignUITests: XCTestCase {
         UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
         let search = app.textFields["meeting.search.field"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
-        XCTAssertEqual(search.placeholderValue, "Search Transcript")
+        XCTAssertEqual(search.placeholderValue, "Find in transcript")
         search.click()
         search.typeText("failover")
         let status = app.staticTexts["meeting.search.status"]
@@ -380,42 +403,51 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(status.exists, "Closing page find clears its query and matches")
     }
 
+    /// An owner chosen from the row's menu keeps the reader on the summary
+    /// while page search is open, and a cited time plays in place. (The name
+    /// predates the removal of the Review tab; its timing plans the shards.)
     func testMeetingCorrectionKeepsReviewWithPageSearchOpenAndClearsReturnOrigin() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review"])
-        XCTAssertTrue(element("meeting.review").waitForExistence(timeout: 5))
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
+        XCTAssertTrue(element("meeting.audioPlayer").waitForExistence(timeout: 5))
         app.typeKey("f", modifierFlags: .command)
         let search = app.textFields["meeting.search.field"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.click(); search.typeText("failover")
         XCTAssertTrue(app.staticTexts["meeting.search.status"].waitForExistence(timeout: 3))
-        UITestHarness.selectSegment("Review", pickerIdentifier: "meeting.contentTabs", in: app)
         let content = app.scrollViews["meeting.content.scroll"]
-        let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
+        let owner = element("meeting.action.owner.fixture-action-design-2")
         UITestHarness.scrollTo(owner, in: app, within: content)
         owner.click()
+        let you = app.menuItems["You"].firstMatch
+        XCTAssertTrue(you.waitForExistence(timeout: 3))
+        you.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !owner.exists },
+                      "An action given to You moves under For you, where no owner is shown")
+        let text = app.staticTexts["meeting.action.text.fixture-action-design-2"]
+        XCTAssertTrue(text.exists, "Refreshing search matches must not navigate away from Summary")
+
+        // Wording, owner and due date stay editable together from the row's menu.
+        let options = element("meeting.action.status.fixture-action-design-2")
+        UITestHarness.scrollTo(options, in: app, within: content)
+        options.click()
+        app.menuItems["Correct owner or due date"].click()
         let field = app.textFields["meeting.action.correction.owner"]
         XCTAssertTrue(field.waitForExistence(timeout: 3))
-        field.click(); field.typeKey("a", modifierFlags: .command); field.typeText("Me")
-        app.buttons["meeting.action.correction.save"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("You") }, "The stored owner Me is shown as You")
-        XCTAssertTrue(element("meeting.review").exists, "Refreshing search matches must not navigate away from Review")
+        XCTAssertEqual(field.value as? String, "Me", "The stored owner Me is shown as You")
+        app.sheets.firstMatch.buttons["Cancel"].click()
 
-        let evidence = app.buttons["Jump to evidence at 00:00:35"]
-        UITestHarness.scrollTo(evidence, in: app, within: content)
-        evidence.click()
-        XCTAssertTrue(app.buttons["meeting.review.return"].waitForExistence(timeout: 3))
-        UITestHarness.selectSegment("Summary", pickerIdentifier: "meeting.contentTabs", in: app)
-        UITestHarness.scrollTo(evidence, in: app, within: content)
-        evidence.click()
-        XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["meeting.review.return"].exists, "Overview evidence must not retain the old Review origin")
+        let play = app.buttons["meeting.action.play.fixture-action-design-2"]
+        UITestHarness.scrollTo(play, in: app, within: content)
+        play.click()
+        XCTAssertTrue(element("meeting.audioPlayer").buttons["Pause"].waitForExistence(timeout: 3))
+        XCTAssertTrue(text.exists, "A cited time plays in place")
+        XCTAssertFalse(app.staticTexts["transcript.segment.3.text"].exists)
     }
 
     func testWorkspaceAccessibilityAuditDismissesHoverHelp() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": "light"])
-        let citation = app.buttons["Jump to evidence at 00:00:24"]
+                    "LOKALBOT_CAPTURE_APPEARANCE": "light"])
+        let citation = app.buttons["meeting.action.play.fixture-action-design-1"]
         UITestHarness.scrollTo(citation, in: app, within: app.scrollViews["meeting.content.scroll"])
         XCTAssertTrue(citation.isHittable)
         citation.hover()
@@ -429,19 +461,19 @@ final class RedesignUITests: XCTestCase {
         for appearance in ["light", "dark"] {
             try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
                         "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": appearance])
-            XCTAssertTrue(element("meeting.review.speakers").waitForExistence(timeout: 5))
+            // This launch opens the sheet that names speakers.
+            XCTAssertTrue(element("meeting.namingSheet").waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
-            let owner = app.buttons["meeting.action.owner.fixture-action-design-1"]
+            snapshot("meeting-naming-sheet-\(appearance)")
+            app.buttons["meeting.naming.cancel"].click()
+            XCTAssertTrue(UITestHarness.waitUntil { !self.element("meeting.namingSheet").exists })
+            let owner = element("meeting.action.owner.fixture-action-design-2")
             UITestHarness.scrollTo(owner, in: app, within: app.scrollViews["meeting.content.scroll"])
             XCTAssertTrue(owner.isHittable)
-            XCTAssertTrue(owner.label.hasPrefix("Correct owner:"))
+            XCTAssertTrue(owner.label.hasPrefix("Owner:"))
             XCTAssertEqual(app.buttons["meeting.action.toggle.fixture-action-design-1"].label, "Mark action done")
             try auditWorkspaceAccessibility(includeContrast: true)
-            snapshot("meeting-review-owners-\(appearance)")
-            let refresh = app.buttons["meeting.review.refresh"]
-            UITestHarness.scrollTo(refresh, in: app, within: app.scrollViews["meeting.content.scroll"])
-            XCTAssertTrue(refresh.isHittable)
-            try auditWorkspaceAccessibility(includeContrast: true)
+            snapshot("meeting-summary-owners-\(appearance)")
             UITestHarness.clickSidebar("sidebar.ask", in: app)
             XCTAssertTrue(element("chat.empty").waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
@@ -544,15 +576,14 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testMeetingMenusHaveAccessibleActionsAndOpen() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review"])
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
         XCTAssertTrue(element("meeting.export").waitForExistence(timeout: 5))
         // XCTest audits the exposed actions through its authorized automation
         // service; menu interaction below separately verifies the callbacks.
         // This is not a manual VoiceOver listening test.
         try auditWorkspaceAccessibility()
-        for (identifier, item) in [("meeting.export", "Copy Meeting as Markdown"),
-                                   ("toolbar.meetingActions", "Transcribe only"),
+        for (identifier, item) in [("meeting.export", "Copy as Markdown"),
+                                   ("toolbar.meetingActions", "Reprocess"),
                                    ("meeting.playbackSpeed", "Reset to 1x")] {
             let control = element(identifier)
             XCTAssertTrue(control.waitForExistence(timeout: 5))

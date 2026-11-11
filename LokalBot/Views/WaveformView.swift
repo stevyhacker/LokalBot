@@ -6,6 +6,8 @@ struct WaveformView: View {
     let sources: [WaveformAnalysis.Source]
     let currentTime: TimeInterval
     let duration: TimeInterval
+    /// The meeting's slim player bar draws a shorter overview.
+    var height: CGFloat = 40
     let onSeek: (TimeInterval) -> Void
 
     @State private var peaks: [Float]?
@@ -64,7 +66,7 @@ struct WaveformView: View {
             }
         }
         .frame(minWidth: 80)
-        .frame(height: 40)
+        .frame(height: height)
         .focusable()
         .focused($isFocused)
         .focusEffectDisabled()
@@ -104,6 +106,8 @@ struct WaveformView: View {
 
     private func waveform(in size: CGSize) -> some View {
         let bars = WaveformAnalysis.resample(availablePeaks ?? [], width: size.width)
+        // A short overview keeps less air above and below its bars.
+        let inset: CGFloat = size.height < 32 ? 4 : 10
         return Canvas { context, _ in
             let center = size.height / 2
             let cut = size.width * displayedProgress
@@ -115,7 +119,7 @@ struct WaveformView: View {
                 let step = size.width / CGFloat(bars.count)
                 let barWidth = max(1, step - 2)
                 for (index, peak) in bars.enumerated() {
-                    let height = max(2, CGFloat(peak) * (size.height - 10))
+                    let height = max(2, CGFloat(peak) * (size.height - inset))
                     shape.addRoundedRect(
                         in: CGRect(x: CGFloat(index) * step, y: center - height / 2,
                                    width: barWidth, height: height),
@@ -128,11 +132,11 @@ struct WaveformView: View {
             played.fill(shape, with: .color(Brand.teal))
             // A playhead makes position readable without relying on color alone.
             let playheadX = min(max(0, cut - 1), max(0, size.width - 2))
-            context.fill(Path(roundedRect: CGRect(x: playheadX, y: 3, width: 2, height: size.height - 6),
+            context.fill(Path(roundedRect: CGRect(x: playheadX, y: inset * 0.3, width: 2, height: size.height - inset * 0.6),
                               cornerRadius: 1), with: .color(.primary))
             if let hoverProgress, scrubProgress == nil {
                 let x = min(max(0, size.width * hoverProgress), max(0, size.width - 1))
-                context.fill(Path(CGRect(x: x, y: 10, width: 1, height: size.height - 15)),
+                context.fill(Path(CGRect(x: x, y: inset, width: 1, height: size.height - inset * 1.5)),
                              with: .color(.secondary))
             }
         }
