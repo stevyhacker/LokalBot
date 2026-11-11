@@ -5,8 +5,9 @@ import Foundation
 // citations group into sources, and which questions an empty page suggests.
 // Nothing here changes what a question may read or what is sent to a model.
 
-/// What one search lists under (or above) the Ask field. An answer asked
-/// while these show is limited to them.
+/// What one search lists under (or above) the Ask field. A keyword asked
+/// while these show is answered from them; a full question reads the chosen
+/// sources whether or not anything is listed (`AskAnswerScope`).
 struct AskMatches {
     enum Row {
         case meeting(MeetingRecallGroup)

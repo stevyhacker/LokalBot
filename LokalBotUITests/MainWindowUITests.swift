@@ -1117,7 +1117,8 @@ final class MainWindowUITests: XCTestCase {
     }
 
     /// ↵ asks, whether a question or a single word was typed: the page
-    /// becomes the conversation with the typed text as the user turn. The model reply itself is not awaited (no local LLM in the
+    /// becomes the conversation with the typed text as the user turn. A full
+    /// question is answered from the chosen sources; a keyword from its matches. The model reply itself is not awaited (no local LLM in the
     /// test host) — the transition and the persisted user turn are the
     /// contract under test.
     func testAskEscalationShowsConversationWithUserTurn() {
@@ -1136,6 +1137,8 @@ final class MainWindowUITests: XCTestCase {
                         "chat.message.user", "failover")).firstMatch
         XCTAssertTrue(userTurn.waitForExistence(timeout: 6),
                       "user turn did not appear in the conversation after ↵")
+        // A full question reads the chosen sources, not only what matched.
+        XCTAssertEqual(identified("ask.sources").value as? String, "All sources")
     }
 
     // MARK: - Selection

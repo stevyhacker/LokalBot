@@ -276,9 +276,11 @@ struct AskPhase: Equatable {
     }
 }
 
-/// Whether typed input reads as a question rather than search keywords. Ask
-/// no longer consults it (Return always asks); it stays as the baseline that
-/// `Benchmarks/Laya/run.py` extracts from this file and measures.
+/// Whether typed input reads as a full question rather than search keywords:
+/// two or more words ending in a question mark, or three or more words that
+/// start with a question or request word. Return asks either way; this
+/// decides what the answer reads (`AskAnswerScope`). `Benchmarks/Laya/run.py`
+/// extracts this enum from the file and measures it.
 enum AskIntent {
     private static let questionStarts: Set<String> = [
         "what", "why", "how", "when", "where", "who", "whom", "whose", "which",
@@ -304,6 +306,36 @@ enum AskReturnAction: Equatable {
     static func resolve(query: String, resultCount: Int, pickedWithKeyboard: Bool) -> Self {
         if pickedWithKeyboard, resultCount > 0 { return .openResult }
         return query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .none : .ask
+    }
+}
+
+/// What an answer asked from the Ask field reads. A full question reads
+/// everything in the sources and dates chosen in the composer's two menus,
+/// whether or not matches are listed. A keyword or short phrase is a search
+/// the person then asks about, so its answer reads the listed matches. A
+/// "Remember …" statement is saved as it is and limits nothing. Scope that
+/// was already set on purpose (a meeting handed over, an attached screen, the
+/// menu's "Only …" state) is not this type's to change: it applies to both.
+enum AskAnswerScope: Equatable {
+    /// The chosen sources and dates, as the menus show them.
+    case chosenSources
+    /// The meetings, screen moments, files and notes listed as matches.
+    case listedMatches
+
+    /// A search is a word or a short phrase. Anything longer is treated as a
+    /// question in any language, because `AskIntent` only knows English
+    /// question words and a question typed without "?" in Serbian or Japanese
+    /// would otherwise be answered from its matches alone.
+    static let fullQuestionWordCount = 4
+
+    static func isFullQuestion(_ query: String) -> Bool {
+        AskIntent.isQuestion(query)
+            || query.split(whereSeparator: \.isWhitespace).count >= fullQuestionWordCount
+    }
+
+    static func resolve(query: String, hasMatches: Bool, isRememberStatement: Bool) -> Self {
+        guard hasMatches, !isRememberStatement, !isFullQuestion(query) else { return .chosenSources }
+        return .listedMatches
     }
 }
 

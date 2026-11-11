@@ -231,8 +231,13 @@ learned again. Unreviewed suggestions are dropped after 14 days.
 The items are AES-GCM encrypted with the same per-install key as
 saved Ask conversations, in the library's `memory` folder. Each Ask question
 includes the relevant items in its prompt to your Think model, which may be
-an approved remote server. A question limited to some sources or days gets
-only items you stated, not learned ones.
+an approved remote server. A question limited to some sources or days, or to
+particular meetings or screen moments, gets only items you stated, not learned
+ones. A full question you type in Ask reads everything in the sources and
+dates chosen in its two menus, whether or not matches are listed under the
+field. A single word or a phrase of up to three words that you search for and then ask about is
+answered from the matches listed for it, and the sources menu then names that
+limit until you widen it.
 The answer lists the items it was given. External agents can read only items
 you mark **Share with agents**, and only while **What I shared about myself**
 is ticked for them, as described under External-agent access. Agent Mode, Autocomplete,

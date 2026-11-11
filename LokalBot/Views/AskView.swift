@@ -42,7 +42,8 @@ private struct AskContent: View {
     }
     private var sources: Set<AskSourceScope> { recall.state.sources }
 
-    /// What the field's text matches. An answer asked now is limited to these.
+    /// What the field's text matches. A keyword's answer is limited to
+    /// these; a full question reads the chosen sources (`AskAnswerScope`).
     @State private var matches = AskMatches()
     @State private var screenApps: [String] = []
     @State private var searchTask: Task<Void, Never>?
@@ -348,8 +349,8 @@ private struct AskContent: View {
         }
     }
 
-    /// The matches an answer asked now would read, bounded to the listed
-    /// source groups. No matches leaves the chosen sources and dates as they are.
+    /// The screen moments a keyword's answer reads: the listed sessions and
+    /// any attached screen.
     private var answerScreenIDs: Set<Int64> {
         matches.screenIDs.union(pinnedScreens.map(\.snapshotID))
     }
@@ -365,10 +366,17 @@ private struct AskContent: View {
             return
         }
         pendingQuestion = nil
-        // A "Remember …" statement is saved as is; don't narrow Ask to the
-        // search results its words happened to match.
+        // A full question reads everything in the chosen sources and dates,
+        // so the sources menu keeps saying what was chosen. A keyword is a
+        // search being asked about: its answer is limited to the listed
+        // matches, and the menu then names that limit. A "Remember …"
+        // statement is saved as is and limits nothing. Scope set on purpose
+        // before this (a handed-over meeting, an attached screen, the menu's
+        // "Only …" state) stays in `recall.state` either way.
         let remembers = app.settings.askMemoryEnabled && RememberIntent.parse(query) != nil
-        if !matches.isEmpty, !remembers {
+        let scope = AskAnswerScope.resolve(query: query, hasMatches: !matches.isEmpty,
+                                           isRememberStatement: remembers)
+        if scope == .listedMatches {
             recall.state.selectResultEvidence(
                 meetingIDs: Set(matches.meetings.map(\.id)),
                 screenIDs: answerScreenIDs,

@@ -59,11 +59,10 @@ final class RecallInteractionUITests: XCTestCase {
         XCTAssertTrue(questions.firstMatch.waitForExistence(timeout: 4), app.debugDescription)
         XCTAssertEqual(questions.count, 1, questions.debugDescription)
         XCTAssertEqual(field.value as? String, "")
-        // The answer is limited to the meeting that matched, and the sources
-        // menu is where that shows.
-        XCTAssertTrue(UITestHarness.waitUntil {
-            (self.element("ask.sources").value as? String) == self.fixture.designReview.title
-        }, "Submission must use the retrieved meeting boundary")
+        // A full question reads everything in the chosen sources, whether or
+        // not matches were listed, and the sources menu keeps saying so.
+        XCTAssertEqual(element("ask.sources").value as? String, "All sources",
+                       "A full question must not be narrowed to the matches on screen")
         XCTAssertFalse(element("ask.selectedEvidence").exists, "Scope lives only in the composer menus")
     }
 

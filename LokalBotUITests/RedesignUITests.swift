@@ -197,8 +197,9 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "failover")
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
-        // In the field, Return asks, even for a single word. The answer is
-        // limited to the matches that were listed; the sources menu names them.
+        // In the field, Return asks, even for a single word. A keyword's
+        // answer is limited to the matches that were listed, and the sources
+        // menu names them. (A full question would read the chosen sources.)
         input.click()
         input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["chat.message.user"].waitForExistence(timeout: 5))
