@@ -195,15 +195,22 @@ struct WordTimedTranscript {
 
     var segments: [Segment]
     var engine: String
+    /// The language the engine settled on for the whole track while set to
+    /// auto-detect, if it did. When the words cannot be attributed and the
+    /// track falls back to speaker regions, those decode in this language:
+    /// a few seconds of speech are too little to detect it again.
+    var trackLanguage: String?
 
-    init(segments: [Segment], engine: String) {
+    init(segments: [Segment], engine: String, trackLanguage: String? = nil) {
         self.segments = segments
         self.engine = engine
+        self.trackLanguage = trackLanguage
     }
 
     /// Text without word times, for the forced aligner.
-    init(_ transcript: Transcript) {
-        self.init(segments: transcript.segments.map { Segment(segment: $0) }, engine: transcript.engine)
+    init(_ transcript: Transcript, trackLanguage: String? = nil) {
+        self.init(segments: transcript.segments.map { Segment(segment: $0) }, engine: transcript.engine,
+                  trackLanguage: trackLanguage)
     }
 
     var transcript: Transcript { Transcript(segments: segments.map(\.segment), engine: engine) }

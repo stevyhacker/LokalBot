@@ -169,6 +169,12 @@
       ]
     },
     {
+      "reason": "Replays track transcription per engine and language on saved audio (LOKALBOT_TRANSCRIPTION_REPLAY_MANIFEST). Private audio and downloaded speech models, run by hand.",
+      "tests": [
+        "TranscriptionLanguageReplayTests/testTracksAcrossEnginesAndLanguages"
+      ]
+    },
+    {
       "reason": "Echo cancellation on a real meeting folder (LOKALBOT_AEC_FIXTURE, LOKALBOT_AEC_OUTPUT). Private audio, run by hand.",
       "tests": [
         "EchoCancellerTests/testRealMeetingFolderIfProvided"

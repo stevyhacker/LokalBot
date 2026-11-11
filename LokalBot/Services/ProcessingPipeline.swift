@@ -1119,7 +1119,9 @@ final class ProcessingPipeline: ObservableObject {
             config.transcriptionLanguage.code ?? "", prompt,
             String(config.multiSpeakerDiarization), String(config.echoCancellation),
             config.diarizationModel.checkpointIdentity,
-            meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2"]
+            meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2",
+            // Silent regions skipped, the track's language kept for regions, Latin script.
+            "track-language-v1"]
         if engine.speakerAttribution == .alignedWords {
             parts.append("aligned-words-\(QwenWordAligner.snapshot.revision)-merged-windows-v2")
         }
@@ -1161,24 +1163,59 @@ final class ProcessingPipeline: ObservableObject {
         let started = Date()
         lokalbotLog(
             "transcription track start track=\(name) engine=\(engine.displayName) duration=\(Self.formatSeconds(duration)) language=\(language ?? "auto")")
-        var transcript = try await AttributedTrackTranscriber.transcribe(url: url, duration: duration,
-            diarization: diarization, source: source, engine: engine, language: language, prompt: prompt, contentRange: contentRange)
-        let sanitization = TranscriptSanitizer.sanitize(transcript, prompt: prompt)
-        transcript = sanitization.transcript
-        if sanitization.changed {
-            lokalbotLog(
-                "transcript cleanup track=\(name) changedSegments="
-                    + "\(sanitization.changedSegments) removedSegments="
-                    + "\(sanitization.removedSegments) removedWords="
-                    + "\(sanitization.removedWords) removedCharacters="
-                    + "\(sanitization.removedCharacters)")
-        }
+        let transcript = try await Self.transcribedTrack(url: url, duration: duration, diarization: diarization,
+            source: source, engine: engine, language: language, prompt: prompt, contentRange: contentRange,
+            trackName: name)
 
         let elapsed = Date().timeIntervalSince(started)
         let rtfx = elapsed > 0 ? duration / elapsed : 0
         lokalbotLog(
             "transcription track done track=\(name) engine=\(engine.displayName) duration=\(Self.formatSeconds(duration)) elapsed=\(Self.formatSeconds(elapsed)) rtfx=\(Self.formatMultiplier(rtfx)) segments=\(transcript.segments.count)")
         return transcript
+    }
+
+    /// One track's attributed transcript after cleanup: what processing saves
+    /// for the track, before the tracks are merged. Shared with the opt-in
+    /// transcription replay test so it measures exactly this path.
+    @MainActor
+    static func transcribedTrack(url: URL, duration: Double, diarization: [DiarizedSegment],
+                                 source: SpeakerAttribution.Source, engine: TranscriptionEngine,
+                                 language: String?, prompt: String?,
+                                 contentRange: Meeting.ContentRange?,
+                                 trackName: String = "replay") async throws -> Transcript {
+        let speech = await speechRanges(in: url)
+        let transcript = try await AttributedTrackTranscriber.transcribe(url: url, duration: duration,
+            diarization: diarization, source: source, engine: engine, language: language, prompt: prompt,
+            contentRange: contentRange, speech: speech)
+        return cleanedTrack(transcript, language: language, prompt: prompt, trackName: trackName)
+    }
+
+    /// Where the track has speech, from the same detection that gated it
+    /// (usually still cached), or nil when detection is unavailable.
+    static func speechRanges(in url: URL) async -> [ClosedRange<TimeInterval>]? {
+        await SpeechActivity.shared.speechSegments(in: url)?.compactMap {
+            $0.endTime >= $0.startTime ? $0.startTime...$0.endTime : nil
+        }
+    }
+
+    /// Cleanup of one track's attributed transcript: pathological repetition
+    /// and prompt echoes, then script.
+    static func cleanedTrack(_ transcript: Transcript, language: String?, prompt: String?,
+                             trackName: String = "replay") -> Transcript {
+        let sanitization = TranscriptSanitizer.sanitize(transcript, prompt: prompt)
+        if sanitization.changed {
+            lokalbotLog(
+                "transcript cleanup track=\(trackName) changedSegments="
+                    + "\(sanitization.changedSegments) removedSegments="
+                    + "\(sanitization.removedSegments) removedWords="
+                    + "\(sanitization.removedWords) removedCharacters="
+                    + "\(sanitization.removedCharacters)")
+        }
+        let latin = SerbianLatinScript.latinTranscript(sanitization.transcript, language: language)
+        if latin.changedSegments > 0 {
+            lokalbotLog("transcript script track=\(trackName) latinSegments=\(latin.changedSegments)")
+        }
+        return latin.transcript
     }
 
     /// A track whose voice activity detection found no speech at all.

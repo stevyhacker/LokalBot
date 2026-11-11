@@ -15,22 +15,38 @@ enum TranscriptLanguageVote {
 
     /// Segments shorter than `minimumWords` or recognized with less than
     /// `minimumConfidence` do not vote: laughs and one-word replies are where
-    /// Qwen's own auto-detection misfires.
+    /// Qwen's own auto-detection misfires. `aliases` counts several base
+    /// codes as one language, keyed by the code they count as.
     static func dominant(in texts: [String], minimumWords: Int = 3,
-                         minimumConfidence: Double = 0.5) -> Result? {
+                         minimumConfidence: Double = 0.5,
+                         aliases: [String: String] = [:]) -> Result? {
         var weights: [String: Double] = [:]
         var total = 0.0
         for text in texts where text.split(whereSeparator: \.isWhitespace).count >= minimumWords {
-            let recognizer = NLLanguageRecognizer()
-            recognizer.processString(text)
-            guard let top = recognizer.languageHypotheses(withMaximum: 1).max(by: { $0.value < $1.value }),
-                  top.value >= minimumConfidence else { continue }
-            weights[baseCode(top.key.rawValue), default: 0] += Double(text.count)
+            let code: String
+            if SerbianLatinScript.isSerbianCyrillic(text) {
+                code = "sr"
+            } else {
+                let recognizer = NLLanguageRecognizer()
+                recognizer.processString(text)
+                guard let top = recognizer.languageHypotheses(withMaximum: 1).max(by: { $0.value < $1.value }),
+                      top.value >= minimumConfidence else { continue }
+                code = baseCode(top.key.rawValue)
+            }
+            weights[aliases[code] ?? code, default: 0] += Double(text.count)
             total += Double(text.count)
         }
         guard total > 0, let best = weights.max(by: { $0.value < $1.value }) else { return nil }
         return Result(code: best.key, share: best.value / total)
     }
+
+    /// Serbian, Croatian, Bosnian and Montenegrin are one language to a
+    /// speech model. Apple's recognizer reads all of them in Latin script as
+    /// Croatian (Benchmarks/DualASR) and Serbian Cyrillic as Kazakh, so
+    /// Cyrillic with Serbian's own letters votes Serbian instead. They vote
+    /// together, as Croatian.
+    static let serbianCroatianAliases: [String: String] = Dictionary(
+        uniqueKeysWithValues: SerbianLatinScript.languageCodes.map { ($0, "hr") })
 
     /// "zh-Hant" → "zh", "pt_PT" → "pt".
     static func baseCode(_ language: String) -> String {
