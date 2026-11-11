@@ -390,7 +390,8 @@ The app may make these outbound connections:
   Meta's. Even then, nothing is read until you start it:
   - **Live Radar** runs only after you press Start Radar during a recording,
     for that recording, and turns on the live transcript preview if it is
-    off. About every 20 seconds (or after each turn with fast live text) it
+    off. About every 20 seconds (or after each turn, with turn-by-turn live
+    text or fast live text) it
     gives the Think model the preview lines that arrived
     since the previous request, up to 24
     earlier lines of the same meeting, the meeting title, invited names from
@@ -1387,7 +1388,12 @@ platform differences:
     the library.
 - **The live transcript preview** runs only when you start it during a
   recording. It uses the local transcription model and is not saved; the
-  full transcript replaces it after the meeting.
+  full transcript replaces it after the meeting. **Turn-by-turn live text**
+  (Settings → Meetings → Processing, off by default) makes it cut the audio
+  at pauses on this Mac and transcribe one turn at a time, so a turn's text
+  follows its speaker by about a second and Live Radar reads after each
+  turn. It changes when text appears, not where audio goes: the preview
+  still uses the Transcribe model you chose.
 - **Calendar** is off until you turn on **Use calendar to improve detection**
   in Settings → Meetings. Instead of the Mac Calendar it reads:
   - private calendar links you add (an iCal feed such as Google Calendar's

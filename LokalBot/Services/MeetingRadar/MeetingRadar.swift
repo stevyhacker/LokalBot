@@ -8,8 +8,8 @@ protocol RadarLineFeed: AnyObject {
     var linesPublisher: AnyPublisher<[LiveMeetingTranscriber.Line], Never> { get }
     var currentLines: [LiveMeetingTranscriber.Line] { get }
     var isRunning: Bool { get }
-    /// Lines arrive turn by turn, within a second of being said, rather than
-    /// in 12-second chunks, so passes can follow each turn.
+    /// Lines arrive turn by turn, about a second after being said, rather
+    /// than in windows of several seconds, so passes can follow each turn.
     var deliversTurns: Bool { get }
     func activatePreview()
 }
@@ -17,7 +17,7 @@ protocol RadarLineFeed: AnyObject {
 extension LiveMeetingTranscriber: RadarLineFeed {
     var linesPublisher: AnyPublisher<[Line], Never> { $lines.eraseToAnyPublisher() }
     var currentLines: [Line] { lines }
-    var deliversTurns: Bool { engine == .muse }
+    var deliversTurns: Bool { engine != .local }
     func activatePreview() { activate() }
 }
 
@@ -27,8 +27,9 @@ extension LiveMeetingTranscriber: RadarLineFeed {
 /// local search found in earlier meetings) to the Think model chosen in
 /// Settings → Models, under that model's own local or remote setting.
 /// Passes run about every 20 s, or after each turn when fast live text
-/// streams the transcript from Muse Voice Transcribe. Speaker separation
-/// stays on this Mac, and audio does too unless fast live text is on.
+/// delivers turns: cut at pauses on this Mac, or streamed from Muse Voice
+/// Transcribe. Speaker separation stays on this Mac, and audio does too
+/// unless fast live text streams it to Muse.
 ///
 /// Radar starts only when the person presses Start Radar during a recording,
 /// and only once Live Radar is turned on in Settings. It stops with the

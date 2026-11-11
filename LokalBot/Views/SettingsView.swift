@@ -771,6 +771,12 @@ struct SettingsView: View {
                         SettingsLabel("Language and vocabulary",
                                       help: app.settings.transcriptionLanguage.displayName)
                     }
+                    Toggle(isOn: $app.settings.turnByTurnLiveTextEnabled) {
+                        SettingsLabel("Turn-by-turn live text",
+                                      help: "While the live transcript preview runs, cuts the microphone and call audio at pauses and transcribes each turn with your Transcribe model, so its text appears about a second after the speaker stops. Live Radar then reads after each turn. Without it, the preview transcribes a few seconds at a time.")
+                    }
+                    .accessibilityIdentifier("settings.turnByTurnLiveText")
+                    .settingTarget("settings.turnByTurnLiveTextEnabled", selected: app.focusedSettingID)
                     modelRow(.assistant, title: "Think model", value: ModelSettingsPresentation.assistantName(app.settings),
                              help: "Writes the notes. Also used by Ask and the overnight review.")
                 }

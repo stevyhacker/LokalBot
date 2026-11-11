@@ -59,6 +59,14 @@
       ]
     },
     {
+      "reason": "Live transcript timing over downloaded speech models and recordings (LOKALBOT_LIVE_TURN_BENCH and LOKALBOT_LIVE_TURN_AUDIO, with LOKALBOT_LIVE_STREAM_MODEL for the streaming recognizer and LOKALBOT_LIVE_REPLAY_SECONDS for the real-time replay; Benchmarks/LiveTurns). Measurements, run by hand.",
+      "tests": [
+        "LiveTurnLatencyBenchmarkTests/testPreviewReplayInRealTime",
+        "LiveTurnLatencyBenchmarkTests/testStreamingRecognizerDelay",
+        "LiveTurnLatencyBenchmarkTests/testTurnByTurnDelay"
+      ]
+    },
+    {
       "reason": "Needs cached Qwen3-ASR weights (LOKALBOT_QWEN_TEST_MODEL_DIR, and LOKALBOT_QWEN_TEST_REFERENCE for upgrade parity). Run for a speech runtime update.",
       "tests": [
         "QwenASREngineTests/testCachedModelCancellationThrowsInsteadOfReturningTranscript",
