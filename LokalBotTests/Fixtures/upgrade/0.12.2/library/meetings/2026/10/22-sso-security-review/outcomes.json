@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000015-1",
+      "schemaVersion": 2,
+      "text": "Update the session-lifetime table in the security overview",
+      "citations": [
+        {
+          "meetingID": "00000015-0000-4000-8000-000000000015",
+          "segmentID": "segment-0001-0000020000-0000040000",
+          "start": 20,
+          "end": 40,
+          "speaker": "them",
+          "excerpt": "Then the security overview doc needs the session-lifetime table updated before it goes to customers."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [
+    {
+      "id": "demo-decision-00000015-1",
+      "schemaVersion": 2,
+      "text": "SAML and OIDC in scope for Q3; SCIM provisioning out.",
+      "citations": [
+        {
+          "meetingID": "00000015-0000-4000-8000-000000000015",
+          "segmentID": "segment-0000-0000000000-0000020000",
+          "start": 0,
+          "end": 20,
+          "speaker": "me",
+          "excerpt": "Scope for Q3 SSO: SAML and OIDC, SCIM provisioning explicitly out."
+        }
+      ]
+    }
+  ],
+  "openQuestions": []
+}

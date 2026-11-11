@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 18,
+      "speaker": "me",
+      "text": "Timeline: deploy at 9:12, stale cache served until 9:41, search results were empty for 29 minutes."
+    },
+    {
+      "start": 18,
+      "end": 36,
+      "speaker": "them",
+      "text": "Root cause was the cache key not including the index version."
+    },
+    {
+      "start": 36,
+      "end": 54,
+      "speaker": "me",
+      "text": "Fix is versioned keys \u2014 and this feeds straight into the Redis eviction-policy doc."
+    }
+  ]
+}
