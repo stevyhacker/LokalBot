@@ -9,9 +9,18 @@
 # "android" is a second one beside it, for "Companion Android", so the two can
 # run at the same time. Give that one an SDK with setup-linux-android-sdk.sh.
 #
+# The runner is named after its label (lokalbot-linux, lokalbot-android). To
+# add a machine beside one that already has that runner, give it a name of its
+# own; the label stays the same, so the picker uses whichever one is idle:
+#
+#   ... | ssh HOST 'RUNNER_NAME=lokalbot-linux-pc bash setup-linux-runner.sh https://github.com/OWNER/REPO'
+#
+# Registering with a name that is already taken replaces that runner.
+#
 # Both run as one unprivileged user (no sudo, no docker), each under a systemd
-# unit that cannot reach the Tailscale network and uses a private /tmp. The two
-# units share a slice that gets a lower CPU weight and a memory cap. See README.md.
+# unit that cannot reach the Tailscale network or private networks (a home LAN,
+# Docker bridges) and uses a private /tmp. The two units share a slice that gets
+# a lower CPU weight and a memory cap. See README.md.
 set -euo pipefail
 
 URL=${1:?usage: setup-linux-runner.sh <repository-url> [linux|android]}
@@ -28,14 +37,33 @@ read -r TOKEN || true
 
 HOME_DIR=/home/$RUNNER_USER
 case $KIND in
-  linux) NAME=lokalbot-linux RUNNER_DIR=$HOME_DIR/actions-runner TARGET=$HOME_DIR/target ;;
-  android) NAME=lokalbot-android RUNNER_DIR=$HOME_DIR/actions-runner-android TARGET=$HOME_DIR/target-android ;;
+  linux) LABEL=lokalbot-linux RUNNER_DIR=$HOME_DIR/actions-runner TARGET=$HOME_DIR/target ;;
+  android) LABEL=lokalbot-android RUNNER_DIR=$HOME_DIR/actions-runner-android TARGET=$HOME_DIR/target-android ;;
   *) echo "usage: setup-linux-runner.sh <repository-url> [linux|android]" >&2; exit 1 ;;
 esac
-LABEL=$NAME
+NAME=${RUNNER_NAME:-$LABEL}
+if ! [[ $NAME =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
+  echo "RUNNER_NAME must be 1-64 letters, digits, '.', '_' or '-'." >&2
+  exit 1
+fi
 SLICE=system-ghrunner.slice
+# CI jobs run code from pull requests. Keep them off the Tailscale network
+# (IPv4 CGNAT range and Tailscale's IPv6 prefix) and private networks (a home
+# LAN, a hypervisor's NAT, Docker bridges, link-local).
+DENY="100.64.0.0/10 fd7a:115c:a1e0::/48 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 fc00::/7 fe80::/10"
 if sudo test -f "$RUNNER_DIR/.runner"; then
   echo "A runner is already configured in $RUNNER_DIR; remove it first (README.md)." >&2
+  exit 1
+fi
+
+# The block also stops DNS when /etc/resolv.conf names a private resolver
+# (WSL's 10.255.255.254, a home router), and the runner would never connect.
+# A local stub such as systemd-resolved (127.0.0.53) works.
+if ! sudo systemd-run --quiet --wait --pipe --property=IPAddressDeny="$DENY" \
+    timeout 8 getent hosts github.com >/dev/null; then
+  echo "Name lookups fail behind the runner's network block: /etc/resolv.conf uses" >&2
+  grep -E '^nameserver' /etc/resolv.conf >&2 || true
+  echo "Point it at a local stub resolver (systemd-resolved: 127.0.0.53) and run this again." >&2
   exit 1
 fi
 
@@ -94,10 +122,11 @@ sudo mkdir -p "/etc/systemd/system/$UNIT.d"
   cat <<EOF
 [Service]
 Slice=$SLICE
-# CI jobs run code from pull requests. Keep them off the Tailscale network
-# (IPv4 CGNAT range and Tailscale's IPv6 prefix), out of other users' /tmp and
-# X displays, and from crowding out interactive work on the host.
-IPAddressDeny=100.64.0.0/10 fd7a:115c:a1e0::/48
+# CI jobs run code from pull requests. Keep them off the Tailscale network and
+# private networks, out of other users' /tmp and X displays, and from crowding
+# out interactive work on the host. Loopback stays open: the emulator, the
+# capture display and the local DNS stub use it.
+IPAddressDeny=$DENY
 PrivateTmp=true
 NoNewPrivileges=true
 CPUWeight=50
@@ -117,6 +146,19 @@ if sudo systemd-run --quiet --wait --pipe --uid="$RUNNER_USER" \
     --property=IPAddressDeny="100.64.0.0/10 fd7a:115c:a1e0::/48" \
     bash -c 'timeout 3 bash -c "exec 3<>/dev/tcp/100.100.100.100/53"' 2>/dev/null; then
   echo "IPAddressDeny did not block the tailnet on this host." >&2
+  exit 1
+fi
+# And a private network: when the default gateway is a private address (a home
+# router, a hypervisor's NAT) that answers on port 53 or 80, the block must stop it.
+gateway=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}')
+# shellcheck disable=SC2016 # $0 is expanded by the inner bash
+probe='timeout 3 bash -c "exec 3<>/dev/tcp/$0/53" 2>/dev/null || timeout 3 bash -c "exec 3<>/dev/tcp/$0/80" 2>/dev/null'
+if [[ ${gateway:-} =~ ^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]] &&
+  sudo -u "$RUNNER_USER" bash -c "$probe" "$gateway" &&
+  sudo systemd-run --quiet --wait --pipe --uid="$RUNNER_USER" \
+    --property=IPAddressDeny="$DENY" \
+    bash -c "$probe" "$gateway"; then
+  echo "IPAddressDeny did not block the private network ($gateway) on this host." >&2
   exit 1
 fi
 sudo systemctl is-active "$UNIT"
