@@ -198,7 +198,10 @@ struct AutocompleteRehearsal: View {
     @State private var error: String?
     /// Why the model's last answer became no suggestion.
     @State private var emptyReason: CotypingSuppressionReason?
-    @State private var task: Task<Void, Never>?
+    /// The text a suggestion is wanted for. Each new request starts one
+    /// generation and ends the one before; the view owns the task's life.
+    @State private var request: Request?
+    @State private var requestSerial = 0
     @State private var topUpTask: Task<Void, Never>?
     @State private var focusRevision = 0
 
@@ -214,6 +217,12 @@ struct AutocompleteRehearsal: View {
 
     private var demoReady: Bool { readiness.demoReady }
 
+    private struct Request: Equatable {
+        var serial: Int
+        /// The text before the caret when the suggestion was asked for.
+        var context: String
+    }
+
     /// The context grants a suggestion depends on.
     private var contextGrants: [Bool] {
         [app.settings.cotypingUseVisibleContext, app.settings.cotypingUseMeetingMemory,
@@ -228,12 +237,13 @@ struct AutocompleteRehearsal: View {
     }
 
     var body: some View {
+        // No identifier here: on a container it would replace the
+        // identifier of every element inside.
         preview
-            .onDisappear {
-                task?.cancel()
-                topUpTask?.cancel()
+            .task(id: request) {
+                if let request { await generate(request) }
             }
-            .accessibilityIdentifier("autocomplete.rehearsal")
+            .onDisappear { topUpTask?.cancel() }
     }
 
     private var preview: some View {
@@ -385,42 +395,49 @@ struct AutocompleteRehearsal: View {
         }
     }
 
+    /// Asks for a suggestion for the text as it stands. The request replaces
+    /// any earlier one, whose generation SwiftUI then cancels.
     private func schedule() {
-        task?.cancel()
         topUpTask?.cancel()
         rehearsal.dismiss()
         error = nil
         emptyReason = nil
         contextUse = nil
         let context = text
-        guard !context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        task = Task {
-            try? await Task.sleep(for: .milliseconds(app.settings.cotypingDebounceMs))
-            guard !Task.isCancelled else { return }
-            generating = true
-            defer { generating = false }
-            do {
-                let result: CotypingPreview
+        guard !context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            request = nil
+            return
+        }
+        requestSerial += 1
+        request = Request(serial: requestSerial, context: context)
+    }
+
+    private func generate(_ request: Request) async {
+        try? await Task.sleep(for: .milliseconds(app.settings.cotypingDebounceMs))
+        guard !Task.isCancelled else { return }
+        generating = true
+        defer { generating = false }
+        do {
+            let result: CotypingPreview
 #if LOKALBOT_UI_TEST_HOST
-                if demoReady { result = CotypingPreview(text: " up on the synthetic review.") } else {
-                    result = try await app.cotyping.preview(
-                        precedingText: context, conversation: CotypingRehearsalConversation.sample)
-                }
-#else
+            if demoReady { result = CotypingPreview(text: " up on the synthetic review.") } else {
                 result = try await app.cotyping.preview(
-                    precedingText: context, conversation: CotypingRehearsalConversation.sample)
-#endif
-                // Never show a suggestion for text that has since changed.
-                if !Task.isCancelled, text == context {
-                    rehearsal.present(result.text, after: context,
-                                      wordLimit: app.settings.cotypingMaxWords)
-                    contextUse = result.use
-                    emptyReason = result.suppression
-                }
-            } catch is CancellationError {
-            } catch {
-                if !Task.isCancelled { self.error = error.localizedDescription }
+                    precedingText: request.context, conversation: CotypingRehearsalConversation.sample)
             }
+#else
+            result = try await app.cotyping.preview(
+                precedingText: request.context, conversation: CotypingRehearsalConversation.sample)
+#endif
+            // Never show a suggestion for text that has since changed: any
+            // change makes a new request and cancels this one.
+            guard !Task.isCancelled, self.request == request else { return }
+            rehearsal.present(result.text, after: request.context,
+                              wordLimit: app.settings.cotypingMaxWords)
+            contextUse = result.use
+            emptyReason = result.suppression
+        } catch is CancellationError {
+        } catch {
+            if !Task.isCancelled { self.error = error.localizedDescription }
         }
     }
 
@@ -449,7 +466,7 @@ struct AutocompleteRehearsal: View {
     }
 
     private func dismiss() {
-        task?.cancel()
+        request = nil
         topUpTask?.cancel()
         rehearsal.dismiss()
         // No suggestion is on screen any more, so there is nothing its

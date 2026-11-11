@@ -217,11 +217,10 @@ struct AutocompleteSettingsSections: View {
     private var profileSection: some View {
         Section {
             WritingProfileFields()
-            Toggle(isOn: $app.settings.cotypingUseLocalLearning) {
-                SettingsLabel("Learn locally from accepted completions",
-                              help: "Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.")
-            }
-            .settingTarget("settings.cotypingUseLocalLearning", selected: app.focusedSettingID)
+            SettingsSwitchRow("Learn locally from accepted completions",
+                              detail: "Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.",
+                              isOn: $app.settings.cotypingUseLocalLearning)
+                .settingTarget("settings.cotypingUseLocalLearning", selected: app.focusedSettingID)
             Button(LocalizedStringKey(forgettingLearning ? "Forgetting…" : "Forget learned text")) {
                 forgettingLearning = true
                 learningMessage = nil
@@ -252,7 +251,8 @@ struct AutocompleteSettingsSections: View {
             ExclusionRulesEditor(title: "Never suggest on these sites", value: $app.settings.cotypingExcludedDomains,
                                  kind: .writingDomains)
                 .settingTarget("settings.cotypingExcludedDomains", selected: app.focusedSettingID)
-            Toggle("Suggest in integrated terminals", isOn: $app.settings.cotypingSuggestInIntegratedTerminals)
+            SettingsSwitchRow("Suggest in integrated terminals",
+                              isOn: $app.settings.cotypingSuggestInIntegratedTerminals)
                 .settingTarget("settings.cotypingSuggestInIntegratedTerminals", selected: app.focusedSettingID)
         }
     }
@@ -267,11 +267,11 @@ struct AutocompleteSettingsSections: View {
 
     private var advancedSection: some View {
         Section {
-            Toggle("Use fast in-process runtime", isOn: $app.settings.cotypingInProcessRuntime)
+            SettingsSwitchRow("Use fast in-process runtime", isOn: $app.settings.cotypingInProcessRuntime)
                 .disabled(app.settings.cotypingBackend != .onDevice)
                 .settingTarget("settings.cotypingInProcessRuntime", selected: app.focusedSettingID)
-            Toggle("Use enhanced accessibility in Chrome-based browsers",
-                   isOn: $app.settings.cotypingChromiumEnhancedAccessibility)
+            SettingsSwitchRow("Use enhanced accessibility in Chrome-based browsers",
+                              isOn: $app.settings.cotypingChromiumEnhancedAccessibility)
                 .settingTarget("settings.cotypingChromiumEnhancedAccessibility", selected: app.focusedSettingID)
         }
     }

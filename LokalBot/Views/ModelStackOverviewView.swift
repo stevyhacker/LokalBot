@@ -7,6 +7,7 @@ import SwiftUI
 /// for the rest.
 struct ModelStackOverviewView: View {
     @ObservedObject var app: AppState
+    @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject private var roles: ModelRoles
     @ObservedObject private var checks: ModelCheckController
     @ObservedObject private var setup: ModelSetupController
@@ -65,14 +66,14 @@ struct ModelStackOverviewView: View {
     var body: some View {
         let presentation = presentation
         VStack(alignment: .leading, spacing: 22) {
-            group("What each model does") {
+            group("What each model does", identifier: "models.heading.roles") {
                 modelSetRow(presentation)
                 ForEach(presentation.rows) { row in
                     SettingsSeparator()
                     roleRow(row)
                 }
             }
-            group("More") {
+            group("More", identifier: "models.heading.more") {
                 moreRow(.downloaded, title: "Downloaded models", detail: "Delete ones you no longer use",
                         value: downloadedSummary)
                 SettingsSeparator()
@@ -91,10 +92,12 @@ struct ModelStackOverviewView: View {
         .accessibilityIdentifier("models.overview")
     }
 
-    private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func group<Content: View>(_ title: String, identifier: String,
+                                      @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(LocalizedStringKey(title)).font(.scaled(.headline))
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier(identifier)
             VStack(alignment: .leading, spacing: 0, content: content)
                 .padding(.horizontal, 16).padding(.vertical, 4)
                 .settingsPanel()
@@ -113,25 +116,30 @@ struct ModelStackOverviewView: View {
             }
             Spacer(minLength: 12)
             // Choosing a set opens its review, which lists the changes and
-            // the download before anything is applied.
-            Menu {
-                ForEach(ModelStackPreset.allCases) { preset in
-                    Button { choosePreset(preset) } label: {
-                        if preset == presentation.modelSet {
-                            Label { Text(verbatim: menuTitle(preset)) } icon: { Image(systemName: "checkmark") }
-                        } else {
-                            Text(verbatim: menuTitle(preset))
-                        }
-                    }
-                    .disabled(preset == presentation.modelSet)
+            // the download before anything is applied. A native pull-down:
+            // SwiftUI's Menu gives assistive tools no way to open it.
+            WorkspaceMenu(
+                title: localized(presentation.modelSet?.title ?? "Custom"),
+                label: localized("Model set"),
+                identifier: "models.choosePreset",
+                items: ModelStackPreset.allCases.map { preset in
+                    WorkspaceMenu.Item(title: menuTitle(preset), identifier: "models.preset.\(preset.rawValue)",
+                                       enabled: preset != presentation.modelSet,
+                                       selected: preset == presentation.modelSet,
+                                       action: { choosePreset(preset) })
+                },
+                font: .systemFont(ofSize: NSFont.systemFontSize))
+                .fixedSize()
+                .padding(.leading, 4)
+                .background(Color(nsColor: .controlBackgroundColor),
+                            in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(contrast == .increased ? 0.5 : 0.14))
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                 }
-            } label: {
-                Text(LocalizedStringKey(presentation.modelSet?.title ?? "Custom"))
-            }
-            .fixedSize()
-            .disabled(setup.pending != nil)
-            .accessibilityLabel("Model set")
-            .accessibilityIdentifier("models.choosePreset")
+                .disabled(setup.pending != nil)
         }
         .padding(.vertical, 12)
     }
@@ -312,7 +320,8 @@ struct ModelStackOverviewView: View {
     private var onlineSummary: String {
         let origins = app.settings.approvedRemoteInferenceOrigins + app.settings.approvedRemoteTranscriptionOrigins
         let names = origins.reduce(into: [String]()) { names, origin in
-            let name = SubscriptionPlan.approvalDisplayName(origin)
+            // A server by its host, a subscription by its name.
+            let name = URL(string: origin)?.host ?? SubscriptionPlan.approvalDisplayName(origin)
             if !names.contains(name) { names.append(name) }
         }
         return names.isEmpty ? localized("None set up") : names.joined(separator: ", ")

@@ -27,7 +27,6 @@ struct DictationSettingsSections: View {
             default: mainSections
             }
         }
-        .accessibilityIdentifier("dictation.form")
         .onAppear { app.dictation.applySettings() }
         .onDisappear { PermissionGuidanceController.shared.dismiss() }
         .onChange(of: permissions.granted) { _, _ in app.dictation.applySettings() }
@@ -63,7 +62,7 @@ struct DictationSettingsSections: View {
 
     private var shortcutSection: some View {
         Section("Shortcut") {
-            LabeledContent("Shortcut") {
+            LabeledContent {
                 ShortcutRecorder(
                     shortcut: $app.settings.dictationShortcut,
                     defaultShortcut: .handyDefault,
@@ -76,6 +75,10 @@ struct DictationSettingsSections: View {
                             ?? (candidate == app.settings.windowHandoffShortcut ? .usedByWindowHandoff : nil)
                     },
                     onRecordingChanged: { app.setShortcutRecording($0) })
+            } label: {
+                // The page's anchor for tests and captures. On a container it
+                // would replace the identifier of every row inside.
+                Text("Shortcut").accessibilityIdentifier("dictation.form")
             }
             .settingTarget("settings.dictationShortcut", selected: app.focusedSettingID)
             Picker("Start and stop", selection: $app.settings.dictationTriggerMode) {

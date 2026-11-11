@@ -73,7 +73,9 @@ struct SettingsSwitchRow<Status: View>: View {
         LabeledContent {
             HStack(spacing: 8) {
                 if let info { SettingsInfoButton(info) }
-                Toggle(isOn: $isOn) { Text(LocalizedStringKey(title)) }
+                // The row's name is the switch's one accessibility label. A
+                // hidden label of its own would be read as well.
+                Toggle(isOn: $isOn) { EmptyView() }
                     .labelsHidden()
                     .accessibilityLabel(Text(LocalizedStringKey(title)))
             }

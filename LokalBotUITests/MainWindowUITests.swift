@@ -330,7 +330,12 @@ final class MainWindowUITests: XCTestCase {
         let content = app.scrollViews["models.content"]
         XCTAssertTrue(app.descendants(matching: .any)["models.overview"]
             .waitForExistence(timeout: 6), "core readiness overview missing")
-        XCTAssertTrue(textWithContent("What each model does").firstMatch.exists)
+        // A heading's words reach XCUITest as its label, and a static-text
+        // query did not match it on the hosted runner; its identifier does.
+        let heading = app.descendants(matching: .any)["models.heading.roles"]
+        XCTAssertTrue(heading.waitForExistence(timeout: 4), "the role rows have no heading")
+        XCTAssertTrue([heading.label, heading.value as? String ?? ""].joined(separator: " ")
+            .contains("What each model does"), "the heading must say what the rows are")
         XCTAssertTrue(textWithContent("Turns meeting audio and dictation into text").firstMatch.exists,
                       "each role says what it does in plain words")
         XCTAssertTrue(app.buttons["models.stack.change.transcribe"]
@@ -415,7 +420,8 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(preset.waitForExistence(timeout: 5), "Model set menu missing")
         UITestHarness.scrollTo(preset, in: app)
         preset.click()
-        let lighter = app.menuItems.matching(NSPredicate(format: "title BEGINSWITH %@", "Lightweight local")).firstMatch
+        let lighter = app.menuItems.matching(NSPredicate(
+            format: "identifier == %@ OR title BEGINSWITH %@", "models.preset.lightweight", "Lightweight local")).firstMatch
         XCTAssertTrue(lighter.waitForExistence(timeout: 4), "The menu must offer the app's own presets")
         lighter.click()
         XCTAssertTrue(app.buttons["models.preset.apply"]
