@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Ubah pintasan Penelusuran Cepat";
 "Quick Recall already uses this shortcut. Choose another." = "Penelusuran Cepat sudah menggunakan pintasan ini. Pilih yang lain.";
 "Quick Recall in LokalBot" = "Penelusuran Cepat di LokalBot";
+"Open notes" = "Buka catatan";
+"Meetings still record when they start" = "Rapat tetap direkam saat dimulai";
+"Records meetings when they start" = "Merekam rapat saat dimulai";
+"Recording starts when the call does" = "Perekaman dimulai saat panggilan dimulai";
+"Call audio" = "Audio panggilan";
+"Call audio · %@" = "Audio panggilan · %@";
+"Recent meetings" = "Rapat terbaru";
+"Just now" = "Baru saja";
+"Microphone access is off" = "Akses mikrofon nonaktif";
+"Meetings and dictation can’t record until you turn it on." = "Rapat dan dikte tidak dapat direkam sampai Anda mengaktifkannya.";
+"%@ saved · %@" = "%@ disimpan · %@";

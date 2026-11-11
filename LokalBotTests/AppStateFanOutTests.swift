@@ -72,7 +72,7 @@ final class AppStateFanOutTests: XCTestCase {
         var updates = 0
         let observer = scene.objectWillChange.sink { updates += 1 }
         // AppState changes no menu, window title or status glyph reads.
-        app.lastError = "Could not reach the model server."
+        app.textRecognitionStalled = true
         app.actionSelection = ["action"]
         app.selectedPersonID = "person"
         app.evidenceMeetingID = UUID()
@@ -84,6 +84,36 @@ final class AppStateFanOutTests: XCTestCase {
         XCTAssertEqual(updates, 1)
         XCTAssertTrue(scene.values.agentActive)
         XCTAssertFalse(scene.values.canSearchSelectedMeeting)
+        withExtendedLifetime(observer) {}
+    }
+
+    /// The status item carries a dot while something waits for the person:
+    /// an error message, or a settings change from the terminal, which
+    /// AppState itself does not republish.
+    func testTheStatusGlyphFollowsWhatNeedsAttention() async throws {
+        let app = AppState()
+        let scene = AppSceneState(app: app)
+        XCTAssertFalse(scene.values.needsAttention)
+        XCTAssertFalse(scene.values.dayMemoryPaused)
+        var updates = 0
+        let observer = scene.objectWillChange.sink { updates += 1 }
+
+        app.lastError = "Could not reach the model server."
+        await drainMainQueue()
+        XCTAssertTrue(scene.values.needsAttention)
+        XCTAssertEqual(updates, 1)
+        app.lastError = nil
+        await drainMainQueue()
+        XCTAssertFalse(scene.values.needsAttention)
+
+        let request = try app.settingsApprovals.submit(
+            .secret(.openAICompatible, value: "synthetic"), caller: "test", items: [], changes: [])
+        await drainMainQueue()
+        XCTAssertTrue(scene.values.needsAttention, "A waiting approval reaches the glyph without AppState")
+        app.settingsApprovals.deny(request.id)
+        await drainMainQueue()
+        XCTAssertFalse(scene.values.needsAttention)
+        XCTAssertEqual(updates, 4)
         withExtendedLifetime(observer) {}
     }
 

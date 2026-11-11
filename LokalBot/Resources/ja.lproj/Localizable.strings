@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "クイック検索のショートカットを変更";
 "Quick Recall already uses this shortcut. Choose another." = "「クイック検索」がすでにこのショートカットを使っています。別のものを選んでください。";
 "Quick Recall in LokalBot" = "LokalBot内のクイック検索";
+"Open notes" = "ノートを開く";
+"Meetings still record when they start" = "会議は開始時に引き続き録音されます";
+"Records meetings when they start" = "会議が始まると録音します";
+"Recording starts when the call does" = "通話が始まると録音を開始します";
+"Call audio" = "通話の音声";
+"Call audio · %@" = "通話の音声 · %@";
+"Recent meetings" = "最近の会議";
+"Just now" = "たった今";
+"Microphone access is off" = "マイクへのアクセスがオフです";
+"Meetings and dictation can’t record until you turn it on." = "オンにするまで、会議と音声入力は録音できません。";
+"%@ saved · %@" = "%@ を保存しました · %@";

@@ -2488,3 +2488,14 @@
 "Change the Quick Recall shortcut" = "更改快速回忆快捷键";
 "Quick Recall already uses this shortcut. Choose another." = "快速回忆已在使用此快捷键。请选择其他快捷键。";
 "Quick Recall in LokalBot" = "LokalBot 内的快速回忆";
+"Open notes" = "打开笔记";
+"Meetings still record when they start" = "会议开始时仍会录制";
+"Records meetings when they start" = "会议开始时自动录制";
+"Recording starts when the call does" = "通话开始时开始录制";
+"Call audio" = "通话音频";
+"Call audio · %@" = "通话音频 · %@";
+"Recent meetings" = "最近的会议";
+"Just now" = "刚刚";
+"Microphone access is off" = "麦克风访问权限已关闭";
+"Meetings and dictation can’t record until you turn it on." = "开启之前，无法录制会议和听写。";
+"%@ saved · %@" = "已保存 %@ · %@";

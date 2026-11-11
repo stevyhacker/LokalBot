@@ -3,7 +3,8 @@ import AppKit
 
 /// The status-bar item itself. When recording it shows a record dot plus a live
 /// MM:SS timer so a glance at the menu bar confirms a meeting is being captured
-/// — no window required. Idle, it's just the app glyph.
+/// — no window required. Idle, it's the app glyph: dimmed while day memory is
+/// paused, with a dot when something needs attention.
 struct MenuBarLabel: View {
     /// Not AppState: the status item redraws only when its glyph can change.
     @ObservedObject var scene: AppSceneState
@@ -34,27 +35,96 @@ struct MenuBarLabel: View {
         } else if dictation.state.isWorking {
             Image(systemName: "mic.and.signal.meter.fill")
         } else {
-            Image(nsImage: MenuBarIcon.image)
+            let variant = MenuBarIcon.Variant(
+                dimmed: scene.values.dayMemoryPaused, attention: scene.values.needsAttention)
+            Image(nsImage: MenuBarIcon.image(variant))
+                // The image already carries the dot, in the menu bar's own
+                // ink. Where the status item draws SwiftUI shapes, this lays
+                // the attention colour over it.
+                .overlay(alignment: .topTrailing) {
+                    if variant.attention {
+                        Circle()
+                            .fill(LBTokens.Palette.attention)
+                            .frame(width: MenuBarIcon.badgeDiameter, height: MenuBarIcon.badgeDiameter)
+                            .accessibilityHidden(true)
+                    }
+                }
+                // The dot is drawn on the right edge in every language.
+                .environment(\.layoutDirection, .leftToRight)
+                .accessibilityLabel(accessibilityLabel(variant))
         }
+    }
+
+    private func accessibilityLabel(_ variant: MenuBarIcon.Variant) -> Text {
+        var label = Text(verbatim: "LokalBot")
+        if variant.attention { label = label + Text(verbatim: ", ") + Text("Needs attention") }
+        if variant.dimmed { label = label + Text(verbatim: ", ") + Text("Day memory is paused") }
+        return label
     }
 }
 
 /// The LokalBot brand mark for the status item: a minimal robot head whose
 /// face is a three-bar waveform — "bot" and "listens locally" in one glyph.
 /// Drawn in code as a template image so it stays crisp at any backing scale
-/// and picks up the menu bar's light/dark/highlight tinting for free.
+/// and picks up the menu bar's light/dark/highlight tinting for free. Its
+/// states stay template images too: dimming is the glyph's own alpha, and
+/// the attention dot is cut into the corner.
 enum MenuBarIcon {
-    static let image: NSImage = {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-            draw()
+    struct Variant: Hashable {
+        /// Day memory is paused: the glyph is drawn faint.
+        var dimmed = false
+        /// Something needs attention: a dot sits on the top right corner.
+        var attention = false
+    }
+
+    static let size = NSSize(width: 18, height: 18)
+    static let badgeDiameter: CGFloat = 6
+    /// How much of the glyph's ink is left while day memory is paused.
+    static let dimmedOpacity: CGFloat = 0.38
+    /// The clear ring that separates the dot from the glyph under it.
+    private static let badgeGap: CGFloat = 1.5
+
+    @MainActor private static var cache: [Variant: NSImage] = [:]
+
+    @MainActor
+    static func image(_ variant: Variant) -> NSImage {
+        if let cached = cache[variant] { return cached }
+        let image = NSImage(size: size, flipped: false) { _ in
+            draw(variant)
             return true
         }
         image.isTemplate = true
         image.accessibilityDescription = "LokalBot"
+        cache[variant] = image
         return image
-    }()
+    }
 
-    private static func draw() {
+    /// The dot's box, in the image's bottom-left coordinates: the top right corner.
+    static var badgeRect: NSRect {
+        NSRect(x: size.width - badgeDiameter, y: size.height - badgeDiameter,
+               width: badgeDiameter, height: badgeDiameter)
+    }
+
+    private static func draw(_ variant: Variant) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        // One layer, so overlapping strokes do not darken where they cross.
+        context.saveGState()
+        context.setAlpha(variant.dimmed ? dimmedOpacity : 1)
+        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        drawGlyph()
+        context.endTransparencyLayer()
+        context.restoreGState()
+
+        guard variant.attention else { return }
+        context.saveGState()
+        context.setBlendMode(.clear)
+        context.fillEllipse(in: badgeRect.insetBy(dx: -badgeGap, dy: -badgeGap))
+        context.restoreGState()
+        NSColor.black.setFill()
+        NSBezierPath(ovalIn: badgeRect).fill()
+    }
+
+    private static func drawGlyph() {
         NSColor.black.setStroke()
         NSColor.black.setFill()
 
@@ -90,445 +160,321 @@ enum MenuBarIcon {
     }
 }
 
-/// A narrowly-observed control for pausing day tracking. `AppState` owns the
-/// sampler but does not rebroadcast its frequent sample updates, so views that
-/// display `isPaused` must observe the sampler directly to refresh immediately.
-struct TrackingPauseButton: View {
-    enum Presentation {
-        case overflowMenu
-        case toolbar
-    }
-
-    @ObservedObject var sampler: ActivitySampler
-    let presentation: Presentation
-
-    var body: some View {
-        switch presentation {
-        case .overflowMenu:
-            Button(action: toggle) {
-                Label(LocalizedStringKey(actionTitle),
-                      systemImage: sampler.isPaused ? "play.fill" : "pause.fill")
-            }
-
-        case .toolbar:
-            Button(action: toggle) {
-                Label(LocalizedStringKey(actionTitle),
-                      systemImage: sampler.isPaused ? "play.fill" : "pause.fill")
-            }
-            .help(Text(LocalizedStringKey(actionTitle)))
-        }
-    }
-
-    private var actionTitle: String {
-        sampler.isPaused ? "Resume day memory" : "Pause day memory"
-    }
-
-    private func toggle() {
-        sampler.isPaused.toggle()
-    }
-}
-
-/// The dropdown shown when the menu bar item is clicked. The primary surface for
-/// running LokalBot without ever opening the main window: live recording state,
-/// the record/stop control, recent meetings, and app actions (Settings, Quit).
+/// The dropdown shown when the menu bar item is clicked: one status block,
+/// then rows, like a system status menu. The primary surface for running
+/// LokalBot without ever opening the main window.
 struct MenuBarView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var dictation: DictationCoordinator
-    @Environment(\.openWindow) private var openWindow
-    @ObservedObject private var permissions = PermissionManager.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            statusCard
-            if app.isRecording { RecordingHealthStrip(recording: app.recording) }
+        MenuBarPanel(app: app, dictation: dictation, approvals: app.settingsApprovals)
+    }
+}
 
-            if let error = app.lastError {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.scaled(.caption)).foregroundStyle(Brand.error).lineLimit(2)
-            }
+private struct MenuBarPanel: View {
+    @ObservedObject var app: AppState
+    @ObservedObject var dictation: DictationCoordinator
+    /// AppState does not republish these; the status block lists them.
+    @ObservedObject var approvals: SettingsApprovals
+    @ObservedObject private var permissions = PermissionManager.shared
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.appTextScale) private var textScale
+    @State private var appeared = false
+    /// Whether the panel's window is on screen; nil until it has been seen
+    /// there once, which shows the window reports it at all.
+    @State private var windowVisible: Bool?
+    @State private var now = Date()
+    @State private var schedule: [CalendarMeetingCandidate] = []
+    @State private var captureWarnings: [String] = []
+    @State private var capturesBrowserProcess = false
 
-            if app.micRecoveryNeeded {
-                Button {
-                    PermissionManager.shared.openSettings(for: .microphone)
-                    app.micRecoveryNeeded = false
-                } label: {
-                    Label("Turn on microphone access in System Settings",
-                          systemImage: "mic.slash.fill")
-                        .font(.scaled(.caption))
-                }
-                .buttonStyle(.plain).foregroundStyle(Brand.error)
-            }
+    /// How often the open panel re-reads the time and the calendar.
+    private static let refreshInterval: Duration = .seconds(15)
 
-            SettingsApprovalMenuRow(approvals: app.settingsApprovals)
+    /// The panel is on screen. The menu extra can stay mounted after it
+    /// closes, so the clock, the calendar and the sound levels are read only
+    /// while this holds: by the window's own visibility once it reports one,
+    /// by appearing and disappearing until then.
+    private var isOpen: Bool { windowVisible ?? appeared }
 
-            if !permissions.allGranted {
-                Button { WindowAccess.shared.open("onboarding") } label: {
-                    Label("Grant permissions to record", systemImage: "exclamationmark.shield.fill")
-                        .font(.scaled(.caption))
-                }
-                .buttonStyle(.plain).foregroundStyle(Brand.error)
-            }
-
-            recentSection
-            toolsSection
-            footer
+    var body: some View {
+        let status = status
+        VStack(alignment: .leading, spacing: 0) {
+            MenuBarStatusBlock(
+                status: status,
+                recording: app.recording,
+                habit: .habit(detectedApp: app.detector.activeApp?.name, mode: app.settings.autoRecordMode),
+                autoRecordMode: app.settings.autoRecordMode,
+                captureWarnings: captureWarnings,
+                capturesBrowserProcess: capturesBrowserProcess,
+                isOpen: isOpen,
+                now: now,
+                recordWaits: app.recording.isStarting || dictationBusy,
+                dictation: dictationPhase.map {
+                    MenuBarDictationWords(
+                        $0, timer: dictation.timerLabel,
+                        shortcut: app.settings.dictationShortcut.displayLabel,
+                        triggerMode: app.settings.dictationTriggerMode)
+                })
+                .padding(.horizontal, MenuBarMetric.rowInset)
+                .padding(.bottom, 5)
+            toolRows
+            MenuBarSeparator()
+            recentMeetings(status.recentMeetings)
+            MenuBarSeparator()
+            switchRows
+            MenuBarSeparator()
+            appRows
         }
-        .padding(12)
-        .frame(width: 340)
+        .padding(.vertical, MenuBarMetric.rowInset)
+        .frame(width: (MenuBarMetric.panelWidth * textScale).rounded())
         .onAppear {
             // Register so non-View code (AppDelegate reopen, AppState first-run
             // onboarding) can open windows even when none are on screen.
             WindowAccess.shared.register { openWindow(id: $0) }
             permissions.startPolling()
+            appeared = true
+            // The clock before the first frame, so a recording saved long ago
+            // is not named again. The calendar is read by the task below:
+            // reading it can publish, which a view update must not do.
+            now = Date()
         }
-        .onDisappear { permissions.stopPolling() }
-    }
-
-    // MARK: Recording status
-
-    private var statusCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                statusDot
-                Text(LocalizedStringKey(statusTitle)).font(.scaled(.headline))
-                Spacer()
-                if app.isRecording || app.dictation.state.isWorking {
-                    primaryTimer.font(.scaled(.body).monospacedDigit())
+        .onDisappear {
+            permissions.stopPolling()
+            appeared = false
+        }
+        .background {
+            WindowVisibilityReader { visible in
+                if visible {
+                    if windowVisible != true { windowVisible = true }
+                    refresh()
+                } else if windowVisible == true {
+                    windowVisible = false
                 }
             }
-            statusSubtitle.font(.scaled(.callout)).foregroundStyle(.secondary).lineLimit(2)
-            if app.isRecording || app.dictation.state.isWorking {
-                Label(LocalizedStringKey(audioSourceLabel), systemImage: "waveform")
-                    .font(.scaled(.callout)).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 8) {
-                Button {
-                    if app.isRecording {
-                        app.stopRecording()
-                    } else if app.dictation.isStarting || app.dictation.state.isWorking {
-                        app.dictation.toggle(source: "menubar")
-                    } else {
-                        app.startRecording(context: app.recordingContext(for: app.detector.activeApp), source: "menubar")
-                    }
-                } label: {
-                    Label(LocalizedStringKey(primaryActionTitle), systemImage: primaryActionIcon)
-                }
-                .buttonStyle(.bordered)
-                .tint((app.isRecording || app.dictation.state.isRecording) ? .red : Brand.tealFill)
-                if app.isRecording {
-                    Button("Live Transcript…") { app.showLiveMeeting() }
-                        .buttonStyle(.bordered)
-                    if MeetingRadar.unavailableReason(app.settings) == nil {
-                        Button("Live Radar") { app.liveRadarPanel.show() }
-                            .buttonStyle(.bordered)
-                    }
+            .accessibilityHidden(true)
+        }
+        .task(id: isOpen) {
+            guard isOpen else { return }
+            while !Task.isCancelled {
+                refresh()
+                do {
+                    try await Task.sleep(for: Self.refreshInterval)
+                } catch {
+                    return
                 }
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .lbStatusSurface(app.isRecording || app.dictation.state.isRecording ? .red : .gray)
+        // A recording that starts or is saved moves the block at once.
+        .onChange(of: app.isRecording) { _, _ in now = Date() }
+        .onChange(of: app.meetings.first?.id) { _, _ in now = Date() }
+        .onReceive(app.recording.$captureWarnings.removeDuplicates()) { captureWarnings = $0 }
+        .onReceive(app.recording.$callObservationUnavailable.removeDuplicates()) { capturesBrowserProcess = $0 }
     }
 
-    /// Keep the always-mounted menu extra static while recording. Repeating
-    /// SwiftUI animations continue after the popover closes and otherwise
-    /// consume the main thread for the duration of a meeting.
-    private var statusDot: some View {
-        let live = app.isRecording || app.dictation.state.isRecording
-        return StatusDot(color: live ? Brand.recording : Color.secondary.opacity(0.4),
-                         size: 11)
-    }
+    // MARK: State
 
-    private var statusTitle: String {
-        if app.isRecording { return "Recording" }
-        if app.dictation.isStarting { return "Starting dictation" }
-        switch app.dictation.state {
-        case .idle: return "Not recording"
-        case .recording: return "Dictating"
-        case .transcribing: return "Transcribing"
-        case .composing: return "Composing"
+    private var dictationBusy: Bool { dictationPhase != nil }
+
+    private var dictationPhase: MenuBarStatus.Dictation? {
+        if dictation.isStarting { return .starting }
+        return switch dictation.state {
+        case .idle: nil
+        case .recording: .recording
+        case .transcribing: .transcribing
+        case .composing: .composing
         }
     }
 
-    private var statusSubtitle: Text {
-        if app.dictation.isStarting { return Text("Connecting to the microphone") }
-        switch app.dictation.state {
-        case .recording:
-            let shortcut = app.settings.dictationShortcut.displayLabel
-            switch app.settings.dictationTriggerMode {
-            case .toggle: return Text("Press \(shortcut) again to compose")
-            case .pushToTalk: return Text("Release \(shortcut) to compose")
-            case .tapOrHold: return Text("Release or tap \(shortcut) to compose")
+    private var status: MenuBarStatus {
+        let live = app.isRecording ? app.currentMeeting : nil
+        let recorded = TodayAgenda.recordedEventIDs(in: (live.map { [$0] } ?? []) + app.meetings)
+        return MenuBarStatus(
+            liveMeeting: live,
+            dictation: dictationPhase,
+            attention: app.menuBarAttention(corePermissionsGranted: permissions.allGranted),
+            nextMeeting: TodayAgenda.nextMeeting(
+                in: schedule, now: now, recordedEventIDs: recorded, window: MenuBarStatus.soonWindow),
+            dayMemoryPaused: app.settings.trackingEnabled && app.dayMemoryPaused,
+            meetings: app.meetings,
+            now: now)
+    }
+
+    /// The time, and today's meetings as Today reads them. With Calendar off
+    /// in Settings or in macOS there are none, and no meeting leads the menu.
+    private func refresh() {
+        now = Date()
+        var meetings: [CalendarMeetingCandidate] = []
+        if case .meetings(let read) = UpcomingMeetingSchedule.read(app: app, now: now) { meetings = read }
+        if meetings != schedule { schedule = meetings }
+    }
+
+    // MARK: Tools
+
+    @ViewBuilder private var toolRows: some View {
+        if app.isRecording, MeetingRadar.unavailableReason(app.settings) == nil {
+            Button { app.liveRadarPanel.show() } label: {
+                MenuBarRowLabel(title: Text("Live Radar"), icon: "dot.radiowaves.left.and.right")
             }
-        case .transcribing:
-            return Text("Turning speech into a writing request")
-        case .composing:
-            return Text("Writing for the focused app")
-        case .idle:
-            break
+            .buttonStyle(MenuBarRowStyle())
+            .accessibilityIdentifier("menubar.liveRadar")
         }
-        if app.isRecording {
-            if let title = app.currentMeeting?.title { return Text(verbatim: title) }
-            return Text("In progress")
-        }
-        if let detected = app.detector.activeApp {
-            return Text("\(detected.name) detected — ready")
-        }
-        switch app.settings.autoRecordMode {
-        case .automatic: return Text("Auto-records detected meetings")
-        case .ask: return Text("Asks before recording meetings")
-        case .manual: return Text("Manual recording only")
-        }
-    }
-
-    @ViewBuilder private var primaryTimer: some View {
-        if app.isRecording {
-            MeetingRecordingTimerText(recording: app.recording)
-        } else {
-            switch app.dictation.state {
-            case .idle: Text("00:00")
-            case .recording: Text(app.dictation.timerLabel)
-            case .transcribing, .composing: Text("...")
-            }
-        }
-    }
-
-    private var primaryActionTitle: String {
-        if app.isRecording { return "Stop Recording" }
-        if app.dictation.isStarting { return "Cancel dictation" }
-        switch app.dictation.state {
-        case .idle: return "Record Now"
-        case .recording: return "Stop dictation"
-        case .transcribing, .composing: return "Cancel dictation"
-        }
-    }
-
-    private var primaryActionIcon: String {
-        if app.isRecording { return "stop.fill" }
-        if app.dictation.isStarting { return "xmark.circle" }
-        switch app.dictation.state {
-        case .idle: return "record.circle"
-        case .recording: return "stop.fill"
-        case .transcribing, .composing: return "xmark.circle"
-        }
-    }
-
-    private var audioSourceLabel: String {
-        if app.dictation.state.isWorking {
-            return "Microphone dictation"
-        }
-        return (app.currentMeeting?.hasSystemTrack ?? false)
-            ? "Microphone + system audio"
-            : "Microphone only"
-    }
-
-    // MARK: Recent
-
-    private var recentSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                SectionHeader(text: "Recent")
-                Spacer()
-                if !app.meetings.isEmpty {
-                    Button("View all") {
-                        app.navSection = .meetings
-                        WindowAccess.shared.open("main")
-                    }
-                    .buttonStyle(.plain)
-                    .font(.scaled(.caption))
-                    .foregroundStyle(.secondary)
-                }
-            }
-
-            if app.meetings.isEmpty {
-                Text("No meetings yet").font(.scaled(.caption)).foregroundStyle(.secondary)
-            } else {
-                VStack(spacing: 2) {
-                    ForEach(app.meetings.prefix(2)) { meeting in
-                        Button {
-                            app.openMeeting(meeting.id)
-                            WindowAccess.shared.open("main")
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "waveform")
-                                    .font(.scaled(.caption))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 18)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(shortMenuTitle(meeting.title))
-                                        .font(.scaled(.callout).weight(.medium))
-                                        .lineLimit(1)
-                                    Text(meeting.appName)
-                                        .font(.scaled(.caption2))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                Spacer(minLength: 8)
-                                Text(meeting.displayDuration)
-                                    .font(.scaled(.caption2).monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
+        Button { app.openQuickRecall() } label: {
+            MenuBarRowLabel(title: Text("Quick Recall…"), icon: "magnifyingglass") {
+                if app.settings.quickRecallEnabled {
+                    MenuBarShortcutText(label: app.settings.quickRecallShortcut.displayLabel)
                 }
             }
         }
-    }
-
-    // MARK: Quick tools
-
-    private var toolsSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            SectionHeader(text: "Tools")
-            VStack(spacing: 0) {
-                dictationRow
-                if !dictation.history.entries.isEmpty {
-                    Divider().padding(.leading, 28)
-                    LastDictationMenuRow(
-                        entries: dictation.history.entries,
-                        localized: { app.settings.appLanguage.localized($0) },
-                        copy: { dictation.copyFromHistory($0) })
+        .buttonStyle(MenuBarRowStyle())
+        .accessibilityIdentifier("menubar.quickRecall")
+        if app.settings.windowHandoffEnabled {
+            Button { app.windowHandoff.invoke() } label: {
+                MenuBarRowLabel(title: Text("Hand off this window"), icon: "arrow.up.forward.app") {
+                    MenuBarShortcutText(label: app.settings.windowHandoffShortcut.displayLabel)
                 }
-                Divider().padding(.leading, 28)
-                cotypingRow
             }
-            .padding(.horizontal, 10)
-            .background(
-                .quaternary.opacity(0.32),
-                in: RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06))
-            }
+            .buttonStyle(MenuBarRowStyle())
+            .accessibilityIdentifier("menubar.handoff")
         }
+        dictationRow
+        LastDictationMenuRow(
+            entries: dictation.history.entries,
+            localized: { app.settings.appLanguage.localized($0) },
+            copy: { dictation.copyFromHistory($0) })
     }
 
-    // MARK: Footer
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Divider().padding(.vertical, 4)
-            menuAction("Ask", icon: "sparkle.magnifyingglass") { app.openQuickRecall() }
-            if app.settings.windowHandoffEnabled {
-                menuAction("Hand off this window", icon: "arrow.up.forward.app") { app.windowHandoff.invoke() }
-            }
-            menuAction("Open LokalBot", icon: "macwindow") { WindowAccess.shared.open("main") }
-            menuAction("Settings…", icon: "gearshape") { app.openSettings() }
-            if app.settings.trackingEnabled {
-                TrackingPauseButton(sampler: app.sampler, presentation: .overflowMenu)
-                    .padding(.horizontal, 8).padding(.vertical, 6)
-            }
-            Divider().padding(.vertical, 4)
-            menuAction("Star on GitHub", icon: "star") { app.githubStar.openRepository() }
-            menuAction("Quit LokalBot", icon: "power") { NSApp.terminate(nil) }
-        }
-        .buttonStyle(.plain)
-        .font(.scaled(.body))
-    }
-
-    private func menuAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(LocalizedStringKey(title), systemImage: icon)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8).padding(.vertical, 6)
-                .contentShape(Rectangle())
-        }
-    }
-
-    private var cotypingRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "text.cursor")
-                .font(.scaled(.callout))
-                .foregroundStyle(.secondary)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Autocomplete").font(.scaled(.callout).weight(.medium))
-                Text("Suggests text as you type")
-                    .font(.scaled(.caption2))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("Autocomplete", isOn: $app.settings.cotypingEnabled)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .help("Turn inline autocomplete on or off")
-        }
-        .padding(.vertical, 8)
-    }
-
+    /// Starts dictation; while one runs, the same row stops or cancels it, as
+    /// the status block does. A meeting recording holds the microphone, so
+    /// the row waits for it.
     private var dictationRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "mic")
-                .font(.scaled(.callout))
-                .foregroundStyle(.secondary)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Dictation").font(.scaled(.callout).weight(.medium))
-                if app.settings.dictationEnabled, DictationSecureInput.holder() != nil {
-                    Text("Shortcut blocked by Secure Input")
-                        .font(.scaled(.caption2))
-                        .foregroundStyle(.orange)
-                        .help(Text(verbatim: DictationSecureInput.message(
-                            appName: DictationSecureInput.holder() ?? nil) { app.settings.appLanguage.localized($0) }))
-                } else {
-                    Text("Shortcut · \(app.settings.dictationShortcut.displayLabel)")
-                        .font(.scaled(.caption2))
-                        .foregroundStyle(.secondary)
+        let secureInput = dictationBusy || !app.settings.dictationEnabled ? nil : DictationSecureInput.holder()
+        return Button { app.dictation.toggle(source: "menubar") } label: {
+            MenuBarRowLabel(
+                title: Text(LocalizedStringKey(dictationTitle)),
+                icon: dictationIcon,
+                detail: secureInput == nil ? nil : Text("Shortcut blocked by Secure Input"),
+                detailTone: .attention
+            ) {
+                if dictation.state.isRecording {
+                    Text(verbatim: dictation.timerLabel)
+                } else if !dictationBusy, app.settings.dictationEnabled {
+                    MenuBarShortcutText(label: app.settings.dictationShortcut.displayLabel)
                 }
             }
-            Spacer()
-            Toggle("Dictation shortcut", isOn: $app.settings.dictationEnabled)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .help("Enable the \(app.settings.dictationShortcut.displayLabel) dictation shortcut")
+        }
+        .buttonStyle(MenuBarRowStyle())
+        .disabled((app.isRecording || app.recording.isStarting) && !dictation.state.isWorking)
+        .help(Text(verbatim: secureInput.map { holder in
+            DictationSecureInput.message(appName: holder) { app.settings.appLanguage.localized($0) }
+        } ?? ""))
+        .accessibilityIdentifier("menubar.dictation")
+    }
+
+    private var dictationTitle: String {
+        if dictation.isStarting { return "Cancel dictation" }
+        return switch dictation.state {
+        case .idle: "Start dictation"
+        case .recording: "Stop dictation"
+        case .transcribing, .composing: "Cancel dictation"
+        }
+    }
+
+    private var dictationIcon: String {
+        if dictation.isStarting { return "xmark.circle" }
+        return switch dictation.state {
+        case .idle: "mic"
+        case .recording: "stop.circle"
+        case .transcribing, .composing: "xmark.circle"
+        }
+    }
+
+    // MARK: Recent meetings
+
+    @ViewBuilder private func recentMeetings(_ recent: [MenuBarStatus.RecentMeeting]) -> some View {
+        MenuBarGroupHeading(title: "Recent meetings")
+        if recent.isEmpty {
+            Text("No meetings yet")
+                .font(AppFont.scaled(.body))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, MenuBarMetric.rowInset + MenuBarMetric.rowPadding)
+                .frame(minHeight: MenuBarMetric.rowHeight)
+        }
+        ForEach(recent) { item in
             Button {
-                app.dictation.toggle(source: "menubar")
+                app.openMeeting(item.meeting.id)
+                WindowAccess.shared.open("main")
             } label: {
-                Image(systemName: dictationButtonIcon)
-                    .frame(width: 14, height: 14)
+                MenuBarRowLabel(title: Text(verbatim: item.meeting.displayTitle), icon: "waveform") {
+                    MenuBarPanelWhen.text(item.when)
+                }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : nil)
-            .disabled(
-                (app.isRecording || app.recording.isStarting)
-                    && !app.dictation.state.isWorking
-            )
-            .help("\(dictationButtonTitle) dictation")
-            .accessibilityLabel("\(dictationButtonTitle) dictation")
-        }
-        .padding(.vertical, 8)
-    }
-
-    private var dictationButtonTitle: String {
-        if app.dictation.isStarting { return "Cancel" }
-        return switch app.dictation.state {
-        case .idle: "Start"
-        case .recording: "Stop"
-        case .transcribing, .composing: "Cancel"
+            .buttonStyle(MenuBarRowStyle())
+            .help(Text(verbatim: item.meeting.displayTitle))
+            .accessibilityIdentifier("menubar.recentMeeting")
         }
     }
 
-    private var dictationButtonIcon: String {
-        if app.dictation.isStarting { return "xmark" }
-        return switch app.dictation.state {
-        case .idle: "mic.fill"
-        case .recording: "stop.fill"
-        case .transcribing, .composing: "xmark"
+    // MARK: Switches
+
+    @ViewBuilder private var switchRows: some View {
+        MenuBarSwitchRow(
+            title: "Autocomplete",
+            icon: "character.cursor.ibeam",
+            help: "Turn inline autocomplete on or off",
+            isOn: $app.settings.cotypingEnabled)
+            .accessibilityIdentifier("menubar.autocomplete")
+        if app.settings.trackingEnabled {
+            Button { app.sampler.isPaused.toggle() } label: {
+                MenuBarRowLabel(
+                    title: Text(app.dayMemoryPaused ? "Resume day memory" : "Pause day memory"),
+                    icon: app.dayMemoryPaused ? "play.circle" : "pause.circle")
+            }
+            .buttonStyle(MenuBarRowStyle())
+            .accessibilityIdentifier("menubar.dayMemory")
         }
     }
 
-    private func shortMenuTitle(_ title: String) -> String {
-        let limit = 30
-        guard title.count > limit else { return title }
-        let end = title.index(title.startIndex, offsetBy: limit - 3)
-        return String(title[..<end]) + "..."
+    // MARK: App
+
+    /// ⌘, and ⌘Q are bound here as well as in the app menu: the panel is the
+    /// key window while it is open, also when LokalBot has no other window.
+    @ViewBuilder private var appRows: some View {
+        Button { WindowAccess.shared.open("main") } label: {
+            MenuBarRowLabel(title: Text("Open LokalBot"), icon: "macwindow")
+        }
+        .buttonStyle(MenuBarRowStyle())
+        .accessibilityIdentifier("menubar.open")
+        Button { app.openSettings() } label: {
+            MenuBarRowLabel(title: Text("Settings…"), icon: "gearshape") {
+                MenuBarShortcutText(label: "⌘,")
+            }
+        }
+        .buttonStyle(MenuBarRowStyle())
+        .keyboardShortcut(",", modifiers: .command)
+        .accessibilityIdentifier("menubar.settings")
+        Button { NSApp.terminate(nil) } label: {
+            MenuBarRowLabel(title: Text("Quit LokalBot"), icon: "power") {
+                MenuBarShortcutText(label: "⌘Q")
+            }
+        }
+        .buttonStyle(MenuBarRowStyle())
+        .keyboardShortcut("q", modifiers: .command)
+        .accessibilityIdentifier("menubar.quit")
+    }
+}
+
+/// When a recent meeting was, at the far side of its row.
+enum MenuBarPanelWhen {
+    /// "Just now", today's start time, "Yesterday", or the day.
+    static func text(_ when: MenuBarStatus.RecentMeeting.When) -> Text {
+        switch when {
+        case .justNow: Text("Just now")
+        case .today(let date): Text(date, format: Date.FormatStyle(date: .omitted, time: .shortened))
+        case .yesterday: Text("Yesterday")
+        case .earlier(let date): Text(date, format: Date.FormatStyle().month(.abbreviated).day())
+        }
     }
 }
 

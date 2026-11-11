@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The menu bar's way back to a dictation the clipboard lost: a dictation that
 /// finished after focus moved is left on the clipboard, where the next copy
-/// replaces it. Shows the newest with a Copy button; earlier ones are in its menu.
+/// replaces it. One row copies the newest and shows its start; earlier ones
+/// are in the row's context menu and on the Dictation page.
 struct LastDictationMenuRow: View {
     /// Newest first.
     let entries: [DictationHistoryEntry]
@@ -10,43 +11,23 @@ struct LastDictationMenuRow: View {
     let copy: (DictationHistoryEntry.ID) -> Bool
     @State private var copied = false
 
+    /// How long the row reads "Copied" after a click.
+    static let confirmationTime: Duration = .seconds(1.5)
+
     var body: some View {
         if let latest = entries.first {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.scaled(.callout))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Last dictation").font(.scaled(.callout).weight(.medium))
-                    Text(verbatim: latest.preview)
-                        .font(.scaled(.caption2))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-                let label = Label(
-                    LocalizedStringKey(copied ? "Copied" : "Copy"),
-                    systemImage: copied ? "checkmark" : "doc.on.doc")
-                if entries.count > 1 {
-                    Menu {
-                        ForEach(entries.dropFirst()) { entry in
-                            Button { copyEntry(entry.id) } label: { Text(verbatim: entry.menuTitle) }
-                        }
-                    } label: {
-                        label
-                    } primaryAction: {
-                        copyEntry(latest.id)
-                    }
-                    .fixedSize()
-                    .controlSize(.small)
-                } else {
-                    Button { copyEntry(latest.id) } label: { label }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+            Button { copyEntry(latest.id) } label: {
+                MenuBarRowLabel(
+                    title: Text(copied ? "Copied" : "Copy last dictation"),
+                    icon: copied ? "checkmark" : "doc.on.doc",
+                    detail: Text(verbatim: latest.preview))
+            }
+            .buttonStyle(MenuBarRowStyle())
+            .contextMenu {
+                ForEach(entries.dropFirst()) { entry in
+                    Button { copyEntry(entry.id) } label: { Text(verbatim: entry.menuTitle) }
                 }
             }
-            .padding(.vertical, 8)
             .help(Text(verbatim: latest.caption(localized: localized)))
             .accessibilityIdentifier("menubar.lastDictation")
         }
@@ -56,7 +37,7 @@ struct LastDictationMenuRow: View {
         guard copy(id) else { return }
         copied = true
         Task {
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: Self.confirmationTime)
             copied = false
         }
     }

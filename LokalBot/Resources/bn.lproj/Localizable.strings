@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "দ্রুত খোঁজের শর্টকাট বদলান";
 "Quick Recall already uses this shortcut. Choose another." = "দ্রুত খোঁজ ইতিমধ্যে এই শর্টকাট ব্যবহার করছে। অন্যটি বেছে নিন।";
 "Quick Recall in LokalBot" = "LokalBot-এ দ্রুত খোঁজ";
+"Open notes" = "নোট খুলুন";
+"Meetings still record when they start" = "মিটিং শুরু হলে এখনও রেকর্ড হয়";
+"Records meetings when they start" = "মিটিং শুরু হলে রেকর্ড করে";
+"Recording starts when the call does" = "কল শুরু হলে রেকর্ডিং শুরু হয়";
+"Call audio" = "কলের অডিও";
+"Call audio · %@" = "কলের অডিও · %@";
+"Recent meetings" = "সাম্প্রতিক মিটিং";
+"Just now" = "এইমাত্র";
+"Microphone access is off" = "মাইক্রোফোনের প্রবেশাধিকার বন্ধ আছে";
+"Meetings and dictation can’t record until you turn it on." = "আপনি এটি চালু না করা পর্যন্ত মিটিং ও শ্রুতিলিখন রেকর্ড করা যাবে না।";
+"%@ saved · %@" = "সংরক্ষিত: %@ · %@";

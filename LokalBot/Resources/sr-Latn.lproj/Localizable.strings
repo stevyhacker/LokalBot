@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Promeni prečicu za Brzo prisećanje";
 "Quick Recall already uses this shortcut. Choose another." = "Ovu prečicu već koristi Brzo prisećanje. Izaberite drugu.";
 "Quick Recall in LokalBot" = "Brzo prisećanje u LokalBot-u";
+"Open notes" = "Otvori beleške";
+"Meetings still record when they start" = "Sastanci se i dalje snimaju kada počnu";
+"Records meetings when they start" = "Snima sastanke kada počnu";
+"Recording starts when the call does" = "Snimanje počinje kad i poziv";
+"Call audio" = "Zvuk poziva";
+"Call audio · %@" = "Zvuk poziva · %@";
+"Recent meetings" = "Nedavni sastanci";
+"Just now" = "Upravo sada";
+"Microphone access is off" = "Pristup mikrofonu je isključen";
+"Meetings and dictation can’t record until you turn it on." = "Sastanci i diktiranje ne mogu da se snimaju dok ga ne uključite.";
+"%@ saved · %@" = "Sačuvano: %@ · %@";

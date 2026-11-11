@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Alterar o atalho da Recuperação rápida";
 "Quick Recall already uses this shortcut. Choose another." = "A Recuperação rápida já usa este atalho. Escolha outro.";
 "Quick Recall in LokalBot" = "Recuperação rápida no LokalBot";
+"Open notes" = "Abrir notas";
+"Meetings still record when they start" = "As reuniões continuam sendo gravadas quando começam";
+"Records meetings when they start" = "Grava as reuniões quando elas começam";
+"Recording starts when the call does" = "A gravação começa junto com a chamada";
+"Call audio" = "Áudio da chamada";
+"Call audio · %@" = "Áudio da chamada · %@";
+"Recent meetings" = "Reuniões recentes";
+"Just now" = "Agora mesmo";
+"Microphone access is off" = "O acesso ao microfone está desativado";
+"Meetings and dictation can’t record until you turn it on." = "Reuniões e ditado não podem ser gravados até você ativá-lo.";
+"%@ saved · %@" = "Salvo: %@ · %@";

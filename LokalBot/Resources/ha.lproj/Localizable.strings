@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Canja gajeriyar hanyar Bincike Mai Sauri";
 "Quick Recall already uses this shortcut. Choose another." = "Bincike Mai Sauri ya riga ya amfani da wannan gajeriyar hanya. Zaɓi wata.";
 "Quick Recall in LokalBot" = "Bincike Mai Sauri a cikin LokalBot";
+"Open notes" = "Buɗe bayanin kula";
+"Meetings still record when they start" = "Har yanzu ana rikodin taruka idan sun fara";
+"Records meetings when they start" = "Yana rikodin taruka idan sun fara";
+"Recording starts when the call does" = "Rikodi yana farawa idan kiran ya fara";
+"Call audio" = "Sautin kira";
+"Call audio · %@" = "Sautin kira · %@";
+"Recent meetings" = "Tarukan baya-bayan nan";
+"Just now" = "Yanzu-yanzu";
+"Microphone access is off" = "An kashe damar makirufo";
+"Meetings and dictation can’t record until you turn it on." = "Ba za a iya rikodin taruka da faɗa don rubutawa ba sai ka kunna ta.";
+"%@ saved · %@" = "An adana: %@ · %@";

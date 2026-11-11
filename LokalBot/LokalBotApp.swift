@@ -263,7 +263,7 @@ struct LokalBotApp: App {
     init() {
         let appState = AppState()
         app = appState
-        _scene = StateObject(wrappedValue: AppSceneState(app: appState))
+        _scene = StateObject(wrappedValue: AppSceneState(app: appState, permissions: .shared))
         AppDelegate.appState = appState
     }
 

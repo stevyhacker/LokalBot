@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Изменить сочетание для Быстрого поиска";
 "Quick Recall already uses this shortcut. Choose another." = "Это сочетание уже используется Быстрым поиском. Выберите другое.";
 "Quick Recall in LokalBot" = "Быстрый поиск в LokalBot";
+"Open notes" = "Открыть заметки";
+"Meetings still record when they start" = "Встречи по-прежнему записываются, когда начинаются";
+"Records meetings when they start" = "Записывает встречи, когда они начинаются";
+"Recording starts when the call does" = "Запись начнётся вместе со звонком";
+"Call audio" = "Звук звонка";
+"Call audio · %@" = "Звук звонка · %@";
+"Recent meetings" = "Недавние встречи";
+"Just now" = "Только что";
+"Microphone access is off" = "Доступ к микрофону выключен";
+"Meetings and dictation can’t record until you turn it on." = "Встречи и диктовка не будут записываться, пока вы его не включите.";
+"%@ saved · %@" = "Сохранено: %@ · %@";

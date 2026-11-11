@@ -240,6 +240,10 @@ final class AppState: ObservableObject {
     /// is denied at the system level. Cleared when the user opens System
     /// Settings from the recovery toast or dismisses it.
     @Published var micRecoveryNeeded = false
+    /// Day memory is paused for now (`ActivitySampler.isPaused`), mirrored
+    /// here so the menu bar icon and panel follow it without observing the
+    /// sampler's every sample. A state of this launch, never a saved setting.
+    @Published private(set) var dayMemoryPaused = false
 
     /// The always-alive settings owner; services capture this, never AppState.
     let settingsStore = SettingsStore()
@@ -1425,6 +1429,7 @@ final class AppState: ObservableObject {
     private var outcomeObserver: AnyCancellable?
     private var dictationObserver: AnyCancellable?
     private var recordingObserver: AnyCancellable?
+    private var dayMemoryPauseObserver: AnyCancellable?
     private var recordingStatusObserver: AnyCancellable?
     private var audioMonitorObserver: AnyCancellable?
     private var audioMonitorChangeForwarder: AnyCancellable?
@@ -1649,6 +1654,11 @@ final class AppState: ObservableObject {
         if let command = headlessCommand {
             HeadlessCommandRunner(app: self).run(command)
             return
+        }
+        // The sampler exists in every windowed launch; headless commands
+        // returned above and never create it.
+        dayMemoryPauseObserver = sampler.$isPaused.removeDuplicates().sink { [weak self] paused in
+            if self?.dayMemoryPaused != paused { self?.dayMemoryPaused = paused }
         }
         // UI tests render against pre-seeded fixtures, not a real audio/Sparkle
         // session — bail out before any subsystem reaches for the mic, the

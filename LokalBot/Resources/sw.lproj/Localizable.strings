@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Badilisha njia ya mkato ya Utafutaji wa Haraka";
 "Quick Recall already uses this shortcut. Choose another." = "Utafutaji wa Haraka tayari hutumia njia hii ya mkato. Chagua nyingine.";
 "Quick Recall in LokalBot" = "Utafutaji wa Haraka ndani ya LokalBot";
+"Open notes" = "Fungua maelezo";
+"Meetings still record when they start" = "Mikutano bado hurekodiwa inapoanza";
+"Records meetings when they start" = "Hurekodi mikutano inapoanza";
+"Recording starts when the call does" = "Kurekodi huanza simu inapoanza";
+"Call audio" = "Sauti ya simu";
+"Call audio · %@" = "Sauti ya simu · %@";
+"Recent meetings" = "Mikutano ya karibuni";
+"Just now" = "Sasa hivi";
+"Microphone access is off" = "Ufikiaji wa maikrofoni umezimwa";
+"Meetings and dictation can’t record until you turn it on." = "Mikutano na imla haziwezi kurekodiwa hadi uuwashe.";
+"%@ saved · %@" = "Imehifadhiwa: %@ · %@";

@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "త్వరిత శోధన షార్ట్‌కట్ మార్చండి";
 "Quick Recall already uses this shortcut. Choose another." = "త్వరిత శోధన ఇప్పటికే ఈ షార్ట్‌కట్‌ను వాడుతోంది. మరొకటి ఎంచుకోండి.";
 "Quick Recall in LokalBot" = "LokalBotలో త్వరిత శోధన";
+"Open notes" = "నోట్స్ తెరవండి";
+"Meetings still record when they start" = "సమావేశాలు ప్రారంభమైనప్పుడు ఇప్పటికీ రికార్డ్ అవుతాయి";
+"Records meetings when they start" = "సమావేశాలు ప్రారంభమైనప్పుడు రికార్డ్ చేస్తుంది";
+"Recording starts when the call does" = "కాల్ ప్రారంభమైనప్పుడు రికార్డింగ్ మొదలవుతుంది";
+"Call audio" = "కాల్ ఆడియో";
+"Call audio · %@" = "కాల్ ఆడియో · %@";
+"Recent meetings" = "ఇటీవలి సమావేశాలు";
+"Just now" = "ఇప్పుడే";
+"Microphone access is off" = "మైక్రోఫోన్ యాక్సెస్ ఆఫ్‌లో ఉంది";
+"Meetings and dictation can’t record until you turn it on." = "మీరు దాన్ని ఆన్ చేసే వరకు సమావేశాలు, డిక్టేషన్ రికార్డ్ కావు.";
+"%@ saved · %@" = "సేవ్ అయింది: %@ · %@";

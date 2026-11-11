@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "تغيير اختصار «الاسترجاع السريع»";
 "Quick Recall already uses this shortcut. Choose another." = "يستخدم «الاسترجاع السريع» هذا الاختصار بالفعل. اختر غيره.";
 "Quick Recall in LokalBot" = "«الاسترجاع السريع» داخل LokalBot";
+"Open notes" = "فتح الملاحظات";
+"Meetings still record when they start" = "يستمر تسجيل الاجتماعات عند بدئها";
+"Records meetings when they start" = "يسجّل الاجتماعات عند بدئها";
+"Recording starts when the call does" = "يبدأ التسجيل عند بدء المكالمة";
+"Call audio" = "صوت المكالمة";
+"Call audio · %@" = "صوت المكالمة · %@";
+"Recent meetings" = "الاجتماعات الأخيرة";
+"Just now" = "قبل لحظات";
+"Microphone access is off" = "الوصول إلى الميكروفون متوقف";
+"Meetings and dictation can’t record until you turn it on." = "لا يمكن تسجيل الاجتماعات والإملاء حتى تفعّله.";
+"%@ saved · %@" = "تم الحفظ: %@ · %@";

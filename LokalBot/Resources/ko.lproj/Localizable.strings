@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "빠른 검색 단축키 변경";
 "Quick Recall already uses this shortcut. Choose another." = "빠른 검색이 이미 이 단축키를 사용합니다. 다른 단축키를 선택하세요.";
 "Quick Recall in LokalBot" = "LokalBot 안의 빠른 검색";
+"Open notes" = "노트 열기";
+"Meetings still record when they start" = "회의는 시작되면 계속 녹음됩니다";
+"Records meetings when they start" = "회의가 시작되면 녹음합니다";
+"Recording starts when the call does" = "통화가 시작되면 녹음이 시작됩니다";
+"Call audio" = "통화 오디오";
+"Call audio · %@" = "통화 오디오 · %@";
+"Recent meetings" = "최근 회의";
+"Just now" = "방금";
+"Microphone access is off" = "마이크 접근이 꺼져 있음";
+"Meetings and dictation can’t record until you turn it on." = "켜기 전에는 회의와 받아쓰기를 녹음할 수 없습니다.";
+"%@ saved · %@" = "%@ 저장됨 · %@";

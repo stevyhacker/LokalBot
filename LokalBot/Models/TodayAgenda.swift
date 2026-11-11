@@ -121,17 +121,19 @@ enum TodayAgenda {
     }
 
     /// The meeting for the card at the top of Today: the one under way, or
-    /// the next one once it is within `nextMeetingWindow`. Events already
-    /// recorded, and the one being recorded now, are passed over.
+    /// the next one once it is within `window`. Events already recorded, and
+    /// the one being recorded now, are passed over. The menu bar asks with
+    /// its own, shorter window (`MenuBarStatus.soonWindow`).
     static func nextMeeting(
         in schedule: [CalendarMeetingCandidate],
         now: Date,
-        recordedEventIDs: Set<String> = []
+        recordedEventIDs: Set<String> = [],
+        window: TimeInterval = nextMeetingWindow
     ) -> CalendarMeetingCandidate? {
         guard let next = UpcomingMeetingSelector.primary(
             from: schedule.filter { !recordedEventIDs.contains($0.externalID) }, now: now),
             next.endDate > now,
-            next.startDate.timeIntervalSince(now) <= nextMeetingWindow else { return nil }
+            next.startDate.timeIntervalSince(now) <= window else { return nil }
         return next
     }
 }

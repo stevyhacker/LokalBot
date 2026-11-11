@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Change the Quick Recall shortcut";
 "Quick Recall already uses this shortcut. Choose another." = "Quick Recall dey use this shortcut already. Choose another one.";
 "Quick Recall in LokalBot" = "Quick Recall inside LokalBot";
+"Open notes" = "Open notes";
+"Meetings still record when they start" = "Meetings still dey record when dem start";
+"Records meetings when they start" = "E dey record meetings when dem start";
+"Recording starts when the call does" = "Recording go start when the call start";
+"Call audio" = "Call audio";
+"Call audio · %@" = "Call audio · %@";
+"Recent meetings" = "Recent meetings";
+"Just now" = "Just now";
+"Microphone access is off" = "Microphone access dey off";
+"Meetings and dictation can’t record until you turn it on." = "Meetings and dictation no fit record until you turn am on.";
+"%@ saved · %@" = "%@ don save · %@";

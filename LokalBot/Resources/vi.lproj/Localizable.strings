@@ -2489,3 +2489,14 @@
 "Change the Quick Recall shortcut" = "Đổi phím tắt Tìm nhanh";
 "Quick Recall already uses this shortcut. Choose another." = "Tìm nhanh đang dùng phím tắt này. Hãy chọn phím khác.";
 "Quick Recall in LokalBot" = "Tìm nhanh trong LokalBot";
+"Open notes" = "Mở ghi chú";
+"Meetings still record when they start" = "Cuộc họp vẫn được ghi âm khi bắt đầu";
+"Records meetings when they start" = "Ghi âm cuộc họp khi bắt đầu";
+"Recording starts when the call does" = "Bắt đầu ghi âm khi cuộc gọi bắt đầu";
+"Call audio" = "Âm thanh cuộc gọi";
+"Call audio · %@" = "Âm thanh cuộc gọi · %@";
+"Recent meetings" = "Cuộc họp gần đây";
+"Just now" = "Vừa xong";
+"Microphone access is off" = "Quyền truy cập micrô đang tắt";
+"Meetings and dictation can’t record until you turn it on." = "Không thể ghi âm cuộc họp và đọc chính tả cho đến khi bạn bật quyền này.";
+"%@ saved · %@" = "Đã lưu %@ · %@";
