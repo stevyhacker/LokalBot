@@ -5,7 +5,7 @@
   <link href="https://www.lokalbot.com/blog/feed.xml" rel="self" type="application/atom+xml" />
   <link href="https://www.lokalbot.com/blog" rel="alternate" type="text/html" />
   <id>https://www.lokalbot.com/blog</id>
-  <updated>2026-11-03T00:00:00Z</updated>
+  <updated>2026-11-11T00:00:00Z</updated>
   <author><name>LokalBot project</name><uri>https://www.lokalbot.com/</uri></author>
   <icon>https://www.lokalbot.com/assets/lokalbot-icon-512.png</icon>
   <entry>
@@ -75,7 +75,7 @@
     <link href="https://www.lokalbot.com/blog/windows-and-linux-alpha" />
     <id>https://www.lokalbot.com/blog/windows-and-linux-alpha</id>
     <published>2026-10-20T00:00:00Z</published>
-    <updated>2026-11-03T00:00:00Z</updated>
+    <updated>2026-11-11T00:00:00Z</updated>
     <summary>LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.</summary>
     <content type="html">&lt;h2&gt;What works&lt;/h2&gt;
         &lt;p&gt;Updated November 3, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.&lt;/p&gt;
@@ -88,7 +88,7 @@
         &lt;h2&gt;What's still missing&lt;/h2&gt;
         &lt;ul&gt;
           &lt;li&gt;&lt;strong&gt;The Windows build isn't code-signed yet.&lt;/strong&gt; SmartScreen asks before the first launch: choose &lt;strong&gt;More info → Run anyway&lt;/strong&gt;.&lt;/li&gt;
-          &lt;li&gt;&lt;strong&gt;Wayland support is partial.&lt;/strong&gt; Autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, where you also add LokalBot as an input source. It has only been tried on headless Sway and GNOME with stand-in suggestions, and Hyprland itself hasn't been run (&lt;a href="https://www.lokalbot.com/explainers/wayland-autocomplete.pdf"&gt;how it works&lt;/a&gt;). On KDE Plasma and other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind &lt;code&gt;lokalbot dictate&lt;/code&gt; and &lt;code&gt;lokalbot selection-actions&lt;/code&gt; to shortcuts in your desktop's settings.&lt;/li&gt;
+          &lt;li&gt;&lt;strong&gt;Wayland support is partial.&lt;/strong&gt; Autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, where you also add LokalBot as an input source, and, since 0.12.3, KDE Plasma, where you choose it under Virtual Keyboard. It has only been tried on headless Sway, GNOME, and KWin with stand-in suggestions, and Hyprland itself hasn't been run (&lt;a href="https://www.lokalbot.com/explainers/wayland-autocomplete.pdf"&gt;how it works&lt;/a&gt;). On other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind &lt;code&gt;lokalbot dictate&lt;/code&gt; and &lt;code&gt;lokalbot selection-actions&lt;/code&gt; to shortcuts in your desktop's settings.&lt;/li&gt;
           &lt;li&gt;&lt;strong&gt;Meeting audio isn't always one app's.&lt;/strong&gt; On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.&lt;/li&gt;
           &lt;li&gt;&lt;strong&gt;Remembered speakers only suggest.&lt;/strong&gt; Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.&lt;/li&gt;
           &lt;li&gt;&lt;strong&gt;Nothing to pair with phones and tablets yet.&lt;/strong&gt; Settings → Phones &amp;amp; tablets is there, off by default, but the iPhone, iPad, and Android apps aren't in the App Store or Play Store yet, and real phones on a network haven't been tried.&lt;/li&gt;
