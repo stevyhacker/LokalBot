@@ -42,8 +42,8 @@
       <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Compatibility</span></nav>
       <p class="eyebrow">Compatibility</p>
       <h1>LokalBot system requirements</h1>
-      <p class="guide-hero__lead">The short version: an Apple Silicon Mac on macOS 15 or later, a Windows 10 or 11 x64 PC (alpha), or an x86_64 Linux desktop with glibc 2.39 or later (alpha), plus enough disk for the models you choose.</p>
-      <p class="guide-byline"><time datetime="2026-11-11">Updated November 10, 2026</time> · 7 min read</p>
+      <p class="guide-hero__lead">The short version: an Apple Silicon Mac on macOS 15 or later, a Windows 10 or 11 x64 PC (alpha), or an x86_64 Linux desktop with glibc 2.39 or later (alpha), plus enough disk for the models you choose. The Android companion app needs Android 10 or later.</p>
+      <p class="guide-byline"><time datetime="2026-11-11">Updated November 11, 2026</time> · 7 min read</p>
     </header>
 
     <article class="guide-article">
@@ -144,7 +144,14 @@
           <li><strong>Remembered speakers:</strong> later meetings offer a remembered name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li><strong>Selection actions:</strong> the shortcut is <kbd>Ctrl+Alt+Space</kbd>, because ⌃⇧ W closes tabs and windows there. Apps without accessibility get results you can copy but not replace in place.</li>
           <li><strong>Files:</strong> scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg. Results open in their default app.</li>
-          <li><strong>Phones and tablets:</strong> the apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
+          <li><strong>Phones and tablets:</strong> they pair as they do with a Mac. A firewall must allow TCP port 17890.</li>
+        </ul>
+
+        <h2>Phones and tablets</h2>
+        <ul>
+          <li><strong>Android:</strong> Android 10 or later. Install the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app from Google Play</a>, or the APK attached to each <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">release</a>. They're signed with different keys, so Android won't update one with the other: switching means uninstalling first, which removes the phone's copy and its pairing.</li>
+          <li><strong>A computer to pair with:</strong> LokalBot on a Mac, Windows, or Linux, with <strong>Settings → Phones &amp; tablets</strong> turned on. The phone reaches it over your local network or Tailscale, with no LokalBot server in between.</li>
+          <li><strong>iPhone and iPad:</strong> the app isn't in the App Store yet.</li>
         </ul>
 
         <h2>Before an important meeting</h2>
@@ -226,13 +233,14 @@
         <span class="brand__name">LokalBot</span>
       </a>
       <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Android &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
       <a href="/system-requirements">System requirements</a>
+      <a href="/#android">Android app</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">

@@ -1096,6 +1096,10 @@ kbd {
 .home-agents__facts .ph { margin-top: 0.2em; color: var(--accent-text); font-size: 1.15rem; }
 .home-agents__facts strong { color: var(--text); font-weight: 600; }
 .home-agents__demo { min-width: 0; }
+.home-phone__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.home-phone .home-agents__copy > .home-phone__note { margin-top: 14px; color: var(--text-faint); font-size: 0.9rem; }
+.home-phone__shot { width: min(100%, 290px); justify-self: center; }
+.home-phone__shot .home-image-link { border-radius: 28px; }
 .home-agents__links { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 16px; font-size: 0.92rem; }
 .home-agents__links a { color: var(--accent-text); }
 .home-agents__links a:hover { text-decoration: underline; text-underline-offset: 3px; }

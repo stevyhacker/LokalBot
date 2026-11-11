@@ -65,7 +65,7 @@ GUIDES = [
         "slug": "local-ai-meeting-notes-linux",
         "published": "2026-10-26",
         "updated": "2026-11-11",
-        "updated_label": "November 3, 2026",
+        "updated_label": "November 11, 2026",
         "title": "Local AI Meeting Notes on Linux — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.",
         "eyebrow": "Linux",
@@ -86,7 +86,7 @@ GUIDES = [
           <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
           <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
           <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
-          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. The apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
+          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. Pair an Android phone or tablet with the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app on Google Play</a>; the iPhone and iPad app isn't in the App Store yet. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Your desktop matters</h2>
@@ -145,8 +145,8 @@ GUIDES = [
     {
         "slug": "local-ai-meeting-notes-windows",
         "published": "2026-10-26",
-        "updated": "2026-11-03",
-        "updated_label": "November 3, 2026",
+        "updated": "2026-11-11",
+        "updated_label": "November 11, 2026",
         "title": "Local AI Meeting Notes on Windows — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.",
         "eyebrow": "Windows",
@@ -169,7 +169,7 @@ GUIDES = [
           <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
           <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
           <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
-          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. The apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
+          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. Pair an Android phone or tablet with the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app on Google Play</a>; the iPhone and iPad app isn't in the App Store yet. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Install without admin rights</h2>
@@ -413,12 +413,12 @@ GUIDES = [
     {
         "slug": "system-requirements",
         "updated": "2026-11-11",
-        "updated_label": "November 10, 2026",
+        "updated_label": "November 11, 2026",
         "title": "LokalBot System Requirements: Mac, Windows and Linux (alpha)",
         "description": "Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.",
         "eyebrow": "Compatibility",
         "h1": "LokalBot system requirements",
-        "lead": "The short version: an Apple Silicon Mac on macOS 15 or later, a Windows 10 or 11 x64 PC (alpha), or an x86_64 Linux desktop with glibc 2.39 or later (alpha), plus enough disk for the models you choose.",
+        "lead": "The short version: an Apple Silicon Mac on macOS 15 or later, a Windows 10 or 11 x64 PC (alpha), or an x86_64 Linux desktop with glibc 2.39 or later (alpha), plus enough disk for the models you choose. The Android companion app needs Android 10 or later.",
         "read_time": "7 min read",
         "body": """
         <h2>Mac</h2>
@@ -518,7 +518,14 @@ GUIDES = [
           <li><strong>Remembered speakers:</strong> later meetings offer a remembered name for you to apply. Unlike on a Mac, nothing is named automatically, because the matching hasn't been calibrated on real calls with this voice model.</li>
           <li><strong>Selection actions:</strong> the shortcut is <kbd>Ctrl+Alt+Space</kbd>, because ⌃⇧ W closes tabs and windows there. Apps without accessibility get results you can copy but not replace in place.</li>
           <li><strong>Files:</strong> scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg. Results open in their default app.</li>
-          <li><strong>Phones and tablets:</strong> the apps aren't in the App Store or Play Store yet, so there's nothing to pair for now. A firewall must allow TCP port 17890.</li>
+          <li><strong>Phones and tablets:</strong> they pair as they do with a Mac. A firewall must allow TCP port 17890.</li>
+        </ul>
+
+        <h2>Phones and tablets</h2>
+        <ul>
+          <li><strong>Android:</strong> Android 10 or later. Install the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app from Google Play</a>, or the APK attached to each <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">release</a>. They're signed with different keys, so Android won't update one with the other: switching means uninstalling first, which removes the phone's copy and its pairing.</li>
+          <li><strong>A computer to pair with:</strong> LokalBot on a Mac, Windows, or Linux, with <strong>Settings → Phones &amp; tablets</strong> turned on. The phone reaches it over your local network or Tailscale, with no LokalBot server in between.</li>
+          <li><strong>iPhone and iPad:</strong> the app isn't in the App Store yet.</li>
         </ul>
 
         <h2>Before an important meeting</h2>
@@ -890,7 +897,7 @@ REFERENCES = [
         "eyebrow": "Fact sheet",
         "h1": "About LokalBot",
         "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source app for bot-free meeting notes, local transcription, and search on Mac, with Windows and Linux in alpha.",
-        "updated": "2026-11-10",
+        "updated": "2026-11-11",
     },
     {
         "slug": "benchmarks",

@@ -416,6 +416,8 @@
       } else if (/Android/i.test(ua) && methods) {
         methods.textContent = "email or a chat app";
       }
+      var androidApp = $("[data-handoff-android]", hint);
+      if (androidApp && /Android/i.test(ua)) androidApp.hidden = false;
       hint.hidden = false;
     }
   }

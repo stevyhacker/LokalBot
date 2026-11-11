@@ -65,7 +65,7 @@
           <li><strong>Wayland support is partial.</strong> Autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, where you also add LokalBot as an input source, and, since 0.12.3, KDE Plasma, where you choose it under Virtual Keyboard. It has only been tried on headless Sway, GNOME, and KWin with stand-in suggestions, and Hyprland itself hasn't been run (<a href="/explainers/wayland-autocomplete.pdf">how it works</a>). On other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
           <li><strong>Meeting audio isn't always one app's.</strong> On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.</li>
           <li><strong>Remembered speakers only suggest.</strong> Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.</li>
-          <li><strong>Nothing to pair with phones and tablets yet.</strong> Settings → Phones &amp; tablets is there, off by default, but the iPhone, iPad, and Android apps aren't in the App Store or Play Store yet, and real phones on a network haven't been tried.</li>
+          <li><strong>No iPhone or iPad app yet.</strong> Android phones and tablets pair with Windows and Linux as they do with a Mac, through the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app on Google Play</a>, but the iPhone and iPad app isn't in the App Store yet.</li>
           <li><strong>A few features are Mac-only for now:</strong> Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation.</li>
         </ul>
         <p>The full list is in <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#what-works-where" target="_blank" rel="noopener">what works where</a>, and the <a href="/explainers/windows-linux-app.pdf">two-page overview</a> shows what changed.</p>
@@ -147,13 +147,14 @@ o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask Lo
         <span class="brand__name">LokalBot</span>
       </a>
       <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Android &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
       <a href="/system-requirements">System requirements</a>
+      <a href="/#android">Android app</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">

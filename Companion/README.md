@@ -62,9 +62,11 @@ node Companion/design/generate.mjs
 ```
 
 The iOS and Android READMEs in their folders cover building and installing
-each app. Each LokalBot release also attaches the signed Android APK
-([RELEASING.md](../RELEASING.md#android)). The iPhone and iPad app has no download,
-because iOS installs apps only through the App Store or TestFlight.
+each app. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion), and each
+LokalBot release also attaches the signed APK, under a different key from Play's
+([RELEASING.md](../RELEASING.md#android)). The iPhone and iPad app isn't in the
+App Store yet, and has no download, because iOS installs apps only through the
+App Store or TestFlight.
 
 ## Trying it without the Mac app
 
