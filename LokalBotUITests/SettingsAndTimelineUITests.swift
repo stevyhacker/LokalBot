@@ -158,12 +158,13 @@ final class SettingsUITests: XCTestCase {
 
         // A shortcut that is off opens the page that turns it on.
         UITestHarness.selectSettingsCategory("Overview", in: app)
-        let ask = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Ask anywhere")).firstMatch
+        let ask = app.buttons.matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND NOT (label CONTAINS %@)", "Quick Recall", "in LokalBot")).firstMatch
         UITestHarness.scrollTo(ask, in: app, within: app.scrollViews["settings.overview"])
         ask.click()
-        let toggle = UITestHarness.toggle("Enable the system-wide Ask shortcut", in: app)
+        let toggle = UITestHarness.toggle("Enable the Quick Recall shortcut", in: app)
         XCTAssertTrue(toggle.waitForExistence(timeout: 6), "The shortcut's row opens the Ask page")
-        XCTAssertEqual(String(describing: toggle.value ?? ""), "0", "Ask anywhere is off until its own switch turns it on")
+        XCTAssertEqual(String(describing: toggle.value ?? ""), "0", "Quick Recall's shortcut is off until its own switch turns it on")
     }
 
     /// Privacy & permissions is the one home for permissions and for what

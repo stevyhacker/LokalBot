@@ -208,15 +208,6 @@
       "Track a suggestion below, or add a project with +.",
       "Write Note"
     ],
-    "QuickRecallFooter.swift": [
-      "Ask about “\\(…)”"
-    ],
-    "QuickRecallRow.swift": [
-      "· \\(…) captures"
-    ],
-    "QuickRecallView.swift": [
-      "Type to search meetings, screens, and saved moments, or to run a command like Record now. Return opens a result; Ask is a separate action."
-    ],
     "RecordingHealthStrip.swift": [
       "Last recovery \\(…)"
     ],

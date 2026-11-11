@@ -114,7 +114,7 @@ extension AppState {
         guard !items.isEmpty else { return [] }
         applySettings(try SettingsChangeApplier.apply(items, to: settings), requestingPermissions: requestingPermissions)
         agentSettingsChanges.record(items, caller: caller)
-        // Some settings correct themselves: the Ask shortcut reverts when
+        // Some settings correct themselves: the Quick Recall shortcut reverts when
         // another app already owns the key combination.
         let effective = AppControlHandler.encoded(settings)
         return items.compactMap { item in

@@ -657,12 +657,13 @@ final class AppState: ObservableObject {
     /// scoping it to a day (Timeline's "Ask about this day").
     func openAsk(query: String = "", dayScope: Date? = nil,
                  screenSnapshotIDs: [Int64]? = nil, submit: Bool = false,
-                 meetingIDs: Set<Meeting.ID>? = nil, mode: AskMode = .ask) {
+                 meetingIDs: Set<Meeting.ID>? = nil, mode: AskMode = .ask,
+                 sources: Set<AskSourceScope>? = nil) {
         navigationHandoff.stageAsk(
             query: query,
             dayScope: dayScope,
             screenSnapshotIDs: screenSnapshotIDs,
-            submit: submit, meetingIDs: meetingIDs, mode: mode)
+            submit: submit, meetingIDs: meetingIDs, mode: mode, sources: sources)
         navSection = .ask
     }
 
@@ -675,7 +676,7 @@ final class AppState: ObservableObject {
     }
 
     /// Open one meeting in the Meetings section — the deep-link target
-    /// for search hits, menu-bar recents, and palette recents.
+    /// for search hits, menu-bar recents, and Quick Recall's recent meetings.
     func openMeeting(_ id: Meeting.ID, seek: TimeInterval? = nil, intent: EvidenceIntent = .reveal) {
         evidenceMeetingID = id
         if navSection != .meetings {
@@ -795,6 +796,9 @@ final class AppState: ObservableObject {
     /// The app in front when a system-wide shortcut opened a LokalBot panel,
     /// so a command that acts in place can hand focus back to it.
     var shortcutSourceApplication: NSRunningApplication?
+    /// Quick Recall was opened from the main window (⌘K or the View menu), so
+    /// it also offers the commands of the page that window is showing.
+    @Published var quickRecallOpenedFromMainWindow = false
     private(set) lazy var selectionActionsHotKey: QuickRecallHotKeyController = {
         let controller = QuickRecallHotKeyController(
             identifier: QuickRecallHotKeyController.selectionActionsIdentifier)
@@ -2762,7 +2766,7 @@ final class AppState: ObservableObject {
         }
         let shortcut = settings.quickRecallShortcut
         guard !quickRecallHotKey.setShortcut(shortcut) else { return }
-        lastError = "The Ask shortcut could not register \(shortcut.displayLabel). Another app may already use it."
+        lastError = "The Quick Recall shortcut could not register \(shortcut.displayLabel). Another app may already use it."
         if let previous, previous != shortcut, quickRecallHotKey.setShortcut(previous) {
             settings.quickRecallShortcut = previous
         } else {

@@ -242,7 +242,8 @@ struct AnswerSourcesList: View {
 }
 
 /// What the person told LokalBot about themselves that went into this answer.
-private struct PersonalContextRow: View {
+/// Quick Recall's sources end with the same row.
+struct PersonalContextRow: View {
     @EnvironmentObject private var app: AppState
     let claimIDs: [UUID]
     @ObservedObject var personalModel: PersonalModelController

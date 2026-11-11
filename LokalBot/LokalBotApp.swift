@@ -308,17 +308,14 @@ struct LokalBotApp: App {
                 }
 #endif
             }
-            // ⌘K opens the command palette. Registered at the app level so it
-            // works from anywhere; the palette window is opened via openWindow.
+            // ⌘K opens Quick Recall, the window the system-wide shortcut opens:
+            // search, commands and Ask in one place. Registered at the app
+            // level so it works from any LokalBot window.
             CommandGroup(after: .toolbar) {
-                Button(language.localized("Command Palette…")) {
-                    WindowAccess.shared.open("palette")
-                }
-                .keyboardShortcut("k", modifiers: [.command])
-
-                Button(language.localized("Ask…")) {
+                Button(language.localized("Quick Recall…")) {
                     app.openQuickRecall()
                 }
+                .keyboardShortcut("k", modifiers: [.command])
             }
             CommandGroup(before: .textEditing) {
                 Button(language.localized(scene.values.agentActive ? "Find in Task…" : "Find in Meeting…")) {
@@ -364,20 +361,9 @@ struct LokalBotApp: App {
         // The steps sit in the window's top bar, beside the traffic lights.
         .windowStyle(.hiddenTitleBar)
 
-        // The ⌘K command palette. A lightweight, keyboard-first launcher that
-        // records, navigates, and opens recent meetings without the sidebar.
-        Window(language.localized("Command Palette"), id: "palette") {
-            CommandPaletteView()
-                .environmentObject(app)
-                .brandTinted()
-                .appTextSizeRoot(textSize)
-                .appLanguageRoot(app.settingsStore)
-        }
-        .windowResizability(.contentSize)
-        .windowStyle(.hiddenTitleBar)
-        .defaultPosition(.center)
-
-        Window(language.localized("Ask"), id: "quick-recall") {
+        // Quick Recall: search, commands and Ask in one small window, opened
+        // by the system-wide shortcut, ⌘K or the View menu.
+        Window(language.localized("Quick Recall"), id: "quick-recall") {
             QuickRecallView()
                 .environmentObject(app)
                 .brandTinted()

@@ -210,7 +210,8 @@ private struct AskContent: View {
         app.askDayScope = handoff.dayScope.map(Calendar.current.startOfDay(for:))
         app.askMode = handoff.mode
         recall.state.selectEvidence(meetingIDs: handoff.meetingIDs,
-                                       screenIDs: handoff.screenSnapshotIDs.map { Set($0) })
+                                       screenIDs: handoff.screenSnapshotIDs.map { Set($0) },
+                                       sources: handoff.sources)
         if let handedQuery = handoff.query {
             query = handedQuery
         }

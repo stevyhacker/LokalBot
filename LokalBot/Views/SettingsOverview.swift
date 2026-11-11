@@ -203,11 +203,11 @@ struct SettingsOverview: View {
     private var shortcuts: some View {
         let settings = app.settings
         let rows: [(LocalizedStringKey, String, Bool, AppState.SettingsTab?)] = [
-            ("Ask anywhere", settings.quickRecallShortcut.displayLabel, settings.quickRecallEnabled, .ask),
+            ("Quick Recall", settings.quickRecallShortcut.displayLabel, settings.quickRecallEnabled, .ask),
             ("Selection actions", settings.selectionActionsShortcut.displayLabel, settings.selectionActionsEnabled, .ask),
             ("Dictation", settings.dictationShortcut.displayLabel, settings.dictationEnabled, .dictation),
             ("Accept a suggestion", localized(settings.cotypingAcceptKey.label), settings.cotypingEnabled, .writing),
-            ("Command palette", "⌘K", true, nil),
+            ("Quick Recall in LokalBot", "⌘K", true, nil),
         ]
         return Section {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in

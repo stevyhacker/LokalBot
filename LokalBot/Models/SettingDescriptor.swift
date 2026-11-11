@@ -118,8 +118,8 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.appLanguage", title: "App language", category: .general, aliases: "interface language 中文 语言 界面 "
                 + AppLanguage.allCases.flatMap { [$0.englishName, $0.displayName] }.joined(separator: " ")),
         .init(id: "settings.textSize", title: "Text size", category: .general, aliases: "font size larger text smaller text zoom readability"),
-        .init(id: "settings.quickRecallEnabled", title: "Enable the system-wide Ask shortcut", category: .ask, aliases: "quickRecallEnabled"),
-        .init(id: "settings.quickRecallShortcut", title: "Ask shortcut", category: .ask, aliases: "quick recall hotkey keyboard key combination change"),
+        .init(id: "settings.quickRecallEnabled", title: "Enable the Quick Recall shortcut", category: .ask, aliases: "quickRecallEnabled system-wide ask anywhere global"),
+        .init(id: "settings.quickRecallShortcut", title: "Quick Recall shortcut", category: .ask, aliases: "ask hotkey keyboard key combination change"),
         .init(id: "settings.selectionActionsEnabled", title: "Enable the selection actions shortcut", category: .ask,
               aliases: "selectionActionsEnabled rewrite selected text fix grammar translate summarize reply raycast ai commands"),
         .init(id: "settings.selectionActionsShortcut", title: "Selection actions shortcut", category: .ask,

@@ -15,7 +15,17 @@ import AVFoundation
 /// then the answer as flat text with tool activity collapsed to one line,
 /// its sources and its actions. Embedded by the Ask surface.
 struct ChatTranscriptView: View {
+    /// `page` is the Ask screen. `compact` is the answer inside the Quick
+    /// Recall window: tighter margins, the question under "You" and its time,
+    /// sources as rows like that window's results, and no per-answer actions
+    /// (the window's foot has Copy).
+    enum Style { case page, compact }
+
     @ObservedObject var model: ChatViewModel
+    var style: Style = .page
+    /// Called after a source was opened from an answer, so a small window
+    /// can bring the main window forward and close.
+    var onOpenSource: ((ChatCitation.Kind) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isNearBottom = true
     @State private var scrollPosition = ScrollPosition(edge: .top)
@@ -34,13 +44,15 @@ struct ChatTranscriptView: View {
                                 dateDividerTitle: entry.dateDividerTitle,
                                 isLatestQuestion: entry.isLatestQuestion,
                                 question: entry.question,
-                                isLastTurn: entry.isLastTurn)
+                                isLastTurn: entry.isLastTurn,
+                                style: style,
+                                onOpenSource: onOpenSource)
                                 .id(entry.id)
                         }
                     }
-                    .padding(.horizontal, WorkspaceMetric.pagePadding)
-                    .padding(.top, 20)
-                    .padding(.bottom, WorkspaceMetric.pagePadding)
+                    .padding(.horizontal, style == .compact ? 24 : WorkspaceMetric.pagePadding)
+                    .padding(.top, style == .compact ? 14 : 20)
+                    .padding(.bottom, style == .compact ? 14 : WorkspaceMetric.pagePadding)
                     .workspaceReadingWidth()
                     .frame(maxWidth: .infinity, alignment: .top)
                     .accessibilityIdentifier("chat.readingColumn")
@@ -252,6 +264,8 @@ private struct EditorialTurn: View {
     let question: ChatMessage?
     /// The answer that ends the conversation; a failed one keeps its matches.
     let isLastTurn: Bool
+    var style: ChatTranscriptView.Style = .page
+    var onOpenSource: ((ChatCitation.Kind) -> Void)?
     @ObservedObject private var downloads = ModelDownloadManager.shared
     @State private var speechPlayer: AVAudioPlayer?
     @State private var speechError: String?
@@ -272,7 +286,11 @@ private struct EditorialTurn: View {
                 Divider().padding(.bottom, 8)
             }
             Group {
-                if message.role == .user { userRow } else { assistantBlock }
+                if message.role == .user {
+                    if style == .compact { compactUserRow } else { userRow }
+                } else {
+                    assistantBlock
+                }
             }
         }
         .accessibilityIdentifier(message.role == .user ? "chat.message.user"
@@ -314,6 +332,29 @@ private struct EditorialTurn: View {
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityValue(userTurnAccessibilityValue)
+    }
+
+    /// Quick Recall: "You" and the time on a quiet line, the question under it.
+    private var compactUserRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(verbatim: compactAskedLine)
+                .font(AppFont.scaled(.callout).monospacedDigit())
+                .foregroundStyle(.secondary)
+            Text(message.text)
+                .font(AppFont.scaledSystem(size: 16, weight: .semibold))
+                .lineLimit(questionIsExpanded ? nil : 3)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityValue(userTurnAccessibilityValue)
+    }
+
+    private var compactAskedLine: String {
+        let you = app.settings.appLanguage.localized("You")
+        guard !message.createdAtIsEstimated else { return you }
+        return "\(you) · \(message.createdAt.formatted(date: .omitted, time: .shortened))"
     }
 
     @ViewBuilder private var assistantBlock: some View {
@@ -363,10 +404,17 @@ private struct EditorialTurn: View {
                     if !message.isPending {
                         let claimIDs = model.personalModel == nil ? [] : message.usedClaimIDs ?? []
                         if !parsed.citations.isEmpty || !claimIDs.isEmpty {
-                            AnswerSourcesList(citations: parsed.citations, claimIDs: claimIDs,
-                                              personalModel: model.personalModel, open: $openCitation)
+                            switch style {
+                            case .page:
+                                AnswerSourcesList(citations: parsed.citations, claimIDs: claimIDs,
+                                                  personalModel: model.personalModel, open: $openCitation)
+                            case .compact:
+                                QuickRecallAnswerSources(citations: parsed.citations, claimIDs: claimIDs,
+                                                         personalModel: model.personalModel,
+                                                         question: question?.text ?? "", onOpen: onOpenSource)
+                            }
                         }
-                        answerActions(copyText: parsed.display)
+                        if style == .page { answerActions(copyText: parsed.display) }
                     }
                 }
             }
@@ -394,8 +442,13 @@ private struct EditorialTurn: View {
                     .popover(item: answerPassage, attachmentAnchor: .rect(answerPassageAnchor),
                              arrowEdge: .bottom) { open in
                         if parsed.citations.indices.contains(open.number - 1) {
-                            CitationPassagePopover(citation: parsed.citations[open.number - 1]) {
+                            let citation = parsed.citations[open.number - 1]
+                            CitationPassagePopover(citation: citation) {
                                 openCitation = nil
+                                // The popover opens its source right after this.
+                                if let onOpenSource {
+                                    DispatchQueue.main.async { onOpenSource(citation.kind) }
+                                }
                             }
                         }
                     }

@@ -9,6 +9,9 @@ struct AskNavigationHandoff: Equatable, Sendable {
     let submit: Bool
     var meetingIDs: Set<Meeting.ID>?
     var mode: AskMode = .ask
+    /// The sources to search, when the handoff narrows them (Quick Recall's
+    /// "Show all" for one kind). Nil leaves the chosen sources as they are.
+    var sources: Set<AskSourceScope>?
 }
 
 enum EvidenceIntent: Equatable, Sendable { case reveal, play }
@@ -65,13 +68,14 @@ final class NavigationHandoff: ObservableObject {
         screenSnapshotIDs: [Int64]?,
         submit: Bool,
         meetingIDs: Set<Meeting.ID>? = nil,
-        mode: AskMode = .ask
+        mode: AskMode = .ask,
+        sources: Set<AskSourceScope>? = nil
     ) {
         pendingAsk = AskNavigationHandoff(
             query: query.isEmpty ? nil : query,
             dayScope: dayScope,
             screenSnapshotIDs: screenSnapshotIDs,
-            submit: submit, meetingIDs: meetingIDs, mode: mode)
+            submit: submit, meetingIDs: meetingIDs, mode: mode, sources: sources)
         changed()
     }
 

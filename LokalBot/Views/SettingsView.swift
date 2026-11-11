@@ -384,20 +384,20 @@ struct SettingsView: View {
     // MARK: - Ask
 
     private var askAnywhereSection: some View {
-                Section("Ask anywhere") {
+                Section("Quick Recall") {
                     Toggle(isOn: $app.settings.quickRecallEnabled) {
-                        SettingsLabel("Enable the system-wide Ask shortcut",
-                                      help: "Press \(app.settings.quickRecallShortcut.displayLabel) in any app to search your work memory or ask a question. LokalBot registers only this shortcut and never reads other keystrokes.")
+                        SettingsLabel("Enable the Quick Recall shortcut",
+                                      help: "Press \(app.settings.quickRecallShortcut.displayLabel) in any app to open Quick Recall: search your work memory, run a command, or ask a question. Inside LokalBot, ⌘K opens it too. LokalBot registers only this shortcut and never reads other keystrokes.")
                     }
-                    .accessibilityLabel("Enable the system-wide Ask shortcut")
+                    .accessibilityLabel("Enable the Quick Recall shortcut")
                     .accessibilityIdentifier("settings.quickRecallEnabled")
                     .settingTarget("settings.quickRecallEnabled", selected: app.focusedSettingID)
-                    LabeledContent("Ask shortcut") {
+                    LabeledContent("Quick Recall shortcut") {
                         ShortcutRecorder(
                             shortcut: $app.settings.quickRecallShortcut,
                             defaultShortcut: .quickRecallDefault,
                             accessibilityIdentifier: "settings.quickRecallShortcut",
-                            changeHelp: "Change the Ask shortcut",
+                            changeHelp: "Change the Quick Recall shortcut",
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
                                     for: candidate, dictationShortcut: app.settings.dictationShortcut,

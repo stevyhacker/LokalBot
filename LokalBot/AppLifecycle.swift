@@ -193,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if showsOnboarding {
             contentSize = NSSize(width: OnboardingView.size.width, height: OnboardingView.size.height)
         } else if showsQuickRecall {
-            contentSize = NSSize(width: 660, height: 480)
+            contentSize = NSSize(width: QuickRecallView.size.width, height: QuickRecallView.size.height)
         } else {
             // GitHub's hosted macOS desktop is narrower than the production
             // default. Keep the synthetic host inside the visible frame so
@@ -231,7 +231,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
         window.title = showsOnboarding ? "Welcome to LokalBot"
-            : (showsQuickRecall ? "Ask" : (showsSettings ? "Settings" : "LokalBot"))
+            : (showsQuickRecall ? "Quick Recall" : (showsSettings ? "Settings" : "LokalBot"))
         // Quick Recall has no title bar; setup's stepper and Settings' page
         // title are their own top bars.
         if showsQuickRecall || showsOnboarding || showsSettings {

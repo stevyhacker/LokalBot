@@ -90,13 +90,17 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 5), "sidebar did not return")
     }
 
-    /// The command palette uses one AppKit field-editor path. A printable key
-    /// must update its query exactly once rather than also travelling through
-    /// the palette's navigation-key handler.
+    /// ⌘K opens Quick Recall, which took over the command palette. Its field
+    /// uses one AppKit field-editor path, as the palette's did: a printable
+    /// key must update the query exactly once rather than also travelling
+    /// through the list's navigation-key handler.
     func testCommandPaletteDoesNotDuplicateTypedCharacters() {
         app.typeKey("k", modifierFlags: .command)
-        let field = app.textFields["palette.input"]
-        XCTAssertTrue(field.waitForExistence(timeout: 4), "command palette input missing")
+        let field = app.textFields["quickRecall.input"]
+        XCTAssertTrue(field.waitForExistence(timeout: 4), "⌘K did not open Quick Recall")
+        XCTAssertFalse(app.textFields["palette.input"].exists, "the separate palette window is gone")
+        // Before typing, the window lists the commands the palette ran.
+        XCTAssertTrue(app.buttons["quickRecall.row.command.record"].waitForExistence(timeout: 4))
 
         field.click()
         field.typeText("AI tooling")
