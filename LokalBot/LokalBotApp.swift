@@ -275,6 +275,11 @@ struct LokalBotApp: App {
             mainWindow
         }
         .defaultSize(width: 1180, height: 740)
+        // Meetings, Timeline, People, Projects and Agent remove the system
+        // title to put their own in the toolbar. Left to itself the toolbar
+        // then turns compact (38 pt, not 52), so the sidebar and content
+        // jumped 14 pt when switching sections. One style keeps one height.
+        .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
             AgentCommands(app: app, language: language, active: scene.values.agentActive)

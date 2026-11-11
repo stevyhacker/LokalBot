@@ -237,6 +237,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if showsQuickRecall || showsOnboarding || showsSettings {
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
+        } else {
+            // The same toolbar height as the app's main window scene
+            // (`.windowToolbarStyle(.unified)`), whether or not a section
+            // removes the system title.
+            window.toolbarStyle = .unified
         }
         window.identifier = NSUserInterfaceItemIdentifier("\(windowKind).window")
 #if LOKALBOT_UI_TEST_HOST
