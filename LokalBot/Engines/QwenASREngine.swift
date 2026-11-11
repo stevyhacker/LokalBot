@@ -306,9 +306,9 @@ actor QwenASREngine: TranscriptionEngine {
     ///
     /// Serbian, Croatian, Bosnian and Montenegrin vote together and pin to
     /// Croatian, which is not on the model card. Left on auto, these tracks
-    /// slip window by window into Macedonian, Russian or Chinese (one
-    /// Serbian-language call had 46 of 463 lines in Chinese, Japanese or Hindi
-    /// script). Pinned to `hr`, Benchmarks/DualASR measured 0.1% non-Latin
+    /// slip window by window into Macedonian, Russian or Chinese, and lines
+    /// come out in Chinese, Japanese or Hindi script. Pinned to `hr`,
+    /// Benchmarks/DualASR measured 0.1% non-Latin
     /// letters, Croatian 24.8% WER against 26.8% on auto, and the Montenegrin
     /// meeting 38.5% against 38.3%. `sr` read Serbian better (14.5% against
     /// 17.3%) but wrote half of everything in Cyrillic.

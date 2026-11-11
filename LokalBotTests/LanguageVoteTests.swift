@@ -46,9 +46,9 @@ final class LanguageVoteTests: XCTestCase {
         XCTAssertTrue(QwenASREngine.supportedLanguages.isSuperset(of: ["en", "zh", "yue", "de", "ja", "mk"]))
     }
 
-    /// On a Serbian-language call, both tracks voted 88–90% Croatian on auto,
-    /// were never pinned, and 82 of 463 lines came out in Chinese, Japanese,
-    /// Hindi, Macedonian or Russian script.
+    /// Apple's recognizer reads Latin-script Serbian as Croatian, which Qwen
+    /// does not list, so these tracks used to stay on auto and drift into
+    /// Chinese, Japanese, Hindi, Macedonian or Russian script.
     func testSerbianCroatianAndBosnianTracksPinToCroatianInEitherScript() throws {
         let montenegrin = [
             "Sastanak smo pomjerili za sljedeću sedmicu jer su dvije koleginice bolesne.",

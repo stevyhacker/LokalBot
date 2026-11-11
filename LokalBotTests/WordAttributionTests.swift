@@ -248,9 +248,9 @@ final class WordAttributionTests: XCTestCase {
 
     /// On auto-detect, a track the aligner cannot time falls back to speaker
     /// regions. Those regions are seconds long, too short to detect the
-    /// language again: on a Serbian-language call, Qwen read breaths and
-    /// short replies in them as Chinese, Japanese and Russian. They decode in
-    /// the language the whole track settled on instead.
+    /// language again: Qwen reads breaths and short replies in them as
+    /// Chinese, Japanese or Russian. They decode in the language the whole
+    /// track settled on instead.
     @MainActor
     func testRegionsFallbackDecodesInTheLanguageTheTrackSettledOn() async throws {
         let url = try writeTrack(seconds: 10)

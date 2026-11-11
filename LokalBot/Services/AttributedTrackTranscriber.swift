@@ -141,8 +141,7 @@ enum AttributedTrackTranscriber {
             try Task.checkCancellation()
             // Regions also cover the pauses between turns, so unattributed
             // speech is kept. Given silence instead, Whisper writes a stock
-            // phrase such as "Thank you."; on one 21-minute call, 151 of 968
-            // regions held no detected speech.
+            // phrase such as "Thank you.", and decoding it is wasted time.
             if let speech, Self.speechSeconds(in: region.start...region.end, speech: speech)
                 < Self.minimumRegionSpeech {
                 silentRegions += 1
