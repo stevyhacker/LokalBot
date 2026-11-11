@@ -64,7 +64,7 @@ GUIDES = [
     {
         "slug": "local-ai-meeting-notes-linux",
         "published": "2026-10-26",
-        "updated": "2026-11-03",
+        "updated": "2026-11-11",
         "updated_label": "November 3, 2026",
         "title": "Local AI Meeting Notes on Linux — Bot-Free and Open Source",
         "description": "Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.",
@@ -99,7 +99,7 @@ GUIDES = [
               <tr><th scope="row">Screen context (visible text, optional encrypted screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal when it can capture just the active window</td></tr>
               <tr><th scope="row">Dictation</th><td>Yes</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your compositor</td></tr>
               <tr><th scope="row">Selection actions</th><td>Yes</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your compositor</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>As an input method on Sway, Hyprland, and GNOME; elsewhere only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>As an input method on Sway, Hyprland, GNOME, and KDE Plasma; elsewhere only in the practice editor in Settings</td></tr>
               <tr><th scope="row">Tray icon</th><td colspan="2">Yes; GNOME needs the AppIndicator extension</td></tr>
             </tbody>
           </table>
@@ -109,10 +109,11 @@ GUIDES = [
         <ul>
           <li><strong>Sway and Hyprland:</strong> nothing more. A desktop runs one input method at a time, so if Fcitx or IBus is running, LokalBot stays out of its way and Settings says so. Omarchy runs Fcitx 5; if you don't use it, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start.</li>
           <li><strong>GNOME:</strong> add LokalBot in GNOME Settings → Keyboard → Input Sources → + → Other, then choose it in the top bar or with <kbd>Super+Space</kbd>. With the <code>.tar.gz</code>, first run the command Settings shows. Either way, log out and back in once. Firefox and Chrome stay quiet without the Window Calls extension.</li>
-          <li><strong>KDE Plasma and other compositors:</strong> not yet. Settings says so and offers the practice editor.</li>
+          <li><strong>KDE Plasma:</strong> choose LokalBot in System Settings → Keyboard → Virtual Keyboard and click Apply. If you run LokalBot from the extracted <code>.tar.gz</code> folder, first run the command Settings shows. Plasma holds one input method there, so this replaces Fcitx or IBus until you choose it again. After a LokalBot update, log out and back in once.</li>
+          <li><strong>Other compositors:</strong> not yet. Settings says so and offers the practice editor.</li>
         </ul>
-        <p>Not every app can take part. Qt 5 apps and X11 apps running through XWayland get no suggestions, though typing in them is unaffected, and older Chromium and Electron apps need <code>--enable-wayland-ime</code>, according to their documentation.</p>
-        <p>This route is new. It has only been tried on headless Sway 1.9 and GNOME Shell 46 with stand-in suggestions, not on real desktops with a real model, and Hyprland itself hasn't been run. The <a href="explainers/wayland-autocomplete.pdf">one-page explainer</a> covers what it reads and keeps, and the <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#autocomplete-on-wayland" target="_blank" rel="noopener">README</a> lists each desktop and app.</p>
+        <p>Not every app can take part. X11 apps running through XWayland get no suggestions, and neither do Qt 5 apps outside KDE Plasma, though typing in them is unaffected, and older Chromium and Electron apps need <code>--enable-wayland-ime</code>, according to their documentation.</p>
+        <p>This route is new. It has only been tried on headless Sway 1.9, GNOME Shell 46, and KWin 6.8 with stand-in suggestions, not on real desktops with a real model. Hyprland itself hasn't been run, and neither have Firefox and Chrome on KDE Plasma. The <a href="explainers/wayland-autocomplete.pdf">one-page explainer</a> covers what it reads and keeps, and the <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#autocomplete-on-wayland" target="_blank" rel="noopener">README</a> lists each desktop and app.</p>
 
         <h2>Install and stay updated</h2>
         <ul>
@@ -135,7 +136,7 @@ GUIDES = [
         </ul>
         """,
         "faq": [
-            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, but not yet on KDE Plasma or other compositors."),
+            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, and KDE Plasma, but not yet on other compositors."),
             ("Do I need an NVIDIA GPU?", "No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."),
             ("Can I move my library between Linux and a Mac?", "Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."),
         ],
@@ -411,7 +412,7 @@ GUIDES = [
     },
     {
         "slug": "system-requirements",
-        "updated": "2026-11-10",
+        "updated": "2026-11-11",
         "updated_label": "November 10, 2026",
         "title": "LokalBot System Requirements: Mac, Windows and Linux (alpha)",
         "description": "Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.",
@@ -486,7 +487,7 @@ GUIDES = [
               <tr><th scope="row">Screen context (visible text, optional screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal</td></tr>
               <tr><th scope="row">Dictation</th><td>Hold Alt+Space</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your desktop's settings</td></tr>
               <tr><th scope="row">Selection actions</th><td>Press Ctrl+Alt+Space</td><td>Bind <code>lokalbot selection-actions</code> to a shortcut in your desktop's settings</td></tr>
-              <tr><th scope="row">Autocomplete in other apps</th><td>Yes</td><td>As an input method on Sway, Hyprland, and GNOME, lightly tested so far (see the <a href="local-ai-meeting-notes-linux">Linux guide</a>); elsewhere only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>Yes</td><td>As an input method on Sway, Hyprland, GNOME, and KDE Plasma, lightly tested so far (see the <a href="local-ai-meeting-notes-linux">Linux guide</a>); elsewhere only in the practice editor in Settings</td></tr>
             </tbody>
           </table>
         </div>

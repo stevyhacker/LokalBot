@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// The matches for what is typed in Ask: a row per meeting, screen moment or
-/// file, each with the lines that matched. The same list sits under the field
+/// The matches for what is typed in Ask: a row per meeting, screen moment,
+/// file or saved agent note, each with the lines that matched. The same list sits under the field
 /// on a new question, in the tray above the field inside a conversation, and
 /// under an answer that failed. Clicking a title or a line opens it.
 struct AskMatchesList: View {
@@ -55,6 +55,11 @@ struct AskMatchesList: View {
                 let index = matches.meetings.count + matches.screens.count + offset
                 if index > 0 { rowDivider }
                 fileRow(hit, index: index)
+            }
+            ForEach(Array(matches.agentNotes.enumerated()), id: \.element.id) { offset, hit in
+                let index = matches.meetings.count + matches.screens.count + matches.files.count + offset
+                if index > 0 { rowDivider }
+                agentNoteRow(hit, index: index)
             }
         }
         .accessibilityElement(children: .contain)
@@ -186,6 +191,30 @@ struct AskMatchesList: View {
                 Button("Open") { FileSearchOpener.open(hit, query: query) }
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([hit.url]) }
             }
+        }
+    }
+
+    // MARK: Agent notes
+
+    /// A note a coding agent saved for itself: its title, the agent and
+    /// project, then the matched words. It opens the agent's own file.
+    private func agentNoteRow(_ hit: AgentNoteHit, index: Int) -> some View {
+        rowShell(index: index) {
+            AskSourceTile(symbol: "note.text")
+        } content: {
+            rowTitle(hit.title, trailing: hit.sourceLabel) { AgentNoteOpener.open(hit) }
+            line(identifier: "agentNote.hit.\(hit.id)",
+                 snippet: hit.snippet.isEmpty ? (hit.summary ?? hit.path) : hit.snippet,
+                 isSemantic: false, lineLimit: 2) {
+                AgentNoteOpener.open(hit)
+            } kind: {
+                Text(verbatim: AskDateLabel.day(hit.modified, locale: locale)).lineLimit(1)
+            }
+            .contextMenu {
+                Button("Open") { AgentNoteOpener.open(hit) }
+                Button("Show in Finder") { AgentNoteOpener.reveal(hit) }
+            }
+            .help(hit.path)
         }
     }
 

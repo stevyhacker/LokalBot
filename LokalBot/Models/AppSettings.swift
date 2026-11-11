@@ -396,6 +396,20 @@ struct AppSettings: Codable, Equatable {
         return agents
     }
 
+    /// Read the notes Claude Code and Codex keep for their own later
+    /// sessions into a searchable index. Off until the person turns it on:
+    /// the notes are the agents' words about any project they worked in.
+    /// The per-agent switches and folder exclusions above apply here too.
+    var codingAgentNotesEnabled: Bool = false
+    /// Agents whose notes are read now; empty while the feature is off.
+    var codingAgentNoteAgents: Set<CodingAgentKind> {
+        guard codingAgentNotesEnabled else { return [] }
+        var agents: Set<CodingAgentKind> = []
+        if codingAgentReadsClaudeCode { agents.insert(.claudeCode) }
+        if codingAgentReadsCodex { agents.insert(.codex) }
+        return agents
+    }
+
     // MARK: - Daily memory export
 
     enum DailyMemoryExportFormat: String, Codable, CaseIterable, Identifiable {
@@ -1047,6 +1061,7 @@ struct AppSettings: Codable, Equatable {
         case codingAgentReadsClaudeCode
         case codingAgentReadsCodex
         case codingAgentExcludedFolders
+        case codingAgentNotesEnabled
         case dailyMemoryExportEnabled
         case dailyMemoryExportFolder
         case dailyMemoryExportFormat
@@ -1282,6 +1297,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(codingAgentReadsClaudeCode, forKey: .codingAgentReadsClaudeCode)
         try c.encode(codingAgentReadsCodex, forKey: .codingAgentReadsCodex)
         try c.encode(codingAgentExcludedFolders, forKey: .codingAgentExcludedFolders)
+        try c.encode(codingAgentNotesEnabled, forKey: .codingAgentNotesEnabled)
         try c.encode(dailyMemoryExportEnabled, forKey: .dailyMemoryExportEnabled)
         try c.encode(dailyMemoryExportFolder, forKey: .dailyMemoryExportFolder)
         try c.encode(dailyMemoryExportFormat, forKey: .dailyMemoryExportFormat)
@@ -1506,6 +1522,7 @@ struct AppSettings: Codable, Equatable {
         codingAgentReadsCodex = decode(.codingAgentReadsCodex, defaults.codingAgentReadsCodex)
         codingAgentExcludedFolders = decode(
             .codingAgentExcludedFolders, defaults.codingAgentExcludedFolders)
+        codingAgentNotesEnabled = decode(.codingAgentNotesEnabled, defaults.codingAgentNotesEnabled)
         dailyMemoryExportEnabled = decode(
             .dailyMemoryExportEnabled, defaults.dailyMemoryExportEnabled)
         dailyMemoryExportFolder = decode(

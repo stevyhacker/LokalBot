@@ -12,8 +12,16 @@ final class AskPresentationTests: XCTestCase {
     // MARK: Matches
 
     func testMatchesListMeetingsThenScreenMomentsThenFiles() {
-        let matches = sampleMatches()
+        var matches = sampleMatches()
         XCTAssertEqual(matches.count, 4)
+        // Saved agent notes, when that source is on, come last.
+        matches.agentNotes = [note("0123abcd", title: "Release runbook")]
+        XCTAssertEqual(matches.count, 5)
+        guard case .agentNote(let listed)? = matches.row(at: 4) else { return XCTFail("the note is not the last row") }
+        XCTAssertEqual(listed.id, "0123abcd")
+        XCTAssertNil(matches.row(at: 5))
+        XCTAssertEqual(matches.countLabel(), "5")
+        matches.agentNotes = []
         guard case .meeting(let first)? = matches.row(at: 0), case .meeting(let second)? = matches.row(at: 1),
               case .screen(let screen)? = matches.row(at: 2), case .file(let file)? = matches.row(at: 3) else {
             return XCTFail("rows are not in list order")
@@ -46,9 +54,11 @@ final class AskPresentationTests: XCTestCase {
     func testMatchesCopyASearchResult() {
         var result = RecallSearch.Result()
         result.meetings = [group(meetingA, kinds: [.segment])]
+        result.agentNotes = [note("0123abcd", title: "Release runbook")]
         result.isTruncated = true
         let matches = AskMatches(result)
         XCTAssertEqual(matches.meetings.map(\.id), [meetingA])
+        XCTAssertEqual(matches.agentNotes.map(\.id), ["0123abcd"])
         XCTAssertTrue(matches.isTruncated)
         XCTAssertTrue(AskMatches().isEmpty)
     }
@@ -109,6 +119,25 @@ final class AskPresentationTests: XCTestCase {
             input(sources: [.meetings, .today, .screen], available: [.meetings, .today, .screen]),
             meetingTitle: { _ in nil })
         XCTAssertEqual(withoutFiles.title, "All sources")
+    }
+
+    func testSourcesMenuNamesAgentNotesOnlyWhileTheyAreOffered() {
+        // "All sources" holds Agent notes whether or not the setting is on.
+        let off = AskScopeSummary.make(input(available: [.meetings, .today, .screen, .files]),
+                                       meetingTitle: { _ in nil })
+        XCTAssertEqual(off.title, "All sources")
+        let chosen = AskScopeSummary.make(input(sources: [.meetings, .agentNotes]), meetingTitle: { _ in nil })
+        XCTAssertEqual(chosen.title, "Meetings, Agent notes")
+        let hidden = AskScopeSummary.make(
+            input(sources: [.meetings, .agentNotes], available: [.meetings, .today, .screen, .files]),
+            meetingTitle: { _ in nil })
+        XCTAssertEqual(hidden.title, "Meetings", "a source that is switched off is not named")
+
+        // Only notes matched: the limit holds no meeting or screen moment.
+        let onlyNotes = AskScopeSummary.make(
+            input(sources: [.meetings, .agentNotes], meetingIDs: [], screenIDs: []),
+            meetingTitle: { _ in nil })
+        XCTAssertEqual(onlyNotes.title, "Agent notes")
     }
 
     func testSourcesMenuShowsWhatAFollowUpIsLimitedTo() {
@@ -182,9 +211,13 @@ final class AskPresentationTests: XCTestCase {
             .init(meetingID: "11223344", seconds: 8),
             .init(snapshotID: 42),
             .init(meetingID: "aabbccdd", seconds: 24),
+            .init(noteID: "0123ABCD"),
+            .init(noteID: "0123abcd"),
         ]
         let groups = AnswerSources.groups(citations)
-        XCTAssertEqual(groups.map(\.kind), [.meeting, .file, .meeting, .screen])
+        XCTAssertEqual(groups.map(\.kind), [.meeting, .file, .meeting, .screen, .note])
+        XCTAssertEqual(groups[4].entries.map(\.number), [7, 8], "one saved agent note is one row")
+        XCTAssertEqual(groups[4].first.noteID, "0123abcd")
         XCTAssertEqual(groups[0].entries.map(\.number), [1, 2, 6], "numbers are the answer's own")
         XCTAssertEqual(groups[0].entries.map(\.citation.seconds), [12, 35, 24])
         XCTAssertEqual(groups[1].entries.map(\.number), [3])
@@ -322,6 +355,12 @@ final class AskPresentationTests: XCTestCase {
                        before: Set<AskSourceScope>? = nil) -> AskScopeSummary.Input {
         .init(sources: sources, available: available, meetingIDs: meetingIDs, screenIDs: screenIDs,
               sourcesBeforeEvidence: before)
+    }
+
+    private func note(_ id: String, title: String) -> AgentNoteHit {
+        AgentNoteHit(id: id, agent: "claude-code", title: title, summary: "How a release is cut.", category: nil,
+                     workingDirectory: "/Users/someone/LokalBot", path: "/Users/someone/.claude/notes/\(id).md",
+                     modified: Date(timeIntervalSince1970: 60), snippet: "«release» steps")
     }
 
     private func group(_ id: UUID, kinds: [SearchIndex.Kind]) -> MeetingRecallGroup {

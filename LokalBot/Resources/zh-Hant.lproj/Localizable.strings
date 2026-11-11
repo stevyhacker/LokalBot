@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "重新產生摘要";
 "Copy digest" = "拷貝摘要";
 "Export as Markdown…" = "輸出 Markdown…";
+"Read coding agent notes" = "讀取程式設計智慧體的筆記";
+"Read coding agent notes?" = "要讀取程式設計智慧體的筆記嗎？";
+"What is read from notes" = "從筆記中讀取的內容";
+"Saved notes" = "已儲存的筆記";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot 會讀取 Claude Code 與 Codex 在其工作過的每個專案中為自己儲存的筆記，並在資料庫中保留一份可搜尋的副本。任何資料都不會離開這台 Mac。關閉此功能會刪除該副本。";
+"Agent notes" = "智慧體筆記";
+"Agent note" = "智慧體筆記";
+"Let external agents search agent notes" = "允許外部智慧體搜尋智慧體筆記";
+"External agent notes access" = "智慧體筆記的外部存取";
+"Coding agent notes are off" = "程式設計智慧體筆記已關閉";

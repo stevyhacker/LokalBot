@@ -8,7 +8,7 @@ It is a skills-only plugin marked **Desktop only**: it runs in Codex and in Chat
 
 | Skill | What it does |
 | --- | --- |
-| `lokalbot-cli` | Teaches the agent when to check LokalBot and every CLI command: `brief`, `list`, `get`, `search`, `ask`, `reply`, `actions`, `people`, `search-files`, `personal-context`, and the settings and setup commands. A copy of [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md), which the Mac app bundles. |
+| `lokalbot-cli` | Teaches the agent when to check LokalBot and every CLI command: `brief`, `list`, `get`, `search`, `ask`, `reply`, `actions`, `people`, `search-files`, `search-notes`, `personal-context`, and the settings and setup commands. A copy of [.agents/skills/lokalbot-cli/SKILL.md](../../.agents/skills/lokalbot-cli/SKILL.md), which the Mac app bundles. |
 | `lokalbot-brief` | A short, cited catch-up: what's in flight, what you owe and to whom, recent decisions, and which sources were off. |
 | `lokalbot-recall` | Finds what you said, saw, agreed, or saved, picks the right source, and cites it. |
 | `lokalbot-setup` | Installs LokalBot and sets it up with you; you approve access and consent changes in LokalBot. It is the plugin's onboarding skill, so it runs after install. |
@@ -26,7 +26,7 @@ Once the directory listing is approved, install it from the plugin directory in 
 
 ## Permissions and privacy
 
-Reading needs an explicit opt-in in LokalBot. On a Mac: Settings → External Agents → **Allow external agents to read your LokalBot data**, then tick Meetings, What I shared about myself, or Files. On Windows and Linux: each has its own switch under External agents in Settings → Privacy & Data. Changing settings is a separate switch, and anything that widens what LokalBot captures, plus every API key, waits for your approval in the app.
+Reading needs an explicit opt-in in LokalBot. On a Mac: Settings → External Agents → **Allow external agents to read your LokalBot data**, then tick Meetings, What I shared about myself, Files, or Agent notes. On Windows and Linux: each has its own switch under External agents in Settings → Privacy & Data. Changing settings is a separate switch, and anything that widens what LokalBot captures, plus every API key, waits for your approval in the app.
 
 LokalBot doesn't upload your library. The commands run on your computer, but ChatGPT and Codex process what they return under OpenAI's terms. The skills retrieve only what a question needs and never change your meetings or files.
 

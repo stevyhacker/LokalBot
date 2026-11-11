@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "まとめを再生成";
 "Copy digest" = "まとめをコピー";
 "Export as Markdown…" = "Markdownをエクスポート…";
+"Read coding agent notes" = "コーディングエージェントのメモを読み取る";
+"Read coding agent notes?" = "コーディングエージェントのメモを読み取りますか？";
+"What is read from notes" = "メモから読み取る内容";
+"Saved notes" = "保存済みメモ";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBotは、Claude CodeとCodexが作業した各プロジェクトで自分用に保存したメモを読み取り、検索可能なコピーをライブラリに保存します。データがこのMacの外に出ることはありません。オフにするとコピーは削除されます。";
+"Agent notes" = "エージェントのメモ";
+"Agent note" = "エージェントのメモ";
+"Let external agents search agent notes" = "外部エージェントに「エージェントのメモ」の検索を許可";
+"External agent notes access" = "エージェントのメモへの外部アクセス";
+"Coding agent notes are off" = "コーディングエージェントのメモはオフです";

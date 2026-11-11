@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Tengeneza Muhtasari Upya";
 "Copy digest" = "Nakili Muhtasari";
 "Export as Markdown…" = "Hamisha Markdown…";
+"Read coding agent notes" = "Soma maelezo ya wakala wa programu";
+"Read coding agent notes?" = "Usome maelezo ya wakala wa programu?";
+"What is read from notes" = "Kinachosomwa kutoka kwenye maelezo";
+"Saved notes" = "Maelezo yaliyohifadhiwa";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot husoma maelezo ambayo Claude Code na Codex walijihifadhia, kwa kila mradi waliofanyia kazi, na kuhifadhi nakala inayoweza kutafutwa katika maktaba yake. Hakuna kinachotoka kwenye Mac hii. Kuzima kipengele hiki hufuta nakala hiyo.";
+"Agent notes" = "Maelezo ya mawakala";
+"Agent note" = "Maelezo ya wakala";
+"Let external agents search agent notes" = "Ruhusu mawakala wa nje watafute maelezo ya mawakala";
+"External agent notes access" = "Ufikiaji wa maelezo ya mawakala kutoka nje";
+"Coding agent notes are off" = "Maelezo ya wakala wa programu yamezimwa";

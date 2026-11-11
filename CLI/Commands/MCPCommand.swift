@@ -4,7 +4,7 @@ import Foundation
 struct MCPCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "mcp",
-        abstract: "Serve the meeting library, and optionally screen memory, shared Personal Context, and Files, over MCP.",
+        abstract: "Serve the meeting library, and optionally screen memory, shared Personal Context, Files, and agent notes, over MCP.",
         discussion: """
             For GUI agent clients (Claude Desktop, and any MCP-capable app):
 
@@ -20,12 +20,15 @@ struct MCPCommand: AsyncParsableCommand {
             returns only Personal Context items the user shared. Files:
             search_files searches the folders the user chose under Files by
             their words and returns paths, excerpts, and matched passages.
+            Agent notes: search_agent_notes searches the notes the user's
+            coding agents saved for themselves and returns their text.
             Read tools work with the app closed; ask_library needs the app
             running (it answers with the local model on localhost:17872).
 
             Each group needs its box under "Allow external agents to read
             your LokalBot data" in Settings → External Agents:
-            Meetings, Screen memory, What I shared about myself, or Files.
+            Meetings, Screen memory, What I shared about myself, Files, or
+            Agent notes.
             Screen tools expose only local OCR and metadata — never decrypted
             pixels or screenshot file paths. search_files never changes files.
             The MCP handshake and tools/list work while a permission is off;

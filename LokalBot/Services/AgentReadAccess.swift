@@ -15,7 +15,7 @@ import Foundation
 @MainActor
 final class AgentReadAccess: ObservableObject {
     enum Kind: String, CaseIterable, Codable, Identifiable, Sendable {
-        case meetings, screenMemory, personalContext, files
+        case meetings, screenMemory, personalContext, files, agentNotes
 
         var id: String { rawValue }
     }
@@ -32,16 +32,20 @@ final class AgentReadAccess: ObservableObject {
     let screenMemory: ScreenMemoryAccessManager
     let personalContext: PersonalContextAccessManager
     let files: FilesAccessManager
+    let agentNotes: AgentNotesAccessManager
     private let choicesURL: URL
     private var remembered: Choices
     private var forwarding: Set<AnyCancellable> = []
 
     init(meetings: AgentAccessManager, screenMemory: ScreenMemoryAccessManager,
-         personalContext: PersonalContextAccessManager, files: FilesAccessManager, root: URL) {
+         personalContext: PersonalContextAccessManager, files: FilesAccessManager,
+         agentNotes: AgentNotesAccessManager? = nil, root: URL) {
         self.meetings = meetings
         self.screenMemory = screenMemory
         self.personalContext = personalContext
         self.files = files
+        let agentNotes = agentNotes ?? AgentNotesAccessManager(gate: AgentNotesAccessGate(root: root))
+        self.agentNotes = agentNotes
         choicesURL = root.appendingPathComponent("control", isDirectory: true)
             .appendingPathComponent(Self.choicesFileName)
         remembered = Self.load(from: choicesURL)
@@ -49,7 +53,7 @@ final class AgentReadAccess: ObservableObject {
         // switch and boxes follow them.
         let changes: [ObservableObjectPublisher] = [
             meetings.objectWillChange, screenMemory.objectWillChange,
-            personalContext.objectWillChange, files.objectWillChange,
+            personalContext.objectWillChange, files.objectWillChange, agentNotes.objectWillChange,
         ]
         for change in changes {
             change.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &forwarding)
@@ -67,6 +71,7 @@ final class AgentReadAccess: ObservableObject {
         case .screenMemory: screenMemory.isEnabled
         case .personalContext: personalContext.isEnabled
         case .files: files.isEnabled
+        case .agentNotes: agentNotes.isEnabled
         }
     }
 
@@ -144,6 +149,7 @@ final class AgentReadAccess: ObservableObject {
         case .screenMemory: screenMemory.setEnabled(on)
         case .personalContext: personalContext.setEnabled(on)
         case .files: files.setEnabled(on)
+        case .agentNotes: agentNotes.setEnabled(on)
         }
     }
 

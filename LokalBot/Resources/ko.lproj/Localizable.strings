@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "요약 다시 생성";
 "Copy digest" = "요약 복사";
 "Export as Markdown…" = "Markdown 내보내기…";
+"Read coding agent notes" = "코딩 에이전트 노트 읽기";
+"Read coding agent notes?" = "코딩 에이전트 노트를 읽을까요?";
+"What is read from notes" = "노트에서 읽는 내용";
+"Saved notes" = "저장한 노트";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot은 Claude Code와 Codex가 작업한 모든 프로젝트에서 스스로를 위해 저장해 둔 노트를 읽고, 검색할 수 있는 사본을 라이브러리에 보관합니다. 어떤 데이터도 이 Mac 밖으로 나가지 않습니다. 이 기능을 끄면 사본이 삭제됩니다.";
+"Agent notes" = "에이전트 노트";
+"Agent note" = "에이전트 노트";
+"Let external agents search agent notes" = "외부 에이전트의 에이전트 노트 검색 허용";
+"External agent notes access" = "에이전트 노트 외부 접근";
+"Coding agent notes are off" = "코딩 에이전트 노트가 꺼져 있습니다";

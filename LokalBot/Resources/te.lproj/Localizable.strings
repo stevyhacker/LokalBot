@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "సారాంశాన్ని మళ్లీ రూపొందించండి";
 "Copy digest" = "రోజు సారాంశాన్ని కాపీ చేయండి";
 "Export as Markdown…" = "Markdown ఎగుమతి చేయండి…";
+"Read coding agent notes" = "కోడింగ్ ఏజెంట్ నోట్స్‌ను చదవండి";
+"Read coding agent notes?" = "కోడింగ్ ఏజెంట్ నోట్స్‌ను చదవాలా?";
+"What is read from notes" = "నోట్స్ నుంచి ఏం చదవబడుతుంది";
+"Saved notes" = "సేవ్ చేసిన నోట్స్";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "Claude Code, Codex తాము పనిచేసిన ప్రతి ప్రాజెక్ట్ కోసం తమ కోసం సేవ్ చేసుకున్న నోట్స్‌ను LokalBot చదివి, వెతకగలిగే కాపీని తన లైబ్రరీలో ఉంచుతుంది. ఏదీ ఈ Mac నుంచి బయటకు వెళ్లదు. దీన్ని ఆఫ్ చేస్తే ఆ కాపీ తొలగించబడుతుంది.";
+"Agent notes" = "ఏజెంట్ నోట్స్";
+"Agent note" = "ఏజెంట్ నోట్";
+"Let external agents search agent notes" = "బాహ్య ఏజెంట్లు ఏజెంట్ నోట్స్‌ను వెతకడానికి అనుమతించండి";
+"External agent notes access" = "ఏజెంట్ నోట్స్‌కు బాహ్య యాక్సెస్";
+"Coding agent notes are off" = "కోడింగ్ ఏజెంట్ నోట్స్ ఆఫ్‌లో ఉన్నాయి";

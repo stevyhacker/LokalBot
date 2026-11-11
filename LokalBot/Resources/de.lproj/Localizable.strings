@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Übersicht neu erstellen";
 "Copy digest" = "Tagesübersicht kopieren";
 "Export as Markdown…" = "Markdown exportieren…";
+"Read coding agent notes" = "Notizen von Programmieragenten lesen";
+"Read coding agent notes?" = "Notizen von Programmieragenten lesen?";
+"What is read from notes" = "Was aus Notizen gelesen wird";
+"Saved notes" = "Gespeicherte Notizen";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot liest die Notizen, die Claude Code und Codex für sich selbst gespeichert haben, für jedes Projekt, in dem sie gearbeitet haben, und speichert eine durchsuchbare Kopie in seiner Bibliothek. Nichts verlässt diesen Mac. Wenn du das ausschaltest, wird die Kopie gelöscht.";
+"Agent notes" = "Agentennotizen";
+"Agent note" = "Agentennotiz";
+"Let external agents search agent notes" = "Externe Agenten Agentennotizen durchsuchen lassen";
+"External agent notes access" = "Externer Zugriff auf Agentennotizen";
+"Coding agent notes are off" = "Notizen von Programmieragenten sind aus";

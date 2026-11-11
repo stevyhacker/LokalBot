@@ -2364,3 +2364,13 @@
 "Rewrite digest" = "Rewrite digest";
 "Copy digest" = "Copy digest";
 "Export as Markdown…" = "Export as Markdown…";
+"Read coding agent notes" = "Read coding agent notes";
+"Read coding agent notes?" = "Read coding agent notes?";
+"What is read from notes" = "What is read from notes";
+"Saved notes" = "Saved notes";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy.";
+"Agent notes" = "Agent notes";
+"Agent note" = "Agent note";
+"Let external agents search agent notes" = "Let external agents search agent notes";
+"External agent notes access" = "External agent notes access";
+"Coding agent notes are off" = "Coding agent notes are off";

@@ -7,7 +7,7 @@
 <!--
   Release explainer source (RELEASING.md, "Explainers for major features").
   Render: python3 Scripts/render_explainer.py Docs/explainers/wayland-autocomplete.html web/explainers/wayland-autocomplete.pdf
-  One A4 sheet. The field text in the diagram is made up.
+  One A4 sheet, pictures first. The field text is made up.
 -->
 <style>
 @page { size: 210mm 297mm; margin: 0; }
@@ -15,35 +15,57 @@
   --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
   --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
   --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
-  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24; --no: #f0857a;
   --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); }
-body { color: var(--text); font-family: var(--font); font-size: 12.5px; line-height: 1.46; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-.page { width: 210mm; height: 297mm; overflow: hidden; padding: 13mm 15mm 9mm; display: flex; flex-direction: column; gap: 11px; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12px; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 14mm 8mm; display: flex; flex-direction: column; gap: 13px; background: radial-gradient(120% 60% at 80% 0%, #0d1c26 0%, var(--bg) 60%); }
 @media screen { .page { margin: 0 auto 24px; } }
-h1, h2, h3, p, ul { margin: 0; }
-h1 { font-size: 31px; line-height: 1.1; letter-spacing: -0.022em; font-weight: 750; }
-ul { padding-left: 15px; display: grid; gap: 3px; }
-.lede { font-size: 14px; color: var(--text-dim); max-width: 62ch; }
-.eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); }
-code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
-.sec { display: grid; gap: 8px; }
-.flow { display: grid; grid-template-columns: 1fr 26px 1fr 26px 1fr; align-items: center; gap: 4px; }
-.box { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; height: 100%; }
-.box h3 { font-size: 12.5px; margin: 0 0 3px; font-weight: 650; }
-.box p { color: var(--text-dim); font-size: 11px; }
-.arrow { text-align: center; color: var(--accent-text); font-size: 15px; }
-.field { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 7px; padding: 9px 12px; font-size: 13.5px; }
-.ghost { color: var(--text-faint); text-decoration: underline; }
-table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
-th { text-align: left; color: var(--text-faint); font-weight: 600; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line-strong); }
-td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--text-dim); }
-td:first-child { color: var(--text); white-space: nowrap; }
-.warn { color: var(--warn-text); }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 34px; line-height: 1.05; letter-spacing: -0.025em; font-weight: 760; }
+.lede { font-size: 15px; color: var(--text-dim); max-width: 58ch; }
+.eyebrow, .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent-text); }
+.label { display: flex; align-items: center; gap: 8px; }
+.label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+code { font-family: var(--mono); font-size: 0.9em; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stack { display: grid; gap: 10px; }
+.shot { border-radius: 9px; border: 1px solid var(--line-strong); overflow: hidden; background: #e9ebec; position: relative; }
+.shot img { display: block; width: 100%; }
+.cap { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+.cap b { color: var(--text); font-weight: 650; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; display: grid; gap: 4px; align-content: start; }
+.tile svg { width: 20px; height: 20px; color: var(--accent-text); }
+.tile h3 { font-size: 12px; font-weight: 680; line-height: 1.2; }
+.tile p { font-size: 10.5px; color: var(--text-dim); line-height: 1.35; }
+.sw { display: inline-block; width: 26px; height: 15px; border-radius: 8px; background: var(--accent); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fff; }
+.path { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; font-size: 11px; }
+.path .crumbs { color: var(--text-dim); }
+.path .crumbs b { color: var(--text); font-weight: 650; }
+.path small { display: block; color: var(--text-faint); font-size: 10px; margin-top: 1px; }
+.key { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 7px; border-radius: 6px; background: linear-gradient(#263444, #18222e); border: 1px solid var(--line-strong); border-bottom-width: 2.5px; font-size: 13px; font-weight: 600; }
+.arrow { color: var(--accent-text); font-size: 20px; text-align: center; align-self: center; }
+.steps { display: grid; gap: 9px; }
+.step { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; font-size: 11.5px; color: var(--text-dim); }
+.step b { color: var(--text); display: block; font-size: 12.5px; font-weight: 660; }
+.num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: rgba(35,196,174,.16); color: var(--accent-text); border: 1px solid rgba(35,196,174,.5); font-weight: 700; font-size: 12px; }
+.sk { height: 6px; border-radius: 3px; background: rgba(255,255,255,.13); }
+.win { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; }
+.win .bar { display: flex; align-items: center; gap: 5px; padding: 6px 9px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 10px; color: var(--text-faint); }
+.win .bar i { width: 7px; height: 7px; border-radius: 50%; background: #3a4a5a; display: block; }
+.win .body { padding: 10px 11px; display: grid; gap: 7px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line-strong); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.chip.on { border-color: rgba(35,196,174,.6); color: var(--accent-text); background: rgba(35,196,174,.12); }
+.btn { display: inline-block; padding: 3px 10px; border-radius: 6px; background: var(--accent); color: #04211d; font-weight: 700; font-size: 10px; }
+.warn { color: var(--warn-text); font-size: 11px; }
+.note { color: var(--text-faint); font-size: 10px; }
 .foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 7px; }
 </style>
 </head>
@@ -51,52 +73,62 @@ td:first-child { color: var(--text); white-space: nowrap; }
 <section class="page">
   <div class="eyebrow">Linux · Wayland · alpha</div>
   <h1>Autocomplete in your apps, on Wayland</h1>
-  <p class="lede">Wayland lets no ordinary app read another's keys or type into it, so LokalBot joins as an input method, the way language input tools do. Suggestions appear in the field itself. Tab accepts and Esc dismisses.</p>
-  <div class="field">Thanks for the update. I wanted to follow<span class="ghost"> up on the migration timeline</span></div>
-  <div class="flow">
-    <div class="box"><h3>Your app</h3><p>Tells the desktop the text around the caret, and shows the suggestion in its own style, underlined.</p></div>
+  <p class="lede">LokalBot joins as an input method, so the suggestion shows inside the field you're typing in.</p>
+  <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center">
+    <div style="background:var(--surface-2);border:1px solid var(--line-strong);border-radius:10px;padding:14px 16px;font-size:17px">Thanks for the update. I wanted to follow<span style="color:var(--text-faint);text-decoration:underline"> up on the migration timeline</span><span style="display:inline-block;width:1.5px;height:18px;background:var(--accent-text);vertical-align:-3px;margin-left:1px"></span></div>
+    <div style="display:grid;gap:5px;font-size:11px;color:var(--text-dim)"><span><span class="key">Tab</span> accept</span><span><span class="key">Esc</span> dismiss</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 26px 1fr 26px 1fr;gap:4px;align-items:stretch">
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h16M4 16h9"/><path d="M17 14v6"/></svg><h3>Your app</h3><p>Shares the text around the caret and draws the suggestion.</p></div>
     <div class="arrow">⇄</div>
-    <div class="box"><h3>Your desktop</h3><p>Passes that to the one input method it's running: LokalBot directly on Sway and Hyprland, through IBus on GNOME.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h.01M11 11h.01M15 11h.01M8 14h8"/></svg><h3>Your desktop</h3><p>Passes it to its one input method.</p></div>
     <div class="arrow">⇄</div>
-    <div class="box"><h3>LokalBot</h3><p>Asks your Autocomplete model, on this computer unless you chose otherwise, and checks your excluded apps first.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg><h3>LokalBot</h3><p>Checks your excluded apps, then asks your Autocomplete model.</p></div>
   </div>
-  <div class="sec">
-    <div class="eyebrow">Turn it on</div>
+  <div class="label">Turn it on · Settings › Writing, then</div>
+  <div class="g4">
+    <div class="tile" style="gap:6px"><h3 style="font-size:13px">Sway</h3><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">1</span><span>Nothing more</span></div></div>
+    <div class="tile" style="gap:6px"><h3 style="font-size:13px">Hyprland · Omarchy</h3><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">1</span><span>Nothing more</span></div><p>Omarchy runs Fcitx 5; LokalBot waits while it runs.</p></div>
+    <div class="tile" style="gap:6px"><h3 style="font-size:13px">GNOME</h3><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">1</span><span>Log out and back in</span></div><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">2</span><span>Keyboard › Input Sources › + › Other › LokalBot</span></div><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">3</span><span>Pick it in the top bar</span></div></div>
+    <div class="tile" style="gap:6px"><h3 style="font-size:13px">KDE Plasma</h3><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">1</span><span>System Settings › Keyboard › Virtual Keyboard</span></div><div class="step" style="grid-template-columns:18px 1fr;gap:6px;font-size:10.5px"><span class="num" style="width:18px;height:18px;font-size:10px">2</span><span>LokalBot › Apply</span></div><p>New in 0.12.3. Replaces Fcitx or IBus there.</p></div>
+  </div>
+  <p class="note" style="margin-top:-6px">Running from the extracted <code>.tar.gz</code> on GNOME or KDE? First run the one command Settings shows. Other desktops: not yet.</p>
+  <div class="label">Which apps</div>
+  <style>
+    table { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+    th { text-align: center; color: var(--text-faint); font-weight: 600; padding: 3px 6px; border-bottom: 1px solid var(--line-strong); font-size: 10.5px; }
+    th:first-child { text-align: left; }
+    td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+    td.c { text-align: center; font-size: 13px; width: 17%; }
+  </style>
+  <div style="display:grid;grid-template-columns:1.55fr 1fr;gap:16px;align-items:start">
     <table>
-      <tr><th>Desktop</th><th>What to do</th></tr>
-      <tr><td>Sway</td><td>Settings → Writing → turn on autocomplete. That's all.</td></tr>
-      <tr><td>Hyprland, Omarchy</td><td>The same. Omarchy runs Fcitx 5, and only one input method can run, so LokalBot waits and Settings says so. If you don't use Fcitx 5: <code>systemctl --user disable --now omarchy-fcitx5.service</code></td></tr>
-      <tr><td>GNOME</td><td>Turn it on. With the <code>.tar.gz</code>, run the one command Settings shows. Either way, log out and back in once, then GNOME Settings → Keyboard → Input Sources → + → Other → LokalBot. Choose it in the top bar or with Super+Space.</td></tr>
-      <tr><td>KDE Plasma, others</td><td>Not yet. Settings says so and offers the practice editor.</td></tr>
+      <tr><th>App</th><th>Sway</th><th>GNOME</th><th>KDE Plasma</th></tr>
+      <tr><td>GTK 3 and 4</td><td class='c'><span style="color:var(--accent-text)">●</span></td><td class='c'><span style="color:var(--accent-text)">●</span></td><td class='c'><span style="color:var(--accent-text)">●</span></td></tr>
+      <tr><td>Firefox, Chrome</td><td class='c'><span style="color:var(--accent-text)">●</span></td><td class='c'><span style="color:var(--warn-text)">◐</span></td><td class='c'><span style="color:var(--text-faint)">○</span></td></tr>
+      <tr><td>Qt 6</td><td class='c'><span style="color:var(--text-faint)">○</span></td><td class='c'><span style="color:var(--text-faint)">○</span></td><td class='c'><span style="color:var(--accent-text)">●</span></td></tr>
+      <tr><td>Qt 5</td><td class='c'><span style="color:var(--no)">✕</span></td><td class='c'><span style="color:var(--text-faint)">○</span></td><td class='c'><span style="color:var(--accent-text)">●</span></td></tr>
+      <tr><td>X11 apps (XWayland)</td><td class='c'><span style="color:var(--no)">✕</span></td><td class='c'><span style="color:var(--no)">✕</span></td><td class='c'><span style="color:var(--no)">✕</span></td></tr>
+      <tr><td>Terminals, password fields</td><td class='c'>🚫</td><td class='c'>🚫</td><td class='c'>🚫</td></tr>
     </table>
+    <div class="stack" style="gap:6px;font-size:11px;color:var(--text-dim)">
+      <span><span style="color:var(--accent-text)">●</span>&nbsp; works</span>
+      <span><span style="color:var(--warn-text)">◐</span>&nbsp; needs the Window Calls extension</span>
+      <span><span style="color:var(--text-faint)">○</span>&nbsp; not tried</span>
+      <span><span style="color:var(--no)">✕</span>&nbsp; no suggestions; typing is unaffected</span>
+      <span>🚫&nbsp; never read</span>
+      <span class="note">Older Chromium and Electron need <code>--enable-wayland-ime</code>, by their docs. Hyprland uses Sway's route and hasn't been run.</span>
+    </div>
   </div>
-  <div class="sec">
-    <div class="eyebrow">Which apps</div>
-    <table>
-      <tr><th>App</th><th>Result</th></tr>
-      <tr><td>GTK 3 and 4</td><td>Work on Sway and GNOME. On GTK 3 a selection isn't reported, so accepting replaces selected text, as typing does.</td></tr>
-      <tr><td>Firefox, Chrome</td><td>Work on Sway. On GNOME they need the Window Calls extension to name the app, and stay quiet without it.</td></tr>
-      <tr><td>Older Chromium, Electron</td><td>Need <code>--enable-wayland-ime</code>, according to their documentation. Not tried.</td></tr>
-      <tr><td>Qt 5, X11 apps</td><td>No suggestions. Typing is unaffected.</td></tr>
-      <tr><td>Terminals, passwords</td><td>Refused.</td></tr>
-    </table>
+  <div class="g4">
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h16M4 16h9"/><path d="M17 14v6"/></svg><h3>4,000 bytes</h3><p>The most the desktop hands over around the caret, while a field has focus.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h.01M11 11h.01M15 11h.01M8 14h8"/></svg><h3>Keys</h3><p>Seen only while a suggestion shows. On GNOME, every key in a text field while LokalBot is the input source.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><h3>Not kept</h3><p>Neither keys nor text are stored or logged.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><h3>What stays</h3><p>Encrypted examples you accepted, for 30 days, and counts.</p></div>
   </div>
-  <div class="sec">
-    <div class="eyebrow">What it reads and keeps</div>
-    <ul>
-      <li>While a text field has focus, the desktop hands LokalBot up to 4,000 bytes around the caret. In a password field, a terminal, an excluded app or one it can't name, that text is dropped unused and nothing is suggested.</li>
-      <li>On Sway and Hyprland it sees your keys only while a suggestion shows. On GNOME it's asked about every key in a text field while it's your input source. Neither the keys nor the text are kept or logged.</li>
-      <li>It stores only encrypted examples you accepted in identified documents, for 30 days, and estimated counts. Suggestions come from the local model or a server you approved. Full details are in <code>PRIVACY.md</code>.</li>
-    </ul>
-  </div>
-  <div class="sec">
-    <div class="eyebrow">Limits</div>
-    <ul>
-      <li>Using Fcitx or IBus for Chinese, Japanese or Korean? On Sway and Hyprland only one input method can run, so LokalBot steps aside. On GNOME you switch between input sources.</li>
-      <li class="warn">Tried on headless Sway 1.9 and GNOME Shell 46 with stand-in suggestions, not on real desktops with a real model. Hyprland itself hasn't been run.</li>
-    </ul>
-  </div>
-  <div class="foot"><span>LokalBot · Autocomplete on Wayland</span><span>1 of 1</span></div>
+  <p class="warn">Tried on headless Sway 1.9, GNOME Shell 46 and KWin 6.8 with stand-in suggestions, not on real desktops with a real model. Plasma 5 hasn't been run.</p>
+
+  <div class="foot"><span>LokalBot · Autocomplete on Wayland</span><span>Full details: PRIVACY.md</span></div>
 </section>
 </body>
 </html>

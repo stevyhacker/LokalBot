@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Buat Ulang Ringkasan";
 "Copy digest" = "Salin Ringkasan";
 "Export as Markdown…" = "Ekspor Markdown…";
+"Read coding agent notes" = "Baca catatan agen pemrograman";
+"Read coding agent notes?" = "Baca catatan agen pemrograman?";
+"What is read from notes" = "Yang dibaca dari catatan";
+"Saved notes" = "Catatan tersimpan";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot membaca catatan yang disimpan Claude Code dan Codex untuk dirinya sendiri, untuk setiap proyek yang mereka kerjakan, dan menyimpan salinan yang dapat dicari di pustakanya. Tidak ada yang keluar dari Mac ini. Menonaktifkan ini akan menghapus salinan tersebut.";
+"Agent notes" = "Catatan agen";
+"Agent note" = "Catatan agen";
+"Let external agents search agent notes" = "Izinkan agen eksternal mencari di catatan agen";
+"External agent notes access" = "Akses eksternal ke catatan agen";
+"Coding agent notes are off" = "Catatan agen pemrograman nonaktif";

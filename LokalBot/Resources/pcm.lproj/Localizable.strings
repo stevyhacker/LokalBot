@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Make Gist Again";
 "Copy digest" = "Copy Day Gist";
 "Export as Markdown…" = "Export Markdown…";
+"Read coding agent notes" = "Read coding agent notes";
+"Read coding agent notes?" = "You wan read coding agent notes?";
+"What is read from notes" = "Wetin e dey read from notes";
+"Saved notes" = "Notes wey save";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot dey read the notes wey Claude Code and Codex save for themselves, for every project wey dem work for, and e dey keep copy wey you fit search for its library. Nothing dey comot from this Mac. If you turn this one off, e go delete the copy.";
+"Agent notes" = "Agent notes";
+"Agent note" = "Agent note";
+"Let external agents search agent notes" = "Let outside agents search agent notes";
+"External agent notes access" = "Outside access to agent notes";
+"Coding agent notes are off" = "Coding agent notes don off";

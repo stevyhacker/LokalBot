@@ -319,6 +319,10 @@ final class AppState: ObservableObject {
                 if Self.codingAgentEvidenceChanged(from: oldValue, to: settings) {
                     applyCodingAgentEvidenceSetting()
                 }
+                if AgentMemoryIngestor.Configuration(settings: oldValue)
+                    != AgentMemoryIngestor.Configuration(settings: settings) {
+                    applyCodingAgentNotesSetting()
+                }
                 if Self.screenContextChanged(from: oldValue, to: settings) {
                     applyTrackingSetting()
                 }
@@ -756,10 +760,14 @@ final class AppState: ObservableObject {
             guard let self, self.settings.fileSearchEnabled else { return nil }
             return self.settings.fileSearchFolders
         })
-    /// The one switch over the four read grants, with a box for each.
+    /// A fifth read grant: searching the notes coding agents saved for
+    /// themselves, which exist in the library only while they are being read.
+    private(set) lazy var agentNotesAccess = AgentNotesAccessManager(
+        gate: AgentNotesAccessGate(root: storage.rootURL))
+    /// The one switch over the five read grants, with a box for each.
     private(set) lazy var agentReadAccess = AgentReadAccess(
         meetings: agentAccess, screenMemory: screenMemoryAccess, personalContext: personalContextAccess,
-        files: filesAccess, root: storage.rootURL)
+        files: filesAccess, agentNotes: agentNotesAccess, root: storage.rootURL)
     /// Terminal settings access is another separate grant. Its control
     /// socket exists only while the grant is on.
     private(set) lazy var settingsControl = SettingsControlAccessManager(
@@ -1084,6 +1092,14 @@ final class AppState: ObservableObject {
         },
         onChange: { [weak self] days in self?.codingAgentEvidenceDidChange(on: days) },
         waitUntilReady: { [weak self] in await self?.waitForLibrary() })
+    /// The notes Claude Code and Codex keep for themselves, read into a
+    /// searchable index only while the person has turned that on.
+    private(set) lazy var agentNotes = AgentMemoryIngestor(
+        store: AgentMemoryStore(root: storage.rootURL),
+        configuration: { [store = settingsStore] in AgentMemoryIngestor.Configuration(settings: store.current) },
+        waitUntilReady: { [weak self] in await self?.waitForLibrary() })
+    /// Search over those saved notes; empty while the feature is off.
+    var agentNotesIndex: AgentNotesIndex { AgentNotesIndex(root: storage.rootURL) }
     /// Meeting-recording lifecycle: recorders, watchdog, timer tick, prewarm.
     private(set) lazy var recording = RecordingController(
         storage: storage,
@@ -1275,6 +1291,10 @@ final class AppState: ObservableObject {
         files: { [weak self] in
             guard let self, self.settings.fileSearchEnabled, self.fileSearch.isAvailable else { return nil }
             return self.fileSearch
+        },
+        agentNotes: { [weak self] in
+            guard let self, self.settings.codingAgentNotesEnabled, self.agentNotesIndex.exists else { return nil }
+            return self.agentNotesIndex
         })
 
     /// Chat assistant (the "Chat" section). Reuses the summariser's `TextEngine`
@@ -1722,6 +1742,7 @@ final class AppState: ObservableObject {
         screenMemoryAccess.start()
         personalContextAccess.start()
         filesAccess.start()
+        agentNotesAccess.start()
         settingsApprovals.announce = { request in RecordingNotifier.shared.settingsApprovalRequested(request) }
         settingsApprovals.withdraw = { request in RecordingNotifier.shared.withdrawSettingsApproval(request.id) }
         settingsControl.start()
@@ -1772,6 +1793,7 @@ final class AppState: ObservableObject {
         // After the first-run check: until setup is finished, a new install
         // reads no coding-agent session (`finishOnboarding` starts it).
         applyCodingAgentEvidenceSetting()
+        applyCodingAgentNotesSetting()
         // Bring optional system-wide automation up if the user left it enabled
         // and the grants are in place; otherwise it parks itself.
         dictation.applySettings()
@@ -2041,6 +2063,7 @@ final class AppState: ObservableObject {
             dreaming.stop()
             email.stop()
             if settings.fileSearchEnabled { fileSearch.stop() }
+            agentNotes.stop()
             cachedScreenImages?.stop()
             chat.stop()
             dictation.stop()
@@ -2843,6 +2866,14 @@ final class AppState: ObservableObject {
         codingAgentEvidence.start()
     }
 
+    /// Starts, restarts or stops note reading. Turning it off deletes the
+    /// saved copies: they only mirror the agents' own files.
+    func applyCodingAgentNotesSetting() {
+        // Headless runs and test hosts never read the agents' folders.
+        guard HeadlessCommand.requested == nil, !Self.isUITesting, !UITestRuntime.isUnitTesting else { return }
+        agentNotes.start()
+    }
+
     /// What the coding-agent reader may read: the settings' choice once setup
     /// is finished, and nothing on a new install before then.
     static func codingAgentConfiguration(
@@ -3437,6 +3468,16 @@ final class AppState: ObservableObject {
         guard settings.fileSearchEnabled else { return }
         Task { @MainActor in
             if let hit = await fileSearch.hit(segment: id) { FileSearchOpener.open(hit, query: nil) }
+        }
+    }
+
+    /// A cited coding-agent note opens the agent's own file.
+    func openAgentNoteCitation(_ id: String) {
+        guard settings.codingAgentNotesEnabled else { return }
+        let index = agentNotesIndex
+        Task { @MainActor in
+            let hit = await Task.detached(priority: .userInitiated) { try? index.hit(id: id) }.value
+            if let hit { AgentNoteOpener.open(hit) }
         }
     }
 

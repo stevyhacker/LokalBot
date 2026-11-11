@@ -280,6 +280,7 @@ private struct AskContent: View {
         case .meeting(let group): app.openSearchHit(group.primary)
         case .screen(let group): app.openScreenSnapshot(group.primary.snapshotID)
         case .file(let hit): FileSearchOpener.open(hit, query: searchedQuery)
+        case .agentNote(let hit): AgentNoteOpener.open(hit)
         }
     }
 
@@ -371,7 +372,7 @@ private struct AskContent: View {
             recall.state.selectResultEvidence(
                 meetingIDs: Set(matches.meetings.map(\.id)),
                 screenIDs: answerScreenIDs,
-                hadFiles: !matches.files.isEmpty)
+                hadFiles: !matches.files.isEmpty, hadAgentNotes: !matches.agentNotes.isEmpty)
         }
         escalate()
     }
@@ -379,7 +380,10 @@ private struct AskContent: View {
     // MARK: - Scope: the two menus
 
     private var filesEnabled: Bool { app.settings.fileSearchEnabled }
-    private var availableSources: [AskSourceScope] { AskSourceScope.available(filesEnabled: filesEnabled) }
+    private var agentNotesEnabled: Bool { app.settings.codingAgentNotesEnabled }
+    private var availableSources: [AskSourceScope] {
+        AskSourceScope.available(filesEnabled: filesEnabled, agentNotesEnabled: agentNotesEnabled)
+    }
 
     private var scopeControls: some View {
         HStack(spacing: 8) {
@@ -428,7 +432,7 @@ private struct AskContent: View {
                 selected: sources.contains(source), action: { toggleSource(source) })
         }
         items += [.separator, .init(title: localized("Match type"), children: AskFacet.allCases.filter {
-            $0 != .files || filesEnabled
+            ($0 != .files || filesEnabled) && ($0 != .agentNotes || agentNotesEnabled)
         }.map { option in
             .init(title: localized(option.rawValue), selected: facet == option, action: { facet = option })
         })]

@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Ponovo napravi pregled dana";
 "Copy digest" = "Kopiraj pregled dana";
 "Export as Markdown…" = "Izvezi u Markdown…";
+"Read coding agent notes" = "Čitaj beleške agenata za programiranje";
+"Read coding agent notes?" = "Čitati beleške agenata za programiranje?";
+"What is read from notes" = "Šta se čita iz beleški";
+"Saved notes" = "Sačuvane beleške";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot čita beleške koje su Claude Code i Codex sačuvali za sebe, za svaki projekat na kojem su radili, i čuva pretraživu kopiju u svojoj biblioteci. Ništa ne napušta ovaj Mac. Isključivanjem ove opcije briše se kopija.";
+"Agent notes" = "Beleške agenata";
+"Agent note" = "Beleška agenta";
+"Let external agents search agent notes" = "Dozvoli spoljnim agentima da pretražuju beleške agenata";
+"External agent notes access" = "Spoljni pristup beleškama agenata";
+"Coding agent notes are off" = "Beleške agenata za programiranje su isključene";

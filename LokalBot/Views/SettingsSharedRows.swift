@@ -187,6 +187,7 @@ struct AgentKindAccessSection: View {
         case .screenMemory: "Let external agents read screen memory"
         case .personalContext: "Let external agents read items I share"
         case .files: "Let external agents search Files"
+        case .agentNotes: "Let external agents search agent notes"
         }
     }
 
@@ -196,6 +197,7 @@ struct AgentKindAccessSection: View {
         case .screenMemory: "Captured text and metadata, within the history you grant. Screenshot pixels are never returned."
         case .personalContext: "Only the Personal Context items you mark Share with agents."
         case .files: "Search the folders you chose under Files by their words. Files are never changed."
+        case .agentNotes: "Search the notes Claude Code and Codex saved for themselves by their words. The notes are never changed."
         }
     }
 }

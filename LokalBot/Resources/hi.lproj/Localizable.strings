@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "सार फिर से बनाएँ";
 "Copy digest" = "दिन का सार कॉपी करें";
 "Export as Markdown…" = "Markdown निर्यात करें…";
+"Read coding agent notes" = "कोडिंग एजेंट नोट पढ़ें";
+"Read coding agent notes?" = "कोडिंग एजेंट नोट पढ़ें?";
+"What is read from notes" = "नोट से क्या पढ़ा जाता है";
+"Saved notes" = "सहेजे गए नोट";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot वे नोट पढ़ता है जो Claude Code और Codex ने हर उस प्रोजेक्ट के लिए, जिसमें उन्होंने काम किया, अपने लिए सहेजे हैं, और उनकी खोजने योग्य कॉपी अपनी लाइब्रेरी में रखता है। कुछ भी इस Mac से बाहर नहीं जाता। इसे बंद करने पर कॉपी हट जाती है।";
+"Agent notes" = "एजेंट नोट";
+"Agent note" = "एजेंट नोट";
+"Let external agents search agent notes" = "बाहरी एजेंटों को एजेंट नोट खोजने दें";
+"External agent notes access" = "एजेंट नोट तक बाहरी पहुँच";
+"Coding agent notes are off" = "कोडिंग एजेंट नोट बंद हैं";

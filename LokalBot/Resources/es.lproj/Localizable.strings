@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Regenerar resumen";
 "Copy digest" = "Copiar resumen";
 "Export as Markdown…" = "Exportar Markdown…";
+"Read coding agent notes" = "Leer notas de agentes de programación";
+"Read coding agent notes?" = "¿Leer notas de agentes de programación?";
+"What is read from notes" = "Qué se lee de las notas";
+"Saved notes" = "Notas guardadas";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot lee las notas que Claude Code y Codex guardaron para sí mismos, en cada proyecto en el que trabajaron, y conserva en su biblioteca una copia en la que se puede buscar. Nada sale de este Mac. Al desactivar esta opción se elimina la copia.";
+"Agent notes" = "Notas de agentes";
+"Agent note" = "Nota de agente";
+"Let external agents search agent notes" = "Permitir que agentes externos busquen en las notas de agentes";
+"External agent notes access" = "Acceso externo a notas de agentes";
+"Coding agent notes are off" = "Las notas de agentes de programación están desactivadas";

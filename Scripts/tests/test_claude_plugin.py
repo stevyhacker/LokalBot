@@ -32,6 +32,7 @@ def mcp_tool_names() -> set:
     for file, pattern in (
         ("Briefing.swift", r'static let toolName = "([a-z_]+)"'),
         ("FilesAccess.swift", r'static let name = "([a-z_]+)"'),
+        ("AgentNotesAccess.swift", r'static let name = "([a-z_]+)"'),
         ("PersonalContextAccess.swift", r'static let name = "([a-z_]+)"'),
     ):
         names.update(re.findall(pattern, (support / file).read_text(encoding="utf-8")))

@@ -12,11 +12,14 @@ struct AskMatches {
         case meeting(MeetingRecallGroup)
         case screen(ScreenRecallGroup)
         case file(FileSearchHit)
+        case agentNote(AgentNoteHit)
     }
 
     var meetings: [MeetingRecallGroup] = []
     var screens: [ScreenRecallGroup] = []
     var files: [FileSearchHit] = []
+    /// Notes the person's coding agents saved, while that source is on.
+    var agentNotes: [AgentNoteHit] = []
     /// More matched than the list holds.
     var isTruncated = false
 
@@ -26,11 +29,12 @@ struct AskMatches {
         meetings = result.meetings
         screens = result.screens
         files = result.files
+        agentNotes = result.agentNotes
         isTruncated = result.isTruncated
     }
 
-    /// Rows in list order: meetings, screen moments, files.
-    var count: Int { meetings.count + screens.count + files.count }
+    /// Rows in list order: meetings, screen moments, files, agent notes.
+    var count: Int { meetings.count + screens.count + files.count + agentNotes.count }
     var isEmpty: Bool { count == 0 }
     /// Matching lines across the listed meetings.
     var meetingPassageCount: Int { meetings.reduce(0) { $0 + $1.matches.count } }
@@ -42,14 +46,18 @@ struct AskMatches {
         let screenIndex = index - meetings.count
         if screens.indices.contains(screenIndex) { return .screen(screens[screenIndex]) }
         let fileIndex = screenIndex - screens.count
-        return files.indices.contains(fileIndex) ? .file(files[fileIndex]) : nil
+        if files.indices.contains(fileIndex) { return .file(files[fileIndex]) }
+        let noteIndex = fileIndex - files.count
+        return agentNotes.indices.contains(noteIndex) ? .agentNote(agentNotes[noteIndex]) : nil
     }
 
     /// "3 in 1 meeting" when only meetings matched, else the number of
     /// sources. A list that was cut says "40+" instead of a total.
     func countLabel(localize: (String) -> String = { $0 }) -> String {
         if isTruncated { return "\(count.formatted())+" }
-        guard screens.isEmpty, files.isEmpty, !meetings.isEmpty else { return count.formatted() }
+        guard screens.isEmpty, files.isEmpty, agentNotes.isEmpty, !meetings.isEmpty else {
+            return count.formatted()
+        }
         if meetings.count == 1 {
             return String(format: localize("%lld in 1 meeting"), meetingPassageCount)
         }
@@ -226,6 +234,7 @@ enum AnswerSources {
             case .meeting: key = citation.meetingID.lowercased()
             case .screen: key = citation.sourceID
             case .file: key = citation.fileID.flatMap(fileKey) ?? "passage:\(citation.sourceID)"
+            case .note: key = citation.sourceID
             }
             let entry = AnswerSourceGroup.Entry(number: offset + 1, citation: citation)
             let id = "\(citation.kind.rawValue):\(key)"

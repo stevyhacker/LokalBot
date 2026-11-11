@@ -2365,3 +2365,13 @@
 "Rewrite digest" = "Régénérer la synthèse";
 "Copy digest" = "Copier la synthèse";
 "Export as Markdown…" = "Exporter en Markdown…";
+"Read coding agent notes" = "Lire les notes d’agents de programmation";
+"Read coding agent notes?" = "Lire les notes d’agents de programmation ?";
+"What is read from notes" = "Données lues dans les notes";
+"Saved notes" = "Notes enregistrées";
+"LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this Mac. Turning this off deletes the copy." = "LokalBot lit les notes que Claude Code et Codex ont enregistrées pour eux-mêmes, pour chaque projet sur lequel ils ont travaillé, et conserve dans sa bibliothèque une copie dans laquelle vous pouvez effectuer des recherches. Rien ne quitte ce Mac. Désactiver cette option supprime la copie.";
+"Agent notes" = "Notes d’agents";
+"Agent note" = "Note d’agent";
+"Let external agents search agent notes" = "Autoriser les agents externes à rechercher dans les notes d’agents";
+"External agent notes access" = "Accès externe aux notes d’agents";
+"Coding agent notes are off" = "Les notes d’agents de programmation sont désactivées";

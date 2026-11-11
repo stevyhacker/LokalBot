@@ -39,6 +39,8 @@ LokalBot can store the following under its Application Support directory:
   exports, and optional routine drafts at folders you choose;
 - records of local coding-agent sessions (Claude Code and Codex), a setup
   choice that is on by default;
+- a searchable copy of the notes Claude Code and Codex saved for themselves,
+  only while **Read coding agent notes** is on (off by default);
 - opt-in Agent Mode sessions and the agent runtime;
 - facts, preferences, goals, and principles you ask Ask to remember about
   you, encrypted;
@@ -110,6 +112,38 @@ project and task, split tracked time by project, and list each session's
 requests, pull requests, and commits. Turning the
 setting off stops reading and keeps saved records; **Delete saved agent
 sessions** removes them and withdraws unedited journals that used them.
+
+**Read coding agent notes** is off until you turn it on in Settings → Screen &
+Activity, after a notice. Coding agents keep notes for their own later
+sessions: how a project is built, what was decided, what you told them you
+prefer. While the setting is on, LokalBot reads Claude Code's notes (the
+Markdown files in `~/.claude/projects/*/memory`, and the opening of one
+session file per project to learn the project's folder) and Codex's memories
+(`MEMORY.md`, `memory_summary.md`, and the session summaries in
+`rollout_summaries` under `~/.codex/memories`). It reads nothing else there:
+not the agents' credentials, settings, skills, or instruction files such as
+`CLAUDE.md` and `AGENTS.md`, and it never changes their files. The **Claude
+Code** and **Codex** switches choose whose notes are read, and notes about a
+folder under **Never read sessions in these folders** are left out. For each
+note LokalBot keeps the title, the agent's one-line description, the project
+folder, the file's path and date, and the text, with detected credentials
+redacted, in `agent-notes.sqlite` in the library (mode 0600, not encrypted
+beyond your disk's own encryption, because the agents' files already hold the
+same text unencrypted). It checks for changes every ten minutes. A note the
+agent deletes leaves LokalBot at the next check, and turning the setting off
+deletes the whole copy at once.
+
+The notes are used for search only: Ask, Search, and Quick Recall find them by
+their words while the **Agent notes** source is selected, and the Ask assistant
+can call `search_agent_notes` to read the ones that matched. They never enter
+the day digest, the overnight review, or Personal Context. A note is what an
+agent wrote down at the time, so Ask is told to present it as an agent's note
+rather than a fact. If your Think model is a remote server, the notes
+`search_agent_notes` returns go to that server, as meeting and screen text do,
+and only to an origin you approved (see **Optional remote inference** under
+[Network access](#network-access)). External agents can search the notes only
+while you tick **Agent notes** for them (see
+[External-agent access](#external-agent-access)).
 
 Library health reports stay in the library's `diagnostics/health` folder on
 this Mac. Development builds check the previous day each morning; released
@@ -638,7 +672,8 @@ no shared copy is built.
   devices.
 - **What is never shared.** Calendar attendee email addresses, speaker
   evidence and voice profiles, screenshots and their file paths, captured
-  screen text, the files you chose under Files, email, Personal Context,
+  screen text, the files you chose under Files, coding-agent notes, email,
+  Personal Context,
   overnight (Dream) memory, Ask conversations held on the Mac, settings, and
   API keys. The bundled sample meeting is not shared.
 - **Where it travels.** Directly between your Mac and your devices, over your
@@ -659,8 +694,8 @@ no shared copy is built.
   connection only from the keys of devices you paired.
 - **Questions from your devices.** With **Answer questions from my devices**
   on, the Mac answers with your Think model and its existing approvals, from
-  the meetings and Timeline you share; screen memory and your files are never
-  searched for a device. With an approved remote Think server, the question
+  the meetings and Timeline you share; screen memory, your files, and
+  coding-agent notes are never searched for a device. With an approved remote Think server, the question
   and the context it needs go to that server as they do for Ask on the Mac,
   and the device shows that a remote engine answered. If the device
   disconnects before the answer is finished, the Mac finishes it and holds it
@@ -872,7 +907,7 @@ The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
 access until you turn on **Allow external agents to read your LokalBot data**
 under Settings → AI agents. It is off by default. Under it is a
 box for each kind of data: **Meetings**, **Screen memory**, **What I shared
-about myself**, and **Files**. Agents can read only the kinds you tick, and
+about myself**, **Files**, and **Agent notes**. Agents can read only the kinds you tick, and
 ticking one never grants another. The first time you turn the switch on, only
 Meetings is ticked. The last ticked box can't be unticked; turn the switch off
 instead. Turning the switch off removes every read grant, and LokalBot
@@ -880,7 +915,7 @@ remembers which boxes were ticked, and the screen history range, in the
 library's `control/agent-read-choices.json` for the next time. Grants made
 with the separate toggles of earlier versions, or through agent setup, stay as
 they were: the switch shows on while any kind is granted, nothing is added on
-upgrade, and Files starts unticked.
+upgrade, and Files and Agent notes start unticked.
 
 Each kind's grant is its own marker file in the library's private `control/`
 folder, which the CLI and MCP server check even while LokalBot is closed. An
@@ -926,12 +961,25 @@ the list of chosen folders in the library's `control/files-access.json` (mode
 rewritten when you change the folders and deleted when you untick the box,
 turn the switch off, or turn Files off.
 
+**Agent notes** lets agents search the coding-agent notes LokalBot saved (see
+**Read coding agent notes** under [Data stored on your Mac](#data-stored-on-your-mac))
+by their words, with `search_agent_notes` or `lokalbot-cli search-notes`. Each
+result has the note's title, which agent wrote it, its project folder, the
+path and date of the agent's file, a short excerpt, and the note's text, up to
+4,000 characters. This lets one agent find what another wrote down, so a note
+Claude Code saved in one project can reach Codex or an MCP client working in
+another. Results say that a note is an agent's own record, not a verified
+fact. Nothing is returned while **Read coding agent notes** is off, because
+turning it off deletes the saved copy. Searching never changes the agents'
+files.
+
 `get_briefing` and `lokalbot-cli brief` give an agent one short overview to
 start a session with. With every grant off they still answer, but say only
 which grants are off and how to turn them on, not how much the library holds.
 Each other part needs the grant that covers its source. Shared Personal Context
 items need the personal-context grant. For Files, the overview says only
-whether it is on and how many folders it covers. The meeting count, the newest meeting's title, and
+whether it is on and how many folders it covers, and for Agent notes only
+whether it is on and how many notes are saved. The meeting count, the newest meeting's title, and
 your own open action items need meeting access. Current projects and goals from
 the overnight review need meeting access for meeting sources and screen access,
 within its history profile, for screen, activity, and digest sources; entries

@@ -32,6 +32,7 @@ Before asking the user about past work, a decision, a commitment, or where somet
 - Use `path` only when the task needs an on-disk folder or audio file.
 - For viewed screen text or app activity, use the screen-memory MCP tools within the user's separate permission and history scope.
 - Use `search-files` (MCP: `search_files`) for something in the user's own documents, PDFs, screenshots, or pictures, such as a contract clause, a receipt, or an error they took a screenshot of.
+- Use `search-notes` (MCP: `search_agent_notes`) for what the user's coding agents already wrote down for themselves, in any project: how something is built or released, a decision and its reason, a preference the user gave another agent. Mac only for now.
 - Use `personal-context` (MCP: `get_personal_context`) before advising on a personal decision or tailoring work to the user: it returns the facts, preferences, goals, and principles the user chose to share, most relevant to your task first.
 
 ## Discovery
@@ -119,6 +120,17 @@ Searches only the folders the user chose under Files in LokalBot: the text Lokal
 
 Cite files by path. Open one yourself only when the passage isn't enough, and never change, move, or delete it. `[files_unavailable]` means Files is off in LokalBot, has no folder, or hasn't read its folders yet; the user chooses folders in Settings → Files.
 
+## Agent notes
+
+```bash
+lokalbot-cli search-notes "release notarization"
+lokalbot-cli search-notes "staging database" --agent codex --limit 5 --table
+```
+
+Searches the notes Claude Code and Codex saved for their own later sessions, as LokalBot keeps them while the user has **Read coding agent notes** on (Mac only for now): Claude Code's per-project memory notes, and Codex's memory file, memory summary, and session summaries. Use it to pick up what another agent, or an earlier session in another project, already learned, before asking the user again. It matches words, not meaning, so use words the note would contain. Each result has `agent` (`claude-code` or `codex`), `title`, `summary`, `type` (Claude Code's own label: `user`, `feedback`, `project`, or `reference`), `project` (the folder the note is about), `path`, `modified`, `excerpt`, and `text`, the note up to 4,000 characters. `--agent` narrows to one agent; `--limit` goes up to 30 (default 8). It works with the app closed.
+
+A note is what an agent recorded at the time, not a verified fact, and it may be stale: check it against the current code or files before relying on it, and say that it came from an agent's note. Cite a note by its path. Never change or delete the agents' files. `[agent_notes_unavailable]` means Read coding agent notes is off in LokalBot or nothing has been read yet; the user turns it on in Settings → Screen & Activity.
+
 ## Path lookup
 
 ```bash
@@ -147,7 +159,7 @@ lokalbot-cli secret set openai-compatible --wait 120   # the key goes in on stan
 lokalbot-cli status                              # version, recording, models, permissions, agent access
 lokalbot-cli open settings dictationShortcut     # show the user a setting in LokalBot
 lokalbot-cli open settings permissions           # or a section
-lokalbot-cli open settings filesAccess           # the Files box; also agentAccess, screenMemoryAccess, personalContextAccess
+lokalbot-cli open settings filesAccess           # the Files box; also agentAccess, screenMemoryAccess, personalContextAccess, agentNotesAccess
 ```
 
 `search`, `describe`, and `config schema` work any time. Everything else needs the separate "Allow external agents to change LokalBot settings" toggle in LokalBot → Settings → External Agents (Settings → Privacy & Data on Windows and Linux). If a command returns `[settings_access_disabled]`, explain that setting and let the user choose. These commands start LokalBot in the background when it isn't running; pass `--no-launch` when the user doesn't want it started.
@@ -182,7 +194,7 @@ lokalbot-cli doctor                        # exit 0 when ready; nextSteps otherw
 
 ## MCP alternative (and ask_library)
 
-The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings` (`include: "summary"` works as in `list --include summary`), `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves, and `search_files` searches the user's chosen folders as `search-files` does, each under its own permission.
+The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings` (`include: "summary"` works as in `list --include summary`), `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves, `search_files` searches the user's chosen folders as `search-files` does, and on a Mac `search_agent_notes` searches saved coding-agent notes as `search-notes` does, each under its own permission.
 
 ```bash
 claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
@@ -196,9 +208,9 @@ LokalBot itself does not upload library content. An external agent or MCP client
 
 ## When access is off
 
-Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → External Agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, or Files. On Windows and Linux, each has its own switch under External agents in Settings → Privacy & Data: "Allow external agents to read your meeting library", "Allow external agents to read screen memory", "What I shared about myself", and "Allow external agents to search your files".
+Each kind of data needs its own permission, and one never implies another. On a Mac they are boxes under one switch: LokalBot → Settings → External Agents → "Allow external agents to read your LokalBot data", then Meetings, Screen memory, What I shared about myself, Files, or Agent notes. On Windows and Linux, each has its own switch under External agents in Settings → Privacy & Data: "Allow external agents to read your meeting library", "Allow external agents to read screen memory", "What I shared about myself", and "Allow external agents to search your files".
 
-`[access_disabled]` means meetings are off, `[screen_access_disabled]` screen memory, `[personal_context_disabled]` what the user shared, and `[files_access_disabled]` Files; the message names the place. Tell the user which one it is and let them choose. Don't change consent markers or work around disabled access.
+`[access_disabled]` means meetings are off, `[screen_access_disabled]` screen memory, `[personal_context_disabled]` what the user shared, `[files_access_disabled]` Files, and `[agent_notes_access_disabled]` Agent notes; the message names the place. Tell the user which one it is and let them choose. Don't change consent markers or work around disabled access.
 
 ## Evidence and privacy
 

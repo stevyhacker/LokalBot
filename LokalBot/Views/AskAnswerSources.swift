@@ -20,8 +20,8 @@ struct OpenCitation: Equatable, Identifiable {
     }
 }
 
-/// The list that ends an answer: a row per meeting, file or screen moment it
-/// cited, with the answer's numbers and their times, and one row for what the
+/// The list that ends an answer: a row per meeting, file, screen moment or
+/// saved agent note it cited, with the answer's numbers and their times, and one row for what the
 /// person told LokalBot about themselves when that went into the answer.
 struct AnswerSourcesList: View {
     @EnvironmentObject private var app: AppState
@@ -31,6 +31,8 @@ struct AnswerSourcesList: View {
     @Binding var open: OpenCitation?
     /// Cited files, looked up in the Files index.
     @State private var files: [Int64: FileSearchHit] = [:]
+    /// Cited coding-agent notes, looked up in the saved notes.
+    @State private var notes: [String: AgentNoteHit] = [:]
 
     var body: some View {
         let groups = AnswerSources.groups(citations) { files[$0]?.path }
@@ -49,6 +51,7 @@ struct AnswerSourcesList: View {
         .accessibilityLabel("Sources")
         .accessibilityIdentifier("chat.sources")
         .task(id: citations.compactMap(\.fileID)) { await loadCitedFiles() }
+        .task(id: citations.compactMap(\.noteID)) { await loadCitedNotes() }
     }
 
     private func sourceRow(_ group: AnswerSourceGroup) -> some View {
@@ -119,6 +122,8 @@ struct AnswerSourcesList: View {
             } else {
                 AskSourceTile(symbol: "doc", size: CGSize(width: 32, height: 22))
             }
+        case .note:
+            AskSourceTile(symbol: "note.text", size: CGSize(width: 32, height: 22))
         }
     }
 
@@ -164,6 +169,8 @@ struct AnswerSourcesList: View {
             if let snapshotID = citation.snapshotID { app.openScreenSnapshot(snapshotID) }
         case .file:
             if let hit = citation.fileID.flatMap({ files[$0] }) { FileSearchOpener.open(hit, query: nil) }
+        case .note:
+            if let hit = citation.noteID.flatMap({ notes[$0] }) { AgentNoteOpener.open(hit) }
         }
     }
 
@@ -198,7 +205,29 @@ struct AnswerSourcesList: View {
                 return .init(title: language.localized("Files"), meta: language.localized("Unavailable"), available: false)
             }
             return .init(title: hit.name, meta: hit.folder, available: true)
+        case .note:
+            guard let hit = citation.noteID.flatMap({ notes[$0] }) else {
+                return .init(title: language.localized("Agent note"), meta: language.localized("Unavailable"),
+                             available: false)
+            }
+            return .init(title: hit.title, meta: "\(language.localized("Agent note")) · \(hit.sourceLabel)",
+                         available: true)
         }
+    }
+
+    /// Notes are read only while Read coding agent notes is on, as on the
+    /// rest of the page.
+    private func loadCitedNotes() async {
+        let ids = citations.compactMap(\.noteID)
+        guard !ids.isEmpty, app.settings.codingAgentNotesEnabled else { return }
+        let index = app.agentNotesIndex
+        notes = await Task.detached(priority: .userInitiated) {
+            var found: [String: AgentNoteHit] = [:]
+            for id in ids {
+                if let hit = try? index.hit(id: id) { found[id] = hit }
+            }
+            return found
+        }.value
     }
 
     private func loadCitedFiles() async {
@@ -294,6 +323,7 @@ struct CitationPassagePopover: View {
         case meeting(Meeting, CitationPassage.Line?)
         case screen(ActivityStore.Screenshot, String?)
         case file(FileSearchHit)
+        case note(AgentNoteHit)
         case unavailable
     }
 
@@ -305,6 +335,7 @@ struct CitationPassagePopover: View {
             case .meeting(let meeting, let line): meetingPassage(meeting, line: line)
             case .screen(let shot, let text): screenPassage(shot, text: text)
             case .file(let hit): filePassage(hit)
+            case .note(let hit): notePassage(hit)
             case .unavailable:
                 Text("Unavailable").foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 40)
             }
@@ -389,6 +420,20 @@ struct CitationPassagePopover: View {
         }
     }
 
+    /// A saved coding-agent note: what it says, and the agent's own file.
+    @ViewBuilder private func notePassage(_ hit: AgentNoteHit) -> some View {
+        header(title: hit.title,
+               meta: [hit.sourceLabel, AskDateLabel.day(hit.modified, locale: app.settings.appLanguage.locale)]) {
+            AskSourceTile(symbol: "note.text")
+        }
+        if let text = CitationPassage.quote(hit.summary ?? hit.snippet, limit: 280) { quote(text) }
+        HStack(spacing: 8) {
+            Button("Show in Finder") { AgentNoteOpener.reveal(hit) }
+            Spacer(minLength: 8)
+            openLink("Open") { AgentNoteOpener.open(hit) }
+        }
+    }
+
     // MARK: Parts
 
     private func header<Lead: View>(title: String, meta: [String?], @ViewBuilder lead: () -> Lead) -> some View {
@@ -467,6 +512,15 @@ struct CitationPassagePopover: View {
                 return
             }
             content = .file(hit)
+        case .note:
+            guard app.settings.codingAgentNotesEnabled, let id = citation.noteID else {
+                content = .unavailable
+                return
+            }
+            let index = app.agentNotesIndex
+            let hit = await Task.detached(priority: .userInitiated) { try? index.hit(id: id) }.value
+            guard !Task.isCancelled else { return }
+            content = hit.map(Content.note) ?? .unavailable
         }
     }
 }

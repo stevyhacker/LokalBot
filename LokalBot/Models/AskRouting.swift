@@ -21,6 +21,9 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
     case screen = "Screen"
     /// The folders chosen under Files. Offered only while Files is on.
     case files = "Files"
+    /// Notes the person's coding agents saved for themselves. Offered only
+    /// while Read coding agent notes is on.
+    case agentNotes = "Agent notes"
 
     var id: String { rawValue }
     var displayName: String {
@@ -29,6 +32,7 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
         case .today: "Activity"
         case .screen: "Screen"
         case .files: "Files"
+        case .agentNotes: "Agent notes"
         }
     }
     var icon: String {
@@ -37,16 +41,25 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
         case .today: "chart.bar.doc.horizontal"
         case .screen: "rectangle.on.rectangle"
         case .files: "folder"
+        case .agentNotes: "note.text"
         }
     }
 
-    /// Every source. Files is part of "All sources" whether or not it is on,
-    /// so turning it on or off never makes an earlier question look narrowed.
-    static let defaults: Set<AskSourceScope> = [.meetings, .today, .screen, .files]
+    /// Every source. Files and Agent notes are part of "All sources" whether
+    /// or not they are on, so turning one on or off never makes an earlier
+    /// question look narrowed.
+    static let defaults: Set<AskSourceScope> = [.meetings, .today, .screen, .files, .agentNotes]
 
-    /// The sources a person can choose now: Files only while it is on.
-    static func available(filesEnabled: Bool) -> [AskSourceScope] {
-        allCases.filter { $0 != .files || filesEnabled }
+    /// The sources a person can choose now: Files and Agent notes only while
+    /// each is on.
+    static func available(filesEnabled: Bool, agentNotesEnabled: Bool = false) -> [AskSourceScope] {
+        allCases.filter { source in
+            switch source {
+            case .files: filesEnabled
+            case .agentNotes: agentNotesEnabled
+            default: true
+            }
+        }
     }
 
     static func storageValue(for scopes: Set<AskSourceScope>) -> String {
@@ -232,6 +245,8 @@ final class ScopedChatToolRunner: ChatToolRunner {
             scopes.contains(.screen)
         case "search_files":
             scopes.contains(.files)
+        case "search_agent_notes":
+            scopes.contains(.agentNotes)
         default:
             false
         }
@@ -308,15 +323,16 @@ enum AskFacet: String, CaseIterable, Identifiable {
     case outcomes = "Outcomes"
     case screen = "Screen"
     case files = "Files"
+    case agentNotes = "Agent notes"
 
     var id: String { rawValue }
 
     /// The FTS index kind this facet narrows to; `nil` for All (no filter),
-    /// Screen (which queries the OCR store instead of the FTS index) and Files
-    /// (the file index).
+    /// Screen (which queries the OCR store instead of the FTS index), Files
+    /// (the file index) and Agent notes (their own index).
     var kind: SearchIndex.Kind? {
         switch self {
-        case .all, .screen, .files: nil
+        case .all, .screen, .files, .agentNotes: nil
         case .transcripts: .segment
         case .summaries: .summary
         case .notes: .notes

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: Live Radar and Follow-through</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Scripts/render_explainer.py Docs/explainers/live-radar.html web/explainers/live-radar.pdf
+  One A4 sheet, pictures first. The stills in live-radar/ are frames of the published demo film (sample data), cropped to single cards.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24; --no: #f0857a;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12px; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 14mm 8mm; display: flex; flex-direction: column; gap: 13px; background: radial-gradient(120% 60% at 80% 0%, #0d1c26 0%, var(--bg) 60%); }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 34px; line-height: 1.05; letter-spacing: -0.025em; font-weight: 760; }
+.lede { font-size: 15px; color: var(--text-dim); max-width: 58ch; }
+.eyebrow, .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent-text); }
+.label { display: flex; align-items: center; gap: 8px; }
+.label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+code { font-family: var(--mono); font-size: 0.9em; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stack { display: grid; gap: 10px; }
+.shot { border-radius: 9px; border: 1px solid var(--line-strong); overflow: hidden; background: #e9ebec; position: relative; }
+.shot img { display: block; width: 100%; }
+.cap { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+.cap b { color: var(--text); font-weight: 650; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; display: grid; gap: 4px; align-content: start; }
+.tile svg { width: 20px; height: 20px; color: var(--accent-text); }
+.tile h3 { font-size: 12px; font-weight: 680; line-height: 1.2; }
+.tile p { font-size: 10.5px; color: var(--text-dim); line-height: 1.35; }
+.sw { display: inline-block; width: 26px; height: 15px; border-radius: 8px; background: var(--accent); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fff; }
+.path { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; font-size: 11px; }
+.path .crumbs { color: var(--text-dim); }
+.path .crumbs b { color: var(--text); font-weight: 650; }
+.path small { display: block; color: var(--text-faint); font-size: 10px; margin-top: 1px; }
+.key { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 7px; border-radius: 6px; background: linear-gradient(#263444, #18222e); border: 1px solid var(--line-strong); border-bottom-width: 2.5px; font-size: 13px; font-weight: 600; }
+.arrow { color: var(--accent-text); font-size: 20px; text-align: center; align-self: center; }
+.steps { display: grid; gap: 9px; }
+.step { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; font-size: 11.5px; color: var(--text-dim); }
+.step b { color: var(--text); display: block; font-size: 12.5px; font-weight: 660; }
+.num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: rgba(35,196,174,.16); color: var(--accent-text); border: 1px solid rgba(35,196,174,.5); font-weight: 700; font-size: 12px; }
+.sk { height: 6px; border-radius: 3px; background: rgba(255,255,255,.13); }
+.win { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; }
+.win .bar { display: flex; align-items: center; gap: 5px; padding: 6px 9px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 10px; color: var(--text-faint); }
+.win .bar i { width: 7px; height: 7px; border-radius: 50%; background: #3a4a5a; display: block; }
+.win .body { padding: 10px 11px; display: grid; gap: 7px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line-strong); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.chip.on { border-color: rgba(35,196,174,.6); color: var(--accent-text); background: rgba(35,196,174,.12); }
+.btn { display: inline-block; padding: 3px 10px; border-radius: 6px; background: var(--accent); color: #04211d; font-weight: 700; font-size: 10px; }
+.warn { color: var(--warn-text); font-size: 11px; }
+.note { color: var(--text-faint); font-size: 10px; }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 7px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Mac · Meetings · off by default</div>
+  <h1>Live Radar and Follow-through</h1>
+  <p class="lede">Catches what matters while you record, then drafts the follow-up.</p>
+  <div class="label">While you record</div>
+  <div class="g2">
+    <div class="stack">
+      <div><div class="shot"><img src="live-radar/commitment.png" alt="A Live Radar card: Commitment, send the revised pricing deck to Marko, you, Friday, with the quoted line"></div><p class="cap"><b>A promise</b>, with who and when.</p></div>
+      <div><div class="shot"><img src="live-radar/contradiction.png" alt="A Live Radar card: Contradiction, launch is now Friday the seventh, not Monday November 3rd, with the earlier meeting's decision quoted"></div><p class="cap"><b>A conflict</b> with what an earlier meeting decided.</p></div>
+    </div>
+    <div class="stack">
+      <div><div class="shot"><img src="live-radar/question-answered.png" alt="A Live Radar card: an open question about the Team plan price, answered from a spreadsheet with the row quoted"></div><p class="cap"><b>A question, answered from your work</b>, with the row it quotes.</p></div>
+      <div><div class="shot"><img src="live-radar/screen-answer.png" alt="A Live Radar card: a question about September conversion answered 4.1% from an earlier screen capture"></div><p class="cap"><b>Or from your screen:</b> something you had open earlier.</p></div>
+    </div>
+  </div>
+  <div class="label">After the meeting</div>
+  <div style="display:grid;grid-template-columns:.85fr 1fr;gap:16px;align-items:center">
+    <div class="shot"><img src="live-radar/email-draft.png" alt="Follow-through's email draft, with recipient, subject and body, opened in Mail"></div>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><span><b>Follow Through… on one action</b>It reads that meeting and plans the work.</span></div>
+      <div class="step"><span class="num">2</span><span><b>It drafts</b>An email, an invitation, or a task for Claude Code or Codex.</span></div>
+      <div class="step"><span class="num">3</span><span><b>You approve each step</b>Edit it first if you like.</span></div>
+      <div class="step"><span class="num">4</span><span><b>It opens as a draft</b>LokalBot never sends anything itself.</span></div>
+    </div>
+  </div>
+  <div class="label">Turn it on</div>
+  <div class="g3">
+    <div class="path"><span class="sw"></span><span class="crumbs">Settings › Meetings › <b>Live Radar</b><small>Then press Start Radar in a recording</small></span></div>
+    <div class="path"><span class="sw"></span><span class="crumbs"><b>Screen answers</b> · <b>Live answers</b><small>Same section, each off by default</small></span></div>
+    <div class="path"><span class="sw"></span><span class="crumbs">Processing › <b>Turn-by-turn live text</b><small>Text about 1 s behind the speaker, not 2–5</small></span></div>
+  </div>
+  <div class="g4">
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg><h3>Your Think model</h3><p>On this Mac, nothing leaves it. A Think server gets only what you approved.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><h3>Audio stays here</h3><p>The model reads transcript text. Email addresses are never sent.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v10H10l-4 4v-4H4z"/><path d="M8 10h8M8 13h5"/></svg><h3>It must quote</h3><p>An item or answer without a matching quote is dropped.</p></div>
+    <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg><h3>You approve</h3><p>Radar starts when you press Start. Follow-through only proposes.</p></div>
+  </div>
+  <p class="warn">First built on a hosted model. On a local Think model it is covered by tests, not yet by real meetings, and speed on a small model isn't measured. Mac only.</p>
+  <p class="note">Pictures: the app on sample data, filmed on an earlier build.</p>
+
+  <div class="foot"><span>LokalBot · Live Radar and Follow-through</span><span>Full details: PRIVACY.md</span></div>
+</section>
+</body>
+</html>
