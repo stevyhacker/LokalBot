@@ -202,7 +202,7 @@ struct OnboardingFrame<Content: View, Footer: View>: View {
     @ViewBuilder var content: Content
     @ViewBuilder var footer: Footer
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Height of the window's own title bar, which the content sits under.
+    /// Height of the window's own title bar, which pushes the content down.
     @State private var titleBar: CGFloat = 0
 
     var body: some View {
@@ -220,7 +220,7 @@ struct OnboardingFrame<Content: View, Footer: View>: View {
                 // while they cross instead of stacking vertically.
                 ZStack(alignment: .top) {
                     content
-                        .padding(.horizontal, 44).padding(.top, 22).padding(.bottom, 18)
+                        .padding(.horizontal, 44).padding(.top, 18).padding(.bottom, 12)
                         .frame(maxWidth: .infinity, alignment: .top)
                         .id(step)
                         .transition(WorkspaceMotion.stepTransition(forward: forward, reduceMotion: reduceMotion))
@@ -233,8 +233,51 @@ struct OnboardingFrame<Content: View, Footer: View>: View {
         }
         // The title bar is part of the window's height, so the content gives it up.
         .frame(width: OnboardingView.size.width, height: OnboardingView.size.height - titleBar)
-        .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { titleBar = $0 }
+        .background(WindowTitleBarReader(height: $titleBar))
         .toggleStyle(LBAccentSwitchStyle())
+    }
+}
+
+/// Reads how far the window's title bar pushes its content down. AppKit
+/// knows this on every system; the geometry SwiftUI reported for it was
+/// zero on macOS 26, which left the stepper in a bar of its own below the
+/// traffic lights and the window a title bar too tall.
+private struct WindowTitleBarReader: NSViewRepresentable {
+    @Binding var height: CGFloat
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.onChange = { height = $0 }
+        return view
+    }
+
+    func updateNSView(_ nsView: ProbeView, context: Context) {
+        nsView.onChange = { height = $0 }
+        nsView.report()
+    }
+
+    final class ProbeView: NSView {
+        var onChange: ((CGFloat) -> Void)?
+        private var reported: CGFloat?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            report()
+        }
+
+        override func layout() {
+            super.layout()
+            report()
+        }
+
+        func report() {
+            guard let content = window?.contentView else { return }
+            // A stray value must not push the stepper out of the window.
+            let height = min(max(content.safeAreaInsets.top.rounded(), 0), 60)
+            guard height != reported else { return }
+            reported = height
+            DispatchQueue.main.async { [onChange] in onChange?(height) }
+        }
     }
 }
 
@@ -334,6 +377,7 @@ struct OnboardingHeading: View {
                 .font(.scaled(.title).bold())
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("onboarding.title")
             if let lead {
                 Text(lead)
                     .font(.scaledSystem(size: 13.5))
@@ -373,8 +417,8 @@ struct OnboardingRow<Detail: View, Trailing: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             HStack(spacing: 8) { trailing }
         }
-        .padding(.horizontal, 14).padding(.vertical, 11)
-        .frame(minHeight: 58)
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .frame(minHeight: 56)
     }
 }
 

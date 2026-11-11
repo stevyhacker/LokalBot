@@ -50,10 +50,12 @@ final class OnboardingUITests: XCTestCase {
         XCTAssertTrue(isOn(codingAgents), "setup starts from the new-install default")
         codingAgents.click()
         UITestHarness.selectSegment("简体中文", pickerIdentifier: "onboarding.appLanguage", in: app)
-        XCTAssertTrue(text(containing: "LokalBot 应该记住什么？").waitForExistence(timeout: 6),
+        XCTAssertTrue(heading("onboarding.choicesHeading", says: "LokalBot 应该记住什么？"),
                       "The existing onboarding host must update its locale")
         UITestHarness.selectSegment("English", pickerIdentifier: "onboarding.appLanguage", in: app)
-        assertPage(title: "What should LokalBot remember?", step: 1)
+        XCTAssertTrue(heading("onboarding.choicesHeading", says: "What should LokalBot remember?"),
+                      "The window must return to English")
+        assertPage(title: "Welcome to LokalBot", step: 1)
         XCTAssertFalse(isOn(UITestHarness.toggle("Read coding agent sessions", in: app)),
                        "Switching the language must keep the choices already made")
         app.buttons["Continue"].click()
@@ -69,16 +71,19 @@ final class OnboardingUITests: XCTestCase {
             ("ar-EG", "مصري", "عايز LokalBot يفتكر إيه؟"),
             ("ur", "اردو", "LokalBot کیا یاد رکھے؟")
         ]
-        for (identifier, nativeName, heading) in languages {
+        for (identifier, nativeName, words) in languages {
             UITestHarness.selectSegment(nativeName, pickerIdentifier: "onboarding.appLanguage", in: app)
-            XCTAssertTrue(text(containing: heading).waitForExistence(timeout: 6))
+            XCTAssertTrue(heading("onboarding.choicesHeading", says: words),
+                          "setup must show its choices in \(identifier)")
             let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
             screenshot.name = "onboarding-choose-\(identifier)"
             screenshot.lifetime = .keepAlways
             add(screenshot)
         }
         UITestHarness.selectSegment("English", pickerIdentifier: "onboarding.appLanguage", in: app)
-        assertPage(title: "What should LokalBot remember?", step: 1)
+        XCTAssertTrue(heading("onboarding.choicesHeading", says: "What should LokalBot remember?"),
+                      "The window must return to English")
+        assertPage(title: "Welcome to LokalBot", step: 1)
     }
 
     func testWizardExplainsDayMemoryDefaultsAndPermissionGates() {
@@ -113,11 +118,11 @@ final class OnboardingUITests: XCTestCase {
                        "Moving through setup must not apply capture choices")
     }
 
-    /// The stepper shows finished steps as buttons that go back; the current
-    /// and later steps are plain labels.
+    /// Each step has one title, `onboarding.title`. The stepper shows finished
+    /// steps as buttons that go back; the current and later steps are plain
+    /// labels, so a step's name in the stepper does not count as its page.
     private func assertPage(title: String, step: Int) {
-        XCTAssertTrue(text(containing: title).waitForExistence(timeout: 6),
-                      "onboarding page missing: \(title)")
+        XCTAssertTrue(heading("onboarding.title", says: title), "onboarding page missing: \(title)")
         let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         attachment.name = "onboarding-step-\(step)"
         attachment.lifetime = .keepAlways
@@ -138,6 +143,22 @@ final class OnboardingUITests: XCTestCase {
         case let number as NSNumber: number.boolValue
         case let text as String: text == "1"
         default: false
+        }
+    }
+
+    /// Whether the heading with this identifier comes to say these words. A
+    /// heading's words reach XCUITest as its label, and a static-text query
+    /// did not match one on the hosted runner, so it is found by identifier
+    /// among all elements. While one step replaces another both titles exist
+    /// for a moment; a title is read only once it is the only one.
+    private func heading(_ identifier: String, says words: String, timeout: TimeInterval = 6) -> Bool {
+        let named = app.descendants(matching: .any).matching(identifier: identifier)
+        let saying = named.matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", words, words))
+        return UITestHarness.waitUntil(timeout: timeout, pollInterval: 0.25) {
+            if saying.firstMatch.exists { return true }
+            guard named.count == 1 else { return false }
+            let element = named.firstMatch
+            return [element.label, element.value as? String ?? ""].joined(separator: " ").contains(words)
         }
     }
 

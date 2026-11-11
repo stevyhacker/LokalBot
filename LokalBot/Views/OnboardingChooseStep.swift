@@ -19,6 +19,7 @@ struct OnboardingChooseStep: View {
                 .font(.scaled(.headline))
                 .padding(.leading, 2).padding(.bottom, -8)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("onboarding.choicesHeading")
             OnboardingCard {
                 meetingNotes
                 Divider()
@@ -31,6 +32,8 @@ struct OnboardingChooseStep: View {
                     OnboardingNote(
                         symbol: "info.circle",
                         text: "Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Screen & Activity.")
+                    // Shown for every workday choice, app names only included:
+                    // it is what the person agrees to before picking more.
                     OnboardingNote(
                         symbol: "lock",
                         text: "Text and images build on app activity. Images are encrypted on disk; captured text remains searchable under your retention policy.")
@@ -44,12 +47,13 @@ struct OnboardingChooseStep: View {
         VStack(spacing: 7) {
             Image(nsImage: NSApplication.shared.applicationIconImage)
                 .resizable().interpolation(.high)
-                .frame(width: 60, height: 60)
+                .frame(width: 56, height: 56)
                 .accessibilityLabel("LokalBot")
             Text("Welcome to LokalBot")
                 .font(.scaled(.title).bold())
                 .multilineTextAlignment(.center)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("onboarding.title")
             Text("LokalBot takes notes in your meetings and remembers what you worked on, so you can search it or ask about it later.")
                 .font(.scaledSystem(size: 13.5))
                 .workspaceSupportingForeground()
@@ -78,15 +82,11 @@ struct OnboardingChooseStep: View {
             Text("Meeting notes").font(.scaled(.body).weight(.semibold))
             description("Notes and action items from your Zoom, Teams, Meet and FaceTime calls.")
             if draft.recordsDetectedCalls {
-                option("When a call starts") {
-                    Picker(selection: $draft.meetingMode) {
+                option("When a call starts", meaning: draft.meetingMode.setupDetail, showsMeaning: false) {
+                    Picker("When a call starts", selection: $draft.meetingMode) {
                         ForEach(CaptureSetupDraft.detectedCallModes) { mode in
-                            menuRow(mode.setupTitle, mode.setupDetail).tag(mode)
+                            Text(LocalizedStringKey(mode.setupTitle)).tag(mode)
                         }
-                    } label: {
-                        Text("When a call starts")
-                    } currentValueLabel: {
-                        Text(LocalizedStringKey(draft.meetingMode.setupTitle))
                     }
                     .accessibilityIdentifier("onboarding.meetingMode")
                 }
@@ -105,15 +105,11 @@ struct OnboardingChooseStep: View {
             Text("Your workday").font(.scaled(.body).weight(.semibold))
             description("The apps you use and the text on screen, for search and a daily summary.")
             if draft.dayMemory {
-                option("Keeps") {
-                    Picker(selection: $draft.contextMode) {
+                option("Keeps", meaning: draft.contextMode.setupDetail, showsMeaning: true) {
+                    Picker("Keeps", selection: $draft.contextMode) {
                         ForEach(AppSettings.ScreenContextCaptureMode.allCases) { mode in
-                            menuRow(mode.setupTitle, mode.setupDetail).tag(mode)
+                            Text(LocalizedStringKey(mode.setupTitle)).tag(mode)
                         }
-                    } label: {
-                        Text("Keeps")
-                    } currentValueLabel: {
-                        Text(LocalizedStringKey(draft.contextMode.setupTitle))
                     }
                     .accessibilityIdentifier("onboarding.contextMode")
                 }
@@ -138,14 +134,6 @@ struct OnboardingChooseStep: View {
         }
     }
 
-    /// A menu item with its one-line explanation under the name.
-    private func menuRow(_ title: String, _ detail: String) -> some View {
-        VStack(alignment: .leading) {
-            Text(LocalizedStringKey(title))
-            Text(LocalizedStringKey(detail))
-        }
-    }
-
     private func description(_ text: LocalizedStringKey) -> some View {
         Text(text)
             .font(.scaled(.callout))
@@ -154,21 +142,38 @@ struct OnboardingChooseStep: View {
     }
 
     /// The one option a choice has, on its own line under the description.
-    private func option(_ label: LocalizedStringKey, @ViewBuilder control: () -> some View) -> some View {
-        HStack(spacing: 8) {
-            Text(label).font(.scaled(.callout)).workspaceSupportingForeground()
-                .accessibilityHidden(true)
-            control()
-                .labelsHidden()
-                .controlSize(.small)
-                .fixedSize()
+    /// What the chosen option means is the pop-up's help, and for the workday,
+    /// where it says what is kept, a line of its own. The menu is a plain
+    /// pop-up like the app's others: rows with a second line drew over the
+    /// pop-up's arrows in right-to-left languages.
+    private func option(_ label: LocalizedStringKey, meaning: String, showsMeaning: Bool,
+                        @ViewBuilder control: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(label).font(.scaled(.callout)).workspaceSupportingForeground()
+                    .accessibilityHidden(true)
+                control()
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .fixedSize()
+                    .help(Text(LocalizedStringKey(meaning)))
+                    .accessibilityHint(showsMeaning ? Text(verbatim: "") : Text(LocalizedStringKey(meaning)))
+            }
+            if showsMeaning {
+                Text(LocalizedStringKey(meaning))
+                    .font(.scaled(.callout))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("onboarding.contextMode.meaning")
+            }
         }
         .padding(.top, 6)
     }
 }
 
 private extension AppSettings.AutoRecordMode {
-    /// The option's name in setup's "When a call starts" menu.
+    /// The option's name in setup's "When a call starts" menu, and what it
+    /// means, which is the menu's help while it is chosen.
     var setupTitle: String {
         switch self {
         case .automatic: "Record automatically"
