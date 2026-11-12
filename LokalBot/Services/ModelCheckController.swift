@@ -67,6 +67,10 @@ final class ModelCheckController: ObservableObject {
     @Published private(set) var testingRole: ModelRole?
     private var task: Task<Void, Never>?
     private var generation = UUID()
+    /// Roles to check once the running checks finish.
+    private var queued: [ModelRole] = []
+    /// Notices which downloads made in this launch have just finished.
+    private var autoCheck = ModelAutoCheckTracker()
 
     var isTesting: Bool { task != nil }
 
@@ -81,6 +85,21 @@ final class ModelCheckController: ObservableObject {
             result.identity == ModelCheckIdentity(role: role, settings: settings, apiKey: key)
         }
         // A running check compares its own identity again before publishing.
+    }
+
+    /// Checks a model that has just finished downloading, without being
+    /// asked, when it runs on this Mac. Never while a meeting is recording,
+    /// and never for a model on a server: that check sends a sample there,
+    /// which only the Check sheet's own button does.
+    func readinessChanged(app: AppState) {
+        let finished = autoCheck.observe(app.modelRoles.snapshot.statuses, settings: app.settings)
+        guard !finished.isEmpty, !AppState.isUnitTesting, !UITestRuntime.isEnabled,
+              !app.pipeline.captureActive else { return }
+        if isTesting {
+            queued += finished.filter { !queued.contains($0) }
+        } else {
+            run(finished, app: app)
+        }
     }
 
     func run(_ roles: [ModelRole], app: AppState) {
@@ -115,10 +134,16 @@ final class ModelCheckController: ObservableObject {
             guard generation == token else { return }
             testingRole = nil
             task = nil
+            if !queued.isEmpty {
+                let next = queued
+                queued = []
+                run(next, app: app)
+            }
         }
     }
 
     func cancel() {
+        queued = []
         generation = UUID()
         task?.cancel()
         task = nil

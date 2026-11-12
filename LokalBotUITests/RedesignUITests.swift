@@ -46,6 +46,7 @@ final class RedesignUITests: XCTestCase {
 
     /// Filmed on 2026-11-05: opening Projects showed the first project with no
     /// row highlighted, and selecting a row widened the list column to its maximum.
+    /// Also covers a project nothing names yet: one message and the names sheet.
     func testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth() throws {
         let projects = fixture.root.appendingPathComponent("projects", isDirectory: true)
         try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
@@ -75,6 +76,21 @@ final class RedesignUITests: XCTestCase {
         usleep(800_000)
         XCTAssertEqual(list.frame.width, width, accuracy: 2, "Selecting a project must not move the divider")
         snapshot("projects-selection")
+
+        // The list is headed by its search field. Nothing in the library names
+        // these two projects, so the page is one message whose button opens
+        // the names sheet on "Other names".
+        XCTAssertTrue(element("projects.search").exists, "The list column starts with the search field")
+        let addNames = element("project.addOtherNames")
+        XCTAssertTrue(addNames.waitForExistence(timeout: 5),
+                      "A project nothing names yet offers to add other names")
+        XCTAssertFalse(element("project.summary").exists, "There is no note to write for a project nothing names")
+        addNames.click()
+        XCTAssertTrue(element("project.otherNames").waitForExistence(timeout: 5), "The names sheet opens")
+        XCTAssertTrue(element("project.name").exists)
+        app.buttons["Cancel"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !self.element("project.otherNames").exists })
+        XCTAssertTrue(UITestHarness.waitUntil { selected.count == 1 }, "Cancelling leaves the selection alone")
     }
 
     func testWorkspaceVisualMatrix() throws {
@@ -151,16 +167,15 @@ final class RedesignUITests: XCTestCase {
         let anchors = [
             "today": "today.dayDigest.text", "actions": "actions.search",
             "meeting": "meeting.audioPlayer", "transcript": "transcript.segment.0.text",
-            "review": "meeting.review.speakers",
+            // The Review tab is gone; this route shows the sheet that names speakers.
+            "review": "meeting.namingSheet",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
             "ask": "ask.submit", "settings": "settings.overview", "models": "models.overview",
-            "dictation": "dictation.form", "agent": "agent.composer",
+            // Autocomplete opens on its settings; the rehearsal is its "Try it…" sheet.
+            "dictation": "dictation.form", "autocomplete": "settings.header.writing", "agent": "agent.composer",
         ]
-        if let identifier = anchors[route] {
-            XCTAssertTrue(element(identifier).waitForExistence(timeout: 10), "Capture content not ready: \(route)")
-        } else {
-            XCTAssertTrue(app.staticTexts["Try the real autocomplete"].waitForExistence(timeout: 10))
-        }
+        let identifier = try XCTUnwrap(anchors[route], "No capture anchor for \(route)")
+        XCTAssertTrue(element(identifier).waitForExistence(timeout: 10), "Capture content not ready: \(route)")
         if route == "timeline" {
             XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
                 .firstMatch.waitForExistence(timeout: 5), "Capture must include the seeded work session")
@@ -188,6 +203,8 @@ final class RedesignUITests: XCTestCase {
         let input = app.textFields["search.field"]
         input.click(); input.typeText("failover")
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
+        // ↓ moves from the field onto the first match; Return then opens it.
+        input.typeKey(.downArrow, modifierFlags: [])
         input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists)
@@ -196,10 +213,24 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "failover")
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
-        input.typeKey(.return, modifierFlags: .command)
-        XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 5))
+        // In the field, Return asks, even for a single word. A keyword's
+        // answer is limited to the matches that were listed, and the sources
+        // menu names them. (A full question would read the chosen sources.)
+        input.click()
+        input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["chat.message.user"].waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "")
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (self.element("ask.sources").value as? String) == self.fixture.designReview.title
+        })
+        XCTAssertFalse(element("ask.selectedEvidence").exists)
+        // The model connection is blocked here: the answer fails with the way
+        // to fix it, and the matches stay listed under it.
+        XCTAssertTrue(element("chat.answer.status").waitForExistence(timeout: 10))
+        XCTAssertTrue(element("chat.answer.modelSettings").exists)
+        XCTAssertTrue(element("ask.inferenceStatus").exists, "A blocked model connection is named under the field")
+        XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6),
+                      "A failed answer keeps its matches")
         snapshot("bounded-ask-question")
     }
 
@@ -238,25 +269,36 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let date = element("ask.timeScope")
         XCTAssertTrue(date.waitForExistence(timeout: 5))
+        // Dates are chosen, shown and removed in the time menu alone.
         date.click()
-        app.buttons["ask.timeScope.sevenDays"].click()
-        XCTAssertTrue(date.label.contains("Last 7 days"))
-        XCTAssertTrue(element("ask.filter.date.clear").exists)
-        element("ask.sources").click()
-        XCTAssertTrue(app.menuItems["Result type"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Last 7 days"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Choose a date…"].exists)
+        app.menuItems["Last 7 days"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (date.value as? String) == "Last 7 days" })
+        XCTAssertFalse(element("ask.filter.date.clear").exists)
+        // Finer filters live in the sources menu, which then names them.
+        let sources = element("ask.sources")
+        sources.click()
+        XCTAssertTrue(app.menuItems["Match type"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.menuItems["Source permissions…"].exists)
         XCTAssertFalse(app.menuItems["Screen dates"].exists)
-        app.menuItems["Result type"].hover()
+        app.menuItems["Match type"].hover()
         XCTAssertTrue(app.menuItems["Summaries"].waitForExistence(timeout: 3))
         app.menuItems["Summaries"].click()
-        let typeFilter = element("ask.filter.resultType")
-        XCTAssertTrue(typeFilter.waitForExistence(timeout: 3))
-        XCTAssertTrue(typeFilter.label.contains("Summaries"))
+        XCTAssertTrue(UITestHarness.waitUntil { (sources.value as? String) == "All sources · Summaries" })
+        XCTAssertFalse(element("ask.filter.resultType").exists, "Filters are not repeated as chips")
+        XCTAssertFalse(element("ask.activeFilters").exists)
         snapshot("ask-unified-date-filters")
-        typeFilter.click()
-        XCTAssertFalse(typeFilter.exists)
-        element("ask.filter.date.clear").click()
-        XCTAssertTrue(date.label.contains("Any time"))
-        XCTAssertFalse(element("ask.filter.date.clear").exists)
+        sources.click()
+        XCTAssertTrue(app.menuItems["Match type"].waitForExistence(timeout: 3))
+        app.menuItems["Match type"].hover()
+        XCTAssertTrue(app.menuItems["Transcripts"].waitForExistence(timeout: 3))
+        app.menuItems["All"].firstMatch.click()
+        XCTAssertTrue(UITestHarness.waitUntil { (sources.value as? String) == "All sources" })
+        date.click()
+        XCTAssertTrue(app.menuItems["Any time"].waitForExistence(timeout: 3))
+        app.menuItems["Any time"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (date.value as? String) == "Any time" })
     }
 
     func testClearingResultEvidenceRestoresSearchSources() throws {
@@ -269,11 +311,16 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
         app.buttons["ask.submit"].click()
-        XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 3))
-        XCTAssertNotEqual(sources.value as? String, originalSources)
-        element("ask.selectedEvidence").click()
-        XCTAssertTrue(UITestHarness.waitUntil { sources.value as? String == originalSources })
+        // The follow-up is limited to the meeting that matched: the sources
+        // menu's button names it, and the menu offers to widen it again.
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (sources.value as? String) == self.fixture.designReview.title
+        })
         XCTAssertFalse(element("ask.selectedEvidence").exists)
+        sources.click()
+        XCTAssertTrue(app.menuItems["Only \(fixture.designReview.title)"].waitForExistence(timeout: 3))
+        app.menuItems["All sources"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { sources.value as? String == originalSources })
     }
 
     func testRecallDividerRestoresAfterVisitingOtherWorkspaces() throws {
@@ -297,51 +344,73 @@ final class RedesignUITests: XCTestCase {
         snapshot("recall-restored-divider")
     }
 
+    /// The removed Review tab's three jobs, in place: one sheet names the
+    /// unnamed voices, an action's owner is a menu on its row, and a refresh
+    /// of the summary is offered only once speaker names have changed. A ▶
+    /// time plays where it is, and the player leads to the transcript.
+    /// The test keeps its name so its measured duration still plans the shards.
     func testMeetingReviewConnectsSpeakersOwnersEvidenceAndRefresh() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review"])
-        let speaker = app.buttons["meeting.review.speaker.them"]
-        XCTAssertTrue(speaker.waitForExistence(timeout: 5))
-        let listen = app.buttons["meeting.review.listen.them"]
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
+        let nameSpeakers = app.buttons["meeting.reviewSpeakers"]
+        XCTAssertTrue(nameSpeakers.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["meeting.review.refresh"].exists,
+                       "A summary refresh is offered only after speaker names change")
+        let transport = element("meeting.audioPlayer")
+        XCTAssertTrue(transport.waitForExistence(timeout: 5))
+        nameSpeakers.click()
+        XCTAssertTrue(element("meeting.namingSheet").waitForExistence(timeout: 3))
+        let listen = app.buttons["meeting.naming.play.them"]
         XCTAssertTrue(UITestHarness.waitUntil { listen.isEnabled })
         listen.click()
-        let transport = element("meeting.audioPlayer")
         XCTAssertTrue(transport.buttons["Pause"].waitForExistence(timeout: 3))
         XCTAssertTrue(UITestHarness.waitUntil(timeout: 15) { transport.buttons["Play"].exists },
-                      "A review excerpt must stop instead of continuing through the meeting")
-        speaker.click()
-        let candidate = element("speaker.rename.calendarCandidate.0")
-        XCTAssertTrue(candidate.waitForExistence(timeout: 3))
-        candidate.click()
-        element("speaker.rename.save").click()
-        XCTAssertTrue(UITestHarness.waitUntil { speaker.label.contains("Ana Petrović") })
-        XCTAssertTrue(element("meeting.review").exists, "Naming a speaker must return to the review")
+                      "A voice sample must stop instead of continuing through the meeting")
+        let save = app.buttons["meeting.naming.save"]
+        XCTAssertFalse(save.isEnabled, "Nothing is saved until a name is picked")
+        let guest = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label == %@", "meeting.naming.choice.them.", "Ana Petrović")).firstMatch
+        XCTAssertTrue(guest.waitForExistence(timeout: 3), "Invited people are offered as names")
+        guest.click()
+        XCTAssertTrue(save.isEnabled)
+        save.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !self.element("meeting.namingSheet").exists })
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["meeting.speaker.them"].label.contains("Ana Petrović") })
+        XCTAssertFalse(nameSpeakers.exists, "With every voice named, the header stops asking")
 
-        let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
-        let reviewContent = app.scrollViews["meeting.content.scroll"]
-        UITestHarness.scrollTo(owner, in: app, within: reviewContent)
+        let content = app.scrollViews["meeting.content.scroll"]
+        let owner = element("meeting.action.owner.fixture-action-design-2")
+        UITestHarness.scrollTo(owner, in: app, within: content)
         XCTAssertTrue(owner.isHittable)
         owner.click()
-        let field = app.textFields["meeting.action.correction.owner"]
-        XCTAssertTrue(field.waitForExistence(timeout: 3))
-        field.click(); field.typeKey("a", modifierFlags: .command); field.typeText("Ana Petrović")
-        app.buttons["meeting.action.correction.save"].click()
+        let choice = app.menuItems["Ana Petrović"].firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 3), "This meeting's speakers are owner choices")
+        choice.click()
         XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("Ana Petrović") })
 
-        let evidence = app.buttons["Jump to evidence at 00:00:35"]
-        UITestHarness.scrollTo(evidence, in: app, within: reviewContent)
-        XCTAssertTrue(evidence.isHittable)
-        evidence.click()
+        let play = app.buttons["meeting.action.play.fixture-action-design-2"]
+        UITestHarness.scrollTo(play, in: app, within: content)
+        XCTAssertTrue(play.isHittable)
+        play.click()
+        XCTAssertTrue(transport.buttons["Pause"].waitForExistence(timeout: 3), "A cited time plays from there")
+        XCTAssertTrue(owner.exists, "Playing a cited time must not leave the summary")
+        XCTAssertFalse(app.staticTexts["transcript.segment.3.text"].exists)
+        app.buttons["meeting.player.showInTranscript"].click()
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
-        app.buttons["meeting.review.return"].click()
+        transport.buttons["Pause"].click()
+
+        UITestHarness.selectSegment("Summary", pickerIdentifier: "meeting.contentTabs", in: app)
         let refresh = app.buttons["meeting.review.refresh"]
-        UITestHarness.scrollTo(refresh, in: app, within: reviewContent)
+        XCTAssertTrue(refresh.waitForExistence(timeout: 5))
         XCTAssertTrue(refresh.isHittable)
         XCTAssertTrue(refresh.isEnabled)
-        XCTAssertTrue(UITestHarness.staticText(containing: "Notes need a refresh", in: app).exists)
-        XCTAssertTrue(UITestHarness.staticText(containing: "Refreshing processes the transcript on this Mac", in: app).exists)
-        XCTAssertTrue(owner.label.contains("Ana Petrović"), "Evidence navigation must preserve the correction")
-        snapshot("meeting-review-ready-to-refresh")
+        XCTAssertTrue(UITestHarness.staticText(
+            containing: "Speaker names changed after this summary was written", in: app).exists)
+        XCTAssertTrue(UITestHarness.staticText(containing: "Runs on this Mac", in: app).exists)
+        XCTAssertTrue(app.staticTexts["meeting.action.text.fixture-action-design-2"].exists,
+                      "The earlier summary stays on the page until it is refreshed")
+        UITestHarness.scrollTo(owner, in: app, within: content)
+        XCTAssertTrue(owner.label.contains("Ana Petrović"), "Leaving and returning must preserve the owner")
+        snapshot("meeting-summary-ready-to-refresh")
     }
 
     func testTimelineOpensDetailsOnlyForASelection() throws {
@@ -351,15 +420,26 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(app.textFields["timeline.search"].exists, "Retained moments search was removed")
         XCTAssertFalse(element("timeline.moments").exists, "Retained moments list was removed")
         XCTAssertFalse(element("timeline.fullDigest").exists, "The digest is always shown in full")
+        // The list stays beside the page at the narrowest captured width, so
+        // there is no drawer and nothing to toggle.
         XCTAssertFalse(app.buttons["timeline.context.toggle"].exists)
-        XCTAssertFalse(element("timeline.contextPanel").exists)
+        // A session's page is known by its title: the page's wrapper is not
+        // an accessibility element of its own.
+        let page = element("timeline.sessionPreview")
+        XCTAssertFalse(page.exists)
+        XCTAssertTrue(element("capture.dayOverview").exists, "The digest page shows until a row is selected")
         openFirstTimelineSession()
-        XCTAssertTrue(element("timeline.contextPanel").waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["Close context panel"].waitForExistence(timeout: 3))
-        app.buttons["Close context panel"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { !self.element("timeline.contextPanel").exists })
-        XCTAssertTrue(app.buttons["timeline.context.toggle"].waitForExistence(timeout: 3),
-                      "The selection's details can be reopened")
+        XCTAssertTrue(page.waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["Close context panel"].exists, "A row's page is not a drawer")
+        let list = element("timeline.list")
+        XCTAssertLessThanOrEqual(list.frame.maxX, element("timeline.evidencePane").frame.minX + 1,
+                                 "The list stays beside the selected row's page")
+        XCTAssertGreaterThan(page.frame.minX, list.frame.maxX, "The session's page is beside the list")
+        XCTAssertFalse(element("capture.dayOverview").exists, "The session's page replaces the digest")
+        // Day digest, the list's first row, returns to the digest.
+        app.buttons["timeline.dayDigest.row"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !page.exists })
+        XCTAssertTrue(element("capture.dayOverview").waitForExistence(timeout: 3))
     }
 
     func testTranscriptSearchIsPersistentAndCommandFStillFindsAcrossMeeting() throws {
@@ -367,7 +447,7 @@ final class RedesignUITests: XCTestCase {
         UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
         let search = app.textFields["meeting.search.field"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
-        XCTAssertEqual(search.placeholderValue, "Search Transcript")
+        XCTAssertEqual(search.placeholderValue, "Find in transcript")
         search.click()
         search.typeText("failover")
         let status = app.staticTexts["meeting.search.status"]
@@ -380,42 +460,51 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(status.exists, "Closing page find clears its query and matches")
     }
 
+    /// An owner chosen from the row's menu keeps the reader on the summary
+    /// while page search is open, and a cited time plays in place. (The name
+    /// predates the removal of the Review tab; its timing plans the shards.)
     func testMeetingCorrectionKeepsReviewWithPageSearchOpenAndClearsReturnOrigin() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review"])
-        XCTAssertTrue(element("meeting.review").waitForExistence(timeout: 5))
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
+        XCTAssertTrue(element("meeting.audioPlayer").waitForExistence(timeout: 5))
         app.typeKey("f", modifierFlags: .command)
         let search = app.textFields["meeting.search.field"]
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.click(); search.typeText("failover")
         XCTAssertTrue(app.staticTexts["meeting.search.status"].waitForExistence(timeout: 3))
-        UITestHarness.selectSegment("Review", pickerIdentifier: "meeting.contentTabs", in: app)
         let content = app.scrollViews["meeting.content.scroll"]
-        let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
+        let owner = element("meeting.action.owner.fixture-action-design-2")
         UITestHarness.scrollTo(owner, in: app, within: content)
         owner.click()
+        let you = app.menuItems["You"].firstMatch
+        XCTAssertTrue(you.waitForExistence(timeout: 3))
+        you.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !owner.exists },
+                      "An action given to You moves under For you, where no owner is shown")
+        let text = app.staticTexts["meeting.action.text.fixture-action-design-2"]
+        XCTAssertTrue(text.exists, "Refreshing search matches must not navigate away from Summary")
+
+        // Wording, owner and due date stay editable together from the row's menu.
+        let options = element("meeting.action.status.fixture-action-design-2")
+        UITestHarness.scrollTo(options, in: app, within: content)
+        options.click()
+        app.menuItems["Correct owner or due date"].click()
         let field = app.textFields["meeting.action.correction.owner"]
         XCTAssertTrue(field.waitForExistence(timeout: 3))
-        field.click(); field.typeKey("a", modifierFlags: .command); field.typeText("Me")
-        app.buttons["meeting.action.correction.save"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("You") }, "The stored owner Me is shown as You")
-        XCTAssertTrue(element("meeting.review").exists, "Refreshing search matches must not navigate away from Review")
+        XCTAssertEqual(field.value as? String, "Me", "The stored owner Me is shown as You")
+        app.sheets.firstMatch.buttons["Cancel"].click()
 
-        let evidence = app.buttons["Jump to evidence at 00:00:35"]
-        UITestHarness.scrollTo(evidence, in: app, within: content)
-        evidence.click()
-        XCTAssertTrue(app.buttons["meeting.review.return"].waitForExistence(timeout: 3))
-        UITestHarness.selectSegment("Summary", pickerIdentifier: "meeting.contentTabs", in: app)
-        UITestHarness.scrollTo(evidence, in: app, within: content)
-        evidence.click()
-        XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["meeting.review.return"].exists, "Overview evidence must not retain the old Review origin")
+        let play = app.buttons["meeting.action.play.fixture-action-design-2"]
+        UITestHarness.scrollTo(play, in: app, within: content)
+        play.click()
+        XCTAssertTrue(element("meeting.audioPlayer").buttons["Pause"].waitForExistence(timeout: 3))
+        XCTAssertTrue(text.exists, "A cited time plays in place")
+        XCTAssertFalse(app.staticTexts["transcript.segment.3.text"].exists)
     }
 
     func testWorkspaceAccessibilityAuditDismissesHoverHelp() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": "light"])
-        let citation = app.buttons["Jump to evidence at 00:00:24"]
+                    "LOKALBOT_CAPTURE_APPEARANCE": "light"])
+        let citation = app.buttons["meeting.action.play.fixture-action-design-1"]
         UITestHarness.scrollTo(citation, in: app, within: app.scrollViews["meeting.content.scroll"])
         XCTAssertTrue(citation.isHittable)
         citation.hover()
@@ -429,19 +518,22 @@ final class RedesignUITests: XCTestCase {
         for appearance in ["light", "dark"] {
             try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
                         "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": appearance])
-            XCTAssertTrue(element("meeting.review.speakers").waitForExistence(timeout: 5))
-            try auditWorkspaceAccessibility(includeContrast: true)
-            let owner = app.buttons["meeting.action.owner.fixture-action-design-1"]
+            // This launch opens the sheet that names speakers. The window
+            // behind a sheet is dimmed and cannot be used, so its contrast is
+            // audited once the sheet has closed, a few lines down.
+            let namingSheet = element("meeting.namingSheet")
+            XCTAssertTrue(namingSheet.waitForExistence(timeout: 5))
+            try auditWorkspaceAccessibility(includeContrast: true, contrastScope: namingSheet)
+            snapshot("meeting-naming-sheet-\(appearance)")
+            app.buttons["meeting.naming.cancel"].click()
+            XCTAssertTrue(UITestHarness.waitUntil { !self.element("meeting.namingSheet").exists })
+            let owner = element("meeting.action.owner.fixture-action-design-2")
             UITestHarness.scrollTo(owner, in: app, within: app.scrollViews["meeting.content.scroll"])
             XCTAssertTrue(owner.isHittable)
-            XCTAssertTrue(owner.label.hasPrefix("Correct owner:"))
+            XCTAssertTrue(owner.label.hasPrefix("Owner:"))
             XCTAssertEqual(app.buttons["meeting.action.toggle.fixture-action-design-1"].label, "Mark action done")
             try auditWorkspaceAccessibility(includeContrast: true)
-            snapshot("meeting-review-owners-\(appearance)")
-            let refresh = app.buttons["meeting.review.refresh"]
-            UITestHarness.scrollTo(refresh, in: app, within: app.scrollViews["meeting.content.scroll"])
-            XCTAssertTrue(refresh.isHittable)
-            try auditWorkspaceAccessibility(includeContrast: true)
+            snapshot("meeting-summary-owners-\(appearance)")
             UITestHarness.clickSidebar("sidebar.ask", in: app)
             XCTAssertTrue(element("chat.empty").waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
@@ -489,30 +581,31 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-inspectable-title-evidence")
     }
 
-    func testTimelineRailResizesAgainstTheDigest() throws {
+    func testTimelineListResizesAgainstThePage() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
-        let rail = element("timeline.sessionRail")
-        let evidence = element("timeline.evidencePane")
-        XCTAssertTrue(rail.waitForExistence(timeout: 5))
-        XCTAssertTrue(evidence.waitForExistence(timeout: 5))
-        let opening = rail.frame.width
+        let list = element("timeline.list")
+        let page = element("timeline.evidencePane")
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        XCTAssertTrue(page.waitForExistence(timeout: 5))
+        XCTAssertFalse(element("timeline.sessionRail").exists, "The rail on the right was replaced by the list")
+        let opening = list.frame.width
         let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
-            abs($0.frame.midX - rail.frame.minX) < abs($1.frame.midX - rail.frame.minX)
+            abs($0.frame.midX - list.frame.maxX) < abs($1.frame.midX - list.frame.maxX)
         }, "Timeline divider missing")
 
         app.activate()
         let grip = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: -160, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { rail.frame.width >= opening + 120 },
-                      "Work sessions should widen past their opening width (\(rail.frame.width) from \(opening))")
-        XCTAssertGreaterThanOrEqual(evidence.frame.width, 420, "The digest keeps its readable minimum")
-        snapshot("timeline-wide-sessions")
+        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: 100, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { list.frame.width >= opening + 80 },
+                      "The day's list should widen past its opening width (\(list.frame.width) from \(opening))")
+        XCTAssertGreaterThanOrEqual(page.frame.width, 420, "The page keeps its readable minimum")
+        snapshot("timeline-wide-list")
 
         // Divider positions persist in the host's defaults; leave the next
         // launch at the opening width.
         let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: rail.frame.width - opening, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { abs(rail.frame.width - opening) < 8 })
+        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: opening - list.frame.width, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { abs(list.frame.width - opening) < 8 })
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
@@ -544,15 +637,14 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testMeetingMenusHaveAccessibleActionsAndOpen() throws {
-        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
-                    "LOKALBOT_DETAIL_TAB": "review"])
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
         XCTAssertTrue(element("meeting.export").waitForExistence(timeout: 5))
         // XCTest audits the exposed actions through its authorized automation
         // service; menu interaction below separately verifies the callbacks.
         // This is not a manual VoiceOver listening test.
         try auditWorkspaceAccessibility()
-        for (identifier, item) in [("meeting.export", "Copy Meeting as Markdown"),
-                                   ("toolbar.meetingActions", "Transcribe only"),
+        for (identifier, item) in [("meeting.export", "Copy as Markdown"),
+                                   ("toolbar.meetingActions", "Reprocess"),
                                    ("meeting.playbackSpeed", "Reset to 1x")] {
             let control = element(identifier)
             XCTAssertTrue(control.waitForExistence(timeout: 5))
@@ -570,8 +662,11 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_COTYPING_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Autocomplete", in: app)
+        let tryIt = app.buttons["settings.header.writing.tryIt"]
+        XCTAssertTrue(tryIt.waitForExistence(timeout: 6))
+        tryIt.click()
         let editor = app.textViews["autocomplete.rehearsal.editor"]
-        UITestHarness.scrollTo(editor, in: app)
+        XCTAssertTrue(editor.waitForExistence(timeout: 6), "Try it… did not open the rehearsal")
         editor.click()
         let original = editor.value as? String
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["Insert suggestion"].isEnabled })
@@ -635,7 +730,7 @@ final class RedesignUITests: XCTestCase {
     func testRetentionReviewCancelPreservesPolicy() throws {
         try launch(["LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Screen & Activity", in: app)
+        UITestHarness.selectSettingsCategory("Screen & activity", in: app)
         let before = UserDefaults(suiteName: suite!)?.data(forKey: "lokalbotv3.settings")
         let review = app.buttons["Review expired context…"]
         UITestHarness.scrollTo(review, in: app)
@@ -652,10 +747,15 @@ final class RedesignUITests: XCTestCase {
         let folder = fixture.folder(for: fixture.designReview)
         // Large-list persistence belongs to RedesignContractTests, which
         // covers 0, 40 and 400 actions without an accessibility snapshot of every row.
-        // Two distinct actions exercise filtering and hidden selection here.
+        // Two distinct actions exercise filtering and selection here. The
+        // dated one lists ahead of the other, which is therefore never the
+        // row the page selects by default.
         let actions: [[String: Any]] = (0..<2).map { index in
-            ["id": "search-action-\(index)", "schemaVersion": 2, "text": "Synthetic commitment \(index)",
-             "owner": "Me", "isForUser": true, "due": "Friday", "citations": []]
+            var action: [String: Any] = [
+                "id": "search-action-\(index)", "schemaVersion": 2, "text": "Synthetic commitment \(index)",
+                "owner": "Me", "isForUser": true, "citations": []]
+            if index == 0 { action["due"] = "Friday" }
+            return action
         }
         let data = try JSONSerialization.data(withJSONObject: ["schemaVersion": 2, "actionItems": actions])
         try data.write(to: folder.appendingPathComponent("outcomes.json"))
@@ -663,38 +763,63 @@ final class RedesignUITests: XCTestCase {
         app.buttons["outcomes.review"].click()
         let search = app.textFields["actions.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.click(); search.typeText("Synthetic commitment 1")
-        // Failure messages repeat the action title; inspect only its list row.
-        let action = element("actions.list").staticTexts.matching(
-            NSPredicate(format: "label == %@ OR value == %@",
-                        "Synthetic commitment 1", "Synthetic commitment 1")).firstMatch
+        // The details pane is open beside the list with the first row selected.
+        let detailsTitle = element("actions.details.title")
+        func detailsShow(_ text: String) -> Bool {
+            UITestHarness.waitUntil { detailsTitle.exists && (detailsTitle.value as? String ?? detailsTitle.label) == text }
+        }
+        XCTAssertTrue(detailsTitle.waitForExistence(timeout: 5), "The first action should be selected when the page opens")
+        // Failure messages and the details pane repeat the action title; inspect only its list row.
+        func row(_ text: String) -> XCUIElement {
+            element("actions.list").staticTexts.matching(
+                NSPredicate(format: "label == %@ OR value == %@", text, text)).firstMatch
+        }
+        let action = row("Synthetic commitment 1")
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         action.click()
+        XCTAssertTrue(detailsShow("Synthetic commitment 1"))
+        search.click(); search.typeText("Synthetic commitment 0")
+        XCTAssertTrue(detailsShow("Synthetic commitment 0"),
+                      "A search that hides the selected action shows the first listed one instead")
+        XCTAssertFalse(action.exists)
         search.click(); search.typeKey("a", modifierFlags: .command)
-        search.typeText("Synthetic commitment 0")
-        XCTAssertTrue(element("actions.selection.hidden").waitForExistence(timeout: 5),
-                      "Filtering should preserve the selected action while excluding it from the batch")
-        XCTAssertFalse(element("actions.batch").exists, "The batch menu appears only for visible selections")
-        search.click(); search.typeKey("a", modifierFlags: .command)
-        search.typeText("Synthetic commitment 1")
+        search.typeKey(.delete, modifierFlags: [])
         XCTAssertTrue(action.waitForExistence(timeout: 5))
-        XCTAssertTrue(element("actions.batch").waitForExistence(timeout: 3), "Returning to the action should restore its selection")
-        XCTAssertFalse(element("actions.selection.hidden").exists)
-        let complete = app.buttons["outcome.action.toggle.\(fixture.designReview.id.uuidString):search-action-1"]
+        XCTAssertTrue(detailsShow("Synthetic commitment 1"), "Clearing the search should restore the selection")
+        // ⌘-click adds a row, and the details pane offers the batch changes.
+        XCTAssertFalse(element("actions.batch").exists, "The batch pane appears only for several selected rows")
+        XCUIElement.perform(withKeyModifiers: .command) { row("Synthetic commitment 0").click() }
+        XCTAssertTrue(element("actions.batch").waitForExistence(timeout: 3), "⌘-click should select a second action")
+        XCTAssertTrue(app.buttons["actions.batch.done"].exists)
+        action.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !self.element("actions.batch").exists },
+                      "A plain click should return to one selected action")
+        let complete = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND value == %@", "outcome.thread.toggle.", "Synthetic commitment 1")).firstMatch
         XCTAssertTrue(complete.waitForExistence(timeout: 4))
         let stateFile = folder.appendingPathComponent("outcome-state.json")
         try withBlockedStateFile(stateFile) {
             complete.click()
             XCTAssertTrue(UITestHarness.staticText(containing: "Could not update this action", in: app)
                 .waitForExistence(timeout: 4))
-            XCTAssertTrue(action.exists, "A failed save must preserve the open action")
+            XCTAssertEqual(complete.label, "Mark action thread done", "A failed save must leave the action open")
             snapshot("action-complete-write-failure")
         }
         complete.click()
-        XCTAssertTrue(UITestHarness.waitUntil { !action.exists })
+        // A completed action stays in the list, ticked, until the view changes.
+        XCTAssertTrue(UITestHarness.waitUntil { complete.exists && complete.label == "Reopen action thread" })
+        XCTAssertTrue(action.exists, "The ticked action should stay listed until the view changes")
         XCTAssertFalse(UITestHarness.staticText(containing: "Could not update this action", in: app).exists,
                        "A successful retry should clear the previous save error")
         XCTAssertFalse(app.windows.buttons["Undo"].exists, "Completing an action must not leave a persistent Undo bar")
+        let saved = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: stateFile)) as? [String: Any])
+        let states = try XCTUnwrap(saved["actions"] as? [String: [String: Any]])
+        XCTAssertEqual(states["search-action-1"]?["status"] as? String, "done")
+        // Leaving Open and coming back closes the list up.
+        UITestHarness.selectSegment("Done", pickerIdentifier: "actions.status", in: app)
+        XCTAssertTrue(action.waitForExistence(timeout: 4), "The completed action belongs to the Done list")
+        UITestHarness.selectSegment("Open", pickerIdentifier: "actions.status", in: app)
+        XCTAssertTrue(UITestHarness.waitUntil { !action.exists }, "A completed action left the Open list")
     }
 
     func testAgentApprovalDescribesEffectAndDenialAndStopReachTheController() throws {
@@ -716,8 +841,21 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(rendered.contains("| --- | --- |"), "Markdown table syntax leaked into the answer")
         let deny = app.buttons["agent.approve.deny"]
         XCTAssertTrue(deny.waitForExistence(timeout: 6))
-        XCTAssertTrue(UITestHarness.staticText(containing: "Create or replace the file", in: app).exists)
-        XCTAssertTrue(UITestHarness.staticText(containing: "reviewed-note.md", in: app).exists)
+        // The card asks a question that names the file. The fixture's file is
+        // inside the library, so the card says so and shows the full path.
+        // The question is a heading, which macOS reports with a label; plain
+        // text reports a value. Read both, as VoiceOver reads either.
+        let question = app.descendants(matching: .any)["agent.approval.title"]
+        XCTAssertTrue(question.waitForExistence(timeout: 4), "The approval card has no question")
+        let asked = [question.label, question.value as? String ?? ""].joined(separator: " ")
+        XCTAssertTrue(asked.contains("Create reviewed-note.md?"), "The card asked: \(asked)")
+        XCTAssertTrue(UITestHarness.staticText(containing: "own data", in: app).exists,
+                      "The card says the file is inside LokalBot's own data")
+        XCTAssertTrue(app.descendants(matching: .any)["agent.approval.path"].exists)
+        XCTAssertFalse(app.buttons["agent.approve.session"].exists,
+                       "A file in LokalBot's own data can only be allowed once")
+        XCTAssertTrue(app.descendants(matching: .any)["agent.awaitingAnswer"].exists,
+                      "The conversation ends with a line that points at the card")
         snapshot("agent-write-approval")
         deny.click()
         XCTAssertTrue(UITestHarness.staticText(containing: "You denied this write request", in: app)
@@ -767,8 +905,7 @@ final class RedesignUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    /// Work sessions follow the day's summary sections, so the first one can
-    /// start below the fold.
+    /// The day's sessions are rows of the list beside the page.
     private func openFirstTimelineSession() {
         let session = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline.session.")).firstMatch
@@ -786,7 +923,10 @@ final class RedesignUITests: XCTestCase {
                       "Dismiss native hover help before measuring workspace accessibility")
     }
 
-    private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil) throws {
+    /// `contrastScope` limits the contrast audit to that element's own
+    /// descendants, for a sheet or popover in front of dimmed content.
+    private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil,
+                                             contrastScope: XCUIElement? = nil) throws {
         dismissHoverHelpBeforeAuditing()
         // Report every app issue. The hosted virtual Mac also exposes a
         // system-generated Touch Bar and its Emoji picker outside our window;
@@ -809,6 +949,11 @@ final class RedesignUITests: XCTestCase {
                 // each scroll region and open popover is audited separately.
                 let bounds = contrastBounds ?? self.app.windows.firstMatch.frame
                 if !bounds.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
+                // Text behind a sheet can share its bounds; tell the sheet's
+                // own text apart by its exact frame.
+                if let contrastScope,
+                   !contrastScope.descendants(matching: affected.elementType).allElementsBoundByIndex
+                    .contains(where: { $0.frame == affected.frame }) { return true }
                 let content = self.app.scrollViews["meeting.content.scroll"]
                 if content.exists,
                    content.descendants(matching: affected.elementType).matching(NSPredicate(
@@ -841,10 +986,11 @@ final class RedesignUITests: XCTestCase {
     }
 
     private func verifyRecallExplanationContrast() throws -> Set<String> {
+        // The explanations in the sheet that names speakers, which replaced
+        // the Review tab's.
         let labels = [
-            "Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; ⌘Return always asks.",
-            "Listen to a short excerpt, then confirm a name or whether the speaker is you. Leave uncertain voices unresolved.",
-            "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
+            "Play a voice, then pick who it is. LokalBot learns each voice for later meetings. Voices stay encrypted on this Mac.",
+            "Skip any voice you are not sure about.",
         ]
         var verified = Set<String>()
         let content = app.scrollViews["meeting.content.scroll"]

@@ -64,6 +64,72 @@ final class QuickRecallRowModelTests: XCTestCase {
         XCTAssertEqual(rows[0].accessibilityValue, "Saved. Slack. Redis decision")
     }
 
+    /// Line two of a meeting row starts with who said it, from the search
+    /// hit's speaker, or with where the words are when nobody said them.
+    func testAMeetingRowStartsItsLineWithWhoSaidIt() {
+        let meetingID = UUID()
+        let spoken = SearchIndex.Hit(meetingID: meetingID, kind: .segment, start: 760,
+                                     snippet: "Every client video ships with «captions».", speaker: "Maya Chen")
+        let row = QuickRecallRowModel.meeting(hit: spoken, title: "Accessibility review",
+                                              speaker: QuickRecallRowModel.meetingLead(spoken), timestamp: nil)
+
+        XCTAssertEqual(row.id, "meeting.\(meetingID).segment.760.0")
+        XCTAssertEqual(row.lead, .symbol("waveform"))
+        XCTAssertEqual(row.speaker, "Maya Chen")
+        XCTAssertEqual(row.snippet, "Every client video ships with «captions».")
+        XCTAssertEqual(row.plainSnippet, "Maya Chen: Every client video ships with captions.")
+        XCTAssertEqual(row.accessibilityValue, "Maya Chen: Every client video ships with captions.")
+        XCTAssertNil(row.qualifier)
+    }
+
+    func testAMeetingLineWithoutASpeakerSaysWhereItIsFrom() {
+        func lead(_ kind: SearchIndex.Kind, speaker: String = "") -> String? {
+            QuickRecallRowModel.meetingLead(
+                SearchIndex.Hit(meetingID: UUID(), kind: kind, start: 0, snippet: "«Atlas»", speaker: speaker),
+                localize: { "[\($0)]" })
+        }
+        XCTAssertNil(lead(.segment), "a transcript line with no speaker starts with its words")
+        XCTAssertNil(lead(.segment, speaker: "  "))
+        XCTAssertEqual(lead(.segment, speaker: "Them 2"), "Speaker 2")
+        XCTAssertEqual(lead(.notes), "[Your notes]")
+        XCTAssertEqual(lead(.summary), "[Summary]")
+        XCTAssertEqual(lead(.outcome), "[Outcome]")
+        XCTAssertNil(lead(.title))
+    }
+
+    func testATitleMatchDoesNotRepeatTheTitleAsItsLine() {
+        let hit = SearchIndex.Hit(meetingID: UUID(), kind: .title, start: 0,
+                                  snippet: "«Atlas» roadmap review", speaker: "")
+        let row = QuickRecallRowModel.meeting(hit: hit, title: "Atlas roadmap review", speaker: nil, timestamp: nil)
+        XCTAssertNil(row.snippet)
+        XCTAssertNil(row.plainSnippet)
+    }
+
+    func testAScreenRowNamesItsAppOnceAndAFileRowItsFolderAndPage() {
+        let untitled = QuickRecallRowModel.screen(snapshotID: 1, appName: "Pages", title: "Pages",
+                                                  snippet: nil, timestamp: Date(timeIntervalSince1970: 0))
+        XCTAssertNil(untitled.qualifier, "a window named by its app does not say the app twice")
+        XCTAssertEqual(untitled.lead, .thumbnail(1))
+
+        let pdf = FileSearchHit(id: 3, path: "/Users/me/Documents/Atlas/Atlas pilot brief.pdf", kind: .pdf, page: 2,
+                                excerpt: "The «Atlas» pilot covers 40 seats.",
+                                modified: Date(timeIntervalSince1970: 0), isSemantic: false)
+        let row = QuickRecallRowModel.file(pdf, localize: { $0 == "Page %lld" ? "Seite %lld" : $0 })
+        XCTAssertEqual(row.lead, .file(path: pdf.path))
+        XCTAssertEqual(row.qualifier, pdf.folder)
+        XCTAssertEqual(row.speaker, "Seite 2")
+        XCTAssertEqual(row.plainSnippet, "Seite 2: The Atlas pilot covers 40 seats.")
+
+        let moment = FileSearchHit(id: 4, path: "/Users/me/Podcasts/sleep.mp3", kind: .audio, seconds: 754,
+                                   excerpt: "about «sleep»", modified: Date(timeIntervalSince1970: 0),
+                                   isSemantic: false)
+        XCTAssertEqual(QuickRecallRowModel.fileLead(moment), Transcript.shortStamp(754))
+        let picture = FileSearchHit(id: 5, path: "/Users/me/Pictures/a.png", kind: .image, page: nil,
+                                    excerpt: nil, modified: Date(timeIntervalSince1970: 0), isSemantic: true)
+        XCTAssertNil(QuickRecallRowModel.file(picture).speaker)
+        XCTAssertNil(QuickRecallRowModel.file(picture).snippet)
+    }
+
     private func hit(_ id: Int64, snippet: String) -> ActivityStore.OCRHit {
         ActivityStore.OCRHit(snapshotID: id, ts: Date(timeIntervalSince1970: 1_700_000_000),
                              app: "Slack", windowTitle: "Engineering", snippet: snippet)

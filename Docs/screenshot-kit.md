@@ -30,7 +30,7 @@ library (seen on October 9, 2026). After a run, search the library's
 
 - **Window:** 1400×880 pt, rendered at 2× (2800×1760 content plus title bar).
 - **Meeting list:** capped at 400 pt so the outcome inspector remains readable.
-- **Quick Recall:** 660×480 pt, also at 2×. The website's Quick Recall images
+- **Quick Recall:** 660×512 pt, title bar included, also at 2×. The website's Quick Recall images
   use `LOKALBOT_CAPTURE_SCALE=4`; above the display's 2× the host redraws text
   and shapes at the requested density, while icons and thumbnails keep their
   2× pixels.

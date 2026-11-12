@@ -4,35 +4,6 @@ import AVKit
 import PDFKit
 import SwiftUI
 
-/// One file in Ask's results: the file's icon, then the shared result anatomy
-/// (name · date · kind, the matched words or the folder it lives in).
-struct FileSearchResultRow: View {
-    let hit: FileSearchHit
-    let open: () -> Void
-
-    var body: some View {
-        Button(action: open) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: hit.path))
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .accessibilityHidden(true)
-                ResultRow(title: hit.name, kind: hit.kindLabel, snippet: hit.excerpt ?? hit.folder,
-                          timestamp: hit.date.formatted(date: .abbreviated, time: .omitted),
-                          matchLabel: hit.isSemantic ? "Related by meaning" : nil)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button("Open") { open() }
-            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([hit.url]) }
-        }
-        .help(hit.folder)
-        .accessibilityIdentifier("file.hit.\(hit.id)")
-    }
-}
-
 /// Opens a file found by search. A PDF opens in a LokalBot window at the
 /// matched page with the query's words marked; a recording or video plays in
 /// a LokalBot window from the matched moment (no QuickTime scripting, so no

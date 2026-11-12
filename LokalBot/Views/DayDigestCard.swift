@@ -1,167 +1,17 @@
 import SwiftUI
 
-/// One digest presentation for Today and Timeline, with the same generation,
-/// export, freshness and inference behavior in each destination.
-struct DayDigestCard: View {
-    @EnvironmentObject private var app: AppState
-    @ObservedObject var model: CaptureModel
-    var yesterday: DreamReport?
-    let identifier: String
-    var showsControls = true
-    var mode: DayDigestView.Mode = .timeline
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if showsControls { DayDigestControls(model: model, identifier: identifier) }
-            if let digest = model.digest {
-                DayDigestView(digest, mode: mode)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("\(identifier).dayDigest.text")
-            } else {
-                Text("Your digest brings together this day's meetings and captured activity.")
-                    .workspaceTextRole(.supporting)
-            }
-            if model.digestUpdatedAt != nil || model.digestIsStale {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let updated = model.digestUpdatedAt {
-                        Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
-                    }
-                    if model.digestIsStale {
-                        Text("New activity available · Update digest to include it")
-                            .accessibilityIdentifier("\(identifier).dayDigest.stale")
-                    }
-                }
-                .font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            if let yesterday {
-                Divider()
-                YesterdayDigestLine(report: yesterday, day: model.day)
-            }
-            if let error = model.digestError {
-                Label(error, systemImage: "exclamationmark.triangle").workspaceTextRole(.warning)
-            }
-        }
-    }
-}
-
-struct DayDigestControls: View {
-    @EnvironmentObject private var app: AppState
-    @ObservedObject var model: CaptureModel
-    let identifier: String
-    var showsAsk = true
-    /// Timeline offers Regenerate from the digest menu once a digest exists.
-    /// It stays a visible button before the first digest and while writing.
-    var regeneratesFromMenu = false
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) { if showsAsk { ask }; generate; actions }
-            VStack(alignment: .leading, spacing: 8) {
-                if showsAsk { ask }
-                HStack(spacing: 8) { generate; actions }
-            }
-        }
-    }
-
-    private var ask: some View {
-        Button { app.openAsk(dayScope: model.day) } label: {
-            Label("Ask About This Day", systemImage: "sparkle.magnifyingglass")
-        }
-        .buttonStyle(.bordered)
-        .accessibilityIdentifier(identifier == "timeline" ? "capture.askDay" : "\(identifier).askDay")
-    }
-
-    private var generate: some View {
-        DayDigestGenerateButton(model: model, lifecycle: app.dayDigest, identifier: identifier,
-                                inMenu: regeneratesFromMenu)
-    }
-
-    @ViewBuilder private var actions: some View {
-        if let digest = model.digest, !regeneratesFromMenu {
-            Menu {
-                DayDigestExportItems(model: model, digest: digest)
-            } label: { Label("Digest actions", systemImage: "ellipsis.circle") }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .accessibilityLabel("Day digest actions")
-                .accessibilityIdentifier("\(identifier).dayDigest.actions")
-        }
-    }
-}
-
-private struct DayDigestExportItems: View {
-    @ObservedObject var model: CaptureModel
-    let digest: String
-
-    var body: some View {
-        Button { model.copyDigest(digest) } label: { Label("Copy Digest", systemImage: "doc.on.doc") }
-            .accessibilityIdentifier("capture.dayDigest.copyAll")
-        Button { model.exportDigest(digest) } label: { Label("Export Markdown", systemImage: "square.and.arrow.up") }
-    }
-}
-
-/// Reflects every digest run for the shown day, including a scheduled
-/// catch-up, so a manual request cannot start a competing generation.
-private struct DayDigestGenerateButton: View {
-    @EnvironmentObject private var app: AppState
-    @ObservedObject var model: CaptureModel
-    @ObservedObject var lifecycle: DayDigestLifecycle
-    let identifier: String
-    /// See `DayDigestControls.regeneratesFromMenu`.
-    var inMenu = false
-
-    var body: some View {
-        let scheduledRun = lifecycle.isGenerating(on: model.day) && !model.generating
-        let busy = model.generating || scheduledRun
-        HStack(spacing: 8) {
-            if !inMenu || busy || model.digest == nil {
-                Button { Task { await model.generateDigest(app: app) } } label: {
-                    Label(busy ? "Writing Digest…" : model.digest == nil ? "Write Digest" : "Regenerate",
-                          systemImage: busy ? "hourglass" : "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .disabled(busy)
-                .help(scheduledRun ? "The scheduled digest for this day is being written" : "")
-                .accessibilityIdentifier("\(identifier).dayDigest.generate")
-            }
-            if inMenu, let digest = model.digest {
-                Menu {
-                    Button { Task { await model.generateDigest(app: app) } } label: {
-                        Label("Regenerate Digest", systemImage: "arrow.clockwise")
-                    }
-                    .disabled(busy)
-                    .accessibilityIdentifier("\(identifier).dayDigest.regenerate")
-                    Divider()
-                    DayDigestExportItems(model: model, digest: digest)
-                } label: {
-                    Label("Digest actions", systemImage: "ellipsis")
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .labelStyle(.iconOnly)
-                .fixedSize()
-                .help("Digest actions")
-                .accessibilityLabel("Day digest actions")
-                .accessibilityIdentifier("\(identifier).dayDigest.actions")
-            }
-        }
-        .onChange(of: scheduledRun) { wasRunning, isRunning in
-            // Show the scheduled result as soon as it is saved.
-            if wasRunning, !isRunning { model.refreshOverview(app: app) }
-        }
-    }
-}
-
+/// Yesterday's overnight brief on Today, folded to one line.
 struct YesterdayDigestLine: View {
     @EnvironmentObject private var app: AppState
     let report: DreamReport
     let day: Date
     @State private var expanded = false
 
-    private var label: String {
-        TodayDreamSelection.isCurrent(report, referenceDate: day) ? "Yesterday"
-            : DreamDay.date(fromKey: report.day)?.formatted(date: .abbreviated, time: .omitted) ?? "Previous workday"
+    /// "Yesterday", or the day an older brief covers.
+    private var label: Text {
+        if TodayDreamSelection.isCurrent(report, referenceDate: day) { return Text("Yesterday") }
+        return Text(verbatim: DreamDay.date(fromKey: report.day)?
+            .formatted(date: .abbreviated, time: .omitted) ?? report.day)
     }
 
     private func linkedThread(_ id: String?) -> ActionThread? {
@@ -199,7 +49,7 @@ struct YesterdayDigestLine: View {
             }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(label).font(AppFont.scaled(.body).weight(.semibold))
+                label.font(TodayType.sectionHeading)
                 Text(report.narrative).lineLimit(1).foregroundStyle(.secondary)
             }
         }

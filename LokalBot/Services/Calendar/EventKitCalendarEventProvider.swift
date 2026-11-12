@@ -26,6 +26,7 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         fetchedAt: Date,
         candidates: [CalendarMeetingCandidate]
     )?
+    private var aheadCache: (days: Int, fetchedAt: Date, candidates: [CalendarMeetingCandidate])?
 
     init(store: EKEventStore = EKEventStore()) {
         self.store = store
@@ -40,6 +41,7 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
             DispatchQueue.main.async {
                 self?.detectionCache = nil
                 self?.dayCache = nil
+                self?.aheadCache = nil
                 self?.accessRequestError = errorMessage
                 self?.refreshAuthorizationStatus()
                 if let errorDescription {
@@ -57,6 +59,7 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         if latest != authorizationStatus {
             detectionCache = nil
             dayCache = nil
+            aheadCache = nil
             authorizationStatus = latest
         }
     }
@@ -94,6 +97,25 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         }
         let candidates = fetchCandidates(from: interval.start, to: interval.end)
         dayCache = (interval, fetchedAt, candidates)
+        return candidates
+    }
+
+    /// Recordable meetings from `now` through the next `days` days, for
+    /// People's "Coming up". The same events Today reads, over a longer
+    /// window, with a cache of its own so the detector and Today keep theirs.
+    func meetingCandidates(from now: Date, days: Int,
+                           calendar: Calendar = .current) -> [CalendarMeetingCandidate] {
+        guard authorizationStatus == .fullAccess, days > 0,
+              let end = calendar.date(byAdding: .day, value: days, to: now) else { return [] }
+        let fetchedAt = Date()
+        if let aheadCache,
+           aheadCache.days == days,
+           fetchedAt >= aheadCache.fetchedAt,
+           fetchedAt.timeIntervalSince(aheadCache.fetchedAt) < Self.cacheTTL {
+            return aheadCache.candidates
+        }
+        let candidates = fetchCandidates(from: now, to: end)
+        aheadCache = (days, fetchedAt, candidates)
         return candidates
     }
 

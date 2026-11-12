@@ -16,22 +16,32 @@ struct MeetingListView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 10) {
+                // The header is the search field and Record. Importing stays in
+                // the File menu, on drag and drop, and in the empty library.
                 HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Meetings").font(.scaled(.title3).bold())
-                        Text("\(app.meetings.filter { !$0.isMergedSource }.count) meetings")
-                            .font(.scaled(.callout)).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                        TextField("Search meetings", text: $query)
+                            .textFieldStyle(.plain)
+                            .font(AppFont.scaled(.body))
+                            .accessibilityLabel("Search meetings")
+                            .accessibilityIdentifier("meeting.search")
+                        if !query.isEmpty {
+                            Button { query = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                            .help("Clear search")
+                            .accessibilityLabel("Clear search")
+                            .accessibilityIdentifier("meeting.search.clearLibrary")
+                        }
                     }
-                    Spacer(minLength: 4)
-                    Button {
-                        RecordingImportPanel.choose(into: app)
-                    } label: {
-                        Label("Import Recording…", systemImage: "square.and.arrow.down")
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
-                    .help("Import an audio or video recording")
-                    .accessibilityIdentifier("meeting.importRecording")
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .workspaceControl()
                     Button {
                         app.isRecording ? app.stopRecording()
                             : app.startRecording(context: app.recordingContext(for: app.detector.activeApp))
@@ -41,14 +51,10 @@ struct MeetingListView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(.red)
+                    .fixedSize()
                     .help(app.isRecording ? "Stop Recording" : "Record Now")
                     .accessibilityIdentifier("toolbar.record")
                 }
-                TextField("Search meetings", text: $query)
-                    .textFieldStyle(.roundedBorder)
-                    .font(AppFont.scaled(.body))
-                    .accessibilityLabel("Search meetings")
-                    .accessibilityIdentifier("meeting.search")
                 if app.evidenceMeetingID != nil, !query.isEmpty {
                     Text("The opened source remains visible outside these filters.")
                         .font(.scaled(.callout)).foregroundStyle(.secondary).lineLimit(1)
@@ -299,9 +305,12 @@ struct MeetingRowView: View {
                         LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)
                     }
                 }
-                // The sample says what it is where a meeting names its app.
-                Text(meeting.isMergedMeeting ? "\(time) · \(duration)"
-                     : "\(meeting.isSample ? app.settings.appLanguage.localized("Sample") : meeting.appName) · \(time) · \(duration)")
+                // When, how long, then where. The sample says what it is
+                // where a meeting names its app.
+                Text(verbatim: MeetingDetailPresentation.rowSubtitle(
+                    time: time, duration: duration,
+                    source: meeting.isMergedMeeting ? nil
+                        : meeting.isSample ? app.settings.appLanguage.localized("Sample") : meeting.appName))
                     .font(.scaled(.callout))
                     // Selected rows take the title's own foreground, which the
                     // list turns white on teal and keeps dark on the inactive
@@ -327,8 +336,8 @@ struct MeetingRowView: View {
     private func status(_ stage: ProcessingPipeline.Stage) -> some View {
         if stage.isFailure {
             VStack(alignment: .trailing, spacing: 2) {
-                Label("Failed", systemImage: "exclamationmark.triangle.fill")
-                    .font(AppFont.scaled(.callout))
+                Text("Failed")
+                    .font(AppFont.scaled(.callout).weight(.medium))
                     .foregroundStyle(Brand.error)
                 Button("Retry") {
                     app.retryProcessing(meeting)

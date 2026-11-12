@@ -92,7 +92,7 @@ POSTS = [
     {
         "slug": "windows-and-linux-alpha",
         "published": "2026-10-20",
-        "updated": "2026-11-03",
+        "updated": "2026-11-11",
         "title": "LokalBot for Windows and Linux Is in Alpha",
         "description": "LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.",
         "eyebrow": "Release",
@@ -111,7 +111,7 @@ POSTS = [
         <h2>What's still missing</h2>
         <ul>
           <li><strong>The Windows build isn't code-signed yet.</strong> SmartScreen asks before the first launch: choose <strong>More info → Run anyway</strong>.</li>
-          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps works as an input method on Sway, Hyprland, and GNOME, where you also add LokalBot as an input source. It has only been tried on headless Sway and GNOME with stand-in suggestions, and Hyprland itself hasn't been run (<a href="/explainers/wayland-autocomplete.pdf">how it works</a>). On KDE Plasma and other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
+          <li><strong>Wayland support is partial.</strong> Autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, where you also add LokalBot as an input source, and, since 0.12.3, KDE Plasma, where you choose it under Virtual Keyboard. It has only been tried on headless Sway, GNOME, and KWin with stand-in suggestions, and Hyprland itself hasn't been run (<a href="/explainers/wayland-autocomplete.pdf">how it works</a>). On other compositors it works in the practice editor in Settings. For dictation and selection actions on Wayland, bind <code>lokalbot dictate</code> and <code>lokalbot selection-actions</code> to shortcuts in your desktop's settings.</li>
           <li><strong>Meeting audio isn't always one app's.</strong> On Windows and Linux LokalBot records the meeting app alone where it can be separated, and otherwise everything the computer plays.</li>
           <li><strong>Remembered speakers only suggest.</strong> Later meetings offer a remembered name for you to apply, rather than naming the speaker automatically as on Mac.</li>
           <li><strong>Nothing to pair with phones and tablets yet.</strong> Settings → Phones &amp; tablets is there, off by default, but the iPhone, iPad, and Android apps aren't in the App Store or Play Store yet, and real phones on a network haven't been tried.</li>

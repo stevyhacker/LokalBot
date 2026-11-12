@@ -198,10 +198,14 @@ final class AgentWorkspaceTests: XCTestCase {
             .tool(id: "t2", name: "read", argsJSON: "{}", output: "B", status: .succeeded),
             .approval(approval), .assistant(id: "a", text: "Answer", isStreaming: false),
         ]
-        let groups = AgentTranscriptGroup.make(items)
-        XCTAssertEqual(groups.map(\.id), ["u", "t1", "a"])
-        XCTAssertEqual(groups[1].summary, "Read 2 files")
-        XCTAssertEqual(groups[1].items.count, 2)
+        // While the agent works, the two reads fold into one line and the words stay in full.
+        let working = AgentTranscriptLayout.make(items, isWorking: true)
+        XCTAssertEqual(working.map(\.id), ["u", "steps.t1", "a"])
+        guard case .steps(let group) = working[1] else { return XCTFail("\(working)") }
+        XCTAssertEqual(group.steps.count, 2)
+        XCTAssertFalse(group.isTurnSummary)
+        // The approval never appears in the conversation: the card above the composer owns it.
+        XCTAssertFalse(working.contains { $0.searchableText.contains("draft") })
     }
 
     private func entry(_ id: String, parent: String?, role: String, text: String) -> [String: Any] {

@@ -44,23 +44,29 @@ enum QuickRecallApplicationIconResolver {
     }
 }
 
+/// When a row happened, short enough for the end of its first line:
+/// "Today 10:43 AM", "Yesterday 4:00 PM", "Wed 11:47 AM" within the week,
+/// then the day alone ("Sep 25", with the year once it is not this year).
 enum QuickRecallDateLabel {
-    static func string(for date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
-        let time = date.formatted(date: .omitted, time: .shortened)
+    static func string(for date: Date, now: Date = Date(), calendar: Calendar = .current,
+                       locale: Locale = .current, localize: (String) -> String = { $0 }) -> String {
+        var style = Date.FormatStyle()
+        style.calendar = calendar
+        style.locale = locale
+        style.timeZone = calendar.timeZone
+        let time = date.formatted(style.hour().minute())
         let dateDay = calendar.startOfDay(for: date)
         let today = calendar.startOfDay(for: now)
         let distance = calendar.dateComponents([.day], from: dateDay, to: today).day ?? .max
-        let day: String
         switch distance {
         case 0:
-            day = "Today"
+            return "\(localize("Today")) \(time)"
         case 1:
-            day = "Yesterday"
+            return "\(localize("Yesterday")) \(time)"
         case 2...6:
-            day = date.formatted(.dateTime.weekday(.abbreviated))
+            return "\(date.formatted(style.weekday(.abbreviated))) \(time)"
         default:
-            day = date.formatted(.dateTime.day().month(.abbreviated))
+            return AskDateLabel.day(date, now: now, calendar: calendar, locale: locale)
         }
-        return "\(day) · \(time)"
     }
 }

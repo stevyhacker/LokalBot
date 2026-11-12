@@ -566,7 +566,8 @@ struct HeadlessCommandRunner {
     }
 
     /// `LokalBot --agent "<prompt>"`: one Agent Mode turn against the real
-    /// runtime + Main LLM engine, auto-approving file changes and declining
+    /// runtime + Main LLM engine, auto-approving file changes (read-only
+    /// library lookups run unasked with a model on this Mac, as in every task) and declining other
     /// privacy-sensitive shell/external-read requests, then printing each transcript
     /// item. Exit 0 ok / 3 skip (runtime not installed) / 1 fail. Test hook
     /// for Agent Mode, same spirit as --chat.

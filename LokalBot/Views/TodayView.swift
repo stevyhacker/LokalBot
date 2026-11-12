@@ -1,39 +1,43 @@
+import Combine
 import SwiftUI
 
-/// The default landing surface: one glanceable page composing today's
-/// answers — what's capturing right now, what happened, where the time
-/// went, and a way to ask about any of it. Today summarizes; the Timeline
-/// stays the forensic, hour-indexed view of the same day.
+/// The home screen answers three things: what is live, what is next, and what
+/// needs you. A card leads only while it matters (a recording in progress, a
+/// meeting within the hour); the rest is the day's actions, meetings and
+/// activity. Timeline stays the hour-by-hour view of the same day.
 struct TodayView: View {
     @EnvironmentObject var app: AppState
     @StateObject private var model = CaptureModel()
     @StateObject private var upcomingMeeting = UpcomingMeetingPreparationModel()
     @State private var dream: DreamReport?
+    @State private var recaps: [Meeting.ID: String] = [:]
+    /// False until the day's activity has loaded once, so an empty page is
+    /// not mistaken for a first day while it loads.
+    @State private var dayLoaded = false
     @AppStorage("lokalbotv3.gettingStartedDismissed")
     private var gettingStartedDismissed = false
 
+    private static let attentionLimit = 3
+
+    /// The recording in progress leads, so it is found even before the
+    /// library lists it.
+    private var recordings: [Meeting] {
+        (app.currentMeeting.map { [$0] } ?? []) + app.meetings
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: LBTokens.Metric.sectionSpacing) {
-                nowCard
-                UpcomingMeetingSection(model: upcomingMeeting)
-                NeedsAttentionSection(
-                    threads: ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads),
-                    limit: 3,
-                    showsPlanInAgent: true)
-                    .task(id: app.outcomeIndex.openUserActionThreads.map(\.id)) {
-                        app.refreshActionCompletionHints()
-                    }
-                digestSection
-                if let dream { previousDayCard(dream) }
-                if !gettingStartedDismissed { GettingStartedCard() }
-                GitHubStarCard(store: app.githubStar)
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                page(now: context.date)
+                    .padding(.horizontal, LBTokens.Metric.detailPadding)
+                    .padding(.top, 16)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: WorkspaceMetric.todayMaxWidth, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    // The marker tests wait for before they use the window.
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("today.header")
             }
-            .padding(.horizontal, LBTokens.Metric.detailPadding)
-            .padding(.top, 8)
-            .padding(.bottom, 28)
-            .frame(maxWidth: WorkspaceMetric.todayMaxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .top)
         }
         .navigationTitle("Today")
         .navigationSubtitle(Date().formatted(date: .complete, time: .omitted))
@@ -41,10 +45,25 @@ struct TodayView: View {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { app.openAsk(dayScope: model.day) } label: {
                     Label("Ask About Today", systemImage: "sparkle.magnifyingglass")
-                }.accessibilityIdentifier("today.askDay")
-                Button { app.navSection = .timeline } label: {
-                    Label("Open Timeline", systemImage: "calendar.day.timeline.left")
-                }.accessibilityIdentifier("today.header")
+                }
+                .labelStyle(.titleAndIcon)
+                .accessibilityIdentifier("today.askDay")
+                // The page has no recording bar: Record lives here, and the
+                // live card holds the only Stop.
+                Button {
+                    app.startRecording(context: app.recordingContext(for: app.detector.activeApp))
+                } label: {
+                    Label {
+                        Text("Record")
+                    } icon: {
+                        Image(systemName: "circle.fill")
+                            .foregroundStyle(LBTokens.Palette.recording)
+                    }
+                }
+                .labelStyle(.titleAndIcon)
+                .disabled(app.isRecording)
+                .help("Record Now")
+                .accessibilityIdentifier("today.record")
             }
         }
         .overlay(alignment: .topTrailing) {
@@ -56,6 +75,7 @@ struct TodayView: View {
             app.refreshDreamMemory()
             while !Task.isCancelled {
                 await upcomingMeeting.refresh(app: app)
+                await refreshRecaps()
                 do {
                     try await Task.sleep(for: .seconds(30))
                 } catch {
@@ -67,6 +87,17 @@ struct TodayView: View {
                     model.refreshOverview(app: app)
                 }
             }
+        }
+        .task(id: app.outcomeIndex.openUserActionThreads.map(\.id)) {
+            app.refreshActionCompletionHints()
+        }
+        .task(id: finishedRecordingIDs) {
+            await refreshRecaps()
+        }
+        // The publisher reports every change, also when a fast load starts
+        // and ends between two renders.
+        .onReceive(model.$overviewLoading.removeDuplicates().dropFirst()) { loading in
+            if !loading, !dayLoaded { dayLoaded = true }
         }
         .onChange(of: app.latestDreamReport) { _, _ in
             guard app.navSection == .today else { return }
@@ -93,55 +124,108 @@ struct TodayView: View {
         }
     }
 
-    // MARK: Digest
+    // MARK: Page
 
-    /// The digest is the page's main content, so it sits directly on the
-    /// canvas instead of inside a panel; its sessions carry their own cards.
-    private var digestSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: 12) {
-                    digestTitle
-                    Spacer(minLength: 12)
-                    DayDigestControls(model: model, identifier: "today", showsAsk: false).fixedSize()
+    @ViewBuilder private func page(now: Date) -> some View {
+        let recordings = recordings
+        let threads = ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads)
+        let events = upcomingMeeting.status == .ready ? upcomingMeeting.meetingsToday : []
+        let entries = TodayAgenda.entries(
+            recordings: recordings, events: events, liveMeetingID: app.currentMeeting?.id, now: now)
+        let next = TodayAgenda.nextMeeting(
+            in: events, now: now, recordedEventIDs: TodayAgenda.recordedEventIDs(in: recordings))
+        let hasDay = !model.blocks.isEmpty || model.digest != nil || model.generating
+            || entries.contains { $0.status == .recorded }
+        let hasContent = app.currentMeeting != nil || next != nil || !threads.isEmpty
+            || !entries.isEmpty || hasDay || dream != nil
+        let layout = TodayPageLayout.layout(
+            hasContent: hasContent, gettingStartedDismissed: gettingStartedDismissed)
+
+        VStack(alignment: .leading, spacing: 30) {
+            switch layout {
+            case .sections(let gettingStartedBelow):
+                if app.currentMeeting != nil || next != nil {
+                    VStack(spacing: 10) {
+                        if let live = app.currentMeeting { TodayLiveCard(meeting: live) }
+                        if let next { TodayNextMeetingCard(model: upcomingMeeting, event: next, now: now) }
+                    }
                 }
-                VStack(alignment: .leading, spacing: 10) {
-                    digestTitle
-                    DayDigestControls(model: model, identifier: "today", showsAsk: false)
+                NeedsAttentionSection(
+                    threads: threads,
+                    limit: Self.attentionLimit,
+                    linksRemainder: true,
+                    headingFont: TodayType.sectionHeading,
+                    rowSpacing: 0)
+                if !entries.isEmpty || calendarIsOff {
+                    TodayMeetingsSection(
+                        rows: TodayAgenda.rows(entries, now: now),
+                        count: entries.count,
+                        recaps: recaps,
+                        offersCalendar: calendarIsOff)
+                }
+                if hasDay {
+                    TodaySoFarSection(model: model, lifecycle: app.dayDigest)
+                }
+                if let dream {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Divider()
+                        YesterdayDigestLine(report: dream, day: model.day)
+                    }
+                }
+                if gettingStartedBelow { GettingStartedCard() }
+            case .gettingStarted:
+                if isSettled { GettingStartedCard() }
+            case .placeholder:
+                if isSettled {
+                    Text("Meetings, actions and your day show up here.")
+                        .font(AppFont.scaled(.body))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 120)
+                        .accessibilityIdentifier("today.empty")
                 }
             }
-            VStack(alignment: .leading, spacing: 18) {
-                DayActivityOverview(model: model, title: "Day So Far", showsLegend: false)
-                Divider()
-                DayDigestCard(model: model, identifier: "today", showsControls: false, mode: .today)
-                if !model.workSessions.isEmpty {
-                    Divider()
-                    TodaySessionsSection(model: model)
-                }
-            }
-            .padding(16)
-            .lbGroupedSurface()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The library and the day's activity have both answered, so "nothing
+    /// yet" is a fact and not a page still loading.
+    private var isSettled: Bool { dayLoaded && app.libraryReady }
+
+    /// Calendar use is off, or macOS has not granted access to it.
+    private var calendarIsOff: Bool {
+        switch upcomingMeeting.status {
+        case .disabled, .permissionRequired, .permissionDenied: true
+        case .loading, .noMeetingsToday, .ready: false
         }
     }
 
-    private var digestTitle: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "sparkles").foregroundStyle(Brand.teal).accessibilityHidden(true)
-            Text("Day Digest").font(AppFont.scaled(.headline))
-        }
+    // MARK: Loading
+
+    private var finishedRecordingIDs: [Meeting.ID] {
+        let calendar = Calendar.current
+        return app.meetings
+            .filter { $0.endedAt != nil && calendar.isDateInToday($0.startedAt) }
+            .map(\.id)
     }
 
-    private func previousDayCard(_ report: DreamReport) -> some View {
-        YesterdayDigestLine(report: report, day: model.day)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary.opacity(0.24),
-                        in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
-            .overlay {
-                RoundedRectangle(cornerRadius: Brand.Radius.panel)
-                    .strokeBorder(Color.primary.opacity(0.09))
-            }
+    /// One line per finished recording from the summary saved beside it.
+    private func refreshRecaps() async {
+        let calendar = Calendar.current
+        let finished = app.meetings.filter {
+            $0.isOwnWork && $0.endedAt != nil && calendar.isDateInToday($0.startedAt)
+        }
+        guard !finished.isEmpty else {
+            if !recaps.isEmpty { recaps = [:] }
+            return
+        }
+        let root = app.storage.rootURL
+        let loaded = await Task.detached(priority: .utility) {
+            TodayMeetingRecap.lines(for: finished, root: root)
+        }.value
+        guard !Task.isCancelled else { return }
+        if loaded != recaps { recaps = loaded }
     }
 
     // Keep the previous-workday summary anchored to the selected date.
@@ -151,44 +235,72 @@ struct TodayView: View {
             referenceDate: date,
             latest: app.latestDreamReport,
             store: app.dreamStore)
-        // Showing Today counts as a day of use, including in a window left
-        // open past midnight.
-        app.githubStar.recordActiveDay(date)
     }
+}
 
-    // MARK: Now
+/// Type sizes Today adds to the shared set: section headings one step above
+/// the 13 pt headline, and the title of the card at the top.
+enum TodayType {
+    static var sectionHeading: AppFont { AppFont.scaledSystem(size: 15, weight: .bold) }
+    static var cardTitle: AppFont { AppFont.scaledSystem(size: 20, weight: .bold) }
+    /// The next meeting's title while another meeting is being recorded.
+    static var cardTitleCompact: AppFont { AppFont.scaledSystem(size: 17, weight: .bold) }
+}
 
-    /// Same recording actions as the menu bar and Meetings toolbar.
-    @ViewBuilder private var nowCard: some View {
-        if let live = app.currentMeeting {
-            HStack(spacing: 10) {
-                StatusDot(color: Brand.recording)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Recording — \(live.title)").font(.scaled(.body).weight(.semibold))
-                    MeetingRecordingTimerText(recording: app.recording).font(.scaled(.callout).monospacedDigit())
-                }
-                Spacer()
-                Button("Live Transcript & Notes") { app.showLiveMeeting() }.buttonStyle(.bordered)
-                Button("Stop Recording") { app.stopRecording() }.buttonStyle(.bordered).tint(.red)
+/// A Today section's heading: its name, how many rows follow, and one link.
+struct TodaySectionHeading<Trailing: View>: View {
+    let title: LocalizedStringKey
+    var count: Int?
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title).font(TodayType.sectionHeading)
+            if let count {
+                Text(count, format: .number)
+                    .font(AppFont.scaled(.callout).monospacedDigit())
+                    .foregroundStyle(.secondary)
             }
-            .padding(14)
-            .lbStatusSurface(.red)
-        } else {
-            HStack(spacing: 10) {
-                Image(systemName: "waveform.circle").foregroundStyle(.secondary)
-                Text("Nothing recording right now")
-                Spacer(minLength: 8)
-                Button("Record Now") {
-                    app.startRecording(context: app.recordingContext(for: app.detector.activeApp))
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("today.record")
-            }
-            .padding(14)
-            .lbGroupedSurface()
+            Spacer(minLength: 8)
+            trailing
         }
     }
+}
 
+extension TodaySectionHeading where Trailing == EmptyView {
+    init(title: LocalizedStringKey, count: Int? = nil) {
+        self.init(title: title, count: count) { EmptyView() }
+    }
+}
+
+extension View {
+    /// The raised card at the top of Today and around the first-day steps.
+    func todayCardSurface(tint: Color? = nil) -> some View {
+        modifier(TodayCardSurface(tint: tint))
+    }
+}
+
+private struct TodayCardSurface: ViewModifier {
+    @Environment(\.colorSchemeContrast) private var contrast
+    var tint: Color?
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Brand.Radius.panel, style: .continuous)
+        content
+            .background {
+                shape.fill(Color(nsColor: .controlBackgroundColor))
+                    .overlay { shape.fill((tint ?? .clear).opacity(tint == nil ? 0 : 0.06)) }
+                    .shadow(color: .black.opacity(contrast == .increased ? 0 : 0.06), radius: 1.5, y: 1)
+            }
+            .overlay {
+                shape.strokeBorder(
+                    contrast == .increased ? Color.primary.opacity(0.5)
+                        : tint?.opacity(0.28) ?? LBTokens.Palette.groupStroke,
+                    lineWidth: contrast == .increased ? 2 : 1)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+    }
 }
 
 enum TodayDreamSelection {

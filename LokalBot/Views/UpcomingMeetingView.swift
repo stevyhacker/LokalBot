@@ -1,406 +1,326 @@
 import AppKit
 import SwiftUI
 
-/// The next calendar meeting leads, with the rest of today's meetings listed
-/// compactly below it. Calendar setup and permissions stay in Settings.
-struct UpcomingMeetingSection: View {
+/// The meeting that starts within the hour, at the top of Today: when it is,
+/// who is in it, Join and Record, and what to know before joining. Calendar
+/// setup and permissions stay in Settings.
+struct TodayNextMeetingCard: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var model: UpcomingMeetingPreparationModel
-    /// Preparation is the reason to look at the next meeting, so it starts open.
-    @State private var preparationExpanded = true
-
-    var body: some View {
-        if model.status == .ready {
-            TimelineView(.periodic(from: .now, by: 30)) { context in
-                let upcoming = model.meetingsToday.filter { $0.endDate > context.date }
-                if let next = upcoming.first {
-                    WorkspaceSection(title: "Next meeting", icon: "calendar") {
-                        TodayMeetingRow(event: next)
-                        if let evidence = model.evidence,
-                           evidence.event.externalID == next.externalID,
-                           evidence.hasPreparationContext {
-                            DisclosureGroup("Preparation context", isExpanded: $preparationExpanded) {
-                                UpcomingMeetingCard(model: model, evidence: evidence)
-                            }
-                        }
-                        if upcoming.count > 1 {
-                            LaterTodayList(events: Array(upcoming.dropFirst()), now: context.date)
-                        }
-                    }
-                    .accessibilityIdentifier("today.meetings")
-                }
-            }
-        }
-    }
-}
-
-/// Later meetings stay visible without competing with the next meeting's
-/// single primary action.
-private struct LaterTodayList: View {
-    let events: [CalendarMeetingCandidate]
+    let event: CalendarMeetingCandidate
     let now: Date
-    @State private var showsAll = false
+    /// The reader's own choice. Without one, preparation is open, and folds to
+    /// a count while another meeting is being recorded.
+    @State private var preparationChoice: Bool?
+    @State private var showsMore = false
 
-    private static let inlineLimit = 3
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Later today")
-                .font(AppFont.scaled(.callout).weight(.semibold))
-                .foregroundStyle(.secondary)
-            ForEach(showsAll ? events : Array(events.prefix(Self.inlineLimit)), id: \.externalID) { event in
-                row(event)
-            }
-            if events.count > Self.inlineLimit {
-                Button(showsAll ? "Show fewer" : "\(events.count - Self.inlineLimit) more today") {
-                    showsAll.toggle()
-                }
-                .buttonStyle(.plain)
-                .font(AppFont.scaled(.callout))
-                .foregroundStyle(Brand.teal)
-                .accessibilityIdentifier("today.meetings.later.more")
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.top, 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("today.meetings.later")
+    private var evidence: UpcomingMeetingEvidence? {
+        guard let evidence = model.evidence, evidence.event.externalID == event.externalID,
+              evidence.hasPreparationContext else { return nil }
+        return evidence
     }
 
-    private func row(_ event: CalendarMeetingCandidate) -> some View {
-        HStack(spacing: 12) {
-            Text(UpcomingMeetingPresentation.timeRange(event))
-                .font(AppFont.scaled(.callout).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 118, alignment: .leading)
-            Text(event.title)
-                .font(AppFont.scaled(.body))
+    private var preparationOpen: Bool { preparationChoice ?? !app.isRecording }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 12) {
+                    summary
+                    Spacer(minLength: 8)
+                    actions.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    summary
+                    actions
+                }
+            }
+            if let evidence {
+                Divider()
+                preparation(evidence)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .todayCardSurface()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.upcomingMeeting")
+        .onChange(of: app.isRecording) { _, _ in preparationChoice = nil }
+        .onChange(of: event.externalID) { _, _ in
+            preparationChoice = nil
+            showsMore = false
+        }
+    }
+
+    // MARK: Heading
+
+    private var summary: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            (TodayMeetingStatusText.text(TodayAgenda.status(of: event, now: now))
+                + Text(verbatim: " · " + UpcomingMeetingPresentation.interval(event)))
+                .font(AppFont.scaled(.callout).weight(.semibold).monospacedDigit())
+                .foregroundStyle(LBTokens.Palette.accentText)
+            Text(verbatim: event.title)
+                .font(app.isRecording ? TodayType.cardTitleCompact : TodayType.cardTitle)
                 .lineLimit(1)
-            Spacer(minLength: 8)
-            Text(UpcomingMeetingPresentation.statusLabel(event: event, now: now))
-                .font(AppFont.scaled(.callout))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .textSelection(.enabled)
+            if let participants = UpcomingMeetingPresentation.participantLabel(event) {
+                Text(verbatim: participants)
+                    .font(AppFont.scaled(.callout))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("today.meeting.later.\(event.externalID)")
-    }
-}
-
-private struct TodayMeetingRow: View {
-    @EnvironmentObject private var app: AppState
-    let event: CalendarMeetingCandidate
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            HStack(alignment: .center, spacing: 12) {
-                Text(UpcomingMeetingPresentation.timeRange(event))
-                    .font(AppFont.scaled(.callout).weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 118, alignment: .leading)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(event.title)
-                        .font(AppFont.scaled(.body).weight(.semibold))
-                        .lineLimit(1)
-                        .textSelection(.enabled)
-                    if let participants = UpcomingMeetingPresentation.participantLabel(event) {
-                        Text(participants)
-                            .font(AppFont.scaled(.callout))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer(minLength: 8)
-
-                Text(UpcomingMeetingPresentation.statusLabel(event: event, now: context.date))
-                    .font(AppFont.scaled(.callout).weight(.semibold))
-                    .foregroundStyle(event.endDate < context.date ? .tertiary : .secondary)
-                    .lineLimit(1)
-
-                // A solo event without a link may not be a call at all; the
-                // user can still record from the toolbar.
-                if event.endDate >= context.date, UpcomingMeetingSelector.kind(of: event) == .meeting {
-                    compactActions
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(.quaternary.opacity(0.25)))
-        }
-        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.meeting.\(event.externalID)")
     }
 
-    private var compactActions: some View {
-        HStack(spacing: 6) {
-            if let meetingURL = event.meetingURL {
-                Link(destination: meetingURL) {
-                    Label("Join", systemImage: "video")
+    /// A solo event without a link may not be a call at all; the toolbar's
+    /// Record is still there for it. Record leaves the card while something
+    /// else is being recorded: the live card holds the only Stop.
+    @ViewBuilder private var actions: some View {
+        if UpcomingMeetingSelector.kind(of: event) == .meeting {
+            HStack(spacing: 8) {
+                if let meetingURL = event.meetingURL {
+                    Link(destination: meetingURL) {
+                        Label("Join", systemImage: "video")
+                    }
+                    .primaryActionButton()
+                    .accessibilityIdentifier("today.meeting.\(event.externalID).join")
                 }
-                .primaryActionButton()
-                .accessibilityIdentifier("today.meeting.\(event.externalID).join")
+                if !app.isRecording {
+                    Button {
+                        app.startRecording(
+                            context: app.recordingContext(for: event),
+                            source: "today-schedule")
+                    } label: {
+                        Label {
+                            Text("Record")
+                        } icon: {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(LBTokens.Palette.recording)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("today.meeting.\(event.externalID).record")
+                }
             }
-            Button {
-                app.startRecording(
-                    context: app.recordingContext(for: event),
-                    source: "today-schedule")
-            } label: {
-                Label(isCurrentRecording ? "Recording" : "Record", systemImage: "record.circle")
-            }
-            .buttonStyle(.bordered)
-            .disabled(app.isRecording)
-            .accessibilityIdentifier("today.meeting.\(event.externalID).record")
+            .controlSize(.large)
         }
-        .controlSize(.small)
     }
 
-    private var isCurrentRecording: Bool {
-        app.currentMeeting?.calendarEventID == event.externalID
+    // MARK: Before you join
+
+    private func preparation(_ evidence: UpcomingMeetingEvidence) -> some View {
+        let rows = TodayPreparation.primaryRows(evidence)
+        let more = TodayPreparation.moreRows(evidence)
+        let count = rows.count + more.count
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Button {
+                    withAnimation(WorkspaceMotion.animation(.disclosure, reduceMotion: reduceMotion)) {
+                        preparationChoice = !preparationOpen
+                    }
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: "chevron.forward")
+                            .font(.system(size: 9, weight: .semibold))
+                            .rotationEffect(.degrees(preparationOpen ? 90 : 0))
+                            .accessibilityHidden(true)
+                        Text("Before you join").fontWeight(.semibold)
+                        if !preparationOpen, count > 0 {
+                            Text(count == 1 ? "\(count) item" : "\(count) items")
+                        }
+                    }
+                    .font(AppFont.scaled(.callout))
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(preparationOpen ? "Expanded" : "Collapsed")
+                .accessibilityIdentifier("today.upcomingMeeting.preparation")
+                Spacer(minLength: 8)
+                if preparationOpen { briefControl(evidence) }
+            }
+            if preparationOpen {
+                if TodayPreparation.showsBrief(
+                    generatedByModel: model.generatedByModel(for: evidence), rowCount: count) {
+                    Text(verbatim: model.brief(for: evidence))
+                        .font(AppFont.scaled(.body))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("today.upcomingMeeting.brief")
+                }
+                if let generationError = model.generationError(for: evidence) {
+                    Label(generationError, systemImage: "exclamationmark.triangle")
+                        .font(AppFont.scaled(.callout))
+                        .foregroundStyle(Brand.error)
+                }
+                if count > 0 {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(rows) { row in TodayPreparationRowView(row: row) }
+                        if showsMore {
+                            ForEach(more) { row in TodayPreparationRowView(row: row) }
+                        }
+                        if !more.isEmpty {
+                            Button(showsMore ? "Show fewer" : "Show \(more.count) more") {
+                                showsMore.toggle()
+                            }
+                            .buttonStyle(.workspaceLink)
+                            .font(AppFont.scaled(.callout))
+                            .padding(.top, 3)
+                            .accessibilityIdentifier("today.upcomingMeeting.more")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The model's brief is on request: it may load the Think model.
+    @ViewBuilder private func briefControl(_ evidence: UpcomingMeetingEvidence) -> some View {
+        if model.isGenerating(evidence) {
+            LoadingStateLabel("Preparing…", font: AppFont.scaled(.callout))
+        } else {
+            Button(model.generatedByModel(for: evidence) ? "Rewrite brief" : "Write brief") {
+                Task { await model.generate(app: app, evidence: evidence) }
+            }
+            .buttonStyle(.workspaceLink)
+            .font(AppFont.scaled(.callout))
+            .disabled(
+                model.generatingSignature != nil
+                    || !UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
+                        settings: app.settings))
+            .help("Generate from these sources using the Think model on this Mac")
+            .accessibilityIdentifier("today.upcomingMeeting.generateBrief")
+        }
     }
 }
 
-private struct UpcomingMeetingCard: View {
+/// One thing to know before joining: what it is, the words, and where it
+/// comes from. A source that can be opened opens on click.
+private struct TodayPreparationRowView: View {
     @EnvironmentObject private var app: AppState
-    @ObservedObject var model: UpcomingMeetingPreparationModel
-    let evidence: UpcomingMeetingEvidence
-
-    private var event: CalendarMeetingCandidate { evidence.event }
-    private var extraContextCount: Int {
-        max(0, evidence.decisions.count - 1)
-            + max(0, evidence.commitments.count - 1)
-            + max(0, evidence.projects.count - 1)
-            + max(0, evidence.emailThreads.count - 1)
-    }
+    let row: TodayPreparation.Row
 
     var body: some View {
-        // The meeting row above already shows the title, time, people, and
-        // Join/Record, so preparation context starts with the brief.
-        VStack(alignment: .leading, spacing: 13) {
-            brief
-            primaryContext
-            if extraContextCount > 0 {
-                DisclosureGroup("More context") {
-                    additionalContext
-                        .padding(.top, 7)
-                }
-                .font(.scaled(.callout))
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: Brand.Radius.panel, style: .continuous)
-                .fill(.quaternary.opacity(0.42)))
-        .overlay(
-            RoundedRectangle(cornerRadius: Brand.Radius.panel, style: .continuous)
-                .strokeBorder(Brand.teal.opacity(0.18)))
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("today.upcomingMeeting")
-    }
-
-    private var brief: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack(spacing: 8) {
-                Text("Brief").font(.scaled(.headline))
-                Spacer()
-                if model.isGenerating(evidence) {
-                    LoadingStateLabel("Preparing…", font: .scaled(.caption))
-                } else if evidence.hasPreparationContext {
-                    Button {
-                        Task { await model.generate(app: app, evidence: evidence) }
-                    } label: {
-                        Label(model.generatedByModel(for: evidence) ? "Refresh" : "Generate brief",
-                              systemImage: model.generatedByModel(for: evidence)
-                                  ? "arrow.clockwise" : "sparkles")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Brand.teal)
-                    .disabled(
-                        model.generatingSignature != nil
-                            || !UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
-                                settings: app.settings))
-                    .help("Generate from these sources using the Think model on this Mac")
-                    .accessibilityIdentifier("today.upcomingMeeting.generateBrief")
-                }
-            }
-            Text(model.brief(for: evidence))
-                .font(.scaled(.callout))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-                .accessibilityIdentifier("today.upcomingMeeting.brief")
-            if let generationError = model.generationError(for: evidence) {
-                Label(generationError, systemImage: "exclamationmark.triangle")
-                    .font(.scaled(.caption))
-                    .foregroundStyle(Brand.error)
-            }
+        switch row.target {
+        case .meeting(let id):
+            Button { app.openMeeting(id) } label: { content }
+                .buttonStyle(.plain)
+        case .link(let url):
+            // A conversation opens in Gmail, signed in as the account that holds it.
+            Button { NSWorkspace.shared.open(url) } label: { content }
+                .buttonStyle(.plain)
+                .help("Open in \(Self.mailService)")
+                .accessibilityIdentifier("today.upcomingMeeting.email")
+        case nil:
+            content
         }
     }
 
-    @ViewBuilder private var primaryContext: some View {
-        if evidence.hasPreparationContext {
-            Divider()
-            VStack(alignment: .leading, spacing: 9) {
-                if let decision = evidence.decisions.first {
-                    referenceRow(
-                        title: "Prior decision",
-                        icon: "checkmark.seal",
-                        reference: decision)
-                }
-                if let commitment = evidence.commitments.first {
-                    referenceRow(
-                        title: "Commitment to revisit",
-                        icon: "checklist",
-                        reference: commitment)
-                }
-                if let project = evidence.projects.first {
-                    projectRow(project)
-                }
-                if let thread = evidence.emailThreads.first {
-                    emailRow(thread)
-                }
-                if evidence.decisions.isEmpty,
-                   evidence.commitments.isEmpty,
-                   evidence.projects.isEmpty,
-                   let related = evidence.relatedMeetings.first {
-                    Button {
-                        app.openMeeting(related.meeting.id)
-                    } label: {
-                        contextRow(
-                            title: "Recent context",
-                            icon: "clock.arrow.circlepath",
-                            text: related.meeting.title,
-                            source: related.meeting.startedAt.formatted(
-                                date: .abbreviated, time: .omitted))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
+    private static let mailService = "Gmail"
 
-    private var additionalContext: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            ForEach(Array(evidence.decisions.dropFirst())) { reference in
-                referenceRow(title: "Decision", icon: "checkmark.seal", reference: reference)
-            }
-            ForEach(Array(evidence.commitments.dropFirst())) { reference in
-                referenceRow(title: "Commitment", icon: "checklist", reference: reference)
-            }
-            ForEach(Array(evidence.projects.dropFirst())) { project in
-                projectRow(project)
-            }
-            ForEach(Array(evidence.emailThreads.dropFirst())) { thread in
-                emailRow(thread)
-            }
-        }
-    }
-
-    /// A conversation with the attendees from the downloaded mail. It opens in
-    /// Gmail, signed in as the account that holds it.
-    private func emailRow(_ thread: UpcomingMeetingEmailThread) -> some View {
-        var source = [thread.subject, thread.lastSender,
-                      thread.lastMessageAt.formatted(.relative(presentation: .named))]
-        if thread.awaitingReply { source.append("waiting on your reply") }
-        let service = "Gmail"
-        return Button {
-            NSWorkspace.shared.open(thread.gmailURL)
-        } label: {
-            contextRow(title: "From email", icon: "envelope",
-                       text: thread.excerpt.isEmpty ? thread.subject : thread.excerpt,
-                       source: source.joined(separator: " · "))
-        }
-        .buttonStyle(.plain)
-        .help("Open in \(service)")
-        .accessibilityIdentifier("today.upcomingMeeting.email")
-    }
-
-    private func referenceRow(title: String, icon: String,
-                              reference: UpcomingMeetingReference) -> some View {
-        var metadata: [String] = []
-        if let owner = reference.owner, !owner.isEmpty {
-            metadata.append(SpeakerDisplayName.label(
-                owner,
-                identity: reference.isForUser ? .user : .unresolved))
-        }
-        if let due = reference.due, !due.isEmpty { metadata.append("due \(due)") }
-        if reference.sourceMeetingCount > 1 {
-            metadata.append("\(reference.sourceMeetingCount) meetings")
-        }
-        let source = reference.meetingTitle
-            + (metadata.isEmpty ? "" : " · \(metadata.joined(separator: " · "))")
-        return Button {
-            app.openMeeting(reference.meetingID)
-        } label: {
-            contextRow(title: title, icon: icon, text: reference.text, source: source)
-        }
-        .buttonStyle(.plain)
-        .help("Open \(reference.meetingTitle)")
-    }
-
-    private func projectRow(_ project: UpcomingMeetingProjectContext) -> some View {
-        contextRow(
-            title: "Project context",
-            icon: "folder",
-            text: "\(project.name) — \(project.status)",
-            source: "Active \(UpcomingMeetingPresentation.projectRecency(project.lastActiveDay))")
-    }
-
-    private func contextRow(title: String, icon: String,
-                            text: String, source: String) -> some View {
-        HStack(alignment: .top, spacing: 9) {
+    /// One line where it fits; a narrow card puts the source under the words.
+    private var content: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
             Image(systemName: icon)
-                .frame(width: 18)
-                .foregroundStyle(Brand.teal)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.scaled(.caption).weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(text)
-                    .font(.scaled(.callout))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(source)
-                    .font(.scaled(.caption2))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(LBTokens.Palette.accentText)
+                .frame(width: 16)
+                .accessibilityHidden(true)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    words.lineLimit(1).fixedSize()
+                    Spacer(minLength: 0)
+                    source.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    words.lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    source
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer(minLength: 0)
         }
+        .padding(.vertical, 2)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
+    private var words: some View {
+        (label.fontWeight(.semibold) + Text(verbatim: "  " + row.text))
+            .font(AppFont.scaled(.body))
+            .multilineTextAlignment(.leading)
+    }
+
+    private var source: some View {
+        detail
+            .font(AppFont.scaled(.callout))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
+    private var label: Text {
+        switch row.kind {
+        case .decision: Text("Decided")
+        case .commitment: Text("To revisit")
+        case .project: Text("Project")
+        case .email: Text("Email")
+        case .recentMeeting: Text("Recent")
+        }
+    }
+
+    private var icon: String {
+        switch row.kind {
+        case .decision: "checkmark"
+        case .commitment: "clock"
+        case .project: "folder"
+        case .email: "envelope"
+        case .recentMeeting: "clock.arrow.circlepath"
+        }
+    }
+
+    /// "Design review · Nov 3", or for mail "Ana · yesterday · waiting on your reply".
+    private var detail: Text {
+        var parts: [String] = []
+        if !row.source.isEmpty { parts.append(row.source) }
+        if let date = row.date {
+            parts.append(row.kind == .email
+                ? date.formatted(.relative(presentation: .named))
+                : date.formatted(.dateTime.month(.abbreviated).day()))
+        }
+        let base = Text(verbatim: parts.joined(separator: " · "))
+        guard row.awaitingReply else { return base }
+        return base + Text(verbatim: parts.isEmpty ? "" : " · ") + Text("waiting on your reply")
+    }
+}
+
+/// A meeting's place in the day as words: "In 12 min", "Recording", "Ended".
+enum TodayMeetingStatusText {
+    static func text(_ status: TodayAgenda.Entry.Status) -> Text {
+        switch status {
+        case .recording: return Text("Recording")
+        // A saved recording's row shows its app and length instead.
+        case .recorded, .ended: return Text("Ended")
+        case .inProgress: return Text("In progress")
+        case .startingNow: return Text("Starting now")
+        case .upcoming(let minutes):
+            if minutes < 60 { return Text("In \(minutes) min") }
+            let hours = minutes / 60, remainder = minutes % 60
+            return remainder == 0 ? Text("In \(hours)h") : Text("In \(hours)h \(remainder)m")
+        }
     }
 }
 
 enum UpcomingMeetingPresentation {
-    static func timeRange(_ event: CalendarMeetingCandidate) -> String {
-        event.startDate.formatted(date: .omitted, time: .shortened)
-            + "–" + event.endDate.formatted(date: .omitted, time: .shortened)
-    }
-
-    static func statusLabel(event: CalendarMeetingCandidate, now: Date) -> String {
-        if event.endDate < now { return "Ended" }
-        if event.startDate <= now { return "In progress" }
-        let minutes = max(0, Int(event.startDate.timeIntervalSince(now) / 60))
-        if minutes < 1 { return "Starting now" }
-        if minutes < 60 { return "In \(minutes) min" }
-        let hours = minutes / 60
-        let remainder = minutes % 60
-        return remainder == 0 ? "In \(hours)h" : "In \(hours)h \(remainder)m"
-    }
-
-    static func timeLabel(event: CalendarMeetingCandidate, now: Date,
-                          calendar: Calendar = .current) -> String {
-        let range = timeRange(event)
-        if event.endDate < now { return range + " · Ended" }
-        let status = statusLabel(event: event, now: now)
-        if calendar.isDate(event.startDate, inSameDayAs: now) {
-            return range + " · " + status
+    /// "11:00 – 11:30 AM", in the reader's own time format.
+    static func interval(_ event: CalendarMeetingCandidate) -> String {
+        guard event.endDate > event.startDate else {
+            return event.startDate.formatted(date: .omitted, time: .shortened)
         }
-        return event.startDate.formatted(date: .abbreviated, time: .shortened) + " · " + status
+        return (event.startDate..<event.endDate).formatted(date: .omitted, time: .shortened)
     }
 
     static func participantLabel(_ event: CalendarMeetingCandidate) -> String? {
@@ -408,10 +328,5 @@ enum UpcomingMeetingPresentation {
         let visible = event.participantNames.prefix(4).joined(separator: ", ")
         let remaining = event.participantNames.count - min(4, event.participantNames.count)
         return remaining > 0 ? visible + " +\(remaining)" : visible
-    }
-
-    static func projectRecency(_ dayKey: String) -> String {
-        DreamDay.date(fromKey: dayKey)?.formatted(date: .abbreviated, time: .omitted)
-            ?? dayKey
     }
 }

@@ -123,7 +123,7 @@ if cmp -s "$STILLS/meetings-summary.png" "$STILLS/meetings-transcript.png"; then
 fi
 capture "$STILLS" timeline            LOKALBOT_INITIAL_SECTION=timeline LOKALBOT_DISMISS_ONBOARDING=1
 capture "$STILLS" today               LOKALBOT_INITIAL_SECTION=today LOKALBOT_DISMISS_ONBOARDING=1
-capture "$STILLS" quick-recall        LOKALBOT_UI_TEST_WINDOW=quick-recall LOKALBOT_QUICK_RECALL_QUERY=captions LOKALBOT_CAPTURE_SIZE=660x480 LOKALBOT_DISMISS_ONBOARDING=1
+capture "$STILLS" quick-recall        LOKALBOT_UI_TEST_WINDOW=quick-recall LOKALBOT_QUICK_RECALL_QUERY=captions LOKALBOT_CAPTURE_SIZE=660x512 LOKALBOT_DISMISS_ONBOARDING=1
 capture "$STILLS" search              LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=MacBook
 capture "$STILLS" models              LOKALBOT_INITIAL_SECTION=models
 capture "$STILLS" cotyping            LOKALBOT_INITIAL_SECTION=cotyping LOKALBOT_COTYPING_DEMO=1

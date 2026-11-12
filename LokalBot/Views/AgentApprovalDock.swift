@@ -1,176 +1,172 @@
 import SwiftUI
 
+/// One approval request as a card above the composer: a question that names
+/// its target, what will happen and where, the text to review, and the
+/// answers the policy allows for this kind of request. Deny sits apart from
+/// the answers that allow.
 struct AgentApprovalDock: View {
+    @EnvironmentObject private var app: AppState
+    @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject var controller: AgentSessionController
     let request: AgentApprovalRequest
-    var detailsMaxHeight: CGFloat = 180
-    @State private var expanded = true
+    /// Requests waiting for an answer, this one included.
+    var waiting = 1
+    /// Room for the whole preview once it is opened.
+    var previewMaxHeight: CGFloat = 220
+    @State private var showingAll = false
+    @State private var previewHeight: CGFloat = 0
+
+    private var localized: (String) -> String { app.settings.appLanguage.catalog }
+
+    private var presentation: AgentApprovalPresentation {
+        let model = controller.modelContext ?? .init(settings: app.settings)
+        var remoteHost: String?
+        if case .remote(let host) = model.destination { remoteHost = host }
+        // A command runs in the folder its request came from.
+        let isCommand = ["bash", "shell"].contains(request.tool.lowercased())
+        let folder = isCommand
+            ? request.workspace.map { controller.workspaceDisplayName(for: URL(fileURLWithPath: $0)) }
+            : nil
+        return AgentApprovalPresentation(
+            request: request, place: controller.approvalPlace(request),
+            targetExists: controller.approvalTargetExists(request),
+            workspaceName: folder ?? controller.workspaceDisplayName, remoteHost: remoteHost,
+            canAllowForTask: controller.canAllowForSession(request), localize: localized)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Approval required: \(request.tool)", systemImage: "hand.raised.fill")
-                .font(.scaled(.headline))
+        let presentation = presentation
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: presentation.symbol)
+                .font(.scaled(.body))
                 .foregroundStyle(LBTokens.Palette.attentionText)
-
-            Text(approvalEffect(request.tool)).workspaceTextRole(.trust)
-            if let path = request.path {
-                Text(path).font(LBTokens.Typography.path).lineLimit(2).textSelection(.enabled)
-            }
-            if let command = request.command {
-                Text(command).font(LBTokens.Typography.path).lineLimit(2).textSelection(.enabled)
-            }
-            DisclosureGroup("Review Details", isExpanded: $expanded) {
-                ScrollView { details }.frame(maxHeight: detailsMaxHeight)
-            }
-
-            ViewThatFits(in: .horizontal) {
-                HStack { approvalButtons }
-                VStack(alignment: .trailing, spacing: 8) { approvalButtons }
-            }
-        }
-        .padding(12)
-        .lbStatusSurface(.orange)
-        .onChange(of: request.id) { expanded = true }
-    }
-
-    private var details: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let path = request.path {
-                approvalText(label: "File", value: path)
-            }
-            if let command = request.command {
-                approvalCode(label: "Command", value: command)
-            }
-            if let content = request.content {
-                approvalCode(label: "Content to write", value: content)
-            }
-            if let arguments = request.arguments {
-                approvalCode(label: "Arguments", value: arguments)
-            }
-            ForEach(Array(request.edits.enumerated()), id: \.offset) { index, edit in
-                VStack(alignment: .leading, spacing: 6) {
-                    if request.edits.count > 1 {
-                        Text("Edit \(index + 1)").font(.scaled(.caption).weight(.semibold))
+                .frame(width: 28, height: 28)
+                .background(LBTokens.Palette.attention.opacity(0.18), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    // A plain heading: a selectable one reached accessibility with no
+                    // words on the hosted macOS runner, so the question went unread.
+                    Text(verbatim: presentation.title)
+                        .font(.scaled(.headline))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("agent.approval.title")
+                    Spacer(minLength: 8)
+                    if waiting > 1 {
+                        Text("1 of \(waiting)")
+                            .font(.scaled(.callout)).foregroundStyle(LBTokens.Palette.attentionText)
+                            .accessibilityIdentifier("agent.approval.count")
                     }
-                    approvalCode(label: "Remove", value: edit.oldText, tint: .red)
-                    approvalCode(label: "Replace with", value: edit.newText, tint: .green)
                 }
+                Text(verbatim: presentation.effect)
+                    .font(.scaled(.callout)).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let caution = presentation.caution {
+                    Label { Text(verbatim: caution).font(LBTokens.Typography.path).textSelection(.enabled) } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .foregroundStyle(LBTokens.Palette.attentionText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("agent.approval.path")
+                }
+                if let destination = presentation.destination {
+                    Label { Text(verbatim: destination) } icon: { Image(systemName: "network") }
+                        .font(.scaled(.callout)).foregroundStyle(LBTokens.Palette.attentionText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if !presentation.preview.isEmpty { preview(presentation) }
+                if request.isTruncated {
+                    Label("Preview shortened because the requested change is very large.",
+                          systemImage: "ellipsis.circle")
+                        .workspaceTextRole(.supporting)
+                }
+                if !request.canApprove {
+                    Label("This request can’t be shown in full, so it can only be denied.",
+                          systemImage: "exclamationmark.triangle")
+                        .workspaceTextRole(.warning)
+                }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { deny; Spacer(minLength: 12); allowing(presentation) }
+                    VStack(alignment: .leading, spacing: 8) { HStack(spacing: 8) { allowing(presentation) }; deny }
+                }
+                .padding(.top, 2)
             }
-            if let workspace = request.workspace {
-                approvalText(label: "Working folder", value: workspace)
+        }
+        .padding(14)
+        .lbStatusSurface(LBTokens.Palette.attention)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("agent.approval")
+        .onChange(of: request.id) { showingAll = false }
+    }
+
+    /// The first lines of what will be written or run; the rest on request.
+    private func preview(_ presentation: AgentApprovalPresentation) -> some View {
+        let lines = presentation.previewLines
+        let isLong = lines.count > AgentApprovalPresentation.collapsedPreviewLines
+        let shown = showingAll || !isLong
+            ? presentation.preview
+            : lines.prefix(AgentApprovalPresentation.collapsedPreviewLines).joined(separator: "\n")
+        let text = Text(verbatim: shown)
+            .font(LBTokens.Typography.path)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        return VStack(alignment: .leading, spacing: 6) {
+            // The box is as tall as its text, up to a limit; beyond it the text scrolls in place.
+            ScrollView(.vertical) {
+                text.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
             }
-            if !request.hasStructuredDetails, let summary = request.summary, !summary.isEmpty {
-                approvalCode(label: "Request details", value: summary)
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(height: min(max(previewHeight, 16), showingAll ? previewMaxHeight : 96))
+            .accessibilityIdentifier("agent.approval.preview")
+            if isLong {
+                Button(showingAll ? localized("Show less") : AgentApprovalPresentation.showAll(lines.count, localize: localized)) {
+                    showingAll.toggle()
+                }
+                .buttonStyle(.workspaceLink).font(.scaled(.callout))
+                .accessibilityIdentifier("agent.approval.showAll")
             }
-            if request.isTruncated {
-                Label("Preview shortened because the requested change is very large.",
-                      systemImage: "ellipsis.circle")
-                    .workspaceTextRole(.supporting)
-            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.75),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(LBTokens.Palette.groupStroke).allowsHitTesting(false).accessibilityHidden(true)
         }
     }
 
-    @ViewBuilder private var approvalButtons: some View {
+    private var deny: some View {
         Button("Deny") {
-            Task {
-                await controller.respondToApproval(
-                    id: request.id, approved: false, scope: .once)
-            }
+            Task { await controller.respondToApproval(id: request.id, approved: false, scope: .once) }
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.bordered).controlSize(.large)
         .keyboardShortcut(.cancelAction)
         .accessibilityIdentifier("agent.approve.deny")
+    }
 
-        if controller.canAllowForSession(request) {
-            Button("Allow \(request.tool) for Session") {
-                Task {
-                    await controller.respondToApproval(
-                        id: request.id, approved: true, scope: .session)
-                }
-            }
-            .help("Automatically allow future \(request.tool) requests until this session closes")
+    @ViewBuilder private func allowing(_ presentation: AgentApprovalPresentation) -> some View {
+        if let taskAnswer = presentation.taskAnswer {
+            Button {
+                Task { await controller.respondToApproval(id: request.id, approved: true, scope: .session) }
+            } label: { Text(verbatim: taskAnswer) }
+            .buttonStyle(.bordered).controlSize(.large)
+            .help("Further changes of this kind inside the working folder run without asking, until this task’s agent stops or the access level changes.")
             .accessibilityIdentifier("agent.approve.session")
         }
-
-        Button("Allow Once") {
-            Task {
-                await controller.respondToApproval(
-                    id: request.id, approved: true, scope: .once)
-            }
+        Button("Allow once") {
+            Task { await controller.respondToApproval(id: request.id, approved: true, scope: .once) }
         }
-        .primaryActionButton()
+        .primaryActionButton().controlSize(.large)
         .disabled(!request.canApprove)
         .accessibilityIdentifier("agent.approve.once")
     }
-
-    private func approvalEffect(_ tool: String) -> String {
-        switch tool.lowercased() {
-        case "read": "Read the file shown below and make its contents available to this session."
-        case "write": "Create or replace the file shown below with the proposed content."
-        case "edit": "Apply the replacements shown below to the target file."
-        case "bash", "shell": "Run the command shown below in the working folder with this session's current access."
-        default: "Allow the operation shown below with this session's current access."
-        }
-    }
-
-    private func approvalText(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.scaled(.caption).weight(.semibold)).foregroundStyle(.secondary)
-            Text(value).font(LBTokens.Typography.path).textSelection(.enabled)
-        }
-    }
-
-    private func approvalCode(label: String, value: String, tint: Color = .gray) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.scaled(.caption).weight(.semibold)).foregroundStyle(.secondary)
-            ScrollView([.horizontal, .vertical]) {
-                Text(value.isEmpty ? "(empty)" : value)
-                    .font(LBTokens.Typography.path)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(7)
-            }
-            .frame(minHeight: 34, maxHeight: 170)
-            .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(tint.opacity(0.18)))
-        }
-    }
-
 }
 
+/// The confirmation shown before the access level is raised.
 extension AgentApprovalMode {
-    var title: String {
-        switch self {
-        case .askBeforeChanges: "Ask before changes"
-        case .approveReads: "Auto-approve reads"
-        case .approveReadsAndEdits: "Auto-approve reads & edits"
-        case .fullAccess: "Full access"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .askBeforeChanges: "hand.raised"
-        case .approveReads: "eye"
-        case .approveReadsAndEdits: "pencil"
-        case .fullAccess: "lock.open"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .askBeforeChanges:
-            "Reads in the working folder run automatically. Outside reads, file changes, and shell commands ask first."
-        case .approveReads:
-            "All reads run automatically, including outside the working folder. File changes and shell commands ask first."
-        case .approveReadsAndEdits:
-            "Reads and ordinary file edits run automatically, including outside the working folder. File-tool changes to LokalBot’s private data and shell commands ask first."
-        case .fullAccess:
-            "Reads, ordinary file edits, shell calls, and every other agent tool run automatically. File-tool changes to LokalBot’s private data still ask; shell commands remain unrestricted."
-        }
-    }
-
     var confirmationTitle: String {
         switch self {
         case .askBeforeChanges: "Use Ask before changes?"

@@ -97,6 +97,8 @@ final class ProjectLinksTests: XCTestCase {
                        ["Send the synthetic price sheet", "Draft the Orion synthetic FAQ"])
         XCTAssertEqual(orion.trackedSeconds, 2_400, accuracy: 1)
         XCTAssertEqual(orion.windows.first?.title, "Orion deck.key")
+        XCTAssertEqual(orion.windowCount, 2, "every window in the reviewed days is counted once")
+        XCTAssertEqual(orion.days.map(\.seconds), [1_800, 600], "newest day first, only days with time")
         XCTAssertEqual(orion.people, ["Mila Novak"])
         XCTAssertEqual(orion.lastActive, Calendar.current.startOfDay(for: now))
         let unrelatedProject = try XCTUnwrap(projects.first { $0.name == "Unrelated effort" })

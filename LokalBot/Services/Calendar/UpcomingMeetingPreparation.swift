@@ -544,6 +544,91 @@ enum UpcomingMeetingLocalGenerationPolicy {
     }
 }
 
+/// Today's calendar meetings, read once for whoever shows them: the Today
+/// page (`UpcomingMeetingPreparationModel`) and the menu bar's status block.
+/// Without the Calendar setting and macOS access there are no meetings.
+enum UpcomingMeetingSchedule {
+    enum Reading: Equatable {
+        /// Calendar use is off in Settings.
+        case disabled
+        case permissionRequired
+        case permissionDenied
+        /// The day's meetings in time order; personal appointments left out.
+        case meetings([CalendarMeetingCandidate])
+    }
+
+    @MainActor
+    static func read(app: AppState, now: Date) -> Reading {
+#if LOKALBOT_UI_TEST_HOST
+        if ProcessInfo.processInfo.environment["LOKALBOT_CALENDAR_DEMO"] == "1" {
+            return .meetings(UpcomingMeetingSelector.schedule(from: demoSchedule(now: now), on: now))
+        }
+#endif
+        app.calendar.refreshAuthorizationStatus()
+        guard app.settings.calendarDetectionEnabled else { return .disabled }
+        switch app.calendar.authorizationStatus {
+        case .notDetermined:
+            return .permissionRequired
+        case .fullAccess:
+            break
+        case .restricted, .denied, .writeOnly:
+            return .permissionDenied
+        }
+        return .meetings(UpcomingMeetingSelector.schedule(
+            from: app.calendar.meetingCandidates(on: now), on: now))
+    }
+
+    /// Meetings from now through the next week, for People's "Coming up" and
+    /// a person's next-meeting card. Nil while Calendar use is off or access
+    /// is missing; People never asks for access.
+    @MainActor
+    static func readAhead(
+        app: AppState, now: Date, days: Int = PeopleUpcomingMeetings.windowDays
+    ) -> [CalendarMeetingCandidate]? {
+#if LOKALBOT_UI_TEST_HOST
+        if ProcessInfo.processInfo.environment["LOKALBOT_CALENDAR_DEMO"] == "1" {
+            return demoSchedule(now: now)
+        }
+#endif
+        app.calendar.refreshAuthorizationStatus()
+        return PeopleUpcomingMeetings.events(
+            calendarEnabled: app.settings.calendarDetectionEnabled,
+            authorization: app.calendar.authorizationStatus
+        ) {
+            app.calendar.meetingCandidates(from: now, days: days)
+                .filter { UpcomingMeetingSelector.kind(of: $0) != .personal }
+        }
+    }
+
+#if LOKALBOT_UI_TEST_HOST
+    /// A deterministic, non-EventKit seam for screenshots and XCUITest. It
+    /// exercises the real schedule, evidence compiler, Join/Record actions,
+    /// and accessibility tree without reading the developer's calendar.
+    private static func demoSchedule(now: Date) -> [CalendarMeetingCandidate] {
+        [
+            CalendarMeetingCandidate(
+                provider: "demo",
+                externalID: "demo-design-review-follow-up",
+                title: "Design review follow-up",
+                startDate: now.addingTimeInterval(55 * 60),
+                endDate: now.addingTimeInterval(115 * 60),
+                meetingURL: URL(string: "https://zoom.us/j/123456789"),
+                sourceCalendarTitle: "Work",
+                participantNames: ["Maya", "Hernan"]),
+            CalendarMeetingCandidate(
+                provider: "demo",
+                externalID: "demo-customer-check-in",
+                title: "Customer check-in",
+                startDate: now.addingTimeInterval(3 * 60 * 60),
+                endDate: now.addingTimeInterval(3.5 * 60 * 60),
+                meetingURL: nil,
+                sourceCalendarTitle: "Work",
+                participantNames: ["Jordan Lee"]),
+        ]
+    }
+#endif
+}
+
 /// Today-owned state for the full calendar day. Every meeting is retained for
 /// the schedule, but only the active/next meeting gets the heavier history
 /// lookup and optional local-LLM brief. Generated briefs stay cached across
@@ -594,43 +679,31 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
     func refresh(app: AppState, now: Date = Date()) async {
         let token = UUID()
         refreshToken = token
-        var candidateSchedule: [CalendarMeetingCandidate]?
-#if LOKALBOT_UI_TEST_HOST
-        if ProcessInfo.processInfo.environment["LOKALBOT_CALENDAR_DEMO"] == "1" {
-            candidateSchedule = Self.demoSchedule(now: now)
+        let schedule: [CalendarMeetingCandidate]
+        switch UpcomingMeetingSchedule.read(app: app, now: now) {
+        case .disabled:
+            clear(status: .disabled)
+            return
+        case .permissionRequired:
+            clear(status: .permissionRequired)
+            return
+        case .permissionDenied:
+            clear(status: .permissionDenied)
+            return
+        case .meetings(let meetings):
+            schedule = meetings
         }
-#endif
-        if candidateSchedule == nil {
-            app.calendar.refreshAuthorizationStatus()
-
-            guard app.settings.calendarDetectionEnabled else {
-                clear(status: .disabled)
-                return
-            }
-            switch app.calendar.authorizationStatus {
-            case .notDetermined:
-                clear(status: .permissionRequired)
-                return
-            case .fullAccess:
-                break
-            case .restricted, .denied, .writeOnly:
-                clear(status: .permissionDenied)
-                return
-            }
-            candidateSchedule = app.calendar.meetingCandidates(on: now)
-        }
-
-        let schedule = UpcomingMeetingSelector.schedule(
-            from: candidateSchedule ?? [],
-            on: now)
         guard !schedule.isEmpty else {
             clear(status: .noMeetingsToday)
             return
         }
+        // An event a recording already covers, the one being recorded
+        // included, is not coming up again. Today lists it as that recording.
+        let recorded = TodayAgenda.recordedEventIDs(
+            in: (app.currentMeeting.map { [$0] } ?? []) + app.meetings)
         let primary = UpcomingMeetingSelector.primary(
-            from: schedule,
-            now: now,
-            excludingEventID: app.currentMeeting?.calendarEventID)
+            from: schedule.filter { !recorded.contains($0.externalID) },
+            now: now)
 
         meetingsToday = schedule
         primaryEventID = primary?.externalID
@@ -682,34 +755,6 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
             await generate(app: app, evidence: compiled)
         }
     }
-
-#if LOKALBOT_UI_TEST_HOST
-    /// A deterministic, non-EventKit seam for screenshots and XCUITest. It
-    /// exercises the real schedule, evidence compiler, Join/Record actions,
-    /// and accessibility tree without reading the developer's calendar.
-    private static func demoSchedule(now: Date) -> [CalendarMeetingCandidate] {
-        [
-            CalendarMeetingCandidate(
-                provider: "demo",
-                externalID: "demo-design-review-follow-up",
-                title: "Design review follow-up",
-                startDate: now.addingTimeInterval(55 * 60),
-                endDate: now.addingTimeInterval(115 * 60),
-                meetingURL: URL(string: "https://zoom.us/j/123456789"),
-                sourceCalendarTitle: "Work",
-                participantNames: ["Maya", "Hernan"]),
-            CalendarMeetingCandidate(
-                provider: "demo",
-                externalID: "demo-customer-check-in",
-                title: "Customer check-in",
-                startDate: now.addingTimeInterval(3 * 60 * 60),
-                endDate: now.addingTimeInterval(3.5 * 60 * 60),
-                meetingURL: nil,
-                sourceCalendarTitle: "Work",
-                participantNames: ["Jordan Lee"]),
-        ]
-    }
-#endif
 
     /// Explicit generation may prepare/download the user's selected local
     /// model; unlike automatic refresh, that potentially expensive action is

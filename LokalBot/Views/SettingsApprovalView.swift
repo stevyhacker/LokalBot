@@ -178,29 +178,6 @@ private struct SettingsApprovalRetention: View {
     }
 }
 
-/// The menu bar row for requests waiting for the person.
-struct SettingsApprovalMenuRow: View {
-    @ObservedObject var approvals: SettingsApprovals
-
-    var body: some View {
-        if !approvals.pending.isEmpty {
-            Button { WindowAccess.shared.open("settings-approval") } label: {
-                Label(title, systemImage: "exclamationmark.shield.fill")
-                    .font(.scaled(.caption))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Brand.error)
-            .accessibilityIdentifier("menuBar.settingsApproval")
-        }
-    }
-
-    private var title: LocalizedStringKey {
-        approvals.pending.count == 1
-            ? "A settings change is waiting for your approval"
-            : "\(approvals.pending.count) settings changes are waiting for your approval"
-    }
-}
-
 extension SettingSpec {
     /// What the approval card says a change does, in full. Lists name every
     /// entry added and removed; other values show before and after.

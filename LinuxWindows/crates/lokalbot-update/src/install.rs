@@ -13,6 +13,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 /// The relaunched copy waits for the old one to release the library.
@@ -273,6 +274,7 @@ pub fn install(
     targets: &Targets,
     style: SwapStyle,
 ) -> Result<Installed, InstallError> {
+    let _replacing = Replacing::new(targets);
     let mut replacements = plan(staged, targets)?;
     for replacement in &replacements {
         if let Err(source) = stage(replacement) {
@@ -523,14 +525,60 @@ fn discard_staged(replacements: &[Replacement]) {
     }
 }
 
-/// Deletes `.old` and `.new` binaries an earlier update left in `dir` (and
-/// next to the Windows CLI copy). Ones still running stay until next time.
-pub fn remove_leftovers(targets: &Targets) {
+/// Folders an [`install`] in this process is replacing files in right now.
+/// [`remove_leftovers`], which the app runs 0, 10 and 60 seconds after it
+/// starts, skips them: it used to delete the `.new` file of an install under
+/// way (an update started at launch on a slow machine), and the rename then
+/// failed with "No such file or directory".
+static REPLACING: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
+fn replacing() -> MutexGuard<'static, Vec<PathBuf>> {
+    REPLACING.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Lists an install's folders in [`REPLACING`] until dropped.
+struct Replacing(Vec<PathBuf>);
+
+impl Replacing {
+    fn new(targets: &Targets) -> Self {
+        let dirs = leftover_dirs(targets);
+        // Waits for a cleanup pass that is going on in these folders.
+        replacing().extend(dirs.iter().cloned());
+        Self(dirs)
+    }
+}
+
+impl Drop for Replacing {
+    fn drop(&mut self) {
+        let mut busy = replacing();
+        for dir in &self.0 {
+            if let Some(at) = busy.iter().position(|d| d == dir) {
+                busy.swap_remove(at);
+            }
+        }
+    }
+}
+
+/// Where an update leaves `.old` and `.new` binaries: the installation's
+/// folder and the Windows CLI copy's.
+fn leftover_dirs(targets: &Targets) -> Vec<PathBuf> {
     let mut dirs = vec![targets.dir.clone()];
     if let Some(parent) = targets.cli_copy.as_deref().and_then(Path::parent) {
         dirs.push(parent.to_path_buf());
     }
-    for dir in dirs {
+    dirs
+}
+
+/// Deletes `.old` and `.new` binaries an earlier update left in `dir` (and
+/// next to the Windows CLI copy). Ones still running stay until next time, and
+/// so does a folder an install in this process is replacing files in.
+pub fn remove_leftovers(targets: &Targets) {
+    // Held for the whole pass, so no install starts in these folders halfway.
+    let busy = replacing();
+    for dir in leftover_dirs(targets) {
+        if busy.contains(&dir) {
+            continue;
+        }
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
         };
@@ -917,6 +965,61 @@ mod tests {
         assert!(!is_leftover(&format!("{CLI_BINARY}.x.old")));
         assert!(!is_leftover(&format!("{CLI_BINARY}..old")));
         assert!(!is_leftover(CLI_BINARY));
+    }
+
+    #[test]
+    fn cleanup_skips_a_folder_an_install_is_replacing_files_in() {
+        let temp = tempfile::tempdir().unwrap();
+        let busy = temp.path().join("busy");
+        let idle = temp.path().join("idle");
+        for folder in [&busy, &idle] {
+            write(&folder.join(APP_BINARY), "app");
+            write(&sibling(&folder.join(APP_BINARY), "new"), "being staged");
+            write(&sibling(&folder.join(CLI_BINARY), "old"), "backup");
+        }
+        let staged_name = format!("{APP_BINARY}.new");
+        let backup_name = format!("{CLI_BINARY}.old");
+
+        let replacing = Replacing::new(&targets(&busy));
+        remove_leftovers(&targets(&busy));
+        remove_leftovers(&targets(&idle));
+        assert_eq!(
+            names(&busy),
+            sorted(&[APP_BINARY, &staged_name, &backup_name]),
+            "an install's files stay while it runs"
+        );
+        assert_eq!(
+            names(&idle),
+            sorted(&[APP_BINARY]),
+            "other folders are cleaned"
+        );
+
+        drop(replacing);
+        remove_leftovers(&targets(&busy));
+        assert_eq!(names(&busy), sorted(&[APP_BINARY]), "and once it is done");
+    }
+
+    #[test]
+    fn an_install_waits_for_a_cleanup_pass_and_lists_its_folder_only_while_it_runs() {
+        let temp = tempfile::tempdir().unwrap();
+        let staged = update(temp.path());
+        let bin = temp.path().join("bin");
+        write(&bin.join(APP_BINARY), "old app");
+        write(&bin.join(CLI_BINARY), "old cli");
+
+        // A cleanup pass holds the list, so the install can't start yet.
+        let pass = replacing();
+        let job = {
+            let (staged, bin) = (staged.clone(), bin.clone());
+            std::thread::spawn(move || install(&staged, &targets(&bin), SwapStyle::NATIVE))
+        };
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(read(&bin.join(APP_BINARY)), "old app");
+        drop(pass);
+
+        job.join().unwrap().unwrap();
+        assert_eq!(read(&bin.join(APP_BINARY)), "new app");
+        assert!(!replacing().contains(&bin), "listed only while it runs");
     }
 
     #[test]

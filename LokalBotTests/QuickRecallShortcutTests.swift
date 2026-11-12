@@ -2,7 +2,7 @@ import Carbon.HIToolbox
 import XCTest
 @testable import LokalBot
 
-/// The system-wide Ask shortcut can be changed in Settings.
+/// The Quick Recall shortcut can be changed in Settings.
 final class QuickRecallShortcutTests: XCTestCase {
     private let controlOptionK = DictationShortcut(
         keyCode: CGKeyCode(kVK_ANSI_K), modifiers: [.maskControl, .maskAlternate])

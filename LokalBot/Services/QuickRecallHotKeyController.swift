@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// Registers one of LokalBot's opt-in, system-wide shortcuts (Ask, selection
+/// Registers one of LokalBot's opt-in, system-wide shortcuts (Quick Recall, selection
 /// actions, Hand off) without an event tap. Carbon hot keys work while another app is
 /// focused and do not read or retain any other keyboard input.
 @MainActor
@@ -15,7 +15,7 @@ final class QuickRecallHotKeyController {
     var onInvoke: (() -> Void)?
 
     /// True while Settings records a new shortcut, so the current one reaches
-    /// the recorder instead of opening Ask.
+    /// the recorder instead of opening Quick Recall.
     var isSuspended = false {
         didSet { if isSuspended != oldValue { sync() } }
     }
@@ -23,7 +23,7 @@ final class QuickRecallHotKeyController {
     private static let signature: OSType = 0x4C425152 // "LBQR"
     private let identifier: UInt32
 
-    /// The shortcut Ask should answer to, or nil when it is off.
+    /// The shortcut this controller answers to, or nil when it is off.
     private var shortcut: DictationShortcut?
     /// The shortcut `hotKey` was registered with.
     private(set) var registeredShortcut: DictationShortcut?

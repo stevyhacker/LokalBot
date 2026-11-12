@@ -22,6 +22,10 @@ struct WorkspaceMenu: NSViewRepresentable {
     let items: [Item]
     /// Composer rows match their neighboring SwiftUI controls' type.
     var font: NSFont = .systemFont(ofSize: NSFont.smallSystemFontSize)
+    /// False lays the menu, undrawn, over a label the caller draws itself (a
+    /// colored chip, say). Clicks and assistive tools still reach the native
+    /// button, which then fills whatever space it is given.
+    var drawsButton = true
     @Environment(\.isEnabled) private var isEnabled
 
     /// AppKit gives the menu its button's font. A symbol button shows no
@@ -35,6 +39,7 @@ struct WorkspaceMenu: NSViewRepresentable {
         button.isBordered = false
         button.controlSize = .small
         button.font = buttonFont
+        button.drawsNothing = !drawsButton
         return button
     }
 
@@ -79,6 +84,10 @@ struct WorkspaceMenu: NSViewRepresentable {
             button.menu = menu
         }
         if button.font != buttonFont { button.font = buttonFont }
+        if button.drawsNothing == drawsButton {
+            button.drawsNothing = !drawsButton
+            button.needsDisplay = true
+        }
         button.isEnabled = isEnabled
         button.setAccessibilityLabel(label ?? title)
         button.setAccessibilityTitle(label ?? title)
@@ -88,6 +97,7 @@ struct WorkspaceMenu: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: PopUpButton, context: Context) -> CGSize? {
+        if !drawsButton { return CGSize(width: proposal.width ?? 32, height: proposal.height ?? 24) }
         let width = symbol == nil
             ? (title as NSString).size(withAttributes: [.font: nsView.font ?? NSFont.systemFont(ofSize: 13)]).width
             : 18
@@ -95,6 +105,14 @@ struct WorkspaceMenu: NSViewRepresentable {
     }
 
     final class PopUpButton: NSPopUpButton {
+        /// Skips the button's own drawing and changes nothing else, so clicks
+        /// and assistive tools meet the same control as a drawn menu.
+        var drawsNothing = false
+
+        override func draw(_ dirtyRect: NSRect) {
+            if !drawsNothing { super.draw(dirtyRect) }
+        }
+
         override func accessibilityPerformPress() -> Bool {
             guard isEnabled else { return false }
             // Menu tracking is synchronous. Return to the accessibility

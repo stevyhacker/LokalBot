@@ -59,6 +59,8 @@ struct ProjectCuration: Codable, Equatable, Sendable {
 /// deleted, and marked out of date when its evidence changes.
 struct ProjectStatusSummary: Codable, Equatable, Sendable {
     static let fileName = "summaries.json"
+    /// `location` of a note written by a model on this Mac.
+    static let localLocation = "this Mac"
 
     struct Point: Codable, Equatable, Identifiable, Sendable {
         var id: String { text }

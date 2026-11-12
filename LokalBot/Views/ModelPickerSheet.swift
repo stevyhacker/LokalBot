@@ -261,12 +261,17 @@ struct ModelPickerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ModelSheetHeading(title: "\(role.title) model", subtitle: role.detail)
+            if role == .assistant {
+                ModelSheetHeading(title: app.settings.appLanguage.localized("Choose the Think model"),
+                                  subtitle: thinkSubtitle)
+            } else {
+                ModelSheetHeading(title: "\(role.title) model", subtitle: role.detail)
+            }
             if role == .assistant {
                 // Where Think runs, then that choice's own setup: one place
                 // to choose and configure, with no nested or segmented picks.
                 HStack(alignment: .top, spacing: 0) {
-                    providerList.frame(width: 228)
+                    providerList.frame(width: 272)
                     Divider()
                     VStack(alignment: .leading, spacing: 0) {
                         if showsCatalog {
@@ -404,7 +409,7 @@ struct ModelPickerSheet: View {
                     ForEach(entries) { entry in
                         ModelChoiceRow(
                             title: entry.displayName,
-                            detail: ModelSettingsPresentation.sizeLabel(entry) + " on disk",
+                            detail: catalogDetail(entry),
                             inUse: ModelSettingsPresentation.uses(of: entry.id, in: app.settings).contains(role.title)
                                 && (role != .autocomplete || app.settings.cotypingBackend == .onDevice),
                             available: isDownloaded(entry),
@@ -423,6 +428,24 @@ struct ModelPickerSheet: View {
             }
             .accessibilityIdentifier("models.picker.catalog")
         }
+    }
+
+    /// What Think is for, in the picker's heading.
+    private var thinkSubtitle: String {
+        let language = app.settings.appLanguage
+        let job = language.localized("Think writes summaries and answers in Ask and Agent.")
+        guard app.settings.dictationCompositionBuiltInModelID.isEmpty else { return job }
+        return job + " " + language.localized("Dictation’s Compose uses it too.")
+    }
+
+    /// A model's size on disk and, for Think, the memory it needs to run.
+    private func catalogDetail(_ entry: ModelCatalog.Entry) -> String {
+        let size = ModelSettingsPresentation.sizeLabel(entry)
+        guard role == .assistant, let memory = ModelSettingsPresentation.memoryNeed(entry) else {
+            return size + " on disk"
+        }
+        return String(format: app.settings.appLanguage.localized("%@ on disk · needs about %@ of memory"),
+                      size, memory)
     }
 
     private var entries: [ModelCatalog.Entry] {
@@ -738,14 +761,25 @@ struct ModelPickerSheet: View {
             }
         }
 
-        var title: LocalizedStringKey {
+        var title: String {
             switch self {
-            case .onDevice: "On this Mac"
-            case .appleIntelligence: "Apple Intelligence"
+            case .onDevice: "A model on this Mac"
+            case .appleIntelligence: "Built into macOS"
             case .chatGPTPlan: "ChatGPT plan"
             case .claudePlan: "Claude plan"
             case .ollama: "Ollama"
-            case .server: "OpenAI-compatible"
+            case .server: "Another service or server"
+            }
+        }
+
+        /// One plain line about the choice.
+        var detail: String {
+            switch self {
+            case .onDevice: "Downloads once, then runs here."
+            case .appleIntelligence: "Apple Intelligence. Nothing to download."
+            case .chatGPTPlan, .claudePlan: "Sign in with a plan you already pay for."
+            case .ollama: "A server you run, on this Mac or your network."
+            case .server: "An address and key you enter."
             }
         }
 
@@ -759,23 +793,43 @@ struct ModelPickerSheet: View {
             case .server: "network"
             }
         }
+    }
 
-        static let groups: [(title: LocalizedStringKey, providers: [ThinkProvider])] = [
-            ("Local", [.onDevice, .appleIntelligence]),
-            ("Your subscription", [.chatGPTPlan, .claudePlan]),
-            ("Server", [.ollama, .server]),
-        ]
+    /// A server at this Mac's own address keeps what Think reads here, so
+    /// it is listed with the models on this Mac.
+    private func staysOnThisMac(_ provider: ThinkProvider) -> Bool {
+        switch provider {
+        case .onDevice, .appleIntelligence: return true
+        case .chatGPTPlan, .claudePlan: return false
+        case .ollama, .server:
+            // "Another service" is one only once it is the one in use: its
+            // address starts out as a placeholder on this Mac.
+            if provider == .server, app.settings.summarizerBackend != .openAICompatible { return false }
+            let address = provider == .ollama ? app.settings.ollamaBaseURL : app.settings.openAIBaseURL
+            return URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines))
+                .map(InferenceEndpointPolicy.isLoopback) ?? false
+        }
+    }
+
+    /// Two groups: what stays on this Mac, and what sends Think's reading
+    /// to a service.
+    private var providerGroups: [(title: String, icon: String, providers: [ThinkProvider])] {
+        [("On this Mac · private, works offline", "laptopcomputer", ThinkProvider.allCases.filter(staysOnThisMac)),
+         ("Online · what Think reads is sent to the service", "globe",
+          ThinkProvider.allCases.filter { !staysOnThisMac($0) })]
     }
 
     private var providerList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                ForEach(ThinkProvider.groups, id: \.providers) { group in
+                ForEach(providerGroups, id: \.title) { group in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(group.title)
+                        Label { Text(LocalizedStringKey(group.title)) } icon: { Image(systemName: group.icon) }
                             .font(.scaled(.caption).weight(.semibold))
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 10).padding(.bottom, 2)
+                            .accessibilityAddTraits(.isHeader)
                         ForEach(group.providers) { provider in
                             providerRow(provider)
                         }
@@ -788,7 +842,7 @@ struct ModelPickerSheet: View {
     }
 
     private func providerRow(_ provider: ThinkProvider) -> some View {
-        locationRow(provider.title, icon: provider.icon,
+        locationRow(LocalizedStringKey(provider.title), detail: provider.detail, icon: provider.icon,
                     selected: ThinkProvider(backend) == provider,
                     inUse: provider.backend == app.settings.summarizerBackend,
                     identifier: "models.picker.provider.\(provider.rawValue)") {
@@ -839,16 +893,23 @@ struct ModelPickerSheet: View {
 
     /// Plain rows with an explicit highlight: the selection reads the same in
     /// a sheet whether or not its window is key.
-    private func locationRow(_ title: LocalizedStringKey, icon: String, selected: Bool, inUse: Bool,
-                             identifier: String, action: @escaping () -> Void) -> some View {
+    private func locationRow(_ title: LocalizedStringKey, detail: String? = nil, icon: String, selected: Bool,
+                             inUse: Bool, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .frame(width: 20)
                     .foregroundStyle(selected ? AnyShapeStyle(Brand.teal) : AnyShapeStyle(.secondary))
-                Text(title)
-                    .font(.scaled(.body).weight(selected ? .semibold : .regular))
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.scaled(.body).weight(selected ? .semibold : .regular))
+                        .lineLimit(1)
+                    if let detail {
+                        Text(LocalizedStringKey(detail))
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Spacer(minLength: 4)
                 if inUse {
                     Image(systemName: "checkmark")

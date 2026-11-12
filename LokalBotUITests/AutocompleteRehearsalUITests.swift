@@ -1,8 +1,9 @@
 import XCTest
 
-/// Hosted regression checks for the Autocomplete rehearsal: it must accept, keep,
-/// and discard a suggestion the way autocomplete does in another app. The
-/// host's demo mode supplies fixed suggestions, so no model is involved.
+/// Hosted regression checks for the Autocomplete rehearsal, which is the
+/// page header's "Try it…" sheet: it must accept, keep, and discard a
+/// suggestion the way autocomplete does in another app. The host's demo
+/// mode supplies fixed suggestions, so no model is involved.
 final class AutocompleteRehearsalUITests: XCTestCase {
     private static let draft = "Hi Sarah, thanks for the update. I wanted to follow"
     private static let opening = " up on the migration timeline we scoped yesterday."
@@ -116,7 +117,11 @@ final class AutocompleteRehearsalUITests: XCTestCase {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Autocomplete", in: app)
         let editor = app.textViews["autocomplete.rehearsal.editor"]
-        UITestHarness.scrollTo(editor, in: app)
+        XCTAssertFalse(editor.exists, "The rehearsal opens over the page; it is not part of it")
+        let tryIt = app.buttons["settings.header.writing.tryIt"]
+        XCTAssertTrue(tryIt.waitForExistence(timeout: 6), "Autocomplete's header has no Try it… button")
+        tryIt.click()
+        XCTAssertTrue(editor.waitForExistence(timeout: 6), "Try it… did not open the rehearsal")
         editor.click()
         XCTAssertEqual(editor.value as? String, Self.draft)
         XCTAssertTrue(waitForGhost(Self.opening), "the demo suggestion never appeared")

@@ -1,108 +1,100 @@
 import SwiftUI
 
-/// The empty-state card shown when no meeting is selected. Orients around the
-/// four product moves (remember → recall → write → act) and one-tap setup
-/// steps, so a brand-new user lands somewhere useful instead of a blank pane.
-/// Dismissed once and remembered via `@AppStorage`.
+/// The first-day steps. On a day with nothing to show yet they are Today's
+/// content; after that they stay under the day until hidden. Hiding is
+/// remembered via `@AppStorage`.
 struct GettingStartedCard: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("lokalbotv3.gettingStartedDismissed") private var dismissed = false
 
-    // First-checklist-item state: front-load the transcription model download
-    // so it doesn't ambush the user's first recap.
+    // Transcription-model step: front-load the download so it doesn't
+    // ambush the user's first recap.
     @State private var modelDownloaded = false
     @State private var preparingModel = false
     @State private var modelProgress: Double?
     @State private var modelStatus: String?
     @State private var modelError: String?
 
+    private var calendarConnected: Bool {
+        app.settings.calendarDetectionEnabled && app.calendar.authorizationStatus == .fullAccess
+    }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HeroPanel {
-                    HStack(spacing: 14) {
-                        IconTile(systemImage: "waveform.badge.magnifyingglass",
-                                 tint: Brand.teal, size: 48)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Welcome to LokalBot").font(.scaled(.title2).bold())
-                                .foregroundStyle(.primary)
-                            Text("Your private AI memory for work — on-device by default.")
-                                .font(.scaled(.callout)).foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button { dismissed = true } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.scaled(.title3)).foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Dismiss")
-                        .accessibilityIdentifier("welcome.dismiss")
-                    }
-                }
-
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    pillar("waveform", "Remember",
-                           app.isRecording ? "Recording now…" : "Capture meetings and the day context you choose.",
-                           isRecording: app.isRecording)
-                    pillar("sparkle.magnifyingglass", "Ask",
-                           "Search, ask, and open the evidence behind an answer.", isRecording: nil)
-                    pillar("keyboard", "Write",
-                           "Dictate or autocomplete text in the app where you're working.", isRecording: nil)
-                    pillar("arrow.up.forward.app", "Act",
-                           "Create inspectable drafts, exports, and approved agent sessions.", isRecording: nil)
-                }
-
-                Text("Get started").font(.scaled(.headline))
-                VStack(alignment: .leading, spacing: 10) {
-                    stepRow(done: modelDownloaded ? true : nil) {
-                        modelStep
-                    }
-                    stepRow(done: app.sampleMeeting != nil ? true : nil) {
-                        HStack(spacing: 8) {
-                            Button(app.sampleMeeting != nil ? "Open the sample meeting" : "Try a sample meeting") {
-                                app.trySampleMeeting()
-                            }
-                            .buttonStyle(.bordered).controlSize(.small)
-                            .accessibilityIdentifier("welcome.trySample")
-                            Text("— a made-up call, to try Ask before you record.")
-                        }
-                    }
-                    stepRow(done: app.isRecording || app.meetings.contains(where: \.isOwnWork)) {
-                        HStack(spacing: 8) {
-                            Button("Import a recording") { RecordingImportPanel.choose(into: app) }
-                                .buttonStyle(.bordered).controlSize(.small)
-                                .accessibilityIdentifier("welcome.importRecording")
-                            Text("or record a meeting — it appears in the list automatically.")
-                        }
-                    }
-                    stepRow(done: nil) {
-                        HStack(spacing: 8) {
-                            Button("Turn on day tracking") {
-                                app.navSection = .timeline
-                            }
-                                .buttonStyle(.bordered).controlSize(.small)
-                            Text("to see where your time goes.")
-                        }
-                    }
-                    stepRow(done: app.settings.cotypingEnabled ? true : nil) {
-                        HStack(spacing: 8) {
-                            Button("Try autocomplete") { app.openType(.cotyping) }
-                                .buttonStyle(.bordered).controlSize(.small)
-                            Text("— inline AI autocomplete that stays on your Mac.")
-                        }
-                    }
-                }
-                .padding(WorkspaceMetric.cardPadding)
-                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
-
-                Text("Tip: press ⌘K anywhere to record, navigate, or jump to a meeting.")
-                    .font(.scaled(.caption)).foregroundStyle(.tertiary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Get started").font(TodayType.cardTitleCompact)
+                Spacer(minLength: 8)
+                Button("Hide") { dismissed = true }
+                    .buttonStyle(.workspaceLink)
+                    .font(AppFont.scaled(.callout))
+                    .help("Dismiss")
+                    .accessibilityIdentifier("welcome.dismiss")
             }
-            .padding(WorkspaceMetric.pagePadding)
-            .frame(maxWidth: 560, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
+            VStack(spacing: 0) {
+                step(done: app.isRecording || app.meetings.contains(where: \.isOwnWork)) {
+                    Text("Record or import your first meeting")
+                } actions: {
+                    Button {
+                        app.startRecording(context: app.recordingContext(for: app.detector.activeApp))
+                    } label: {
+                        Label {
+                            Text("Record")
+                        } icon: {
+                            Image(systemName: "circle.fill")
+                                .foregroundStyle(LBTokens.Palette.recording)
+                        }
+                    }
+                    .disabled(app.isRecording)
+                    .accessibilityIdentifier("welcome.record")
+                    Button("Import Recording…") { RecordingImportPanel.choose(into: app) }
+                        .accessibilityIdentifier("welcome.importRecording")
+                }
+                Divider()
+                step(done: app.sampleMeeting != nil) {
+                    Text("Try the sample meeting")
+                } actions: {
+                    Button("Open sample") { app.trySampleMeeting() }
+                        .accessibilityIdentifier("welcome.trySample")
+                }
+                Divider()
+                step(done: calendarConnected) {
+                    Text("Show your next meeting here")
+                } actions: {
+                    if !calendarConnected {
+                        Button("Connect Calendar…") {
+                            app.openSettings(tab: .recording)
+                            app.focusedSettingID = "settings.calendarDetectionEnabled"
+                        }
+                        .accessibilityIdentifier("welcome.connectCalendar")
+                    }
+                }
+                Divider()
+                step(done: false) {
+                    Text("See where your time goes")
+                } actions: {
+                    Button("Turn on day tracking") { app.navSection = .timeline }
+                }
+                Divider()
+                step(done: app.settings.cotypingEnabled) {
+                    Text("Try autocomplete")
+                } actions: {
+                    Button("Try it") { app.openType(.cotyping) }
+                }
+                Divider()
+                step(done: modelDownloaded) {
+                    modelLabel
+                } actions: {
+                    modelAction
+                }
+            }
         }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .todayCardSurface()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.gettingStarted")
         .recordingImportDropTarget(app)
         .onAppear {
             modelDownloaded = TranscriptionModelStore.downloadedChoices(
@@ -112,31 +104,32 @@ struct GettingStartedCard: View {
         }
     }
 
-    /// Checklist item 1: get the transcription model onto disk before the
-    /// first recap needs it. `prepare` is idempotent, so racing a first
-    /// transcription is harmless.
-    @ViewBuilder private var modelStep: some View {
+    /// Get the transcription model onto disk before the first recap needs it.
+    /// `prepare` is idempotent, so racing a first transcription is harmless.
+    @ViewBuilder private var modelLabel: some View {
         if modelDownloaded {
             Text(app.settings.transcriptionModel.isRemote
                  ? "Transcription server ready."
                  : "Transcription model ready — recaps run entirely on-device.")
-        } else if preparingModel {
-            HStack(spacing: 8) {
-                ProgressView(value: modelProgress).frame(width: 160)
-                Text(modelStatus ?? "Downloading…")
-                    .font(.scaled(.caption)).foregroundStyle(.secondary)
-            }
         } else {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Button("Download the transcription model") { downloadModel() }
-                        .buttonStyle(.bordered).controlSize(.small)
-                    Text("one-time — or it downloads with your first recap.")
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Download the transcription model")
                 if let modelError {
-                    Text(modelError).font(.scaled(.caption)).foregroundStyle(Brand.error)
+                    Text(modelError).font(.scaled(.callout)).foregroundStyle(Brand.error)
                 }
             }
+        }
+    }
+
+    @ViewBuilder private var modelAction: some View {
+        if preparingModel {
+            HStack(spacing: 8) {
+                ProgressView(value: modelProgress).frame(width: 120)
+                Text(modelStatus ?? "Downloading…")
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
+            }
+        } else if !modelDownloaded {
+            Button("Download") { downloadModel() }
         }
     }
 
@@ -160,29 +153,36 @@ struct GettingStartedCard: View {
         }
     }
 
-    private func pillar(_ icon: String, _ title: String, _ body: String,
-                        isRecording: Bool?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: icon)
-                .font(.scaled(.title2))
-                .foregroundStyle(isRecording == true ? AnyShapeStyle(Brand.amber) : AnyShapeStyle(.tint))
-            Text(LocalizedStringKey(title)).font(.scaled(.headline))
-            Text(LocalizedStringKey(body)).font(.scaled(.caption)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
-    }
-
-    /// `done`: nil = actionable (hollow circle), true/false = checkmark/number.
-    private func stepRow<S: View>(done: Bool?, @ViewBuilder _ content: () -> S) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: done == true ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(done == true ? Color.green : Brand.teal)
+    /// A hollow circle until the step is done, its words, and its buttons at
+    /// the trailing edge. A narrow page puts the buttons under the words.
+    private func step<Words: View, Actions: View>(
+        done: Bool,
+        @ViewBuilder _ words: () -> Words,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        let words = words()
+        let actions = HStack(spacing: 8) { actions() }
+        return HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: LBTokens.Metric.actionToggleSize - 1))
+                .foregroundStyle(done ? LBTokens.Palette.successText : LBTokens.Palette.accentText)
                 .contentTransition(.symbolEffect(.replace))
                 .animation(WorkspaceMotion.animation(.milestone, reduceMotion: reduceMotion), value: done)
-                .padding(.top, 2)
-            content().font(.scaled(.callout))
+                .accessibilityLabel("Done")
+                .accessibilityHidden(!done)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    words.frame(maxWidth: .infinity, alignment: .leading)
+                    actions.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    words
+                    actions
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .font(.scaled(.body))
+        .padding(.vertical, 10)
     }
 }

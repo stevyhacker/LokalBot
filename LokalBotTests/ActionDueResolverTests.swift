@@ -139,5 +139,17 @@ final class ActionDueResolverTests: XCTestCase {
             "Overdue synthetic budget draft", "Due soon synthetic review work",
         ])
         XCTAssertEqual(ordered.count, 4)
+
+        // Rows color dates by the same three groups the order uses.
+        let byText = Dictionary(uniqueKeysWithValues: threads.map { ($0.text, $0) })
+        func state(_ text: String) -> [Bool] {
+            let thread = byText[text]
+            return [thread?.isOverdue(now: tuesday, calendar: calendar) ?? false,
+                    thread?.isDueSoon(now: tuesday, calendar: calendar) ?? false]
+        }
+        XCTAssertEqual(state("Overdue synthetic budget draft"), [true, false])
+        XCTAssertEqual(state("Due soon synthetic review work"), [false, true])
+        XCTAssertEqual(state("Far future synthetic planning memo"), [false, false])
+        XCTAssertEqual(state("Undated synthetic follow-up task"), [false, false])
     }
 }

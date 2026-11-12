@@ -30,7 +30,7 @@ struct AgentContextPicker: View {
                 Section("Saved moments") {
                     if let momentError {
                         Text(momentError).font(.scaled(.callout)).foregroundStyle(.secondary)
-                        Button("Open External Agents settings") {
+                        Button("Open AI agents settings") {
                             dismiss()
                             app.openSettings(tab: .agents)
                             app.focusedSettingID = "settings.screenMemoryAccess"

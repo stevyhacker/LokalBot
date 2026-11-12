@@ -70,24 +70,29 @@ enum UITestHarness {
     ) throws -> XCUIApplication {
         terminateRunningApp()
 
-        let app = try launchApplication(
+        let (app, process) = try launchApplication(
             storageRoot: storageRoot,
             defaultsSuiteName: defaultsSuiteName,
             environment: environment,
             file: file,
             line: line)
 
+        // The first launch on a fresh runner is slow, and so is the system's
+        // answer about it: a hosted run failed here with the host open and
+        // drawn four seconds after it started.
+        let found = waitForRunningApp(process: process, timeout: 20)
         let runningApp = try XCTUnwrap(
-            waitForRunningApp(timeout: 8),
-            "LokalBot UI Test Host did not appear in NSRunningApplication",
+            found,
+            "LokalBot UI Test Host did not appear in NSRunningApplication"
+                + " (its process is \(process.isRunning ? "still running" : "gone"))",
             file: file,
             line: line)
         XCTAssertEqual(runningApp.bundleIdentifier, appBundleIdentifier,
                        "Launched unexpected application bundle",
                        file: file, line: line)
         XCTAssertTrue(
-            app.wait(for: .runningForeground, timeout: 4)
-                || app.wait(for: .runningBackground, timeout: 8),
+            app.wait(for: .runningForeground, timeout: 8)
+                || app.wait(for: .runningBackground, timeout: 12),
             "LokalBot UI Test Host did not launch", file: file, line: line)
         XCTAssertTrue(
             waitForVisibleWindow(processIdentifier: runningApp.processIdentifier, timeout: 8),
@@ -121,6 +126,14 @@ enum UITestHarness {
         // identifier propagated to the Label's SF Symbol on newer macOS.
         app.activate()
         _ = app.wait(for: .runningForeground, timeout: 3)
+        // Settings has its own window, which opens over the main one. Its
+        // row brings an open Settings window forward, so there is nothing to
+        // click then; any other destination is reached after closing it.
+        if id == "sidebar.settings" {
+            if settingsWindow(in: app).exists { return }
+        } else {
+            closeSettings(in: app)
+        }
         let label = app.staticTexts.matching(
             NSPredicate(format: "identifier == %@", id)).firstMatch
         if label.waitForExistence(timeout: 3) {
@@ -178,11 +191,30 @@ enum UITestHarness {
             XCUIElement.ElementType.checkBox.rawValue, XCUIElement.ElementType.switch.rawValue)).firstMatch
     }
 
+    /// The Settings window: the one the UI-test host builds, or the app's scene.
+    static func settingsWindow(in app: XCUIApplication) -> XCUIElement {
+        app.windows.matching(NSPredicate(format: "identifier == %@ OR identifier == %@",
+                                         "settings.window", "settings")).firstMatch
+    }
+
+    /// Closes the Settings window when it is open, so the main window behind
+    /// it can be clicked.
+    static func closeSettings(in app: XCUIApplication) {
+        let window = settingsWindow(in: app)
+        guard window.exists else { return }
+        window.buttons[XCUIIdentifierCloseWindow].firstMatch.click()
+        waitUntil(timeout: 3) { !window.exists }
+    }
+
     static func selectSettingsCategory(_ name: String, in app: XCUIApplication,
                                        file: StaticString = #filePath, line: UInt = #line) {
-        // Pages renamed when Settings was organized by feature keep their old names here.
-        let renamed = ["Recording": "Meetings", "Privacy": "Privacy & Permissions", "Privacy & Data": "Privacy & Permissions",
-                       "Writing": "Autocomplete", "Advanced": "Diagnostics", "Day Memory": "Screen & Activity"]
+        // Earlier names of the pages keep working here. Overview is opened
+        // from the LokalBot row at the top of the list.
+        let renamed = ["Recording": "Meetings", "Privacy": "Privacy & permissions", "Privacy & Data": "Privacy & permissions",
+                       "Privacy & Permissions": "Privacy & permissions",
+                       "Writing": "Autocomplete", "Advanced": "Diagnostics", "Day Memory": "Screen & activity",
+                       "Screen & Activity": "Screen & activity", "Daily Review": "Daily review",
+                       "Personal Context": "About you", "External Agents": "AI agents", "Overview": "LokalBot"]
         let title = renamed[name] ?? name
         let list = app.descendants(matching: .any)["settings.categories"].firstMatch
         XCTAssertTrue(list.waitForExistence(timeout: 6), file: file, line: line)
@@ -213,7 +245,10 @@ enum UITestHarness {
         // Fallback for lazily-created rows that are not yet in the AX tree.
         // Prefer the widest scroll view so a split-view sidebar is not moved
         // while the content Form remains stationary.
-        let candidates = app.scrollViews.allElementsBoundByIndex
+        // While Settings is open it is the window being used, in front of
+        // the main window and its larger scroll views.
+        let settings = settingsWindow(in: app)
+        let candidates = (settings.exists ? settings.scrollViews : app.scrollViews).allElementsBoundByIndex
         let scrollArea = viewport ?? candidates.max {
             $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
         } ?? app.groups.firstMatch
@@ -265,7 +300,7 @@ enum UITestHarness {
         environment: [String: String],
         file: StaticString,
         line: UInt
-    ) throws -> XCUIApplication {
+    ) throws -> (app: XCUIApplication, process: Process) {
         let appURL = try hostAppURL(file: file, line: line)
         let executableURL = appURL
             .appendingPathComponent("Contents/MacOS/LokalBot UI Test Host")
@@ -293,7 +328,7 @@ enum UITestHarness {
         ]) { _, new in new }.merging(environment) { _, new in new }
         try process.run()
 
-        return XCUIApplication(bundleIdentifier: appBundleIdentifier)
+        return (XCUIApplication(bundleIdentifier: appBundleIdentifier), process)
     }
 
     private static func appHostEnvironment() -> [String: String] {
@@ -362,17 +397,29 @@ enum UITestHarness {
         }
     }
 
-    private static func waitForRunningApp(timeout: TimeInterval) -> NSRunningApplication? {
+    /// The host once the system lists it as an application. It is looked up
+    /// through the process just started as well as by bundle identifier, and
+    /// once more after the deadline, so one slow answer does not end the wait.
+    private static func waitForRunningApp(process: Process, timeout: TimeInterval) -> NSRunningApplication? {
         let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if let app = NSRunningApplication
-                .runningApplications(withBundleIdentifier: appBundleIdentifier)
-                .first(where: { !$0.isTerminated }) {
-                return app
-            }
+        var pastDeadline = false
+        while true {
+            if let app = runningHost(process: process) { return app }
+            if pastDeadline || !process.isRunning { return nil }
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            pastDeadline = Date() >= deadline
         }
-        return nil
+    }
+
+    private static func runningHost(process: Process) -> NSRunningApplication? {
+        if process.isRunning,
+           let app = NSRunningApplication(processIdentifier: process.processIdentifier),
+           !app.isTerminated, app.bundleIdentifier == appBundleIdentifier {
+            return app
+        }
+        return NSRunningApplication
+            .runningApplications(withBundleIdentifier: appBundleIdentifier)
+            .first(where: { !$0.isTerminated })
     }
 
     private static func terminateRunningApp() {

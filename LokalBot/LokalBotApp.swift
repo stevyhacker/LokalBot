@@ -263,7 +263,7 @@ struct LokalBotApp: App {
     init() {
         let appState = AppState()
         app = appState
-        _scene = StateObject(wrappedValue: AppSceneState(app: appState))
+        _scene = StateObject(wrappedValue: AppSceneState(app: appState, permissions: .shared))
         AppDelegate.appState = appState
     }
 
@@ -275,6 +275,11 @@ struct LokalBotApp: App {
             mainWindow
         }
         .defaultSize(width: 1180, height: 740)
+        // Meetings, Timeline, People, Projects and Agent remove the system
+        // title to put their own in the toolbar. Left to itself the toolbar
+        // then turns compact (38 pt, not 52), so the sidebar and content
+        // jumped 14 pt when switching sections. One style keeps one height.
+        .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
             AgentCommands(app: app, language: language, active: scene.values.agentActive)
@@ -308,17 +313,14 @@ struct LokalBotApp: App {
                 }
 #endif
             }
-            // ⌘K opens the command palette. Registered at the app level so it
-            // works from anywhere; the palette window is opened via openWindow.
+            // ⌘K opens Quick Recall, the window the system-wide shortcut opens:
+            // search, commands and Ask in one place. Registered at the app
+            // level so it works from any LokalBot window.
             CommandGroup(after: .toolbar) {
-                Button(language.localized("Command Palette…")) {
-                    WindowAccess.shared.open("palette")
-                }
-                .keyboardShortcut("k", modifiers: [.command])
-
-                Button(language.localized("Ask…")) {
+                Button(language.localized("Quick Recall…")) {
                     app.openQuickRecall()
                 }
+                .keyboardShortcut("k", modifiers: [.command])
             }
             CommandGroup(before: .textEditing) {
                 Button(language.localized(scene.values.agentActive ? "Find in Task…" : "Find in Meeting…")) {
@@ -327,7 +329,8 @@ struct LokalBotApp: App {
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(!scene.values.agentActive && !scene.values.canSearchSelectedMeeting)
             }
-            // Keep the standard Settings shortcut inside the main workspace.
+            // The standard Settings item and ⌘, open LokalBot's own Settings
+            // window; `openSettings` also lands deep links on a page of it.
             CommandGroup(replacing: .appSettings) {
                 Button(language.localized("Settings…")) {
                     app.openSettings()
@@ -336,6 +339,23 @@ struct LokalBotApp: App {
             }
         }
 
+        // Settings has its own window, so the main window stays on your work.
+        // A `Window` with an id, not a `Settings` scene: `WindowAccess` opens
+        // it by id from the menu bar extra, deep links and the app delegate,
+        // also while LokalBot runs with only its menu bar icon.
+        Window(language.localized("Settings"), id: WindowAccess.settingsID) {
+            SettingsView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .defaultSize(width: SettingsView.defaultSize.width, height: SettingsView.defaultSize.height)
+        .windowResizability(.contentMinSize)
+        // The category list runs to the top edge, under the traffic lights.
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
+
         Window(language.localized("Welcome to LokalBot"), id: "onboarding") {
             OnboardingView()
                 .environmentObject(app)
@@ -343,21 +363,12 @@ struct LokalBotApp: App {
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
-
-        // The ⌘K command palette. A lightweight, keyboard-first launcher that
-        // records, navigates, and opens recent meetings without the sidebar.
-        Window(language.localized("Command Palette"), id: "palette") {
-            CommandPaletteView()
-                .environmentObject(app)
-                .brandTinted()
-                .appTextSizeRoot(textSize)
-                .appLanguageRoot(app.settingsStore)
-        }
-        .windowResizability(.contentSize)
+        // The steps sit in the window's top bar, beside the traffic lights.
         .windowStyle(.hiddenTitleBar)
-        .defaultPosition(.center)
 
-        Window(language.localized("Ask"), id: "quick-recall") {
+        // Quick Recall: search, commands and Ask in one small window, opened
+        // by the system-wide shortcut, ⌘K or the View menu.
+        Window(language.localized("Quick Recall"), id: "quick-recall") {
             QuickRecallView()
                 .environmentObject(app)
                 .brandTinted()

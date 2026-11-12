@@ -9,6 +9,9 @@ struct AskNavigationHandoff: Equatable, Sendable {
     let submit: Bool
     var meetingIDs: Set<Meeting.ID>?
     var mode: AskMode = .ask
+    /// The sources to search, when the handoff narrows them (Quick Recall's
+    /// "Show all" for one kind). Nil leaves the chosen sources as they are.
+    var sources: Set<AskSourceScope>?
 }
 
 enum EvidenceIntent: Equatable, Sendable { case reveal, play }
@@ -24,6 +27,26 @@ struct AgentLaunchContext: Equatable, Sendable {
     let prompt: String
     let meetingID: Meeting.ID?
     let actionID: String?
+}
+
+/// The Agent task that plans the open action threads, offered on Actions.
+enum ActionThreadPlan {
+    static let maximumThreads = 8
+
+    static func launchContext(for threads: [ActionThread]) -> AgentLaunchContext? {
+        guard let first = threads.first else { return nil }
+        let lines = threads.prefix(maximumThreads).map { thread in
+            let sources = thread.meetingCount == 1
+                ? "" : " (mentioned in \(thread.meetingCount) meetings)"
+            return "- \(thread.text)\(sources)"
+        }
+        return AgentLaunchContext(
+            title: "Today's action threads",
+            prompt: "Help me plan today's open meeting action threads:\n"
+                + lines.joined(separator: "\n"),
+            meetingID: first.latestReference.meetingID,
+            actionID: first.latestReference.action.id)
+    }
 }
 
 /// Owns the short-lived payloads passed between navigation destinations.
@@ -45,13 +68,14 @@ final class NavigationHandoff: ObservableObject {
         screenSnapshotIDs: [Int64]?,
         submit: Bool,
         meetingIDs: Set<Meeting.ID>? = nil,
-        mode: AskMode = .ask
+        mode: AskMode = .ask,
+        sources: Set<AskSourceScope>? = nil
     ) {
         pendingAsk = AskNavigationHandoff(
             query: query.isEmpty ? nil : query,
             dayScope: dayScope,
             screenSnapshotIDs: screenSnapshotIDs,
-            submit: submit, meetingIDs: meetingIDs, mode: mode)
+            submit: submit, meetingIDs: meetingIDs, mode: mode, sources: sources)
         changed()
     }
 

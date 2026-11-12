@@ -126,37 +126,6 @@ struct AgentQueuedPrompt: Identifiable, Equatable, Codable {
     }
 }
 
-/// Presentation grouping never changes the underlying ordered event stream.
-struct AgentTranscriptGroup: Identifiable {
-    let id: String
-    let items: [AgentTranscriptItem]
-    var isActivity: Bool { items.allSatisfy { if case .tool = $0 { true } else { false } } }
-
-    static func make(_ items: [AgentTranscriptItem]) -> [Self] {
-        var groups: [Self] = []
-        var tools: [AgentTranscriptItem] = []
-        func flush() {
-            if let first = tools.first { groups.append(.init(id: first.id, items: tools)); tools = [] }
-        }
-        for item in items {
-            if case .approval = item { continue } // The approval dock owns these.
-            if case .tool = item { tools.append(item) } else { flush(); groups.append(.init(id: item.id, items: [item])) }
-        }
-        flush()
-        return groups
-    }
-
-    var summary: String {
-        let names = items.compactMap { item -> String? in
-            if case .tool(_, let name, _, _, _) = item { return name.lowercased() }
-            return nil
-        }
-        if names.allSatisfy({ $0 == "read" }) { return "Read \(names.count) \(names.count == 1 ? "file" : "files")" }
-        if names.allSatisfy({ ["write", "edit"].contains($0) }) { return "\(names.count) file \(names.count == 1 ? "change" : "changes")" }
-        return "\(names.count) \(names.count == 1 ? "activity" : "activities")"
-    }
-}
-
 struct AgentResultPreview: Identifiable, Equatable {
     let id: String
     let title: String

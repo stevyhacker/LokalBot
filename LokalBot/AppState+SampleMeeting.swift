@@ -15,6 +15,26 @@ extension AppState {
         }
     }
 
+    /// Setup's "open the sample meeting" choice: now when its models are on
+    /// this Mac, otherwise as soon as they are, also after the setup window
+    /// has closed.
+    func openSampleMeetingWhenReady() {
+        guard sampleMeeting == nil, !modelRoles.snapshot.meetingReady else {
+            sampleMeetingWaitsForModels = false
+            importSampleMeeting()
+            WindowAccess.shared.open("main")
+            return
+        }
+        sampleMeetingWaitsForModels = true
+    }
+
+    /// Called whenever model readiness changes.
+    func openWaitingSampleMeeting() {
+        guard sampleMeetingWaitsForModels, modelRoles.snapshot.meetingReady else { return }
+        sampleMeetingWaitsForModels = false
+        importSampleMeeting()
+    }
+
     /// Asks the suggested question with the sample as the only source.
     func askSampleQuestion(_ meeting: Meeting) {
         openAsk(query: settings.appLanguage.localized(SampleMeeting.question),

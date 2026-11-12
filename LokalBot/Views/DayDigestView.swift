@@ -8,19 +8,48 @@ private enum DayDigestTaskType {
     static var tag: AppFont { AppFont.scaled(.subheadline) }
 }
 
+/// Opens the work session a task's time range covers. Timeline sets it, so
+/// "09:00–10:30" in an older digest leads to that session.
+struct DayDigestTimeRangeAction {
+    /// The action for a range such as "09:00–10:30", or nil when no session
+    /// of the day falls inside it.
+    let action: (String) -> (() -> Void)?
+}
+
+private struct DayDigestProjectsKey: EnvironmentKey {
+    static let defaultValue: [String: String] = [:]
+}
+
+private struct DayDigestTimeRangeActionKey: EnvironmentKey {
+    static let defaultValue: DayDigestTimeRangeAction? = nil
+}
+
+extension EnvironmentValues {
+    /// The day's project names by lowercased name. A task tag that names one
+    /// takes that project's colour.
+    var dayDigestProjects: [String: String] {
+        get { self[DayDigestProjectsKey.self] }
+        set { self[DayDigestProjectsKey.self] = newValue }
+    }
+
+    var dayDigestTimeRangeAction: DayDigestTimeRangeAction? {
+        get { self[DayDigestTimeRangeActionKey.self] }
+        set { self[DayDigestTimeRangeActionKey.self] = newValue }
+    }
+}
+
 /// Human-first rendering of the lossless Markdown day journal. Summary and
 /// focus stay visible; the forensic activity/evidence trail is available on
 /// demand without making every captured moment compete for attention.
 struct DayDigestView: View {
     enum Mode: Equatable {
         case standalone
+        /// Timeline's digest page shows the highlights itself, above the day
+        /// strip, and this view below it: decisions, then tasks by status.
         case timeline
-        /// Timeline's content on a wide page: sessions become a card grid and
-        /// prose keeps a reading width.
-        case today
 
+        var showsHighlights: Bool { self == .standalone }
         var showsMeetings: Bool { self == .standalone }
-        var arrangesSessionsInGrid: Bool { self == .today }
         var showsTimeAllocation: Bool { self == .standalone }
         var showsFullActivityLog: Bool { self == .standalone }
         var showsOtherActivity: Bool { self == .standalone }
@@ -32,10 +61,13 @@ struct DayDigestView: View {
     @State private var fullActivityExpanded = false
     @State private var otherActivityExpanded = false
     @State private var timeAllocationExpanded = false
-    @State private var sessionGridWidth: CGFloat = 0
 
     init(_ markdown: String, mode: Mode = .standalone) {
-        presentation = DayDigestPresentation(markdown: markdown)
+        self.init(DayDigestPresentation(markdown: markdown), mode: mode)
+    }
+
+    init(_ presentation: DayDigestPresentation, mode: Mode = .standalone) {
+        self.presentation = presentation
         self.mode = mode
     }
 
@@ -49,10 +81,9 @@ struct DayDigestView: View {
                 blockersCallout
             }
 
-            if !presentation.atAGlanceMarkdown.isEmpty {
+            if mode.showsHighlights, !presentation.atAGlanceMarkdown.isEmpty {
                 digestSection("Highlights", icon: "sparkles") {
                     SelectableDigestText(presentation.atAGlanceMarkdown)
-                        .frame(maxWidth: proseMaxWidth, alignment: .leading)
                 }
             }
 
@@ -62,7 +93,6 @@ struct DayDigestView: View {
                 } else {
                     digestSection("Decisions", icon: "checkmark.seal") {
                         SelectableDigestText(Self.bulletList(presentation.decisions))
-                            .frame(maxWidth: proseMaxWidth, alignment: .leading)
                     }
                 }
             }
@@ -74,18 +104,14 @@ struct DayDigestView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "briefcase")
                             .accessibilityHidden(true)
-                        Text(mode == .today ? "Tasks" : "Work Summary")
+                        Text("Work Summary")
                             .font(DayDigestTaskType.sectionTitle)
                             .accessibilityIdentifier("dayDigest.tasks")
                     }
                     .foregroundStyle(.primary)
                     // Every task stays visible as one scannable line; only
                     // the description of what was done opens on demand.
-                    if mode.arrangesSessionsInGrid {
-                        sessionGrid
-                    } else {
-                        taskList
-                    }
+                    taskList
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -155,18 +181,6 @@ struct DayDigestView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var proseMaxWidth: CGFloat {
-        mode == .today ? WorkspaceMetric.readingMaxWidth : .infinity
-    }
-
-    private var sessionColumnCount: Int {
-        switch sessionGridWidth {
-        case 900...: 3
-        case 560...: 2
-        default: 1
-        }
     }
 
     /// Blockers lead the digest: they are what stops the day's open work.
@@ -256,22 +270,27 @@ struct DayDigestView: View {
     private func timelineTitle(of kind: DayDigestPresentation.TaskGroup.Kind) -> LocalizedStringKey {
         switch kind {
         case .blocked: "Blocked"
-        case .inProgress: "In Progress"
-        case .other: presentation.isTaskFirst ? "Other Work" : "Work Summary"
+        case .inProgress: "In progress"
+        case .other: presentation.isTaskFirst ? "Other work" : "Work Summary"
         case .completed: "Done"
         }
     }
 
     private var timelineDecisions: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Plain text like the other modes' Decisions label, so a
+            // Plain text like the other mode's Decisions label, so a
             // static-text query can tell whether the section is shown.
-            Text("Decisions")
-                .font(DayDigestTaskType.sectionTitle)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("Decisions")
+                    .font(DayDigestTaskType.sectionTitle)
+                Text(presentation.decisions.count, format: .number)
+                    .font(.scaled(.callout).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
             ForEach(Array(presentation.decisions.enumerated()), id: \.offset) { _, decision in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "checkmark.seal")
-                        .font(DayDigestTaskType.summary)
+                    Image(systemName: "checkmark")
+                        .font(DayDigestTaskType.summary.weight(.semibold))
                         .foregroundStyle(LBTokens.Palette.accentText)
                         .frame(width: DayDigestTaskRow.textInset - 8)
                         .accessibilityHidden(true)
@@ -300,36 +319,6 @@ struct DayDigestView: View {
 
     private static func bulletList(_ items: [String]) -> String {
         items.map { "- " + $0 }.joined(separator: "\n")
-    }
-
-    /// Each task becomes its own card, filling the page width instead of
-    /// nesting a boxed list inside the digest.
-    private var sessionGrid: some View {
-        let blocks = presentation.taskGroups.flatMap(\.blocks)
-        let columns = sessionColumnCount
-        let rows = stride(from: 0, to: blocks.count, by: columns).map {
-            Array(blocks[$0..<min($0 + columns, blocks.count)])
-        }
-        return Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 12) {
-            ForEach(rows.indices, id: \.self) { index in
-                GridRow {
-                    ForEach(rows[index]) { block in
-                        DayDigestTaskRow(block: block,
-                                         collapsesDetails: presentation.collapsesDetails(of: block))
-                            .padding(WorkspaceMetric.cardPadding)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            .background(.quaternary.opacity(0.24),
-                                        in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: Brand.Radius.panel)
-                                    .strokeBorder(Color.primary.opacity(0.09))
-                            }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sessionGridWidth = $0 }
     }
 
     private func digestSection<Content: View>(
@@ -439,6 +428,7 @@ private struct DayDigestTaskRow: View {
     static let textInset: CGFloat = 26
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dayDigestTimeRangeAction) private var timeRangeAction
     let block: DayDigestPresentation.FocusBlock
     /// See `DayDigestPresentation.collapsesDetails(of:)`.
     let collapsesDetails: Bool
@@ -510,9 +500,17 @@ private struct DayDigestTaskRow: View {
     private var titleLine: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             if let timeRange = block.timeRange {
-                Text(timeRange)
-                    .font(.scaled(.caption).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                if let open = timeRangeAction?.action(timeRange) {
+                    Button(action: open) {
+                        Text(timeRange).font(.scaled(.callout).monospacedDigit())
+                    }
+                    .buttonStyle(.workspaceLink)
+                    .accessibilityIdentifier("dayDigest.task.session.\(block.id)")
+                } else {
+                    Text(timeRange)
+                        .font(.scaled(.caption).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             if let title = block.title {
                 let parts: (title: String, tag: String?) = showsTag
@@ -565,19 +563,27 @@ private struct DayDigestTaskRow: View {
     }
 }
 
-/// A project or pull request split off a task title.
+/// A project or pull request split off a task title. A project of the day
+/// carries its colour, the one its sessions have in the list and the strip.
 private struct DayDigestTaskTag: View {
+    @Environment(\.dayDigestProjects) private var projects
     let text: String
 
     var body: some View {
-        Text(text)
-            .font(DayDigestTaskType.tag)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
-            .fixedSize()
+        HStack(spacing: 5) {
+            if let project = projects[text.lowercased()] {
+                StatusDot(color: CaptureStyle.color(for: project), size: 7)
+                    .accessibilityHidden(true)
+            }
+            Text(text)
+                .font(DayDigestTaskType.tag)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+        .fixedSize()
     }
 }
 
@@ -775,7 +781,8 @@ private struct DayDigestDoneSection: View {
     }
 }
 
-/// Screen moments a legacy journal cited for a task.
+/// Screen moments a legacy journal cited for a task. A moment that is no
+/// longer kept gets no line: a link appears only when there is a source.
 private struct DayDigestSourceLinks: View {
     @EnvironmentObject private var app: AppState
     let ids: [Int64]
@@ -787,8 +794,6 @@ private struct DayDigestSourceLinks: View {
                     Label("\(shot.documentName.isEmpty ? shot.app : shot.documentName) · \(shot.ts.formatted(date: .omitted, time: .shortened))", systemImage: "doc.text.magnifyingglass")
                         .font(AppFont.scaled(.callout))
                 }.buttonStyle(.workspaceLink)
-            } else {
-                Text("Source moment unavailable").font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
         }
     }

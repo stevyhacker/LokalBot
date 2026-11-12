@@ -892,6 +892,83 @@ final class ChatViewModelStateTests: XCTestCase {
         XCTAssertTrue(model.canRetry(latestFailure.id))
     }
 
+    func testAskAgainRepeatsAFinishedQuestionUnderItsRecordedScope() async throws {
+        let scope = try XCTUnwrap(AskDateScope(storageKey: "2026-09-01...2026-09-07"))
+        let meetingID = UUID()
+        let model = makeModel(engine: SequencedChatEngine(["First answer", "Second answer"]),
+                              runner: BlockingChatRunner())
+        model.send("What did we decide?", sourceScopes: [.meetings, .today], dateScope: scope,
+                   meetingIDs: [meetingID], screenSnapshotIDs: [])
+        await waitUntil("first answer did not complete") { !model.isResponding }
+        let firstAnswer = try XCTUnwrap(model.messages.last)
+        XCTAssertEqual(model.question(before: firstAnswer.id)?.text, "What did we decide?")
+        XCTAssertTrue(model.canAskAgain(firstAnswer.id))
+        XCTAssertFalse(model.canRetry(firstAnswer.id), "Retry stays for answers that failed")
+
+        model.askAgain(firstAnswer.id)
+        XCTAssertFalse(model.canAskAgain(firstAnswer.id), "nothing is asked twice while an answer is being written")
+        await waitUntil("second answer did not complete") { !model.isResponding }
+
+        XCTAssertEqual(model.messages.map(\.text),
+                       ["What did we decide?", "First answer", "What did we decide?", "Second answer"])
+        let repeated = model.messages[2]
+        XCTAssertEqual(repeated.sourceScopes, [.meetings, .today], "asking again never widens the sources")
+        XCTAssertEqual(repeated.dayScopeKey, scope.storageKey)
+        XCTAssertEqual(repeated.meetingIDs, [meetingID])
+        XCTAssertEqual(repeated.screenSnapshotIDs, [])
+    }
+
+    func testAskAgainIsNotOfferedWhereTheQuestionCannotBeRepeatedAsItWas() throws {
+        let store = makeStore()
+        let attachedAnswer = ChatMessage(role: .assistant, text: "It was a diagram.")
+        let failedAnswer = ChatMessage(role: .assistant, text: "failed", isError: true)
+        let receipt = ChatMessage(role: .assistant, text: "Maya is my manager",
+                                  rememberReceipt: .init(claimID: UUID()))
+        let unscopedAnswer = ChatMessage(role: .assistant, text: "An older answer")
+        store.save(Conversation(
+            title: "Ask again",
+            messages: [
+                ChatMessage(role: .user, text: "What is this?", sourceScopes: [.screen],
+                            attachedScreenDayKeys: ["2026-09-01"]),
+                attachedAnswer,
+                ChatMessage(role: .user, text: "Remember that Maya is my manager", sourceScopes: [.meetings]),
+                receipt,
+                ChatMessage(role: .user, text: "No recorded sources"),
+                unscopedAnswer,
+                ChatMessage(role: .user, text: "Why?", sourceScopes: [.meetings]),
+                failedAnswer,
+            ]))
+        let model = makeModel(engine: SequencedChatEngine([]), runner: BlockingChatRunner(), store: store)
+
+        XCTAssertFalse(model.canAskAgain(attachedAnswer.id),
+                       "an attached screen's text was never stored, so the question cannot be repeated")
+        XCTAssertFalse(model.canAskAgain(receipt.id))
+        XCTAssertFalse(model.canAskAgain(unscopedAnswer.id), "a question without recorded sources is not guessed at")
+        XCTAssertFalse(model.canAskAgain(failedAnswer.id), "a failed answer offers Retry instead")
+        XCTAssertFalse(model.canAskAgain(UUID()))
+        XCTAssertNil(model.question(before: UUID()))
+        model.askAgain(attachedAnswer.id)
+        XCTAssertEqual(model.messages.count, 8, "an answer that cannot be asked again sends nothing")
+    }
+
+    func testAConversationStartedTodayNeedsNoDateDivider() throws {
+        let calendar = Calendar.autoupdatingCurrent
+        let today = ChatMessage(role: .user, text: "Now", createdAt: Date())
+        let yesterday = ChatMessage(
+            role: .user, text: "Then",
+            createdAt: try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: Date())))
+        let undated = ChatMessage(role: .user, text: "Old", createdAt: .distantPast, createdAtIsEstimated: true)
+
+        XCTAssertNil(ChatTranscriptPresentation.visibleDateDividerTitle(for: today, after: nil),
+                     "each question already shows its time")
+        XCTAssertEqual(ChatTranscriptPresentation.visibleDateDividerTitle(for: yesterday, after: nil), "Yesterday")
+        XCTAssertEqual(ChatTranscriptPresentation.visibleDateDividerTitle(for: today, after: yesterday), "Today",
+                       "a conversation continued on a later day still marks the day")
+        XCTAssertNil(ChatTranscriptPresentation.visibleDateDividerTitle(for: today, after: today))
+        XCTAssertEqual(ChatTranscriptPresentation.visibleDateDividerTitle(for: undated, after: nil),
+                       "Earlier conversation")
+    }
+
     func testSelectingHistoryDoesNotRewriteRecencyOrder() {
         let store = makeStore()
         let older = Conversation(

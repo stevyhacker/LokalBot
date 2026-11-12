@@ -12,24 +12,24 @@ import CoreGraphics
 final class AppState: ObservableObject {
 
     enum NavSection: Hashable {
-        case today, timeline, meetings, people, projects, ask, agent, settings
+        case today, actions, timeline, meetings, people, projects, ask, agent
 
         /// Section names accepted from the UI-test capture environment and
         /// deep links. Legacy names keep working: "capture" (the pre-split
-        /// merged section) lands on Timeline, "dictation" and "cotyping" on
-        /// Writing settings, "search"/"chat" on Ask (spec §2.1), and "models" on
-        /// Settings, which absorbed it as a tab (spec §2.5).
+        /// merged section) lands on Timeline and "search"/"chat" on Ask
+        /// (spec §2.1). Settings has its own window, so its names ("settings",
+        /// "models", "dictation", …) are not sections: see
+        /// `SettingsTab.init(sectionName:)`.
         init?(captureName: String) {
             switch captureName.lowercased() {
             case "today": self = .today
+            case "actions": self = .actions
             case "timeline", "capture": self = .timeline
             case "meetings": self = .meetings
             case "people": self = .people
             case "projects": self = .projects
-            case "write", "type", "dictation", "cotyping", "autocomplete": self = .settings
             case "ask", "search", "chat": self = .ask
             case "agent": self = .agent
-            case "settings", "models": self = .settings
             default: return nil
             }
         }
@@ -52,74 +52,128 @@ final class AppState: ObservableObject {
     }
 
     /// A Settings page. Each feature has one page with everything that sets it
-    /// up, in sidebar order. Raw values stay stable for the CLI, AppControl and
-    /// saved selections, so a renamed page keeps its old identifier.
+    /// up, in the order the Settings window lists them. Raw values stay stable
+    /// for the CLI, AppControl and saved selections, so a renamed page keeps
+    /// its old identifier.
     enum SettingsTab: String, CaseIterable {
-        case overview, general
+        case overview
+        case general, models, privacy
         case recording, dayMemory, files, email
         case ask, personalContext, daily
         case writing, dictation
-        case models, agents, devices
-        case privacy, advanced
+        case agents, devices
+        case advanced
 
         enum Group: String, CaseIterable {
-            case memory = "Memory", assistant = "Assistant", writing = "Writing",
-                 connections = "Connections", app = "App"
+            case remember = "Remember", assistant = "Assistant", writing = "Writing", sharing = "Sharing"
         }
 
-        /// The sidebar heading the page sits under. Overview and General have
-        /// none: they come first, above the headings.
+        /// The heading the page sits under in the Settings window's list.
+        /// Overview (the LokalBot row), General, Models and Privacy &
+        /// permissions come first, above the headings; Diagnostics comes last,
+        /// below them.
         var group: Group? {
             switch self {
-            case .overview, .general: nil
-            case .recording, .dayMemory, .files, .email: .memory
+            case .overview, .general, .models, .privacy, .advanced: nil
+            case .recording, .dayMemory, .files, .email: .remember
             case .ask, .personalContext, .daily: .assistant
             case .writing, .dictation: .writing
-            case .models, .agents, .devices: .connections
-            case .privacy, .advanced: .app
+            case .agents, .devices: .sharing
             }
         }
+
+        /// The pages listed above the first heading, under the LokalBot row.
+        static let leadingPages: [SettingsTab] = [.general, .models, .privacy]
+        /// The pages listed after the last heading.
+        static let trailingPages: [SettingsTab] = [.advanced]
 
         var displayName: String {
             switch self {
             case .overview: "Overview"
             case .recording: "Meetings"
-            case .dayMemory: "Screen & Activity"
+            case .dayMemory: "Screen & activity"
             case .files: "Files"
             case .email: "Email"
             case .ask: "Ask"
-            case .personalContext: "Personal Context"
-            case .daily: "Daily Review"
+            case .personalContext: "About you"
+            case .daily: "Daily review"
             case .writing: "Autocomplete"
             case .dictation: "Dictation"
             case .models: "Models"
-            case .agents: "External Agents"
+            case .agents: "AI agents"
             case .devices: "Phones & tablets"
             case .general: "General"
-            case .privacy: "Privacy & Permissions"
+            case .privacy: "Privacy & permissions"
             case .advanced: "Diagnostics"
+            }
+        }
+
+        /// What the page was called before, so settings search still finds it
+        /// by the old name.
+        var formerNames: [String] {
+            switch self {
+            case .personalContext: ["Personal Context"]
+            case .agents: ["External Agents"]
+            case .dayMemory: ["Day Memory"]
+            case .writing: ["Writing"]
+            case .recording: ["Recording"]
+            case .advanced: ["Advanced"]
+            case .privacy: ["Privacy & Data"]
+            default: []
             }
         }
 
         var icon: String {
             switch self {
             case .overview: "square.grid.2x2"
-            case .recording: "person.2"
+            case .recording: "waveform"
             case .dayMemory: "macwindow"
             case .files: "doc.on.doc"
             case .email: "envelope"
             case .ask: "sparkles"
             case .personalContext: "person.crop.circle"
             case .daily: "moon.stars"
-            case .writing: "pencil"
+            case .writing: "character.cursor.ibeam"
             case .dictation: "mic"
             case .models: "shippingbox"
             case .agents: "point.3.connected.trianglepath.dotted"
             case .devices: "ipad.and.iphone"
             case .general: "gearshape"
             case .privacy: "lock"
-            case .advanced: "stethoscope"
+            case .advanced: "waveform.path.ecg"
             }
+        }
+
+        /// One line under the page's name in its header. Overview has no
+        /// header: it opens with what needs you.
+        var summary: String {
+            switch self {
+            case .overview: ""
+            case .recording: "Detection, transcription, speakers, notes, and export."
+            case .dayMemory: "What LokalBot sees on screen, how long it keeps it, and what it never captures."
+            case .files: "Folders LokalBot reads, so Ask can find files by what’s in them."
+            case .email: "Read-only Gmail, so briefs and Ask know the conversation."
+            case .ask: "Ask from any app, act on selected text, and choose what answers use."
+            case .personalContext: "What you told LokalBot about yourself, and what it learns."
+            case .daily: "The day digest, the overnight review, routines, and the daily note."
+            case .writing: "Suggests the next few words as you type, in any app."
+            case .dictation: "Press %@, speak, and the text lands where you type."
+            case .models: "Three AI models do LokalBot’s work. They run on this Mac unless you choose an online one."
+            case .agents: "What Claude, Codex, Cursor, and other agents can read or change."
+            case .devices: "Read your work memory on your own iPhone, iPad, or Android device."
+            case .general: "Startup, appearance, and updates."
+            case .privacy: "What LokalBot may use on this Mac, and what leaves it."
+            case .advanced: "Memory health, resources, and files for support."
+            }
+        }
+
+        /// The Settings page a launch or capture section name opens, for the
+        /// names that used to be main-window sections: "settings" itself opens
+        /// the page last shown.
+        static func opensSettings(sectionName: String) -> Bool {
+            let name = sectionName.lowercased()
+            return name == "settings" || ["write", "type", "cotyping"].contains(name)
+                || (SettingsTab(captureName: name) != nil && NavSection(captureName: name) == nil)
         }
 
         /// Capture and launch names, including the names pages had before
@@ -186,6 +240,10 @@ final class AppState: ObservableObject {
     /// is denied at the system level. Cleared when the user opens System
     /// Settings from the recovery toast or dismisses it.
     @Published var micRecoveryNeeded = false
+    /// Day memory is paused for now (`ActivitySampler.isPaused`), mirrored
+    /// here so the menu bar icon and panel follow it without observing the
+    /// sampler's every sample. A state of this launch, never a saved setting.
+    @Published private(set) var dayMemoryPaused = false
 
     /// The always-alive settings owner; services capture this, never AppState.
     let settingsStore = SettingsStore()
@@ -387,7 +445,6 @@ final class AppState: ObservableObject {
 
     // Navigation (main window): sidebar section and selected meeting.
     @Published var navSection: NavSection = .today
-    @Published var showingActions = false
     /// Unsaved note text, so a remounted editor resumes it. Editors read it
     /// only when they appear; publishing it re-rendered every AppState
     /// observer on each keystroke.
@@ -417,9 +474,9 @@ final class AppState: ObservableObject {
     @Published var meetingWorkspaceTabs: [UUID: MeetingWorkspaceTab] = [:]
     var meetingPlaybackPositions: [UUID: TimeInterval] = [:]
     var meetingPlaybackSpeeds: [UUID: Float] = [:]
-    func openActions() { showingActions = true; navSection = .today }
-    /// Today itself: `navSection` alone would stay on Actions when it is open.
-    func openToday() { showingActions = false; navSection = .today }
+    /// Actions is its own sidebar destination.
+    func openActions() { navSection = .actions }
+    func openToday() { navSection = .today }
 
     /// People and Projects share one derived read model.
     @Published var selectedPersonID: String?
@@ -438,6 +495,9 @@ final class AppState: ObservableObject {
     @Published var followThroughSession: FollowThroughSession?
     /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
     @Published var showsSampleSetup = false
+    /// Setup asked for the sample meeting before its models were here; it is
+    /// added when they are. Forgotten when LokalBot quits.
+    var sampleMeetingWaitsForModels = false
 
     func draftFollowUp(for meeting: Meeting) {
         followUpDraftMeeting = meeting
@@ -523,7 +583,7 @@ final class AppState: ObservableObject {
         let provenance = DreamInferenceProvenance(settings: settings)
         let location: String
         if provenance.location == .local {
-            location = "this Mac"
+            location = ProjectStatusSummary.localLocation
         } else {
             location = provenance.origin.flatMap { URL(string: $0)?.host } ?? provenance.origin ?? "a server"
         }
@@ -583,12 +643,11 @@ final class AppState: ObservableObject {
         focusedSettingID = tab == .cotyping ? "settings.autocompletePreview" : "settings.dictationPreview"
     }
 
-    /// Open Settings as a destination inside the existing main window.
+    /// Open Settings in its own window, or bring that window forward, on the
+    /// given page. The main window stays on what it was showing.
     func openSettings(tab: SettingsTab? = nil) {
         if let tab { selectSettingsTab(tab) } else if focusedSettingID != nil { focusedSettingID = nil }
-        if evidenceReturnSection != nil { evidenceReturnSection = nil }
-        if navSection != .settings { navSection = .settings }
-        WindowAccess.shared.open("main")
+        WindowAccess.shared.open(WindowAccess.settingsID)
     }
 
     /// A Settings category click. Every `@Published` assignment re-renders all
@@ -602,12 +661,13 @@ final class AppState: ObservableObject {
     /// scoping it to a day (Timeline's "Ask about this day").
     func openAsk(query: String = "", dayScope: Date? = nil,
                  screenSnapshotIDs: [Int64]? = nil, submit: Bool = false,
-                 meetingIDs: Set<Meeting.ID>? = nil, mode: AskMode = .ask) {
+                 meetingIDs: Set<Meeting.ID>? = nil, mode: AskMode = .ask,
+                 sources: Set<AskSourceScope>? = nil) {
         navigationHandoff.stageAsk(
             query: query,
             dayScope: dayScope,
             screenSnapshotIDs: screenSnapshotIDs,
-            submit: submit, meetingIDs: meetingIDs, mode: mode)
+            submit: submit, meetingIDs: meetingIDs, mode: mode, sources: sources)
         navSection = .ask
     }
 
@@ -620,7 +680,7 @@ final class AppState: ObservableObject {
     }
 
     /// Open one meeting in the Meetings section — the deep-link target
-    /// for search hits, menu-bar recents, and palette recents.
+    /// for search hits, menu-bar recents, and Quick Recall's recent meetings.
     func openMeeting(_ id: Meeting.ID, seek: TimeInterval? = nil, intent: EvidenceIntent = .reveal) {
         evidenceMeetingID = id
         if navSection != .meetings {
@@ -740,6 +800,9 @@ final class AppState: ObservableObject {
     /// The app in front when a system-wide shortcut opened a LokalBot panel,
     /// so a command that acts in place can hand focus back to it.
     var shortcutSourceApplication: NSRunningApplication?
+    /// Quick Recall was opened from the main window (⌘K or the View menu), so
+    /// it also offers the commands of the page that window is showing.
+    @Published var quickRecallOpenedFromMainWindow = false
     private(set) lazy var selectionActionsHotKey: QuickRecallHotKeyController = {
         let controller = QuickRecallHotKeyController(
             identifier: QuickRecallHotKeyController.selectionActionsIdentifier)
@@ -969,7 +1032,8 @@ final class AppState: ObservableObject {
         thinkExecution: thinkExecution,
         speakerIdentity: speakerIdentity,
         automationReadiness: ProcessingPipeline.defaultAutomationReadiness)
-    /// Today's one-time GitHub star request and the permanent links to it.
+    /// The GitHub star request: Settings › General › About and the menu bar
+    /// link. Today no longer shows a card for it.
     private(set) lazy var githubStar = GitHubStarPromptStore.live(libraryRoot: storage.rootURL)
     /// Canonical state machine for Transcribe, Think, and Autocomplete.
     private(set) lazy var modelRoles = ModelRoles(
@@ -977,6 +1041,7 @@ final class AppState: ObservableObject {
         storage: storage,
         onReadinessChanged: { [weak self] in
             self?.processMeetingsWaitingForModels()
+            self?.openWaitingSampleMeeting()
         })
 
     private(set) lazy var modelSetup = ModelSetupController(
@@ -1364,6 +1429,7 @@ final class AppState: ObservableObject {
     private var outcomeObserver: AnyCancellable?
     private var dictationObserver: AnyCancellable?
     private var recordingObserver: AnyCancellable?
+    private var dayMemoryPauseObserver: AnyCancellable?
     private var recordingStatusObserver: AnyCancellable?
     private var audioMonitorObserver: AnyCancellable?
     private var audioMonitorChangeForwarder: AnyCancellable?
@@ -1555,6 +1621,11 @@ final class AppState: ObservableObject {
         // Not download progress: the model views observe ModelRoles directly.
         modelRolesObserver = modelRoles.readinessChanges.sink { [weak self] in
             self?.objectWillChange.send()
+            // The publisher fires before the roles hold their new state.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.modelChecks.readinessChanged(app: self)
+            }
         }
         navigationHandoffObserver = navigationHandoff.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
@@ -1583,6 +1654,11 @@ final class AppState: ObservableObject {
         if let command = headlessCommand {
             HeadlessCommandRunner(app: self).run(command)
             return
+        }
+        // The sampler exists in every windowed launch; headless commands
+        // returned above and never create it.
+        dayMemoryPauseObserver = sampler.$isPaused.removeDuplicates().sink { [weak self] paused in
+            if self?.dayMemoryPaused != paused { self?.dayMemoryPaused = paused }
         }
         // UI tests render against pre-seeded fixtures, not a real audio/Sparkle
         // session — bail out before any subsystem reaches for the mic, the
@@ -1711,14 +1787,22 @@ final class AppState: ObservableObject {
         // so quitting mid-wizard re-opens it next launch. Fully-permissioned
         // installs that predate the flag are recognised as established right
         // away and start menu-bar-only next launch.
-        if !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) {
-            if PermissionManager.shared.allGranted {
-                UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
-            } else if agentSetup.pending == nil {
-                // An agent's setup request replaces the wizard; declining it
-                // opens onboarding instead.
-                WindowAccess.shared.open("onboarding")
-            }
+        // A setup interrupted by the restart a permission grant needs
+        // reopens where it was (`OnboardingResumeStore`).
+        let resume = OnboardingResumeStore.live
+        switch OnboardingLaunch.decision(
+            finished: UserDefaults.standard.bool(forKey: Self.onboardingShownKey),
+            coreGranted: PermissionManager.shared.allGranted,
+            resume: resume.load(for: settings),
+            // An agent's setup request replaces the wizard; declining it
+            // opens onboarding instead.
+            agentSetupPending: agentSetup.pending != nil) {
+        case .markFinished:
+            UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        case .open:
+            WindowAccess.shared.open("onboarding")
+        case .stayClosed(let clearsResume):
+            if clearsResume { resume.clear() }
         }
         // After the first-run check: until setup is finished, a new install
         // reads no coding-agent session (`finishOnboarding` starts it).
@@ -2692,7 +2776,7 @@ final class AppState: ObservableObject {
         }
         let shortcut = settings.quickRecallShortcut
         guard !quickRecallHotKey.setShortcut(shortcut) else { return }
-        lastError = "The Ask shortcut could not register \(shortcut.displayLabel). Another app may already use it."
+        lastError = "The Quick Recall shortcut could not register \(shortcut.displayLabel). Another app may already use it."
         if let previous, previous != shortcut, quickRecallHotKey.setShortcut(previous) {
             settings.quickRecallShortcut = previous
         } else {
@@ -2815,9 +2899,10 @@ final class AppState: ObservableObject {
     /// Setup's final step: applies its choices and marks setup finished. A
     /// new install has read no coding-agent session until now, so reading
     /// starts here if the person kept it on.
-    func finishOnboarding(applying draft: CaptureSetupDraft) {
+    func finishOnboarding(applying draft: CaptureSetupDraft, opensSampleMeeting: Bool = false) {
         settings = draft.applying(to: settings)
         markSetupFinished()
+        if opensSampleMeeting { openSampleMeetingWhenReady() }
     }
 
     /// Setup is finished, here or by an agent through `lokalbot-cli setup
@@ -2826,6 +2911,8 @@ final class AppState: ObservableObject {
     func markSetupFinished() {
         let firstFinish = !UserDefaults.standard.bool(forKey: Self.onboardingShownKey)
         UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        // Nothing is left to resume. Unit tests share the real preferences.
+        if !UITestRuntime.isUnitTesting { OnboardingResumeStore.live.clear() }
         if firstFinish && interactive { applyCodingAgentEvidenceSetting() }
     }
 

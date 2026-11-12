@@ -95,14 +95,8 @@ final class UpcomingMeetingPreparationTests: XCTestCase {
     func testPresentationLabelsPastMeetingAsEnded() {
         let ended = event(id: "ended", title: "Ended", startsIn: -3_600, duration: 1_800)
 
-        XCTAssertEqual(
-            UpcomingMeetingPresentation.statusLabel(event: ended, now: now),
-            "Ended")
-        XCTAssertTrue(
-            UpcomingMeetingPresentation.timeLabel(
-                event: ended,
-                now: now,
-                calendar: utcCalendar).hasSuffix(" · Ended"))
+        // Today's list words the status; the model only says where it stands.
+        XCTAssertEqual(TodayAgenda.status(of: ended, now: now), .ended)
     }
 
     func testSignatureChangesWhenCalendarEvidenceChanges() {

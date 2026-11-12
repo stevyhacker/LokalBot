@@ -181,7 +181,7 @@ final class PersonalLearningRereadTests: XCTestCase {
 final class PersonalContextSettingsTabTests: XCTestCase {
     func testAboutYouHasItsOwnTabAndSettings() throws {
         XCTAssertTrue(AppState.SettingsTab.allCases.contains(.personalContext))
-        XCTAssertEqual(AppState.SettingsTab.personalContext.displayName, "Personal Context")
+        XCTAssertEqual(AppState.SettingsTab.personalContext.displayName, "About you")
         XCTAssertEqual(AppState.SettingsTab(captureName: "personal context"), .personalContext)
         XCTAssertEqual(AppState.SettingsTab(rawValue: SettingCategory.personalContext.rawValue), .personalContext)
         for id in ["askMemoryEnabled", "personalLearningEnabled", "personalLearningFromDictation"] {
