@@ -37,13 +37,38 @@ final class LanguageVoteTests: XCTestCase {
     }
 
     func testLanguagesQwenDoesNotSupportAreNotPinned() {
-        let serbian = [
-            "Sastanak je pomeren za sledeću nedelju jer su dvojica kolega bolesna.",
-            "Molim vas da mi pošaljete dokumenta do petka kako bismo sve pripremili.",
+        let ukrainian = [
+            "Зустріч перенесли на наступний тиждень, бо двоє колег захворіли.",
+            "Будь ласка, надішліть мені документи до п'ятниці, щоб ми встигли все підготувати.",
         ]
-        XCTAssertNil(QwenASREngine.pinnedLanguage(for: serbian))
+        XCTAssertNil(QwenASREngine.pinnedLanguage(for: ukrainian))
         XCTAssertFalse(QwenASREngine.supportedLanguages.contains("sr"))
         XCTAssertTrue(QwenASREngine.supportedLanguages.isSuperset(of: ["en", "zh", "yue", "de", "ja", "mk"]))
+    }
+
+    /// Apple's recognizer reads Latin-script Serbian as Croatian, which Qwen
+    /// does not list, so these tracks used to stay on auto and drift into
+    /// Chinese, Japanese, Hindi, Macedonian or Russian script.
+    func testSerbianCroatianAndBosnianTracksPinToCroatianInEitherScript() throws {
+        let montenegrin = [
+            "Sastanak smo pomjerili za sljedeću sedmicu jer su dvije koleginice bolesne.",
+            "Projekat kasni dvije sedmice zbog problema sa dobavljačem.",
+            "али мислим да ћемо рок ипак стићи ако почнемо одмах.",
+        ]
+        let croatian = [
+            "Nakon sastanka ćemo poslati zapisnik i dogovoriti sljedeće korake s timom.",
+            "Prijedlog je da proračun za idući kvartal odobrimo do petka.",
+        ]
+        XCTAssertEqual(QwenASREngine.pinnedLanguage(for: montenegrin), "hr")
+        XCTAssertEqual(QwenASREngine.pinnedLanguage(for: croatian), "hr")
+        let vote = try XCTUnwrap(TranscriptLanguageVote.dominant(
+            in: montenegrin, aliases: TranscriptLanguageVote.serbianCroatianAliases))
+        XCTAssertEqual(vote.code, "hr")
+        XCTAssertEqual(vote.share, 1, accuracy: 0.001)
+        // Without the aliases, the scripts split the same language in two.
+        XCTAssertLessThan(try XCTUnwrap(TranscriptLanguageVote.dominant(in: montenegrin)).share, 0.8)
+        // A track that is mostly English stays English.
+        XCTAssertEqual(QwenASREngine.pinnedLanguage(for: english + [montenegrin[1]]), "en")
     }
 
     func testBaseCodes() {

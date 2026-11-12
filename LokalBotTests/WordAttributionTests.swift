@@ -242,7 +242,62 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(aligner.count, 0)
         XCTAssertEqual(engine.calls.wordAttribution, 1)
         XCTAssertEqual(engine.calls.regions, 4)
+        XCTAssertEqual(engine.calls.regionLanguages, Array(repeating: "sr", count: 4))
         XCTAssertEqual(Set(result.segments.map(\.speaker)), ["them", "them 1", "them 2"])
+    }
+
+    /// On auto-detect, a track the aligner cannot time falls back to speaker
+    /// regions. Those regions are seconds long, too short to detect the
+    /// language again: Qwen reads breaths and short replies in them as
+    /// Chinese, Japanese or Russian. They decode in the language the whole
+    /// track settled on instead.
+    @MainActor
+    func testRegionsFallbackDecodesInTheLanguageTheTrackSettledOn() async throws {
+        let url = try writeTrack(seconds: 10)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let serbian = WordTimedTranscript.Segment(
+            segment: .init(start: 0, end: 8.2, speaker: "speaker",
+                           text: "Sastanak smo pomjerili za sljedeću sedmicu. Hvala.",
+                           timingPrecision: .span),
+            words: nil)
+        let engine = ServerTimedASR(providesWordTimings: false, segments: [serbian], trackLanguage: "hr")
+        let aligner = AlignerFetches()
+
+        _ = try await AttributedTrackTranscriber.transcribe(
+            url: url, duration: 10, diarization: twoTurns, source: .system,
+            engine: engine, language: nil, prompt: nil, prepareAligner: { try aligner.fetch() })
+
+        XCTAssertEqual(aligner.count, 1)
+        XCTAssertEqual(engine.calls.wordAttribution, 1)
+        XCTAssertEqual(engine.calls.regions, 4)
+        XCTAssertEqual(engine.calls.regionLanguages, Array(repeating: "hr", count: 4))
+    }
+
+    /// Speaker regions also cover the pauses between turns. Given one with
+    /// no speech, Whisper writes a stock phrase such as "Thank you.", so a
+    /// region without detected speech is not decoded.
+    @MainActor
+    func testRegionsWithoutDetectedSpeechAreNotDecoded() async throws {
+        let url = try writeTrack(seconds: 10)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        var untimed = twoVoices
+        untimed.words = nil
+        // Turns A (0–2.1 s) and B (5.1–7.8 s), and the pauses after each.
+        let speech: [ClosedRange<TimeInterval>] = [0.2...2.0, 5.2...7.6]
+
+        let engine = ServerTimedASR(providesWordTimings: true, segments: [untimed])
+        let result = try await AttributedTrackTranscriber.transcribe(
+            url: url, duration: 10, diarization: twoTurns, source: .system,
+            engine: engine, language: "sr", prompt: nil, speech: speech, prepareAligner: {})
+
+        XCTAssertEqual(engine.calls.regions, 2, "Only the two turns hold speech")
+        XCTAssertEqual(Set(result.segments.map(\.speaker)), ["them 1", "them 2"])
+
+        let undetected = ServerTimedASR(providesWordTimings: true, segments: [untimed])
+        _ = try await AttributedTrackTranscriber.transcribe(
+            url: url, duration: 10, diarization: twoTurns, source: .system,
+            engine: undetected, language: "sr", prompt: nil, speech: nil, prepareAligner: {})
+        XCTAssertEqual(undetected.calls.regions, 4, "Without detection every region is decoded, as before")
     }
 
     @MainActor
@@ -324,11 +379,19 @@ private struct ServerTimedASR: TranscriptionEngine {
     final class Calls: @unchecked Sendable {
         var wordAttribution = 0
         var regions = 0
+        var regionLanguages: [String?] = []
     }
 
     var providesWordTimings: Bool
     var segments: [WordTimedTranscript.Segment]
+    var trackLanguage: String?
     let calls = Calls()
+
+    init(providesWordTimings: Bool, segments: [WordTimedTranscript.Segment], trackLanguage: String? = nil) {
+        self.providesWordTimings = providesWordTimings
+        self.segments = segments
+        self.trackLanguage = trackLanguage
+    }
 
     var displayName: String { "Server fixture" }
     var supportsStreaming: Bool { false }
@@ -337,13 +400,14 @@ private struct ServerTimedASR: TranscriptionEngine {
 
     func transcribe(audio: URL, language: String?) async throws -> Transcript {
         calls.regions += 1
+        calls.regionLanguages.append(language)
         return Transcript(segments: [.init(start: 0, end: 0.05, speaker: "", text: "Region text.")],
                           engine: displayName)
     }
 
     func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript {
         calls.wordAttribution += 1
-        return WordTimedTranscript(segments: segments, engine: displayName)
+        return WordTimedTranscript(segments: segments, engine: displayName, trackLanguage: trackLanguage)
     }
 }
 

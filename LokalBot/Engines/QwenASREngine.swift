@@ -119,18 +119,21 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     func transcribe(audio url: URL, language: String?, prompt: String?) async throws -> Transcript {
-        try await transcribe(audio: url, language: language, prompt: prompt, windows: nil)
+        try await transcribe(audio: url, language: language, prompt: prompt, windows: nil).transcript
     }
 
     /// Decodes merged windows, because the forced aligner re-times every word
     /// afterwards: segment granularity no longer depends on the decode window.
+    /// On auto-detect it reports the language the track settled on, so a
+    /// fallback to speaker regions decodes in it too.
     func transcribeForWordAttribution(audio url: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript {
-        WordTimedTranscript(try await transcribe(audio: url, language: language, prompt: prompt,
-                                                 windows: Self.wordAttributionWindows(for: variant)))
+        let result = try await transcribe(audio: url, language: language, prompt: prompt,
+                                          windows: Self.wordAttributionWindows(for: variant))
+        return WordTimedTranscript(result.transcript, trackLanguage: result.pinned)
     }
 
     private func transcribe(audio url: URL, language: String?, prompt: String?,
-                            windows: WordAttributionWindows?) async throws -> Transcript {
+                            windows: WordAttributionWindows?) async throws -> (transcript: Transcript, pinned: String?) {
         let choice: TranscriptionModelChoice = variant == .accuracy ? .qwenASR17B : .qwenASR06B
         try choice.validateLanguage(language)
         activeUses += 1
@@ -159,14 +162,19 @@ actor QwenASREngine: TranscriptionEngine {
             // Per-window auto-detection misfires on short or accented speech;
             // a track in one language decodes better pinned to it.
             pinned = vote
-            segments = try await decode(language: vote)
-            segments = Self.withoutPromptEchoes(segments, prompt: prompt)
+            // The forced aligner cannot time words in this language, so the
+            // track is attributed by speaker regions, decoded again in `vote`.
+            // A second whole-track pass here would be thrown away.
+            if windows == nil || QwenWordAligner.supports(vote) {
+                segments = try await decode(language: vote)
+                segments = Self.withoutPromptEchoes(segments, prompt: prompt)
+            }
         }
         let elapsed = Date().timeIntervalSince(started)
         let duration = spans.last?.end ?? 0
         lokalbotLog(
             "qwen-asr profile model=\(variant.modelID) spans=\(spans.count) merged=\(windows != nil) language=\(Self.qwenLanguage(language) ?? pinned.map { "auto→\($0)" } ?? "auto") elapsed=\(String(format: "%.2fs", elapsed)) rtfx=\(String(format: "%.1fx", elapsed > 0 ? duration / elapsed : 0))")
-        return Transcript(segments: segments, engine: "\(variant.modelID) (Qwen3ASR MLX)")
+        return (Transcript(segments: segments, engine: "\(variant.modelID) (Qwen3ASR MLX)"), pinned)
     }
 
     /// Use the throwing API for every window so an abandoned transcription
@@ -295,10 +303,21 @@ actor QwenASREngine: TranscriptionEngine {
     /// A single window is never pinned: its only vote is its own decode, so
     /// decoding it again in that language cannot correct anything. Short
     /// dictations are one window, and pinning them doubled their decode time.
+    ///
+    /// Serbian, Croatian, Bosnian and Montenegrin vote together and pin to
+    /// Croatian, which is not on the model card. Left on auto, these tracks
+    /// slip window by window into Macedonian, Russian or Chinese, and lines
+    /// come out in Chinese, Japanese or Hindi script. Pinned to `hr`,
+    /// Benchmarks/DualASR measured 0.1% non-Latin
+    /// letters, Croatian 24.8% WER against 26.8% on auto, and the Montenegrin
+    /// meeting 38.5% against 38.3%. `sr` read Serbian better (14.5% against
+    /// 17.3%) but wrote half of everything in Cyrillic.
     nonisolated static func pinnedLanguage(for texts: [String]) -> String? {
         guard texts.count >= 2,
-              let vote = TranscriptLanguageVote.dominant(in: texts), vote.share >= 0.8,
-              supportedLanguages.contains(vote.code) else { return nil }
+              let vote = TranscriptLanguageVote.dominant(
+                  in: texts, aliases: TranscriptLanguageVote.serbianCroatianAliases),
+              vote.share >= 0.8,
+              supportedLanguages.contains(vote.code) || vote.code == "hr" else { return nil }
         return vote.code
     }
 

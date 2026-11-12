@@ -7,6 +7,17 @@ enum AttributedTrackTranscriber {
     /// than failing the track. Longer regions keep normal error handling, so a
     /// broken engine still surfaces.
     static let rejectableRegionSeconds: TimeInterval = 1
+    /// A region with less detected speech than this is not decoded. Detection
+    /// pads speech by a fraction of a second, so the pause after a turn holds
+    /// a sliver of it; a missed one-word reply still holds more.
+    static let minimumRegionSpeech: TimeInterval = 0.3
+
+    /// Seconds of `speech` inside `window`.
+    static func speechSeconds(in window: ClosedRange<TimeInterval>, speech: [ClosedRange<TimeInterval>]) -> TimeInterval {
+        speech.reduce(0) { total, range in
+            total + max(0, min(window.upperBound, range.upperBound) - max(window.lowerBound, range.lowerBound))
+        }
+    }
 
     struct Region: Equatable {
         var start: Double
@@ -56,14 +67,17 @@ enum AttributedTrackTranscriber {
     typealias AlignerPreparation = @MainActor () async throws -> Void
     static let downloadAligner: AlignerPreparation = { try await QwenWordAligner.shared.downloadIfNeeded() }
 
+    /// `speech` is where voice activity detection heard speech on the track;
+    /// speaker regions without any are not decoded. Nil decodes every region.
     @MainActor
     static func transcribe(url: URL, duration: Double, diarization: [DiarizedSegment],
                            source: SpeakerAttribution.Source, engine: TranscriptionEngine,
                            language: String?, prompt: String?, contentRange: Meeting.ContentRange? = nil,
+                           speech: [ClosedRange<TimeInterval>]? = nil,
                            prepareAligner: AlignerPreparation = downloadAligner) async throws -> Transcript {
         var transcript = try await attributedTranscript(url: url, duration: duration, diarization: diarization,
             source: source, engine: engine, language: language, prompt: prompt, contentRange: contentRange,
-            prepareAligner: prepareAligner)
+            speech: speech, prepareAligner: prepareAligner)
         // A prompt-capable model answers a near-silent span with its
         // vocabulary hint, and forced alignment then packs those words into a
         // sub-second row of their own. Nothing downstream should see one.
@@ -82,12 +96,16 @@ enum AttributedTrackTranscriber {
                                              source: SpeakerAttribution.Source, engine: TranscriptionEngine,
                                              language: String?, prompt: String?,
                                              contentRange: Meeting.ContentRange?,
+                                             speech: [ClosedRange<TimeInterval>]?,
                                              prepareAligner: AlignerPreparation) async throws -> Transcript {
-        if engine.speakerAttribution == .alignedWords, !(diarization.isEmpty && contentRange == nil),
-           let transcript = try await alignedWordTranscript(
-               url: url, duration: duration, diarization: diarization, source: source, engine: engine,
-               language: language, prompt: prompt, contentRange: contentRange, prepareAligner: prepareAligner) {
-            return transcript
+        var regionLanguage = language
+        if engine.speakerAttribution == .alignedWords, !(diarization.isEmpty && contentRange == nil) {
+            switch try await alignedWordTranscript(
+                url: url, duration: duration, diarization: diarization, source: source, engine: engine,
+                language: language, prompt: prompt, contentRange: contentRange, prepareAligner: prepareAligner) {
+            case .attributed(let transcript): return transcript
+            case .regions(let language): regionLanguage = language
+            }
         }
         let regions = regions(duration: duration, turns: diarization, source: source).compactMap { region -> Region? in
             guard let contentRange else { return region }
@@ -113,8 +131,22 @@ enum AttributedTrackTranscriber {
         defer { try? FileManager.default.removeItem(at: directory) }
         var segments: [Transcript.Segment] = []
         var engineName = engine.displayName
+        var silentRegions = 0
+        defer {
+            if silentRegions > 0 {
+                lokalbotLog("speaker-asr: skipped \(silentRegions) of \(regions.count) region(s) with no detected speech")
+            }
+        }
         for (index, region) in regions.enumerated() {
             try Task.checkCancellation()
+            // Regions also cover the pauses between turns, so unattributed
+            // speech is kept. Given silence instead, Whisper writes a stock
+            // phrase such as "Thank you.", and decoding it is wasted time.
+            if let speech, Self.speechSeconds(in: region.start...region.end, speech: speech)
+                < Self.minimumRegionSpeech {
+                silentRegions += 1
+                continue
+            }
             let audio = directory.appendingPathComponent("\(index).wav")
             let worker = Task.detached(priority: .utility) {
                 let samples = try SpanAudioReader(url: url).samples(from: region.start, to: region.end)
@@ -129,10 +161,10 @@ enum AttributedTrackTranscriber {
 #if LOKALBOT_TEST_HOOKS
                 let slice = GoldenTranscriptionEngine.Region(track: url, start: region.start, end: region.end)
                 value = try await GoldenTranscriptionEngine.$region.withValue(slice) {
-                    try await engine.transcribe(audio: audio, language: language, prompt: prompt)
+                    try await engine.transcribe(audio: audio, language: regionLanguage, prompt: prompt)
                 }
 #else
-                value = try await engine.transcribe(audio: audio, language: language, prompt: prompt)
+                value = try await engine.transcribe(audio: audio, language: regionLanguage, prompt: prompt)
 #endif
             } catch let error where !(error is CancellationError)
                         // A withdrawn transcription server is not a sliver
@@ -185,21 +217,31 @@ enum AttributedTrackTranscriber {
     static let wordPauseSplit: TimeInterval = 0.75
     static let maxSegmentSeconds: TimeInterval = 15
 
+    /// What the transcribe-then-attribute path produced.
+    private enum WordAttributionOutcome {
+        case attributed(Transcript)
+        /// Attribute by speaker regions instead, decoding each in `language`
+        /// (nil: auto-detect).
+        case regions(language: String?)
+    }
+
     /// Transcribes the whole track, then attributes timed words, so speaker
     /// turns never cut the audio the model hears. Words come from the engine
     /// when it times them (`providesWordTimings`), otherwise from the forced
-    /// aligner. Nil means "use regions": an unsupported language or an
+    /// aligner. `.regions` means "use regions": an unsupported language or an
     /// unavailable aligner with no engine word times to fall back on.
     @MainActor
     private static func alignedWordTranscript(url: URL, duration: Double, diarization: [DiarizedSegment],
                                               source: SpeakerAttribution.Source, engine: TranscriptionEngine,
                                               language: String?, prompt: String?,
                                               contentRange: Meeting.ContentRange?,
-                                              prepareAligner: AlignerPreparation) async throws -> Transcript? {
+                                              prepareAligner: AlignerPreparation) async throws -> WordAttributionOutcome {
         let engineTimesWords = engine.providesWordTimings
-        if !engineTimesWords, !(try await alignerAvailable(for: language, prepare: prepareAligner)) { return nil }
+        if !engineTimesWords, !(try await alignerAvailable(for: language, prepare: prepareAligner)) {
+            return .regions(language: language)
+        }
         let transcript = try await engine.transcribeForWordAttribution(audio: url, language: language, prompt: prompt)
-        guard !transcript.segments.isEmpty else { return transcript.transcript }
+        guard !transcript.segments.isEmpty else { return .attributed(transcript.transcript) }
         let segments = transcript.segments
         let engineTimed = segments.map(engineWords(of:))
         let untimed = engineTimed.filter { $0 == nil }.count
@@ -216,8 +258,12 @@ enum AttributedTrackTranscriber {
             }
             if alignLanguage == nil {
                 guard untimed < segments.count else {
-                    lokalbotLog("word attribution skipped: detected language unsupported, using speaker regions")
-                    return nil
+                    // Decoding a few seconds at a time, auto-detection drifts
+                    // into other languages and scripts: keep the track's own.
+                    let regionLanguage = language ?? transcript.trackLanguage
+                    lokalbotLog("word attribution skipped: detected language unsupported, using speaker regions "
+                        + "language=\(regionLanguage ?? "auto")")
+                    return .regions(language: regionLanguage)
                 }
                 lokalbotLog("word attribution: \(untimed) segment(s) without word times keep one speaker each")
             }
@@ -234,7 +280,7 @@ enum AttributedTrackTranscriber {
                              contentRange: contentRange)
         }
         let attributed = try await withTaskCancellationHandler { try await worker.value } onCancel: { worker.cancel() }
-        return Transcript(segments: attributed, engine: transcript.engine)
+        return .attributed(Transcript(segments: attributed, engine: transcript.engine))
     }
 
     /// The engine's own word times when `attribute` can cut the segment's
