@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The day's meetings as one list: what was recorded, with a line saying what
-/// it was about, and what the calendar still holds, with a thin line at now.
+/// The day's meetings as one panel: what was recorded, with a line saying
+/// what it was about, and what the calendar still holds, with a line at now.
 /// Work sessions and apps are on Timeline.
 struct TodayMeetingsSection: View {
     @EnvironmentObject private var app: AppState
@@ -16,31 +16,46 @@ struct TodayMeetingsSection: View {
     private static let timeColumnWidth: CGFloat = 70
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            TodaySectionHeading(title: "Meetings today", count: count)
+        TodayPanel(
+            title: Text("Meetings today"),
+            systemImage: AppState.NavSection.meetings.symbol,
+            count: count,
+            identifier: "today.meetings",
+            showsContent: !rows.isEmpty,
+            showsFooter: offersCalendar
+        ) {
+            Button("All meetings") { app.navSection = .meetings }
+                .accessibilityIdentifier("today.meetings.all")
+        } content: {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(rows) { row in
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     switch row {
-                    case .entry(let entry): entryRow(entry)
-                    case .now(let date): nowLine(date)
+                    case .entry(let entry):
+                        entryRow(entry)
+                        if Self.hasHairline(after: index, in: rows) { Divider() }
+                    case .now(let date):
+                        nowLine(date, leads: index == 0)
                     }
                 }
             }
-            if offersCalendar {
-                Button("Show upcoming meetings from Calendar…") {
-                    // Calendar use and its permission are set up in Settings.
-                    app.openSettings(tab: .recording)
-                    app.focusedSettingID = "settings.calendarDetectionEnabled"
-                }
-                .buttonStyle(.workspaceLink)
-                .font(AppFont.scaled(.callout))
-                .padding(.top, 4)
-                .accessibilityIdentifier("today.meetings.connectCalendar")
+        } footer: {
+            Text("Upcoming meetings can show here too")
+                .todayPanelFooterText()
+            Button("Connect Calendar…") {
+                // Calendar use and its permission are set up in Settings.
+                app.openSettings(tab: .recording)
+                app.focusedSettingID = "settings.calendarDetectionEnabled"
             }
+            .accessibilityIdentifier("today.meetings.connectCalendar")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("today.meetings")
+    }
+
+    /// A hairline divides two meetings. The now line draws its own rule, so
+    /// the meeting before it has none, and the last row ends at the panel.
+    static func hasHairline(after index: Int, in rows: [TodayAgenda.Row]) -> Bool {
+        guard rows.indices.contains(index + 1) else { return false }
+        if case .now = rows[index + 1] { return false }
+        return true
     }
 
     // MARK: Rows
@@ -90,7 +105,8 @@ struct TodayMeetingsSection: View {
                 }
             }
         }
-        .padding(.vertical, 7)
+        .padding(.horizontal, TodayPanelMetric.inset)
+        .padding(.vertical, 10)
         .contentShape(Rectangle())
     }
 
@@ -116,20 +132,23 @@ struct TodayMeetingsSection: View {
         }
     }
 
-    private func nowLine(_ date: Date) -> some View {
-        let time = date.formatted(date: .omitted, time: .shortened)
-        return HStack(spacing: 8) {
-            Text(verbatim: time)
-                .font(AppFont.scaled(.subheadline).weight(.semibold).monospacedDigit())
-                .foregroundStyle(LBTokens.Palette.recordingText)
-                // The time is the element: a container with only a label
-                // has no role, which the accessibility audit reports.
-                .accessibilityIdentifier("today.meetings.now")
-            Rectangle()
-                .fill(LBTokens.Palette.recording.opacity(0.6))
-                .frame(height: 1)
-                .accessibilityHidden(true)
-        }
-        .padding(.vertical, 3)
+    /// "Now · 10:48 AM" under a rule the width of the panel. Above the first
+    /// meeting the rule takes the place of the header's hairline.
+    private func nowLine(_ date: Date, leads: Bool) -> some View {
+        // The text is the element: a container with only a label has no
+        // role, which the accessibility audit reports.
+        Text("Now · \(date.formatted(date: .omitted, time: .shortened))")
+            .font(AppFont.scaledSystem(size: 11, weight: .bold).monospacedDigit())
+            .foregroundStyle(LBTokens.Palette.recordingText)
+            .accessibilityIdentifier("today.meetings.now")
+            .padding(.horizontal, TodayPanelMetric.inset)
+            .frame(maxWidth: .infinity, minHeight: 20 * textScale, alignment: .leading)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(LBTokens.Palette.recording.opacity(0.6))
+                    .frame(height: 1)
+                    .offset(y: leads ? -1 : 0)
+                    .accessibilityHidden(true)
+            }
     }
 }

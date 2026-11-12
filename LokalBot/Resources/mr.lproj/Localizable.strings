@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "कोडनेम किंवा ग्राहक, स्वल्पविरामांनी वेगळे";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "यापैकी कोणतेही नाव वापरणाऱ्या बैठका, कामे आणि विंडोची शीर्षके या प्रकल्पाशी जोडली जातात.";
 "Suggested (one project)" = "सुचवलेला";
+"%lld overdue" = "%lld ची मुदत उलटली";
+"Showing the %lld most urgent" = "सर्वात तातडीची %lld दाखवत आहे";
+"Now · %@" = "आता · %@";
+"Upcoming meetings can show here too" = "आगामी बैठकाही येथे दिसू शकतात";
+"Open day" = "दिवस उघडा";
+"Priorities for today" = "आजचे प्राधान्यक्रम";
+"Priorities from %@" = "%@ चे प्राधान्यक्रम";
+"Priorities from a previous workday" = "मागील एका कामाच्या दिवसाचे प्राधान्यक्रम";

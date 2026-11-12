@@ -1070,6 +1070,30 @@ final class DreamingTests: XCTestCase {
             "Priorities from \(day.formatted(date: .abbreviated, time: .omitted))")
     }
 
+    /// The Yesterday panel's label is the same rule, as a value the page
+    /// can show in the app's language.
+    func testPrioritiesSourceIsTodayOnlyForYesterdaysBrief() throws {
+        let report = DreamReport(
+            day: "2026-07-16",
+            generatedAt: try date("2026-07-17T04:01:00Z"),
+            engineName: "Built-in — Test",
+            inferenceProvenance: .init(location: .local),
+            narrative: "A real working day.",
+            topActions: ["Fix CI first"])
+        let day = try XCTUnwrap(DreamDay.date(fromKey: report.day))
+        func source(_ reference: String, _ report: DreamReport) throws -> TodayDreamSelection.PrioritiesSource {
+            TodayDreamSelection.prioritiesSource(for: report, referenceDate: try date(reference), calendar: calendar)
+        }
+        XCTAssertEqual(try source("2026-07-17T08:00:00Z", report), .today)
+        XCTAssertEqual(try source("2026-07-19T08:00:00Z", report),
+                       .day(day.formatted(.dateTime.weekday(.wide))))
+        XCTAssertEqual(try source("2026-08-01T08:00:00Z", report),
+                       .day(day.formatted(date: .abbreviated, time: .omitted)))
+        var unreadable = report
+        unreadable.day = "not-a-day"
+        XCTAssertEqual(try source("2026-07-17T08:00:00Z", unreadable), .previousWorkday)
+    }
+
     func testEmptyDayProvenanceSaysNoModelRan() throws {
         let stub = DreamReport(
             day: "2026-07-18",

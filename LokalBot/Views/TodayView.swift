@@ -4,7 +4,8 @@ import SwiftUI
 /// The home screen answers three things: what is live, what is next, and what
 /// needs you. A card leads only while it matters (a recording in progress, a
 /// meeting within the hour); the rest is the day's actions, meetings and
-/// activity. Timeline stays the hour-by-hour view of the same day.
+/// activity, each in its own panel, in two columns when the window has room.
+/// Timeline stays the hour-by-hour view of the same day.
 struct TodayView: View {
     @EnvironmentObject var app: AppState
     @StateObject private var model = CaptureModel()
@@ -16,6 +17,7 @@ struct TodayView: View {
     @State private var dayLoaded = false
     @AppStorage("lokalbotv3.gettingStartedDismissed")
     private var gettingStartedDismissed = false
+    @Environment(\.appTextScale) private var textScale
 
     private static let attentionLimit = 3
 
@@ -29,10 +31,6 @@ struct TodayView: View {
         ScrollView {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 page(now: context.date)
-                    .padding(.horizontal, LBTokens.Metric.detailPadding)
-                    .padding(.top, 16)
-                    .padding(.bottom, 32)
-                    .frame(maxWidth: WorkspaceMetric.todayMaxWidth, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .top)
                     // The marker tests wait for before they use the window.
                     .accessibilityElement(children: .contain)
@@ -141,7 +139,13 @@ struct TodayView: View {
         let layout = TodayPageLayout.layout(
             hasContent: hasContent, gettingStartedDismissed: gettingStartedDismissed)
 
-        VStack(alignment: .leading, spacing: 30) {
+        let showsMeetings = !entries.isEmpty || calendarIsOff
+        // The panels each column would hold. A side with none leaves the
+        // page one column at its reading width.
+        let hasLeading = layout.showsSections && (!threads.isEmpty || showsMeetings)
+        let hasTrailing = layout.showsSections && (hasDay || dream != nil)
+
+        TodayColumnsLayout(textScale: textScale) {
             switch layout {
             case .sections(let gettingStartedBelow):
                 if app.currentMeeting != nil || next != nil {
@@ -150,27 +154,25 @@ struct TodayView: View {
                         if let next { TodayNextMeetingCard(model: upcomingMeeting, event: next, now: now) }
                     }
                 }
-                NeedsAttentionSection(
-                    threads: threads,
-                    limit: Self.attentionLimit,
-                    linksRemainder: true,
-                    headingFont: TodayType.sectionHeading,
-                    rowSpacing: 0)
-                if !entries.isEmpty || calendarIsOff {
+                if !threads.isEmpty {
+                    NeedsAttentionSection(threads: threads, limit: Self.attentionLimit, now: now)
+                        .todayColumn(.leading)
+                }
+                if showsMeetings {
                     TodayMeetingsSection(
                         rows: TodayAgenda.rows(entries, now: now),
                         count: entries.count,
                         recaps: recaps,
                         offersCalendar: calendarIsOff)
+                        .todayColumn(.leading)
                 }
                 if hasDay {
                     TodaySoFarSection(model: model, lifecycle: app.dayDigest)
+                        .todayColumn(.trailing)
                 }
                 if let dream {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Divider()
-                        YesterdayDigestLine(report: dream, day: model.day)
-                    }
+                    YesterdayBriefPanel(report: dream, day: model.day)
+                        .todayColumn(.trailing)
                 }
                 if gettingStartedBelow { GettingStartedCard() }
             case .gettingStarted:
@@ -186,7 +188,14 @@ struct TodayView: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, LBTokens.Metric.detailPadding)
+        .padding(.top, 16)
+        .padding(.bottom, 32)
+        .frame(
+            maxWidth: TodayColumns.pageMaximumWidth(
+                hasLeading: hasLeading, hasTrailing: hasTrailing,
+                wide: WorkspaceMetric.todayMaxWidth, reading: WorkspaceMetric.todayReadingMaxWidth),
+            alignment: .leading)
     }
 
     /// The library and the day's activity have both answered, so "nothing
@@ -238,39 +247,13 @@ struct TodayView: View {
     }
 }
 
-/// Type sizes Today adds to the shared set: section headings one step above
-/// the 13 pt headline, and the title of the card at the top.
+/// Type sizes Today adds to the shared set: panel titles one step above the
+/// 13 pt headline, and the title of the card at the top.
 enum TodayType {
-    static var sectionHeading: AppFont { AppFont.scaledSystem(size: 15, weight: .bold) }
+    static var panelTitle: AppFont { AppFont.scaledSystem(size: 14, weight: .bold) }
     static var cardTitle: AppFont { AppFont.scaledSystem(size: 20, weight: .bold) }
     /// The next meeting's title while another meeting is being recorded.
     static var cardTitleCompact: AppFont { AppFont.scaledSystem(size: 17, weight: .bold) }
-}
-
-/// A Today section's heading: its name, how many rows follow, and one link.
-struct TodaySectionHeading<Trailing: View>: View {
-    let title: LocalizedStringKey
-    var count: Int?
-    @ViewBuilder var trailing: Trailing
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(title).font(TodayType.sectionHeading)
-            if let count {
-                Text(count, format: .number)
-                    .font(AppFont.scaled(.callout).monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            trailing
-        }
-    }
-}
-
-extension TodaySectionHeading where Trailing == EmptyView {
-    init(title: LocalizedStringKey, count: Int? = nil) {
-        self.init(title: title, count: count) { EmptyView() }
-    }
 }
 
 extension View {
@@ -355,27 +338,45 @@ enum TodayDreamSelection {
         return isCurrent(report, referenceDate: referenceDate, calendar: calendar)
     }
 
+    /// Whose priorities a brief holds: today's when it covers yesterday, an
+    /// older day's otherwise.
+    enum PrioritiesSource: Equatable {
+        case today
+        /// The covered day by name: its weekday within the last week, its
+        /// date beyond that.
+        case day(String)
+        /// The covered day is unreadable.
+        case previousWorkday
+    }
+
     /// A brief from yesterday earns "Priorities for today"; anything older is
     /// framed with its own day so a Friday brief on Monday never reads as
     /// current. Weekday alone within the lookback window, full date beyond it.
+    static func prioritiesSource(
+        for report: DreamReport,
+        referenceDate: Date,
+        calendar: Calendar = .current
+    ) -> PrioritiesSource {
+        if isCurrent(report, referenceDate: referenceDate, calendar: calendar) { return .today }
+        guard let day = DreamDay.date(fromKey: report.day) else { return .previousWorkday }
+        let daysAgo = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: day),
+            to: calendar.startOfDay(for: referenceDate)).day ?? Int.max
+        if daysAgo <= 6 { return .day(day.formatted(.dateTime.weekday(.wide))) }
+        return .day(day.formatted(date: .abbreviated, time: .omitted))
+    }
+
+    /// `prioritiesSource` in English, for text that is not interface text.
     static func prioritiesHeading(
         for report: DreamReport,
         referenceDate: Date,
         calendar: Calendar = .current
     ) -> String {
-        if isCurrent(report, referenceDate: referenceDate, calendar: calendar) {
-            return "Priorities for today"
+        switch prioritiesSource(for: report, referenceDate: referenceDate, calendar: calendar) {
+        case .today: "Priorities for today"
+        case .day(let name): "Priorities from \(name)"
+        case .previousWorkday: "Priorities from a previous workday"
         }
-        guard let day = DreamDay.date(fromKey: report.day) else {
-            return "Priorities from a previous workday"
-        }
-        let daysAgo = calendar.dateComponents(
-            [.day],
-            from: calendar.startOfDay(for: day),
-            to: calendar.startOfDay(for: referenceDate)).day ?? Int.max
-        if daysAgo <= 6 {
-            return "Priorities from \(day.formatted(.dateTime.weekday(.wide)))"
-        }
-        return "Priorities from \(day.formatted(date: .abbreviated, time: .omitted))"
     }
 }

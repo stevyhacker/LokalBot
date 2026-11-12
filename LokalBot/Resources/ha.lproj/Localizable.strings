@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "Sunayen sirri ko abokan ciniki, a raba su da waƙafi";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Taruka, matakai, da taken tagogi da suka yi amfani da kowane ɗaya daga cikin waɗannan sunaye ana haɗa su da aikin.";
 "Suggested (one project)" = "An ba da shawara";
+"%lld overdue" = "%lld sun wuce wa'adi";
+"Showing the %lld most urgent" = "Ana nuna %lld mafi gaggawa";
+"Now · %@" = "Yanzu · %@";
+"Upcoming meetings can show here too" = "Taruka masu zuwa ma za su iya bayyana a nan";
+"Open day" = "Buɗe ranar";
+"Priorities for today" = "Abubuwan fifiko na yau";
+"Priorities from %@" = "Abubuwan fifiko daga %@";
+"Priorities from a previous workday" = "Abubuwan fifiko daga wata ranar aiki ta baya";

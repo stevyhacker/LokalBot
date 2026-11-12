@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "コードネームや顧客名（カンマ区切り）";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "これらの名前のいずれかを使う会議、アクション、ウィンドウのタイトルが、このプロジェクトにリンクされます。";
 "Suggested (one project)" = "提案";
+"%lld overdue" = "期限超過 %lld 件";
+"Showing the %lld most urgent" = "緊急度の高い %lld 件を表示中";
+"Now · %@" = "現在 · %@";
+"Upcoming meetings can show here too" = "今後の会議もここに表示できます";
+"Open day" = "この日を開く";
+"Priorities for today" = "今日の優先事項";
+"Priorities from %@" = "%@の優先事項";
+"Priorities from a previous workday" = "以前の稼働日の優先事項";

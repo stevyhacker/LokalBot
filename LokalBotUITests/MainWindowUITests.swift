@@ -39,9 +39,10 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Today
 
-    /// Today shows the digest's highlights and one line about when it was
-    /// written. Tasks, sessions, digest export and the activity log stay on
-    /// Timeline, and Record is in the toolbar instead of a bar on the page.
+    /// Today's sections are panels. So far today shows the digest's
+    /// highlights and, in its footer, one line about when it was written.
+    /// Tasks, sessions, digest export and the activity log stay on Timeline,
+    /// and Record is in the toolbar instead of a bar on the page.
     func testTodayUsesCompactDigestHierarchy() {
         XCTAssertTrue(identified("today.dayDigest.text").waitForExistence(timeout: 6))
         UITestHarness.scrollTo(identified("today.dayDigest.text"), in: app)
@@ -58,6 +59,10 @@ final class MainWindowUITests: XCTestCase {
             XCTAssertTrue(identified("today.meeting.recording-\(meeting.id.uuidString)").exists)
         }
         XCTAssertTrue(app.buttons["outcomes.review"].exists)
+        // Each panel's header has the one link to the section behind it.
+        XCTAssertTrue(app.buttons["today.meetings.all"].exists, "Meetings today links to Meetings")
+        XCTAssertTrue(app.buttons["today.openTimeline"].exists, "So far today links to Timeline")
+        XCTAssertTrue(identified("today.tracked").exists, "tracked time and its bars are in So far today")
         XCTAssertFalse(app.buttons["outcomes.planInAgent"].exists, "planning with Agent moved to Actions")
         XCTAssertFalse(identified("today.memoryStatus").exists)
         XCTAssertFalse(identified("today.githubStar").exists)

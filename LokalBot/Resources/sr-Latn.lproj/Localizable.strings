@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "Kodna imena ili klijenti, razdvojeni zarezima";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Sastanci, obaveze i naslovi prozora u kojima se javlja neko od ovih imena povezuju se sa projektom.";
 "Suggested (one project)" = "Predložen";
+"%lld overdue" = "%lld sa isteklim rokom";
+"Showing the %lld most urgent" = "Prikazano najhitnijih: %lld";
+"Now · %@" = "Sada · %@";
+"Upcoming meetings can show here too" = "Ovde mogu da se prikažu i predstojeći sastanci";
+"Open day" = "Otvori dan";
+"Priorities for today" = "Prioriteti za danas";
+"Priorities from %@" = "Prioriteti: %@";
+"Priorities from a previous workday" = "Prioriteti od prethodnog radnog dana";

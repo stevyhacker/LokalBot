@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "Codenamen oder Kunden, durch Kommas getrennt";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Besprechungen, Aktionen und Fenstertitel, die einen dieser Namen verwenden, werden mit dem Projekt verknüpft.";
 "Suggested (one project)" = "Vorgeschlagen";
+"%lld overdue" = "%lld überfällig";
+"Showing the %lld most urgent" = "Zeigt die %lld dringendsten";
+"Now · %@" = "Jetzt · %@";
+"Upcoming meetings can show here too" = "Anstehende Besprechungen können hier auch erscheinen";
+"Open day" = "Tag öffnen";
+"Priorities for today" = "Prioritäten für heute";
+"Priorities from %@" = "Prioritäten vom %@";
+"Priorities from a previous workday" = "Prioritäten von einem früheren Arbeitstag";

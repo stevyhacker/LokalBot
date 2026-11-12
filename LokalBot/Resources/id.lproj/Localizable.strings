@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "Nama sandi atau klien, dipisahkan dengan koma";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Rapat, tindakan, dan judul jendela yang memakai salah satu nama ini ditautkan ke proyek.";
 "Suggested (one project)" = "Disarankan";
+"%lld overdue" = "%lld lewat tenggat";
+"Showing the %lld most urgent" = "Menampilkan %lld yang paling mendesak";
+"Now · %@" = "Sekarang · %@";
+"Upcoming meetings can show here too" = "Rapat mendatang juga bisa tampil di sini";
+"Open day" = "Buka hari";
+"Priorities for today" = "Prioritas hari ini";
+"Priorities from %@" = "Prioritas dari %@";
+"Priorities from a previous workday" = "Prioritas dari hari kerja sebelumnya";

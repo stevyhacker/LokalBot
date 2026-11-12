@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "코드명 또는 고객사, 쉼표로 구분";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "이 이름 중 하나를 사용하는 회의, 실행 항목, 창 제목이 프로젝트에 연결됩니다.";
 "Suggested (one project)" = "제안";
+"%lld overdue" = "기한 지남 %lld개";
+"Showing the %lld most urgent" = "가장 급한 %lld개 표시 중";
+"Now · %@" = "지금 · %@";
+"Upcoming meetings can show here too" = "예정된 회의도 여기에 표시할 수 있습니다";
+"Open day" = "해당 날짜 열기";
+"Priorities for today" = "오늘의 우선순위";
+"Priorities from %@" = "%@의 우선순위";
+"Priorities from a previous workday" = "이전 근무일의 우선순위";

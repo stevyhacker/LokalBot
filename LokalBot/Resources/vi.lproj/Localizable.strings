@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "Tên mã hoặc khách hàng, cách nhau bằng dấu phẩy";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Các cuộc họp, hành động và tiêu đề cửa sổ dùng bất kỳ tên nào trong số này sẽ được liên kết với dự án.";
 "Suggested (one project)" = "Được gợi ý";
+"%lld overdue" = "%lld quá hạn";
+"Showing the %lld most urgent" = "Đang hiện %lld mục gấp nhất";
+"Now · %@" = "Bây giờ · %@";
+"Upcoming meetings can show here too" = "Các cuộc họp sắp tới cũng có thể hiện ở đây";
+"Open day" = "Mở ngày";
+"Priorities for today" = "Ưu tiên hôm nay";
+"Priorities from %@" = "Ưu tiên từ %@";
+"Priorities from a previous workday" = "Ưu tiên từ một ngày làm việc trước";

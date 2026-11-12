@@ -1,17 +1,22 @@
 import SwiftUI
 
-/// Yesterday's overnight brief on Today, folded to one line.
-struct YesterdayDigestLine: View {
+/// Yesterday's overnight brief on Today, as a panel: what happened, the
+/// priorities it leaves, and a footer saying how it was written.
+struct YesterdayBriefPanel: View {
     @EnvironmentObject private var app: AppState
     let report: DreamReport
     let day: Date
-    @State private var expanded = false
 
     /// "Yesterday", or the day an older brief covers.
-    private var label: Text {
+    private var title: Text {
         if TodayDreamSelection.isCurrent(report, referenceDate: day) { return Text("Yesterday") }
-        return Text(verbatim: DreamDay.date(fromKey: report.day)?
-            .formatted(date: .abbreviated, time: .omitted) ?? report.day)
+        return Text(verbatim: reportDay?.formatted(date: .abbreviated, time: .omitted) ?? report.day)
+    }
+
+    private var reportDay: Date? { DreamDay.date(fromKey: report.day) }
+
+    private var notes: [String] {
+        report.attention + report.repeatedWork + report.suggestedChecks + report.frictions
     }
 
     private func linkedThread(_ id: String?) -> ActionThread? {
@@ -20,40 +25,80 @@ struct YesterdayDigestLine: View {
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            DreamBriefText(text: report.narrative)
-            ForEach(Array(report.topActions.enumerated()), id: \.offset) { index, action in
-                // A top action taken from the recorded candidates is the real
-                // thread: it can be checked off here and stays in sync.
-                if let thread = linkedThread(report.topActionThreadID(at: index)) {
-                    ActionThreadRow(thread: thread)
-                } else {
-                    DreamBriefText(text: "• " + action)
+        TodayPanel(
+            title: title,
+            systemImage: "moon",
+            identifier: "today.dream"
+        ) {
+            if let reportDay {
+                Button("Open day") { app.openTimelineDay(reportDay) }
+                    .accessibilityIdentifier("today.dream.openDay")
+            }
+        } content: {
+            VStack(alignment: .leading, spacing: 14) {
+                if !report.narrative.isEmpty {
+                    DreamBriefText(text: report.narrative)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if !report.topActions.isEmpty { priorities }
+                if !notes.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(notes.enumerated()), id: \.offset) { _, text in
+                            DreamBriefText(text: "• " + text)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                if report.isFallback {
+                    Text("Previous-day summary uses captured evidence only.").workspaceTextRole(.supporting)
+                }
+                if report.inferenceProvenance?.location == .remote {
+                    Label("Previous-day summary used approved remote inference", systemImage: "network")
+                        .workspaceTextRole(.trust)
+                }
+                if TodayDreamSelection.isRetryableFailure(report, referenceDate: day) {
+                    Button(app.dreaming.isDreaming ? "Updating…" : "Retry previous-day summary") { app.dreamNow() }
+                        .disabled(app.dreaming.isDreaming || !app.libraryReady)
+                        .accessibilityIdentifier("today.dream.retry")
                 }
             }
-            ForEach(Array((report.attention + report.repeatedWork + report.suggestedChecks + report.frictions).enumerated()), id: \.offset) { _, text in
-                DreamBriefText(text: "• " + text)
-            }
-            if report.isFallback {
-                Text("Previous-day summary uses captured evidence only.").workspaceTextRole(.supporting)
-            }
-            if report.inferenceProvenance?.location == .remote {
-                Label("Previous-day summary used approved remote inference", systemImage: "network")
-                    .workspaceTextRole(.trust)
-            }
-            Text(report.provenanceDescription).workspaceTextRole(.metadata)
-            if TodayDreamSelection.isRetryableFailure(report, referenceDate: day) {
-                Button(app.dreaming.isDreaming ? "Updating…" : "Retry previous-day summary") { app.dreamNow() }
-                    .disabled(app.dreaming.isDreaming || !app.libraryReady)
-                    .accessibilityIdentifier("today.dream.retry")
-            }
-        } label: {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                label.font(TodayType.sectionHeading)
-                Text(report.narrative).lineLimit(1).foregroundStyle(.secondary)
+            .padding(.horizontal, TodayPanelMetric.inset)
+            .padding(.vertical, 14)
+        } footer: {
+            // The report's own account of which model wrote it and where.
+            Text(report.provenanceDescription)
+                .todayPanelFooterText()
+        }
+    }
+
+    /// The brief's top actions, in its order. One taken from the recorded
+    /// candidates is the real thread: it can be checked off here and stays in
+    /// sync. The rest are numbered advice.
+    private var priorities: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            TodayPanelLabel(text: prioritiesLabel)
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(report.topActions.enumerated()), id: \.offset) { index, action in
+                    if let thread = linkedThread(report.topActionThreadID(at: index)) {
+                        ActionThreadRow(thread: thread)
+                    } else {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(verbatim: "\(index + 1).")
+                                .font(AppFont.scaled(.body).monospacedDigit())
+                            DreamBriefText(text: action)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
             }
         }
-        .help(report.provenanceDescription)
-        .accessibilityIdentifier("today.dream")
+    }
+
+    private var prioritiesLabel: Text {
+        switch TodayDreamSelection.prioritiesSource(for: report, referenceDate: day) {
+        case .today: Text("Priorities for today")
+        case .previousWorkday: Text("Priorities from a previous workday")
+        case .day(let name): Text("Priorities from \(name)")
+        }
     }
 }

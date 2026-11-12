@@ -44,9 +44,12 @@ enum WorkspaceMetric {
     static let contentMaxWidth: CGFloat = 1360
     /// Long-form answers and summaries stay within a comfortable reading line.
     static let readingMaxWidth: CGFloat = LBTokens.Metric.readingMaxWidth
-    /// Today is a glanceable page: one column, about a reading line wide
-    /// inside its side padding.
-    static let todayMaxWidth: CGFloat = 780
+    /// Today at its widest, side padding included: two columns of panels
+    /// under the cards that span them (`TodayColumns`).
+    static let todayMaxWidth: CGFloat = 1064
+    /// Today when its panels can only form one column: about a reading line
+    /// wide inside its side padding.
+    static let todayReadingMaxWidth: CGFloat = 780
     /// Timeline's list column beside the day's page. Its rows carry a time, a
     /// two-line title and a duration, so it runs wider than the Meetings list.
     static let timelineListMinWidth: CGFloat = 260

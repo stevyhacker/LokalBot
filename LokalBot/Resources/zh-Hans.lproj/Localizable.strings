@@ -2586,3 +2586,11 @@
 "Codenames or clients, separated by commas" = "代号或客户名，用逗号分隔";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "使用其中任一名称的会议、行动项和窗口标题都会关联到该项目。";
 "Suggested (one project)" = "建议";
+"%lld overdue" = "%lld 项已逾期";
+"Showing the %lld most urgent" = "显示最紧急的 %lld 项";
+"Now · %@" = "现在 · %@";
+"Upcoming meetings can show here too" = "即将开始的会议也可以显示在这里";
+"Open day" = "打开当天";
+"Priorities for today" = "今天的优先事项";
+"Priorities from %@" = "%@的优先事项";
+"Priorities from a previous workday" = "之前某个工作日的优先事项";

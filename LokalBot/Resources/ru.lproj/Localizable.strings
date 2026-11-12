@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "Кодовые имена или клиенты, через запятую";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Встречи, действия и заголовки окон, где есть любое из этих названий, связываются с проектом.";
 "Suggested (one project)" = "Предложено";
+"%lld overdue" = "Просрочено: %lld";
+"Showing the %lld most urgent" = "Показаны самые срочные: %lld";
+"Now · %@" = "Сейчас · %@";
+"Upcoming meetings can show here too" = "Предстоящие встречи тоже могут показываться здесь";
+"Open day" = "Открыть день";
+"Priorities for today" = "Приоритеты на сегодня";
+"Priorities from %@" = "Приоритеты: %@";
+"Priorities from a previous workday" = "Приоритеты за предыдущий рабочий день";

@@ -38,6 +38,9 @@ enum LBTokens {
         static let statusFillOpacity = 0.10
         static let groupFill = Color(nsColor: .adaptive(light: NSColor(white: 0, alpha: 0.035), dark: NSColor(white: 1, alpha: 0.05)))
         static let groupStroke = Color(nsColor: .adaptive(light: NSColor(white: 0, alpha: 0.07), dark: NSColor(white: 1, alpha: 0.06)))
+        /// Count pills and the empty part of a bar on a raised card: quiet,
+        /// and still a visible shape in both appearances.
+        static let quietFill = Color(nsColor: .adaptive(light: NSColor(white: 0, alpha: 0.06), dark: NSColor(white: 1, alpha: 0.10)))
 
         /// Speakers in order of first appearance. Index 0 is always "You".
         /// Always show the name next to the color.

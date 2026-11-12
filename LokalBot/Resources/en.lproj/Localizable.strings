@@ -2586,3 +2586,11 @@
 "Codenames or clients, separated by commas" = "Codenames or clients, separated by commas";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Meetings, actions, and window titles that use any of these names are linked to the project.";
 "Suggested (one project)" = "Suggested";
+"%lld overdue" = "%lld overdue";
+"Showing the %lld most urgent" = "Showing the %lld most urgent";
+"Now · %@" = "Now · %@";
+"Upcoming meetings can show here too" = "Upcoming meetings can show here too";
+"Open day" = "Open day";
+"Priorities for today" = "Priorities for today";
+"Priorities from %@" = "Priorities from %@";
+"Priorities from a previous workday" = "Priorities from a previous workday";

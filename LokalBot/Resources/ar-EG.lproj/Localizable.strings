@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "أسماء كودية أو عملاء، وافصل بينهم بفاصلة";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "الاجتماعات والإجراءات وعناوين النوافذ اللي فيها أي اسم من دول بتتربط بالمشروع.";
 "Suggested (one project)" = "مقترح";
+"%lld overdue" = "%lld متأخر";
+"Showing the %lld most urgent" = "بنعرض أكتر %lld مستعجلين";
+"Now · %@" = "دلوقتي · %@";
+"Upcoming meetings can show here too" = "الاجتماعات الجاية ممكن تظهر هنا كمان";
+"Open day" = "افتح اليوم";
+"Priorities for today" = "أولويات النهارده";
+"Priorities from %@" = "أولويات من %@";
+"Priorities from a previous workday" = "أولويات من يوم شغل قبل كده";

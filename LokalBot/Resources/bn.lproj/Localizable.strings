@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "কোডনেম বা ক্লায়েন্ট, কমা দিয়ে আলাদা করুন";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "যেসব মিটিং, কাজ ও উইন্ডোর শিরোনামে এই নামগুলোর যেকোনোটি আছে, সেগুলো প্রকল্পের সঙ্গে সংযুক্ত হয়।";
 "Suggested (one project)" = "প্রস্তাবিত";
+"%lld overdue" = "%lldটির সময় পেরিয়েছে";
+"Showing the %lld most urgent" = "সবচেয়ে জরুরি %lldটি দেখানো হচ্ছে";
+"Now · %@" = "এখন · %@";
+"Upcoming meetings can show here too" = "আসন্ন মিটিংও এখানে দেখানো যায়";
+"Open day" = "দিনটি খুলুন";
+"Priorities for today" = "আজকের অগ্রাধিকার";
+"Priorities from %@" = "%@-এর অগ্রাধিকার";
+"Priorities from a previous workday" = "আগের এক কর্মদিবসের অগ্রাধিকার";

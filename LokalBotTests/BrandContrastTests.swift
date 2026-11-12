@@ -49,6 +49,37 @@ final class BrandContrastTests: XCTestCase {
         }
     }
 
+    /// Today's panels put small text on fills of their own: the count pill,
+    /// the red overdue badge, and the footer strip with its link. Each holds
+    /// 4.5:1 on the raised card in light, dark and both Increase Contrast
+    /// appearances, where supporting text is drawn in the label colour.
+    func testTodayPanelTextMeetsAAInEveryAppearance() {
+        let appearances: [(NSAppearance.Name, increased: Bool)] = [
+            (.aqua, false), (.darkAqua, false),
+            (.accessibilityHighContrastAqua, true), (.accessibilityHighContrastDarkAqua, true),
+        ]
+        for (appearance, increased) in appearances {
+            let card = resolve(.controlBackgroundColor, in: appearance)
+            func over(_ fill: Color, opacity: Double? = nil) -> NSColor {
+                let color = resolve(NSColor(fill), in: appearance)
+                return blend(color, over: card, alpha: opacity ?? Double(color.alphaComponent))
+            }
+            let supporting = resolve(increased ? .labelColor : WorkspaceTextColor.supporting, in: appearance)
+            let pairs: [(String, NSColor, NSColor)] = [
+                ("count pill", supporting, over(LBTokens.Palette.quietFill)),
+                ("overdue badge", resolve(NSColor(LBTokens.Palette.recordingText), in: appearance),
+                 over(LBTokens.Palette.recording, opacity: LBTokens.Palette.statusFillOpacity)),
+                ("footer text", supporting, over(LBTokens.Palette.groupFill)),
+                ("footer link", resolve(Brand.tealNSColor, in: appearance), over(LBTokens.Palette.groupFill)),
+                ("now line", resolve(NSColor(LBTokens.Palette.recordingText), in: appearance), card),
+                ("label on card", supporting, card),
+            ]
+            for (label, text, surface) in pairs {
+                XCTAssertGreaterThanOrEqual(contrast(text, surface), 4.5, "\(label) (\(appearance.rawValue))")
+            }
+        }
+    }
+
     func testSettingsAndAgentUseTheSharedAccent() {
         for (appearance, scheme) in schemes {
             let brand = resolve(Brand.tealNSColor, in: appearance)

@@ -2587,3 +2587,11 @@
 "Codenames or clients, separated by commas" = "కోడ్‌నేమ్‌లు లేదా క్లయింట్లు, కామాలతో వేరు చేయండి";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "ఈ పేర్లలో ఏదైనా వాడే సమావేశాలు, పనులు, విండో శీర్షికలు ఈ ప్రాజెక్ట్‌కి అనుసంధానమవుతాయి.";
 "Suggested (one project)" = "సూచించినది";
+"%lld overdue" = "%lld గడువు దాటాయి";
+"Showing the %lld most urgent" = "అత్యవసరమైన %lld చూపబడుతున్నాయి";
+"Now · %@" = "ఇప్పుడు · %@";
+"Upcoming meetings can show here too" = "రాబోయే సమావేశాలు కూడా ఇక్కడ కనిపించవచ్చు";
+"Open day" = "రోజును తెరవండి";
+"Priorities for today" = "ఈరోజు ప్రాధాన్యతలు";
+"Priorities from %@" = "%@ ప్రాధాన్యతలు";
+"Priorities from a previous workday" = "మునుపటి పని దినం ప్రాధాన్యతలు";
