@@ -309,18 +309,36 @@ final class TimelineDayListTests: XCTestCase {
     }
 
     /// The list is under Morning, Afternoon and Evening, so a 12-hour clock
-    /// shows "9:10" and "1:05": no AM or PM, and no leading zero (the first
-    /// hosted run showed "09:00").
+    /// shows "9:10" and "1:05": no AM or PM, and no leading zero (the hosted
+    /// runs on macOS 15 and 26 showed "09:10" from `Date.FormatStyle`).
     func testListTimesDropTheDayPeriodAndTheLeadingZeroOnATwelveHourClock() {
-        var style = TimelineListMetrics.timeStyle
-        style.timeZone = calendar.timeZone
-        style.locale = Locale(identifier: "en_US")
-        XCTAssertEqual(at(9, 10).formatted(style), "9:10")
-        XCTAssertEqual(at(13, 5).formatted(style), "1:05")
+        let zone = calendar.timeZone
+        func time(_ date: Date, _ locale: String) -> String {
+            TimelineListClock.text(date, locale: Locale(identifier: locale), timeZone: zone)
+        }
+        XCTAssertEqual(time(at(9, 10), "en_US"), "9:10")
+        XCTAssertEqual(time(at(13, 5), "en_US"), "1:05")
+        XCTAssertEqual(time(at(0, 30), "en_US"), "12:30")
+        // The day period goes wherever the language puts it.
+        XCTAssertEqual(time(at(13, 5), "ko_KR"), "1:05")
+        XCTAssertEqual(time(at(13, 5), "ar_SA@numbers=latn"), "1:05")
         // A 24-hour clock keeps its own form.
-        style.locale = Locale(identifier: "de_DE")
-        XCTAssertEqual(at(9, 10).formatted(style), "09:10")
-        XCTAssertEqual(at(13, 5).formatted(style), "13:05")
+        XCTAssertEqual(time(at(9, 10), "de_DE"), "09:10")
+        XCTAssertEqual(time(at(13, 5), "de_DE"), "13:05")
+        XCTAssertEqual(time(at(9, 10), "fr_FR"), "09:10")
+        XCTAssertEqual(time(at(9, 10), "sr_Latn_ME"), "09:10")
+    }
+
+    /// The pattern is the locale's own with the day period taken out, so it
+    /// does not depend on how a macOS release formats an hour without one.
+    func testListTimePatternHasNoDayPeriod() {
+        XCTAssertEqual(TimelineListClock.pattern(locale: Locale(identifier: "en_US")), "h:mm")
+        XCTAssertEqual(TimelineListClock.pattern(locale: Locale(identifier: "de_DE")), "HH:mm")
+        for identifier in ["en_US", "en_GB", "ja_JP", "ko_KR", "zh_Hans_CN", "zh_Hant_TW", "ar_SA", "hi_IN", "ur_PK"] {
+            let pattern = TimelineListClock.pattern(locale: Locale(identifier: identifier))
+            XCTAssertNil(pattern.rangeOfCharacter(from: CharacterSet(charactersIn: "aAbB ")), identifier)
+            XCTAssertFalse(pattern.hasPrefix("hh"), identifier)
+        }
     }
 
     func testArrowKeysStepFromTheDigestThroughTheRowsToAllCapturedActivity() {

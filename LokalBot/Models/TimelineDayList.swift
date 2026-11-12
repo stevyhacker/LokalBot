@@ -320,3 +320,54 @@ enum TimelineListSelection: Equatable {
         return order[min(max(index + step, 0), order.count - 1)]
     }
 }
+
+/// The time on a row of Timeline's list: "9:10" on a 12-hour clock, without
+/// AM or PM (the list is under Morning, Afternoon and Evening) and without a
+/// leading zero; a 24-hour clock keeps its locale's own form. The pattern is
+/// built here because `Date.FormatStyle` with the day period omitted pads
+/// the hour ("09:10") on macOS 15 and 26.
+enum TimelineListClock {
+    /// The locale's hour-and-minute pattern without its day period.
+    static func pattern(locale: Locale) -> String {
+        let full = DateFormatter.dateFormat(fromTemplate: "jmm", options: 0, locale: locale) ?? "HH:mm"
+        var kept = ""
+        var quoted = false
+        var isTwelveHour = false
+        for character in full {
+            if character == "'" { quoted.toggle() }
+            if !quoted, "aAbB".contains(character) { continue }
+            if !quoted, "hK".contains(character) { isTwelveHour = true }
+            kept.append(character)
+        }
+        if isTwelveHour {
+            kept = kept.replacingOccurrences(of: "hh", with: "h").replacingOccurrences(of: "KK", with: "K")
+        }
+        return kept.trimmingCharacters(in: .whitespaces)
+    }
+
+    static func text(_ date: Date, locale: Locale, timeZone: TimeZone) -> String {
+        formatter(locale: locale, timeZone: timeZone).string(from: date)
+    }
+
+    private struct Key: Equatable {
+        let locale: Locale
+        let timeZone: TimeZone
+    }
+
+    private static let lock = NSLock()
+    /// The last formatter made: a list draws every row with one locale.
+    nonisolated(unsafe) private static var cached: (key: Key, formatter: DateFormatter)?
+
+    private static func formatter(locale: Locale, timeZone: TimeZone) -> DateFormatter {
+        let key = Key(locale: locale, timeZone: timeZone)
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached, cached.key == key { return cached.formatter }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.dateFormat = pattern(locale: locale)
+        cached = (key, formatter)
+        return formatter
+    }
+}

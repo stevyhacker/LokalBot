@@ -297,14 +297,16 @@ struct TimelineListMetrics {
         let center = leadingInset + timeWidth + axisWidth / 2
         return center - 0.75
     }
+}
 
-    /// "9:10", without AM or PM and without a leading zero on a 12-hour
-    /// clock; a 24-hour clock keeps its own form.
-    static let timeStyle = Date.FormatStyle.dateTime
-        .hour(.conversationalDefaultDigits(amPM: .omitted)).minute()
+/// A row's time, in the interface's language and time zone.
+private struct TimelineListTime: View {
+    let date: Date
+    @Environment(\.locale) private var locale
+    @Environment(\.timeZone) private var timeZone
 
-    static func time(_ date: Date) -> Text {
-        Text(date, format: timeStyle)
+    var body: some View {
+        Text(verbatim: TimelineListClock.text(date, locale: locale, timeZone: timeZone))
     }
 }
 
@@ -327,7 +329,7 @@ private struct TimelineListRow: View {
     var body: some View {
         Button(action: onSelect) {
             HStack(alignment: .top, spacing: 0) {
-                TimelineListMetrics.time(row.start)
+                TimelineListTime(date: row.start)
                     .font(TimelineListStyle.detail.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
