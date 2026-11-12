@@ -461,11 +461,12 @@ private struct TimelineListAwayRow: View {
             Text("Away \(CaptureStyle.hm(end.timeIntervalSince(start)))")
                 .font(TimelineListStyle.detail)
                 .foregroundStyle(.tertiary)
+                // The label is on the text, which keeps its role; a
+                // container with only a label has none.
+                .accessibilityLabel("No activity from \(start.formatted(date: .omitted, time: .shortened)) to \(end.formatted(date: .omitted, time: .shortened))")
         }
         .frame(height: 24)
         .padding(.horizontal, 8)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("No activity from \(start.formatted(date: .omitted, time: .shortened)) to \(end.formatted(date: .omitted, time: .shortened))")
     }
 }
 

@@ -122,13 +122,14 @@ struct TodayMeetingsSection: View {
             Text(verbatim: time)
                 .font(AppFont.scaled(.subheadline).weight(.semibold).monospacedDigit())
                 .foregroundStyle(LBTokens.Palette.recordingText)
+                // The time is the element: a container with only a label
+                // has no role, which the accessibility audit reports.
+                .accessibilityIdentifier("today.meetings.now")
             Rectangle()
                 .fill(LBTokens.Palette.recording.opacity(0.6))
                 .frame(height: 1)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 3)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: time))
-        .accessibilityIdentifier("today.meetings.now")
     }
 }
