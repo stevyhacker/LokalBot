@@ -134,6 +134,10 @@ enum Row {
     File {
         hit: lokalbot_core::files::FileHit,
     },
+    /// A note one of the person's coding agents saved.
+    Note {
+        hit: lokalbot_core::agent_notes::NoteHit,
+    },
     Meeting {
         group: MeetingGroup,
     },
@@ -296,7 +300,7 @@ impl QuickRecall {
             return;
         }
         self.searching = true;
-        let (library, meetings, file_folders) = {
+        let (library, meetings, file_folders, agent_notes) = {
             let data = self.data.read(cx);
             (
                 data.library.clone(),
@@ -306,6 +310,7 @@ impl QuickRecall {
                 } else {
                     Vec::new()
                 },
+                data.settings.coding_agent_notes_enabled,
             )
         };
         let query = search::Query {
@@ -313,6 +318,7 @@ impl QuickRecall {
             meetings: true,
             screen: true,
             file_folders,
+            agent_notes,
             limit: 20,
             ..Default::default()
         };
@@ -421,7 +427,20 @@ impl QuickRecall {
         rows.extend(screens);
         rows.extend(meetings);
         rows.extend(self.file_rows());
+        rows.extend(self.note_rows());
         rows
+    }
+
+    /// Agent notes, after files.
+    fn note_rows(&self) -> Vec<Row> {
+        if self.query.trim().is_empty() {
+            return Vec::new();
+        }
+        self.results
+            .notes
+            .iter()
+            .map(|hit| Row::Note { hit: hit.clone() })
+            .collect()
     }
 
     /// Files, after meetings.
@@ -469,6 +488,12 @@ impl QuickRecall {
             // Files open in their own app, not in LokalBot's main window.
             Row::File { hit } => {
                 search::open_file(&hit);
+                self.close(window, cx);
+                return;
+            }
+            // A note opens the agent's own file, not LokalBot's main window.
+            Row::Note { hit } => {
+                search::open_note(&hit);
                 self.close(window, cx);
                 return;
             }
@@ -883,6 +908,43 @@ impl QuickRecall {
                         .into_any_element();
                     (leading, hit.name(), hit.excerpt.clone(), meta)
                 }
+                Row::Note { hit } => {
+                    let meta = format!(
+                        "{} · {}",
+                        hit.source_label(),
+                        date_label(hit.modified, Local::now())
+                    );
+                    let leading = div()
+                        .w(px(64.))
+                        .h(px(40.))
+                        .flex()
+                        .justify_center()
+                        .child(
+                            div()
+                                .size(px(40.))
+                                .rounded(metric::ROW_RADIUS)
+                                .bg(if selected {
+                                    white.opacity(0.18)
+                                } else {
+                                    lb.chip_fill
+                                })
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(ui::icon(
+                                    Ico::FileText,
+                                    px(18.),
+                                    if selected { white } else { lb.accent_text },
+                                )),
+                        )
+                        .into_any_element();
+                    (
+                        leading,
+                        hit.title.clone(),
+                        Some(search::note_snippet(hit)),
+                        meta,
+                    )
+                }
                 Row::Meeting { group } => {
                     let hit: &Hit = &group.hits[0];
                     let meta = format!(
@@ -1020,6 +1082,7 @@ impl QuickRecall {
             && screens.is_empty()
             && meetings.is_empty()
             && self.results.files.is_empty()
+            && self.results.notes.is_empty()
         {
             children.push(
                 v_flex()
@@ -1055,11 +1118,13 @@ impl QuickRecall {
         let mut index = 0;
         let mut rows: Vec<AnyElement> = Vec::new();
         let files = self.file_rows();
+        let notes = self.note_rows();
         for (title, section) in [
             (lokalbot_i18n::tr("Commands"), &commands),
             (lokalbot_i18n::tr("Screens"), &screens),
             (lokalbot_i18n::tr("Meetings"), &meetings),
             (lokalbot_i18n::tr("Files"), &files),
+            (lokalbot_i18n::tr("Agent notes"), &notes),
         ] {
             for (position, row) in section.iter().enumerate() {
                 let element = self.render_row(index, row, cx);

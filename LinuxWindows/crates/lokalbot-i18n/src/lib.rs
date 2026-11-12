@@ -304,6 +304,7 @@ pub fn count(n: usize, noun: &str) -> String {
         "work session" => ("{count} work session", "{count} work sessions"),
         "app" => ("{count} app", "{count} apps"),
         "file" => ("{count} file", "{count} files"),
+        "note" => ("{count} note", "{count} notes"),
         "retained moment" => ("{count} retained moment", "{count} retained moments"),
         _ => return format!("{} {noun}", number(n)),
     };

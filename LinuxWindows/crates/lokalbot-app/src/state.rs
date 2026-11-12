@@ -223,6 +223,8 @@ pub struct AppData {
     pub attached_asks: std::collections::HashMap<Uuid, AskScope>,
     /// What Files is doing now.
     pub files: lokalbot_engine::files::FileSearchStatus,
+    /// How many coding-agent notes are saved, or why none could be.
+    pub agent_notes: lokalbot_engine::agent_notes::AgentNotesStatus,
     pub timeline_focus: Option<TimelineFocus>,
     /// Today should open its Actions workspace ("Review Actions…").
     pub actions_requested: bool,
@@ -421,6 +423,8 @@ pub struct AskScope {
     pub include_screen: bool,
     /// The folders chosen under Files; the engine honours it only while Files is on.
     pub include_files: bool,
+    /// Saved coding-agent notes; the engine honours it only while they are read.
+    pub include_agent_notes: bool,
     /// Screens this question is bound to or attaches.
     pub screen_ids: Vec<i64>,
     /// `screen_ids` were attached by the person, as primary evidence.
@@ -524,6 +528,7 @@ impl AppData {
             ask_open_conversation: None,
             attached_asks: Default::default(),
             files: Default::default(),
+            agent_notes: Default::default(),
             meeting_preparation: None,
             sample_setup: None,
             routines: Default::default(),

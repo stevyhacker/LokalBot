@@ -12,13 +12,14 @@ pub const MAXIMUM_MESSAGE_BYTES: usize = 1_048_576;
 pub const BACKGROUND_LAUNCH_ARGUMENT: &str = "--autostart";
 
 /// Settings sections `open settings <name>` accepts besides setting keys.
-pub const SETTINGS_DESTINATIONS: [&str; 11] = [
+pub const SETTINGS_DESTINATIONS: [&str; 12] = [
     "models",
     "permissions",
     "agentAccess",
     "screenMemoryAccess",
     "personalContextAccess",
     "filesAccess",
+    "agentNotesAccess",
     "settingsControlAccess",
     "memoryHealth",
     "resourceMonitor",

@@ -508,6 +508,7 @@ mod tests {
             "fileSearchEnabled",
             "fileSearchFolders",
             "codingAgentEvidenceEnabled",
+            "codingAgentNotesEnabled",
             "memoryRoutineFolder",
             "dailyMemoryExportFolder",
             "meetingNoteExportFolder",

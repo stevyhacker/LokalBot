@@ -107,6 +107,7 @@ pub fn handle_request(event: &AppEvent, cx: &mut App) -> bool {
                 include_activity: scope.include_activity,
                 include_screen: scope.include_screen,
                 include_files: scope.include_files,
+                include_agent_notes: scope.include_agent_notes,
                 screen_ids: scope.screen_ids.clone(),
                 attached_screens: scope.attached_screens,
                 screen_app: scope.screen_app.clone(),
@@ -402,6 +403,7 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
             }
         }
         EngineEvent::Files(status) => data.files = status,
+        EngineEvent::AgentNotes(status) => data.agent_notes = status,
         EngineEvent::RecentDictations(entries) => data.recent_dictations = entries,
         EngineEvent::MeetingPreparation(preparation) => {
             data.meeting_preparation = Some(preparation)

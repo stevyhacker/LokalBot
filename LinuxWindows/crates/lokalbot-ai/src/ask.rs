@@ -49,6 +49,10 @@ pub struct AskScope {
     pub include_files: bool,
     /// Those folders; empty while Files is off, and then the tool isn't offered.
     pub file_folders: Vec<String>,
+    /// The notes the person's coding agents saved for themselves, searched
+    /// through `search_agent_notes`. False while Read coding agent notes is off
+    /// or nothing is saved, and then the tool isn't offered.
+    pub include_agent_notes: bool,
     /// Screens this question is bound to (attached or from the results).
     pub screen_ids: Vec<i64>,
     /// Limit screen search to one app.
@@ -202,6 +206,7 @@ impl Default for AskScope {
             search_by_meaning: true,
             include_files: false,
             file_folders: Vec::new(),
+            include_agent_notes: false,
             screen_ids: Vec::new(),
             screen_app: None,
             attached_context: None,
@@ -293,6 +298,8 @@ pub(crate) struct Sources {
     pub(crate) screens: BTreeSet<i64>,
     /// Passages from the folders chosen under Files.
     pub(crate) files: BTreeSet<i64>,
+    /// Saved coding-agent notes, by their lowercase hex ids.
+    pub(crate) notes: BTreeSet<String>,
     /// Source labels ("M1", "S2") and the markers they stand for.
     pub(crate) labels: HashMap<String, String>,
 }
@@ -316,6 +323,7 @@ impl Sources {
         }
         self.screens.extend(&other.screens);
         self.files.extend(&other.files);
+        self.notes.extend(other.notes.iter().cloned());
     }
 }
 
@@ -720,6 +728,30 @@ fn gather(
                 .insert(format!("F{}", number + 1), format!("[file:{}]", hit.id));
         }
     }
+    if scope.include_agent_notes {
+        on_event(AskEvent::Status("Searching agent notes…".into()));
+        let index = lokalbot_core::agent_notes::NotesIndex::new(library.paths().root());
+        let hits = index.search(&query_text, None, 6).unwrap_or_default();
+        for (number, hit) in hits.iter().enumerate() {
+            let body = index
+                .text_of(&hit.id)
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| hit.snippet.clone());
+            blocks.push(format!(
+                "[N{}] Coding agent's note (an agent's record, not a verified fact): {} ({}) · [note:{}]\n{}",
+                number + 1,
+                hit.title,
+                hit.source_label(),
+                hit.id,
+                sanitize::single_line(&body, 700)
+            ));
+            sources.notes.insert(hit.id.to_lowercase());
+            sources
+                .labels
+                .insert(format!("N{}", number + 1), format!("[note:{}]", hit.id));
+        }
+    }
     sources.text = blocks.join("\n\n");
     Ok(sources)
 }
@@ -744,7 +776,12 @@ fn record(
 /// The Mac chat system prompt (`ChatAgent.systemPrompt`) without its tool
 /// catalogue: sources are retrieved up front and supplied in the user
 /// message, so one model turn answers.
-fn system_prompt(think: &ThinkClient, include_screen: bool, include_files: bool) -> String {
+fn system_prompt(
+    think: &ThinkClient,
+    include_screen: bool,
+    include_files: bool,
+    include_agent_notes: bool,
+) -> String {
     let (context, screen) = if include_screen {
         (
             ", and about their workday context — text seen on screen and time spent in apps",
@@ -757,8 +794,13 @@ fn system_prompt(think: &ThinkClient, include_screen: bool, include_files: bool)
         "You are LokalBot's assistant. You answer questions about the user's on-device meeting recordings, transcripts and summaries{context}. The source library is stored on this PC. {} Be concise and specific, and cite meetings by their title and date. Never invent content — answer only from the sources in the user message, and if they hold nothing relevant, reply exactly: {NOT_FOUND}
 
 Citing sources:
-• When part of your final answer comes from a specific meeting, append a citation marker right after that sentence: [meeting:ID], or [meeting:ID@HH:MM:SS] to point at a moment in the transcript. Use the exact meeting id a source shows — never invent one. Use only a timestamp explicitly shown in a source. The app renders markers as links; don't explain them.{screen}{files}",
+• When part of your final answer comes from a specific meeting, append a citation marker right after that sentence: [meeting:ID], or [meeting:ID@HH:MM:SS] to point at a moment in the transcript. Use the exact meeting id a source shows — never invent one. Use only a timestamp explicitly shown in a source. The app renders markers as links; don't explain them.{screen}{files}{notes}",
         think.inference_privacy(),
+        notes = if include_agent_notes {
+            "\n• A coding agent's note is what an agent recorded at the time, not a verified fact: say that it comes from an agent's note, and prefer meetings or screen sources when they disagree. When part of your final answer comes from one, append the exact [note:ID] marker that source shows. The app links it to the agent's note. Never invent a note id."
+        } else {
+            ""
+        },
         files = if include_files {
             "\n• When part of your final answer comes from a file, append the exact [file:ID] marker that source shows. The app links it to the file on this PC. Never invent a file id."
         } else {
@@ -768,12 +810,14 @@ Citing sources:
 }
 
 static CITATION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(meeting|screen|file):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]")
-        .expect("valid regex")
+    Regex::new(
+        r"\[(meeting|screen|file|note):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]",
+    )
+    .expect("valid regex")
 });
 
 static LABEL: LazyLock<Regex> = LazyLock::new(|| {
-    let one = r"[MSF]\d{1,2}(?:@\d{1,2}(?::\d{2}){1,2})?";
+    let one = r"[MSFN]\d{1,2}(?:@\d{1,2}(?::\d{2}){1,2})?";
     Regex::new(&format!(r"\[({one}(?:\s*[,;]\s*{one})*)\]")).expect("valid regex")
 });
 
@@ -843,9 +887,11 @@ pub(crate) fn verified_partial(text: &str, sources: &Sources) -> String {
         let suffix = &text[bracket..];
         if "[meetings:".starts_with(suffix)
             || "[screen:".starts_with(suffix)
+            || "[note:".starts_with(suffix)
             || suffix.starts_with("[meeting:")
             || suffix.starts_with("[meetings:")
             || suffix.starts_with("[screen:")
+            || suffix.starts_with("[note:")
         {
             text = &text[..bracket];
         }
@@ -874,6 +920,15 @@ pub(crate) fn verified(text: &str, sources: &Sources) -> String {
                         format!("[file:{passage}]")
                     }
                     _ => "(source not verified)".into(),
+                };
+            }
+            if &caps[1] == "note" {
+                // Twelve hex characters, never with a time.
+                let note = id.to_lowercase();
+                return if caps.get(3).is_none() && sources.notes.contains(&note) {
+                    format!("[note:{note}]")
+                } else {
+                    "(source not verified)".into()
                 };
             }
             let lowered = id.to_lowercase();
@@ -981,6 +1036,7 @@ pub fn answer(
             think,
             scope.include_screen,
             scope.include_files && !scope.file_folders.is_empty(),
+            scope.include_agent_notes,
         ),
         ambient_block(scope)
     );

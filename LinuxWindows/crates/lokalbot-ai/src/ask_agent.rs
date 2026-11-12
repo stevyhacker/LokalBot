@@ -19,6 +19,7 @@ use serde_json::{Map, Value, json};
 use uuid::Uuid;
 
 use lokalbot_core::actions::OutcomeProjection;
+use lokalbot_core::agent_notes::{NoteHit, NotesIndex};
 use lokalbot_core::files::FileHit;
 use lokalbot_core::files::search::{FileInterval, FileReader};
 use lokalbot_core::model::{
@@ -491,6 +492,11 @@ const SEARCH_FILES: ToolSpec = ToolSpec {
         true,
     )],
 };
+const SEARCH_AGENT_NOTES: ToolSpec = ToolSpec {
+    name: "search_agent_notes",
+    summary: "Search the notes the user's coding agents (Claude Code, Codex) saved for their own later sessions: project decisions, how-tos, preferences and pointers. Returns matching notes with their text.",
+    arguments: &[("query", "Keywords to look for.", true)],
+};
 const ACTIVITY_SUMMARY: ToolSpec = ToolSpec {
     name: "activity_summary",
     summary: "How the user spent their time in apps on a given day: per-app durations, top windows, and any recorded meetings.",
@@ -573,6 +579,9 @@ impl<'a> Tools<'a> {
         if self.files_available() {
             specs.push(SEARCH_FILES);
         }
+        if self.scope.include_agent_notes {
+            specs.push(SEARCH_AGENT_NOTES);
+        }
         specs
     }
 
@@ -622,6 +631,9 @@ impl<'a> Tools<'a> {
             "search_screen" if self.scope.include_screen => self.search_screen(call),
             "activity_summary" if self.scope.include_activity => self.activity_summary(call),
             "search_files" if self.files_available() => self.search_files(call),
+            "search_agent_notes" if self.scope.include_agent_notes => {
+                Ok(self.search_agent_notes(call))
+            }
             name => Ok(ToolResult::plain(
                 format!("Unknown tool '{name}'."),
                 "unknown tool",
@@ -1106,6 +1118,46 @@ impl<'a> Tools<'a> {
         })
     }
 
+    /// Saved coding-agent notes that match, with their text. A note is an
+    /// agent's own record, so the heading says so.
+    fn search_agent_notes(&self, call: &ToolCall) -> ToolResult {
+        let index = NotesIndex::new(self.library.paths().root());
+        if !index.exists() {
+            return ToolResult::plain(
+                "Read coding agent notes is off, so no notes can be searched.",
+                "agent notes off",
+            );
+        }
+        let Some(query) = call.string("query") else {
+            return ToolResult::plain("Provide a 'query' argument.", "missing query");
+        };
+        let hits = index.search(query, None, 6).unwrap_or_default();
+        let mut evidence = Sources::default();
+        let mut lines = Vec::new();
+        for hit in &hits {
+            evidence.notes.insert(hit.id.to_lowercase());
+            let text = index.text_of(&hit.id).ok().flatten();
+            lines.push(note_line(hit, text.as_deref()));
+        }
+        let text = if lines.is_empty() {
+            format!("No coding-agent notes matched “{query}”.")
+        } else {
+            format!(
+                "Coding-agent notes matching “{query}” (written by the user's coding agents for their own later sessions; an agent's record, not a verified fact):\n{}",
+                lines.join("\n")
+            )
+        };
+        ToolResult {
+            text,
+            summary: format!(
+                "“{query}” — {} note{}",
+                hits.len(),
+                if hits.len() == 1 { "" } else { "s" }
+            ),
+            evidence,
+        }
+    }
+
     /// Files that match, with the passage that matched. Recordings and video are
     /// transcribed on demand: only the first two moments, to keep an answer quick.
     fn search_files(&self, call: &ToolCall) -> Result<ToolResult> {
@@ -1437,6 +1489,20 @@ fn file_line(hit: &FileHit, passage: Option<&str>) -> String {
     )
 }
 
+/// One line per note: its citation marker, title, agent and project, date,
+/// then its text (`MeetingChatFormat.agentNoteResults`).
+fn note_line(hit: &NoteHit, text: Option<&str>) -> String {
+    let body: String = text.unwrap_or(&hit.snippet).chars().take(1_200).collect();
+    format!(
+        "- [note:{}] {} ({}, {}): {}",
+        hit.id,
+        hit.title,
+        hit.source_label(),
+        date_label(hit.modified),
+        clean(&body)
+    )
+}
+
 // ---------------------------------------------------------------- prompt
 
 /// `ChatPrompt.systemPrompt`: the tool catalogue, how to call tools and
@@ -1483,6 +1549,13 @@ pub fn system_prompt(tools: &[ToolSpec], overview: &str, inference_privacy: &str
                 .into(),
         );
     }
+    let has_notes = tools.iter().any(|tool| tool.name == "search_agent_notes");
+    if has_notes {
+        lines.push(
+            "• Use search_agent_notes for what the user's coding agents wrote down for themselves: how a project is built or released, decisions and their reasons, preferences the user gave an agent, where things live. A note is an agent's record from when it was written, not a verified fact: say that it comes from an agent's note, and prefer meetings or screen evidence when they disagree."
+                .into(),
+        );
+    }
     lines.push(String::new());
     lines.push(
         "Citing sources:
@@ -1493,6 +1566,12 @@ pub fn system_prompt(tools: &[ToolSpec], overview: &str, inference_privacy: &str
     if has_files {
         lines.push(
             "• When part of your final answer comes from search_files, append the exact [file:ID] marker that search_files returned. The app links it to the file on this PC. Never invent a file id."
+                .into(),
+        );
+    }
+    if has_notes {
+        lines.push(
+            "• When part of your final answer comes from search_agent_notes, append the exact [note:ID] marker that search_agent_notes returned. The app links it to the agent's note. Never invent a note id."
                 .into(),
         );
     }
@@ -1557,6 +1636,7 @@ fn icon(tool: &str) -> &'static str {
         "search_screen" => "rectangle.on.rectangle",
         "activity_summary" => "calendar.day.timeline.left",
         "search_files" => "folder",
+        "search_agent_notes" => "note.text",
         _ => "wrench.and.screwdriver",
     }
 }
@@ -1589,6 +1669,10 @@ fn start_label(call: &ToolCall) -> String {
             "Searching your files for “{}”",
             call.string("query").unwrap_or("")
         ),
+        "search_agent_notes" => format!(
+            "Searching agent notes for “{}”",
+            call.string("query").unwrap_or("")
+        ),
         other => format!("Running {other}"),
     }
 }
@@ -1603,6 +1687,7 @@ fn finish_label(tool: &str, summary: &str) -> String {
         "search_screen" => format!("Searched screen text — {summary}"),
         "activity_summary" => format!("Summarised {summary}"),
         "search_files" => format!("Searched your files — {summary}"),
+        "search_agent_notes" => format!("Searched agent notes — {summary}"),
         _ => summary.to_string(),
     }
 }
@@ -2412,6 +2497,153 @@ mod tests {
             "{}",
             result.text
         );
+    }
+
+    fn library_with_notes() -> (tempfile::TempDir, Library, String) {
+        use lokalbot_core::agent_notes::{AgentNote, NoteScan, store};
+        use lokalbot_core::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+        let release = AgentNote {
+            id: "c0ffee000001".into(),
+            agent: ClaudeCode,
+            title: "Release runbook".into(),
+            summary: Some("Per-release lessons".into()),
+            category: Some("project".into()),
+            working_directory: Some("/Users/me/GitHub/app".into()),
+            path: "/Users/me/.claude/projects/-Users-me-GitHub-app/memory/release.md".into(),
+            modified_at: DateTime::from_timestamp(1_800_000_000, 0).unwrap(),
+            text: "Tag the release by SHA, never by branch name.".into(),
+        };
+        let build = AgentNote {
+            id: "c0ffee000002".into(),
+            agent: Codex,
+            title: "Build recipe".into(),
+            summary: None,
+            category: None,
+            working_directory: None,
+            path: "/Users/me/.codex/memories/MEMORY.md".into(),
+            modified_at: DateTime::from_timestamp(1_800_000_100, 0).unwrap(),
+            text: "Run xcodebuild with a derived data path outside Documents.".into(),
+        };
+        let id = release.id.clone();
+        let scan = NoteScan {
+            notes: vec![release, build],
+            ..Default::default()
+        };
+        store::apply(library.paths().root(), &scan, &[ClaudeCode, Codex]).unwrap();
+        (dir, library, id)
+    }
+
+    fn notes_call(query: &str) -> ToolCall {
+        ToolCall {
+            name: "search_agent_notes".into(),
+            arguments: [("query".to_string(), query.to_string())].into(),
+        }
+    }
+
+    #[test]
+    fn search_agent_notes_needs_its_source() {
+        let (_dir, library, _id) = library_with_notes();
+        let without = AskScope {
+            include_meetings: false,
+            include_agent_notes: false,
+            ..AskScope::default()
+        };
+        let tools = Tools::new(&library, None, without, Utc::now()).unwrap();
+        assert!(tools.specs().is_empty());
+        let denied = tools.run(&notes_call("release"));
+        assert_eq!(denied.text, "Unknown tool 'search_agent_notes'.");
+        assert!(denied.evidence.notes.is_empty());
+
+        let with = AskScope {
+            include_meetings: false,
+            include_agent_notes: true,
+            ..AskScope::default()
+        };
+        let tools = Tools::new(&library, None, with, Utc::now()).unwrap();
+        assert_eq!(
+            tools.specs().iter().map(|s| s.name).collect::<Vec<_>>(),
+            ["search_agent_notes"]
+        );
+        let missing = tools.run(&ToolCall {
+            name: "search_agent_notes".into(),
+            arguments: BTreeMap::new(),
+        });
+        assert_eq!(missing.summary, "missing query");
+    }
+
+    #[test]
+    fn search_agent_notes_cites_only_what_it_returned() {
+        let (dir, library, id) = library_with_notes();
+        let scope = AskScope {
+            include_agent_notes: true,
+            ..AskScope::default()
+        };
+        let tools = Tools::new(&library, None, scope, Utc::now()).unwrap();
+        let result = tools.run(&notes_call("release SHA"));
+        assert_eq!(result.evidence.notes, BTreeSet::from([id.clone()]));
+        assert!(
+            result
+                .text
+                .contains(&format!("[note:{id}] Release runbook (Claude Code · app, ")),
+            "{}",
+            result.text
+        );
+        assert!(
+            result.text.contains("Tag the release by SHA"),
+            "{}",
+            result.text
+        );
+        assert!(
+            result.text.contains("not a verified fact"),
+            "{}",
+            result.text
+        );
+        assert_eq!(result.summary, "“release SHA” — 1 note");
+        let none = tools.run(&notes_call("gardening"));
+        assert_eq!(none.text, "No coding-agent notes matched “gardening”.");
+        assert_eq!(none.summary, "“gardening” — 0 notes");
+
+        let answer =
+            "Releases are tagged by SHA [note:c0ffee000001]. Builds use Bazel [note:c0ffee0000ff].";
+        let cited = verified(answer, &result.evidence);
+        assert!(cited.contains("[note:c0ffee000001]"));
+        assert!(!cited.contains("[note:c0ffee0000ff]"));
+        assert!(cited.contains("(source not verified)"));
+        // Any case cites the same note; a time or a made-up id never does.
+        assert_eq!(
+            verified(
+                "[note:C0FFEE000001] [note:c0ffee000001@00:10] [note:xyz]",
+                &result.evidence
+            ),
+            "[note:c0ffee000001] (source not verified) (source not verified)"
+        );
+        assert_eq!(
+            verified_partial("Sure [note:c0ffee", &Sources::default()),
+            "Sure "
+        );
+        let mut evidence = Sources::default();
+        evidence.files.insert(1);
+        evidence.merge(&result.evidence);
+        assert!(evidence.notes.contains("c0ffee000001"));
+
+        // Turned off after the question was scoped: the saved copy is gone.
+        assert!(lokalbot_core::agent_notes::store::delete_all(dir.path()));
+        let off = tools.run(&notes_call("release"));
+        assert_eq!(off.summary, "agent notes off");
+        assert!(off.evidence.notes.is_empty());
+    }
+
+    #[test]
+    fn the_prompt_mentions_agent_notes_only_when_the_tool_is_offered() {
+        let without = system_prompt(&[SEARCH_SCREEN, SEARCH_FILES], "", "");
+        assert!(!without.contains("search_agent_notes"));
+        assert!(!without.contains("[note:ID]"));
+        let with = system_prompt(&[SEARCH_AGENT_NOTES], "", "");
+        assert!(with.contains("Use search_agent_notes"));
+        assert!(with.contains("not a verified fact"));
+        assert!(with.contains("[note:ID]"));
     }
 
     #[test]

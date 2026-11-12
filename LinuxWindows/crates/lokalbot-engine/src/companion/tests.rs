@@ -1207,9 +1207,13 @@ fn meeting_markers_become_numbered_citations() {
 
 #[test]
 fn screen_file_and_unknown_citations_carry_no_meeting() {
-    let (answer, citations) =
-        ask::map_citations("A [screen:42], B [file:7], C [meeting:abc@1:05].", &[]);
-    assert_eq!(answer, "A [1], B [2], C [3].");
+    let (answer, citations) = ask::map_citations(
+        "A [screen:42], B [file:7], C [meeting:abc@1:05], D [note:c0ffee000001].",
+        &[],
+    );
+    assert_eq!(answer, "A [1], B [2], C [3], D [4].");
+    assert_eq!(citations[3].label, "Agent note");
+    assert_eq!(citations[3].meeting_id, None);
     assert_eq!(citations[0].label, "Screen moment");
     assert_eq!(citations[0].meeting_id, None);
     assert_eq!(citations[1].label, "File");

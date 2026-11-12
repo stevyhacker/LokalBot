@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use chrono::{DateTime, Utc};
+use lokalbot_core::agent_notes::{NoteHit, NotesIndex};
 use lokalbot_core::embeddings::{MEETING_SIMILARITY_FLOOR, RRF_K};
 use lokalbot_core::files::FileHit;
 use lokalbot_core::files::search::{FileInterval, FileReader};
@@ -109,10 +110,11 @@ pub enum Facet {
     Outcomes,
     Screen,
     Files,
+    AgentNotes,
 }
 
 impl Facet {
-    pub const ALL: [Facet; 7] = [
+    pub const ALL: [Facet; 8] = [
         Facet::All,
         Facet::Transcripts,
         Facet::Summaries,
@@ -120,6 +122,7 @@ impl Facet {
         Facet::Outcomes,
         Facet::Screen,
         Facet::Files,
+        Facet::AgentNotes,
     ];
 
     pub fn label(self) -> &'static str {
@@ -131,12 +134,13 @@ impl Facet {
             Facet::Outcomes => lokalbot_i18n::tr("Outcomes"),
             Facet::Screen => lokalbot_i18n::tr("Screen"),
             Facet::Files => lokalbot_i18n::tr("Files"),
+            Facet::AgentNotes => lokalbot_i18n::tr("Agent notes"),
         }
     }
 
     fn kinds(self) -> Option<Vec<DocKind>> {
         match self {
-            Facet::All | Facet::Screen | Facet::Files => None,
+            Facet::All | Facet::Screen | Facet::Files | Facet::AgentNotes => None,
             Facet::Transcripts => Some(vec![DocKind::Segment]),
             Facet::Summaries => Some(vec![DocKind::Summary]),
             Facet::Notes => Some(vec![DocKind::Notes]),
@@ -153,6 +157,9 @@ pub struct Query {
     pub screen: bool,
     /// The folders chosen under Files; empty while Files is off.
     pub file_folders: Vec<String>,
+    /// Saved coding-agent notes are searched: the source is chosen and Read
+    /// coding agent notes is on.
+    pub agent_notes: bool,
     /// Limit screen results to one app.
     pub screen_app: Option<String>,
     pub screen_ids: Option<Vec<i64>>,
@@ -168,7 +175,9 @@ pub struct Results {
     pub meetings: Vec<MeetingGroup>,
     pub screens: Vec<ScreenResult>,
     pub files: Vec<FileHit>,
-    /// More meetings matched than `limit`.
+    /// Notes the person's coding agents saved, matched by their words.
+    pub notes: Vec<NoteHit>,
+    /// More meetings or notes matched than `limit`.
     pub truncated: bool,
 }
 
@@ -181,6 +190,10 @@ impl Query {
 
     fn searches_files(&self) -> bool {
         !self.file_folders.is_empty() && matches!(self.facet, Facet::All | Facet::Files)
+    }
+
+    fn searches_notes(&self) -> bool {
+        self.agent_notes && matches!(self.facet, Facet::All | Facet::AgentNotes)
     }
 
     fn screen_filter(&self) -> ScreenFilter {
@@ -340,7 +353,12 @@ pub fn run(library: &Library, meetings: &[Meeting], query: &Query) -> Results {
     if text.is_empty() {
         return results;
     }
-    if query.meetings && !matches!(query.facet, Facet::Screen | Facet::Files) {
+    if query.meetings
+        && !matches!(
+            query.facet,
+            Facet::Screen | Facet::Files | Facet::AgentNotes
+        )
+    {
         ensure_indexed(library);
         let search = SearchQuery {
             text: text.to_string(),
@@ -408,7 +426,58 @@ pub fn run(library: &Library, meetings: &[Meeting], query: &Query) -> Results {
             query.limit.max(1),
         );
     }
+    if query.searches_notes() {
+        let (notes, truncated) = note_hits(library, query, text);
+        results.notes = notes;
+        results.truncated |= truncated;
+    }
     results
+}
+
+/// Saved coding-agent notes matching the query's words, and whether more
+/// matched than are listed. A date scope keeps the notes last changed inside
+/// it. Notes have no vectors, so meaning never changes this list.
+fn note_hits(library: &Library, query: &Query, text: &str) -> (Vec<NoteHit>, bool) {
+    let limit = query.limit.max(1);
+    let dated = query.since.is_some() || query.until.is_some();
+    let found = NotesIndex::new(library.paths().root())
+        .search(text, None, if dated { 400 } else { limit + 1 })
+        .unwrap_or_else(|err| {
+            log::warn!("agent notes search failed: {err:#}");
+            Vec::new()
+        });
+    let mut notes: Vec<NoteHit> = found
+        .into_iter()
+        .filter(|hit| {
+            query.since.is_none_or(|since| hit.modified >= since)
+                && query.until.is_none_or(|until| hit.modified < until)
+        })
+        .collect();
+    let truncated = notes.len() > limit;
+    notes.truncate(limit);
+    (notes, truncated)
+}
+
+/// What a note row shows under its title: the matched words, or the agent's
+/// own description, or where the note is.
+pub fn note_snippet(hit: &NoteHit) -> String {
+    if !hit.snippet.trim().is_empty() {
+        return hit.snippet.clone();
+    }
+    hit.summary.clone().unwrap_or_else(|| hit.path.clone())
+}
+
+/// Opens the agent's own file for a note in its default app. LokalBot keeps a
+/// copy for search only and never edits the file.
+pub fn open_note(hit: &NoteHit) {
+    let path = std::path::Path::new(&hit.path);
+    if !path.exists() {
+        log::info!("the agent's note is no longer on disk");
+        return;
+    }
+    if let Err(err) = lokalbot_platform::opener::open_path(path) {
+        log::warn!("could not open the agent's note: {err:#}");
+    }
 }
 
 /// Screens and files again, with the query's vector: text and picture vectors on

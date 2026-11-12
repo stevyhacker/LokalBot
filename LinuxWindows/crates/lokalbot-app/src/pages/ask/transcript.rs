@@ -145,6 +145,7 @@ impl AskPage {
         let live_attachments = self
             .selected
             .is_some_and(|id| data.attached_asks.contains_key(&id));
+        let offered = super::scope::Offered::new(&data.settings);
         let mut turns = Vec::new();
         let mut previous_user: Option<Option<DateTime<Utc>>> = None;
         let mut previous_question: Option<&lokalbot_core::ChatMessage> = None;
@@ -164,7 +165,7 @@ impl AskPage {
                         divider,
                         latest: Some(message.id) == latest_user,
                         scope: super::scope::question_scope_changed(message, previous_question)
-                            .then(|| super::scope::question_scope_summary(message))
+                            .then(|| super::scope::question_scope_summary(message, offered))
                             .flatten(),
                     });
                     previous_user = Some(created_at);
@@ -542,6 +543,7 @@ impl AskPage {
         if !answer.citations.is_empty() && !stopped && error.is_none() {
             self.load_screen_citations(&answer.citations, cx);
             self.load_file_citations(&answer.citations, cx);
+            self.load_note_citations(&answer.citations, cx);
             column = column.child(self.render_evidence(id, &answer.citations, cx));
         }
         if !used_claims.is_empty() && !stopped && error.is_none() {
@@ -556,7 +558,9 @@ impl AskPage {
             .iter()
             .filter_map(|source| match source {
                 CitationSource::Screen { snapshot_id } => Some(*snapshot_id),
-                CitationSource::Meeting { .. } | CitationSource::File { .. } => None,
+                CitationSource::Meeting { .. }
+                | CitationSource::File { .. }
+                | CitationSource::Note { .. } => None,
             })
             .filter(|id| {
                 !self.screen_citations.contains_key(id)
@@ -625,6 +629,43 @@ impl AskPage {
         .detach();
     }
 
+    /// Reads the cited coding-agent notes that are not loaded yet, off the UI
+    /// thread. Nothing resolves while Read coding agent notes is off: the saved
+    /// copy is gone with it.
+    fn load_note_citations(&mut self, sources: &[CitationSource], cx: &mut Context<Self>) {
+        let missing: Vec<String> = sources
+            .iter()
+            .filter_map(|source| match source {
+                CitationSource::Note { id } => Some(id.clone()),
+                _ => None,
+            })
+            .filter(|id| citations::known_note_citation(id).is_none())
+            .filter(|id| self.loading_note_citations.insert(id.clone()))
+            .collect();
+        if missing.is_empty() {
+            return;
+        }
+        let (root, enabled) = {
+            let data = self.data.read(cx);
+            (
+                data.library.paths().root().to_path_buf(),
+                data.settings.coding_agent_notes_enabled,
+            )
+        };
+        cx.spawn(async move |this, cx| {
+            cx.background_spawn(async move {
+                let index = lokalbot_core::agent_notes::NotesIndex::new(&root);
+                for id in missing {
+                    let hit = enabled.then(|| index.hit(&id).ok().flatten()).flatten();
+                    citations::remember_note_citation(&id, hit);
+                }
+            })
+            .await;
+            let _ = this.update(cx, |_, cx| cx.notify());
+        })
+        .detach();
+    }
+
     fn parsed_answer(&mut self, id: Uuid, text: &str) -> Rc<Answer> {
         let mut hasher = DefaultHasher::new();
         text.hash(&mut hasher);
@@ -643,6 +684,15 @@ impl AskPage {
         if let CitationSource::File { id } = source {
             if let Some(Some(hit)) = citations::known_file_citation(*id) {
                 super::search::open_file(&hit);
+            }
+            return;
+        }
+        if let CitationSource::Note { id } = source {
+            // A cited note opens the agent's own file, while notes are read.
+            if self.data.read(cx).settings.coding_agent_notes_enabled
+                && let Some(Some(hit)) = citations::known_note_citation(id)
+            {
+                super::search::open_note(&hit);
             }
             return;
         }

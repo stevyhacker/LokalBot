@@ -19,19 +19,25 @@ pub enum AskSourceScope {
     Today,
     Screen,
     Files,
+    /// Notes the person's coding agents saved for themselves. Offered only
+    /// while Read coding agent notes is on.
+    #[serde(rename = "Agent notes")]
+    AgentNotes,
 }
 
 impl AskSourceScope {
     /// In the order questions save them.
-    pub const ALL: [AskSourceScope; 4] = [
+    pub const ALL: [AskSourceScope; 5] = [
         AskSourceScope::Meetings,
         AskSourceScope::Today,
         AskSourceScope::Screen,
         AskSourceScope::Files,
+        AskSourceScope::AgentNotes,
     ];
 
-    /// Every source. Files is part of "All sources" whether or not it is on, so
-    /// turning it on or off never makes an earlier question look narrowed.
+    /// Every source. Files and Agent notes are part of "All sources" whether or
+    /// not they are on, so turning one on or off never makes an earlier question
+    /// look narrowed.
     pub fn defaults() -> BTreeSet<AskSourceScope> {
         Self::ALL.into_iter().collect()
     }

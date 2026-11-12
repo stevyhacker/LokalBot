@@ -54,8 +54,10 @@ impl AskOutput for AskSink {
 /// `ChatCitationParser.pattern`: short or full meeting ids, positive screen
 /// and file row ids; meeting stamps accept M:SS, MM:SS or HH:MM:SS.
 static MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(meeting|screen|file):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]")
-        .expect("valid pattern")
+    Regex::new(
+        r"\[(meeting|screen|file|note):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]",
+    )
+    .expect("valid pattern")
 });
 static SPACE_BEFORE_PUNCTUATION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[ \t]+([.,;:!?])").expect("valid pattern"));
@@ -64,9 +66,14 @@ static DOUBLED_SPACES: LazyLock<Regex> =
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParsedCitation {
-    Meeting { id: String, seconds: Option<f64> },
+    Meeting {
+        id: String,
+        seconds: Option<f64>,
+    },
     Screen(i64),
     File(i64),
+    /// A saved coding-agent note, by its hex id.
+    Note(String),
 }
 
 fn stamp_seconds(stamp: &str) -> Option<f64> {
@@ -88,7 +95,10 @@ fn stamp_seconds(stamp: &str) -> Option<f64> {
 /// citations (`ChatCitationParser.extract`). Repeated sources keep their
 /// first number; a malformed marker stays as text.
 pub fn extract_citations(text: &str) -> (String, Vec<ParsedCitation>) {
-    if !text.contains("[meeting:") && !text.contains("[screen:") && !text.contains("[file:") {
+    if !["[meeting:", "[screen:", "[file:", "[note:"]
+        .iter()
+        .any(|marker| text.contains(marker))
+    {
         return (text.to_string(), Vec::new());
     }
     let mut citations: Vec<ParsedCitation> = Vec::new();
@@ -109,6 +119,13 @@ pub fn extract_citations(text: &str) -> (String, Vec<ParsedCitation>) {
                 .ok()
                 .filter(|id| *id > 0)
                 .map(ParsedCitation::File),
+            "note"
+                if stamp.is_none()
+                    && source.len() >= 8
+                    && source.chars().all(|c| c.is_ascii_hexdigit()) =>
+            {
+                Some(ParsedCitation::Note(source.to_lowercase()))
+            }
             "meeting"
                 if source.chars().count() >= 3
                     && stamp.is_none_or(|s| stamp_seconds(s).is_some()) =>
@@ -201,6 +218,15 @@ pub fn map_citations(answer: &str, meetings: &[Meeting]) -> (String, Vec<AskCita
                         label: "File".into(),
                     };
                 }
+                // Agent notes are never searched for a device either.
+                ParsedCitation::Note(_) => {
+                    return AskCitation {
+                        index,
+                        meeting_id: None,
+                        at: None,
+                        label: "Agent note".into(),
+                    };
+                }
             };
             let Some(meeting) = resolve_meeting(&id, meetings) else {
                 return AskCitation {
@@ -256,7 +282,7 @@ fn without_partial_marker(text: &str) -> &str {
     };
     let suffix = &text[bracket..];
     let writing = !suffix.contains(']')
-        && ["[meeting:", "[meetings:", "[screen:", "[file:"]
+        && ["[meeting:", "[meetings:", "[screen:", "[file:", "[note:"]
             .iter()
             .any(|marker| marker.starts_with(suffix) || suffix.starts_with(marker));
     if writing { &text[..bracket] } else { text }
@@ -474,9 +500,10 @@ impl AskResponder {
             work_memory: String::new(),
             search_by_meaning: lokalbot_core::Settings::load(&self.library.paths().settings_file())
                 .semantic_search_enabled,
-            // Nor the folders chosen under Files.
+            // Nor the folders chosen under Files, nor coding-agent notes.
             include_files: false,
             file_folders: Vec::new(),
+            include_agent_notes: false,
             screen_ids: Vec::new(),
             screen_app: None,
             attached_context: None,

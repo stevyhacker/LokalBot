@@ -19,7 +19,7 @@ LokalBot is your personal context engine: a private work-memory app for macOS, w
 | Answers and drafts | `ask`, `reply` (LokalBot's local model, from your meetings) |
 | Commitments and people | `actions`, `people` |
 | Your files | `search-files` |
-| Notes your coding agents saved (Mac) | `search-notes` |
+| Notes your coding agents saved | `search-notes` |
 | What you shared | `personal-context` |
 | Settings and setup | `config`, `secret`, `status`, `open`, `setup`, `models`, `permissions`, `doctor`, `restart` |
 
@@ -39,7 +39,7 @@ It runs `lokalbot-cli mcp` over stdio, with the same tools on every platform:
 | Meetings | `list_meetings`, `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, `get_person` |
 | Screen memory | `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, `get_screenshot_detail` (text and metadata only, never screenshots) |
 | Files | `search_files` |
-| Agent notes (Mac) | `search_agent_notes` |
+| Agent notes | `search_agent_notes` |
 | What I shared about myself | `get_personal_context` |
 
 ## Install
@@ -61,9 +61,9 @@ If you also ran `lokalbot-cli install-skill`, Claude Code sees the skill twice, 
 Reading needs an explicit opt-in in the LokalBot app, and each kind of data needs its own:
 
 - **Mac**: Settings → External Agents → **Allow external agents to read your LokalBot data**, then tick Meetings, Screen memory, What I shared about myself, Files, or Agent notes. Screen memory is further limited to today, the last seven days, or all retained history.
-- **Windows and Linux**: Settings → Privacy & Data, where each has its own switch under External agents: meeting library, screen memory, files, and What I shared about myself.
+- **Windows and Linux**: Settings → Privacy & Data, where each has its own switch under External agents: meeting library, screen memory, files, agent notes, and What I shared about myself.
 
-When something is off, a tool returns `[access_disabled]` (meetings), `[screen_access_disabled]`, `[files_access_disabled]`, or `[personal_context_disabled]`, and the plugin tells you where to turn it on rather than working around it.
+When something is off, a tool returns `[access_disabled]` (meetings), `[screen_access_disabled]`, `[files_access_disabled]`, `[agent_notes_access_disabled]`, or `[personal_context_disabled]`, and the plugin tells you where to turn it on rather than working around it.
 
 Changing settings is a separate permission: **Allow external agents to change LokalBot settings**, in the same place. With it, Claude can apply preferences directly. Anything that widens what LokalBot captures, reads, records, or sends, and every API key, goes to an approval card in LokalBot and waits for you. `/lokalbot:setup` asks for this permission with `setup start`, which you approve with one click.
 

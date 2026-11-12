@@ -468,6 +468,15 @@ pub(super) fn table() -> Vec<SettingSpec> {
             "Comma-separated folders whose coding-agent sessions are never read.",
         ),
         e(
+            "codingAgentNotesEnabled",
+            DayMemory,
+            "Read coding agent notes",
+            Bool,
+            Consent,
+            "claude code codex agent memory notes memories search",
+            "Read the notes Claude Code and Codex keep for themselves into a searchable index.",
+        ),
+        e(
             "dailyMemoryExportEnabled",
             Daily,
             "Export a daily memory note",

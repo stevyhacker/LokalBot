@@ -160,6 +160,7 @@ impl Section {
 pub struct SettingsPage {
     /// The Files grant as last set here; `None` reads the marker.
     files_access: Option<bool>,
+    agent_notes_access: Option<bool>,
     data: Entity<AppData>,
     search: Entity<InputState>,
     query: String,
@@ -623,6 +624,7 @@ impl SettingsPage {
             overnight: Default::default(),
             personal: Default::default(),
             files_access: None,
+            agent_notes_access: None,
             meetings_access: None,
             screen_access: None,
             cli_installed: None,
@@ -761,13 +763,14 @@ impl SettingsPage {
     fn reload_access(&mut self, cx: &mut Context<Self>) {
         let paths = self.data.read(cx).library.paths().clone();
         cx.spawn(async move |this, cx| {
-            let (meetings, screen, personal, files, cli, on_path) = cx
+            let (meetings, screen, personal, files, notes, cli, on_path) = cx
                 .background_spawn(async move {
                     (
                         lokalbot_core::access::meetings_access_enabled(&paths),
                         lokalbot_core::access::screen_access_scope(&paths),
                         lokalbot_core::access::personal_context_enabled(&paths),
                         lokalbot_core::files::access::is_enabled(&paths),
+                        lokalbot_core::agent_notes::access::is_enabled(&paths),
                         lokalbot_cli::install::installed_for_current_user(),
                         lokalbot_cli::install::on_path_for_current_user(),
                     )
@@ -778,6 +781,7 @@ impl SettingsPage {
                 this.screen_access = Some(screen);
                 this.personal.access_on = personal;
                 this.files_access = Some(files);
+                this.agent_notes_access = Some(notes);
                 this.cli_installed = Some(cli);
                 this.cli_on_path = Some(on_path);
                 cx.notify();

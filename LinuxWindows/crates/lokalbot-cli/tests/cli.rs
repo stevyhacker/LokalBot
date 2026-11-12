@@ -59,6 +59,10 @@ fn commands_honor_the_access_gate() {
         (&["list"][..], "access_disabled"),
         (&["search-files", "invoice"][..], "files_access_disabled"),
         (
+            &["search-notes", "release"][..],
+            "agent_notes_access_disabled",
+        ),
+        (
             &["personal-context", "--task", "Plan a trip"][..],
             "personal_context_disabled",
         ),
@@ -170,6 +174,8 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
     let paths = LibraryPaths::new(&root);
     access::set_meetings_access(&paths, true).unwrap();
     access::set_screen_access(&paths, Some(access::ScreenScope::RecentWeek)).unwrap();
+    lokalbot_core::agent_notes::access::set_enabled(&paths, true).unwrap();
+    save_notes(&paths);
     let brief = stdout(&cli(&root, &["brief"]));
     let tools = lokalbot_cli::mcp::Provider {
         session: lokalbot_cli::session::Session::open(paths).unwrap(),
@@ -198,16 +204,21 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
         "search_screen",
         "get_timeline",
         "get_personal_context",
+        "search_agent_notes",
     ] {
         assert!(!brief.contains(tool), "{tool} in {brief}");
     }
+    assert!(brief.contains(
+        "- Agent notes: on, 2 notes saved by the user's coding agents, searched by words. Command: search-notes."
+    ));
+    assert!(tools.contains("searched by words. Tool: search_agent_notes."));
     assert!(tools.contains(". Tools: search_meetings, get_meeting, list_meetings,"));
     assert!(tools.contains(
         "list_meetings with include \"summary\" for several meetings' summaries at once"
     ));
 
-    // The same briefing apart from the names: the meetings, screen and
-    // closing lines differ, nothing else.
+    // The same briefing apart from the names: the meetings, screen, agent
+    // notes and closing lines differ, nothing else.
     let brief_lines: Vec<&str> = brief.trim_end().lines().collect();
     let tool_lines: Vec<&str> = tools.lines().collect();
     assert_eq!(brief_lines.len(), tool_lines.len());
@@ -217,10 +228,228 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
         .filter(|(a, b)| a != b)
         .map(|(a, _)| *a)
         .collect();
-    assert_eq!(differing.len(), 3, "{differing:#?}");
+    assert_eq!(differing.len(), 4, "{differing:#?}");
     assert!(differing[0].starts_with("- Meetings: on."));
     assert!(differing[1].starts_with("- Screen memory: on,"));
-    assert!(differing[2].starts_with("For more"));
+    assert!(differing[2].starts_with("- Agent notes: on,"));
+    assert!(differing[3].starts_with("For more"));
+}
+
+/// Two saved coding-agent notes, as the app's reader would leave them.
+fn save_notes(paths: &LibraryPaths) {
+    use lokalbot_core::agent_notes::{AgentNote, NoteScan, store};
+    use lokalbot_core::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
+    let release = AgentNote {
+        id: "c0ffee000001".into(),
+        agent: ClaudeCode,
+        title: "Release runbook".into(),
+        summary: Some("Per-release lessons".into()),
+        category: Some("project".into()),
+        working_directory: Some("/Users/me/GitHub/app".into()),
+        path: "/Users/me/.claude/projects/-Users-me-GitHub-app/memory/release.md".into(),
+        modified_at: chrono::DateTime::from_timestamp(1_800_000_000, 0).unwrap(),
+        text: "Tag the release by SHA, never by branch name.".into(),
+    };
+    let build = AgentNote {
+        id: "c0ffee000002".into(),
+        agent: Codex,
+        title: "Build recipe".into(),
+        summary: None,
+        category: None,
+        working_directory: None,
+        path: "/Users/me/.codex/memories/MEMORY.md".into(),
+        modified_at: chrono::DateTime::from_timestamp(1_800_000_100, 0).unwrap(),
+        text: "Run xcodebuild with a derived data path outside Documents.".into(),
+    };
+    let scan = NoteScan {
+        notes: vec![release, build],
+        ..Default::default()
+    };
+    store::apply(paths.root(), &scan, &[ClaudeCode, Codex]).unwrap();
+}
+
+/// `search-notes` answers only under its own grant, and only while notes are
+/// saved; the saved copy is never created or changed by a search.
+#[test]
+fn search_notes_needs_its_own_grant_then_saved_notes() {
+    let (_dir, root) = seeded();
+    let paths = LibraryPaths::new(&root);
+    // Every other read grant is on.
+    access::set_meetings_access(&paths, true).unwrap();
+    access::set_screen_access(&paths, Some(access::ScreenScope::RetainedHistory)).unwrap();
+    lokalbot_core::files::access::set_enabled(&paths, true).unwrap();
+    let stderr = |output: &Output| String::from_utf8_lossy(&output.stderr).into_owned();
+
+    let refused = cli(&root, &["search-notes", "release"]);
+    assert_eq!(refused.status.code(), Some(1));
+    assert!(
+        stderr(&refused)
+            .starts_with("Error: [agent_notes_access_disabled] Agent-notes access is off."),
+        "{}",
+        stderr(&refused)
+    );
+    assert!(stdout(&cli(&root, &["brief"])).contains("- Agent notes: off."));
+
+    lokalbot_core::agent_notes::access::set_enabled(&paths, true).unwrap();
+    let empty = cli(&root, &["search-notes", "release"]);
+    assert_eq!(empty.status.code(), Some(1));
+    assert!(
+        stderr(&empty).starts_with("Error: [agent_notes_unavailable] "),
+        "{}",
+        stderr(&empty)
+    );
+    assert!(
+        !lokalbot_core::agent_notes::database_path(&root).exists(),
+        "searching never creates the saved copy"
+    );
+    assert!(
+        stdout(&cli(&root, &["brief"]))
+            .contains("- Agent notes: on, but Read coding agent notes is off")
+    );
+
+    save_notes(&paths);
+    let saved = std::fs::read(lokalbot_core::agent_notes::database_path(&root)).unwrap();
+    let found = cli(&root, &["search-notes", "release"]);
+    assert!(found.status.success(), "{}", stderr(&found));
+    let report: serde_json::Value = serde_json::from_str(&stdout(&found)).unwrap();
+    assert_eq!(report["matched_by"], "words");
+    assert_eq!(report["query"], "release");
+    assert!(
+        report["note"]
+            .as_str()
+            .unwrap()
+            .contains("not a verified fact")
+    );
+    let results = report["results"].as_array().unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["id"], "c0ffee000001");
+    assert_eq!(results[0]["agent"], "claude-code");
+    assert_eq!(results[0]["title"], "Release runbook");
+    assert_eq!(results[0]["type"], "project");
+    assert_eq!(results[0]["project"], "/Users/me/GitHub/app");
+    assert_eq!(
+        results[0]["text"],
+        "Tag the release by SHA, never by branch name."
+    );
+    assert!(
+        results[0]["excerpt"]
+            .as_str()
+            .unwrap()
+            .contains("«release»")
+    );
+
+    let table = stdout(&cli(
+        &root,
+        &[
+            "search-notes",
+            "xcodebuild",
+            "--agent",
+            "codex",
+            "--limit",
+            "5",
+            "--table",
+        ],
+    ));
+    assert!(
+        table.starts_with("codex\t2027-01-15\tBuild recipe\n"),
+        "{table}"
+    );
+    assert!(table.contains("/Users/me/.codex/memories/MEMORY.md"));
+    let other_agent = cli(
+        &root,
+        &["search-notes", "xcodebuild", "--agent", "claude-code"],
+    );
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&stdout(&other_agent)).unwrap()["results"],
+        serde_json::json!([])
+    );
+
+    // Bad arguments are usage errors, with or without the grant.
+    for arguments in [
+        &["search-notes", "release", "--agent", "cursor"][..],
+        &["search-notes", "release", "--limit", "31"][..],
+        &["search-notes", " "][..],
+    ] {
+        let invalid = cli(&root, arguments);
+        assert_eq!(invalid.status.code(), Some(64), "{arguments:?}");
+    }
+    assert_eq!(
+        std::fs::read(lokalbot_core::agent_notes::database_path(&root)).unwrap(),
+        saved,
+        "a search never changes the saved notes"
+    );
+}
+
+/// The MCP tool is refused without its grant whatever else is granted.
+#[test]
+fn mcp_search_agent_notes_is_refused_without_its_grant() {
+    let (_dir, root) = seeded();
+    let paths = LibraryPaths::new(&root);
+    access::set_meetings_access(&paths, true).unwrap();
+    lokalbot_core::files::access::set_enabled(&paths, true).unwrap();
+    save_notes(&paths);
+    let tools = lokalbot_cli::mcp::Provider {
+        session: lokalbot_cli::session::Session::open(paths.clone()).unwrap(),
+        now: None,
+    };
+    let listed = lokalbot_cli::mcp::tools();
+    assert_eq!(listed.last().unwrap()["name"], "search_agent_notes");
+    assert_eq!(
+        listed.last().unwrap()["inputSchema"]["properties"]["agent"]["enum"],
+        serde_json::json!(["claude-code", "codex"])
+    );
+
+    let search = |arguments: serde_json::Value| tools.call("search_agent_notes", &arguments);
+    let refused = search(serde_json::json!({"query": "release"}));
+    assert!(refused.is_error);
+    assert!(
+        refused.text.starts_with("[agent_notes_access_disabled] "),
+        "{}",
+        refused.text
+    );
+    assert!(tools.briefing().contains("- Agent notes: off."));
+
+    lokalbot_core::agent_notes::access::set_enabled(&paths, true).unwrap();
+    let found = search(serde_json::json!({"query": "release"}));
+    assert!(!found.is_error, "{}", found.text);
+    assert!(found.text.contains("Release runbook"));
+    assert!(found.text.contains("\"matched_by\" : \"words\""));
+    assert!(
+        tools
+            .briefing()
+            .contains("- Agent notes: on, 2 notes saved by the user's coding agents")
+    );
+    for (arguments, message) in [
+        (
+            serde_json::json!({"query": "release", "agent": 3}),
+            "[invalid_arguments] \"agent\" must be one of claude-code, codex.",
+        ),
+        (
+            serde_json::json!({"query": "release", "agent": "cursor"}),
+            "[invalid_arguments] \"agent\" must be one of claude-code, codex.",
+        ),
+        (
+            serde_json::json!({"query": "release", "limit": "many"}),
+            "[invalid_arguments] \"limit\" must be an integer between 1 and 30.",
+        ),
+        (
+            serde_json::json!({"limit": 3}),
+            "[invalid_arguments] search_agent_notes requires a \"query\" string.",
+        ),
+    ] {
+        let invalid = search(arguments);
+        assert!(invalid.is_error);
+        assert_eq!(invalid.text, message);
+    }
+
+    // Read coding agent notes turned off: the saved copy is gone.
+    assert!(lokalbot_core::agent_notes::store::delete_all(&root));
+    let unavailable = search(serde_json::json!({"query": "release"}));
+    assert!(
+        unavailable.text.starts_with("[agent_notes_unavailable] "),
+        "{}",
+        unavailable.text
+    );
 }
 
 /// `has_summary` and `has_transcript` come from the files being there, not
@@ -418,10 +647,11 @@ fn mcp_round_trip() {
     assert_eq!(lines[0]["result"]["protocolVersion"], "2025-06-18");
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "lokalbot");
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 15);
+    assert_eq!(tools.len(), 16);
     assert_eq!(tools[0]["name"], "get_briefing");
     assert_eq!(tools[13]["name"], "get_personal_context");
     assert_eq!(tools[14]["name"], "search_files");
+    assert_eq!(tools[15]["name"], "search_agent_notes");
     assert_eq!(lines[2]["result"]["isError"], false);
     let hits: serde_json::Value =
         serde_json::from_str(lines[2]["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
@@ -549,6 +779,10 @@ fn agent_text_names_only_settings_this_app_has() {
             .into_owned(),
         stdout(&cli(&root, &["--help"])),
         stdout(&cli(&root, &["personal-context", "--help"])),
+        String::from_utf8_lossy(&cli(&root, &["search-notes", "release"]).stderr).into_owned(),
+        stdout(&cli(&root, &["search-notes", "--help"])),
+        lokalbot_cli::notes::DISABLED_MESSAGE.to_string(),
+        lokalbot_cli::notes::UNAVAILABLE_MESSAGE.to_string(),
         lokalbot_cli::mcp::INSTRUCTIONS.to_string(),
         lokalbot_cli::personal::UNAVAILABLE_MESSAGE.to_string(),
         access::MEETINGS_DISABLED_MESSAGE.to_string(),

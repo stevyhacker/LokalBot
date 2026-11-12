@@ -1,7 +1,7 @@
 //! What a question may draw on: sources and a date scope (`AskSourceScope`,
-//! `AskDateScope`). Files is part of "All sources" whether or not it is on, so
-//! turning it on or off never makes an earlier question look narrowed; it is
-//! offered only while it is on.
+//! `AskDateScope`). Files and Agent notes are part of "All sources" whether or
+//! not they are on, so turning one on or off never makes an earlier question
+//! look narrowed; each is offered only while it is on.
 
 use chrono::{DateTime, Datelike as _, Days, Local, NaiveDate, Utc};
 use lokalbot_core::{AskDateScope, AskSourceScope, ChatMessage, ChatRole, QuestionScope};
@@ -15,6 +15,8 @@ pub struct Sources {
     pub activity: bool,
     pub screen: bool,
     pub files: bool,
+    /// Notes the person's coding agents saved for themselves.
+    pub agent_notes: bool,
 }
 
 impl Default for Sources {
@@ -24,6 +26,23 @@ impl Default for Sources {
             activity: true,
             screen: true,
             files: true,
+            agent_notes: true,
+        }
+    }
+}
+
+/// The optional sources that are on now, and so can be chosen and searched.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Offered {
+    pub files: bool,
+    pub agent_notes: bool,
+}
+
+impl Offered {
+    pub fn new(settings: &lokalbot_core::Settings) -> Self {
+        Self {
+            files: settings.file_search_enabled,
+            agent_notes: settings.coding_agent_notes_enabled,
         }
     }
 }
@@ -34,14 +53,16 @@ pub enum Source {
     Activity,
     Screen,
     Files,
+    AgentNotes,
 }
 
 impl Source {
-    pub const ALL: [Source; 4] = [
+    pub const ALL: [Source; 5] = [
         Source::Meetings,
         Source::Activity,
         Source::Screen,
         Source::Files,
+        Source::AgentNotes,
     ];
 
     pub fn label(self) -> &'static str {
@@ -50,14 +71,18 @@ impl Source {
             Source::Activity => lokalbot_i18n::tr("Activity"),
             Source::Screen => lokalbot_i18n::tr("Screen"),
             Source::Files => lokalbot_i18n::tr("Files"),
+            Source::AgentNotes => lokalbot_i18n::tr("Agent notes"),
         }
     }
 
-    /// The sources a person can choose now: Files only while it is on.
-    pub fn available(files_enabled: bool) -> impl Iterator<Item = Source> {
-        Self::ALL
-            .into_iter()
-            .filter(move |source| *source != Source::Files || files_enabled)
+    /// The sources a person can choose now: Files and Agent notes only while
+    /// each is on.
+    pub fn available(offered: Offered) -> impl Iterator<Item = Source> {
+        Self::ALL.into_iter().filter(move |source| match source {
+            Source::Files => offered.files,
+            Source::AgentNotes => offered.agent_notes,
+            _ => true,
+        })
     }
 }
 
@@ -68,6 +93,7 @@ impl Sources {
             Source::Activity => self.activity,
             Source::Screen => self.screen,
             Source::Files => self.files,
+            Source::AgentNotes => self.agent_notes,
         }
     }
 
@@ -77,18 +103,19 @@ impl Sources {
             Source::Activity => self.activity = on,
             Source::Screen => self.screen = on,
             Source::Files => self.files = on,
+            Source::AgentNotes => self.agent_notes = on,
         }
     }
 
-    pub fn count(&self, files_enabled: bool) -> usize {
-        Source::available(files_enabled)
+    pub fn count(&self, offered: Offered) -> usize {
+        Source::available(offered)
             .filter(|s| self.contains(*s))
             .count()
     }
 
     /// Toggles a source, keeping at least one selected.
-    pub fn toggle(&mut self, source: Source, files_enabled: bool) {
-        if self.contains(source) && self.count(files_enabled) == 1 {
+    pub fn toggle(&mut self, source: Source, offered: Offered) {
+        if self.contains(source) && self.count(offered) == 1 {
             return;
         }
         self.set(source, !self.contains(source));
@@ -104,15 +131,16 @@ impl Sources {
             activity: saved.contains(&AskSourceScope::Today),
             screen: saved.contains(&AskSourceScope::Screen),
             files: saved.contains(&AskSourceScope::Files),
+            agent_notes: saved.contains(&AskSourceScope::AgentNotes),
         }
     }
 
     /// "All sources" or "Screen".
-    pub fn summary(&self, files_enabled: bool) -> String {
-        if Source::available(files_enabled).all(|s| self.contains(s)) {
+    pub fn summary(&self, offered: Offered) -> String {
+        if Source::available(offered).all(|s| self.contains(s)) {
             return lokalbot_i18n::tr("All sources").into();
         }
-        Source::available(files_enabled)
+        Source::available(offered)
             .filter(|s| self.contains(*s))
             .map(|s| lokalbot_i18n::tr(s.label()))
             .collect::<Vec<_>>()
@@ -234,9 +262,11 @@ pub struct Evidence {
     pub screens: Option<Vec<i64>>,
     /// Asked about results: Activity has no result rows to bound, so a selected
     /// Activity source stays, or "How long was I in Figma today?" would lose the
-    /// only tool that answers it. Files stays when file rows were among them.
+    /// only tool that answers it. Files stays when file rows were among them,
+    /// and Agent notes when note rows were.
     pub from_results: bool,
     pub had_file_results: bool,
+    pub had_note_results: bool,
     /// Screens the person attached to this question.
     pub pins: Vec<i64>,
     /// The civil days of those screens, sorted, each once.
@@ -268,6 +298,7 @@ pub fn restore(saved: &QuestionScope) -> Restored {
             screens: saved.screen_snapshot_ids.clone(),
             from_results: true,
             had_file_results: sources.files,
+            had_note_results: sources.agent_notes,
             pins: Vec::new(),
             pin_days: Vec::new(),
             screen_app: saved.screen_app.clone(),
@@ -292,13 +323,24 @@ pub fn pin_days(moments: &[lokalbot_core::ScreenMoment]) -> Vec<String> {
 }
 
 /// `questionScopeSummary`: "Meetings, Screen · Oct 1 · attached screen: Oct 1".
-pub fn question_scope_summary(message: &ChatMessage) -> Option<String> {
+/// While agent notes aren't offered, a question that names every other source
+/// reads as "All sources": that is how questions from before that source
+/// existed were saved.
+pub fn question_scope_summary(message: &ChatMessage, offered: Offered) -> Option<String> {
     if message.role != ChatRole::User
         || (message.source_scopes.is_empty() && message.day_scope_key.is_none())
     {
         return None;
     }
-    let selected: std::collections::BTreeSet<_> = message.source_scopes.iter().copied().collect();
+    let mut selected: std::collections::BTreeSet<_> =
+        message.source_scopes.iter().copied().collect();
+    if !offered.agent_notes {
+        let mut with_notes = selected.clone();
+        with_notes.insert(AskSourceScope::AgentNotes);
+        if with_notes == AskSourceScope::defaults() {
+            selected = with_notes;
+        }
+    }
     let sources = if selected == AskSourceScope::defaults() {
         lokalbot_i18n::tr("All sources").to_string()
     } else {
@@ -310,6 +352,7 @@ pub fn question_scope_summary(message: &ChatMessage) -> Option<String> {
                 AskSourceScope::Today => Source::Activity.label(),
                 AskSourceScope::Screen => Source::Screen.label(),
                 AskSourceScope::Files => Source::Files.label(),
+                AskSourceScope::AgentNotes => Source::AgentNotes.label(),
             })
             .collect::<Vec<_>>()
             .join(", ")
@@ -363,6 +406,7 @@ pub fn session_sources(screen_ids: &[i64]) -> Sources {
         activity: false,
         screen: !screen_ids.is_empty(),
         files: false,
+        agent_notes: false,
     }
 }
 
@@ -375,6 +419,7 @@ pub fn evidence_sources(meetings: Option<&[Uuid]>, screen_ids: &[i64]) -> Source
             activity: false,
             screen: !screen_ids.is_empty(),
             files: false,
+            agent_notes: false,
         },
         _ => session_sources(screen_ids),
     }
@@ -393,6 +438,7 @@ pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskS
         sources.screen,
         sources.files,
     );
+    let mut include_agent_notes = sources.agent_notes;
     if bound {
         // No meeting boundary (a session's screens) leaves the source as chosen.
         include_meetings =
@@ -400,6 +446,8 @@ pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskS
         include_screen = sources.screen && !screen_ids.is_empty();
         include_activity = sources.activity && evidence.from_results;
         include_files = sources.files && evidence.from_results && evidence.had_file_results;
+        include_agent_notes =
+            sources.agent_notes && evidence.from_results && evidence.had_note_results;
     }
     if !evidence.pins.is_empty() {
         include_screen = true;
@@ -410,6 +458,7 @@ pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskS
         (AskSourceScope::Today, include_activity),
         (AskSourceScope::Screen, include_screen),
         (AskSourceScope::Files, include_files),
+        (AskSourceScope::AgentNotes, include_agent_notes),
     ]
     .into_iter()
     .filter_map(|(source, on)| on.then_some(source))
@@ -441,6 +490,7 @@ pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskS
         include_activity,
         include_screen,
         include_files,
+        include_agent_notes,
         screen_ids,
         attached_screens: !evidence.pins.is_empty(),
         screen_app: evidence.screen_app.clone(),
@@ -485,25 +535,102 @@ mod tests {
 
     #[test]
     fn keeps_one_source() {
+        let (none, files) = (
+            Offered::default(),
+            Offered {
+                files: true,
+                agent_notes: false,
+            },
+        );
         let mut sources = Sources::default();
-        assert_eq!(sources.summary(false), "All sources");
-        assert_eq!(sources.summary(true), "All sources");
-        sources.toggle(Source::Meetings, false);
-        sources.toggle(Source::Activity, false);
-        assert_eq!(sources.summary(false), "Screen");
-        sources.toggle(Source::Screen, false);
-        assert_eq!(sources.summary(false), "Screen", "the last source stays");
+        assert_eq!(sources.summary(none), "All sources");
+        assert_eq!(sources.summary(files), "All sources");
+        sources.toggle(Source::Meetings, none);
+        sources.toggle(Source::Activity, none);
+        assert_eq!(sources.summary(none), "Screen");
+        sources.toggle(Source::Screen, none);
+        assert_eq!(sources.summary(none), "Screen", "the last source stays");
     }
 
     #[test]
     fn files_is_offered_only_while_on() {
-        assert_eq!(Source::available(false).count(), 3);
-        assert_eq!(Source::available(true).count(), 4);
+        let files = Offered {
+            files: true,
+            agent_notes: false,
+        };
+        assert_eq!(Source::available(Offered::default()).count(), 3);
+        assert_eq!(Source::available(files).count(), 4);
         let mut sources = Sources::default();
-        sources.toggle(Source::Files, true);
-        assert_eq!(sources.summary(true), "Meetings, Activity, Screen");
+        sources.toggle(Source::Files, files);
+        assert_eq!(sources.summary(files), "Meetings, Activity, Screen");
         // Off, it doesn't make the question look narrowed.
-        assert_eq!(sources.summary(false), "All sources");
+        assert_eq!(sources.summary(Offered::default()), "All sources");
+    }
+
+    #[test]
+    fn agent_notes_is_part_of_all_sources_but_offered_only_while_on() {
+        assert!(AskSourceScope::defaults().contains(&AskSourceScope::AgentNotes));
+        let notes = Offered {
+            files: false,
+            agent_notes: true,
+        };
+        assert_eq!(
+            Source::available(notes).collect::<Vec<_>>(),
+            [
+                Source::Meetings,
+                Source::Activity,
+                Source::Screen,
+                Source::AgentNotes
+            ]
+        );
+        assert!(
+            !Source::available(Offered {
+                files: true,
+                agent_notes: false
+            })
+            .any(|source| source == Source::AgentNotes)
+        );
+        let mut sources = Sources::default();
+        sources.toggle(Source::AgentNotes, notes);
+        assert!(!sources.agent_notes);
+        assert_eq!(sources.summary(notes), "Meetings, Activity, Screen");
+        assert_eq!(sources.summary(Offered::default()), "All sources");
+        let saved = Sources::from_saved(&[AskSourceScope::Meetings, AskSourceScope::AgentNotes]);
+        assert!(saved.meetings && saved.agent_notes && !saved.screen && !saved.files);
+        // The Mac's name for the source, so a shared conversation reads the same.
+        assert_eq!(
+            serde_json::to_string(&AskSourceScope::AgentNotes).unwrap(),
+            "\"Agent notes\""
+        );
+    }
+
+    #[test]
+    fn asking_about_results_keeps_agent_notes_when_note_rows_were_shown() {
+        let mut evidence = Evidence {
+            meetings: Some(vec![Uuid::nil()]),
+            screens: Some(Vec::new()),
+            from_results: true,
+            ..Evidence::default()
+        };
+        let scope = ask_scope(Sources::default(), DateScope::AnyTime, &evidence);
+        assert!(!scope.include_agent_notes, "no note rows");
+        assert!(!scope.saved.sources.contains(&AskSourceScope::AgentNotes));
+        evidence.had_note_results = true;
+        let scope = ask_scope(Sources::default(), DateScope::AnyTime, &evidence);
+        assert!(scope.include_agent_notes);
+        assert!(scope.saved.sources.contains(&AskSourceScope::AgentNotes));
+        // A reopened question keeps the source it named.
+        assert!(scope_for(&scope.saved).include_agent_notes);
+        // Unbound, the source is as chosen.
+        let unbound = ask_scope(
+            Sources {
+                agent_notes: false,
+                ..Sources::default()
+            },
+            DateScope::AnyTime,
+            &Evidence::default(),
+        );
+        assert!(!unbound.include_agent_notes && unbound.include_files);
     }
 
     #[test]
@@ -511,6 +638,7 @@ mod tests {
         let scope = ask_scope(Sources::default(), DateScope::Today, &Evidence::default());
         assert!(scope.include_meetings && scope.include_screen);
         assert!(scope.include_activity && scope.include_files);
+        assert!(scope.include_agent_notes);
         assert!(scope.since.is_some() && scope.until.is_some());
         let screen_only = ask_scope(
             Sources {
@@ -518,6 +646,7 @@ mod tests {
                 activity: false,
                 screen: true,
                 files: false,
+                agent_notes: false,
             },
             DateScope::AnyTime,
             &Evidence::default(),
@@ -590,6 +719,7 @@ mod tests {
                     activity: false,
                     screen: false,
                     files: false,
+                    agent_notes: false,
                 },
                 DateScope::Day(day),
                 &Evidence::default(),
@@ -656,6 +786,10 @@ mod tests {
                 "{asked:?}"
             );
             assert!(!follow_up.include_files || asked.include_files, "{asked:?}");
+            assert!(
+                !follow_up.include_agent_notes || asked.include_agent_notes,
+                "{asked:?}"
+            );
             assert_eq!(follow_up.saved.day_scope_key, asked.saved.day_scope_key);
             assert_eq!(follow_up.saved.meeting_ids, asked.saved.meeting_ids);
             assert_eq!(
@@ -701,23 +835,51 @@ mod tests {
             sources: AskSourceScope::ALL.to_vec(),
             ..Default::default()
         });
-        assert_eq!(question_scope_summary(&all).as_deref(), Some("All sources"));
+        let (none, notes) = (
+            Offered::default(),
+            Offered {
+                files: false,
+                agent_notes: true,
+            },
+        );
+        assert_eq!(
+            question_scope_summary(&all, none).as_deref(),
+            Some("All sources")
+        );
+        assert_eq!(
+            question_scope_summary(&all, notes).as_deref(),
+            Some("All sources")
+        );
+        // Saved before agent notes were a source: still everything, until
+        // they are offered and the question can be seen to leave them out.
+        let before_notes = ChatMessage::new(ChatRole::User, "Q").with_scope(&QuestionScope {
+            sources: AskSourceScope::ALL[..4].to_vec(),
+            ..Default::default()
+        });
+        assert_eq!(
+            question_scope_summary(&before_notes, none).as_deref(),
+            Some("All sources")
+        );
+        assert_eq!(
+            question_scope_summary(&before_notes, notes).as_deref(),
+            Some("Meetings, Activity, Screen, Files")
+        );
         let narrow = ChatMessage::new(ChatRole::User, "Q").with_scope(&QuestionScope {
             sources: vec![AskSourceScope::Today, AskSourceScope::Screen],
             day_scope_key: Some("2026-10-01".into()),
             attached_screen_day_keys: vec!["2026-10-01".into()],
             ..Default::default()
         });
-        let summary = question_scope_summary(&narrow).unwrap();
+        let summary = question_scope_summary(&narrow, none).unwrap();
         assert!(summary.starts_with("Activity, Screen · "), "{summary}");
         assert!(summary.contains("attached screen: "), "{summary}");
         // Legacy turns name nothing, and answers aren't questions.
         assert_eq!(
-            question_scope_summary(&ChatMessage::new(ChatRole::User, "Q")),
+            question_scope_summary(&ChatMessage::new(ChatRole::User, "Q"), none),
             None
         );
         assert_eq!(
-            question_scope_summary(&ChatMessage::new(ChatRole::Assistant, "A")),
+            question_scope_summary(&ChatMessage::new(ChatRole::Assistant, "A"), none),
             None
         );
         assert!(question_scope_changed(&all, None));
@@ -730,7 +892,7 @@ mod tests {
         let meeting = [Uuid::nil()];
         let both = evidence_sources(Some(&meeting), &[7]);
         assert!(both.meetings && both.screen);
-        assert!(!both.activity && !both.files);
+        assert!(!both.activity && !both.files && !both.agent_notes);
         let meetings = evidence_sources(Some(&meeting), &[]);
         assert!(meetings.meetings && !meetings.screen);
         let screens = evidence_sources(None, &[7]);
