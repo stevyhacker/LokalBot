@@ -7,9 +7,6 @@ import SwiftUI
 struct PermissionRow: View {
     let permission: AppPermission
     var why: String?
-    /// Settings rows keep the 12 pt help size under a 13 pt title; onboarding
-    /// reads the rationale at its own larger body size.
-    var prominentRationale = false
     @ObservedObject private var permissions = PermissionManager.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var actionButtonFrame = CGRect.zero
@@ -22,12 +19,7 @@ struct PermissionRow: View {
                 .contentTransition(.symbolEffect(.replace))
             VStack(alignment: .leading, spacing: 2) {
                 Text(LocalizedStringKey(permission.title))
-                if prominentRationale {
-                    Text(LocalizedStringKey(why ?? permission.why))
-                        .workspaceTextRole(.supporting)
-                } else {
-                    SettingsHelp(why ?? permission.why)
-                }
+                SettingsHelp(why ?? permission.why)
             }
             Spacer()
             if !granted {

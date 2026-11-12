@@ -1,33 +1,38 @@
 import XCTest
 @testable import LokalBot
 
-/// Today shares its section with the Actions review (`showingActions`), so a
-/// route to Today has to leave that review.
+/// Actions is its own sidebar destination, so routes to Today and to Actions
+/// each land on their own section.
 @MainActor
 final class AppStateNavigationTests: XCTestCase {
-    func testGoingToTodayLeavesTheActionsReview() {
+    func testActionsAndTodayAreSeparateDestinations() {
         let app = AppState()
         app.openActions()
-        XCTAssertTrue(app.showingActions)
+        XCTAssertEqual(app.navSection, .actions)
 
         app.openToday()
 
-        XCTAssertFalse(app.showingActions)
         XCTAssertEqual(app.navSection, .today)
     }
 
+    func testActionsHasACaptureAndDeepLinkName() {
+        XCTAssertEqual(AppState.NavSection(captureName: "actions"), .actions)
+        XCTAssertEqual(AppState.NavSection(captureName: "Actions"), .actions)
+    }
+
     /// Today's digest and the overnight review are shown on Today. Opening
-    /// their background activity used to land on Actions when it was open.
-    func testBackgroundActivityForTodayOpensTodayNotTheActionsReview() {
+    /// their background activity lands there from any section, Actions
+    /// included.
+    func testBackgroundActivityForTodayOpensToday() {
         for destination in [BackgroundActivity.Destination.day(Date()), .dream] {
-            let app = AppState()
-            app.openActions()
-            app.navSection = .agent
+            for start in [AppState.NavSection.actions, .agent] {
+                let app = AppState()
+                app.navSection = start
 
-            app.openBackgroundActivity(destination)
+                app.openBackgroundActivity(destination)
 
-            XCTAssertEqual(app.navSection, .today, "\(destination)")
-            XCTAssertFalse(app.showingActions, "\(destination)")
+                XCTAssertEqual(app.navSection, .today, "\(destination) from \(start)")
+            }
         }
     }
 }

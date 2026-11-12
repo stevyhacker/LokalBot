@@ -1,12 +1,17 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Where the agent is told what to do: the message, what to attach, the
+/// working folder and how much it may do on its own. A message sent while the
+/// agent works waits above the field until the turn ends.
 struct AgentComposer: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject var controller: AgentSessionController
     @ObservedObject var sessions: AgentSessionTabs
     let taskID: UUID
+    /// A new task has no conversation above the composer yet.
+    var isNewTask = false
     let showPreview: (AgentResultPreview) -> Void
     @State private var pickingFiles = false
     @State private var pickingFolder = false
@@ -14,20 +19,23 @@ struct AgentComposer: View {
     @State private var showingAccess = false
     @State private var pendingMode: AgentApprovalMode?
     @State private var submitting = false
-    @State private var queueExpanded = true
-    @State private var resolvedReasoning: ResolvedReasoningSupport?
     @FocusState private var focused: Bool
+
+    private var localized: (String) -> String { app.settings.appLanguage.catalog }
+    private var model: AgentSessionController.ModelContext { controller.modelContext ?? .init(settings: app.settings) }
+    private var hasPrompt: Bool { !controller.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var isWorking: Bool { controller.state == .running }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !controller.queuedPrompts.isEmpty { queue }
             if let notice = controller.workspaceAccessNotice {
-                Text(notice).font(.scaled(.callout)).foregroundStyle(.orange).textSelection(.enabled)
+                Text(notice).font(.scaled(.callout)).foregroundStyle(LBTokens.Palette.attentionText).textSelection(.enabled)
                     .accessibilityIdentifier("agent.workspaceNotice")
             }
             if let error = controller.composerError {
                 HStack(alignment: .top) {
-                    Text(error).font(.scaled(.callout)).foregroundStyle(.orange).textSelection(.enabled)
+                    Text(error).font(.scaled(.callout)).foregroundStyle(LBTokens.Palette.attentionText).textSelection(.enabled)
                     Spacer()
                     Button { controller.composerError = nil } label: { Image(systemName: "xmark") }
                         .buttonStyle(.borderless).accessibilityLabel("Dismiss message")
@@ -37,40 +45,9 @@ struct AgentComposer: View {
                 Button("Restore task to continue") { Task { await sessions.setArchived(taskID, false) } }
                     .frame(maxWidth: .infinity).padding(12)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    attachmentChips
-                    TextField(controller.state == .running ? "Add a follow-up or steer the agent…" : "Ask the agent…", text: $controller.draft, axis: .vertical)
-                        .textFieldStyle(.plain).lineLimit(2...8).font(.system(size: sessions.textSize))
-                        .focused($focused).onSubmit { submit(steer: false) }
-                        .disabled(submitting || controller.state == .starting)
-                        .accessibilityIdentifier("agent.composer")
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 10) { contextControls; Spacer(minLength: 4); sendControls }
-                        VStack(alignment: .leading, spacing: 10) {
-                            contextControls
-                            HStack { Spacer(); sendControls }
-                        }
-                    }
-                }
-                .padding(14)
-                .composerChrome(focused: focused)
-                .dropDestination(for: URL.self) { urls, _ in
-                    for url in urls where url.isFileURL { controller.addAttachment(.file(url)) }
-                    return urls.contains(where: \.isFileURL)
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("agent.composerSurface")
+                surface
             }
-            HStack(spacing: 5) {
-                Image(systemName: model.destination.icon)
-                Text("\(model.name) · \(model.destination.label)")
-                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-                Button { showingAccess.toggle() } label: { Image(systemName: "info.circle").frame(width: 24, height: 24) }
-                    .buttonStyle(.borderless).accessibilityLabel("Task access details")
-                    .popover(isPresented: $showingAccess) { accessDetails }
-            }.font(AppFont.scaled(.callout)).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
-                .accessibilityElement(children: .contain).accessibilityIdentifier("agent.model")
+            destinationLine
         }
         .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.text, .sourceCode, .json, .pdf], allowsMultipleSelection: true) { result in
             switch result {
@@ -108,102 +85,98 @@ struct AgentComposer: View {
         .onAppear { focused = true }
     }
 
-    private var model: AgentSessionController.ModelContext { controller.modelContext ?? .init(settings: app.settings) }
-    private var hasPrompt: Bool { !controller.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    // MARK: - Field and controls
 
+    private var placeholder: String {
+        if isWorking { return localized("Add to this task") }
+        return localized(isNewTask ? "Ask the agent…" : "Ask a follow-up")
+    }
+
+    private var surface: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            attachmentChips
+            TextField(placeholder, text: $controller.draft, axis: .vertical)
+                .textFieldStyle(.plain).lineLimit(2...8).font(.system(size: sessions.textSize))
+                .focused($focused).onSubmit { submit() }
+                .disabled(submitting || controller.state == .starting)
+                .accessibilityIdentifier("agent.composer")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) { contextControls; Spacer(minLength: 4); sendControls }
+                VStack(alignment: .leading, spacing: 8) {
+                    contextControls
+                    HStack { Spacer(); sendControls }
+                }
+            }
+        }
+        .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 10)
+        .composerChrome(focused: focused)
+        .dropDestination(for: URL.self) { urls, _ in
+            for url in urls where url.isFileURL { controller.addAttachment(.file(url)) }
+            return urls.contains(where: \.isFileURL)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("agent.composerSurface")
+    }
+
+    /// Attach, the working folder, and the one access chip.
     private var contextControls: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             Menu {
                 Button("Files…") { pickingFiles = true }
                 Button("Meetings and saved moments…") { pickingContext = true }
-            } label: { Image(systemName: "plus").frame(width: 26, height: 26) }
+            } label: { Image(systemName: "plus").frame(width: 24, height: 24) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 .accessibilityLabel("Attach context").accessibilityIdentifier("agent.attach")
             Button { pickingFolder = true } label: {
-                Label(controller.workspaceDisplayName, systemImage: "folder").lineLimit(1)
-            }.buttonStyle(.borderless).help("Files in the chosen folder can be read automatically and sent to the displayed model. Private-library reads still follow the approval mode. Changing folders in an existing conversation starts a new task.")
+                Label { Text(verbatim: controller.workspaceDisplayName).lineLimit(1) } icon: { Image(systemName: "folder") }
+            }.buttonStyle(.borderless)
+                .help("The agent works in this folder. Choosing another folder after a task has started opens a new task.")
+                .accessibilityLabel("Working folder").accessibilityValue(Text(verbatim: controller.workspaceDisplayName))
                 .accessibilityIdentifier("agent.workspace")
-            Menu {
-                ForEach(AgentApprovalMode.allCases) { mode in
-                    Button {
-                        if mode.rawValue > controller.approvalMode.rawValue { pendingMode = mode } else { Task { await controller.setApprovalMode(mode) } }
-                    } label: {
-                        Label(mode.title, systemImage: mode == controller.approvalMode ? "checkmark" : mode.systemImage)
-                    }
-                }
-            } label: { Label(controller.approvalMode.title, systemImage: controller.approvalMode.systemImage).lineLimit(1) }
-                .menuStyle(.borderlessButton).fixedSize()
-                .help(controller.approvalMode.detail).accessibilityLabel("Agent approval mode")
-                .accessibilityValue(controller.approvalMode.title).accessibilityIdentifier("agent.approvalMode")
-            if reasoningSupport.isAdjustable { reasoningMenu }
-        }.font(AppFont.scaled(.callout).weight(.semibold)).foregroundStyle(.primary)
+            accessChip
+        }.font(AppFont.scaled(.callout).weight(.medium)).foregroundStyle(.primary)
     }
 
-    /// The launched model's levels, or the selected model's before launch.
-    private var reasoningSupport: ReasoningSupport {
-        controller.reasoningSupport ?? resolvedReasoning?.support(for: app.settings) ?? .known(for: app.settings)
-    }
-
-    /// Agent Mode's own level, or the Think level from Settings → Models,
-    /// offering only the levels the model accepts.
-    private var reasoningMenu: some View {
-        let support = reasoningSupport
-        let chosen = app.settings.agentReasoningLevel
-        let shown = support.displayed(app.settings.effectiveAgentReasoningLevel)
-        let checked = chosen.map(support.displayed)
-        let sameAsThink = "Same as Think (\(support.displayed(app.settings.thinkReasoningLevel).displayName))"
-        func choose(_ level: ThinkReasoningLevel?) {
-            app.settings.agentReasoningLevel = level
-            controller.reasoningLevelDidChange()
+    /// Names what the agent does on its own, and opens the levels.
+    private var accessChip: some View {
+        let mode = controller.approvalMode
+        return Button { showingAccess.toggle() } label: {
+            HStack(spacing: 5) {
+                Image(systemName: mode.systemImage)
+                Text(verbatim: localized(mode.chipTitle)).lineLimit(1)
+                Image(systemName: "chevron.down").font(.scaled(.caption2).weight(.semibold)).accessibilityHidden(true)
+            }
+            .foregroundStyle(mode.needsCaution ? LBTokens.Palette.attentionText : Color.primary)
         }
-        return Menu {
-            Button {
-                choose(nil)
-            } label: {
-                if chosen == nil { Label(sameAsThink, systemImage: "checkmark") } else { Text(sameAsThink) }
-            }
-            Divider()
-            ForEach([ThinkReasoningLevel.automatic] + support.levels) { level in
-                Button {
-                    choose(level)
-                } label: {
-                    let title = level == .automatic ? support.automaticTitle : level.displayName
-                    if checked == level {
-                        Label(title, systemImage: "checkmark")
-                    } else {
-                        Text(title)
-                    }
+        .buttonStyle(.borderless)
+        .help(mode.levelDetail(workspaceName: controller.workspaceDisplayName, localize: localized))
+        .accessibilityLabel("Access").accessibilityValue(Text(verbatim: localized(mode.chipTitle)))
+        .accessibilityIdentifier("agent.approvalMode")
+        .popover(isPresented: $showingAccess, arrowEdge: .bottom) {
+            AgentAccessPopover(controller: controller, model: model) { mode in
+                // Raising the level is confirmed; lowering it applies at once.
+                if mode.rawValue > controller.approvalMode.rawValue {
+                    showingAccess = false
+                    pendingMode = mode
+                } else {
+                    Task { await controller.setApprovalMode(mode) }
                 }
             }
-        } label: { Label("Reasoning: \(shown.displayName)", systemImage: "brain").lineLimit(1) }
-            .menuStyle(.borderlessButton).fixedSize()
-            .help("How much the agent reasons before each step, from the levels this model accepts. "
-                  + "Same as Think follows Settings → Models. A change applies from the agent's next step.")
-            .accessibilityLabel("Agent reasoning level")
-            .accessibilityValue(chosen == nil ? "Same as Think, \(shown.displayName)" : shown.displayName)
-            .accessibilityIdentifier("agent.reasoning")
-            .task(id: ReasoningSupport.lookupKey(for: app.settings)) {
-                resolvedReasoning = await .resolve(for: app.settings)
-            }
+        }
     }
 
     @ViewBuilder private var sendControls: some View {
         HStack(spacing: 8) {
-            if controller.state == .running {
+            if isWorking {
                 Button("Stop", systemImage: "stop.fill") { Task { await controller.abort() } }
+                    .buttonStyle(.bordered).controlSize(.large)
                     .disabled(controller.isStopping).accessibilityIdentifier("agent.stop")
-                Button("Send now") { submit(steer: true) }
-                    .help("Steer the current task at its next opportunity")
-                    .disabled(!hasPrompt || controller.isSending || controller.isStopping || submitting)
-                    .accessibilityIdentifier("agent.steer")
             }
-            Button(controller.state == .running ? "Queue follow-up" : "Send", systemImage: controller.state == .running ? "text.badge.plus" : "arrow.up") {
-                submit(steer: false)
-            }
-            .primaryActionButton().controlSize(.large)
-            .font(.scaledSystem(size: 13, weight: .semibold))
-            .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
-            .accessibilityIdentifier("agent.send")
+            Button("Send", systemImage: "arrow.up") { submit() }
+                .primaryActionButton().controlSize(.large)
+                .font(.scaledSystem(size: 13, weight: .semibold))
+                .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
+                .accessibilityIdentifier("agent.send")
         }.font(.scaled(.callout))
     }
 
@@ -225,55 +198,79 @@ struct AgentComposer: View {
             .accessibilityIdentifier("agent.attachments")
     }
 
-    private var queue: some View {
-        DisclosureGroup("\(controller.queuedPrompts.count) queued follow-ups\(controller.queueIsPaused ? " · paused" : "")", isExpanded: $queueExpanded) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(controller.queuedPrompts) { prompt in
-                        HStack {
-                            Text(prompt.text).font(.scaled(.callout)).lineLimit(2)
-                            Spacer()
-                            Button("Edit") { controller.editQueued(prompt.id); focused = true }
-                            Button("Cancel") { controller.cancelQueued(prompt.id) }
-                        }.buttonStyle(.borderless).accessibilityElement(children: .contain)
-                            .accessibilityIdentifier("agent.queue.\(prompt.id)")
-                    }
-                }.padding(.top, 6)
-            }.frame(maxHeight: 120)
-        }
-        .font(.scaled(.callout)).accessibilityIdentifier("agent.queue")
-        .overlay(alignment: .topTrailing) {
-            if controller.state != .running && controller.state != .starting {
-                Button("Send next") {
-                    Task { if await sessions.start(taskID) { await controller.deliverNextQueued() } }
-                }.buttonStyle(.borderless).font(.scaled(.caption))
+    /// Shown only when the model is not on this Mac, so where a task's
+    /// prompts go stays in view without opening the access list.
+    @ViewBuilder private var destinationLine: some View {
+        if model.destination != .onDevice {
+            HStack(spacing: 5) {
+                Image(systemName: model.destination.icon)
+                Text(verbatim: "\(model.name) · \(AgentAccessPopover.destinationLabel(model.destination, localize: localized))")
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
+            .font(AppFont.scaled(.callout))
+            .foregroundStyle(contrast == .increased ? Color.primary : LBTokens.Palette.attentionText)
+            .padding(.horizontal, 4)
+            .accessibilityElement(children: .combine).accessibilityIdentifier("agent.model")
         }
     }
 
-    private var accessDetails: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("This task’s access").font(.scaled(.headline))
-            Label(controller.workspace.path, systemImage: "folder")
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .help(controller.workspace.path)
-                .textSelection(.enabled)
-            Group {
-                Text(controller.approvalMode.detail)
-                Text("The working folder is separate from LokalBot’s private data. Meeting Library tools provide scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant. Raw private-library file reads follow the approval mode even when a parent folder is selected.")
-                Text("\(model.destination.label). Attached text is included when you send. Files and tool actions follow the approval mode above.")
-                if controller.modelContext != nil, controller.modelContext != .init(settings: app.settings) {
-                    Text("New tasks use the model selected in Settings.")
+    // MARK: - Queued messages
+
+    /// Up to three rows show whole; a longer queue scrolls in the same space.
+    private var queue: some View {
+        Group {
+            if controller.queuedPrompts.count <= 3 { queueRows } else { ScrollView { queueRows }.frame(height: 118) }
+        }
+        .accessibilityElement(children: .contain).accessibilityIdentifier("agent.queue")
+    }
+
+    private var queueRows: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(controller.queuedPrompts) { prompt in
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock").foregroundStyle(.secondary).accessibilityHidden(true)
+                        Text(isWorking ? "Sends when done" : "Not sent yet").foregroundStyle(.secondary)
+                            .fixedSize()
+                        Text(verbatim: prompt.text).lineLimit(1).truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button("Send now") { sendNow(prompt.id) }
+                            .buttonStyle(.bordered).controlSize(.small)
+                            .disabled(controller.isSending || controller.isStopping || controller.state == .starting)
+                            .help(isWorking ? "Steer the current task at its next opportunity" : "Send now")
+                            .accessibilityIdentifier("agent.steer")
+                        Button { controller.cancelQueued(prompt.id) } label: {
+                            Image(systemName: "xmark").frame(width: 22, height: 22)
+                        }
+                        .buttonStyle(.borderless).help("Remove queued message")
+                        .accessibilityLabel("Remove queued message")
+                        .accessibilityIdentifier("agent.queue.remove")
+                    }
+                    .font(.scaled(.callout))
+                    .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 6)
+                    .lbGroupedSurface()
+                    .contextMenu {
+                        Button("Edit") { controller.editQueued(prompt.id); focused = true }
+                        Button("Remove") { controller.cancelQueued(prompt.id) }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("agent.queue.\(prompt.id)")
                 }
             }
-            .fixedSize(horizontal: false, vertical: true)
-        }.font(.scaled(.callout)).padding(18).frame(width: 360)
     }
 
-    private func submit(steer: Bool) {
+    private func sendNow(_ id: UUID) {
+        Task {
+            guard await sessions.start(taskID) else { return }
+            await controller.sendQueuedNow(id)
+            sessions.persist()
+        }
+    }
+
+    /// While the agent works, Send queues the message. Otherwise it starts
+    /// the task if needed and sends.
+    private func submit() {
         guard hasPrompt, !submitting else { return }
-        if controller.state == .running && !steer { controller.queueDraft(); return }
+        if isWorking { controller.queueDraft(); return }
         let original = controller.draft
         let sources = controller.attachments
         submitting = true
@@ -283,7 +280,7 @@ struct AgentComposer: View {
             // Never send a stale draft after a suspended model warm-up.
             guard controller.draft == original, controller.attachments == sources else { return }
             controller.draft = ""; controller.attachments = []
-            let sent = await controller.send(prompt: original.trimmingCharacters(in: .whitespacesAndNewlines), attachments: sources, steer: steer)
+            let sent = await controller.send(prompt: original.trimmingCharacters(in: .whitespacesAndNewlines), attachments: sources)
             if sent { app.navigationHandoff.consumeAgentContext() } else if controller.draft.isEmpty && controller.attachments.isEmpty {
                 controller.draft = original; controller.attachments = sources
             }

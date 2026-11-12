@@ -357,15 +357,10 @@ final class DayDigestPresentationTests: XCTestCase {
         XCTAssertFalse(DayDigestView.Mode.timeline.showsMeetings)
         XCTAssertFalse(DayDigestView.Mode.timeline.showsFullActivityLog)
         XCTAssertFalse(DayDigestView.Mode.timeline.showsOtherActivity)
-        XCTAssertFalse(DayDigestView.Mode.timeline.arrangesSessionsInGrid)
+        // Timeline's page leads with the highlights itself, above the day strip.
+        XCTAssertFalse(DayDigestView.Mode.timeline.showsHighlights)
 
-        // Today embeds the same sections as Timeline, laid out as a card grid.
-        XCTAssertFalse(DayDigestView.Mode.today.showsTimeAllocation)
-        XCTAssertFalse(DayDigestView.Mode.today.showsMeetings)
-        XCTAssertFalse(DayDigestView.Mode.today.showsFullActivityLog)
-        XCTAssertFalse(DayDigestView.Mode.today.showsOtherActivity)
-        XCTAssertTrue(DayDigestView.Mode.today.arrangesSessionsInGrid)
-
+        XCTAssertTrue(DayDigestView.Mode.standalone.showsHighlights)
         XCTAssertTrue(DayDigestView.Mode.standalone.showsTimeAllocation)
         XCTAssertTrue(DayDigestView.Mode.standalone.showsMeetings)
         XCTAssertTrue(DayDigestView.Mode.standalone.showsFullActivityLog)

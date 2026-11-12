@@ -20,18 +20,17 @@ final class WorkspacePresentationTests: XCTestCase {
 
     func testReadingAndTimelineWidthsStayWithinApprovedPolicy() {
         XCTAssertEqual(WorkspaceMetric.readingMaxWidth, 720)
+        // Timeline is a list beside a page. Both fit the smallest captured
+        // window, 1000 pt, next to the sidebar, with the divider between them.
+        let page = LBTokens.Metric.contentDetailMinWidth
+        XCTAssertLessThanOrEqual(
+            LBTokens.Metric.sidebarWidth + WorkspaceMetric.timelineListMinWidth + 1 + page, 1_000)
+        // At the default 1180 pt window the list opens at its ideal width and
+        // the page keeps more than its minimum.
         XCTAssertGreaterThan(
-            WorkspaceMetric.timelineDrawerBreakpoint,
-            WorkspaceMetric.timelineRailMinWidth + WorkspaceMetric.timelineDayMinWidth)
-        // At the drawer breakpoint and a 1000 pt window the rail yields, so
-        // the digest never falls below its readable width.
-        for paneWidth: CGFloat in [WorkspaceMetric.timelineDrawerBreakpoint, 833] {
-            let rail = WorkspaceMetric.timelineRailMaxWidth(in: paneWidth)
-            XCTAssertGreaterThanOrEqual(paneWidth - rail, WorkspaceMetric.timelineDayMinWidth)
-            XCTAssertGreaterThanOrEqual(rail, WorkspaceMetric.timelineRailMinWidth)
-        }
-        // Large windows reach the full drag range.
-        XCTAssertEqual(WorkspaceMetric.timelineRailMaxWidth(in: 1_273), WorkspaceMetric.timelineRailMaxWidth)
+            1_180 - LBTokens.Metric.sidebarWidth - WorkspaceMetric.timelineListIdealWidth, page)
+        XCTAssertLessThan(WorkspaceMetric.timelineListMinWidth, WorkspaceMetric.timelineListIdealWidth)
+        XCTAssertLessThan(WorkspaceMetric.timelineListIdealWidth, WorkspaceMetric.timelineListMaxWidth)
     }
 
     func testCompactRadiusTokensAreNamedAndOrdered() {

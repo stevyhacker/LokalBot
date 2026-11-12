@@ -53,22 +53,37 @@ nonisolated enum AppPermission: CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
-    /// Short card copy for the setup flow.
-    var onboardingSubtitle: String {
+    /// One-line reason beside the permission in setup. Accessibility reads
+    /// only window titles while the workday keeps app names only.
+    func onboardingReason(readsScreenText: Bool = true) -> String {
         switch self {
         case .microphone:
-            "Record your side of each call."
+            "Records your side of each call."
         case .screenRecording:
-            "Add encrypted visual context to day memory. Text-only context does not need this."
+            "Takes the screenshots, which stay encrypted on this Mac."
         case .accessibility:
-            "Name windows, read visible text context, and spot browser meetings."
+            readsScreenText ? "Reads window titles and the text on screen."
+                : "Reads the title of the window you are using."
         case .inputMonitoring:
-            "Detect the dictation and cotyping shortcuts."
+            "Lets dictation and cotyping detect their global keyboard shortcuts."
         }
     }
 
-    var isOptionalOnboardingEnhancement: Bool {
-        !Self.coreCases.contains(self)
+    /// The setup choice this permission serves, shown as a tag on its row.
+    var onboardingFeature: String {
+        switch self {
+        case .microphone: "Meeting notes"
+        case .screenRecording, .accessibility: "Your workday"
+        case .inputMonitoring: "Autocomplete"
+        }
+    }
+
+    /// A grant made while LokalBot runs reaches these only at the next launch.
+    var needsRelaunchAfterGrant: Bool {
+        switch self {
+        case .microphone: false
+        case .screenRecording, .accessibility, .inputMonitoring: true
+        }
     }
 
     /// Microphone access is granted through Apple's modal prompt. The other
@@ -189,11 +204,20 @@ final class PermissionManager: ObservableObject {
     /// SwiftUI surfaces redraw the moment a permission flips.
     @Published private(set) var granted: [AppPermission: Bool] = [:]
 
+    /// Permissions macOS will not ask for again because they were refused:
+    /// only System Settings can turn them on.
+    @Published private(set) var turnedOff: Set<AppPermission> = []
+
+    /// What was granted when this launch first read the permissions. A
+    /// permission granted since then may need a relaunch to take effect.
+    private(set) var grantedAtLaunch: [AppPermission: Bool] = [:]
+
     private var pollTimer: Timer?
     private var pollConsumers = 0
 
     private init() {
         refresh()
+        grantedAtLaunch = granted
     }
 
     /// Re-reads every permission and republishes only on a real change. TCC
@@ -207,6 +231,10 @@ final class PermissionManager: ObservableObject {
         }
         if latest != granted {
             granted = latest
+        }
+        let refused = Set(AppPermission.allCases.filter(\.requiresSettingsRecovery))
+        if refused != turnedOff {
+            turnedOff = refused
         }
     }
 

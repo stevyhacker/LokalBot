@@ -11,7 +11,7 @@ struct MainWindowView: View {
     /// Native sidebar toggle and restored visibility share the same binding.
     @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
     @State private var pendingDelete: Set<Meeting.ID>?
-    /// Shared by Timeline's chronology and bounded context panel.
+    /// Timeline's day, kept across visits to other pages.
     @StateObject private var capture = CaptureModel()
 
     var body: some View {
@@ -26,15 +26,6 @@ struct MainWindowView: View {
             }
         } message: {
             Text("This permanently deletes the audio, transcript and summary files.")
-        }
-        .toolbar {
-            if app.navSection == .timeline, app.evidenceReturnSection != nil {
-                ToolbarItem(placement: .navigation) {
-                    Button(action: app.returnFromEvidence) {
-                        Label("Back", systemImage: "chevron.left")
-                    }.help("Return to the source search or conversation")
-                }
-            }
         }
         .sheet(item: $app.followUpDraftMeeting) { meeting in
             FollowUpDraftSheet(meeting: meeting)
@@ -56,10 +47,8 @@ struct MainWindowView: View {
 
     }
 
-    /// Timeline is one day-explorer workspace inside the global shell. Its
-    /// chronology/context split belongs to that workspace, rather than
-    /// becoming two more global navigation columns. Meetings and Ask retain
-    /// their native three-column information architecture.
+    /// Every workspace keeps its own list-and-page split inside the detail
+    /// column, rather than adding global navigation columns.
     private var navigation: some View {
         NavigationSplitView(columnVisibility: Binding(
             get: { sidebarVisible ? .all : .detailOnly },
@@ -115,7 +104,9 @@ struct MainWindowView: View {
     @ViewBuilder private var workspace: some View {
         switch app.navSection {
         case .today:
-            if app.showingActions { ActionsWorkspaceView() } else { TodayView() }
+            TodayView()
+        case .actions:
+            ActionsWorkspaceView()
         case .timeline:
             TimelineContentView(model: capture)
         case .meetings:
@@ -149,17 +140,20 @@ struct MainWindowView: View {
             .id("workspace.recall")
         case .agent:
             AgentView(sessions: app.agentSessions, installer: app.agentInstaller)
-        case .settings:
-            SettingsView()
-                .id("workspace.settings")
         }
     }
 
+    /// Today and Actions lead; Remember holds what was captured; Assistant
+    /// holds the two places you ask for work. Settings and the storage line
+    /// sit in the footer, outside the destinations list.
     private var sidebar: some View {
         List(selection: sidebarSelection) {
             sidebarDestination(
                 "Today", systemImage: "sun.max", section: .today,
                 identifier: "sidebar.today")
+            sidebarDestination(
+                "Actions", systemImage: "checkmark.circle", section: .actions,
+                identifier: "sidebar.actions", showsOpenActionCount: true)
             sidebarSectionHeader("Remember")
             sidebarDestination(
                 "Meetings", systemImage: "waveform.circle", section: .meetings,
@@ -175,21 +169,18 @@ struct MainWindowView: View {
             sidebarDestination(
                 "Projects", systemImage: "folder", section: .projects,
                 identifier: "sidebar.projects")
+            sidebarSectionHeader("Assistant")
             sidebarDestination(
                 "Ask", systemImage: "sparkle.magnifyingglass", section: .ask,
                 identifier: "sidebar.ask")
-            sidebarSectionHeader("Tools")
             sidebarDestination(
                 "Agent", systemImage: "wand.and.sparkles", section: .agent,
                 identifier: "sidebar.agent")
-            sidebarDestination(
-                "Settings", systemImage: "gearshape", section: .settings,
-                identifier: "sidebar.settings")
         }
         .listStyle(.sidebar)
         .tint(Brand.tealFill)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            SidebarPrivacyFooter()
+            SidebarFooter(scriptedLabelColor: isScriptedCapture ? scriptedSidebarLabelColor : nil)
         }
         .frame(minWidth: LBTokens.Metric.sidebarMinWidth, maxWidth: .infinity, alignment: .leading)
         .navigationSplitViewColumnWidth(min: LBTokens.Metric.sidebarMinWidth,
@@ -205,7 +196,6 @@ struct MainWindowView: View {
             get: { isScriptedCapture ? nil : app.navSection },
             set: { selection in
                 if let selection {
-                    if selection == .today { app.showingActions = false }
                     app.evidenceReturnSection = nil
                     app.navSection = selection
                 }
@@ -222,10 +212,12 @@ struct MainWindowView: View {
         _ title: String,
         systemImage: String,
         section: AppState.NavSection,
-        identifier: String
+        identifier: String,
+        showsOpenActionCount: Bool = false
     ) -> some View {
         SidebarDestinationLabel(title: title, systemImage: systemImage,
-                                scriptedLabelColor: isScriptedCapture ? scriptedSidebarLabelColor : nil)
+                                scriptedLabelColor: isScriptedCapture ? scriptedSidebarLabelColor : nil,
+                                openActions: showsOpenActionCount ? app.outcomeIndex : nil)
         .tag(section)
         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
         .listRowBackground(sidebarRowBackground(section))
@@ -260,7 +252,7 @@ struct MainWindowView: View {
             .selectionDisabled(true)
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .accessibilityIdentifier(
-                title == "Remember" ? "sidebar.section.remember" : "sidebar.section.writeAct")
+                title == "Remember" ? "sidebar.section.remember" : "sidebar.section.assistant")
     }
 
     private var scriptedSidebarLabelColor: Color {
@@ -287,6 +279,7 @@ private struct SidebarDestinationLabel: View {
     let title: String
     let systemImage: String
     let scriptedLabelColor: Color?
+    var openActions: OutcomeIndex?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -299,6 +292,9 @@ private struct SidebarDestinationLabel: View {
                 .font(.scaled(.body))
                 .foregroundStyle(scriptedLabelColor.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary))
             Spacer(minLength: 0)
+            if let openActions {
+                SidebarOpenActionCount(index: openActions, scriptedLabelColor: scriptedLabelColor)
+            }
         }
         .padding(.horizontal, 10)
         .frame(minHeight: LBTokens.Metric.sidebarRowHeight)
@@ -306,18 +302,28 @@ private struct SidebarDestinationLabel: View {
     }
 }
 
-/// Reflects the *actual* privacy posture instead of a hardcoded claim: with a
-/// remote Think backend configured, "No data leaves your Mac" would be false —
-/// meeting and workday text goes to the approved origin.
-private struct SidebarPrivacyFooter: View {
+/// The number of open actions that are yours. It observes the outcome index
+/// itself, so a status change redraws this number and not the whole sidebar.
+private struct SidebarOpenActionCount: View {
+    @ObservedObject var index: OutcomeIndex
+    let scriptedLabelColor: Color?
+
+    var body: some View {
+        let count = index.openUserActionThreads.count
+        if count > 0 {
+            Text(count, format: .number)
+                .font(.scaled(.subheadline).monospacedDigit())
+                .foregroundStyle(scriptedLabelColor.map { AnyShapeStyle($0.opacity(0.6)) } ?? AnyShapeStyle(.secondary))
+                .accessibilityIdentifier("sidebar.actions.count")
+        }
+    }
+}
+
+/// The sidebar's foot: what is running now, then Settings, then where the
+/// library and the AI are.
+private struct SidebarFooter: View {
     @EnvironmentObject private var app: AppState
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var destination: InferencePresentation { InferencePresentation(settings: app.settings) }
-
-    /// Think's server, the transcription server and autocomplete's server,
-    /// each named once.
-    private var remoteHosts: [String] { app.settings.remoteAIHosts }
+    let scriptedLabelColor: Color?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -341,40 +347,104 @@ private struct SidebarPrivacyFooter: View {
                 .lbStatusSurface(.red)
             }
             BackgroundActivityCard(monitor: app.backgroundActivity)
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "lock.shield").foregroundStyle(Brand.teal)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Storage: this Mac").font(.scaled(.callout).weight(.semibold))
-                    HStack(spacing: 4) {
-                        Text(processingLabel)
-                        if !remoteHosts.isEmpty { StatusDot(color: .orange, size: 5) }
-                    }
-                    .font(.scaled(.subheadline)).workspaceSupportingForeground()
-                    ForEach(remoteHosts, id: \.self) { host in
-                        Text(host).font(.scaled(.subheadline)).workspaceSupportingForeground()
-                    }
-                    if app.settings.companionSharingEnabled {
-                        SidebarCompanionLine(host: app.companion)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                SidebarSettingsRow(scriptedLabelColor: scriptedLabelColor)
+                SidebarPrivacyLine()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .lbGroupedSurface()
         }
         .padding(10)
+    }
+}
+
+/// Settings is a place you visit rarely, so it sits at the foot and not among
+/// the destinations. It looks like a sidebar row and opens the Settings
+/// window, so it never shows as selected: the main window stays where it was.
+private struct SidebarSettingsRow: View {
+    @EnvironmentObject private var app: AppState
+    let scriptedLabelColor: Color?
+
+    var body: some View {
+        Button { app.openSettings() } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Brand.teal)
+                    .frame(width: 18)
+                    .accessibilityHidden(true)
+                Text("Settings")
+                    .font(.scaled(.body))
+                    .foregroundStyle(scriptedLabelColor.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(minHeight: LBTokens.Metric.sidebarRowHeight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("sidebar.settings")
+    }
+}
+
+/// Reflects the *actual* privacy posture instead of a hardcoded claim. With
+/// everything local it is one line. With a remote Think, transcription or
+/// autocomplete server it names storage and AI separately and lists each
+/// host once, because meeting and workday text goes to those origins.
+private struct SidebarPrivacyLine: View {
+    @EnvironmentObject private var app: AppState
+
+    private var destination: InferencePresentation { InferencePresentation(settings: app.settings) }
+
+    /// Think's server, the transcription server and autocomplete's server,
+    /// each named once.
+    private var remoteHosts: [String] { app.settings.remoteAIHosts }
+
+    private var blocked: Bool {
+        if case .blocked = destination { return true }
+        return false
+    }
+
+    private var everythingLocal: Bool { remoteHosts.isEmpty && !blocked }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "lock.shield")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Brand.teal)
+                .frame(width: 18)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                if everythingLocal {
+                    Text("On this Mac")
+                } else {
+                    Text("Storage: this Mac")
+                    HStack(spacing: 4) {
+                        Text(processingLabel)
+                        StatusDot(color: .orange, size: 5)
+                    }
+                    ForEach(remoteHosts, id: \.self) { host in
+                        Text(host)
+                    }
+                }
+                if app.settings.companionSharingEnabled {
+                    SidebarCompanionLine(host: app.companion)
+                }
+            }
+            .font(.scaled(.subheadline))
+            .workspaceSupportingForeground()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sidebar.localPrivacy")
     }
 
     private var processingLabel: String {
-        if case .blocked = destination { return "AI: connection blocked" }
-        return remoteHosts.isEmpty ? "AI: on this Mac" : "AI: local + remote"
+        blocked ? "AI: connection blocked" : "AI: local + remote"
     }
 }
 
-/// While sharing is on, the storage card says the library also has copies
+/// While sharing is on, the storage line says the library also has copies
 /// on the person's paired phones and tablets.
 private struct SidebarCompanionLine: View {
     @ObservedObject var host: CompanionHost

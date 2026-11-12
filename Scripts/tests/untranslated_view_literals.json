@@ -9,38 +9,12 @@
       "Forget everything…",
       "Stop Always Using"
     ],
-    "ActionEvidencePassages.swift": [
-      "Pause",
-      "Play Passage"
-    ],
-    "ActionsWorkspaceView.swift": [
-      "A thread groups the same action across meetings. Changing its status updates every linked meeting.",
-      "Original due phrase: \\(…)",
-      "Select",
-      "\\(…) of \\(…)",
-      "\\(…) selected outside these filters.",
-      "\\(…) threads"
-    ],
-    "AgentApprovalDock.swift": [
-      "(empty)",
-      "Allow \\(…) for Session",
-      "Approval required: \\(…)",
-      "Edit \\(…)"
-    ],
-    "AgentComposer.swift": [
-      "Queue follow-up",
-      "Reasoning: \\(…)",
-      "Send",
-      "The working folder is separate from LokalBot’s private data. Meeting Library tools provide scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant. Raw private-library file reads follow the approval mode even when a parent folder is selected.",
-      "\\(…). Attached text is included when you send. Files and tool actions follow the approval mode above."
-    ],
     "AgentResultsPanel.swift": [
       "(empty)",
       "Preview of recorded output or selected source. Opening a preview does not run a tool."
     ],
     "AgentSessionView.swift": [
       "0 matches",
-      "\\(…) approvals waiting",
       "\\(…) of \\(…)"
     ],
     "AgentTaskSidebar.swift": [
@@ -53,22 +27,7 @@
     "AgentView.swift": [
       "Downloading \\(…)…"
     ],
-    "AskView.swift": [
-      "Answer sources: \\(…) · \\(…)",
-      "Ask about results",
-      "Ask can search the selected sources within \\(…). Result-type and screen-app filters apply to search results only.",
-      "Ask stays within the selected evidence shown above, even when this search has no matches.",
-      "Attached screen · \\(…) · \\(…)",
-      "Finding sources…",
-      "Meeting · \\(…) · \\(…)",
-      "Results: \\(…)",
-      "Screen app: \\(…)",
-      "Screen · \\(…) · \\(…) · \\(…)",
-      "Waiting for sources…"
-    ],
     "AutocompleteExperienceView.swift": [
-      "Autocomplete off",
-      "Autocomplete on",
       "macOS can show its own inline predictions where you type, so two suggestions may appear at once. Turn off “Show inline predictive text” in Keyboard → Text Input → Edit…."
     ],
     "AutocompleteServerSetup.swift": [
@@ -78,32 +37,17 @@
     "BackgroundActivityCard.swift": [
       "+\\(…) more"
     ],
-    "CaptureDetailView.swift": [
-      "Showing \\(…) representative scenes from \\(…). Browse raw capture for every scene.",
-      "\\(…) observed · \\(…) activity \\(…)"
-    ],
     "CaptureRangeDeletionView.swift": [
-      "Cancel Range Deletion",
-      "Delete Captures in a Time Range…",
       "\\(…) capture\\(…)",
       "\\(…) moments, including \\(…) image records. Their captured text, search vectors and saved notes will also be removed permanently.",
       "\\(…) saved moments excluded · \\(…) saved moments included"
     ],
     "ChatView.swift": [
-      "Forgotten since this answer",
-      "LokalBot used only the sources enabled for this question. Citation numbers remain stable even when a local source is later removed.",
-      "Manage what LokalBot remembers…",
       "Manage…",
       "No questions match “\\(…)”.",
-      "Read aloud",
       "Remembered, then forgotten",
       "Show full question",
-      "Stop reading",
-      "Stop reading aloud",
-      "This removes “\\(…)” from Ask history.",
-      "Used 1 thing you told LokalBot",
-      "Used \\(…) things you told LokalBot",
-      "\\(…) conversations"
+      "This removes “\\(…)” from Ask history."
     ],
     "CodingAgentEvidenceSettings.swift": [
       "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code and Codex keep their own session files."
@@ -135,7 +79,6 @@
       "Create one timeline and fold the originals into it",
       "Delete \\(…)…",
       "Merge \\(…) meetings…",
-      "Record",
       "Select completed meetings that are not processing",
       "\\(…) failed",
       "\\(…) meetings selected"
@@ -147,26 +90,11 @@
       "Runs on the merged transcript after the new meeting is created.",
       "\\(…) recordings · \\(…)"
     ],
-    "MeetingReviewView.swift": [
-      "Linked to \\(…) action\\(…)",
-      "Listen to a short excerpt, then confirm a name or whether the speaker is you. Leave uncertain voices unresolved.",
-      "Name Speaker…",
-      "No derived notes yet",
-      "Notes need a refresh",
-      "Notes use the latest saved speaker details",
-      "Processing…",
-      "Refresh Notes and Owners",
-      "Refresh the summary and extracted owners after reviewing speakers. Saved action corrections stay separate; unmatched edits remain available for review.",
-      "Review Name…",
-      "Show Fewer Speakers",
-      "Show \\(…) More Speakers"
-    ],
     "MeetingScreenContextViews.swift": [
       "On screen at \\(…)",
       "The call"
     ],
     "MeetingWorkspaceView.swift": [
-      "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
       "Audio capture was interrupted or saving reported an error. Review the saved recording for missing audio.",
       "Back to Actions",
       "Delete \\(…) meetings",
@@ -177,10 +105,7 @@
       "Remove this merged meeting and restore \\(…) original meetings? Their source folders will stay intact.",
       "Some recovery audio could not be verified. Saved audio and original checkpoints are retained.",
       "Source-linked notes and actions are saved below. Actions become editable when the notes finish.",
-      "These actions are from the previous notes. Review their owners, then refresh to regenerate notes from the corrected transcript.",
       "These saved edits did not match a single regenerated action. Apply them to the correct action after reviewing its source.",
-      "\\(…) \\(…). Review action-linked voices first.",
-      "\\(…) calendar guests are available as name suggestions. Attendance alone does not identify a voice.",
       "\\(…) meetings selected"
     ],
     "MemoryHealthSection.swift": [
@@ -208,10 +133,6 @@
       "Search off",
       "Verifying…"
     ],
-    "ModelOverviewSections.swift": [
-      "Meetings will wait for transcription until you approve this server again or choose a model on this Mac.",
-      "Transcription server. Receives meeting and dictation audio, the language hint, and transcription vocabulary, including automatic processing after meetings."
-    ],
     "ModelPickerSheet.swift": [
       "Available on this Mac. No model download is needed.",
       "Download and use",
@@ -233,7 +154,7 @@
       "Existing models are kept. Your current setup stays active until preparation finishes. You can undo the switch."
     ],
     "ModelStackOverviewView.swift": [
-      "Using \\(…)"
+      "Text models: \\(…)"
     ],
     "ModelSupportingSettings.swift": [
       "Download once to use this voice offline.",
@@ -245,70 +166,30 @@
       "\\(…) ignores vocabulary. Whisper and Qwen3-ASR use it."
     ],
     "ModelsView.swift": [
-      "Downloads (\\(…))",
-      "Manage Downloads",
-      "Preparing \\(…)…",
-      "Text models: \\(…)",
-      "Using \\(…)"
+      "Preparing \\(…)…"
     ],
-    "OnboardingView.swift": [
+    "OnboardingDownloadStep.swift": [
       "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Autocomplete."
     ],
     "OutcomeOverviewViews.swift": [
-      "Allow matching across meetings",
       "Corrected to: \\(…)",
-      "Defer",
-      "Deferred",
       "Due: \\(…)",
-      "Mark all \\(…)",
-      "Still open?"
+      "Mark all \\(…)"
     ],
     "PeopleWorkspaceView.swift": [
-      "And \\(…) more meeting\\(…) under \\(…) other title\\(…).",
-      "Ask About \\(…)",
       "Choose who \\(…) really is. Their meetings, open work, and decisions move to that person, and \\(…) becomes another name. Separate them again from that person's More menu.",
-      "Draft Follow-up for \\(…)…",
       "Loading people…",
       "Merge",
-      "Merge Into…",
       "Merge \\(…) Into…",
-      "Not a Person",
       "People appear after meetings with calendar attendees, named speakers, or named action owners.",
       "People shows this name, and LokalBot also recognizes it in meeting notes and action owners. Names from your meetings stay listed as other names.",
       "Rename \\(…)",
       "Select a person.",
       "Use Name from Meetings",
-      "\\(…) (suggested)",
       "\\(…) meeting\\(…)"
     ],
-    "ProjectsWorkspaceView.swift": [
-      "Add the projects you work on, and LokalBot gathers their meetings, actions, and decisions. It also suggests names that come up in \\(…) or more meetings.",
-      "Ask About \\(…)",
-      "Codenames or clients, separated by commas",
-      "Hide older",
-      "Meetings, actions, and window titles that use any of these names are linked to the project.",
-      "Not a Project",
-      "Stop Tracking",
-      "Suggested",
-      "Track \\(…)",
-      "Track a Project",
-      "Track a suggestion below, or add a project with +.",
-      "Update",
-      "Write Note"
-    ],
-    "QuickRecallFooter.swift": [
-      "Ask about “\\(…)”"
-    ],
-    "QuickRecallRow.swift": [
-      "· \\(…) captures"
-    ],
-    "QuickRecallView.swift": [
-      "Type to search meetings, screens, and saved moments, or to run a command like Record now. Return opens a result; Ask is a separate action."
-    ],
     "RecordingHealthStrip.swift": [
-      "Last recovery \\(…)",
-      "Mic · \\(…)",
-      "System · \\(…)"
+      "Last recovery \\(…)"
     ],
     "RetentionSettingsControls.swift": [
       "Affected captures: \\(…) – \\(…)"
@@ -340,7 +221,6 @@
     ],
     "SettingsView.swift": [
       "Idle fallback: at least every \\(…) min",
-      "\\(…) ms",
       "\\(…) of \\(…) characters",
       "\\(…) of \\(…) characters. Only the first \\(…) are used; shorten the rest.",
       "\\(…) s after audio stops"
@@ -363,25 +243,9 @@
     "SummaryPresentation.swift": [
       "Show Less",
       "Show \\(…) More Points"
-    ],
-    "TodaySessionsSection.swift": [
-      "Show All \\(…) Sessions",
-      "Show Fewer Sessions"
-    ],
-    "UpcomingMeetingView.swift": [
-      "Generate brief",
-      "Record",
-      "\\(…) more today"
     ]
   },
   "verbatim": {
-    "ActionsWorkspaceView.swift": [
-      "Could not update: ",
-      "Owner unclear"
-    ],
-    "AgentSessionView.swift": [
-      "New task"
-    ],
     "ChatView.swift": [
       "worked: "
     ],
@@ -413,33 +277,20 @@
     ],
     "ModelStackOverviewView.swift": [
       "6 hours. On a paid API this can run up significant token costs; on a ",
-      "Applies to every Think model — built-in, Apple Intelligence, and servers. ",
       "Unlimited removes practical caps: a single meeting can process for up to "
     ],
     "ModelSupportingSettings.swift": [
       "Preparing voice…"
     ],
-    "OnboardingView.swift": [
-      "Still unavailable: "
-    ],
     "OutcomeOverviewViews.swift": [
       "Owner unclear",
       "Owner: "
-    ],
-    "PeopleWorkspaceView.swift": [
-      "Also appears as "
-    ],
-    "ProjectsWorkspaceView.swift": [
-      "Also: "
     ],
     "RetentionSettingsControls.swift": [
       "Keep images and activity titles for \\(…) days. "
     ],
     "SettingsApprovalView.swift": [
       "Keep images and activity titles for \\(…) days. "
-    ],
-    "SettingsView.swift": [
-      "Last suggestion used: "
     ],
     "SpeakerIdentityViews.swift": [
       "Unnamed"

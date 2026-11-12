@@ -35,6 +35,11 @@ final class AgentSessionTabs: ObservableObject {
     @Published var findRequest = 0
     @Published var resultsRequest = 0
     @Published var composerFocusRequest = 0
+    /// The Agent menu asks the task list to refresh, check the runtime, or
+    /// confirm clearing saved history.
+    @Published var refreshRequest = 0
+    @Published var verifyRuntimeRequest = 0
+    @Published var clearHistoryRequest = 0
     @Published var textSize: Double = 15
     private let makeController: @MainActor () -> AgentSessionController
     private let store: AgentTaskStore

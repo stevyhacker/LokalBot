@@ -340,6 +340,16 @@ final class ModelRoles: ObservableObject {
         }
     }
 
+    /// Stops the downloads `startCoreModelDownloads` began for the selected
+    /// models. Each stops the way its own Cancel on Downloaded stops it.
+    func cancelCoreModelDownloads() {
+        let settings = settings()
+        var ids = settings.cotypingBackend == .onDevice ? [settings.cotypingBuiltInModelID] : []
+        if settings.summarizerBackend == .builtIn { ids.append(settings.builtInModelID) }
+        for id in ids where downloadProgress[id] != nil { downloads.cancel(id: id) }
+        cancelTranscriptionPreparation(settings.transcriptionModel)
+    }
+
     func deleteGGUFModel(_ entry: ModelCatalog.Entry) {
         downloads.delete(entry, storage: storage)
         readinessDidChange()

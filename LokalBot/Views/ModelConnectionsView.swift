@@ -40,7 +40,7 @@ struct ModelConnectionsView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Model connections").font(.scaled(.headline))
-                Text("Manage servers and credentials. Choose which provider to use from Active models.")
+                Text("Manage servers and credentials. To use one, choose it with Change… beside Think.")
                     .font(.scaled(.body)).settingsSecondary()
             }
             Picker("Connection", selection: $connection) {

@@ -1,16 +1,41 @@
 import AppKit
 
-/// System-wide panels: Ask (with app commands) and selection actions.
+/// System-wide panels: Quick Recall (search, Ask and app commands) and
+/// selection actions.
 extension AppState {
-    /// Opens Ask, remembering the app the person was in so a recording or
-    /// dictation command run from it can hand focus back.
+    /// Opens Quick Recall, remembering the app the person was in so a
+    /// recording or dictation command run from it can hand focus back. The
+    /// system-wide shortcut, ⌘K and the View menu all come through here.
     func openQuickRecall() {
         shortcutSourceApplication = FocusReturn.frontmostOtherApplication()
+        if let application = NSApp {
+            // Pressing ⌘K again inside the window keeps what it was opened from.
+            let alreadyOpen = WindowAccess.visibleWindow("quick-recall", in: application)?.isKeyWindow == true
+            let fromMainWindow = shortcutSourceApplication == nil
+                && WindowAccess.visibleMainWindow(in: application)?.isKeyWindow == true
+            if !alreadyOpen, quickRecallOpenedFromMainWindow != fromMainWindow {
+                quickRecallOpenedFromMainWindow = fromMainWindow
+            }
+        }
         WindowAccess.shared.open("quick-recall")
     }
 
-    /// Runs `action` once the app Ask was opened from is frontmost again, or
-    /// right away when Ask was opened from LokalBot itself.
+    /// Shows in the Ask screen the conversation Quick Recall holds, with the
+    /// sources menu saying what its last question was limited to, as when a
+    /// saved conversation is opened there.
+    func continueQuickRecallConversationInAsk() {
+        if let scope = chat.currentQuestionScope {
+            recallState.selectEvidence(meetingIDs: scope.meetingIDs, screenIDs: scope.screenSnapshotIDs,
+                                       sources: scope.sources)
+            askDateScope = scope.dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
+        }
+        recallQuery = ""
+        askMode = .ask
+        navSection = .ask
+    }
+
+    /// Runs `action` once the app Quick Recall was opened from is frontmost
+    /// again, or right away when it was opened from LokalBot itself.
     func returnFocusToShortcutSource(then action: @escaping @MainActor () -> Void) {
         guard let application = shortcutSourceApplication else {
             action()

@@ -10,6 +10,8 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     let query: String
     let activeMatchIndex: Int?
     let identifier: String
+    /// A voice nobody has named yet reads as a prompt to name it.
+    var isUnnamed = false
     let action: () -> Void
     @Environment(\.appTextScale) private var textScale
 
@@ -42,20 +44,24 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? nsView.intrinsicContentSize.width,
+        // No wider than the name: the button used to fill the whole line, so
+        // a click anywhere beside the name opened the rename sheet. A long
+        // name still truncates inside the width it is offered.
+        CGSize(width: min(proposal.width ?? .infinity, nsView.intrinsicContentSize.width),
                height: proposal.height ?? nsView.intrinsicContentSize.height)
     }
 
     private func update(_ button: NSButton, coordinator: Coordinator) {
         let presentation = Presentation(title: title, query: query, activeMatchIndex: activeMatchIndex,
-                                        textScale: textScale)
+                                        textScale: textScale, isUnnamed: isUnnamed)
         guard coordinator.presentation != presentation else { return }
         coordinator.presentation = presentation
         button.attributedTitle = Self.attributedTitle(
             title,
             query: query,
             activeMatchIndex: activeMatchIndex,
-            textScale: textScale)
+            textScale: textScale,
+            isUnnamed: isUnnamed)
         button.setAccessibilityLabel(title)
         button.toolTip = "Rename speaker: \(title)"
     }
@@ -64,7 +70,8 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
         _ title: String,
         query: String,
         activeMatchIndex: Int?,
-        textScale: CGFloat
+        textScale: CGFloat,
+        isUnnamed: Bool
     ) -> NSAttributedString {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
@@ -77,6 +84,12 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
                 .foregroundColor: NSColor.labelColor,
                 .paragraphStyle: paragraph,
             ])
+        if isUnnamed {
+            result.addAttribute(
+                .underlineStyle,
+                value: NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue,
+                range: NSRange(location: 0, length: result.length))
+        }
         for (index, range) in MeetingPageSearch.ranges(
             in: title,
             query: query).enumerated() {
@@ -95,6 +108,7 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
         let query: String
         let activeMatchIndex: Int?
         let textScale: CGFloat
+        let isUnnamed: Bool
     }
 
     final class Coordinator: NSObject {

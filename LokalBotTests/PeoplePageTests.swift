@@ -106,6 +106,19 @@ final class PeoplePageTests: XCTestCase {
         XCTAssertEqual(byName["Ivana Ilić"]?.decisions.count, 0)
     }
 
+    func testDecisionsOfOneMeetingKeepOneOrderBetweenRebuilds() throws {
+        let sync = meeting("Atlas sync", day: -1, attendees: [ana])
+        let decisions = (1...6).map { MeetingOutcomes.Decision(text: "Synthetic decision number \($0)") }
+        let projections = [projection(sync, decisions: decisions)]
+        let first = try XCTUnwrap(build([sync], projections: projections).first).decisions.map(\.text)
+
+        XCTAssertEqual(first.count, 6)
+        for _ in 0..<5 {
+            XCTAssertEqual(build([sync], projections: projections).first?.decisions.map(\.text), first,
+                           "The page shows three and folds the rest, so the first three must not change")
+        }
+    }
+
     func testNamesNeedACapitalAndCommonWordsDoNotCountAtASentenceStart() {
         XCTAssertTrue(PeopleDirectory.isNamed("Ana Petrović", in: "Coordinate with ana petrović? No: with Ana Petrović."))
         XCTAssertTrue(PeopleDirectory.isNamed("Alex", in: "Alex will review the synthetic spec."))

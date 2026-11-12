@@ -94,7 +94,7 @@ step, and nothing records that you tried it.
 this choice with the other capture choices, and LokalBot reads no session until
 you finish setup. When LokalBot already has microphone access, as after a
 reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
-Settings → Screen & Activity. While it is on, LokalBot reads Claude Code session files
+Settings → Screen & activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
 `~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
 titles. It never opens the agents' credentials, settings, or databases, and
@@ -191,7 +191,7 @@ expired. Delete a day's journal from the library's `journal` folder to remove
 it. Edited and legacy unsigned journals are user-owned files and remain there
 until you remove them.
 
-**Personal Context** (Settings → Personal Context) holds what you tell Ask to remember
+**Personal Context** (Settings → About you) holds what you tell Ask to remember
 about yourself: messages that start with "Remember …" in Ask or Quick Recall,
 and items you add there. With **Learn about me from my meetings and work**
 (on by default, part of the overnight review) it also learns about you.
@@ -231,8 +231,13 @@ learned again. Unreviewed suggestions are dropped after 14 days.
 The items are AES-GCM encrypted with the same per-install key as
 saved Ask conversations, in the library's `memory` folder. Each Ask question
 includes the relevant items in its prompt to your Think model, which may be
-an approved remote server. A question limited to some sources or days gets
-only items you stated, not learned ones.
+an approved remote server. A question limited to some sources or days, or to
+particular meetings or screen moments, gets only items you stated, not learned
+ones. A full question you type in Ask reads everything in the sources and
+dates chosen in its two menus, whether or not matches are listed under the
+field. A single word or a phrase of up to three words that you search for and then ask about is
+answered from the matches listed for it, and the sources menu then names that
+limit until you widen it.
 The answer lists the items it was given. External agents can read only items
 you mark **Share with agents**, and only while **What I shared about myself**
 is ticked for them, as described under External-agent access. Agent Mode, Autocomplete,
@@ -564,7 +569,8 @@ The app may make these outbound connections:
   server's origin matches the Think OpenAI-compatible server, Think's key is
   used. Once approved, recordings are transcribed automatically after each
   meeting without a prompt each time. Revoking the approval in Settings →
-  Models, or choosing an on-device model, stops audio uploads; meetings then
+  Models or Settings → Privacy & permissions, or choosing an on-device model,
+  stops audio uploads; meetings then
   wait for transcription. The operator of that server controls its privacy
   terms and what it keeps.
 - **Optional subscription plans:** Think can run on your own ChatGPT or Claude
@@ -610,7 +616,25 @@ The app may make these outbound connections:
   packages from the npm registry, installed from the lockfile LokalBot ships.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside
-  LokalBot's control. Files and meetings you explicitly attach are read locally
+  LokalBot's control. On the Mac, reads of files inside the task's working
+  folder run without an approval request at every access level. When the
+  model runs on this Mac, read-only lookups of your own LokalBot library also
+  run without a request at every level, including the default (**Ask
+  first**). A lookup is one `lokalbot-cli brief`, `list`, `get` or `search`
+  command made only of plain or quoted words and those commands' own options,
+  optionally followed by `2>&1` and by `| head` or `| tail` with a line count.
+  These four commands only read and print: your meetings through the task's
+  own library access, and anything else only under the permission that covers
+  it. What they print is given to the model, so it stays on this Mac. When the
+  task's model is a remote server or a subscription plan, or LokalBot cannot
+  tell where it runs, each lookup asks first at every level below **Full
+  access**, because its output would be sent to that destination; the one
+  exception is the hand-off described below, in the read levels only. Anything else asks first under **Ask
+  first**: every other command (including other `lokalbot-cli` commands, and a
+  lookup combined with another pipe, a redirect, `;`, `&&`, a subshell,
+  variable expansion or an option those commands do not have), every file
+  change, reads outside the working folder, and direct reads of LokalBot's own
+  files. Files and meetings you explicitly attach are read locally
   and included when you send; saved screen moments additionally require the
   current screen-memory grant and include retained text and notes, never pixels.
   Attached context goes to the task's displayed inference destination and is
@@ -631,7 +655,11 @@ The app may make these outbound connections:
   does the same on request. The attached meeting's summary is read and sent
   only when the task is sent. **Start handoffs automatically**, also off by
   default, sends those tasks without a click, up to four at a time, under the
-  selected approval mode; otherwise each waits for you to press Send.
+  selected approval mode; otherwise each waits for you to press Send. A
+  handed-off task's read-only library lookups run without a request in the
+  read levels (**Read any file** and above) wherever its model runs, as
+  before, so with a remote model their output goes to that model; at **Ask
+  first** they follow the rule above.
 
 Those services receive normal connection metadata such as your IP address and
 request headers. LokalBot does not add an advertising identifier and does not
@@ -904,7 +932,7 @@ before recording other people.
 
 The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
 access until you turn on **Allow external agents to read your LokalBot data**
-under Settings → External Agents. It is off by default. Under it is a
+under Settings → AI agents. It is off by default. Under it is a
 box for each kind of data: **Meetings**, **Screen memory**, **What I shared
 about myself**, **Files**, and **Agent notes**. Agents can read only the kinds you tick, and
 ticking one never grants another. The first time you turn the switch on, only
@@ -1129,8 +1157,13 @@ the names of projects you track and suggestions you mark **Not a Project**
 (`projects/summaries.json`). Deleting a meeting withdraws every note that used
 it; **Stop Tracking** deletes the project's note. People stores only the
 corrections you make there — names you choose, people you merge, and entries
-you mark **Not a Person** — in `people/curation.json`, keyed by opaque person
-ids, never by attendee addresses; undoing every correction deletes the file. Tracked project names are
+you mark **Not a person** — in `people/curation.json`, keyed by opaque person
+ids, never by attendee addresses; undoing every correction deletes the file.
+While **Use calendar to improve detection** is on and Calendar access is
+granted, People also reads the next seven days of calendar meetings to show
+who is coming up and a person's next meeting. It matches attendees to people
+on this Mac, keeps the result in memory only, and never shows an address.
+Tracked project names are
 also added to meeting transcription vocabulary when **Add names LokalBot
 already knows** is on. Your Mac account name is read
 only to leave you out of People. **Suggest actions that look done**
@@ -1324,7 +1357,7 @@ A result older than 7 days is dropped when LokalBot starts or saves the next
 dictation, and any beyond the newest 10 right away; **Clear** deletes the file. They are never logged or sent anywhere. Text meant
 for a password field is never kept.
 
-Selection actions are off by default (Settings → Ask, or Turn On on Settings → Overview). When
+Selection actions are off by default (Settings → Ask). When
 enabled, pressing their shortcut reads the text selected in the frontmost app
 once, through Accessibility. Apps on the shared exclusion list and secure
 fields are not read. When an app does not expose its selection that way,
@@ -1432,8 +1465,10 @@ platform differences:
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
-  - File changes and commands need your approval. Session history stays in
-    the library.
+  - File changes and commands need your approval. On the Mac, read-only
+    lookups of your own library (`lokalbot-cli brief`, `list`, `get`,
+    `search`) run without asking when the model runs on this Mac. Session
+    history stays in the library.
 - **The live transcript preview** runs only when you start it during a
   recording. It uses the local transcription model and is not saved; the
   full transcript replaces it after the meeting. **Turn-by-turn live text**

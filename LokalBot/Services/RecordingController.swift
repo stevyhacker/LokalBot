@@ -174,6 +174,12 @@ struct RecordingMemoryHealthSnapshot: Equatable, Sendable {
     var lastRecoveryAt: Date?
     var systemAudioLevel: Double?
 
+    /// The system-audio status of a recording with no call attached.
+    static let notAttachedStatus = "Not attached"
+
+    /// Only the microphone is being recorded: there is no call to capture.
+    var recordsMicrophoneOnly: Bool { isRecording && systemAudioStatus == Self.notAttachedStatus }
+
     /// Presentation follows recent writes from each source independently.
     /// A source that produced sound earlier can subsequently become silent;
     /// historical audible data is not evidence that it is audible now.
@@ -197,7 +203,7 @@ struct RecordingMemoryHealthSnapshot: Equatable, Sendable {
         }
         let systemStatus: String
         if !hasSystemTarget {
-            systemStatus = "Not attached"
+            systemStatus = notAttachedStatus
         } else if system.lastAudioWriteAt == nil {
             systemStatus = "Waiting for audio"
         } else if !isRecent(system.lastAudioWriteAt, at: current) {
@@ -416,7 +422,8 @@ final class RecordingController: ObservableObject {
             return RecordingMemoryHealthSnapshot(
                 isRecording: true, microphoneStatus: "Waiting for audio", microphoneLastWriteAt: nil,
                 microphoneDroppedBuffers: 0,
-                systemAudioStatus: systemAudioTarget == nil ? "Not attached" : "Waiting for audio",
+                systemAudioStatus: systemAudioTarget == nil
+                    ? RecordingMemoryHealthSnapshot.notAttachedStatus : "Waiting for audio",
                 systemAudioLastWriteAt: nil, systemAudioDroppedBuffers: 0, lastRecoveryAt: latestRecoveryDate)
         }
         return RecordingMemoryHealthSnapshot.recording(

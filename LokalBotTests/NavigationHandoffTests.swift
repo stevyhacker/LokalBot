@@ -36,6 +36,32 @@ final class NavigationHandoffTests: XCTestCase {
         XCTAssertNil(handoff.consumeAsk()?.screenSnapshotIDs)
     }
 
+    /// Quick Recall's "Show all" opens Ask on the search, narrowed to one
+    /// kind's source. Every other handoff leaves the chosen sources alone.
+    func testAskHandoffCanNarrowTheSources() {
+        let handoff = NavigationHandoff()
+        handoff.stageAsk(query: "atlas", dayScope: nil, screenSnapshotIDs: nil, submit: false,
+                         mode: .keyword, sources: [.screen])
+        let staged = handoff.consumeAsk()
+        XCTAssertEqual(staged?.sources, [.screen])
+        XCTAssertFalse(staged?.submit ?? true, "Show all searches; it never asks")
+
+        var state = RecallWorkspaceState()
+        state.selectEvidence(meetingIDs: [UUID()], screenIDs: [4])
+        state.selectEvidence(meetingIDs: staged?.meetingIDs, screenIDs: staged?.screenSnapshotIDs.map { Set($0) },
+                             sources: staged?.sources)
+        XCTAssertEqual(state.sources, [.screen])
+        XCTAssertNil(state.meetingIDs, "an earlier limit to particular meetings is lifted")
+        XCTAssertNil(state.screenIDs)
+
+        handoff.stageAsk(query: "atlas", dayScope: nil, screenSnapshotIDs: nil, submit: false)
+        XCTAssertNil(handoff.consumeAsk()?.sources)
+        var chosen = RecallWorkspaceState()
+        chosen.chooseSources([.meetings, .files])
+        chosen.selectEvidence(meetingIDs: nil, screenIDs: nil, sources: nil)
+        XCTAssertEqual(chosen.sources, [.meetings, .files])
+    }
+
     func testMeetingSeekOnlyMatchesItsDestination() {
         let handoff = NavigationHandoff()
         let expectedMeetingID = UUID()

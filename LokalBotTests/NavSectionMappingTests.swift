@@ -11,34 +11,83 @@ final class NavSectionMappingTests: XCTestCase {
         XCTAssertEqual(AppState.NavSection(captureName: "meetings"), .meetings)
         XCTAssertEqual(AppState.NavSection(captureName: "people"), .people)
         XCTAssertEqual(AppState.NavSection(captureName: "Projects"), .projects)
-        XCTAssertEqual(AppState.NavSection(captureName: "type"), .settings)
         XCTAssertEqual(AppState.NavSection(captureName: "ask"), .ask)
-        XCTAssertEqual(AppState.NavSection(captureName: "settings"), .settings)
     }
 
-    /// Spec §2.5: Settings absorbs Models — the legacy "models" capture name
-    /// lands on Settings, and the SettingsTab mapping preselects its tab.
-    func testLegacyModelsNameMapsToSettings() {
-        XCTAssertEqual(AppState.NavSection(captureName: "models"), .settings)
-        XCTAssertEqual(AppState.NavSection(captureName: "Models"), .settings)
+    /// Settings has its own window, so its names are no longer sections of
+    /// the main window: they open Settings instead.
+    func testSettingsNamesOpenTheSettingsWindow() {
+        for name in ["settings", "Settings", "models", "Models", "type", "write", "dictation", "Cotyping",
+                     "autocomplete", "overview", "general", "privacy", "agents", "files", "email", "diagnostics"] {
+            XCTAssertNil(AppState.NavSection(captureName: name), name)
+            XCTAssertTrue(AppState.SettingsTab.opensSettings(sectionName: name), name)
+        }
     }
 
-    /// Settings opens on Overview with General right under it, above the
-    /// headings, and every other page sits under one sidebar heading, in the
-    /// order the sidebar shows them.
-    func testSettingsPagesAreGroupedByFeature() {
-        let pages = AppState.SettingsTab.allCases
-        XCTAssertEqual(Array(pages.prefix(2)), [.overview, .general])
-        XCTAssertNil(AppState.SettingsTab.overview.group)
-        XCTAssertNil(AppState.SettingsTab.general.group)
-        XCTAssertTrue(pages.dropFirst(2).allSatisfy { $0.group != nil })
-        let order = pages.compactMap(\.group)
-        XCTAssertEqual(order, order.sorted { lhs, rhs in
-            AppState.SettingsTab.Group.allCases.firstIndex(of: lhs)! < AppState.SettingsTab.Group.allCases.firstIndex(of: rhs)!
-        }, "a heading's pages are listed together")
-        XCTAssertEqual(Set(pages.map(\.displayName)).count, pages.count)
-        XCTAssertEqual(AppState.SettingsTab.dayMemory.displayName, "Screen & Activity")
-        XCTAssertEqual(AppState.SettingsTab.writing.displayName, "Autocomplete")
+    /// Names shared with a main-window section stay with the main window.
+    func testMainWindowSectionNamesDoNotOpenSettings() {
+        for name in ["today", "actions", "meetings", "timeline", "capture", "people", "projects", "ask",
+                     "search", "chat", "agent", "bogus", ""] {
+            XCTAssertFalse(AppState.SettingsTab.opensSettings(sectionName: name), name)
+        }
+    }
+
+    /// The Settings list: the LokalBot row opens Overview; General, Models
+    /// and Privacy & permissions follow; then Remember, Assistant, Writing
+    /// and Sharing; Diagnostics is last.
+    func testSettingsPagesAreListedInTheApprovedOrder() {
+        typealias Tab = AppState.SettingsTab
+        XCTAssertEqual(Tab.allCases, [
+            .overview, .general, .models, .privacy,
+            .recording, .dayMemory, .files, .email,
+            .ask, .personalContext, .daily,
+            .writing, .dictation,
+            .agents, .devices,
+            .advanced,
+        ])
+        XCTAssertEqual(Tab.leadingPages, [.general, .models, .privacy])
+        XCTAssertEqual(Tab.trailingPages, [.advanced])
+        XCTAssertEqual(Tab.Group.allCases.map(\.rawValue), ["Remember", "Assistant", "Writing", "Sharing"])
+        func pages(_ group: Tab.Group) -> [Tab] { Tab.allCases.filter { $0.group == group } }
+        XCTAssertEqual(pages(.remember), [.recording, .dayMemory, .files, .email])
+        XCTAssertEqual(pages(.assistant), [.ask, .personalContext, .daily])
+        XCTAssertEqual(pages(.writing), [.writing, .dictation])
+        XCTAssertEqual(pages(.sharing), [.agents, .devices])
+        // Every page is listed exactly once.
+        let listed = [.overview] + Tab.leadingPages + Tab.Group.allCases.flatMap(pages) + Tab.trailingPages
+        XCTAssertEqual(listed, Tab.allCases)
+        XCTAssertEqual(Set(Tab.allCases.map(\.displayName)).count, Tab.allCases.count)
+    }
+
+    /// Renames are display names only: raw values, which the CLI, deep links
+    /// and the saved selection use, stay as they were.
+    func testRenamedPagesKeepTheirIdentifiers() {
+        typealias Tab = AppState.SettingsTab
+        XCTAssertEqual(Tab.personalContext.displayName, "About you")
+        XCTAssertEqual(Tab.agents.displayName, "AI agents")
+        XCTAssertEqual(Tab.dayMemory.displayName, "Screen & activity")
+        XCTAssertEqual(Tab.daily.displayName, "Daily review")
+        XCTAssertEqual(Tab.privacy.displayName, "Privacy & permissions")
+        XCTAssertEqual(Tab.writing.displayName, "Autocomplete")
+        XCTAssertEqual(Tab.allCases.map(\.rawValue).sorted(), SettingCategory.allCases.map(\.rawValue).sorted())
+        XCTAssertEqual(Tab(captureName: "personal context"), .personalContext)
+        XCTAssertEqual(Tab(captureName: "about you"), .personalContext)
+        XCTAssertEqual(Tab(captureName: "external agents"), .agents)
+    }
+
+    /// Search still finds a page's settings by the name the page had before.
+    @MainActor
+    func testSearchFindsSettingsByFormerPageNames() {
+        XCTAssertTrue(SettingDescriptor.search("Personal Context", language: .english)
+            .contains { $0.category == .personalContext })
+        XCTAssertTrue(SettingDescriptor.search("About you", language: .english)
+            .contains { $0.category == .personalContext })
+        XCTAssertTrue(SettingDescriptor.search("External Agents", language: .english)
+            .contains { $0.category == .agents })
+        XCTAssertTrue(SettingDescriptor.search("AI agents", language: .english)
+            .contains { $0.category == .agents })
+        // Every setting search knows still belongs to a page in the list.
+        XCTAssertTrue(SettingDescriptor.all.allSatisfy { AppState.SettingsTab.allCases.contains($0.category) })
     }
 
     func testSettingsTabCaptureNamesSelectTheTab() {
@@ -68,11 +117,6 @@ final class NavSectionMappingTests: XCTestCase {
     func testLegacyCaptureNameMapsToTimeline() {
         XCTAssertEqual(AppState.NavSection(captureName: "capture"), .timeline)
         XCTAssertEqual(AppState.NavSection(captureName: "Capture"), .timeline)
-    }
-
-    func testLegacyTypeNamesMapToSettings() {
-        XCTAssertEqual(AppState.NavSection(captureName: "dictation"), .settings)
-        XCTAssertEqual(AppState.NavSection(captureName: "Cotyping"), .settings)
     }
 
     func testLegacySearchAndChatNamesMapToAsk() {

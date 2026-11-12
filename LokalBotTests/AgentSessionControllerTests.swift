@@ -174,6 +174,229 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
+    func testSendNowSteersWithOneQueuedMessageAndLeavesTheRest() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "First"
+        controller.queueDraft()
+        controller.draft = "Second"
+        controller.queueDraft()
+        let second = try XCTUnwrap(controller.queuedPrompts.last)
+        let sending = Task { await controller.sendQueuedNow(second.id) }
+        try await pump()
+        let line = try XCTUnwrap(transport.sentLines.first { $0.contains(#""type":"steer""#) })
+        XCTAssertTrue(line.contains("Second"))
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["First"], "it leaves the queue as it is sent")
+        transport.inject(#"{"type":"response","id":"steer1","command":"steer","success":true}"#)
+        let sent = await sending.value
+        XCTAssertTrue(sent)
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["First"])
+        XCTAssertFalse(transport.sentLines.contains { $0.contains("First") })
+        let unknown = await controller.sendQueuedNow(UUID())
+        XCTAssertFalse(unknown)
+        await controller.shutdown()
+    }
+
+    func testSendNowPutsARejectedMessageBackInItsPlace() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        for text in ["First", "Second", "Third"] {
+            controller.draft = text
+            controller.queueDraft()
+        }
+        let second = controller.queuedPrompts[1]
+        let sending = Task { await controller.sendQueuedNow(second.id) }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"steer1","command":"steer","success":false,"error":"busy"}"#)
+        let sent = await sending.value
+        XCTAssertFalse(sent)
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["First", "Second", "Third"])
+        XCTAssertEqual(controller.queuedPrompts[1].id, second.id)
+        await controller.shutdown()
+    }
+
+    func testSendNowOnAnIdleAgentSendsAnOrdinaryMessage() async throws {
+        let controller = makeController()
+        await controller.start()
+        controller.draft = "Later"
+        controller.restoreQueue([AgentQueuedPrompt(text: "Later")])
+        let queued = try XCTUnwrap(controller.queuedPrompts.first)
+        XCTAssertTrue(controller.queueIsPaused)
+        let sending = Task { await controller.sendQueuedNow(queued.id) }
+        try await pump()
+        let line = try XCTUnwrap(transport.sentLines.first { $0.contains(#""type":"prompt""#) })
+        XCTAssertTrue(line.contains("Later"))
+        XCTAssertFalse(transport.sentLines.contains { $0.contains(#""type":"steer""#) })
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        let sent = await sending.value
+        XCTAssertTrue(sent)
+        XCTAssertTrue(controller.queuedPrompts.isEmpty)
+        await controller.shutdown()
+    }
+
+    func testStatusSaysStoppedAfterStopUntilTheNextMessage() async throws {
+        let controller = makeController()
+        await controller.start()
+        XCTAssertEqual(controller.status(), .notStarted)
+        let send = Task { await controller.send(prompt: "Draft it") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await send.value
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        XCTAssertEqual(controller.status(), .working)
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"a2","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        await stopping.value
+        try await pump()
+        XCTAssertTrue(controller.wasStopped)
+        XCTAssertEqual(controller.status(), .stopped)
+        XCTAssertEqual(controller.taskStatus, "Stopped")
+        let next = Task { await controller.send(prompt: "Go on") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p3","command":"prompt","success":true}"#)
+        _ = await next.value
+        XCTAssertFalse(controller.wasStopped)
+        XCTAssertEqual(controller.status(), .working)
+        await controller.shutdown()
+    }
+
+    func testFinishedTurnIsDoneAndCountsTheFilesItChanged() async throws {
+        let controller = makeController()
+        await controller.start()
+        let existing = controller.workspace.appendingPathComponent("old.md")
+        try Data("old".utf8).write(to: existing)
+        let send = Task { await controller.send(prompt: "Write two notes") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await send.value
+        transport.inject(#"{"type":"agent_start"}"#)
+        transport.inject(#"{"type":"tool_execution_start","toolCallId":"w1","toolName":"write","args":{"path":"new.md","content":"a\nb"}}"#)
+        transport.inject(#"{"type":"tool_execution_end","toolCallId":"w1","result":{"content":[]},"isError":false}"#)
+        transport.inject(#"{"type":"tool_execution_start","toolCallId":"w2","toolName":"write","args":{"path":"old.md","content":"new"}}"#)
+        transport.inject(#"{"type":"tool_execution_end","toolCallId":"w2","result":{"content":[]},"isError":false}"#)
+        transport.inject(#"{"type":"tool_execution_start","toolCallId":"w3","toolName":"write","args":{"path":"refused.md","content":"x"}}"#)
+        transport.inject(#"{"type":"tool_execution_end","toolCallId":"w3","result":{"content":[]},"isError":true}"#)
+        transport.inject(#"{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"Saved both."}]}}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        XCTAssertEqual(controller.status(), .done(changedFiles: 2))
+        let steps = controller.items.filter { if case .tool = $0 { true } else { false } }
+        let files = controller.changedFiles(in: steps)
+        XCTAssertEqual(files.map(\.target.name), ["new.md", "old.md"])
+        XCTAssertEqual(files.map(\.change), [.created, .replaced])
+        XCTAssertEqual(files.first?.lineCount, 2)
+        XCTAssertEqual(files.first?.target.place, .workingFolder)
+        await controller.shutdown()
+        XCTAssertEqual(controller.status(), .saved, "a closed agent's task is no longer shown as just done")
+    }
+
+    func testApprovalCardKnowsWhetherItsFileExistsAndWhereItIs() async throws {
+        let controller = makeController()
+        await controller.start()
+        let folder = controller.workspace
+        try Data("old".utf8).write(to: folder.appendingPathComponent("old.md"))
+        func request(_ path: String, workspace: String? = nil) -> AgentApprovalRequest {
+            .init(id: "r", tool: "write", workspace: workspace ?? folder.path, path: path, command: nil, content: "x",
+                  edits: [], summary: nil, isTruncated: false)
+        }
+        XCTAssertTrue(controller.approvalTargetExists(request("old.md")))
+        XCTAssertFalse(controller.approvalTargetExists(request("new.md")))
+        XCTAssertEqual(controller.approvalPlace(request("new.md")), .workingFolder)
+        XCTAssertEqual(controller.approvalPlace(request(folder.appendingPathComponent("sub/new.md").path)), .workingFolder)
+        XCTAssertEqual(controller.approvalPlace(request(fixtureRoot.appendingPathComponent("outside.md").path)), .outside)
+        // LokalBot's library, its saved tasks and its runtime are its own data.
+        XCTAssertEqual(controller.approvalPlace(request(fixtureStorage.rootURL.appendingPathComponent("meta.json").path)),
+                       .lokalbotData)
+        XCTAssertEqual(controller.approvalPlace(request(fixtureRoot.appendingPathComponent("sessions/tasks.json").path)),
+                       .lokalbotData)
+        // A relative path from a request made in another folder is judged where it really is.
+        XCTAssertEqual(controller.approvalPlace(request("note.md", workspace: fixtureRoot.path)), .outside)
+        var command = request("x")
+        command = .init(id: "c", tool: "bash", workspace: folder.path, path: nil, command: "ls", content: nil,
+                        edits: [], summary: nil, isTruncated: false)
+        XCTAssertEqual(controller.approvalPlace(command), .none)
+        XCTAssertFalse(controller.approvalTargetExists(command))
+        await controller.shutdown()
+    }
+
+    /// A lookup's output goes to the model, so with a model on a server the
+    /// same lookup shows its card, at the default level and in the read levels.
+    func testLibraryLookupAsksWhenTheModelIsNotOnThisMac() async throws {
+        let box = SettingsBox()
+        box.settings.summarizerBackend = .openAICompatible
+        box.settings.openAIBaseURL = "https://reviewed.example/v1"
+        box.settings.openAIModel = "test-model"
+        box.settings.approvedRemoteInferenceOrigins = ["https://reviewed.example"]
+        let fake = FakeTransport()
+        let controller = AgentSessionController(
+            settings: { box.settings },
+            storage: fixtureStorage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
+            makeTransport: { _ in fake },
+            approvalModeDefaults: makeApprovalModeDefaults())
+        await controller.start()
+        XCTAssertEqual(controller.state, .ready)
+        XCTAssertEqual(controller.modelContext?.destination, .remote(host: "reviewed.example"))
+        let folder = controller.workspace.path
+        fake.inject(try approvalEvent(id: "look", tool: "bash", workspace: folder, path: nil, content: "",
+                                      command: "lokalbot-cli search \"design review\" --limit 20"))
+        try await pump()
+        XCTAssertEqual(controller.pendingApprovals.map(\.id), ["look"])
+        XCTAssertFalse(fake.sentLines.contains { $0.contains(#""id":"look""#) && $0.contains(#""confirmed":true"#) })
+
+        // The read levels do not let it through either, as before.
+        await controller.setApprovalMode(.approveReadsAndEdits)
+        XCTAssertEqual(controller.pendingApprovals.map(\.id), ["look"])
+        fake.inject(try approvalEvent(id: "look2", tool: "bash", workspace: folder, path: nil, content: "",
+                                      command: "lokalbot-cli brief"))
+        try await pump()
+        XCTAssertEqual(controller.pendingApprovals.map(\.id), ["look", "look2"])
+
+        // A task handed off from a meeting's actions keeps what it had in the read levels.
+        controller.allowsLibraryLookups = true
+        fake.inject(try approvalEvent(id: "look3", tool: "bash", workspace: folder, path: nil, content: "",
+                                      command: "lokalbot-cli brief"))
+        try await pump()
+        XCTAssertTrue(fake.sentLines.contains { $0.contains(#""id":"look3""#) && $0.contains(#""confirmed":true"#) })
+        await controller.shutdown()
+    }
+
+    func testLibraryLookupRunsWithoutACardAtTheDefaultLevel() async throws {
+        let controller = makeController()
+        await controller.start()
+        XCTAssertEqual(controller.approvalMode, .askBeforeChanges)
+        XCTAssertEqual(controller.modelContext?.destination, .onDevice, "the fixture's model is on this Mac")
+        let folder = controller.workspace.path
+        transport.inject(try approvalEvent(id: "look", tool: "bash", workspace: folder, path: nil, content: "",
+                                           command: "lokalbot-cli search \"design review\" --limit 20"))
+        try await pump()
+        XCTAssertTrue(controller.pendingApprovals.isEmpty, "a read-only lookup shows no card")
+        XCTAssertTrue(transport.sentLines.contains { $0.contains(#""id":"look""#) && $0.contains(#""confirmed":true"#) })
+
+        // The same lookup with a redirect, a write, and another command still ask.
+        transport.inject(try approvalEvent(id: "redirect", tool: "bash", workspace: folder, path: nil, content: "",
+                                           command: "lokalbot-cli list > notes.md"))
+        transport.inject(try approvalEvent(id: "write", tool: "write", workspace: folder,
+                                           path: folder + "/note.md", content: "x"))
+        transport.inject(try approvalEvent(id: "other", tool: "bash", workspace: folder, path: nil, content: "",
+                                           command: "lokalbot-cli actions --owner me"))
+        try await pump()
+        XCTAssertEqual(controller.pendingApprovals.map(\.id), ["redirect", "write", "other"])
+        for id in ["redirect", "write", "other"] {
+            XCTAssertFalse(transport.sentLines.contains { $0.contains("\"id\":\"\(id)\"") && $0.contains(#""confirmed":true"#) })
+        }
+        XCTAssertEqual(controller.status(), .needsApproval(3))
+        await controller.shutdown()
+    }
+
     func testTerminalProviderFailurePausesTheHostQueue() async throws {
         let controller = makeController()
         await controller.start()

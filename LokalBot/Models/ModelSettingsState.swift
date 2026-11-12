@@ -1,14 +1,16 @@
 import Foundation
 
+/// Settings › Models and the pages its "More" rows open.
 enum ModelsSettingsPage: String, CaseIterable, Identifiable {
-    case active, downloaded, connections
+    case active, downloaded, connections, other
 
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .active: "Active models"
-        case .downloaded: "Downloaded"
-        case .connections: "Connections"
+        case .active: "Models"
+        case .downloaded: "Downloaded models"
+        case .connections: "Online services"
+        case .other: "Other models"
         }
     }
 }
@@ -318,6 +320,15 @@ enum ModelSettingsPresentation {
         let estimatedBytes = estimate.isFinite && estimate > 0 && estimate < Double(Int64.max) ? Int64(estimate) : 0
         let bytes = entry.sizeBytes ?? estimatedBytes
         return bytes > 0 ? ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) : "Size varies"
+    }
+
+    /// Roughly what a text model needs in memory to run: its size and a
+    /// third more, the estimate the picker has always shown under Advanced.
+    static func memoryNeed(_ entry: ModelCatalog.Entry) -> String? {
+        guard entry.sizeGB.isFinite, entry.sizeGB > 0 else { return nil }
+        let bytes = entry.sizeGB * 1.3 * 1_000_000_000
+        guard bytes < Double(Int64.max) else { return nil }
+        return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
     }
 
     private static func safeCombinedBytes(_ first: Int64, _ second: Int64) -> Int64? {

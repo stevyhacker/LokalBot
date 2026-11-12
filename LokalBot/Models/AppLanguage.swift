@@ -155,4 +155,8 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
               let localizedBundle = Bundle(path: path) else { return key }
         return localizedBundle.localizedString(forKey: key, value: key, table: nil)
     }
+
+    /// `localized` as a function, for wording that model types put together
+    /// (a row's due text, a filter's chip) rather than a view.
+    var catalog: (String) -> String { { localized($0) } }
 }

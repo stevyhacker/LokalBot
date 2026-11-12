@@ -207,8 +207,9 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { (consent.value as? Int) == 1 })
         app.buttons["models.back"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !server.exists })
-        UITestHarness.scrollTo(app.buttons["models.connections"], in: app, within: app.scrollViews["models.content"])
-        app.buttons["models.connections"].click()
+        // Online services is a row under More now.
+        UITestHarness.scrollTo(app.buttons["models.more.connections"], in: app, within: app.scrollViews["models.content"])
+        app.buttons["models.more.connections"].click()
         XCTAssertEqual(model.value as? String, "example/test-model", "Changing pages must preserve the saved model")
         UITestHarness.scrollTo(consent, in: app, within: app.scrollViews["models.content"])
         XCTAssertEqual(consent.value as? Int, 1, "Changing pages must preserve explicit consent")
@@ -284,9 +285,10 @@ final class ModelsSettingsUITests: XCTestCase {
                 }
                 XCTAssertFalse(UITestHarness.staticText(containing: "Check passed", in: app).exists,
                                "Configured models must not claim a successful test")
-                XCTAssertTrue(app.descendants(matching: .any)["sidebar.today"].exists,
-                              "Settings must remain inside the main workspace")
-                XCTAssertEqual(app.windows.count, 1, "Opening Models must not create a separate Settings window")
+                XCTAssertTrue(UITestHarness.settingsWindow(in: app).exists, "Models is a page of the Settings window")
+                XCTAssertFalse(app.descendants(matching: .any)["sidebar.today"].exists,
+                               "Launching on Models opens Settings alone, without the main workspace")
+                XCTAssertEqual(app.windows.count, 1, "Launching on Models must open one Settings window")
                 capture("models-\(size)-\(appearance)-overview")
                 think.click()
                 XCTAssertTrue(app.textFields["models.picker.modelID"].waitForExistence(timeout: 5))

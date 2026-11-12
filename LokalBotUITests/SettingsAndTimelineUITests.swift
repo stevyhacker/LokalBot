@@ -34,7 +34,7 @@ final class SettingsUITests: XCTestCase {
         UITestHarness.selectSegment("简体中文", pickerIdentifier: "settings.appLanguage", in: app)
         XCTAssertTrue(UITestHarness.staticText(containing: "主题", in: app)
             .waitForExistence(timeout: 6), "An open AppKit host must adopt the selected Chinese locale")
-        let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        let screenshot = XCTAttachment(screenshot: UITestHarness.settingsWindow(in: app).screenshot())
         screenshot.name = "settings-interface-simplified-chinese"
         screenshot.lifetime = .keepAlways
         add(screenshot)
@@ -107,7 +107,7 @@ final class SettingsUITests: XCTestCase {
             XCTAssertTrue(UITestHarness.staticText(containing: theme, in: app).waitForExistence(timeout: 6),
                           "The existing settings host must render \(identifier)")
             XCTAssertTrue(UITestHarness.staticText(containing: languageLabel, in: app).waitForExistence(timeout: 6))
-            let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+            let screenshot = XCTAttachment(screenshot: UITestHarness.settingsWindow(in: app).screenshot())
             screenshot.name = "settings-interface-\(identifier)"
             screenshot.lifetime = .keepAlways
             add(screenshot)
@@ -125,40 +125,54 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.staticText(containing: "Theme", in: app).waitForExistence(timeout: 6))
     }
 
-    /// Settings opens on Overview: a card's action turns its feature on or
-    /// opens the page that does, and its title opens the feature's page.
-    func testOverviewTurnsFeaturesOnAndOpensTheirPages() {
+    /// Settings opens on Overview, a status page: what needs you, where your
+    /// data is, and the shortcuts. It has no switches of its own; its rows
+    /// open the page where each thing is set.
+    func testOverviewShowsStatusAndOpensThePagesThatFixIt() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         let overview = app.scrollViews["settings.overview"]
         XCTAssertTrue(overview.waitForExistence(timeout: 6), "Settings must open on Overview")
+        XCTAssertTrue(app.descendants(matching: .any)["settings.overview.headline"].exists,
+                      "Overview leads with whether anything needs you")
+        XCTAssertTrue(app.descendants(matching: .any)["settings.identity.summary"].exists,
+                      "The LokalBot row at the top of the list says the same")
+        XCTAssertFalse(app.buttons["settings.overview.askAnywhere.action"].exists,
+                       "Overview no longer has a second set of feature switches")
+        XCTAssertEqual(overview.switches.count, 0, "Features are turned on on their own pages")
 
-        let turnOn = app.buttons["settings.overview.askAnywhere.action"]
-        UITestHarness.scrollTo(turnOn, in: app, within: overview)
-        XCTAssertTrue(turnOn.waitForExistence(timeout: 4), "Ask anywhere is off by default and offers Turn On")
-        turnOn.click()
-        XCTAssertTrue(UITestHarness.waitUntil { !turnOn.exists }, "Turning it on replaces the action")
-        let open = app.buttons["settings.overview.askAnywhere.open"]
-        UITestHarness.scrollTo(open, in: app, within: overview)
-        open.click()
-        let toggle = UITestHarness.toggle("Enable the system-wide Ask shortcut", in: app)
-        XCTAssertTrue(toggle.waitForExistence(timeout: 6), "The card opens the Ask page")
-        XCTAssertEqual(String(describing: toggle.value ?? ""), "1", "Overview's Turn On is the page's switch")
-        toggle.click()
-        XCTAssertTrue(UITestHarness.waitUntil { String(describing: toggle.value ?? "") == "0" })
+        // Where your data is opens Privacy & permissions.
+        let privacy = app.buttons["settings.overview.privacy"]
+        UITestHarness.scrollTo(privacy, in: app, within: overview)
+        privacy.click()
+        XCTAssertTrue(app.descendants(matching: .any)["settings.permission.microphone"].waitForExistence(timeout: 6),
+                      "Overview's data row opens Privacy & permissions")
+        // Back returns to Overview.
+        app.buttons["settings.back"].click()
+        XCTAssertTrue(overview.waitForExistence(timeout: 4), "Back returns to the page shown before")
 
+        let models = app.buttons["settings.overview.models"]
+        UITestHarness.scrollTo(models, in: app, within: overview)
+        models.click()
+        XCTAssertTrue(app.descendants(matching: .any)["models.settings"].waitForExistence(timeout: 6),
+                      "Overview's Models row opens Models")
+
+        // A shortcut that is off opens the page that turns it on.
         UITestHarness.selectSettingsCategory("Overview", in: app)
-        let files = app.buttons["settings.overview.files.action"]
-        UITestHarness.scrollTo(files, in: app, within: app.scrollViews["settings.overview"])
-        XCTAssertTrue(files.waitForExistence(timeout: 4), "Files is off by default and offers Set Up")
-        files.click()
-        XCTAssertTrue(app.descendants(matching: .any)["settings.files.enabled"].waitForExistence(timeout: 6),
-                      "Set Up opens Files, where its notice turns it on")
+        let ask = app.buttons.matching(NSPredicate(
+            format: "label BEGINSWITH %@ AND NOT (label CONTAINS %@)", "Quick Recall", "in LokalBot")).firstMatch
+        UITestHarness.scrollTo(ask, in: app, within: app.scrollViews["settings.overview"])
+        ask.click()
+        let toggle = UITestHarness.toggle("Enable the Quick Recall shortcut", in: app)
+        XCTAssertTrue(toggle.waitForExistence(timeout: 6), "The shortcut's row opens the Ask page")
+        XCTAssertEqual(String(describing: toggle.value ?? ""), "0", "Quick Recall's shortcut is off until its own switch turns it on")
     }
 
+    /// Privacy & permissions is the one home for permissions and for what
+    /// leaves the Mac.
     func testPermissionRepairPaneRendersCorePermissions() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
 
-        UITestHarness.selectSettingsCategory("Privacy & Permissions", in: app)
+        UITestHarness.selectSettingsCategory("Privacy & permissions", in: app)
         let microphone = UITestHarness.staticText(containing: "Microphone", in: app)
         UITestHarness.scrollTo(microphone, in: app)
         // Gate on the Microphone row, not the "Permissions" section header:
@@ -167,14 +181,27 @@ final class SettingsUITests: XCTestCase {
         // AX hierarchies show them. Row texts are value-carrying and match.
         XCTAssertTrue(UITestHarness.staticText(containing: "Microphone", in: app)
             .waitForExistence(timeout: 6), "microphone permission row missing")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Screen Recording", in: app).exists,
-                      "screen/system-audio permission row missing")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Accessibility", in: app).exists,
-                      "accessibility permission row missing")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Input Monitoring", in: app).exists,
-                      "optional input monitoring row missing")
-        XCTAssertTrue(app.buttons["Relaunch"].exists,
+        for permission in ["microphone", "accessibility", "inputMonitoring", "screenRecording", "calendar"] {
+            XCTAssertTrue(app.descendants(matching: .any)["settings.permission.\(permission)"].exists,
+                          "\(permission) permission row missing")
+        }
+        XCTAssertTrue(app.buttons["settings.permissions.relaunch"].exists,
                       "relaunch affordance missing")
+        // What leaves this Mac: nothing online by default, and sharing is off.
+        let agents = app.buttons["settings.privacy.agents"]
+        UITestHarness.scrollTo(agents, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(agents.waitForExistence(timeout: 4), "agent access summary missing")
+        XCTAssertTrue(app.descendants(matching: .any)["settings.privacy.onlineModels"].exists,
+                      "with every model local, Online models says none")
+        XCTAssertTrue(app.buttons["settings.privacy.devices"].exists, "phone and tablet sharing summary missing")
+        UITestHarness.scrollTo(app.descendants(matching: .any)["settings.library"], in: app,
+                               within: app.scrollViews["settings.form"])
+        XCTAssertTrue(app.buttons["settings.library.showInFinder"].exists, "library location missing")
+        // The sharing summary opens the page where its consent lives.
+        UITestHarness.scrollTo(agents, in: app, within: app.scrollViews["settings.form"], upward: true)
+        agents.click()
+        XCTAssertTrue(app.descendants(matching: .any)["settings.agentAccess"].waitForExistence(timeout: 6),
+                      "AI agents on this Mac opens the AI agents page")
     }
 
     func testResourceMonitorRendersUsageAndModelState() {
@@ -247,8 +274,28 @@ final class SettingsUITests: XCTestCase {
             .waitForExistence(timeout: 6), "calendar title toggle missing when calendar detection is on")
         XCTAssertTrue(UITestHarness.staticText(containing: "Require a calendar match", in: app).exists,
                       "browser strict-mode toggle missing when calendar detection is on")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Calendar access", in: app).exists,
-                      "calendar access row missing when calendar detection is on")
+        // Calendar access is asked for on Privacy & permissions, and by the
+        // header's status line while it is missing ("Calendar access is off,
+        // so…"). Meetings no longer has a row of its own for it: no row
+        // titled "Calendar access" and no grant button under Calendar.
+        XCTAssertEqual(app.staticTexts.matching(
+            NSPredicate(format: "label ==[c] %@ OR value ==[c] %@", "Calendar access", "Calendar access")).count, 0,
+                       "Meetings must not have a Calendar access row of its own")
+        XCTAssertFalse(app.buttons["Grant Calendar Access…"].exists,
+                       "Meetings must not ask for Calendar access in its own way")
+        let headerLine = app.descendants(matching: .any)["settings.status.recording.allow.calendar"]
+        let askedInHeader = headerLine.exists
+        if askedInHeader {
+            XCTAssertTrue(app.buttons["settings.status.recording.allow.calendar.action"].exists,
+                          "The header's Calendar line carries its own fix button")
+        }
+        UITestHarness.selectSettingsCategory("Privacy & permissions", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["settings.permission.calendar"].waitForExistence(timeout: 6),
+                      "calendar permission row missing on Privacy & permissions")
+        // Both places say the same about Calendar: asked for in the header
+        // exactly while Privacy & permissions offers to allow it.
+        XCTAssertEqual(app.buttons["settings.permission.calendar.allow"].exists, askedInHeader,
+                       "Meetings' header and Privacy & permissions must agree on Calendar access")
     }
 
     private func relaunch(settingsJSON: String) throws {
@@ -266,7 +313,7 @@ final class SettingsUITests: XCTestCase {
 }
 
 /// Timeline against a fixture with no activity blocks — meetings still
-/// populate the primary chronological Work sessions stream.
+/// populate the day's list.
 final class TimelineWithoutActivityUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -286,7 +333,7 @@ final class TimelineWithoutActivityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
             .waitForExistence(timeout: 6), "timeline section did not render")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"]
-            .waitForExistence(timeout: 6), "Work sessions was not immediately visible")
+            .waitForExistence(timeout: 6), "the day's list was not immediately visible")
     }
 
     override func tearDownWithError() throws {
@@ -300,12 +347,12 @@ final class TimelineWithoutActivityUITests: XCTestCase {
     /// and the Meetings section shows the grouped list.
     func testTimelineWithoutActivityShowsMeetingBlocks() {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"].exists,
-                      "Work sessions with meeting rows missing")
+                      "the day's list with meeting rows missing")
         XCTAssertTrue(app.descendants(matching: .any)[
             "capture.meeting.\(fixture.designReview.id.uuidString)"].exists,
                       "meeting row missing without activity blocks")
-        XCTAssertFalse(UITestHarness.staticText(containing: "No activity recorded", in: app).exists,
-                       "empty state shown despite seeded meetings in the track")
+        XCTAssertFalse(UITestHarness.staticText(containing: "Nothing recorded", in: app).exists,
+                       "empty state shown despite seeded meetings in the list")
 
         UITestHarness.clickSidebar("sidebar.meetings", in: app)
         XCTAssertTrue(app.outlines["meeting.list"].waitForExistence(timeout: 6),

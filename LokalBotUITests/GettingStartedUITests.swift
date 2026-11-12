@@ -1,7 +1,8 @@
 import XCTest
 
-/// Pins down the Today home's one-time welcome card: dismissing it must leave
-/// a useful home and the choice must survive a fresh app process.
+/// Pins down Today's first-day steps: on an empty library they are the page,
+/// hiding them must leave a useful home, and the choice must survive a fresh
+/// app process.
 final class GettingStartedUITests: XCTestCase {
     private var root: URL!
     private var app: XCUIApplication!
@@ -34,8 +35,11 @@ final class GettingStartedUITests: XCTestCase {
         UITestHarness.scrollTo(dismiss, in: app, attempts: 10)
         XCTAssertTrue(dismiss.waitForExistence(timeout: 8),
                       "getting-started card did not appear on the Today home")
+        XCTAssertTrue(app.descendants(matching: .any)["today.gettingStarted"].exists)
         dismiss.click()
         XCTAssertFalse(dismiss.exists, "getting-started card remained visible after dismissal")
+        XCTAssertTrue(app.descendants(matching: .any)["today.empty"].waitForExistence(timeout: 4),
+                      "an empty Today says what will show up there")
 
         UITestHarness.clickSidebar("sidebar.meetings", in: app)
         XCTAssertTrue(UITestHarness.staticText(containing: "No meetings yet", in: app)

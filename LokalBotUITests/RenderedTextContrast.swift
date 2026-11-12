@@ -86,7 +86,10 @@ enum RenderedTextContrast {
             glyph.append((ratio, count))
             glyphPixels += count
         }
-        guard glyphPixels >= 20 else { return nil }
+        // A lone digit at 1x is a few pixels wide: the "1" beside a section
+        // title has 16 glyph pixels in an 8 by 15 capture. A small capture
+        // needs a tenth of its pixels to be glyph, and never fewer than ten.
+        guard glyphPixels >= min(20, max(10, measured / 10)) else { return nil }
         var covered = 0
         for entry in glyph.sorted(by: { $0.ratio > $1.ratio }) {
             covered += entry.count

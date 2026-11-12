@@ -72,7 +72,7 @@ final class RecallRankingTests: XCTestCase {
     }
 
     func testOneSummaryDestinationForOverviewAndFullNotesSearch() {
-        XCTAssertEqual(MeetingWorkspaceTab.allCases.map(\.rawValue), ["Summary", "Transcript", "Notes", "Review"])
+        XCTAssertEqual(MeetingWorkspaceTab.allCases.map(\.rawValue), ["Summary", "Transcript", "Notes"])
         XCTAssertEqual(MeetingWorkspaceTab.containing(.sectionHeader(.summary)), .summary)
         XCTAssertEqual(MeetingWorkspaceTab.containing(.sectionHeader(.actionItems)), .summary)
         XCTAssertEqual(MeetingWorkspaceTab.containing(.sectionHeader(.transcript)), .transcript)

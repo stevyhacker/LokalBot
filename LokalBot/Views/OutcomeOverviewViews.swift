@@ -1,74 +1,50 @@
 import SwiftUI
 
-/// Shared outcome-first building blocks used by Today and Timeline. They read
-/// the same `OutcomeIndex` as Meetings, so status changes are immediately
-/// reflected everywhere without modifying extracted source files.
+/// Shared outcome-first building blocks used by Today, Timeline, People and
+/// Projects. They read the same `OutcomeIndex` as Meetings, so status changes
+/// are immediately reflected everywhere without modifying extracted source
+/// files.
+///
+/// Today's open actions: rows on the page itself, with the link to Actions
+/// beside the heading.
 struct NeedsAttentionSection: View {
     @EnvironmentObject var app: AppState
     let threads: [ActionThread]
     var title = "Needs Attention"
     var limit = 4
-    /// Today offers planning the open threads with Agent; Timeline's day view
-    /// keeps the section to review only.
-    var showsPlanInAgent = false
-    var style: Style = .panel
+    /// The heading link says how many more wait in Actions.
+    var linksRemainder = false
+    var headingFont = AppFont.scaled(.headline)
+    /// Space added above and below each row.
+    var rowSpacing: CGFloat = 8
 
-    enum Style {
-        /// A grouped panel with the review actions beneath it.
-        case panel
-        /// Rows on the page itself, with Review Actions beside the heading.
-        case plain
+    /// Open threads the section leaves to the Actions page.
+    static func remainder(total: Int, limit: Int) -> Int {
+        max(0, total - max(0, limit))
     }
 
-    /// Nothing to act on means no card at all — an empty "Needs attention"
-    /// section is dead weight on a glanceable page (the Timeline test pins the
-    /// same rule for its day view).
+    /// Nothing to act on means no section at all: an empty "Needs attention"
+    /// is dead weight on a glanceable page.
     var body: some View {
-        if !threads.isEmpty, style == .plain {
-            plainBody
-        } else if !threads.isEmpty {
-            WorkspaceSection(title: title, icon: "exclamationmark.circle", localizesTitle: true) {
-                VStack(spacing: 0) {
-                    ForEach(Array(threads.prefix(limit))) { thread in
-                        ActionThreadRow(thread: thread)
-                        if thread.id != threads.prefix(limit).last?.id { Divider() }
-                    }
-                }
-                HStack(spacing: 8) {
-                    Button("Review Actions…") {
-                        app.openActions()
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("outcomes.review")
-                    if showsPlanInAgent {
-                        Button {
-                            planInAgent()
-                        } label: {
-                            Label("Plan in Agent…", systemImage: "wand.and.sparkles")
-                        }
-                        .buttonStyle(.bordered)
-                        .help("Open a new Agent task with these action threads")
-                        .accessibilityIdentifier("outcomes.planInAgent")
-                    }
-                }
-            }
-        }
+        if !threads.isEmpty { rows }
     }
 
-    private var plainBody: some View {
+    private var rows: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 // No header trait, matching the panel style's heading: a
                 // header becomes a different accessibility element, which
                 // static-text queries no longer find.
                 Text(LocalizedStringKey(title))
-                    .font(.scaled(.headline))
+                    .font(headingFont)
                 Text(threads.count, format: .number)
                     .font(AppFont.scaled(.callout).monospacedDigit())
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Button("Review Actions…") {
+                Button {
                     app.openActions()
+                } label: {
+                    actionsLinkLabel
                 }
                 .buttonStyle(.workspaceLink)
                 .font(AppFont.scaled(.callout))
@@ -78,7 +54,7 @@ struct NeedsAttentionSection: View {
             VStack(spacing: 0) {
                 ForEach(Array(threads.prefix(limit))) { thread in
                     ActionThreadRow(thread: thread)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, rowSpacing)
                     if thread.id != threads.prefix(limit).last?.id { Divider() }
                 }
             }
@@ -86,49 +62,301 @@ struct NeedsAttentionSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func planInAgent() {
-        let lines = threads.prefix(8).map { thread in
-            let sources = thread.meetingCount == 1
-                ? "" : " (mentioned in \(thread.meetingCount) meetings)"
-            return "- \(thread.text)\(sources)"
-        }
-        app.openAgent(.init(
-            title: "Today's action threads",
-            prompt: "Help me plan today's open meeting action threads:\n"
-                + lines.joined(separator: "\n"),
-            meetingID: threads.first?.latestReference.meetingID,
-            actionID: threads.first?.latestReference.action.id))
+    private var actionsLinkLabel: Text {
+        guard linksRemainder else { return Text("Review Actions…") }
+        let more = Self.remainder(total: threads.count, limit: limit)
+        return more > 0 ? Text("\(more) more in Actions") : Text("All actions")
     }
+}
+
+/// How the Actions page shows the shared row: its own source and due wording,
+/// a selection it owns, and status changes it confirms and keeps in view.
+/// The links a row has elsewhere live in that page's details pane.
+struct ActionListRowStyle {
+    let source: String
+    let due: ActionsListContent.DueLabel?
+    var isSelected = false
+    /// Several rows are selected: a row's menu shows only under the pointer.
+    var isBatch = false
+    let onStatus: (OutcomeStatus) -> Void
+    let onEdit: () -> Void
+    let onNotMine: () -> Void
 }
 
 struct ActionThreadRow: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     let thread: ActionThread
     /// Projects show whose work it is when it is someone else's.
     var showsOwner = false
     /// People show deferred work as deferred and ask about open work nobody
     /// has mentioned for weeks.
     var showsStaleness = false
+    /// Timeline's meeting preview lists that meeting's actions, so a row from
+    /// one meeting does not name it again.
+    var hidesSingleMeetingLink = false
+    /// People show the moment as a ▶ time that opens the meeting playing
+    /// from there, like the notes beside it.
+    var playsEvidence = false
+    /// Set by the Actions page; every other page shows the row with its links.
+    var list: ActionListRowStyle?
     @State private var showingSources = false
     @State private var showingStatusConfirmation = false
     @State private var pendingStatus: OutcomeStatus = .done
+    @State private var hovered = false
 
     var body: some View {
+        if let list {
+            listBody(list)
+        } else {
+            standardBody
+        }
+    }
+
+    private func toggle(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: thread.hasMixedStatus ? "minus.circle" : thread.status == .done
+                  ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: LBTokens.Metric.actionToggleSize))
+                .foregroundStyle(thread.status == .done ? Brand.teal : .secondary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(thread.status == .done ? "Reopen action thread" : "Mark action thread done")
+        .accessibilityValue(thread.text)
+        .accessibilityIdentifier("outcome.thread.toggle.\(thread.id)")
+    }
+
+    // MARK: Actions page
+
+    private func listBody(_ list: ActionListRowStyle) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Button {
-                set(thread.status == .done ? .open : .done)
-            } label: {
-                Image(systemName: thread.hasMixedStatus ? "minus.circle" : thread.status == .done
-                      ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: LBTokens.Metric.actionToggleSize))
-                    .foregroundStyle(thread.status == .done ? Brand.teal : .secondary)
-                    .contentTransition(.symbolEffect(.replace))
+            toggle { list.onStatus(thread.status == .done ? .open : .done) }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(thread.text)
+                    .font(.scaled(.body))
+                    .strikethrough(thread.status == .done)
+                    .foregroundStyle(thread.status == .done ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if !list.source.isEmpty || list.due != nil || thread.hasMixedStatus {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if !list.source.isEmpty {
+                            Text(verbatim: list.source)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        if let due = list.due {
+                            Text(verbatim: due.text)
+                                .foregroundStyle(Self.color(for: due.tone))
+                                .lineLimit(1)
+                                .layoutPriority(1)
+                        }
+                        if thread.hasMixedStatus {
+                            Text("Mixed status")
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .font(AppFont.scaled(.callout))
+                }
+                if let hint = app.actionCompletionHints[thread.id] {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("Looks done?")
+                            .font(AppFont.scaled(.callout).weight(.semibold))
+                            .foregroundStyle(Brand.teal)
+                        Text(verbatim: ActionListWording.completionHint(
+                            hint, locale: app.settings.appLanguage.locale,
+                            localize: app.settings.appLanguage.catalog))
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("outcome.thread.completionHint")
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(thread.status == .done ? "Reopen action thread" : "Mark action thread done")
-            .accessibilityValue(thread.text)
-            .accessibilityIdentifier("outcome.thread.toggle.\(thread.id)")
+            // The menu shows on the selected row and under the pointer. It
+            // stays in the view tree either way, so it cannot go away while
+            // it is open and the pointer has moved onto its items.
+            let showsMenu = hovered || (list.isSelected && !list.isBatch)
+            optionsMenu(listMenu(list))
+                .opacity(showsMenu ? 1 : 0)
+                .allowsHitTesting(showsMenu)
+                .disabled(!showsMenu)
+        }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 10)
+        .background(
+            list.isSelected ? Brand.teal.opacity(0.12) : hovered ? Color.primary.opacity(0.04) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            if list.isSelected, contrast == .increased {
+                RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Brand.teal)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .contextMenu { listMenuItems(list) }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("outcome.thread.\(thread.id)")
+        .accessibilityAddTraits(list.isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder private func listMenuItems(_ list: ActionListRowStyle) -> some View {
+        Button(thread.status == .done ? "Mark open" : "Mark Done") {
+            list.onStatus(thread.status == .done ? .open : .done)
+        }
+        Button(thread.status == .deferred ? "Move back to open" : "Defer") {
+            list.onStatus(thread.status == .deferred ? .open : .deferred)
+        }
+        Divider()
+        Button("Edit…", action: list.onEdit)
+        Button("Not mine", action: list.onNotMine)
+        Button("Open meeting") { app.openMeeting(thread.latestReference.meetingID) }
+        if thread.hasMultipleMeetings {
+            Menu("Keep as separate action") {
+                ForEach(thread.references) { reference in
+                    Button {
+                        setThreadExcluded(true, for: reference)
+                    } label: {
+                        Text(verbatim: reference.meetingTitle + " · "
+                             + reference.meetingStartedAt.formatted(date: .abbreviated, time: .omitted))
+                    }
+                }
+            }
+        } else {
+            let reference = thread.latestReference
+            Button(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action") {
+                setThreadExcluded(!reference.isThreadExcluded, for: reference)
+            }
+        }
+        Divider()
+        Button("Draft next steps…") { app.followThrough(thread.latestReference) }
+        Menu("Hand off") { Self.handOffItems(for: thread, app: app) }
+    }
+
+    /// The row's "…" menu. SwiftUI's Menu proxy leaves out the Press and Show
+    /// Menu accessibility actions, so VoiceOver and Switch Control could not
+    /// open it; `WorkspaceMenu` is the app's native pull-down that has them.
+    private func optionsMenu(_ items: [WorkspaceMenu.Item]) -> some View {
+        WorkspaceMenu(title: text("Action thread options"), symbol: "ellipsis",
+                      label: text("Action thread options") + ": " + thread.text,
+                      identifier: "outcome.thread.status.\(thread.id)", items: items)
+            .frame(minWidth: 32, minHeight: 24)
+            .fixedSize()
+    }
+
+    /// A catalog string in the app's chosen language, for the native menu.
+    private func text(_ key: String) -> String { app.settings.appLanguage.localized(key) }
+
+    private var separateOrAllowItem: WorkspaceMenu.Item {
+        let reference = thread.latestReference
+        return .init(title: text(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action"),
+                     action: { setThreadExcluded(!reference.isThreadExcluded, for: reference) })
+    }
+
+    private var handOffMenuItems: [WorkspaceMenu.Item] {
+        ActionAgentAvailability.installed.map { target in
+            .init(title: target.rawValue, action: { app.handOff(thread, to: target) })
+        }
+    }
+
+    /// The menu on Today, Timeline, People and Projects.
+    private var defaultMenu: [WorkspaceMenu.Item] {
+        var items = OutcomeStatus.allCases.map { status in
+            WorkspaceMenu.Item(title: status.label, selected: !thread.hasMixedStatus && thread.status == status,
+                               action: { set(status) })
+        }
+        items.append(.separator)
+        items.append(.init(title: text("Open latest meeting"),
+                           action: { app.openMeeting(thread.latestReference.meetingID) }))
+        if thread.hasMultipleMeetings {
+            items.append(.init(title: text("Review source meetings"), action: { showingSources = true }))
+        } else {
+            items.append(separateOrAllowItem)
+        }
+        items.append(.init(title: text("Open in Agent"), action: { app.openAgent(Self.agentContext(for: thread)) }))
+        items += ActionAgentAvailability.installed.map { target in
+            .init(title: String(format: text("Open in %@"), target.rawValue),
+                  action: { app.handOff(thread, to: target) })
+        }
+        items.append(.init(title: text("Follow Through…"), action: { app.followThrough(thread.latestReference) }))
+        return items
+    }
+
+    /// The menu on the Actions page; the same entries as its context menu.
+    private func listMenu(_ list: ActionListRowStyle) -> [WorkspaceMenu.Item] {
+        var items: [WorkspaceMenu.Item] = [
+            .init(title: text(thread.status == .done ? "Mark open" : "Mark Done"),
+                  action: { list.onStatus(thread.status == .done ? .open : .done) }),
+            .init(title: text(thread.status == .deferred ? "Move back to open" : "Defer"),
+                  action: { list.onStatus(thread.status == .deferred ? .open : .deferred) }),
+            .separator,
+            .init(title: text("Edit…"), action: list.onEdit),
+            .init(title: text("Not mine"), action: list.onNotMine),
+            .init(title: text("Open meeting"), action: { app.openMeeting(thread.latestReference.meetingID) }),
+        ]
+        if thread.hasMultipleMeetings {
+            items.append(.init(title: text("Keep as separate action"), children: thread.references.map { reference in
+                .init(title: reference.meetingTitle + " · "
+                        + reference.meetingStartedAt.formatted(date: .abbreviated, time: .omitted),
+                      action: { setThreadExcluded(true, for: reference) })
+            }))
+        } else {
+            items.append(separateOrAllowItem)
+        }
+        items.append(.separator)
+        items.append(.init(title: text("Draft next steps…"), action: { app.followThrough(thread.latestReference) }))
+        items.append(.init(title: text("Hand off"), children: [
+            .init(title: text("Agent"), action: { app.openAgent(Self.agentContext(for: thread)) }),
+        ] + handOffMenuItems))
+        return items
+    }
+
+    /// Agent, then the external agents installed on this Mac.
+    @ViewBuilder static func handOffItems(for thread: ActionThread, app: AppState) -> some View {
+        Button("Agent") { app.openAgent(agentContext(for: thread)) }
+        ForEach(ActionAgentAvailability.installed) { target in
+            Button {
+                app.handOff(thread, to: target)
+            } label: {
+                Text(verbatim: target.rawValue)
+            }
+        }
+    }
+
+    static func agentContext(for thread: ActionThread) -> AgentLaunchContext {
+        let sourceNote = thread.meetingCount == 1
+            ? thread.latestReference.meetingTitle
+            : "\(thread.meetingCount) source meetings"
+        return AgentLaunchContext(
+            title: thread.text,
+            prompt: "Help me complete this action thread from \(sourceNote): " + thread.text,
+            meetingID: thread.latestReference.meetingID,
+            actionID: thread.latestReference.action.id)
+    }
+
+    static func color(for tone: ActionsListContent.DueLabel.Tone) -> Color {
+        switch tone {
+        case .late: LBTokens.Palette.recordingText
+        case .soon: LBTokens.Palette.attentionText
+        case .calm: Color(nsColor: WorkspaceTextColor.supporting)
+        }
+    }
+
+    private func setThreadExcluded(_ excluded: Bool, for reference: OutcomeActionReference) {
+        if !app.outcomeIndex.setThreadExcluded(
+            excluded, actionID: reference.action.id, meetingID: reference.meetingID) {
+            app.lastError = app.outcomeIndex.lastError
+        }
+    }
+
+    // MARK: Today, Timeline, People and Projects
+
+    private var standardBody: some View {
+        HStack(alignment: .top, spacing: 10) {
+            toggle { set(thread.status == .done ? .open : .done) }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(thread.text)
@@ -168,7 +396,7 @@ struct ActionThreadRow: View {
                                 showingSources: $showingSources)
                                 .environmentObject(app)
                         }
-                    } else {
+                    } else if !hidesSingleMeetingLink {
                         Button(thread.latestReference.meetingTitle) {
                             app.openMeeting(thread.latestReference.meetingID)
                         }
@@ -179,7 +407,7 @@ struct ActionThreadRow: View {
                     if let due = thread.due, let spokenAt = thread.dueReferenceDate {
                         Text(ActionDuePresentation.label(due, spokenAt: spokenAt))
                             .font(AppFont.scaled(.callout))
-                            .foregroundStyle(thread.isOverdue() ? LBTokens.Palette.attentionText : .secondary)
+                            .foregroundStyle(dueColor)
                             .accessibilityLabel(thread.isOverdue()
                                 ? "Overdue. " + ActionDuePresentation.label(due, spokenAt: spokenAt)
                                 : ActionDuePresentation.label(due, spokenAt: spokenAt))
@@ -191,10 +419,18 @@ struct ActionThreadRow: View {
                     }
                     if !thread.hasMultipleMeetings,
                        let citation = thread.latestReference.action.citations.first {
-                        EvidencePill(citation: citation) {
-                            app.openMeeting(
-                                thread.latestReference.meetingID,
-                                seek: citation.start)
+                        if playsEvidence {
+                            MeetingPlayTimeButton(time: citation.start, excerpt: citation.excerpt) {
+                                app.openMeeting(
+                                    thread.latestReference.meetingID,
+                                    seek: citation.start, intent: .play)
+                            }
+                        } else {
+                            EvidencePill(citation: citation) {
+                                app.openMeeting(
+                                    thread.latestReference.meetingID,
+                                    seek: citation.start)
+                            }
                         }
                     }
                 }
@@ -212,50 +448,7 @@ struct ActionThreadRow: View {
                 }
             }
 
-            Menu {
-                ForEach(OutcomeStatus.allCases, id: \.rawValue) { status in
-                    Button(status.label) { set(status) }
-                }
-                Divider()
-                Button("Open latest meeting") {
-                    app.openMeeting(thread.latestReference.meetingID)
-                }
-                if thread.hasMultipleMeetings {
-                    Button("Review source meetings") { showingSources = true }
-                } else {
-                    let reference = thread.latestReference
-                    Button(reference.isThreadExcluded ? "Allow matching across meetings" : "Keep as separate action") {
-                        if !app.outcomeIndex.setThreadExcluded(
-                            !reference.isThreadExcluded, actionID: reference.action.id, meetingID: reference.meetingID) {
-                            app.lastError = app.outcomeIndex.lastError
-                        }
-                    }
-                }
-                Button("Open in Agent") {
-                    let sourceNote = thread.meetingCount == 1
-                        ? thread.latestReference.meetingTitle
-                        : "\(thread.meetingCount) source meetings"
-                    app.openAgent(.init(
-                        title: thread.text,
-                        prompt: "Help me complete this action thread from \(sourceNote): "
-                            + thread.text,
-                        meetingID: thread.latestReference.meetingID,
-                        actionID: thread.latestReference.action.id))
-                }
-                ForEach(ActionAgentAvailability.installed) { target in
-                    Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
-                }
-                Button("Follow Through…") { app.followThrough(thread.latestReference) }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 28, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel("Action thread options")
-            .accessibilityIdentifier("outcome.thread.status.\(thread.id)")
+            optionsMenu(defaultMenu)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
         .accessibilityElement(children: .contain)
@@ -270,6 +463,12 @@ struct ActionThreadRow: View {
         } message: {
             Text(thread.references.map(\.meetingTitle).joined(separator: "\n"))
         }
+    }
+
+    /// Overdue reads red, due within the week amber, anything later quiet.
+    private var dueColor: Color {
+        if thread.isOverdue() { return LBTokens.Palette.recordingText }
+        return thread.isDueSoon() ? LBTokens.Palette.attentionText : .secondary
     }
 
     private func set(_ status: OutcomeStatus) {

@@ -22,6 +22,13 @@ struct AgentCommands: Commands {
             Button(language.localized("Focus Composer")) { app.agentSessions.composerFocusRequest += 1 }.keyboardShortcut("l", modifiers: .command)
                 .disabled(!active)
             Divider()
+            Button(language.localized("Refresh tasks")) { app.agentSessions.refreshRequest += 1 }
+                .disabled(!active)
+            Button(language.localized("Verify Agent runtime…")) { app.agentSessions.verifyRuntimeRequest += 1 }
+                .disabled(!active)
+            Button(language.localized("Clear saved Agent history…")) { app.agentSessions.clearHistoryRequest += 1 }
+                .disabled(!active)
+            Divider()
             Button(language.localized("Increase Text Size")) { app.agentSessions.textSize = min(24, app.agentSessions.textSize + 1) }.keyboardShortcut("+", modifiers: .command)
                 .disabled(!active)
             Button(language.localized("Decrease Text Size")) { app.agentSessions.textSize = max(12, app.agentSessions.textSize - 1) }.keyboardShortcut("-", modifiers: .command)
