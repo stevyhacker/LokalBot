@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "この日の会議からのアクション %lld 件、すべて完了";
 "%lld action from this day’s meetings, deferred" = "この日の会議からのアクション %lld 件、延期";
 "%lld actions from this day’s meetings, none open" = "この日の会議からのアクション %lld 件、未完了なし";
+"Actions from this day’s meetings" = "この日の会議からのアクション";
+"All done" = "すべて完了";
 "Delete screen moments…" = "画面の場面を削除…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBotが見たすべてのAppとウィンドウを1時間ごとに表示します。正確な時刻の確認に使えます。";
 "Coding agent" = "コーディングエージェント";

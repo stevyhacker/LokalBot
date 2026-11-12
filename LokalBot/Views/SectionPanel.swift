@@ -33,6 +33,9 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
     var count: Int?
     /// A red badge beside the count, such as "1 overdue".
     var alert: Text?
+    /// A badge that says where the section stands, such as "2 open" or
+    /// "All done".
+    var status: SectionPanelPill?
     /// Names the panel; its title is `<identifier>.title`.
     let identifier: String
     var showsContent = true
@@ -42,6 +45,9 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
     /// The trailing control is a field: it takes the room the title leaves,
     /// up to its own maximum, where a link keeps its own width.
     var trailingFills = false
+    /// A long title may take a second line in a narrow panel instead of
+    /// being cut short.
+    var titleLineLimit = 1
     var disclosure: SectionPanelDisclosure?
     @ViewBuilder var link: Link
     @ViewBuilder var content: Content
@@ -87,6 +93,7 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
             if let alert {
                 SectionPanelPill(text: alert, tone: .overdue)
             }
+            if let status { status }
             Spacer(minLength: 8)
             if trailingFills {
                 link.layoutPriority(1)
@@ -129,7 +136,8 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
     @ViewBuilder private var titleText: some View {
         let styled = title
             .font(SectionPanelMetric.titleFont)
-            .lineLimit(1)
+            .lineLimit(titleLineLimit)
+            .fixedSize(horizontal: false, vertical: titleLineLimit > 1)
             // Before the spacer, which would otherwise take half the bar.
             .layoutPriority(1)
         if let titleID {
@@ -157,11 +165,15 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
 }
 
 extension SectionPanel where Footer == EmptyView {
-    init(title: Text, systemImage: String, count: Int? = nil, alert: Text? = nil, identifier: String,
-         showsContent: Bool = true, titleID: AnyHashable? = nil, disclosure: SectionPanelDisclosure? = nil,
+    init(title: Text, systemImage: String, count: Int? = nil, alert: Text? = nil,
+         status: SectionPanelPill? = nil, identifier: String,
+         showsContent: Bool = true, titleID: AnyHashable? = nil, titleLineLimit: Int = 1,
+         disclosure: SectionPanelDisclosure? = nil,
          @ViewBuilder link: () -> Link, @ViewBuilder content: () -> Content) {
-        self.init(title: title, systemImage: systemImage, count: count, alert: alert, identifier: identifier,
-                  showsContent: showsContent, showsFooter: false, titleID: titleID, disclosure: disclosure,
+        self.init(title: title, systemImage: systemImage, count: count, alert: alert, status: status,
+                  identifier: identifier,
+                  showsContent: showsContent, showsFooter: false, titleID: titleID,
+                  titleLineLimit: titleLineLimit, disclosure: disclosure,
                   link: link, content: content, footer: { EmptyView() })
     }
 }
@@ -177,24 +189,44 @@ extension SectionPanel where Footer == EmptyView, Link == EmptyView {
     }
 }
 
-/// A panel with no header bar: the text a page leads with, such as a
-/// meeting's recap.
-struct SectionPanelLead<Content: View>: View {
+/// A panel with no header bar: what a page leads with, such as a meeting's
+/// recap or the title of a session. `below` is a body under a hairline that
+/// runs edge to edge, for a lead that also holds what it names.
+struct SectionPanelLead<Content: View, Below: View>: View {
     @ViewBuilder var content: Content
+    @ViewBuilder var below: Below
 
     var body: some View {
-        content
-            .padding(.horizontal, SectionPanelMetric.inset + 2)
-            .padding(.top, 15)
-            .padding(.bottom, 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .todayCardSurface()
+        VStack(alignment: .leading, spacing: 0) {
+            content
+                .padding(.horizontal, SectionPanelMetric.inset + 2)
+                .padding(.top, 15)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if Below.self != EmptyView.self {
+                Divider()
+                below
+                    // A body that scrolls stays inside the rounded corners.
+                    .clipShape(UnevenRoundedRectangle(
+                        cornerRadii: .init(bottomLeading: Brand.Radius.panel, bottomTrailing: Brand.Radius.panel),
+                        style: .continuous))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .todayCardSurface()
     }
 }
 
-/// The count beside a panel's title, or its red "overdue" badge.
+extension SectionPanelLead where Below == EmptyView {
+    init(@ViewBuilder content: () -> Content) {
+        self.init(content: content, below: { EmptyView() })
+    }
+}
+
+/// The count beside a panel's title, its red "overdue" badge, or the accent
+/// one that says the section is finished.
 struct SectionPanelPill: View {
-    enum Tone { case count, overdue }
+    enum Tone { case count, overdue, done }
 
     @Environment(\.appTextScale) private var textScale
     @Environment(\.colorSchemeContrast) private var contrast
@@ -222,6 +254,7 @@ struct SectionPanelPill: View {
         switch tone {
         case .count: sized.workspaceSupportingForeground()
         case .overdue: sized.foregroundStyle(LBTokens.Palette.recordingText)
+        case .done: sized.foregroundStyle(LBTokens.Palette.accentText)
         }
     }
 
@@ -229,6 +262,7 @@ struct SectionPanelPill: View {
         switch tone {
         case .count: LBTokens.Palette.quietFill
         case .overdue: LBTokens.Palette.recording.opacity(LBTokens.Palette.statusFillOpacity)
+        case .done: LBTokens.Palette.accentFill.opacity(LBTokens.Palette.statusFillOpacity)
         }
     }
 }

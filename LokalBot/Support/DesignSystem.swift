@@ -50,11 +50,6 @@ enum WorkspaceMetric {
     /// Today when its panels can only form one column: about a reading line
     /// wide inside its side padding.
     static let todayReadingMaxWidth: CGFloat = 780
-    /// Timeline's list column beside the day's page. Its rows carry a time, a
-    /// two-line title and a duration, so it runs wider than the Meetings list.
-    static let timelineListMinWidth: CGFloat = 260
-    static let timelineListIdealWidth: CGFloat = 320
-    static let timelineListMaxWidth: CGFloat = 440
     /// The main window's titlebar and unified toolbar.
     static let toolbarHeight: CGFloat = 52
 

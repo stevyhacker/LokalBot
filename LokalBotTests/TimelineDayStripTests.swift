@@ -1,8 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// The day strip's geometry, its legend, the day's actions line, and the
-/// digest row's preview.
+/// The day strip's geometry and click areas, its legend, the day's actions
+/// panel, and the menu's digest item.
 final class TimelineDayStripTests: XCTestCase {
     private var calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -112,6 +112,49 @@ final class TimelineDayStripTests: XCTestCase {
         XCTAssertEqual(TimelineDayStrip.frame(of: strip.work[0], in: 0).width, 0)
     }
 
+    /// In the rail a ten-minute session is a few points wide. It is drawn at
+    /// its own width and answers a click a little to either side.
+    func testAThinBarIsClickedOverAWiderAreaThanItIsDrawn() throws {
+        let strip = try XCTUnwrap(TimelineDayStrip(
+            rows: [work(1, from: at(8), to: at(12)), work(2, from: at(13), to: at(13, 10)),
+                   work(3, from: at(17, 59), to: at(18)), work(4, from: at(8), to: at(8, 1))],
+            day: day, calendar: calendar))
+
+        // A bar wider than the minimum is clicked where it is drawn.
+        let long = TimelineDayStrip.hitFrame(of: strip.work[0], in: 320)
+        XCTAssertEqual(long.x, TimelineDayStrip.frame(of: strip.work[0], in: 320).x)
+        XCTAssertEqual(long.width, TimelineDayStrip.frame(of: strip.work[0], in: 320).width)
+
+        // Ten minutes of ten hours in a 320-point strip: 5.3 points drawn,
+        // 12 to click, centred on the bar.
+        let drawn = TimelineDayStrip.frame(of: strip.work[1], in: 320)
+        let hit = TimelineDayStrip.hitFrame(of: strip.work[1], in: 320)
+        XCTAssertEqual(drawn.width, 320.0 / 60, accuracy: 0.01)
+        XCTAssertEqual(hit.width, 12)
+        XCTAssertEqual(hit.x + hit.width / 2, drawn.x + drawn.width / 2, accuracy: 0.01)
+
+        // At either end the click area stays inside the lane and still covers the bar.
+        for bar in [strip.work[2], strip.work[3]] {
+            let drawn = TimelineDayStrip.frame(of: bar, in: 320)
+            let hit = TimelineDayStrip.hitFrame(of: bar, in: 320)
+            XCTAssertGreaterThanOrEqual(hit.x, 0)
+            XCTAssertLessThanOrEqual(hit.x + hit.width, 320)
+            XCTAssertLessThanOrEqual(hit.x, drawn.x)
+            XCTAssertGreaterThanOrEqual(hit.x + hit.width, drawn.x + drawn.width)
+        }
+        XCTAssertEqual(TimelineDayStrip.hitFrame(of: strip.work[0], in: 0).width, 0)
+    }
+
+    func testShortBarsAreDrawnLastSoTheirClickAreaWins() throws {
+        let strip = try XCTUnwrap(TimelineDayStrip(
+            rows: [work(1, from: at(9), to: at(9, 10)), work(2, from: at(9, 10), to: at(12)),
+                   work(3, from: at(12), to: at(12, 10))],
+            day: day, calendar: calendar))
+
+        XCTAssertEqual(TimelineDayStrip.hitOrder(strip.work).map(\.id),
+                       [2, 1, 3].map { TimelineDayList.Row.id(session: $0) })
+    }
+
     func testHourLabelsThinOutWhenTheyWouldCollide() throws {
         let strip = try XCTUnwrap(TimelineDayStrip(
             rows: [work(1, from: at(8), to: at(19))], day: day, calendar: calendar))
@@ -170,27 +213,24 @@ final class TimelineDayStripTests: XCTestCase {
         XCTAssertEqual(TimelineDayActions.summary(of: [done, deferred]), .noneOpen(2))
     }
 
-    func testTheActionsLineCountsOpenWorkOrSaysNothingIsOpen() {
+    func testTheActionsPanelCountsOpenWorkOrSaysAllDone() {
         XCTAssertNil(TimelineDayActions.summary(of: []))
-        XCTAssertEqual(TimelineDayActions.label(.open(1)), "1 open action from this day’s meetings")
-        XCTAssertEqual(TimelineDayActions.label(.open(2)), "2 open actions from this day’s meetings")
-        XCTAssertEqual(TimelineDayActions.label(.allDone(3)), "3 actions from this day’s meetings, all done")
-        XCTAssertEqual(TimelineDayActions.label(.allDone(1)), "1 action from this day’s meetings, done")
-        XCTAssertEqual(TimelineDayActions.label(.noneOpen(2)), "2 actions from this day’s meetings, none open")
-        XCTAssertEqual(TimelineDayActions.label(.open(2)) { _ in "Otvorenih: %lld" }, "Otvorenih: 2")
+        XCTAssertEqual(TimelineDayActions.pill(for: .open(2)), .open(2))
+        XCTAssertEqual(TimelineDayActions.pill(for: .allDone(3)), .allDone)
+        // Deferred work is not done: the day has nothing open, and says so.
+        XCTAssertEqual(TimelineDayActions.pill(for: .noneOpen(2)), .open(0))
     }
 
-    // MARK: - The digest row's preview
-
-    func testTheDigestRowPreviewsTheFirstHighlightAsPlainText() {
-        XCTAssertEqual(
-            TimelineDigestPreview.firstHighlight("- **Atlas:** the sync retry fix is up for review.\n- Second"),
-            "Atlas: the sync retry fix is up for review.")
-        XCTAssertEqual(TimelineDigestPreview.firstHighlight("\n1. Shipped `v2`\n2. Next"), "Shipped v2")
-        XCTAssertEqual(TimelineDigestPreview.firstHighlight("A plain sentence."), "A plain sentence.")
-        XCTAssertNil(TimelineDigestPreview.firstHighlight(""))
-        XCTAssertNil(TimelineDigestPreview.firstHighlight("  \n"))
+    func testTheActionsPanelListsItsRowsWhileOneIsOpenAndKeepsThemOnceShown() {
+        XCTAssertTrue(TimelineDayActions.showsRows(.open(1), hadOpen: false))
+        // A day whose actions were all done before it was opened is a header alone.
+        XCTAssertFalse(TimelineDayActions.showsRows(.allDone(3), hadOpen: false))
+        XCTAssertFalse(TimelineDayActions.showsRows(.noneOpen(2), hadOpen: false))
+        // Ticking the last open action leaves the rows where they were.
+        XCTAssertTrue(TimelineDayActions.showsRows(.allDone(2), hadOpen: true))
     }
+
+    // MARK: - The menu's digest item
 
     func testTheMenusDigestItemNamesWhatItWillDo() {
         XCTAssertEqual(TimelineDigestPreview.menuTitle(isWriting: false, hasDigest: false, isStale: false),

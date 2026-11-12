@@ -420,26 +420,30 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(app.textFields["timeline.search"].exists, "Retained moments search was removed")
         XCTAssertFalse(element("timeline.moments").exists, "Retained moments list was removed")
         XCTAssertFalse(element("timeline.fullDigest").exists, "The digest is always shown in full")
-        // The list stays beside the page at the narrowest captured width, so
+        // The rail stays beside the page at the narrowest captured width, so
         // there is no drawer and nothing to toggle.
         XCTAssertFalse(app.buttons["timeline.context.toggle"].exists)
         // A session's page is known by its title: the page's wrapper is not
         // an accessibility element of its own.
         let page = element("timeline.sessionPreview")
         XCTAssertFalse(page.exists)
-        XCTAssertTrue(element("capture.dayOverview").exists, "The digest page shows until a row is selected")
+        XCTAssertTrue(element("timeline.highlights").exists, "The day's page shows until a row is selected")
+        XCTAssertFalse(app.buttons["timeline.backToDigest"].exists, "The day's page has no link back to itself")
         openFirstTimelineSession()
         XCTAssertTrue(page.waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["Close context panel"].exists, "A row's page is not a drawer")
-        let list = element("timeline.list")
-        XCTAssertLessThanOrEqual(list.frame.maxX, element("timeline.evidencePane").frame.minX + 1,
-                                 "The list stays beside the selected row's page")
-        XCTAssertGreaterThan(page.frame.minX, list.frame.maxX, "The session's page is beside the list")
-        XCTAssertFalse(element("capture.dayOverview").exists, "The session's page replaces the digest")
-        // Day digest, the list's first row, returns to the digest.
-        app.buttons["timeline.dayDigest.row"].click()
+        let rail = element("timeline.list")
+        XCTAssertLessThanOrEqual(element("timeline.evidencePane").frame.maxX, rail.frame.minX + 1,
+                                 "The rail stays after the selected row's page")
+        XCTAssertLessThan(page.frame.maxX, rail.frame.minX, "The session's page is before the rail")
+        XCTAssertGreaterThanOrEqual(element("timeline.evidencePane").frame.width, 420,
+                                    "The page keeps its readable minimum beside the rail")
+        XCTAssertFalse(element("timeline.highlights").exists, "The session's page replaces the day's page")
+        XCTAssertTrue(element("capture.dayOverview").exists, "The rail keeps the day's totals")
+        // "Day digest" above the session's page returns to the day.
+        app.buttons["timeline.backToDigest"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !page.exists })
-        XCTAssertTrue(element("capture.dayOverview").waitForExistence(timeout: 3))
+        XCTAssertTrue(element("timeline.highlights").waitForExistence(timeout: 3))
     }
 
     func testTranscriptSearchIsPersistentAndCommandFStillFindsAcrossMeeting() throws {
@@ -596,31 +600,29 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-inspectable-title-evidence")
     }
 
-    func testTimelineListResizesAgainstThePage() throws {
+    /// The rail is not a split pane: its width follows the window. In a
+    /// roomy window it is its ideal width, on the trailing side of the page.
+    func testTimelineRailKeepsItsWidthBesideThePage() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
-        let list = element("timeline.list")
+        let rail = element("timeline.list")
         let page = element("timeline.evidencePane")
-        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        XCTAssertTrue(rail.waitForExistence(timeout: 5))
         XCTAssertTrue(page.waitForExistence(timeout: 5))
-        XCTAssertFalse(element("timeline.sessionRail").exists, "The rail on the right was replaced by the list")
-        let opening = list.frame.width
-        let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
-            abs($0.frame.midX - list.frame.maxX) < abs($1.frame.midX - list.frame.maxX)
-        }, "Timeline divider missing")
-
-        app.activate()
-        let grip = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: 100, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { list.frame.width >= opening + 80 },
-                      "The day's list should widen past its opening width (\(list.frame.width) from \(opening))")
-        XCTAssertGreaterThanOrEqual(page.frame.width, 420, "The page keeps its readable minimum")
-        snapshot("timeline-wide-list")
-
-        // Divider positions persist in the host's defaults; leave the next
-        // launch at the opening width.
-        let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: opening - list.frame.width, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { abs(list.frame.width - opening) < 8 })
+        XCTAssertLessThanOrEqual(page.frame.maxX, rail.frame.minX + 1, "The rail is on the trailing side of the page")
+        // 352 points at the smallest text size; the default is a step larger.
+        XCTAssertGreaterThanOrEqual(rail.frame.width, 320, "The rail is narrower than its ideal width (\(rail.frame.width))")
+        XCTAssertLessThanOrEqual(rail.frame.width, 400, "The rail is wider than its ideal width (\(rail.frame.width))")
+        XCTAssertGreaterThan(page.frame.width, rail.frame.width, "The page has the larger share of the window")
+        XCTAssertFalse(app.splitters.allElementsBoundByIndex.contains {
+            abs($0.frame.midX - rail.frame.minX) < 6
+        }, "The rail has a hairline, not a divider to drag")
+        // Choosing a session keeps the rail where it is.
+        let opening = rail.frame
+        openFirstTimelineSession()
+        XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 3))
+        XCTAssertEqual(rail.frame.minX, opening.minX, accuracy: 1, "The rail moved when a session was chosen")
+        XCTAssertEqual(rail.frame.width, opening.width, accuracy: 1, "The rail resized when a session was chosen")
+        snapshot("timeline-session-beside-rail")
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
@@ -920,7 +922,7 @@ final class RedesignUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    /// The day's sessions are rows of the list beside the page.
+    /// The day's sessions are rows of the rail beside the page.
     private func openFirstTimelineSession() {
         let session = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline.session.")).firstMatch

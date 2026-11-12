@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "या दिवसाच्या बैठकांमधील %lld कामे, सर्व पूर्ण";
 "%lld action from this day’s meetings, deferred" = "या दिवसाच्या बैठकांमधील %lld काम, स्थगित";
 "%lld actions from this day’s meetings, none open" = "या दिवसाच्या बैठकांमधील %lld कामे, कोणतेही बाकी नाही";
+"Actions from this day’s meetings" = "या दिवसाच्या बैठकांमधील कामे";
+"All done" = "सर्व पूर्ण";
 "Delete screen moments…" = "स्क्रीन क्षण हटवा…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBot ने पाहिलेले प्रत्येक ॲप आणि विंडो, तासागणिक. अचूक वेळा तपासण्यासाठी हे वापरा.";
 "Coding agent" = "कोडिंग एजंट";

@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Hatua %lld kutoka mikutano ya siku hii, zote zimekamilika";
 "%lld action from this day’s meetings, deferred" = "Hatua %lld kutoka mikutano ya siku hii, imeahirishwa";
 "%lld actions from this day’s meetings, none open" = "Hatua %lld kutoka mikutano ya siku hii, hakuna iliyo wazi";
+"Actions from this day’s meetings" = "Hatua kutoka mikutano ya siku hii";
+"All done" = "Zote zimekamilika";
 "Delete screen moments…" = "Futa matukio ya skrini…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Kila programu na dirisha ambalo LokalBot iliona, saa kwa saa. Itumie kukagua nyakati kamili.";
 "Coding agent" = "Wakala wa programu";

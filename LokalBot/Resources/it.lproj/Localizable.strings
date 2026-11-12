@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld azioni dalle riunioni di questa giornata, tutte completate";
 "%lld action from this day’s meetings, deferred" = "%lld azione dalle riunioni di questa giornata, differita";
 "%lld actions from this day’s meetings, none open" = "%lld azioni dalle riunioni di questa giornata, nessuna aperta";
+"Actions from this day’s meetings" = "Azioni dalle riunioni di questa giornata";
+"All done" = "Tutte completate";
 "Delete screen moments…" = "Elimina momenti dello schermo…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Ogni app e finestra vista da LokalBot, ora per ora. Serve a controllare gli orari esatti.";
 "Coding agent" = "Agente di programmazione";

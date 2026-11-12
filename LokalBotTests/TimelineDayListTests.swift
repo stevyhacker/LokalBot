@@ -1,8 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// Timeline's list for one day: order, parts of the day, gaps, a call folded
-/// into its meeting, and each row's two lines.
+/// The list in Timeline's rail for one day: order, parts of the day, gaps, a
+/// call folded into its meeting, each row's two lines, and the arrow keys.
 final class TimelineDayListTests: XCTestCase {
     private var calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -341,7 +341,10 @@ final class TimelineDayListTests: XCTestCase {
         }
     }
 
-    func testArrowKeysStepFromTheDigestThroughTheRowsToAllCapturedActivity() {
+    /// The rail lists sessions and meetings, with All captured activity as
+    /// its bottom row. The day's page has no row: it is what shows while no
+    /// row is chosen, and it stands before the first one for the arrow keys.
+    func testArrowKeysWalkTheSessionsBetweenTheDaysPageAndAllCapturedActivity() {
         let day = list([
             session(1, app: "Xcode", title: "A.swift", from: at(9), to: at(9, 30)),
             session(2, app: "Xcode", title: "B.swift", from: at(13), to: at(13, 30)),
@@ -350,12 +353,37 @@ final class TimelineDayListTests: XCTestCase {
         let second = TimelineListSelection.row(TimelineDayList.Row.id(session: 2))
 
         XCTAssertEqual(TimelineListSelection.order(of: day), [.digest, first, second, .raw])
+        // Down from the day's page chooses the first session, and goes on
+        // through the sessions to All captured activity.
         XCTAssertEqual(TimelineListSelection.digest.moved(by: 1, in: day), first)
         XCTAssertEqual(first.moved(by: 1, in: day), second)
         XCTAssertEqual(second.moved(by: 1, in: day), .raw)
-        // The ends hold, and a moment opened from another page steps onto the digest.
+        // Up walks back; from the first session it returns to the day's page.
+        XCTAssertEqual(TimelineListSelection.raw.moved(by: -1, in: day), second)
+        XCTAssertEqual(second.moved(by: -1, in: day), first)
+        XCTAssertEqual(first.moved(by: -1, in: day), .digest)
+        // The ends hold, and a moment opened from another page steps onto the day's page.
         XCTAssertEqual(TimelineListSelection.raw.moved(by: 1, in: day), .raw)
         XCTAssertEqual(TimelineListSelection.digest.moved(by: -1, in: day), .digest)
         XCTAssertEqual(TimelineListSelection.none.moved(by: 1, in: day), .digest)
+        XCTAssertEqual(TimelineListSelection.none.moved(by: -1, in: day), .digest)
+    }
+
+    func testOnADayWithoutSessionsTheArrowKeysStepBetweenTheDaysPageAndAllCapturedActivity() {
+        let empty = list([])
+
+        XCTAssertEqual(TimelineListSelection.order(of: empty), [.digest, .raw])
+        XCTAssertEqual(TimelineListSelection.digest.moved(by: 1, in: empty), .raw)
+        XCTAssertEqual(TimelineListSelection.raw.moved(by: -1, in: empty), .digest)
+    }
+
+    func testAMeetingRowIsWalkedLikeASession() {
+        let call = meeting("Design review", from: at(11), to: at(11, 25))
+        let day = list([session(1, app: "Xcode", title: "A.swift", from: at(9), to: at(9, 30))], [call])
+        let work = TimelineListSelection.row(TimelineDayList.Row.id(session: 1))
+        let meetingRow = TimelineListSelection.row(TimelineDayList.Row.id(meeting: call.id))
+
+        XCTAssertEqual(work.moved(by: 1, in: day), meetingRow)
+        XCTAssertEqual(meetingRow.moved(by: 1, in: day), .raw)
     }
 }

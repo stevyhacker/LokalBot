@@ -2347,6 +2347,8 @@
 "%lld actions from this day’s meetings, all done" = "当天会议中的 %lld 项行动项，全部完成";
 "%lld action from this day’s meetings, deferred" = "当天会议中的 %lld 项行动项，已延期";
 "%lld actions from this day’s meetings, none open" = "当天会议中的 %lld 项行动项，没有未完成的";
+"Actions from this day’s meetings" = "当天会议中的行动项";
+"All done" = "全部完成";
 "Delete screen moments…" = "删除屏幕时刻…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBot 看到的每个 App 和窗口，按小时排列。可用来核对确切时间。";
 "Coding agent" = "编程智能体";

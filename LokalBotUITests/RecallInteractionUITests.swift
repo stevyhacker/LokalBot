@@ -22,7 +22,7 @@ final class RecallInteractionUITests: XCTestCase {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let raw = app.buttons["timeline.rawCapture"]
         XCTAssertTrue(raw.waitForExistence(timeout: 8))
-        // All captured activity is pinned to the foot of the day's list.
+        // All captured activity is pinned to the foot of the rail.
         raw.click()
         XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Play context rewind"].exists, "Context rewind was removed")

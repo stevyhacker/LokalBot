@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// The page beside Timeline's list when something other than the digest is
-/// selected: a work session, a meeting's short preview, all captured
-/// activity, or one activity block or screen moment opened from those.
+/// Timeline's main area when something other than the day is chosen in the
+/// rail: a work session, a meeting's short preview, all captured activity, or
+/// one activity block or screen moment opened from those. Each is a title
+/// panel, then one panel per section it has; "Day digest" above goes back.
 struct TimelineContextPanel: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
     let list: TimelineDayList
+    /// Returns to the day's page.
+    let onShowDigest: () -> Void
     @State private var expandedTitles: Set<String> = []
     @State private var showsAllMoments = false
     @State private var deletingRange = false
@@ -47,7 +50,7 @@ struct TimelineContextPanel: View {
             switch inspectorState {
             case .meeting:
                 if let meeting = selectedMeetingForDay {
-                    TimelineMeetingPreview(meeting: meeting)
+                    TimelineMeetingPreview(meeting: meeting, onShowDigest: onShowDigest)
                         .id(meeting.id)
                 } else {
                     nothingSelected
@@ -83,49 +86,65 @@ struct TimelineContextPanel: View {
 
     /// A selection that is still loading, or one the day no longer has.
     private var nothingSelected: some View {
-        TimelinePage {
-            TimelinePageHeader(title: Text("Details"), subtitle: "") {
-                Image(systemName: "rectangle.and.text.magnifyingglass")
+        TimelinePage(onShowDigest: onShowDigest) {
+            SectionPanelLead {
+                VStack(alignment: .leading, spacing: 10) {
+                    TimelinePageHeader(title: Text("Details"), subtitle: "") {
+                        Image(systemName: "rectangle.and.text.magnifyingglass")
+                    }
+                    Text("Select a work session, meeting, or captured moment to review its details.")
+                        .workspaceTextRole(.supporting)
+                }
             }
-            Text("Select a work session, meeting, or captured moment to review its details.")
-                .foregroundStyle(.secondary)
         }
     }
 
     // MARK: - All captured activity
 
+    /// One panel that fills the main area: its title and the way to delete
+    /// screen moments on top, the hour track scrolling under them.
     private var rawCapturePage: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                TimelinePageHeader(
-                    title: Text("All captured activity"),
-                    subtitle: "",
-                    subtitleText: TimelineCaptureCounts.text(
-                        entries: model.blocks.count, moments: model.rewindFrames.count),
-                    identifier: "timeline.rawCapturePanel") {
-                    Image(systemName: "waveform.path.ecg.rectangle")
+        VStack(alignment: .leading, spacing: TimelinePageMetric.panelGap) {
+            TimelineDigestLink(action: onShowDigest)
+            SectionPanelLead {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 12) {
+                        TimelinePageHeader(
+                            title: Text("All captured activity"),
+                            subtitle: "",
+                            subtitleText: TimelineCaptureCounts.text(
+                                entries: model.blocks.count, moments: model.rewindFrames.count),
+                            identifier: "timeline.rawCapturePanel") {
+                            Image(systemName: "waveform.path.ecg.rectangle")
+                        }
+                        if !model.rewindFrames.isEmpty {
+                            // A toggle, so it keeps its name while the range controls
+                            // are open and reads as on; a second "Cancel" beside the
+                            // review sheet's own would say nothing about what it cancels.
+                            Toggle("Delete screen moments…", isOn: $deletingRange)
+                                .toggleStyle(.button)
+                                .accessibilityIdentifier("timeline.deleteRange.toggle")
+                        }
+                    }
+                    Text("Every app and window LokalBot saw, hour by hour. Use it to check exact times.")
+                        .workspaceTextRole(.supporting)
+                        .fixedSize(horizontal: false, vertical: true)
+                    CaptureRangeDeletionView(frames: model.rewindFrames, isExpanded: $deletingRange) {
+                        model.selectedSnapshotID = nil
+                        model.reload(app: app)
+                    }
                 }
-                if !model.rewindFrames.isEmpty {
-                    // A toggle, so it keeps its name while the range controls
-                    // are open and reads as on; a second "Cancel" beside the
-                    // review sheet's own would say nothing about what it cancels.
-                    Toggle("Delete screen moments…", isOn: $deletingRange)
-                        .toggleStyle(.button)
-                        .accessibilityIdentifier("timeline.deleteRange.toggle")
-                }
+            } below: {
+                TimelineRawCaptureView(model: model)
+                    .padding(.horizontal, SectionPanelMetric.inset)
+                    .padding(.vertical, 8)
             }
-            Text("Every app and window LokalBot saw, hour by hour. Use it to check exact times.")
-                .workspaceTextRole(.supporting)
-            CaptureRangeDeletionView(frames: model.rewindFrames, isExpanded: $deletingRange) {
-                model.selectedSnapshotID = nil
-                model.reload(app: app)
-            }
-            TimelineRawCaptureView(model: model)
         }
-        .padding(.horizontal, 40)
-        .padding(.top, 30)
-        .padding(.bottom, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: TimelinePageMetric.maximumWidth, alignment: .leading)
+        .padding(.horizontal, TimelinePageMetric.gutter)
+        .padding(.top, 20)
+        .padding(.bottom, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - A work session
@@ -139,61 +158,66 @@ struct TimelineContextPanel: View {
         let tasks = TimelineAgentTask.tasks(from: session.agentBursts)
         // The dot the session has in the list and the day strip.
         let colorKey: String? = row.map(\.colorKey) ?? (session.project ?? session.primaryApp)
-        return TimelinePage {
-            TimelinePageHeader(
-                title: Text(verbatim: text.title),
-                subtitle: TimelineSessionWording.subtitle(for: session, localize: language.catalog),
-                identifier: "timeline.sessionPreview") {
-                StatusDot(color: TimelineRowColor.color(for: colorKey), size: 12)
-                    .padding(.top, 7)
-            }
-
-            if !tasks.isEmpty {
-                TimelinePageSection(title: "Coding agent") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(tasks) { task in
-                            TimelineAgentTaskCard(task: task,
-                                                  showsTitle: tasks.count > 1 || task.title != text.title)
-                        }
-                    }
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("timeline.session.agentWork")
+        return TimelinePage(onShowDigest: onShowDigest) {
+            SectionPanelLead {
+                TimelinePageHeader(
+                    title: Text(verbatim: text.title),
+                    subtitle: TimelineSessionWording.subtitle(for: session, localize: language.catalog),
+                    identifier: "timeline.sessionPreview") {
+                    StatusDot(color: TimelineRowColor.color(for: colorKey), size: 12)
+                        .padding(.top, 7)
                 }
             }
 
-            TimelinePageSection(title: "Screen moments", count: momentCount) {
+            if !tasks.isEmpty {
+                TimelineAgentPanel(tasks: tasks, sessionTitle: text.title, localize: language.catalog)
+            }
+
+            SectionPanel(
+                title: Text("Screen moments"),
+                systemImage: "photo",
+                count: momentCount,
+                identifier: "timeline.session.moments"
+            ) {
                 if momentCount > representative.count {
                     Button(showsAllMoments ? "Show fewer" : "Show all \(momentCount)") {
                         showsAllMoments.toggle()
                     }
-                    .buttonStyle(.workspaceLink)
-                    .font(AppFont.scaled(.callout))
                     .accessibilityIdentifier("timeline.session.browseMoments")
                 }
             } content: {
-                if representative.isEmpty, momentCount == 0 {
-                    Text("None were kept for this session.")
-                        .workspaceTextRole(.supporting)
-                } else if showsAllMoments {
-                    SessionMomentBrowser(model: model, session: session)
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 14, alignment: .top)],
-                              alignment: .leading, spacing: 14) {
-                        ForEach(representative) { frame in
-                            momentThumbnail(frame.screenshot)
+                Group {
+                    if representative.isEmpty, momentCount == 0 {
+                        Text("None were kept for this session.")
+                            .workspaceTextRole(.supporting)
+                    } else if showsAllMoments {
+                        SessionMomentBrowser(model: model, session: session)
+                    } else {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 14, alignment: .top)],
+                                  alignment: .leading, spacing: 14) {
+                            ForEach(representative) { frame in
+                                momentThumbnail(frame.screenshot)
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, SectionPanelMetric.inset)
+                .padding(.vertical, 14)
             }
 
             if !session.titleEvidence.isEmpty {
-                TimelinePageSection(title: "What was open") {
+                SectionPanel(
+                    title: Text("What was open"),
+                    systemImage: "macwindow",
+                    identifier: "timeline.session.open"
+                ) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(session.titleEvidence) { evidence in
                             titleRow(evidence)
                             if evidence.id != session.titleEvidence.last?.id { Divider() }
                         }
                     }
+                    .padding(.horizontal, SectionPanelMetric.inset)
                     .accessibilityElement(children: .contain)
                     .accessibilityLabel("What was open")
                     .accessibilityIdentifier("timeline.session.titleEvidence")
@@ -230,14 +254,14 @@ struct TimelineContextPanel: View {
                         .help(evidence.title)
                     Text(verbatim: CaptureStyle.hm(evidence.duration))
                         .font(AppFont.scaled(.callout).monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .workspaceSupportingForeground()
                     Image(systemName: "chevron.right")
                         .font(.scaled(.caption).weight(.semibold))
-                        .foregroundStyle(.tertiary)
+                        .workspaceSupportingForeground()
                         .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
                         .accessibilityHidden(true)
                 }
-                .padding(.vertical, 7)
+                .padding(.vertical, 9)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -281,7 +305,7 @@ struct TimelineContextPanel: View {
                     .lineLimit(1)
                 Text(screenshot.ts.formatted(date: .omitted, time: .shortened))
                     .font(AppFont.scaled(.subheadline).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
             }
             .contentShape(Rectangle())
         }
@@ -300,46 +324,57 @@ struct TimelineContextPanel: View {
         let hasParent = model.selectedSession != nil || model.showsRawCapture
 
         return TimelinePage {
-            VStack(alignment: .leading, spacing: 10) {
-                TimelineBackLink(label: model.selectedSession != nil ? "Back to work session"
-                                 : model.showsRawCapture ? "Back to all captured activity" : "Back to day") {
-                    model.selection = nil
-                    if !hasParent { model.selectedSnapshotID = nil }
-                }
-                TimelinePageHeader(
-                    title: Text(verbatim: block.app),
-                    subtitle: "\(Self.timeRange(block.start, block.end)) · \(CaptureStyle.hm(block.duration))",
-                    identifier: "timeline.activityPreview") {
-                    StatusDot(color: CaptureStyle.color(for: block.app), size: 12)
-                        .padding(.top, 7)
+            TimelineBackLink(label: model.selectedSession != nil ? "Back to work session"
+                             : model.showsRawCapture ? "Back to all captured activity" : "Back to day") {
+                model.selection = nil
+                if !hasParent { model.selectedSnapshotID = nil }
+            }
+            .padding(.top, -4)
+            .padding(.bottom, -6)
+            SectionPanelLead {
+                VStack(alignment: .leading, spacing: 12) {
+                    TimelinePageHeader(
+                        title: Text(verbatim: block.app),
+                        subtitle: "\(Self.timeRange(block.start, block.end)) · \(CaptureStyle.hm(block.duration))",
+                        identifier: "timeline.activityPreview") {
+                        StatusDot(color: CaptureStyle.color(for: block.app), size: 12)
+                            .padding(.top, 7)
+                    }
+                    if !block.title.isEmpty {
+                        Text(verbatim: block.title)
+                            .font(AppFont.scaled(.body).weight(.semibold))
+                            .textSelection(.enabled)
+                    }
+                    HStack(spacing: 8) {
+                        StatTile(icon: "clock", value: CaptureStyle.hm(appTotal),
+                                 label: "today")
+                        StatTile(icon: "rectangle.stack", value: "\(sameApp.count)",
+                                 label: sameApp.count == 1 ? "block" : "blocks")
+                    }
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                if !block.title.isEmpty {
-                    Text(verbatim: block.title)
-                        .font(AppFont.scaled(.body).weight(.semibold))
-                        .textSelection(.enabled)
-                }
-                HStack(spacing: 8) {
-                    StatTile(icon: "clock", value: CaptureStyle.hm(appTotal),
-                             label: "today")
-                    StatTile(icon: "rectangle.stack", value: "\(sameApp.count)",
-                             label: sameApp.count == 1 ? "block" : "blocks")
-                }
-            }
-
-            TimelinePageSection(title: "Related moments", count: scoped.count) {
-                if scoped.isEmpty {
-                    Text("No context moments were captured during this activity.")
-                        .workspaceTextRole(.supporting)
-                } else {
-                    VStack(spacing: 8) {
-                        ForEach(scoped.prefix(6)) { screenshot in
-                            relatedMomentRow(screenshot)
+            SectionPanel(
+                title: Text("Related moments"),
+                systemImage: "photo",
+                count: scoped.count,
+                identifier: "timeline.activity.moments"
+            ) {
+                Group {
+                    if scoped.isEmpty {
+                        Text("No context moments were captured during this activity.")
+                            .workspaceTextRole(.supporting)
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(scoped.prefix(6)) { screenshot in
+                                relatedMomentRow(screenshot)
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, SectionPanelMetric.inset)
+                .padding(.vertical, 12)
             }
 
             Button {
@@ -367,12 +402,13 @@ struct TimelineContextPanel: View {
                         .lineLimit(2)
                     Text(screenshot.ts.formatted(date: .omitted, time: .shortened))
                         .font(AppFont.scaled(.callout).monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .workspaceSupportingForeground()
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.scaled(.caption))
-                    .foregroundStyle(.tertiary)
+                    .workspaceSupportingForeground()
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
         }
@@ -380,17 +416,16 @@ struct TimelineContextPanel: View {
         .accessibilityIdentifier("timeline.activityMoment.\(screenshot.id)")
     }
 
+    /// "Day digest" above the page clears the selection.
     private func multiSelection(_ count: Int) -> some View {
-        TimelinePage {
-            TimelinePageHeader(
-                title: Text(verbatim: "\(count) meetings selected"),
-                subtitle: "Timeline previews one meeting at a time.") {
-                Image(systemName: "checklist")
+        TimelinePage(onShowDigest: onShowDigest) {
+            SectionPanelLead {
+                TimelinePageHeader(
+                    title: Text(verbatim: "\(count) meetings selected"),
+                    subtitle: "Timeline previews one meeting at a time.") {
+                    Image(systemName: "checklist")
+                }
             }
-            Button("Day digest") {
-                app.selectedMeetingIDs = []
-            }
-            .buttonStyle(.bordered)
         }
     }
 
@@ -417,27 +452,63 @@ enum TimelineSessionWording {
 
 // MARK: - Page pieces
 
-/// The reading column every Timeline page shares with the digest.
-private struct TimelinePage<Content: View>: View {
-    @ViewBuilder let content: Content
+/// The column every page in Timeline's main area shares: panels that fill
+/// the width inside their gutters, up to the widest line.
+struct TimelinePageColumn<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: TimelinePageMetric.panelGap) {
+            content
+        }
+        .frame(maxWidth: TimelinePageMetric.maximumWidth, alignment: .leading)
+        .padding(.horizontal, TimelinePageMetric.gutter)
+        .padding(.top, 20)
+        .padding(.bottom, 44)
+        .frame(maxWidth: .infinity, alignment: .top)
+    }
+}
+
+/// A scrolling page of panels for something chosen in the rail.
+struct TimelinePage<Content: View>: View {
+    /// Shows "Day digest" above the page. Nil for a page opened inside
+    /// another, which has its own way back.
+    var onShowDigest: (() -> Void)?
+    @ViewBuilder var content: Content
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
+            TimelinePageColumn {
+                if let onShowDigest {
+                    TimelineDigestLink(action: onShowDigest)
+                }
                 content
             }
-            .padding(.horizontal, 40)
-            .padding(.top, 30)
-            .padding(.bottom, 48)
-            .frame(maxWidth: TimelineDigestPage.maxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .top)
         }
+    }
+}
+
+/// "‹ Day digest": the way from a session, a meeting or all captured activity
+/// back to the day's page. Choosing the selected row again does the same.
+struct TimelineDigestLink: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label("Day digest", systemImage: "chevron.backward")
+                .font(AppFont.scaled(.body))
+        }
+        .buttonStyle(.workspaceLink)
+        // Sits a little nearer the panel it leads to than panels sit to each other.
+        .padding(.top, -4)
+        .padding(.bottom, -6)
+        .accessibilityIdentifier("timeline.backToDigest")
     }
 }
 
 /// A page's heading: its mark (a colour dot or an icon), the title, and one
 /// quiet line under it.
-private struct TimelinePageHeader<Mark: View>: View {
+struct TimelinePageHeader<Mark: View>: View {
     let title: Text
     let subtitle: String
     var subtitleText: Text?
@@ -463,52 +534,11 @@ private struct TimelinePageHeader<Mark: View>: View {
                     .accessibilityIdentifier(identifier)
                 (subtitleText ?? Text(verbatim: subtitle))
                     .font(AppFont.scaled(.callout))
-                    .foregroundStyle(.secondary)
+                    .workspaceSupportingForeground()
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-}
-
-/// A headed part of a page, with an optional count and a trailing link.
-private struct TimelinePageSection<Accessory: View, Content: View>: View {
-    let title: LocalizedStringKey
-    var count: Int?
-    @ViewBuilder let accessory: Accessory
-    @ViewBuilder let content: Content
-
-    init(title: LocalizedStringKey, count: Int? = nil,
-         @ViewBuilder accessory: () -> Accessory, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.count = count
-        self.accessory = accessory()
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title)
-                    .font(AppFont.scaled(.headline))
-                    .accessibilityAddTraits(.isHeader)
-                if let count {
-                    Text(count, format: .number)
-                        .font(AppFont.scaled(.callout).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                accessory
-            }
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-extension TimelinePageSection where Accessory == EmptyView {
-    init(title: LocalizedStringKey, count: Int? = nil, @ViewBuilder content: () -> Content) {
-        self.init(title: title, count: count, accessory: { EmptyView() }, content: content)
     }
 }
 
@@ -543,6 +573,10 @@ private struct TimelineBackLink: View {
 private struct TimelineMeetingPreview: View {
     @EnvironmentObject private var app: AppState
     let meeting: Meeting
+    let onShowDigest: () -> Void
+
+    /// The preview stays short; the meeting has the rest.
+    private static let rowLimit = 6
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
     private var projection: MeetingOutcomeProjection? {
@@ -563,63 +597,43 @@ private struct TimelineMeetingPreview: View {
         let facts: [String] = [TimelineContextPanel.timeRange(meeting.startedAt, end),
                                CaptureStyle.hm(end.timeIntervalSince(meeting.startedAt)),
                                meeting.appName]
-        TimelinePage {
-            TimelinePageHeader(
-                title: Text(verbatim: meeting.displayTitle),
-                subtitle: facts.filter { !$0.isEmpty }.joined(separator: " · "),
-                identifier: "timeline.meetingPreview") {
-                Image(systemName: "waveform")
-            }
-
-            if meeting.endedAt == nil {
-                Label("Recording in progress", systemImage: "record.circle.fill")
-                    .font(AppFont.scaled(.body).weight(.semibold))
-                    .foregroundStyle(LBTokens.Palette.recordingText)
-            }
-
-            // The recap only: decisions and actions follow as their own
-            // sections, so the full summary would repeat them.
-            if let recap = summary.flatMap(SummaryPresentation.recap) {
-                SelectableDigestText(recap, font: AppFont.scaledSystem(size: 14))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: 660, alignment: .leading)
-            }
+        let hasNoOutcomes = summary?.isEmpty != false
+            && projection?.actionReferences.isEmpty != false
+            && decisions.isEmpty
+            && meeting.endedAt != nil
+        TimelinePage(onShowDigest: onShowDigest) {
+            TimelineMeetingLead(
+                title: meeting.displayTitle,
+                facts: facts.filter { !$0.isEmpty }.joined(separator: " · "),
+                isLive: meeting.endedAt == nil,
+                // The recap only: decisions and actions follow as their own
+                // panels, so the full summary would repeat them.
+                recap: summary.flatMap(SummaryPresentation.recap),
+                hasNoOutcomes: hasNoOutcomes)
 
             if !actions.isEmpty {
-                TimelinePageSection(title: "Your actions") {
+                let shown = Array(actions.prefix(Self.rowLimit))
+                SectionPanel(
+                    title: Text("Your actions"),
+                    systemImage: AppState.NavSection.actions.symbol,
+                    count: actions.count,
+                    identifier: "timeline.meeting.actions"
+                ) {
                     VStack(spacing: 0) {
-                        ForEach(actions.prefix(6)) { thread in
+                        ForEach(shown) { thread in
                             ActionThreadRow(thread: thread, hidesSingleMeetingLink: true)
-                            if thread.id != actions.prefix(6).last?.id { Divider() }
+                            if thread.id != shown.last?.id { Divider() }
                         }
                     }
+                    .padding(.horizontal, SectionPanelMetric.inset)
                 }
             }
 
             if !decisions.isEmpty {
-                TimelinePageSection(title: "Decisions") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(decisions.prefix(6)) { decision in
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Image(systemName: "checkmark")
-                                    .font(AppFont.scaled(.callout).weight(.semibold))
-                                    .foregroundStyle(LBTokens.Palette.accentText)
-                                    .accessibilityHidden(true)
-                                Text(decision.displayText)
-                                    .font(AppFont.scaled(.body))
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                    }
-                }
-            }
-
-            if summary?.isEmpty != false,
-               projection?.actionReferences.isEmpty != false,
-               decisions.isEmpty,
-               meeting.endedAt != nil {
-                Text("No outcome summary has been extracted for this meeting yet.")
-                    .workspaceTextRole(.supporting)
+                TimelineDecisionsPanel(
+                    decisions: decisions.prefix(Self.rowLimit).map(\.displayText),
+                    count: decisions.count,
+                    identifier: "timeline.meeting.decisions")
             }
 
             HStack(spacing: 8) {
@@ -635,100 +649,239 @@ private struct TimelineMeetingPreview: View {
     }
 }
 
-/// One agent task in a work session: the request that started it, when it
-/// ran, and the pull requests and commits it recorded. Recorded actions come
-/// from the commands the agent ran; its own report is left out because it is
-/// only a claim.
-private struct TimelineAgentTaskCard: View {
-    @EnvironmentObject private var app: AppState
-    let task: TimelineAgentTask
-    /// One task named like its session needs no second title.
-    let showsTitle: Bool
-
-    private struct PullRequestLink: Hashable {
-        let label: String
-        let url: URL
-    }
+/// The meeting's title panel: its name, when it ran and where, and the recap
+/// under a hairline.
+struct TimelineMeetingLead: View {
+    let title: String
+    /// "11:00 – 11:25 AM · 25m · Zoom".
+    let facts: String
+    let isLive: Bool
+    let recap: String?
+    /// The meeting ended and nothing was extracted from it yet.
+    let hasNoOutcomes: Bool
 
     var body: some View {
-        let outcomes = TimelineAgentOutcomes(task.bursts)
-        VStack(alignment: .leading, spacing: 5) {
-            if showsTitle || task.request == nil {
-                Text(verbatim: task.title)
-                    .font(AppFont.scaled(.body).weight(.semibold))
-                    .lineLimit(2)
-                    .textSelection(.enabled)
-            }
-            if let request = task.request {
-                Text(verbatim: "“\(request)”")
-                    .font(AppFont.scaled(.body))
-                    .lineLimit(4)
-                    .textSelection(.enabled)
-            }
-            Text(verbatim: metadata)
-                .workspaceTextRole(.metadata)
-                .padding(.bottom, 2)
-            ForEach(Array(outcomes.openedPullRequests.enumerated()), id: \.offset) { _, title in
-                outcome("arrow.triangle.pull", Text("Opened pull request “\(title)”"))
-            }
-            ForEach(Array(mergedNumbers.enumerated()), id: \.offset) { _, number in
-                outcome("arrow.triangle.merge",
-                        number.map { Text("Merged #\($0)") } ?? Text("Merged a pull request"))
-            }
-            if outcomes.commits > 0 {
-                outcome("smallcircle.filled.circle",
-                        Text(outcomes.commits == 1 ? "\(outcomes.commits) commit" : "\(outcomes.commits) commits"))
-            }
-            if !links.isEmpty {
-                HStack(spacing: 10) {
-                    ForEach(links, id: \.url) { link in
-                        Link(destination: link.url) {
-                            Text(verbatim: link.label)
-                        }
-                        .font(AppFont.scaled(.callout))
-                    }
+        SectionPanelLead {
+            VStack(alignment: .leading, spacing: 12) {
+                TimelinePageHeader(
+                    title: Text(verbatim: title),
+                    subtitle: facts,
+                    identifier: "timeline.meetingPreview") {
+                    Image(systemName: "waveform")
+                }
+                if isLive {
+                    Label("Recording in progress", systemImage: "record.circle.fill")
+                        .font(AppFont.scaled(.body).weight(.semibold))
+                        .foregroundStyle(LBTokens.Palette.recordingText)
+                }
+                if let recap {
+                    Divider()
+                    SelectableDigestText(recap, font: AppFont.scaledSystem(size: 14))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
+                } else if hasNoOutcomes {
+                    Divider()
+                    Text("No outcome summary has been extracted for this meeting yet.")
+                        .workspaceTextRole(.supporting)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .lbGroupedSurface()
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("timeline.agentTask.\(task.id)")
     }
+}
 
-    private func outcome(_ symbol: String, _ text: Text) -> some View {
-        Label {
-            text.lineLimit(2)
-        } icon: {
-            Image(systemName: symbol)
-                .foregroundStyle(LBTokens.Palette.accentText)
+/// Decisions as a panel: one per row under a check.
+struct TimelineDecisionsPanel: View {
+    let decisions: [String]
+    /// The meeting's decisions in all; the preview lists the first few.
+    let count: Int
+    let identifier: String
+
+    var body: some View {
+        SectionPanel(
+            title: Text("Decisions"),
+            systemImage: "flag",
+            count: count,
+            identifier: identifier
+        ) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(decisions.enumerated()), id: \.offset) { index, decision in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Image(systemName: "checkmark")
+                            .font(AppFont.scaled(.callout).weight(.semibold))
+                            .foregroundStyle(LBTokens.Palette.accentText)
+                            .accessibilityHidden(true)
+                        Text(verbatim: decision)
+                            .font(AppFont.scaled(.body))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.vertical, 10)
+                    if index < decisions.count - 1 { Divider() }
+                }
+            }
+            .padding(.horizontal, SectionPanelMetric.inset)
         }
-        .font(AppFont.scaled(.callout))
     }
+}
 
+// MARK: - Coding agent
+
+/// What the agents did in a work session, one task after another: the
+/// request that started it and the pull requests and commits it recorded,
+/// with when it ran in the panel's footer. Recorded actions come from the
+/// commands the agent ran; its own report is left out because it is only a
+/// claim.
+struct TimelineAgentPanel: View {
+    let tasks: [TimelineAgentTask]
+    /// One task named like its session needs no second title.
+    let sessionTitle: String
+    /// Looks a catalog key up in the interface language.
+    let localize: (String) -> String
+
+    var body: some View {
+        let last = tasks.last
+        SectionPanel(
+            title: Text("Coding agent"),
+            systemImage: AppState.NavSection.agent.symbol,
+            identifier: "timeline.session.agent",
+            showsFooter: last != nil
+        ) {
+            EmptyView()
+        } content: {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(tasks) { task in
+                    let isLast = task.id == last?.id
+                    TimelineAgentTaskBlock(
+                        task: task,
+                        showsTitle: tasks.count > 1 || task.title != sessionTitle,
+                        // The last task's line is the panel's footer.
+                        metadata: isLast ? nil : TimelineAgentTaskWording.metadata(task, localize: localize))
+                    if !isLast { Divider() }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("timeline.session.agentWork")
+        } footer: {
+            if let last {
+                Text(verbatim: TimelineAgentTaskWording.metadata(last, localize: localize))
+                    .sectionPanelFooterText()
+            }
+        }
+    }
+}
+
+enum TimelineAgentTaskWording {
     /// "Claude Code · Asked at 9:12 AM · worked until 9:58 AM", or the time
     /// range alone when the request was not kept.
-    private var metadata: String {
-        let language = app.settings.appLanguage
+    static func metadata(_ task: TimelineAgentTask, localize: (String) -> String = { $0 }) -> String {
         var parts: [String] = [task.agent.displayName]
         if task.request != nil {
-            parts.append(String(format: language.localized("Asked at %@"),
+            parts.append(String(format: localize("Asked at %@"),
                                 task.start.formatted(date: .omitted, time: .shortened)))
-            parts.append(String(format: language.localized("worked until %@"),
+            parts.append(String(format: localize("worked until %@"),
                                 task.end.formatted(date: .omitted, time: .shortened)))
         } else {
             parts.append(TimelineContextPanel.timeRange(task.start, task.end))
         }
         return parts.joined(separator: " · ")
     }
+}
 
-    private var mergedNumbers: [Int?] {
-        task.actions.compactMap { action in
-            if case .mergedPullRequest(let number) = action { return .some(number) }
-            return nil
+/// One agent task: its title or request, then a row for each thing it
+/// recorded.
+private struct TimelineAgentTaskBlock: View {
+    let task: TimelineAgentTask
+    let showsTitle: Bool
+    /// When the task ran, for every task but the panel's last.
+    let metadata: String?
+
+    private struct PullRequestLink: Hashable {
+        let label: String
+        let url: URL
+    }
+
+    private struct Outcome: Identifiable {
+        let id: Int
+        let symbol: String
+        let text: Text
+    }
+
+    var body: some View {
+        let outcomes = outcomes
+        let links = links
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 5) {
+                if showsTitle || task.request == nil {
+                    Text(verbatim: task.title)
+                        .font(AppFont.scaled(.body).weight(.semibold))
+                        .lineLimit(2)
+                        .textSelection(.enabled)
+                }
+                if let request = task.request {
+                    Text(verbatim: "“\(request)”")
+                        .font(AppFont.scaledSystem(size: 13.5))
+                        .lineLimit(4)
+                        .textSelection(.enabled)
+                }
+                if let metadata {
+                    Text(verbatim: metadata)
+                        .workspaceTextRole(.metadata)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, SectionPanelMetric.inset)
+            .padding(.vertical, 14)
+            if !outcomes.isEmpty || !links.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(outcomes) { outcome in
+                        Label {
+                            outcome.text.lineLimit(2)
+                        } icon: {
+                            Image(systemName: outcome.symbol)
+                                .foregroundStyle(LBTokens.Palette.accentText)
+                        }
+                        .font(AppFont.scaled(.callout))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 9)
+                        if outcome.id != outcomes.last?.id || !links.isEmpty { Divider() }
+                    }
+                    if !links.isEmpty {
+                        HStack(spacing: 10) {
+                            ForEach(links, id: \.url) { link in
+                                Link(destination: link.url) {
+                                    Text(verbatim: link.label)
+                                }
+                                .font(AppFont.scaled(.callout))
+                            }
+                        }
+                        .padding(.vertical, 9)
+                    }
+                }
+                .padding(.horizontal, SectionPanelMetric.inset)
+            }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("timeline.agentTask.\(task.id)")
+    }
+
+    /// Opened pull requests, merged ones, then the commits.
+    private var outcomes: [Outcome] {
+        let recorded = TimelineAgentOutcomes(task.bursts)
+        var rows: [(String, Text)] = recorded.openedPullRequests.map {
+            ("arrow.triangle.pull", Text("Opened pull request “\($0)”"))
+        }
+        for action in task.actions {
+            guard case .mergedPullRequest(let number) = action else { continue }
+            rows.append(("arrow.triangle.merge",
+                         number.map { Text("Merged #\($0)") } ?? Text("Merged a pull request")))
+        }
+        if recorded.commits > 0 {
+            rows.append(("smallcircle.filled.circle",
+                         Text(recorded.commits == 1 ? "\(recorded.commits) commit" : "\(recorded.commits) commits")))
+        }
+        return rows.enumerated().map { Outcome(id: $0.offset, symbol: $0.element.0, text: $0.element.1) }
     }
 
     /// The pull requests the agent session linked, at most three, as

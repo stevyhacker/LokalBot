@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Действия со встреч этого дня: %lld, все выполнены";
 "%lld action from this day’s meetings, deferred" = "Действия со встреч этого дня: %lld, отложено";
 "%lld actions from this day’s meetings, none open" = "Действия со встреч этого дня: %lld, открытых нет";
+"Actions from this day’s meetings" = "Действия со встреч этого дня";
+"All done" = "Все выполнены";
 "Delete screen moments…" = "Удалить моменты экрана…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Все приложения и окна, которые видел LokalBot, час за часом. Здесь можно проверить точное время.";
 "Coding agent" = "Агент программирования";

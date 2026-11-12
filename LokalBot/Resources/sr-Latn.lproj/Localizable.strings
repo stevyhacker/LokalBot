@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Obaveze sa sastanaka ovog dana: %lld, sve završene";
 "%lld action from this day’s meetings, deferred" = "Obaveze sa sastanaka ovog dana: %lld, odloženo";
 "%lld actions from this day’s meetings, none open" = "Obaveze sa sastanaka ovog dana: %lld, nema otvorenih";
+"Actions from this day’s meetings" = "Obaveze sa sastanaka ovog dana";
+"All done" = "Sve završene";
 "Delete screen moments…" = "Izbriši trenutke sa ekrana…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Svaka aplikacija i prozor koje je LokalBot video, sat po sat. Ovde možete da proverite tačna vremena.";
 "Coding agent" = "Agent za programiranje";

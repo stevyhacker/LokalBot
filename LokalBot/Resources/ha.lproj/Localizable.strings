@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Matakai %lld daga tarukan wannan rana, duk an gama";
 "%lld action from this day’s meetings, deferred" = "Mataki %lld daga tarukan wannan rana, an jinkirta";
 "%lld actions from this day’s meetings, none open" = "Matakai %lld daga tarukan wannan rana, babu na buɗe";
+"Actions from this day’s meetings" = "Matakai daga tarukan wannan rana";
+"All done" = "Duk an gama";
 "Delete screen moments…" = "Goge lokutan allo…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Kowace manhaja da taga da LokalBot ya gani, awa bayan awa. Yi amfani da shi don duba ainihin lokuta.";
 "Coding agent" = "Wakilin rubuta lamba";

@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "ఈ రోజు సమావేశాల నుండి %lld పనులు, అన్నీ పూర్తయ్యాయి";
 "%lld action from this day’s meetings, deferred" = "ఈ రోజు సమావేశాల నుండి %lld పని, వాయిదా వేయబడింది";
 "%lld actions from this day’s meetings, none open" = "ఈ రోజు సమావేశాల నుండి %lld పనులు, పెండింగ్‌లో ఏదీ లేదు";
+"Actions from this day’s meetings" = "ఈ రోజు సమావేశాల నుండి పనులు";
+"All done" = "అన్నీ పూర్తయ్యాయి";
 "Delete screen moments…" = "స్క్రీన్ క్షణాలను తొలగించండి…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBot చూసిన ప్రతి యాప్, విండో, గంట గంటకు. ఖచ్చితమైన సమయాలను తనిఖీ చేయడానికి దీన్ని ఉపయోగించండి.";
 "Coding agent" = "కోడింగ్ ఏజెంట్";

@@ -91,6 +91,43 @@ final class BrandContrastTests: XCTestCase {
         }
     }
 
+    /// Timeline's rail is drawn on the content background, with its chosen
+    /// row on the list's unfocused selection; the day's page adds the "All
+    /// done" badge and the Done line to the panels. Small text in each holds
+    /// 4.5:1 in light, dark and both Increase Contrast appearances.
+    func testTimelineRailAndPanelTextMeetsAAInEveryAppearance() {
+        let appearances: [(NSAppearance.Name, increased: Bool)] = [
+            (.aqua, false), (.darkAqua, false),
+            (.accessibilityHighContrastAqua, true), (.accessibilityHighContrastDarkAqua, true),
+        ]
+        for (appearance, increased) in appearances {
+            let rail = resolve(.textBackgroundColor, in: appearance)
+            let selection = resolve(.unemphasizedSelectedContentBackgroundColor, in: appearance)
+            let card = resolve(.controlBackgroundColor, in: appearance)
+            let supporting = resolve(increased ? .labelColor : WorkspaceTextColor.supporting, in: appearance)
+            let accent = resolve(NSColor(LBTokens.Palette.accentText), in: appearance)
+            let recording = resolve(NSColor(LBTokens.Palette.recordingText), in: appearance)
+            let doneFill = resolve(NSColor(LBTokens.Palette.accentFill), in: appearance)
+            let groupFill = resolve(NSColor(LBTokens.Palette.groupFill), in: appearance)
+            let pairs: [(String, NSColor, NSColor)] = [
+                // Times, second lines, durations, Away, the hour labels and the legend.
+                ("rail supporting text", supporting, rail),
+                ("chosen row supporting text", supporting, selection),
+                ("meeting line", accent, rail),
+                ("chosen meeting line", accent, selection),
+                ("recording line", recording, rail),
+                ("chosen recording line", recording, selection),
+                ("all done badge", accent,
+                 blend(doneFill, over: card, alpha: LBTokens.Palette.statusFillOpacity)),
+                ("done line preview", supporting,
+                 blend(groupFill, over: card, alpha: Double(groupFill.alphaComponent))),
+            ]
+            for (label, text, surface) in pairs {
+                XCTAssertGreaterThanOrEqual(contrast(text, surface), 4.5, "\(label) (\(appearance.rawValue))")
+            }
+        }
+    }
+
     func testSettingsAndAgentUseTheSharedAccent() {
         for (appearance, scheme) in schemes {
             let brand = resolve(Brand.tealNSColor, in: appearance)

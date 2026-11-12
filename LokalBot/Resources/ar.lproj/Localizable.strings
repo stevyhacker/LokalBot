@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "إجراءات من اجتماعات هذا اليوم: %lld، كلها مكتملة";
 "%lld action from this day’s meetings, deferred" = "إجراءات من اجتماعات هذا اليوم: %lld، مؤجل";
 "%lld actions from this day’s meetings, none open" = "إجراءات من اجتماعات هذا اليوم: %lld، لا شيء مفتوح";
+"Actions from this day’s meetings" = "إجراءات من اجتماعات هذا اليوم";
+"All done" = "كلها مكتملة";
 "Delete screen moments…" = "حذف لحظات الشاشة…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "كل تطبيق ونافذة رآها LokalBot، ساعة بساعة. استخدمه للتحقق من الأوقات بدقة.";
 "Coding agent" = "وكيل البرمجة";

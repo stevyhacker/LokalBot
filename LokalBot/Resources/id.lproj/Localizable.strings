@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld tindakan dari rapat hari tersebut, semua selesai";
 "%lld action from this day’s meetings, deferred" = "%lld tindakan dari rapat hari tersebut, ditunda";
 "%lld actions from this day’s meetings, none open" = "%lld tindakan dari rapat hari tersebut, tidak ada yang terbuka";
+"Actions from this day’s meetings" = "Tindakan dari rapat hari tersebut";
+"All done" = "Semua selesai";
 "Delete screen moments…" = "Hapus momen layar…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Setiap app dan jendela yang dilihat LokalBot, jam demi jam. Gunakan untuk memeriksa waktu yang tepat.";
 "Coding agent" = "Agen pemrograman";

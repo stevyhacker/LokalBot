@@ -2348,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld hành động từ các cuộc họp của ngày này, tất cả đã xong";
 "%lld action from this day’s meetings, deferred" = "%lld hành động từ các cuộc họp của ngày này, đã hoãn";
 "%lld actions from this day’s meetings, none open" = "%lld hành động từ các cuộc họp của ngày này, không còn mục nào mở";
+"Actions from this day’s meetings" = "Hành động từ các cuộc họp của ngày này";
+"All done" = "Tất cả đã xong";
 "Delete screen moments…" = "Xóa khoảnh khắc màn hình…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Mọi ứng dụng và cửa sổ LokalBot đã thấy, theo từng giờ. Dùng để kiểm tra thời gian chính xác.";
 "Coding agent" = "Tác nhân lập trình";
