@@ -69,7 +69,8 @@ struct MeetingPlayerBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .lbGroupedSurface()
+        // The panels' raised surface, so the pinned bar reads as one of them.
+        .todayCardSurface()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Meeting playback")
         .accessibilityIdentifier("meeting.audioPlayer")

@@ -1901,6 +1901,7 @@
 "For you · %lld" = "لك · %lld";
 "Full summary" = "الملخص الكامل";
 "Nothing for you from this meeting." = "لا شيء لك من هذا الاجتماع.";
+"Nothing for others from this meeting." = "لا شيء للآخرين من هذا الاجتماع.";
 "Read the transcript" = "قراءة التفريغ النصي";
 "Recap, decisions and actions appear here when it is done." = "تظهر الخلاصة والقرارات والإجراءات هنا عند الانتهاء.";
 "Refresh summary" = "تحديث الملخص";

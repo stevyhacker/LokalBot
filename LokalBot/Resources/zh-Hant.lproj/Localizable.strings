@@ -1901,6 +1901,7 @@
 "For you · %lld" = "你的 · %lld";
 "Full summary" = "完整摘要";
 "Nothing for you from this meeting." = "這次會議沒有你的事項。";
+"Nothing for others from this meeting." = "這次會議沒有他人的事項。";
 "Read the transcript" = "閱讀逐字稿";
 "Recap, decisions and actions appear here when it is done." = "完成後，回顧、決定和行動項會顯示在這裡。";
 "Refresh summary" = "重新整理摘要";

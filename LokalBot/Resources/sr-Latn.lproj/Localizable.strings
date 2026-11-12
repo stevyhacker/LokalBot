@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Za vas · %lld";
 "Full summary" = "Ceo sažetak";
 "Nothing for you from this meeting." = "Nema ničeg za vas sa ovog sastanka.";
+"Nothing for others from this meeting." = "Nema ničeg za druge sa ovog sastanka.";
 "Read the transcript" = "Pročitaj transkript";
 "Recap, decisions and actions appear here when it is done." = "Rezime, odluke i obaveze pojaviće se ovde kada se završi.";
 "Refresh summary" = "Osveži sažetak";

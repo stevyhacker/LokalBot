@@ -11,7 +11,15 @@ struct MeetingScreenMaterialsSection: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        WorkspaceSection(title: "On Screen During the Meeting", icon: "rectangle.on.rectangle") {
+        // Shown as written, like the rest of this section's wording.
+        SectionPanel(
+            title: Text(verbatim: "On Screen During the Meeting"),
+            systemImage: "rectangle.on.rectangle",
+            count: context.materials.count,
+            identifier: "meeting.onScreen"
+        ) {
+            EmptyView()
+        } content: {
             VStack(spacing: 0) {
                 ForEach(context.materials) { material in
                     HStack(alignment: .center, spacing: 12) {
@@ -39,7 +47,7 @@ struct MeetingScreenMaterialsSection: View {
                                 .textSelection(.enabled)
                             Text(Self.detail(material))
                                 .font(.scaled(.callout))
-                                .foregroundStyle(.secondary)
+                                .workspaceSupportingForeground()
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         if let url = material.pageURL {
@@ -49,16 +57,16 @@ struct MeetingScreenMaterialsSection: View {
                                 .accessibilityLabel("Open \(material.title) in the browser")
                         }
                     }
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 8)
                     if material.id != context.materials.last?.id { Divider() }
                 }
             }
+            .padding(.horizontal, SectionPanelMetric.inset)
+        } footer: {
             Text("From screen memory on this Mac. Time on screen is estimated from captures, "
                 + "which follow your screen retention setting.")
-                .font(.scaled(.callout))
-                .foregroundStyle(.secondary)
+                .sectionPanelFooterText()
         }
-        .accessibilityIdentifier("meeting.onScreen")
     }
 
     /// "Gmail · 4 min on screen"; the source is left out when the title

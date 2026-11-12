@@ -1901,6 +1901,7 @@
 "For you · %lld" = "あなた · %lld";
 "Full summary" = "要約の全文";
 "Nothing for you from this meeting." = "この会議からあなたの担当はありません。";
+"Nothing for others from this meeting." = "この会議からほかの人の担当はありません。";
 "Read the transcript" = "文字起こしを読む";
 "Recap, decisions and actions appear here when it is done." = "完了すると、まとめ、決定事項、アクションがここに表示されます。";
 "Refresh summary" = "要約を更新";

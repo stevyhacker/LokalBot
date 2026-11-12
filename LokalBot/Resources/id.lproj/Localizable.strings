@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Untuk Anda · %lld";
 "Full summary" = "Ringkasan lengkap";
 "Nothing for you from this meeting." = "Tidak ada untuk Anda dari rapat ini.";
+"Nothing for others from this meeting." = "Tidak ada untuk orang lain dari rapat ini.";
 "Read the transcript" = "Baca transkrip";
 "Recap, decisions and actions appear here when it is done." = "Rekap, keputusan, dan tindakan muncul di sini setelah selesai.";
 "Refresh summary" = "Segarkan ringkasan";

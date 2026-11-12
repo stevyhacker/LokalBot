@@ -25,7 +25,7 @@ struct YesterdayBriefPanel: View {
     }
 
     var body: some View {
-        TodayPanel(
+        SectionPanel(
             title: title,
             systemImage: "moon",
             identifier: "today.dream"
@@ -62,12 +62,12 @@ struct YesterdayBriefPanel: View {
                         .accessibilityIdentifier("today.dream.retry")
                 }
             }
-            .padding(.horizontal, TodayPanelMetric.inset)
+            .padding(.horizontal, SectionPanelMetric.inset)
             .padding(.vertical, 14)
         } footer: {
             // The report's own account of which model wrote it and where.
             Text(report.provenanceDescription)
-                .todayPanelFooterText()
+                .sectionPanelFooterText()
         }
     }
 
@@ -76,7 +76,7 @@ struct YesterdayBriefPanel: View {
     /// sync. The rest are numbered advice.
     private var priorities: some View {
         VStack(alignment: .leading, spacing: 6) {
-            TodayPanelLabel(text: prioritiesLabel)
+            SectionPanelLabel(text: prioritiesLabel)
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(Array(report.topActions.enumerated()), id: \.offset) { index, action in
                     if let thread = linkedThread(report.topActionThreadID(at: index)) {

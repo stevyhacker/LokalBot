@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Für dich · %lld";
 "Full summary" = "Vollständige Zusammenfassung";
 "Nothing for you from this meeting." = "Aus dieser Besprechung ist nichts für dich dabei.";
+"Nothing for others from this meeting." = "Aus dieser Besprechung ist nichts für andere dabei.";
 "Read the transcript" = "Transkript lesen";
 "Recap, decisions and actions appear here when it is done." = "Kurzfassung, Entscheidungen und Aktionen erscheinen hier, sobald es fertig ist.";
 "Refresh summary" = "Zusammenfassung aktualisieren";

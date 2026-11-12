@@ -16,7 +16,7 @@ struct TodayMeetingsSection: View {
     private static let timeColumnWidth: CGFloat = 70
 
     var body: some View {
-        TodayPanel(
+        SectionPanel(
             title: Text("Meetings today"),
             systemImage: AppState.NavSection.meetings.symbol,
             count: count,
@@ -40,7 +40,7 @@ struct TodayMeetingsSection: View {
             }
         } footer: {
             Text("Upcoming meetings can show here too")
-                .todayPanelFooterText()
+                .sectionPanelFooterText()
             Button("Connect Calendar…") {
                 // Calendar use and its permission are set up in Settings.
                 app.openSettings(tab: .recording)
@@ -105,7 +105,7 @@ struct TodayMeetingsSection: View {
                 }
             }
         }
-        .padding(.horizontal, TodayPanelMetric.inset)
+        .padding(.horizontal, SectionPanelMetric.inset)
         .padding(.vertical, 10)
         .contentShape(Rectangle())
     }
@@ -141,7 +141,7 @@ struct TodayMeetingsSection: View {
             .font(AppFont.scaledSystem(size: 11, weight: .bold).monospacedDigit())
             .foregroundStyle(LBTokens.Palette.recordingText)
             .accessibilityIdentifier("today.meetings.now")
-            .padding(.horizontal, TodayPanelMetric.inset)
+            .padding(.horizontal, SectionPanelMetric.inset)
             .frame(maxWidth: .infinity, minHeight: 20 * textScale, alignment: .leading)
             .overlay(alignment: .top) {
                 Rectangle()

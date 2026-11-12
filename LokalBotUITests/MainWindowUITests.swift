@@ -812,7 +812,8 @@ final class MainWindowUITests: XCTestCase {
     }
 
     /// Full detail leads with actions and keeps the full summary and transcript
-    /// in their own tabs.
+    /// in their own tabs. Each part of a tab is a panel, and the panels fill
+    /// the pane beside the pinned player instead of a centred reading column.
     func testMeetingDetailLeadsWithActionsAndHasFullSummaryTab() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -820,17 +821,35 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(textWithContent("Adopt Redis").firstMatch.waitForExistence(timeout: 4))
         XCTAssertTrue(identified("meeting.audioPlayer").exists)
         XCTAssertTrue(textWithContent("Draft the eviction policy document").firstMatch.waitForExistence(timeout: 4))
+        // Decisions, Actions and Open questions each have a titled panel.
+        for panel in ["meeting.decisions", "meeting.actions", "meeting.questions"] {
+            XCTAssertTrue(identified(panel + ".title").exists, "\(panel) has no panel header")
+        }
+        // The pinned player and the scrolling panels share both edges, 24
+        // points from the pane's leading edge, whatever the scroll bar takes.
+        let player = identified("meeting.audioPlayer").frame
+        let actions = identified("meeting.actions").frame
+        let content = app.scrollViews["meeting.content.scroll"].frame
+        XCTAssertEqual(actions.minX, player.minX, accuracy: 1)
+        XCTAssertEqual(actions.maxX, player.maxX, accuracy: 1)
+        XCTAssertEqual(actions.minX - content.minX, 24, accuracy: 1)
+        XCTAssertLessThanOrEqual(content.maxX - actions.maxX, 24 + 20,
+                                 "The panels run the width of the pane up to its gutter")
         XCTAssertFalse(identified("meeting.summary").exists)
         UITestHarness.scrollTo(identified("meeting.fullNotes"), in: app)
+        XCTAssertEqual(identified("meeting.fullNotes").value as? String, "Collapsed",
+                       "Full summary is only its header until opened")
         identified("meeting.fullNotes").click()
         XCTAssertTrue(identified("meeting.summary").waitForExistence(timeout: 4))
         UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
         let first = app.staticTexts["transcript.segment.0.text"]
         XCTAssertTrue(first.waitForExistence(timeout: 4))
         XCTAssertTrue((first.value as? String)?.contains("caching layer") == true)
+        XCTAssertTrue(identified("meeting.transcript.title").exists, "The transcript is one titled panel")
         XCTAssertTrue(identified("meeting.audioPlayer").exists)
         UITestHarness.selectSegment("Notes", pickerIdentifier: "meeting.contentTabs", in: app)
         XCTAssertTrue(identified("meeting.notes.editor").waitForExistence(timeout: 4))
+        XCTAssertTrue(identified("meeting.notes.title").exists, "The notes editor is the body of a titled panel")
     }
 
     func testPartialMeetingShowsSavedRecapAndActions() throws {

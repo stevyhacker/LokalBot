@@ -28,7 +28,7 @@ struct NeedsAttentionSection: View {
     private var panel: some View {
         let summary = TodayAttentionSummary(threads: threads, limit: limit, now: now)
         let shown = Array(threads.prefix(summary.shown))
-        return TodayPanel(
+        return SectionPanel(
             title: Text("Needs attention"),
             systemImage: AppState.NavSection.actions.symbol,
             count: summary.open,
@@ -45,10 +45,10 @@ struct NeedsAttentionSection: View {
                     if thread.id != shown.last?.id { Divider() }
                 }
             }
-            .padding(.horizontal, TodayPanelMetric.inset)
+            .padding(.horizontal, SectionPanelMetric.inset)
         } footer: {
             Text("Showing the \(summary.shown) most urgent")
-                .todayPanelFooterText()
+                .sectionPanelFooterText()
             Button {
                 app.openActions()
             } label: {

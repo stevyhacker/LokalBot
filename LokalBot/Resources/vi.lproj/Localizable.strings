@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Của bạn · %lld";
 "Full summary" = "Bản tóm tắt đầy đủ";
 "Nothing for you from this meeting." = "Không có gì cho bạn từ cuộc họp này.";
+"Nothing for others from this meeting." = "Không có gì cho người khác từ cuộc họp này.";
 "Read the transcript" = "Đọc bản chép lời";
 "Recap, decisions and actions appear here when it is done." = "Phần tóm lược, quyết định và hành động sẽ hiện ở đây khi hoàn tất.";
 "Refresh summary" = "Làm mới bản tóm tắt";

@@ -4,10 +4,34 @@ func meetingTranscriptEngineDescription(_ engine: String) -> String {
     "Transcribed with \(engine)"
 }
 
-/// The transcript as speaker turns: one speaker line per turn, then that
-/// turn's lines with a quiet time before each. The line being played is
-/// highlighted, and any time plays from there.
+/// Which model wrote the transcript, in the Transcript panel's footer. A
+/// merged meeting's transcript has no single model to name.
+struct MeetingTranscriptEngineLine: View {
+    let text: String
+    var searchQuery = ""
+    var activeMatchIndex: Int?
+
+    static func text(for transcript: Transcript) -> String? {
+        guard !transcript.segments.isEmpty, !transcript.engine.isEmpty, transcript.engine != "merged" else {
+            return nil
+        }
+        return meetingTranscriptEngineDescription(transcript.engine)
+    }
+
+    var body: some View {
+        SearchHighlightedText(text, query: searchQuery, activeMatchIndex: activeMatchIndex)
+            .id(MeetingPageSearchMatch.Location.transcriptEngine)
+            .textSelection(.enabled)
+            .sectionPanelFooterText()
+            .accessibilityIdentifier("transcript.model")
+    }
+}
+
+/// The transcript as speaker turns on its panel's surface: one speaker line
+/// per turn, then that turn's lines with a quiet time before each. The line
+/// being played is highlighted, and any time plays from there.
 struct MeetingTranscriptList: View {
+    @Environment(\.appTextScale) private var textScale
     let transcript: Transcript?
     let display: Transcript.DisplayIndex
     @ObservedObject var player: MeetingPlayer
@@ -21,46 +45,41 @@ struct MeetingTranscriptList: View {
     /// Wide enough for "1:02:09" at the trailing edge of the time column.
     static let timeColumnWidth: CGFloat = 52
     static let columnGap: CGFloat = 12
+    /// A line's highlight reaches this far past its text on each side.
+    static let lineInset: CGFloat = 6
 
     var body: some View {
         if let transcript, !display.segments.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                if !transcript.engine.isEmpty && transcript.engine != "merged" {
-                    SearchHighlightedText(
-                        meetingTranscriptEngineDescription(transcript.engine),
-                        query: searchQuery,
-                        activeMatchIndex: activeOccurrence(at: .transcriptEngine))
-                        .id(MeetingPageSearchMatch.Location.transcriptEngine)
-                        .font(AppFont.scaled(.callout))
-                        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
-                        .textSelection(.enabled)
-                        .accessibilityIdentifier("transcript.model")
-                }
-
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(display.segments) { row in
-                        MeetingTranscriptLine(
-                            row: row,
-                            speakerName: speakerPresentation.speaker(row.segment.speaker, in: transcript),
-                            speakerColorIndex: speakerPresentation.colorIndex(for: row.segment.speaker),
-                            speakerNeedsName: unnamedSpeakers.contains(row.speakerKey),
-                            clock: player.clock,
-                            isPlaying: player.isPlaying,
-                            isEvidence: evidenceSegment == row.id,
-                            searchQuery: searchQuery,
-                            activeMatch: activeMatch,
-                            onPlay: { player.play(at: row.segment.start) },
-                            onRenameSpeaker: { onRenameSpeaker(row.segment.speaker) })
-                    }
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(display.segments) { row in
+                    MeetingTranscriptLine(
+                        row: row,
+                        speakerName: speakerPresentation.speaker(row.segment.speaker, in: transcript),
+                        speakerColorIndex: speakerPresentation.colorIndex(for: row.segment.speaker),
+                        speakerNeedsName: unnamedSpeakers.contains(row.speakerKey),
+                        clock: player.clock,
+                        isPlaying: player.isPlaying,
+                        isEvidence: evidenceSegment == row.id,
+                        searchQuery: searchQuery,
+                        activeMatch: activeMatch,
+                        onPlay: { player.play(at: row.segment.start) },
+                        onRenameSpeaker: { onRenameSpeaker(row.segment.speaker) })
                 }
             }
-            .workspaceReadingWidth()
+            // What was said keeps a reading measure beside the time column.
+            .frame(maxWidth: MeetingDetailLayout.proseWidth(textScale: textScale)
+                   + Self.timeColumnWidth + Self.columnGap + 2 * Self.lineInset, alignment: .leading)
+            .padding(.horizontal, SectionPanelMetric.inset - Self.lineInset)
+            .padding(.top, 2)
+            .padding(.bottom, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             EmptyWorkspaceRow(
                 text: "No transcript yet.",
                 searchQuery: searchQuery,
                 activeMatchIndex: activeOccurrence(at: .emptyState(.transcript)))
             .id(MeetingPageSearchMatch.Location.emptyState(.transcript))
+            .padding(.horizontal, SectionPanelMetric.inset)
         }
     }
 
@@ -107,7 +126,8 @@ private struct MeetingTranscriptLine: View {
                 }
                 .id(MeetingPageSearchMatch.Location.transcript(segmentIndex: index, field: .speaker))
                 .frame(height: 20, alignment: .leading)
-                .padding(.leading, MeetingTranscriptList.timeColumnWidth + MeetingTranscriptList.columnGap + 6)
+                .padding(.leading, MeetingTranscriptList.timeColumnWidth + MeetingTranscriptList.columnGap
+                         + MeetingTranscriptList.lineInset)
                 .padding(.top, 12)
             }
             HStack(alignment: .firstTextBaseline, spacing: MeetingTranscriptList.columnGap) {
@@ -149,7 +169,7 @@ private struct MeetingTranscriptLine: View {
                     .accessibilityIdentifier("transcript.segment.\(index).text")
             }
             .padding(.vertical, 3)
-            .padding(.horizontal, 6)
+            .padding(.horizontal, MeetingTranscriptList.lineInset)
             .background {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isCurrent ? Brand.teal.opacity(0.14) : Color.clear)

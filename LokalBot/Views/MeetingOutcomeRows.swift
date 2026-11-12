@@ -1,54 +1,5 @@
 import SwiftUI
 
-/// A plain section heading on the meeting page: a title, how many rows follow,
-/// and an optional trailing control. Sections are headings and rows, not boxes.
-struct MeetingSectionHeading<Trailing: View>: View {
-    let title: String
-    var count: Int?
-    var searchQuery = ""
-    var activeMatchIndex: Int?
-    var searchLocation: MeetingPageSearchMatch.Location?
-    @ViewBuilder var trailing: Trailing
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Group {
-                if let searchLocation {
-                    // The catalog's wording until a search needs its matches marked.
-                    Group {
-                        if searchQuery.isEmpty {
-                            Text(LocalizedStringKey(title))
-                        } else {
-                            SearchHighlightedText(title, query: searchQuery, activeMatchIndex: activeMatchIndex)
-                        }
-                    }
-                    .id(searchLocation)
-                } else {
-                    Text(LocalizedStringKey(title))
-                }
-            }
-            .font(AppFont.scaled(.headline))
-            if let count {
-                // The supporting grey: the system's secondary label measured
-                // under 4.5:1 at this size.
-                Text(count, format: .number)
-                    .font(AppFont.scaled(.callout).monospacedDigit())
-                    .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
-            }
-            Spacer(minLength: 8)
-            trailing
-        }
-    }
-}
-
-extension MeetingSectionHeading where Trailing == EmptyView {
-    init(title: String, count: Int? = nil, searchQuery: String = "", activeMatchIndex: Int? = nil,
-         searchLocation: MeetingPageSearchMatch.Location? = nil) {
-        self.init(title: title, count: count, searchQuery: searchQuery, activeMatchIndex: activeMatchIndex,
-                  searchLocation: searchLocation) { EmptyView() }
-    }
-}
-
 /// A ▶ time beside a decision or action. It plays from there in place, so the
 /// reader stays on the summary.
 struct MeetingPlayTimeButton: View {
@@ -76,7 +27,7 @@ struct MeetingPlayTimeButton: View {
             .font(AppFont.scaled(.callout).monospacedDigit())
             .foregroundStyle(LBTokens.Palette.accentText)
             // A comfortable click target around the small timestamp.
-            .padding(.horizontal, 4)
+            .padding(.horizontal, Self.hitInset)
             .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
@@ -84,8 +35,13 @@ struct MeetingPlayTimeButton: View {
         .help(excerpt)
         .accessibilityLabel("Play from \(stamp)")
     }
+
+    /// Room for the pointer on each side of the time.
+    static let hitInset: CGFloat = 4
 }
 
+/// One decision in the Decisions panel: what was decided, and at the row's
+/// trailing edge the time it was said. The panel's header carries the symbol.
 struct MeetingDecisionRow: View {
     let decision: MeetingOutcomes.Decision
     let displayText: String
@@ -94,10 +50,7 @@ struct MeetingDecisionRow: View {
     let onPlay: (OutcomeSourceCitation) -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: "checkmark.circle")
-                .foregroundStyle(LBTokens.Palette.successText)
-                .accessibilityHidden(true)
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
             SearchHighlightedText(
                 displayText,
                 query: searchQuery,
@@ -106,6 +59,7 @@ struct MeetingDecisionRow: View {
                 .font(AppFont.scaled(.body))
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if let citation = decision.citations.first {
                 MeetingPlayTimeButton(
                     time: citation.start, excerpt: citation.excerpt,
@@ -114,11 +68,13 @@ struct MeetingDecisionRow: View {
                     searchLocation: .decision(id: decision.id, field: .evidence)) {
                     onPlay(citation)
                 }
+                // The time, not the room around it for the pointer, meets
+                // the row's trailing edge.
+                .padding(.trailing, -MeetingPlayTimeButton.hitInset)
                 .accessibilityIdentifier("meeting.decision.play.\(decision.id)")
             }
-            Spacer(minLength: 0)
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 10)
     }
 
     private func activeOccurrence(for field: MeetingPageSearchMatch.DecisionField) -> Int? {
@@ -187,7 +143,7 @@ struct MeetingActionRow: View {
             .fixedSize()
             .disabled(!isEditable)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 11)
     }
 
     @ViewBuilder private var details: some View {

@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Для вас · %lld";
 "Full summary" = "Полная сводка";
 "Nothing for you from this meeting." = "Для вас с этой встречи ничего нет.";
+"Nothing for others from this meeting." = "Для других с этой встречи ничего нет.";
 "Read the transcript" = "Читать расшифровку";
 "Recap, decisions and actions appear here when it is done." = "Краткий итог, решения и действия появятся здесь, когда всё будет готово.";
 "Refresh summary" = "Обновить сводку";

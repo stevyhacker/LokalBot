@@ -1901,6 +1901,7 @@
 "For you · %lld" = "내 항목 · %lld";
 "Full summary" = "전체 요약";
 "Nothing for you from this meeting." = "이 회의에서 내가 맡은 항목이 없습니다.";
+"Nothing for others from this meeting." = "이 회의에서 다른 사람이 맡은 항목이 없습니다.";
 "Read the transcript" = "전사문 읽기";
 "Recap, decisions and actions appear here when it is done." = "완료되면 요약, 결정 사항, 실행 항목이 여기에 표시됩니다.";
 "Refresh summary" = "요약 새로 고침";

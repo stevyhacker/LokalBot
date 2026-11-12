@@ -1901,6 +1901,7 @@
 "For you · %lld" = "آپ کے لیے · %lld";
 "Full summary" = "مکمل خلاصہ";
 "Nothing for you from this meeting." = "اس اجلاس سے آپ کے لیے کچھ نہیں ہے۔";
+"Nothing for others from this meeting." = "اس اجلاس سے دوسروں کے لیے کچھ نہیں ہے۔";
 "Read the transcript" = "نقل شدہ متن پڑھیں";
 "Recap, decisions and actions appear here when it is done." = "مکمل ہونے پر خلاصہ، فیصلے اور کارروائیاں یہاں نظر آئیں گی۔";
 "Refresh summary" = "خلاصہ تازہ کریں";

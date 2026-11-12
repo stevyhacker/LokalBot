@@ -1901,6 +1901,7 @@
 "For you · %lld" = "आपके लिए · %lld";
 "Full summary" = "पूरा सार";
 "Nothing for you from this meeting." = "इस मीटिंग से आपके लिए कुछ नहीं है।";
+"Nothing for others from this meeting." = "इस मीटिंग से दूसरों के लिए कुछ नहीं है।";
 "Read the transcript" = "लिप्यंतरण पढ़ें";
 "Recap, decisions and actions appear here when it is done." = "पूरा होने पर सार, निर्णय और काम यहाँ दिखेंगे।";
 "Refresh summary" = "सार रीफ़्रेश करें";

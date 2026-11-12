@@ -247,10 +247,9 @@ struct TodayView: View {
     }
 }
 
-/// Type sizes Today adds to the shared set: panel titles one step above the
-/// 13 pt headline, and the title of the card at the top.
+/// Type sizes Today adds to the shared set: the title of the card at the
+/// top. Panel titles are `SectionPanelMetric.titleFont`.
 enum TodayType {
-    static var panelTitle: AppFont { AppFont.scaledSystem(size: 14, weight: .bold) }
     static var cardTitle: AppFont { AppFont.scaledSystem(size: 20, weight: .bold) }
     /// The next meeting's title while another meeting is being recorded.
     static var cardTitleCompact: AppFont { AppFont.scaledSystem(size: 17, weight: .bold) }

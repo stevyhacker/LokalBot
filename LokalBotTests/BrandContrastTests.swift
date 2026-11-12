@@ -49,10 +49,11 @@ final class BrandContrastTests: XCTestCase {
         }
     }
 
-    /// Today's panels put small text on fills of their own: the count pill,
-    /// the red overdue badge, and the footer strip with its link. Each holds
-    /// 4.5:1 on the raised card in light, dark and both Increase Contrast
-    /// appearances, where supporting text is drawn in the label colour.
+    /// Panels (Today's, and a meeting's) put small text on fills of their
+    /// own: the count pill, the red overdue badge, the footer strip with its
+    /// link, and the band over a group of rows. Each holds 4.5:1 on the
+    /// raised card in light, dark and both Increase Contrast appearances,
+    /// where supporting text is drawn in the label colour.
     func testTodayPanelTextMeetsAAInEveryAppearance() {
         let appearances: [(NSAppearance.Name, increased: Bool)] = [
             (.aqua, false), (.darkAqua, false),
@@ -73,6 +74,16 @@ final class BrandContrastTests: XCTestCase {
                 ("footer link", resolve(Brand.tealNSColor, in: appearance), over(LBTokens.Palette.groupFill)),
                 ("now line", resolve(NSColor(LBTokens.Palette.recordingText), in: appearance), card),
                 ("label on card", supporting, card),
+                // A meeting's Actions panel: "For you · 2" on the band, and
+                // the line under a band whose side has no actions.
+                ("band label", supporting, over(LBTokens.Palette.groupFill)),
+                ("empty group line", supporting, card),
+                // Notes that could not be saved say so in the footer strip.
+                ("footer warning", resolve(WorkspaceTextColor.warning, in: appearance),
+                 over(LBTokens.Palette.groupFill)),
+                // A play time and due dates on the card.
+                ("play time", resolve(NSColor(LBTokens.Palette.accentText), in: appearance), card),
+                ("due soon", resolve(NSColor(LBTokens.Palette.attentionText), in: appearance), card),
             ]
             for (label, text, surface) in pairs {
                 XCTAssertGreaterThanOrEqual(contrast(text, surface), 4.5, "\(label) (\(appearance.rawValue))")

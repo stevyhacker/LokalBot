@@ -1901,6 +1901,7 @@
 "For you · %lld" = "మీ కోసం · %lld";
 "Full summary" = "పూర్తి సారాంశం";
 "Nothing for you from this meeting." = "ఈ సమావేశం నుండి మీ కోసం ఏమీ లేదు.";
+"Nothing for others from this meeting." = "ఈ సమావేశం నుండి ఇతరుల కోసం ఏమీ లేదు.";
 "Read the transcript" = "ట్రాన్స్‌క్రిప్ట్ చదవండి";
 "Recap, decisions and actions appear here when it is done." = "పూర్తయిన తర్వాత సారాంశం, నిర్ణయాలు, పనులు ఇక్కడ కనిపిస్తాయి.";
 "Refresh summary" = "సారాంశాన్ని రిఫ్రెష్ చేయండి";

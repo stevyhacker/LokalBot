@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Zako · %lld";
 "Full summary" = "Muhtasari kamili";
 "Nothing for you from this meeting." = "Hakuna chochote chako kutoka mkutano huu.";
+"Nothing for others from this meeting." = "Hakuna chochote cha wengine kutoka mkutano huu.";
 "Read the transcript" = "Soma nakala ya sauti";
 "Recap, decisions and actions appear here when it is done." = "Muhtasari, maamuzi na hatua zitaonekana hapa ikikamilika.";
 "Refresh summary" = "Onyesha upya muhtasari";

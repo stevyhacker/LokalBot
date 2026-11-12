@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Naka · %lld";
 "Full summary" = "Cikakken taƙaitawa";
 "Nothing for you from this meeting." = "Babu abin da ya shafe ka daga wannan taro.";
+"Nothing for others from this meeting." = "Babu abin da ya shafi wasu daga wannan taro.";
 "Read the transcript" = "Karanta rubutun magana";
 "Recap, decisions and actions appear here when it is done." = "Taƙaitawa, shawarwari da matakai za su bayyana a nan idan an gama.";
 "Refresh summary" = "Sabunta taƙaitawa";

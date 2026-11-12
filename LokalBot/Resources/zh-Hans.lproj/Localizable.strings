@@ -1900,6 +1900,7 @@
 "For you · %lld" = "你的 · %lld";
 "Full summary" = "完整摘要";
 "Nothing for you from this meeting." = "这次会议没有你的事项。";
+"Nothing for others from this meeting." = "这次会议没有他人的事项。";
 "Read the transcript" = "阅读转写";
 "Recap, decisions and actions appear here when it is done." = "完成后，回顾、决定和行动项会显示在这里。";
 "Refresh summary" = "刷新摘要";

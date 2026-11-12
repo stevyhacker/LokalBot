@@ -26,7 +26,7 @@ struct TodaySoFarSection: View {
         let state = TodayDigestLine.state(
             hasDigest: model.digest != nil, writtenAt: model.digestUpdatedAt,
             isStale: model.digestIsStale, isWriting: model.generating || scheduledRun)
-        TodayPanel(
+        SectionPanel(
             title: Text("So far today"),
             systemImage: AppState.NavSection.timeline.symbol,
             identifier: "today.soFar",
@@ -40,7 +40,7 @@ struct TodaySoFarSection: View {
                 if !perApp.isEmpty { tracked(perApp) }
                 if !highlights.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        TodayPanelLabel(text: Text("Highlights"))
+                        SectionPanelLabel(text: Text("Highlights"))
                         SelectableDigestText(highlights)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
@@ -52,7 +52,7 @@ struct TodaySoFarSection: View {
                     Label(error, systemImage: "exclamationmark.triangle").workspaceTextRole(.warning)
                 }
             }
-            .padding(.horizontal, TodayPanelMetric.inset)
+            .padding(.horizontal, SectionPanelMetric.inset)
             .padding(.vertical, 14)
         } footer: {
             digestLine(state)
@@ -117,20 +117,20 @@ struct TodaySoFarSection: View {
         case .writing:
             ProgressView().controlSize(.small)
             Text("Writing Digest…")
-                .todayPanelFooterText()
+                .sectionPanelFooterText()
         case .missing:
             Text("Your digest brings together this day's meetings and captured activity.")
-                .todayPanelFooterText()
+                .sectionPanelFooterText()
             writeButton
         case .current(let writtenAt):
             if let writtenAt {
                 written(writtenAt)
-                    .todayPanelFooterText()
+                    .sectionPanelFooterText()
             }
         case .stale(let writtenAt):
             staleText(writtenAt)
                 .accessibilityIdentifier("today.dayDigest.stale")
-                .todayPanelFooterText()
+                .sectionPanelFooterText()
             writeButton
         }
     }

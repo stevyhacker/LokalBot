@@ -448,6 +448,14 @@ final class RedesignUITests: XCTestCase {
         let search = app.textFields["meeting.search.field"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         XCTAssertEqual(search.placeholderValue, "Find in transcript")
+        // Find is the trailing control of the Transcript panel's header, so
+        // it is part of the scrolling content, level with the panel's title.
+        let content = app.scrollViews["meeting.content.scroll"]
+        let panelTitle = element("meeting.transcript.title")
+        XCTAssertTrue(panelTitle.exists, "The transcript is one panel with a titled header")
+        XCTAssertTrue(content.frame.contains(search.frame), "Find in transcript belongs to the Transcript panel")
+        XCTAssertGreaterThan(search.frame.minX, panelTitle.frame.maxX)
+        XCTAssertEqual(search.frame.midY, panelTitle.frame.midY, accuracy: 10)
         search.click()
         search.typeText("failover")
         let status = app.staticTexts["meeting.search.status"]
@@ -455,8 +463,15 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue((status.value as? String ?? status.label).contains("Transcript"))
         app.typeKey("f", modifierFlags: .command)
         XCTAssertTrue(UITestHarness.waitUntil { search.placeholderValue == "Search this meeting" })
+        // Command-F searches every tab, so its one field is pinned above the
+        // scrolling content and the panel's field makes way for it.
+        XCTAssertEqual(app.textFields.matching(identifier: "meeting.search.field").count, 1)
+        XCTAssertLessThanOrEqual(search.frame.maxY, content.frame.minY + 1,
+                                 "Page find stays pinned under the player")
         app.buttons["meeting.search.close"].click()
         XCTAssertTrue(search.exists, "Closing page find must keep the transcript search field")
+        XCTAssertTrue(UITestHarness.waitUntil { content.frame.contains(search.frame) },
+                      "Find returns to the Transcript panel's header")
         XCTAssertFalse(status.exists, "Closing page find clears its query and matches")
     }
 

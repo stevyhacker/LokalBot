@@ -1901,6 +1901,7 @@
 "For you · %lld" = "আপনার জন্য · %lld";
 "Full summary" = "সম্পূর্ণ সারাংশ";
 "Nothing for you from this meeting." = "এই মিটিং থেকে আপনার জন্য কিছু নেই।";
+"Nothing for others from this meeting." = "এই মিটিং থেকে অন্যদের জন্য কিছু নেই।";
 "Read the transcript" = "প্রতিলিপি পড়ুন";
 "Recap, decisions and actions appear here when it is done." = "শেষ হলে সারসংক্ষেপ, সিদ্ধান্ত ও কাজগুলো এখানে দেখা যাবে।";
 "Refresh summary" = "সারাংশ রিফ্রেশ করুন";
