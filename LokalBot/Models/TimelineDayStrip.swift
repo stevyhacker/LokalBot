@@ -1,8 +1,8 @@
 import CoreGraphics
 import Foundation
 
-/// The day strip on Timeline's digest page: the hours left to right, meetings
-/// in a lane above work. Each bar stands for a row of the day's list, so
+/// The day strip in Timeline's rail: the hours left to right, meetings in a
+/// lane above work. Each bar stands for a row of the list under it, so
 /// clicking one selects that row. Positions are fractions of the strip's
 /// span, which runs over whole hours and never leaves the civil day.
 struct TimelineDayStrip: Equatable {
@@ -138,8 +138,8 @@ enum TimelineDayLegend {
     }
 }
 
-/// The one line for the day's actions on Timeline's digest page: the user's
-/// actions that a meeting of that day mentioned, done ones included.
+/// The day's actions on Timeline's page: the user's actions that a meeting of
+/// that day mentioned, done ones included.
 enum TimelineDayActions {
     enum Summary: Equatable {
         case open(Int)
@@ -162,24 +162,9 @@ enum TimelineDayActions {
         if open > 0 { return .open(open) }
         return threads.allSatisfy { $0.status == .done } ? .allDone(threads.count) : .noneOpen(threads.count)
     }
-
-    static func label(_ summary: Summary, localize: (String) -> String = { $0 }) -> String {
-        switch summary {
-        case .open(let count):
-            String(format: localize(count == 1 ? "%lld open action from this day’s meetings"
-                                    : "%lld open actions from this day’s meetings"), count)
-        case .allDone(let count):
-            String(format: localize(count == 1 ? "%lld action from this day’s meetings, done"
-                                    : "%lld actions from this day’s meetings, all done"), count)
-        case .noneOpen(let count):
-            String(format: localize(count == 1 ? "%lld action from this day’s meetings, deferred"
-                                    : "%lld actions from this day’s meetings, none open"), count)
-        }
-    }
 }
 
-/// What the list's Day digest row says under its title, and what the day
-/// menu's digest item is called.
+/// What the day menu's digest item is called.
 enum TimelineDigestPreview {
     /// The catalog key of the menu item that writes the digest. It names what
     /// choosing it will do: write the first digest, update one that has newer
@@ -189,25 +174,5 @@ enum TimelineDigestPreview {
         if isWriting { return "Writing digest…" }
         if !hasDigest { return "Write digest" }
         return isStale ? "Update digest" : "Rewrite digest"
-    }
-
-    /// The digest's first highlight as one plain line.
-    static func firstHighlight(_ highlights: String) -> String? {
-        for line in highlights.components(separatedBy: .newlines) {
-            var text = line.trimmingCharacters(in: .whitespaces)
-            for marker in ["- ", "* ", "• "] where text.hasPrefix(marker) {
-                text = String(text.dropFirst(marker.count))
-            }
-            if let dot = text.firstIndex(of: "."), text[..<dot].allSatisfy(\.isNumber), !text[..<dot].isEmpty,
-               text[text.index(after: dot)...].hasPrefix(" ") {
-                text = String(text[text.index(dot, offsetBy: 2)...])
-            }
-            text = text.replacingOccurrences(of: "**", with: "")
-                .replacingOccurrences(of: "__", with: "")
-                .replacingOccurrences(of: "`", with: "")
-                .trimmingCharacters(in: .whitespaces)
-            if !text.isEmpty, !text.hasPrefix("#") { return text }
-        }
-        return nil
     }
 }

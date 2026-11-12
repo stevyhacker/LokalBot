@@ -1901,6 +1901,7 @@
 "For you · %lld" = "あなた · %lld";
 "Full summary" = "要約の全文";
 "Nothing for you from this meeting." = "この会議からあなたの担当はありません。";
+"Nothing for others from this meeting." = "この会議からほかの人の担当はありません。";
 "Read the transcript" = "文字起こしを読む";
 "Recap, decisions and actions appear here when it is done." = "完了すると、まとめ、決定事項、アクションがここに表示されます。";
 "Refresh summary" = "要約を更新";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "この日の会議からのアクション %lld 件、すべて完了";
 "%lld action from this day’s meetings, deferred" = "この日の会議からのアクション %lld 件、延期";
 "%lld actions from this day’s meetings, none open" = "この日の会議からのアクション %lld 件、未完了なし";
+"Actions from this day’s meetings" = "この日の会議からのアクション";
+"All done" = "すべて完了";
 "Delete screen moments…" = "画面の場面を削除…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBotが見たすべてのAppとウィンドウを1時間ごとに表示します。正確な時刻の確認に使えます。";
 "Coding agent" = "コーディングエージェント";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "コードネームや顧客名（カンマ区切り）";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "これらの名前のいずれかを使う会議、アクション、ウィンドウのタイトルが、このプロジェクトにリンクされます。";
 "Suggested (one project)" = "提案";
+"%lld overdue" = "期限超過 %lld 件";
+"Showing the %lld most urgent" = "緊急度の高い %lld 件を表示中";
+"Now · %@" = "現在 · %@";
+"Upcoming meetings can show here too" = "今後の会議もここに表示できます";
+"Open day" = "この日を開く";
+"Priorities for today" = "今日の優先事項";
+"Priorities from %@" = "%@の優先事項";
+"Priorities from a previous workday" = "以前の稼働日の優先事項";

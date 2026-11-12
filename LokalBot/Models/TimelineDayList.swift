@@ -1,8 +1,8 @@
 import Foundation
 
-/// Timeline's list for one day: its work sessions and meetings in time order
-/// under Morning, Afternoon and Evening, with long stretches of nothing kept
-/// as gaps. A session spent in the app a recorded meeting ran in folds into
+/// The list in Timeline's rail for one day: its work sessions and meetings in
+/// time order under Morning, Afternoon and Evening, with long stretches of
+/// nothing kept as gaps. A session spent in the app a recorded meeting ran in folds into
 /// that meeting, so a call is listed once. Display only; nothing here is
 /// stored, and a folded session's activity stays in All captured activity.
 struct TimelineDayList: Equatable {
@@ -298,22 +298,25 @@ enum TimelineOutcomeWording {
     }
 }
 
-/// What Timeline's list has selected: the digest, a session or meeting row,
-/// or all captured activity. `none` is a moment opened from another page,
-/// which belongs to no row.
+/// What Timeline's main area shows: the day's page (`digest`, with no row
+/// chosen in the rail), a session or meeting row, or all captured activity.
+/// `none` is a moment opened from another page, which belongs to no row.
 enum TimelineListSelection: Equatable {
     case digest
     case row(String)
     case raw
     case none
 
-    /// The list from top to bottom, for the arrow keys.
+    /// The rail from top to bottom, for the arrow keys. The day's page
+    /// stands before the first session, where no row is chosen: Up from the
+    /// first session returns to it, as choosing that session again does.
+    /// All captured activity, the rail's bottom row, follows the last one.
     static func order(of list: TimelineDayList) -> [TimelineListSelection] {
         [.digest] + list.rows.map { .row($0.id) } + [.raw]
     }
 
     /// The selection `step` rows away, stopping at either end. From a
-    /// selection the list does not show, any step lands on the digest.
+    /// selection the rail does not show, any step lands on the day's page.
     func moved(by step: Int, in list: TimelineDayList) -> TimelineListSelection {
         let order = Self.order(of: list)
         guard let index = order.firstIndex(of: self) else { return .digest }

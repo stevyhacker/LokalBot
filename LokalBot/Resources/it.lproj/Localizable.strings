@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Per te · %lld";
 "Full summary" = "Riassunto completo";
 "Nothing for you from this meeting." = "Niente per te da questa riunione.";
+"Nothing for others from this meeting." = "Niente per gli altri da questa riunione.";
 "Read the transcript" = "Leggi la trascrizione";
 "Recap, decisions and actions appear here when it is done." = "Riepilogo, decisioni e azioni compariranno qui al termine.";
 "Refresh summary" = "Aggiorna riassunto";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld azioni dalle riunioni di questa giornata, tutte completate";
 "%lld action from this day’s meetings, deferred" = "%lld azione dalle riunioni di questa giornata, differita";
 "%lld actions from this day’s meetings, none open" = "%lld azioni dalle riunioni di questa giornata, nessuna aperta";
+"Actions from this day’s meetings" = "Azioni dalle riunioni di questa giornata";
+"All done" = "Tutte completate";
 "Delete screen moments…" = "Elimina momenti dello schermo…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Ogni app e finestra vista da LokalBot, ora per ora. Serve a controllare gli orari esatti.";
 "Coding agent" = "Agente di programmazione";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Nomi in codice o clienti, separati da virgole";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Le riunioni, le azioni e i titoli delle finestre che usano uno di questi nomi vengono collegati al progetto.";
 "Suggested (one project)" = "Suggerito";
+"%lld overdue" = "%lld in ritardo";
+"Showing the %lld most urgent" = "Mostrate le %lld più urgenti";
+"Now · %@" = "Adesso · %@";
+"Upcoming meetings can show here too" = "Qui possono comparire anche le prossime riunioni";
+"Open day" = "Apri giornata";
+"Priorities for today" = "Priorità per oggi";
+"Priorities from %@" = "Priorità di %@";
+"Priorities from a previous workday" = "Priorità di un giorno lavorativo precedente";

@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Для вас · %lld";
 "Full summary" = "Полная сводка";
 "Nothing for you from this meeting." = "Для вас с этой встречи ничего нет.";
+"Nothing for others from this meeting." = "Для других с этой встречи ничего нет.";
 "Read the transcript" = "Читать расшифровку";
 "Recap, decisions and actions appear here when it is done." = "Краткий итог, решения и действия появятся здесь, когда всё будет готово.";
 "Refresh summary" = "Обновить сводку";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Действия со встреч этого дня: %lld, все выполнены";
 "%lld action from this day’s meetings, deferred" = "Действия со встреч этого дня: %lld, отложено";
 "%lld actions from this day’s meetings, none open" = "Действия со встреч этого дня: %lld, открытых нет";
+"Actions from this day’s meetings" = "Действия со встреч этого дня";
+"All done" = "Все выполнены";
 "Delete screen moments…" = "Удалить моменты экрана…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Все приложения и окна, которые видел LokalBot, час за часом. Здесь можно проверить точное время.";
 "Coding agent" = "Агент программирования";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Кодовые имена или клиенты, через запятую";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Встречи, действия и заголовки окон, где есть любое из этих названий, связываются с проектом.";
 "Suggested (one project)" = "Предложено";
+"%lld overdue" = "Просрочено: %lld";
+"Showing the %lld most urgent" = "Показаны самые срочные: %lld";
+"Now · %@" = "Сейчас · %@";
+"Upcoming meetings can show here too" = "Предстоящие встречи тоже могут показываться здесь";
+"Open day" = "Открыть день";
+"Priorities for today" = "Приоритеты на сегодня";
+"Priorities from %@" = "Приоритеты: %@";
+"Priorities from a previous workday" = "Приоритеты за предыдущий рабочий день";

@@ -20,17 +20,15 @@ final class WorkspacePresentationTests: XCTestCase {
 
     func testReadingAndTimelineWidthsStayWithinApprovedPolicy() {
         XCTAssertEqual(WorkspaceMetric.readingMaxWidth, 720)
-        // Timeline is a list beside a page. Both fit the smallest captured
-        // window, 1000 pt, next to the sidebar, with the divider between them.
-        let page = LBTokens.Metric.contentDetailMinWidth
+        // Timeline is the day's page beside a rail. Both fit the smallest
+        // captured window, 1000 pt, next to the sidebar, with the hairline
+        // between them, and the window can be as narrow as any other
+        // list-and-detail page lets it.
+        XCTAssertEqual(TimelineRailMetric.pageMinimumWidth, LBTokens.Metric.contentDetailMinWidth)
         XCTAssertLessThanOrEqual(
-            LBTokens.Metric.sidebarWidth + WorkspaceMetric.timelineListMinWidth + 1 + page, 1_000)
-        // At the default 1180 pt window the list opens at its ideal width and
-        // the page keeps more than its minimum.
-        XCTAssertGreaterThan(
-            1_180 - LBTokens.Metric.sidebarWidth - WorkspaceMetric.timelineListIdealWidth, page)
-        XCTAssertLessThan(WorkspaceMetric.timelineListMinWidth, WorkspaceMetric.timelineListIdealWidth)
-        XCTAssertLessThan(WorkspaceMetric.timelineListIdealWidth, WorkspaceMetric.timelineListMaxWidth)
+            LBTokens.Metric.sidebarWidth + TimelineRailMetric.bodyMinimumWidth, 1_000)
+        XCTAssertLessThan(TimelineRailMetric.floorWidth, TimelineRailMetric.minimumWidth)
+        XCTAssertLessThan(TimelineRailMetric.minimumWidth, TimelineRailMetric.idealWidth)
     }
 
     func testCompactRadiusTokensAreNamedAndOrdered() {

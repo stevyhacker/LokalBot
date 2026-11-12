@@ -1900,6 +1900,7 @@
 "For you · %lld" = "你的 · %lld";
 "Full summary" = "完整摘要";
 "Nothing for you from this meeting." = "这次会议没有你的事项。";
+"Nothing for others from this meeting." = "这次会议没有他人的事项。";
 "Read the transcript" = "阅读转写";
 "Recap, decisions and actions appear here when it is done." = "完成后，回顾、决定和行动项会显示在这里。";
 "Refresh summary" = "刷新摘要";
@@ -2346,6 +2347,8 @@
 "%lld actions from this day’s meetings, all done" = "当天会议中的 %lld 项行动项，全部完成";
 "%lld action from this day’s meetings, deferred" = "当天会议中的 %lld 项行动项，已延期";
 "%lld actions from this day’s meetings, none open" = "当天会议中的 %lld 项行动项，没有未完成的";
+"Actions from this day’s meetings" = "当天会议中的行动项";
+"All done" = "全部完成";
 "Delete screen moments…" = "删除屏幕时刻…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBot 看到的每个 App 和窗口，按小时排列。可用来核对确切时间。";
 "Coding agent" = "编程智能体";
@@ -2586,3 +2589,11 @@
 "Codenames or clients, separated by commas" = "代号或客户名，用逗号分隔";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "使用其中任一名称的会议、行动项和窗口标题都会关联到该项目。";
 "Suggested (one project)" = "建议";
+"%lld overdue" = "%lld 项已逾期";
+"Showing the %lld most urgent" = "显示最紧急的 %lld 项";
+"Now · %@" = "现在 · %@";
+"Upcoming meetings can show here too" = "即将开始的会议也可以显示在这里";
+"Open day" = "打开当天";
+"Priorities for today" = "今天的优先事项";
+"Priorities from %@" = "%@的优先事项";
+"Priorities from a previous workday" = "之前某个工作日的优先事项";

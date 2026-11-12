@@ -229,12 +229,15 @@ enum CaptureStyle {
     }
 }
 
-// MARK: - The day: a list beside a page
+// MARK: - The day: its page beside a rail
 
-/// Timeline is one day: a list of the day's digest, sessions and meetings
-/// beside the page of whichever is selected. The date is the window's title.
+/// Timeline is one day: the day's page on the leading side, and on the
+/// trailing side a rail with the tracked time, the hour strip and the day's
+/// sessions and meetings. Choosing one in the rail shows its page in the
+/// main area; the rail stays. The date is the window's title.
 struct TimelineContentView: View {
     @EnvironmentObject var app: AppState
+    @Environment(\.appTextScale) private var textScale
     @ObservedObject var model: CaptureModel
     @State private var showingCalendar = false
     @State private var digestCache = TimelineDigestCache()
@@ -247,10 +250,10 @@ struct TimelineContentView: View {
             if meetings.contains(where: { $0.endedAt == nil }) {
                 // A recording grows; its row and bar follow it.
                 TimelineView(.periodic(from: .now, by: 30)) { context in
-                    split(meetings: meetings, now: context.date)
+                    dayBody(meetings: meetings, now: context.date)
                 }
             } else {
-                split(meetings: meetings, now: Date())
+                dayBody(meetings: meetings, now: Date())
             }
         }
         .navigationTitle(dayTitle)
@@ -265,50 +268,68 @@ struct TimelineContentView: View {
         .onChange(of: app.navigationHandoff.revision) { consumePendingScreenMoment() }
     }
 
-    private func split(meetings: [Meeting], now: Date) -> some View {
+    private func dayBody(meetings: [Meeting], now: Date) -> some View {
+        let localize = app.settings.appLanguage.catalog
         let list = TimelineDayList(
             sessions: model.workSessions, meetings: meetings, now: now,
             usesProjectColors: !model.projectSplit.projects.isEmpty,
-            localize: app.settings.appLanguage.catalog)
+            localize: localize)
         let presentation = digestCache.presentation(for: model.digest)
         // A day whose captures have expired can still have its digest.
         let hasDay = !model.blocks.isEmpty || !meetings.isEmpty || !model.shots.isEmpty || model.digest != nil
         let selection = TimelineSelection.current(model: model, app: app, list: list)
-        return HSplitView {
-            TimelineListColumn(
-                model: model, lifecycle: app.dayDigest, list: list, hasDay: hasDay,
-                digestPreview: presentation.flatMap { TimelineDigestPreview.firstHighlight($0.atAGlanceMarkdown) },
-                selection: selection,
-                onSelect: { TimelineSelection.select($0, model: model, app: app, list: list) })
-                .frame(minWidth: WorkspaceMetric.timelineListMinWidth,
-                       idealWidth: WorkspaceMetric.timelineListIdealWidth,
-                       maxWidth: WorkspaceMetric.timelineListMaxWidth, maxHeight: .infinity)
-                .splitPaneAccessibilityLabel("Day list", autosaveName: "LokalBot.timeline.list",
-                                             initialWidth: WorkspaceMetric.timelineListIdealWidth)
-            Group {
-                if selection == .digest {
-                    if hasDay {
-                        TimelineDigestPage(
-                            model: model, lifecycle: app.dayDigest, list: list, meetings: meetings,
-                            presentation: presentation,
-                            onSelectRow: { TimelineSelection.select(.row($0), model: model, app: app, list: list) })
-                    } else {
-                        TimelineEmptyDay()
-                    }
-                } else {
-                    TimelineContextPanel(model: model, list: list)
-                }
-            }
-            .frame(minWidth: LBTokens.Metric.contentDetailMinWidth, maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(alignment: .topTrailing) {
-                if model.overviewLoading { ProgressView().controlSize(.small).padding(12) }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("timeline.evidencePane")
-            .splitPaneAccessibilityLabel("Timeline day")
+        let select: (TimelineListSelection) -> Void = {
+            TimelineSelection.select($0, model: model, app: app, list: list)
         }
-        .detailSplitMinimumWidth([WorkspaceMetric.timelineListMinWidth, LBTokens.Metric.contentDetailMinWidth])
+        let tracked = TimelineTrackedSummary(
+            perApp: DayActivityOverview.perApp(model.blocks), split: model.projectSplit, list: list,
+            meetingCount: meetings.count, outcomes: model.dayOutcomes, day: model.day, localize: localize)
+        // One row, not a split: the rail's width follows the window and the
+        // text size, and the row mirrors for a right-to-left language.
+        return GeometryReader { proxy in
+            HStack(spacing: 0) {
+                Group {
+                    if selection == .digest {
+                        if hasDay {
+                            TimelineDigestPage(
+                                model: model, lifecycle: app.dayDigest, list: list,
+                                presentation: presentation,
+                                onSelectRow: { select(.row($0)) })
+                        } else {
+                            TimelineEmptyDay()
+                        }
+                    } else {
+                        TimelineContextPanel(model: model, list: list) { select(.digest) }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    if model.overviewLoading { ProgressView().controlSize(.small).padding(12) }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("timeline.evidencePane")
+                Divider()
+                TimelineRail(
+                    tracked: hasDay ? tracked : nil, list: list, hasDay: hasDay,
+                    captureCounts: TimelineCaptureCounts.text(
+                        entries: model.blocks.count, moments: model.rewindFrames.count),
+                    selection: selection,
+                    sceneCount: { sceneCount(of: $0) },
+                    onSelect: select
+                ) {
+                    TimelinePausedLine(sampler: app.sampler)
+                }
+                .frame(width: TimelineRailMetric.width(available: proxy.size.width, textScale: textScale))
+                .frame(maxHeight: .infinity)
+            }
+        }
+        .frame(minWidth: TimelineRailMetric.bodyMinimumWidth)
         .id("workspace.timeline")
+    }
+
+    private func sceneCount(of row: TimelineDayList.Row) -> Int {
+        guard case .work = row.kind else { return 0 }
+        return model.rewindFrames.filter { $0.screenshot.ts >= row.start && $0.screenshot.ts <= row.end }.count
     }
 
     // MARK: Toolbar
@@ -445,7 +466,7 @@ struct TimelineContentView: View {
     }
 }
 
-/// Parses the digest once per text, for the list's preview and the page.
+/// Parses the digest once per text.
 @MainActor
 final class TimelineDigestCache {
     private var markdown: String?
@@ -460,7 +481,7 @@ final class TimelineDigestCache {
     }
 }
 
-/// Reads and changes what the list has selected. The selection lives in the
+/// Reads and changes what the rail has selected. The selection lives in the
 /// shared `CaptureModel` and the app's meeting selection, so it survives a
 /// visit to another page.
 @MainActor
@@ -480,7 +501,7 @@ enum TimelineSelection {
         return .digest
     }
 
-    /// Selecting the selected row again returns to the digest.
+    /// Selecting the selected row again returns to the day's page.
     static func select(_ target: TimelineListSelection, model: CaptureModel, app: AppState, list: TimelineDayList) {
         let current = current(model: model, app: app, list: list)
         model.selection = nil

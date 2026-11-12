@@ -1901,6 +1901,7 @@
 "For you · %lld" = "మీ కోసం · %lld";
 "Full summary" = "పూర్తి సారాంశం";
 "Nothing for you from this meeting." = "ఈ సమావేశం నుండి మీ కోసం ఏమీ లేదు.";
+"Nothing for others from this meeting." = "ఈ సమావేశం నుండి ఇతరుల కోసం ఏమీ లేదు.";
 "Read the transcript" = "ట్రాన్స్‌క్రిప్ట్ చదవండి";
 "Recap, decisions and actions appear here when it is done." = "పూర్తయిన తర్వాత సారాంశం, నిర్ణయాలు, పనులు ఇక్కడ కనిపిస్తాయి.";
 "Refresh summary" = "సారాంశాన్ని రిఫ్రెష్ చేయండి";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "ఈ రోజు సమావేశాల నుండి %lld పనులు, అన్నీ పూర్తయ్యాయి";
 "%lld action from this day’s meetings, deferred" = "ఈ రోజు సమావేశాల నుండి %lld పని, వాయిదా వేయబడింది";
 "%lld actions from this day’s meetings, none open" = "ఈ రోజు సమావేశాల నుండి %lld పనులు, పెండింగ్‌లో ఏదీ లేదు";
+"Actions from this day’s meetings" = "ఈ రోజు సమావేశాల నుండి పనులు";
+"All done" = "అన్నీ పూర్తయ్యాయి";
 "Delete screen moments…" = "స్క్రీన్ క్షణాలను తొలగించండి…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBot చూసిన ప్రతి యాప్, విండో, గంట గంటకు. ఖచ్చితమైన సమయాలను తనిఖీ చేయడానికి దీన్ని ఉపయోగించండి.";
 "Coding agent" = "కోడింగ్ ఏజెంట్";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "కోడ్‌నేమ్‌లు లేదా క్లయింట్లు, కామాలతో వేరు చేయండి";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "ఈ పేర్లలో ఏదైనా వాడే సమావేశాలు, పనులు, విండో శీర్షికలు ఈ ప్రాజెక్ట్‌కి అనుసంధానమవుతాయి.";
 "Suggested (one project)" = "సూచించినది";
+"%lld overdue" = "%lld గడువు దాటాయి";
+"Showing the %lld most urgent" = "అత్యవసరమైన %lld చూపబడుతున్నాయి";
+"Now · %@" = "ఇప్పుడు · %@";
+"Upcoming meetings can show here too" = "రాబోయే సమావేశాలు కూడా ఇక్కడ కనిపించవచ్చు";
+"Open day" = "రోజును తెరవండి";
+"Priorities for today" = "ఈరోజు ప్రాధాన్యతలు";
+"Priorities from %@" = "%@ ప్రాధాన్యతలు";
+"Priorities from a previous workday" = "మునుపటి పని దినం ప్రాధాన్యతలు";

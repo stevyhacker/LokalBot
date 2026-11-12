@@ -149,32 +149,30 @@ struct MainWindowView: View {
     private var sidebar: some View {
         List(selection: sidebarSelection) {
             sidebarDestination(
-                "Today", systemImage: "sun.max", section: .today,
+                "Today", section: .today,
                 identifier: "sidebar.today")
             sidebarDestination(
-                "Actions", systemImage: "checkmark.circle", section: .actions,
+                "Actions", section: .actions,
                 identifier: "sidebar.actions", showsOpenActionCount: true)
             sidebarSectionHeader("Remember")
             sidebarDestination(
-                "Meetings", systemImage: "waveform.circle", section: .meetings,
+                "Meetings", section: .meetings,
                 identifier: "sidebar.meetings")
             sidebarDestination(
-                "Timeline",
-                systemImage: "calendar.day.timeline.left",
-                section: .timeline,
+                "Timeline", section: .timeline,
                 identifier: "sidebar.timeline")
             sidebarDestination(
-                "People", systemImage: "person.2", section: .people,
+                "People", section: .people,
                 identifier: "sidebar.people")
             sidebarDestination(
-                "Projects", systemImage: "folder", section: .projects,
+                "Projects", section: .projects,
                 identifier: "sidebar.projects")
             sidebarSectionHeader("Assistant")
             sidebarDestination(
-                "Ask", systemImage: "sparkle.magnifyingglass", section: .ask,
+                "Ask", section: .ask,
                 identifier: "sidebar.ask")
             sidebarDestination(
-                "Agent", systemImage: "wand.and.sparkles", section: .agent,
+                "Agent", section: .agent,
                 identifier: "sidebar.agent")
         }
         .listStyle(.sidebar)
@@ -210,12 +208,11 @@ struct MainWindowView: View {
     @ViewBuilder
     private func sidebarDestination(
         _ title: String,
-        systemImage: String,
         section: AppState.NavSection,
         identifier: String,
         showsOpenActionCount: Bool = false
     ) -> some View {
-        SidebarDestinationLabel(title: title, systemImage: systemImage,
+        SidebarDestinationLabel(title: title, systemImage: section.symbol,
                                 scriptedLabelColor: isScriptedCapture ? scriptedSidebarLabelColor : nil,
                                 openActions: showsOpenActionCount ? app.outcomeIndex : nil)
         .tag(section)

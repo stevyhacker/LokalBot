@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Para você · %lld";
 "Full summary" = "Resumo completo";
 "Nothing for you from this meeting." = "Nada para você desta reunião.";
+"Nothing for others from this meeting." = "Nada para outros desta reunião.";
 "Read the transcript" = "Ler a transcrição";
 "Recap, decisions and actions appear here when it is done." = "O resumo, as decisões e as ações aparecem aqui quando terminar.";
 "Refresh summary" = "Atualizar resumo";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld ações das reuniões deste dia, todas concluídas";
 "%lld action from this day’s meetings, deferred" = "%lld ação das reuniões deste dia, adiada";
 "%lld actions from this day’s meetings, none open" = "%lld ações das reuniões deste dia, nenhuma em aberto";
+"Actions from this day’s meetings" = "Ações das reuniões deste dia";
+"All done" = "Todas concluídas";
 "Delete screen moments…" = "Excluir momentos de tela…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Cada app e janela que o LokalBot viu, hora a hora. Use para conferir horários exatos.";
 "Coding agent" = "Agente de programação";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Codinomes ou clientes, separados por vírgulas";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Reuniões, ações e títulos de janelas que usam qualquer um desses nomes são vinculados ao projeto.";
 "Suggested (one project)" = "Sugerido";
+"%lld overdue" = "%lld em atraso";
+"Showing the %lld most urgent" = "Mostrando as %lld mais urgentes";
+"Now · %@" = "Agora · %@";
+"Upcoming meetings can show here too" = "As próximas reuniões também podem aparecer aqui";
+"Open day" = "Abrir dia";
+"Priorities for today" = "Prioridades para hoje";
+"Priorities from %@" = "Prioridades de %@";
+"Priorities from a previous workday" = "Prioridades de um dia útil anterior";

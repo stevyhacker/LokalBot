@@ -108,6 +108,8 @@ enum SummaryPresentation {
 /// Collapse whole points rather than truncating the middle of the recap.
 struct MeetingRecapView: View {
     let text: String
+    /// The recap leads the page, one step above body text.
+    var font: AppFont = .scaledSystem(size: 15)
     @State private var isExpanded = false
 
     private var points: [String] {
@@ -117,7 +119,7 @@ struct MeetingRecapView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array((isExpanded ? points : Array(points.prefix(5))).enumerated()), id: \.offset) { _, point in
-                SelectableDigestText(point, font: AppFont.scaled(.body))
+                pointText(point)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("meeting.recap.text")
             }
@@ -130,6 +132,12 @@ struct MeetingRecapView: View {
                     .accessibilityIdentifier("meeting.recap.expand")
             }
         }
+    }
+
+    private func pointText(_ point: String) -> SelectableDigestText {
+        var text = SelectableDigestText(point, font: font)
+        text.readingLineSpacing = 3
+        return text
     }
 }
 

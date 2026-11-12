@@ -1901,6 +1901,7 @@
 "For you · %lld" = "ليك · %lld";
 "Full summary" = "الملخص الكامل";
 "Nothing for you from this meeting." = "مفيش حاجة ليك من الاجتماع ده.";
+"Nothing for others from this meeting." = "مفيش حاجة للباقيين من الاجتماع ده.";
 "Read the transcript" = "اقرا التفريغ النصي";
 "Recap, decisions and actions appear here when it is done." = "الخلاصة والقرارات والإجراءات هتظهر هنا لما يخلص.";
 "Refresh summary" = "حدّث الملخص";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "إجراءات من اجتماعات اليوم ده: %lld، كلها خلصت";
 "%lld action from this day’s meetings, deferred" = "إجراءات من اجتماعات اليوم ده: %lld، متأجلة";
 "%lld actions from this day’s meetings, none open" = "إجراءات من اجتماعات اليوم ده: %lld، مفيش حاجة مفتوحة";
+"Actions from this day’s meetings" = "إجراءات من اجتماعات اليوم ده";
+"All done" = "كلها خلصت";
 "Delete screen moments…" = "احذف لحظات الشاشة…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "كل تطبيق ونافذة LokalBot شافها، ساعة بساعة. استخدمه عشان تتأكد من الأوقات بالظبط.";
 "Coding agent" = "وكيل البرمجة";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "أسماء كودية أو عملاء، وافصل بينهم بفاصلة";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "الاجتماعات والإجراءات وعناوين النوافذ اللي فيها أي اسم من دول بتتربط بالمشروع.";
 "Suggested (one project)" = "مقترح";
+"%lld overdue" = "%lld متأخر";
+"Showing the %lld most urgent" = "بنعرض أكتر %lld مستعجلين";
+"Now · %@" = "دلوقتي · %@";
+"Upcoming meetings can show here too" = "الاجتماعات الجاية ممكن تظهر هنا كمان";
+"Open day" = "افتح اليوم";
+"Priorities for today" = "أولويات النهارده";
+"Priorities from %@" = "أولويات من %@";
+"Priorities from a previous workday" = "أولويات من يوم شغل قبل كده";

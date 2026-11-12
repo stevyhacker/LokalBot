@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Za vas · %lld";
 "Full summary" = "Ceo sažetak";
 "Nothing for you from this meeting." = "Nema ničeg za vas sa ovog sastanka.";
+"Nothing for others from this meeting." = "Nema ničeg za druge sa ovog sastanka.";
 "Read the transcript" = "Pročitaj transkript";
 "Recap, decisions and actions appear here when it is done." = "Rezime, odluke i obaveze pojaviće se ovde kada se završi.";
 "Refresh summary" = "Osveži sažetak";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Obaveze sa sastanaka ovog dana: %lld, sve završene";
 "%lld action from this day’s meetings, deferred" = "Obaveze sa sastanaka ovog dana: %lld, odloženo";
 "%lld actions from this day’s meetings, none open" = "Obaveze sa sastanaka ovog dana: %lld, nema otvorenih";
+"Actions from this day’s meetings" = "Obaveze sa sastanaka ovog dana";
+"All done" = "Sve završene";
 "Delete screen moments…" = "Izbriši trenutke sa ekrana…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Svaka aplikacija i prozor koje je LokalBot video, sat po sat. Ovde možete da proverite tačna vremena.";
 "Coding agent" = "Agent za programiranje";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Kodna imena ili klijenti, razdvojeni zarezima";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Sastanci, obaveze i naslovi prozora u kojima se javlja neko od ovih imena povezuju se sa projektom.";
 "Suggested (one project)" = "Predložen";
+"%lld overdue" = "%lld sa isteklim rokom";
+"Showing the %lld most urgent" = "Prikazano najhitnijih: %lld";
+"Now · %@" = "Sada · %@";
+"Upcoming meetings can show here too" = "Ovde mogu da se prikažu i predstojeći sastanci";
+"Open day" = "Otvori dan";
+"Priorities for today" = "Prioriteti za danas";
+"Priorities from %@" = "Prioriteti: %@";
+"Priorities from a previous workday" = "Prioriteti od prethodnog radnog dana";

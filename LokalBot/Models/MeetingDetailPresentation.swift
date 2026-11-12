@@ -129,6 +129,40 @@ enum MeetingDetailPresentation {
         ActionGroups(forYou: actions.filter(\.isForUser), forOthers: actions.filter { !$0.isForUser })
     }
 
+    /// What the Actions panel says about itself: one count in its header,
+    /// then a band for your actions and one for everyone else's. Both bands
+    /// show whenever the meeting has actions, so a side with none says so
+    /// instead of leaving a gap.
+    struct ActionsPanel: Equatable {
+        enum Line: Equatable {
+            /// The meeting produced no actions: one line, no bands.
+            case noActions
+            case nothingForYou
+            case nothingForOthers
+        }
+
+        let groups: ActionGroups
+
+        init(_ actions: [OutcomeActionReference]) {
+            groups = MeetingDetailPresentation.groups(actions)
+        }
+
+        var total: Int { groups.forYou.count + groups.forOthers.count }
+        /// The header's pill. A meeting without actions has no count.
+        var count: Int? { total == 0 ? nil : total }
+        var showsBands: Bool { total > 0 }
+        /// The line that stands in for a side with no rows.
+        var forYouLine: Line? { showsBands && groups.forYou.isEmpty ? .nothingForYou : nil }
+        var forOthersLine: Line? { showsBands && groups.forOthers.isEmpty ? .nothingForOthers : nil }
+
+        /// "Also in Actions" leads to your open work, so it needs an action
+        /// of yours that the Actions list holds: saved outcomes of a real
+        /// meeting, not a sample or notes that are still being written.
+        func showsActionsLink(hasSavedOutcomes: Bool, isSample: Bool) -> Bool {
+            !groups.forYou.isEmpty && hasSavedOutcomes && !isSample
+        }
+    }
+
     /// Someone else's action whose owner is missing or only a placeholder
     /// voice ("Speaker 2"): the row asks for a real owner.
     static func ownerNeedsAttention(owner: String?, displayOwner: String?, isForUser: Bool) -> Bool {
@@ -235,5 +269,64 @@ enum MeetingDetailPresentation {
     /// "1:00 PM · 50 min · Zoom": when, how long, then where it happened.
     static func rowSubtitle(time: String, duration: String, source: String?) -> String {
         ([time, duration] + (source.map { [$0] } ?? [])).filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+/// Widths of a saved meeting's page, in points at the default text size.
+/// The page fills the detail pane; only prose keeps a reading measure.
+enum MeetingDetailLayout {
+    /// Space between the pane's edge and the title, the player and the panels.
+    static let gutter: CGFloat = 24
+    /// Space between two panels, and between a notice and the panel under it.
+    static let panelGap: CGFloat = 16
+    /// The page's widest. Past this a row's text and its play time at the
+    /// trailing edge drift too far apart, so an ultra-wide pane centres the
+    /// column instead of stretching it.
+    static let columnMaximumWidth: CGFloat = 1360
+    /// The measure of the recap and the full summary inside their panels.
+    static let proseWidth: CGFloat = 860
+    /// Find in the Transcript panel's header, at its widest and narrowest.
+    static let findFieldWidth: CGFloat = 260
+    static let findFieldMinimumWidth: CGFloat = 120
+
+    /// How much wider than at the default text size a text-bound width is.
+    static func factor(textScale: CGFloat) -> CGFloat {
+        max(textScale, 0.5) / AppTextSize.standard.scale
+    }
+
+    static func proseWidth(textScale: CGFloat) -> CGFloat {
+        (proseWidth * factor(textScale: textScale)).rounded()
+    }
+
+    static func findFieldWidth(textScale: CGFloat) -> CGFloat {
+        (findFieldWidth * factor(textScale: textScale)).rounded()
+    }
+
+    /// The title and the player are pinned above the scrolling panels. With
+    /// scroll bars set to always show, the scrolling column is narrower than
+    /// the pane by the scroller, so the pinned part takes the same inset and
+    /// both keep one trailing edge. Overlay scroll bars leave no difference.
+    /// A difference too large to be a scroller is a layout in flight, not an
+    /// inset to copy.
+    static func pinnedTrailingInset(paneWidth: CGFloat, scrollContentWidth: CGFloat) -> CGFloat {
+        guard paneWidth > 0, scrollContentWidth > 0 else { return 0 }
+        let inset = paneWidth - scrollContentWidth
+        guard inset >= 1, inset <= 40 else { return 0 }
+        return inset.rounded()
+    }
+
+    /// Where the page's one find field is.
+    enum FindPlacement: Equatable {
+        case hidden
+        /// Find in transcript, in the Transcript panel's header.
+        case transcriptPanel
+        /// Command-F's search of the whole meeting, pinned under the player
+        /// because its matches move between tabs.
+        case pinnedBar
+    }
+
+    static func findPlacement(tab: MeetingWorkspaceTab, pageSearchPresented: Bool) -> FindPlacement {
+        if pageSearchPresented { return .pinnedBar }
+        return tab == .transcript ? .transcriptPanel : .hidden
     }
 }

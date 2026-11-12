@@ -135,6 +135,7 @@ struct MeetingLibraryDetailView: View {
 private struct MeetingWorkspaceDetail: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.appTextScale) private var textScale
     let meeting: Meeting
 
     @StateObject private var player = MeetingPlayer()
@@ -145,6 +146,10 @@ private struct MeetingWorkspaceDetail: View {
     // Begin with the narrow controls until the detail column is measured so
     // the toolbar cannot enlarge a compact window during its first layout.
     @State private var compactToolbar = true
+    /// What an always-visible scroll bar takes from the scrolling panels,
+    /// given to the pinned title and player too so both share one edge.
+    @State private var pinnedTrailingInset: CGFloat = 0
+    @State private var measuredWidths = MeetingPaneWidths()
     @State private var summary: String?
     @State private var partialNotes: MeetingNotesPartial?
     @State private var partialProjection: MeetingOutcomeProjection?
@@ -255,29 +260,24 @@ private struct MeetingWorkspaceDetail: View {
                         },
                         onNameSpeakers: { namingSpeakers = true })
                     playerBar
-                    if isSearchPresented || tab == .transcript {
-                        MeetingPageSearchBar(
-                            query: $searchQuery,
-                            focusRequest: app.meetingPageSearchRequestRevision,
-                            statusText: searchStatusText,
-                            hasMatches: !searchMatches.isEmpty,
-                            onPrevious: { moveSearch(by: -1, using: scrollProxy) },
-                            onNext: { moveSearch(by: 1, using: scrollProxy) },
-                            onClose: dismissSearch,
-                            isPresented: isSearchPresented)
+                    // Command-F searches every tab, so its bar stays put.
+                    // Find in transcript is in the Transcript panel's header.
+                    if findPlacement == .pinnedBar {
+                        searchBar(using: scrollProxy)
                     }
                 }
-                .frame(maxWidth: MeetingDetailMetric.columnMaxWidth, alignment: .leading)
+                .frame(maxWidth: columnMaximumWidth, alignment: .leading)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, WorkspaceMetric.pagePadding)
+                .padding(.horizontal, MeetingDetailLayout.gutter)
+                .padding(.trailing, pinnedTrailingInset)
                 .padding(.top, 14)
                 .padding(.bottom, 12)
                 ScrollView {
-                    VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
+                    VStack(alignment: .leading, spacing: MeetingDetailLayout.panelGap) {
                         meetingStatusContent
                         switch tab {
                         case .summary: summaryTabContent
-                        case .transcript: transcriptSection
+                        case .transcript: transcriptSection(using: scrollProxy)
                         case .notes:
                             MeetingNotesEditor(meeting: meeting, searchQuery: visibleSearchQuery, activeMatchIndex: activeOccurrence(at: .notes)) {
                                 notes = $0
@@ -285,14 +285,22 @@ private struct MeetingWorkspaceDetail: View {
                             }
                         }
                     }
-                    .frame(maxWidth: MeetingDetailMetric.columnMaxWidth, alignment: .leading)
-                    .padding(.horizontal, WorkspaceMetric.pagePadding)
+                    .frame(maxWidth: columnMaximumWidth, alignment: .leading)
+                    .padding(.horizontal, MeetingDetailLayout.gutter)
                     .padding(.top, 4)
-                    .padding(.bottom, WorkspaceMetric.pagePadding)
+                    .padding(.bottom, MeetingDetailLayout.gutter)
                     .frame(maxWidth: .infinity, alignment: .top)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+                        measuredWidths.scrollContent = $0
+                        updatePinnedInset()
+                    }
                 }
                 .accessibilityIdentifier("meeting.content.scroll")
                 .accessibilityLabel("Meeting content")
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+                measuredWidths.pane = $0
+                updatePinnedInset()
             }
             .onChange(of: evidenceRevision) {
                 guard let index = evidenceSegment else { return }
@@ -479,6 +487,43 @@ private struct MeetingWorkspaceDetail: View {
         }
     }
 
+    /// The page fills the pane up to a width that grows with the text size.
+    private var columnMaximumWidth: CGFloat {
+        (MeetingDetailLayout.columnMaximumWidth * MeetingDetailLayout.factor(textScale: textScale)).rounded()
+    }
+
+    private var proseWidth: CGFloat { MeetingDetailLayout.proseWidth(textScale: textScale) }
+
+    private var findPlacement: MeetingDetailLayout.FindPlacement {
+        MeetingDetailLayout.findPlacement(tab: tab, pageSearchPresented: isSearchPresented)
+    }
+
+    private func updatePinnedInset() {
+        let inset = MeetingDetailLayout.pinnedTrailingInset(
+            paneWidth: measuredWidths.pane, scrollContentWidth: measuredWidths.scrollContent)
+        if inset != pinnedTrailingInset { pinnedTrailingInset = inset }
+    }
+
+    private func searchBar(using scrollProxy: ScrollViewProxy) -> MeetingPageSearchBar {
+        MeetingPageSearchBar(
+            query: $searchQuery,
+            focusRequest: app.meetingPageSearchRequestRevision,
+            statusText: searchStatusText,
+            hasMatches: !searchMatches.isEmpty,
+            onPrevious: { moveSearch(by: -1, using: scrollProxy) },
+            onNext: { moveSearch(by: 1, using: scrollProxy) },
+            onClose: dismissSearch,
+            isPresented: isSearchPresented)
+    }
+
+    /// A panel's title in the catalog's wording, with a page search's
+    /// matches marked.
+    private func panelTitle(_ key: String, at location: MeetingPageSearchMatch.Location,
+                            query: String? = nil) -> Text {
+        SearchHighlightedText.interfaceText(
+            key, query: query ?? visibleSearchQuery, activeMatchIndex: activeOccurrence(at: location))
+    }
+
     private var contentTabPicker: some View {
         ToolbarTabs(label: "Meeting content", tabs: MeetingWorkspaceTab.allCases,
                     selection: Binding(get: { tab }, set: { tab = $0 }), title: \.rawValue)
@@ -571,7 +616,8 @@ private struct MeetingWorkspaceDetail: View {
             .frame(height: 30)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .lbGroupedSurface()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .todayCardSurface()
             .accessibilityIdentifier("meeting.audioPlaceholder")
         }
     }
@@ -745,31 +791,46 @@ private struct MeetingWorkspaceDetail: View {
         .foregroundStyle(Brand.error)
     }
 
-    /// The Summary tab leads with the outcome: recap, decisions, then actions
-    /// split by whose they are, open questions, and the full summary on demand.
+    /// The Summary tab leads with the outcome, each part on its own panel:
+    /// the recap, decisions, actions split by whose they are, open questions,
+    /// and the full summary on demand.
     @ViewBuilder private var summaryTabContent: some View {
         if hasSummaryContent {
             if let summary = presentedSummary, let recap = SummaryPresentation.recap(summary) {
-                MeetingRecapView(text: recap)
-                    .workspaceReadingWidth()
+                SectionPanelLead {
+                    MeetingRecapView(text: recap)
+                        .frame(maxWidth: proseWidth, alignment: .leading)
+                }
             }
             decisionsSection
             actionsSection
             openQuestionsSection
         } else if !isProcessing {
-            EmptyWorkspaceRow(
-                text: "No summary yet.",
-                searchQuery: visibleSearchQuery,
-                activeMatchIndex: activeOccurrence(at: .emptyState(.summary)))
-            .id(MeetingPageSearchMatch.Location.emptyState(.summary))
+            SectionPanelLead {
+                EmptyWorkspaceRow(
+                    text: "No summary yet.",
+                    searchQuery: visibleSearchQuery,
+                    activeMatchIndex: activeOccurrence(at: .emptyState(.summary)),
+                    verticalPadding: 0)
+                .id(MeetingPageSearchMatch.Location.emptyState(.summary))
+            }
         }
         if let radar, !radar.items.isEmpty {
-            WorkspaceSection(title: "Live Radar", icon: "dot.radiowaves.left.and.right") {
+            SectionPanel(
+                title: Text("Live Radar"),
+                systemImage: "dot.radiowaves.left.and.right",
+                identifier: "meeting.radar"
+            ) {
+                EmptyView()
+            } content: {
                 RadarItemList(items: radar.items,
                               followThrough: { app.followThrough($0, in: meeting) },
                               openSource: { revealEvidence(at: $0.time) },
                               folder: meeting.folderURL(in: app.storage),
                               scrolls: false)
+                    .padding(.horizontal, SectionPanelMetric.inset)
+                    .padding(.vertical, 14)
+            } footer: {
                 // The Think model reports no cost; a cost is shown where a
                 // meeting has one from when the radar ran on Meta's models.
                 Group {
@@ -779,7 +840,7 @@ private struct MeetingWorkspaceDetail: View {
                         Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes")
                     }
                 }
-                .font(.scaled(.caption)).foregroundStyle(.secondary)
+                .sectionPanelFooterText()
             }
         }
         if !screenContext.materials.isEmpty {
@@ -792,7 +853,7 @@ private struct MeetingWorkspaceDetail: View {
                 onOpen: { app.openScreenSnapshot($0.firstSnapshotID) })
         }
         if summary?.isEmpty == false {
-            fullSummaryDisclosure
+            fullSummaryPanel
         }
     }
 
@@ -800,77 +861,82 @@ private struct MeetingWorkspaceDetail: View {
         let decisions = shownProjection?.outcomes.decisionRecords ?? []
         let speakerNames = speakerPresentation
         if !decisions.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                MeetingSectionHeading(
-                    title: "Decisions",
-                    count: decisions.count,
-                    searchQuery: visibleSearchQuery,
-                    activeMatchIndex: activeOccurrence(at: .sectionHeader(.decisions)),
-                    searchLocation: .sectionHeader(.decisions))
-                ForEach(decisions) { decision in
-                    MeetingDecisionRow(
-                        decision: decision,
-                        displayText: speakerNames.text(decision.displayText),
-                        searchQuery: visibleSearchQuery,
-                        activeMatch: activeSearchMatch) { citation in
-                        playInPlace(at: citation.start)
+            SectionPanel(
+                title: panelTitle("Decisions", at: .sectionHeader(.decisions)),
+                systemImage: "checkmark",
+                count: decisions.count,
+                identifier: "meeting.decisions",
+                titleID: MeetingPageSearchMatch.Location.sectionHeader(.decisions)
+            ) {
+                VStack(spacing: 0) {
+                    ForEach(decisions) { decision in
+                        MeetingDecisionRow(
+                            decision: decision,
+                            displayText: speakerNames.text(decision.displayText),
+                            searchQuery: visibleSearchQuery,
+                            activeMatch: activeSearchMatch) { citation in
+                            playInPlace(at: citation.start)
+                        }
+                        if decision.id != decisions.last?.id { Divider() }
                     }
+                }
+                .padding(.horizontal, SectionPanelMetric.inset)
+            }
+        }
+    }
+
+    /// One panel for every action: a band for yours, then a band for
+    /// everyone else's. A side with none says so under its band.
+    private var actionsSection: some View {
+        let panel = MeetingDetailPresentation.ActionsPanel(shownProjection?.actionReferences ?? [])
+        return SectionPanel(
+            title: panelTitle("Actions", at: .sectionHeader(.actionItems)),
+            systemImage: AppState.NavSection.actions.symbol,
+            count: panel.count,
+            identifier: "meeting.actions",
+            titleID: MeetingPageSearchMatch.Location.sectionHeader(.actionItems)
+        ) {
+            // The Actions list holds your open work from real meetings.
+            if panel.showsActionsLink(hasSavedOutcomes: projection != nil, isSample: meeting.isSample) {
+                Button("Also in Actions") { app.openActions() }
+                    .accessibilityIdentifier("meeting.actions.openAll")
+            }
+        } content: {
+            VStack(alignment: .leading, spacing: 0) {
+                if panel.showsBands {
+                    SectionPanelBand(text: Text("For you · \(panel.groups.forYou.count)"))
+                    if panel.forYouLine == nil {
+                        actionRows(panel.groups.forYou, showsOwner: false)
+                    } else {
+                        emptyGroupLine(Text("Nothing for you from this meeting."))
+                    }
+                    SectionPanelBand(text: Text("For others · \(panel.groups.forOthers.count)"), followsRows: true)
+                    if panel.forOthersLine == nil {
+                        actionRows(panel.groups.forOthers, showsOwner: true)
+                    } else {
+                        emptyGroupLine(Text("Nothing for others from this meeting."))
+                    }
+                } else {
+                    EmptyWorkspaceRow(
+                        text: "No action items were extracted from this meeting.",
+                        searchQuery: visibleSearchQuery,
+                        activeMatchIndex: activeOccurrence(at: .emptyState(.actionItems)))
+                    .id(MeetingPageSearchMatch.Location.emptyState(.actionItems))
+                    .padding(.horizontal, SectionPanelMetric.inset)
                 }
             }
         }
     }
 
-    private var actionsSection: some View {
-        let actions = shownProjection?.actionReferences ?? []
-        let groups = MeetingDetailPresentation.groups(actions)
-        return VStack(alignment: .leading, spacing: 6) {
-            MeetingSectionHeading(
-                title: "Actions",
-                count: actions.isEmpty ? nil : actions.count,
-                searchQuery: visibleSearchQuery,
-                activeMatchIndex: activeOccurrence(at: .sectionHeader(.actionItems)),
-                searchLocation: .sectionHeader(.actionItems))
-            if actions.isEmpty {
-                EmptyWorkspaceRow(
-                    text: "No action items were extracted from this meeting.",
-                    searchQuery: visibleSearchQuery,
-                    activeMatchIndex: activeOccurrence(at: .emptyState(.actionItems)))
-                .id(MeetingPageSearchMatch.Location.emptyState(.actionItems))
-            } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("For you · \(groups.forYou.count)")
-                        .font(AppFont.scaled(.subheadline).weight(.semibold))
-                        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
-                    Spacer(minLength: 8)
-                    // The Actions list holds your open work from real meetings.
-                    if !groups.forYou.isEmpty, projection != nil, !meeting.isSample {
-                        Button("Also in Actions") { app.openActions() }
-                            .buttonStyle(.workspaceLink)
-                            .font(AppFont.scaled(.callout))
-                            .accessibilityIdentifier("meeting.actions.openAll")
-                    }
-                }
-                .padding(.top, 2)
-                if groups.forYou.isEmpty {
-                    Text("Nothing for you from this meeting.")
-                        .font(AppFont.scaled(.body))
-                        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
-                        .padding(.vertical, 6)
-                } else {
-                    actionRows(groups.forYou, showsOwner: false)
-                }
-                if !groups.forOthers.isEmpty {
-                    Text("For others · \(groups.forOthers.count)")
-                        .font(AppFont.scaled(.subheadline).weight(.semibold))
-                        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
-                        .padding(.top, 12)
-                    actionRows(groups.forOthers, showsOwner: true)
-                }
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Actions")
-        .accessibilityIdentifier("meeting.actions")
+    /// The one line under a band whose side of the meeting has no actions.
+    private func emptyGroupLine(_ text: Text) -> some View {
+        text
+            .font(AppFont.scaled(.callout))
+            .workspaceSupportingForeground()
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, SectionPanelMetric.inset)
+            .padding(.vertical, 11)
     }
 
     private func actionRows(_ actions: [OutcomeActionReference], showsOwner: Bool) -> some View {
@@ -904,7 +970,12 @@ private struct MeetingWorkspaceDetail: View {
                     onNameSpeakers: { namingSpeakers = true },
                     onPlay: { citation in playInPlace(at: citation.start) },
                     isEditable: partialNotes == nil, canSetStatus: projection != nil)
-                if reference.id != actions.last?.id { Divider() }
+                    // The row's menu sits nearer the panel's edge than its text.
+                    .padding(.leading, SectionPanelMetric.inset)
+                    .padding(.trailing, 6)
+                if reference.id != actions.last?.id {
+                    Divider().padding(.horizontal, SectionPanelMetric.inset)
+                }
             }
         }
     }
@@ -912,76 +983,90 @@ private struct MeetingWorkspaceDetail: View {
     @ViewBuilder private var openQuestionsSection: some View {
         let questions = shownProjection?.outcomes.openQuestions ?? []
         if !questions.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                MeetingSectionHeading(title: "Open questions", count: questions.count)
-                ForEach(Array(questions.enumerated()), id: \.offset) { _, question in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Image(systemName: "questionmark.circle")
-                            .foregroundStyle(LBTokens.Palette.attentionText)
-                            .accessibilityHidden(true)
+            SectionPanel(
+                title: Text("Open questions"),
+                systemImage: "questionmark.circle",
+                count: questions.count,
+                identifier: "meeting.questions"
+            ) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(questions.enumerated()), id: \.offset) { index, question in
                         Text(speakerPresentation.text(question)).textSelection(.enabled)
                             .font(AppFont.scaled(.body))
                             .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 10)
+                        if index < questions.count - 1 { Divider() }
                     }
-                    .padding(.vertical, 3)
                 }
+                .padding(.horizontal, SectionPanelMetric.inset)
             }
         }
     }
 
-    private var fullSummaryDisclosure: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Button { fullNotesExpanded.toggle() } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: fullNotesExpanded ? "chevron.down" : "chevron.forward")
-                        .font(.system(size: 9, weight: .semibold))
-                        .frame(width: 10)
-                        .accessibilityHidden(true)
-                    if visibleSearchQuery.isEmpty {
-                        Text("Full summary")
-                    } else {
-                        SearchHighlightedText(
-                            Self.fullSummaryTitle,
-                            query: visibleSearchQuery,
-                            activeMatchIndex: activeOccurrence(at: .sectionHeader(.summary)))
-                    }
-                }
-                .font(AppFont.scaled(.headline))
-                .contentShape(Rectangle())
+    /// A panel that is only its header until it is opened in place.
+    private var fullSummaryPanel: some View {
+        SectionPanel(
+            title: panelTitle(Self.fullSummaryTitle, at: .sectionHeader(.summary)),
+            systemImage: "text.alignleft",
+            identifier: "meeting.fullSummary",
+            showsContent: fullNotesExpanded,
+            titleID: MeetingPageSearchMatch.Location.sectionHeader(.summary),
+            disclosure: SectionPanelDisclosure(isExpanded: fullNotesExpanded, identifier: "meeting.fullNotes") {
+                fullNotesExpanded.toggle()
             }
-            .buttonStyle(.plain)
-            .id(MeetingPageSearchMatch.Location.sectionHeader(.summary))
-            .accessibilityValue(fullNotesExpanded ? "Expanded" : "Collapsed")
-            .accessibilityIdentifier("meeting.fullNotes")
-            if fullNotesExpanded {
-                MeetingSummaryWorkspaceContent(
-                    notes: nil,
-                    summary: presentedSummary,
-                    searchQuery: visibleSearchQuery,
-                    activeMatch: activeSearchMatch)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("meeting.summary")
-            }
+        ) {
+            MeetingSummaryWorkspaceContent(
+                notes: nil,
+                summary: presentedSummary,
+                searchQuery: visibleSearchQuery,
+                activeMatch: activeSearchMatch)
+            .padding(.horizontal, SectionPanelMetric.inset)
+            .padding(.vertical, 14)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("meeting.summary")
         }
     }
 
     private static let fullSummaryTitle = "Full summary"
 
-    private var transcriptSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    /// The transcript on one panel: Find at the header's trailing edge, the
+    /// speaker turns on the panel's surface, and which model wrote it in the
+    /// footer.
+    private func transcriptSection(using scrollProxy: ScrollViewProxy) -> some View {
+        let engine = transcript.flatMap { MeetingTranscriptEngineLine.text(for: $0) }
+        return VStack(alignment: .leading, spacing: MeetingDetailLayout.panelGap) {
             if !screenContext.isEmpty {
                 MeetingOnScreenNowBar(context: screenContext, player: player) {
                     app.openScreenSnapshot($0.snapshotID)
                 }
             }
-            MeetingTranscriptList(
-                transcript: transcript, display: transcriptDisplay, player: player,
-                speakerPresentation: speakerPresentation,
-                unnamedSpeakers: derived.unnamed,
-                searchQuery: transcriptSearchQuery, activeMatch: activeSearchMatch,
-                evidenceSegment: evidenceSegment,
-                onRenameSpeaker: { beginRenameSpeaker($0) })
-                .id(MeetingPageSearchMatch.Location.sectionHeader(.transcript))
+            SectionPanel(
+                title: panelTitle("Transcript", at: .sectionHeader(.transcript), query: transcriptSearchQuery),
+                systemImage: "text.bubble",
+                identifier: "meeting.transcript",
+                showsFooter: engine != nil,
+                titleID: MeetingPageSearchMatch.Location.sectionHeader(.transcript),
+                trailingFills: true
+            ) {
+                if findPlacement == .transcriptPanel {
+                    searchBar(using: scrollProxy)
+                }
+            } content: {
+                MeetingTranscriptList(
+                    transcript: transcript, display: transcriptDisplay, player: player,
+                    speakerPresentation: speakerPresentation,
+                    unnamedSpeakers: derived.unnamed,
+                    searchQuery: transcriptSearchQuery, activeMatch: activeSearchMatch,
+                    evidenceSegment: evidenceSegment,
+                    onRenameSpeaker: { beginRenameSpeaker($0) })
+            } footer: {
+                if let engine {
+                    MeetingTranscriptEngineLine(
+                        text: engine, searchQuery: transcriptSearchQuery,
+                        activeMatchIndex: activeOccurrence(at: .transcriptEngine))
+                }
+            }
         }
     }
 
@@ -1581,6 +1666,7 @@ private struct MeetingWorkspaceDetail: View {
 }
 
 private struct MeetingSummaryWorkspaceContent: View {
+    @Environment(\.appTextScale) private var textScale
     let notes: String?
     let summary: String?
     let searchQuery: String
@@ -1596,8 +1682,9 @@ private struct MeetingSummaryWorkspaceContent: View {
                     summaryContent(summary)
                 }
             }
+            // Prose keeps a reading measure inside the full-width panel.
+            .frame(maxWidth: MeetingDetailLayout.proseWidth(textScale: textScale), alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .workspaceReadingWidth()
         } else {
             EmptyWorkspaceRow(
                 text: "No summary yet.",
@@ -1658,7 +1745,11 @@ private struct MeetingSummaryWorkspaceContent: View {
     }
 }
 
+/// The meeting's one find field. Command-F's search of the whole meeting is
+/// a bar pinned under the player; Find in transcript is a field at the
+/// trailing edge of the Transcript panel's header, with its count before it.
 private struct MeetingPageSearchBar: View {
+    @Environment(\.appTextScale) private var textScale
     @Binding var query: String
     let focusRequest: Int
     let statusText: String?
@@ -1669,6 +1760,40 @@ private struct MeetingPageSearchBar: View {
     let isPresented: Bool
 
     var body: some View {
+        Group {
+            if isPresented {
+                field
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 8) {
+                    // The count takes what it needs, down to the field's
+                    // narrowest, and is cut short before the field is.
+                    status.layoutPriority(1)
+                    field
+                        .frame(minWidth: MeetingDetailLayout.findFieldMinimumWidth,
+                               maxWidth: MeetingDetailLayout.findFieldWidth(textScale: textScale))
+                }
+            }
+        }
+        .onAppear {
+            uiTestDiagnosticLog("meeting.search bar appear")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("meeting.search.bar")
+    }
+
+    @ViewBuilder private var status: some View {
+        if let statusText {
+            Text(statusText)
+                .font(AppFont.scaled(.callout))
+                .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
+                .lineLimit(1)
+                .accessibilityIdentifier("meeting.search.status")
+        }
+    }
+
+    private var field: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
@@ -1695,32 +1820,30 @@ private struct MeetingPageSearchBar: View {
                 .accessibilityIdentifier("meeting.search.clear")
             }
 
-            if let statusText {
-                Text(statusText)
-                    .font(AppFont.scaled(.callout))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .fixedSize()
-                    .accessibilityIdentifier("meeting.search.status")
+            if isPresented {
+                status.fixedSize()
             }
 
-            Divider().frame(height: 18)
+            // The panel's field is only a field until something is typed.
+            if isPresented || !query.isEmpty {
+                Divider().frame(height: 18)
 
-            Button(action: onPrevious) {
-                Image(systemName: "chevron.up")
-            }
-            .buttonStyle(.plain)
-            .disabled(!hasMatches)
-            .help("Previous match")
-            .accessibilityIdentifier("meeting.search.previous")
+                Button(action: onPrevious) {
+                    Image(systemName: "chevron.up")
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasMatches)
+                .help("Previous match")
+                .accessibilityIdentifier("meeting.search.previous")
 
-            Button(action: onNext) {
-                Image(systemName: "chevron.down")
+                Button(action: onNext) {
+                    Image(systemName: "chevron.down")
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasMatches)
+                .help("Next match")
+                .accessibilityIdentifier("meeting.search.next")
             }
-            .buttonStyle(.plain)
-            .disabled(!hasMatches)
-            .help("Next match")
-            .accessibilityIdentifier("meeting.search.next")
 
             if isPresented {
                 Button(action: onClose) {
@@ -1732,23 +1855,18 @@ private struct MeetingPageSearchBar: View {
                 .accessibilityIdentifier("meeting.search.close")
             }
         }
-        .onAppear {
-            uiTestDiagnosticLog("meeting.search bar appear")
-        }
         .font(AppFont.scaled(.body))
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.vertical, isPresented ? 8 : 4)
         .workspaceControl()
-        .frame(maxWidth: isPresented ? 720 : 420)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("meeting.search.bar")
     }
 }
 
-enum MeetingDetailMetric {
-    /// The header, player and tab content share one centered column.
-    static let columnMaxWidth: CGFloat = 800
+/// The pane's width and the scrolling column's, as last laid out. Kept out
+/// of the view's state so a window resize redraws nothing on its own.
+private final class MeetingPaneWidths {
+    var pane: CGFloat = 0
+    var scrollContent: CGFloat = 0
 }
 
 /// Values worked out once per transcript, not on every redraw of the page.
@@ -2239,52 +2357,11 @@ struct EvidencePill: View {
     }
 }
 
-struct WorkspaceSection<Content: View>: View {
-    let title: String
-    let icon: String
-    /// App copy looks the title up in the interface catalog. Titles that
-    /// carry names or other content stay verbatim.
-    var localizesTitle = false
-    var searchQuery = ""
-    var activeMatchIndex: Int?
-    var searchLocation: MeetingPageSearchMatch.Location?
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: LBTokens.Metric.headerToContent) {
-            Label {
-                if let searchLocation {
-                    SearchHighlightedText(
-                        title,
-                        query: searchQuery,
-                        activeMatchIndex: activeMatchIndex)
-                    .id(searchLocation)
-                } else if localizesTitle {
-                    Text(LocalizedStringKey(title))
-                } else {
-                    Text(title)
-                }
-            } icon: {
-                Image(systemName: icon)
-            }
-            .font(.scaled(.headline))
-            .labelStyle(.titleOnly)
-            VStack(alignment: .leading, spacing: 8) {
-                content
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .lbGroupedSurface()
-        }
-        // Sections share one width even when their content is short.
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 struct EmptyWorkspaceRow: View {
     let text: String
     var searchQuery = ""
     var activeMatchIndex: Int?
+    var verticalPadding: CGFloat = 10
 
     var body: some View {
         SearchHighlightedText(
@@ -2293,6 +2370,6 @@ struct EmptyWorkspaceRow: View {
             activeMatchIndex: activeMatchIndex)
             .font(AppFont.scaled(.body)).foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 10)
+            .padding(.vertical, verticalPadding)
     }
 }

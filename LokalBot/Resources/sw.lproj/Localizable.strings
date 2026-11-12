@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Zako · %lld";
 "Full summary" = "Muhtasari kamili";
 "Nothing for you from this meeting." = "Hakuna chochote chako kutoka mkutano huu.";
+"Nothing for others from this meeting." = "Hakuna chochote cha wengine kutoka mkutano huu.";
 "Read the transcript" = "Soma nakala ya sauti";
 "Recap, decisions and actions appear here when it is done." = "Muhtasari, maamuzi na hatua zitaonekana hapa ikikamilika.";
 "Refresh summary" = "Onyesha upya muhtasari";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "Hatua %lld kutoka mikutano ya siku hii, zote zimekamilika";
 "%lld action from this day’s meetings, deferred" = "Hatua %lld kutoka mikutano ya siku hii, imeahirishwa";
 "%lld actions from this day’s meetings, none open" = "Hatua %lld kutoka mikutano ya siku hii, hakuna iliyo wazi";
+"Actions from this day’s meetings" = "Hatua kutoka mikutano ya siku hii";
+"All done" = "Zote zimekamilika";
 "Delete screen moments…" = "Futa matukio ya skrini…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Kila programu na dirisha ambalo LokalBot iliona, saa kwa saa. Itumie kukagua nyakati kamili.";
 "Coding agent" = "Wakala wa programu";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Majina ya msimbo au wateja, yakitenganishwa kwa koma";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Mikutano, hatua na vichwa vya madirisha vinavyotumia lolote kati ya majina haya huunganishwa na mradi.";
 "Suggested (one project)" = "Pendekezo";
+"%lld overdue" = "%lld zimechelewa";
+"Showing the %lld most urgent" = "Inaonyesha %lld za dharura zaidi";
+"Now · %@" = "Sasa · %@";
+"Upcoming meetings can show here too" = "Mikutano ijayo inaweza kuonekana hapa pia";
+"Open day" = "Fungua siku";
+"Priorities for today" = "Vipaumbele vya leo";
+"Priorities from %@" = "Vipaumbele vya %@";
+"Priorities from a previous workday" = "Vipaumbele vya siku ya kazi iliyopita";

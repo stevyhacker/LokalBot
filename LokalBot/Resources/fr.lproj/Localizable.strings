@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Pour vous · %lld";
 "Full summary" = "Résumé complet";
 "Nothing for you from this meeting." = "Rien pour vous dans cette réunion.";
+"Nothing for others from this meeting." = "Rien pour les autres dans cette réunion.";
 "Read the transcript" = "Lire la transcription";
 "Recap, decisions and actions appear here when it is done." = "Le récapitulatif, les décisions et les actions apparaîtront ici une fois terminé.";
 "Refresh summary" = "Actualiser le résumé";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld actions issues des réunions de cette journée, toutes terminées";
 "%lld action from this day’s meetings, deferred" = "%lld action issue des réunions de cette journée, différée";
 "%lld actions from this day’s meetings, none open" = "%lld actions issues des réunions de cette journée, aucune en cours";
+"Actions from this day’s meetings" = "Actions issues des réunions de cette journée";
+"All done" = "Toutes terminées";
 "Delete screen moments…" = "Supprimer des moments d’écran…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Chaque app et chaque fenêtre vues par LokalBot, heure par heure. Utile pour vérifier une heure précise.";
 "Coding agent" = "Agent de programmation";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Noms de code ou clients, séparés par des virgules";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Les réunions, actions et titres des fenêtres qui utilisent l’un de ces noms sont liés au projet.";
 "Suggested (one project)" = "Suggéré";
+"%lld overdue" = "%lld en retard";
+"Showing the %lld most urgent" = "Affichage des %lld plus urgentes";
+"Now · %@" = "Maintenant · %@";
+"Upcoming meetings can show here too" = "Les réunions à venir peuvent aussi s’afficher ici";
+"Open day" = "Ouvrir la journée";
+"Priorities for today" = "Priorités du jour";
+"Priorities from %@" = "Priorités de %@";
+"Priorities from a previous workday" = "Priorités d’un jour ouvré précédent";

@@ -120,6 +120,108 @@ final class MeetingDetailPresentationTests: XCTestCase {
         XCTAssertEqual(groups.forOthers.map(\.action.id), ["a", "c"])
     }
 
+    func testActionsPanelCountsEveryActionAndKeepsBothBands() {
+        let panel = MeetingDetailPresentation.ActionsPanel(references([
+            .init(id: "a", text: "Run the synthetic load test", owner: "Maya Chen"),
+            .init(id: "b", text: "Write the synthetic announcement", owner: "Me"),
+            .init(id: "c", text: "Start the synthetic legal review"),
+        ]))
+        XCTAssertEqual(panel.count, 3)
+        XCTAssertTrue(panel.showsBands)
+        XCTAssertEqual(panel.groups.forYou.map(\.action.id), ["b"])
+        XCTAssertEqual(panel.groups.forOthers.map(\.action.id), ["a", "c"])
+        XCTAssertNil(panel.forYouLine)
+        XCTAssertNil(panel.forOthersLine)
+    }
+
+    func testActionsPanelSaysWhichSideHasNothing() {
+        let allMine = MeetingDetailPresentation.ActionsPanel(references([
+            .init(id: "a", text: "Write the synthetic announcement", owner: "Me"),
+            .init(id: "b", text: "Book the synthetic pricing call", owner: "Me"),
+        ]))
+        XCTAssertEqual(allMine.count, 2)
+        XCTAssertTrue(allMine.showsBands, "the For others band stays, with a line under it")
+        XCTAssertNil(allMine.forYouLine)
+        XCTAssertEqual(allMine.forOthersLine, .nothingForOthers)
+
+        let noneMine = MeetingDetailPresentation.ActionsPanel(references([
+            .init(id: "a", text: "Run the synthetic load test", owner: "Maya Chen"),
+        ]))
+        XCTAssertEqual(noneMine.forYouLine, .nothingForYou)
+        XCTAssertNil(noneMine.forOthersLine)
+    }
+
+    func testActionsPanelWithoutActionsHasNoCountAndNoBands() {
+        let panel = MeetingDetailPresentation.ActionsPanel([])
+        XCTAssertNil(panel.count, "a meeting without actions shows no zero in the header")
+        XCTAssertFalse(panel.showsBands)
+        XCTAssertNil(panel.forYouLine)
+        XCTAssertNil(panel.forOthersLine)
+        XCTAssertFalse(panel.showsActionsLink(hasSavedOutcomes: true, isSample: false))
+    }
+
+    func testAlsoInActionsNeedsASavedActionOfYoursFromARealMeeting() {
+        let mine = MeetingDetailPresentation.ActionsPanel(references([
+            .init(id: "a", text: "Write the synthetic announcement", owner: "Me"),
+        ]))
+        XCTAssertTrue(mine.showsActionsLink(hasSavedOutcomes: true, isSample: false))
+        XCTAssertFalse(mine.showsActionsLink(hasSavedOutcomes: false, isSample: false),
+                       "notes still being written are not in the Actions list yet")
+        XCTAssertFalse(mine.showsActionsLink(hasSavedOutcomes: true, isSample: true),
+                       "the sample meeting's actions never reach the Actions list")
+        let others = MeetingDetailPresentation.ActionsPanel(references([
+            .init(id: "a", text: "Run the synthetic load test", owner: "Maya Chen"),
+        ]))
+        XCTAssertFalse(others.showsActionsLink(hasSavedOutcomes: true, isSample: false))
+    }
+
+    func testPinnedHeaderTakesTheScrollBarsInset() {
+        // Overlay scroll bars: the scrolling column is as wide as the pane.
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 952), 0)
+        // Scroll bars always shown: the column gives up the scroller's width.
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 937), 15)
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 936.4), 16)
+        // Not yet measured, a rounding difference, or a layout in flight.
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 0, scrollContentWidth: 937), 0)
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 0), 0)
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 951.6), 0)
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 700), 0)
+        XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 700, scrollContentWidth: 952), 0)
+    }
+
+    func testFindIsInTheTranscriptPanelUntilCommandFSearchesTheWholeMeeting() {
+        XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: .summary, pageSearchPresented: false), .hidden)
+        XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: .notes, pageSearchPresented: false), .hidden)
+        XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: .transcript, pageSearchPresented: false),
+                       .transcriptPanel)
+        // One field at a time: the pinned bar replaces the panel's field.
+        for tab in MeetingWorkspaceTab.allCases {
+            XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: tab, pageSearchPresented: true), .pinnedBar)
+        }
+    }
+
+    func testTextBoundWidthsGrowWithTheTextSize() {
+        let standard = AppTextSize.standard.scale
+        XCTAssertEqual(MeetingDetailLayout.proseWidth(textScale: standard), 860)
+        XCTAssertEqual(MeetingDetailLayout.findFieldWidth(textScale: standard), 260)
+        XCTAssertGreaterThan(MeetingDetailLayout.proseWidth(textScale: AppTextSize.largest.scale), 860)
+        XCTAssertLessThan(MeetingDetailLayout.proseWidth(textScale: AppTextSize.small.scale), 860)
+        XCTAssertGreaterThan(MeetingDetailLayout.findFieldWidth(textScale: AppTextSize.largest.scale), 260)
+        // A scale of zero from an unset environment never collapses a width.
+        XCTAssertGreaterThan(MeetingDetailLayout.proseWidth(textScale: 0), 0)
+        // The column is wider than the prose it holds and than a row needs.
+        XCTAssertGreaterThanOrEqual(MeetingDetailLayout.columnMaximumWidth, 1100)
+        XCTAssertGreaterThan(MeetingDetailLayout.columnMaximumWidth, MeetingDetailLayout.proseWidth)
+        XCTAssertLessThan(MeetingDetailLayout.findFieldMinimumWidth, MeetingDetailLayout.findFieldWidth)
+    }
+
+    func testTranscriptFooterNamesTheModelExceptForMergedOrEmptyTranscripts() {
+        XCTAssertEqual(MeetingTranscriptEngineLine.text(for: transcript), "Transcribed with fixture")
+        XCTAssertNil(MeetingTranscriptEngineLine.text(for: Transcript(segments: transcript.segments, engine: "merged")))
+        XCTAssertNil(MeetingTranscriptEngineLine.text(for: Transcript(segments: transcript.segments, engine: "")))
+        XCTAssertNil(MeetingTranscriptEngineLine.text(for: Transcript(segments: [], engine: "fixture")))
+    }
+
     func testCorrectedOwnerMovesAnActionBetweenGroups() {
         var state = MeetingOutcomeState()
         state.actions["a"] = .init(ownerOverride: "Me", userEdited: true)

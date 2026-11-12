@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Para ti · %lld";
 "Full summary" = "Resumen completo";
 "Nothing for you from this meeting." = "No hay nada para ti de esta reunión.";
+"Nothing for others from this meeting." = "No hay nada para otros de esta reunión.";
 "Read the transcript" = "Leer la transcripción";
 "Recap, decisions and actions appear here when it is done." = "El resumen breve, las decisiones y las acciones aparecerán aquí cuando termine.";
 "Refresh summary" = "Actualizar resumen";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld acciones de las reuniones de este día, todas hechas";
 "%lld action from this day’s meetings, deferred" = "%lld acción de las reuniones de este día, diferida";
 "%lld actions from this day’s meetings, none open" = "%lld acciones de las reuniones de este día, ninguna abierta";
+"Actions from this day’s meetings" = "Acciones de las reuniones de este día";
+"All done" = "Todas hechas";
 "Delete screen moments…" = "Eliminar momentos de pantalla…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Cada app y ventana que vio LokalBot, hora por hora. Sirve para comprobar horas exactas.";
 "Coding agent" = "Agente de programación";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Nombres en clave o clientes, separados por comas";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Las reuniones, acciones y títulos de ventanas que usan alguno de estos nombres se vinculan al proyecto.";
 "Suggested (one project)" = "Sugerido";
+"%lld overdue" = "%lld con retraso";
+"Showing the %lld most urgent" = "Se muestran las %lld más urgentes";
+"Now · %@" = "Ahora · %@";
+"Upcoming meetings can show here too" = "Las próximas reuniones también pueden mostrarse aquí";
+"Open day" = "Abrir día";
+"Priorities for today" = "Prioridades para hoy";
+"Priorities from %@" = "Prioridades del %@";
+"Priorities from a previous workday" = "Prioridades de un día laborable anterior";

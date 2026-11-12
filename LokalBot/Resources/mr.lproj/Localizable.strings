@@ -1901,6 +1901,7 @@
 "For you · %lld" = "तुमच्यासाठी · %lld";
 "Full summary" = "संपूर्ण सारांश";
 "Nothing for you from this meeting." = "या बैठकीतून तुमच्यासाठी काही नाही.";
+"Nothing for others from this meeting." = "या बैठकीतून इतरांसाठी काही नाही.";
 "Read the transcript" = "प्रतिलेखन वाचा";
 "Recap, decisions and actions appear here when it is done." = "पूर्ण झाल्यावर सारांश, निर्णय आणि कामे येथे दिसतील.";
 "Refresh summary" = "सारांश रिफ्रेश करा";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "या दिवसाच्या बैठकांमधील %lld कामे, सर्व पूर्ण";
 "%lld action from this day’s meetings, deferred" = "या दिवसाच्या बैठकांमधील %lld काम, स्थगित";
 "%lld actions from this day’s meetings, none open" = "या दिवसाच्या बैठकांमधील %lld कामे, कोणतेही बाकी नाही";
+"Actions from this day’s meetings" = "या दिवसाच्या बैठकांमधील कामे";
+"All done" = "सर्व पूर्ण";
 "Delete screen moments…" = "स्क्रीन क्षण हटवा…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "LokalBot ने पाहिलेले प्रत्येक ॲप आणि विंडो, तासागणिक. अचूक वेळा तपासण्यासाठी हे वापरा.";
 "Coding agent" = "कोडिंग एजंट";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "कोडनेम किंवा ग्राहक, स्वल्पविरामांनी वेगळे";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "यापैकी कोणतेही नाव वापरणाऱ्या बैठका, कामे आणि विंडोची शीर्षके या प्रकल्पाशी जोडली जातात.";
 "Suggested (one project)" = "सुचवलेला";
+"%lld overdue" = "%lld ची मुदत उलटली";
+"Showing the %lld most urgent" = "सर्वात तातडीची %lld दाखवत आहे";
+"Now · %@" = "आता · %@";
+"Upcoming meetings can show here too" = "आगामी बैठकाही येथे दिसू शकतात";
+"Open day" = "दिवस उघडा";
+"Priorities for today" = "आजचे प्राधान्यक्रम";
+"Priorities from %@" = "%@ चे प्राधान्यक्रम";
+"Priorities from a previous workday" = "मागील एका कामाच्या दिवसाचे प्राधान्यक्रम";

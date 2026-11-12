@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Của bạn · %lld";
 "Full summary" = "Bản tóm tắt đầy đủ";
 "Nothing for you from this meeting." = "Không có gì cho bạn từ cuộc họp này.";
+"Nothing for others from this meeting." = "Không có gì cho người khác từ cuộc họp này.";
 "Read the transcript" = "Đọc bản chép lời";
 "Recap, decisions and actions appear here when it is done." = "Phần tóm lược, quyết định và hành động sẽ hiện ở đây khi hoàn tất.";
 "Refresh summary" = "Làm mới bản tóm tắt";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld hành động từ các cuộc họp của ngày này, tất cả đã xong";
 "%lld action from this day’s meetings, deferred" = "%lld hành động từ các cuộc họp của ngày này, đã hoãn";
 "%lld actions from this day’s meetings, none open" = "%lld hành động từ các cuộc họp của ngày này, không còn mục nào mở";
+"Actions from this day’s meetings" = "Hành động từ các cuộc họp của ngày này";
+"All done" = "Tất cả đã xong";
 "Delete screen moments…" = "Xóa khoảnh khắc màn hình…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Mọi ứng dụng và cửa sổ LokalBot đã thấy, theo từng giờ. Dùng để kiểm tra thời gian chính xác.";
 "Coding agent" = "Tác nhân lập trình";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Tên mã hoặc khách hàng, cách nhau bằng dấu phẩy";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Các cuộc họp, hành động và tiêu đề cửa sổ dùng bất kỳ tên nào trong số này sẽ được liên kết với dự án.";
 "Suggested (one project)" = "Được gợi ý";
+"%lld overdue" = "%lld quá hạn";
+"Showing the %lld most urgent" = "Đang hiện %lld mục gấp nhất";
+"Now · %@" = "Bây giờ · %@";
+"Upcoming meetings can show here too" = "Các cuộc họp sắp tới cũng có thể hiện ở đây";
+"Open day" = "Mở ngày";
+"Priorities for today" = "Ưu tiên hôm nay";
+"Priorities from %@" = "Ưu tiên từ %@";
+"Priorities from a previous workday" = "Ưu tiên từ một ngày làm việc trước";

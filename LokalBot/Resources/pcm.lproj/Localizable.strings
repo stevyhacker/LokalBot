@@ -1901,6 +1901,7 @@
 "For you · %lld" = "For you · %lld";
 "Full summary" = "Full summary";
 "Nothing for you from this meeting." = "Nothing dey for you from this meeting.";
+"Nothing for others from this meeting." = "Nothing dey for other people from this meeting.";
 "Read the transcript" = "Read the transcript";
 "Recap, decisions and actions appear here when it is done." = "Recap, decisions and actions go show here when e finish.";
 "Refresh summary" = "Refresh summary";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld actions from this day meetings, all don finish";
 "%lld action from this day’s meetings, deferred" = "%lld action from this day meetings, postponed";
 "%lld actions from this day’s meetings, none open" = "%lld actions from this day meetings, none dey open";
+"Actions from this day’s meetings" = "Actions from this day meetings";
+"All done" = "All don finish";
 "Delete screen moments…" = "Delete screen moments…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Every app and window wey LokalBot see, hour by hour. Use am check exact time.";
 "Coding agent" = "Coding agent";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Codenames or clients, use comma separate dem";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Meetings, actions, and titles of windows wey use any of these names dey link to the project.";
 "Suggested (one project)" = "Suggested";
+"%lld overdue" = "%lld don pass time";
+"Showing the %lld most urgent" = "We dey show the %lld wey urgent pass";
+"Now · %@" = "Now · %@";
+"Upcoming meetings can show here too" = "Meetings wey dey come fit show here too";
+"Open day" = "Open day";
+"Priorities for today" = "Priorities for today";
+"Priorities from %@" = "Priorities from %@";
+"Priorities from a previous workday" = "Priorities from one work day before";

@@ -243,6 +243,12 @@ enum TodayPageLayout: Equatable {
     /// Nothing to show and Getting started is hidden.
     case placeholder
 
+    /// The day's panels are on the page.
+    var showsSections: Bool {
+        if case .sections = self { return true }
+        return false
+    }
+
     static func layout(hasContent: Bool, gettingStartedDismissed: Bool) -> TodayPageLayout {
         if hasContent { return .sections(gettingStartedBelow: !gettingStartedDismissed) }
         return gettingStartedDismissed ? .placeholder : .gettingStarted

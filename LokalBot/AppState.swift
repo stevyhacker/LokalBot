@@ -14,6 +14,21 @@ final class AppState: ObservableObject {
     enum NavSection: Hashable {
         case today, actions, timeline, meetings, people, projects, ask, agent
 
+        /// The symbol beside the section in the sidebar. Today's panels show
+        /// the same one for the section they lead to.
+        var symbol: String {
+            switch self {
+            case .today: "sun.max"
+            case .actions: "checkmark.circle"
+            case .timeline: "calendar.day.timeline.left"
+            case .meetings: "waveform.circle"
+            case .people: "person.2"
+            case .projects: "folder"
+            case .ask: "sparkle.magnifyingglass"
+            case .agent: "wand.and.sparkles"
+            }
+        }
+
         /// Section names accepted from the UI-test capture environment and
         /// deep links. Legacy names keep working: "capture" (the pre-split
         /// merged section) lands on Timeline and "search"/"chat" on Ask

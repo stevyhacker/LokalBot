@@ -39,9 +39,10 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Today
 
-    /// Today shows the digest's highlights and one line about when it was
-    /// written. Tasks, sessions, digest export and the activity log stay on
-    /// Timeline, and Record is in the toolbar instead of a bar on the page.
+    /// Today's sections are panels. So far today shows the digest's
+    /// highlights and, in its footer, one line about when it was written.
+    /// Tasks, sessions, digest export and the activity log stay on Timeline,
+    /// and Record is in the toolbar instead of a bar on the page.
     func testTodayUsesCompactDigestHierarchy() {
         XCTAssertTrue(identified("today.dayDigest.text").waitForExistence(timeout: 6))
         UITestHarness.scrollTo(identified("today.dayDigest.text"), in: app)
@@ -58,6 +59,10 @@ final class MainWindowUITests: XCTestCase {
             XCTAssertTrue(identified("today.meeting.recording-\(meeting.id.uuidString)").exists)
         }
         XCTAssertTrue(app.buttons["outcomes.review"].exists)
+        // Each panel's header has the one link to the section behind it.
+        XCTAssertTrue(app.buttons["today.meetings.all"].exists, "Meetings today links to Meetings")
+        XCTAssertTrue(app.buttons["today.openTimeline"].exists, "So far today links to Timeline")
+        XCTAssertTrue(identified("today.tracked").exists, "tracked time and its bars are in So far today")
         XCTAssertFalse(app.buttons["outcomes.planInAgent"].exists, "planning with Agent moved to Actions")
         XCTAssertFalse(identified("today.memoryStatus").exists)
         XCTAssertFalse(identified("today.githubStar").exists)
@@ -435,9 +440,9 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Timeline
 
-    /// Timeline is one day: a list of the day's digest, sessions and meetings
-    /// beside the page of whichever is selected. The date is in the toolbar,
-    /// and the digest page leads with the highlights and the day strip.
+    /// Timeline is one day: the day's page as panels on the leading side, and
+    /// a rail on the trailing side with the tracked time, the hour strip and
+    /// the day's sessions and meetings. The date is in the toolbar.
     func testTimelineRendersTrackAndOverview() {
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
@@ -448,33 +453,29 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 6), "the day's sessions should be listed immediately")
         XCTAssertFalse(identified("timeline.sessionPreview").exists,
                        "the day digest shows until something is selected")
-        XCTAssertFalse(identified("timeline.sessionRail").exists,
-                       "the rail on the right was replaced by the list on the left")
-        // Day digest is the list's first row; the sessions follow it.
-        let digestRow = app.buttons["timeline.dayDigest.row"]
-        XCTAssertTrue(digestRow.exists, "Day digest should be the first row of the list")
-        XCTAssertLessThan(
-            digestRow.frame.minY,
-            identified("timeline.workSessions").frame.minY,
-            "Day digest belongs above the sessions")
-        XCTAssertLessThan(
-            identified("timeline.list").frame.minX,
-            identified("timeline.evidencePane").frame.minX,
-            "the list sits before the page")
-        // Needs Attention no longer leads the page: one line opens the day's
-        // actions in place, as the shared action rows.
+        // The day's page has no row in the rail and no way back to itself:
+        // it is what shows until a row is chosen.
+        XCTAssertFalse(app.buttons["timeline.dayDigest.row"].exists,
+                       "the rail lists sessions; Day digest is not a row")
+        XCTAssertFalse(app.buttons["timeline.backToDigest"].exists,
+                       "the day's page needs no link back to itself")
+        XCTAssertLessThanOrEqual(
+            identified("timeline.evidencePane").frame.maxX,
+            identified("timeline.list").frame.minX + 1,
+            "the day's page sits before the rail")
+        // Needs Attention no longer leads the page: the day's actions have
+        // their own panel, as the shared action rows, shown without a click.
         XCTAssertFalse(textWithContent("Needs Attention").firstMatch.exists,
                        "Needs Attention moved to Today and Actions")
-        let dayActions = app.buttons["timeline.dayActions"]
+        let dayActions = identified("timeline.dayActions")
         XCTAssertTrue(dayActions.waitForExistence(timeout: 6),
-                      "the day's actions line is missing")
+                      "the day's actions panel is missing")
         let actionRows = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "outcome.thread.toggle."))
-        XCTAssertFalse(actionRows.firstMatch.exists, "the day's actions stay folded until asked for")
-        UITestHarness.scrollTo(dayActions, in: app)
-        dayActions.click()
         XCTAssertTrue(actionRows.firstMatch.waitForExistence(timeout: 4),
-                      "the line should open the day's actions in place")
+                      "the day's open actions should be listed in their panel")
+        XCTAssertTrue(app.buttons["timeline.dayActions.all"].exists,
+                      "the actions panel should lead to Actions")
         // Writing, copying and exporting the digest, pausing day memory and
         // reloading share the toolbar's one menu.
         let dayMenu = identified("timeline.dayDigest.actions")
@@ -494,13 +495,26 @@ final class MainWindowUITests: XCTestCase {
                        "empty decisions section should not consume Timeline space")
         XCTAssertTrue(textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.exists,
                       "the digest's highlights should lead the page")
+        XCTAssertTrue(identified("timeline.highlights").exists, "the highlights have their own panel")
         XCTAssertLessThan(
-            textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.frame.minY,
-            identified("capture.dayOverview").frame.minY,
-            "the highlights belong above the day's totals and strip")
+            identified("timeline.highlights").frame.minY,
+            dayActions.frame.minY,
+            "the highlights belong above the day's actions")
+        XCTAssertLessThan(
+            textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.frame.maxX,
+            identified("capture.dayOverview").frame.minX,
+            "the day's totals and strip are in the rail, after the page")
+        XCTAssertGreaterThanOrEqual(
+            identified("capture.dayOverview").frame.minX,
+            identified("timeline.list").frame.minX,
+            "the day's totals and strip belong to the rail")
         XCTAssertTrue(textWithContent("tracked").firstMatch.waitForExistence(timeout: 6),
                       "day totals missing — seeded activity did not load")
         XCTAssertTrue(identified("timeline.dayStrip").exists, "the day strip is missing")
+        XCTAssertLessThan(
+            identified("capture.dayOverview").frame.minY,
+            identified("timeline.workSessions").frame.minY,
+            "the sessions are listed under the tracked time")
         XCTAssertTrue(digestTasksVisible(),
                       "digest task hierarchy is missing")
         XCTAssertTrue(textWithContent("Updated the Timeline UI").firstMatch.exists,
@@ -525,15 +539,23 @@ final class MainWindowUITests: XCTestCase {
         // Meetings remain first-class chronological rows.
         XCTAssertTrue(app.descendants(matching: .any)["capture.meeting.\(fixture.designReview.id.uuidString)"].exists,
                       "seeded meeting missing from the day's list")
-        // All captured activity, at the list's foot, opens the hour track.
+        // All captured activity, the rail's bottom row, opens the hour track.
         let rawCapture = app.buttons["timeline.rawCapture"]
         XCTAssertTrue(rawCapture.exists,
-                      "All captured activity is missing from the list's foot")
+                      "All captured activity is missing from the rail's foot")
+        XCTAssertGreaterThan(
+            rawCapture.frame.minY,
+            identified("timeline.workSessions").frame.minY,
+            "All captured activity sits under the sessions")
         XCTAssertFalse(app.descendants(matching: .any)["timeline.track"].exists,
                        "raw block chart should not be the default Timeline presentation")
         rawCapture.click()
         XCTAssertTrue(app.descendants(matching: .any)["timeline.track"]
             .waitForExistence(timeout: 4), "raw block chart did not open on request")
+        XCTAssertTrue(app.buttons["timeline.backToDigest"].exists,
+                      "All captured activity should offer the way back to the day's page")
+        XCTAssertTrue(identified("capture.dayOverview").exists,
+                      "the rail stays while All captured activity is open")
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "capture.activity."))
             .firstMatch.exists, "raw activity blocks are no longer inspectable")
@@ -573,17 +595,22 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.sessionPreview"]
             .waitForExistence(timeout: 4), "navigation discarded the selected work session")
 
-        // Day digest, the list's first row, is the way back to the digest.
+        // The rail keeps its totals while a session's page is showing.
+        XCTAssertTrue(identified("capture.dayOverview").exists,
+                      "session selection replaced the rail's tracked time")
+        XCTAssertFalse(identified("timeline.highlights").exists,
+                       "the session's page replaces the day's page")
+        // "Day digest" above the session's page is the way back to the day.
         XCTAssertFalse(app.buttons["Back to day"].exists,
-                       "a row's page needs no Back: the list is beside it")
-        let digestRow = app.buttons["timeline.dayDigest.row"]
-        XCTAssertTrue(digestRow.waitForExistence(timeout: 3))
-        digestRow.click()
+                       "a row's page has one way back, Day digest")
+        let digestLink = app.buttons["timeline.backToDigest"]
+        XCTAssertTrue(digestLink.waitForExistence(timeout: 3))
+        digestLink.click()
         let sessionPreview = app.descendants(matching: .any)["timeline.sessionPreview"]
         XCTAssertTrue(UITestHarness.waitUntil { !sessionPreview.exists },
-                      "Day digest did not return to the digest")
-        XCTAssertTrue(identified("capture.dayOverview").waitForExistence(timeout: 3),
-                      "the digest page did not come back")
+                      "Day digest did not return to the day's page")
+        XCTAssertTrue(identified("timeline.highlights").waitForExistence(timeout: 3),
+                      "the day's page did not come back")
 
         let meeting = app.buttons["capture.meeting.\(fixture.designReview.id.uuidString)"]
         XCTAssertTrue(meeting.waitForExistence(timeout: 4),
@@ -807,7 +834,8 @@ final class MainWindowUITests: XCTestCase {
     }
 
     /// Full detail leads with actions and keeps the full summary and transcript
-    /// in their own tabs.
+    /// in their own tabs. Each part of a tab is a panel, and the panels fill
+    /// the pane beside the pinned player instead of a centred reading column.
     func testMeetingDetailLeadsWithActionsAndHasFullSummaryTab() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -815,17 +843,35 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(textWithContent("Adopt Redis").firstMatch.waitForExistence(timeout: 4))
         XCTAssertTrue(identified("meeting.audioPlayer").exists)
         XCTAssertTrue(textWithContent("Draft the eviction policy document").firstMatch.waitForExistence(timeout: 4))
+        // Decisions, Actions and Open questions each have a titled panel.
+        for panel in ["meeting.decisions", "meeting.actions", "meeting.questions"] {
+            XCTAssertTrue(identified(panel + ".title").exists, "\(panel) has no panel header")
+        }
+        // The pinned player and the scrolling panels share both edges, 24
+        // points from the pane's leading edge, whatever the scroll bar takes.
+        let player = identified("meeting.audioPlayer").frame
+        let actions = identified("meeting.actions").frame
+        let content = app.scrollViews["meeting.content.scroll"].frame
+        XCTAssertEqual(actions.minX, player.minX, accuracy: 1)
+        XCTAssertEqual(actions.maxX, player.maxX, accuracy: 1)
+        XCTAssertEqual(actions.minX - content.minX, 24, accuracy: 1)
+        XCTAssertLessThanOrEqual(content.maxX - actions.maxX, 24 + 20,
+                                 "The panels run the width of the pane up to its gutter")
         XCTAssertFalse(identified("meeting.summary").exists)
         UITestHarness.scrollTo(identified("meeting.fullNotes"), in: app)
+        XCTAssertEqual(identified("meeting.fullNotes").value as? String, "Collapsed",
+                       "Full summary is only its header until opened")
         identified("meeting.fullNotes").click()
         XCTAssertTrue(identified("meeting.summary").waitForExistence(timeout: 4))
         UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
         let first = app.staticTexts["transcript.segment.0.text"]
         XCTAssertTrue(first.waitForExistence(timeout: 4))
         XCTAssertTrue((first.value as? String)?.contains("caching layer") == true)
+        XCTAssertTrue(identified("meeting.transcript.title").exists, "The transcript is one titled panel")
         XCTAssertTrue(identified("meeting.audioPlayer").exists)
         UITestHarness.selectSegment("Notes", pickerIdentifier: "meeting.contentTabs", in: app)
         XCTAssertTrue(identified("meeting.notes.editor").waitForExistence(timeout: 4))
+        XCTAssertTrue(identified("meeting.notes.title").exists, "The notes editor is the body of a titled panel")
     }
 
     func testPartialMeetingShowsSavedRecapAndActions() throws {

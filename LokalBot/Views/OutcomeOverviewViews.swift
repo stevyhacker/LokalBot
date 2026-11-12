@@ -5,67 +5,57 @@ import SwiftUI
 /// are immediately reflected everywhere without modifying extracted source
 /// files.
 ///
-/// Today's open actions: rows on the page itself, with the link to Actions
-/// beside the heading.
+/// Today's open actions as a panel: the most urgent rows on the page itself,
+/// how many are overdue beside the count, and the rest one link away.
 struct NeedsAttentionSection: View {
     @EnvironmentObject var app: AppState
     let threads: [ActionThread]
-    var title = "Needs Attention"
-    var limit = 4
-    /// The heading link says how many more wait in Actions.
-    var linksRemainder = false
-    var headingFont = AppFont.scaled(.headline)
-    /// Space added above and below each row.
-    var rowSpacing: CGFloat = 8
+    var limit = 3
+    /// The moment the page shows, for the overdue count.
+    var now = Date()
 
     /// Open threads the section leaves to the Actions page.
     static func remainder(total: Int, limit: Int) -> Int {
         max(0, total - max(0, limit))
     }
 
-    /// Nothing to act on means no section at all: an empty "Needs attention"
+    /// Nothing to act on means no panel at all: an empty "Needs attention"
     /// is dead weight on a glanceable page.
     var body: some View {
-        if !threads.isEmpty { rows }
+        if !threads.isEmpty { panel }
     }
 
-    private var rows: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                // No header trait, matching the panel style's heading: a
-                // header becomes a different accessibility element, which
-                // static-text queries no longer find.
-                Text(LocalizedStringKey(title))
-                    .font(headingFont)
-                Text(threads.count, format: .number)
-                    .font(AppFont.scaled(.callout).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Button {
-                    app.openActions()
-                } label: {
-                    actionsLinkLabel
-                }
-                .buttonStyle(.workspaceLink)
-                .font(AppFont.scaled(.callout))
+    private var panel: some View {
+        let summary = TodayAttentionSummary(threads: threads, limit: limit, now: now)
+        let shown = Array(threads.prefix(summary.shown))
+        return SectionPanel(
+            title: Text("Needs attention"),
+            systemImage: AppState.NavSection.actions.symbol,
+            count: summary.open,
+            alert: summary.overdue > 0 ? Text("\(summary.overdue) overdue") : nil,
+            identifier: "today.attention",
+            showsFooter: summary.showsFooter
+        ) {
+            Button("All actions") { app.openActions() }
                 .accessibilityIdentifier("outcomes.review")
-            }
-            .padding(.bottom, 4)
+        } content: {
             VStack(spacing: 0) {
-                ForEach(Array(threads.prefix(limit))) { thread in
+                ForEach(shown) { thread in
                     ActionThreadRow(thread: thread)
-                        .padding(.vertical, rowSpacing)
-                    if thread.id != threads.prefix(limit).last?.id { Divider() }
+                    if thread.id != shown.last?.id { Divider() }
                 }
             }
+            .padding(.horizontal, SectionPanelMetric.inset)
+        } footer: {
+            Text("Showing the \(summary.shown) most urgent")
+                .sectionPanelFooterText()
+            Button {
+                app.openActions()
+            } label: {
+                Text("\(summary.remainder) more in Actions")
+            }
+            .accessibilityIdentifier("today.attention.more")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var actionsLinkLabel: Text {
-        guard linksRemainder else { return Text("Review Actions…") }
-        let more = Self.remainder(total: threads.count, limit: limit)
-        return more > 0 ? Text("\(more) more in Actions") : Text("All actions")
     }
 }
 

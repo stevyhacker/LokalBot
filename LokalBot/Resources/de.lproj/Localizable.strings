@@ -1901,6 +1901,7 @@
 "For you · %lld" = "Für dich · %lld";
 "Full summary" = "Vollständige Zusammenfassung";
 "Nothing for you from this meeting." = "Aus dieser Besprechung ist nichts für dich dabei.";
+"Nothing for others from this meeting." = "Aus dieser Besprechung ist nichts für andere dabei.";
 "Read the transcript" = "Transkript lesen";
 "Recap, decisions and actions appear here when it is done." = "Kurzfassung, Entscheidungen und Aktionen erscheinen hier, sobald es fertig ist.";
 "Refresh summary" = "Zusammenfassung aktualisieren";
@@ -2347,6 +2348,8 @@
 "%lld actions from this day’s meetings, all done" = "%lld Aktionen aus den Besprechungen dieses Tages, alle erledigt";
 "%lld action from this day’s meetings, deferred" = "%lld Aktion aus den Besprechungen dieses Tages, aufgeschoben";
 "%lld actions from this day’s meetings, none open" = "%lld Aktionen aus den Besprechungen dieses Tages, keine offen";
+"Actions from this day’s meetings" = "Aktionen aus den Besprechungen dieses Tages";
+"All done" = "Alle erledigt";
 "Delete screen moments…" = "Bildschirmmomente löschen…";
 "Every app and window LokalBot saw, hour by hour. Use it to check exact times." = "Jede App und jedes Fenster, das LokalBot gesehen hat, Stunde für Stunde. Hier kannst du genaue Zeiten prüfen.";
 "Coding agent" = "Programmieragent";
@@ -2587,3 +2590,11 @@
 "Codenames or clients, separated by commas" = "Codenamen oder Kunden, durch Kommas getrennt";
 "Meetings, actions, and window titles that use any of these names are linked to the project." = "Besprechungen, Aktionen und Fenstertitel, die einen dieser Namen verwenden, werden mit dem Projekt verknüpft.";
 "Suggested (one project)" = "Vorgeschlagen";
+"%lld overdue" = "%lld überfällig";
+"Showing the %lld most urgent" = "Zeigt die %lld dringendsten";
+"Now · %@" = "Jetzt · %@";
+"Upcoming meetings can show here too" = "Anstehende Besprechungen können hier auch erscheinen";
+"Open day" = "Tag öffnen";
+"Priorities for today" = "Prioritäten für heute";
+"Priorities from %@" = "Prioritäten vom %@";
+"Priorities from a previous workday" = "Prioritäten von einem früheren Arbeitstag";

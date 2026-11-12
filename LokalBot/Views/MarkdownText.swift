@@ -66,6 +66,9 @@ struct SelectableDigestText: View {
     var searchQuery: String = ""
     var activeMatchIndex: Int?
     var style: Style = .standard
+    /// Extra space between lines for larger reading text, in place of the
+    /// style's own.
+    var readingLineSpacing: CGFloat?
 
     @Environment(\.appTextScale) private var textScale
 
@@ -98,6 +101,7 @@ struct SelectableDigestText: View {
     }
 
     private var lineSpacing: CGFloat {
+        if let readingLineSpacing { return readingLineSpacing }
         switch style {
         case .editorial: return 4
         case .agent: return 5
@@ -715,6 +719,14 @@ struct SearchHighlightedText: View {
                 query: query,
                 activeMatchIndex: activeMatchIndex))
         }
+    }
+
+    /// Interface copy as a `Text`, for a place that takes one (a panel's
+    /// title): the catalog's wording until a search needs its matches marked.
+    static func interfaceText(_ key: String, query: String, activeMatchIndex: Int? = nil) -> Text {
+        guard !query.isEmpty else { return Text(LocalizedStringKey(key)) }
+        return Text(MeetingSearchHighlighting.apply(
+            to: AttributedString(key), query: query, activeMatchIndex: activeMatchIndex))
     }
 }
 
