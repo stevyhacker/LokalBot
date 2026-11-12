@@ -40,8 +40,9 @@ struct TimelineDigestPage: View {
                         .environment(\.dayDigestTimeRangeAction, DayDigestTimeRangeAction { range in
                             list.workRow(inTimeRange: range, day: model.day).map { row in { onSelectRow(row.id) } }
                         })
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("capture.dayDigest.text")
+                        // No identifier here: when the digest's only section
+                        // is Work Summary, SwiftUI merges this group with that
+                        // panel and an identifier here replaces the panel's.
                 }
             }
         }
