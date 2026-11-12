@@ -21,8 +21,9 @@ Your AI agents can search it too, from Claude Code, Codex, or any MCP client.
 [![Download LokalBot for macOS](https://img.shields.io/badge/%E2%80%82Download%20for%20macOS%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![Download LokalBot for Windows (alpha)](https://img.shields.io/badge/%E2%80%82Download%20for%20Windows%E2%80%82-alpha-0969da?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNiAxNic%2BPHBhdGggZmlsbD0nd2hpdGUnIGQ9J00wIDBoNy41djcuNUgwek04LjUgMEgxNnY3LjVIOC41ek0wIDguNWg3LjVWMTZIMHpNOC41IDguNUgxNlYxNkg4LjV6Jy8%2BPC9zdmc%2B)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![Download LokalBot for Linux (alpha)](https://img.shields.io/badge/%E2%80%82Download%20for%20Linux%E2%80%82-alpha-0969da?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
+[![Get the LokalBot companion app for Android on Google Play](https://img.shields.io/badge/%E2%80%82Get%20it%20on%20Google%20Play%E2%80%82-Android-0969da?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)
 
-<sub>Apple Silicon (M1 or later) with macOS 15+ · Windows 10/11 x64 (alpha) · Linux x86_64 (alpha) · on Mac, also <code>brew install --cask stevyhacker/tap/lokalbot</code></sub>
+<sub>Apple Silicon (M1 or later) with macOS 15+ · Windows 10/11 x64 (alpha) · Linux x86_64 (alpha) · Android 10+ companion · on Mac, also <code>brew install --cask stevyhacker/tap/lokalbot</code></sub>
 
 [![Latest release](https://img.shields.io/github/v/release/stevyhacker/lokalbot?color=1f6feb&label=release)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-2ea043)](LICENSE)
@@ -32,7 +33,7 @@ Your AI agents can search it too, from Claude Code, Codex, or any MCP client.
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Features](#features) · [Agents & CLI](#for-developers--agents) · [Windows & Linux](#windows-and-linux) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Website](https://www.lokalbot.com/)
+[Features](#features) · [Agents & CLI](#for-developers--agents) · [Windows & Linux](#windows-and-linux) · [Android](#on-your-phone) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Website](https://www.lokalbot.com/)
 
 </div>
 
@@ -134,6 +135,16 @@ Prepare local follow-up drafts. Also keep a note for every meeting in your Obsid
 
 A native Windows and Linux app, written in Rust, has the same pages and reads the same library, so a library moves between computers. Encrypted items, such as Ask history, Personal Context, screenshots, and remembered voices, open only on the computer that saved them. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, calendar, Agent Mode, and the CLI and MCP server all work. It's an alpha: the Windows build isn't code-signed yet, some features depend on your Linux desktop (Wayland support is partial), and Gmail in meeting briefs hasn't been ported. See [what works where](LinuxWindows/README.md#what-works-where) and [screenshots](LinuxWindows/docs/screenshots).
 
+<a id="on-your-phone"></a>
+
+### On your phone (Android)
+
+The Android app keeps an end-to-end encrypted copy of the meetings, actions, Timeline, Day Digests, people, and projects you choose to share, so you can read and search them offline. Ask sends your question to your computer, which answers with its own AI settings; away from it, queue the question for later. Pair it with a QR code under **Settings → Phones & tablets** on a Mac, Windows, or Linux computer. The phone syncs straight from your computer over your local network or Tailscale, with no LokalBot server in between.
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/android-today-dark.png" /><img src="Assets/readme/android-today-light.png" width="300" alt="LokalBot on Android showing Today: open action items with their meetings and yesterday's Day Digest, from the sample library" /></picture></div>
+
+[Get it on Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) (Android 10 or later), or install the APK from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest). They're signed with different keys, so pick one: switching later means uninstalling, which removes the phone's copy and its pairing. You can try the sample library before you pair. The iPhone and iPad app isn't in the App Store yet.
+
 ## For developers & agents
 
 Claude Code, Codex, or any MCP client can search your meetings through the bundled **`lokalbot-cli`** or its stdio **Model Context Protocol (MCP)** server. Ask what was decided, who owns an action item, or where a topic came up. Agents can read your library but can't change it.
@@ -232,6 +243,8 @@ LokalBot runs on Apple Silicon Macs with macOS 15 or later. Windows and Linux ar
 
 A library recorded on one platform opens on the others. Not every Mac feature is on Windows and Linux yet; see [what works where](LinuxWindows/README.md#what-works-where).
 
+**On your phone:** get the Android companion app on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) (Android 10 or later) and pair it under **Settings → Phones & tablets**. See [On your phone](#on-your-phone).
+
 1. **Install the app** for your platform and open it.
 2. **Choose what to capture.** Review recording settings: automatic detection, ask-first, or manual recording. Day tracking starts with activity only; saving screen text or screenshots is a separate opt-in. Grant only the permissions for the features you enable.
 3. **Let the models download.** Built-in transcription, search, summaries, and writing can then work offline. No model server to set up and no API key to bring.
@@ -269,6 +282,13 @@ Yes. Turn on **Meeting note export** to keep a Markdown note for every meeting i
 <summary><strong>Does it run on Windows or Linux?</strong></summary>
 
 Yes, as an alpha. The Windows and Linux app is a native Rust app with the same pages, the same models for summaries and search, and the same library format, so a library moves between computers. Encrypted items, such as Ask history, Personal Context, screenshots, and remembered voices, open only on the computer that saved them. Gmail in meeting briefs is Mac only for now, and on Wayland some features depend on your desktop. See [what works where](LinuxWindows/README.md#what-works-where).
+
+</details>
+
+<details>
+<summary><strong>Is there a phone app?</strong></summary>
+
+Yes, for Android 10 or later, on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion). It's a companion to LokalBot on your computer: it reads the meetings, actions, and Day Digests your computer shares, searches them offline, and sends your questions to your computer. Sharing is off until you turn on **Settings → Phones & tablets**, and the copy travels end-to-end encrypted over your local network or Tailscale, never through a LokalBot server. The iPhone and iPad app isn't in the App Store yet.
 
 </details>
 

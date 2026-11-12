@@ -77,7 +77,8 @@
           "Personal Context: facts, preferences, goals, and principles that Ask uses and agents read only when you share them",
           "A morning look back at yesterday from the overnight review",
           "Read-only CLI and MCP access for approved local agents",
-          "Open a meeting's action item in Claude Code or Codex, and optional Agent Mode with your approval"
+          "Open a meeting's action item in Claude Code or Codex, and optional Agent Mode with your approval",
+          "An Android companion app that keeps an end-to-end encrypted copy of what you share, paired directly with no LokalBot server"
         ],
         "downloadUrl": "https://github.com/stevyhacker/lokalbot/releases/latest",
         "installUrl": "https://github.com/stevyhacker/lokalbot/releases/latest",
@@ -96,7 +97,7 @@
         "publisher": {
           "@id": "https://www.lokalbot.com/#organization"
         },
-        "dateModified": "2026-11-05",
+        "dateModified": "2026-11-11",
         "image": "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
         "screenshot": [
           "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
@@ -110,6 +111,34 @@
           "https://www.raycast.com/stevan_bogosavljevic/lokalbot",
           "https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks",
           "https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack"
+        ]
+      },
+      {
+        "@type": "MobileApplication",
+        "@id": "https://www.lokalbot.com/#android",
+        "name": "LokalBot for Android",
+        "url": "https://www.lokalbot.com/#android",
+        "description": "The Android companion to LokalBot on a Mac, Windows, or Linux computer: an end-to-end encrypted copy of the meetings, actions, and Day Digests you share, searchable offline, with Ask answered by your computer.",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Android 10 or later",
+        "installUrl": "https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion",
+        "downloadUrl": "https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion",
+        "license": "https://www.gnu.org/licenses/gpl-3.0.en.html",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@id": "https://www.lokalbot.com/#organization"
+        },
+        "publisher": {
+          "@id": "https://www.lokalbot.com/#organization"
+        },
+        "screenshot": "https://www.lokalbot.com/assets/screens/android-today.webp",
+        "sameAs": [
+          "https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion"
         ]
       },
       {
@@ -217,9 +246,9 @@
   <main>
     <section class="hero home-hero" aria-labelledby="hero-title">
       <div class="hero__copy">
-        <a class="home-badge" href="blog/windows-and-linux-alpha">
+        <a class="home-badge" href="#android">
           <span class="home-badge__tag">New</span>
-          <span class="home-badge__text">LokalBot for Windows and Linux, in alpha</span>
+          <span class="home-badge__text">LokalBot for Android, on Google Play</span>
           <i class="ph ph-arrow-right" aria-hidden="true"></i>
         </a>
         <h1 class="hero__title" id="hero-title">Your personal context engine.</h1>
@@ -236,7 +265,7 @@
         </div>
         <p class="home-handoff" data-handoff hidden>
           <i class="ph ph-monitor" aria-hidden="true"></i>
-          <span>LokalBot is a desktop app for Mac, with Windows and Linux in alpha. <span data-handoff-share>Send this page to your computer with <span data-handoff-methods>AirDrop, Messages, or Notes</span>, or <button type="button" class="text-button" data-copy-link>copy the link</button>.</span><span data-handoff-copy hidden>Copy the link and open it on your computer.</span></span>
+          <span>LokalBot is a desktop app for Mac, with Windows and Linux in alpha. <span data-handoff-share>Send this page to your computer with <span data-handoff-methods>AirDrop, Messages, or Notes</span>, or <button type="button" class="text-button" data-copy-link>copy the link</button>.</span><span data-handoff-copy hidden>Copy the link and open it on your computer.</span><span data-handoff-android hidden> The Android companion app is on <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">Google Play</a>.</span></span>
         </p>
         <p class="visually-hidden" role="status" aria-live="polite" data-copy-status></p>
         <p class="hero__meta">Free and open source. No account. Screen memory is opt-in.</p>
@@ -374,6 +403,35 @@
         </figure>
       </div>
       <p class="home-platforms__note">It's an alpha: the Windows build isn't code-signed yet, Wayland support is partial, and a few Mac features haven't been ported. <a href="blog/windows-and-linux-alpha">What works and what's missing</a> &middot; <a href="local-ai-meeting-notes-linux">Linux guide</a> &middot; <a href="local-ai-meeting-notes-windows">Windows guide</a></p>
+    </section>
+
+    <section class="section home-agents home-phone" id="android" aria-labelledby="android-title">
+      <div class="home-agents__copy">
+        <p class="eyebrow">Android</p>
+        <h2 class="section__title" id="android-title">Take it with you.</h2>
+        <p>The Android app keeps a copy of the meetings, actions, and Day Digests your computer shares. It pairs with LokalBot on a Mac, Windows, or Linux.</p>
+        <ul class="home-agents__facts">
+          <li><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span><strong>Reads offline.</strong> Search the copy on your phone, with or without a connection.</span></li>
+          <li><i class="ph ph-chat" aria-hidden="true"></i><span><strong>Ask goes to your computer.</strong> It answers with its own AI settings. Away from it, queue the question for later.</span></li>
+          <li><i class="ph ph-lock-key" aria-hidden="true"></i><span><strong>No LokalBot server.</strong> Pair with a QR code, then sync end-to-end encrypted over your Wi-Fi or Tailscale. Off until you turn it on.</span></li>
+        </ul>
+        <div class="home-phone__cta">
+          <a class="btn btn--primary" href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">
+            <i class="ph ph-device-mobile" aria-hidden="true"></i>
+            Get it on Google Play
+          </a>
+        </div>
+        <p class="home-phone__note">Android 10 or later. Try the sample library before you pair. The iPhone and iPad app isn't in the App Store yet.</p>
+      </div>
+      <figure class="home-shot home-phone__shot">
+        <a class="home-image-link" href="assets/screens/android-today.webp" target="_blank" rel="noopener" aria-label="Open the full-size Android screenshot">
+          <picture>
+            <source srcset="assets/screens/android-today-dark.webp" media="(prefers-color-scheme: dark)" width="616" height="1336" />
+            <img src="assets/screens/android-today.webp" width="616" height="1336" alt="LokalBot on Android showing Today: open action items with the meetings they came from, and yesterday's Day Digest." loading="lazy" decoding="async" />
+          </picture>
+        </a>
+        <figcaption>Today on Android, with the sample library.</figcaption>
+      </figure>
     </section>
 
     <section class="section home-agents" id="agents" aria-labelledby="agents-title">
@@ -550,13 +608,14 @@
         <span class="brand__name">LokalBot</span>
       </a>
       <p>Your personal context engine.</p>
-      <p class="footer__meta">Free and open source. For Mac, with Windows and Linux in alpha.</p>
+      <p class="footer__meta">Free and open source. For Mac, with Windows and Linux in alpha, and an Android app.</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="#demo">Watch the demo</a>
       <a href="#features">What it does</a>
       <a href="#agents">Agent access</a>
+      <a href="#android">Android app</a>
       <a href="#how">How it works</a>
       <a href="guides">Guides</a>
       <a href="enshittification-proof">Keeping your data</a>

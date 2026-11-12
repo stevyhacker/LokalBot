@@ -19,8 +19,9 @@
 [![下载 macOS 版 LokalBot](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20macOS%20%E7%89%88%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![下载 Windows 版 LokalBot（alpha）](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20Windows%20%E7%89%88%E2%80%82-alpha-0969da?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNiAxNic%2BPHBhdGggZmlsbD0nd2hpdGUnIGQ9J00wIDBoNy41djcuNUgwek04LjUgMEgxNnY3LjVIOC41ek0wIDguNWg3LjVWMTZIMHpNOC41IDguNUgxNlYxNkg4LjV6Jy8%2BPC9zdmc%2B)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![下载 Linux 版 LokalBot（alpha）](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20Linux%20%E7%89%88%E2%80%82-alpha-0969da?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
+[![在 Google Play 获取 LokalBot 安卓配套应用](https://img.shields.io/badge/%E2%80%82Android%20%E7%89%88%E2%80%82-Google%20Play-0969da?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)
 
-<sub>Apple Silicon（M1 或更新）+ macOS 15 及以上 · Windows 10/11 x64（alpha）· Linux x86_64（alpha）· Mac 上也可以用 <code>brew install --cask stevyhacker/tap/lokalbot</code></sub>
+<sub>Apple Silicon（M1 或更新）+ macOS 15 及以上 · Windows 10/11 x64（alpha）· Linux x86_64（alpha）· Android 10 及以上（配套应用）· Mac 上也可以用 <code>brew install --cask stevyhacker/tap/lokalbot</code></sub>
 
 [![Latest release](https://img.shields.io/github/v/release/stevyhacker/lokalbot?color=1f6feb&label=release)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/stevyhacker/lokalbot/total?color=1f6feb&label=downloads)](https://github.com/stevyhacker/lokalbot/releases)
@@ -29,7 +30,7 @@
 
 [English](README.md) · **简体中文**
 
-[功能](#features) · [中文支持](#chinese) · [开发者与智能体](#developers) · [Windows 与 Linux](#windows-and-linux) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [官网](https://www.lokalbot.com/)
+[功能](#features) · [中文支持](#chinese) · [开发者与智能体](#developers) · [Windows 与 Linux](#windows-and-linux) · [Android](#on-your-phone) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [官网](https://www.lokalbot.com/)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" /><img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot 的使用过程：六个循环场景，演示数据为虚构内容，界面为英文。录制一场 Google Chrome 通话，实时转写逐行出现，随后生成纪要，点击待办的引用会跳到转写里的原话。输入 demo pres，同时找到在屏幕上看过的 Keynote 文稿、Mail 回复和两场会议。在 TextEdit 中，自动补全接着写完团队套餐的价格，按 Tab 接受。按住 Option-Space 说话，光标处写出一段简短的团队通知。向 Ask 提问，回答带编号引用，点击引用打开来源会议。在终端里，Claude Code 调用 LokalBot，列出设计评审的决定和还欠的事项。" /></picture>
 
@@ -138,6 +139,16 @@ Personal Context（个人上下文）是一份加密的列表，保存你的事�
 ### Windows 和 Linux 版（alpha）
 
 用 Rust 编写的原生 Windows 和 Linux 应用有相同的页面，读取相同格式的资料库，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议录制、转写、提问、搜索、工作记录、屏幕上下文、听写、自动补全、选择文字操作、语音朗读摘要、文件搜索、夜间回顾、个人上下文（Personal Context）、日历、Agent Mode 以及 CLI 和 MCP 服务器都能使用。目前还是 alpha 版：Windows 版尚未代码签名，部分功能取决于你的 Linux 桌面环境（对 Wayland 的支持还不完整），会议简报中的 Gmail 尚未移植。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)和[截图](LinuxWindows/docs/screenshots)。
+
+<a id="on-your-phone"></a>
+
+### 手机上（Android）
+
+Android 应用会保存一份端到端加密的副本，内容是你选择共享的会议、待办事项、时间线（Timeline）、每日摘要（Day Digest）、人物和项目，离线也能阅读和搜索。提问会发送到你的电脑，由电脑按它自己的 AI 设置作答；不在电脑旁时，可以先把问题排队，稍后再发。在 Mac、Windows 或 Linux 电脑上的 **Settings → Phones & tablets** 中扫描二维码完成配对。手机直接通过本地网络或 Tailscale 从你的电脑同步，中间没有 LokalBot 服务器。
+
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/android-today-dark.png" /><img src="Assets/readme/android-today-light.png" width="300" alt="Android 上的 LokalBot“今天”页面：待办事项及其所属会议，以及昨天的每日摘要，数据来自示例资料库" /></picture></div>
+
+可以在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取（需要 Android 10 或更新版本），也可以从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK 安装。两者使用不同的签名密钥，请选定一种：之后要换，需要先卸载，手机上的副本和配对都会被删除。在中国大陆无法访问 Google Play 时，请使用 APK。配对前可以先试用示例资料库。iPhone 和 iPad 应用尚未上架 App Store。
 
 <a id="chinese"></a>
 
@@ -252,6 +263,8 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 在一个平台上录制的资料库可以在其他平台上打开。并非所有 Mac 功能都已移植到 Windows 和 Linux，详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
 
+**手机上：** 在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取 Android 配套应用（Android 10 或更新版本），或从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK，然后在 **Settings → Phones & tablets** 中配对。详见[手机上](#on-your-phone)。
+
 1. **安装应用。** 安装对应平台的版本，然后打开它。
 2. **选择要采集的内容。** 检查录制设置：自动检测、先询问，还是手动录制。工作记录默认只记活动；保存屏幕文字或截图是单独的选项。只为你要用的功能授予权限。
 3. **等待模型下载。** 下载完成后，内置的转写、搜索、纪要和写作功能都可以离线使用，不需要配置模型服务器，也不需要 API Key。如果在中国大陆下载缓慢或失败，请先开启系统代理。
@@ -289,6 +302,13 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 <summary><strong>能在 Windows 或 Linux 上使用吗？</strong></summary>
 
 可以，目前是 alpha 版。Windows 和 Linux 版是用 Rust 编写的原生应用，页面相同，纪要和搜索使用相同的模型，资料库格式也相同，所以资料库可以在不同电脑之间迁移。加密保存的内容，例如提问历史、个人上下文、截图和记住的声纹，只能在保存它们的那台电脑上打开。会议简报中的 Gmail 目前只有 Mac 版支持；在 Wayland 上，部分功能取决于你的桌面环境。详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
+
+</details>
+
+<details>
+<summary><strong>有手机应用吗？</strong></summary>
+
+有，支持 Android 10 或更新版本，可以在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取，也可以从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK。它是电脑上 LokalBot 的配套应用：读取电脑共享的会议、待办事项和每日摘要，可以离线搜索，并把你的问题发送给电脑。在你开启 **Settings → Phones & tablets** 之前不会共享任何内容；副本通过本地网络或 Tailscale 端到端加密传输，从不经过 LokalBot 服务器。iPhone 和 iPad 应用尚未上架 App Store。
 
 </details>
 
