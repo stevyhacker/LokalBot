@@ -576,6 +576,7 @@
   "Meeting note export folder": "会議メモのエクスポート先フォルダ",
   "Meeting path copied.": "会議パスがコピーされました。",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "会議処理には Transcribe モデルと Think モデルが必要で、意味による検索には小さな埋め込みモデルが追加されます。ダウンロードは延期できます。キャプチャされた会議は、選択されたモデルを待ちます。",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "会議処理には Transcribe モデルと Think モデルが必要で、意味による検索には小さな埋め込みモデルが追加されます。セットアップ中にバックグラウンドでダウンロードされます。キャプチャされた会議は、選択されたモデルを待ちます。",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "会議の録音と自動補完は、OCR、埋め込み、ルーチンより優先されます。これらはその処理が空いたときに追いつきます。",
   "Meeting {id}": "ミーティング{id}",
   "Meeting · {0} · {date}": "ミーティング · {0} · {date}",

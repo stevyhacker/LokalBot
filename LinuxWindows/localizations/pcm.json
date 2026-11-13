@@ -576,6 +576,7 @@
   "Meeting note export folder": "Folder for meeting note export",
   "Meeting path copied.": "Meeting path don copy.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Meeting processing need Transcribe model and Think model, and search by meaning dey add small embedding model. You fit postpone downloads; captured meetings go wait for the models wey you choose.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Meeting processing need Transcribe model and Think model, and search by meaning dey add small embedding model. Dem go download for background while setup dey go on; captured meetings go wait for the models wey you choose.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Meeting recording and autocomplete dey come before OCR, embeddings, and routines, wey go catch up when those tasks no busy.",
   "Meeting {id}": "Meeting {id}",
   "Meeting · {0} · {date}": "Meeting · {0} · {date}",

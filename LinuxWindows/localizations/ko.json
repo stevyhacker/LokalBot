@@ -576,6 +576,7 @@
   "Meeting note export folder": "회의 노트 내보내기 폴더",
   "Meeting path copied.": "회의 경로가 복사되었습니다.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "회의 처리에는 Transcribe 모델과 Think 모델이 필요하며, 의미별 검색에는 작은 임베딩 모델이 추가됩니다. 다운로드를 연기할 수 있습니다. 캡처된 회의는 선택한 모델을 기다립니다.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "회의 처리에는 Transcribe 모델과 Think 모델이 필요하며, 의미별 검색에는 작은 임베딩 모델이 추가됩니다. 설정하는 동안 백그라운드에서 다운로드됩니다. 캡처된 회의는 선택한 모델을 기다립니다.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "회의 녹음과 자동 완성은 OCR, 임베딩, 루틴보다 우선하며, 이들은 해당 작업이 한가해질 때 따라잡습니다.",
   "Meeting {id}": "{id}를 만나다",
   "Meeting · {0} · {date}": "회의 · {0} · {date}",

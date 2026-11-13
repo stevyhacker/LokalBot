@@ -576,6 +576,7 @@
   "Meeting note export folder": "会议笔记导出文件夹",
   "Meeting path copied.": "已复制会议路径。",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "会议处理需要一个 Transcribe 模型和一个 Think 模型，按含义搜索则添加一个小型嵌入模型。可以推迟下载；捕获的会议等待他们选择的模型。",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "会议处理需要一个 Transcribe 模型和一个 Think 模型，按含义搜索则添加一个小型嵌入模型。它们会在设置期间于后台下载；捕获的会议等待他们选择的模型。",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "会议录制和自动补全优先于 OCR、嵌入和例行任务；后者会在前者空闲时补上。",
   "Meeting {id}": "会议{id}",
   "Meeting · {0} · {date}": "会议·{0}·{date}",

@@ -527,6 +527,30 @@ pub fn custom_removal_blocker(
     downloaded.then(|| "Remove its download in Model Storage first.".to_string())
 }
 
+/// Run at launch. Through 0.12.3 the port saved LFM2.5 1.2B as everyone's
+/// Autocomplete model, though the Mac and this catalog recommend Gemma 4 E2B,
+/// and a saved choice outlives a changed default. Setup's "Also prepare
+/// Autocomplete" and turning autocomplete on both downloaded that default, so
+/// a downloaded LFM2.5 isn't a choice either. Moves settings that hold it
+/// while autocomplete is off, and Think isn't the Lightweight preset's, to
+/// Gemma 4 E2B. With autocomplete on, LFM2.5 stays. A downloaded LFM2.5 file
+/// stays on disk, listed as unused in Model Storage, where it can be deleted.
+/// It runs once per library, so choosing LFM2.5 afterwards sticks. Returns
+/// whether the settings changed and need saving.
+pub fn adopt_default_autocomplete(settings: &mut lokalbot_core::Settings) -> bool {
+    if settings.autocomplete_default_adopted {
+        return false;
+    }
+    settings.autocomplete_default_adopted = true;
+    let unused_default = settings.cotyping_built_in_model_id == LIGHTWEIGHT_AUTOCOMPLETE_ID
+        && !settings.cotyping_enabled
+        && settings.built_in_model_id != COMPACT_FALLBACK_ID;
+    if unused_default {
+        settings.cotyping_built_in_model_id = QUALITY_AUTOCOMPLETE_ID.to_string();
+    }
+    true
+}
+
 pub fn embedding_entry() -> &'static ModelEntry {
     entry(EMBEDDING_ID).expect("the embedder is in the catalog")
 }
@@ -807,6 +831,66 @@ mod tests {
             assert!(!autocomplete.contains(&excluded), "{excluded}");
         }
         assert!(autocomplete_entries(Some("gemma4-12b")).any(|e| e.id == "gemma4-12b"));
+    }
+
+    /// 0.12.3 on Windows offered LFM2.5 1.2B for autocomplete because the
+    /// port's settings default disagreed with the Mac and this catalog.
+    #[test]
+    fn autocomplete_defaults_to_gemma_e2b_as_on_macos() {
+        let settings = lokalbot_core::Settings::default();
+        assert_eq!(settings.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
+        assert_eq!(QUALITY_AUTOCOMPLETE_ID, "gemma4-e2b-base-q6");
+        assert_eq!(PRESETS[0].autocomplete, settings.cotyping_built_in_model_id);
+    }
+
+    #[test]
+    fn an_unused_lfm_default_moves_to_gemma_e2b() {
+        let older = || lokalbot_core::Settings {
+            cotyping_built_in_model_id: LIGHTWEIGHT_AUTOCOMPLETE_ID.into(),
+            ..Default::default()
+        };
+
+        // Downloaded or not: 0.12.3's setup and autocomplete switch both
+        // fetched the default, so neither tells a choice apart.
+        let mut settings = older();
+        assert!(adopt_default_autocomplete(&mut settings));
+        assert_eq!(settings.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
+        // Once per library: LFM2.5 chosen afterwards stays.
+        settings.cotyping_built_in_model_id = LIGHTWEIGHT_AUTOCOMPLETE_ID.into();
+        assert!(!adopt_default_autocomplete(&mut settings));
+        assert_eq!(
+            settings.cotyping_built_in_model_id,
+            LIGHTWEIGHT_AUTOCOMPLETE_ID
+        );
+
+        // Autocomplete in use, or the Lightweight preset: LFM2.5 stays.
+        let mut on = lokalbot_core::Settings {
+            cotyping_enabled: true,
+            ..older()
+        };
+        let mut lightweight = lokalbot_core::Settings {
+            built_in_model_id: COMPACT_FALLBACK_ID.into(),
+            ..older()
+        };
+        adopt_default_autocomplete(&mut on);
+        adopt_default_autocomplete(&mut lightweight);
+        assert_eq!(on.cotyping_built_in_model_id, LIGHTWEIGHT_AUTOCOMPLETE_ID);
+        assert_eq!(
+            lightweight.cotyping_built_in_model_id,
+            LIGHTWEIGHT_AUTOCOMPLETE_ID
+        );
+
+        // Any other model stays, and new settings only record that it ran.
+        let mut other = lokalbot_core::Settings {
+            cotyping_built_in_model_id: "qwen3.5-2b".into(),
+            ..Default::default()
+        };
+        adopt_default_autocomplete(&mut other);
+        assert_eq!(other.cotyping_built_in_model_id, "qwen3.5-2b");
+        let mut fresh = lokalbot_core::Settings::default();
+        assert!(adopt_default_autocomplete(&mut fresh));
+        assert!(fresh.autocomplete_default_adopted);
+        assert_eq!(fresh.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
     }
 
     #[test]

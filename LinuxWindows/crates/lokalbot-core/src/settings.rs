@@ -279,6 +279,10 @@ pub struct Settings {
     pub github_star_dismissed: bool,
     pub github_star_summary_completed: bool,
     pub github_star_active_days: Vec<String>,
+    /// The one-time move of an unused LFM2.5 Autocomplete default to Gemma 4
+    /// E2B has run (`lokalbot_ai::catalog::adopt_default_autocomplete`), so
+    /// a later choice of LFM2.5 is kept. Port-only.
+    pub autocomplete_default_adopted: bool,
     /// Pane widths you dragged, by pane (`LokalBot.people`). The Mac keeps
     /// these in its split views instead.
     pub pane_widths: std::collections::BTreeMap<String, f64>,
@@ -375,7 +379,8 @@ impl Default for Settings {
             cotyping_debounce_ms: 160,
             cotyping_multi_line: false,
             cotyping_accept_granularity: AcceptGranularity::Word,
-            cotyping_built_in_model_id: "lfm2.5-1.2b-instruct".into(),
+            // Gemma 4 E2B Base, as on macOS (`ModelCatalog.recommendedCotypingID`).
+            cotyping_built_in_model_id: "gemma4-e2b-base-q6".into(),
             cotyping_excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             cotyping_excluded_domains: String::new(),
             cotyping_use_visible_context: true,
@@ -467,6 +472,7 @@ impl Default for Settings {
             github_star_dismissed: false,
             github_star_summary_completed: false,
             github_star_active_days: Vec::new(),
+            autocomplete_default_adopted: false,
             pane_widths: Default::default(),
             other: serde_json::Map::new(),
         }

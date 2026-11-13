@@ -576,6 +576,7 @@
   "Meeting note export folder": "فولدر تصدير ملاحظات الاجتماعات",
   "Meeting path copied.": "تم نسخ مسار الاجتماع.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "تحتاج معالجة الاجتماع إلى نموذج Transcribe ونموذج Think، كما يضيف البحث بالمعنى نموذج تضمين صغير. يمكن تأجيل التنزيلات. الاجتماعات الملتقطة تنتظر النماذج المختارة.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "تحتاج معالجة الاجتماع إلى نموذج Transcribe ونموذج Think، كما يضيف البحث بالمعنى نموذج تضمين صغير. بتتنزل في الخلفية أثناء الإعداد؛ الاجتماعات الملتقطة بتستنى النماذج المختارة.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "تسجيل الاجتماعات والإكمال التلقائي ليهم الأولوية على OCR والتضمينات والمهام الدورية، اللي بتلحق نفسها لما المهام دي تبقى فاضية.",
   "Meeting {id}": "لقاء {id}",
   "Meeting · {0} · {date}": "الاجتماع · {0} · {date}",

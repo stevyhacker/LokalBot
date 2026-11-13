@@ -61,8 +61,8 @@ As you type in other apps, gray text suggests how your sentence ends. Press **Ta
 
 - **Knows what you're answering.** It reads the message or page above the field, so a reply fits the thread.
 - **Remembers your meetings, if you let it.** Turn on meeting and work memory, and it can bring in what was decided, like the ship date above.
-- **Writes in your language.** On Mac, the same small model keeps up in German, French, Italian, Spanish, and more.
-- **Stays on your computer.** A small model runs inside the app: Gemma 4 E2B on Mac, LFM2.5 1.2B on Windows and Linux. What you type and the context it reads stay on your computer, unless you choose an autocomplete server and approve it.
+- **Writes in your language.** The same small model keeps up in German, French, Italian, Spanish, and more.
+- **Stays on your computer.** A small model runs inside the app: Gemma 4 E2B on Mac, Windows and Linux. What you type and the context it reads stay on your computer, unless you choose an autocomplete server and approve it.
 
 Turn it on in **Settings → Autocomplete**, where you can try it on a sample conversation first and later see how much it wrote for you.
 
@@ -310,7 +310,7 @@ The table leaves out helper models, which download when a feature first needs th
 
 Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include Parakeet, Granite Speech, Whisper large-v3 turbo, SenseVoice for Chinese, Japanese, and Korean, and GigaAM for Russian; Pyannote Community-1 remains available for diarization. The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Model choices can vary by release; Settings shows the active selections and available presets. Speed and memory use depend on your computer, model, context length, and other workloads.
 
-On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses LFM2.5 1.2B by default. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
+On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses Gemma 4 E2B by default, as on Mac. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
 
 [Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/EmbeddingIndex.swift) · [Model and runtime details](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
 

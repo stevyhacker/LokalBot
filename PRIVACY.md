@@ -1413,7 +1413,7 @@ platform differences:
     built into Windows on Windows, and the Tesseract program on Linux if it's
     installed, in your app and system languages. ocrs is the fallback for Latin
     letters. Its models and Tesseract's language data download only when you ask
-    for them in Settings.
+    for them in Settings or choose screen context during setup.
   - On Linux, Tesseract gets a window's pixels over a pipe from memory, and they
     are never written to a file for it. Only the text it returns is used; nothing
     else it prints is kept or logged.
@@ -1625,14 +1625,19 @@ platform differences:
   answers), fast live text, Follow-through and Hand off are not in the Windows
   and Linux app yet, so none of their data is collected or sent there.
 - **Network access** is limited to model and runtime downloads you request
-  (models from Hugging Face, or HF-Mirror or ModelScope if you choose them, and
-  GitHub, the llama.cpp runtime from GitHub, the
-  OCR model from the ocrs project's storage, Tesseract's language data from
-  GitHub), Agent Mode setup, update checks,
-  AI servers and subscription plans you approve, and the calendar links you
-  add. If you already installed the llama.cpp runtime and an app update moves
-  to a new build, LokalBot downloads that build from GitHub on its own, checks
-  it against its pinned size and SHA-256, and removes the old one. CUDA is the
+  (models from Hugging Face, or HF-Mirror or ModelScope if you choose them,
+  and GitHub, the llama.cpp runtime from GitHub, the OCR model from the ocrs
+  project's storage, Tesseract's language data from GitHub), Agent Mode setup,
+  update checks, AI servers and subscription plans you approve, and the
+  calendar links you add. Setup counts as asking: once its window opens, the
+  models your choices there need (transcription, Think, search by meaning and
+  the llama.cpp runtime, and screen text or autocomplete when you choose them)
+  download in the background while you finish it. If huggingface.co may be
+  blocked (Simplified Chinese or a mainland-China locale) and it's still the
+  source, setup waits until you choose a source or start the download. If you
+  already installed the llama.cpp runtime and an app update moves to a new
+  build, LokalBot downloads that build from GitHub on its own, checks it
+  against its pinned size and SHA-256, and removes the old one. CUDA is the
   exception: it waits until you set it up again. Removing the runtime in
   Settings stops this.
 

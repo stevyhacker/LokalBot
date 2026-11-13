@@ -576,6 +576,7 @@
   "Meeting note export folder": "Babban fayil na fitar da bayanan kula na taro",
   "Meeting path copied.": "An kwafi hanyar taro.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Gudanar da taro yana buƙatar samfurin Rubutu da samfurin Think, kuma bincike ta ma'ana yana ƙara ƙaramin ƙirar haɗawa. Ana iya jinkirta saukewa; kama tarurruka suna jiran samfuran da aka zaɓa.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Gudanar da taro yana buƙatar samfurin Rubutu da samfurin Think, kuma bincike ta ma'ana yana ƙara ƙaramin ƙirar haɗawa. Ana saukar da su a bango yayin saitin; tarurrukan da aka kama suna jiran samfuran da aka zaɓa.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Rikodin taro da kammalawa kai tsaye sun fi OCR, embeddings, da ayyuka na yau da kullum fifiko, waɗanda ake cim ma su idan waɗannan ayyuka ba su aiki.",
   "Meeting {id}": "Taro {id}",
   "Meeting · {0} · {date}": "Taro · {0} · {date}",

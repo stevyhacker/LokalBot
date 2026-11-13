@@ -576,6 +576,7 @@
   "Meeting note export folder": "Fascikla za izvoz beležaka sa sastanaka",
   "Meeting path copied.": "Putanja sastanka je kopirana.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Za obradu sastanka potreban je model Transkripcije i model Think, a pretraga po značenju dodaje mali model ugradnje. Preuzimanja se mogu odložiti; snimljeni sastanci čekaju svoje odabrane modele.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Za obradu sastanka potreban je model Transkripcije i model Think, a pretraga po značenju dodaje mali model ugradnje. Preuzimaju se u pozadini tokom podešavanja; snimljeni sastanci čekaju svoje odabrane modele.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Snimanje sastanaka i automatsko dovršavanje imaju prednost nad OCR-om, embedding obradom i rutinama, koji nadoknađuju kada ti zadaci miruju.",
   "Meeting {id}": "Sastanak {id}",
   "Meeting · {0} · {date}": "Sastanak · {0} · {date}",

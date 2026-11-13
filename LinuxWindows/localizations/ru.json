@@ -576,6 +576,7 @@
   "Meeting note export folder": "Папка экспорта заметок встреч",
   "Meeting path copied.": "Путь к собранию скопирован.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Для обработки собраний требуются модель Transcribe и модель Think, а поиск по смыслу добавляет небольшую модель внедрения. Загрузки могут быть отложены; захваченные встречи ждут выбранных моделей.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Для обработки собраний требуются модель Transcribe и модель Think, а поиск по смыслу добавляет небольшую модель внедрения. Они загружаются в фоне во время настройки; захваченные встречи ждут выбранных моделей.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Запись встреч и автодополнение имеют приоритет над OCR, эмбеддингами и процедурами, которые наверстывают, когда эти задачи простаивают.",
   "Meeting {id}": "Встреча {id}",
   "Meeting · {0} · {date}": "Встреча · {0} · {date}",

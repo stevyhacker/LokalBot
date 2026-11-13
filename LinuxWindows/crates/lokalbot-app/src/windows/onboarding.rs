@@ -1,10 +1,12 @@
 //! Welcome to LokalBot (`OnboardingView.swift`): four steps. Choices stay a
-//! draft until "Apply Choices and Start"; model downloads happen only when
-//! asked for. macOS permission panes have no equivalent here, so step two
-//! checks the microphone, system audio and activity tracking instead.
-//! Step three can also prepare autocomplete's model, which stays off until
-//! it is turned on in Settings → Writing.
+//! draft until "Apply Choices and Start", but the models they need download
+//! in the background from the moment the window opens, so they are ready or
+//! nearly so when setup ends. macOS permission panes have no equivalent
+//! here, so step two checks the microphone, system audio and activity
+//! tracking instead. Step three can also prepare autocomplete's model, which
+//! stays off until it is turned on in Settings → Writing.
 
+use std::collections::HashSet;
 use std::time::Duration;
 
 use crate::i18n::h_flex;
@@ -20,7 +22,7 @@ use gpui_kit::{
     WindowOptions, div, img, px, relative, size,
 };
 use lokalbot_core::ScreenContextMode;
-use lokalbot_core::settings::{AutoRecordMode, SummarizerBackend};
+use lokalbot_core::settings::{AutoRecordMode, ModelDownloadSource, SummarizerBackend};
 
 use crate::pages::ask::composer_inference;
 use crate::pages::settings::model_options::download_source_row;
@@ -144,6 +146,9 @@ pub struct Onboarding {
     draft: Draft,
     /// "Also prepare Autocomplete (optional)".
     include_autocomplete: bool,
+    /// Downloads this window has asked for, so each starts on its own only
+    /// once. Retry asks for them again.
+    started: HashSet<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -152,6 +157,11 @@ impl Onboarding {
         let data = AppData::global(cx);
         let settings = data.read(cx).settings.clone();
         let subscriptions = vec![cx.observe_in(&data, window, |_, _, _, cx| cx.notify())];
+        // Once the window exists, start what setup already knows it needs.
+        let page = cx.weak_entity();
+        cx.defer(move |cx| {
+            page.update(cx, |this, cx| this.start_downloads(cx)).ok();
+        });
         Self {
             data,
             step: Step::Capture,
@@ -163,6 +173,7 @@ impl Onboarding {
                 coding_agent_sessions: settings.coding_agent_evidence_enabled,
             },
             include_autocomplete: false,
+            started: HashSet::new(),
             _subscriptions: subscriptions,
         }
     }
@@ -170,6 +181,8 @@ impl Onboarding {
     fn go(&mut self, step: Step, cx: &mut Context<Self>) {
         self.forward = step > self.step;
         self.step = step;
+        // The first step may have chosen screen text.
+        self.start_downloads(cx);
         cx.notify();
     }
 
@@ -192,25 +205,63 @@ impl Onboarding {
         window.remove_window();
     }
 
-    fn prepare_models(&mut self, cx: &mut Context<Self>) {
-        let include_autocomplete = self.include_autocomplete;
-        // The draft is not applied yet, so what its screen text needs is asked for here.
+    /// Setup downloads what it needs in the background as soon as it is
+    /// chosen: the meeting models when the window opens, what screen text
+    /// needs once the first step chooses it, and Autocomplete's model once
+    /// asked for. Where huggingface.co may be blocked, nothing starts before
+    /// a download source is chosen or "Prepare Selected Models" is pressed.
+    fn start_downloads(&mut self, cx: &mut Context<Self>) {
+        if waits_for_download_source(&self.data.read(cx).settings) {
+            return;
+        }
+        self.request_downloads(cx);
+    }
+
+    /// Asks for every selected model this PC lacks that this window hasn't
+    /// asked for yet. The meeting models go through `PrepareModels`, which
+    /// fetches them one at a time.
+    fn request_downloads(&mut self, cx: &mut Context<Self>) {
         let screen_text = self.draft.screen_context() != ScreenContextMode::ActivityOnly;
-        self.data.update(cx, |data, cx| {
-            data.request(AppEvent::PrepareModels, cx);
-            if screen_text && let Some(download) = data.models.screen_text.download {
-                data.request(AppEvent::DownloadModel(download.id.to_string()), cx);
-            }
-            if include_autocomplete {
-                let missing: Vec<String> = autocomplete_needs(&data.settings)
-                    .into_iter()
+        let (meeting, extra) = {
+            let data = self.data.read(cx);
+            let needs = setup_downloads(
+                &data.settings,
+                screen_text
+                    .then_some(data.models.screen_text.download)
+                    .flatten()
+                    .map(|d| d.id),
+                self.include_autocomplete,
+            );
+            let missing = |ids: Vec<String>| -> Vec<String> {
+                ids.into_iter()
                     .filter(|id| !data.models.installed.contains(id))
-                    .collect();
-                for id in missing {
-                    data.request(AppEvent::DownloadModel(id), cx);
-                }
+                    .filter(|id| !data.downloads.get(id).is_some_and(|d| d.error.is_none()))
+                    .filter(|id| !self.started.contains(id))
+                    .collect()
+            };
+            (missing(needs.meeting), missing(needs.extra))
+        };
+        if meeting.is_empty() && extra.is_empty() {
+            return;
+        }
+        self.data.update(cx, |data, cx| {
+            if !meeting.is_empty() {
+                data.request(AppEvent::PrepareModels, cx);
+            }
+            for id in &extra {
+                data.request(AppEvent::DownloadModel(id.clone()), cx);
             }
         });
+        self.started.extend(meeting);
+        self.started.extend(extra);
+        cx.notify();
+    }
+
+    /// "Prepare Selected Models" where the download source comes first, and
+    /// Retry after a download failed.
+    fn prepare_models(&mut self, cx: &mut Context<Self>) {
+        self.started.clear();
+        self.request_downloads(cx);
     }
 
     fn render_capture(&self, cx: &mut Context<Self>) -> Div {
@@ -499,14 +550,18 @@ impl Onboarding {
             0 => model_name(id),
             bytes => format!("{} · {}", model_name(id), size_label(bytes)),
         };
-        let source_data = self.data.clone();
+        let source_page = cx.entity();
         let download_source = shows_download_source(&settings).then(|| {
             download_source_row(
                 settings.model_download_source,
                 false,
                 move |source, _, cx| {
-                    source_data.update(cx, |data, cx| {
-                        data.update_settings(|s| s.model_download_source = source, cx)
+                    source_page.update(cx, |this, cx| {
+                        this.data.update(cx, |data, cx| {
+                            data.update_settings(|s| s.model_download_source = source, cx)
+                        });
+                        // Choosing where to download from is asking for the download.
+                        this.prepare_models(cx);
                     })
                 },
                 cx,
@@ -525,9 +580,6 @@ impl Onboarding {
         let search = settings
             .semantic_search_enabled
             .then(|| model_status(embedding_id, status.embeddings_ready));
-        // Everything "Prepare" downloads: Transcribe with voice detection and
-        // speaker separation, Think, search by meaning, the llama.cpp runtime,
-        // what screen text needs when chosen, and Autocomplete's model when asked for.
         let screen_text_download = (self.draft.screen_context() != ScreenContextMode::ActivityOnly)
             .then_some(status.screen_text.download)
             .flatten();
@@ -547,35 +599,54 @@ impl Onboarding {
             ),
             None => screen_text_engine_name(&status.screen_text).to_string(),
         };
-        let mut needed = models_in_use(&settings);
-        // Counted from what this computer lacks, not from what could be installed.
-        needed.retain(|id| {
-            id != lokalbot_ai::ocr::OCR_MODEL_ID && id != lokalbot_ai::ocr::OCR_LANGUAGES_ID
-        });
-        if self.include_autocomplete {
-            for id in autocomplete_needs(&settings) {
-                if !needed.contains(&id) {
-                    needed.push(id);
-                }
-            }
-        }
+        // Everything setup downloads, counted from what this computer lacks,
+        // not from what could be installed.
+        let needed = setup_downloads(
+            &settings,
+            screen_text_download.map(|d| d.id),
+            self.include_autocomplete,
+        )
+        .all();
         let download: u64 = needed
             .iter()
             .filter(|id| !status.installed.contains(id))
-            .map(|id| model_bytes(id, &settings))
-            .sum::<u64>()
-            + screen_text_download.map_or(0, |d| d.bytes);
+            .map(|id| match screen_text_download {
+                Some(screen_text) if screen_text.id == id.as_str() => screen_text.bytes,
+                _ => model_bytes(id, &settings),
+            })
+            .sum();
+        let running = needed
+            .iter()
+            .any(|id| downloads.get(id).is_some_and(|d| d.error.is_none()));
+        let failed = needed
+            .iter()
+            .any(|id| downloads.get(id).is_some_and(|d| d.error.is_some()));
+        // Not asked for by this window: where the source comes first, the
+        // download waits for a choice.
+        let unasked = needed.iter().any(|id| {
+            !status.installed.contains(id)
+                && !self.started.contains(id)
+                && !downloads.contains_key(id)
+        });
+        let action = if download == 0 || running {
+            None
+        } else if failed {
+            Some(lokalbot_i18n::tr("Retry"))
+        } else if unasked {
+            Some(lokalbot_i18n::tr("Prepare Selected Models"))
+        } else {
+            None
+        };
         let autocomplete = model_status(
             &settings.cotyping_built_in_model_id,
             status.autocomplete_ready,
         );
         let page = cx.entity();
         let toggle_page = page.clone();
-        let preparing = downloads.values().any(|d| d.error.is_none());
         v_flex()
             .gap(px(14.))
             .child(text(
-                lokalbot_i18n::tr("Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models."),
+                lokalbot_i18n::tr("Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models."),
                 lb.text_secondary,
             ))
             .child(model_row(lokalbot_i18n::tr("Speech recognition"), with_size(&settings.transcription_model), speech, downloads.get(&settings.transcription_model).map(|d| d.fraction()), cx))
@@ -609,6 +680,9 @@ impl Onboarding {
                         let on = *on;
                         toggle_page.update(cx, |this, cx| {
                             this.include_autocomplete = on;
+                            if on {
+                                this.start_downloads(cx);
+                            }
                             cx.notify();
                         })
                     })),
@@ -628,14 +702,15 @@ impl Onboarding {
                 h_flex()
                     .gap(px(12.))
                     .items_center()
-                    .child(
-                        Button::new("onboarding-prepare")
-                            .outline()
-                            .icon(Icon::new(Ico::CircleArrowDown))
-                            .label(if preparing { lokalbot_i18n::tr("Preparing…") } else { lokalbot_i18n::tr("Prepare Selected Models") })
-                            .disabled(preparing || download == 0)
-                            .on_click(move |_, _, cx| page.update(cx, |this, cx| this.prepare_models(cx))),
-                    )
+                    .when_some(action, |this, label| {
+                        this.child(
+                            Button::new("onboarding-prepare")
+                                .outline()
+                                .icon(Icon::new(Ico::CircleArrowDown))
+                                .label(label)
+                                .on_click(move |_, _, cx| page.update(cx, |this, cx| this.prepare_models(cx))),
+                        )
+                    })
                     .child(
                         div()
                             .flex_1()
@@ -649,6 +724,12 @@ impl Onboarding {
                             }),
                     ),
             )
+            .when(running, |this| {
+                this.child(text(
+                    lokalbot_i18n::tr("You can start now. The download keeps going in the background."),
+                    lb.text_secondary,
+                ))
+            })
             .child(text(
                 lokalbot_i18n::tr("Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept."),
                 lb.text_secondary,
@@ -847,11 +928,72 @@ impl Render for Onboarding {
 /// Simplified Chinese, or once a mirror is already chosen. Settings → Models
 /// always has the same picker.
 fn shows_download_source(settings: &lokalbot_core::Settings) -> bool {
-    settings.model_download_source != lokalbot_core::settings::ModelDownloadSource::HuggingFace
-        || lokalbot_i18n::current().code == "zh-Hans"
+    settings.model_download_source != ModelDownloadSource::HuggingFace || in_mainland_china()
+}
+
+/// Setup downloads on its own except where huggingface.co may be blocked
+/// and is still the source: there it waits until a source is chosen or
+/// "Prepare Selected Models" is pressed.
+fn waits_for_download_source(settings: &lokalbot_core::Settings) -> bool {
+    waits_for_source(settings.model_download_source, in_mainland_china())
+}
+
+fn waits_for_source(source: ModelDownloadSource, in_mainland_china: bool) -> bool {
+    source == ModelDownloadSource::HuggingFace && in_mainland_china
+}
+
+/// The interface is in Simplified Chinese, or the system prefers a
+/// mainland-China locale.
+fn in_mainland_china() -> bool {
+    lokalbot_i18n::current().code == "zh-Hans"
         || lokalbot_i18n::system_preferences()
             .first()
             .is_some_and(|preference| is_mainland_china_locale(preference))
+}
+
+/// What setup downloads for the choices on screen.
+#[derive(Debug, PartialEq)]
+struct SetupDownloads {
+    /// What the engine's `PrepareModels` fetches, one at a time: Transcribe
+    /// with voice detection and speaker separation, Think, search by meaning
+    /// and the llama.cpp runtime.
+    meeting: Vec<String>,
+    /// The rest, each asked for on its own: what the chosen screen text
+    /// needs, and Autocomplete's model when asked for.
+    extra: Vec<String>,
+}
+
+impl SetupDownloads {
+    fn all(self) -> Vec<String> {
+        let mut ids = self.meeting;
+        ids.extend(self.extra);
+        ids
+    }
+}
+
+/// `screen_text` is the download the draft's screen context would need.
+fn setup_downloads(
+    settings: &lokalbot_core::Settings,
+    screen_text: Option<&str>,
+    include_autocomplete: bool,
+) -> SetupDownloads {
+    // `PrepareModels` leaves Autocomplete to its own switch, and screen text
+    // to what the settings, not the draft, chose.
+    let meeting_settings = lokalbot_core::Settings {
+        cotyping_enabled: false,
+        ..settings.clone()
+    };
+    let mut meeting = models_in_use(&meeting_settings);
+    meeting.retain(|id| {
+        id != lokalbot_ai::ocr::OCR_MODEL_ID && id != lokalbot_ai::ocr::OCR_LANGUAGES_ID
+    });
+    let mut extra: Vec<String> = screen_text.map(str::to_string).into_iter().collect();
+    if include_autocomplete {
+        extra.extend(autocomplete_needs(settings));
+    }
+    let mut seen = HashSet::new();
+    extra.retain(|id| !meeting.contains(id) && seen.insert(id.clone()));
+    SetupDownloads { meeting, extra }
 }
 
 /// `zh-Hans`, `zh_CN.UTF-8`, `en-CN`: Simplified Chinese or the CN region.
@@ -995,6 +1137,61 @@ fn model_row(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn setup_downloads_split_what_prepare_models_fetches() {
+        use crate::pages::settings::models::RUNTIME_ID;
+        use lokalbot_ai::ocr::{OCR_LANGUAGES_ID, OCR_MODEL_ID};
+
+        let settings = lokalbot_core::Settings::default();
+        let autocomplete = settings.cotyping_built_in_model_id.clone();
+        let plain = setup_downloads(&settings, None, false);
+        for id in [&settings.transcription_model, &settings.built_in_model_id] {
+            assert!(plain.meeting.contains(id), "{id}");
+        }
+        assert!(plain.meeting.contains(&RUNTIME_ID.to_string()));
+        assert!(!plain.meeting.contains(&autocomplete));
+        assert!(plain.extra.is_empty());
+
+        // The runtime comes with the meeting models; screen text and
+        // Autocomplete's model are asked for on their own, once each.
+        let both = setup_downloads(&settings, Some(OCR_LANGUAGES_ID), true);
+        assert_eq!(both.meeting, plain.meeting);
+        assert_eq!(
+            both.extra,
+            [OCR_LANGUAGES_ID.to_string(), autocomplete.clone()]
+        );
+
+        // Autocomplete already on, or screen text already chosen in settings,
+        // still isn't something `PrepareModels` downloads.
+        let on = lokalbot_core::Settings {
+            cotyping_enabled: true,
+            screen_context_capture_mode: ScreenContextMode::Text,
+            ..settings.clone()
+        };
+        let meeting = setup_downloads(&on, None, false).meeting;
+        assert!(!meeting.contains(&autocomplete));
+        assert!(!meeting.contains(&OCR_MODEL_ID.to_string()));
+
+        // With Think on a server and no search by meaning, Autocomplete
+        // brings the runtime itself.
+        let remote = lokalbot_core::Settings {
+            summarizer_backend: SummarizerBackend::Ollama,
+            semantic_search_enabled: false,
+            ..settings
+        };
+        let remote = setup_downloads(&remote, None, true);
+        assert!(!remote.meeting.contains(&RUNTIME_ID.to_string()));
+        assert_eq!(remote.extra, [autocomplete, RUNTIME_ID.to_string()]);
+    }
+
+    #[test]
+    fn only_hugging_face_in_mainland_china_waits_for_a_source() {
+        assert!(waits_for_source(ModelDownloadSource::HuggingFace, true));
+        assert!(!waits_for_source(ModelDownloadSource::HuggingFace, false));
+        assert!(!waits_for_source(ModelDownloadSource::HfMirror, true));
+        assert!(!waits_for_source(ModelDownloadSource::ModelScope, true));
+    }
 
     #[test]
     fn mainland_china_locales_get_the_download_source() {

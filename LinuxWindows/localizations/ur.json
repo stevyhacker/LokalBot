@@ -576,6 +576,7 @@
   "Meeting note export folder": "اجلاس کے نوٹس برآمد کرنے کا فولڈر",
   "Meeting path copied.": "میٹنگ کا راستہ کاپی ہو گیا۔",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "میٹنگ پروسیسنگ کے لیے ٹرانسکرائب ماڈل اور Think ماڈل کی ضرورت ہوتی ہے، اور معنی کے لحاظ سے تلاش ایک چھوٹا ایمبیڈنگ ماڈل شامل کرتا ہے۔ ڈاؤن لوڈز کو موخر کیا جا سکتا ہے۔ کیپچر شدہ میٹنگز اپنے منتخب ماڈلز کا انتظار کرتی ہیں۔",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "میٹنگ پروسیسنگ کے لیے ٹرانسکرائب ماڈل اور Think ماڈل کی ضرورت ہوتی ہے، اور معنی کے لحاظ سے تلاش ایک چھوٹا ایمبیڈنگ ماڈل شامل کرتا ہے۔ یہ سیٹ اپ کے دوران پس منظر میں ڈاؤن لوڈ ہوتے ہیں؛ کیپچر شدہ میٹنگز اپنے منتخب ماڈلز کا انتظار کرتی ہیں۔",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "اجلاس کی ریکارڈنگ اور خودکار تکمیل کو OCR، ایمبیڈنگز اور معمول کے کاموں پر ترجیح حاصل ہے، جو ان کاموں کے فارغ ہونے پر پوری ہو جاتی ہیں۔",
   "Meeting {id}": "میٹنگ {id}",
   "Meeting · {0} · {date}": "میٹنگ · {0} · {date}",

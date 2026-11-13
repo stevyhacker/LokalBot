@@ -576,6 +576,7 @@
   "Meeting note export folder": "సమావేశ నోట్‌ల ఎగుమతి ఫోల్డర్",
   "Meeting path copied.": "సమావేశ మార్గం కాపీ చేయబడింది.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "మీటింగ్ ప్రాసెసింగ్‌కు లిప్యంతరీకరణ మోడల్ మరియు Think మోడల్ అవసరం మరియు అర్థం ద్వారా శోధించడం చిన్న ఎంబెడ్డింగ్ మోడల్‌ని జోడిస్తుంది. డౌన్‌లోడ్‌లను వాయిదా వేయవచ్చు; క్యాప్చర్ చేసిన మీటింగ్‌లు వాటి ఎంచుకున్న మోడల్‌ల కోసం వేచి ఉన్నాయి.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "మీటింగ్ ప్రాసెసింగ్‌కు లిప్యంతరీకరణ మోడల్ మరియు Think మోడల్ అవసరం మరియు అర్థం ద్వారా శోధించడం చిన్న ఎంబెడ్డింగ్ మోడల్‌ని జోడిస్తుంది. సెటప్ సమయంలో అవి నేపథ్యంలో డౌన్‌లోడ్ అవుతాయి; క్యాప్చర్ చేసిన మీటింగ్‌లు వాటి ఎంచుకున్న మోడల్‌ల కోసం వేచి ఉంటాయి.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "సమావేశ రికార్డింగ్, స్వయంపూర్తికి OCR, ఎంబెడ్డింగ్స్, దినచర్యల కంటే ప్రాధాన్యత ఉంటుంది; ఆ రెండు పనులు ఖాళీగా ఉన్నప్పుడు ఇవి వెనుకబడిన పనిని పూర్తి చేస్తాయి.",
   "Meeting {id}": "{id} సమావేశం",
   "Meeting · {0} · {date}": "సమావేశం · {0} · {date}",
