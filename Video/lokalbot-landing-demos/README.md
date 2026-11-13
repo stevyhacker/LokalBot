@@ -46,7 +46,7 @@ lists them. Rerun it after replacing a clip.
   filming Mac. The live transcript, the `Spring campaign` notes, the Ask answer, the
   notes in `projects`, the dictated message, the autocomplete suggestion and the Files
   results are what they produced. Nothing reaches a remote model.
-- **The input:** real pointer and key events from `Scripts/readme-gif/rig.swift`. The
+- **The input:** real pointer and key events from `Scripts/media/readme-gif/rig.swift`. The
   pointer, click ripples and keycaps in the clips are drawn by `compose.py` at the
   times and points the rig logged.
 - **The audio:** a call of two synthesized voices, played into the app through its test
@@ -62,7 +62,7 @@ lists them. Rerun it after replacing a clip.
   about 20 more after a call. `edit.json` cuts those waits, and the page says so under
   each clip. Typing is sped up in some clips.
 - **The seeded screens are seeded.** `search`, `today`, `timeline`, `people` and the
-  meetings behind them are written by `Scripts/seed_demo_library.py`, not generated.
+  meetings behind them are written by `Scripts/test/seed_demo_library.py`, not generated.
   `film/stage.py track` sets the projects `projects` opens with. The take tracks the
   suggested one and the model writes its note. That's two takes of one launch, since
   recording slows a hosted Mac's model too much, and the clip dissolves across the wait.

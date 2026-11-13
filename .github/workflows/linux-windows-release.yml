@@ -68,7 +68,7 @@ jobs:
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
           tag="${TAG#v}"
           if [[ "${tag%%-*}" != "$version" ]]; then
-            echo "::error::Tag $TAG does not match LinuxWindows/Cargo.toml $version. Run Scripts/bump-version.py first." >&2
+            echo "::error::Tag $TAG does not match LinuxWindows/Cargo.toml $version. Run Scripts/release/bump-version.py first." >&2
             exit 1
           fi
 

@@ -14,7 +14,7 @@ extends the third in LokalBot's own branding. All were made with the [onetake](h
 ## What is on screen
 
 - **Data:** every transcript line, timestamp, decision and action comes from the fictional library in
-  `Scripts/seed_demo_library.py` (the Design review meeting). The Quick Recall results are the app's real output for
+  `Scripts/test/seed_demo_library.py` (the Design review meeting). The Quick Recall results are the app's real output for
   "Thursday" and "Redis", captured from the UI test host at `master` `769068e`.
 - **Interface:** film 1's LokalBot window is the README's `Assets/screenshots/today.png`; its moment card, desktop and
   Quick Recall panel are rebuilt on the canvas from the app's layout. Films 2 and 3 stylize the interface.

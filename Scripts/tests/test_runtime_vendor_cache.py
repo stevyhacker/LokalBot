@@ -13,11 +13,11 @@ class VendorCacheTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="lokalbot-vendor-cache-")
         self.root = Path(self.temp.name)
-        (self.root / "Scripts").mkdir()
+        (self.root / "Scripts" / "build").mkdir(parents=True)
         self.bin = self.root / "bin"
         self.bin.mkdir()
         for script in ["fetch-llama.sh", "fetch-sherpa.sh"]:
-            shutil.copyfile(Path(__file__).resolve().parents[1] / script, self.root / "Scripts" / script)
+            shutil.copyfile(Path(__file__).resolve().parents[1] / "build" / script, self.root / "Scripts" / "build" / script)
         self.stub("otool", '''#!/bin/sh
 printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-15.0}"
 ''')
@@ -72,7 +72,7 @@ printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-
         return destination
 
     def run_script(self, name, **env):
-        return subprocess.run(["/bin/bash", str(self.root / "Scripts" / name)],
+        return subprocess.run(["/bin/bash", str(self.root / "Scripts" / "build" / name)],
                               env=dict(self.env, **env), capture_output=True, text=True)
 
     def test_llama_rechecks_failed_compatibility_on_every_cached_attempt(self):

@@ -10,7 +10,7 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-ALLOW = json.loads((ROOT / "Scripts/record-capture/scrub-allowlist.json").read_text())
+ALLOW = json.loads((ROOT / "Scripts/test/record-capture/scrub-allowlist.json").read_text())
 VOCABULARY = {word.lower() for word in ALLOW["vocabulary"]}
 APP_NAMES = set(ALLOW["appNames"])
 HOSTS = set(ALLOW["meetingHosts"])

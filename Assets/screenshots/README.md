@@ -16,7 +16,7 @@ Chinese README still uses its own [Mandarin frames](zh-Hans/README.md).
 | [cotyping.png](cotyping.png) | Settings → Autocomplete (then called Writing) with the preview and rehearsal |
 
 These are unedited captures of the native SwiftUI views, with fictional content
-from `Scripts/seed_demo_library.py --profile studio`: a small video studio's
+from `Scripts/test/seed_demo_library.py --profile studio`: a small video studio's
 calls and Apple apps, with a different example in each frame. They are not
 composited product mockups. The isolated capture host suppresses background
 capture and inference; displayed transcripts, summaries, suggestions, and
@@ -26,7 +26,7 @@ loop described in [Assets/hero/README.md](../hero/README.md).
 
 The LokalBot UI Test Host was built from the commit above with
 `CODE_SIGNING_ALLOWED=NO` into its own DerivedData. Each frame used the
-per-frame settings that `Scripts/capture-screenshots.sh --stills-only` uses at
+per-frame settings that `Scripts/media/capture-screenshots.sh --stills-only` uses at
 this revision, run one frame at a time against one seeded library instead of
 through the whole script. The Autocomplete frame came from an earlier pass a
 few minutes before, with the same build and profile; it does not show library
@@ -91,7 +91,7 @@ recordings of the native app from `master` at
 [`769068e`](https://github.com/stevyhacker/lokalbot/tree/769068e), made on
 September 28, 2026 in light appearance and driven by real input events in the
 isolated UI test host, with the default fictional library from
-`Scripts/seed_demo_library.py`, not the studio profile these stills now use.
+`Scripts/test/seed_demo_library.py`, not the studio profile these stills now use.
 Cursor, click ripples, headlines and model chips are editorial overlays; screen
 pixels are unchanged. The footage shows the interface and navigation, not live
 transcription or model inference. The narration is synthetic (ElevenLabs

@@ -709,7 +709,7 @@ Phase 4 is implemented in the follow-up PR:
 - **Integration:**
   - Start the embedded CLI against a socket served in the test host, as
     `MCPServerIntegrationTests` does.
-  - In `Scripts/e2e.sh`, with a temporary `LOKALBOT_STORAGE_ROOT` and
+  - In `Scripts/test/e2e.sh`, with a temporary `LOKALBOT_STORAGE_ROOT` and
     `LOKALBOT_DEFAULTS_SUITE`:
     - background launch from a stopped app;
     - a second CLI call reusing the running copy;

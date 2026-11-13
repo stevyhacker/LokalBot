@@ -271,7 +271,7 @@ Verified 2026-11-09 from OpenAI's [submission guide](https://developers.openai.c
 
 Submission steps (owner-only because of the login and identity):
 
-1. `bash Scripts/build-openai-plugin.sh` builds `dist/lokalbot-openai-plugin-<version>.zip` from `Distribution/openai-plugin/` after its test passes.
+1. `bash Scripts/release/build-openai-plugin.sh` builds `dist/lokalbot-openai-plugin-<version>.zip` from `Distribution/openai-plugin/` after its test passes.
 2. Sign in at https://platform.openai.com/plugins and pick the organization and project. Complete identity verification first if the portal asks for it.
 3. **Upload new or existing plugin** → choose the verified **Developer identity** → **Upload plugin** with the ZIP.
 4. Resolve the **Metadata & Skills** findings (upload a corrected ZIP for any change), then **Submit for review** and accept the attestations. After approval, **Publish plugin**.

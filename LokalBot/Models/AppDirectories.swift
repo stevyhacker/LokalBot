@@ -22,7 +22,7 @@ enum AppDirectories {
     /// `LOKALBOT_STORAGE_ROOT` isolation, so fixture runs share them only with
     /// their app identity (llama-server state: `localServerSupport`).
     /// Catalog GGUFs are the exception — they download under the overridable
-    /// library root (`ModelCatalog.localURL`); `Scripts/e2e.sh` symlinks the
+    /// library root (`ModelCatalog.localURL`); `Scripts/test/e2e.sh` symlinks the
     /// real models/ into its temp root to keep those shared too.
     static var applicationSupport: URL {
         applicationSupport(for: AppIdentifiers.identity, under: userApplicationSupport)

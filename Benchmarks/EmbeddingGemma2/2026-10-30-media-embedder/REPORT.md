@@ -8,7 +8,7 @@ Hardware: Apple M4 Max, 48 GiB, macOS 27.2, on AC power. Inputs were synthetic o
 
 ## Setup
 
-- **Text-only server.** The `Scripts/fetch-llama.sh` build, started exactly as `LlamaServer.start` starts the embedder role, on a private port with a bearer token: `-c 2048 -ngl 99 --jinja --no-webui --embeddings -b 2048 -ub 2048 --parallel 1`. Requests send `cache_prompt: false`, as the app does.
+- **Text-only server.** The `Scripts/build/fetch-llama.sh` build, started exactly as `LlamaServer.start` starts the embedder role, on a private port with a bearer token: `-c 2048 -ngl 99 --jinja --no-webui --embeddings -b 2048 -ub 2048 --parallel 1`. Requests send `cache_prompt: false`, as the app does.
 - **Media server.** The same arguments plus `--mmproj mmproj-embeddinggemma-2-Q8_0.gguf --image-min-tokens 1 --image-max-tokens 1120`. DigUp creates its media context with these values. llama.cpp then never rescales an image that already has its final size.
 - **Images.**
   - Decoded with Pillow.
@@ -128,7 +128,7 @@ mkdir -p $R/models
 curl -fsSL -o $R/models/mmproj-embeddinggemma-2-Q8_0.gguf \
   https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/bfcd298762cc34d0357ece5ebdd31791a3a374d8/mmproj-embeddinggemma-2-Q8_0.gguf
 shasum -a 256 $R/models/*.gguf   # compare with model-checksums.txt
-bash Scripts/fetch-llama.sh       # Vendor/llama-cpp at v0.7.0
+bash Scripts/build/fetch-llama.sh       # Vendor/llama-cpp at v0.7.0
 cd Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder
 python3 parity.py       # exits 1 unless every vector reaches 0.999
 python3 load_probe.py

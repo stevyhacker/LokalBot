@@ -9,7 +9,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 TAKES=$(cd "$1" && pwd)
 OUT=${2:-"$REPO/Assets/hero/lokalbot-demo-light.gif"}
-# The last hero built by Scripts/readme-gif: its live autocomplete and dictation scenes are reused.
+# The last hero built by Scripts/media/readme-gif: its live autocomplete and dictation scenes are reused.
 LEGACY_REV=43d72b9
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-readme-hero.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT

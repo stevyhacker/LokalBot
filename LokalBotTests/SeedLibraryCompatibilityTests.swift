@@ -2,12 +2,12 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// The day-in-the-life run seeds its library with `Scripts/seed_demo_library.py`.
+/// The day-in-the-life run seeds its library with `Scripts/test/seed_demo_library.py`.
 /// Reading that seed through the app's own stores keeps the script's schema in
 /// step with the app, so a drift fails here instead of in the slower workday job.
 final class SeedLibraryCompatibilityTests: XCTestCase {
     func testFullDaySeedIsReadableByTheAppStores() throws {
-        // A copy of Scripts/seed_demo_library.py; see project.yml.
+        // A copy of Scripts/test/seed_demo_library.py; see project.yml.
         let script = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "seed_demo_library", withExtension: "py"))
         let root = FileManager.default.temporaryDirectory
@@ -33,7 +33,7 @@ final class SeedLibraryCompatibilityTests: XCTestCase {
     /// you file must decode with every origin the app stores.
     @MainActor
     func testDemoSeedAboutYouIsReadableByThePersonalModel() throws {
-        // A copy of Scripts/seed_demo_library.py; see project.yml.
+        // A copy of Scripts/test/seed_demo_library.py; see project.yml.
         let script = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "seed_demo_library", withExtension: "py"))
         let root = FileManager.default.temporaryDirectory

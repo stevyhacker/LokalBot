@@ -46,7 +46,7 @@ verifies it. Conversation files are stored apart from the runtime cache.
 
 The `v0.7.0` tag points at commit `620d2225cc436ab0b001e3200e590e3b286ef9ab`,
 which is also build tag `b11669`. macOS builds the `v0.7.0` source archive.
-Its archive has no `.git`, so `Scripts/fetch-llama.sh` passes build number
+Its archive has no `.git`, so `Scripts/build/fetch-llama.sh` passes build number
 11669, and `llama-server --version` reports
 `0.7.0 (build 11669, commit v0.7.0)`. Linux and Windows download the `b11669`
 release assets, whose servers report `0.7.0-dev (build 11669, commit 620d2225c)`.
@@ -74,7 +74,7 @@ Upstream changes that were checked:
 
 ## Verification
 
-- **macOS vendor build.** `bash Scripts/fetch-llama.sh` cold-built v0.7.0 in 41 s. The receipt validates and the runtime has the same file set as before, with the version suffixes moving to ggml 0.27.0 and llama 0.7.0.
+- **macOS vendor build.** `bash Scripts/build/fetch-llama.sh` cold-built v0.7.0 in 41 s. The receipt validates and the runtime has the same file set as before, with the version suffixes moving to ggml 0.27.0 and llama 0.7.0.
 - **Build.** XcodeGen and `build-for-testing` for the app and `LokalBotTests` succeeded. `python3 -m unittest discover -s Scripts/tests` ran 138 tests: OK.
 - **Focused macOS suites: 224 tests, 0 failures, 3 opt-in skips.** The classes were `LlamaCoreSmokeTests`, `LlamaSamplerSpecTests`, `LlamaServerTests`, `LlamaServerIsolationTests`, `RuntimeAssetSafetyTests`, `InferenceBrokerTests`, `TextEngineTests`, `LeasedTextEngineTests` and `ChatAgentTests`. They also included the real-model autocomplete classes `LocalLlamaCotypingEngineTests` and `LlamaCotypingRuntimeTests`, and the Agent Mode classes `AgentRuntimeTests`, `AgentRuntimeInstallerTests`, `AgentSetupTests`, `PiLaunchPlannerTests`, `PiIntegrationTests`, `PiProcessTests`, `PiRPCClientTests` and `AgentWorkspaceTests`. Two of the skips are opt-in checks that were then run against a fresh 1.3.0 install, and both passed: `AgentRuntimeTests/testCurrentManifestMatchesProvidedPinnedRuntimeTree` (the app's own verifier) and `PiIntegrationTests/testPromptRoundTripsThroughRealPi`. The third skip is the Granite region replay, which needs a private replay manifest.
 - **Pi extension suites.** These ran against the fresh 1.3.0 install with the pinned Bun on each OS. macOS: 38 passed. Linux: 33 passed, plus 1 Windows-only skip. Windows: 34 passed, including the Git Bash drive-path check.

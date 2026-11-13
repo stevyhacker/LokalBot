@@ -1247,7 +1247,7 @@ EOF
 
 **Behavior note (intended, spec §6):** server boot moves from engine-creation time to the first generate call. `makeTextEngine` still fails fast for a missing model file (`ServerError.modelMissing`); only the boot moves. Every call site already catches errors from the generate call.
 
-No new unit test in this task: the change is pure wiring whose pieces are already covered (Task 3 proves leases boot/pin/release; Task 4 proves the decorator forwards). Verification here is compile + the full existing unit suite, and `Scripts/e2e.sh` exercises the live path at the end (Task 10).
+No new unit test in this task: the change is pure wiring whose pieces are already covered (Task 3 proves leases boot/pin/release; Task 4 proves the decorator forwards). Verification here is compile + the full existing unit suite, and `Scripts/test/e2e.sh` exercises the live path at the end (Task 10).
 
 **Files:**
 - Modify: `LokalBot/Services/ProcessingPipeline.swift` (makeTextEngine ~line 484; generateDayDigest ~line 454)
@@ -2461,7 +2461,7 @@ Expected: **TEST SUCCEEDED** and **BUILD SUCCEEDED**.
 
 Run:
 ```bash
-Scripts/install-app.sh && Scripts/e2e.sh
+Scripts/build/install-app.sh && Scripts/test/e2e.sh
 ```
 Expected: the e2e suite passes end-to-end (summarize/chat/digest/ask_library all run through the leased path against a real llama-server). Steps that need missing models or TCC grants skip rather than fail — that is the harness's normal posture. If no model is downloaded locally, note the skip in the PR description instead of blocking.
 

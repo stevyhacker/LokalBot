@@ -9,7 +9,7 @@ uv run --no-project Benchmarks/SummaryEfficiency/run.py \
   --output /private/tmp/lokalbot-summary-replay
 ```
 
-The default runtime is `Vendor/llama-cpp/llama-server`; override it with `--runtime`. Omit `--skip-build` to compile the current source with `Scripts/unit-tests.sh MeetingNotesReplayTests`. Use a fresh output directory for every invocation so saved checkpoints cannot bypass inference. The sibling `notes.md`, when present, is copied as user context. Source meeting files remain untouched.
+The default runtime is `Vendor/llama-cpp/llama-server`; override it with `--runtime`. Omit `--skip-build` to compile the current source with `Scripts/test/unit-tests.sh MeetingNotesReplayTests`. Use a fresh output directory for every invocation so saved checkpoints cannot bypass inference. The sibling `notes.md`, when present, is copied as user context. Source meeting files remain untouched.
 
 Runtime settings match the built-in configuration: 32,768 context tokens, Metal offload, 2,048 MiB prompt cache, and reasoning enabled. Production extraction supplies bounded reasoning/output options per call. The temporary server uses an ephemeral loopback port and an authentication token that is removed during cleanup.
 

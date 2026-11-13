@@ -1,4 +1,4 @@
-// Wraps the lokalbot-sync Rust crate for Android. `Scripts/build-sync-android.sh`
+// Wraps the lokalbot-sync Rust crate for Android. `Scripts/build/build-sync-android.sh`
 // writes the shared libraries and the UniFFI Kotlin bindings into build/rust;
 // this module only packages them. Running `clean` deletes them, so run the
 // script again afterwards.

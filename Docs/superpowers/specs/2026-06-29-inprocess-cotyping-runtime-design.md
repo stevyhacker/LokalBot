@@ -225,7 +225,7 @@ focus → debounce → coordinator.generate → build CotypingRequest (unchanged
 
 ## 12. Build & packaging
 
-- **`Scripts/fetch-llama.sh`:** additionally fetch the `b9844` headers
+- **`Scripts/build/fetch-llama.sh`:** additionally fetch the `b9844` headers
   (`llama.h`, `ggml.h`, and the ggml-backend/alloc headers the public API pulls in)
   into `Vendor/llama-cpp/include/`. Same `TAG`, idempotent, runs as the existing
   pre-build phase.
@@ -261,7 +261,7 @@ focus → debounce → coordinator.generate → build CotypingRequest (unchanged
   scenarios (email follow-up, chat ownership, browser prose, mid-word). This closes
   the "measure the budget" gap and substantiates the parity claim in
   `CotypingParityQA.md`.
-- **Manual:** the existing `Scripts/compare-cotyping.sh` side-by-side vs Cotypist,
+- **Manual:** the existing `Scripts/cotyping/compare-cotyping.sh` side-by-side vs Cotypist,
   plus an Instruments pass confirming no main-thread stalls while typing.
 
 ## 15. Out of scope — sequenced fast-follows

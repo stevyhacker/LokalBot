@@ -47,8 +47,8 @@
 | `LokalBot/LokalBotApp.swift` | modify | `AppState.agentAccess` property + `start()` at launch |
 | `LokalBot/Views/SettingsView.swift` | modify | Privacy toggle row |
 | `.agents/skills/lokalbot-cli/SKILL.md` | rewrite | fix stale bundle id, add MCP/ask_library guidance |
-| `Scripts/build-mcpb.sh` | create | `.mcpb` bundle for releases |
-| `Scripts/e2e.sh` | modify | T11: MCP session against the fixture library |
+| `Scripts/release/build-mcpb.sh` | create | `.mcpb` bundle for releases |
+| `Scripts/test/e2e.sh` | modify | T11: MCP session against the fixture library |
 | `CLAUDE.md` | modify | one-line CLI paragraph update |
 | `LokalBotTests/MeetingFixture.swift` + 9 test files | create | see tasks |
 
@@ -3304,7 +3304,7 @@ EOF
 Spec §8. A one-click bundle for GUI MCP clients (Claude Desktop). The bundle contains **no binary** — its entry shim execs the installed app's signed helper, so there is no second copy to drift or re-sign. Spec §13 explicitly defers exact manifest field names to implementation: the script runs the official validator, and if the validator rejects a field name, adjust the manifest per its output — that is the sanctioned verification path, not a plan deviation.
 
 **Files:**
-- Create: `Scripts/build-mcpb.sh` (executable)
+- Create: `Scripts/release/build-mcpb.sh` (executable)
 - No `.gitignore` change: `dist/` is already ignored (line 20).
 
 **Interfaces:**
@@ -3313,7 +3313,7 @@ Spec §8. A one-click bundle for GUI MCP clients (Claude Desktop). The bundle co
 
 - [ ] **Step 1: Write the script**
 
-`Scripts/build-mcpb.sh`:
+`Scripts/release/build-mcpb.sh`:
 
 ```bash
 #!/bin/bash
@@ -3370,13 +3370,13 @@ echo "built dist/LokalBot.mcpb (version $VERSION)"
 ```
 
 ```bash
-chmod +x Scripts/build-mcpb.sh
+chmod +x Scripts/release/build-mcpb.sh
 ```
 
 - [ ] **Step 2: Run it**
 
 ```bash
-Scripts/build-mcpb.sh
+Scripts/release/build-mcpb.sh
 ```
 
 Expected: validator prints its OK line, then `built dist/LokalBot.mcpb (version 0.1.5)` (version = whatever `project.yml` currently says). **If `mcpb validate` rejects a field name** (the spec anticipates this — §13), read its error, fix the manifest heredoc to match the current spec, and re-run until it validates. Do not skip validation.
@@ -3392,7 +3392,7 @@ Expected: an archive listing containing `manifest.json` and `run.sh` (an `.mcpb`
 - [ ] **Step 4: Commit (script only — `dist/` is gitignored)**
 
 ```bash
-git add Scripts/build-mcpb.sh
+git add Scripts/release/build-mcpb.sh
 git commit -m "$(cat <<'EOF'
 Add .mcpb bundle build script
 
@@ -3410,17 +3410,17 @@ EOF
 
 ### Task 14: e2e step T11 + CLAUDE.md + final verification
 
-Spec §10 (e2e bullet) and housekeeping: teach `Scripts/e2e.sh` to exercise the real MCP server end-to-end, document the new surface in CLAUDE.md, and run the whole suite one last time.
+Spec §10 (e2e bullet) and housekeeping: teach `Scripts/test/e2e.sh` to exercise the real MCP server end-to-end, document the new surface in CLAUDE.md, and run the whole suite one last time.
 
 **Files:**
-- Modify: `Scripts/e2e.sh` (insert T11 after the T10 block, line ~147)
+- Modify: `Scripts/test/e2e.sh` (insert T11 after the T10 block, line ~147)
 - Modify: `CLAUDE.md` (extend the `lokalbot-cli` paragraph; add `control/` to the storage tree)
 
 **Interfaces:**
 - Consumes: the T2 fixture (its transcript contains "Redis"); `$ROOT` = the suite's hermetic `LOKALBOT_STORAGE_ROOT`; the `mcp` verb (Task 8); the gate marker `control/agent-access-enabled` (Task 3); llama-server health on `127.0.0.1:17872` (Task 7's port).
 - Produces: nothing new — this is the final integration checkpoint.
 
-- [ ] **Step 1: Insert T11 into `Scripts/e2e.sh`**
+- [ ] **Step 1: Insert T11 into `Scripts/test/e2e.sh`**
 
 The T10 block ends with the `fi` at line 147; the file then has a blank `echo` + summary. Insert this between them (i.e., directly after T10's `fi`):
 
@@ -3473,7 +3473,7 @@ Notes for the implementer:
 - [ ] **Step 2: Syntax-check the suite**
 
 ```bash
-bash -n Scripts/e2e.sh && echo OK
+bash -n Scripts/test/e2e.sh && echo OK
 ```
 
 Expected: `OK`.
@@ -3489,7 +3489,7 @@ It's built first, embedded into `LokalBot.app/Contents/Helpers/`, and gives agen
 with:
 
 ```markdown
-It's built first, embedded into `LokalBot.app/Contents/Helpers/`, and gives agents read-only access to the meeting library (`list`/`get`/`search`/`path`, JSON by default, `--table` for humans). It also serves MCP over stdio (`mcp` subcommand: `list_meetings`/`get_meeting`/`search_meetings`/`ask_library` — the last answers via the app's llama-server and, like all four, requires the Privacy toggle's `control/agent-access-enabled` marker under the storage root) and installs the agent skill + PATH symlinks (`install-skill`). `Scripts/build-mcpb.sh` wraps the same helper into a one-click `dist/LokalBot.mcpb` for GUI MCP clients.
+It's built first, embedded into `LokalBot.app/Contents/Helpers/`, and gives agents read-only access to the meeting library (`list`/`get`/`search`/`path`, JSON by default, `--table` for humans). It also serves MCP over stdio (`mcp` subcommand: `list_meetings`/`get_meeting`/`search_meetings`/`ask_library` — the last answers via the app's llama-server and, like all four, requires the Privacy toggle's `control/agent-access-enabled` marker under the storage root) and installs the agent skill + PATH symlinks (`install-skill`). `Scripts/release/build-mcpb.sh` wraps the same helper into a one-click `dist/LokalBot.mcpb` for GUI MCP clients.
 ```
 
 Second, in the on-disk library tree, add a `control/` line — replace:
@@ -3518,7 +3518,7 @@ Expected: `** TEST SUCCEEDED **`; status shows only the intentionally modified f
 Optionally, with a built app on the machine, run the real thing:
 
 ```bash
-Scripts/install-app.sh && Scripts/e2e.sh
+Scripts/build/install-app.sh && Scripts/test/e2e.sh
 ```
 
 Expected: T11 prints two passes (handshake+search, gate refusal) and either a third pass (ask_library mentions "Redis") or the llama-server skip.
@@ -3526,7 +3526,7 @@ Expected: T11 prints two passes (handshake+search, gate refusal) and either a th
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Scripts/e2e.sh CLAUDE.md
+git add Scripts/test/e2e.sh CLAUDE.md
 git commit -m "$(cat <<'EOF'
 Add MCP e2e step and document the agent surface
 
@@ -3543,6 +3543,6 @@ EOF
 
 ## Done — what ships and what's deferred
 
-Shipped by this plan: the `mcp` verb (4 tools: `list_meetings`, `get_meeting`, `search_meetings`, `ask_library`) behind the `LibraryToolProvider` seam; the `AgentAccessGate` marker + wake protocol with the app-side watcher and Privacy toggle; `install-skill` + the rewritten agent skill; `Scripts/build-mcpb.sh`; unit, integration (golden stdio), and e2e coverage.
+Shipped by this plan: the `mcp` verb (4 tools: `list_meetings`, `get_meeting`, `search_meetings`, `ask_library`) behind the `LibraryToolProvider` seam; the `AgentAccessGate` marker + wake protocol with the app-side watcher and Privacy toggle; `install-skill` + the rewritten agent skill; `Scripts/release/build-mcpb.sh`; unit, integration (golden stdio), and e2e coverage.
 
 Deliberately deferred (user-approved, do NOT add here): `Website/public/` docs page (follow-up PR), activity/screen tools (v1.1), app-hosted MCP server (post-broker), the inference broker (its own spec → plan → branch cycle).

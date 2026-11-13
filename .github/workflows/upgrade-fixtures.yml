@@ -3,7 +3,7 @@
 #
 # Release (release.yml) calls this for each stable tag once its DMG is
 # published, so the next release adds that fixture with
-# Scripts/upgrade-fixtures/add.sh instead of waiting for a runner. A dispatch
+# Scripts/test/upgrade-fixtures/add.sh instead of waiting for a runner. A dispatch
 # without versions rebuilds every committed fixture; a pull request that
 # changes the generator rebuilds the newest one.
 name: Upgrade fixtures
@@ -22,7 +22,7 @@ on:
         type: string
   pull_request:
     paths:
-      - "Scripts/upgrade-fixtures/**"
+      - "Scripts/test/upgrade-fixtures/**"
       - ".github/workflows/upgrade-fixtures.yml"
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
         env:
           REQUESTED: ${{ inputs.tag || inputs.versions }}
         # REQUESTED is split on spaces into one argument per version.
-        run: python3 Scripts/upgrade-fixtures/settings.py plan "$GITHUB_EVENT_NAME" $REQUESTED >> "$GITHUB_OUTPUT"
+        run: python3 Scripts/test/upgrade-fixtures/settings.py plan "$GITHUB_EVENT_NAME" $REQUESTED >> "$GITHUB_OUTPUT"
 
   generate:
     name: Fixture ${{ matrix.version }}
@@ -60,7 +60,7 @@ jobs:
       - name: Generate
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash Scripts/upgrade-fixtures/generate.sh "${{ matrix.version }}" ".build/upgrade/${{ matrix.version }}"
+        run: bash Scripts/test/upgrade-fixtures/generate.sh "${{ matrix.version }}" ".build/upgrade/${{ matrix.version }}"
       # Old seeds name folders like "1:1-with-maya"; artifacts reject ":" in
       # paths, so the fixture travels as one tarball with its names intact.
       - name: Pack

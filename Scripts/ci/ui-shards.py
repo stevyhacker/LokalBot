@@ -150,7 +150,7 @@ def execute(phase, selected=None):
                     env['LOKALBOT_STUB_SCRIPT'] = str(Path('LokalBotTests/Fixtures/stub-openai.ts').resolve())
             run.write_bytes(plistlib.dumps(value))
     result_path = folder / f'{phase}.xcresult'
-    command = ['bash', 'Scripts/ui-tests.sh', '--test-only', '--result', str(result_path)]
+    command = ['bash', 'Scripts/test/ui-tests.sh', '--test-only', '--result', str(result_path)]
     for test in tests:
         command += ['--only', test]
     started = time.monotonic()

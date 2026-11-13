@@ -1,4 +1,4 @@
-# Films the after-meeting agent handoff (Scripts/agent-handoff-demo) on a
+# Films the after-meeting agent handoff (Scripts/media/agent-handoff-demo) on a
 # hosted Mac: a call ends, LokalBot transcribes it with Parakeet, an
 # OpenRouter model writes the notes, and each action the person took on
 # starts as its own Agent Mode task. Never a required check.
@@ -80,7 +80,7 @@ jobs:
         env:
           LOKALBOT_APP: ${{ github.workspace }}/.build/dd/Build/Products/Debug/LokalBot.app
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: bash Scripts/agent-handoff-demo/film.sh .build/agent-handoff-demo
+        run: bash Scripts/media/agent-handoff-demo/film.sh .build/agent-handoff-demo
       - name: Gather the results
         if: ${{ !cancelled() }}
         run: |

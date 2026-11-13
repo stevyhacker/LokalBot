@@ -216,7 +216,7 @@ enum CodingAgentSessionsCLI {
 }
 
 /// Executes headless subcommands against the app's real subsystems (pipeline,
-/// indexes, recorder). Test hooks for CI and `Scripts/e2e.sh` — the same code
+/// indexes, recorder). Test hooks for CI and `Scripts/test/e2e.sh` — the same code
 /// paths as the UI, no window required.
 @MainActor
 struct HeadlessCommandRunner {

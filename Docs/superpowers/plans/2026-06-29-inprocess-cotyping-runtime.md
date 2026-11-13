@@ -50,7 +50,7 @@ Swift bridging notes: opaque `struct *` arrive as `OpaquePointer?`; `llama_token
 - `LokalBotTests/CotypingABBenchmarkTests.swift`
 
 **Modify:**
-- `Scripts/fetch-llama.sh` — also fetch `b9844` headers into `Vendor/llama-cpp/include/` and generate the `module.modulemap` there (both gitignored, script-reproduced — `Vendor/` stays fully generated).
+- `Scripts/build/fetch-llama.sh` — also fetch `b9844` headers into `Vendor/llama-cpp/include/` and generate the `module.modulemap` there (both gitignored, script-reproduced — `Vendor/` stays fully generated).
 - `project.yml` — header search path + `SWIFT_INCLUDE_PATHS` (module map) + link `-lllama` + `LD_RUNPATH_SEARCH_PATHS`.
 - `LokalBot/Models/AppSettings.swift` — add `cotypingInProcessRuntime: Bool` (default `true`), tolerant decode.
 - `LokalBot/LokalBotApp.swift` — `cotypingEngine` becomes a `CotypingEngineSelector`; prewarm on cotyping-enable.
@@ -65,7 +65,7 @@ Swift bridging notes: opaque `struct *` arrive as `OpaquePointer?`; `llama_token
 The riskiest piece (spec risk: "Link / `@rpath` issues"; open question #2: exact header set). Prove the module imports, the dylib links, `@rpath` resolves at runtime, and a real C call executes — before any runtime code is written. Fold header fetch + module map + project wiring into this one task; its deliverable is a passing test that calls into `libllama`.
 
 **Files:**
-- Modify: `Scripts/fetch-llama.sh` (fetch headers **and** generate `Vendor/llama-cpp/include/module.modulemap` — both gitignored, script-reproduced)
+- Modify: `Scripts/build/fetch-llama.sh` (fetch headers **and** generate `Vendor/llama-cpp/include/module.modulemap` — both gitignored, script-reproduced)
 - Modify: `project.yml`
 - Test: `LokalBotTests/LlamaCoreSmokeTests.swift` (create)
 
@@ -73,9 +73,9 @@ The riskiest piece (spec risk: "Link / `@rpath` issues"; open question #2: exact
 - Consumes: vendored `Vendor/llama-cpp/libllama.dylib` (+ `libggml*.dylib`), `b9844`.
 - Produces: a Swift-importable module `LlamaCore` exposing the `b9844` C API; build settings other targets inherit (`HEADER_SEARCH_PATHS`, `SWIFT_INCLUDE_PATHS`, link flags, rpath). Later tasks `import LlamaCore`.
 
-- [ ] **Step 1: Add header fetch to `Scripts/fetch-llama.sh`**
+- [ ] **Step 1: Add header fetch to `Scripts/build/fetch-llama.sh`**
 
-Open `Scripts/fetch-llama.sh`. It already sets `TAG=b9844`, `SERVER_DIR=Vendor/llama-cpp`, and downloads/extracts `llama-$TAG-bin-macos-arm64.tar.gz`. After the block that copies `llama-server` + `*.dylib` into `$SERVER_DIR`, add a header-fetch block. The macOS bin tarball does not reliably ship headers, so fetch them from the pinned source tag. Insert:
+Open `Scripts/build/fetch-llama.sh`. It already sets `TAG=b9844`, `SERVER_DIR=Vendor/llama-cpp`, and downloads/extracts `llama-$TAG-bin-macos-arm64.tar.gz`. After the block that copies `llama-server` + `*.dylib` into `$SERVER_DIR`, add a header-fetch block. The macOS bin tarball does not reliably ship headers, so fetch them from the pinned source tag. Insert:
 
 ```bash
 # --- Public C headers for in-process libllama (LlamaCore module) ---
@@ -117,7 +117,7 @@ EOF
 
 - [ ] **Step 2: Run the script and confirm headers + module map land**
 
-Run: `cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot && bash Scripts/fetch-llama.sh && ls Vendor/llama-cpp/include`
+Run: `cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot && bash Scripts/build/fetch-llama.sh && ls Vendor/llama-cpp/include`
 Expected: lists `llama.h ggml.h ggml-backend.h ggml-alloc.h ggml-cpu.h ggml-metal.h module.modulemap` (and no error). If `curl` 404s on a header, that header moved at this tag — open the tag tree at `https://github.com/ggml-org/llama.cpp/tree/b9844/ggml/include` to find its path and fix the `HEADERS` entry. This is the open-question-#2 resolution: confirm the transitive set compiles in Step 6 and trim/extend here. (`llama.h` was already verified present at this tag — `raw.githubusercontent.com/ggml-org/llama.cpp/b9844/include/llama.h` returns HTTP 200.)
 
 - [ ] **Step 3: Confirm the dylib install name + that the needed symbols exist**
@@ -143,7 +143,7 @@ module LlamaCore {
 }
 ```
 
-(If Step 6 reports a missing header that `llama.h` transitively includes, add a `header "..."` line to the **heredoc in `Scripts/fetch-llama.sh`** AND a corresponding entry in that script's `HEADERS` array, then re-run Step 2. Do not hand-edit the generated file — the script overwrites it.)
+(If Step 6 reports a missing header that `llama.h` transitively includes, add a `header "..."` line to the **heredoc in `Scripts/build/fetch-llama.sh`** AND a corresponding entry in that script's `HEADERS` array, then re-run Step 2. Do not hand-edit the generated file — the script overwrites it.)
 
 - [ ] **Step 5: Wire `project.yml` — header path, module, link, rpath**
 
@@ -215,11 +215,11 @@ Expected: `Test Suite 'LlamaCoreSmokeTests' passed`, `** TEST SUCCEEDED **`. If 
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add Scripts/fetch-llama.sh project.yml LokalBot.xcodeproj LokalBotTests/LlamaCoreSmokeTests.swift
+git add Scripts/build/fetch-llama.sh project.yml LokalBot.xcodeproj LokalBotTests/LlamaCoreSmokeTests.swift
 git commit -m "build: link in-process libllama via LlamaCore module (b9844)"
 ```
 
-Note: nothing under `Vendor/` is committed — `.gitignore` ignores the whole tree (confirmed: `git check-ignore Vendor/llama-cpp/include/module.modulemap` matches `Vendor/`). The module map and headers are regenerated/fetched by `Scripts/fetch-llama.sh` on every build (it is a pre-build phase), so a fresh clone and CI reconstruct them. Do NOT `git add -f` the module map or headers.
+Note: nothing under `Vendor/` is committed — `.gitignore` ignores the whole tree (confirmed: `git check-ignore Vendor/llama-cpp/include/module.modulemap` matches `Vendor/`). The module map and headers are regenerated/fetched by `Scripts/build/fetch-llama.sh` on every build (it is a pre-build phase), so a fresh clone and CI reconstruct them. Do NOT `git add -f` the module map or headers.
 
 ---
 
@@ -1562,7 +1562,7 @@ git commit -m "feat: add Settings toggle for the in-process cotyping runtime"
 
 From spec §5/§14 — run these by hand once the plan is implemented:
 
-- **TTFT / p95:** with the bundled `Qwen3.5-0.8B-Q4_K_M`, trigger `CotypingBenchmarkRunner.runAB(...)` (or the existing `Scripts/compare-cotyping.sh`) and confirm first ghost token < ~200–300 ms post-warmup and p95 well under 2000 ms, beating the HTTP summary.
+- **TTFT / p95:** with the bundled `Qwen3.5-0.8B-Q4_K_M`, trigger `CotypingBenchmarkRunner.runAB(...)` (or the existing `Scripts/cotyping/compare-cotyping.sh`) and confirm first ghost token < ~200–300 ms post-warmup and p95 well under 2000 ms, beating the HTTP summary.
 - **No main-thread hitch:** Instruments (Time Profiler) while typing into a real text field with a generation in flight — the main thread must stay responsive.
 - **Instant cancellation:** type quickly; superseding keystrokes must not paint stale ghosts (the generation-id guard + `Task.isCancelled` drop them).
 - **Fallback:** toggle `cotypingInProcessRuntime` off → confirm suggestions still come from `llama-server`; switch the cotyping model to a non-GGUF backend (if configured) → confirm HTTP path; simulate load failure (rename the GGUF) → confirm graceful fallback, no crash.

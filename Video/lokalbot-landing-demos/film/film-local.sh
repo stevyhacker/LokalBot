@@ -45,7 +45,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-swiftc -O -swift-version 5 "$ROOT/Scripts/readme-gif/rig.swift" -o "$RIG" || exit 1
+swiftc -O -swift-version 5 "$ROOT/Scripts/media/readme-gif/rig.swift" -o "$RIG" || exit 1
 FILM_TZ=$(python3 "$HERE/stage.py" timezone)
 export TZ=$FILM_TZ
 if [[ ! -d "$WORK/studio" ]]; then
@@ -88,7 +88,7 @@ rig_take() {  # rig_take <appearance> <take>: records and encodes; 0 on success
   RIG_BACKGROUND=$(background "$1") "$RIG" take "$HERE/shots/$2.json" "$dest" 2>&1 | tee -a "$OUT/logs/rig-$2.log"
   status=${PIPESTATUS[0]}
   if [[ $status -eq 0 && -s "$dest/take.json" ]]; then
-    python3 "$ROOT/Scripts/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$1-$2.mp4" || status=1
+    python3 "$ROOT/Scripts/media/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$1-$2.mp4" || status=1
     rm -rf "$dest/frames"
   fi
   return $status

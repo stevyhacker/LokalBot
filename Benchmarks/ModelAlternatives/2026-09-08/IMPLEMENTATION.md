@@ -107,7 +107,7 @@ The model-only PR is based on `master` at
 feature in PR #66. All seven benchmarked implementation fingerprints in
 `environment.json` are identical after applying the scoped patch to this base.
 
-`Scripts/unit-tests.sh` on this standalone branch passed: **1,886 passed,
+`Scripts/test/unit-tests.sh` on this standalone branch passed: **1,886 passed,
 0 failed, 6 skipped** out of 1,892 non-UI tests. Full-repository strict SwiftLint,
 Python/JSON artifact validation, and `git diff --check` also passed. The earlier
 14 failures above describe the combined development checkout; those speaker
@@ -120,7 +120,7 @@ Hosted UI checks remain the PR's UI validation; no local UI tests were run.
    environment. `prepare-native-parity.py` creates a manifest with local paths.
 2. Set `TEST_RUNNER_LOKALBOT_GRANITE5_REFERENCE` to that manifest and optionally
    `TEST_RUNNER_LOKALBOT_GRANITE5_REPORT` to a result path, then run
-   `Scripts/unit-tests.sh GraniteTurboTests`.
+   `Scripts/test/unit-tests.sh GraniteTurboTests`.
 3. For library testing, supply an authorized, manually labeled query JSON file
    to `prepare-library-fixture.py`, along with `--work` in a new temporary
    directory and `--model` pointing to the pinned Harrier GGUF. The helper uses
@@ -129,7 +129,7 @@ Hosted UI checks remain the PR's UI validation; no local UI tests were run.
    `relevant_meetings` (eight-character meeting IDs).
 4. Set `TEST_RUNNER_LOKALBOT_EMBEDDING_FIXTURE` to the generated manifest and
    `TEST_RUNNER_LOKALBOT_EMBEDDING_REPORT` to a result path, then run
-   `Scripts/unit-tests.sh EmbeddingIndexIntegrationTests`. The test requires a
+   `Scripts/test/unit-tests.sh EmbeddingIndexIntegrationTests`. The test requires a
    temporary library root and uses the app's embedder port; keep that port free.
 5. After the native test stops its server, run `library-baseline.py --work ...`
    using the pinned Python environment. Run inference comparisons serially.

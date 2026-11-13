@@ -19,7 +19,7 @@
 - Scope default (spec open question 2, resolved yes): Day when the selected day has activity blocks, Library otherwise — applied only when no scope was explicitly chosen yet.
 - `xcodegen generate` after every task that adds/removes source files; never `git add` the `.xcodeproj`.
 - `git checkout -- default.profraw` before every commit (test runs regenerate it).
-- Unit tests: `xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -destination 'platform=macOS' test` (scheme "LokalBot"). UI tests: `Scripts/ui-tests.sh` — run at Tasks 9–10 only; Tasks 4–8 gate on build + unit tests (navigation is mid-rewire in between).
+- Unit tests: `xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -destination 'platform=macOS' test` (scheme "LokalBot"). UI tests: `Scripts/test/ui-tests.sh` — run at Tasks 9–10 only; Tasks 4–8 gate on build + unit tests (navigation is mid-rewire in between).
 - Commit style: imperative sentence case + `Claude-Session:` trailer.
 - Branch: `redesign-phase3` off `redesign-phase2` (stacked; PR targets `redesign-phase2`).
 - Known pre-existing failure exempt from gates: `SettingsUITests.testPermissionRepairPaneRendersCorePermissions` (fails on master).
@@ -1829,9 +1829,9 @@ Expected: no hits (except comments updated or removed).
 - [ ] **Step 5: Run the touched UI test classes**
 
 ```bash
-Scripts/ui-tests.sh MainWindowUITests
-Scripts/ui-tests.sh CaptureDefaultScopeUITests
-Scripts/ui-tests.sh CotypingSettingsUITests/testTypeTabPersistsAcrossNavigation
+Scripts/test/ui-tests.sh MainWindowUITests
+Scripts/test/ui-tests.sh CaptureDefaultScopeUITests
+Scripts/test/ui-tests.sh CotypingSettingsUITests/testTypeTabPersistsAcrossNavigation
 ```
 Expected: PASS. (Machine must stay awake; a 40+ minute duration in the xcresult means sleep, not a real failure — re-run.)
 
@@ -1857,7 +1857,7 @@ Expected: PASS (~640 tests).
 - [ ] **Step 2: Full UI suite**
 
 ```bash
-Scripts/ui-tests.sh
+Scripts/test/ui-tests.sh
 ```
 Expected: PASS, except the known pre-existing `SettingsUITests.testPermissionRepairPaneRendersCorePermissions` (fails on master; not gating).
 

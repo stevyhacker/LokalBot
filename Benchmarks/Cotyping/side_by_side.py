@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Merge two Scripts/compare-cotyping.sh capture directories (Cotypist vs
+"""Merge two Scripts/cotyping/compare-cotyping.sh capture directories (Cotypist vs
 LokalBot) into one side-by-side report, and optionally fold in a
 `LokalBot --cotyping-bench` JSON for engine-level latency.
 

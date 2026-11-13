@@ -346,8 +346,8 @@ Record (per prompt, and overall):
 For the repeatable capture + merged report:
 
 ```bash
-COTYPING_COMPARE_ACCEPT=1 Scripts/compare-cotyping.sh cotypist /tmp/cotyping-cotypist
-COTYPING_COMPARE_ACCEPT=1 Scripts/compare-cotyping.sh lokalbot /tmp/cotyping-lokalbot
+COTYPING_COMPARE_ACCEPT=1 Scripts/cotyping/compare-cotyping.sh cotypist /tmp/cotyping-cotypist
+COTYPING_COMPARE_ACCEPT=1 Scripts/cotyping/compare-cotyping.sh lokalbot /tmp/cotyping-lokalbot
 "/Applications/LokalBot.app/Contents/MacOS/LokalBot" --cotyping-bench > /tmp/bench.json
 Benchmarks/Cotyping/side_by_side.py \
   --cotypist-dir /tmp/cotyping-cotypist --lokalbot-dir /tmp/cotyping-lokalbot \
@@ -369,7 +369,7 @@ If the shell does not have Accessibility and fails with
 lower-confidence signal without touching TextEdit documents:
 
 ```bash
-swiftc Scripts/cotyping-probe.swift -o /tmp/cotyping-probe
+swiftc Scripts/cotyping/cotyping-probe.swift -o /tmp/cotyping-probe
 /tmp/cotyping-probe --prompt "I wanted to follow" --slug 01-follow-up --output-dir /tmp/cotyping-probe-lokalbot --wait 12
 ```
 

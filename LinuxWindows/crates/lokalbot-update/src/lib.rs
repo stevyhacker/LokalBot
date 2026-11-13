@@ -31,7 +31,7 @@ pub use version::Version;
 pub const REPOSITORY: &str = "stevyhacker/lokalbot";
 /// Where the latest release's assets resolve, like Sparkle's `SUFeedURL`.
 pub const FEED_BASE_URL: &str = "https://github.com/stevyhacker/lokalbot/releases/latest/download";
-/// `SUPublicEDKey` in `LokalBot/Info.plist`; `Scripts/release-preflight.py`
+/// `SUPublicEDKey` in `LokalBot/Info.plist`; `Scripts/release/release-preflight.py`
 /// fails when the two differ.
 pub const PUBLIC_KEY: &str = "R1A2lIfQ82UnkmUd12kwgpiS3tOlb6D0pVK8sKSrZdA=";
 /// Platforms with published archives.

@@ -59,9 +59,9 @@ def main():
 
     if not args.skip_build:
         with (output / "build.log").open("w") as log:
-            subprocess.run([str(REPO / "Scripts/unit-tests.sh"), "MeetingNotesReplayTests"],
+            subprocess.run([str(REPO / "Scripts/test/unit-tests.sh"), "MeetingNotesReplayTests"],
                            cwd=REPO, stdout=log, stderr=subprocess.STDOUT, check=True)
-    derived = subprocess.run([str(REPO / "Scripts/unit-tests.sh"), "--derived-data-path"],
+    derived = subprocess.run([str(REPO / "Scripts/test/unit-tests.sh"), "--derived-data-path"],
                              check=True, capture_output=True, text=True).stdout.strip()
     products = pathlib.Path(derived) / "Build/Products"
     candidates = list(products.glob("LokalBot_*macosx*-arm64.xctestrun"))

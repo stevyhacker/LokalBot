@@ -6,7 +6,7 @@ Evaluation date: October 20, 2026. See `REPORT.md` for findings and `manifest.js
 
 The candidate is the publisher's Spark-X2.6-4B Q4_K_M GGUF. The baseline is the exact Qwen3.5-4B Q4_K_M file in LokalBot's current model catalog. Both downloads are SHA-256 verified.
 
-Both run sequentially on the same Ubuntu Ryzen 7 9700X host using the existing Linux CPU build of llama.cpp b11474. Its source archive checksum matches `Scripts/fetch-llama.sh`. The binary reports build 0 because this earlier remote build did not inject the version number; the binary SHA-256 is recorded. This is not the macOS Metal binary.
+Both run sequentially on the same Ubuntu Ryzen 7 9700X host using the existing Linux CPU build of llama.cpp b11474. Its source archive checksum matches `Scripts/build/fetch-llama.sh`. The binary reports build 0 because this earlier remote build did not inject the version number; the binary SHA-256 is recorded. This is not the macOS Metal binary.
 
 Settings: 8 inference and batch threads, no GPU offload, 32,768-token context, one slot, temperature 0, seed 42, thinking disabled through both template kwargs and a zero token budget. Output is capped at 1,024 tokens for extraction and 2,048 for tools. JSON extraction uses a schema grammar. These settings probe LokalBot-style bounded work; they do not reproduce the publisher's high-reasoning benchmarks.
 

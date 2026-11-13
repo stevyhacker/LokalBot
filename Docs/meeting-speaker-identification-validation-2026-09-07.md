@@ -64,11 +64,11 @@ Provisional thresholds remain implementation rules, not probabilities. The evalu
 
 ## Running the held-out evaluation
 
-`Scripts/evaluate-speaker-identification.py` accepts annotated decisions and measurements from staged runs. It does not produce or infer ground-truth identities. Use opaque identity IDs so duplicate display names cannot count as a correct match by text equality. One row represents one acoustic speaker in one meeting; retries and frames must not add rows.
+`Scripts/test/evaluate-speaker-identification.py` accepts annotated decisions and measurements from staged runs. It does not produce or infer ground-truth identities. Use opaque identity IDs so duplicate display names cannot count as a correct match by text equality. One row represents one acoustic speaker in one meeting; retries and frames must not add rows.
 
 ```sh
-python3 Scripts/evaluate-speaker-identification.py --self-test
-python3 Scripts/evaluate-speaker-identification.py /path/to/held-out-decisions.json > /path/to/report.json
+python3 Scripts/test/evaluate-speaker-identification.py --self-test
+python3 Scripts/test/evaluate-speaker-identification.py /path/to/held-out-decisions.json > /path/to/report.json
 ```
 
 Input shape (an example of the format, not measured results):

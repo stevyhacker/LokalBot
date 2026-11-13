@@ -457,7 +457,7 @@ Companion/
   design/                           # tokens.json + generator
   ios/                              # project.yml (xcodegen), app, LokalBotSyncKit package
   android/                          # Gradle project, :app, :sync (cargo-ndk + generated Kotlin)
-Scripts/build-sync-xcframework.sh
+Scripts/build/build-sync-xcframework.sh
 ```
 
 Placing the crate in the existing Rust workspace reuses its toolchain,

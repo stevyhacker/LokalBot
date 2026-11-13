@@ -70,7 +70,7 @@ Each extra request cost 0.5–2.3 ms. A request with one tiny input took 6.7 ms 
 
 ## Reproduce
 
-Needs `Vendor/llama-cpp` (`Scripts/fetch-llama.sh`) and the app's downloaded model, or `--model` with another copy. The script refuses the app's port 17873 and any port already in use, and stops its server when it finishes.
+Needs `Vendor/llama-cpp` (`Scripts/build/fetch-llama.sh`) and the app's downloaded model, or `--model` with another copy. The script refuses the app's port 17873 and any port already in use, and stops its server when it finishes.
 
 ```sh
 python3 -I Benchmarks/EmbedderQueue/2026-10-12/embedder_queue.py strategies overhead before-after

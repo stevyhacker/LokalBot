@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-# The targets Scripts/build-sync-xcframework.sh and Scripts/build-sync-android.sh build.
+# The targets Scripts/build/build-sync-xcframework.sh and Scripts/build/build-sync-android.sh build.
 TARGETS = ["aarch64-apple-darwin", "aarch64-apple-ios", "aarch64-apple-ios-sim",
            "aarch64-linux-android", "x86_64-linux-android"]
 

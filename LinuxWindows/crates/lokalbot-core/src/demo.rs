@@ -1,5 +1,5 @@
 //! A fictional demo library for screenshots, UI development and tests
-//! (`Scripts/seed_demo_library.py --profile studio`, adapted to Linux and
+//! (`Scripts/test/seed_demo_library.py --profile studio`, adapted to Linux and
 //! Windows apps): a small video studio's meetings, actions, day memory,
 //! digest, Ask conversations, people and projects, placed relative to `now`.
 

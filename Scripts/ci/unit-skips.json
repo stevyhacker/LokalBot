@@ -218,7 +218,7 @@
       ]
     },
     {
-      "reason": "No scripted browser trace is committed yet. Recording one (Scripts/record-capture/run.sh chrome|safari) opens a browser on a desktop where a Debug build holds Accessibility and Screen Recording, which hosted runners cannot grant. Take this entry off the list with the first committed scripted-*.json trace.",
+      "reason": "No scripted browser trace is committed yet. Recording one (Scripts/test/record-capture/run.sh chrome|safari) opens a browser on a desktop where a Debug build holds Accessibility and Screen Recording, which hosted runners cannot grant. Take this entry off the list with the first committed scripted-*.json trace.",
       "tests": [
         "CaptureReplayTests/testScriptedBrowserTracesReplayToACapture"
       ]

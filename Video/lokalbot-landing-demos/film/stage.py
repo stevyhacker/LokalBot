@@ -152,7 +152,7 @@ def library(kind, root):
     if kind == "studio":
         run(sys.executable, ROOT / "Video/lokalbot-readme-hero/filming/seed_filming_library.py", root, stdout=subprocess.DEVNULL)
     elif kind == "pricing":
-        run(sys.executable, ROOT / "Scripts/readme-gif/seed_library.py", root, stdout=subprocess.DEVNULL)
+        run(sys.executable, ROOT / "Scripts/media/readme-gif/seed_library.py", root, stdout=subprocess.DEVNULL)
     elif kind == "empty":
         Path(root).mkdir(parents=True, exist_ok=True)
     else:

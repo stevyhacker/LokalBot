@@ -2,7 +2,7 @@
 import AppKit
 
 /// Films a scripted run of the real app for demo videos (Debug builds only;
-/// see Scripts/agent-handoff-demo). `LOKALBOT_TEST_FILM_SCRIPT` picks the run:
+/// see Scripts/media/agent-handoff-demo). `LOKALBOT_TEST_FILM_SCRIPT` picks the run:
 ///
 /// - `install-agent` installs Agent Mode's runtime, prints the result and quits.
 /// - `agent-handoff` opens the meeting `LOKALBOT_TEST_FILM_MEETING` while it is

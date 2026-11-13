@@ -1,4 +1,4 @@
-# Shared side-by-side cotyping prompts — consumed by Scripts/compare-cotyping.sh
+# Shared side-by-side cotyping prompts — consumed by Scripts/cotyping/compare-cotyping.sh
 # and Benchmarks/Cotyping/side_by_side.py. Tab-separated: slug<TAB>kind<TAB>prompt.
 # kind: next-word        — caret after a finished word; suggestion starts a new word
 #       word-completion  — caret mid-word on a fragment no dictionary word equals;

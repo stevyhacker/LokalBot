@@ -8,7 +8,7 @@
 
 The `v0.9.0` tag points at commit `cd959bae99ff4bed22bef2604f45241c09bbb8c8`,
 which is also build tag `b12110`. macOS builds the `v0.9.0` source archive. Its
-archive has no `.git`, so `Scripts/fetch-llama.sh` passes build number 12110,
+archive has no `.git`, so `Scripts/build/fetch-llama.sh` passes build number 12110,
 and `llama-server --version` reports `0.9.0 (build 12110, commit v0.9.0)`.
 Linux and Windows download the `b12110` release assets, whose servers report
 `0.9.0-dev (build 12110, commit cd959bae9)`.
@@ -55,7 +55,7 @@ Upstream changes that were checked, across both v0.8.0 and v0.9.0:
 
 ## Verification
 
-- **macOS vendor build.** `bash Scripts/fetch-llama.sh` cold-built v0.9.0 in 40 s with no compiler warnings. The receipt validates, and the runtime has the same file set with the version suffixes moving to ggml 0.29.0 and llama 0.9.0 (57 MB, was 54 MB). `python3 -m unittest discover -s Scripts/tests` ran 162 tests: OK.
+- **macOS vendor build.** `bash Scripts/build/fetch-llama.sh` cold-built v0.9.0 in 40 s with no compiler warnings. The receipt validates, and the runtime has the same file set with the version suffixes moving to ggml 0.29.0 and llama 0.9.0 (57 MB, was 54 MB). `python3 -m unittest discover -s Scripts/tests` ran 162 tests: OK.
 - **Focused macOS suites: 297 tests, 0 failures, 3 skips,** built against the v0.9.0 vendor with real models. The classes were `LlamaCoreSmokeTests`, `LlamaSamplerSpecTests`, `LlamaServerTests`, `LlamaServerIsolationTests`, `RuntimeAssetSafetyTests`, `InferenceBrokerTests`, `TextEngineTests`, `LeasedTextEngineTests`, `ChatAgentTests`, `LocalLlamaCotypingEngineTests`, `LlamaCotypingRuntimeTests`, `FileMediaEmbedderReferenceTests`, `FileMediaEmbedderTests`, `ModelCatalogTests`, `ModelResidencyTests`, `AskLibraryEngineTests`, `EmbeddingIndexIntegrationTests`, `EmbeddingIndexScreenBackfillTests`, `CotypingEngineSelectorTests`, `CotypingTokenHealingTests`, `CotypingFirstWordConfidenceTests`, `LeaseBookTests` and `SystemResourceSamplerTests`. `FileMediaEmbedderReferenceTests`, which asks to be run for every llama.cpp update, passed through the app's own path. The skips need a fixture, a model that cannot reuse prompt prefixes, and a private replay manifest.
 - **Server probes, macOS.** The app's arguments were used with Qwen3.5 4B, Gemma 4 E2B, LFM2.5 1.2B and EmbeddingGemma 2, comparing v0.7.0 and v0.9.0. They gave identical results for `/props` context size, `/tokenize` on Serbian text, chat with and without thinking, streamed chat, JSON-schema output, a tool call (plain and streamed), the error for too long a prompt, an over-long embedding input, and `/completion` with `n_probs`, stop type and prompt-cache reuse. Text embedding cosine was 1.0 on all four inputs. The only differences: `chat_template_caps` in `/props` gains `reasoning_effort_levels`, and one Gemma 4 E2B log-probability moved by 0.001 with the same text out.
 - **Speed, macOS.** M4 Max on AC power, about 2,360 prompt tokens and 256 generated tokens, three alternating runs per build, medians. Qwen's decode runs were noisy on both builds (102, 103 and 72 against 93, 63 and 102 tok/s), so this shows no clear change for Qwen. Autocomplete's real prompts are shorter than this one, and the in-process path was not timed separately; it uses the same `libllama`.

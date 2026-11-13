@@ -219,7 +219,7 @@ Each failure mode gets a specific pane state, not a generic error:
   Skips when the runtime isn't installed locally.
 - **UI tests:** synthetic transcript fixtures through the pane (existing XCUITest harness).
 - **E2E:** new headless flag `--agent "<prompt>"` beside `--chat` in `HeadlessCommands.swift`,
-  wired into `Scripts/e2e.sh`, skipping when the runtime is absent.
+  wired into `Scripts/test/e2e.sh`, skipping when the runtime is absent.
 
 ## Out of scope (v1)
 

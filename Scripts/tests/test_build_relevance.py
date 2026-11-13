@@ -31,7 +31,7 @@ class BuildRelevanceTests(unittest.TestCase):
         for path in ["PRIVACY.md", "LICENSE", "LICENSES/AGPL-3.0.txt", "THIRD_PARTY_NOTICES.md",
                      ".agents/skills/lokalbot-cli/SKILL.md",
                      "Benchmarks/Cotyping/heldout.jsonl", "LokalBot/AppState.swift", "LokalBotTests/X.swift",
-                     "CLI/main.swift", "project.yml", "Scripts/unit-tests.sh", ".github/workflows/build.yml",
+                     "CLI/main.swift", "project.yml", "Scripts/test/unit-tests.sh", ".github/workflows/build.yml",
                      "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"]:
             with self.subTest(path=path):
                 self.assertTrue(build.relevant([path]))

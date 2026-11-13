@@ -2,7 +2,7 @@
 #
 # The Rust crate LinuxWindows/crates/lokalbot-sync becomes the local Swift
 # package Vendor/lokalbot-sync (product LokalBotSync) through
-# Scripts/build-sync-xcframework.sh. Xcode resolves packages before any build
+# Scripts/build/build-sync-xcframework.sh. Xcode resolves packages before any build
 # phase runs, and XcodeGen refuses a local package path that does not exist,
 # so every job that builds the Mac app runs this after restoring the Vendor
 # cache and before `xcodegen generate`.
@@ -30,10 +30,10 @@ runs:
           ~/.cargo/registry/cache
           ~/.cargo/git/db
           LinuxWindows/target
-        key: lokalbot-sync-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('LinuxWindows/rust-toolchain.toml', 'LinuxWindows/Cargo.lock', 'LinuxWindows/crates/lokalbot-sync/**', 'Scripts/build-sync-xcframework.sh') }}
+        key: lokalbot-sync-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('LinuxWindows/rust-toolchain.toml', 'LinuxWindows/Cargo.lock', 'LinuxWindows/crates/lokalbot-sync/**', 'Scripts/build/build-sync-xcframework.sh') }}
         restore-keys: |
           lokalbot-sync-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Build the Swift package
       shell: bash
-      run: bash Scripts/build-sync-xcframework.sh
+      run: bash Scripts/build/build-sync-xcframework.sh

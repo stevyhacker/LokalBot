@@ -6,7 +6,7 @@ then a three.js look at how a suggestion is made.
 - Canvas: 1920 × 1080, 30 fps, 30 s. Burned-in titles, so it reads muted.
 - Footage: LokalBot's Debug build in TextEdit on a GitHub Actions Mac, typed
   by real key events and filmed with ScreenCaptureKit
-  (`Scripts/autocomplete-demo/`, workflow "Autocomplete demo"). The default
+  (`Scripts/media/autocomplete-demo/`, workflow "Autocomplete demo"). The default
   on-device model wrote every suggestion; nothing in the product UI is
   redrawn. The edit speeds typing up and shortens the wait for each
   suggestion, and the footage carries a "sped up" note.

@@ -282,7 +282,7 @@ GUIDES = [
 
 <span class="c-op"># Mac</span>
 <span class="c-prompt">$</span> mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
-<span class="c-prompt">$</span> Scripts/build-sync-xcframework.sh
+<span class="c-prompt">$</span> Scripts/build/build-sync-xcframework.sh
 <span class="c-prompt">$</span> xcodegen generate <span class="c-op">&amp;&amp;</span> open LokalBot.xcodeproj
 
 <span class="c-op"># Windows and Linux</span>

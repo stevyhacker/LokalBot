@@ -9,7 +9,7 @@ The production factory is separate from replay defaults: historical headless fix
 
 **Installation**
 
-Built, signed, installed in place and relaunched via `CONFIGURATION=Release Scripts/reinstall-preserve-permissions.sh`. The installed app is `/Applications/LokalBot.app`, version 0.10.3 (47). Bundle `me.dotenv.LokalBot`, team `3N8B4562P4`, designated requirement and entitlements match the previous installed app. Strict deep signature verification passed; the installed executable equals the signed export. This verifies identity continuity, not a fresh audit of macOS permission grants. No release or notarization submission was performed.
+Built, signed, installed in place and relaunched via `CONFIGURATION=Release Scripts/build/reinstall-preserve-permissions.sh`. The installed app is `/Applications/LokalBot.app`, version 0.10.3 (47). Bundle `me.dotenv.LokalBot`, team `3N8B4562P4`, designated requirement and entitlements match the previous installed app. Strict deep signature verification passed; the installed executable equals the signed export. This verifies identity continuity, not a fresh audit of macOS permission grants. No release or notarization submission was performed.
 
 Saved settings after relaunch: autocomplete on, in-process runtime on, hybrid on, model `gemma4-e2b-base-q6`. No test storage override is present. The existing model file still matches its pinned SHA-256.
 

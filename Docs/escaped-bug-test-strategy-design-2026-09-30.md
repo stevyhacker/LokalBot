@@ -94,8 +94,8 @@ set.
 - **UI Tests always reports.** Remove the `paths:` filter from the
   `pull_request` trigger in `ui-tests.yml`. Add a first `changes` job that
   computes whether any currently filtered path changed (`LokalBot/**`,
-  `LokalBotUITests/**`, `project.yml`, `Scripts/ui-tests.sh`,
-  `Scripts/ci/**`, `Scripts/fetch-llama.sh`, `Scripts/fetch-sherpa.sh`,
+  `LokalBotUITests/**`, `project.yml`, `Scripts/test/ui-tests.sh`,
+  `Scripts/ci/**`, `Scripts/build/fetch-llama.sh`, `Scripts/build/fetch-sherpa.sh`,
   `.github/workflows/ui-tests.yml`, plus new fixture paths used by UI
   tests). Shard jobs depend on it and skip when nothing relevant changed; the
   existing aggregate job `XCUITest (macOS)` passes in that case. Push runs
@@ -280,7 +280,7 @@ environment at init (default: live) and route `Date()`, `systemUptime`, and
 - `Scripts/ci/check-capture-recordings.py` fails CI for any trace without
   the current scrubber stamp or with a string outside the placeholder
   grammar and allowlist.
-- `Scripts/record-capture/` serves a local page with synthetic text, a
+- `Scripts/test/record-capture/` serves a local page with synthetic text, a
   password field, and a Meet-like title, and drives Chrome and Safari
   through the recorder on the developer's Mac.
 
@@ -302,13 +302,13 @@ Every future escaped capture bug adds a trace and a replay test
 
 ## Step 5 — Day-in-the-life runs through the real pipelines
 
-- `Scripts/seed_demo_library.py --profile full-day`: an 8–10 h workday with
+- `Scripts/test/seed_demo_library.py --profile full-day`: an 8–10 h workday with
   activity blocks (including browser, Electron, and Private time), OCR
   screen-text rows, calendar events, and two meetings with synthetic
   dual-track audio from `say`, one merged. `--profile large`: six months,
   about 200 meetings, 50k activity blocks, 20k screenshot rows. The existing
   screenshot profile stays the default. All content synthetic.
-- `Scripts/day-in-the-life.sh` drives a Debug build (with
+- `Scripts/test/day-in-the-life.sh` drives a Debug build (with
   `LOKALBOT_TEST_HOOKS`) through `--process`, `--digest`, `--search`, and
   `--health` on a throwaway `LOKALBOT_STORAGE_ROOT`. Fakes only:
   - model: the step 3 stub replaying GLM 5.3 Flash / Qwen3.8 Flash
@@ -334,7 +334,7 @@ Every future escaped capture bug adds a trace and a replay test
 - `Scripts/ci/record-day-responses.sh` refreshes the recorded responses
   (locally with a key, or by dispatching `nightly.yml`'s `model-drift` job on
   a branch).
-- `Scripts/e2e.sh` remains the local real-everything suite; it is not run
+- `Scripts/test/e2e.sh` remains the local real-everything suite; it is not run
   in CI.
 
 ## Step 6 — UI test host with background work running
@@ -370,7 +370,7 @@ Every future escaped capture bug adds a trace and a replay test
 - `.github/workflows/upgrade-fixtures.yml` (`workflow_dispatch`, clean
   hosted Mac only, because it writes the app's real defaults domain). For
   each of 0.6.2, 0.7.2, 0.8.5, 0.9.0, 0.9.1, 0.9.2:
-  1. run that tag's own `Scripts/seed_demo_library.py`;
+  1. run that tag's own `Scripts/test/seed_demo_library.py`;
   2. write that version's settings keys from a per-version profile
      (approved remote origins, schedules, remote backend);
   3. open the library headlessly (`--search`) with that release's signed

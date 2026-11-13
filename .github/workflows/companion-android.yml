@@ -1,5 +1,5 @@
 # Android companion: build, test and lint, sign with a throwaway key through
-# Scripts/sign-android-release.sh, and run the result against a stand-in computer.
+# Scripts/release/sign-android-release.sh, and run the result against a stand-in computer.
 #
 # Release (release.yml) calls this for a v* tag, next to the macOS job, without
 # any secret and without restoring compiled output from a cache. It keeps the
@@ -27,7 +27,7 @@ on:
       - "LinuxWindows/Cargo.lock"
       - "LinuxWindows/rust-toolchain.toml"
       - "Scripts/build-sync-*"
-      - "Scripts/sign-android-release.sh"
+      - "Scripts/release/sign-android-release.sh"
       - ".github/workflows/companion-android.yml"
   pull_request:
     branches: [master, dev]
@@ -39,7 +39,7 @@ on:
       - "LinuxWindows/Cargo.lock"
       - "LinuxWindows/rust-toolchain.toml"
       - "Scripts/build-sync-*"
-      - "Scripts/sign-android-release.sh"
+      - "Scripts/release/sign-android-release.sh"
       - ".github/workflows/companion-android.yml"
   workflow_dispatch:
     inputs:
@@ -144,7 +144,7 @@ jobs:
           version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' Companion/android/app/build.gradle.kts)
           tag="${TAG#v}"
           if [[ "${tag%%-*}" != "$version" ]]; then
-            echo "::error::Tag $TAG does not match the Android versionName $version. Run Scripts/bump-version.py first." >&2
+            echo "::error::Tag $TAG does not match the Android versionName $version. Run Scripts/release/bump-version.py first." >&2
             exit 1
           fi
 
@@ -202,7 +202,7 @@ jobs:
         # runner, the script finds the NDK under ANDROID_HOME.
         run: |
           export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
-          Scripts/build-sync-android.sh
+          Scripts/build/build-sync-android.sh
 
       - name: Build, unit and screenshot tests, lint
         working-directory: Companion/android
@@ -229,8 +229,8 @@ jobs:
           export ANDROID_KEYSTORE_PASSWORD
           keytool -genkeypair -keystore "$keystore" -storetype PKCS12 -storepass "$ANDROID_KEYSTORE_PASSWORD" \
             -alias throwaway -keyalg RSA -keysize 2048 -validity 1 -dname "CN=LokalBot throwaway"
-          Scripts/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/app-release-signed.apk" "$keystore"
-          if Scripts/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/refused.apk" "$keystore" not-this-certificate; then
+          Scripts/release/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/app-release-signed.apk" "$keystore"
+          if Scripts/release/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/refused.apk" "$keystore" not-this-certificate; then
             echo "::error::The signing script accepted a key with the wrong certificate" >&2
             exit 1
           fi

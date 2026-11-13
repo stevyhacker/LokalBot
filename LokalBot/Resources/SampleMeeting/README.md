@@ -58,7 +58,7 @@ Each language (`en`, `de`, `zh`, `sr-Latn`) has its own set:
 
 ## How it was made
 
-`Scripts/sample_meeting.py build` voices each turn with the voice service named in
+`Scripts/dev/sample_meeting.py build` voices each turn with the voice service named in
 the script:
 
 | Language | Service | Maya | Daniel |
@@ -83,7 +83,7 @@ Synthesized turns are cached by text, voice and settings, so editing one line
 re-voices only that line (with ElevenLabs, also its neighbours):
 
 ```sh
-python3 Scripts/sample_meeting.py build --lang de
+python3 Scripts/dev/sample_meeting.py build --lang de
 ```
 
 After a rebuild, keep `expected.<lang>.json` and the passage times above in step,
@@ -96,7 +96,7 @@ Gemini API Terms of Service (the others), and the scripts are part of LokalBot
 ## Checking a transcript
 
 ```sh
-python3 Scripts/sample_meeting.py check --lang <lang> <meeting folder or transcript.json> [--summary summary.md]
+python3 Scripts/dev/sample_meeting.py check --lang <lang> <meeting folder or transcript.json> [--summary summary.md]
 ```
 
 It prints:

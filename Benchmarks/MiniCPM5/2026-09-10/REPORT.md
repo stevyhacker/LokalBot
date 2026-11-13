@@ -64,7 +64,7 @@ The long archive is the same 450-record text for both models; token counts diffe
 
 ## Production extraction replay
 
-The existing [SummaryEfficiency replay](../../SummaryEfficiency/README.md) ran current `MeetingNotesGenerator` and its actual validation/repair/rendering path. The native test target was built first with `Scripts/unit-tests.sh MeetingNotesReplayTests`; UI tests were excluded. The replay fixture contains seven accepted commitments, including three user commitments, and one unassigned request. Completed work and speculative ideas are distractors.
+The existing [SummaryEfficiency replay](../../SummaryEfficiency/README.md) ran current `MeetingNotesGenerator` and its actual validation/repair/rendering path. The native test target was built first with `Scripts/test/unit-tests.sh MeetingNotesReplayTests`; UI tests were excluded. The replay fixture contains seven accepted commitments, including three user commitments, and one unassigned request. Completed work and speculative ideas are distractors.
 
 | Model / run | Pipeline result | User commitments retained with correct owner and citation | All accepted commitments retained correctly | Extraction wall time |
 |---|---|---:|---:|---:|
@@ -105,7 +105,7 @@ uv run --no-project Benchmarks/MiniCPM5/2026-09-10/run.py \
 # Precision control: use Q8 with --group extraction.
 # Thinking diagnostic: use Q4 with --group extraction --extraction-thinking --temperature 1.
 
-Scripts/unit-tests.sh MeetingNotesReplayTests
+Scripts/test/unit-tests.sh MeetingNotesReplayTests
 uv run --no-project Benchmarks/SummaryEfficiency/run.py \
   --transcript "$PWD/Benchmarks/MiniCPM5/2026-09-10/fixtures/transcript.json" \
   --model /private/tmp/lokalbot-minicpm5-20260910/models/MiniCPM5-2B-Q4_K_M.gguf \

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sparkle 2 appcast skeleton for LokalBot (me.dotenv.LokalBot).
+
+  Rendered by Scripts/release/generate_appcast.py: every double-brace placeholder below
+  with a concrete value for one release, then the result is uploaded to the
+  GitHub Release so the feed resolves at
+  https://github.com/stevyhacker/lokalbot/releases/latest/download/appcast.xml.
+
+  Only a single <item> is emitted; Sparkle treats the newest version it finds
+  in the channel as the candidate, so a one-item feed is sufficient.
+-->
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>LokalBot Updates</title>
+    <link>{{REPOSITORY_URL}}</link>
+    <description>LokalBot release feed</description>
+    <language>en</language>
+    <item>
+      <title>Version {{SHORT_VERSION}}</title>
+      <link>{{RELEASE_PAGE_URL}}</link>
+      <sparkle:version>{{BUILD_VERSION}}</sparkle:version>
+      <sparkle:shortVersionString>{{SHORT_VERSION}}</sparkle:shortVersionString>
+      <sparkle:releaseNotesLink>{{RELEASE_PAGE_URL}}</sparkle:releaseNotesLink>
+      <sparkle:minimumSystemVersion>{{MINIMUM_SYSTEM_VERSION}}</sparkle:minimumSystemVersion>
+      <pubDate>{{PUB_DATE}}</pubDate>
+      <enclosure url="{{ARCHIVE_URL}}"
+                 sparkle:edSignature="{{ED_SIGNATURE}}"
+                 length="{{ARCHIVE_LENGTH}}"
+                 type="application/octet-stream" />
+    </item>
+  </channel>
+</rss>

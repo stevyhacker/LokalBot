@@ -187,7 +187,7 @@ def prepare():
     trusted_candidate()
     if os.environ['GITHUB_EVENT_NAME'] != 'workflow_dispatch' or os.environ['GITHUB_REF'] != 'refs/heads/master':
         raise ValueError('Archive preparation requires an explicit dispatch on master')
-    subprocess.run(['python3', 'Scripts/release-preflight.py', '--candidate', '--version', os.environ['CANDIDATE_VERSION']], check=True)
+    subprocess.run(['python3', 'Scripts/release/release-preflight.py', '--candidate', '--version', os.environ['CANDIDATE_VERSION']], check=True)
 
 
 def verify_app():

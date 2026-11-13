@@ -351,7 +351,7 @@ cd lokalbot
 # 首次构建获取运行时之前，XcodeGen 需要这些路径存在。
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 # 把手机和平板同步库（Rust）构建为本地 Swift 包。
-Scripts/build-sync-xcframework.sh
+Scripts/build/build-sync-xcframework.sh
 xcodegen generate
 open LokalBot.xcodeproj
 ```

@@ -14,8 +14,8 @@ def load(name, path):
     return module
 
 
-scenario = load("scenario", "Scripts/day-in-the-life/scenario.py")
-assertions = load("assertions", "Scripts/day-in-the-life/assertions.py")
+scenario = load("scenario", "Scripts/test/day-in-the-life/scenario.py")
+assertions = load("assertions", "Scripts/test/day-in-the-life/assertions.py")
 
 
 class ScenarioTests(unittest.TestCase):

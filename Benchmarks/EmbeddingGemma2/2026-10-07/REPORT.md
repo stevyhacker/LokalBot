@@ -86,7 +86,7 @@ python Benchmarks/EmbeddingGemma2/2026-10-07/run_llamacpp.py gemma-text
 python Benchmarks/EmbeddingGemma2/2026-10-07/run_llamacpp.py gemma-vision
 python Benchmarks/EmbeddingGemma2/2026-10-07/run_llamacpp.py harrier
 python Benchmarks/EmbeddingGemma2/2026-10-07/score_llamacpp.py
-# app configuration, on the vendored build (after bash Scripts/fetch-llama.sh)
+# app configuration, on the vendored build (after bash Scripts/build/fetch-llama.sh)
 python Benchmarks/EmbeddingGemma2/2026-10-07/run_llamacpp.py gemma-text \
   --binary Vendor/llama-cpp/llama-server --results /private/tmp/lokalbot-embeddinggemma2-20261007/results-b11474
 python Benchmarks/EmbeddingGemma2/2026-10-07/app_parity.py   # add --real-library after reallib/prepare.py and embed.py

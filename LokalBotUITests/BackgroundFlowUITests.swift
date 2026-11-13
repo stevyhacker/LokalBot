@@ -27,7 +27,7 @@ final class BackgroundFlowUITests: XCTestCase {
 
     /// Starts the Bun stub with the committed GLM notes/digest recordings
     /// (`Fixtures/background/scenario.json`, produced by
-    /// `Scripts/day-in-the-life/scenario.py`) and returns its base URL.
+    /// `Scripts/test/day-in-the-life/scenario.py`) and returns its base URL.
     private func startModelStub() throws -> String {
         let environment = ProcessInfo.processInfo.environment
         guard let bun = environment["LOKALBOT_TEST_BUN"], let script = environment["LOKALBOT_STUB_SCRIPT"] else {

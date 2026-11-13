@@ -27,7 +27,7 @@ The successful path is roughly 41 + 16 minutes because release compilation start
 
 Source observations:
 
-- `Scripts/ui-tests.sh` calls `build-for-testing` every time, including nine invocations in the successful UI workflow. Later calls can be incremental, so they are overhead, not nine cold builds.
+- `Scripts/test/ui-tests.sh` calls `build-for-testing` every time, including nine invocations in the successful UI workflow. Later calls can be incremental, so they are overhead, not nine cold builds.
 - Focused tests run again in the full suite. Reduce Motion has a separate environment and must retain its dedicated run.
 - Build and Tests independently compile the production target on separate runners; the UI host is a distinct target and cannot substitute for production compilation.
 - Only `Vendor` is explicitly cached in these workflows. Swift packages and compiled test products are not explicitly shared across jobs.
@@ -36,7 +36,7 @@ Source observations:
 
 ## 1. Make failures cheap and preparation atomic
 
-Files: `Scripts/ui-tests.sh`, CI workflow definitions, `RELEASING.md`, and a new release-preflight script.
+Files: `Scripts/test/ui-tests.sh`, CI workflow definitions, `RELEASING.md`, and a new release-preflight script.
 
 - Finalize version, build number, release notes, and their validation in one candidate commit before pushing. Check both version sources, the changelog base, tag availability, and the staged file list.
 - Pin the same explicit Xcode version across validation and release jobs; record Xcode build number, SDK, runner image, architecture, and dependency lock hash in artifacts.
@@ -49,7 +49,7 @@ Acceptance: an intentional test compilation error and a failing waveform asserti
 
 ## 2. Compile test bundles once and run independent UI work in parallel
 
-Files: `Scripts/ui-tests.sh`, `project.yml`, `.github/workflows/build.yml`, `tests.yml`, and `ui-tests.yml`.
+Files: `Scripts/test/ui-tests.sh`, `project.yml`, `.github/workflows/build.yml`, `tests.yml`, and `ui-tests.yml`.
 
 - Give the test script explicit build-only and run-existing-build modes, multiple include/exclude filters, and distinct result paths.
 - Compile the production app plus unit tests once, then execute unit tests without rebuilding. Keep Build and Tests independently visible as gate results.
@@ -98,7 +98,7 @@ Preserve the tag-triggered cold release route during rollout. Disable artifact r
 - UI builds once, runs 10 critical tests plus Reduce Motion, then starts two functional shards and three size-based visual shards. The functional split uses durations from baseline run `34118306359` (`Scripts/ci/ui-durations.json`); unknown new tests default to 30 seconds.
 - `ui-shards.py` inventories parameterless XCTest methods, rejects unsupported test declarations, and verifies actual `.xcresult` leaf results against each shard. The aggregate requires all 65 current tests, no unexpected skips or duplicates, and all 72 exported PNGs with correct dimensions. Each visual method executes once per size.
 - Portable tar artifacts carry the complete Products directory, including executable permissions, native libraries and `.xctestrun`. Consumers validate commit, lock, architecture, Xcode, signing mode, workflow run/attempt and SHA-256 before relocation. UI consumers never regenerate the project or rebuild.
-- `Scripts/prepare-release.sh VERSION` explicitly dispatches signed archive preparation on the current pushed `master` candidate. It can run while push validation is active. It does not tag, notarize or publish. The tag route verifies all five gate jobs from exact-SHA trusted master push workflows, rejects superseded candidates, then consumes a verified prepared app or cold-builds if none exists. Corrupt/mismatched artifacts fail rather than falling back.
+- `Scripts/release/prepare-release.sh VERSION` explicitly dispatches signed archive preparation on the current pushed `master` candidate. It can run while push validation is active. It does not tag, notarize or publish. The tag route verifies all five gate jobs from exact-SHA trusted master push workflows, rejects superseded candidates, then consumes a verified prepared app or cold-builds if none exists. Corrupt/mismatched artifacts fail rather than falling back.
 - Capture readiness waits for populated route-specific accessibility content and requested window dimensions, then acknowledges an in-process capture. Meeting selection is reapplied while waiting; the existing one-second activation/material settle is preserved. A bounded timeout fails without publishing a PNG. `capture_mode=legacy` retains the original eight-second timer for hosted comparison; comparison and filtered workflows use a separate check name and cannot satisfy the aggregate release gate.
 - Keep the five check names in branch protection. Their Build/Tests workflow grouping changed; repository protection settings are not changed by this PR.
 

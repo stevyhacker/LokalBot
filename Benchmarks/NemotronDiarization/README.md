@@ -56,7 +56,7 @@ PY
   /private/tmp/lokalbot-nemotron-bench/models/baseline baseline \
   /private/tmp/lokalbot-nemotron-bench/voices-baseline voices
 TEST_RUNNER_NEMOTRON_BENCH_ROOT=/private/tmp/lokalbot-nemotron-bench \
-  Scripts/unit-tests.sh NemotronRuntimeTests
+  Scripts/test/unit-tests.sh NemotronRuntimeTests
 ```
 
 This optional non-UI test checks app-adapter output against the original Nemotron predictions, resets between repeated tracks, and compares all exported Pyannote vector components to the 0.15.8 baseline. Without the explicit fixture path it skips without downloading models or reading private recordings. It is separate from the original timing runs.

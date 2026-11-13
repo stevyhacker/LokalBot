@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 SOURCE = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location("settings", SOURCE / "Scripts/upgrade-fixtures/settings.py")
+spec = importlib.util.spec_from_file_location("settings", SOURCE / "Scripts/test/upgrade-fixtures/settings.py")
 settings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(settings)
 

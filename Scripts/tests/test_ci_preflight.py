@@ -12,14 +12,14 @@ import unittest
 from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location("preflight", SOURCE / "Scripts/release-preflight.py")
+spec = importlib.util.spec_from_file_location("preflight", SOURCE / "Scripts/release/release-preflight.py")
 preflight = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preflight)
-bump_spec = importlib.util.spec_from_file_location("bump_version", SOURCE / "Scripts/bump-version.py")
+bump_spec = importlib.util.spec_from_file_location("bump_version", SOURCE / "Scripts/release/bump-version.py")
 bump_version = importlib.util.module_from_spec(bump_spec)
 bump_spec.loader.exec_module(bump_version)
 STAGED = ("project.yml\nLokalBot/Info.plist\nLinuxWindows/Cargo.toml\nLinuxWindows/Cargo.lock\n"
-          "Companion/android/app/build.gradle.kts\nScripts/release-notes/v0.8.1.md")
+          "Companion/android/app/build.gradle.kts\nScripts/release/release-notes/v0.8.1.md")
 PORT_LOCK = """version = 4
 
 [[package]]
@@ -46,12 +46,12 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / "LokalBot").mkdir()
-        (self.root / "Scripts/release-notes").mkdir(parents=True)
+        (self.root / "Scripts/release/release-notes").mkdir(parents=True)
         (self.root / "LokalBot/Info.plist").write_bytes(plistlib.dumps({
             "CFBundleShortVersionString": "0.8.1", "CFBundleVersion": "31", "SUPublicEDKey": "a2V5"}))
         (self.root / "project.yml").write_text(
             '        CFBundleShortVersionString: "0.8.1"\n        CFBundleVersion: "31"\n')
-        self.notes = self.root / "Scripts/release-notes/v0.8.1.md"
+        self.notes = self.root / "Scripts/release/release-notes/v0.8.1.md"
         self.notes.write_text('- Faster releases.\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n')
         (self.root / "LinuxWindows").mkdir()
         self.write_port("0.8.1")
@@ -80,10 +80,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertEqual(preflight.validate(self.root), ("0.8.1", "31", "v0.8.0"))
 
     def test_general_ci_accepts_prerelease_notes_or_generated_notes(self):
-        shutil.copy2(SOURCE / "Scripts/release-preflight.py", self.root / "Scripts/release-preflight.py")
+        shutil.copy2(SOURCE / "Scripts/release/release-preflight.py", self.root / "Scripts/release/release-preflight.py")
         workflow = (SOURCE / ".github/workflows/xcodegen.yml").read_text()
         command = next(line.strip() for line in workflow.splitlines()
-                       if line.strip().startswith("python3 Scripts/release-preflight.py"))
+                       if line.strip().startswith("python3 Scripts/release/release-preflight.py"))
         self.notes.unlink()
         beta_notes = self.notes.with_name("v0.8.1-beta.md")
         for has_notes in [True, False]:
@@ -133,7 +133,7 @@ class ReleaseMetadataTests(unittest.TestCase):
             f'        CFBundleShortVersionString: "{version}"\n        CFBundleVersion: "31"\n')
         self.write_port(version)
         self.write_android(version, "31")
-        (self.root / f"Scripts/release-notes/v{version}.md").write_text(
+        (self.root / f"Scripts/release/release-notes/v{version}.md").write_text(
             f"{notes}\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.11.5...v{version}\n")
 
     def explainer(self, name, content=b"\x89PNG\r\n\x1a\nimage"):
@@ -301,7 +301,7 @@ class HostedRunnerTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for name in ["Scripts/ui-tests.sh", "Scripts/ci/ui-build-stamp.py", "Scripts/ci/ui-shards.py",
+        for name in ["Scripts/test/ui-tests.sh", "Scripts/ci/ui-build-stamp.py", "Scripts/ci/ui-shards.py",
                      "Scripts/ci/ui-durations.json", "Scripts/ci/prepare-display.swift", "Scripts/ci/compiler-cache.py"]:
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -363,7 +363,7 @@ sys.exit(int(os.environ.get(key, '0')))
     def git(self, *args):
         return subprocess.check_output(['git', '-C', str(self.root), *args], text=True)
 
-    def run_script(self, *args, script="Scripts/ui-tests.sh", **environment):
+    def run_script(self, *args, script="Scripts/test/ui-tests.sh", **environment):
         interpreter = 'python3' if script.endswith('.py') else 'bash'
         return subprocess.run([interpreter, script, *args], cwd=self.root,
                               env=dict(self.env, **environment), text=True,
@@ -450,7 +450,7 @@ sys.exit(int(os.environ.get(key, '0')))
         self.build()
         for env in [dict(GITHUB_RUN_ATTEMPT='2'), dict(FAKE_XCODE='different compiler'), dict(FAKE_SDK='different SDK')]:
             self.assertNotEqual(self.run_script('--test-only', **env).returncode, 0)
-        (self.root / 'Scripts/ui-tests.sh').write_text((self.root / 'Scripts/ui-tests.sh').read_text() + '\n# changed\n')
+        (self.root / 'Scripts/test/ui-tests.sh').write_text((self.root / 'Scripts/test/ui-tests.sh').read_text() + '\n# changed\n')
         self.assertNotEqual(self.run_script('--test-only').returncode, 0)
         self.assertFalse(any('test-without-building' in call for call in self.calls()))
 

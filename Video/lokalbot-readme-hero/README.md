@@ -31,7 +31,7 @@ library.
 
 Scenes 4 and 5 are live: they are cut from the previous hero,
 `Assets/hero/lokalbot-demo-light.gif` at `43d72b9`, recorded by
-[Scripts/readme-gif](../../Scripts/readme-gif/README.md) from a filming copy of
+[Scripts/media/readme-gif](../../Scripts/media/readme-gif/README.md) from a filming copy of
 v0.11.2. `build.sh` reads that file from git, crops it below its old caption,
 and scales it to this canvas.
 
@@ -45,7 +45,7 @@ only cropped, scaled, or retimed by whole frames.
 | File | Role |
 | --- | --- |
 | `filming/filming-host.patch` | Adds `FilmDirector` to a throwaway copy of the source, plus a filming-only active-window appearance and a hidden-sidebar start. Never applied to the app source. |
-| `filming/seed_filming_library.py` | Seeds `Scripts/seed_demo_library.py --profile studio` with every meeting on the local clock (see the script). |
+| `filming/seed_filming_library.py` | Seeds `Scripts/test/seed_demo_library.py --profile studio` with every meeting on the local clock (see the script). |
 | `filming/take.sh` | Records one take on a fresh copy of the library with its own defaults suite, and fails if the host started a recording. |
 | `filming/film_all.sh` | Records the five takes with each one's window and section. |
 | `filming/scripts/t-*.json` | Each take's input, in window points from the top-left corner, titlebar included. |

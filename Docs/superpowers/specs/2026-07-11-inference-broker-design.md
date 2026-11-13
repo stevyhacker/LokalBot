@@ -140,7 +140,7 @@ Notes:
 - **`InferenceBrokerTests`** — real actor, fake `RuntimeHooks` (recorders), fake `leaseStateSink`, tiny lingers (0.05 s): ensure-then-pin ordering, release-unpins-then-stops-after-linger, new-lease-cancels-linger, ensure-failure-leaves-no-lease, `withLease` releases on success and throw, TTL expiry, two-leases-one-role refcounting. Timing assertions poll with generous deadlines (≤ 3 s) rather than sleeping exact intervals.
 - **`LeasedTextEngineTests`** — recording base engine + fake-hook broker: ensure precedes the base call, all four methods pass arguments/results through, errors release the lease, `displayName` forwards.
 - **`AgentAccessManagerTests` (extended)** — wake acquires an `.agent` TTL lease via fake hooks; a second wake replaces (not stacks) the lease; disable releases it. Existing five tests keep passing unchanged (they inject `startEngine`).
-- **Live coverage** — `Scripts/e2e.sh` already exercises summarize/chat/digest/ask_library against a real llama-server; no new e2e step is required, but the suite doubles as the integration proof that leasing didn't break the pipeline.
+- **Live coverage** — `Scripts/test/e2e.sh` already exercises summarize/chat/digest/ask_library against a real llama-server; no new e2e step is required, but the suite doubles as the integration proof that leasing didn't break the pipeline.
 
 ## 10. What deliberately does not change
 

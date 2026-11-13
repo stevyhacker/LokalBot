@@ -50,7 +50,7 @@ render it from the repository root. The site no longer links these files, so
 upload the result where it is needed rather than committing it:
 
 ```sh
-Scripts/render-hero-video-short.sh
+Scripts/media/render-hero-video-short.sh
 ```
 
 The script writes the MP4, poster and production manifest under `Website/public/assets/`

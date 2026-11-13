@@ -3,7 +3,7 @@
 
     compose.py <takes-dir> <clip> <wide|tall> <light|dark> <out.mp4> [--poster out.png]
 
-A take (Scripts/readme-gif/rig.swift) is the app's window as PNG frames with
+A take (Scripts/media/readme-gif/rig.swift) is the app's window as PNG frames with
 their arrival times, the events the rig performed, and the pointer's path. This
 puts the window on a backdrop, moves a camera over it, and draws the pointer,
 click ripples, keycaps and badges at the times and points the rig logged.

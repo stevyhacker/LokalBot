@@ -380,7 +380,7 @@ Add to PRIVACY.md:
 **Upgrade:**
 
 - A missing file loads as empty.
-- `Scripts/seed_demo_library.py` writes a plaintext `memory/remembered.json`,
+- `Scripts/test/seed_demo_library.py` writes a plaintext `memory/remembered.json`,
   so the first Upgrade fixtures run after release covers facts.
 - `UpgradeMigrationTests` asserts that facts load for fixtures that contain
   them.

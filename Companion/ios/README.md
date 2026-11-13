@@ -24,7 +24,7 @@ end-to-end encrypted. See
   until `Vendor/lokalbot-sync` exists:
 
   ```sh
-  Scripts/build-sync-xcframework.sh        # writes Vendor/lokalbot-sync; --force rebuilds
+  Scripts/build/build-sync-xcframework.sh        # writes Vendor/lokalbot-sync; --force rebuilds
   (cd Companion/ios && xcodegen generate)
   ```
 

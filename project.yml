@@ -52,7 +52,7 @@ packages:
     revision: 3adf7c95542bf6819f80247568bdb972279c2a22  # DigUpKit only (MIT): file crawling, reading, index and search
   # Phones and tablets: the Rust crate LinuxWindows/crates/lokalbot-sync as a
   # local package (static XCFramework + UniFFI Swift), written by
-  # Scripts/build-sync-xcframework.sh. Vendor/ is gitignored, and Xcode
+  # Scripts/build/build-sync-xcframework.sh. Vendor/ is gitignored, and Xcode
   # resolves packages before any build phase, so run the script before
   # `xcodegen generate` and the first build (DEVELOPMENT.md, every workflow).
   LokalBotSync:
@@ -158,18 +158,18 @@ targetTemplates:
           subpath: Contents/Helpers
     preBuildScripts:
       - name: Fetch llama.cpp vendor
-        script: "\"$PROJECT_DIR/Scripts/fetch-llama.sh\""
+        script: "\"$PROJECT_DIR/Scripts/build/fetch-llama.sh\""
         basedOnDependencyAnalysis: false
       - name: Fetch sherpa-onnx vendor
-        script: "\"$PROJECT_DIR/Scripts/fetch-sherpa.sh\""
+        script: "\"$PROJECT_DIR/Scripts/build/fetch-sherpa.sh\""
         basedOnDependencyAnalysis: false
       # Rebuilds the package when the crate changed since the last build.
       - name: Build lokalbot-sync
-        script: "\"$PROJECT_DIR/Scripts/build-sync-xcframework.sh\""
+        script: "\"$PROJECT_DIR/Scripts/build/build-sync-xcframework.sh\""
         basedOnDependencyAnalysis: false
     postBuildScripts:
       - name: Sign bundled native runtimes
-        script: "\"$PROJECT_DIR/Scripts/sign-bundled-native-code.sh\""
+        script: "\"$PROJECT_DIR/Scripts/build/sign-bundled-native-code.sh\""
         basedOnDependencyAnalysis: false
     entitlements:
       path: LokalBot/LokalBot.entitlements
@@ -350,9 +350,9 @@ targets:
       # checkout: macOS asks each new test host for access to ~/Documents.
       - path: LokalBot/LokalBot.entitlements
         buildPhase: resources
-      - path: Scripts/record-capture/scrub-allowlist.json
+      - path: Scripts/test/record-capture/scrub-allowlist.json
         buildPhase: resources
-      - path: Scripts/seed_demo_library.py
+      - path: Scripts/test/seed_demo_library.py
         buildPhase: resources
       - path: Benchmarks/Cotyping/memory-cases.json
         buildPhase: resources

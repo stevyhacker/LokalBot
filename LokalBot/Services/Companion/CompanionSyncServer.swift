@@ -3,7 +3,7 @@ import LokalBotSync
 
 extension CompanionServerFactory {
     /// The `lokalbot-sync` crate: the local package `Vendor/lokalbot-sync`,
-    /// built by `Scripts/build-sync-xcframework.sh`.
+    /// built by `Scripts/build/build-sync-xcframework.sh`.
     static let live = CompanionServerFactory(
         makeServer: { configuration, events in
             try CompanionSyncServer(configuration: configuration, events: events)

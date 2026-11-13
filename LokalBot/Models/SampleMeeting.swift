@@ -7,7 +7,7 @@ import Foundation
 /// personal memory leaves it out. The Windows and Linux app embeds the same
 /// recording (`lokalbot_engine::sample`).
 ///
-/// `Scripts/sample_meeting.py` builds the audio and its reference transcript,
+/// `Scripts/dev/sample_meeting.py` builds the audio and its reference transcript,
 /// and scores a transcript of it.
 enum SampleMeeting {
     /// One recording of the sample, in one spoken language.

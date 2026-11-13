@@ -35,7 +35,7 @@ export COTYPING_TEST_RUNNING=LokalBot
 # Every check below is a plain `[ ]` or `grep`: macOS's own bash (3.2) does not
 # stop a `set -e` script when a bare `[[ ]]` is false.
 
-if bash "$repo_root/Scripts/run-cotyping-side-by-side.command" \
+if bash "$repo_root/Scripts/cotyping/run-cotyping-side-by-side.command" \
     > "$fixture_root/wrapper-result" 2>&1; then
   printf 'Expected a running production LokalBot to block the wrapper.\n' >&2
   exit 1
@@ -44,7 +44,7 @@ fi
 grep -Eq -e 'Finish any recording and quit it yourself' "$fixture_root/wrapper-result"
 grep -Eq -e 'no apps were stopped' "$fixture_root/wrapper-result"
 
-if bash "$repo_root/Scripts/compare-cotyping.sh" cotabby "$fixture_root/output" > "$fixture_root/result" 2>&1; then
+if bash "$repo_root/Scripts/cotyping/compare-cotyping.sh" cotabby "$fixture_root/output" > "$fixture_root/result" 2>&1; then
   printf 'Expected a running competitor to block the benchmark.\n' >&2
   exit 1
 fi
@@ -52,7 +52,7 @@ fi
 grep -Eq -e 'No apps were stopped' "$fixture_root/result"
 
 export COTYPING_TEST_RUNNING=none
-if bash "$repo_root/Scripts/compare-cotyping.sh" cotabby "$fixture_root/output2" > "$fixture_root/result2" 2>&1; then
+if bash "$repo_root/Scripts/cotyping/compare-cotyping.sh" cotabby "$fixture_root/output2" > "$fixture_root/result2" 2>&1; then
   printf 'Expected target launch failure to stop the benchmark.\n' >&2
   exit 1
 fi
@@ -108,7 +108,7 @@ export COTYPING_COMPARE_ACCEPT=1
 export COTYPING_COMPARE_FIRST_WAIT_SECONDS=0
 export COTYPING_COMPARE_WAIT_SECONDS=0
 export COTYPING_COMPARE_ACCEPT_WAIT_SECONDS=0
-bash "$repo_root/Scripts/compare-cotyping.sh" cotabby "$fixture_root/output3" >/dev/null
+bash "$repo_root/Scripts/cotyping/compare-cotyping.sh" cotabby "$fixture_root/output3" >/dev/null
 [ -s "$fixture_root/output3/capture.complete" ]
 [ "$(cat "$fixture_root/output3/target.pid")" = 4242 ]
 [ -s "$fixture_root/output3/owned-1.png" ]
@@ -116,10 +116,10 @@ bash "$repo_root/Scripts/compare-cotyping.sh" cotabby "$fixture_root/output3" >/
 [ -f "$fixture_root/output3/owned-1.accepted.txt" ]
 [ "$(grep -c -e 'ARGS:- owned-document-42' "$COTYPING_TEST_LOG")" -ge 5 ]
 if grep -Eq -e 'largestArea|set documentWindow to window 1|bounds of front window' \
-  "$repo_root/Scripts/compare-cotyping.sh"; then
+  "$repo_root/Scripts/cotyping/compare-cotyping.sh"; then
   printf 'The capture script contains an unowned-window fallback.\n' >&2
   exit 1
 fi
 grep -Eq -e 'first window whose document is benchmarkDocument' \
-  "$repo_root/Scripts/compare-cotyping.sh"
+  "$repo_root/Scripts/cotyping/compare-cotyping.sh"
 printf 'Cotyping process-safety regressions passed.\n'

@@ -45,7 +45,7 @@ New (Swift files are auto-included via the existing `LokalBot`/`LokalBotTests` f
 | `LokalBotTests/Fixtures/stub-openai.ts` | Bun SSE stub for the integration test |
 | `Scripts/build-pi-bundle.sh` | Builds/release-stamps the pi bundle; `--install-local` for dev |
 
-Modified: `LokalBot/LokalBotApp.swift` (NavSection + AppState wiring), `LokalBot/Views/MainWindowView.swift` (sidebar + detail), `LokalBot/Views/ModelsView.swift` (rebrand), `LokalBot/HeadlessCommands.swift` (`--agent`), `project.yml` (extension resource), `Scripts/e2e.sh`, `.gitignore`, `CLAUDE.md`, `RELEASING.md`.
+Modified: `LokalBot/LokalBotApp.swift` (NavSection + AppState wiring), `LokalBot/Views/MainWindowView.swift` (sidebar + detail), `LokalBot/Views/ModelsView.swift` (rebrand), `LokalBot/HeadlessCommands.swift` (`--agent`), `project.yml` (extension resource), `Scripts/test/e2e.sh`, `.gitignore`, `CLAUDE.md`, `RELEASING.md`.
 
 Test files: one `LokalBotTests/<Type>Tests.swift` per new type (named below per task), plus `LokalBotTests/Helpers/FakeTransport.swift` (shared scriptable transport, extracted in Task 13) and `LokalBotTests/PiIntegrationTests.swift`.
 
@@ -3558,7 +3558,7 @@ git commit -m "Rebrand Summarization card as Main LLM engine"
 
 **Files:**
 - Modify: `LokalBot/HeadlessCommands.swift` (enum ~line 13-19, `parse` ~line 24-40, `run` ~line 53-62, new `runAgent` next to `runChat` ~line 158)
-- Modify: `Scripts/e2e.sh` (add an agent step that skips when the runtime is missing)
+- Modify: `Scripts/test/e2e.sh` (add an agent step that skips when the runtime is missing)
 - Modify: `CLAUDE.md` (architecture + headless flags list)
 - Modify: `RELEASING.md` (agent-runtime release asset step)
 - Test: manual headless invocation (the app binary is the harness, same as `--chat`)
@@ -3645,7 +3645,7 @@ Note: `AgentRuntimeLayout.isInstalled()` uses the default-root overload from Tas
 
 - [ ] **Step 2: Wire into e2e.sh**
 
-`Scripts/e2e.sh` has no `step` helper — each test is an inline block that runs `$BIN` with a flag, captures output and exit code, and calls `pass`/`fail`/`skip` (exit 3 = skip, matching the permission-gated steps). After the `--chat` block, add:
+`Scripts/test/e2e.sh` has no `step` helper — each test is an inline block that runs `$BIN` with a flag, captures output and exit code, and calls `pass`/`fail`/`skip` (exit 3 = skip, matching the permission-gated steps). After the `--chat` block, add:
 
 ```bash
 echo "== T10: agent mode (pi RPC, auto-approved) =="
@@ -3665,7 +3665,7 @@ fi
 
 ```bash
 xcodegen generate
-Scripts/install-app.sh
+Scripts/build/install-app.sh
 "/Applications/LokalBot.app/Contents/MacOS/LokalBot" --agent "Reply with the single word pong."
 ```
 
@@ -3693,7 +3693,7 @@ Run: `xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -destination 'plat
 Expected: `** TEST SUCCEEDED **`.
 
 ```bash
-git add LokalBot/HeadlessCommands.swift Scripts/e2e.sh CLAUDE.md RELEASING.md LokalBot.xcodeproj
+git add LokalBot/HeadlessCommands.swift Scripts/test/e2e.sh CLAUDE.md RELEASING.md LokalBot.xcodeproj
 git commit -m "Add --agent headless flag, e2e step, and Agent Mode docs"
 ```
 
@@ -3704,5 +3704,5 @@ git commit -m "Add --agent headless flag, e2e step, and Agent Mode docs"
 1. `xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -destination 'platform=macOS' test` — full unit suite green.
 2. `Scripts/build-pi-bundle.sh --install-local` then re-run `LokalBotTests/PiIntegrationTests` — real pi round-trip green.
 3. Manual: LokalBot Dev → sidebar Agent → install card → (with runtime) session pane → prompt "list the files in this folder" → watch tool card + approval card → Allow Once → assistant reply.
-4. `Scripts/install-app.sh && Scripts/e2e.sh` — agent step passes or skips cleanly.
+4. `Scripts/build/install-app.sh && Scripts/test/e2e.sh` — agent step passes or skips cleanly.
 5. Privacy check: `lsof -i -a -p <pi pid>` while the agent works — only connections are to 127.0.0.1 (llama-server or configured local endpoint).

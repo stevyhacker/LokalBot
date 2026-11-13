@@ -17,7 +17,7 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
-# Scripts/fetch-llama.sh builds it (v0.7.0, b11669). LLAMA_SERVER points at another build, such as a worktree's
+# Scripts/build/fetch-llama.sh builds it (v0.7.0, b11669). LLAMA_SERVER points at another build, such as a worktree's
 # main checkout.
 SERVER = Path(os.environ.get('LLAMA_SERVER', REPO / 'Vendor/llama-cpp/llama-server'))
 APP_MODELS = Path.home() / 'Library/Application Support/me.dotenv.LokalBot/models'

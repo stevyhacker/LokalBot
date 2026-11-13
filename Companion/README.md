@@ -52,10 +52,10 @@ Everything needs Rust (`rustup`; the toolchain is pinned in
 cd LinuxWindows && cargo test -p lokalbot-sync
 
 # Swift package for the Mac app and the iOS app (writes Vendor/lokalbot-sync/)
-Scripts/build-sync-xcframework.sh
+Scripts/build/build-sync-xcframework.sh
 
 # Android native libraries and Kotlin bindings (needs the Android NDK)
-Scripts/build-sync-android.sh
+Scripts/build/build-sync-android.sh
 
 # Design tokens after editing tokens.json
 node Companion/design/generate.mjs

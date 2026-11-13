@@ -18,8 +18,8 @@ class UIRelevanceTests(unittest.TestCase):
 
     def test_app_ui_test_and_ci_changes_need_the_ui_suite(self):
         for path in ["LokalBot/AppState.swift", "LokalBotUITests/MainWindowUITests.swift",
-                     "project.yml", "Scripts/ci/ui-shards.py", "Scripts/ui-tests.sh",
-                     ".github/workflows/ui-tests.yml", "Scripts/fetch-llama.sh",
+                     "project.yml", "Scripts/ci/ui-shards.py", "Scripts/test/ui-tests.sh",
+                     ".github/workflows/ui-tests.yml", "Scripts/build/fetch-llama.sh",
                      "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"]:
             with self.subTest(path=path):
                 self.assertTrue(relevance.relevant([path]))

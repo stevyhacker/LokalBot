@@ -76,7 +76,7 @@ New `lokalbot-cli install-skill` subcommand: symlinks the app-bundled skill dire
 
 ## 8. .mcpb bundle
 
-`Scripts/build-mcpb.sh` produces `LokalBot.mcpb` attached to releases. The bundle's server entry execs the installed app's helper (`/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp`) rather than embedding a second copy of the binary — no drift, no separate signing. If `LokalBot.app` is missing, the entry fails with a clear "install LokalBot first" message. Exact manifest fields are verified against the current MCPB spec during implementation.
+`Scripts/release/build-mcpb.sh` produces `LokalBot.mcpb` attached to releases. The bundle's server entry execs the installed app's helper (`/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp`) rather than embedding a second copy of the binary — no drift, no separate signing. If `LokalBot.app` is missing, the entry fails with a clear "install LokalBot first" message. Exact manifest fields are verified against the current MCPB spec during implementation.
 
 ## 9. Error model
 
@@ -96,7 +96,7 @@ Malformed JSON-RPC gets spec-standard protocol errors. The server never crashes 
 
 - **Unit (LokalBotTests):** `MCPProtocol` codec + dispatch on string fixtures including malformed input; `AgentAccessGate` marker logic; `AskLibraryEngine` retrieval selection, prompt construction, citation extraction with a mocked HTTP client; tool-schema snapshots.
 - **Integration:** golden stdio transcripts — pipe scripted `initialize` → `tools/list` → `tools/call` sessions into a spawned `lokalbot-cli mcp` against a fixture library under `LOKALBOT_STORAGE_ROOT`; assert on JSON out.
-- **e2e:** one new step in `Scripts/e2e.sh` after processing — write the marker, run `search_meetings` via `tools/call`, and one `ask_library` round-trip when the llama fixture is up. Skips (not fails) when the model is absent, matching the harness's permission-skip philosophy.
+- **e2e:** one new step in `Scripts/test/e2e.sh` after processing — write the marker, run `search_meetings` via `tools/call`, and one `ask_library` round-trip when the llama fixture is up. Skips (not fails) when the model is absent, matching the harness's permission-skip philosophy.
 
 ## 11. What deliberately does not change
 

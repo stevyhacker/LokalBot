@@ -46,7 +46,7 @@ def load(name, path):
 
 
 landing = load("landing_stage", ROOT / "Video/lokalbot-landing-demos/film/stage.py")
-seed = load("seed", ROOT / "Scripts/seed_demo_library.py")
+seed = load("seed", ROOT / "Scripts/test/seed_demo_library.py")
 
 CALL = [
     ("me", "Okay, let's settle the offsite. Lisbon or Porto?"),

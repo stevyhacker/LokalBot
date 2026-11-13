@@ -188,7 +188,7 @@ jobs:
           export LOKALBOT_APP="$PWD/.build/dd/Build/Products/Debug/LokalBot.app"
           export LOKALBOT_DAY_ROOT="$RUNNER_TEMP/workday"
           mkdir -p "$LOKALBOT_DAY_ROOT"
-          bash Scripts/day-in-the-life.sh --real-asr 2>&1 | tee .build/day-in-the-life-real.log
+          bash Scripts/test/day-in-the-life.sh --real-asr 2>&1 | tee .build/day-in-the-life-real.log
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
@@ -235,7 +235,7 @@ jobs:
         run: python3 Scripts/ci/test-products.py unpack unit
       - name: Large library
         run: |
-          python3 Scripts/seed_demo_library.py --profile large "$RUNNER_TEMP/large"
+          python3 Scripts/test/seed_demo_library.py --profile large "$RUNNER_TEMP/large"
           runs=(.build/dd/Build/Products/*.xctestrun)
           TEST_RUNNER_LOKALBOT_SCALE_LIBRARY="$RUNNER_TEMP/large" xcodebuild test-without-building \
             -xctestrun "${runs[0]}" -destination 'platform=macOS' -derivedDataPath .build/dd \
@@ -247,12 +247,12 @@ jobs:
         run: |
           export LOKALBOT_TEST_BUN="$(bash Scripts/ci/fetch-bun.sh | tail -1)"
           export LOKALBOT_APP="$PWD/.build/dd/Build/Products/Debug/LokalBot.app"
-          bash Scripts/scale/digest-while-writing.sh
+          bash Scripts/test/scale/digest-while-writing.sh
       - name: Two copies on one library
         if: ${{ !cancelled() }}
         run: |
           export LOKALBOT_APP="$PWD/.build/dd/Build/Products/Debug/LokalBot.app"
-          bash Scripts/scale/two-instances.sh
+          bash Scripts/test/scale/two-instances.sh
       - name: Open or update the nightly issue
         if: failure() && github.event_name == 'schedule'
         env:

@@ -18,7 +18,7 @@ produced by LokalBot's own pipeline on this Mac and were not edited.
    capture and voiced with ElevenLabs `eleven_v4` using library voices (Yating
    Lin, Arthur, Linda, and Willow). Each line was placed on a microphone track
    ("You") or a system-audio track (the other participants), 0.9 s after the
-   previous line, the way `say_track` in `Scripts/seed_demo_library.py` builds
+   previous line, the way `say_track` in `Scripts/test/seed_demo_library.py` builds
    its tracks.
 2. **Processing.** Each meeting folder (`mic.m4a`, `system.m4a`, `meta.json`)
    was processed with `--process <meeting-folder>` in a temporary library
@@ -28,7 +28,7 @@ produced by LokalBot's own pipeline on this Mac and were not edited.
    The model files were APFS clones of already-downloaded models. Nothing was
    sent off the Mac except the voice synthesis requests.
 3. **Rendering.** The LokalBot UI Test Host rendered each frame in-process with
-   the per-frame settings from `Scripts/capture-screenshots.sh`
+   the per-frame settings from `Scripts/media/capture-screenshots.sh`
    (`LOKALBOT_INITIAL_SECTION=meetings`, `LOKALBOT_SELECT_INDEX=0`,
    `LOKALBOT_DETAIL_TAB=summary` or `transcript`), against the processed
    library instead of a seeded one. Windows were 1400 × 880 points at 2×

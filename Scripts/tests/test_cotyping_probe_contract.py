@@ -8,7 +8,7 @@ import unittest
 
 class CotypingProbeContractTests(unittest.TestCase):
     def test_capture_is_region_bounded_and_dimension_checked(self):
-        script = Path(__file__).resolve().parents[1] / "cotyping-probe.swift"
+        script = Path(__file__).resolve().parents[1] / "cotyping" / "cotyping-probe.swift"
         result = subprocess.run(
             ["/usr/bin/xcrun", "swift", str(script), "--self-test-capture-contract"],
             capture_output=True,

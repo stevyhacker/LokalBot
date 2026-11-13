@@ -9,7 +9,7 @@
 No `v*` tag after v0.6.0 contains #30054 yet; the GitHub compare API shows
 v0.6.0 23 commits behind its merge and b11474 22 commits ahead of it. b11454 is
 the first published build with the change. The source archive has no `.git`, so
-upstream build-info would report build 0; `Scripts/fetch-llama.sh` passes
+upstream build-info would report build 0; `Scripts/build/fetch-llama.sh` passes
 `LLAMA_BUILD_NUMBER` and `llama-server --version` reports
 `0.6.0 (build 11474, commit b11474)`.
 

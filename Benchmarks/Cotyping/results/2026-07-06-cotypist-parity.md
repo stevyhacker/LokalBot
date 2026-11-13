@@ -93,10 +93,10 @@ Ready to run; needs two one-click macOS consents that only a human can give
 prompts timed out unattended and were recorded as denials, already cleared
 with `tccutil reset AppleEvents com.apple.Terminal`). To run:
 
-1. Double-click `Scripts/cotyping-capture-preflight.command` (or
-   `open -a Terminal Scripts/cotyping-capture-preflight.command`).
+1. Double-click `Scripts/cotyping/cotyping-capture-preflight.command` (or
+   `open -a Terminal Scripts/cotyping/cotyping-capture-preflight.command`).
 2. Click **Allow** on both dialogs; the script verifies each grant.
-3. It then auto-runs `Scripts/run-cotyping-side-by-side.command`: installs the
+3. It then auto-runs `Scripts/cotyping/run-cotyping-side-by-side.command`: installs the
    current build, drives Cotypist and LokalBot one at a time through the 25
    manifest prompts in TextEdit (~10 min, hands off the keyboard), Tab-accepts
    each suggestion, and merges the report into this folder via

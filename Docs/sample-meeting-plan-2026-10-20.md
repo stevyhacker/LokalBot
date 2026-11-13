@@ -48,8 +48,8 @@ decodes it on Mac.
 - `expected.en.json`: entity checklist, the decision, the changed decision, the open question, the Ask question, the key points of the expected answer, and the turn id it should cite
 - `README.md`: how it was made, the voices, and how to regenerate or translate it
 
-`Scripts/sample_meeting.py build` regenerates the audio from the script.
-`Scripts/sample_meeting.py check <transcript.json>` scores a LokalBot
+`Scripts/dev/sample_meeting.py build` regenerates the audio from the script.
+`Scripts/dev/sample_meeting.py check <transcript.json>` scores a LokalBot
 transcript against the reference: WER (CER for Chinese), entity recall, and
 speaker count. It also prints the checklist for a human reviewer.
 
@@ -132,7 +132,7 @@ time.
 
 ## 4. Seed and demo infrastructure: reuse the layout, not the data
 
-`Scripts/seed_demo_library.py --profile studio` and its Rust port,
+`Scripts/test/seed_demo_library.py --profile studio` and its Rust port,
 `lokalbot-core/src/demo.rs`, write ready-made transcripts and summaries with
 tone audio, for screenshots. They can't stand in for a real first run.
 `--profile full-day` makes real `say` speech, but only for test hooks. The
@@ -276,7 +276,7 @@ Xvfb from an empty library with the default models (Qwen3-ASR 0.6B, Qwen3.5 4B):
 
 - The model stage listed 3.7 GB, and nothing downloaded until asked.
 - The sample was added as soon as the downloads finished.
-- `Scripts/sample_meeting.py check` scored 3.0% WER and found all 14 names,
+- `Scripts/dev/sample_meeting.py check` scored 3.0% WER and found all 14 names,
   numbers and dates. 93% of speech time landed on the right voice, although
   speaker separation reported 3 speakers for 2 voices.
 - The notes stated the changed decision rather than the reversed one, and kept

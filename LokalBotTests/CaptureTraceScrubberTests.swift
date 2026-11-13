@@ -79,7 +79,7 @@ final class CaptureTraceScrubberTests: XCTestCase {
     }
 
     func testSwiftAllowlistMatchesTheSharedJSON() throws {
-        // A copy of Scripts/record-capture/scrub-allowlist.json; see project.yml.
+        // A copy of Scripts/test/record-capture/scrub-allowlist.json; see project.yml.
         let json = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "scrub-allowlist", withExtension: "json"))
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: json)) as? [String: Any])

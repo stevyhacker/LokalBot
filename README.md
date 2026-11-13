@@ -330,7 +330,7 @@ cd lokalbot
 # XcodeGen needs these paths before the first build fetches the runtimes.
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 # The phone and tablet sync library (Rust), as a local Swift package.
-Scripts/build-sync-xcframework.sh
+Scripts/build/build-sync-xcframework.sh
 xcodegen generate
 open LokalBot.xcodeproj
 ```

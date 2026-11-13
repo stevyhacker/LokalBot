@@ -26,7 +26,7 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SHOTS = HERE.parent.parent / 'Scripts' / 'autocomplete-demo' / 'shots'
+SHOTS = HERE.parent.parent / 'Scripts' / 'media' / 'autocomplete-demo' / 'shots'
 FPS = 30
 # The part of each 1760 x 420 take the edit shows: the text lines, without the
 # empty page below them or the scroll bar on the right. PAD widens the page on

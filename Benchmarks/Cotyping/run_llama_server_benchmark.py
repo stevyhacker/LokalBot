@@ -9,7 +9,7 @@ OpenAI-compatible llama-server and records:
 - time to the final returned text,
 - raw model text.
 
-Use `Scripts/compare-cotyping.sh` for screenshot parity against Cotypist. Use
+Use `Scripts/cotyping/compare-cotyping.sh` for screenshot parity against Cotypist. Use
 this script when changing prompt, sampling, server, or early-stop behavior and
 you need repeatable latency/output evidence from the Gemma Q5 XL backend.
 """

@@ -6,7 +6,7 @@ Verified on 2026-10-10. App implementation commit: `5bba13184c51039204660d1e38b0
 
 Gemma 4 E2B Q6_K (`gemma4-e2b-base-q6`) remains the catalog default and the installed selection. The installed app has autocomplete, the in-process runtime and **Experimental hybrid suggestions** enabled. Turning the existing switch off restores both the ordinary confidence gate and the previous midword decoder. The setting stays off by default for users who have not opted in.
 
-The signed Release app was installed **in place** at `/Applications/LokalBot.app` with `Scripts/reinstall-preserve-permissions.sh --no-relaunch`, validated, then relaunched from that path. Bundle identifier `me.dotenv.LokalBot`, team `3N8B4562P4`, designated requirement and entitlements match the pre-install app. Strict deep signature verification passed. Its executable hash matches the exported build:
+The signed Release app was installed **in place** at `/Applications/LokalBot.app` with `Scripts/build/reinstall-preserve-permissions.sh --no-relaunch`, validated, then relaunched from that path. Bundle identifier `me.dotenv.LokalBot`, team `3N8B4562P4`, designated requirement and entitlements match the pre-install app. Strict deep signature verification passed. Its executable hash matches the exported build:
 
 `ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37`
 

@@ -17,7 +17,7 @@ Every clip is a real recording of the native SwiftUI app driven by real AppKit i
 - a filming-only active-appearance override, so the window draws its key/active chrome while the Mac is locked or another app is frontmost;
 - a filming-only default that starts the workspace sidebar hidden, a normal app state that avoids `cacheDisplay`'s black sidebar-selection artifact.
 
-The library is `Scripts/seed_demo_library.py` fictional data. The capture host suppresses background capture and inference, so transcripts, outcomes, the Ask answer and the autocomplete suggestion are fixtures; the footage shows the interface and navigation, not live transcription or model performance. `cacheDisplay` still draws the selected toolbar segment in Meetings as a dark pill.
+The library is `Scripts/test/seed_demo_library.py` fictional data. The capture host suppresses background capture and inference, so transcripts, outcomes, the Ask answer and the autocomplete suggestion are fixtures; the footage shows the interface and navigation, not live transcription or model performance. `cacheDisplay` still draws the selected toolbar segment in Meetings as a dark pill.
 
 To re-film: copy the source (for example `git archive HEAD`), apply the patch, run `xcodegen generate`, build the `LokalBot UI Test Host` scheme, seed a library, then run `filming/film.sh` for each script in `filming/scripts/` (environment per take is listed in `STORYBOARD.md`: Quick Recall uses `LOKALBOT_UI_TEST_WINDOW=quick-recall LOKALBOT_CAPTURE_SIZE=660x480`; the others use `LOKALBOT_FILM_HIDE_SIDEBAR=1` with `LOKALBOT_INITIAL_SECTION=meetings|search|today|timeline|cotyping`, plus `LOKALBOT_SELECT_INDEX=0 LOKALBOT_DETAIL_TAB=summary` for Meetings and `LOKALBOT_COTYPING_DEMO=1` for Writing).
 

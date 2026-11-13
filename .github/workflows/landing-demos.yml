@@ -68,13 +68,13 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: Vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/build/fetch-llama.sh', 'Scripts/build/fetch-sherpa.sh') }}
       - name: Build lokalbot-sync
         uses: ./.github/actions/lokalbot-sync
       - name: Generate project
         run: xcodegen generate
       - name: Fetch llama.cpp vendor
-        run: bash Scripts/fetch-llama.sh
+        run: bash Scripts/build/fetch-llama.sh
       - name: Cache Swift packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
@@ -97,7 +97,7 @@ jobs:
         env:
           COMPILER_CACHE_MODE: warm
           CODE_SIGNING_ALLOWED: "NO"
-        run: Scripts/ui-tests.sh --build-only
+        run: Scripts/test/ui-tests.sh --build-only
       - name: Package the UI Test Host
         run: ditto -c -k --keepParent ".build/dd/Build/Products/Debug/LokalBot UI Test Host.app" .build/ui-host.zip
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -13,7 +13,7 @@
 #                                               and local models, with WAV files for the
 #                                               microphone and the call's system audio
 #   files                                       the Debug app, which reads the chosen folders; the host never does
-#   autocomplete                                the Debug app in TextEdit (Scripts/autocomplete-demo/film.sh)
+#   autocomplete                                the Debug app in TextEdit (Scripts/media/autocomplete-demo/film.sh)
 #
 # Writes <out>/clips/<appearance>-<take>.mp4 (30 fps, 4:4:4) with <take>.json (rect,
 # scale, events, pointer path), <out>/stills/ and <out>/logs/; with PROBE=1 also
@@ -68,7 +68,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== tools =="
-swiftc -O -swift-version 5 "$ROOT/Scripts/readme-gif/rig.swift" -o "$RIG" || exit 1
+swiftc -O -swift-version 5 "$ROOT/Scripts/media/readme-gif/rig.swift" -o "$RIG" || exit 1
 clang -fobjc-arc -O2 -framework Foundation -framework CoreGraphics "$HERE/vdisplay.m" -o "$WORK/vdisplay" || exit 1
 
 echo "== permissions =="
@@ -100,7 +100,7 @@ defaults write com.apple.CrashReporter DialogType -string none
 defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool false
 
 echo "== display =="
-swift "$ROOT/Scripts/autocomplete-demo/display.swift" > "$OUT/logs/main-display.txt" 2>&1 || true
+swift "$ROOT/Scripts/media/autocomplete-demo/display.swift" > "$OUT/logs/main-display.txt" 2>&1 || true
 tail -1 "$OUT/logs/main-display.txt"
 "$WORK/vdisplay" "$DISPLAY_SIZE" "$WORK/display.id" > "$OUT/logs/vdisplay.txt" 2>&1 &
 DISPLAY_PID=$!
@@ -224,7 +224,7 @@ rig_take() {
   RIG_TREE_DIR=$trees RIG_BACKGROUND=$(background "$appearance") "$RIG" take "$shot" "$dest" 2>&1 | tee -a "$OUT/logs/rig-$take.log"
   status=${PIPESTATUS[0]}
   if [[ $status -eq 0 && -s "$dest/take.json" ]]; then
-    python3 "$ROOT/Scripts/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$appearance-$take.mp4" || status=1
+    python3 "$ROOT/Scripts/media/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$appearance-$take.mp4" || status=1
     rm -rf "$dest/frames"
   fi
   return $status
@@ -449,7 +449,7 @@ for take in "$@"; do
       APPEARANCES="$APPEARANCES" SHOTS="$HERE/shots-autocomplete" FONT_SIZE=38 \
         BACKGROUND_LIGHT="$(background light)" BACKGROUND_DARK="$(background dark)" \
         LOKALBOT_APP="${LOKALBOT_APP:?set LOKALBOT_APP to a Debug LokalBot.app}" \
-        bash "$ROOT/Scripts/autocomplete-demo/film.sh" "$OUT/autocomplete" memory memory-tall || status=$?
+        bash "$ROOT/Scripts/media/autocomplete-demo/film.sh" "$OUT/autocomplete" memory memory-tall || status=$?
       for appearance in $APPEARANCES; do
         for shot in memory memory-tall; do
           name=autocomplete${shot#memory}

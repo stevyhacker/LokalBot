@@ -9,13 +9,13 @@ hand. The release tooling lives in
 
 | File | Role |
 | --- | --- |
-| `Scripts/build_release_dmg.py` | styled installer DMG via `dmgbuild` |
-| `Scripts/build_test_dmg.sh` | quick unsigned DMG for local layout checks |
-| `Scripts/generate_appcast.py` | sign the DMG + render `appcast.xml` |
-| `Scripts/appcast.template.xml` | Sparkle 2 feed skeleton |
-| `Scripts/clean_local.sh` | wipe local build/derived/DMG artifacts |
-| `Scripts/bump-version.py` | set the version in every file one tag ships it from |
-| `Scripts/sign-android-release.sh` | align and sign the Android APK, then check its certificate |
+| `Scripts/release/build_release_dmg.py` | styled installer DMG via `dmgbuild` |
+| `Scripts/build/build_test_dmg.sh` | quick unsigned DMG for local layout checks |
+| `Scripts/release/generate_appcast.py` | sign the DMG + render `appcast.xml` |
+| `Scripts/release/appcast.template.xml` | Sparkle 2 feed skeleton |
+| `Scripts/build/clean_local.sh` | wipe local build/derived/DMG artifacts |
+| `Scripts/release/bump-version.py` | set the version in every file one tag ships it from |
+| `Scripts/release/sign-android-release.sh` | align and sign the Android APK, then check its certificate |
 | `LinuxWindows/scripts/release-feeds.sh` | sign the Linux/Windows archives and write their update feeds |
 | `LinuxWindows/scripts/linux-repos.sh` | add the `.deb` and `.rpm` to the signed apt and dnf repositories ([Linux package repositories](#linux-package-repositories)) |
 | `LinuxWindows/scripts/third-party-licenses.sh` | regenerate the Linux/Windows crate license list ([Third-party licenses](#third-party-licenses)) |
@@ -164,7 +164,7 @@ once the DMG is published (the **Upgrade fixture** job, which calls
 version's fixture to the candidate:
 
 ```sh
-Scripts/upgrade-fixtures/add.sh 0.8.0
+Scripts/test/upgrade-fixtures/add.sh 0.8.0
 ```
 
 It downloads that artifact from a run of the release's tag or of `master`,
@@ -188,7 +188,7 @@ Windows workspace (`LinuxWindows/Cargo.toml` and its crates in
 (`Companion/android/app/build.gradle.kts`). Set all of them at once:
 
 ```sh
-python3 Scripts/bump-version.py 1.0.0 100
+python3 Scripts/release/bump-version.py 1.0.0 100
 ```
 
 - `CFBundleShortVersionString`, the workspace version and `versionName` → marketing version, e.g. `1.0.0`
@@ -202,7 +202,7 @@ Then regenerate the project:
 xcodegen generate
 ```
 
-Prepare `Scripts/release-notes/v<version>.md` at the same time, including a
+Prepare `Scripts/release/release-notes/v<version>.md` at the same time, including a
 human-readable summary and the full comparison from the previous stable tag.
 Before committing a stable release candidate, fetch current tags and validate
 the metadata files together (replace the version below):
@@ -210,8 +210,8 @@ the metadata files together (replace the version below):
 ```sh
 git fetch origin --tags
 git add project.yml LokalBot/Info.plist LinuxWindows/Cargo.toml LinuxWindows/Cargo.lock \
-  Companion/android/app/build.gradle.kts Scripts/release-notes/v0.8.1.md
-python3 Scripts/release-preflight.py --version 0.8.1 --candidate --staged
+  Companion/android/app/build.gradle.kts Scripts/release/release-notes/v0.8.1.md
+python3 Scripts/release/release-preflight.py --version 0.8.1 --candidate --staged
 git diff --cached
 ```
 
@@ -299,7 +299,7 @@ stale products fail instead of rebuilding silently. Use **Re-run all jobs** when
 retrying a shared-products workflow: a failed-jobs-only retry cannot consume
 artifacts from the preceding attempt. UI Tests runs on pull requests that are
 ready for review, weekly on `master`, and for a release candidate that its
-merged pull request's run doesn't cover, when `Scripts/prepare-release.sh`
+merged pull request's run doesn't cover, when `Scripts/release/prepare-release.sh`
 dispatches it with the candidate's SHA; it no longer runs on every `master`
 push. Lint runs on every push, and Build and XcodeGen on every push except one
 of only docs, the website and the scripts that generate it, assets, video or
@@ -312,7 +312,7 @@ change only those paths.
 After pushing the complete candidate commit to `master`, run:
 
 ```bash
-Scripts/prepare-release.sh 0.8.1
+Scripts/release/prepare-release.sh 0.8.1
 ```
 
 This explicitly dispatches the Release workflow in preparation mode.
@@ -434,7 +434,7 @@ xcrun stapler staple build/export/LokalBot.app
 ```sh
 python3 -m venv /tmp/LokalBot-dmg-venv
 /tmp/LokalBot-dmg-venv/bin/python3 -m pip install 'dmgbuild==1.6.7'
-/tmp/LokalBot-dmg-venv/bin/python3 Scripts/build_release_dmg.py \
+/tmp/LokalBot-dmg-venv/bin/python3 Scripts/release/build_release_dmg.py \
   --app build/export/LokalBot.app \
   --output build/LokalBot.dmg
 ```
@@ -464,7 +464,7 @@ spctl --assess --type open --context context:primary-signature \
 No edits to the DMG after this point — the signature covers these exact bytes:
 
 ```sh
-python3 Scripts/generate_appcast.py \
+python3 Scripts/release/generate_appcast.py \
   --archive build/LokalBot.dmg \
   --archive-filename LokalBot-1.0.0-macos-arm64.dmg \
   --app build/export/LokalBot.app \
@@ -497,11 +497,11 @@ gh release create v1.0.0 \
   build/LokalBot-1.0.0-macos-arm64.dmg \
   build/appcast.xml \
   --title "LokalBot 1.0.0" \
-  --notes-file Scripts/release-notes/v1.0.0.md
+  --notes-file Scripts/release/release-notes/v1.0.0.md
 ```
 
-CI reads `Scripts/release-notes/<tag>.md` when that file exists (for example
-`Scripts/release-notes/v0.6.1.md`) and posts it as the GitHub Release body.
+CI reads `Scripts/release/release-notes/<tag>.md` when that file exists (for example
+`Scripts/release/release-notes/v0.6.1.md`) and posts it as the GitHub Release body.
 Otherwise it falls back to `--generate-notes`. Write a short “What’s new”
 summary there before tagging so Sparkle’s release-notes link and the GitHub
 Release page show the same changelog.
@@ -696,7 +696,7 @@ arm64-v8a and x86_64, and installs on Android 10 or later.
 tag, without secrets or a compiled-output cache, while the macOS job runs. Its
 tag check fails when `versionName` does not name the tag's version. It builds the
 shrunk release APK and runs the unit, screenshot and lint checks. It then signs
-the APK with a throwaway key through `Scripts/sign-android-release.sh` and runs
+the APK with a throwaway key through `Scripts/release/sign-android-release.sh` and runs
 the end-to-end test on that copy against the stand-in computer, on an emulator.
 The tag keeps this job on GitHub's runners; CI's other runs may use the self-hosted
 Android runner on the Linux machine.
@@ -1064,5 +1064,5 @@ reason to delete it; pulling the asset only breaks anyone mid-download.
 ## Clean slate
 
 ```sh
-bash Scripts/clean_local.sh   # removes .build, build/, *.dmg, the dmgbuild venv, and LokalBot-* DerivedData
+bash Scripts/build/clean_local.sh   # removes .build, build/, *.dmg, the dmgbuild venv, and LokalBot-* DerivedData
 ```

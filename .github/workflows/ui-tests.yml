@@ -1,8 +1,8 @@
-# XCUITest suite (Scripts/ui-tests.sh) — remote, scheduled, and on-demand.
+# XCUITest suite (Scripts/test/ui-tests.sh) — remote, scheduled, and on-demand.
 #
 # UI tests drive the app through the Accessibility APIs, which needs the
 # runner's controlling process to hold two TCC grants (Automation → Xcode and
-# Accessibility — see the header of Scripts/ui-tests.sh). GitHub's hosted
+# Accessibility — see the header of Scripts/test/ui-tests.sh). GitHub's hosted
 # macOS images pre-authorize XCUITest automation, but that arrangement is
 # best-effort and can regress between image releases; a self-hosted Mac whose
 # runner agent holds the grants is the reliable home for this job. If a run
@@ -13,7 +13,7 @@
 # UI-test path changed, or the PR is a draft, so the aggregate check always
 # reports; marking a draft ready for review runs the suite), weekly on master,
 # and on dispatch. A release candidate is covered by its merged pull request's
-# run when that run tested the same tree; otherwise Scripts/prepare-release.sh
+# run when that run tested the same tree; otherwise Scripts/release/prepare-release.sh
 # dispatches it for the exact candidate. It no longer runs on every master
 # push, which re-tested trees their pull requests had already tested and took
 # 16% of macOS job time in the week to 2026-10-07. Whether it blocks merging
@@ -160,7 +160,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: Vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/build/fetch-llama.sh', 'Scripts/build/fetch-sherpa.sh') }}
 
       # The phone and tablet sync library is a local Swift package that must
       # exist before generation and package resolution.
@@ -171,7 +171,7 @@ jobs:
         run: xcodegen generate
 
       - name: Fetch llama.cpp vendor
-        run: bash Scripts/fetch-llama.sh
+        run: bash Scripts/build/fetch-llama.sh
 
       - name: Cache Swift packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -206,7 +206,7 @@ jobs:
           mkdir -p .build/ui-results
           xcodebuild -version | tee .build/ui-results/toolchain.txt
           printf '| UI phase | Duration | Result |\n| --- | ---: | --- |\n' >> "$GITHUB_STEP_SUMMARY"
-          Scripts/ui-tests.sh --build-only 2>&1 | tee .build/ui-results/build.log
+          Scripts/test/ui-tests.sh --build-only 2>&1 | tee .build/ui-results/build.log
 
       - name: Bound and seal compiler cache
         id: compiler-seal

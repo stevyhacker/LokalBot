@@ -11,7 +11,7 @@ enum GitHubStarPrompt {
     /// Distinct days of use that make the request eligible without a summary.
     static let activeDaysBeforeAsking = 7
 
-    /// Written by `Scripts/seed_demo_library.py` at the root of every library
+    /// Written by `Scripts/test/seed_demo_library.py` at the root of every library
     /// it plants, including the screenshot, film, and upgrade-fixture ones.
     static let demoLibraryMarker = ".lokalbot-demo-library"
 
@@ -33,7 +33,7 @@ enum GitHubStarPrompt {
         var unitTesting = false
         /// `--process`, `--digest`, and the other headless flags.
         var headless = false
-        /// A library planted by `Scripts/seed_demo_library.py`.
+        /// A library planted by `Scripts/test/seed_demo_library.py`.
         var seededDemoLibrary = false
 
         var suppressesPrompt: Bool {
