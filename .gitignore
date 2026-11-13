@@ -9,16 +9,25 @@ LokalBot.xcodeproj/project.xcworkspace/xcshareddata/*
 LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
 !LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
+# Personal scratch work: launch copy, private notes, prototypes, exported
+# handoffs, release evidence, generated previews. Never commit credentials here.
+/Local/
+
 # Vendored llama.cpp + models — fetched by Scripts/build/fetch-llama.sh
-Vendor/
+/Vendor/
 
 .DS_Store
 .build/
-Scripts/**/__pycache__/
-Companion/e2e/__pycache__/
+__pycache__/
+.ruff_cache/
 
-# Vercel CLI local link
-.vercel/
+# Local tool caches and output
+.wrangler/
+.cloudflare/
+.codex-attachments/
+muter_logs/
+/build/
+/output/
 
 # SDD progress ledger (scratch)
 .superpowers/
@@ -61,19 +70,8 @@ Video/**/bgm_status.json
 # fonts, renders, and provider metadata remain reproducible local output.
 !Video/lokalbot-promo/audio_request.json
 
-# Private product/launch working material. Public product documentation stays
-# tracked; these drafts remain on the author's Mac without polluting git status.
-Docs/distribution-channels-*.md
-Docs/local/
-Docs/marketing-plan.md
-Docs/reddit-*.md
-Docs/screenpipe-lessons-for-lokalbot.md
-Docs/set-and-forget-listings.md
-Docs/show-hn-*.md
-Docs/thread-plug-plan-*.md
-Docs/archive/superpowers/
-/design-qa.md
-/social-posts.md
+# Plan scratch that agent plugins write; finished plans go to Docs/plans.
+Docs/superpowers/
 
 # Derived social crops and unused local website handoff material. The canonical
 # 16:9 source lives in Video/lokalbot-promo/.
@@ -81,9 +79,6 @@ Video/lokalbot-promo-square/
 Video/lokalbot-promo-vertical/
 Website/public/assets/feature-demo-poster.jpg
 Website/public/assets/fonts/
-
-# One-off exported video handoff
-lokalbot video ad handoff/
 
 # Raycast extension generated files and local install
 Distribution/raycast/raycast-env.d.ts

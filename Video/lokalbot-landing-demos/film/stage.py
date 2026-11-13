@@ -31,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent.parent
 CATALOG = ROOT / "LokalBot/Engines/ModelCatalog.swift"
-EMBEDDING = ROOT / "LokalBot/Services/EmbeddingIndex.swift"
+EMBEDDING = ROOT / "LokalBot/Services/Search/EmbeddingIndex.swift"
 FILE_MODELS = ROOT / "LokalBot/Services/FileSearch/FileMediaEmbedderRuntime.swift"
 RATE = 16_000
 

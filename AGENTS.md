@@ -24,6 +24,7 @@ Read the relevant sections when the task touches them:
 - The phone and tablet apps, their sync protocol, or what the Mac shares with them: [Companion/README.md](Companion/README.md).
 - Signing, release artifacts, or publication: [RELEASING.md](RELEASING.md); setup and the non-Mac channels are under `Docs/releasing/`.
 - Website changes: [Website/AGENTS.md](Website/AGENTS.md).
+- Where a new file goes: [Project layout](Docs/development/project-layout.md). Scratch output (previews, exports, drafts, evidence you don't commit) goes in `Local/`, which git ignores, not in new top-level folders.
 - Video work: [Video/AGENTS.md](Video/AGENTS.md) and the selected project's guide.
 - Retrieving recorded work through the CLI or MCP: [.agents/skills/lokalbot-cli/SKILL.md](.agents/skills/lokalbot-cli/SKILL.md).
 

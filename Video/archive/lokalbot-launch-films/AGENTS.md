@@ -1,6 +1,6 @@
 # LokalBot launch films
 
-Follow the [video agreements](../AGENTS.md), except where they assume HyperFrames. These films are onetake compositions: each `<film>/comp.html` is one canvas driven by `window.__seek(t)` on onetake's `lib/motion.js`.
+Follow the [video agreements](../../AGENTS.md), except where they assume HyperFrames. These films are onetake compositions: each `<film>/comp.html` is one canvas driven by `window.__seek(t)` on onetake's `lib/motion.js`.
 
 - `README.md` explains the films, their data sources and the rebuild. `tools/voice.sh` regenerates narration and timelines, and `tools/build.sh` renders and runs onetake's verify.
 - Never commit onetake's files (`motion.js`, `look.js`, its scripts or templates): they are PolyForm Noncommercial. Keep generated audio and renders out of git. Copy an accepted render into `drafts/`.

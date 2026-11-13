@@ -26,7 +26,7 @@ on:
       - "LinuxWindows/crates/lokalbot-sync/**"
       - "LinuxWindows/Cargo.lock"
       - "LinuxWindows/rust-toolchain.toml"
-      - "Scripts/build-sync-*"
+      - "Scripts/build/build-sync-*"
       - "Scripts/release/sign-android-release.sh"
       - ".github/workflows/companion-android.yml"
   pull_request:
@@ -38,7 +38,7 @@ on:
       - "LinuxWindows/crates/lokalbot-sync/**"
       - "LinuxWindows/Cargo.lock"
       - "LinuxWindows/rust-toolchain.toml"
-      - "Scripts/build-sync-*"
+      - "Scripts/build/build-sync-*"
       - "Scripts/release/sign-android-release.sh"
       - ".github/workflows/companion-android.yml"
   workflow_dispatch:
