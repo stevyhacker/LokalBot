@@ -576,6 +576,7 @@
   "Meeting note export folder": "Folda ya kuhamishia maelezo ya mikutano",
   "Meeting path copied.": "Njia ya mkutano imenakiliwa.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Uchakataji wa mkutano unahitaji muundo wa Nukuu na muundo wa Think, na utafutaji kwa maana huongeza muundo mdogo wa kupachika. Vipakuliwa vinaweza kuahirishwa; mikutano iliyonaswa husubiri miundo iliyochaguliwa.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Uchakataji wa mkutano unahitaji muundo wa Nukuu na muundo wa Think, na utafutaji kwa maana huongeza muundo mdogo wa kupachika. Hupakuliwa chinichini wakati wa kusanidi; mikutano iliyonaswa husubiri miundo iliyochaguliwa.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Kurekodi mkutano na ukamilishaji otomatiki vina kipaumbele juu ya OCR, embeddings, na ratiba, ambazo hukamilishwa kazi hizo zikiwa hazifanyi kazi.",
   "Meeting {id}": "Mkutano {id}",
   "Meeting · {0} · {date}": "Mkutano · {0} · {date}",

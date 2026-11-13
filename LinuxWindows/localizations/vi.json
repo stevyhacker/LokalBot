@@ -576,6 +576,7 @@
   "Meeting note export folder": "Thư mục xuất ghi chú cuộc họp",
   "Meeting path copied.": "Đã sao chép đường dẫn cuộc họp.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Quá trình xử lý cuộc họp cần có mô hình Phiên âm và mô hình Think, đồng thời tìm kiếm theo ý nghĩa sẽ thêm một mô hình nhúng nhỏ. Việc tải xuống có thể được hoãn lại; các cuộc họp bị bắt chờ đợi các mô hình đã chọn của họ.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Quá trình xử lý cuộc họp cần có mô hình Phiên âm và mô hình Think, đồng thời tìm kiếm theo ý nghĩa sẽ thêm một mô hình nhúng nhỏ. Các mô hình được tải xuống trong nền trong lúc thiết lập; các cuộc họp đã ghi chờ các mô hình đã chọn.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Ghi âm cuộc họp và tự động hoàn thành được ưu tiên hơn OCR, embedding và tác vụ định kỳ; các tác vụ này sẽ bù lại khi những việc kia rảnh.",
   "Meeting {id}": "Cuộc họp {id}",
   "Meeting · {0} · {date}": "Cuộc họp · {0} · {date}",

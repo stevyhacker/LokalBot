@@ -576,6 +576,7 @@
   "Meeting note export folder": "Cartella di esportazione delle note delle riunioni",
   "Meeting path copied.": "Percorso della riunione copiato.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "L'elaborazione della riunione richiede un modello Trascrivi e un modello Think e la ricerca per significato aggiunge un piccolo modello di incorporamento. I download possono essere differiti; le riunioni catturate attendono i modelli selezionati.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "L'elaborazione della riunione richiede un modello Trascrivi e un modello Think e la ricerca per significato aggiunge un piccolo modello di incorporamento. Vengono scaricati in background durante la configurazione; le riunioni catturate attendono i modelli selezionati.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "La registrazione delle riunioni e il completamento automatico hanno la precedenza su OCR, embedding e routine, che si mettono in pari quando queste attività sono inattive.",
   "Meeting {id}": "Incontro {id}",
   "Meeting · {0} · {date}": "Riunione · {0} · {date}",

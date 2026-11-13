@@ -576,6 +576,7 @@
   "Meeting note export folder": "Folder ekspor catatan rapat",
   "Meeting path copied.": "Jalur pertemuan disalin.",
   "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. Downloads can be deferred; captured meetings wait for their selected models.": "Pemrosesan rapat memerlukan model Transkrip dan model Think, dan penelusuran berdasarkan makna menambahkan model penyematan kecil. Pengunduhan dapat ditunda; pertemuan yang diambil menunggu model yang dipilih.",
+  "Meeting processing needs a Transcribe model and a Think model, and search by meaning adds a small embedding model. They download in the background while you finish setup; captured meetings wait for their selected models.": "Pemrosesan rapat memerlukan model Transkrip dan model Think, dan penelusuran berdasarkan makna menambahkan model penyematan kecil. Model diunduh di latar belakang selama penyiapan; pertemuan yang diambil menunggu model yang dipilih.",
   "Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.": "Perekaman rapat dan pelengkapan otomatis diprioritaskan di atas OCR, embedding, dan rutinitas, yang menyusul saat tugas-tugas itu tidak aktif.",
   "Meeting {id}": "Pertemuan {id}",
   "Meeting · {0} · {date}": "Rapat · {0} · {date}",
