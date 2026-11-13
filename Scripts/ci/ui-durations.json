@@ -88,7 +88,7 @@
   "RedesignUITests/testSearchReturnIsSilentAndExplicitAskReviewsScope": 14.6,
   "RedesignUITests/testSettingsCategoryResetsScrollAndDictationHasDirectNavigation": 29.7,
   "RedesignUITests/testTimelineOpensDetailsOnlyForASelection": 12.2,
-  "RedesignUITests/testTimelineRailKeepsItsWidthBesideThePage": 8.5,
+  "RedesignUITests/testTimelineRailResizesBesideThePage": 8.5,
   "RedesignUITests/testTimelineTitleHasInspectableEvidenceAndReturnsToSession": 17.1,
   "RedesignUITests/testTranscriptSearchIsPersistentAndCommandFStillFindsAcrossMeeting": 11.2,
   "RedesignUITests/testWorkspaceAccessibilityAuditDismissesHoverHelp": 27.7,
