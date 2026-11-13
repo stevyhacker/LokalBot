@@ -2,7 +2,7 @@
   "release": "v0.8.2",
   "source_commit": "540d183d403fa7a4d42b8b3b559f946b1aeac207",
   "captured_on": "2026-09-17",
-  "capture_method": "Scripts/capture-screenshots.sh --stills-only in an isolated archive of the release source",
+  "capture_method": "Scripts/media/capture-screenshots.sh --stills-only in an isolated archive of the release source",
   "path": "models.png",
   "width": 2800,
   "height": 1760,

@@ -9,10 +9,10 @@ cleanup() {
 }
 trap cleanup EXIT
 xcrun swiftc -target "$(uname -m)-apple-macosx15.0" -module-cache-path "$probe_dir/cache" -o "$probe_dir/probe" \
-  "$repo_root/LokalBot/Services/AudioFileInspector.swift" \
-  "$repo_root/LokalBot/Services/AudioPreviewTee.swift" \
-  "$repo_root/LokalBot/Services/AudioRecoveryJournal.swift" \
-  "$repo_root/LokalBot/Services/MeetingAudioFiles.swift" \
+  "$repo_root/LokalBot/Services/Audio/AudioFileInspector.swift" \
+  "$repo_root/LokalBot/Services/Audio/AudioPreviewTee.swift" \
+  "$repo_root/LokalBot/Services/Audio/AudioRecoveryJournal.swift" \
+  "$repo_root/LokalBot/Services/Meetings/MeetingAudioFiles.swift" \
   "$repo_root/Scripts/tests/AudioRecoveryCrashProbe.swift"
 "$probe_dir/probe" write "$probe_dir" &
 writer_pid=$!

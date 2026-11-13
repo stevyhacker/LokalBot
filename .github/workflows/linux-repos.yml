@@ -2,8 +2,7 @@
 # (apt at /apt, rpm at /rpm, the public key at /lokalbot.gpg and
 # /lokalbot.asc) from a stable release's .deb and .rpm, with
 # LinuxWindows/scripts/linux-repos.sh. The packages add these repositories
-# once their key is in LinuxWindows/packaging/linux (RELEASING.md, "Linux
-# package repositories").
+# once their key is in LinuxWindows/packaging/linux (Docs/releasing/linux-package-repos.md).
 #
 # Release (release.yml) calls this for a stable v* tag after it attached the
 # Linux packages. To publish a release that is already out:
@@ -148,10 +147,10 @@ jobs:
           done
           if (( ${#missing[@]} )); then
             if [[ -f "$KEY_FILE" ]]; then
-              echo "::error title=Linux repositories::Missing ${missing[*]}. This release's packages add the repositories at pkg.lokalbot.com, so they must get it (RELEASING.md, Linux package repositories)."
+              echo "::error title=Linux repositories::Missing ${missing[*]}. This release's packages add the repositories at pkg.lokalbot.com, so they must get it (Docs/releasing/linux-package-repos.md)."
               exit 1
             fi
-            echo "::notice title=Linux repositories not updated::Missing ${missing[*]}; see RELEASING.md, Linux package repositories."
+            echo "::notice title=Linux repositories not updated::Missing ${missing[*]}; see Docs/releasing/linux-package-repos.md."
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -225,10 +224,10 @@ jobs:
               exit 1
             fi
           else
-            echo "::warning::$KEY_FILE does not exist yet, so the packages do not add the repositories. Commit the public key (RELEASING.md, Linux package repositories)."
+            echo "::warning::$KEY_FILE does not exist yet, so the packages do not add the repositories. Commit the public key (Docs/releasing/linux-package-repos.md)."
           fi
           if [[ -n "$expires" ]] && (( expires < $(date +%s) + 180 * 86400 )); then
-            echo "::warning::The repository key $fpr expires on $(date -u -d "@$expires" +%F). Extend it now (RELEASING.md, Linux package repositories)."
+            echo "::warning::The repository key $fpr expires on $(date -u -d "@$expires" +%F). Extend it now (Docs/releasing/linux-package-repos.md)."
           fi
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
           echo "FPR=$fpr" >> "$GITHUB_ENV"

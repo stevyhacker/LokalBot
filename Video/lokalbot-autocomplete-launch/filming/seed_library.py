@@ -22,7 +22,7 @@ SUITE = "me.dotenv.LokalBot.filming"
 REAL_MODELS = Path.home() / "Library/Application Support/me.dotenv.LokalBot/models"
 MODEL = "gemma-4-E2B.i1-Q6_K.gguf"
 
-spec = importlib.util.spec_from_file_location("seed", REPO / "Scripts/seed_demo_library.py")
+spec = importlib.util.spec_from_file_location("seed", REPO / "Scripts/test/seed_demo_library.py")
 seed = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(seed)
 

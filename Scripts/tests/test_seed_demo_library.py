@@ -18,7 +18,7 @@ import wave
 from unittest import mock
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "seed_demo_library.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "test" / "seed_demo_library.py"
 SPEC = importlib.util.spec_from_file_location("seed_demo_library", SCRIPT)
 SEEDER = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None

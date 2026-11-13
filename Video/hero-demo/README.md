@@ -21,17 +21,17 @@ long-form narrative and claim boundaries.
 Run the repository-level pipeline:
 
 ```sh
-Scripts/render-hero-video-short.sh
+Scripts/media/render-hero-video-short.sh
 ```
 
 The short render refreshes both the named short file and the canonical default.
-Render the extended cut separately with `Scripts/render-hero-video.sh`.
+Render the extended cut separately with `Scripts/media/render-hero-video.sh`.
 
 If the script or narration is stale, provide an ElevenLabs key in the process
 environment. The key is used in memory and is never written to the project:
 
 ```sh
-ELEVENLABS_API_KEY=... Scripts/render-hero-video-short.sh
+ELEVENLABS_API_KEY=... Scripts/media/render-hero-video-short.sh
 ```
 
 For iteration inside this folder:

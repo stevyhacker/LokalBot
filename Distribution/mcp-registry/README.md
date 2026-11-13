@@ -3,7 +3,7 @@
 `server.json` is LokalBot's entry in the official
 [MCP Registry](https://registry.modelcontextprotocol.io), as
 `io.github.stevyhacker/lokalbot`. It names the release's one-click bundle,
-`LokalBot.mcpb` (built by [`Scripts/build-mcpb.sh`](../../Scripts/build-mcpb.sh)),
+`LokalBot.mcpb` (built by [`Scripts/release/build-mcpb.sh`](../../Scripts/release/build-mcpb.sh)),
 with the SHA-256 GitHub reports for it. MCP clients and directories that read
 the registry can then find and install it. The bundle runs the `lokalbot-cli`
 helper inside LokalBot.app, so it needs the Mac app installed.

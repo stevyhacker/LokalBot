@@ -42,8 +42,8 @@ class SyncCrateNoticeTests(unittest.TestCase):
                          [("core-foundation-sys", "0.8.7")])
 
     def test_the_targets_are_the_ones_the_build_scripts_use(self):
-        apple = (ROOT / "Scripts/build-sync-xcframework.sh").read_text(encoding="utf-8")
-        android = (ROOT / "Scripts/build-sync-android.sh").read_text(encoding="utf-8")
+        apple = (ROOT / "Scripts/build/build-sync-xcframework.sh").read_text(encoding="utf-8")
+        android = (ROOT / "Scripts/build/build-sync-android.sh").read_text(encoding="utf-8")
         built = set(apple.split("TARGETS=(", 1)[1].split(")", 1)[0].split())
         built |= set(android.split("RUST_TARGETS=(", 1)[1].split(")", 1)[0].split())
         self.assertEqual(set(notices.TARGETS), built)

@@ -1,4 +1,4 @@
-# Films LokalBot's autocomplete (Scripts/autocomplete-demo) on a hosted Mac:
+# Films LokalBot's autocomplete (Scripts/media/autocomplete-demo) on a hosted Mac:
 # the default on-device model suggests as real keystrokes type into TextEdit,
 # and each suggestion is accepted word by word with Tab. Never a required
 # check; no secrets are used.
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       takes:
-        description: "Takes to film (Scripts/autocomplete-demo/shots), space-separated; empty films all"
+        description: "Takes to film (Scripts/media/autocomplete-demo/shots), space-separated; empty films all"
         required: false
         default: ""
       appearances:
@@ -23,7 +23,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/autocomplete-demo.yml"
-      - "Scripts/autocomplete-demo/**"
+      - "Scripts/media/autocomplete-demo/**"
 
 concurrency:
   group: autocomplete-demo-${{ github.ref }}
@@ -58,7 +58,7 @@ jobs:
           film=true
           if [[ "$GITHUB_EVENT_NAME" == pull_request && "${{ github.event.action }}" == synchronize ]] \
             && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
-            && git diff --quiet "$BEFORE" "$AFTER" -- Scripts/autocomplete-demo Scripts/readme-gif/rig.swift; then
+            && git diff --quiet "$BEFORE" "$AFTER" -- Scripts/media/autocomplete-demo Scripts/media/readme-gif/rig.swift; then
             film=false
           fi
           echo "film=$film" | tee -a "$GITHUB_OUTPUT"
@@ -98,7 +98,7 @@ jobs:
         run: python3 Scripts/ci/test-products.py unpack unit
       - name: Prepare the display
         continue-on-error: true
-        run: swift Scripts/autocomplete-demo/display.swift
+        run: swift Scripts/media/autocomplete-demo/display.swift
       - name: Install ffmpeg
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -112,7 +112,7 @@ jobs:
         run: |
           # TAKES is a space-separated list of names; empty films every take.
           # shellcheck disable=SC2086
-          bash Scripts/autocomplete-demo/film.sh .build/autocomplete-demo $TAKES
+          bash Scripts/media/autocomplete-demo/film.sh .build/autocomplete-demo $TAKES
       - name: Gather the results
         if: ${{ !cancelled() }}
         run: |

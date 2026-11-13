@@ -86,7 +86,7 @@ class CheckedInListTests(unittest.TestCase):
     def test_the_unit_job_and_the_local_runner_both_check_skips(self):
         workflow = (ROOT / '.github/workflows/build.yml').read_text()
         self.assertIn('python3 Scripts/ci/unit-skips.py check .build/unit.xcresult --strict', workflow)
-        self.assertIn('Scripts/ci/unit-skips.py" check', (ROOT / 'Scripts/unit-tests.sh').read_text())
+        self.assertIn('Scripts/ci/unit-skips.py" check', (ROOT / 'Scripts/test/unit-tests.sh').read_text())
 
 
 if __name__ == '__main__':

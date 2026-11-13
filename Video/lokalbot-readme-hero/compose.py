@@ -5,7 +5,7 @@
 
 <takes dir> holds the FilmDirector takes (t-*.mov + t-*.events.json).
 <legacy frames dir> holds the previous hero GIF (Assets/hero/lokalbot-demo-light.gif
-at 43d72b9, built by Scripts/readme-gif) decoded at 20 fps; its live autocomplete
+at 43d72b9, built by Scripts/media/readme-gif) decoded at 20 fps; its live autocomplete
 and dictation scenes are reused, cropped below their old caption and scaled to
 this canvas. build.sh prepares both and encodes the result.
 

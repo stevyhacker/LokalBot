@@ -12,7 +12,7 @@ import UniformTypeIdentifiers
 /// --image-max-tokens 1120`, so llama.cpp never rescales an image that already
 /// has its final size: each image's token budget is set here. Left to size
 /// images itself, llama.cpp spends about twice the tokens and the vectors
-/// drift from the reference (Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder).
+/// drift from the reference (Benchmarks/search/EmbeddingGemma2/2026-10-30-media-embedder).
 enum FileImageSizing {
     /// Soft-token budgets the encoder accepts.
     static let budgets = [70, 140, 280, 560, 1120]

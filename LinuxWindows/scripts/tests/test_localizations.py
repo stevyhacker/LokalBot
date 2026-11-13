@@ -127,7 +127,7 @@ class LocalizationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.shared = sync.read_strings(ROOT / "LokalBot/Resources/en.lproj/Localizable.strings")
-        language_source = (ROOT / "LokalBot/Models/AppLanguage.swift").read_text()
+        language_source = (ROOT / "LokalBot/Models/App/AppLanguage.swift").read_text()
         cls.codes = re.findall(r'case \w+ = "([^"]+)"', language_source)
         cls.desktop = sync.read_desktop_catalogs(cls.codes)
 

@@ -232,7 +232,7 @@ enum CodingAgentText {
     private static let gitPush = regex(
         #"\bgit\s+(?:-C\s+\S+\s+)?push\b"#)
     private static let testRun = regex(
-        #"\bxcodebuild\b[^\n;&|]*\btest(?:-without-building)?\b|\b(?:swift|cargo|go|forge|bun|deno)\s+test\b|\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b|\bpytest\b|Scripts/ui-tests\.sh"#)
+        #"\bxcodebuild\b[^\n;&|]*\btest(?:-without-building)?\b|\b(?:swift|cargo|go|forge|bun|deno)\s+test\b|\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b|\bpytest\b|Scripts/(?:test/)?ui-tests\.sh"#)
     private static let pullRequestURL = regex(
         #"(https://github\.com/[\w.-]+/[\w.-]+/pull/\d+)"#)
     private static let lokalBotCommand = regex(

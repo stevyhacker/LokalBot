@@ -25,12 +25,10 @@ ui = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ui)
 
 DOCS_ONLY = [
-    "Docs/**", "web/**", "Video/**", "Assets/**", "Distribution/**", "cloudflare/**",
-    "wrangler.jsonc", "vercel.json", ".github/ISSUE_TEMPLATE/**", ".github/PULL_REQUEST_TEMPLATE.md",
+    "Docs/**", "Website/**", "Video/**", "Assets/**", "Distribution/**",
+    "wrangler.jsonc", ".github/ISSUE_TEMPLATE/**", ".github/PULL_REQUEST_TEMPLATE.md",
     "README.md", "AGENTS.md", "CLAUDE.md", "CONTEXT.md", "DEVELOPMENT.md", "RELEASING.md",
-    "SECURITY.md", "SUPPORT.md", "CLOUDFLARE.md",
-    "Scripts/render_web.py", "Scripts/serve-web.py", "Scripts/comparison_pages.py", "Scripts/guide_pages.py",
-    "Scripts/blog_posts.py", "Scripts/render_social_images.py",
+    "SECURITY.md", "SUPPORT.md",
 ]
 
 

@@ -76,7 +76,7 @@ struct CotypingServerEndpoint: Equatable, Sendable {
         case .textCompletion: false
         // OpenAI and Anthropic offer no raw completions for current models, and
         // OpenRouter's raw route continues text as gibberish on many hosts
-        // (Benchmarks/Cotyping/README.md). Servers people run themselves,
+        // (Benchmarks/autocomplete/Cotyping/README.md). Servers people run themselves,
         // such as llama-server, LM Studio and Ollama, offer raw completions.
         case .automatic: AnthropicAPI.isAnthropic(baseURL) || dialect == .openAI || dialect == .openRouter
         }

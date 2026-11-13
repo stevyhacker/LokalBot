@@ -205,14 +205,17 @@ def scan_view_literals(sources, keys):
 
 
 def view_literal_problems():
-    views = APP / "Views"
-    sources = {path.relative_to(views).as_posix(): path.read_text() for path in sorted(views.rglob("*.swift"))}
+    # Keyed by file name, so moving a view between feature folders keeps its entries.
+    paths = sorted((APP / "Views").rglob("*.swift"))
+    names = [path.name for path in paths]
+    assert len(names) == len(set(names)), "view file names must be unique"
+    sources = {path.name: path.read_text() for path in paths}
     return scan_view_literals(sources, set(read_strings("en")))
 
 
 class LocalizationTests(unittest.TestCase):
     def test_supported_languages_and_catalogs_stay_in_sync(self):
-        declared = set(re.findall(r'case \w+ = "([^"]+)"', (APP / "Models/AppLanguage.swift").read_text()))
+        declared = set(re.findall(r'case \w+ = "([^"]+)"', (APP / "Models/App/AppLanguage.swift").read_text()))
         self.assertEqual(set(LANGUAGES), declared)
         self.assertTrue({"en", "zh-Hans", "hi", "es", "ar", "fr", "bn", "pt", "id", "ur",
                          "ru", "de", "ja", "pcm", "ar-EG", "mr", "vi", "te", "sw", "ha", "ko",

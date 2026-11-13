@@ -5,7 +5,7 @@ import Foundation
 /// consonants (so any vowel in a scrubbed field reveals unscrubbed text),
 /// digits stay digits, punctuation stays, so detection patterns such as Meet
 /// codes survive while content does not. Keep `allowlist` equal to
-/// `Scripts/record-capture/scrub-allowlist.json`.
+/// `Scripts/test/record-capture/scrub-allowlist.json`.
 struct CaptureTraceScrubber {
     static let version = 1
 

@@ -46,8 +46,8 @@ def prepare(kind):
     # Raw PBX bytes are unstable: XcodeGen can assign different object IDs to
     # equivalent copy phases. Pin the specification and generator instead.
     # Build scripts/workflows cover every argument; dependency pins stay exact.
-    build_scripts = {'Scripts/ci/compiler-cache.py', 'Scripts/ui-tests.sh',
-                     'Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh',
+    build_scripts = {'Scripts/ci/compiler-cache.py', 'Scripts/test/ui-tests.sh',
+                     'Scripts/build/fetch-llama.sh', 'Scripts/build/fetch-sherpa.sh',
                      '.github/workflows/build.yml', '.github/workflows/ui-tests.yml'}
     settings = [p for p in files if str(p) == 'project.yml' or p.name == 'Package.resolved'
                 or str(p) in build_scripts]

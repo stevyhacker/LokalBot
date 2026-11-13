@@ -65,7 +65,7 @@ export TZ=$FILM_TZ
 
 prepare() {
   echo "$FILM_TZ" > "$WORK/timezone"
-  [[ -x "$RIG" ]] || swiftc -O -swift-version 5 "$ROOT/Scripts/readme-gif/rig.swift" -o "$RIG" || exit 1
+  [[ -x "$RIG" ]] || swiftc -O -swift-version 5 "$ROOT/Scripts/media/readme-gif/rig.swift" -o "$RIG" || exit 1
   if [[ ! -d "$WORK/world" ]]; then
     python3 "$HERE/stage.py" library "$WORK/world" || exit 1
     python3 "$HERE/stage.py" models "$WORK/world" || exit 1
@@ -121,7 +121,7 @@ rig_take() {  # rig_take <take>: records and encodes; 0 on success
   RIG_TREE_DIR="$OUT/trees/$1" RIG_BACKGROUND=$BACKGROUND "$RIG" take "$HERE/shots/$1.json" "$dest" 2>&1 | tee -a "$OUT/logs/rig-$1.log"
   status=${PIPESTATUS[0]}
   if [[ $status -eq 0 && -s "$dest/take.json" ]]; then
-    python3 "$ROOT/Scripts/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$1.mp4" || status=1
+    python3 "$ROOT/Scripts/media/autocomplete-demo/encode.py" "$dest" "$OUT/clips/$1.mp4" || status=1
     rm -rf "$dest/frames"
   fi
   return $status

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Cuts the home page's one full demo from the hero clips in web/assets/demos.
+"""Cuts the home page's one full demo from the hero clips in Website/public/assets/demos.
 
 The hero plays a single film of under 45 seconds, and its tabs are chapters in it. This
 joins the six hero clips with short fades, trims each, and speeds up typing and waits.
 Nothing inside a frame changes. Each scene runs the same length in every cut, so the
 chapter times it prints apply to all four files; copy them to `data-start` on the demo
-tabs in web/index.html.
+tabs in Website/public/index.html.
 
-    python3 Video/lokalbot-landing-demos/full_demo.py web/assets/demos
+    python3 Video/lokalbot-landing-demos/full_demo.py Website/public/assets/demos
 
 Writes full-<cut>-<appearance>.mp4 next to the clips. Needs ffmpeg and ffprobe.
 """

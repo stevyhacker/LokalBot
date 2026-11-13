@@ -4,7 +4,7 @@
   "source_release": "0.10.2",
   "source_branch": "master",
   "source_commit": "1ade074a90510866d8909dc17e2e1dde372831b7",
-  "capture_method": "Per-frame environment from Scripts/capture-screenshots.sh --stills-only at this revision, run one frame at a time against one studio-profile library; LokalBot UI Test Host built with CODE_SIGNING_ALLOWED=NO into its own DerivedData",
+  "capture_method": "Per-frame environment from Scripts/media/capture-screenshots.sh --stills-only at this revision, run one frame at a time against one studio-profile library; LokalBot UI Test Host built with CODE_SIGNING_ALLOWED=NO into its own DerivedData",
   "scheme": "LokalBot UI Test Host",
   "appearance": "light",
   "scale": 2,
@@ -19,7 +19,7 @@
     ]
   },
   "synthetic_data_only": true,
-  "library_seed": "Scripts/seed_demo_library.py --profile studio",
+  "library_seed": "Scripts/test/seed_demo_library.py --profile studio",
   "capture_only": true,
   "ui_tests_run": false,
   "production_recording_or_model_inference_verified": false,

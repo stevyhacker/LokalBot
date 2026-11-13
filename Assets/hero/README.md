@@ -12,7 +12,7 @@ answer and its source; and Claude Code asking LokalBot about a meeting.
 The [Chinese README](../../README.zh-CN.md) keeps its Mandarin meeting screenshot as the
 lead image and shows this loop below it.
 
-Each scene is cut from `web/assets/demos/<clip>-wide-<appearance>.mp4`, so what those
+Each scene is cut from `Website/public/assets/demos/<clip>-wide-<appearance>.mp4`, so what those
 clips are, and what is real in them, is in
 [Video/lokalbot-landing-demos/README.md](../../Video/lokalbot-landing-demos/README.md).
 [readme_gifs.py](../../Video/lokalbot-landing-demos/readme_gifs.py) builds these files and
@@ -62,7 +62,7 @@ two unedited captures of the native SwiftUI views on a drawn background, under
 the tagline, with "saw" and "said"
 labels beside Quick Recall's Screens and Meetings groups. Nothing inside the
 captures was retouched. All content is fictional demo data from
-`Scripts/seed_demo_library.py --profile studio`. Both images pair the holiday
+`Scripts/test/seed_demo_library.py --profile studio`. Both images pair the holiday
 shoot planning call with a search on a different topic, "demo presentation";
 the headline already says "Mac", so the search avoids it.
 
@@ -80,12 +80,12 @@ installed app and user library were not used, and no UI tests were run.
 
 Each was captured with `LOKALBOT_CAPTURE_APPEARANCE=light` and `dark`, plus
 `LOKALBOT_DISMISS_ONBOARDING=1` and the rest of the environment from
-`capture()` in `Scripts/capture-screenshots.sh`.
+`capture()` in `Scripts/media/capture-screenshots.sh`.
 
 Compose a hero from two captures (requires Google Chrome):
 
 ```bash
-python3 Scripts/render_readme_hero.py --theme light --meetings meetings.png --recall quick-recall.png --out Assets/hero/lokalbot-hero-light.png
+python3 Scripts/media/render_readme_hero.py --theme light --meetings meetings.png --recall quick-recall.png --out Assets/hero/lokalbot-hero-light.png
 ```
 
 Both published files are that script's output for the captures above.

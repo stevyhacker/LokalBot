@@ -34,7 +34,7 @@ built from, `STORYLINES.md` the three films considered, `REVIEW.md` what was che
   the request you hear is the audio the app heard: an ElevenLabs take, fed in as the test microphone. The sentence was pasted 0.3 s after
   the key came up. Dictation only composes for an explicit writing request, so the line opens
   with "Write"; a first take that began "Tell the team…" was inserted word for word, as designed.
-- **The input:** real pointer and key events from `Scripts/readme-gif/rig.swift`. The pointers in
+- **The input:** real pointer and key events from `Scripts/media/readme-gif/rig.swift`. The pointers in
   the notes and Timeline scenes are drawn by the edit, landing on the logged click points at the
   logged times.
 - **The agent:** the real Claude Code (Sonnet), in a detached 64-column terminal, with LokalBot's

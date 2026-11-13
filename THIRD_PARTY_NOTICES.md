@@ -117,7 +117,7 @@ identifier are linked instead.
 compiled into the two programs for x86_64 Linux and Windows, each with the
 license it is used under and that license's text and copyright notices as the
 crate ships them. cargo-about generates it from `LinuxWindows/Cargo.lock`
-(the repository's [RELEASING.md](RELEASING.md#third-party-licenses) has the
+(the repository's [Linux and Windows release guide](Docs/releasing/linux-and-windows.md#third-party-licenses) has the
 command). It includes GPUI, Zed's UI framework (the `gpui-pre-*`
 crates, Apache-2.0), GPUI Kit (Apache-2.0), rusqlite with SQLite compiled in
 (SQLite is in the public domain), rustls and ring, cpal, keyring, zbus and

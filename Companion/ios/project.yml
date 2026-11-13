@@ -11,7 +11,7 @@ options:
 # The kit holds models, design, data and view models; the app target is the
 # shell (scenes, screens, pairing, background refresh and the Rust-backed
 # store). The sync core is the local package Vendor/lokalbot-sync, which is
-# generated: run Scripts/build-sync-xcframework.sh before building.
+# generated: run Scripts/build/build-sync-xcframework.sh before building.
 packages:
   LokalBotCompanionKit:
     path: LokalBotCompanionKit

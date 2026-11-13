@@ -16,21 +16,21 @@ framed and retimed here. Nothing inside a window is redrawn.
 | `projects` | Feature card | `projects`, then `projects-note` |
 
 Hero clips come as `wide` (16:10, 1920×1200) and `tall` (4:5, 1080×1350), in `light`
-and `dark`, as `web/assets/demos/<clip>-<cut>-<appearance>.mp4` with a `.webp` poster.
+and `dark`, as `Website/public/assets/demos/<clip>-<cut>-<appearance>.mp4` with a `.webp` poster.
 Cards are wide only. The page picks the file for the viewer's width and appearance.
 The `-tall` takes film a narrow window, so text wraps to the phone cut instead of
 running off its edge.
 
-The hero plays one film of 43 seconds, `web/assets/demos/full-<cut>-<appearance>.mp4`,
+The hero plays one film of 43 seconds, `Website/public/assets/demos/full-<cut>-<appearance>.mp4`,
 and its tabs are chapters in it. `full_demo.py` joins the six hero clips with short fades,
 trims them, and speeds up typing and waits. It prints the chapter times, which go in
-`data-start` on the tabs in `web/index.html`. Rerun it after replacing a hero clip. The
+`data-start` on the tabs in `Website/public/index.html`. Rerun it after replacing a hero clip. The
 page plays only the film, but the clips stay in place as its source and the README's. The
 cards play as silent loops with no controls, like GIFs: a real GIF of `today` is 2.6 times
 the bytes of its MP4 at half the width. Reduced motion and Save-Data get stills.
 
 The root README's GIFs and stills are cut from the finished clips by `readme_gifs.py`, since a
-README can't autoplay video. It takes `web/assets/demos` and writes files for
+README can't autoplay video. It takes `Website/public/assets/demos` and writes files for
 `Assets/hero/` and `Assets/readme/`; [Assets/hero/README.md](../../Assets/hero/README.md)
 lists them. Rerun it after replacing a clip.
 
@@ -46,7 +46,7 @@ lists them. Rerun it after replacing a clip.
   filming Mac. The live transcript, the `Spring campaign` notes, the Ask answer, the
   notes in `projects`, the dictated message, the autocomplete suggestion and the Files
   results are what they produced. Nothing reaches a remote model.
-- **The input:** real pointer and key events from `Scripts/readme-gif/rig.swift`. The
+- **The input:** real pointer and key events from `Scripts/media/readme-gif/rig.swift`. The
   pointer, click ripples and keycaps in the clips are drawn by `compose.py` at the
   times and points the rig logged.
 - **The audio:** a call of two synthesized voices, played into the app through its test
@@ -62,7 +62,7 @@ lists them. Rerun it after replacing a clip.
   about 20 more after a call. `edit.json` cuts those waits, and the page says so under
   each clip. Typing is sped up in some clips.
 - **The seeded screens are seeded.** `search`, `today`, `timeline`, `people` and the
-  meetings behind them are written by `Scripts/seed_demo_library.py`, not generated.
+  meetings behind them are written by `Scripts/test/seed_demo_library.py`, not generated.
   `film/stage.py track` sets the projects `projects` opens with. The take tracks the
   suggested one and the model writes its note. That's two takes of one launch, since
   recording slows a hosted Mac's model too much, and the clip dissolves across the wait.
@@ -106,7 +106,7 @@ LANDING_FONT=<a copy of SF, off macOS> Video/lokalbot-landing-demos/build.sh foo
 `edit.json` is the edit: which parts of which takes play at what speed, and where the
 camera looks. Its times are anchors from each take's events, so one edit fits light and
 dark. `compose.py`'s docstring has the format. Check the output on contact sheets, then
-copy it to `web/assets/demos/`.
+copy it to `Website/public/assets/demos/`.
 
 `agents/` holds the terminal clip: `prepare.sh` sets up Claude Code on a Linux box with
 the released `lokalbot-cli` on a fictional library, `record.py` records a take with

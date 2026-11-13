@@ -124,7 +124,7 @@ jobs:
         if: github.event_name == 'push' && !contains(github.ref_name, '-')
         run: |
           version="${GITHUB_REF_NAME#v}"
-          python3 Scripts/release-preflight.py --version "${version%%-*}"
+          python3 Scripts/release/release-preflight.py --version "${version%%-*}"
 
       - name: Validate release secrets
         env:
@@ -175,7 +175,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: Vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/build/fetch-llama.sh', 'Scripts/build/fetch-sherpa.sh') }}
 
       # The phone and tablet sync library is a local Swift package that must
       # exist before generation and package resolution.
@@ -189,11 +189,11 @@ jobs:
 
       - name: Fetch llama.cpp vendor
         if: steps.prepared.outputs.reused != 'true'
-        run: bash Scripts/fetch-llama.sh
+        run: bash Scripts/build/fetch-llama.sh
 
       - name: Fetch sherpa-onnx vendor
         if: steps.prepared.outputs.reused != 'true'
-        run: bash Scripts/fetch-sherpa.sh
+        run: bash Scripts/build/fetch-sherpa.sh
 
       - name: Cache Swift packages
         if: steps.prepared.outputs.reused != 'true'
@@ -368,7 +368,7 @@ jobs:
           dmgbuild_venv="$RUNNER_TEMP/dmgbuild-venv"
           python3 -m venv "$dmgbuild_venv"
           "$dmgbuild_venv/bin/python3" -m pip install --quiet 'dmgbuild==1.6.7'
-          "$dmgbuild_venv/bin/python3" Scripts/build_release_dmg.py \
+          "$dmgbuild_venv/bin/python3" Scripts/release/build_release_dmg.py \
             --app build/export/LokalBot.app \
             --output build/LokalBot.dmg
 
@@ -460,7 +460,7 @@ jobs:
           # enclosure URL must embed it verbatim. Deriving it from the app's
           # version would drop a pre-release suffix (v1.0.0-beta → v1.0.0)
           # and point the feed at a release that doesn't exist.
-          python3 Scripts/generate_appcast.py \
+          python3 Scripts/release/generate_appcast.py \
             --archive build/LokalBot.dmg \
             --archive-filename "$dmg_name" \
             --app build/export/LokalBot.app \
@@ -475,7 +475,7 @@ jobs:
       # releases/latest/download/appcast.xml, so the appcast must live on the
       # Release next to the DMG it signs. Hyphenated tags (v1.0.0-beta) become
       # pre-releases and never become "latest" (RELEASING.md step 7).
-      # Prefer Scripts/release-notes/<tag>.md as the Release body when present.
+      # Prefer Scripts/release/release-notes/<tag>.md as the Release body when present.
       - name: Publish GitHub Release
         if: github.event_name == 'push'
         env:
@@ -486,7 +486,7 @@ jobs:
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
             prerelease_flag="--prerelease"
           fi
-          notes_file="Scripts/release-notes/${GITHUB_REF_NAME}.md"
+          notes_file="Scripts/release/release-notes/${GITHUB_REF_NAME}.md"
           notes_flag=(--generate-notes)
           if [[ -f "$notes_file" ]]; then
             notes_flag=(--notes-file "$notes_file")
@@ -566,7 +566,7 @@ jobs:
         run: |
           certificate=Companion/android/release-certificate.sha256
           if [[ ! -f "$certificate" ]]; then
-            echo "::notice::No Android signing certificate is committed yet, so this release has no APK (RELEASING.md, Android)."
+            echo "::notice::No Android signing certificate is committed yet, so this release has no APK (Docs/releasing/android.md)."
             exit 0
           fi
           if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" ]]; then
@@ -578,7 +578,7 @@ jobs:
           trap 'rm -f "$keystore"' EXIT
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
           apk="$RUNNER_TEMP/LokalBot-${GITHUB_REF_NAME#v}-android.apk"
-          Scripts/sign-android-release.sh \
+          Scripts/release/sign-android-release.sh \
             "$RUNNER_TEMP/android/apk/release/app-release-unsigned.apk" "$apk" "$keystore" "$(cat "$certificate")"
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
 
@@ -709,7 +709,7 @@ jobs:
 
   # Builds this release's upgrade fixture on a clean hosted Mac once the DMG
   # is published and keeps it for 90 days, so the next release adds it with
-  # Scripts/upgrade-fixtures/add.sh instead of waiting for a runner
+  # Scripts/test/upgrade-fixtures/add.sh instead of waiting for a runner
   # (RELEASING.md step 0). Pre-releases are never a changelog base.
   upgrade-fixture:
     name: Upgrade fixture

@@ -16,7 +16,7 @@ on:
       - "LinuxWindows/crates/lokalbot-sync/**"
       - "LinuxWindows/Cargo.lock"
       - "LinuxWindows/rust-toolchain.toml"
-      - "Scripts/build-sync-*"
+      - "Scripts/build/build-sync-*"
       - ".github/actions/lokalbot-sync/**"
       - ".github/workflows/companion-ios.yml"
   pull_request:
@@ -28,7 +28,7 @@ on:
       - "LinuxWindows/crates/lokalbot-sync/**"
       - "LinuxWindows/Cargo.lock"
       - "LinuxWindows/rust-toolchain.toml"
-      - "Scripts/build-sync-*"
+      - "Scripts/build/build-sync-*"
       - ".github/actions/lokalbot-sync/**"
       - ".github/workflows/companion-ios.yml"
   workflow_dispatch:

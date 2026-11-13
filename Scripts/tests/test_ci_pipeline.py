@@ -75,7 +75,7 @@ class PublicationGateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check([dispatched])
         self.assertEqual(release.GATE_EVENTS, {'ui-tests.yml': ('push', 'workflow_dispatch')})
-        prepare = (ROOT / 'Scripts/prepare-release.sh').read_text()
+        prepare = (ROOT / 'Scripts/release/prepare-release.sh').read_text()
         self.assertIn('gh workflow run ui-tests.yml --ref master --raw-field "candidate_sha=$sha"', prepare)
 
     def test_ui_tests_no_longer_run_on_master_pushes_but_build_still_does(self):
@@ -227,7 +227,7 @@ class MergedPullRequestUITests(unittest.TestCase):
             fallback.assert_not_called()
 
     def test_prepare_release_skips_the_dispatch_only_when_covered(self):
-        prepare = (ROOT / 'Scripts/prepare-release.sh').read_text()
+        prepare = (ROOT / 'Scripts/release/prepare-release.sh').read_text()
         self.assertIn('if python3 Scripts/ci/release-candidate.py ui-covered; then', prepare)
         release_workflow = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertIn('pull-requests: read', release_workflow)
@@ -263,34 +263,34 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
             self.assertEqual(release.trusted_candidate(), 'tip')
 
     def test_later_website_and_docs_files_keep_the_candidate(self):
-        self.comparison = self.ahead('web/index.html', 'Docs/plan.md', 'Video/demo.mp4', 'README.md',
-                                     'Scripts/render_web.py')
+        self.comparison = self.ahead('Website/public/index.html', 'Docs/plan.md', 'Video/demo.mp4', 'README.md',
+                                     'Website/generator/render_web.py')
         self.assertIn('past this candidate by 5 website or docs files', self.check())
 
     def test_anything_a_release_could_ship_refuses(self):
         for path in ['LokalBot/AppState.swift', 'LokalBot/Info.plist', 'project.yml', 'PRIVACY.md',
                      'LinuxWindows/Cargo.toml', 'Companion/android/app/build.gradle.kts',
                      'LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved',
-                     'Scripts/release-notes/v9.9.9.md', 'Scripts/build-mcpb.sh', 'Scripts/ci/release-candidate.py',
+                     'Scripts/release/release-notes/v9.9.9.md', 'Scripts/release/build-mcpb.sh', 'Scripts/ci/release-candidate.py',
                      '.github/workflows/release.yml', 'webhooks/index.html']:
             with self.subTest(path=path):
                 self.comparison = self.ahead(path)
                 self.refused()
-                self.comparison = self.ahead('web/index.html', path)
+                self.comparison = self.ahead('Website/public/index.html', path)
                 self.refused()
 
     def test_a_rename_out_of_the_app_refuses(self):
-        self.comparison = self.ahead('web/AppState.swift')
+        self.comparison = self.ahead('Website/public/AppState.swift')
         self.comparison['files'][0].update(status='renamed', previous_filename='LokalBot/AppState.swift')
         self.refused()
-        self.comparison['files'][0]['previous_filename'] = 'web/old.html'
+        self.comparison['files'][0]['previous_filename'] = 'Website/public/old.html'
         self.check()
 
     def test_a_candidate_off_master_refuses(self):
         for change in [dict(status='behind'), dict(status='diverged', behind_by=1), dict(status='identical'),
                        dict(behind_by=1), dict(status=None)]:
             with self.subTest(change=change):
-                self.comparison = dict(self.ahead('web/index.html'), **change)
+                self.comparison = dict(self.ahead('Website/public/index.html'), **change)
                 self.refused()
 
     def test_an_empty_or_possibly_cut_short_file_list_refuses(self):
@@ -298,15 +298,15 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
         self.refused()
         self.comparison = dict(status='ahead', behind_by=0)
         self.refused()
-        self.comparison = self.ahead(*[f'web/{index}.html' for index in range(release.COMPARE_FILE_LIMIT)])
+        self.comparison = self.ahead(*[f'Website/public/{index}.html' for index in range(release.COMPARE_FILE_LIMIT)])
         self.refused()
-        self.comparison = self.ahead(*[f'web/{index}.html' for index in range(release.COMPARE_FILE_LIMIT - 1)])
+        self.comparison = self.ahead(*[f'Website/public/{index}.html' for index in range(release.COMPARE_FILE_LIMIT - 1)])
         self.check()
 
     def gates_with(self, head_sha):
         run = dict(id=1, head_sha=head_sha, head_branch='master', event='push', status='completed',
                    conclusion='success', run_number=3, run_attempt=1)
-        self.comparison = self.ahead('web/index.html')
+        self.comparison = self.ahead('Website/public/index.html')
 
         def api(path):
             if path.startswith('actions/workflows/'):
@@ -336,14 +336,14 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
             return {'object': {'sha': 'candidate'}}
 
         with patch.object(release, 'command', side_effect=command), patch.object(release, 'api', side_effect=api):
-            self.changed = 'LokalBot/Info.plist\nweb/index.html'
+            self.changed = 'LokalBot/Info.plist\nWebsite/public/index.html'
             release.check_candidate()
-            self.changed = 'web/index.html\nDocs/plan.md'
+            self.changed = 'Website/public/index.html\nDocs/plan.md'
             with self.assertRaises(ValueError):
                 release.check_candidate()
 
     def test_prepare_release_dispatches_only_on_the_tip(self):
-        prepare = (ROOT / 'Scripts/prepare-release.sh').read_text()
+        prepare = (ROOT / 'Scripts/release/prepare-release.sh').read_text()
         self.assertLess(prepare.index('release-candidate.py candidate'), prepare.index('gh workflow run'))
         moved = prepare.index('if [ "$sha" != "$remote_sha" ]; then')
         self.assertLess(moved, prepare.index('gh workflow run release.yml'))
@@ -578,7 +578,7 @@ class ReleaseBundleAndRegistryTests(unittest.TestCase):
     def test_the_bundle_is_attached_whatever_the_registry_switch_says(self):
         self.assertIn("    if: github.event_name != 'pull_request'\n", self.bundle)
         steps = self.bundle.split('    steps:\n', 1)[1]
-        self.assertIn('./Scripts/build-mcpb.sh', steps)
+        self.assertIn('./Scripts/release/build-mcpb.sh', steps)
         self.assertIn('gh release upload "$TAG"', steps)
         # A step-level condition here is how the bundle went missing from releases.
         self.assertNotIn('        if:', steps)
@@ -661,7 +661,7 @@ class CompilerCacheTests(unittest.TestCase):
 
     def test_key_ignores_generated_ids_but_pins_configuration_generator_and_sources(self):
         paths = ['project.yml', 'Package.resolved', 'LokalBot/Fixture.swift',
-                 'Scripts/ui-tests.sh', '.github/workflows/build.yml']
+                 'Scripts/test/ui-tests.sh', '.github/workflows/build.yml']
         for name in paths:
             path = Path(name)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -691,7 +691,7 @@ class CompilerCacheTests(unittest.TestCase):
         changed_source = prepare()
         self.assertEqual(changed_source['prefix'], original['prefix'])
         self.assertNotEqual(changed_source['key'], original['key'])
-        for name in ['project.yml', 'Package.resolved', 'Scripts/ui-tests.sh', '.github/workflows/build.yml']:
+        for name in ['project.yml', 'Package.resolved', 'Scripts/test/ui-tests.sh', '.github/workflows/build.yml']:
             path = Path(name)
             path.write_text('changed configuration')
             self.assertNotEqual(prepare()['prefix'], original['prefix'])

@@ -1,6 +1,6 @@
 //! LokalBot's local library for Linux and Windows.
 //!
-//! The on-disk format follows the macOS app (`LokalBot/Services/StorageManager.swift`):
+//! The on-disk format follows the macOS app (`LokalBot/Services/Storage/StorageManager.swift`):
 //! one folder per meeting with `meta.json`, `transcript.json`, `summary.md`,
 //! `outcomes.json` and friends, plus `lokalbotv3.sqlite` for search indexes,
 //! activity blocks and screen context. A library written by either app can be

@@ -1,4 +1,4 @@
-//! `outcomes.json` and `outcome-state.json` (`LokalBot/Models/MeetingOutcomes.swift`,
+//! `outcomes.json` and `outcome-state.json` (`LokalBot/Models/Meetings/MeetingOutcomes.swift`,
 //! `MeetingOutcomeState.swift`).
 //!
 //! Decoding normalizes records exactly as the Swift decoders do: ownership

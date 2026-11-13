@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cuts the root README's media from the home page's clips in web/assets/demos.
+"""Cuts the root README's media from the home page's clips in Website/public/assets/demos.
 
 A README can't autoplay video, so these are the same footage as GIFs: one hero that
 walks through the six hero clips under a caption band, a loop for each feature with a

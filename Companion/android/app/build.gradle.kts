@@ -39,7 +39,7 @@ android {
         applicationId = "me.dotenv.lokalbot.companion"
         minSdk = 29
         targetSdk = 36
-        // One tag ships every platform; Scripts/bump-version.py sets these.
+        // One tag ships every platform; Scripts/release/bump-version.py sets these.
         // versionCode is the Mac build number, which only ever goes up.
         versionCode = 65
         versionName = "0.12.3"

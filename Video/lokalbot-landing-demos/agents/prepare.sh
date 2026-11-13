@@ -1,6 +1,6 @@
 #!/bin/bash
 # Prepares the Agents clip on a Linux box: the released CLI on a fictional library
-# (Scripts/seed_demo_library.py needs a Mac, so seed there and copy it to
+# (Scripts/test/seed_demo_library.py needs a Mac, so seed there and copy it to
 # $W/library first), and an isolated Claude Code workspace whose only MCP server
 # is that CLI. Claude Code signs in from ~/.claude/.credentials.json; the token
 # stays in the scene's environment and is never written anywhere.

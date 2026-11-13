@@ -286,7 +286,7 @@ private enum FilmFixture {
     static func settingsJSON(file: StaticString = #filePath) throws -> String {
         let root = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
         let paths = ProcessInfo.processInfo.environment["LOKALBOT_FILM_FOLDERS"]?.components(separatedBy: ":")
-            ?? [root.appendingPathComponent("Docs/meta-hackathon/demo-files").path, root.path]
+            ?? [root.appendingPathComponent("LokalBotTests/Fixtures/meta-hackathon/demo-files").path, root.path]
         let folders = String(decoding: try JSONSerialization.data(withJSONObject: paths), as: UTF8.self)
         return """
         {
@@ -331,7 +331,7 @@ private enum FilmFixture {
     /// launch plan, read from the checkout the tests were built from.
     static func screens(file: StaticString = #filePath) throws -> URL {
         let folder = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Benchmarks/MuseRadar/fixtures/screens", isDirectory: true)
+            .appendingPathComponent("Benchmarks/think/MuseRadar/fixtures/screens", isDirectory: true)
         guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("screens.json").path) else {
             throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: folder.path])
         }

@@ -36,7 +36,7 @@ Review the Studio preview and the contact sheet before rendering. After the cut
 is approved, run from the repository root:
 
 ```sh
-Scripts/render-hero-video-short.sh
+Scripts/media/render-hero-video-short.sh
 ```
 
 That command validates the composition, renders the master, normalizes delivery

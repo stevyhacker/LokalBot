@@ -9,8 +9,8 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "Scripts" / "generate_appcast.py"
-TEMPLATE = ROOT / "Scripts" / "appcast.template.xml"
+SCRIPT = ROOT / "Scripts" / "release" / "generate_appcast.py"
+TEMPLATE = ROOT / "Scripts" / "release" / "appcast.template.xml"
 spec = importlib.util.spec_from_file_location("generate_appcast", SCRIPT)
 appcast = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(appcast)

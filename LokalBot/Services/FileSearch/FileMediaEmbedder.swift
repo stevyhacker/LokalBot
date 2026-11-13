@@ -7,7 +7,7 @@ import Foundation
 /// requests here are synchronous.
 ///
 /// Inputs travel the way the 30 October parity run qualified them
-/// (Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder): texts as given
+/// (Benchmarks/search/EmbeddingGemma2/2026-10-30-media-embedder): texts as given
 /// (cut to one batch when longer, `fitted`), images as PNG sized for their budget (`FileImageSizing`), audio as WAV, each
 /// medium as a typed content part. That run reproduced DigUp's reference
 /// vectors at cosine ≥ 0.9997.

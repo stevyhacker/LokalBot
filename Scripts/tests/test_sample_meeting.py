@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SAMPLE = ROOT / "LokalBot/Resources/SampleMeeting"
-spec = importlib.util.spec_from_file_location("sample_meeting", ROOT / "Scripts/sample_meeting.py")
+spec = importlib.util.spec_from_file_location("sample_meeting", ROOT / "Scripts/dev/sample_meeting.py")
 sample_meeting = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sample_meeting)
 

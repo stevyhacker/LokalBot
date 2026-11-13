@@ -118,8 +118,8 @@ The original master-only rental had already been destroyed, so master was rerun
 on this comparison card. The original card's 217/319 ms pooled p50/p95 remains a
 separate baseline. All temporary rentals have been destroyed.
 
-[Full comparison, per-run results, reproduction scripts and sanitized evidence](../../Benchmarks/AutocompleteRTX5090/2026-10-22-pr354-4b63346/report.md).
-[Original master baseline](../../Benchmarks/AutocompleteRTX5090/2026-10-22-master-a70373f/report.md).
+[Full comparison, per-run results, reproduction scripts and sanitized evidence](../../Benchmarks/autocomplete/AutocompleteRTX5090/2026-10-22-pr354-4b63346/report.md).
+[Original master baseline](../../Benchmarks/autocomplete/AutocompleteRTX5090/2026-10-22-master-a70373f/report.md).
 
 ## Earlier three-card CUDA validation — 2026-10-21
 

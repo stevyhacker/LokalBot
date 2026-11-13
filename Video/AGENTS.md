@@ -2,6 +2,8 @@
 
 Follow the [repository agreements](../AGENTS.md). Each project owns its brief, compositions, assets, and CLI pin; use the selected project's `package.json` scripts and local guide.
 
+Finished projects that nothing builds or links anymore live in [`archive/`](archive/); they keep their sources and renders for reference. Move a project there when its film is published and superseded.
+
 ## Scope and completion
 
 - Resume from the existing `BRIEF.md`, `STORYBOARD.md`, and requested edit. Preserve settled choices and requested review checkpoints. Ask only about missing information that materially changes the result.

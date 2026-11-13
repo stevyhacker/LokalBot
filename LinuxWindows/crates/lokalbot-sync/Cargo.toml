@@ -12,7 +12,7 @@ name = "lokalbot_sync"
 crate-type = ["lib", "staticlib", "cdylib"]
 
 [[bin]]
-# Generates the Swift and Kotlin bindings (Scripts/build-sync-*.sh):
+# Generates the Swift and Kotlin bindings (Scripts/build/build-sync-*.sh):
 # cargo run -p lokalbot-sync --features bindgen --bin uniffi-bindgen -- generate …
 name = "uniffi-bindgen"
 path = "src/bin/uniffi-bindgen.rs"

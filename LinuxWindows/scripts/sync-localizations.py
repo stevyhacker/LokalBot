@@ -80,7 +80,7 @@ def rust_string(value):
 
 
 def generate():
-    language_source = (ROOT / "LokalBot/Models/AppLanguage.swift").read_text()
+    language_source = (ROOT / "LokalBot/Models/App/AppLanguage.swift").read_text()
     cases = dict(re.findall(r'case (\w+) = "([^"]+)"', language_source))
     names = dict(re.findall(r'case \.(\w+): "([^"]+)"', language_source.split("var englishName")[0]))
     english_names = dict(re.findall(r'case \.(\w+): "([^"]+)"', language_source.split("var englishName")[1]))

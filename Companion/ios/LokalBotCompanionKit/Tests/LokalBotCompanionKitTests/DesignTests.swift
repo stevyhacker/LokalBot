@@ -5,7 +5,7 @@ import Testing
 @Suite("Design")
 struct DesignTests {
     /// The Mac's `CaptureStyle.color(for:)` hash, copied verbatim
-    /// (LokalBot/Views/CaptureView.swift).
+    /// (LokalBot/Views/ScreenMemory/CaptureView.swift).
     static func macHue(_ app: String) -> UInt64 {
         var hash: UInt64 = 5381
         for byte in app.utf8 { hash = hash &* 33 &+ UInt64(byte) }
@@ -31,7 +31,7 @@ struct DesignTests {
     }
 
     /// The Mac's `InitialsAvatar.color(for:)` index, with
-    /// `PeopleDirectory.normalized` (LokalBot/Views/PeopleWorkspaceView.swift).
+    /// `PeopleDirectory.normalized` (LokalBot/Views/People/PeopleWorkspaceView.swift).
     @Test(arguments: ["Maya Chen", "Ben Ortiz", "Priya Nair", "Alex Romero", "Zoë  O'Brien", ""])
     func avatarColorMatchesTheMac(_ name: String) {
         let normalized = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)

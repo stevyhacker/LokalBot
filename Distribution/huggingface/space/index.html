@@ -40,7 +40,7 @@
 <td>MLX 8-bit</td>
 <td style="text-align: right;">2.47 GB</td>
 <td>17.6% WER on 27 minutes of AMI Mix-Headset audio; only Gemini 3.8 Flash scored lower (16.7%, within the error)</td>
-<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/README.md"><code>README.md</code></a>, <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/CloudSTT/results/2026-09-30/REPORT.md"><code>Benchmarks/CloudSTT/results/2026-09-30/REPORT.md</code></a></td>
+<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/README.md"><code>README.md</code></a>, <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md"><code>Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md</code></a></td>
 </tr>
 <tr>
 <td>Speaker diarization</td>
@@ -48,7 +48,7 @@
 <td>Core ML</td>
 <td style="text-align: right;">~0.20 GB</td>
 <td>14.56% DER vs 43.44% for the previous default; 500× real time</td>
-<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/NemotronDiarization/results/2026-09-23/REPORT.md"><code>Benchmarks/NemotronDiarization/results/2026-09-23/REPORT.md</code></a></td>
+<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md"><code>Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md</code></a></td>
 </tr>
 <tr>
 <td>Summaries and chat</td>
@@ -56,7 +56,7 @@
 <td><code>Q4_K_M</code></td>
 <td style="text-align: right;">2.74 GB</td>
 <td>26-minute meeting summarized in 33.4 s warm / 59.8 s cold</td>
-<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/SummaryEfficiency/results-2026-09-09.json"><code>Benchmarks/SummaryEfficiency/results-2026-09-09.json</code></a></td>
+<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/SummaryEfficiency/results-2026-09-09.json"><code>Benchmarks/think/SummaryEfficiency/results-2026-09-09.json</code></a></td>
 </tr>
 <tr>
 <td>Semantic search</td>
@@ -64,7 +64,7 @@
 <td><code>Q8_0</code></td>
 <td style="text-align: right;">0.31 GB</td>
 <td>Correct passage first for 43/48 queries vs 40/48 for Harrier 0.6B</td>
-<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/EmbeddingGemma2/2026-10-07/REPORT.md"><code>Benchmarks/EmbeddingGemma2/2026-10-07/REPORT.md</code></a></td>
+<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md"><code>Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md</code></a></td>
 </tr>
 <tr>
 <td>Autocomplete</td>
@@ -72,7 +72,7 @@
 <td><code>Q6_K</code></td>
 <td style="text-align: right;">3.85 GB</td>
 <td>0 unsafe results in 140 checks; 23.1% next-word accuracy vs 20.7% for LFM2.5 (tied in English); right when shown 50%; 56 / 102 ms median / p95 per keystroke</td>
-<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md"><code>Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</code></a></td>
+<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</code></a></td>
 </tr>
 <tr>
 <td>Screen text (opt-in)</td>
@@ -80,13 +80,13 @@
 <td>Built into macOS</td>
 <td style="text-align: right;">—</td>
 <td>0.971 token F1 at 119.6 ms per synthetic screenshot</td>
-<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md"><code>Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md</code></a></td>
+<td><a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md"><code>Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md</code></a></td>
 </tr>
 </tbody>
 </table>
 <p>Alternatives remain selectable in the app: Parakeet, Granite Speech, Whisper large-v3 turbo, SenseVoice, and GigaAM for transcription, Pyannote Community-1 for diarization, and LFM2.5 1.2B Instruct <code>Q4_K_M</code> (0.73 GB, the Lightweight preset) for autocomplete (<a href="https://github.com/stevyhacker/lokalbot/blob/master/README.md"><code>README.md</code></a>).</p>
 <h2>Speaker diarization — Nemotron 3 vs Pyannote Community-1</h2>
-<p>Four independent English AMI test meetings, each evaluated as headset mix and distant-microphone audio: <strong>8 conditions, 184.55 minutes of audio</strong>, four speakers in every reference. DER adds missed speech, false alarms, and speaker confusion, divided by reference speaker time; overlap is scored and no speaker-count hints were used. Speed is the warm median over three runs on the 17.49-minute ES2004a headset recording. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/NemotronDiarization/results/2026-09-23/REPORT.md"><code>Benchmarks/NemotronDiarization/results/2026-09-23/REPORT.md</code></a> (scores in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/NemotronDiarization/results/2026-09-23/scores.json"><code>Benchmarks/NemotronDiarization/results/2026-09-23/scores.json</code></a>).</p>
+<p>Four independent English AMI test meetings, each evaluated as headset mix and distant-microphone audio: <strong>8 conditions, 184.55 minutes of audio</strong>, four speakers in every reference. DER adds missed speech, false alarms, and speaker confusion, divided by reference speaker time; overlap is scored and no speaker-count hints were used. Speed is the warm median over three runs on the 17.49-minute ES2004a headset recording. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md"><code>Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md</code></a> (scores in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/scores.json"><code>Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/scores.json</code></a>).</p>
 <table>
 <thead>
 <tr>
@@ -143,7 +143,7 @@
 </table>
 <p>The offline model reduced speaker confusion from <strong>8.87% to 1.77%</strong>, missed speech from <strong>15.34% to 8.40%</strong>, and false alarms from <strong>19.23% to 4.38%</strong> (percentage points of reference speaker time), and beat the baseline on all eight conditions. The report's caveat applies: this is a comparison against the pinned FluidAudio implementation and its configurations, not a claim about every implementation of Pyannote Community-1. It does not cover more than four speakers, other languages, or end-to-end name attribution.</p>
 <h2>Summaries and action items — Qwen3.5 4B</h2>
-<p>Replay of LokalBot's production summary and action extractor with <code>Qwen3.5-4B-Q4_K_M.gguf</code> on llama.cpp <strong>b10173</strong>. Cold includes runtime startup; warm reuses the loaded runtime. ASR time is excluded. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/SummaryEfficiency/results-2026-09-09.json"><code>Benchmarks/SummaryEfficiency/results-2026-09-09.json</code></a>.</p>
+<p>Replay of LokalBot's production summary and action extractor with <code>Qwen3.5-4B-Q4_K_M.gguf</code> on llama.cpp <strong>b10173</strong>. Cold includes runtime startup; warm reuses the loaded runtime. ASR time is excluded. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/SummaryEfficiency/results-2026-09-09.json"><code>Benchmarks/think/SummaryEfficiency/results-2026-09-09.json</code></a>.</p>
 <table>
 <thead>
 <tr>
@@ -172,9 +172,9 @@
 </tbody>
 </table>
 <p>Decode speed across these runs was about 85 tokens/s (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/README.md"><code>Benchmarks/README.md</code></a>). These are timings, not a summary-quality score.</p>
-<p>In the 2026-09-07 pilot, MiniCPM5-2B <code>Q4_K_M</code> was smaller (1.561 GB vs 2.741 GB) and faster on long context (18.68 s vs 32.41 s), but it looped on one summary and misattributed action items, so Qwen3.5 4B remains the default (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/ModelAlternatives/2026-09-07/REPORT.md</code></a>).</p>
+<p>In the 2026-09-07 pilot, MiniCPM5-2B <code>Q4_K_M</code> was smaller (1.561 GB vs 2.741 GB) and faster on long context (18.68 s vs 32.41 s), but it looped on one summary and misattributed action items, so Qwen3.5 4B remains the default (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md</code></a>).</p>
 <h2>Semantic search — EmbeddingGemma 2 vs Harrier</h2>
-<p>48 authored queries (24 English, 24 Serbian/Montenegrin in Latin and Cyrillic) against a 60-passage synthetic corpus; relevant passage IDs fixed before inference. Both models used Q8 weights on the same llama.cpp build, each with its own prompts: Harrier returns 1,024 dimensions, EmbeddingGemma 2 returns 768. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/EmbeddingGemma2/2026-10-07/REPORT.md"><code>Benchmarks/EmbeddingGemma2/2026-10-07/REPORT.md</code></a>.</p>
+<p>48 authored queries (24 English, 24 Serbian/Montenegrin in Latin and Cyrillic) against a 60-passage synthetic corpus; relevant passage IDs fixed before inference. Both models used Q8 weights on the same llama.cpp build, each with its own prompts: Harrier returns 1,024 dimensions, EmbeddingGemma 2 returns 768. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md"><code>Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md</code></a>.</p>
 <table>
 <thead>
 <tr>
@@ -221,9 +221,9 @@
 </tr>
 </tbody>
 </table>
-<p>The 6-point gain is within noise on 48 correlated queries (95% interval −4 to +17 points); EmbeddingGemma 2 was adopted because it matched or beat Harrier at half the size, half the idle memory, and faster queries. Harrier had replaced Qwen3 Embedding 0.6B (35/48) in September (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/ModelAlternatives/2026-09-07/REPORT.md</code></a>).</p>
+<p>The 6-point gain is within noise on 48 correlated queries (95% interval −4 to +17 points); EmbeddingGemma 2 was adopted because it matched or beat Harrier at half the size, half the idle memory, and faster queries. Harrier had replaced Qwen3 Embedding 0.6B (35/48) in September (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md</code></a>).</p>
 <h2>Transcription — Qwen3-ASR 1.7B</h2>
-<p><strong>Public AMI meetings, against closed APIs and Parakeet.</strong> 16 windows of 90–120 seconds from the Mix-Headset recordings of four AMI test meetings: 27.4 minutes and 4,160 reference words. Every system received the same 16 kHz mono WAV chunks with an English language hint and no custom vocabulary; the local models ran serially on MLX 0.32.3 and mlx-audio 0.5.7. Most windows contain heavy overlapped talk on one mixed channel, so deletions dominate every system's errors and absolute WER is higher than on published close-talk AMI results. Low-overlap WER covers the 4 windows where under 30% of reference words overlap another utterance (728 words); it is too small to rank systems on. Speed is audio seconds per second of request latency; API latency includes upload, with four requests in flight. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/CloudSTT/results/2026-09-30/REPORT.md"><code>Benchmarks/CloudSTT/results/2026-09-30/REPORT.md</code></a> (aggregates in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/CloudSTT/results/2026-09-30/summary.json"><code>Benchmarks/CloudSTT/results/2026-09-30/summary.json</code></a>).</p>
+<p><strong>Public AMI meetings, against closed APIs and Parakeet.</strong> 16 windows of 90–120 seconds from the Mix-Headset recordings of four AMI test meetings: 27.4 minutes and 4,160 reference words. Every system received the same 16 kHz mono WAV chunks with an English language hint and no custom vocabulary; the local models ran serially on MLX 0.32.3 and mlx-audio 0.5.7. Most windows contain heavy overlapped talk on one mixed channel, so deletions dominate every system's errors and absolute WER is higher than on published close-talk AMI results. Low-overlap WER covers the 4 windows where under 30% of reference words overlap another utterance (728 words); it is too small to rank systems on. Speed is audio seconds per second of request latency; API latency includes upload, with four requests in flight. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md"><code>Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md</code></a> (aggregates in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/summary.json"><code>Benchmarks/transcribe/CloudSTT/results/2026-09-30/summary.json</code></a>).</p>
 <table>
 <thead>
 <tr>
@@ -294,7 +294,7 @@
 </tbody>
 </table>
 <p>Gemini 3.8 Flash had lower WER than the local Qwen model in 93% of paired chunk-bootstrap samples, but on the owner's meetings it invented speech: 115 words in 15 invented spans. On those three meetings (69.9 minutes, no human reference), the local Qwen3-ASR 1.7B had the lowest disagreement with a consensus of the other vendor families, <strong>4.2%</strong> (95% CI 3.4–5.1%). That measures agreement, not accuracy.</p>
-<p><strong>Speakers assigned after transcription.</strong> The same AMI windows and owner meetings, run headless on the app's runtime and weights (speech-swift 0.0.26, FluidAudio 0.17.1, <code>aufklarer/Qwen3-ASR-1.7B-MLX-8bit</code>) with Nemotron 3 diarization. On identical chunks, that runtime scored 17.47% AMI WER against mlx-audio's 17.64%. The previous behaviour cut each track at every speaker turn before transcription; the current one transcribes the track in merged windows of up to 60 s, then gives each forced-aligned word the speaker active at its midpoint. cpWER (concatenated minimum-permutation WER) counts attribution errors as well as recognition errors. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/QwenSpanLength/results/2026-09-30/REPORT.md"><code>Benchmarks/QwenSpanLength/results/2026-09-30/REPORT.md</code></a>.</p>
+<p><strong>Speakers assigned after transcription.</strong> The same AMI windows and owner meetings, run headless on the app's runtime and weights (speech-swift 0.0.26, FluidAudio 0.17.1, <code>aufklarer/Qwen3-ASR-1.7B-MLX-8bit</code>) with Nemotron 3 diarization. On identical chunks, that runtime scored 17.47% AMI WER against mlx-audio's 17.64%. The previous behaviour cut each track at every speaker turn before transcription; the current one transcribes the track in merged windows of up to 60 s, then gives each forced-aligned word the speaker active at its midpoint. cpWER (concatenated minimum-permutation WER) counts attribution errors as well as recognition errors. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/QwenSpanLength/results/2026-09-30/REPORT.md"><code>Benchmarks/transcribe/QwenSpanLength/results/2026-09-30/REPORT.md</code></a>.</p>
 <table>
 <thead>
 <tr>
@@ -327,7 +327,7 @@
 </tbody>
 </table>
 <p>The shipped path decoded at <strong>48×</strong> real time, ASR only; the forced aligner timed all 101 minutes of chunks in 34 s, 179× real time. Built into the app (Debug configuration), the change took the three meetings from 7.89% to 4.59% disagreement; that run's timings, 90 s for the 16-minute meeting and 329 s for the 57-minute one including diarization and alignment, are not production timings. AMI covers only 27 minutes, so its intervals are about ±1 point. On 5–7 minute FLEURS read-speech tracks, Qwen3-ASR 1.7B scored 4.4% WER in German, 7.1% CER in Japanese, and 10.2% WER in Russian (same file).</p>
-<p><strong>Serbian, Croatian, and Bosnian.</strong> FLEURS read speech with a human reference (531, 616, and 628 words), plus the owner's 10-minute Montenegrin/Serbian call, scored against Gemini 3.8 Flash as a rough reference. Scoring transliterates Serbian Cyrillic to Latin. Both engines decoded the app's Qwen word-attribution windows, serially on the M4 Max. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/DualASR/results/2026-10-07/REPORT.md"><code>Benchmarks/DualASR/results/2026-10-07/REPORT.md</code></a>.</p>
+<p><strong>Serbian, Croatian, and Bosnian.</strong> FLEURS read speech with a human reference (531, 616, and 628 words), plus the owner's 10-minute Montenegrin/Serbian call, scored against Gemini 3.8 Flash as a rough reference. Scoring transliterates Serbian Cyrillic to Latin. Both engines decoded the app's Qwen word-attribution windows, serially on the M4 Max. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/DualASR/results/2026-10-07/REPORT.md"><code>Benchmarks/transcribe/DualASR/results/2026-10-07/REPORT.md</code></a>.</p>
 <table>
 <thead>
 <tr>
@@ -357,7 +357,7 @@
 </table>
 <p>Routing those tracks to Whisper was not adopted: the owner judged the gain not worth a 1.6 GB Whisper download, about 7 extra minutes per meeting hour (17× real time against Qwen's 33–42×), and new speaker-attribution work on Whisper text. Whisper is wrong for English-led audio: on the English-led code-switched track it scored 46.9–78.8%, against 12.4% for Qwen on auto.</p>
 <h2>Speech recognition — Granite Speech 4.1 vs Granite Speech 5</h2>
-<p>44 public clips / 271.3 seconds (24 conversational AMI clips, 20 clean LibriSpeech clips), scored with the standard Whisper English normalizer. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/ModelAlternatives/2026-09-07/REPORT.md</code></a>. <strong>Qwen3-ASR 1.7B, the current default, was not part of this run</strong>; its results are in the section above.</p>
+<p>44 public clips / 271.3 seconds (24 conversational AMI clips, 20 clean LibriSpeech clips), scored with the standard Whisper English normalizer. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md</code></a>. <strong>Qwen3-ASR 1.7B, the current default, was not part of this run</strong>; its results are in the section above.</p>
 <table>
 <thead>
 <tr>
@@ -408,13 +408,13 @@
 </table>
 <p>Granite 5 is English-only, emits unpunctuated lowercase text, and is not integrated into LokalBot. This small set does not establish a reliable accuracy ordering.</p>
 <h2>Cotyping (inline autocomplete) — engine benchmark, 2026-10-15</h2>
-<p>Harness: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/engine_benchmark.py"><code>Benchmarks/Cotyping/engine_benchmark.py</code></a> runs LokalBot's production autocomplete engine on one model through <code>--cotyping-bench --model-path</code>. It runs before app startup on the runtime the app builds, with fresh-install settings (4 words) and nothing else from the app, and times model loading on its own. It has three parts:</p>
+<p>Harness: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/engine_benchmark.py"><code>Benchmarks/autocomplete/Cotyping/engine_benchmark.py</code></a> runs LokalBot's production autocomplete engine on one model through <code>--cotyping-bench --model-path</code>. It runs before app startup on the runtime the app builds, with fresh-install settings (4 words) and nothing else from the app, and times model loading on its own. It has three parts:</p>
 <ul>
 <li><strong>Safety checks:</strong> the same 28 scenarios as the earlier check, run 5 times (one first pass, then 4 warm passes). Each result is shown, allowed silence, withheld, a wrong word, unsafe, or an error; only unsafe results and errors fail.</li>
 <li><strong>Next-word accuracy:</strong> every word boundary of 96 original synthetic phrases, 788 positions in English, Serbian (Latin and Cyrillic), German, French, and Spanish. The first suggested word must equal the next word, ignoring case and apostrophe style.</li>
 <li><strong>Typing latency:</strong> per-keystroke time while typing 8 of those phrases one character at a time.</li>
 </ul>
-<p>Release build of commit <code>15d7a26</code> (from <code>master</code> at <code>9bff2ca</code>). Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md"><code>Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</code></a> (per-model figures in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/gemma4-e2b-base-q6/summary.json"><code>Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/gemma4-e2b-base-q6/summary.json</code></a> and <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/lfm2.5-1.2b-instruct/summary.json"><code>Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/lfm2.5-1.2b-instruct/summary.json</code></a>).</p>
+<p>Release build of commit <code>15d7a26</code> (from <code>master</code> at <code>9bff2ca</code>). Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</code></a> (per-model figures in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/gemma4-e2b-base-q6/summary.json"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/gemma4-e2b-base-q6/summary.json</code></a> and <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/lfm2.5-1.2b-instruct/summary.json"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/lfm2.5-1.2b-instruct/summary.json</code></a>).</p>
 <table>
 <thead>
 <tr>
@@ -488,10 +488,10 @@
 <li>These are engine timings only. Input monitoring, debounce, accessibility reads, screen and memory context, learning, and drawing the suggestion are not included. Accuracy uses typed text plus app and window title only, while the app also reads nearby screen text, so real suggestions have more context.</li>
 <li>The phrases were written for earlier LokalBot studies. The 64-phrase hybrid-confirmation set confirmed the hybrid decoder before it shipped, so it is not held out from product decisions.</li>
 </ul>
-<p>Gemma 4 E2B Base became the default after the 2026-10-02 replay on Cotabby's held-out corpus: <strong>34.50% vs 30.43%</strong> exact next-word accuracy for LFM2.5 (2,300 vs 2,029 of 6,667 word checkpoints). That run used a different corpus, the decoder from before the hybrid, and no confidence gate, so it is not comparable with the numbers above. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-02-quality/REPORT.md"><code>Benchmarks/Cotyping/results/2026-10-02-quality/REPORT.md</code></a>.</p>
+<p>Gemma 4 E2B Base became the default after the 2026-10-02 replay on Cotabby's held-out corpus: <strong>34.50% vs 30.43%</strong> exact next-word accuracy for LFM2.5 (2,300 vs 2,029 of 6,667 word checkpoints). That run used a different corpus, the decoder from before the hybrid, and no confidence gate, so it is not comparable with the numbers above. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-02-quality/REPORT.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-02-quality/REPORT.md</code></a>.</p>
 <h2>Cotyping (inline autocomplete) — earlier check, superseded scoring</h2>
-<p>The July 21 and October 14 runs used the original 28-scenario pass/fail check. That check counted a held-back suggestion as a safety failure, accepted only one word tail per fragment, and reported a fresh app process's 10–40 s first request as latency (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md"><code>Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</code></a>, "What changed from the old check"). Its results do not describe today's engine and are kept in the repository: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md"><code>Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md</code></a> and <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-10-14-engine-bench/REPORT.md"><code>Benchmarks/Cotyping/results/2026-10-14-engine-bench/REPORT.md</code></a>.</p>
-<p>The July 21 matrix is reproduced below as a historical snapshot only. It used a <strong>Debug</strong> build of code that predates the confidence gate, the October quality and prompt changes, and the hybrid decoder; LFM2.5 was the autocomplete default at the time. Gate = 28/28 safety, ≥12/13 word completions, p95 ≤ 2000 ms. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md"><code>Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md</code></a>.</p>
+<p>The July 21 and October 14 runs used the original 28-scenario pass/fail check. That check counted a held-back suggestion as a safety failure, accepted only one word tail per fragment, and reported a fresh app process's 10–40 s first request as latency (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</code></a>, "What changed from the old check"). Its results do not describe today's engine and are kept in the repository: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md</code></a> and <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-14-engine-bench/REPORT.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-10-14-engine-bench/REPORT.md</code></a>.</p>
+<p>The July 21 matrix is reproduced below as a historical snapshot only. It used a <strong>Debug</strong> build of code that predates the confidence gate, the October quality and prompt changes, and the hybrid decoder; LFM2.5 was the autocomplete default at the time. Gate = 28/28 safety, ≥12/13 word completions, p95 ≤ 2000 ms. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md</code></a>.</p>
 <table>
 <thead>
 <tr>
@@ -570,13 +570,13 @@
 </table>
 <p>Supporting figures from the July and earlier sources:</p>
 <ul>
-<li>LFM2.5 keyword relevance: <strong>15/64 hits vs 13/64</strong> for the Gemma instruct baseline — "a weak relevance signal, not a separate gate" (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md"><code>Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md</code></a>).</li>
+<li>LFM2.5 keyword relevance: <strong>15/64 hits vs 13/64</strong> for the Gemma instruct baseline — "a weak relevance signal, not a separate gate" (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md</code></a>).</li>
 <li>Cold Metal-kernel compilation, first scenario only: LFM2.5 <strong>19,349 ms</strong>, Gemma E4B instruct <strong>127,466 ms</strong> (same file).</li>
 <li>Debounce replay on LFM warmed runs: in-process debounce <strong>35 / 55 ms</strong> avg/p95; inferred end-to-end <strong>178–186 / 509–519 ms</strong> avg/p95 (same file; arithmetic replay, not a typing trace).</li>
-<li>Earlier engine bench (2026-07-06): Gemma E4B instruct avg <strong>459 ms</strong>, p95 <strong>1798 ms</strong>, steady-state <strong>~200 ms</strong>; the base variant measured avg <strong>564 ms</strong>, p95 <strong>2393 ms</strong> (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-07-06-cotypist-parity.md"><code>Benchmarks/Cotyping/results/2026-07-06-cotypist-parity.md</code></a>; raw JSON siblings <code>2026-07-06-engine-bench.json</code>, <code>2026-07-06-engine-bench-base-model.json</code>). A later side-by-side run logged avg <strong>471 ms</strong> / p95 <strong>1798 ms</strong> (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/20260706-165057-cotypist-vs-lokalbot.md"><code>Benchmarks/Cotyping/results/20260706-165057-cotypist-vs-lokalbot.md</code></a>; its GUI capture leg recorded no insertions and is not usable as data).</li>
+<li>Earlier engine bench (2026-07-06): Gemma E4B instruct avg <strong>459 ms</strong>, p95 <strong>1798 ms</strong>, steady-state <strong>~200 ms</strong>; the base variant measured avg <strong>564 ms</strong>, p95 <strong>2393 ms</strong> (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-07-06-cotypist-parity.md"><code>Benchmarks/autocomplete/Cotyping/results/2026-07-06-cotypist-parity.md</code></a>; raw JSON siblings <code>2026-07-06-engine-bench.json</code>, <code>2026-07-06-engine-bench-base-model.json</code>). A later side-by-side run logged avg <strong>471 ms</strong> / p95 <strong>1798 ms</strong> (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/20260706-165057-cotypist-vs-lokalbot.md"><code>Benchmarks/autocomplete/Cotyping/results/20260706-165057-cotypist-vs-lokalbot.md</code></a>; its GUI capture leg recorded no insertions and is not usable as data).</li>
 </ul>
 <h2>Screenshot OCR — real stored screenshots</h2>
-<p>Input: 15 real LokalBot screenshots exported from the encrypted local store; Apple Vision baseline min 140.8 ms / max 404.8 ms. Hardware: M4 Max. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/RESULTS-2026-06-24.md"><code>Benchmarks/OCR/RESULTS-2026-06-24.md</code></a>. "Overlap" = token overlap vs Apple Vision output.</p>
+<p>Input: 15 real LokalBot screenshots exported from the encrypted local store; Apple Vision baseline min 140.8 ms / max 404.8 ms. Hardware: M4 Max. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/OCR/RESULTS-2026-06-24.md"><code>Benchmarks/search/OCR/RESULTS-2026-06-24.md</code></a>. "Overlap" = token overlap vs Apple Vision output.</p>
 <table>
 <thead>
 <tr>
@@ -661,7 +661,7 @@
 </tbody>
 </table>
 <h2>Screenshot OCR — synthetic set with ground truth</h2>
-<p>Input: 5 generated screenshots with ground-truth text (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/synthetic/manifest.tsv"><code>Benchmarks/OCR/synthetic/manifest.tsv</code></a>). Metric: normalized multiset token scores; char similarity is reading-order sensitive. Hardware: M4 Max. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md"><code>Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md</code></a>.</p>
+<p>Input: 5 generated screenshots with ground-truth text (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/OCR/synthetic/manifest.tsv"><code>Benchmarks/search/OCR/synthetic/manifest.tsv</code></a>). Metric: normalized multiset token scores; char similarity is reading-order sensitive. Hardware: M4 Max. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md"><code>Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md</code></a>.</p>
 <table>
 <thead>
 <tr>
@@ -724,7 +724,7 @@
 </tr>
 <tr>
 <td>Qwen3-ASR 1.7B's English accuracy comes from 27 minutes of overlapped AMI audio and three owner meetings scored for agreement, not accuracy; no clean read speech</td>
-<td>Run it through the 44-clip set from <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/ModelAlternatives/2026-09-07/REPORT.md</code></a> alongside Parakeet and Whisper large-v3 turbo.</td>
+<td>Run it through the 44-clip set from <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md"><code>Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md</code></a> alongside Parakeet and Whisper large-v3 turbo.</td>
 </tr>
 <tr>
 <td>Qwen3-ASR 1.7B speeds (44× and 48× real time) are ASR only, from headless harnesses; the only end-to-end meeting timings, with diarization and alignment, came from a Debug build</td>

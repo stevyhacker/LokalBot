@@ -10,7 +10,7 @@ Steps for the live take in [demo-script.md](demo-script.md). The demo runs Lokal
   - "Launch planning", six days before setup, whose transcript, summary, and decisions say the launch is Monday, November 3rd and the free tier keeps three projects;
   - "Pricing deck review" and "Weekly team sync", which only make the library look used.
 - **Folders for live answers.** Two folders in the demo library, made by `Scripts/meta-hackathon-demo.sh answers`:
-  - `Northwind`, with the pricing sheet and the launch brief from [demo-files/](demo-files/);
+  - `Northwind`, with the pricing sheet and the launch brief from [demo-files/](../../LokalBotTests/Fixtures/meta-hackathon/demo-files/);
   - `LokalBot`, a clone of the `meta-hackathon` branch without the demo's notes (`HACKATHON.md` and this folder), fixtures, tests, and scripted film replies, so the answers come from the code and not from this checklist. Its `origin` is GitHub, so sources open there.
 - **Models.** Your downloaded model files are linked one by one. A new download lands in the demo library, never in yours.
 - **Settings.** The `me.dotenv.LokalBot.meta-demo` settings suite has:

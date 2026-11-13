@@ -56,7 +56,7 @@ The `license: gpl-3.0` matches the app; the Space contains only data/documentati
 
 1. Create the Space under your account: **New Space** → name `lokalbot-benchmarks` → SDK **Static** → License **gpl-3.0** → Public.
 2. `git clone https://huggingface.co/spaces/<username>/lokalbot-benchmarks`, add the three files above, `git push`.
-3. Verify the tables render and every **Source** path in the tables is present as text (paths are repo-relative; the page header should link each section's source file to its GitHub URL, e.g. `https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/RESULTS-2026-06-24.md`).
+3. Verify the tables render and every **Source** path in the tables is present as text (paths are repo-relative; the page header should link each section's source file to its GitHub URL, e.g. `https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/search/OCR/RESULTS-2026-06-24.md`).
 4. Optional: enable the Space's "Link to GitHub" card field pointing at the repo.
 
 ## Cross-link plan

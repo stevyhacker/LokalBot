@@ -32,7 +32,7 @@ LokalBot doesn't upload your library. The commands run on your computer, but Cha
 
 ## For maintainers
 
-- Build the directory ZIP with `bash Scripts/build-openai-plugin.sh`. It runs `Scripts/tests/test_openai_plugin.py` first and writes `dist/lokalbot-openai-plugin-<version>.zip` with `plugin.json`, `skills/` and `assets/` at its root. Upload it at <https://platform.openai.com/plugins> → **Upload new or existing plugin**; skill or metadata changes always need a new ZIP.
+- Build the directory ZIP with `bash Scripts/release/build-openai-plugin.sh`. It runs `Scripts/tests/test_openai_plugin.py` first and writes `dist/lokalbot-openai-plugin-<version>.zip` with `plugin.json`, `skills/` and `assets/` at its root. Upload it at <https://platform.openai.com/plugins> → **Upload new or existing plugin**; skill or metadata changes always need a new ZIP.
 - Bump `version` in [plugin.json](plugin.json) for every new ZIP, the skill copy included. `skills/lokalbot-cli/SKILL.md` must match the bundled skill; the test fails when they differ.
 - The workflow skills are written for ChatGPT and Codex: no `$ARGUMENTS`, no Claude-only frontmatter, no shell variables (directory scanners read them as credentials), and skill names that match their folders. The test checks all of it, plus OpenAI's listing limits.
 - `extensions.com.openai.requires_local_executor` marks the plugin Desktop only. Adding an MCP server later needs OpenAI's local-MCP allowlist, and it can't be added to an existing skills-only plugin: it would be a new submission.

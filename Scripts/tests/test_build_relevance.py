@@ -15,10 +15,10 @@ spec.loader.exec_module(build)
 class BuildRelevanceTests(unittest.TestCase):
     def test_docs_website_assets_and_video_skip_the_build(self):
         self.assertFalse(build.relevant([
-            "README.md", "AGENTS.md", "DEVELOPMENT.md", "RELEASING.md", "Docs/plan.md", "web/index.html",
+            "README.md", "AGENTS.md", "DEVELOPMENT.md", "RELEASING.md", "Docs/plan.md", "Website/public/index.html",
             "Assets/lokalbot-icon.svg", "Video/demo/index.html", "Distribution/homebrew/README.md",
-            ".github/PULL_REQUEST_TEMPLATE.md", "cloudflare/worker.ts", "wrangler.jsonc",
-            "Scripts/render_web.py", "Scripts/serve-web.py", "Scripts/blog_posts.py",
+            ".github/PULL_REQUEST_TEMPLATE.md", "Website/worker/worker.ts", "wrangler.jsonc",
+            "Website/generator/render_web.py", "Website/generator/serve-web.py", "Website/generator/blog_posts.py",
         ]))
 
     def test_docs_only_matches_whole_folders_and_exact_files(self):
@@ -30,8 +30,8 @@ class BuildRelevanceTests(unittest.TestCase):
     def test_bundled_files_benchmarks_code_and_ci_build(self):
         for path in ["PRIVACY.md", "LICENSE", "LICENSES/AGPL-3.0.txt", "THIRD_PARTY_NOTICES.md",
                      ".agents/skills/lokalbot-cli/SKILL.md",
-                     "Benchmarks/Cotyping/heldout.jsonl", "LokalBot/AppState.swift", "LokalBotTests/X.swift",
-                     "CLI/main.swift", "project.yml", "Scripts/unit-tests.sh", ".github/workflows/build.yml",
+                     "Benchmarks/autocomplete/Cotyping/heldout.jsonl", "LokalBot/AppState.swift", "LokalBotTests/X.swift",
+                     "CLI/main.swift", "project.yml", "Scripts/test/unit-tests.sh", ".github/workflows/build.yml",
                      "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"]:
             with self.subTest(path=path):
                 self.assertTrue(build.relevant([path]))

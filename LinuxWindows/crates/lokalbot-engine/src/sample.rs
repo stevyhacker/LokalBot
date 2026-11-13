@@ -4,7 +4,7 @@
 //! import (`library_ops::import_sample`) and carries `sampleID`, so Ask,
 //! search and agents see it while personal memory leaves it out.
 //!
-//! `Scripts/sample_meeting.py` builds the audio and its reference transcript,
+//! `Scripts/dev/sample_meeting.py` builds the audio and its reference transcript,
 //! and scores a transcript of it.
 
 /// One recording of the sample, in one spoken language.

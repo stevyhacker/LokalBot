@@ -31,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent.parent
 CATALOG = ROOT / "LokalBot/Engines/ModelCatalog.swift"
-EMBEDDING = ROOT / "LokalBot/Services/EmbeddingIndex.swift"
+EMBEDDING = ROOT / "LokalBot/Services/Search/EmbeddingIndex.swift"
 FILE_MODELS = ROOT / "LokalBot/Services/FileSearch/FileMediaEmbedderRuntime.swift"
 RATE = 16_000
 
@@ -152,7 +152,7 @@ def library(kind, root):
     if kind == "studio":
         run(sys.executable, ROOT / "Video/lokalbot-readme-hero/filming/seed_filming_library.py", root, stdout=subprocess.DEVNULL)
     elif kind == "pricing":
-        run(sys.executable, ROOT / "Scripts/readme-gif/seed_library.py", root, stdout=subprocess.DEVNULL)
+        run(sys.executable, ROOT / "Scripts/media/readme-gif/seed_library.py", root, stdout=subprocess.DEVNULL)
     elif kind == "empty":
         Path(root).mkdir(parents=True, exist_ok=True)
     else:

@@ -22,13 +22,11 @@ on:
     # Mirrors DOCS_ONLY in Scripts/ci/build-relevance.py; a test keeps them equal.
     paths-ignore:
       - "Docs/**"
-      - "web/**"
+      - "Website/**"
       - "Video/**"
       - "Assets/**"
       - "Distribution/**"
-      - "cloudflare/**"
       - "wrangler.jsonc"
-      - "vercel.json"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
       - "README.md"
@@ -39,13 +37,6 @@ on:
       - "RELEASING.md"
       - "SECURITY.md"
       - "SUPPORT.md"
-      - "CLOUDFLARE.md"
-      - "Scripts/render_web.py"
-      - "Scripts/serve-web.py"
-      - "Scripts/comparison_pages.py"
-      - "Scripts/guide_pages.py"
-      - "Scripts/blog_posts.py"
-      - "Scripts/render_social_images.py"
 
 concurrency:
   group: xcodegen-${{ github.ref }}
@@ -62,8 +53,8 @@ jobs:
       - name: Verify CI helpers and release metadata
         run: |
           python3 -m unittest discover -s Scripts/tests -v
-          python3 Scripts/release-preflight.py --metadata-only
-          bash -n Scripts/ui-tests.sh Scripts/prepare-release.sh Scripts/ci/fetch-bun.sh
+          python3 Scripts/release/release-preflight.py --metadata-only
+          bash -n Scripts/test/ui-tests.sh Scripts/release/prepare-release.sh Scripts/ci/fetch-bun.sh
           python3 Scripts/ci/check-capture-recordings.py LokalBotTests/Fixtures/capture-traces LokalBotUITests/Fixtures/background/capture-traces
 
       - name: Install / verify XcodeGen

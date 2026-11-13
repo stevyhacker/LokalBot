@@ -3,7 +3,7 @@
 #
 # Release (release.yml) calls it for every stable tag once the macOS job has
 # published the release. It attaches LokalBot.mcpb when the release doesn't
-# have it yet (Scripts/build-mcpb.sh at the tag), writes the bundle's URL and
+# have it yet (Scripts/release/build-mcpb.sh at the tag), writes the bundle's URL and
 # SHA-256 into Distribution/mcp-registry/server.json, and publishes that
 # version. The registry's GitHub OIDC sign-in proves the io.github.stevyhacker
 # namespace, so there is no secret and nothing to set up. A version the
@@ -38,7 +38,7 @@ on:
     paths:
       - ".github/workflows/mcp-registry.yml"
       - "Distribution/mcp-registry/**"
-      - "Scripts/build-mcpb.sh"
+      - "Scripts/release/build-mcpb.sh"
 
 concurrency:
   # Publishing runs one at a time; pull request checks replace older ones.
@@ -131,7 +131,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             project.yml
-            Scripts/build-mcpb.sh
+            Scripts/release/build-mcpb.sh
           sparse-checkout-cone-mode: false
 
       - name: Find or attach the bundle
@@ -146,7 +146,7 @@ jobs:
               --jq '.assets[] | select(.name == "LokalBot.mcpb") | .digest'
           }
           if [ -z "$(digest)" ]; then
-            ./Scripts/build-mcpb.sh
+            ./Scripts/release/build-mcpb.sh
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" dist/LokalBot.mcpb
             echo "Attached a LokalBot.mcpb built from $TAG"
           fi

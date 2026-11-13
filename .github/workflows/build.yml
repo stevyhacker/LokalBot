@@ -42,13 +42,11 @@ on:
     # Mirrors DOCS_ONLY in Scripts/ci/build-relevance.py; a test keeps them equal.
     paths-ignore:
       - "Docs/**"
-      - "web/**"
+      - "Website/**"
       - "Video/**"
       - "Assets/**"
       - "Distribution/**"
-      - "cloudflare/**"
       - "wrangler.jsonc"
-      - "vercel.json"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
       - "README.md"
@@ -59,13 +57,6 @@ on:
       - "RELEASING.md"
       - "SECURITY.md"
       - "SUPPORT.md"
-      - "CLOUDFLARE.md"
-      - "Scripts/render_web.py"
-      - "Scripts/serve-web.py"
-      - "Scripts/comparison_pages.py"
-      - "Scripts/guide_pages.py"
-      - "Scripts/blog_posts.py"
-      - "Scripts/render_social_images.py"
 
 # Cancel superseded runs for the same ref so rapid pushes/force-pushes don't
 # leave a backlog of stale builds burning runner minutes.
@@ -158,14 +149,14 @@ jobs:
       - name: Create vendor dirs for XcodeGen
         run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 
-      # The pre-build phase Scripts/fetch-llama.sh builds checksum-pinned
+      # The pre-build phase Scripts/build/fetch-llama.sh builds checksum-pinned
       # llama.cpp source for the app's deployment target into Vendor/. GGUF
       # models are user-selected downloads, not bundled in CI artifacts.
       - name: Cache native vendors
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: Vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/build/fetch-llama.sh', 'Scripts/build/fetch-sherpa.sh') }}
 
       # After the Vendor cache, so a cached copy never replaces the fresh
       # package; before generation, which needs the package to exist.
@@ -179,7 +170,7 @@ jobs:
       # it explicitly (rather than only via the xcodebuild pre-build phase) lets
       # the cache populate and surfaces download failures as their own step.
       - name: Fetch llama.cpp vendor
-        run: bash Scripts/fetch-llama.sh
+        run: bash Scripts/build/fetch-llama.sh
 
       - name: Cache Swift packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -300,7 +291,7 @@ jobs:
         run: |
           export LOKALBOT_TEST_BUN="$TEST_RUNNER_LOKALBOT_TEST_BUN"
           export LOKALBOT_APP="$PWD/.build/dd/Build/Products/Debug/LokalBot.app"
-          bash Scripts/day-in-the-life.sh 2>&1 | tee .build/day-in-the-life.log
+          bash Scripts/test/day-in-the-life.sh 2>&1 | tee .build/day-in-the-life.log
       - name: Verify audio recovery after SIGKILL
         id: audio-recovery
         background: true
