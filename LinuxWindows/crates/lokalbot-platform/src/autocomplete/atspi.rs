@@ -916,6 +916,19 @@ impl Reader {
             fixed.refusal = Some(Refusal::Unsupported(reasons::SEARCH));
             return Some(fixed);
         }
+        // Verification codes, PINs and one-time passwords, judged from the
+        // field's names before its text is read. Chromium reports the DOM id.
+        if policy::is_code_field([
+            name.as_str(),
+            description.as_str(),
+            attributes
+                .get("placeholder-text")
+                .map_or("", String::as_str),
+            attributes.get("id").map_or("", String::as_str),
+        ]) {
+            fixed.refusal = Some(Refusal::Unsupported(reasons::CODE_FIELD));
+            return Some(fixed);
+        }
         fixed.single_line = state::has(states, state::SINGLE_LINE)
             || (matches!(role, role::ENTRY | role::COMBO_BOX)
                 && !state::has(states, state::MULTI_LINE));

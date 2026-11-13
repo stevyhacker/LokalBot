@@ -10,6 +10,16 @@ final class CotypingPrefixWindowTests: XCTestCase {
         XCTAssertTrue(CotypingPrefixWindow.shouldGenerate(for: "hi"))
     }
 
+    /// An SMS code typed into an unlabeled field got suggestions.
+    func testNumbersWithoutLettersGetNoSuggestion() {
+        for text in ["4", "482913", "482 913", "+382 67 123 456", "12.50", "10:30", "٤٨٢"] {
+            XCTAssertFalse(CotypingPrefixWindow.shouldGenerate(for: text), text)
+        }
+        for text in ["Meet at 5", "5 min", "Soba 12", "Код 4821", "?", "👍"] {
+            XCTAssertTrue(CotypingPrefixWindow.shouldGenerate(for: text), text)
+        }
+    }
+
     func testKeepsTrailingWords() {
         let windowed = CotypingPrefixWindow.truncatedPrefix(
             from: "one two three four", maxCharacters: 100, maxWords: 2)
