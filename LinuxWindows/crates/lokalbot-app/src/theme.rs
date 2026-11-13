@@ -6,7 +6,9 @@
 //! same palette in [`apply`], so both layers agree.
 
 use gpui_kit::component::{Theme, ThemeMode};
-use gpui_kit::{App, Global, Hsla, Window, WindowAppearance, hsla, px, rgb, rgba};
+use gpui_kit::{
+    App, FontFallbacks, Global, Hsla, Styled, Window, WindowAppearance, hsla, px, rgb, rgba,
+};
 
 use lokalbot_core::settings::AppTheme;
 
@@ -216,7 +218,50 @@ pub mod metric {
     pub const ACTION_TOGGLE: Pixels = px(18.);
 }
 
-pub const FONT_FAMILY: &str = "Inter";
+/// The interface font: Geist (Vercel with basement.studio, SIL OFL 1.1), the
+/// open family that Claude Desktop's Anthropic Sans credits ("BSPK x Geist x
+/// Anthropic"). Anthropic's own fonts have no license to ship.
+/// Geist draws the letters of every interface language but Hausa's hooked
+/// ɓ ɗ ƙ, so a Hausa interface stays on Inter.
+pub const FONT_FAMILY: &str = "Geist";
+/// What Geist lacks, such as Hausa's letters and the ⌘ ⌥ ⌃ key symbols.
+pub const FALLBACK_FONT_FAMILY: &str = "Inter";
+/// Code, paths, logs and commands.
+pub const MONO_FONT_FAMILY: &str = "Geist Mono";
+
+/// The interface font for the current interface language.
+pub fn font_family() -> &'static str {
+    font_family_for(lokalbot_i18n::current().code)
+}
+
+fn font_family_for(language: &str) -> &'static str {
+    if language == "ha" {
+        FALLBACK_FONT_FAMILY
+    } else {
+        FONT_FAMILY
+    }
+}
+
+/// Sets a window's root to the interface font, with Inter for what it lacks.
+/// Everything inside inherits both.
+pub trait UiFont: Styled + Sized {
+    fn ui_font(mut self) -> Self {
+        let style = self.text_style();
+        style.font_family = Some(font_family().into());
+        style.font_fallbacks = Some(FontFallbacks::from_fonts(vec![
+            FALLBACK_FONT_FAMILY.to_string(),
+        ]));
+        self
+    }
+}
+
+impl<T: Styled> UiFont for T {}
+
+/// Gives GPUI Kit's own components the fonts for the current language.
+pub fn apply_fonts(theme: &mut Theme) {
+    theme.font_family = font_family().into();
+    theme.mono_font_family = MONO_FONT_FAMILY.into();
+}
 
 /// Resolves the user's theme choice against the system appearance.
 pub fn is_dark(choice: AppTheme, appearance: WindowAppearance) -> bool {
@@ -249,7 +294,7 @@ pub fn apply(dark: bool, text_scale: f32, window: Option<&mut Window>, cx: &mut 
     // `Theme::update` reconciles the component tokens (buttons, tabs, sidebar)
     // with these colors; editing through `global_mut` alone leaves them stale.
     Theme::update(cx, |theme| {
-        theme.font_family = FONT_FAMILY.into();
+        apply_fonts(theme);
         theme.font_size = px(14. * text_scale);
         theme.radius = px(8.);
         theme.radius_lg = px(10.);
@@ -320,4 +365,17 @@ pub fn apply(dark: bool, text_scale: f32, window: Option<&mut Window>, cx: &mut 
     });
     cx.set_global(LbTheme(palette));
     cx.refresh_windows();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hausa_keeps_inter_for_its_hooked_letters() {
+        assert_eq!(font_family_for("ha"), "Inter");
+        for language in lokalbot_i18n::LANGUAGES.iter().filter(|l| l.code != "ha") {
+            assert_eq!(font_family_for(language.code), "Geist", "{}", language.code);
+        }
+    }
 }

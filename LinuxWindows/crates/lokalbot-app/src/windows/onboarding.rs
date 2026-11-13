@@ -29,7 +29,7 @@ use crate::pages::settings::models::{
 };
 use crate::pages::settings::{screen_text_control, screen_text_help};
 use crate::state::{AppData, AppEvent};
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, metric, ty};
 use crate::ui::{self, Ico};
 
 const WIDTH: f32 = 650.;
@@ -745,7 +745,7 @@ impl Render for Onboarding {
         };
         v_flex()
             .size_full()
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .text_align(crate::i18n::interface_alignment())
             .bg(lb.window)
             .text_color(lb.text)

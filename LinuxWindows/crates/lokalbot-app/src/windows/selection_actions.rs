@@ -21,7 +21,7 @@ use lokalbot_platform::SelectionIssue;
 
 use crate::pages::ask::composer_inference;
 use crate::state::{AppData, MeetingTab};
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, metric, ty};
 use crate::ui::{self, Ico};
 
 const WIDTH: f32 = 620.;
@@ -831,7 +831,7 @@ impl Render for SelectionActions {
             .size_full()
             .track_focus(&self.focus)
             .key_context("SelectionActions")
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .text_align(crate::i18n::interface_alignment())
             .bg(lb.elevated)
             .text_color(lb.text)

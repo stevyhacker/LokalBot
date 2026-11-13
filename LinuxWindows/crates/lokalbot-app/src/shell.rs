@@ -18,6 +18,7 @@ use crate::pages::{
     projects::ProjectsPage, settings::SettingsPage, timeline::TimelinePage, today::TodayPage,
 };
 use crate::state::{AppData, BackgroundItem, BackgroundKind, RecordingState, Section};
+use crate::theme::UiFont as _;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
@@ -472,7 +473,7 @@ impl Render for Workspace {
             .size_full()
             .bg(lb.window)
             .text_color(lb.text)
-            .font_family(crate::theme::FONT_FAMILY)
+            .ui_font()
             .child(self.render_sidebar(section, cx))
             .child(
                 v_flex()

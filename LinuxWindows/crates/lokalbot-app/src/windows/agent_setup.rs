@@ -15,7 +15,7 @@ use lokalbot_core::control::setup::Grant;
 
 use crate::control::{self, ControlHost};
 use crate::i18n::h_flex;
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, metric, ty};
 use crate::ui::{self, Ico, settings_row};
 
 const WIDTH: f32 = 540.;
@@ -117,7 +117,7 @@ impl Render for AgentSetup {
                 .size_full()
                 .bg(lb.window)
                 .text_color(lb.text)
-                .font_family(FONT_FAMILY)
+                .ui_font()
                 .child(title_bar)
                 .child(
                     v_flex()
@@ -146,7 +146,7 @@ impl Render for AgentSetup {
             .size_full()
             .bg(lb.window)
             .text_color(lb.text)
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .child(title_bar)
             .child(
                 v_flex()

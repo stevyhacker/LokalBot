@@ -198,7 +198,8 @@ protect them at least as much as Microsoft's own terms.
 
 | Asset | License | Copyright and source |
 | --- | --- | --- |
-| Inter 4.001, the interface font | OFL-1.1 | Copyright 2016 The Inter Project Authors, https://github.com/rsms/inter |
+| Geist and Geist Mono 1.900, the interface and code fonts | OFL-1.1 | Copyright (c) 2023 Vercel, in collaboration with basement.studio, https://github.com/vercel/geist-font |
+| Inter 4.001, the fallback font, and the interface font in Hausa | OFL-1.1 | Copyright 2016 The Inter Project Authors, https://github.com/rsms/inter |
 | Lucide icons, through GPUI Kit's `gpui-kit-assets` | ISC | Copyright (c) 2026 Lucide Icons and Contributors, https://github.com/lucide-icons/lucide |
 | Lucide icons derived from Feather (listed in `LICENSES/rust-crates.md` under `gpui-kit-assets`) | MIT | Copyright (c) 2013-present Cole Bemis, https://github.com/feathericons/feather |
 

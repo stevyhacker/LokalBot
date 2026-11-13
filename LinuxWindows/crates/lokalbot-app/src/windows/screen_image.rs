@@ -17,7 +17,7 @@ use gpui_kit::{
 use lokalbot_core::{Library, ScreenMoment};
 
 use crate::state::AppData;
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, ty};
 use crate::ui::{self, Ico};
 
 /// What a moment's image file gave.
@@ -269,7 +269,7 @@ impl Render for ScreenImageViewer {
         };
         v_flex()
             .size_full()
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .bg(lb.window)
             .text_color(lb.text)
             .child(

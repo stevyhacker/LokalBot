@@ -56,13 +56,22 @@ impl AssetSource for Assets {
 /// Registers the bundled Inter faces. The UI uses Inter on every platform so
 /// layouts and screenshots look the same on Linux and Windows.
 pub fn load_fonts(cx: &mut App) {
+    // Geist and Geist Mono 1.900 and Inter 4.001, all SIL OFL 1.1. See `theme::FONT_FAMILY`.
     let fonts: Vec<Cow<'static, [u8]>> = vec![
+        Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Regular.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Medium.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/Geist-SemiBold.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Bold.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Regular.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Medium.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-SemiBold.ttf")),
+        Cow::Borrowed(include_bytes!("../assets/fonts/GeistMono-Bold.ttf")),
         Cow::Borrowed(include_bytes!("../assets/fonts/Inter-Regular.ttf")),
         Cow::Borrowed(include_bytes!("../assets/fonts/Inter-Medium.ttf")),
         Cow::Borrowed(include_bytes!("../assets/fonts/Inter-SemiBold.ttf")),
         Cow::Borrowed(include_bytes!("../assets/fonts/Inter-Bold.ttf")),
     ];
     if let Err(err) = cx.text_system().add_fonts(fonts) {
-        log::warn!("could not load the bundled Inter font: {err:#}");
+        log::warn!("could not load the bundled fonts: {err:#}");
     }
 }
