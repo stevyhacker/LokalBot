@@ -9,9 +9,18 @@
 
 use super::text::{grapheme_count, is_word_char};
 
-/// Generate only when there is something besides whitespace before the caret.
+/// Generate only when there is something besides whitespace before the caret,
+/// and not while it is numbers without a single letter: a verification code,
+/// a phone number or an amount has no prose to continue. A word brings
+/// suggestions back.
 pub fn should_generate(before: &str) -> bool {
-    !before.trim().is_empty()
+    !before.trim().is_empty() && !is_numbers_only(before)
+}
+
+/// Digits with no letters, such as `482 913`, `+382 67 123 456` or `12.50`
+/// (`CotypingPrefixWindow.isNumbersOnly`).
+pub fn is_numbers_only(text: &str) -> bool {
+    text.chars().any(char::is_numeric) && !text.chars().any(char::is_alphabetic)
 }
 
 /// The latest text, bounded by characters and words, without rewriting
@@ -146,6 +155,24 @@ mod tests {
     fn should_generate_requires_non_whitespace() {
         assert!(!should_generate("   \n"));
         assert!(should_generate("hi"));
+    }
+
+    #[test]
+    fn numbers_without_letters_get_no_suggestion() {
+        for text in [
+            "4",
+            "482913",
+            "482 913",
+            "+382 67 123 456",
+            "12.50",
+            "10:30",
+            "٤٨٢",
+        ] {
+            assert!(!should_generate(text), "{text}");
+        }
+        for text in ["Meet at 5", "5 min", "Soba 12", "Код 4821", "?", "👍"] {
+            assert!(should_generate(text), "{text}");
+        }
     }
 
     #[test]

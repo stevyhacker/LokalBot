@@ -144,6 +144,45 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
     }
 }
 
+// MARK: - Code field detector
+
+final class CotypingCodeFieldDetectorTests: XCTestCase {
+    /// A verification code field named only by its placeholder or `<label>`
+    /// got suggestions.
+    func testCodeFieldNamesAreRecognized() {
+        let labels = [
+            "Code", "Enter code", "Enter the 6-digit code", "Code sent by SMS",
+            "SMS code", "Login code", "Two-factor authentication", "2-Step Verification",
+            "One-time password", "OTP", "Authenticator app code", "PIN", "Backup code",
+            "otpInput", "SMSCode", "verification-code", "mfa_code", "one-time-code",
+            "Unesite kod", "Verifikacioni kod", "Kod za potvrdu", "Jednokratna lozinka",
+            "Унесите код", "Код за потврду",
+        ]
+        for label in labels {
+            XCTAssertTrue(CotypingCodeFieldDetector.isCodeField(labels: [nil, label]), label)
+        }
+    }
+
+    func testOrdinaryFieldsAreNotCodeFields() {
+        let labels = [
+            "Message #general", "Reply to Claude…", "Pinned notes", "Opinion", "Spinner",
+            "Write a code review comment", "Source Control Input", "iMessage",
+            "Text Message • SMS", "Subject", "Add a comment", "Shipping address", "",
+        ]
+        for label in labels {
+            XCTAssertFalse(CotypingCodeFieldDetector.isCodeField(labels: [label]), label)
+        }
+        XCTAssertFalse(CotypingCodeFieldDetector.isCodeField(labels: [nil, nil]))
+    }
+
+    func testWordsSplitIdsAndHumps() {
+        XCTAssertEqual(CotypingCodeFieldDetector.words(in: "SMSCode"), ["sms", "code"])
+        XCTAssertEqual(CotypingCodeFieldDetector.words(in: "otpInput-2"), ["otp", "input", "2"])
+        XCTAssertEqual(CotypingCodeFieldDetector.words(in: "2FA"), ["2fa"])
+        XCTAssertEqual(CotypingCodeFieldDetector.words(in: "Унесите код"), ["унесите", "код"])
+    }
+}
+
 final class CotypingAppReadPolicyTests: XCTestCase {
     func testExclusionsBlockTextReaderBeforeContentIsCollected() {
         let policy = CotypingAppReadPolicy(enabled: true, excludedApps: ["mail", "secret"], selfBundleID: "me.dotenv.LokalBot")

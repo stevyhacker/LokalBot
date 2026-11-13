@@ -72,6 +72,9 @@ enum CotypingAXHelper {
         let fieldStyles = CotypingFieldContextCache<CotypingFieldStyle>(label: "field-style", maxAge: 5)
         let learningScopes = CotypingFieldContextCache<String?>(label: "learning-scope", maxAge: 30)
         let fileDialogs = CotypingFieldContextCache<Bool>(label: "file-dialog", maxAge: 30)
+        /// Pages reuse one input for an email and then a code, so its
+        /// placeholder and label are read again after two seconds.
+        let codeFields = CotypingFieldContextCache<Bool>(label: "code-field", maxAge: 2)
         /// Nearby text is held for the focused field only.
         let visibleContexts = CotypingFieldContextCache<CotypingVisibleContext.Snapshot?>(
             label: "visible-context", maxAge: 3, maxEntries: 1)
@@ -459,6 +462,15 @@ enum CotypingAXHelper {
         }) else {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Open or save dialog."), field: nil)
+        }
+        // Verification codes, PINs and one-time passwords: judged from the
+        // field's names before its text is read.
+        guard !CotypingCodeFieldDetector.isCodeField(labels: [title, descriptionLabel]),
+              !cacheState.codeFields.value(forKey: focusIdentityKey, read: {
+                  CotypingCodeFieldDetector.isCodeField(labels: codeFieldLabels(of: element))
+              }) else {
+            return CotypingFocus(appName: appName, bundleID: bundleID,
+                                 capability: .unsupported("Verification code field."), field: nil)
         }
 
         let content = appReadPolicy.readIfAllowed(appName: appName, bundleID: bundleID) {
@@ -976,6 +988,28 @@ enum CotypingAXHelper {
         guard let raw = copyAttribute(element, kAXWindowAttribute as String),
               CFGetTypeID(raw) == AXUIElementGetTypeID() else { return nil }
         return stringAttribute(raw as! AXUIElement, kAXTitleAttribute as String)
+    }
+
+    /// The names a field carries besides its title and description: its
+    /// placeholder, help text, DOM id and the label element it points to.
+    /// Chromium leaves a field's description empty when a `<label>` names it,
+    /// so a code field is often named only here. Cached per field.
+    private static func codeFieldLabels(of element: AXUIElement) -> [String?] {
+        var labels = [
+            stringAttribute(element, kAXPlaceholderValueAttribute as String),
+            stringAttribute(element, kAXHelpAttribute as String),
+            stringAttribute(element, "AXDOMIdentifier"),
+        ]
+        if let raw = copyAttribute(element, kAXTitleUIElementAttribute as String),
+           CFGetTypeID(raw) == AXUIElementGetTypeID() {
+            let label = raw as! AXUIElement
+            labels += [
+                stringAttribute(label, kAXValueAttribute as String),
+                stringAttribute(label, kAXTitleAttribute as String),
+                stringAttribute(label, kAXDescriptionAttribute as String),
+            ]
+        }
+        return labels
     }
 
     /// Whether `element` is in an app's own open or save panel: its window, or

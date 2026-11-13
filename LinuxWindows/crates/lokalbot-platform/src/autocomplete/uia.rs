@@ -526,6 +526,14 @@ impl Reader {
                 fixed.refusal = Some(Refusal::Unsupported(reasons::SEARCH));
                 return Some(fixed);
             }
+            // Verification codes, PINs and one-time passwords, judged from
+            // the field's names before its text is read. Chromium reports
+            // the DOM id as the automation id.
+            let automation_id = bstr(element.CurrentAutomationId());
+            if policy::is_code_field([name.as_str(), help.as_str(), automation_id.as_str()]) {
+                fixed.refusal = Some(Refusal::Unsupported(reasons::CODE_FIELD));
+                return Some(fixed);
+            }
             fixed.single_line = single_line(element, control);
             // Chromium reports the DOM's class list as the class name.
             fixed.is_integrated_terminal =

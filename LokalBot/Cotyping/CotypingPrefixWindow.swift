@@ -10,9 +10,18 @@ import Foundation
 /// `truncatedPromptPrefix`.
 enum CotypingPrefixWindow {
     /// Generate only when there is at least one non-whitespace character before
-    /// the caret (no suggestions on a blank field).
+    /// the caret (no suggestions on a blank field), and not while everything
+    /// before it is numbers without a single letter: a verification code, a
+    /// phone number or an amount has no prose to continue. A word brings
+    /// suggestions back.
     static func shouldGenerate(for precedingText: String) -> Bool {
-        !precedingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard !precedingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        return !isNumbersOnly(precedingText)
+    }
+
+    /// Digits with no letters, such as `482 913`, `+382 67 123 456` or `12.50`.
+    static func isNumbersOnly(_ text: String) -> Bool {
+        text.contains(where: \.isNumber) && !text.contains(where: \.isLetter)
     }
 
     /// Bound the latest text without rewriting paragraph breaks, list indentation,

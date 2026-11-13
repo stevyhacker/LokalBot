@@ -108,6 +108,94 @@ enum CotypingSecureFieldDetector {
     ]
 }
 
+/// Fields for a verification code, PIN or one-time password stay quiet: a
+/// code is not prose to continue. Web pages often name such a field only
+/// through its placeholder, its `<label>` or its element id, which
+/// `CotypingSecureFieldDetector` does not see, so autocomplete reads those
+/// too. Matches whole words, so "pin" never matches "pinned". A false
+/// positive only hides autocomplete in one field.
+enum CotypingCodeFieldDetector {
+    static func isCodeField(labels: [String?]) -> Bool {
+        labels.contains { label in
+            guard let label else { return false }
+            let words = words(in: label)
+            guard !words.isEmpty else { return false }
+            if words.count == 1, codeWords.contains(words[0]) { return true }
+            if words.contains(where: secretWords.contains) { return true }
+            if words.contains(where: codeWords.contains),
+               words.contains(where: codeContextWords.contains) {
+                return true
+            }
+            let joined = " " + words.joined(separator: " ") + " "
+            return phrases.contains { joined.contains(" \($0) ") }
+        }
+    }
+
+    /// Lowercased words, split at anything that is not a letter or digit and
+    /// at camelCase humps, so the element ids `otpInput`, `SMSCode` and
+    /// `verification-code` read as words too.
+    static func words(in label: String) -> [String] {
+        var words: [String] = []
+        var current = ""
+        let characters = Array(label)
+        for (index, character) in characters.enumerated() {
+            guard character.isLetter || character.isNumber else {
+                if !current.isEmpty { words.append(current.lowercased()) }
+                current = ""
+                continue
+            }
+            if character.isUppercase, let previous = current.last {
+                let nextIsLowercase = index + 1 < characters.count && characters[index + 1].isLowercase
+                if previous.isLowercase || (previous.isUppercase && nextIsLowercase) {
+                    words.append(current.lowercased())
+                    current = ""
+                }
+            }
+            current.append(character)
+        }
+        if !current.isEmpty { words.append(current.lowercased()) }
+        return words
+    }
+
+    /// "Code" alone names a code field; next to one of `codeContextWords` it
+    /// does too ("Enter the 6-digit code", "Code sent by SMS").
+    static let codeWords: Set<String> = ["code", "kod", "код"]
+
+    /// Words that name a code field wherever they appear.
+    static let secretWords: Set<String> = [
+        "otp", "totp", "2fa", "mfa", "pin", "passcode",
+        "onetimecode", "otpcode", "smscode", "verificationcode",
+    ]
+
+    static let codeContextWords: Set<String> = [
+        "verification", "verify", "confirmation", "confirm", "authentication",
+        "authenticator", "auth", "login", "signin", "sms", "sent", "texted",
+        "digit", "digits", "enter", "access", "backup", "recovery",
+        // Serbian, Croatian and Bosnian, in Latin and Cyrillic.
+        "verifikacioni", "verifikacijski", "verifikaciju", "potvrdu", "potvrdni",
+        "sigurnosni", "jednokratni", "unesite", "poslat", "poslan",
+        "верификациони", "верификацију", "потврду", "потврдни", "сигурносни",
+        "једнократни", "унесите", "послат", "смс",
+    ]
+
+    /// Multi-word names, written as `words(in:)` splits them.
+    static let phrases: [String] = [
+        "one time code",
+        "one time password",
+        "one time passcode",
+        "one time pin",
+        "two factor",
+        "2 factor",
+        "two step",
+        "2 step",
+        "multi factor",
+        "sign in code",
+        "log in code",
+        "jednokratna lozinka",
+        "једнократна лозинка",
+    ]
+}
+
 /// App exclusions authorize the Accessibility read itself, before field text is
 /// available to the prediction pipeline. Unknown app owners fail closed.
 struct CotypingAppReadPolicy: Equatable, Sendable {

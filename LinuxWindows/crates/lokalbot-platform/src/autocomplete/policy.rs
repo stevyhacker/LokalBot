@@ -33,6 +33,7 @@ pub mod reasons {
     pub const SELECTION: &str = "Text selected.";
     pub const NOT_EDITABLE: &str = "Not an editable text field.";
     pub const SEARCH: &str = "Search field.";
+    pub const CODE_FIELD: &str = "Verification code field.";
     pub const NO_CARET: &str = "No caret in this field.";
     pub const TERMINAL: &str = "Not available in terminal apps.";
     pub const INTEGRATED_TERMINAL: &str = "Not available in the integrated terminal.";
@@ -224,6 +225,131 @@ pub fn is_secure_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
         let label = label.to_lowercase();
         MARKERS.iter().any(|marker| label.contains(marker))
     })
+}
+
+/// Fields for a verification code, PIN or one-time password stay quiet: a
+/// code is not prose to continue. Pages often name such a field only through
+/// its placeholder, label or element id, so callers pass those too. Matches
+/// whole words, so "pin" never matches "pinned". A false positive only hides
+/// autocomplete in one field (`CotypingCodeFieldDetector`).
+pub fn is_code_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
+    const CODE_WORDS: [&str; 3] = ["code", "kod", "код"];
+    const SECRET_WORDS: [&str; 10] = [
+        "otp",
+        "totp",
+        "2fa",
+        "mfa",
+        "pin",
+        "passcode",
+        "onetimecode",
+        "otpcode",
+        "smscode",
+        "verificationcode",
+    ];
+    const CODE_CONTEXT_WORDS: [&str; 37] = [
+        "verification",
+        "verify",
+        "confirmation",
+        "confirm",
+        "authentication",
+        "authenticator",
+        "auth",
+        "login",
+        "signin",
+        "sms",
+        "sent",
+        "texted",
+        "digit",
+        "digits",
+        "enter",
+        "access",
+        "backup",
+        "recovery",
+        // Serbian, Croatian and Bosnian, in Latin and Cyrillic.
+        "verifikacioni",
+        "verifikacijski",
+        "verifikaciju",
+        "potvrdu",
+        "potvrdni",
+        "sigurnosni",
+        "jednokratni",
+        "unesite",
+        "poslat",
+        "poslan",
+        "верификациони",
+        "верификацију",
+        "потврду",
+        "потврдни",
+        "сигурносни",
+        "једнократни",
+        "унесите",
+        "послат",
+        "смс",
+    ];
+    const PHRASES: [&str; 13] = [
+        "one time code",
+        "one time password",
+        "one time passcode",
+        "one time pin",
+        "two factor",
+        "2 factor",
+        "two step",
+        "2 step",
+        "multi factor",
+        "sign in code",
+        "log in code",
+        "jednokratna lozinka",
+        "једнократна лозинка",
+    ];
+    labels.into_iter().any(|label| {
+        let words = label_words(label);
+        let has = |set: &[&str]| words.iter().any(|word| set.contains(&word.as_str()));
+        if words.is_empty() {
+            return false;
+        }
+        if words.len() == 1 && CODE_WORDS.contains(&words[0].as_str()) {
+            return true;
+        }
+        if has(&SECRET_WORDS) || (has(&CODE_WORDS) && has(&CODE_CONTEXT_WORDS)) {
+            return true;
+        }
+        let joined = format!(" {} ", words.join(" "));
+        PHRASES
+            .iter()
+            .any(|phrase| joined.contains(&format!(" {phrase} ")))
+    })
+}
+
+/// Lowercased words, split at anything that is not a letter or digit and at
+/// camelCase humps, so the element ids `otpInput`, `SMSCode` and
+/// `verification-code` read as words too (`CotypingCodeFieldDetector.words`).
+pub fn label_words(label: &str) -> Vec<String> {
+    let characters: Vec<char> = label.chars().collect();
+    let mut words = Vec::new();
+    let mut current = String::new();
+    for (index, &c) in characters.iter().enumerate() {
+        if !c.is_alphanumeric() {
+            if !current.is_empty() {
+                words.push(current.to_lowercase());
+                current.clear();
+            }
+            continue;
+        }
+        if c.is_uppercase()
+            && let Some(previous) = current.chars().last()
+        {
+            let next_is_lowercase = characters.get(index + 1).is_some_and(|n| n.is_lowercase());
+            if previous.is_lowercase() || (previous.is_uppercase() && next_is_lowercase) {
+                words.push(current.to_lowercase());
+                current.clear();
+            }
+        }
+        current.push(c);
+    }
+    if !current.is_empty() {
+        words.push(current.to_lowercase());
+    }
+    words
 }
 
 /// Search boxes stay quiet: a query is not prose to continue, and Tab there
@@ -711,6 +837,59 @@ mod tests {
         assert!(is_search_field(["entry", "searchbox"]));
         assert!(is_search_field(["search box"]));
         assert!(!is_search_field(["entry", "textbox"]));
+    }
+
+    #[test]
+    fn code_fields_are_named_by_label_placeholder_or_id() {
+        for label in [
+            "Code",
+            "Enter code",
+            "Enter the 6-digit code",
+            "Code sent by SMS",
+            "SMS code",
+            "Login code",
+            "Two-factor authentication",
+            "2-Step Verification",
+            "One-time password",
+            "OTP",
+            "Authenticator app code",
+            "PIN",
+            "Backup code",
+            "otpInput",
+            "SMSCode",
+            "verification-code",
+            "mfa_code",
+            "one-time-code",
+            "Unesite kod",
+            "Verifikacioni kod",
+            "Kod za potvrdu",
+            "Jednokratna lozinka",
+            "Унесите код",
+            "Код за потврду",
+        ] {
+            assert!(is_code_field(["", label]), "{label}");
+        }
+        for label in [
+            "Message #general",
+            "Reply to Claude…",
+            "Pinned notes",
+            "Opinion",
+            "Spinner",
+            "Write a code review comment",
+            "Source Control Input",
+            "iMessage",
+            "Text Message • SMS",
+            "Subject",
+            "Add a comment",
+            "Shipping address",
+            "",
+        ] {
+            assert!(!is_code_field([label]), "{label}");
+        }
+        assert_eq!(label_words("SMSCode"), ["sms", "code"]);
+        assert_eq!(label_words("otpInput-2"), ["otp", "input", "2"]);
+        assert_eq!(label_words("2FA"), ["2fa"]);
+        assert_eq!(label_words("Унесите код"), ["унесите", "код"]);
     }
 
     #[test]
