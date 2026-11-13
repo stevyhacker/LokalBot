@@ -1,4 +1,4 @@
-//! `meta.json`: one recorded meeting (`LokalBot/Models/Meeting.swift`).
+//! `meta.json`: one recorded meeting (`LokalBot/Models/Meetings/Meeting.swift`).
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -180,12 +180,12 @@ Agent sessions should enter the same way.
      applies, and removing a burst retracts unchanged journals through
      `retractGeneratedJournals`.
 
-3. **`DailyEvidenceSnapshot`** (`LokalBot/Services/DailyEvidenceSnapshot.swift:36`)
+3. **`DailyEvidenceSnapshot`** (`LokalBot/Services/Timeline/DailyEvidenceSnapshot.swift:36`)
    - Add `agentBursts: [DayAgentBurst]` and include it in `latestEvidenceAt`,
      `isEmpty`, and `signature`.
    - Load it in `FileDailyEvidenceSource.snapshot` (`:165`).
 
-4. **`DayDigestEvidence`** (`LokalBot/Services/DayDigestEvidence.swift`)
+4. **`DayDigestEvidence`** (`LokalBot/Services/Timeline/DayDigestEvidence.swift`)
    - Add `agentSessions` and pass it through `build` and
      `digestEvidence(calendar:)` (`DailyDigestEvidence.swift:6`).
    - In `summaryEvents()` (`:315`), emit one `SummaryEvent` per burst as
@@ -252,7 +252,7 @@ Agent sessions should enter the same way.
 ## Phased plan
 
 1. **Readers and debug flag (done).** Swift readers with fixture tests
-   (`LokalBotTests/CodingAgentSessionTests.swift`). The fixtures cover forks,
+   (`LokalBotTests/Services/CodingAgents/CodingAgentSessionTests.swift`). The fixtures cover forks,
    sidechains, Guardian threads, resumed Codex rollouts, harness-written
    turns, secret redaction, and unknown or malformed records.
    `LokalBot --agent-sessions [yyyy-MM-dd]` prints a day's bursts before any

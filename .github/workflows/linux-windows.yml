@@ -10,7 +10,7 @@ on:
       - ".agents/skills/lokalbot-cli/**"
       - "LokalBot/Resources/SampleMeeting/**"
       - "LokalBot/Resources/*.lproj/Localizable.strings"
-      - "LokalBot/Models/AppLanguage.swift"
+      - "LokalBot/Models/App/AppLanguage.swift"
       # The Rust tests compare with the Mac's system prompt and read its 0.10.9 library.
       - "LokalBot/Resources/pi/system-prompt.md"
       - "LokalBotTests/Fixtures/upgrade/0.10.9/**"
@@ -27,7 +27,7 @@ on:
       - ".agents/skills/lokalbot-cli/**"
       - "LokalBot/Resources/SampleMeeting/**"
       - "LokalBot/Resources/*.lproj/Localizable.strings"
-      - "LokalBot/Models/AppLanguage.swift"
+      - "LokalBot/Models/App/AppLanguage.swift"
       - "LokalBot/Resources/pi/system-prompt.md"
       - "LokalBotTests/Fixtures/upgrade/0.10.9/**"
       - "Companion/protocol/fixtures/**"

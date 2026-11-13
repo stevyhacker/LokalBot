@@ -1,4 +1,4 @@
-//! `transcript.json` (`LokalBot/Models/Transcript.swift`, `SpeakerAttribution.swift`).
+//! `transcript.json` (`LokalBot/Models/Transcription/Transcript.swift`, `SpeakerAttribution.swift`).
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};

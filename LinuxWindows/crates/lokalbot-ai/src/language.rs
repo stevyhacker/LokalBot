@@ -1,4 +1,4 @@
-//! Summary language (`Models/SummaryLanguage.swift`, `LanguageCode.swift`).
+//! Summary language (`Models/Meetings/SummaryLanguage.swift`, `LanguageCode.swift`).
 //!
 //! `match` resolves the transcript to a concrete language by voting over
 //! windows sampled across the meeting, so a foreign-language opening never

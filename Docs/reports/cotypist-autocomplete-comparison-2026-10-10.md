@@ -74,7 +74,7 @@ records are not proof of missing functionality.
 
 Source anchors:
 [model catalog](../../LokalBot/Engines/ModelCatalog.swift#L70),
-[defaults](../../LokalBot/Models/AppSettings.swift#L442),
+[defaults](../../LokalBot/Models/Settings/AppSettings.swift#L442),
 [debounce](../../LokalBot/Cotyping/CotypingDebouncePolicy.swift#L13),
 [prompt renderer](../../LokalBot/Cotyping/CotypingPromptRenderer.swift#L63),
 [native decoding](../../LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift#L504),

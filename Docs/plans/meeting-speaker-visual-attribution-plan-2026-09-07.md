@@ -32,14 +32,14 @@ Remember every user choice within its meeting, including reopening, retries, and
 
 | Existing code | Current behavior | Planned use |
 | --- | --- | --- |
-| [ScreenshotService.swift](../../LokalBot/Services/ScreenshotService.swift) | Day Memory capture, minute-scale meeting cooldown, focused display, input-idle checks | Reuse narrowly extracted permission/privacy/encryption helpers; keep the existing scheduler |
-| [ScreenAccessibilityReader.swift](../../LokalBot/Services/ScreenAccessibilityReader.swift) | Bounded extraction of flattened visible text | Add a separate bounded participant reader that preserves node relationships and bounds |
-| [SystemAudioRecorder.swift](../../LokalBot/Services/SystemAudioRecorder.swift) | Core Audio process tap, queued writes, frame counters; callback timestamps are currently discarded | Record valid source-time/file-position anchors without adding work to the audio callback |
-| [RecordingController.swift](../../LokalBot/Services/RecordingController.swift) | Recording start/stop, source recovery, calendar handoff | Own observer session identity, cancellation, and finalization |
-| [ProcessingPipeline.swift](../../LokalBot/Services/ProcessingPipeline.swift) | Diarizes system audio, assigns first-appearance “Them N” labels, then discards the diarizer timeline | Preserve the timeline and its label mapping for one matching pass |
-| [NeuralDiarizationEngine.swift](../../LokalBot/Services/NeuralDiarizationEngine.swift) | Returns only interval speaker IDs from FluidAudio | Expose compatible, quality-filtered speaker embeddings when local voice profiles are enabled |
-| [SpeakerAutoNamer.swift](../../LokalBot/Services/SpeakerAutoNamer.swift) | Conservative one-attendee automatic alias | Keep the calendar fallback and resolve it together with visual assignments and remembered decisions |
-| [MeetingWorkspaceView.swift](../../LokalBot/Views/MeetingWorkspaceView.swift) and [AppState.swift](../../LokalBot/AppState.swift) | Rename sheet, transcript persistence, search refresh | Add uncertain-match review, automatic-name correction, and one identity-assignment command |
+| [ScreenshotService.swift](../../LokalBot/Services/ScreenMemory/ScreenshotService.swift) | Day Memory capture, minute-scale meeting cooldown, focused display, input-idle checks | Reuse narrowly extracted permission/privacy/encryption helpers; keep the existing scheduler |
+| [ScreenAccessibilityReader.swift](../../LokalBot/Services/ScreenMemory/ScreenAccessibilityReader.swift) | Bounded extraction of flattened visible text | Add a separate bounded participant reader that preserves node relationships and bounds |
+| [SystemAudioRecorder.swift](../../LokalBot/Services/Audio/SystemAudioRecorder.swift) | Core Audio process tap, queued writes, frame counters; callback timestamps are currently discarded | Record valid source-time/file-position anchors without adding work to the audio callback |
+| [RecordingController.swift](../../LokalBot/Services/Recording/RecordingController.swift) | Recording start/stop, source recovery, calendar handoff | Own observer session identity, cancellation, and finalization |
+| [ProcessingPipeline.swift](../../LokalBot/Services/Meetings/ProcessingPipeline.swift) | Diarizes system audio, assigns first-appearance “Them N” labels, then discards the diarizer timeline | Preserve the timeline and its label mapping for one matching pass |
+| [NeuralDiarizationEngine.swift](../../LokalBot/Services/Transcription/NeuralDiarizationEngine.swift) | Returns only interval speaker IDs from FluidAudio | Expose compatible, quality-filtered speaker embeddings when local voice profiles are enabled |
+| [SpeakerAutoNamer.swift](../../LokalBot/Services/Speakers/SpeakerAutoNamer.swift) | Conservative one-attendee automatic alias | Keep the calendar fallback and resolve it together with visual assignments and remembered decisions |
+| [MeetingWorkspaceView.swift](../../LokalBot/Views/Meetings/MeetingWorkspaceView.swift) and [AppState.swift](../../LokalBot/AppState.swift) | Rename sheet, transcript persistence, search refresh | Add uncertain-match review, automatic-name correction, and one identity-assignment command |
 
 Stored OCR currently loses the position connecting a name to a tile. Existing screenshot dates are also recorded after capture completes, and the meeting start date precedes audio startup. Historical frames therefore cannot be treated as precisely synchronized speaker intervals.
 
@@ -74,7 +74,7 @@ Exit criterion: reproducible extraction for the declared supported layouts, with
 
 ## 2. Add timing, evidence models, and storage
 
-Proposed Foundation-only models in `LokalBot/Models/MeetingSpeakerEvidence.swift`:
+Proposed Foundation-only models in `LokalBot/Models/Speakers/MeetingSpeakerEvidence.swift`:
 
 | Model | Required information |
 | --- | --- |

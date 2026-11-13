@@ -30,9 +30,9 @@
 **Files:**
 - Modify: `LokalBot/LokalBotApp.swift` (NavSection enum ~line 114, TypeTab ~line 135, published nav state ~line 184)
 - Modify: `LokalBot/AppLifecycle.swift:158-183` (capture environment)
-- Modify: `LokalBot/Views/MainWindowView.swift:106-146` (navigation branch + sidebar)
+- Modify: `LokalBot/Views/Window/MainWindowView.swift:106-146` (navigation branch + sidebar)
 - Modify: `LokalBot/Views/CommandPaletteView.swift:89-90` (nav.models row)
-- Test: `LokalBotTests/NavSectionMappingTests.swift`
+- Test: `LokalBotTests/Views/Window/NavSectionMappingTests.swift`
 
 **Interfaces:**
 - Consumes: existing `AppState.NavSection`, `AppState.TypeTab(captureName:)` pattern.
@@ -40,7 +40,7 @@
 
 - [ ] **Step 1: Update the mapping tests (failing first)**
 
-In `LokalBotTests/NavSectionMappingTests.swift`, change the `"models"` expectation and add SettingsTab coverage:
+In `LokalBotTests/Views/Window/NavSectionMappingTests.swift`, change the `"models"` expectation and add SettingsTab coverage:
 
 ```swift
     func testCaptureNamesMapToTheirSections() {
@@ -128,8 +128,8 @@ Next to `@Published var typeTab` add `@Published var settingsTab: SettingsTab = 
 ### Task 2: SettingsView tab strip, section distribution, cross-tab search
 
 **Files:**
-- Modify: `LokalBot/Views/SettingsView.swift` (whole body restructure)
-- Modify: `LokalBot/Views/ModelsView.swift` (stale copy only)
+- Modify: `LokalBot/Views/Settings/SettingsView.swift` (whole body restructure)
+- Modify: `LokalBot/Views/ModelSetup/ModelsView.swift` (stale copy only)
 - Modify: `LokalBotUITests/MainWindowUITests.swift:77-93` (testModelsSectionRendersRoleCards selectors — source update only, not run)
 
 **Interfaces:**
@@ -272,7 +272,7 @@ The old first Form `Section` holding the search field is removed (search lives i
 ### Task 3: Onboarding three-pillar restyle
 
 **Files:**
-- Modify: `LokalBot/Views/OnboardingView.swift` (welcomePage, flowPage, LokalBotHeroDemo)
+- Modify: `LokalBot/Views/Onboarding/OnboardingView.swift` (welcomePage, flowPage, LokalBotHeroDemo)
 
 **Interfaces:**
 - Consumes: `HeroPanel`, `IconTile`, `Brand` tokens from Phase 0. No produced interfaces.
@@ -347,7 +347,7 @@ Icon mapping in the body: phase 0 `"waveform.circle"`/`Brand.teal`, phase 1 `"sp
 ### Task 4: Empty-state polish
 
 **Files:**
-- Modify: `LokalBot/Views/MeetingListView.swift` (empty overlay)
+- Modify: `LokalBot/Views/Meetings/MeetingListView.swift` (empty overlay)
 
 **Interfaces:** none produced.
 

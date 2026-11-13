@@ -434,25 +434,25 @@ targets:
     sources:
       - CLI
       - LokalBot/CLISupport
-      - path: LokalBot/Models/Meeting.swift
-      - path: LokalBot/Models/Transcript.swift
-      - path: LokalBot/Models/SpeakerAttribution.swift
-      - path: LokalBot/Models/CalendarParticipantIdentity.swift
-      - path: LokalBot/Models/AppIdentifiers.swift
-      - path: LokalBot/Models/AppDirectories.swift
+      - path: LokalBot/Models/Meetings/Meeting.swift
+      - path: LokalBot/Models/Transcription/Transcript.swift
+      - path: LokalBot/Models/Speakers/SpeakerAttribution.swift
+      - path: LokalBot/Models/Meetings/CalendarParticipantIdentity.swift
+      - path: LokalBot/Models/App/AppIdentifiers.swift
+      - path: LokalBot/Models/App/AppDirectories.swift
       # Outcome read model shared with the app so CLI/MCP action items use
       # the same corrections, status, threading, and due-date resolution.
-      - path: LokalBot/Models/MeetingOutcomes.swift
-      - path: LokalBot/Models/MeetingOutcomeState.swift
-      - path: LokalBot/Models/MeetingOutcomeProjection.swift
-      - path: LokalBot/Models/MeetingAttributionArtifactFiles.swift
-      - path: LokalBot/Models/ActionThreads.swift
-      - path: LokalBot/Models/ActionStatusFilter.swift
-      - path: LokalBot/Models/ActionDueResolver.swift
-      - path: LokalBot/Models/ActionDuePresentation.swift
-      - path: LokalBot/Models/PeopleDirectory.swift
-      - path: LokalBot/Models/PeopleCuration.swift
-      - path: LokalBot/Services/MeetingOutcomeStore.swift
+      - path: LokalBot/Models/Meetings/MeetingOutcomes.swift
+      - path: LokalBot/Models/Meetings/MeetingOutcomeState.swift
+      - path: LokalBot/Models/Meetings/MeetingOutcomeProjection.swift
+      - path: LokalBot/Models/Meetings/MeetingAttributionArtifactFiles.swift
+      - path: LokalBot/Models/Actions/ActionThreads.swift
+      - path: LokalBot/Models/Actions/ActionStatusFilter.swift
+      - path: LokalBot/Models/Actions/ActionDueResolver.swift
+      - path: LokalBot/Models/Actions/ActionDuePresentation.swift
+      - path: LokalBot/Models/People/PeopleDirectory.swift
+      - path: LokalBot/Models/People/PeopleCuration.swift
+      - path: LokalBot/Services/Actions/MeetingOutcomeStore.swift
       - path: LokalBot/Support/OutcomeProse.swift
       # `config search` ranks like Settings search; the app-control client
       # probes the library instance lock before starting the app.

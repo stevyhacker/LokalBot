@@ -23,17 +23,17 @@ git diff --stat v0.11.4...meta-hackathon
   - Fast live text: [`MuseLiveText.swift`](../../LokalBot/Services/MeetingRadar/MuseLiveText.swift) streams each recorded track to Muse Voice Transcribe's realtime endpoint, and `LiveMeetingTranscriber` uses it in place of local chunks when the setting is on.
   - Screen answers: [`RadarScreenAnswers.swift`](../../LokalBot/Services/MeetingRadar/RadarScreenAnswers.swift) searches screen memory, crops captures with Vision, asks Muse Spark with images, and checks the answer's quote against the crop's text.
   - Live answers: [`LiveAnswers.swift`](../../LokalBot/Services/MeetingRadar/LiveAnswers.swift) runs the memory-first tool loop on Muse Wonder and keeps a source only when its quote is in what the tool returned. [`LiveAnswerTools.swift`](../../LokalBot/Services/MeetingRadar/LiveAnswerTools.swift) reads documents, sheets, and PDFs, and in git repositories tracked code, commits, and GitHub through `gh`. [`AppLiveAnswers.swift`](../../LokalBot/Services/MeetingRadar/AppLiveAnswers.swift) gathers what LokalBot remembers.
-  - Views: the live board, cards, and saved-results list in [`MeetingRadarPanel.swift`](../../LokalBot/Views/MeetingRadarPanel.swift), and the floating panel in [`LiveRadarFloatingPanel.swift`](../../LokalBot/Views/LiveRadarFloatingPanel.swift).
+  - Views: the live board, cards, and saved-results list in [`MeetingRadarPanel.swift`](../../LokalBot/Views/LiveRadar/MeetingRadarPanel.swift), and the floating panel in [`LiveRadarFloatingPanel.swift`](../../LokalBot/Views/LiveRadar/LiveRadarFloatingPanel.swift).
 - **Follow-through.**
   - Services: [`LokalBot/Services/FollowThrough/`](../../LokalBot/Services/FollowThrough/). It holds the tool definitions and proposals, the approval-gated agent loop, the app's read tools and hand-offs, and the replay harness.
-  - Views: [`FollowThroughSheet.swift`](../../LokalBot/Views/FollowThroughSheet.swift).
-- **Settings.** [`MetaMuseSettingsSection.swift`](../../LokalBot/Views/MetaMuseSettingsSection.swift) covers the key, approval, models, and the folders live answers may read. `lokalbot-cli secret set meta-model-api` also saves the key.
+  - Views: [`FollowThroughSheet.swift`](../../LokalBot/Views/LiveRadar/FollowThroughSheet.swift).
+- **Settings.** [`MetaMuseSettingsSection.swift`](../../LokalBot/Views/LiveRadar/MetaMuseSettingsSection.swift) covers the key, approval, models, and the folders live answers may read. `lokalbot-cli secret set meta-model-api` also saves the key.
 - **Changes to existing code:**
   - wiring in `AppState`, the live meeting view, the meeting page, and the action menus (**Follow Through with Muse…**);
   - the Meta Muse settings and their registry entries;
   - `MeetingChatTools.specs` made static;
   - two headless flags.
-- **Tests:** [`MeetingRadarTests`](../../LokalBotTests/MeetingRadarTests.swift), [`MuseLiveTextTests`](../../LokalBotTests/MuseLiveTextTests.swift), [`RadarScreenAnswersTests`](../../LokalBotTests/RadarScreenAnswersTests.swift), [`LiveAnswersTests`](../../LokalBotTests/LiveAnswersTests.swift), and [`FollowThroughTests`](../../LokalBotTests/FollowThroughTests.swift), 53 tests, offline. The UI test [`HackathonFilmUITests`](../../LokalBotUITests/HackathonFilmUITests.swift) clicks through the whole flow and films it.
+- **Tests:** [`MeetingRadarTests`](../../LokalBotTests/Services/MeetingRadar/MeetingRadarTests.swift), [`MuseLiveTextTests`](../../LokalBotTests/Services/MeetingRadar/MuseLiveTextTests.swift), [`RadarScreenAnswersTests`](../../LokalBotTests/Services/MeetingRadar/RadarScreenAnswersTests.swift), [`LiveAnswersTests`](../../LokalBotTests/Services/MeetingRadar/LiveAnswersTests.swift), and [`FollowThroughTests`](../../LokalBotTests/Services/FollowThrough/FollowThroughTests.swift), 53 tests, offline. The UI test [`HackathonFilmUITests`](../../LokalBotUITests/HackathonFilmUITests.swift) clicks through the whole flow and films it.
 - **Benchmarks.**
   - [`Benchmarks/transcribe/MuseVoiceTranscribe/`](../../Benchmarks/transcribe/MuseVoiceTranscribe/README.md): Muse Voice Transcribe's live speaker labels measured on AMI.
   - [`Benchmarks/think/MuseRadar/`](../../Benchmarks/think/MuseRadar/README.md): Live Radar and Follow-through replays.

@@ -33,7 +33,7 @@ def rows():
     return [json.loads(line) for line in (ROOT / 'cases.jsonl').read_text().splitlines()]
 
 def baseline():
-    source_path = ROOT.parents[2] / 'LokalBot/Models/AskRouting.swift'
+    source_path = ROOT.parents[2] / 'LokalBot/Models/Ask/AskRouting.swift'
     source = source_path.read_text()
     enum = source[source.index('enum AskIntent {'):source.index('\n/// What Return does')]
     swift = 'import Foundation\n' + enum + r'''

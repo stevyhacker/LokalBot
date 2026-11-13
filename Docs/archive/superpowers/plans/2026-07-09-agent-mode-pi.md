@@ -39,15 +39,15 @@ New (Swift files are auto-included via the existing `LokalBot`/`LokalBotTests` f
 | `LokalBot/Agent/PiProcess.swift` | Subprocess supervision actor (LlamaServer pattern) |
 | `LokalBot/Agent/PiRPCClient.swift` | id-correlated requests + event AsyncStream |
 | `LokalBot/Agent/AgentSessionController.swift` | @MainActor orchestration + approval round-trips |
-| `LokalBot/Views/AgentView.swift` | The pane: install card, header, transcript, composer |
+| `LokalBot/Views/Agent/AgentView.swift` | The pane: install card, header, transcript, composer |
 | `LokalBot/Resources/pi/lokalbot-extension/index.ts` | Bundled pi extension (provider + tool gate) |
 | `LokalBot/Resources/pi/lokalbot-cli-skill/SKILL.md` | pi skill teaching the agent to query the meeting library via `lokalbot-cli` |
 | `LokalBotTests/Fixtures/stub-openai.ts` | Bun SSE stub for the integration test |
 | `Scripts/build-pi-bundle.sh` | Builds/release-stamps the pi bundle; `--install-local` for dev |
 
-Modified: `LokalBot/LokalBotApp.swift` (NavSection + AppState wiring), `LokalBot/Views/MainWindowView.swift` (sidebar + detail), `LokalBot/Views/ModelsView.swift` (rebrand), `LokalBot/HeadlessCommands.swift` (`--agent`), `project.yml` (extension resource), `Scripts/test/e2e.sh`, `.gitignore`, `CLAUDE.md`, `RELEASING.md`.
+Modified: `LokalBot/LokalBotApp.swift` (NavSection + AppState wiring), `LokalBot/Views/Window/MainWindowView.swift` (sidebar + detail), `LokalBot/Views/ModelSetup/ModelsView.swift` (rebrand), `LokalBot/HeadlessCommands.swift` (`--agent`), `project.yml` (extension resource), `Scripts/test/e2e.sh`, `.gitignore`, `CLAUDE.md`, `RELEASING.md`.
 
-Test files: one `LokalBotTests/<Type>Tests.swift` per new type (named below per task), plus `LokalBotTests/Helpers/FakeTransport.swift` (shared scriptable transport, extracted in Task 13) and `LokalBotTests/PiIntegrationTests.swift`.
+Test files: one `LokalBotTests/<Type>Tests.swift` per new type (named below per task), plus `LokalBotTests/TestSupport/FakeTransport.swift` (shared scriptable transport, extracted in Task 13) and `LokalBotTests/Integration/PiIntegrationTests.swift`.
 
 ---
 
@@ -55,7 +55,7 @@ Test files: one `LokalBotTests/<Type>Tests.swift` per new type (named below per 
 
 **Files:**
 - Create: `LokalBot/Agent/PiJSONLFrameSplitter.swift`
-- Test: `LokalBotTests/PiJSONLFrameSplitterTests.swift`
+- Test: `LokalBotTests/Agent/PiJSONLFrameSplitterTests.swift`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -167,7 +167,7 @@ Expected: `** TEST SUCCEEDED **`, 6 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/PiJSONLFrameSplitter.swift LokalBotTests/PiJSONLFrameSplitterTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/PiJSONLFrameSplitter.swift LokalBotTests/Agent/PiJSONLFrameSplitterTests.swift LokalBot.xcodeproj
 git commit -m "Add LF-only JSONL frame splitter for pi RPC"
 ```
 
@@ -177,7 +177,7 @@ git commit -m "Add LF-only JSONL frame splitter for pi RPC"
 
 **Files:**
 - Create: `LokalBot/Agent/PiRPCMessages.swift`
-- Test: `LokalBotTests/PiRPCMessagesTests.swift`
+- Test: `LokalBotTests/Agent/PiRPCMessagesTests.swift`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -466,7 +466,7 @@ Expected: `** TEST SUCCEEDED **`, 12 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/PiRPCMessages.swift LokalBotTests/PiRPCMessagesTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/PiRPCMessages.swift LokalBotTests/Agent/PiRPCMessagesTests.swift LokalBot.xcodeproj
 git commit -m "Add pi RPC command encoding and event decoding"
 ```
 
@@ -476,7 +476,7 @@ git commit -m "Add pi RPC command encoding and event decoding"
 
 **Files:**
 - Create: `LokalBot/Agent/AgentApprovalPolicy.swift`
-- Test: `LokalBotTests/AgentApprovalPolicyTests.swift`
+- Test: `LokalBotTests/Agent/AgentApprovalPolicyTests.swift`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -575,7 +575,7 @@ Expected: `** TEST SUCCEEDED **`, 5 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/AgentApprovalPolicy.swift LokalBotTests/AgentApprovalPolicyTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/AgentApprovalPolicy.swift LokalBotTests/Agent/AgentApprovalPolicyTests.swift LokalBot.xcodeproj
 git commit -m "Add agent tool approval policy"
 ```
 
@@ -584,7 +584,7 @@ git commit -m "Add agent tool approval policy"
 
 **Files:**
 - Create: `LokalBot/Agent/AgentTranscript.swift`
-- Test: `LokalBotTests/AgentTranscriptTests.swift`
+- Test: `LokalBotTests/Agent/AgentTranscriptTests.swift`
 
 **Interfaces:**
 - Consumes: `PiEvent`, `PiAssistantDelta` (Task 2).
@@ -839,7 +839,7 @@ Expected: `** TEST SUCCEEDED **`, 9 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/AgentTranscript.swift LokalBotTests/AgentTranscriptTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/AgentTranscript.swift LokalBotTests/Agent/AgentTranscriptTests.swift LokalBot.xcodeproj
 git commit -m "Add agent transcript model and pi event folding"
 ```
 
@@ -965,7 +965,7 @@ git commit -m "Add pi runtime bundle build script"
 
 **Files:**
 - Create: `LokalBot/Agent/AgentRuntime.swift`
-- Test: `LokalBotTests/AgentRuntimeTests.swift`
+- Test: `LokalBotTests/Agent/AgentRuntimeTests.swift`
 
 **Interfaces:**
 - Consumes: `AppDirectories.applicationSupport`, `AppDirectories.libraryRoot` (existing).
@@ -1131,12 +1131,12 @@ enum SHA256Verifier {
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -destination 'platform=macOS' test -only-testing:LokalBotTests/AgentRuntimeTests 2>&1 | tail -5`
-Expected: `** TEST SUCCEEDED **`, 5 tests passed. (If `testDefaultRootLivesInApplicationSupport` fails on the property name, check `LokalBot/Models/AppDirectories.swift` — the property is `applicationSupport` as of commit 267586f.)
+Expected: `** TEST SUCCEEDED **`, 5 tests passed. (If `testDefaultRootLivesInApplicationSupport` fails on the property name, check `LokalBot/Models/App/AppDirectories.swift` — the property is `applicationSupport` as of commit 267586f.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/AgentRuntime.swift LokalBotTests/AgentRuntimeTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/AgentRuntime.swift LokalBotTests/Agent/AgentRuntimeTests.swift LokalBot.xcodeproj
 git commit -m "Add pinned agent runtime manifest, layout, and SHA256 verifier"
 ```
 
@@ -1145,7 +1145,7 @@ git commit -m "Add pinned agent runtime manifest, layout, and SHA256 verifier"
 
 **Files:**
 - Create: `LokalBot/Agent/AgentRuntimeInstaller.swift`
-- Test: `LokalBotTests/AgentRuntimeInstallerTests.swift`
+- Test: `LokalBotTests/Agent/AgentRuntimeInstallerTests.swift`
 
 **Interfaces:**
 - Consumes: `AgentRuntimeManifest`, `AgentRuntimeArtifact`, `AgentArchiveKind`, `AgentRuntimeLayout`, `SHA256Verifier` (Task 6).
@@ -1439,7 +1439,7 @@ Expected: `** TEST SUCCEEDED **`, 3 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/AgentRuntimeInstaller.swift LokalBotTests/AgentRuntimeInstallerTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/AgentRuntimeInstaller.swift LokalBotTests/Agent/AgentRuntimeInstallerTests.swift LokalBot.xcodeproj
 git commit -m "Add checksum-verified agent runtime installer"
 ```
 
@@ -1449,8 +1449,8 @@ git commit -m "Add checksum-verified agent runtime installer"
 
 **Files:**
 - Create: `LokalBot/Agent/AgentLLMEndpoint.swift`
-- Test: `LokalBotTests/AgentLLMEndpointTests.swift`
-- Read first: `LokalBot/Services/ProcessingPipeline.swift:453-490` (`makeTextEngine` — this resolver mirrors its backend switch, minus async work)
+- Test: `LokalBotTests/Agent/AgentLLMEndpointTests.swift`
+- Read first: `LokalBot/Services/Meetings/ProcessingPipeline.swift:453-490` (`makeTextEngine` — this resolver mirrors its backend switch, minus async work)
 
 **Interfaces:**
 - Consumes: `AppSettings` (`summarizerBackend`, `builtInModelID`, `customBuiltInModels`, `ollamaBaseURL`, `ollamaModel`, `openAIBaseURL`, `openAIModel`, `openAIAPIKey`), `ModelCatalog.entry(id:custom:)`, `ModelCatalog.recommendedSummarizationID`.
@@ -1619,7 +1619,7 @@ Expected: `** TEST SUCCEEDED **`, 6 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/AgentLLMEndpoint.swift LokalBotTests/AgentLLMEndpointTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/AgentLLMEndpoint.swift LokalBotTests/Agent/AgentLLMEndpointTests.swift LokalBot.xcodeproj
 git commit -m "Add agent LLM endpoint resolution mirroring makeTextEngine"
 ```
 
@@ -1629,7 +1629,7 @@ git commit -m "Add agent LLM endpoint resolution mirroring makeTextEngine"
 
 **Files:**
 - Create: `LokalBot/Agent/PiLaunchPlanner.swift`
-- Test: `LokalBotTests/PiLaunchPlannerTests.swift`
+- Test: `LokalBotTests/Agent/PiLaunchPlannerTests.swift`
 
 **Interfaces:**
 - Consumes: `AgentLLMEndpoint` (Task 8).
@@ -1804,7 +1804,7 @@ Expected: `** TEST SUCCEEDED **`, 6 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/PiLaunchPlanner.swift LokalBotTests/PiLaunchPlannerTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/PiLaunchPlanner.swift LokalBotTests/Agent/PiLaunchPlannerTests.swift LokalBot.xcodeproj
 git commit -m "Add pi launch contract planner"
 ```
 
@@ -1813,7 +1813,7 @@ git commit -m "Add pi launch contract planner"
 
 **Files:**
 - Create: `LokalBot/Agent/PiProcess.swift`
-- Test: `LokalBotTests/PiProcessTests.swift`
+- Test: `LokalBotTests/Agent/PiProcessTests.swift`
 - Read first: `LokalBot/Services/LlamaServer.swift` (the existing Process-supervision pattern this follows)
 
 **Interfaces:**
@@ -2043,7 +2043,7 @@ Expected: `** TEST SUCCEEDED **`, 6 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/PiProcess.swift LokalBotTests/PiProcessTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/PiProcess.swift LokalBotTests/Agent/PiProcessTests.swift LokalBot.xcodeproj
 git commit -m "Add supervised pi subprocess with JSONL frame streaming"
 ```
 
@@ -2053,7 +2053,7 @@ git commit -m "Add supervised pi subprocess with JSONL frame streaming"
 
 **Files:**
 - Create: `LokalBot/Agent/PiRPCClient.swift`
-- Test: `LokalBotTests/PiRPCClientTests.swift`
+- Test: `LokalBotTests/Agent/PiRPCClientTests.swift`
 
 **Interfaces:**
 - Consumes: `PiCommand`, `PiResponse`, `PiEvent` (Task 2). Does NOT consume PiProcess directly — it takes a line transport, so tests inject a fake and Task 13 adapts PiProcess.
@@ -2291,7 +2291,7 @@ Expected: `** TEST SUCCEEDED **`, 5 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/PiRPCClient.swift LokalBotTests/PiRPCClientTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/PiRPCClient.swift LokalBotTests/Agent/PiRPCClientTests.swift LokalBot.xcodeproj
 git commit -m "Add id-correlated pi RPC client with event stream"
 ```
 
@@ -2461,7 +2461,7 @@ git commit -m "Add LokalBot pi extension (provider + approval gate) and library 
 
 **Files:**
 - Create: `LokalBot/Agent/AgentSessionController.swift`
-- Test: `LokalBotTests/AgentSessionControllerTests.swift`
+- Test: `LokalBotTests/Agent/AgentSessionControllerTests.swift`
 
 **Interfaces:**
 - Consumes: `AgentLLMEndpointResolver`/`AgentLLMEndpoint` (Task 8), `PiLaunchPlanner` (Task 9), `PiProcess` (Task 10), `PiRPCClient`/`PiLineTransport` (Task 11), `AgentTranscriptFolder`/`AgentTranscriptItem` (Task 4), `AgentApprovalPolicy` (Task 3), `AgentRuntimeLayout` (Task 6), `LlamaServer.shared.ensureRunning(modelAt:)` + `.baseURL`, `ModelCatalog.localURL(for:storage:)`, `StorageManager` (`rootURL`).
@@ -2491,7 +2491,7 @@ Event loop rules (each is a test below):
 
 The controller is tested end-to-end against the same `FakeTransport` from Task 11 (move it into a shared helper file now).
 
-First, extract the fake: create `LokalBotTests/Helpers/FakeTransport.swift` containing the `FakeTransport` class exactly as written in Task 11 Step 1 (delete the copy inside `PiRPCClientTests.swift` and import it from both). Then:
+First, extract the fake: create `LokalBotTests/TestSupport/FakeTransport.swift` containing the `FakeTransport` class exactly as written in Task 11 Step 1 (delete the copy inside `PiRPCClientTests.swift` and import it from both). Then:
 
 ```swift
 import XCTest
@@ -2924,7 +2924,7 @@ Expected: `** TEST SUCCEEDED **`, 12 tests passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Agent/AgentSessionController.swift LokalBotTests/AgentSessionControllerTests.swift LokalBotTests/Helpers/FakeTransport.swift LokalBotTests/PiRPCClientTests.swift LokalBot.xcodeproj
+git add LokalBot/Agent/AgentSessionController.swift LokalBotTests/Agent/AgentSessionControllerTests.swift LokalBotTests/TestSupport/FakeTransport.swift LokalBotTests/Agent/PiRPCClientTests.swift LokalBot.xcodeproj
 git commit -m "Add agent session controller wiring transcript, approvals, and pi RPC"
 ```
 
@@ -2933,7 +2933,7 @@ git commit -m "Add agent session controller wiring transcript, approvals, and pi
 ### Task 14: Integration test — real Bun + pi against a stub OpenAI server
 
 **Files:**
-- Create: `LokalBotTests/PiIntegrationTests.swift`
+- Create: `LokalBotTests/Integration/PiIntegrationTests.swift`
 - Create: `LokalBotTests/Fixtures/stub-openai.ts`
 - Modify: `project.yml` — add `LokalBotTests/Fixtures` as test-target resources (folder reference), same syntax as Task 12 Step 2 but under the test target's sources
 
@@ -3130,7 +3130,7 @@ If pi's stdout shows the prompt failing: run the Task 12 Step 3 smoke command fi
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBotTests/PiIntegrationTests.swift LokalBotTests/Fixtures/stub-openai.ts project.yml LokalBot.xcodeproj
+git add LokalBotTests/Integration/PiIntegrationTests.swift LokalBotTests/Fixtures/stub-openai.ts project.yml LokalBot.xcodeproj
 git commit -m "Add end-to-end pi integration test against stub OpenAI server"
 ```
 
@@ -3138,7 +3138,7 @@ git commit -m "Add end-to-end pi integration test against stub OpenAI server"
 ### Task 15: AgentView — the Agent Mode pane
 
 **Files:**
-- Create: `LokalBot/Views/AgentView.swift`
+- Create: `LokalBot/Views/Agent/AgentView.swift`
 - Test: build-level (SwiftUI); the folding/approval logic it renders is already covered by Tasks 4 and 13
 
 **Interfaces:**
@@ -3412,7 +3412,7 @@ Expected: `** BUILD SUCCEEDED **`. (The view isn't reachable yet — Task 16 wir
 - [ ] **Step 3: Commit**
 
 ```bash
-git add LokalBot/Views/AgentView.swift LokalBot.xcodeproj
+git add LokalBot/Views/Agent/AgentView.swift LokalBot.xcodeproj
 git commit -m "Add Agent Mode pane UI"
 ```
 
@@ -3422,7 +3422,7 @@ git commit -m "Add Agent Mode pane UI"
 
 **Files:**
 - Modify: `LokalBot/LokalBotApp.swift` (`AppState.NavSection`, ~line 116; `AppState` members, ~line 260)
-- Modify: `LokalBot/Views/MainWindowView.swift` (sidebar `Section("Automation")` ~line 130; detail switch ~line 95-120)
+- Modify: `LokalBot/Views/Window/MainWindowView.swift` (sidebar `Section("Automation")` ~line 130; detail switch ~line 95-120)
 - Test: `LokalBotTests/NavSectionTests.swift` (extend if it exists; create otherwise)
 
 **Interfaces:**
@@ -3502,7 +3502,7 @@ Then launch the dev app and eyeball it: `xcodebuild -project LokalBot.xcodeproj 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/LokalBotApp.swift LokalBot/Views/MainWindowView.swift LokalBotTests/NavSectionTests.swift LokalBot.xcodeproj
+git add LokalBot/LokalBotApp.swift LokalBot/Views/Window/MainWindowView.swift LokalBotTests/NavSectionTests.swift LokalBot.xcodeproj
 git commit -m "Wire Agent Mode into sidebar navigation"
 ```
 
@@ -3511,7 +3511,7 @@ git commit -m "Wire Agent Mode into sidebar navigation"
 ### Task 17: Rebrand "Summarization" → "Main LLM engine"
 
 **Files:**
-- Modify: `LokalBot/Views/ModelsView.swift:133-135` (the `summarizationCard` ModelCard header)
+- Modify: `LokalBot/Views/ModelSetup/ModelsView.swift:133-135` (the `summarizationCard` ModelCard header)
 - Test: none new — display-only copy change; existing UI tests keep passing because the `models.summarization` accessibility identifier and all stored settings keys (`summarizerBackend` etc.) are unchanged (Global Constraint)
 
 - [ ] **Step 1: Change the card copy**
@@ -3546,7 +3546,7 @@ Expected: `** TEST SUCCEEDED **` — the full unit suite still passes (settings 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add LokalBot/Views/ModelsView.swift
+git add LokalBot/Views/ModelSetup/ModelsView.swift
 git commit -m "Rebrand Summarization card as Main LLM engine"
 ```
 

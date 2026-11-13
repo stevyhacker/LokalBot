@@ -29,4 +29,4 @@ before committing it; the repository is public.
 
 Rule: every escaped capture bug gets a trace (scripted when it can be
 reproduced with the local page, otherwise reconstructed by hand in scrubbed
-form) and a replay test in `LokalBotTests/CaptureReplayTests.swift`.
+form) and a replay test in `LokalBotTests/Integration/CaptureReplayTests.swift`.

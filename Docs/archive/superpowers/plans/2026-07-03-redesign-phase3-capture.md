@@ -29,8 +29,8 @@
 ### Task 1: Capture scope + inspector-state policies
 
 **Files:**
-- Create: `LokalBot/Models/CaptureState.swift`
-- Test: `LokalBotTests/CaptureStateTests.swift`
+- Create: `LokalBot/Models/ScreenMemory/CaptureState.swift`
+- Test: `LokalBotTests/Models/ScreenMemory/CaptureStateTests.swift`
 
 **Interfaces:**
 - Produces: `CaptureScope` (`.day`/`.library`, `String` raw values `"Day"`/`"Library"`, `CaseIterable`, `Identifiable`), `CaptureScopePolicy.resolve(current: CaptureScope?, hasBlocks: Bool) -> CaptureScope`, `CaptureInspectorState` (`.overview`, `.meeting(Meeting.ID)`, `.multiSelection(count: Int)`, `.block(ActivityBlock.ID)`) with `CaptureInspectorState.resolve(meetingIDs: Set<Meeting.ID>, blockSelection: ActivityBlock.ID?) -> CaptureInspectorState`. Note `ActivityBlock.ID == Int64`, `Meeting.ID == UUID`.
@@ -43,7 +43,7 @@ git checkout -b redesign-phase3
 
 - [ ] **Step 1: Write the failing tests**
 
-`LokalBotTests/CaptureStateTests.swift`:
+`LokalBotTests/Models/ScreenMemory/CaptureStateTests.swift`:
 
 ```swift
 import XCTest
@@ -108,7 +108,7 @@ Expected: build FAILS ("cannot find 'CaptureScopePolicy' in scope").
 
 - [ ] **Step 3: Write the implementation**
 
-`LokalBot/Models/CaptureState.swift`:
+`LokalBot/Models/ScreenMemory/CaptureState.swift`:
 
 ```swift
 import Foundation
@@ -157,7 +157,7 @@ Same command as Step 2. Expected: PASS (7 tests).
 
 ```bash
 git checkout -- default.profraw
-git add LokalBot/Models/CaptureState.swift LokalBotTests/CaptureStateTests.swift
+git add LokalBot/Models/ScreenMemory/CaptureState.swift LokalBotTests/Models/ScreenMemory/CaptureStateTests.swift
 git commit -m "Add Capture scope and inspector-state policies"
 ```
 
@@ -166,16 +166,16 @@ git commit -m "Add Capture scope and inspector-state policies"
 ### Task 2: Capture track items (meetings interleaved with activity)
 
 **Files:**
-- Create: `LokalBot/Models/CaptureTrackItem.swift`
-- Test: `LokalBotTests/CaptureTrackItemTests.swift`
+- Create: `LokalBot/Models/ScreenMemory/CaptureTrackItem.swift`
+- Test: `LokalBotTests/Models/ScreenMemory/CaptureTrackItemTests.swift`
 
 **Interfaces:**
-- Consumes: `ActivityBlock` (`LokalBot/Services/ActivityTracker.swift`: `id: Int64`, `app`, `title`, `start`, `end`, computed `duration`), `Meeting` (`startedAt`, `endedAt: Date?`, `recordedDuration: TimeInterval?`).
+- Consumes: `ActivityBlock` (`LokalBot/Services/Timeline/ActivityTracker.swift`: `id: Int64`, `app`, `title`, `start`, `end`, computed `duration`), `Meeting` (`startedAt`, `endedAt: Date?`, `recordedDuration: TimeInterval?`).
 - Produces: `CaptureTrackItem` enum (`.activity(ActivityBlock)` / `.meeting(Meeting, end: Date)`), `id: String`, `start`/`end: Date`, `duration: TimeInterval`, `CaptureTrackItem.items(blocks:meetings:now:) -> [CaptureTrackItem]` (start-ordered merge), `CaptureTrackItem.meetingEnd(_:now:) -> Date`.
 
 - [ ] **Step 1: Write the failing tests**
 
-`LokalBotTests/CaptureTrackItemTests.swift`:
+`LokalBotTests/Models/ScreenMemory/CaptureTrackItemTests.swift`:
 
 ```swift
 import XCTest
@@ -265,7 +265,7 @@ Expected: build FAILS ("cannot find 'CaptureTrackItem' in scope").
 
 - [ ] **Step 3: Write the implementation**
 
-`LokalBot/Models/CaptureTrackItem.swift`:
+`LokalBot/Models/ScreenMemory/CaptureTrackItem.swift`:
 
 ```swift
 import Foundation
@@ -332,7 +332,7 @@ Same command as Step 2. Expected: PASS (6 tests).
 
 ```bash
 git checkout -- default.profraw
-git add LokalBot/Models/CaptureTrackItem.swift LokalBotTests/CaptureTrackItemTests.swift
+git add LokalBot/Models/ScreenMemory/CaptureTrackItem.swift LokalBotTests/Models/ScreenMemory/CaptureTrackItemTests.swift
 git commit -m "Add Capture track items merging meetings into the day track"
 ```
 
@@ -342,14 +342,14 @@ git commit -m "Add Capture track items merging meetings into the day track"
 
 **Files:**
 - Create: `LokalBot/Support/ProportionBar.swift`
-- Test: `LokalBotTests/ProportionBarMathTests.swift`
+- Test: `LokalBotTests/Support/ProportionBarMathTests.swift`
 
 **Interfaces:**
 - Produces: `ProportionBarMath.Segment` (`label: String`, `fraction: Double`, Equatable), `ProportionBarMath.segments(perApp: [(label: String, seconds: TimeInterval)], cap: Int = 6) -> [Segment]`, and the `ProportionBar` view (`segments: [(segment: ProportionBarMath.Segment, color: Color)]`, `height: CGFloat = 10`). Same math/view split as `LiveWaveformMath`/`LiveWaveform`.
 
 - [ ] **Step 1: Write the failing tests**
 
-`LokalBotTests/ProportionBarMathTests.swift`:
+`LokalBotTests/Support/ProportionBarMathTests.swift`:
 
 ```swift
 import XCTest
@@ -461,7 +461,7 @@ Same command as Step 2. Expected: PASS (4 tests).
 
 ```bash
 git checkout -- default.profraw
-git add LokalBot/Support/ProportionBar.swift LokalBotTests/ProportionBarMathTests.swift
+git add LokalBot/Support/ProportionBar.swift LokalBotTests/Support/ProportionBarMathTests.swift
 git commit -m "Add ProportionBar design-system component"
 ```
 
@@ -471,7 +471,7 @@ git commit -m "Add ProportionBar design-system component"
 
 **Files:**
 - Modify: `LokalBot/LokalBotApp.swift` (NavSection enum ~line 114, published nav state ~line 185, `openAsk` ~line 202, `openSearchHit` ~line 547)
-- Test: `LokalBotTests/NavSectionMappingTests.swift` (update in place)
+- Test: `LokalBotTests/Views/Window/NavSectionMappingTests.swift` (update in place)
 
 **Interfaces:**
 - Consumes: `CaptureScope` (Task 1).
@@ -479,7 +479,7 @@ git commit -m "Add ProportionBar design-system component"
 
 - [ ] **Step 1: Update the mapping tests to the final spec semantics**
 
-Replace the body of `LokalBotTests/NavSectionMappingTests.swift` with:
+Replace the body of `LokalBotTests/Views/Window/NavSectionMappingTests.swift` with:
 
 ```swift
 import XCTest
@@ -624,7 +624,7 @@ Expected: PASS (6 tests). Note: `openSearchHit` now routes to `.capture`, which 
 
 ```bash
 git checkout -- default.profraw
-git add LokalBot/LokalBotApp.swift LokalBotTests/NavSectionMappingTests.swift
+git add LokalBot/LokalBotApp.swift LokalBotTests/Views/Window/NavSectionMappingTests.swift
 git commit -m "Map legacy meetings and timeline names onto a capture section"
 ```
 
@@ -633,13 +633,13 @@ git commit -m "Map legacy meetings and timeline names onto a capture section"
 ### Task 5: Extract MeetingListView
 
 **Files:**
-- Create: `LokalBot/Views/MeetingListView.swift`
-- Modify: `LokalBot/Views/MainWindowView.swift` (remove `meetingList`, `groupedMeetings`, `dayLabel`, `meetingRow`; the else-branch uses the new view)
+- Create: `LokalBot/Views/Meetings/MeetingListView.swift`
+- Modify: `LokalBot/Views/Window/MainWindowView.swift` (remove `meetingList`, `groupedMeetings`, `dayLabel`, `meetingRow`; the else-branch uses the new view)
 
 **Interfaces:**
 - Produces: `struct MeetingListView: View` with `@EnvironmentObject var app: AppState` and `@Binding var pendingDelete: Set<Meeting.ID>?`. Behavior and accessibility ids (`meeting.list`, `meeting.row.*`) identical to today's `meetingList`. Column width/title stay at the call site.
 
-- [ ] **Step 1: Create `LokalBot/Views/MeetingListView.swift`**
+- [ ] **Step 1: Create `LokalBot/Views/Meetings/MeetingListView.swift`**
 
 Move the following members out of `MainWindowView` verbatim (they are currently at `MainWindowView.swift:182-255`), changing only the wrapper type and the two hoisted modifiers (`navigationSplitViewColumnWidth`, `navigationTitle` — set by the caller from Task 6 on):
 
@@ -759,7 +759,7 @@ Expected: PASS (633 tests: 623 prior + 7 + 6 + 4 new, minus the 6 rewritten NavS
 
 ```bash
 git checkout -- default.profraw
-git add LokalBot/Views/MeetingListView.swift LokalBot/Views/MainWindowView.swift
+git add LokalBot/Views/Meetings/MeetingListView.swift LokalBot/Views/Window/MainWindowView.swift
 git commit -m "Extract MeetingListView from the main window"
 ```
 
@@ -768,17 +768,17 @@ git commit -m "Extract MeetingListView from the main window"
 ### Task 6: The Capture surface (content column + detail pane + rewire)
 
 **Files:**
-- Create: `LokalBot/Views/CaptureView.swift` (replaces `TimelineView.swift`: `CaptureModel`, `CaptureStyle`, `CaptureContentView`, `CaptureDayView`, private `CaptureTrackView`)
-- Create: `LokalBot/Views/CaptureDetailView.swift` (`CaptureDetailView`, private `ThumbnailView`/`ThumbnailCache` moved from TimelineView)
+- Create: `LokalBot/Views/ScreenMemory/CaptureView.swift` (replaces `TimelineView.swift`: `CaptureModel`, `CaptureStyle`, `CaptureContentView`, `CaptureDayView`, private `CaptureTrackView`)
+- Create: `LokalBot/Views/ScreenMemory/CaptureDetailView.swift` (`CaptureDetailView`, private `ThumbnailView`/`ThumbnailCache` moved from TimelineView)
 - Delete: `LokalBot/Views/TimelineView.swift`
-- Modify: `LokalBot/Views/MainWindowView.swift` (navigation, sidebar, `@StateObject`, `detailPane` removal, `sidebarSelection` fallback, GettingStartedCard button)
+- Modify: `LokalBot/Views/Window/MainWindowView.swift` (navigation, sidebar, `@StateObject`, `detailPane` removal, `sidebarSelection` fallback, GettingStartedCard button)
 - Modify: `LokalBot/LokalBotApp.swift` (remove legacy `.meetings`/`.timeline` cases, default `navSection = .capture`)
 
 **Interfaces:**
 - Consumes: `CaptureScope`/`CaptureScopePolicy`/`CaptureInspectorState` (Task 1), `CaptureTrackItem` (Task 2), `ProportionBar`/`ProportionBarMath` (Task 3), `MeetingListView(pendingDelete:)` (Task 5), `app.openAsk(dayScope:)` (Task 4), `StatTile`, `StatusDot`, `MarkdownText`, `MeetingDetailView`, `GettingStartedCard`.
 - Produces: `CaptureModel` (ObservableObject: `day`, `blocks`, `shots`, `selection: ActivityBlock.ID?`, `digest`, `generating`, `digestError`, `selectedBlock`, `moveDay(by:)`, `reload(app:)`, `meetings(in:)`, `generateDigest(app:)`, `copyDigest(_:)`, `exportDigest(_:)`), `CaptureContentView(model:pendingDelete:)`, `CaptureDetailView(model:pendingDelete:)`, `CaptureStyle.color(for:)`/`CaptureStyle.hm(_:)` (renamed `TimelineStyle`). Accessibility: `capture.scope` (segmented Day/Library), `timeline.track` (kept), `capture.meeting.<uuid>` (meeting blocks), `capture.askDay`.
 
-- [ ] **Step 1: Create `LokalBot/Views/CaptureView.swift`**
+- [ ] **Step 1: Create `LokalBot/Views/ScreenMemory/CaptureView.swift`**
 
 ```swift
 import SwiftUI
@@ -1145,7 +1145,7 @@ private struct CaptureTrackView: View {
 }
 ```
 
-- [ ] **Step 2: Create `LokalBot/Views/CaptureDetailView.swift`**
+- [ ] **Step 2: Create `LokalBot/Views/ScreenMemory/CaptureDetailView.swift`**
 
 ```swift
 import SwiftUI
@@ -1558,7 +1558,7 @@ git commit -m "Merge Meetings and Timeline into the Capture section"
 ### Task 7: Ask day-scope chip
 
 **Files:**
-- Modify: `LokalBot/Views/AskView.swift` (`facetRow` ~line 97, `escalate()` ~line 148)
+- Modify: `LokalBot/Views/Ask/AskView.swift` (`facetRow` ~line 97, `escalate()` ~line 148)
 
 **Interfaces:**
 - Consumes: `app.askDayScope: Date?` (Task 4), `chipChrome()` (DesignSystem).
@@ -1620,7 +1620,7 @@ Expected: PASS (routing untouched; this verifies the file still compiles into th
 
 ```bash
 git checkout -- default.profraw
-git add LokalBot/Views/AskView.swift
+git add LokalBot/Views/Ask/AskView.swift
 git commit -m "Add day-scope chip to Ask for Capture handoff"
 ```
 

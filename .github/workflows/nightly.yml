@@ -17,8 +17,8 @@ on:
   pull_request:
     paths:
       - "Scripts/ci/model-drift-models.json"
-      - "LokalBotTests/Support/SyntheticModelPrompts.swift"
-      - "LokalBotTests/ModelRecordingTests.swift"
+      - "LokalBotTests/TestSupport/SyntheticModelPrompts.swift"
+      - "LokalBotTests/TestSupport/ModelRecordingTests.swift"
       - "Scripts/ci/check-model-pins.py"
       - ".github/workflows/nightly.yml"
 

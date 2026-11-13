@@ -1,5 +1,5 @@
 //! The GGUF models LokalBot can download (`Engines/ModelCatalog.swift`,
-//! `Services/EmbeddingIndex.swift`). Files, revisions, sizes and SHA-256
+//! `Services/Search/EmbeddingIndex.swift`). Files, revisions, sizes and SHA-256
 //! digests are the macOS pins, so a library moved between platforms reuses
 //! its `models/` folder.
 

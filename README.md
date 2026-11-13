@@ -312,7 +312,7 @@ Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include P
 
 On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses Gemma 4 E2B by default, as on Mac. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
 
-[Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
+[Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/Search/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
 
 ## Build from source
 

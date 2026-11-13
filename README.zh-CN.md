@@ -334,7 +334,7 @@ Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、
 
 在 Windows 和 Linux 上，转写默认通过 sherpa-onnx 使用 Qwen3-ASR 0.6B（可选 Parakeet v3 和 v2、SenseVoice、俄语的 GigaAM 和 Whisper turbo），发言人分离使用 pyannote 分割和 TitaNet，自动补全默认使用 LFM2.5 1.2B。纪要（Qwen3.5 4B）和搜索（EmbeddingGemma 2）使用和 Mac 相同的模型。默认下载约 4 GB，llama.cpp 运行在 Vulkan GPU 或 CPU 上。
 
-[项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/EmbeddingIndex.swift) · [模型与运行时细节](Docs/development/llm-runtime.md)
+[项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/Search/EmbeddingIndex.swift) · [模型与运行时细节](Docs/development/llm-runtime.md)
 
 ## 从源码构建
 

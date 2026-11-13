@@ -43,14 +43,14 @@
 | `CLI/Commands/InstallSkillCommand.swift` | create | `install-skill` / `--copy` / `--uninstall` |
 | `CLI/LokalBotCLI.swift` | modify | register the two new subcommands |
 | `CLI/Commands/SearchCommand.swift` | modify | delegate to `LibrarySearch` |
-| `LokalBot/Services/AgentAccessManager.swift` | create | app-side toggle owner + `control/` wake watcher + `ensureRunning` |
+| `LokalBot/Services/AgentAccess/AgentAccessManager.swift` | create | app-side toggle owner + `control/` wake watcher + `ensureRunning` |
 | `LokalBot/LokalBotApp.swift` | modify | `AppState.agentAccess` property + `start()` at launch |
-| `LokalBot/Views/SettingsView.swift` | modify | Privacy toggle row |
+| `LokalBot/Views/Settings/SettingsView.swift` | modify | Privacy toggle row |
 | `.agents/skills/lokalbot-cli/SKILL.md` | rewrite | fix stale bundle id, add MCP/ask_library guidance |
 | `Scripts/release/build-mcpb.sh` | create | `.mcpb` bundle for releases |
 | `Scripts/test/e2e.sh` | modify | T11: MCP session against the fixture library |
 | `CLAUDE.md` | modify | one-line CLI paragraph update |
-| `LokalBotTests/MeetingFixture.swift` + 9 test files | create | see tasks |
+| `LokalBotTests/Models/Meetings/MeetingFixture.swift` + 9 test files | create | see tasks |
 
 ---
 
@@ -58,7 +58,7 @@
 
 **Files:**
 - Create: `LokalBot/CLISupport/MCPProtocol.swift`
-- Test: `LokalBotTests/MCPProtocolTests.swift`
+- Test: `LokalBotTests/CLISupport/MCPProtocolTests.swift`
 
 **Interfaces:**
 - Consumes: nothing (pure Foundation).
@@ -66,7 +66,7 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Create `LokalBotTests/MCPProtocolTests.swift`:
+Create `LokalBotTests/CLISupport/MCPProtocolTests.swift`:
 
 ```swift
 import XCTest
@@ -331,7 +331,7 @@ Expected: `** BUILD SUCCEEDED **`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add LokalBot/CLISupport/MCPProtocol.swift LokalBotTests/MCPProtocolTests.swift
+git add LokalBot/CLISupport/MCPProtocol.swift LokalBotTests/CLISupport/MCPProtocolTests.swift
 git commit -m "$(cat <<'EOF'
 Add JSON-RPC 2.0 wire codec for the MCP server
 
@@ -347,7 +347,7 @@ EOF
 **Files:**
 - Create: `LokalBot/CLISupport/LibraryToolProvider.swift`
 - Create: `LokalBot/CLISupport/MCPDispatcher.swift`
-- Test: `LokalBotTests/MCPDispatcherTests.swift`
+- Test: `LokalBotTests/CLISupport/MCPDispatcherTests.swift`
 
 **Interfaces:**
 - Consumes: `JSONValue`, `MCPRequest`, `MCPResponse` (Task 1).
@@ -355,7 +355,7 @@ EOF
 
 - [ ] **Step 1: Write the failing test**
 
-Create `LokalBotTests/MCPDispatcherTests.swift`:
+Create `LokalBotTests/CLISupport/MCPDispatcherTests.swift`:
 
 ```swift
 import XCTest
@@ -592,7 +592,7 @@ Expected: `** TEST SUCCEEDED **` (10 tests).
 
 ```bash
 git add LokalBot/CLISupport/LibraryToolProvider.swift LokalBot/CLISupport/MCPDispatcher.swift \
-  LokalBotTests/MCPDispatcherTests.swift
+  LokalBotTests/CLISupport/MCPDispatcherTests.swift
 git commit -m "$(cat <<'EOF'
 Add MCP method dispatcher behind a LibraryToolProvider seam
 
@@ -607,7 +607,7 @@ EOF
 
 **Files:**
 - Create: `LokalBot/CLISupport/AgentAccessGate.swift`
-- Test: `LokalBotTests/AgentAccessGateTests.swift`
+- Test: `LokalBotTests/CLISupport/AgentAccessGateTests.swift`
 
 **Interfaces:**
 - Consumes: `SessionLookup.storageRootURL`.
@@ -615,7 +615,7 @@ EOF
 
 - [ ] **Step 1: Write the failing test**
 
-Create `LokalBotTests/AgentAccessGateTests.swift`:
+Create `LokalBotTests/CLISupport/AgentAccessGateTests.swift`:
 
 ```swift
 import XCTest
@@ -779,7 +779,7 @@ Expected: `** TEST SUCCEEDED **` (4 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/CLISupport/AgentAccessGate.swift LokalBotTests/AgentAccessGateTests.swift
+git add LokalBot/CLISupport/AgentAccessGate.swift LokalBotTests/CLISupport/AgentAccessGateTests.swift
 git commit -m "$(cat <<'EOF'
 Add marker-file gate for external agent access and llama wake
 
@@ -796,9 +796,9 @@ The MCP `search_meetings` tool must behave exactly like the CLI `search` verb (s
 
 **Files:**
 - Create: `LokalBot/CLISupport/LibrarySearch.swift`
-- Create: `LokalBotTests/MeetingFixture.swift` (test helper, no own test class)
+- Create: `LokalBotTests/Models/Meetings/MeetingFixture.swift` (test helper, no own test class)
 - Modify: `CLI/Commands/SearchCommand.swift` (replace the inline walk; delete its private `snippet`)
-- Test: `LokalBotTests/LibrarySearchTests.swift`
+- Test: `LokalBotTests/CLISupport/LibrarySearchTests.swift`
 
 **Interfaces:**
 - Consumes: `SessionLookup.loadAllMeetings()/shortID(_:)/summaryMarkdown(for:)/transcript(for:)`, `SessionFormatter.SearchHit`, `Meeting` (memberwise init with `id,title,appName,startedAt,endedAt,relativePath`), `Transcript(segments:engine:speakerAliases:)` + `Transcript.Segment(start:end:speaker:text:confidence:)` — all pre-existing.
@@ -806,7 +806,7 @@ The MCP `search_meetings` tool must behave exactly like the CLI `search` verb (s
 
 - [ ] **Step 1: Write the fixture helper**
 
-`LokalBotTests/MeetingFixture.swift`:
+`LokalBotTests/Models/Meetings/MeetingFixture.swift`:
 
 ```swift
 import Foundation
@@ -874,7 +874,7 @@ enum MeetingFixture {
 
 - [ ] **Step 2: Write the failing test**
 
-`LokalBotTests/LibrarySearchTests.swift`:
+`LokalBotTests/CLISupport/LibrarySearchTests.swift`:
 
 ```swift
 import XCTest
@@ -1055,8 +1055,8 @@ Expected: `** BUILD SUCCEEDED **` then `** TEST SUCCEEDED **`.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add LokalBot/CLISupport/LibrarySearch.swift LokalBotTests/MeetingFixture.swift \
-        LokalBotTests/LibrarySearchTests.swift CLI/Commands/SearchCommand.swift LokalBot.xcodeproj
+git add LokalBot/CLISupport/LibrarySearch.swift LokalBotTests/Models/Meetings/MeetingFixture.swift \
+        LokalBotTests/CLISupport/LibrarySearchTests.swift CLI/Commands/SearchCommand.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Extract shared library search from the search verb
 
@@ -1076,7 +1076,7 @@ The v1 `LibraryToolProvider` implementation (spec §3–§4): serves `list_meeti
 
 **Files:**
 - Create: `LokalBot/CLISupport/FileLibraryToolProvider.swift`
-- Test: `LokalBotTests/FileLibraryToolProviderTests.swift`
+- Test: `LokalBotTests/CLISupport/FileLibraryToolProviderTests.swift`
 
 **Interfaces:**
 - Consumes: `LibraryToolProvider`, `ToolDefinition`, `ToolResult`, `ToolErrorCode`, `JSONValue` (Tasks 1–2); `AgentAccessGate` (Task 3); `LibrarySearch`, `MeetingFixture` (Task 4); `SessionLookup`, `SessionFormatter` (pre-existing, incl. `SessionFormatter.GetOptions.all`).
@@ -1084,7 +1084,7 @@ The v1 `LibraryToolProvider` implementation (spec §3–§4): serves `list_meeti
 
 - [ ] **Step 1: Write the failing test**
 
-`LokalBotTests/FileLibraryToolProviderTests.swift`:
+`LokalBotTests/CLISupport/FileLibraryToolProviderTests.swift`:
 
 ```swift
 import XCTest
@@ -1447,7 +1447,7 @@ Expected: `** TEST SUCCEEDED **` (9 tests), then `** BUILD SUCCEEDED **`.
 
 ```bash
 git add LokalBot/CLISupport/FileLibraryToolProvider.swift \
-        LokalBotTests/FileLibraryToolProviderTests.swift LokalBot.xcodeproj
+        LokalBotTests/CLISupport/FileLibraryToolProviderTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add file-backed MCP tool provider for the meeting library
 
@@ -1469,7 +1469,7 @@ The pure half of `ask_library` (spec §5): pick search terms from the question, 
 
 **Files:**
 - Create: `LokalBot/CLISupport/AskLibraryContext.swift`
-- Test: `LokalBotTests/AskLibraryContextTests.swift`
+- Test: `LokalBotTests/CLISupport/AskLibraryContextTests.swift`
 
 **Interfaces:**
 - Consumes: `LibrarySearch.hits(query:limit:meetings:)`, `MeetingFixture` (Task 4); `SessionLookup.shortID(_:)/summaryMarkdown(for:)`, `Meeting` (pre-existing).
@@ -1477,7 +1477,7 @@ The pure half of `ask_library` (spec §5): pick search terms from the question, 
 
 - [ ] **Step 1: Write the failing test**
 
-`LokalBotTests/AskLibraryContextTests.swift`:
+`LokalBotTests/CLISupport/AskLibraryContextTests.swift`:
 
 ```swift
 import XCTest
@@ -1724,7 +1724,7 @@ Expected: `** TEST SUCCEEDED **` (8 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/CLISupport/AskLibraryContext.swift LokalBotTests/AskLibraryContextTests.swift LokalBot.xcodeproj
+git add LokalBot/CLISupport/AskLibraryContext.swift LokalBotTests/CLISupport/AskLibraryContextTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add retrieval context and prompt builder for ask_library
 
@@ -1745,7 +1745,7 @@ The impure half of `ask_library` (spec §5, §9): probe llama-server on 17872, w
 
 **Files:**
 - Create: `LokalBot/CLISupport/AskLibraryEngine.swift`
-- Test: `LokalBotTests/AskLibraryEngineTests.swift`
+- Test: `LokalBotTests/CLISupport/AskLibraryEngineTests.swift`
 
 **Interfaces:**
 - Consumes: `AgentAccessGate` (Task 3: `isEnabled/touchWake()/consumeWake()/pendingWake/readWakeError()/clearWakeError()/writeWakeError(_:)`); `AskLibraryContext` (Task 6); `ToolResult`/`ToolErrorCode` (Task 2); `SessionLookup.loadAllMeetings` (pre-existing); app-side `LlamaServer.shared.baseURL` (test-only, for the port pin).
@@ -1753,7 +1753,7 @@ The impure half of `ask_library` (spec §5, §9): probe llama-server on 17872, w
 
 - [ ] **Step 1: Write the failing test**
 
-`LokalBotTests/AskLibraryEngineTests.swift`:
+`LokalBotTests/CLISupport/AskLibraryEngineTests.swift`:
 
 ```swift
 import XCTest
@@ -2066,7 +2066,7 @@ Expected: `** TEST SUCCEEDED **` (11 tests), then `** BUILD SUCCEEDED **`. The C
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/CLISupport/AskLibraryEngine.swift LokalBotTests/AskLibraryEngineTests.swift LokalBot.xcodeproj
+git add LokalBot/CLISupport/AskLibraryEngine.swift LokalBotTests/CLISupport/AskLibraryEngineTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add ask_library engine with llama health probe and app wake
 
@@ -2089,7 +2089,7 @@ Wire the dispatcher, gate, provider, and engine into a `lokalbot-cli mcp` subcom
 - Create: `LokalBot/CLISupport/HelperVersion.swift`
 - Create: `CLI/Commands/MCPCommand.swift`
 - Modify: `CLI/LokalBotCLI.swift` (register the subcommand)
-- Test: `LokalBotTests/HelperVersionTests.swift`
+- Test: `LokalBotTests/CLISupport/HelperVersionTests.swift`
 
 **Interfaces:**
 - Consumes: `MCPDispatcher(provider:serverVersion:)` (Task 2), `AgentAccessGate()` (Task 3), `FileLibraryToolProvider(gate:ask:)` (Task 5), `AskLibraryEngine(gate:)` (Task 7), `SessionLookup.storageRootURL`.
@@ -2097,7 +2097,7 @@ Wire the dispatcher, gate, provider, and engine into a `lokalbot-cli mcp` subcom
 
 - [ ] **Step 1: Write the failing test**
 
-`LokalBotTests/HelperVersionTests.swift`:
+`LokalBotTests/CLISupport/HelperVersionTests.swift`:
 
 ```swift
 import XCTest
@@ -2247,7 +2247,7 @@ Expected: `** BUILD SUCCEEDED **`; stderr shows the serving banner; stdout is ex
 - [ ] **Step 7: Commit**
 
 ```bash
-git add LokalBot/CLISupport/HelperVersion.swift LokalBotTests/HelperVersionTests.swift \
+git add LokalBot/CLISupport/HelperVersion.swift LokalBotTests/CLISupport/HelperVersionTests.swift \
         CLI/Commands/MCPCommand.swift CLI/LokalBotCLI.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add mcp subcommand serving the meeting library over stdio
@@ -2269,14 +2269,14 @@ EOF
 Spec §10's integration layer: pipe scripted sessions into the *embedded* helper binary (`LokalBot.app/Contents/Helpers/lokalbot-cli`) as a real subprocess against a fixture library, and assert on the JSON that comes back. This is what catches wiring bugs the in-process unit tests can't (argv parsing, stdio buffering, env propagation, the embed step itself).
 
 **Files:**
-- Test: `LokalBotTests/MCPServerIntegrationTests.swift`
+- Test: `LokalBotTests/Integration/MCPServerIntegrationTests.swift`
 
 **Interfaces:**
 - Consumes: the `lokalbot-cli mcp` verb (Task 8), `AgentAccessGate(root:)` (Task 3), `MeetingFixture` (Task 4). Nothing new produced — this task is pure verification.
 
 - [ ] **Step 1: Write the integration test**
 
-`LokalBotTests/MCPServerIntegrationTests.swift`:
+`LokalBotTests/Integration/MCPServerIntegrationTests.swift`:
 
 ```swift
 import XCTest
@@ -2392,7 +2392,7 @@ Expected: `** TEST SUCCEEDED **`.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add LokalBotTests/MCPServerIntegrationTests.swift LokalBot.xcodeproj
+git add LokalBotTests/Integration/MCPServerIntegrationTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add golden stdio integration tests for the MCP server
 
@@ -2412,9 +2412,9 @@ EOF
 The app side of the wake protocol (spec §5–§6): one `@MainActor ObservableObject` that mirrors the Privacy toggle to the marker file, watches `control/` with a `DispatchSource` while enabled, consumes wake files, starts the Main LLM, and writes the wake-error file when it can't serve. Engine start is injected so tests never launch llama-server.
 
 **Files:**
-- Create: `LokalBot/Services/AgentAccessManager.swift`
+- Create: `LokalBot/Services/AgentAccess/AgentAccessManager.swift`
 - Modify: `LokalBot/LokalBotApp.swift` (AppState property + startup call)
-- Test: `LokalBotTests/AgentAccessManagerTests.swift`
+- Test: `LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift`
 
 **Interfaces:**
 - Consumes: `AgentAccessGate` (Task 3); app-only `AgentLLMEndpointResolver.resolve(settings:)` (cases `.ready/.builtIn/.unsupported`), `ModelCatalog.entry(id:custom:)/localURL(for:storage:)`, `LlamaServer.shared.ensureRunning(modelAt:)`, `StorageManager`, `AppSettings` — mirroring `AgentSessionController.resolveEndpoint` (`LokalBot/Agent/AgentSessionController.swift:267`). This file lives in `Services/` (NOT `CLISupport/`) precisely because it uses app-only types.
@@ -2422,7 +2422,7 @@ The app side of the wake protocol (spec §5–§6): one `@MainActor ObservableOb
 
 - [ ] **Step 1: Write the failing test**
 
-`LokalBotTests/AgentAccessManagerTests.swift`:
+`LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift`:
 
 ```swift
 import XCTest
@@ -2537,7 +2537,7 @@ Expected: BUILD FAILED — `cannot find 'AgentAccessManager' in scope`.
 
 - [ ] **Step 3: Write the implementation**
 
-`LokalBot/Services/AgentAccessManager.swift`:
+`LokalBot/Services/AgentAccess/AgentAccessManager.swift`:
 
 ```swift
 import Combine
@@ -2699,7 +2699,7 @@ Expected: `** BUILD SUCCEEDED **`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add LokalBot/Services/AgentAccessManager.swift LokalBotTests/AgentAccessManagerTests.swift \
+git add LokalBot/Services/AgentAccess/AgentAccessManager.swift LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift \
         LokalBot/LokalBotApp.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add app-side agent-access manager with llama wake watcher
@@ -2721,7 +2721,7 @@ EOF
 The user-facing switch (spec §6): a new row in Settings → Privacy, default off, with copy that says exactly what it enables. A dedicated `@ObservedObject` row view is required — `AgentAccessManager` is a nested `ObservableObject`, so its `@Published` changes do NOT fire `AppState.objectWillChange`, and binding through `app.agentAccess` directly would never refresh the toggle.
 
 **Files:**
-- Modify: `LokalBot/Views/SettingsView.swift` (privacy section at ~line 325 + its `shows` keywords)
+- Modify: `LokalBot/Views/Settings/SettingsView.swift` (privacy section at ~line 325 + its `shows` keywords)
 
 **Interfaces:**
 - Consumes: `AppState.agentAccess` (Task 10: `isEnabled`, `setEnabled(_:)`).
@@ -2729,7 +2729,7 @@ The user-facing switch (spec §6): a new row in Settings → Privacy, default of
 
 - [ ] **Step 1: Add the toggle row view**
 
-At the bottom of `LokalBot/Views/SettingsView.swift` (file scope, next to the other private helper views):
+At the bottom of `LokalBot/Views/Settings/SettingsView.swift` (file scope, next to the other private helper views):
 
 ```swift
 /// Dedicated row so the toggle observes AgentAccessManager directly —
@@ -2786,7 +2786,7 @@ Expected: `** BUILD SUCCEEDED **`, then `** TEST SUCCEEDED **`. (The toggle's be
 - [ ] **Step 4: Commit**
 
 ```bash
-git add LokalBot/Views/SettingsView.swift
+git add LokalBot/Views/Settings/SettingsView.swift
 git commit -m "$(cat <<'EOF'
 Add Privacy toggle for external agent access
 
@@ -2810,7 +2810,7 @@ Note: the repo has TWO skill files. `.agents/skills/lokalbot-cli/SKILL.md` is th
 - Move: `LokalBot/Services/LokalBotCLIInstaller.swift` → `LokalBot/CLISupport/LokalBotCLIInstaller.swift` (`git mv`, then extend)
 - Create: `CLI/Commands/InstallSkillCommand.swift`
 - Modify: `CLI/LokalBotCLI.swift` (register), `.agents/skills/lokalbot-cli/SKILL.md` (rewrite)
-- Test: `LokalBotTests/LokalBotCLIInstallerTests.swift` (new — the installer had no tests)
+- Test: `LokalBotTests/CLISupport/LokalBotCLIInstallerTests.swift` (new — the installer had no tests)
 
 **Interfaces:**
 - Consumes: existing `LokalBotCLIInstaller` internals (`replaceSymlink/ensureDirectory/symlink(_:resolvesTo:)/isExistingDirectory`, `InstallError`, `binLink`, `skillLink`, `pathExportLine`, `localBinOnPath`); `ArgumentParser`.
@@ -2828,7 +2828,7 @@ Expected: `** BUILD SUCCEEDED **` — the file uses only Foundation + os + `AppI
 
 - [ ] **Step 2: Write the failing tests**
 
-`LokalBotTests/LokalBotCLIInstallerTests.swift`:
+`LokalBotTests/CLISupport/LokalBotCLIInstallerTests.swift`:
 
 ```swift
 import XCTest
@@ -3279,7 +3279,7 @@ Expected: `** BUILD SUCCEEDED **`, then `** TEST SUCCEEDED **`.
 ```bash
 git add LokalBot/CLISupport/LokalBotCLIInstaller.swift CLI/Commands/InstallSkillCommand.swift \
         CLI/LokalBotCLI.swift .agents/skills/lokalbot-cli/SKILL.md \
-        LokalBotTests/LokalBotCLIInstallerTests.swift LokalBot.xcodeproj
+        LokalBotTests/CLISupport/LokalBotCLIInstallerTests.swift LokalBot.xcodeproj
 git rm --cached LokalBot/Services/LokalBotCLIInstaller.swift 2>/dev/null || true
 git commit -m "$(cat <<'EOF'
 Add install-skill verb and rewrite the agent skill

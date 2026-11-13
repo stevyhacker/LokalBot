@@ -1,4 +1,4 @@
-//! "Search by meaning" for meetings (`Services/EmbeddingIndex.swift`).
+//! "Search by meaning" for meetings (`Services/Search/EmbeddingIndex.swift`).
 //!
 //! Chunking, storage and brute-force scoring live in `lokalbot_core::embeddings`;
 //! this layer computes the vectors on the local embedder server.

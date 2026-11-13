@@ -43,19 +43,19 @@ Swift bridging notes: opaque `struct *` arrive as `OpaquePointer?`; `llama_token
 - `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift` — the inference actor (model/context/KV/decode).
 - `LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift` — `CotypingCompleting` conformer (the seam).
 - `LokalBot/Cotyping/Llama/CotypingEngineSelector.swift` — per-completion local-vs-HTTP router + prewarm.
-- `LokalBotTests/IncrementalPrefillTests.swift`
-- `LokalBotTests/LlamaSamplerSpecTests.swift`
-- `LokalBotTests/CotypingEngineSelectorTests.swift`
-- `LokalBotTests/LlamaCotypingRuntimeTests.swift` — integration, gated on bundled model presence.
+- `LokalBotTests/Cotyping/Llama/IncrementalPrefillTests.swift`
+- `LokalBotTests/Cotyping/Llama/LlamaSamplerSpecTests.swift`
+- `LokalBotTests/Cotyping/Llama/CotypingEngineSelectorTests.swift`
+- `LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift` — integration, gated on bundled model presence.
 - `LokalBotTests/CotypingABBenchmarkTests.swift`
 
 **Modify:**
 - `Scripts/build/fetch-llama.sh` — also fetch `b9844` headers into `Vendor/llama-cpp/include/` and generate the `module.modulemap` there (both gitignored, script-reproduced — `Vendor/` stays fully generated).
 - `project.yml` — header search path + `SWIFT_INCLUDE_PATHS` (module map) + link `-lllama` + `LD_RUNPATH_SEARCH_PATHS`.
-- `LokalBot/Models/AppSettings.swift` — add `cotypingInProcessRuntime: Bool` (default `true`), tolerant decode.
+- `LokalBot/Models/Settings/AppSettings.swift` — add `cotypingInProcessRuntime: Bool` (default `true`), tolerant decode.
 - `LokalBot/LokalBotApp.swift` — `cotypingEngine` becomes a `CotypingEngineSelector`; prewarm on cotyping-enable.
 - `LokalBot/Cotyping/CotypingBenchmark.swift` — A/B (local vs HTTP) summary + TTFT/prefill probes.
-- `LokalBot/Views/SettingsView.swift` — a toggle for the in-process runtime flag.
+- `LokalBot/Views/Settings/SettingsView.swift` — a toggle for the in-process runtime flag.
 - `Docs/guides/CotypingParityQA.md` — mark the runtime parity item complete; document the A/B benchmark.
 
 ---
@@ -67,7 +67,7 @@ The riskiest piece (spec risk: "Link / `@rpath` issues"; open question #2: exact
 **Files:**
 - Modify: `Scripts/build/fetch-llama.sh` (fetch headers **and** generate `Vendor/llama-cpp/include/module.modulemap` — both gitignored, script-reproduced)
 - Modify: `project.yml`
-- Test: `LokalBotTests/LlamaCoreSmokeTests.swift` (create)
+- Test: `LokalBotTests/Engines/LlamaCoreSmokeTests.swift` (create)
 
 **Interfaces:**
 - Consumes: vendored `Vendor/llama-cpp/libllama.dylib` (+ `libggml*.dylib`), `b9844`.
@@ -185,7 +185,7 @@ Notes: `-lllama` resolves the `libllama.dylib` symlink in `Vendor/llama-cpp`. Th
 Run: `cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot && xcodegen generate`
 Expected: `Loaded project ... Created project at LokalBot.xcodeproj` with no error.
 
-Create `LokalBotTests/LlamaCoreSmokeTests.swift`:
+Create `LokalBotTests/Engines/LlamaCoreSmokeTests.swift`:
 
 ```swift
 import XCTest
@@ -215,7 +215,7 @@ Expected: `Test Suite 'LlamaCoreSmokeTests' passed`, `** TEST SUCCEEDED **`. If 
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add Scripts/build/fetch-llama.sh project.yml LokalBot.xcodeproj LokalBotTests/LlamaCoreSmokeTests.swift
+git add Scripts/build/fetch-llama.sh project.yml LokalBot.xcodeproj LokalBotTests/Engines/LlamaCoreSmokeTests.swift
 git commit -m "build: link in-process libllama via LlamaCore module (b9844)"
 ```
 
@@ -229,7 +229,7 @@ Pure, no libllama, fully unit-testable. Returns how many leading tokens two sequ
 
 **Files:**
 - Create: `LokalBot/Cotyping/Llama/IncrementalPrefill.swift`
-- Test: `LokalBotTests/IncrementalPrefillTests.swift`
+- Test: `LokalBotTests/Cotyping/Llama/IncrementalPrefillTests.swift`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -237,7 +237,7 @@ Pure, no libllama, fully unit-testable. Returns how many leading tokens two sequ
 
 - [ ] **Step 1: Write the failing test**
 
-Create `LokalBotTests/IncrementalPrefillTests.swift`:
+Create `LokalBotTests/Cotyping/Llama/IncrementalPrefillTests.swift`:
 
 ```swift
 import XCTest
@@ -306,7 +306,7 @@ Expected: `Test Suite 'IncrementalPrefillTests' passed`, 5 tests, 0 failures.
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Cotyping/Llama/IncrementalPrefill.swift LokalBotTests/IncrementalPrefillTests.swift LokalBot.xcodeproj
+git add LokalBot/Cotyping/Llama/IncrementalPrefill.swift LokalBotTests/Cotyping/Llama/IncrementalPrefillTests.swift LokalBot.xcodeproj
 git commit -m "feat: add IncrementalPrefill.commonPrefixLength for KV reuse"
 ```
 
@@ -318,7 +318,7 @@ Map `CotypingConfiguration`'s sampler knobs to an ordered, value-typed descripto
 
 **Files:**
 - Create: `LokalBot/Cotyping/Llama/LlamaSamplerSpec.swift`
-- Test: `LokalBotTests/LlamaSamplerSpecTests.swift`
+- Test: `LokalBotTests/Cotyping/Llama/LlamaSamplerSpecTests.swift`
 
 **Interfaces:**
 - Consumes: `CotypingConfiguration` (fields `temperature`, `topP`, `topK`, `minP`, `repeatPenalty`, `seed`).
@@ -330,7 +330,7 @@ Map `CotypingConfiguration`'s sampler knobs to an ordered, value-typed descripto
 
 - [ ] **Step 1: Write the failing test**
 
-Create `LokalBotTests/LlamaSamplerSpecTests.swift`:
+Create `LokalBotTests/Cotyping/Llama/LlamaSamplerSpecTests.swift`:
 
 ```swift
 import XCTest
@@ -441,7 +441,7 @@ Expected: `Test Suite 'LlamaSamplerSpecTests' passed`, 2 tests, 0 failures.
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Cotyping/Llama/LlamaSamplerSpec.swift LokalBotTests/LlamaSamplerSpecTests.swift LokalBot.xcodeproj
+git add LokalBot/Cotyping/Llama/LlamaSamplerSpec.swift LokalBotTests/Cotyping/Llama/LlamaSamplerSpecTests.swift LokalBot.xcodeproj
 git commit -m "feat: add LlamaSamplerSpec config→sampler-chain mapping"
 ```
 
@@ -453,7 +453,7 @@ Owns the model + context + KV. Loads once, warms up, tokenizes, runs incremental
 
 **Files:**
 - Create: `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift`
-- Test: `LokalBotTests/LlamaCotypingRuntimeTests.swift`
+- Test: `LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift`
 
 **Interfaces:**
 - Consumes: `LlamaCore` (Task 1), `IncrementalPrefill.commonPrefixLength` (Task 2), `LlamaSamplerSpec` (Task 3).
@@ -470,7 +470,7 @@ Owns the model + context + KV. Loads once, warms up, tokenizes, runs incremental
 
 - [ ] **Step 1: Write the failing integration test (gated on the bundled model)**
 
-Create `LokalBotTests/LlamaCotypingRuntimeTests.swift`:
+Create `LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift`:
 
 ```swift
 import XCTest
@@ -769,7 +769,7 @@ Expected: `Test Suite 'LlamaCotypingRuntimeTests' passed`, 3 tests, 0 failures �
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift LokalBotTests/LlamaCotypingRuntimeTests.swift LokalBot.xcodeproj
+git add LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift LokalBot.xcodeproj
 git commit -m "feat: add LlamaCotypingRuntime in-process inference actor (KV reuse, warmup)"
 ```
 
@@ -781,7 +781,7 @@ Adapt the runtime to the protocol the coordinator already calls. Reuse the exist
 
 **Files:**
 - Create: `LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift`
-- Test: `LokalBotTests/LlamaCotypingRuntimeTests.swift` (add cases) — or a new `LocalLlamaCotypingEngineTests.swift`.
+- Test: `LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift` (add cases) — or a new `LocalLlamaCotypingEngineTests.swift`.
 
 **Interfaces:**
 - Consumes: `LlamaCotypingRuntime` (Task 4), `LlamaSamplerSpec` (Task 3), `CotypingRequest`/`CotypingNormalizationResult`/`CotypingTextNormalizer`/`CotypingDecodeStopPolicy`/`CotypingCompleting` (existing).
@@ -791,7 +791,7 @@ Adapt the runtime to the protocol the coordinator already calls. Reuse the exist
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `LokalBotTests/LlamaCotypingRuntimeTests.swift` a new `@MainActor` test class (the engine is `@MainActor`):
+Append to `LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift` a new `@MainActor` test class (the engine is `@MainActor`):
 
 ```swift
 @MainActor
@@ -937,7 +937,7 @@ Expected: `Test Suite 'LocalLlamaCotypingEngineTests' passed` (or `Skipped` if m
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift LokalBotTests/LlamaCotypingRuntimeTests.swift LokalBot.xcodeproj
+git add LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift LokalBot.xcodeproj
 git commit -m "feat: add LocalLlamaCotypingEngine seam reusing normalizer + stop policy"
 ```
 
@@ -948,7 +948,7 @@ git commit -m "feat: add LocalLlamaCotypingEngine seam reusing normalizer + stop
 Spec open question #1's recommendation: flag-gated default-on, HTTP fallback one toggle away. Add a persisted bool defaulting `true`, with tolerant decoding so existing saved settings don't break.
 
 **Files:**
-- Modify: `LokalBot/Models/AppSettings.swift`
+- Modify: `LokalBot/Models/Settings/AppSettings.swift`
 - Test: `LokalBotTests/CotypingTests.swift` (the `CotypingSettingsTests` group)
 
 **Interfaces:**
@@ -987,7 +987,7 @@ Expected: FAIL — `value of type 'AppSettings' has no member 'cotypingInProcess
 
 - [ ] **Step 3: Add the property with a default**
 
-In `LokalBot/Models/AppSettings.swift`, add the stored property next to the other `cotyping*` fields (e.g. just after `cotypingBuiltInModelID`):
+In `LokalBot/Models/Settings/AppSettings.swift`, add the stored property next to the other `cotyping*` fields (e.g. just after `cotypingBuiltInModelID`):
 
 ```swift
     /// When true (default), cotyping uses the in-process `libllama` runtime for
@@ -1026,7 +1026,7 @@ Expected: all `CotypingSettingsTests` pass, including the three new cases and th
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Models/AppSettings.swift LokalBotTests/CotypingTests.swift
+git add LokalBot/Models/Settings/AppSettings.swift LokalBotTests/CotypingTests.swift
 git commit -m "feat: add cotypingInProcessRuntime flag (default on, tolerant decode)"
 ```
 
@@ -1039,7 +1039,7 @@ Route each completion to the local engine when (flag on) ∧ (Apple Silicon) ∧
 **Files:**
 - Create: `LokalBot/Cotyping/Llama/CotypingEngineSelector.swift`
 - Modify: `LokalBot/LokalBotApp.swift` (the `cotypingEngine` lazy var ~line 430, and the cotyping-enable path)
-- Test: `LokalBotTests/CotypingEngineSelectorTests.swift`
+- Test: `LokalBotTests/Cotyping/Llama/CotypingEngineSelectorTests.swift`
 
 **Interfaces:**
 - Consumes: `CotypingCompleting` (existing HTTP `CotypingEngine`), `LocalLlamaCotypingEngine` (Task 5), `AppSettings` (`cotypingInProcessRuntime`, `cotypingBuiltInModelID`, `customBuiltInModels`), `ModelCatalog`, `StorageManager`, `LlamaRuntimeError` (Task 4).
@@ -1051,7 +1051,7 @@ Route each completion to the local engine when (flag on) ∧ (Apple Silicon) ∧
 
 - [ ] **Step 1: Write the failing test (pure decision function)**
 
-Create `LokalBotTests/CotypingEngineSelectorTests.swift`:
+Create `LokalBotTests/Cotyping/Llama/CotypingEngineSelectorTests.swift`:
 
 ```swift
 import XCTest
@@ -1281,7 +1281,7 @@ Expected: the app target compiles (selector wired in) and all listed suites pass
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Cotyping/Llama/CotypingEngineSelector.swift LokalBot/LokalBotApp.swift LokalBotTests/CotypingEngineSelectorTests.swift LokalBot.xcodeproj
+git add LokalBot/Cotyping/Llama/CotypingEngineSelector.swift LokalBot/LokalBotApp.swift LokalBotTests/Cotyping/Llama/CotypingEngineSelectorTests.swift LokalBot.xcodeproj
 git commit -m "feat: route cotyping to in-process engine with HTTP fallback + prewarm"
 ```
 
@@ -1294,7 +1294,7 @@ The default cotyping model is now Gemma 4 E4B Q5 XL (~5 GB resident), so the mem
 **Files:**
 - Modify: `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift` (add `handleMemoryPressure()` + `isLoaded` already exists)
 - Modify: `LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift` (own the dispatch source; call runtime on warning)
-- Test: `LokalBotTests/LlamaCotypingRuntimeTests.swift` (add an unload test that does not need the model)
+- Test: `LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift` (add an unload test that does not need the model)
 
 **Interfaces:**
 - Consumes: `LlamaCotypingRuntime.unload()` / `isLoaded` (Task 4).
@@ -1372,7 +1372,7 @@ Expected: PASS.
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift LokalBotTests/LlamaCotypingRuntimeTests.swift
+git add LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift LokalBotTests/Cotyping/Llama/LlamaCotypingRuntimeTests.swift
 git commit -m "feat: unload in-process cotyping model under memory pressure"
 ```
 
@@ -1518,7 +1518,7 @@ git commit -m "feat: A/B cotyping benchmark (in-process vs HTTP) + parity doc up
 Expose the runtime flag in Settings (so the fallback is "one toggle away" per open question #1) and run the complete test suite to confirm no regression.
 
 **Files:**
-- Modify: `LokalBot/Views/SettingsView.swift` (the Cotyping section)
+- Modify: `LokalBot/Views/Settings/SettingsView.swift` (the Cotyping section)
 - Test: full `LokalBotTests` run.
 
 **Interfaces:**
@@ -1527,7 +1527,7 @@ Expose the runtime flag in Settings (so the fallback is "one toggle away" per op
 
 - [ ] **Step 1: Add the toggle**
 
-In `LokalBot/Views/SettingsView.swift`, in the Cotyping settings section (search for an existing `cotyping*` binding such as `cotypingDebounceMs` or `cotypingStreamSuggestionsWhileGenerating` to find the section and copy its `Toggle`/binding idiom), add:
+In `LokalBot/Views/Settings/SettingsView.swift`, in the Cotyping settings section (search for an existing `cotyping*` binding such as `cotypingDebounceMs` or `cotypingStreamSuggestionsWhileGenerating` to find the section and copy its `Toggle`/binding idiom), add:
 
 ```swift
                 Toggle("Use the fast in-process runtime (recommended)", isOn: $settings.cotypingInProcessRuntime)
@@ -1552,7 +1552,7 @@ Expected: `** TEST SUCCEEDED **`. All pre-existing tests (the 21 cotyping/catalo
 
 ```bash
 cd /Users/0xmithrandir/Documents/GitHub/lokalbotfable/LokalBot
-git add LokalBot/Views/SettingsView.swift
+git add LokalBot/Views/Settings/SettingsView.swift
 git commit -m "feat: add Settings toggle for the in-process cotyping runtime"
 ```
 

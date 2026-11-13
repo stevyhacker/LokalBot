@@ -2,7 +2,7 @@ import XCTest
 @testable import LokalBot
 
 // FakeTransport (shared with AgentSessionControllerTests) lives in
-// Helpers/FakeTransport.swift.
+// TestSupport/FakeTransport.swift.
 
 final class PiRPCClientTests: XCTestCase {
 

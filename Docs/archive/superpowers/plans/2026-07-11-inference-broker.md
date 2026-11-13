@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Nothing leaves the Mac.** The broker adds no network surface — it only decides when existing localhost llama-server processes run. (CLAUDE.md invariant.)
-- **Branch:** `inference-broker`, cut from `agent-access`. Before starting, run `git status` — the working tree must be clean and `LokalBot/Services/AgentAccessManager.swift` must exist (the agent-access implementation must be committed first). If either check fails, stop and reconcile with the human before writing any code.
+- **Branch:** `inference-broker`, cut from `agent-access`. Before starting, run `git status` — the working tree must be clean and `LokalBot/Services/AgentAccess/AgentAccessManager.swift` must exist (the agent-access implementation must be committed first). If either check fails, stop and reconcile with the human before writing any code.
 - The `.xcodeproj` is generated: run `xcodegen generate` after adding any new source or test file, and include `LokalBot.xcodeproj` in that task's commit. Never edit the project file by hand.
 - Unit tests use scheme **LokalBot** (NOT "LokalBot Dev"): `xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -destination 'platform=macOS' test -only-testing:LokalBotTests/<ClassName> 2>&1 | tail -5`
 - Running tests regenerates `default.profraw` — it is gitignored; never commit one.
@@ -28,21 +28,21 @@
 | File | Task | Change |
 |---|---|---|
 | `LokalBot/Engines/InferenceLease.swift` | 1 | **Create** — `InferencePriority`, `InferenceRole`, `InferenceLease`, `LeaseBook` |
-| `LokalBotTests/LeaseBookTests.swift` | 1 | **Create** |
+| `LokalBotTests/Engines/LeaseBookTests.swift` | 1 | **Create** |
 | `LokalBot/Engines/ModelResidency.swift` | 2 | Modify — `pinned:` param on policy; `pinnedIDs`/`leaseDescriptions`/`setLeaseState` on ledger |
-| `LokalBotTests/ModelResidencyTests.swift` | 2 | Modify — append 5 tests |
+| `LokalBotTests/Engines/ModelResidencyTests.swift` | 2 | Modify — append 5 tests |
 | `LokalBot/Engines/InferenceBroker.swift` | 3 | **Create** — the actor |
-| `LokalBotTests/InferenceBrokerTests.swift` | 3 | **Create** |
+| `LokalBotTests/Engines/InferenceBrokerTests.swift` | 3 | **Create** |
 | `LokalBot/Engines/LeasedTextEngine.swift` | 4 | **Create** — `TextEngine` decorator |
-| `LokalBotTests/LeasedTextEngineTests.swift` | 4 | **Create** |
-| `LokalBot/Services/ProcessingPipeline.swift` | 5 | Modify — `makeTextEngine` signature + `.builtIn` case; day-digest purpose |
+| `LokalBotTests/Engines/LeasedTextEngineTests.swift` | 4 | **Create** |
+| `LokalBot/Services/Meetings/ProcessingPipeline.swift` | 5 | Modify — `makeTextEngine` signature + `.builtIn` case; day-digest purpose |
 | `LokalBot/LokalBotApp.swift` | 5 | Modify — chat + cotyping closures pass priority/purpose |
-| `LokalBot/Views/ModelsView.swift` | 5 | Modify — test button passes priority/purpose |
-| `LokalBot/Services/EmbeddingIndex.swift` | 6 | Modify — `embed` wraps in `withLease` |
+| `LokalBot/Views/ModelSetup/ModelsView.swift` | 5 | Modify — test button passes priority/purpose |
+| `LokalBot/Services/Search/EmbeddingIndex.swift` | 6 | Modify — `embed` wraps in `withLease` |
 | `LokalBot/Agent/AgentSessionController.swift` | 7 | Modify — session lease |
-| `LokalBot/Services/AgentAccessManager.swift` | 8 | Modify — TTL wake lease |
-| `LokalBotTests/AgentAccessManagerTests.swift` | 8 | Modify — append 2 tests |
-| `LokalBot/Views/ResourceMonitorSection.swift` | 9 | Modify — lease notes |
+| `LokalBot/Services/AgentAccess/AgentAccessManager.swift` | 8 | Modify — TTL wake lease |
+| `LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift` | 8 | Modify — append 2 tests |
+| `LokalBot/Views/Settings/ResourceMonitorSection.swift` | 9 | Modify — lease notes |
 | `LokalBotTests/ResourceMonitorPresentationTests.swift` | 9 | **Create** |
 | `CLAUDE.md` | 10 | Modify — one architecture sentence |
 
@@ -54,7 +54,7 @@ Pure types: priorities, the three server roles, the lease value, and `LeaseBook`
 
 **Files:**
 - Create: `LokalBot/Engines/InferenceLease.swift`
-- Test: `LokalBotTests/LeaseBookTests.swift`
+- Test: `LokalBotTests/Engines/LeaseBookTests.swift`
 
 **Interfaces:**
 - Consumes: nothing (Foundation only).
@@ -66,7 +66,7 @@ Pure types: priorities, the three server roles, the lease value, and `LeaseBook`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `LokalBotTests/LeaseBookTests.swift`:
+Create `LokalBotTests/Engines/LeaseBookTests.swift`:
 
 ```swift
 import XCTest
@@ -297,7 +297,7 @@ Expected: **TEST SUCCEEDED**, 5 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Engines/InferenceLease.swift LokalBotTests/LeaseBookTests.swift LokalBot.xcodeproj
+git add LokalBot/Engines/InferenceLease.swift LokalBotTests/Engines/LeaseBookTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add inference lease vocabulary and LeaseBook
 
@@ -317,7 +317,7 @@ EOF
 
 **Files:**
 - Modify: `LokalBot/Engines/ModelResidency.swift`
-- Test: `LokalBotTests/ModelResidencyTests.swift` (append tests; the file already exists with a shared `entry(_:gb:age:)` helper)
+- Test: `LokalBotTests/Engines/ModelResidencyTests.swift` (append tests; the file already exists with a shared `entry(_:gb:age:)` helper)
 
 **Interfaces:**
 - Consumes: nothing new.
@@ -328,7 +328,7 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `LokalBotTests/ModelResidencyTests.swift`, inside the existing `@MainActor final class ModelResidencyTests` (it already defines `private func entry(_ id: String, gb: Int64, age: TimeInterval) -> ModelResidencyPolicy.Entry` — reuse it, don't redefine it):
+Append to `LokalBotTests/Engines/ModelResidencyTests.swift`, inside the existing `@MainActor final class ModelResidencyTests` (it already defines `private func entry(_ id: String, gb: Int64, age: TimeInterval) -> ModelResidencyPolicy.Entry` — reuse it, don't redefine it):
 
 ```swift
     func testPinnedResidentIsNeverAVictim() {
@@ -532,7 +532,7 @@ Expected: **TEST SUCCEEDED** — all pre-existing tests plus the 5 new ones. The
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Engines/ModelResidency.swift LokalBotTests/ModelResidencyTests.swift
+git add LokalBot/Engines/ModelResidency.swift LokalBotTests/Engines/ModelResidencyTests.swift
 git commit -m "$(cat <<'EOF'
 Teach model residency about lease pins
 
@@ -554,7 +554,7 @@ The actor: `lease`/`release`/`withLease`, injectable `RuntimeHooks` (defaulting 
 
 **Files:**
 - Create: `LokalBot/Engines/InferenceBroker.swift`
-- Test: `LokalBotTests/InferenceBrokerTests.swift`
+- Test: `LokalBotTests/Engines/InferenceBrokerTests.swift`
 
 **Interfaces:**
 - Consumes: `LeaseBook`, `InferenceRole`, `InferencePriority`, `InferenceLease` (Task 1); `ModelResidency.setLeaseState` (Task 2); `LlamaServer.shared/.embedder/.cotyping` `ensureRunning(modelAt:)`/`stop()` (existing); global `lokalbotLog(_:)` (existing).
@@ -569,7 +569,7 @@ The actor: `lease`/`release`/`withLease`, injectable `RuntimeHooks` (defaulting 
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `LokalBotTests/InferenceBrokerTests.swift`:
+Create `LokalBotTests/Engines/InferenceBrokerTests.swift`:
 
 ```swift
 import XCTest
@@ -968,7 +968,7 @@ Expected: **TEST SUCCEEDED**, 7 tests passing. If a timing test flakes on a heav
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Engines/InferenceBroker.swift LokalBotTests/InferenceBrokerTests.swift LokalBot.xcodeproj
+git add LokalBot/Engines/InferenceBroker.swift LokalBotTests/Engines/InferenceBrokerTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add InferenceBroker actor with leases, linger unload, and TTL expiry
 
@@ -990,7 +990,7 @@ A `TextEngine` wrapper that runs every call under `broker.withLease`. **Critical
 
 **Files:**
 - Create: `LokalBot/Engines/LeasedTextEngine.swift`
-- Test: `LokalBotTests/LeasedTextEngineTests.swift`
+- Test: `LokalBotTests/Engines/LeasedTextEngineTests.swift`
 
 **Interfaces:**
 - Consumes: `TextEngine` + `CompletionRequest` (existing, `LokalBot/Engines/TextEngine.swift`); `InferenceBroker.withLease` (Task 3); `InferenceRole`/`InferencePriority` (Task 1).
@@ -998,7 +998,7 @@ A `TextEngine` wrapper that runs every call under `broker.withLease`. **Critical
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `LokalBotTests/LeasedTextEngineTests.swift`:
+Create `LokalBotTests/Engines/LeasedTextEngineTests.swift`:
 
 ```swift
 import XCTest
@@ -1226,7 +1226,7 @@ Expected: **TEST SUCCEEDED**, 4 tests passing.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Engines/LeasedTextEngine.swift LokalBotTests/LeasedTextEngineTests.swift LokalBot.xcodeproj
+git add LokalBot/Engines/LeasedTextEngine.swift LokalBotTests/Engines/LeasedTextEngineTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Add LeasedTextEngine decorator
 
@@ -1250,9 +1250,9 @@ EOF
 No new unit test in this task: the change is pure wiring whose pieces are already covered (Task 3 proves leases boot/pin/release; Task 4 proves the decorator forwards). Verification here is compile + the full existing unit suite, and `Scripts/test/e2e.sh` exercises the live path at the end (Task 10).
 
 **Files:**
-- Modify: `LokalBot/Services/ProcessingPipeline.swift` (makeTextEngine ~line 484; generateDayDigest ~line 454)
+- Modify: `LokalBot/Services/Meetings/ProcessingPipeline.swift` (makeTextEngine ~line 484; generateDayDigest ~line 454)
 - Modify: `LokalBot/LokalBotApp.swift` (cotyping closure ~line 320; chat closure ~line 356)
-- Modify: `LokalBot/Views/ModelsView.swift` (testGeneration ~line 638)
+- Modify: `LokalBot/Views/ModelSetup/ModelsView.swift` (testGeneration ~line 638)
 
 **Interfaces:**
 - Consumes: `LeasedTextEngine` (Task 4), `InferenceBroker.shared` (Task 3), `InferenceRole(serverPort:)` + `InferencePriority` (Task 1), `LlamaServer.port` (existing `nonisolated let`).
@@ -1262,7 +1262,7 @@ No new unit test in this task: the change is pure wiring whose pieces are alread
 
 - [ ] **Step 1: Rewrite makeTextEngine's signature and `.builtIn` case**
 
-In `LokalBot/Services/ProcessingPipeline.swift`, the current function begins:
+In `LokalBot/Services/Meetings/ProcessingPipeline.swift`, the current function begins:
 
 ```swift
     func makeTextEngine(_ config: AppSettings, server: LlamaServer = .shared) async throws -> TextEngine {
@@ -1391,7 +1391,7 @@ New:
         },
 ```
 
-**`LokalBot/Views/ModelsView.swift`** — `testGeneration()` (~line 638). Current:
+**`LokalBot/Views/ModelSetup/ModelsView.swift`** — `testGeneration()` (~line 638). Current:
 
 ```swift
             let engine = try await app.pipeline.makeTextEngine(app.settings)
@@ -1416,7 +1416,7 @@ Expected: **TEST SUCCEEDED** — no existing test constructs a built-in engine a
 - [ ] **Step 5: Commit**
 
 ```bash
-git add LokalBot/Services/ProcessingPipeline.swift LokalBot/LokalBotApp.swift LokalBot/Views/ModelsView.swift
+git add LokalBot/Services/Meetings/ProcessingPipeline.swift LokalBot/LokalBotApp.swift LokalBot/Views/ModelSetup/ModelsView.swift
 git commit -m "$(cat <<'EOF'
 Route built-in text engines through the inference broker
 
@@ -1438,7 +1438,7 @@ EOF
 The embedder is the load that most often evicts other models today (it wakes on every meeting index). Wrap each embedding batch in `withLease` so batches pin the embedder while running and it unloads ten minutes after indexing finishes.
 
 **Files:**
-- Modify: `LokalBot/Services/EmbeddingIndex.swift` (private `embed(_:prefix:storage:)`, ~line 179)
+- Modify: `LokalBot/Services/Search/EmbeddingIndex.swift` (private `embed(_:prefix:storage:)`, ~line 179)
 
 **Interfaces:**
 - Consumes: `InferenceBroker.shared.withLease` (Task 3). No signature changes visible to callers.
@@ -1520,7 +1520,7 @@ Expected: **TEST SUCCEEDED**. (Embedding tests that hit a real server live in e2
 - [ ] **Step 3: Commit**
 
 ```bash
-git add LokalBot/Services/EmbeddingIndex.swift
+git add LokalBot/Services/Search/EmbeddingIndex.swift
 git commit -m "$(cat <<'EOF'
 Lease the embedder per embedding batch
 
@@ -1791,8 +1791,8 @@ Today every `ask_library` wake calls `LlamaServer.shared.ensureRunning` and neve
 > **Reconciliation note:** `AgentAccessManager.swift` and `AgentAccessManagerTests.swift` landed on the `agent-access` branch and may have moved since this plan was written (2026-07-11). Diff the "Current" blocks below against the real files before editing; if they've drifted, apply the same transformation to the current shape. The three user-facing failure strings must survive verbatim — the CLI relays them to external agents.
 
 **Files:**
-- Modify: `LokalBot/Services/AgentAccessManager.swift`
-- Test: `LokalBotTests/AgentAccessManagerTests.swift` (extend the `makeManager` helper, append 2 tests; the existing 5 tests must keep passing unchanged)
+- Modify: `LokalBot/Services/AgentAccess/AgentAccessManager.swift`
+- Test: `LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift` (extend the `makeManager` helper, append 2 tests; the existing 5 tests must keep passing unchanged)
 
 **Interfaces:**
 - Consumes: `InferenceBroker.lease/.release/.activeLeaseCount` (Task 3), `InferenceLease` (Task 1).
@@ -1804,7 +1804,7 @@ Today every `ask_library` wake calls `LlamaServer.shared.ensureRunning` and neve
 
 - [ ] **Step 1: Write the failing tests**
 
-In `LokalBotTests/AgentAccessManagerTests.swift`, replace the existing helper:
+In `LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift`, replace the existing helper:
 
 ```swift
     private func makeManager(
@@ -1907,7 +1907,7 @@ Expected: **TEST FAILED** — build error, `extra argument 'broker' in call` and
 
 - [ ] **Step 3: Restructure the manager**
 
-In `LokalBot/Services/AgentAccessManager.swift`:
+In `LokalBot/Services/AgentAccess/AgentAccessManager.swift`:
 
 **Edit 1 — stored properties and init.** Current:
 
@@ -2154,7 +2154,7 @@ Expected: **TEST SUCCEEDED** — the five pre-existing tests (which inject `star
 - [ ] **Step 6: Commit**
 
 ```bash
-git add LokalBot/Services/AgentAccessManager.swift LokalBotTests/AgentAccessManagerTests.swift
+git add LokalBot/Services/AgentAccess/AgentAccessManager.swift LokalBotTests/Services/AgentAccess/AgentAccessManagerTests.swift
 git commit -m "$(cat <<'EOF'
 Hold a TTL lease for ask_library wakes
 
@@ -2176,7 +2176,7 @@ EOF
 The Settings → Advanced resource monitor already lists resident models. Add a third caption line — `in use — chat (interactive)` — driven by the pin/description state Task 2 published. Only GGUF (residency-ledger) rows carry notes; `ModelRuntimeRegistry` rows (CoreML/MLX/ONNX) are not broker-managed and stay nil. The other new visible behavior needs no code here: when a linger unload fires, `LlamaServer.stop()` unregisters the row and it simply disappears.
 
 **Files:**
-- Modify: `LokalBot/Views/ResourceMonitorSection.swift`
+- Modify: `LokalBot/Views/Settings/ResourceMonitorSection.swift`
 - Test: `LokalBotTests/ResourceMonitorPresentationTests.swift` (**create** — no presentation tests exist yet)
 
 **Interfaces:**
@@ -2248,7 +2248,7 @@ Expected: **TEST FAILED** — build error, `extra argument 'pinnedIDs' in call`.
 
 - [ ] **Step 3: Implement the presentation + view changes**
 
-In `LokalBot/Views/ResourceMonitorSection.swift`, four edits.
+In `LokalBot/Views/Settings/ResourceMonitorSection.swift`, four edits.
 
 **Edit 1 — the `Model` struct** (inside `enum ResourceMonitorPresentation`). Current:
 
@@ -2417,7 +2417,7 @@ Expected: **TEST SUCCEEDED**, 3 tests passing.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add LokalBot/Views/ResourceMonitorSection.swift LokalBotTests/ResourceMonitorPresentationTests.swift LokalBot.xcodeproj
+git add LokalBot/Views/Settings/ResourceMonitorSection.swift LokalBotTests/ResourceMonitorPresentationTests.swift LokalBot.xcodeproj
 git commit -m "$(cat <<'EOF'
 Show lease notes in the resource monitor
 

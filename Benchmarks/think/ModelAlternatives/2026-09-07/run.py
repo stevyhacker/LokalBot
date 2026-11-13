@@ -173,7 +173,7 @@ def swift_string(value):
     return re.sub(r'\\\n\s*','',value)
 
 def production_summary_system():
-    source=(REPO/'LokalBot/Services/PromptTemplates.swift').read_text()
+    source=(REPO/'LokalBot/Services/Notes/PromptTemplates.swift').read_text()
     rules=source.split('private static func rules(for template: NoteTemplate)')[1]
     shared=swift_string(re.search(r'let shared = """(.*?)"""',rules,re.S).group(1))
     meeting=swift_string(re.search(r'case \.meeting:\s*return """(.*?)"""',rules,re.S).group(1)).replace('\\(shared)',shared)

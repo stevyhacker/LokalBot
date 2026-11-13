@@ -1,5 +1,5 @@
 //! Every prompt the generators send, copied verbatim from the macOS app
-//! (`Services/PromptTemplates.swift` unless noted). Only "Mac" becomes "PC".
+//! (`Services/Notes/PromptTemplates.swift` unless noted). Only "Mac" becomes "PC".
 
 use lokalbot_core::settings::NoteTemplate;
 

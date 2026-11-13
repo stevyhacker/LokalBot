@@ -55,9 +55,9 @@ Three new files plus surgical edits. Nothing new is a process or a listener; the
 | `InferenceBroker` | `LokalBot/Engines/InferenceBroker.swift` | The actor. `lease`/`release`/`withLease`; runs injected `RuntimeHooks` (`ensure`/`stop` closures defaulting to the live `LlamaServer` trio); pushes pins + lease descriptions to `ModelResidency`; owns linger and TTL-expiry tasks. |
 | `LeasedTextEngine` | `LokalBot/Engines/LeasedTextEngine.swift` | `TextEngine` decorator: every `generate`/`complete`/`completeStreaming` call runs inside `broker.withLease`. Construction is cheap and does not boot the server. |
 | `ModelResidency` + `ModelResidencyPolicy` | modify `LokalBot/Engines/ModelResidency.swift` | Policy gains `pinned: Set<String>` (pinned never victims); ledger gains `@Published pinnedIDs` / `leaseDescriptions` + `setLeaseState`, consumed by `willLoad` and the dashboard. |
-| `ProcessingPipeline.makeTextEngine` | modify `LokalBot/Services/ProcessingPipeline.swift` | `.builtIn` case stops calling `ensureRunning`; returns `LeasedTextEngine(base: OpenAICompatibleEngine…)` with role derived from `server.port`. Signature gains `priority`/`purpose`/`broker` (defaulted). |
+| `ProcessingPipeline.makeTextEngine` | modify `LokalBot/Services/Meetings/ProcessingPipeline.swift` | `.builtIn` case stops calling `ensureRunning`; returns `LeasedTextEngine(base: OpenAICompatibleEngine…)` with role derived from `server.port`. Signature gains `priority`/`purpose`/`broker` (defaulted). |
 | Consumer edits | `LokalBotApp.swift`, `ModelsView.swift`, `EmbeddingIndex.swift`, `AgentSessionController.swift`, `AgentAccessManager.swift` | Priority/purpose parameters; embedder batch wrapped in `withLease`; session lease; TTL wake lease (§6). |
-| Dashboard | modify `LokalBot/Views/ResourceMonitorSection.swift` | Model rows show "in use — chat (interactive)" while leased; the row itself disappears when the linger unload fires. |
+| Dashboard | modify `LokalBot/Views/Settings/ResourceMonitorSection.swift` | Model rows show "in use — chat (interactive)" while leased; the row itself disappears when the linger unload fires. |
 
 ## 5. Lease model & API
 

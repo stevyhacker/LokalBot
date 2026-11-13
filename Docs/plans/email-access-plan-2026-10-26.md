@@ -90,11 +90,11 @@ Checking for new mail takes seconds, so it can run often. Model work is what cos
 | Nightly, after the Dream review | About You pass over the day's sent mail |
 | Sync now | Check for new mail |
 
-- **Scheduler:** add an `EmailSyncScheduler` modeled on the durable run log in [MemoryRoutines.swift](../../LokalBot/Services/MemoryRoutines.swift). Like LokalBot's other schedulers it runs inside the app, which already launches at login.
+- **Scheduler:** add an `EmailSyncScheduler` modeled on the durable run log in [MemoryRoutines.swift](../../LokalBot/Services/Timeline/MemoryRoutines.swift). Like LokalBot's other schedulers it runs inside the app, which already launches at login.
 - **Gates:** model work uses the gates the brief already has: a local model, already downloaded, with no surprise downloads ([UpcomingMeetingPreparation.swift:504](../../LokalBot/Services/Calendar/UpcomingMeetingPreparation.swift)). The nightly pass also uses the Dream gates: AC power, and nothing recording.
 - **Cursors:** each account keeps a cursor, the Gmail `historyId` or the IMAP `UIDVALIDITY` and last UID. It moves forward in the same write that stores the messages, so an interrupted sync resumes without duplicates. If Gmail reports that a history ID has expired, LokalBot rescans the window.
 - **Deletions:** mail deleted on the server is deleted locally. A failed check never counts as a deletion.
-- **Background refresh is new.** Today the brief refreshes only while the Today tab is on screen ([TodayView.swift:53-69](../../LokalBot/Views/TodayView.swift)), so the morning and pre-meeting work needs an app-level watcher.
+- **Background refresh is new.** Today the brief refreshes only while the Today tab is on screen ([TodayView.swift:53-69](../../LokalBot/Views/Today/TodayView.swift)), so the morning and pre-meeting work needs an app-level watcher.
 
 ## Briefs
 
@@ -109,7 +109,7 @@ Checking for new mail takes seconds, so it can run often. Model work is what cos
 
 **On the Today page:**
 
-- **The card for the next meeting** ([UpcomingMeetingView.swift](../../LokalBot/Views/UpcomingMeetingView.swift)) gains a "From email" section. Each source card shows subject, sender, date, the quoted line, and Open in mail.
+- **The card for the next meeting** ([UpcomingMeetingView.swift](../../LokalBot/Views/Meetings/UpcomingMeetingView.swift)) gains a "From email" section. Each source card shows subject, sender, date, the quoted line, and Open in mail.
 - **The "Later today" rows,** prepared in the morning, expand to show their own briefs.
 - **First meetings with outside people** gain the most, because email is often the only history.
 
@@ -128,14 +128,14 @@ They show only meeting titles and counts, never email text on the lock screen.
 - **Worth learning:** preferences and constraints you state ("no calls before 10"), what you work on and with whom, which language you use with whom, and goals you mention. Promises you make belong to the open-items list, not About You.
 - **Always reviewed.** Every email suggestion waits for review, like other typed sources, and "Learn from my sent email" is off by default.
 - **Code changes:**
-  - Add `TypedSource.email(accountID:messageID:)` ([PersonalClaim.swift:28](../../LokalBot/Services/PersonalModel/PersonalClaim.swift)), and handle it in each place that switches on a claim's origin: the agent projection, the CLI labels, and the Settings rows in [PersonalContextSettings.swift](../../LokalBot/Views/PersonalContextSettings.swift).
+  - Add `TypedSource.email(accountID:messageID:)` ([PersonalClaim.swift:28](../../LokalBot/Services/PersonalModel/PersonalClaim.swift)), and handle it in each place that switches on a claim's origin: the agent projection, the CLI labels, and the Settings rows in [PersonalContextSettings.swift](../../LokalBot/Views/Settings/PersonalContextSettings.swift).
   - Add `.email` to `DreamEvidenceSource.Kind` ([DreamModels.swift:81](../../LokalBot/Services/Dreaming/DreamModels.swift)) and track it per message, so that deleting or excluding the message retracts the claim. Today, every kind other than meeting is tracked per day.
 - **Later, opt-in:** receipts, bookings, and subscriptions are facts about your life, such as services you use or trips coming up. They fit the whole-person direction, but they need sensitivity filters, so they stay out of the first version.
 
 ## Storage and safety
 
 - **Keychain:** tokens and app passwords, one item per account. `email/accounts.json` holds addresses, scope, cursors, and status, with no secrets.
-- **Threads:** one sealed file per thread (`AES.GCM`, `KeychainSecrets.symmetricKey(account: "email-key")`, [AppIdentifiers.swift:244](../../LokalBot/Models/AppIdentifiers.swift)), written atomically with 0600 permissions like [PersonalModelStore](../../LokalBot/Services/PersonalModel/PersonalModelStore.swift). A sealed manifest of participants, dates, and subjects becomes the in-memory address map at launch.
+- **Threads:** one sealed file per thread (`AES.GCM`, `KeychainSecrets.symmetricKey(account: "email-key")`, [AppIdentifiers.swift:244](../../LokalBot/Models/App/AppIdentifiers.swift)), written atomically with 0600 permissions like [PersonalModelStore](../../LokalBot/Services/PersonalModel/PersonalModelStore.swift). A sealed manifest of participants, dates, and subjects becomes the in-memory address map at launch.
 - **Where email never goes:** the plaintext search database (`lokalbotv3.sqlite`), the embeddings, Dream reports, or exports.
 - **Untrusted text.** The brief, thread, and learning prompts have no tools. Email text goes in as quoted evidence through `PromptContextSanitizer`. Agent Mode never receives raw email.
 - **Fix the agent leak first.** Before anything made from email can reach agents, fix [Briefing.swift:213-214](../../LokalBot/CLISupport/Briefing.swift). Today it treats every source other than meetings as screen evidence, so an agent holding only the screen grant would also see email-derived memory. Email for agents is its own grant, and comes later.
