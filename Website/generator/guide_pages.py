@@ -161,7 +161,7 @@ GUIDES = [
           <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations from Qwen3.5 4B in the built-in llama.cpp, Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
           <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and the text recognizer built into Windows, in your app and system languages where Windows has that language pack.</li>
-          <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with LFM2.5 1.2B on your PC.</li>
+          <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with Gemma 4 E2B on your PC, or the smaller LFM2.5 1.2B with the Lightweight local preset.</li>
           <li><strong>Calendar.</strong> Private iCal or CalDAV links from Outlook, Google, or another calendar name your recordings and list today's meetings.</li>
           <li><strong>Agents.</strong> A read-only CLI and MCP server for Claude Code, Codex, and other agents, and an optional Agent Mode that works on your files with your approval, in Git Bash or PowerShell.</li>
           <li><strong>Selection actions.</strong> Turn them on in <strong>Settings → General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
@@ -497,7 +497,7 @@ GUIDES = [
         <ul>
           <li><strong>Transcription:</strong> Qwen3-ASR 0.6B, with Parakeet v3 and v2, SenseVoice, GigaAM for Russian, and Whisper turbo as options.</li>
           <li><strong>Speakers:</strong> pyannote segmentation with TitaNet embeddings.</li>
-          <li><strong>Autocomplete:</strong> LFM2.5 1.2B.</li>
+          <li><strong>Autocomplete:</strong> Gemma 4 E2B, the same as on a Mac, or LFM2.5 1.2B with the Lightweight local preset.</li>
           <li><strong>Summaries and search:</strong> Qwen3.5 4B and EmbeddingGemma 2, the same as on a Mac.</li>
           <li><strong>Screen text:</strong> accessibility (UI Automation on Windows, AT-SPI on Linux) plus on-device OCR in your app and system languages: the recognizer built into Windows, or Tesseract on Linux, with ocrs as the fallback for Latin letters. Any download starts only when you ask.</li>
           <li><strong>Spoken summaries:</strong> Kokoro 82M.</li>
@@ -851,7 +851,7 @@ GUIDES = [
         <p>Notes stay current: marking an action done, renaming a speaker, or regenerating a summary updates the note. A note keeps its first name when you rename the meeting, so your links to it keep working. Once you edit, move, or delete a note, it is yours: LokalBot leaves it alone and does not write that meeting again.</p>
 
         <h2>Option 2: export one meeting</h2>
-        <p>Open a meeting and choose <strong>Export → Export Meeting as Markdown…</strong>, then save it into your vault. The file starts with the title, date, duration, and meeting app, followed by the summary and the full transcript. <strong>Copy Meeting as Markdown</strong> puts the same text on the clipboard. This is fine for the occasional meeting and tedious for every one.</p>
+        <p>Open a meeting and choose <strong>Share → Export as Markdown…</strong>, then save it into your vault. The file starts with the title, date, duration, and meeting app, followed by the summary and the full transcript. <strong>Share → Copy as Markdown</strong> puts the same text on the clipboard. This is fine for the occasional meeting and tedious for every one.</p>
 
         <h2>Option 3: a daily note in Obsidian format</h2>
         <p>In <strong>Settings → Daily Review → Daily note export</strong> on a Mac, or <strong>Settings → Day Memory → Daily note export</strong> on Windows and Linux, turn on <strong>Export a daily memory note</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. Each evening (6 PM by default) LokalBot writes or refreshes one note for the day, with <code>date</code> and <code>tags</code> properties: the day's digest, a list of its meetings, app time, and saved moments. A day missed while the computer was asleep is written later. If you edit a generated note, LokalBot keeps your edits and pauses the export until you move that note or choose another folder.</p>
