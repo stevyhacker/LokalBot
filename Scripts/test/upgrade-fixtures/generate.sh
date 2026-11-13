@@ -13,7 +13,10 @@ WORK=$(mktemp -d)
 LIB="$WORK/library"
 DOMAIN=me.dotenv.LokalBot
 
-git -C "$ROOT_DIR" show "v$VERSION:Scripts/test/seed_demo_library.py" > "$WORK/seed.py"
+# The seed script as that release shipped it. Releases tagged before the November
+# 2026 reorganization kept it at Scripts/seed_demo_library.py.
+git -C "$ROOT_DIR" show "v$VERSION:Scripts/test/seed_demo_library.py" > "$WORK/seed.py" 2>/dev/null \
+  || git -C "$ROOT_DIR" show "v$VERSION:Scripts/seed_demo_library.py" > "$WORK/seed.py"
 python3 "$WORK/seed.py" "$LIB"
 # Releases with Personal Context seed it as plaintext; a real library holds it
 # sealed with the chat key, so seal it with the fixture's key.
