@@ -35,6 +35,7 @@ use lokalbot_platform::autocomplete::{AcceptKeys, InterceptedKey, Support};
 
 use super::{Section, SettingsPage, models, writing_rehearsal, writing_server};
 use crate::state::{AppEvent, SettingsCategory};
+use crate::theme::UiFont as _;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
@@ -1583,7 +1584,7 @@ impl SettingsPage {
             .h(line_height)
             .items_center()
             .whitespace_nowrap()
-            .font_family(crate::theme::FONT_FAMILY)
+            .ui_font()
             .text_size(ty::BODY)
             .child(div().text_color(lb.text_secondary).child(visible(strong)))
             .child(div().text_color(lb.text_tertiary).child(visible(rest)));

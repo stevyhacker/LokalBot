@@ -18,7 +18,7 @@ use lokalbot_core::retention::RetentionReview;
 
 use crate::control::{self, ControlHost};
 use crate::i18n::h_flex;
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, metric, ty};
 use crate::ui::{self, Ico};
 
 const WIDTH: f32 = 560.;
@@ -371,7 +371,7 @@ impl Render for SettingsApproval {
             .size_full()
             .bg(lb.window)
             .text_color(lb.text)
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .child(
                 TitleBar::new().h(metric::TOOLBAR_HEIGHT).child(
                     div()

@@ -14,7 +14,7 @@ use gpui_kit::{
 
 use crate::palette::{self, PaletteCommand};
 use crate::state::AppData;
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, metric, ty};
 use crate::ui::{self, Ico};
 
 const WIDTH: f32 = 560.;
@@ -247,7 +247,7 @@ impl Render for CommandPalette {
         v_flex()
             .size_full()
             .key_context("CommandPalette")
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .text_align(crate::i18n::interface_alignment())
             .bg(lb.elevated)
             .text_color(lb.text)

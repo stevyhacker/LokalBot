@@ -13,6 +13,10 @@ pub fn apply(preference: &str, cx: &mut App) {
     crate::component_i18n::init();
     gpui_kit::component::set_locale(language.code);
     cx.set_global(InterfaceLocale);
+    // Hausa's letters need another font.
+    if cx.has_global::<gpui_kit::component::Theme>() {
+        gpui_kit::component::Theme::update(cx, crate::theme::apply_fonts);
+    }
     cx.refresh_windows();
 }
 

@@ -20,6 +20,7 @@ use gpui_kit::{
 use lokalbot_engine::{Command, DictationCommand};
 
 use crate::state::{AppData, DictationHud};
+use crate::theme::UiFont as _;
 use crate::theme::{LbThemeExt as _, Palette, ty};
 use crate::ui::{self, Ico};
 
@@ -302,7 +303,7 @@ impl Hud {
             .bg(lb.elevated)
             .border_1()
             .border_color(lb.separator)
-            .font_family(crate::theme::FONT_FAMILY)
+            .ui_font()
             .overflow_hidden()
             .child(
                 h_flex()
@@ -380,7 +381,7 @@ impl Hud {
             .bg(lb.elevated)
             .border_1()
             .border_color(lb.separator)
-            .font_family(crate::theme::FONT_FAMILY)
+            .ui_font()
             .child(
                 v_flex()
                     .flex_1()
@@ -437,7 +438,7 @@ impl Hud {
             .bg(lb.elevated)
             .border_1()
             .border_color(lb.separator)
-            .font_family(crate::theme::FONT_FAMILY)
+            .ui_font()
             .child(ui::icon(
                 if copied {
                     Ico::CircleCheck
@@ -571,7 +572,7 @@ impl Render for Hud {
             .bg(lb.elevated)
             .border_1()
             .border_color(lb.separator)
-            .font_family(crate::theme::FONT_FAMILY)
+            .ui_font()
             .child(if listening && !mic_problem {
                 ui::status_dot(lb.recording, px(9.))
             } else if failed {

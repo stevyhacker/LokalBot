@@ -907,7 +907,7 @@ impl Autocomplete {
         };
         layout::Appearance {
             dark: lb.dark,
-            ui_font: crate::theme::FONT_FAMILY.into(),
+            ui_font: crate::theme::font_family().into(),
             pill_background: lb.elevated,
             pill_border: lb.separator,
             pill_text: lb.text_secondary,
@@ -1038,7 +1038,7 @@ impl Autocomplete {
         let family: gpui_kit::SharedString = style
             .and_then(|s| s.font_family.clone())
             .map(Into::into)
-            .unwrap_or_else(|| crate::theme::FONT_FAMILY.into());
+            .unwrap_or_else(|| crate::theme::font_family().into());
         let measure = layout::measurer(cx, &family, size);
         let logical =
             |r: Rect| Rect::new(r.x / scale, r.y / scale, r.width / scale, r.height / scale);

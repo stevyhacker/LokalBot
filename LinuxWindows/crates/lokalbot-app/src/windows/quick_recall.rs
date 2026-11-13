@@ -28,7 +28,7 @@ use crate::pages::ask::search::{self, Hit, MeetingGroup, ScreenResult};
 use crate::pages::ask::{AskPage, composer_inference, open_screen_moment, stop_answer_speech};
 use crate::palette::{self, Matching, PaletteCommand};
 use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, Section};
-use crate::theme::{FONT_FAMILY, LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, UiFont as _, metric, ty};
 use crate::ui::screen_thumbnail::ScreenThumbnails;
 use crate::ui::{self, Ico, result_row};
 use crate::windows::screen_image::ScreenImage;
@@ -1292,7 +1292,7 @@ impl Render for QuickRecall {
         v_flex()
             .size_full()
             .key_context("QuickRecall")
-            .font_family(FONT_FAMILY)
+            .ui_font()
             .text_align(crate::i18n::interface_alignment())
             .bg(lb.elevated)
             .text_color(lb.text)
