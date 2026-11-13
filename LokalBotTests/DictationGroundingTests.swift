@@ -134,7 +134,7 @@ final class DictationGroundingTests: XCTestCase {
             "Hey, reply with the deadline.", routing: .referencedRelays), "commands need no pointer")
     }
 
-    /// Benchmarks/Dictation/results/2026-10-08-routing-window: the relay rule
+    /// Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window: the relay rule
     /// that needs a pointer to context answered new requests without ever
     /// routing a self-contained relay ("Tell him I am running late").
     func testProductionRoutingRequiresAPointerForRelays() {
@@ -145,7 +145,7 @@ final class DictationGroundingTests: XCTestCase {
         XCTAssertFalse(DictationGrounding.requestsContext("Tell me if 14:00 works for you."))
     }
 
-    /// Benchmarks/Dictation/results/2026-10-08-cleanup: direct speech is sent as
+    /// Benchmarks/transcribe/Dictation/results/2026-10-08-cleanup: direct speech is sent as
     /// data to a cleanup prompt, so "What is the status of the Birch invoice?"
     /// is inserted instead of answered.
     func testDirectSpeechIsCleanedAsDataNotAsAnInstruction() async throws {

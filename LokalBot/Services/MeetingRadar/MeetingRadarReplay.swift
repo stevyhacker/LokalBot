@@ -18,7 +18,7 @@ import Foundation
 /// nothing is read from or written to a library.
 ///
 /// `--audio` replays the meeting as fast live text does, in real time: the
-/// folder's `me.wav` and `them.wav` (from `Benchmarks/MuseRadar/voice_fixture.py`)
+/// folder's `me.wav` and `them.wav` (from `Benchmarks/think/MuseRadar/voice_fixture.py`)
 /// stream to Muse Voice Transcribe through the app's client, each finished
 /// turn becomes a line, and a pass follows each turn (`--interval` defaults
 /// to the app's 3 s turn interval). Times are measured on the wall clock.

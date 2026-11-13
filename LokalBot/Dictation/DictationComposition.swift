@@ -352,12 +352,12 @@ struct DictationComposeProfile: Equatable, Sendable {
 enum DictationCleanupPrompt: String, Codable, Sendable, CaseIterable {
     /// The Compose prompt itself decides whether speech is an instruction. It
     /// answered "Can you tell me when the 9 boxes arrive?" with "I don't know…"
-    /// (Benchmarks/Dictation/results/2026-10-08-routing-window).
+    /// (Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window).
     case composeDecides
     /// The transcript is sent as JSON data under a cleanup-only system prompt
     /// that forbids answering or carrying it out (as FluidVoice and Handy do).
     /// Kept direct sentences 16/16 against 13/16 on a set frozen before it ran
-    /// (Benchmarks/Dictation/results/2026-10-08-cleanup).
+    /// (Benchmarks/transcribe/Dictation/results/2026-10-08-cleanup).
     case transcriptAsData
 
     static let production: Self = .transcriptAsData

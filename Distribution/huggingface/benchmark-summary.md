@@ -8,18 +8,18 @@ The defaults on a fresh install total about **9.6 GB** of model files if every r
 
 | Role | Default model | Format | Model files | Headline result | Source |
 | --- | --- | --- | ---: | --- | --- |
-| Transcription | Qwen3-ASR 1.7B | MLX 8-bit | 2.47 GB | 17.6% WER on 27 minutes of AMI Mix-Headset audio; only Gemini 3.8 Flash scored lower (16.7%, within the error) | `README.md`, `Benchmarks/CloudSTT/results/2026-09-30/REPORT.md` |
-| Speaker diarization | Nemotron 3 (preview) via FluidAudio | Core ML | ~0.20 GB | 14.56% DER vs 43.44% for the previous default; 500× real time | `Benchmarks/NemotronDiarization/results/2026-09-23/REPORT.md` |
-| Summaries and chat | Qwen3.5 4B | `Q4_K_M` | 2.74 GB | 26-minute meeting summarized in 33.4 s warm / 59.8 s cold | `Benchmarks/SummaryEfficiency/results-2026-09-09.json` |
-| Semantic search | EmbeddingGemma 2 | `Q8_0` | 0.31 GB | Correct passage first for 43/48 queries vs 40/48 for Harrier 0.6B | `Benchmarks/EmbeddingGemma2/2026-10-07/REPORT.md` |
-| Autocomplete | Gemma 4 E2B Base | `Q6_K` | 3.85 GB | 0 unsafe results in 140 checks; 23.1% next-word accuracy vs 20.7% for LFM2.5 (tied in English); right when shown 50%; 56 / 102 ms median / p95 per keystroke | `Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md` |
-| Screen text (opt-in) | Apple Vision | Built into macOS | — | 0.971 token F1 at 119.6 ms per synthetic screenshot | `Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md` |
+| Transcription | Qwen3-ASR 1.7B | MLX 8-bit | 2.47 GB | 17.6% WER on 27 minutes of AMI Mix-Headset audio; only Gemini 3.8 Flash scored lower (16.7%, within the error) | `README.md`, `Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md` |
+| Speaker diarization | Nemotron 3 (preview) via FluidAudio | Core ML | ~0.20 GB | 14.56% DER vs 43.44% for the previous default; 500× real time | `Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md` |
+| Summaries and chat | Qwen3.5 4B | `Q4_K_M` | 2.74 GB | 26-minute meeting summarized in 33.4 s warm / 59.8 s cold | `Benchmarks/think/SummaryEfficiency/results-2026-09-09.json` |
+| Semantic search | EmbeddingGemma 2 | `Q8_0` | 0.31 GB | Correct passage first for 43/48 queries vs 40/48 for Harrier 0.6B | `Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md` |
+| Autocomplete | Gemma 4 E2B Base | `Q6_K` | 3.85 GB | 0 unsafe results in 140 checks; 23.1% next-word accuracy vs 20.7% for LFM2.5 (tied in English); right when shown 50%; 56 / 102 ms median / p95 per keystroke | `Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md` |
+| Screen text (opt-in) | Apple Vision | Built into macOS | — | 0.971 token F1 at 119.6 ms per synthetic screenshot | `Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md` |
 
 Alternatives remain selectable in the app: Parakeet, Granite Speech, Whisper large-v3 turbo, SenseVoice, and GigaAM for transcription, Pyannote Community-1 for diarization, and LFM2.5 1.2B Instruct `Q4_K_M` (0.73 GB, the Lightweight preset) for autocomplete (`README.md`).
 
 ## Speaker diarization — Nemotron 3 vs Pyannote Community-1
 
-Four independent English AMI test meetings, each evaluated as headset mix and distant-microphone audio: **8 conditions, 184.55 minutes of audio**, four speakers in every reference. DER adds missed speech, false alarms, and speaker confusion, divided by reference speaker time; overlap is scored and no speaker-count hints were used. Speed is the warm median over three runs on the 17.49-minute ES2004a headset recording. Source: `Benchmarks/NemotronDiarization/results/2026-09-23/REPORT.md` (scores in `Benchmarks/NemotronDiarization/results/2026-09-23/scores.json`).
+Four independent English AMI test meetings, each evaluated as headset mix and distant-microphone audio: **8 conditions, 184.55 minutes of audio**, four speakers in every reference. DER adds missed speech, false alarms, and speaker confusion, divided by reference speaker time; overlap is scored and no speaker-count hints were used. Speed is the warm median over three runs on the 17.49-minute ES2004a headset recording. Source: `Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md` (scores in `Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/scores.json`).
 
 | System | DER, zero collar | DER, 250 ms collar | Correct speaker count | Audio / processing time | Peak process RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -33,7 +33,7 @@ The offline model reduced speaker confusion from **8.87% to 1.77%**, missed spee
 
 ## Summaries and action items — Qwen3.5 4B
 
-Replay of LokalBot's production summary and action extractor with `Qwen3.5-4B-Q4_K_M.gguf` on llama.cpp **b10173**. Cold includes runtime startup; warm reuses the loaded runtime. ASR time is excluded. Source: `Benchmarks/SummaryEfficiency/results-2026-09-09.json`.
+Replay of LokalBot's production summary and action extractor with `Qwen3.5-4B-Q4_K_M.gguf` on llama.cpp **b10173**. Cold includes runtime startup; warm reuses the loaded runtime. ASR time is excluded. Source: `Benchmarks/think/SummaryEfficiency/results-2026-09-09.json`.
 
 | Meeting | Transcript | Cold | Warm | Outcome |
 | --- | ---: | ---: | ---: | --- |
@@ -42,11 +42,11 @@ Replay of LokalBot's production summary and action extractor with `Qwen3.5-4B-Q4
 
 Decode speed across these runs was about 85 tokens/s (`Benchmarks/README.md`). These are timings, not a summary-quality score.
 
-In the 2026-09-07 pilot, MiniCPM5-2B `Q4_K_M` was smaller (1.561 GB vs 2.741 GB) and faster on long context (18.68 s vs 32.41 s), but it looped on one summary and misattributed action items, so Qwen3.5 4B remains the default (`Benchmarks/ModelAlternatives/2026-09-07/REPORT.md`).
+In the 2026-09-07 pilot, MiniCPM5-2B `Q4_K_M` was smaller (1.561 GB vs 2.741 GB) and faster on long context (18.68 s vs 32.41 s), but it looped on one summary and misattributed action items, so Qwen3.5 4B remains the default (`Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md`).
 
 ## Semantic search — EmbeddingGemma 2 vs Harrier
 
-48 authored queries (24 English, 24 Serbian/Montenegrin in Latin and Cyrillic) against a 60-passage synthetic corpus; relevant passage IDs fixed before inference. Both models used Q8 weights on the same llama.cpp build, each with its own prompts: Harrier returns 1,024 dimensions, EmbeddingGemma 2 returns 768. Source: `Benchmarks/EmbeddingGemma2/2026-10-07/REPORT.md`.
+48 authored queries (24 English, 24 Serbian/Montenegrin in Latin and Cyrillic) against a 60-passage synthetic corpus; relevant passage IDs fixed before inference. Both models used Q8 weights on the same llama.cpp build, each with its own prompts: Harrier returns 1,024 dimensions, EmbeddingGemma 2 returns 768. Source: `Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md`.
 
 | Measure | Harrier 0.6B Q8 (previous default) | EmbeddingGemma 2 Q8 (current default) |
 | --- | ---: | ---: |
@@ -58,11 +58,11 @@ In the 2026-09-07 pilot, MiniCPM5-2B `Q4_K_M` was smaller (1.561 GB vs 2.741 GB)
 | Repeated query latency, median | 13.1 ms | **9.0 ms** |
 | Model file | 0.64 GB | **0.31 GB** |
 
-The 6-point gain is within noise on 48 correlated queries (95% interval −4 to +17 points); EmbeddingGemma 2 was adopted because it matched or beat Harrier at half the size, half the idle memory, and faster queries. Harrier had replaced Qwen3 Embedding 0.6B (35/48) in September (`Benchmarks/ModelAlternatives/2026-09-07/REPORT.md`).
+The 6-point gain is within noise on 48 correlated queries (95% interval −4 to +17 points); EmbeddingGemma 2 was adopted because it matched or beat Harrier at half the size, half the idle memory, and faster queries. Harrier had replaced Qwen3 Embedding 0.6B (35/48) in September (`Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md`).
 
 ## Transcription — Qwen3-ASR 1.7B
 
-**Public AMI meetings, against closed APIs and Parakeet.** 16 windows of 90–120 seconds from the Mix-Headset recordings of four AMI test meetings: 27.4 minutes and 4,160 reference words. Every system received the same 16 kHz mono WAV chunks with an English language hint and no custom vocabulary; the local models ran serially on MLX 0.32.3 and mlx-audio 0.5.7. Most windows contain heavy overlapped talk on one mixed channel, so deletions dominate every system's errors and absolute WER is higher than on published close-talk AMI results. Low-overlap WER covers the 4 windows where under 30% of reference words overlap another utterance (728 words); it is too small to rank systems on. Speed is audio seconds per second of request latency; API latency includes upload, with four requests in flight. Source: `Benchmarks/CloudSTT/results/2026-09-30/REPORT.md` (aggregates in `Benchmarks/CloudSTT/results/2026-09-30/summary.json`).
+**Public AMI meetings, against closed APIs and Parakeet.** 16 windows of 90–120 seconds from the Mix-Headset recordings of four AMI test meetings: 27.4 minutes and 4,160 reference words. Every system received the same 16 kHz mono WAV chunks with an English language hint and no custom vocabulary; the local models ran serially on MLX 0.32.3 and mlx-audio 0.5.7. Most windows contain heavy overlapped talk on one mixed channel, so deletions dominate every system's errors and absolute WER is higher than on published close-talk AMI results. Low-overlap WER covers the 4 windows where under 30% of reference words overlap another utterance (728 words); it is too small to rank systems on. Speed is audio seconds per second of request latency; API latency includes upload, with four requests in flight. Source: `Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md` (aggregates in `Benchmarks/transcribe/CloudSTT/results/2026-09-30/summary.json`).
 
 | System | WER | 95% CI | Low-overlap WER | Speed |
 | --- | ---: | ---: | ---: | ---: |
@@ -77,7 +77,7 @@ The 6-point gain is within noise on 48 correlated queries (95% interval −4 to 
 
 Gemini 3.8 Flash had lower WER than the local Qwen model in 93% of paired chunk-bootstrap samples, but on the owner's meetings it invented speech: 115 words in 15 invented spans. On those three meetings (69.9 minutes, no human reference), the local Qwen3-ASR 1.7B had the lowest disagreement with a consensus of the other vendor families, **4.2%** (95% CI 3.4–5.1%). That measures agreement, not accuracy.
 
-**Speakers assigned after transcription.** The same AMI windows and owner meetings, run headless on the app's runtime and weights (speech-swift 0.0.26, FluidAudio 0.17.1, `aufklarer/Qwen3-ASR-1.7B-MLX-8bit`) with Nemotron 3 diarization. On identical chunks, that runtime scored 17.47% AMI WER against mlx-audio's 17.64%. The previous behaviour cut each track at every speaker turn before transcription; the current one transcribes the track in merged windows of up to 60 s, then gives each forced-aligned word the speaker active at its midpoint. cpWER (concatenated minimum-permutation WER) counts attribution errors as well as recognition errors. Source: `Benchmarks/QwenSpanLength/results/2026-09-30/REPORT.md`.
+**Speakers assigned after transcription.** The same AMI windows and owner meetings, run headless on the app's runtime and weights (speech-swift 0.0.26, FluidAudio 0.17.1, `aufklarer/Qwen3-ASR-1.7B-MLX-8bit`) with Nemotron 3 diarization. On identical chunks, that runtime scored 17.47% AMI WER against mlx-audio's 17.64%. The previous behaviour cut each track at every speaker turn before transcription; the current one transcribes the track in merged windows of up to 60 s, then gives each forced-aligned word the speaker active at its midpoint. cpWER (concatenated minimum-permutation WER) counts attribution errors as well as recognition errors. Source: `Benchmarks/transcribe/QwenSpanLength/results/2026-09-30/REPORT.md`.
 
 | Measure | Speaker regions first (previous) | Transcribe, then attribute (current) |
 | --- | ---: | ---: |
@@ -88,7 +88,7 @@ Gemini 3.8 Flash had lower WER than the local Qwen model in 93% of paired chunk-
 
 The shipped path decoded at **48×** real time, ASR only; the forced aligner timed all 101 minutes of chunks in 34 s, 179× real time. Built into the app (Debug configuration), the change took the three meetings from 7.89% to 4.59% disagreement; that run's timings, 90 s for the 16-minute meeting and 329 s for the 57-minute one including diarization and alignment, are not production timings. AMI covers only 27 minutes, so its intervals are about ±1 point. On 5–7 minute FLEURS read-speech tracks, Qwen3-ASR 1.7B scored 4.4% WER in German, 7.1% CER in Japanese, and 10.2% WER in Russian (same file).
 
-**Serbian, Croatian, and Bosnian.** FLEURS read speech with a human reference (531, 616, and 628 words), plus the owner's 10-minute Montenegrin/Serbian call, scored against Gemini 3.8 Flash as a rough reference. Scoring transliterates Serbian Cyrillic to Latin. Both engines decoded the app's Qwen word-attribution windows, serially on the M4 Max. Source: `Benchmarks/DualASR/results/2026-10-07/REPORT.md`.
+**Serbian, Croatian, and Bosnian.** FLEURS read speech with a human reference (531, 616, and 628 words), plus the owner's 10-minute Montenegrin/Serbian call, scored against Gemini 3.8 Flash as a rough reference. Scoring transliterates Serbian Cyrillic to Latin. Both engines decoded the app's Qwen word-attribution windows, serially on the M4 Max. Source: `Benchmarks/transcribe/DualASR/results/2026-10-07/REPORT.md`.
 
 | WER | Serbian | Croatian | Bosnian | Owner's meeting |
 | --- | ---: | ---: | ---: | ---: |
@@ -99,7 +99,7 @@ Routing those tracks to Whisper was not adopted: the owner judged the gain not w
 
 ## Speech recognition — Granite Speech 4.1 vs Granite Speech 5
 
-44 public clips / 271.3 seconds (24 conversational AMI clips, 20 clean LibriSpeech clips), scored with the standard Whisper English normalizer. Source: `Benchmarks/ModelAlternatives/2026-09-07/REPORT.md`. **Qwen3-ASR 1.7B, the current default, was not part of this run**; its results are in the section above.
+44 public clips / 271.3 seconds (24 conversational AMI clips, 20 clean LibriSpeech clips), scored with the standard Whisper English normalizer. Source: `Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md`. **Qwen3-ASR 1.7B, the current default, was not part of this run**; its results are in the section above.
 
 | Measure | Granite 4.1 Q4 | Granite 4.1 Q8 | Granite 5 TurboCTC BF16 |
 | --- | ---: | ---: | ---: |
@@ -114,13 +114,13 @@ Granite 5 is English-only, emits unpunctuated lowercase text, and is not integra
 
 ## Cotyping (inline autocomplete) — engine benchmark, 2026-10-15
 
-Harness: `Benchmarks/Cotyping/engine_benchmark.py` runs LokalBot's production autocomplete engine on one model through `--cotyping-bench --model-path`. It runs before app startup on the runtime the app builds, with fresh-install settings (4 words) and nothing else from the app, and times model loading on its own. It has three parts:
+Harness: `Benchmarks/autocomplete/Cotyping/engine_benchmark.py` runs LokalBot's production autocomplete engine on one model through `--cotyping-bench --model-path`. It runs before app startup on the runtime the app builds, with fresh-install settings (4 words) and nothing else from the app, and times model loading on its own. It has three parts:
 
 - **Safety checks:** the same 28 scenarios as the earlier check, run 5 times (one first pass, then 4 warm passes). Each result is shown, allowed silence, withheld, a wrong word, unsafe, or an error; only unsafe results and errors fail.
 - **Next-word accuracy:** every word boundary of 96 original synthetic phrases, 788 positions in English, Serbian (Latin and Cyrillic), German, French, and Spanish. The first suggested word must equal the next word, ignoring case and apostrophe style.
 - **Typing latency:** per-keystroke time while typing 8 of those phrases one character at a time.
 
-Release build of commit `15d7a26` (from `master` at `9bff2ca`). Source: `Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md` (per-model figures in `Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/gemma4-e2b-base-q6/summary.json` and `Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/lfm2.5-1.2b-instruct/summary.json`).
+Release build of commit `15d7a26` (from `master` at `9bff2ca`). Source: `Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md` (per-model figures in `Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/gemma4-e2b-base-q6/summary.json` and `Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/lfm2.5-1.2b-instruct/summary.json`).
 
 | Measure | Gemma 4 E2B Base `Q6_K` (current default) | LFM2.5 1.2B Instruct `Q4_K_M` (Lightweight preset) |
 | --- | ---: | ---: |
@@ -143,13 +143,13 @@ Gemma minus LFM2.5 accuracy, with phrase-level paired bootstrap intervals (10,00
 - These are engine timings only. Input monitoring, debounce, accessibility reads, screen and memory context, learning, and drawing the suggestion are not included. Accuracy uses typed text plus app and window title only, while the app also reads nearby screen text, so real suggestions have more context.
 - The phrases were written for earlier LokalBot studies. The 64-phrase hybrid-confirmation set confirmed the hybrid decoder before it shipped, so it is not held out from product decisions.
 
-Gemma 4 E2B Base became the default after the 2026-10-02 replay on Cotabby's held-out corpus: **34.50% vs 30.43%** exact next-word accuracy for LFM2.5 (2,300 vs 2,029 of 6,667 word checkpoints). That run used a different corpus, the decoder from before the hybrid, and no confidence gate, so it is not comparable with the numbers above. Source: `Benchmarks/Cotyping/results/2026-10-02-quality/REPORT.md`.
+Gemma 4 E2B Base became the default after the 2026-10-02 replay on Cotabby's held-out corpus: **34.50% vs 30.43%** exact next-word accuracy for LFM2.5 (2,300 vs 2,029 of 6,667 word checkpoints). That run used a different corpus, the decoder from before the hybrid, and no confidence gate, so it is not comparable with the numbers above. Source: `Benchmarks/autocomplete/Cotyping/results/2026-10-02-quality/REPORT.md`.
 
 ## Cotyping (inline autocomplete) — earlier check, superseded scoring
 
-The July 21 and October 14 runs used the original 28-scenario pass/fail check. That check counted a held-back suggestion as a safety failure, accepted only one word tail per fragment, and reported a fresh app process's 10–40 s first request as latency (`Benchmarks/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md`, "What changed from the old check"). Its results do not describe today's engine and are kept in the repository: `Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md` and `Benchmarks/Cotyping/results/2026-10-14-engine-bench/REPORT.md`.
+The July 21 and October 14 runs used the original 28-scenario pass/fail check. That check counted a held-back suggestion as a safety failure, accepted only one word tail per fragment, and reported a fresh app process's 10–40 s first request as latency (`Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md`, "What changed from the old check"). Its results do not describe today's engine and are kept in the repository: `Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md` and `Benchmarks/autocomplete/Cotyping/results/2026-10-14-engine-bench/REPORT.md`.
 
-The July 21 matrix is reproduced below as a historical snapshot only. It used a **Debug** build of code that predates the confidence gate, the October quality and prompt changes, and the hybrid decoder; LFM2.5 was the autocomplete default at the time. Gate = 28/28 safety, ≥12/13 word completions, p95 ≤ 2000 ms. Source: `Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md`.
+The July 21 matrix is reproduced below as a historical snapshot only. It used a **Debug** build of code that predates the confidence gate, the October quality and prompt changes, and the hybrid decoder; LFM2.5 was the autocomplete default at the time. Gate = 28/28 safety, ≥12/13 word completions, p95 ≤ 2000 ms. Source: `Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md`.
 
 | Model | Exact file | Bytes | Safety | Word completions | Avg latency | p95 latency | Gate |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
@@ -162,14 +162,14 @@ The July 21 matrix is reproduced below as a historical snapshot only. It used a 
 
 Supporting figures from the July and earlier sources:
 
-- LFM2.5 keyword relevance: **15/64 hits vs 13/64** for the Gemma instruct baseline — "a weak relevance signal, not a separate gate" (`Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md`).
+- LFM2.5 keyword relevance: **15/64 hits vs 13/64** for the Gemma instruct baseline — "a weak relevance signal, not a separate gate" (`Benchmarks/autocomplete/Cotyping/results/2026-07-21-model-debounce-benchmark.md`).
 - Cold Metal-kernel compilation, first scenario only: LFM2.5 **19,349 ms**, Gemma E4B instruct **127,466 ms** (same file).
 - Debounce replay on LFM warmed runs: in-process debounce **35 / 55 ms** avg/p95; inferred end-to-end **178–186 / 509–519 ms** avg/p95 (same file; arithmetic replay, not a typing trace).
-- Earlier engine bench (2026-07-06): Gemma E4B instruct avg **459 ms**, p95 **1798 ms**, steady-state **~200 ms**; the base variant measured avg **564 ms**, p95 **2393 ms** (`Benchmarks/Cotyping/results/2026-07-06-cotypist-parity.md`; raw JSON siblings `2026-07-06-engine-bench.json`, `2026-07-06-engine-bench-base-model.json`). A later side-by-side run logged avg **471 ms** / p95 **1798 ms** (`Benchmarks/Cotyping/results/20260706-165057-cotypist-vs-lokalbot.md`; its GUI capture leg recorded no insertions and is not usable as data).
+- Earlier engine bench (2026-07-06): Gemma E4B instruct avg **459 ms**, p95 **1798 ms**, steady-state **~200 ms**; the base variant measured avg **564 ms**, p95 **2393 ms** (`Benchmarks/autocomplete/Cotyping/results/2026-07-06-cotypist-parity.md`; raw JSON siblings `2026-07-06-engine-bench.json`, `2026-07-06-engine-bench-base-model.json`). A later side-by-side run logged avg **471 ms** / p95 **1798 ms** (`Benchmarks/autocomplete/Cotyping/results/20260706-165057-cotypist-vs-lokalbot.md`; its GUI capture leg recorded no insertions and is not usable as data).
 
 ## Screenshot OCR — real stored screenshots
 
-Input: 15 real LokalBot screenshots exported from the encrypted local store; Apple Vision baseline min 140.8 ms / max 404.8 ms. Hardware: M4 Max. Source: `Benchmarks/OCR/RESULTS-2026-06-24.md`. "Overlap" = token overlap vs Apple Vision output.
+Input: 15 real LokalBot screenshots exported from the encrypted local store; Apple Vision baseline min 140.8 ms / max 404.8 ms. Hardware: M4 Max. Source: `Benchmarks/search/OCR/RESULTS-2026-06-24.md`. "Overlap" = token overlap vs Apple Vision output.
 
 | Engine | Images | Mean latency | Token overlap vs Vision | Verdict in source |
 | --- | ---: | ---: | ---: | --- |
@@ -186,7 +186,7 @@ Input: 15 real LokalBot screenshots exported from the encrypted local store; App
 
 ## Screenshot OCR — synthetic set with ground truth
 
-Input: 5 generated screenshots with ground-truth text (`Benchmarks/OCR/synthetic/manifest.tsv`). Metric: normalized multiset token scores; char similarity is reading-order sensitive. Hardware: M4 Max. Source: `Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md`.
+Input: 5 generated screenshots with ground-truth text (`Benchmarks/search/OCR/synthetic/manifest.tsv`). Metric: normalized multiset token scores; char similarity is reading-order sensitive. Hardware: M4 Max. Source: `Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md`.
 
 | Engine | Mean latency | Token precision | Token recall | Token F1 | Char similarity |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -202,7 +202,7 @@ Notes from the same file: PP-OCRv6 was the only open-source option slightly abov
 | Gap | One-line plan |
 | --- | --- |
 | Single-chip coverage: every number above is one M4 Max (48 GB); no 16 GB, M1, M2, or M3 results | Re-run the summary replay, `--cotyping-bench`, and the OCR harness on M1, M2, and M3 machines before claiming per-chip guidance. |
-| Qwen3-ASR 1.7B's English accuracy comes from 27 minutes of overlapped AMI audio and three owner meetings scored for agreement, not accuracy; no clean read speech | Run it through the 44-clip set from `Benchmarks/ModelAlternatives/2026-09-07/REPORT.md` alongside Parakeet and Whisper large-v3 turbo. |
+| Qwen3-ASR 1.7B's English accuracy comes from 27 minutes of overlapped AMI audio and three owner meetings scored for agreement, not accuracy; no clean read speech | Run it through the 44-clip set from `Benchmarks/think/ModelAlternatives/2026-09-07/REPORT.md` alongside Parakeet and Whisper large-v3 turbo. |
 | Qwen3-ASR 1.7B speeds (44× and 48× real time) are ASR only, from headless harnesses; the only end-to-end meeting timings, with diarization and alignment, came from a Debug build | Time `LokalBot --process` on a Release build over the same meetings, reporting transcription, diarization, and alignment separately. |
 | Diarization tested only on four-speaker English AMI meetings | Add five-to-eight-speaker and non-English recordings, plus LokalBot's own mic/system-track captures. |
 | Search pilot is 48 authored queries | Validate EmbeddingGemma 2 with human-annotated queries over a larger real library. |

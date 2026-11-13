@@ -237,7 +237,7 @@ they were not added as defaults at the time.
 Cotypist 2026.4 (Gemma 4 E4B base, default length, free tier) and LokalBot
 (Gemma 4 E2B base) were each driven with real keystrokes in the same TextEdit
 document, one app running at a time, on the prompts in
-`Benchmarks/Cotyping/prompts.tsv`. Cotypist's ghost is visible to screen
+`Benchmarks/autocomplete/Cotyping/prompts.tsv`. Cotypist's ghost is visible to screen
 capture; LokalBot's is not, so LokalBot was read through what the accept keys
 inserted.
 
@@ -305,7 +305,7 @@ Passing target:
 
 ## Manual Side-by-Side
 
-The shared prompt set lives in `Benchmarks/Cotyping/prompts.tsv` — 25 prompts
+The shared prompt set lives in `Benchmarks/autocomplete/Cotyping/prompts.tsv` — 25 prompts
 across next-word, word-completion, valid-fragment, and typo groups, mirroring
 the in-app benchmark scenarios. Both apps are driven by the same manifest, so
 differences are pipeline differences, not prompt differences. Word-completion
@@ -349,9 +349,9 @@ For the repeatable capture + merged report:
 COTYPING_COMPARE_ACCEPT=1 Scripts/cotyping/compare-cotyping.sh cotypist /tmp/cotyping-cotypist
 COTYPING_COMPARE_ACCEPT=1 Scripts/cotyping/compare-cotyping.sh lokalbot /tmp/cotyping-lokalbot
 "/Applications/LokalBot.app/Contents/MacOS/LokalBot" --cotyping-bench > /tmp/bench.json
-Benchmarks/Cotyping/side_by_side.py \
+Benchmarks/autocomplete/Cotyping/side_by_side.py \
   --cotypist-dir /tmp/cotyping-cotypist --lokalbot-dir /tmp/cotyping-lokalbot \
-  --engine-json /tmp/bench.json --output Benchmarks/Cotyping/results/<date>.md
+  --engine-json /tmp/bench.json --output Benchmarks/autocomplete/Cotyping/results/<date>.md
 ```
 
 The script opens TextEdit, clicks into the document, types each prompt as real
@@ -385,7 +385,7 @@ For repeatable backend latency/output checks against a temporary dedicated
 `llama-server`, pass the exact model file under test:
 
 ```bash
-Benchmarks/Cotyping/run_llama_server_benchmark.py \
+Benchmarks/autocomplete/Cotyping/run_llama_server_benchmark.py \
   --model LFM2.5-1.2B-Instruct-Q4_K_M.gguf \
   --surface-context --repetitions 3
 ```

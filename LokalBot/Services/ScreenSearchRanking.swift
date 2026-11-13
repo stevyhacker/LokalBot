@@ -9,7 +9,7 @@ import Foundation
 /// It replaces reciprocal-rank fusion. Fusion gave the long OR-fallback keyword
 /// list (any one word) the same weight as meaning, and on descriptive queries
 /// it pulled the right screen down: 44 of 138 found first against 52 for text
-/// meaning alone (Benchmarks/EmbeddingGemma2/2026-10-13-screen-images). Here a
+/// meaning alone (Benchmarks/search/EmbeddingGemma2/2026-10-13-screen-images). Here a
 /// capture qualifies by standing out in meaning or by holding at least half of
 /// the query's words, so one common word can't outrank a clear meaning match,
 /// while all the words of an exact lookup ("INV-2041") usually win.

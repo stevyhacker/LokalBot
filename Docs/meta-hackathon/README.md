@@ -35,8 +35,8 @@ git diff --stat v0.11.4...meta-hackathon
   - two headless flags.
 - **Tests:** [`MeetingRadarTests`](../../LokalBotTests/MeetingRadarTests.swift), [`MuseLiveTextTests`](../../LokalBotTests/MuseLiveTextTests.swift), [`RadarScreenAnswersTests`](../../LokalBotTests/RadarScreenAnswersTests.swift), [`LiveAnswersTests`](../../LokalBotTests/LiveAnswersTests.swift), and [`FollowThroughTests`](../../LokalBotTests/FollowThroughTests.swift), 53 tests, offline. The UI test [`HackathonFilmUITests`](../../LokalBotUITests/HackathonFilmUITests.swift) clicks through the whole flow and films it.
 - **Benchmarks.**
-  - [`Benchmarks/MuseVoiceTranscribe/`](../../Benchmarks/MuseVoiceTranscribe/README.md): Muse Voice Transcribe's live speaker labels measured on AMI.
-  - [`Benchmarks/MuseRadar/`](../../Benchmarks/MuseRadar/README.md): Live Radar and Follow-through replays.
+  - [`Benchmarks/transcribe/MuseVoiceTranscribe/`](../../Benchmarks/transcribe/MuseVoiceTranscribe/README.md): Muse Voice Transcribe's live speaker labels measured on AMI.
+  - [`Benchmarks/think/MuseRadar/`](../../Benchmarks/think/MuseRadar/README.md): Live Radar and Follow-through replays.
 - **Docs:** the Meta Muse sections of [PRIVACY.md](../../PRIVACY.md) and [DEVELOPMENT.md](../../DEVELOPMENT.md).
 
 Recording, transcription, speaker separation, search, meeting notes, actions, and People were already in LokalBot and are not part of the entry.
@@ -47,7 +47,7 @@ Recording, transcription, speaker separation, search, meeting notes, actions, an
 |---|---|---|
 | Muse Spark 1.3 | Live Radar, one structured-output request per turn or about every 20 s; screen answers, with crops of earlier screen captures as images | Fast enough to keep up with a meeting: median 1.05 s per request on AMI, $0.49 per meeting hour. Wonder is offered for more decisions at 2.5× the cost |
 | Muse Wonder 1.0 | Live answers, a short tool loop per question; Follow-through, tool calling with approval | Chooses where to look and checks before answering, in 7 to 13 s on the demo call; plans the work, reads meetings, and writes drafts you can send as they are |
-| Muse Voice Transcribe 1.0 | Fast live text (opt-in): the live transcript, streamed turn by turn | Each turn's text arrives within about a second, so radar items land about 3 s after the speaker finishes instead of about 20 s ([check](../../Benchmarks/MuseRadar/results/2026-10-28-live-text/REPORT.md)). Speakers come from the microphone and call tracks, because its own labels measured less accurate than local diarization ([report](../../Benchmarks/MuseVoiceTranscribe/results/2026-10-27/REPORT.md)) |
+| Muse Voice Transcribe 1.0 | Fast live text (opt-in): the live transcript, streamed turn by turn | Each turn's text arrives within about a second, so radar items land about 3 s after the speaker finishes instead of about 20 s ([check](../../Benchmarks/think/MuseRadar/results/2026-10-28-live-text/REPORT.md)). Speakers come from the microphone and call tracks, because its own labels measured less accurate than local diarization ([report](../../Benchmarks/transcribe/MuseVoiceTranscribe/results/2026-10-27/REPORT.md)) |
 
 ## Privacy design
 
@@ -62,15 +62,15 @@ LokalBot keeps meetings on the Mac by default, and the hackathon features keep t
 ## Results so far
 
 - **Synthetic meeting:** the radar caught all 6 planted items, including both contradictions with an earlier meeting, in 6 passes and $0.016 with Spark. Wonder caught the same 6 for $0.033.
-- **Screen answers on the voiced demo call:** "What was our trial-to-paid conversion last month?" was answered "4.1%" from a synthetic dashboard capture 2.6 s after the radar caught it, quoting "Trial to paid, September 4.1%". The film names September, because "last month" depends on the day: the same replay dated November 2 correctly found nothing, and "in September" still answered "4.1%". The launch-date question was answered "No, Monday November 3" from a synthetic launch plan ([check](../../Benchmarks/MuseRadar/results/2026-10-28-live-text/REPORT.md)).
-- **Live answers on the demo call:** with the demo's pricing sheet and a copy of this repository as folders, Muse Wonder answered the Team plan price from the sheet in 6.6 s and "Is the radar panel hidden when I share my screen?" in 8.0 s, citing `AppSettings.swift:176` at the checked-out commit. The seven answers across two replays took 2.5 to 18 s and $0.006 to $0.074 each. When two pull requests matched "the speaker-label fix", it gave no answer instead of picking one ([check](../../Benchmarks/MuseRadar/results/2026-10-29-live-answers/REPORT.md)).
-- **Voiced synthetic meeting, fast live text:** streamed in real time through Muse Voice Transcribe, the radar caught the same 6 items from audio and showed them a median 8.0 s after each sentence began, about 3 s after the speaker finished ([check](../../Benchmarks/MuseRadar/results/2026-10-28-live-text/REPORT.md)).
+- **Screen answers on the voiced demo call:** "What was our trial-to-paid conversion last month?" was answered "4.1%" from a synthetic dashboard capture 2.6 s after the radar caught it, quoting "Trial to paid, September 4.1%". The film names September, because "last month" depends on the day: the same replay dated November 2 correctly found nothing, and "in September" still answered "4.1%". The launch-date question was answered "No, Monday November 3" from a synthetic launch plan ([check](../../Benchmarks/think/MuseRadar/results/2026-10-28-live-text/REPORT.md)).
+- **Live answers on the demo call:** with the demo's pricing sheet and a copy of this repository as folders, Muse Wonder answered the Team plan price from the sheet in 6.6 s and "Is the radar panel hidden when I share my screen?" in 8.0 s, citing `AppSettings.swift:176` at the checked-out commit. The seven answers across two replays took 2.5 to 18 s and $0.006 to $0.074 each. When two pull requests matched "the speaker-label fix", it gave no answer instead of picking one ([check](../../Benchmarks/think/MuseRadar/results/2026-10-29-live-answers/REPORT.md)).
+- **Voiced synthetic meeting, fast live text:** streamed in real time through Muse Voice Transcribe, the radar caught the same 6 items from audio and showed them a median 8.0 s after each sentence began, about 3 s after the speaker finished ([check](../../Benchmarks/think/MuseRadar/results/2026-10-28-live-text/REPORT.md)).
 - **Follow-through:** a synthetic case took 4 model turns, 20 s and $0.06 with Wonder. The result was an email draft signed with the user's name and a meeting proposal to settle the two open conflicts.
 - **AMI meetings (6.4 hours, 12 meetings, manual transcripts):** run live on Muse Spark, Live Radar caught 22 of AMI's 62 human-annotated decisions and 8 of its 20 actions. LokalBot's post-meeting notes from the local Qwen3.5 4B, on the same text, caught 2 and 3.
   - **Timing and cost:** items appeared a median 23 s after they were said. Requests took a median 1.05 s, with 0 failures in 1,007, at $0.49 per meeting hour.
   - **Muse Wonder:** on six of the meetings it caught 23 of 42 decisions against Spark's 13, at $1.27 per hour.
   - **Contradictions:** all 10 that Spark flagged against an earlier meeting named a real change of plan, by our unblinded review.
-  - [Report](../../Benchmarks/MuseRadar/results/2026-10-27/REPORT.md).
+  - [Report](../../Benchmarks/think/MuseRadar/results/2026-10-27/REPORT.md).
 
 ## Try it
 

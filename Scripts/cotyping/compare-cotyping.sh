@@ -307,7 +307,7 @@ run_prompt() {
 # the exact same inputs the in-app benchmark mirrors. Tab-separated:
 # slug<TAB>kind<TAB>prompt. Override with COTYPING_COMPARE_PROMPTS.
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-manifest="${COTYPING_COMPARE_PROMPTS:-$script_dir/../../Benchmarks/Cotyping/prompts.tsv}"
+manifest="${COTYPING_COMPARE_PROMPTS:-$script_dir/../../Benchmarks/autocomplete/Cotyping/prompts.tsv}"
 if [[ ! -f "$manifest" ]]; then
   printf 'Prompt manifest not found: %s\n' "$manifest" >&2
   exit 66

@@ -78,7 +78,7 @@ enum FileSearchModels {
 /// text model plus the projector, started for an indexing pass and stopped two
 /// minutes after the last one. Searches never use it; they embed their words
 /// on the small text-only embedder, whose vectors are identical
-/// (Benchmarks/EmbeddingGemma2/2026-10-30-media-embedder).
+/// (Benchmarks/search/EmbeddingGemma2/2026-10-30-media-embedder).
 actor FileMediaEmbedderRuntime {
     static let shared = FileMediaEmbedderRuntime()
 

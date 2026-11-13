@@ -279,7 +279,7 @@ struct AskPhase: Equatable {
 /// Whether typed input reads as a full question rather than search keywords:
 /// two or more words ending in a question mark, or three or more words that
 /// start with a question or request word. Return asks either way; this
-/// decides what the answer reads (`AskAnswerScope`). `Benchmarks/Laya/run.py`
+/// decides what the answer reads (`AskAnswerScope`). `Benchmarks/search/Laya/run.py`
 /// extracts this enum from the file and measures it.
 enum AskIntent {
     private static let questionStarts: Set<String> = [

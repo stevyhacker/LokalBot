@@ -17,7 +17,7 @@ import XCTest
 /// A recording is `label=mixed[|track|track]`: the mixed file alone stands for
 /// one track that carries several voices, and the optional files are the same
 /// call with one voice per track, as the microphone and call audio are
-/// recorded. Benchmarks/LiveTurns has the scripts and the last results.
+/// recorded. Benchmarks/transcribe/LiveTurns has the scripts and the last results.
 ///
 ///     TEST_RUNNER_LOKALBOT_LIVE_TURN_BENCH=/folder/for/results \
 ///     TEST_RUNNER_LOKALBOT_LIVE_TURN_AUDIO='en=/p/mixed.m4a|/p/a.wav|/p/b.wav' \
@@ -261,7 +261,7 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
     /// as it arrives and puts words out while the speaker is still talking.
     /// The speech library the app links has one (Nemotron 3.5 streaming); the
     /// app does not use or download it, so point this at a folder that holds
-    /// one variant's compiled models (Benchmarks/LiveTurns/fetch_stream_model.py):
+    /// one variant's compiled models (Benchmarks/transcribe/LiveTurns/fetch_stream_model.py):
     ///
     ///     TEST_RUNNER_LOKALBOT_LIVE_STREAM_MODEL=/folder/multilingual-560ms \
     ///     TEST_RUNNER_LOKALBOT_LIVE_TURN_LANGUAGES=en=en-US,sr=hr-HR

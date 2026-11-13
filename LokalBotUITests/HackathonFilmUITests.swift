@@ -331,7 +331,7 @@ private enum FilmFixture {
     /// launch plan, read from the checkout the tests were built from.
     static func screens(file: StaticString = #filePath) throws -> URL {
         let folder = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Benchmarks/MuseRadar/fixtures/screens", isDirectory: true)
+            .appendingPathComponent("Benchmarks/think/MuseRadar/fixtures/screens", isDirectory: true)
         guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("screens.json").path) else {
             throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: folder.path])
         }

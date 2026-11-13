@@ -4,7 +4,7 @@ import NaturalLanguage
 /// The dominant language of a transcript, voted over its segments by text
 /// length. Apple's recognizer judges a long string mostly by its opening, so
 /// classifying the joined transcript let one misdetected first window decide
-/// a whole track (Benchmarks/QwenSpanLength, language section).
+/// a whole track (Benchmarks/transcribe/QwenSpanLength, language section).
 enum TranscriptLanguageVote {
     struct Result: Equatable {
         /// Base ISO code, e.g. "zh" for "zh-Hans".
@@ -42,7 +42,7 @@ enum TranscriptLanguageVote {
 
     /// Serbian, Croatian, Bosnian and Montenegrin are one language to a
     /// speech model. Apple's recognizer reads all of them in Latin script as
-    /// Croatian (Benchmarks/DualASR) and Serbian Cyrillic as Kazakh, so
+    /// Croatian (Benchmarks/transcribe/DualASR) and Serbian Cyrillic as Kazakh, so
     /// Cyrillic with Serbian's own letters votes Serbian instead. They vote
     /// together, as Croatian.
     static let serbianCroatianAliases: [String: String] = Dictionary(

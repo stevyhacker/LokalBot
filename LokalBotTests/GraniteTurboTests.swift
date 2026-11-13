@@ -57,7 +57,7 @@ final class GraniteTurboTests: XCTestCase {
     }
 
     /// Optional non-UI integration gate. The fixture is generated from public
-    /// audio by Benchmarks/ModelAlternatives/2026-09-08/prepare-native-parity.py;
+    /// audio by Benchmarks/think/ModelAlternatives/2026-09-08/prepare-native-parity.py;
     /// regular unit runs never fetch weights or read a user's meeting library.
     func testNativeInferenceMatchesReferenceWhenFixtureProvided() throws {
         let environment = ProcessInfo.processInfo.environment

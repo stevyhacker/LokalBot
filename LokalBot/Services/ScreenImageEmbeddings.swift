@@ -13,7 +13,7 @@ import SQLite3
 ///
 /// On the 13 October run over a real library, picture vectors found the right
 /// screen first for 71 of 138 queries, against 52 for screen-text vectors and
-/// 44 for the shipped search (Benchmarks/EmbeddingGemma2/2026-10-13-screen-images).
+/// 44 for the shipped search (Benchmarks/search/EmbeddingGemma2/2026-10-13-screen-images).
 ///
 /// It runs only while search by meaning is on and pictures are captured (Text
 /// + visual context), and only once screens have been searched by meaning, so

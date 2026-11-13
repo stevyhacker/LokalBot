@@ -450,7 +450,7 @@ struct CotypingBenchmarkSummary: Equatable, Sendable {
 }
 
 /// Machine-readable rendering for `LokalBot --cotyping-bench` — the scriptable
-/// evaluation model consumed by `Benchmarks/Cotyping/side_by_side.py`.
+/// evaluation model consumed by `Benchmarks/autocomplete/Cotyping/side_by_side.py`.
 extension CotypingBenchmarkSummary {
     fileprivate struct CaseJSON: Codable {
         let id: String

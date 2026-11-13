@@ -162,7 +162,7 @@ final class CotypingMemoryRelevanceTests: XCTestCase {
     }
 
     private func fixture<Value: Decodable>(_ name: String, as type: Value.Type) throws -> Value {
-        // Copies of Benchmarks/Cotyping fixtures; see project.yml.
+        // Copies of Benchmarks/autocomplete/Cotyping fixtures; see project.yml.
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: name, withExtension: nil))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

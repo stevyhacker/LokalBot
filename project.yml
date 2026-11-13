@@ -354,13 +354,13 @@ targets:
         buildPhase: resources
       - path: Scripts/test/seed_demo_library.py
         buildPhase: resources
-      - path: Benchmarks/Cotyping/memory-cases.json
+      - path: Benchmarks/autocomplete/Cotyping/memory-cases.json
         buildPhase: resources
-      - path: Benchmarks/Cotyping/memory-relevance-cases.json
+      - path: Benchmarks/autocomplete/Cotyping/memory-relevance-cases.json
         buildPhase: resources
-      - path: Benchmarks/Cotyping/visible-context-cases.json
+      - path: Benchmarks/autocomplete/Cotyping/visible-context-cases.json
         buildPhase: resources
-      - path: Benchmarks/Cotyping/visible-memory-link-cases.json
+      - path: Benchmarks/autocomplete/Cotyping/visible-memory-link-cases.json
         buildPhase: resources
       - path: "LokalBotTests/Fixtures/meta-hackathon/demo-files/Northwind pricing v2.xlsx"
         buildPhase: resources

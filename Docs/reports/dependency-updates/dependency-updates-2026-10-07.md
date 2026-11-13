@@ -31,7 +31,7 @@ temperature-zero sampler chains (autocomplete samples at 0.1) and cpp-httplib
 - **Vendor build.** A cold source build produced all required files. All 26 Mach-O files declare minimum macOS 15.0 and `@loader_path` rpaths. The receipt and manifest validate, a second run is a cache hit, and a relocated copy still loads.
 - **Build and tests.** XcodeGen, `build-for-testing` for the app and unit tests, and the 105 script tests passed. The focused llama suites passed: 125 tests, 1 opt-in skip (the Granite replay). They cover `LlamaCoreSmokeTests`, `LlamaSamplerSpecTests`, `LlamaServerTests`, `RuntimeAssetSafetyTests`, `InferenceBrokerTests`, `TextEngineTests` and `ChatAgentTests`. They also cover the real-model autocomplete classes, `LocalLlamaCotypingEngineTests` and `LlamaCotypingRuntimeTests`.
 - **Embeddings.** The vendored source build reproduces the vectors of the b11469 upstream release exactly (cosine 1.000000) for Harrier, EmbeddingGemma 2 text and EmbeddingGemma 2 image inputs. Retrieval scores on the synthetic fixtures are unchanged.
-- **Summaries.** `Benchmarks/SummaryEfficiency` replayed one private 26-minute meeting with Qwen3.5-4B, three alternating runs per runtime. All 12 cold and warm runs completed with complete envelopes. Model sampling varies the number of requests from run to run, so decode speed is the comparable figure:
+- **Summaries.** `Benchmarks/think/SummaryEfficiency` replayed one private 26-minute meeting with Qwen3.5-4B, three alternating runs per runtime. All 12 cold and warm runs completed with complete envelopes. Model sampling varies the number of requests from run to run, so decode speed is the comparable figure:
 
   | Run | v0.6.0 median decode | b11474 median decode |
   | --- | ---: | ---: |

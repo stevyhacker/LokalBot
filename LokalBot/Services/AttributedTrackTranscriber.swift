@@ -208,7 +208,7 @@ enum AttributedTrackTranscriber {
     /// Words this close to a speaker turn take that speaker. Diarizer turn
     /// edges and aligner word edges disagree by a few hundred milliseconds;
     /// on AMI a 1 s tolerance gave 34.5% cpWER against 51.1% for a strict
-    /// midpoint rule (Benchmarks/QwenSpanLength).
+    /// midpoint rule (Benchmarks/transcribe/QwenSpanLength).
     static let wordGapTolerance: TimeInterval = 1.0
 
     /// A pause this long between aligned words starts a new segment (FluidAudio

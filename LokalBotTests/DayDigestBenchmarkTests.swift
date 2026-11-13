@@ -1,10 +1,10 @@
 import XCTest
 @testable import LokalBot
 
-/// Runs the day digest over `Benchmarks/DayDigest/cases.json` against a live
+/// Runs the day digest over `Benchmarks/think/DayDigest/cases.json` against a live
 /// OpenAI-compatible server and writes every digest and model call for
-/// `Benchmarks/DayDigest/score.py`. Skipped unless `LOKALBOT_DIGEST_BENCH=1`;
-/// `Benchmarks/DayDigest/run.sh` starts the server and sets the variables.
+/// `Benchmarks/think/DayDigest/score.py`. Skipped unless `LOKALBOT_DIGEST_BENCH=1`;
+/// `Benchmarks/think/DayDigest/run.sh` starts the server and sets the variables.
 final class DayDigestBenchmarkTests: XCTestCase {
     private struct Cases: Decodable { var days: [Day] }
 

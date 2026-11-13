@@ -2,7 +2,7 @@ import Foundation
 
 /// Which spoken openings count as a writing request that may use context.
 /// Production uses `.production`; the replay benchmark compares the others
-/// (Benchmarks/Dictation/results/2026-10-08-routing-window). `relays`
+/// (Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window). `relays`
 /// answered more requests but routed "Tell him I am running 10 minutes late"
 /// as one and copied a screen fact into it; `referencedRelays` never did.
 enum DictationRequestRouting: String, Codable, Sendable, CaseIterable {

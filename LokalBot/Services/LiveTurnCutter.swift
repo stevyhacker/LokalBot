@@ -9,7 +9,7 @@ import Foundation
 /// The rules are FluidAudio's streaming ones (`VadManager.processStreamingChunk`)
 /// with two additions: a long turn closes at its first quiet chunk, and a
 /// turn with no pause at all is handed over at a maximum length.
-/// Benchmarks/LiveTurns measured the settings.
+/// Benchmarks/transcribe/LiveTurns measured the settings.
 struct LiveTurnCutter: Equatable, Sendable {
     struct Settings: Equatable, Sendable {
         /// Frames the voice-activity model judges at a time.

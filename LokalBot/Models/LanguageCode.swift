@@ -32,7 +32,7 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
 
     /// Serbian is not on Qwen3-ASR's list, but naming it explicitly measured
     /// 14.1% against 17.1% WER on 1.7B and 44.3% against 54.2% on 0.6B, where
-    /// auto detection reads it as Croatian (Benchmarks/QwenSpanLength).
+    /// auto detection reads it as Croatian (Benchmarks/transcribe/QwenSpanLength).
     static let transcriptionSupported: [LanguageCode] = [
         .en, .de, .es, .fr, .it, .nl, .pt, .pl, .sv, .da, .no, .tr,
         .ru, .uk, .sr, .zh, .yue, .ja, .ko, .ar, .hi, .th, .vi,

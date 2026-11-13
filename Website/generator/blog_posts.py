@@ -86,7 +86,7 @@ POSTS = [
         <p>These results don't change LokalBot's defaults. What they confirm is that a memory writer has to be judged on what it leaves out as much as on what it finds. The suggestions Personal Context learns appear under <strong>To review</strong> in Settings → Personal Context, where you keep or dismiss them.</p>
 
         <h2>Data</h2>
-        <p>Everything needed to check or rerun the comparison is in the repository: the <a href="https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks/MemoryRetention/2026-10-23" target="_blank" rel="noopener">benchmark folder</a> with the cases, prompts, and scorer, the <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/MemoryRetention/2026-10-23/memt-nano/REPORT.md" target="_blank" rel="noopener">MemT report</a> with every failed case, and the raw responses. Other model results are on the <a href="/benchmarks">benchmarks page</a>.</p>
+        <p>Everything needed to check or rerun the comparison is in the repository: the <a href="https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks/think/MemoryRetention/2026-10-23" target="_blank" rel="noopener">benchmark folder</a> with the cases, prompts, and scorer, the <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/think/MemoryRetention/2026-10-23/memt-nano/REPORT.md" target="_blank" rel="noopener">MemT report</a> with every failed case, and the raw responses. Other model results are on the <a href="/benchmarks">benchmarks page</a>.</p>
         """,
     },
     {

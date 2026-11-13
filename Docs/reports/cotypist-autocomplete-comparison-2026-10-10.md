@@ -2,7 +2,7 @@
 
 Research date: 2026-10-10. This is an analysis report, not an implementation change.
 
-The LokalBot source snapshot below predates PRs #228 and #229. The subsequent [candidate decoder experiment on updated master](../../Benchmarks/Cotyping/results/2026-10-10-candidates-master/REPORT.md) includes both merges and fresh fixed-model measurements.
+The LokalBot source snapshot below predates PRs #228 and #229. The subsequent [candidate decoder experiment on updated master](../../Benchmarks/autocomplete/Cotyping/results/2026-10-10-candidates-master/REPORT.md) includes both merges and fresh fixed-model measurements.
 
 ## Main result
 

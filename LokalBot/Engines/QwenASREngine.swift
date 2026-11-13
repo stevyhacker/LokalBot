@@ -43,7 +43,7 @@ actor QwenASREngine: TranscriptionEngine {
     /// short pauses. 1.7B gains from 60 s windows without speech-swift's
     /// repetition blocking. 0.6B decoded long windows 5–10× slower for a small
     /// gain, and worse with blocking on, so it stays at 15 s, where blocking
-    /// never engages (Benchmarks/QwenSpanLength).
+    /// never engages (Benchmarks/transcribe/QwenSpanLength).
     struct WordAttributionWindows: Equatable, Sendable {
         var maxSeconds: TimeInterval
         var maxGapSeconds: TimeInterval
@@ -298,7 +298,7 @@ actor QwenASREngine: TranscriptionEngine {
     /// With the language on auto, the track's language when one supported
     /// language holds at least 80% of its text. Mixed-language tracks stay on
     /// per-window detection: a 50/50 English–German track votes up to 66%
-    /// German by text length (Benchmarks/QwenSpanLength).
+    /// German by text length (Benchmarks/transcribe/QwenSpanLength).
     ///
     /// A single window is never pinned: its only vote is its own decode, so
     /// decoding it again in that language cannot correct anything. Short
@@ -308,7 +308,7 @@ actor QwenASREngine: TranscriptionEngine {
     /// Croatian, which is not on the model card. Left on auto, these tracks
     /// slip window by window into Macedonian, Russian or Chinese, and lines
     /// come out in Chinese, Japanese or Hindi script. Pinned to `hr`,
-    /// Benchmarks/DualASR measured 0.1% non-Latin
+    /// Benchmarks/transcribe/DualASR measured 0.1% non-Latin
     /// letters, Croatian 24.8% WER against 26.8% on auto, and the Montenegrin
     /// meeting 38.5% against 38.3%. `sr` read Serbian better (14.5% against
     /// 17.3%) but wrote half of everything in Cyrillic.
