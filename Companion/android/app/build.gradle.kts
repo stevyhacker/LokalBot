@@ -41,8 +41,8 @@ android {
         targetSdk = 36
         // One tag ships every platform; Scripts/release/bump-version.py sets these.
         // versionCode is the Mac build number, which only ever goes up.
-        versionCode = 65
-        versionName = "0.12.3"
+        versionCode = 66
+        versionName = "0.13.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // The Rust sync core is built for these two ABIs only.
         ndk { abiFilters += setOf("arm64-v8a", "x86_64") }

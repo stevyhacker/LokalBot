@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: The redesigned Mac app</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Website/generator/render_explainer.py Docs/explainers/mac-app-tour.html Website/public/explainers/mac-app-tour.pdf
+  One A4 sheet, pictures first. The stills in mac-app-tour/ are crops of hosted UI-test captures
+  (1440x900, light, the synthetic UI-test library), taken before the Timeline rail became a draggable split.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24; --no: #f0857a;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12px; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 10mm 14mm 8mm; display: flex; flex-direction: column; gap: 10px; background: radial-gradient(120% 60% at 80% 0%, #0d1c26 0%, var(--bg) 60%); }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 30px; line-height: 1.05; letter-spacing: -0.025em; font-weight: 760; }
+.lede { font-size: 14px; color: var(--text-dim); max-width: 60ch; }
+.eyebrow, .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent-text); }
+.label { display: flex; align-items: center; gap: 8px; }
+.label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.stack { display: grid; gap: 8px; align-content: start; }
+.shot { border-radius: 8px; border: 1px solid var(--line-strong); overflow: hidden; background: #f6f6f6; position: relative; }
+.shot img { display: block; width: 100%; }
+.cap { font-size: 10.5px; color: var(--text-dim); margin-top: 4px; line-height: 1.35; }
+.cap b { color: var(--text); font-weight: 650; }
+.pin { position: absolute; transform: translate(-50%, -50%); width: 19px; height: 19px; border-radius: 50%; background: var(--accent); color: #04211d; border: 2px solid #fff; display: grid; place-items: center; font-weight: 800; font-size: 10.5px; line-height: 1; }
+.steps { display: grid; gap: 7px; }
+.step { display: grid; grid-template-columns: 19px 1fr; gap: 8px; align-items: start; font-size: 11px; color: var(--text-dim); line-height: 1.35; }
+.step b { color: var(--text); font-weight: 650; }
+.num { width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #04211d; font-weight: 800; font-size: 10.5px; }
+.key { display: inline-grid; place-items: center; min-width: 22px; height: 21px; padding: 0 6px; border-radius: 5px; background: linear-gradient(#263444, #18222e); border: 1px solid var(--line-strong); border-bottom-width: 2px; font-size: 11px; font-weight: 600; color: var(--text); }
+.cap .key { display: inline-grid; height: 16px; min-width: 18px; padding: 0 4px; font-size: 9.5px; border-bottom-width: 1.5px; vertical-align: 0; }
+.warn { color: var(--warn-text); font-size: 10.5px; }
+.note { color: var(--text-faint); font-size: 9.5px; }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 6px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Mac · New in 0.13.0</div>
+  <h1>The Mac app, redrawn</h1>
+  <p class="lede">Each screen shows a thing once and leads with what you came for.</p>
+
+  <div class="label">The window</div>
+  <div style="display:grid;grid-template-columns:104px 1fr;gap:12px;align-items:start">
+    <div class="shot"><img src="mac-app-tour/sidebar.png" alt="The sidebar: Today, Actions with a count of 2, the Remember group (Meetings, Timeline, People, Projects), the Assistant group (Ask, Agent), and Settings with 'On this Mac' at the foot">
+      <span class="pin" style="left:86%;top:12.4%">1</span>
+      <span class="pin" style="left:62%;top:20%">2</span>
+      <span class="pin" style="left:62%;top:88%">3</span>
+    </div>
+    <div class="stack">
+      <div class="shot"><img src="mac-app-tour/today-panels.png" alt="Today as panels: Needs attention with two actions, Meetings today with two meetings, and So far today with 2h 25m tracked by app and the day's highlights">
+        <span class="pin" style="left:20.5%;top:7%">4</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div class="step"><span class="num">1</span><span><b>Actions has its own page.</b> The number is what's still open.</span></div>
+        <div class="step"><span class="num">2</span><span><b>Two groups:</b> Remember and Assistant.</span></div>
+        <div class="step"><span class="num">3</span><span><b>Settings</b> sits at the foot and opens in its own window.</span></div>
+        <div class="step"><span class="num">4</span><span><b>Today is panels,</b> with what needs you first.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">A meeting</div>
+  <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:12px;align-items:start">
+    <div class="shot"><img src="mac-app-tour/meeting.png" alt="A meeting's Summary: title, speakers with a Name speaker button, the player with waveform, the recap, Decisions, and Actions split into For you and For others">
+      <span class="pin" style="left:50%;top:31.6%">5</span>
+      <span class="pin" style="left:13%;top:72%">6</span>
+      <span class="pin" style="left:32.5%;top:20.1%">7</span>
+      <span class="pin" style="left:90.6%;top:10%">8</span>
+    </div>
+    <div class="stack" style="gap:10px">
+      <div><div class="shot"><img src="mac-app-tour/naming-sheet.png" alt="The Name speakers sheet: play a voice, then pick who it is from the invited people"></div><p class="cap"><b>One sheet names every voice</b> you haven't named yet.</p></div>
+      <div class="steps">
+        <div class="step"><span class="num">5</span><span><b>The player</b> stays under the title on every tab.</span></div>
+        <div class="step"><span class="num">6</span><span><b>Actions split</b> into For you and For others. Each owner is a menu on its row.</span></div>
+        <div class="step"><span class="num">7</span><span><b>No Review tab.</b> Name speaker… opens the sheet above.</span></div>
+        <div class="step"><span class="num">8</span><span><b>Share</b> holds copy and export.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">Elsewhere</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;align-items:start">
+    <div><div class="shot"><img src="mac-app-tour/actions.png" alt="The Actions page: Open, Deferred and Done, a Filter menu, actions grouped by Next 7 days and Later, and the selected action's details with what was said"></div><p class="cap"><b>Actions:</b> Open, Deferred, Done and one Filter menu, overdue first, details beside the list. ⌘-click picks several.</p></div>
+    <div><div class="shot"><img src="mac-app-tour/ask.png" alt="Ask's single field with the All sources and Any time menus"></div><p class="cap"><b>Ask:</b> one field. Return asks; ↓ then Return opens a match. <span class="key">⌘K</span> opens Quick Recall: search, commands and Ask in one window.</p></div>
+    <div><div class="shot"><img src="mac-app-tour/settings.png" alt="The Settings window: categories with Off or Paused beside each feature, Privacy & permissions with a count, and an Overview that lists the three things that need you"></div><p class="cap"><b>Settings</b> (<span class="key">⌘,</span>): Overview lists what needs you; <b>Privacy &amp; permissions</b> is the one home for permissions.</p></div>
+    <div><div class="shot"><img src="mac-app-tour/timeline.png" alt="Timeline: the day's highlights and actions on the left, the Sessions rail on the right with tracked time by app and the day's sessions"></div><p class="cap"><b>Timeline:</b> the day page and the Sessions rail. New since this capture: drag the rail's edge to widen it.</p></div>
+  </div>
+
+  <p class="warn">Mac only; the Windows and Linux app keeps its own layout. The menu bar panel and People were checked only as renders, and the new wording in 24 languages is machine-translated, not yet reviewed by native speakers.</p>
+
+  <div class="foot"><span>LokalBot · The redesigned Mac app · Pictures: CI captures of a sample library</span><span>Full details: README · PRIVACY.md</span></div>
+</section>
+</body>
+</html>
