@@ -284,10 +284,11 @@ struct TimelineContentView: View {
         let tracked = TimelineTrackedSummary(
             perApp: DayActivityOverview.perApp(model.blocks), split: model.projectSplit, list: list,
             meetingCount: meetings.count, outcomes: model.dayOutcomes, day: model.day, localize: localize)
-        // One row, not a split: the rail's width follows the window and the
-        // text size, and the row mirrors for a right-to-left language.
+        // A native split, like Meetings and Actions: drag the divider to give
+        // the rail more or less room. Its first width follows the window and
+        // the text size; after a drag the split remembers the width.
         return GeometryReader { proxy in
-            HStack(spacing: 0) {
+            HSplitView {
                 Group {
                     if selection == .digest {
                         if hasDay {
@@ -302,13 +303,13 @@ struct TimelineContentView: View {
                         TimelineContextPanel(model: model, list: list) { select(.digest) }
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: TimelineRailMetric.pageMinimumWidth, maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .topTrailing) {
                     if model.overviewLoading { ProgressView().controlSize(.small).padding(12) }
                 }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("timeline.evidencePane")
-                Divider()
+                .splitPaneAccessibilityLabel("Day page")
                 TimelineRail(
                     tracked: hasDay ? tracked : nil, list: list, hasDay: hasDay,
                     captureCounts: TimelineCaptureCounts.text(
@@ -319,9 +320,14 @@ struct TimelineContentView: View {
                 ) {
                     TimelinePausedLine(sampler: app.sampler)
                 }
-                .frame(width: TimelineRailMetric.width(available: proxy.size.width, textScale: textScale))
-                .frame(maxHeight: .infinity)
+                .frame(minWidth: TimelineRailMetric.floorWidth,
+                       idealWidth: TimelineRailMetric.width(available: proxy.size.width, textScale: textScale),
+                       maxWidth: TimelineRailMetric.maximumWidth, maxHeight: .infinity)
+                .splitPaneAccessibilityLabel(
+                    "Sessions", autosaveName: "LokalBot.timeline.rail",
+                    initialWidth: TimelineRailMetric.width(available: proxy.size.width, textScale: textScale))
             }
+            .detailSplitMinimumWidth([TimelineRailMetric.pageMinimumWidth, TimelineRailMetric.floorWidth])
         }
         .frame(minWidth: TimelineRailMetric.bodyMinimumWidth)
         .id("workspace.timeline")

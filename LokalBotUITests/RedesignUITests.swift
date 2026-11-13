@@ -602,7 +602,7 @@ final class RedesignUITests: XCTestCase {
 
     /// The rail is not a split pane: its width follows the window. In a
     /// roomy window it is its ideal width, on the trailing side of the page.
-    func testTimelineRailKeepsItsWidthBesideThePage() throws {
+    func testTimelineRailResizesBesideThePage() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
         let rail = element("timeline.list")
         let page = element("timeline.evidencePane")
@@ -610,12 +610,9 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(page.waitForExistence(timeout: 5))
         XCTAssertLessThanOrEqual(page.frame.maxX, rail.frame.minX + 1, "The rail is on the trailing side of the page")
         // 352 points at the smallest text size; the default is a step larger.
-        XCTAssertGreaterThanOrEqual(rail.frame.width, 320, "The rail is narrower than its ideal width (\(rail.frame.width))")
-        XCTAssertLessThanOrEqual(rail.frame.width, 400, "The rail is wider than its ideal width (\(rail.frame.width))")
+        XCTAssertGreaterThanOrEqual(rail.frame.width, 320, "The rail opens narrower than its ideal width (\(rail.frame.width))")
+        XCTAssertLessThanOrEqual(rail.frame.width, 400, "The rail opens wider than its ideal width (\(rail.frame.width))")
         XCTAssertGreaterThan(page.frame.width, rail.frame.width, "The page has the larger share of the window")
-        XCTAssertFalse(app.splitters.allElementsBoundByIndex.contains {
-            abs($0.frame.midX - rail.frame.minX) < 6
-        }, "The rail has a hairline, not a divider to drag")
         // Choosing a session keeps the rail where it is.
         let opening = rail.frame
         openFirstTimelineSession()
@@ -623,6 +620,26 @@ final class RedesignUITests: XCTestCase {
         XCTAssertEqual(rail.frame.minX, opening.minX, accuracy: 1, "The rail moved when a session was chosen")
         XCTAssertEqual(rail.frame.width, opening.width, accuracy: 1, "The rail resized when a session was chosen")
         snapshot("timeline-session-beside-rail")
+
+        // The divider between them widens the rail toward the page.
+        let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
+            abs($0.frame.midX - rail.frame.minX) < abs($1.frame.midX - rail.frame.minX)
+        }, "Timeline divider missing")
+        XCTAssertLessThan(abs(divider.frame.midX - rail.frame.minX), 6, "The divider sits at the rail's edge")
+        app.activate()
+        let grip = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: -100, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { rail.frame.width >= opening.width + 80 },
+                      "The rail should widen past its opening width (\(rail.frame.width) from \(opening.width))")
+        XCTAssertGreaterThanOrEqual(page.frame.width, 420, "The page keeps its readable minimum")
+        XCTAssertLessThanOrEqual(page.frame.maxX, rail.frame.minX + 1, "The rail stays on the trailing side")
+        snapshot("timeline-wide-rail")
+
+        // Divider positions persist in the host's defaults; leave the next
+        // launch at the opening width.
+        let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: rail.frame.width - opening.width, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { abs(rail.frame.width - opening.width) < 8 })
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {

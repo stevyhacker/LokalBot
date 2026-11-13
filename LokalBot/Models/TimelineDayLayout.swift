@@ -16,6 +16,9 @@ enum TimelineRailMetric {
     /// The rail in the narrowest window: a time, a short title and a
     /// duration still fit a row.
     static let floorWidth: CGFloat = 260
+    /// The widest the rail can be dragged: room for long session titles
+    /// while the page keeps most of a normal window.
+    static let maximumWidth: CGFloat = 540
     /// The page keeps the minimum every detail pane has.
     static let pageMinimumWidth: CGFloat = 420
     static let dividerWidth: CGFloat = 1
@@ -23,7 +26,9 @@ enum TimelineRailMetric {
     /// The narrowest body: the page at its minimum beside the rail at its floor.
     static var bodyMinimumWidth: CGFloat { pageMinimumWidth + dividerWidth + floorWidth }
 
-    /// The rail's width in a body `available` points wide.
+    /// The rail's opening width in a body `available` points wide. Dragging
+    /// the divider changes it between `floorWidth` and `maximumWidth`, and
+    /// the split remembers the dragged width.
     static func width(available: CGFloat, textScale: CGFloat) -> CGFloat {
         let factor = TodayColumns.factor(textScale: textScale)
         let ideal = (idealWidth * factor).rounded()
