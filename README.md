@@ -180,7 +180,7 @@ Screen-memory MCP tools require separate permission scoped to today, the last se
 
 The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
 
-[CLI examples](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code plugin](Distribution/claude-plugin/README.md) · [MCP architecture](DEVELOPMENT.md#agent-cli--mcp)
+[CLI examples](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code plugin](Distribution/claude-plugin/README.md) · [MCP architecture](Docs/development/agent-cli.md)
 
 ## How it compares
 
@@ -312,7 +312,7 @@ Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include P
 
 On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses Gemma 4 E2B by default, as on Mac. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
 
-[Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/EmbeddingIndex.swift) · [Model and runtime details](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
+[Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
 
 ## Build from source
 
@@ -339,7 +339,7 @@ Select **LokalBot Dev**, set your signing team, and run. The Dev app has its own
 
 For the Windows and Linux app, see [Build from source](LinuxWindows/README.md#build-from-source) in its README (Rust).
 
-[Build and test commands](DEVELOPMENT.md#build-workflows) · [Testing guide](DEVELOPMENT.md#testing) · [Screenshot guide](Docs/screenshot-kit.md)
+[Build and test commands](Docs/development/build-workflows.md) · [Testing guide](Docs/development/testing.md) · [Screenshot guide](Docs/guides/screenshot-kit.md)
 
 <details>
 <summary><strong>Find your way around the code</strong></summary>

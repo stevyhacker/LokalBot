@@ -3,7 +3,7 @@ import Foundation
 
 /// One thing LokalBot knows about the person: a fact about them, how they want
 /// help, a goal, or a principle they decide by
-/// (Docs/personal-world-model-rfc-2026-10-14.md). Stated claims are the
+/// (Docs/designs/personal-world-model-rfc-2026-10-14.md). Stated claims are the
 /// person's own words. Learned claims come from what the person said in a
 /// meeting; they carry that meeting as evidence and retract with it.
 /// Principles are never learned.

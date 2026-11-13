@@ -168,5 +168,5 @@ python3 Scripts/media/assemble_gif.py "$OUT/search.gif" 1720 \
   "$OUT/search.png" "$FRAMES/search-airdrop.png" "$FRAMES/search-northwind.png"
 
 echo "==> Video rendering remains a separate reviewed workflow"
-echo "    See Docs/demo-film-kit.md before running a HyperFrames render script."
+echo "    See Docs/guides/demo-film-kit.md before running a HyperFrames render script."
 echo "==> Done: $OUT/{*.png, hero.gif, recap.gif, search.gif}"

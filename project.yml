@@ -362,9 +362,9 @@ targets:
         buildPhase: resources
       - path: Benchmarks/Cotyping/visible-memory-link-cases.json
         buildPhase: resources
-      - path: "Docs/meta-hackathon/demo-files/Northwind pricing v2.xlsx"
+      - path: "LokalBotTests/Fixtures/meta-hackathon/demo-files/Northwind pricing v2.xlsx"
         buildPhase: resources
-      - path: "Docs/meta-hackathon/demo-files/Northwind launch brief.pdf"
+      - path: "LokalBotTests/Fixtures/meta-hackathon/demo-files/Northwind launch brief.pdf"
         buildPhase: resources
     dependencies:
       - target: LokalBot

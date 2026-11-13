@@ -20,7 +20,7 @@ Usage:
 
 ``--profile studio`` seeds a small video studio's library instead: Apple-app,
 non-coding examples for the website and README hero images, with a different
-topic for each surface (see Docs/screenshot-kit.md).
+topic for each surface (see Docs/guides/screenshot-kit.md).
 
 By default the destination must be new or empty. ``--reset`` is accepted only
 for a directory previously marked as a LokalBot demo library.

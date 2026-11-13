@@ -27,7 +27,7 @@ enum GmailOAuth {
 
     /// LokalBot's own client: Google Cloud project `lokalbot-512410`, type iOS,
     /// bundle `me.dotenv.LokalBot`. A client id is public and this type has no
-    /// secret, so it belongs in the source. See Docs/google-oauth-verification.md.
+    /// secret, so it belongs in the source. See Docs/guides/google-oauth-verification.md.
     static let builtInClientID: String? =
         "158325362655-2mgcaii20niarfkaj9kl8966m4h58k3s.apps.googleusercontent.com"
 

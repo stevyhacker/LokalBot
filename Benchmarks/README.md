@@ -13,7 +13,7 @@ These are the measurements behind LokalBot's default models. Each report records
 
 ## Meta hackathon features
 
-Opt-in features built for the Meta hackathon (branch `meta-hackathon`, merged in #427). The numbers below were measured on Meta's models; [HACKATHON.md](../HACKATHON.md) says which of these features have since moved to the Think model.
+Opt-in features built for the Meta hackathon (branch `meta-hackathon`, merged in #427). The numbers below were measured on Meta's models; [the hackathon write-up](../Docs/meta-hackathon/README.md) says which of these features have since moved to the Think model.
 
 | Role | Model | Compared with | Result | Report |
 | --- | --- | --- | --- | --- |

@@ -4,7 +4,7 @@ The companion app reads the library the Mac shares (meetings, actions, the
 Timeline and Day Digests, people and projects), asks the Mac questions and
 records meetings for it to process. It syncs only with the paired Mac, over the local network or Tailscale,
 end-to-end encrypted. See
-[the plan](../../Docs/companion-apps-plan-2026-10-30.md) and
+[the plan](../../Docs/plans/companion-apps-plan-2026-10-30.md) and
 [the protocol](../protocol/).
 
 - `LokalBotCompanionKit/`: Swift package with the record models, design

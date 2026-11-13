@@ -71,7 +71,7 @@ final class LiveAnswersTests: XCTestCase {
     }
 
     func testDemoSheetAndBriefAreReadable() async throws {
-        // Copies of the two files in Docs/meta-hackathon/demo-files; see project.yml.
+        // Copies of the two files in LokalBotTests/Fixtures/meta-hackathon/demo-files; see project.yml.
         let bundle = Bundle(for: Self.self)
         let sheetURL = try XCTUnwrap(bundle.url(forResource: "Northwind pricing v2", withExtension: "xlsx"))
         let sheet = try await LiveAnswerTools.documentText(sheetURL)

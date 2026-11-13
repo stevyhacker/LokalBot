@@ -566,7 +566,7 @@ jobs:
         run: |
           certificate=Companion/android/release-certificate.sha256
           if [[ ! -f "$certificate" ]]; then
-            echo "::notice::No Android signing certificate is committed yet, so this release has no APK (RELEASING.md, Android)."
+            echo "::notice::No Android signing certificate is committed yet, so this release has no APK (Docs/releasing/android.md)."
             exit 0
           fi
           if [[ -z "$ANDROID_KEYSTORE_BASE64" || -z "$ANDROID_KEYSTORE_PASSWORD" ]]; then

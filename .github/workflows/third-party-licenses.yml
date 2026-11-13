@@ -1,7 +1,7 @@
 # Fails when LICENSES/rust-crates.md, the license notice for every crate in the
 # Linux and Windows app, no longer matches LinuxWindows/Cargo.lock. Fix it by
 # running LinuxWindows/scripts/third-party-licenses.sh and committing the
-# result (RELEASING.md, "Third-party licenses").
+# result (Docs/releasing/linux-and-windows.md, "Third-party licenses").
 #
 # Also fails when the sync library, as built for the Mac app and the phone
 # apps, compiles in a crate that neither that file nor THIRD_PARTY_NOTICES.md

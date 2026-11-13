@@ -103,7 +103,7 @@ copies.
 
 ## Refreshing the set
 
-Follow the [screenshot capture guide](../../Docs/screenshot-kit.md). For release
+Follow the [screenshot capture guide](../../Docs/guides/screenshot-kit.md). For release
 documentation, capture the published release source in an isolated checkout.
 Review every replacement alongside its caption and alt text, then update the
 hashes, dimensions, source revision, and capture date in

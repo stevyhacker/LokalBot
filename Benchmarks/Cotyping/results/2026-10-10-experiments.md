@@ -1,12 +1,12 @@
 **Autocomplete experiment record — 10–11 October 2026**
 
-Current decision: **retain Gemma 4 E2B Q6_K as the default model.** Native autocomplete always uses the fastest confirmed hybrid (certified search with two generation/prefill threads). The separate experimental toggle is removed, and old saved choices are ignored. The normal Enable autocomplete control remains. PR #230 is ready for review; the experiment limitations still apply. [Current decoder guide](../../../Docs/experimental-autocomplete-hybrid.md).
+Current decision: **retain Gemma 4 E2B Q6_K as the default model.** Native autocomplete always uses the fastest confirmed hybrid (certified search with two generation/prefill threads). The separate experimental toggle is removed, and old saved choices are ignored. The normal Enable autocomplete control remains. PR #230 is ready for review; the experiment limitations still apply. [Current decoder guide](../../../Docs/designs/experimental-autocomplete-hybrid.md).
 
 Every study below retains its original conclusions and validation boundaries. Historical statements about installation, default candidates or queued work describe that stage, not the current adoption decision. In particular, the calibration-stage Luchador fallback recommendation was superseded by the user’s explicit choice of E2B after the midword experiment. Do not combine quality samples or average latency across different studies.
 
 | Experiment | Result and current treatment | Evidence |
 |---|---|---|
-| Installed Cotypist investigation using rea | Identified prefix constraints, bounded candidate exploration and cache mechanisms; no claim about its live quality or measured speed | [Investigation](../../../Docs/cotypist-autocomplete-comparison-2026-10-10.md) |
+| Installed Cotypist investigation using rea | Identified prefix constraints, bounded candidate exploration and cache mechanisms; no claim about its live quality or measured speed | [Investigation](../../../Docs/reports/cotypist-autocomplete-comparison-2026-10-10.md) |
 | Two/four free-continuation candidates | Only +2 reference-word matches per 600, higher latency; rejected | [Initial](2026-10-10-candidates/REPORT.md), [after master PR228/229](2026-10-10-candidates-master/REPORT.md) |
 | Ranking audit and exact-prefix logit cache | Output parity held; held-out dynamic p95 worsened 116.9→139.1 ms; rejected | [Report](2026-10-10-cache/REPORT.md) |
 | Nine decoder variants and refinements | Boundary-mass/guarded stop improved first-word reference score but missed the combined character/false-show objective; no wholesale adoption | [Loop report](2026-10-10-decoder-loop/REPORT.md) |

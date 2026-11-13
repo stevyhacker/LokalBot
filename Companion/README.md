@@ -9,7 +9,7 @@ The Mac stays the source of truth. A phone or tablet holds an end-to-end
 encrypted, allowlisted copy that it gets straight from the Mac over your
 local network or your Tailscale network. There is no LokalBot server and no
 cloud in between. The plan and its decisions are in
-[Docs/companion-apps-plan-2026-10-30.md](../Docs/companion-apps-plan-2026-10-30.md).
+[Docs/plans/companion-apps-plan-2026-10-30.md](../Docs/plans/companion-apps-plan-2026-10-30.md).
 
 ## Layout
 
@@ -64,7 +64,7 @@ node Companion/design/generate.mjs
 The iOS and Android READMEs in their folders cover building and installing
 each app. The Android app is on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion), and each
 LokalBot release also attaches the signed APK, under a different key from Play's
-([RELEASING.md](../RELEASING.md#android)). The iPhone and iPad app isn't in the
+([Android releases](../Docs/releasing/android.md)). The iPhone and iPad app isn't in the
 App Store yet, and has no download, because iOS installs apps only through the
 App Store or TestFlight.
 

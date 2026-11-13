@@ -11,7 +11,7 @@ Monthly re-check:
 2. Update the tool's fields and prose, set VERIFIED to the check date, and add
    an UPDATE_LOG entry that says what changed (or that nothing did).
 3. Retake a screenshot when the app's main window has visibly changed. The
-   recipe is in Docs/best-ai-assistants-screenshots.md.
+   recipe is in Docs/guides/best-ai-assistants-screenshots.md.
 4. Run `python3 Website/generator/render_web.py` and commit the regenerated HTML.
 """
 

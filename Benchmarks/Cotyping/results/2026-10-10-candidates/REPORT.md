@@ -1,4 +1,4 @@
-Historical experiment snapshot. Current adoption: **E2B remains the default; the experimental switch enables hybrid plus prefix search.** See [the trial guide](../../../../Docs/experimental-autocomplete-hybrid.md). Complete raw evidence and the original, unedited report are in [the experiment archive](../2026-10-10-experiments.tar.gz). Archive member paths are listed in [the manifest](../2026-10-10-experiments-manifest.json).
+Historical experiment snapshot. Current adoption: **E2B remains the default; the experimental switch enables hybrid plus prefix search.** See [the trial guide](../../../../Docs/designs/experimental-autocomplete-hybrid.md). Complete raw evidence and the original, unedited report are in [the experiment archive](../2026-10-10-experiments.tar.gz). Archive member paths are listed in [the manifest](../2026-10-10-experiments-manifest.json).
 
 # Two- and four-candidate decoder experiment — 2026-10-10
 
@@ -60,7 +60,7 @@ Wider search adds **16.57 ms / 25.38 ms to mean request latency**. The large med
 
 ## What the experiment actually changes
 
-The [candidate state (archive)](../2026-10-10-experiments.tar.gz) and [native runtime](../../../../LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift) implement a beam of at most two or four active token paths. This is an original bounded-search experiment motivated by the [Cotypist analysis](../../../../Docs/cotypist-autocomplete-comparison-2026-10-10.md), not a claim to reproduce its complete decoder.
+The [candidate state (archive)](../2026-10-10-experiments.tar.gz) and [native runtime](../../../../LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift) implement a beam of at most two or four active token paths. This is an original bounded-search experiment motivated by the [Cotypist analysis](../../../../Docs/reports/cotypist-autocomplete-comparison-2026-10-10.md), not a claim to reproduce its complete decoder.
 
 1. Share the prompt's native KV state. Copy all parent sequence references to temporary slots before recycling active slots, then decode one token per surviving branch in a batch.
 2. Branch during required-prefix healing as well as free continuation. Keep each branch's UTF-8, healing, text, confidence and stop state independent.

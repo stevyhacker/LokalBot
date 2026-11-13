@@ -10,7 +10,7 @@ LokalBot is a private work-memory app for macOS, with a Windows and Linux app (`
 - Run checks relevant to the change and required by the repository. Repeat or broaden them when new changes, failures, or unresolved risks justify it. Documentation-only edits need link and diff checks, not an app build.
 - Never run UI tests locally on this MacBook. Use hosted CI or a remote runner; `Scripts/test/ui-tests.sh --remote` is the explicit remote entry point. Local compilation and non-UI tests are allowed. Verify the tested revision includes the requested changes.
 - When a change alters what an existing test expects, list it under the pull request template's **Changed test expectations** with the reason.
-- When fixing a bug that reached users, add the check that would have caught it — a capture replay trace, a model scenario, a day-in-the-life assertion, or an upgrade check — and confirm it fails with the fix undone. See the Testing section of [DEVELOPMENT.md](DEVELOPMENT.md).
+- When fixing a bug that reached users, add the check that would have caught it — a capture replay trace, a model scenario, a day-in-the-life assertion, or an upgrade check — and confirm it fails with the fix undone. See [Testing](Docs/development/testing.md).
 - When asked to reinstall the installed app, use `Scripts/build/reinstall-preserve-permissions.sh`. Preserve its identity and permissions; do not use a delete-first installation.
 - `project.yml` owns the generated Xcode project. Run `xcodegen generate` after changing project configuration or adding/removing source files. Preserve dependency pins unless the task calls for an update or a verified incompatibility blocks it.
 
@@ -18,11 +18,11 @@ LokalBot is a private work-memory app for macOS, with a Windows and Linux app (`
 
 Read the relevant sections when the task touches them:
 
-- Build, schemes, CLI packaging, runtime, or tests: [DEVELOPMENT.md](DEVELOPMENT.md).
+- Build, schemes, CLI packaging, runtime, or tests: [DEVELOPMENT.md](DEVELOPMENT.md), which links one page per topic under `Docs/development/`.
 - Capture, retention, or data leaving the computer: [PRIVACY.md](PRIVACY.md).
 - The Windows and Linux app: [LinuxWindows/README.md](LinuxWindows/README.md).
 - The phone and tablet apps, their sync protocol, or what the Mac shares with them: [Companion/README.md](Companion/README.md).
-- Signing, release artifacts, or publication: [RELEASING.md](RELEASING.md).
+- Signing, release artifacts, or publication: [RELEASING.md](RELEASING.md); setup and the non-Mac channels are under `Docs/releasing/`.
 - Website changes: [Website/AGENTS.md](Website/AGENTS.md).
 - Video work: [Video/AGENTS.md](Video/AGENTS.md) and the selected project's guide.
 - Retrieving recorded work through the CLI or MCP: [.agents/skills/lokalbot-cli/SKILL.md](.agents/skills/lokalbot-cli/SKILL.md).

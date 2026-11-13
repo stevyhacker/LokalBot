@@ -2,7 +2,7 @@ import Foundation
 
 /// The CLI's requests to the running app over the control socket: one JSON
 /// object per line, one request per connection. See
-/// Docs/cli-configuration-design-2026-10-17.md.
+/// Docs/designs/cli-configuration-design-2026-10-17.md.
 enum AppControlProtocol {
     static let version = 1
     static let maximumMessageBytes = 1_048_576

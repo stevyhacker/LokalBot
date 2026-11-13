@@ -1,6 +1,6 @@
 # Live answers: questions answered from the work, 29 October 2026
 
-Live answers look up a question the radar catches: first what LokalBot remembers (projects, open actions, memory), then meetings, screen text, documents, code, commits, and GitHub. Two replays ran on synthetic fixtures with Muse Wonder 1.0 at low reasoning, and Muse Spark 1.3 ran the radar passes. Folders were read for real: a pricing sheet and a launch brief made for the demo ([demo-files](../../../../Docs/meta-hackathon/demo-files/)), and this repository with `git` and `gh`.
+Live answers look up a question the radar catches: first what LokalBot remembers (projects, open actions, memory), then meetings, screen text, documents, code, commits, and GitHub. Two replays ran on synthetic fixtures with Muse Wonder 1.0 at low reasoning, and Muse Spark 1.3 ran the radar passes. Folders were read for real: a pricing sheet and a launch brief made for the demo ([demo-files](../../../../LokalBotTests/Fixtures/meta-hackathon/demo-files/)), and this repository with `git` and `gh`.
 
 ## Questions about the work
 

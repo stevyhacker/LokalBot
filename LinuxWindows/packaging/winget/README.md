@@ -47,7 +47,7 @@ Installs from winget-pkgs are marked trusted and don't get it.
 
 For each stable tag, the `winget` job in `release.yml` runs `wingetcreate
 update` with the new installer's URL and opens the winget-pkgs pull request
-(see [RELEASING.md](../../../RELEASING.md#winget)). It needs the `WINGET_TOKEN`
+(see [winget releases](../../../Docs/releasing/linux-and-windows.md#winget)). It needs the `WINGET_TOKEN`
 secret and a package that winget-pkgs already has. Without either, it says so
 and succeeds. From then on winget-pkgs holds the current manifests; the files
 here only change when the installer does (its scope, `AppId` or switches).

@@ -15,7 +15,7 @@ Compose continues to use the configured instruction model. These results use **Q
 
 ## Run
 
-Build Release, then use a disposable copy of its app bundle and isolated test identity as described in [DEVELOPMENT.md](../../DEVELOPMENT.md#testing). Do not run this through the installed app's normal GUI.
+Build Release, then use a disposable copy of its app bundle and isolated test identity as described in [Testing](../../Docs/development/testing.md). Do not run this through the installed app's normal GUI.
 
 ```sh
 uv run --no-project python -S Benchmarks/Dictation/context_replay.py \

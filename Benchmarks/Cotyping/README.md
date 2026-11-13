@@ -324,7 +324,7 @@ source selections, so a correct guess cannot hide a missing or unauthorized look
 The [complete experiment index](results/2026-10-10-experiments.md) covers the
 Cotypist investigation, candidate decoder and cache experiments, nine decoder
 variants, Claude judging, all model trials, confidence calibration, rejected
-atomic healing and the final prefix-search confirmation. The [trial guide](../../Docs/experimental-autocomplete-hybrid.md)
+atomic healing and the final prefix-search confirmation. The [trial guide](../../Docs/designs/experimental-autocomplete-hybrid.md)
 explains the E2B default and one-switch rollback.
 
 Production replay supports `selectiveOneWordHybrid`, `healingMode` (`wordBoundary`

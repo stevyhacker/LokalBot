@@ -1,4 +1,4 @@
-Historical experiment snapshot. Current adoption: **E2B remains the default; the experimental switch enables hybrid plus prefix search.** See [the trial guide](../../../../Docs/experimental-autocomplete-hybrid.md). Complete raw evidence and the original, unedited report are in [the experiment archive](../2026-10-10-experiments.tar.gz). Archive member paths are listed in [the manifest](../2026-10-10-experiments-manifest.json).
+Historical experiment snapshot. Current adoption: **E2B remains the default; the experimental switch enables hybrid plus prefix search.** See [the trial guide](../../../../Docs/designs/experimental-autocomplete-hybrid.md). Complete raw evidence and the original, unedited report are in [the experiment archive](../2026-10-10-experiments.tar.gz). Archive member paths are listed in [the manifest](../2026-10-10-experiments-manifest.json).
 
 # Autocomplete experiments: consolidated result and next steps
 
@@ -85,7 +85,7 @@ After those steps, a short-continuation E2B adapter with balanced Serbian data a
 
 ## What remains interesting from Cotypist
 
-The [installed-artifact investigation](../../../../Docs/cotypist-autocomplete-comparison-2026-10-10.md) established bounded multi-candidate search, shared sequence/cache mechanisms and conditional token-history logit adjustments. It did not establish Cotypist's live quality, exact ranking formula or speed. Our beam and cache results therefore reject these particular LokalBot experiments, not Cotypist's entire approach.
+The [installed-artifact investigation](../../../../Docs/reports/cotypist-autocomplete-comparison-2026-10-10.md) established bounded multi-candidate search, shared sequence/cache mechanisms and conditional token-history logit adjustments. It did not establish Cotypist's live quality, exact ranking formula or speed. Our beam and cache results therefore reject these particular LokalBot experiments, not Cotypist's entire approach.
 
 The remaining distinctive idea worth a later isolated test is a small local token-history booster for repeated names and document vocabulary, compared against LokalBot's existing accepted-example retrieval. It should use only already-authorized learning data and preserve scope, exclusion, retention and deletion behavior. This may be cheaper to investigate than a full fine-tune, but there is no measured LokalBot benefit yet.
 

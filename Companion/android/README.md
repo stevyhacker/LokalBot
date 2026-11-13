@@ -5,7 +5,7 @@ the Mac's shared meetings, actions, Timeline, Day Digests, people and projects,
 and asks the Mac questions. Data moves only over the local network or
 Tailscale, end-to-end encrypted, through the Rust sync core
 (`LinuxWindows/crates/lokalbot-sync`). The plan is
-[Docs/companion-apps-plan-2026-10-30.md](../../Docs/companion-apps-plan-2026-10-30.md);
+[Docs/plans/companion-apps-plan-2026-10-30.md](../../Docs/plans/companion-apps-plan-2026-10-30.md);
 the wire contract is in [Companion/protocol](../protocol).
 
 - `app/`: the app, `me.dotenv.lokalbot.companion` (Kotlin, Compose, Material 3 Adaptive),
@@ -155,7 +155,7 @@ under `uploads/` as `received-<id>.aac`. The stand-in makes no meeting, so the r
 - **Direct download.** Every LokalBot release attaches the signed APK. The tag
   builds it and `Scripts/release/sign-android-release.sh` signs it. `versionName` and
   `versionCode` follow the desktop release (`Scripts/release/bump-version.py`). See the
-  Android section of [RELEASING.md](../../RELEASING.md#android).
+  [Android release guide](../../Docs/releasing/android.md).
 - **Testing.** Ship through Play internal testing first, then production.
 - **Play review.** Reviewers can't pair with a Mac. The review notes should
   send them to **Try it without a computer** on the first screen, and explain the

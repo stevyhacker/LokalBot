@@ -206,7 +206,7 @@ lokalbot-cli mcp
 
 应用还提供可选的 **Agent Mode**，用来处理经过你审阅的上下文。文件和命令操作遵循它的审批设置，与只读的 CLI/MCP 接口相互独立。
 
-[CLI 示例](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code 插件](Distribution/claude-plugin/README.md) · [MCP 架构](DEVELOPMENT.md#agent-cli--mcp)
+[CLI 示例](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code 插件](Distribution/claude-plugin/README.md) · [MCP 架构](Docs/development/agent-cli.md)
 
 ## 和同类工具相比
 
@@ -334,7 +334,7 @@ Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、
 
 在 Windows 和 Linux 上，转写默认通过 sherpa-onnx 使用 Qwen3-ASR 0.6B（可选 Parakeet v3 和 v2、SenseVoice、俄语的 GigaAM 和 Whisper turbo），发言人分离使用 pyannote 分割和 TitaNet，自动补全默认使用 LFM2.5 1.2B。纪要（Qwen3.5 4B）和搜索（EmbeddingGemma 2）使用和 Mac 相同的模型。默认下载约 4 GB，llama.cpp 运行在 Vulkan GPU 或 CPU 上。
 
-[项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/EmbeddingIndex.swift) · [模型与运行时细节](DEVELOPMENT.md#built-in-llm-runtime--llamacpp--model-catalog)
+[项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/EmbeddingIndex.swift) · [模型与运行时细节](Docs/development/llm-runtime.md)
 
 ## 从源码构建
 
@@ -360,7 +360,7 @@ open LokalBot.xcodeproj
 
 构建 Windows 和 Linux 应用，请参阅其 README 中的[从源码构建（英文）](LinuxWindows/README.md#build-from-source)（Rust）。
 
-[构建与测试命令](DEVELOPMENT.md#build-workflows) · [测试指南](DEVELOPMENT.md#testing) · [截图指南](Docs/screenshot-kit.md)
+[构建与测试命令](Docs/development/build-workflows.md) · [测试指南](Docs/development/testing.md) · [截图指南](Docs/guides/screenshot-kit.md)
 
 ## 参与贡献
 
