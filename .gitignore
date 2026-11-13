@@ -79,8 +79,8 @@ Docs/superpowers/
 # 16:9 source lives in Video/lokalbot-promo/.
 Video/lokalbot-promo-square/
 Video/lokalbot-promo-vertical/
-web/assets/feature-demo-poster.jpg
-web/assets/fonts/
+Website/public/assets/feature-demo-poster.jpg
+Website/public/assets/fonts/
 
 # One-off exported video handoff
 lokalbot video ad handoff/

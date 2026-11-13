@@ -81,19 +81,19 @@ frame.
 
 ## Website set
 
-The home page shows real recordings, not stills: `web/assets/demos/` holds every
+The home page shows real recordings, not stills: `Website/public/assets/demos/` holds every
 clip and poster, in light and dark, filmed and cut by
 `Video/lokalbot-landing-demos/` (see its README). The hero plays one film cut from
 the hero clips by `full_demo.py`. Update the `aria-label`s and captions in
-`web/index.html` when a clip's content changes. `autocomplete-ghost-<appearance>.webp`
+`Website/public/index.html` when a clip's content changes. `autocomplete-ghost-<appearance>.webp`
 are single frames of the `autocomplete` clip, 7.6 seconds in.
 
-`web/assets/screens/` holds only:
+`Website/public/assets/screens/` holds only:
 
 | Files | Source |
 | --- | --- |
 | `linux-meetings.webp`, `linux-meetings-dark.webp`, `windows-today.webp`, `windows-today-dark.webp` | The Linux and Windows screenshots from the CI artifact of a `master` run, converted to WebP |
-| `meetings-summary-light.png` | The `stills` take of `Video/lokalbot-landing-demos/film/film.sh`; the source for `web/assets/og-home.png` (`Assets/social-preview/og-home.html`) |
+| `meetings-summary-light.png` | The `stills` take of `Video/lokalbot-landing-demos/film/film.sh`; the source for `Website/public/assets/og-home.png` (`Assets/social-preview/og-home.html`) |
 
 ## Review before commit
 

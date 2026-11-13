@@ -385,7 +385,7 @@ Confirm these render a proper empty state: Capture Day (`No activity recorded` C
 
 - [ ] **Step 1: Write the shot list**
 
-Document (a) the six shots: menu-bar dropdown while recording, Capture Day view, Capture Library + inspector, Ask with results + escalated answer, Type with Cotyping ghost text (composited or real), Settings Models tab; (b) per-shot setup: build the `LokalBot UI Test Host` target against a synthetic library (`LOKALBOT_STORAGE_ROOT` pointing at a seeded fixture) and launch with `LOKALBOT_INITIAL_SECTION` = `capture`/`ask`/`type`/`models` (the last now lands on Settings → Models tab), `LOKALBOT_SELECT_FIRST=1`, `LOKALBOT_DISMISS_ONBOARDING=1`; (c) both appearances (dark primary for the site's slate aesthetic, light for README), Retina 2×, window ~1280×800; (d) where they go: `web/` hero + Show HN kit (`Docs/show-hn-kit.md`).
+Document (a) the six shots: menu-bar dropdown while recording, Capture Day view, Capture Library + inspector, Ask with results + escalated answer, Type with Cotyping ghost text (composited or real), Settings Models tab; (b) per-shot setup: build the `LokalBot UI Test Host` target against a synthetic library (`LOKALBOT_STORAGE_ROOT` pointing at a seeded fixture) and launch with `LOKALBOT_INITIAL_SECTION` = `capture`/`ask`/`type`/`models` (the last now lands on Settings → Models tab), `LOKALBOT_SELECT_FIRST=1`, `LOKALBOT_DISMISS_ONBOARDING=1`; (c) both appearances (dark primary for the site's slate aesthetic, light for README), Retina 2×, window ~1280×800; (d) where they go: `Website/public/` hero + Show HN kit (`Docs/show-hn-kit.md`).
 
 - [ ] **Step 2: Commit** — message: `Document the Show HN and website screenshot kit`
 

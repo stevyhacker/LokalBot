@@ -36,8 +36,8 @@ def validate_explainers(root, notes, candidate):
     names = EXPLAINER_LINK.findall(notes)
     for name in names:
         if not EXPLAINER_NAME.fullmatch(name):
-            raise ValueError(f"Explainer links must name web/explainers/<feature-slug>.png or .pdf, not {name}")
-        path = f"web/explainers/{name}"
+            raise ValueError(f"Explainer links must name Website/public/explainers/<feature-slug>.png or .pdf, not {name}")
+        path = f"Website/public/explainers/{name}"
         file = root / path
         if not file.is_file():
             raise ValueError(f"Release notes link an explainer that isn't in the repository: {path}")
@@ -46,7 +46,7 @@ def validate_explainers(root, notes, candidate):
         with file.open("rb") as handle:
             if not handle.read(8).startswith(EXPLAINER_MAGIC[file.suffix]):
                 raise ValueError(f"Explainer isn't a {file.suffix[1:].upper()} file: {path}")
-        # The website deploys web/ from master, so an explainer must be committed before the tag.
+        # The website deploys Website/public/ from master, so an explainer must be committed before the tag.
         if candidate and not committed(root, path):
             raise ValueError(f"Commit the explainer before the release candidate: {path}")
     if re.search(r"^## What[’']s new\s*$", notes, re.MULTILINE) and not names and not NO_EXPLAINER.search(notes):

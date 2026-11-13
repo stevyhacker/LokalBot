@@ -47,12 +47,12 @@ jobs:
 
   generated-web:
     # Comparison pages, guides, /guides, and sitemap.xml are rendered from
-    # Scripts/*_pages.py and Scripts/*.template.html. Fail when someone edits
-    # the HTML under web/ directly or forgets to re-render after a data change.
+    # Website/generator/*_pages.py and Website/generator/templates/. Fail when someone edits
+    # the HTML under Website/public/ directly or forgets to re-render after a data change.
     name: Generated web pages
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check web/ matches Scripts/render_web.py output
-        run: python3 Scripts/render_web.py --check
+      - name: Check Website/public/ matches Website/generator/render_web.py output
+        run: python3 Website/generator/render_web.py --check

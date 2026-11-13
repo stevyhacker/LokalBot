@@ -244,8 +244,8 @@ already use don't need one.
   library, mailbox, or calendar.
 - **Format.** A PNG at least 1200 pixels wide, or a PDF of a few pages, under
   10 MB either way. Name it after the feature, not the release:
-  `web/explainers/<feature-slug>.png` or `.pdf`, in lowercase words joined by
-  dashes, for example `web/explainers/gmail-meeting-briefs.pdf`. When a later
+  `Website/public/explainers/<feature-slug>.png` or `.pdf`, in lowercase words joined by
+  dashes, for example `Website/public/explainers/gmail-meeting-briefs.pdf`. When a later
   release changes the feature, update the same file.
 - **Making one.** Write the explainer as an HTML page and render it with
   headless Google Chrome. Commit the page as
@@ -253,8 +253,8 @@ already use don't need one.
   explainer from it:
 
   ```sh
-  python3 Scripts/render_explainer.py Docs/explainers/gmail-meeting-briefs.html web/explainers/gmail-meeting-briefs.pdf
-  python3 Scripts/render_explainer.py Docs/explainers/gmail-meeting-briefs.html web/explainers/gmail-meeting-briefs.png --size 1200x2400
+  python3 Website/generator/render_explainer.py Docs/explainers/gmail-meeting-briefs.html Website/public/explainers/gmail-meeting-briefs.pdf
+  python3 Website/generator/render_explainer.py Docs/explainers/gmail-meeting-briefs.html Website/public/explainers/gmail-meeting-briefs.png --size 1200x2400
   ```
 
   A PNG captures a fixed canvas at 2x, so design the page at that size. For a
@@ -263,7 +263,7 @@ already use don't need one.
   (`Docs/explainers/gmail-meeting-briefs.html` is one way to do that).
 - **Land it before the candidate.** Commit explainers to `master` with their
   feature or in a separate pull request, because the candidate commit holds
-  only the release metadata. The website deploys `web/` from `master`, so the
+  only the release metadata. The website deploys `Website/public/` from `master`, so the
   link works before the tag is pushed.
 - **Link it** at the end of the feature's bullet under **What’s new**:
   `[How it works](https://www.lokalbot.com/explainers/gmail-meeting-briefs.pdf)`.
@@ -272,7 +272,7 @@ already use don't need one.
 
 `release-preflight.py` enforces this for releases after 0.11.5. Notes with a
 **What’s new** section must link at least one explainer, and every linked
-explainer must be a committed PNG or PDF in `web/explainers/`, under 10 MB.
+explainer must be a committed PNG or PDF in `Website/public/explainers/`, under 10 MB.
 When everything new in a release is small, say so in an HTML comment in the
 notes, which GitHub doesn't show on the release page:
 `<!-- no explainer: only small additions to existing pages -->`. The preflight

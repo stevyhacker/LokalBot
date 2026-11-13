@@ -137,7 +137,7 @@ class ReleaseMetadataTests(unittest.TestCase):
             f"{notes}\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.11.5...v{version}\n")
 
     def explainer(self, name, content=b"\x89PNG\r\n\x1a\nimage"):
-        path = self.root / "web/explainers" / name
+        path = self.root / "Website/public/explainers" / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
         return path
@@ -174,7 +174,7 @@ class ReleaseMetadataTests(unittest.TestCase):
             ("gmail-briefs.pdf", b"\x89PNG\r\n\x1a\n", "isn't a PDF"),
         ]:
             with self.subTest(name=name, error=error):
-                shutil.rmtree(self.root / "web", ignore_errors=True)
+                shutil.rmtree(self.root / "Website" / "public", ignore_errors=True)
                 if setup is not None:
                     self.explainer(name, setup)
                 self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format(name)})")

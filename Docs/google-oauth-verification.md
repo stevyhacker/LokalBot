@@ -127,7 +127,7 @@ These come from Google's [User Data Policy](https://developers.google.com/terms/
 | Requirement | How LokalBot meets it |
 | --- | --- |
 | Request the narrowest scope | `gmail.readonly` only (`GmailOAuth.scope`). The client sends only `GET` requests (`GmailSyncTests.testEveryRequestIsAReadOnlyGetToGmail`). |
-| Disclose use in the privacy policy, linked from the consent screen | PRIVACY.md and `web/privacy.html`, section **Email from Gmail**, with the Limited Use statement. |
+| Disclose use in the privacy policy, linked from the consent screen | PRIVACY.md and `Website/public/privacy.html`, section **Email from Gmail**, with the Limited Use statement. |
 | Show a timely disclosure in the product | The **Connect a Gmail account?** notice before Google's page opens (`EmailSettingsSection`). |
 | Use data only for features people can see | The Settings account list, and the meeting brief's "From email" rows and excerpts (`EmailMeetingContext`). Every new use updates the privacy policy first and asks the person. |
 | No transfers, no ads, no human reading | Mail never leaves the Mac. Nothing sends it anywhere. |

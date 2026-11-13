@@ -14,7 +14,7 @@ spec.loader.exec_module(relevance)
 
 class UIRelevanceTests(unittest.TestCase):
     def test_docs_and_web_changes_do_not_need_the_ui_suite(self):
-        self.assertFalse(relevance.relevant(["README.md", "Docs/plan.md", "web/index.html"]))
+        self.assertFalse(relevance.relevant(["README.md", "Docs/plan.md", "Website/public/index.html"]))
 
     def test_app_ui_test_and_ci_changes_need_the_ui_suite(self):
         for path in ["LokalBot/AppState.swift", "LokalBotUITests/MainWindowUITests.swift",

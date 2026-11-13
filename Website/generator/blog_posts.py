@@ -1,19 +1,19 @@
 """Posts for lokalbot.com/blog: releases, benchmarks, and notes on how LokalBot is built.
 
-Rendered by Scripts/render_web.py into web/blog.html, web/blog/<slug>.html, and
-the Atom feed at web/blog/feed.xml. Newest first. Keep product facts aligned
+Rendered by Website/generator/render_web.py into Website/public/blog.html, Website/public/blog/<slug>.html, and
+the Atom feed at Website/public/blog/feed.xml. Newest first. Keep product facts aligned
 with the README. A post about something published in full elsewhere summarizes
 it and links to the original instead of copying it.
 
 Bodies are served from /blog/<slug>, so every internal link and image path
 must be root-relative ("/benchmarks", "/assets/blog/...").
 
-Each post needs a share image at web/assets/blog/og/<slug>.png. After adding
-a post or changing its title, run `python3 Scripts/render_social_images.py
+Each post needs a share image at Website/public/assets/blog/og/<slug>.png. After adding
+a post or changing its title, run `python3 Website/generator/render_social_images.py
 --only <slug>` before render_web.py.
 """
 
-# Head and structured-data copy for web/blog.html.
+# Head and structured-data copy for Website/public/blog.html.
 BLOG_INDEX = {
     "title": "LokalBot Blog — Releases, Benchmarks, and Build Notes",
     "description": "News from the LokalBot project: releases, local model benchmarks, and notes on how the app is built. Subscribe with the Atom feed.",

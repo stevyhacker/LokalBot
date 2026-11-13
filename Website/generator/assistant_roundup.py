@@ -1,6 +1,6 @@
 """The "best open-source AI assistants" comparison at /best-open-source-ai-assistants.
 
-Rendered by Scripts/render_web.py as a guide with "kind": "compare", so it is
+Rendered by Website/generator/render_web.py as a guide with "kind": "compare", so it is
 listed under Compare on /guides. Every fact about another project must come
 from that project's own site, docs, license file, or release notes, checked on
 VERIFIED. LokalBot's facts must match the README and PRIVACY.md.
@@ -12,7 +12,7 @@ Monthly re-check:
    an UPDATE_LOG entry that says what changed (or that nothing did).
 3. Retake a screenshot when the app's main window has visibly changed. The
    recipe is in Docs/best-ai-assistants-screenshots.md.
-4. Run `python3 Scripts/render_web.py` and commit the regenerated HTML.
+4. Run `python3 Website/generator/render_web.py` and commit the regenerated HTML.
 """
 
 from __future__ import annotations

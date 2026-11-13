@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Render a release explainer from an HTML page with headless Google Chrome (macOS).
 
-Release notes link one explainer per major feature from web/explainers/
+Release notes link one explainer per major feature from Website/public/explainers/
 (RELEASING.md, "Explainers for major features"). A PDF prints the whole page;
 give it `print-color-adjust: exact` so backgrounds print. A PNG captures a
 fixed canvas at 2x, so design the page at the size you pass.
 
 Usage:
-    python3 Scripts/render_explainer.py explainer.html web/explainers/gmail-meeting-briefs.pdf
-    python3 Scripts/render_explainer.py explainer.html web/explainers/gmail-meeting-briefs.png --size 1200x2400
+    python3 Website/generator/render_explainer.py explainer.html Website/public/explainers/gmail-meeting-briefs.pdf
+    python3 Website/generator/render_explainer.py explainer.html Website/public/explainers/gmail-meeting-briefs.png --size 1200x2400
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ def render(source: Path, out: Path, size: tuple[int, int]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render a release explainer to PDF or PNG.")
     parser.add_argument("source", type=Path, help="the explainer's HTML page")
-    parser.add_argument("out", type=Path, help="web/explainers/<feature-slug>.pdf or .png")
+    parser.add_argument("out", type=Path, help="Website/public/explainers/<feature-slug>.pdf or .png")
     parser.add_argument("--size", default="1200x2400", help="PNG canvas in CSS pixels, WIDTHxHEIGHT")
     args = parser.parse_args()
     if not NAME.fullmatch(args.out.name):

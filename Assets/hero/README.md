@@ -12,7 +12,7 @@ answer and its source; and Claude Code asking LokalBot about a meeting.
 The [Chinese README](../../README.zh-CN.md) keeps its Mandarin meeting screenshot as the
 lead image and shows this loop below it.
 
-Each scene is cut from `web/assets/demos/<clip>-wide-<appearance>.mp4`, so what those
+Each scene is cut from `Website/public/assets/demos/<clip>-wide-<appearance>.mp4`, so what those
 clips are, and what is real in them, is in
 [Video/lokalbot-landing-demos/README.md](../../Video/lokalbot-landing-demos/README.md).
 [readme_gifs.py](../../Video/lokalbot-landing-demos/readme_gifs.py) builds these files and

@@ -1,15 +1,15 @@
 """Source-backed guide content for LokalBot's search-intent pages.
 
-Rendered by Scripts/render_web.py. Keep claims aligned with the checked-in
+Rendered by Website/generator/render_web.py. Keep claims aligned with the checked-in
 README and implementation; these pages intentionally avoid competitor claims.
 A guide with "kind": "question" is listed under Questions on /guides, and one
 with "kind": "compare" under Compare. The AI assistants comparison lives in
-Scripts/assistant_roundup.py.
+Website/generator/assistant_roundup.py.
 """
 
 from assistant_roundup import ROUNDUP
 
-# Head and structured-data copy for web/guides.html.
+# Head and structured-data copy for Website/public/guides.html.
 GUIDES_INDEX = {
     "title": "LokalBot Guides — Private AI Meeting Notes on Your Computer",
     "description": "Practical guides to local AI meeting notes, offline transcription, bot-free recording, open-source privacy, model choice, system requirements, and comparisons.",
@@ -888,7 +888,7 @@ lokalbot-cli list <span class="c-op">\\</span>
     ROUNDUP,
 ]
 
-# Hand-written reference pages (web/about.html, web/benchmarks.html). The
+# Hand-written reference pages (Website/public/about.html, Website/public/benchmarks.html). The
 # renderer lists them on /guides and in the sitemap but does not generate them,
 # so bump "updated" here whenever you edit one of those pages.
 REFERENCES = [

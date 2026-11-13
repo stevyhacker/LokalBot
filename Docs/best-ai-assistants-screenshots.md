@@ -1,13 +1,13 @@
 # Screenshots for the AI assistants comparison
 
-The page at <https://www.lokalbot.com/best-open-source-ai-assistants> shows one screenshot per app, all taken by us. The content and facts live in `Scripts/assistant_roundup.py`; this file is how to retake the screenshots when an app's main window changes. Retaking is not part of every monthly re-check.
+The page at <https://www.lokalbot.com/best-open-source-ai-assistants> shows one screenshot per app, all taken by us. The content and facts live in `Website/generator/assistant_roundup.py`; this file is how to retake the screenshots when an app's main window changes. Retaking is not part of every monthly re-check.
 
 Rules:
 
 - Use each app's latest release, its default settings, and the model it suggests on first run. Note any change from the defaults in "How we tested" on the page.
 - Fictional prompts and documents only, and a different everyday topic for each app.
 - Decline analytics prompts. Accepting an app's terms of use needs the maintainer's OK each time.
-- Captures are 1440×900 at 2× and published as 1600×1000 WebP (`cwebp -q 84`) in `web/assets/compare/ai-assistants/`.
+- Captures are 1440×900 at 2× and published as 1600×1000 WebP (`cwebp -q 84`) in `Website/public/assets/compare/ai-assistants/`.
 
 ## Where they were taken
 

@@ -53,7 +53,7 @@ upload the result where it is needed rather than committing it:
 Scripts/render-hero-video-short.sh
 ```
 
-The script writes the MP4, poster and production manifest under `web/assets/`
+The script writes the MP4, poster and production manifest under `Website/public/assets/`
 atomically.
 
 ## Demo A: bot-free meeting to cited outcomes

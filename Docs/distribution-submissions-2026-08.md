@@ -54,7 +54,7 @@ notarized, Sparkle updates.
 - Recap demo GIF: `Assets/screenshots/recap.gif`
 - Search GIF: `Assets/screenshots/search.gif`
 - Screens: `Assets/screenshots/timeline.png`, `Assets/screenshots/meetings-summary.png`, `Assets/screenshots/meetings-transcript.png`, `Assets/screenshots/chat.png`, `Assets/screenshots/dictation.png`, `Assets/screenshots/cotyping.png`
-- Video: `web/assets/demos/meetings-wide-light.mp4` (poster: `web/assets/demos/meetings-wide-light.webp`)
+- Video: `Website/public/assets/demos/meetings-wide-light.mp4` (poster: `Website/public/assets/demos/meetings-wide-light.webp`)
 
 Upload order suggestion: hero.gif first (thumbnail), then the meetings clip, then the five strongest screens.
 
@@ -160,7 +160,7 @@ Sparkle updates.
 - `Assets/screenshots/meetings-transcript.png`
 - `Assets/screenshots/dictation.png`
 - `Assets/screenshots/cotyping.png`
-- Video (if a video field is offered): `web/assets/demos/meetings-wide-light.mp4`
+- Video (if a video field is offered): `Website/public/assets/demos/meetings-wide-light.mp4`
 
 **Launch-day comment draft (post as maker first thing on launch day):**
 

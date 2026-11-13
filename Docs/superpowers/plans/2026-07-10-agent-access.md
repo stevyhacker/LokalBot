@@ -3545,4 +3545,4 @@ EOF
 
 Shipped by this plan: the `mcp` verb (4 tools: `list_meetings`, `get_meeting`, `search_meetings`, `ask_library`) behind the `LibraryToolProvider` seam; the `AgentAccessGate` marker + wake protocol with the app-side watcher and Privacy toggle; `install-skill` + the rewritten agent skill; `Scripts/build-mcpb.sh`; unit, integration (golden stdio), and e2e coverage.
 
-Deliberately deferred (user-approved, do NOT add here): `web/` docs page (follow-up PR), activity/screen tools (v1.1), app-hosted MCP server (post-broker), the inference broker (its own spec → plan → branch cycle).
+Deliberately deferred (user-approved, do NOT add here): `Website/public/` docs page (follow-up PR), activity/screen tools (v1.1), app-hosted MCP server (post-broker), the inference broker (its own spec → plan → branch cycle).

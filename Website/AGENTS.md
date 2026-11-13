@@ -1,0 +1,25 @@
+# Website (`Website/`)
+
+- `public/` is what Cloudflare serves at https://www.lokalbot.com.
+- `generator/` renders the generated pages, share images, explainers and the background tile into `public/`; its templates are in `generator/templates/`.
+- `worker/` holds the media Worker and the zone redirect rules.
+- [HOSTING.md](HOSTING.md) covers the Cloudflare deployment, redirects, crawlers and IndexNow.
+
+Static site served by Cloudflare Workers static assets at https://www.lokalbot.com — no build step. `wrangler.jsonc` at the **repo root** points the Worker at `Website/public/` with `html_handling: auto-trailing-slash`, so pages are served extensionless (`/lokalbot-vs-granola`), and `not_found_handling: 404-page` serves `404.html`. Zone redirect rules, the canonical host, and the AI-crawler setting live in Cloudflare, not Wrangler; see [HOSTING.md](HOSTING.md). Canonicals, sitemap entries, and inter-page links must use extensionless URLs; do not make crawlers follow `.html` redirects. `404.html` is served at any missing path, so its links and assets must be root-relative. Preview through a local HTTP server (`Website/generator/serve-web.py`) rather than `file://`. Design system lives in `styles.css` (glass panels via `--glass-*` CSS vars, `.reveal` scroll animations); `app.js` is dependency-free and null-safe so any page can include it. New surface styles should be added to both the `prefers-reduced-transparency` and no-`backdrop-filter` fallback lists.
+
+## Generated pages
+
+`Website/generator/render_web.py` renders the comparison pages (`lokalbot-vs-*.html`), the guides, `guides.html`, the blog (`blog.html`, `blog/<slug>.html`, and the Atom feed `blog/feed.xml`), and `sitemap.xml` from `generator/*_pages.py`, `generator/blog_posts.py`, `generator/templates/*.template.html`, and the shared `generator/templates/footer.partial.html`. Every post needs a share image from `python3 Website/generator/render_social_images.py --only <slug>` (macOS, Google Chrome), which also renders the default `assets/og-image.png`; `render_web.py` stops when one is missing. Blog posts are served one level down at `/blog/<slug>`, so their bodies, the blog templates, and the shared footer use root-relative links and asset paths. Edit those sources, run `python3 Website/generator/render_web.py`, and commit the output; never hand-edit the generated HTML. CI runs `python3 Website/generator/render_web.py --check`. Every other page (`index`, `about`, `benchmarks`, `privacy`, `terms`, `support`, `enshittification-proof`, `404`) is hand-written; when you change one, bump its date in `STATIC_PAGES` or `REFERENCES` so the sitemap's `lastmod` stays accurate. The one exception is the home page's "Latest from the blog" cards, which the script rewrites between the `LATEST-POSTS` markers in `index.html` from the newest posts. The circuit-board background behind every page, `assets/circuit-board.svg`, comes from `python3 Website/generator/render_circuit_board.py`; `styles.css` uses it as a mask, so its colour is set per theme there.
+
+## Release explainers
+
+`explainers/<feature-slug>.png` and `.pdf` are the explainers that release notes link for major features, served at `https://www.lokalbot.com/explainers/<feature-slug>.pdf`. Render them with `python3 Website/generator/render_explainer.py` (macOS, Google Chrome), keep each under 10 MB, and keep the names stable, because published release notes link them. They aren't pages, so they stay out of the sitemap. See "Explainers for major features" in [RELEASING.md](../RELEASING.md).
+
+## SEO checklist for a new or changed page
+
+- Unique `<title>` and meta description, an extensionless canonical, and Open Graph and Twitter tags with `og:site_name`, `og:image` dimensions that match the file, and the PNG `apple-touch-icon`.
+- JSON-LD that describes only what the page visibly says. Reference the shared `https://www.lokalbot.com/#organization` and `#software` entities by `@id`; FAQ structured data must match the visible questions and answers.
+- A visible "updated" or "verified" date whenever the page makes claims that can go stale, such as competitor pricing, model defaults, or benchmarks.
+- A sitemap entry (generated pages get one automatically; add hand-written pages to `render_sitemap()`), and links to and from related pages, including the footer and `/guides`.
+- Keep `llms.txt` in sync when adding or renaming a page or changing a headline product fact.
+- Product facts must match the app and README: the default models, what is opt-in, and what the network is used for.

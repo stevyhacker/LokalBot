@@ -263,8 +263,8 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
             self.assertEqual(release.trusted_candidate(), 'tip')
 
     def test_later_website_and_docs_files_keep_the_candidate(self):
-        self.comparison = self.ahead('web/index.html', 'Docs/plan.md', 'Video/demo.mp4', 'README.md',
-                                     'Scripts/render_web.py')
+        self.comparison = self.ahead('Website/public/index.html', 'Docs/plan.md', 'Video/demo.mp4', 'README.md',
+                                     'Website/generator/render_web.py')
         self.assertIn('past this candidate by 5 website or docs files', self.check())
 
     def test_anything_a_release_could_ship_refuses(self):
@@ -276,21 +276,21 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.comparison = self.ahead(path)
                 self.refused()
-                self.comparison = self.ahead('web/index.html', path)
+                self.comparison = self.ahead('Website/public/index.html', path)
                 self.refused()
 
     def test_a_rename_out_of_the_app_refuses(self):
-        self.comparison = self.ahead('web/AppState.swift')
+        self.comparison = self.ahead('Website/public/AppState.swift')
         self.comparison['files'][0].update(status='renamed', previous_filename='LokalBot/AppState.swift')
         self.refused()
-        self.comparison['files'][0]['previous_filename'] = 'web/old.html'
+        self.comparison['files'][0]['previous_filename'] = 'Website/public/old.html'
         self.check()
 
     def test_a_candidate_off_master_refuses(self):
         for change in [dict(status='behind'), dict(status='diverged', behind_by=1), dict(status='identical'),
                        dict(behind_by=1), dict(status=None)]:
             with self.subTest(change=change):
-                self.comparison = dict(self.ahead('web/index.html'), **change)
+                self.comparison = dict(self.ahead('Website/public/index.html'), **change)
                 self.refused()
 
     def test_an_empty_or_possibly_cut_short_file_list_refuses(self):
@@ -298,15 +298,15 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
         self.refused()
         self.comparison = dict(status='ahead', behind_by=0)
         self.refused()
-        self.comparison = self.ahead(*[f'web/{index}.html' for index in range(release.COMPARE_FILE_LIMIT)])
+        self.comparison = self.ahead(*[f'Website/public/{index}.html' for index in range(release.COMPARE_FILE_LIMIT)])
         self.refused()
-        self.comparison = self.ahead(*[f'web/{index}.html' for index in range(release.COMPARE_FILE_LIMIT - 1)])
+        self.comparison = self.ahead(*[f'Website/public/{index}.html' for index in range(release.COMPARE_FILE_LIMIT - 1)])
         self.check()
 
     def gates_with(self, head_sha):
         run = dict(id=1, head_sha=head_sha, head_branch='master', event='push', status='completed',
                    conclusion='success', run_number=3, run_attempt=1)
-        self.comparison = self.ahead('web/index.html')
+        self.comparison = self.ahead('Website/public/index.html')
 
         def api(path):
             if path.startswith('actions/workflows/'):
@@ -338,7 +338,7 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
         with patch.object(release, 'command', side_effect=command), patch.object(release, 'api', side_effect=api):
             self.changed = 'LokalBot/Info.plist\nweb/index.html'
             release.check_candidate()
-            self.changed = 'web/index.html\nDocs/plan.md'
+            self.changed = 'Website/public/index.html\nDocs/plan.md'
             with self.assertRaises(ValueError):
                 release.check_candidate()
 

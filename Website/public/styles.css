@@ -266,7 +266,7 @@ kbd {
   background: radial-gradient(circle, rgba(35, 196, 174, 0.14), transparent 64%);
 }
 /* the circuit board from the autocomplete video, behind every page: a white
-   tile from Scripts/render_circuit_board.py used as a mask, so each theme
+   tile from Website/generator/render_circuit_board.py used as a mask, so each theme
    picks its colour. Faint in the middle of the window, where the words are. */
 .bg-field::before {
   content: "";

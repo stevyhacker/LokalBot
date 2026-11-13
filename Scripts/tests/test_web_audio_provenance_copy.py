@@ -7,7 +7,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "Scripts"))
+sys.path.insert(0, str(ROOT / "Website" / "generator"))
 
 import render_web  # noqa: E402
 
@@ -15,10 +15,10 @@ import render_web  # noqa: E402
 class AudioProvenanceCopyTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        scripts = ROOT / "Scripts"
-        compare_template = (scripts / "compare.template.html").read_text(encoding="utf-8")
-        guide_template = (scripts / "guide.template.html").read_text(encoding="utf-8")
-        footer_template = (scripts / "footer.partial.html").read_text(encoding="utf-8")
+        templates = ROOT / "Website" / "generator" / "templates"
+        compare_template = (templates / "compare.template.html").read_text(encoding="utf-8")
+        guide_template = (templates / "guide.template.html").read_text(encoding="utf-8")
+        footer_template = (templates / "footer.partial.html").read_text(encoding="utf-8")
         footer = render_web.render_footer(footer_template)
         rendered = [render_web.render_page(compare_template, page, footer)
                     for page in render_web.PAGES]

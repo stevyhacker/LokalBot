@@ -555,7 +555,7 @@ final class CodingAgentSessionTests: XCTestCase {
             "Sources/A.swift")
         XCTAssertEqual(
             CodingAgentText.displayPath("/Users/me/.codex/worktrees/f2bb/Colony/web/page.tsx", workingDirectory: nil),
-            "web/page.tsx")
+            "Website/public/page.tsx")
         XCTAssertEqual(
             CodingAgentText.displayPath(
                 "/private/tmp/claude-501/-Users-me-Code-App/1ac1dcdf-d832-4204-904b-f3e4e9a6f33c/scratchpad/x/team.html",

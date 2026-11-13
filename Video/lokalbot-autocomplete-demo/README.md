@@ -49,7 +49,7 @@ python3 build_edit.py /tmp/takes light
 ./make.sh
 ```
 
-The home page played a silent copy, `web/assets/lokalbot-autocomplete.mp4`
+The home page played a silent copy, `Website/public/assets/lokalbot-autocomplete.mp4`
 (poster: the opening frame, `lokalbot-autocomplete-poster.webp`), from 29 October
 to 5 November 2026; no page loads it now, and the file is still published. It was made from
 the final MP4 in two passes, just under 10 MB; `aq-mode=3` keeps the dim circuit

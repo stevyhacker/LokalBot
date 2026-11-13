@@ -23,7 +23,7 @@ Read the relevant sections when the task touches them:
 - The Windows and Linux app: [LinuxWindows/README.md](LinuxWindows/README.md).
 - The phone and tablet apps, their sync protocol, or what the Mac shares with them: [Companion/README.md](Companion/README.md).
 - Signing, release artifacts, or publication: [RELEASING.md](RELEASING.md).
-- Website changes: [web/CLAUDE.md](web/CLAUDE.md).
+- Website changes: [Website/AGENTS.md](Website/AGENTS.md).
 - Video work: [Video/AGENTS.md](Video/AGENTS.md) and the selected project's guide.
 - Retrieving recorded work through the CLI or MCP: [.agents/skills/lokalbot-cli/SKILL.md](.agents/skills/lokalbot-cli/SKILL.md).
 

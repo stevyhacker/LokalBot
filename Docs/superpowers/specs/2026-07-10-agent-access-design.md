@@ -3,7 +3,7 @@
 **Date:** 2026-07-10
 **Status:** Approved in brainstorming
 **Branch:** `agent-access`
-**Scope decision:** Agent access ships first on its own branch; the inference broker is a separate spec/plan/branch cycle afterward. v1 = meeting tools + `ask_library`. Packaging in scope: `.mcpb` bundle, `install-skill` subcommand, Privacy toggle. Deferred: `web/` docs page (follow-up PR), activity/screen tools (v1.1), app-hosted MCP (post-broker).
+**Scope decision:** Agent access ships first on its own branch; the inference broker is a separate spec/plan/branch cycle afterward. v1 = meeting tools + `ask_library`. Packaging in scope: `.mcpb` bundle, `install-skill` subcommand, Privacy toggle. Deferred: `Website/public/` docs page (follow-up PR), activity/screen tools (v1.1), app-hosted MCP (post-broker).
 
 ---
 

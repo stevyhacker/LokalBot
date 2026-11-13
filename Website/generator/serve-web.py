@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local preview server for web/.
+"""Local preview server for Website/public/.
 
 Identical to `python3 -m http.server` except that it refuses to let the
 browser cache anything. The stock server sends no cache headers at all, which
@@ -15,7 +15,7 @@ And it serves pages the way wrangler.jsonc tells production to: an
 extensionless URL such as /guides or /blog/<slug> gets its .html file, and a
 missing path gets 404.html with status 404.
 
-Usage: Scripts/serve-web.py [port]   (default 8791)
+Usage: Website/generator/serve-web.py [port]   (default 8791)
 """
 import functools
 import http.server
@@ -27,7 +27,7 @@ import socketserver
 import sys
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8791
-ROOT = pathlib.Path(__file__).resolve().parent.parent / "web"
+ROOT = pathlib.Path(__file__).resolve().parents[1] / "public"
 
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):

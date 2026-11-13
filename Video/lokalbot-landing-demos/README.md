@@ -16,21 +16,21 @@ framed and retimed here. Nothing inside a window is redrawn.
 | `projects` | Feature card | `projects`, then `projects-note` |
 
 Hero clips come as `wide` (16:10, 1920×1200) and `tall` (4:5, 1080×1350), in `light`
-and `dark`, as `web/assets/demos/<clip>-<cut>-<appearance>.mp4` with a `.webp` poster.
+and `dark`, as `Website/public/assets/demos/<clip>-<cut>-<appearance>.mp4` with a `.webp` poster.
 Cards are wide only. The page picks the file for the viewer's width and appearance.
 The `-tall` takes film a narrow window, so text wraps to the phone cut instead of
 running off its edge.
 
-The hero plays one film of 43 seconds, `web/assets/demos/full-<cut>-<appearance>.mp4`,
+The hero plays one film of 43 seconds, `Website/public/assets/demos/full-<cut>-<appearance>.mp4`,
 and its tabs are chapters in it. `full_demo.py` joins the six hero clips with short fades,
 trims them, and speeds up typing and waits. It prints the chapter times, which go in
-`data-start` on the tabs in `web/index.html`. Rerun it after replacing a hero clip. The
+`data-start` on the tabs in `Website/public/index.html`. Rerun it after replacing a hero clip. The
 page plays only the film, but the clips stay in place as its source and the README's. The
 cards play as silent loops with no controls, like GIFs: a real GIF of `today` is 2.6 times
 the bytes of its MP4 at half the width. Reduced motion and Save-Data get stills.
 
 The root README's GIFs and stills are cut from the finished clips by `readme_gifs.py`, since a
-README can't autoplay video. It takes `web/assets/demos` and writes files for
+README can't autoplay video. It takes `Website/public/assets/demos` and writes files for
 `Assets/hero/` and `Assets/readme/`; [Assets/hero/README.md](../../Assets/hero/README.md)
 lists them. Rerun it after replacing a clip.
 
@@ -106,7 +106,7 @@ LANDING_FONT=<a copy of SF, off macOS> Video/lokalbot-landing-demos/build.sh foo
 `edit.json` is the edit: which parts of which takes play at what speed, and where the
 camera looks. Its times are anchors from each take's events, so one edit fits light and
 dark. `compose.py`'s docstring has the format. Check the output on contact sheets, then
-copy it to `web/assets/demos/`.
+copy it to `Website/public/assets/demos/`.
 
 `agents/` holds the terminal clip: `prepare.sh` sets up Claude Code on a Linux box with
 the released `lokalbot-cli` on a fictional library, `record.py` records a take with

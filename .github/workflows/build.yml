@@ -42,13 +42,11 @@ on:
     # Mirrors DOCS_ONLY in Scripts/ci/build-relevance.py; a test keeps them equal.
     paths-ignore:
       - "Docs/**"
-      - "web/**"
+      - "Website/**"
       - "Video/**"
       - "Assets/**"
       - "Distribution/**"
-      - "cloudflare/**"
       - "wrangler.jsonc"
-      - "vercel.json"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE.md"
       - "README.md"
@@ -59,13 +57,6 @@ on:
       - "RELEASING.md"
       - "SECURITY.md"
       - "SUPPORT.md"
-      - "CLOUDFLARE.md"
-      - "Scripts/render_web.py"
-      - "Scripts/serve-web.py"
-      - "Scripts/comparison_pages.py"
-      - "Scripts/guide_pages.py"
-      - "Scripts/blog_posts.py"
-      - "Scripts/render_social_images.py"
 
 # Cancel superseded runs for the same ref so rapid pushes/force-pushes don't
 # leave a backlog of stale builds burning runner minutes.

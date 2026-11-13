@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render the website's share images (og:image) with headless Google Chrome.
 
-- web/assets/og-image.png: the default image for guides, comparisons, and
+- Website/public/assets/og-image.png: the default image for guides, comparisons, and
   other pages without their own.
-- web/assets/blog/og/<slug>.png: one per post in Scripts/blog_posts.py, with
+- Website/public/assets/blog/og/<slug>.png: one per post in Website/generator/blog_posts.py, with
   the post's title, kind, and date. render_web.py refuses to render a post
   whose image is missing.
 
@@ -12,9 +12,9 @@ The homepage's og-home.png has its own source in Assets/social-preview/.
 Each image is drawn at 2x and downscaled to 1200x630 with sips (macOS).
 
 Usage:
-    python3 Scripts/render_social_images.py              # everything
-    python3 Scripts/render_social_images.py --only default
-    python3 Scripts/render_social_images.py --only <post-slug>
+    python3 Website/generator/render_social_images.py              # everything
+    python3 Website/generator/render_social_images.py --only default
+    python3 Website/generator/render_social_images.py --only <post-slug>
 """
 
 from __future__ import annotations
@@ -31,9 +31,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from blog_posts import POSTS  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-ICON = ROOT / "web" / "assets" / "lokalbot-icon.svg"
+ICON = ROOT / "Website" / "public" / "assets" / "lokalbot-icon.svg"
 
 BASE_CSS = """
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -134,7 +134,7 @@ def main() -> int:
     icon = ICON.as_uri()
 
     if args.only in (None, "default"):
-        render(DEFAULT_PAGE.format(css=BASE_CSS, icon=icon), ROOT / "web" / "assets" / "og-image.png")
+        render(DEFAULT_PAGE.format(css=BASE_CSS, icon=icon), ROOT / "Website" / "public" / "assets" / "og-image.png")
     for post in POSTS:
         if args.only not in (None, post["slug"]):
             continue
@@ -146,7 +146,7 @@ def main() -> int:
             title=html.escape(post["h1"]),
             size=title_size(post["h1"]),
         )
-        render(page, ROOT / "web" / "assets" / "blog" / "og" / f"{post['slug']}.png")
+        render(page, ROOT / "Website" / "public" / "assets" / "blog" / "og" / f"{post['slug']}.png")
     return 0
 
 

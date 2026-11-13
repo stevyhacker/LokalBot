@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Source for web/assets/og-home.png, the homepage's og:image and twitter:image.
+  Source for Website/public/assets/og-home.png, the homepage's og:image and twitter:image.
   It names the Mac default models and their file sizes; update it when
   README.md's "Local AI, your choice" table changes. To regenerate it, serve
   the repository root over HTTP and take a 1200×630 viewport screenshot at
@@ -8,9 +8,9 @@
 
     python3 -m http.server 8765 --bind 127.0.0.1
     # screenshot http://127.0.0.1:8765/Assets/social-preview/og-home.html
-    sips -Z 1200 og-home@2x.png --out web/assets/og-home.png
+    sips -Z 1200 og-home@2x.png --out Website/public/assets/og-home.png
 
-  Colors come from web/styles.css (light theme). The screenshot is the
+  Colors come from Website/public/styles.css (light theme). The screenshot is the
   website's light meeting summary, which uses fictional demo data.
 -->
 <html lang="en">
@@ -89,7 +89,7 @@
     </div>
 
     <figure>
-      <img src="../../web/assets/screens/meetings-summary-light.png" alt="">
+      <img src="../../Website/public/assets/screens/meetings-summary-light.png" alt="">
       <div class="badge">9.6 GB · all local</div>
       <figcaption>Default models on Mac. Windows and Linux use their own, about 4 GB.</figcaption>
     </figure>
@@ -102,7 +102,7 @@
   </div>
 
   <footer>
-    <img src="../../web/assets/lokalbot-icon.svg" alt="">
+    <img src="../../Website/public/assets/lokalbot-icon.svg" alt="">
     <strong>LokalBot</strong><span class="dot">·</span><span class="url">lokalbot.com</span><span class="dot">·</span><span>Mac, with Windows and Linux in alpha</span><span class="dot">·</span><span>Free &amp; open source</span>
   </footer>
 </body>

@@ -1,8 +1,8 @@
-"""Per-competitor content for the web/lokalbot-vs-*.html comparison pages.
+"""Per-competitor content for the Website/public/lokalbot-vs-*.html comparison pages.
 
-Rendered by Scripts/render_web.py into web/, where the HTML stays checked in.
-To change a page: edit this file (or Scripts/compare.template.html for the
-shared markup), run `python3 Scripts/render_web.py`, and commit the
+Rendered by Website/generator/render_web.py into Website/public/, where the HTML stays checked in.
+To change a page: edit this file (or Website/generator/templates/compare.template.html for the
+shared markup), run `python3 Website/generator/render_web.py`, and commit the
 regenerated HTML.
 
 All values are raw HTML fragments inserted into the template without
