@@ -538,6 +538,9 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(
             CodingAgentText.actions(inCommand: #"["/bin/zsh","-lc","npm run test && git push"]"#),
             [.pushed, .ranTests])
+        // The UI-test runner moved to Scripts/test/; older sessions still name the old path.
+        XCTAssertEqual(CodingAgentText.actions(inCommand: "Scripts/test/ui-tests.sh --remote"), [.ranTests])
+        XCTAssertEqual(CodingAgentText.actions(inCommand: "bash Scripts/ui-tests.sh --remote"), [.ranTests])
         XCTAssertEqual(CodingAgentText.actions(inCommand: "git status && git log --oneline"), [])
         XCTAssertTrue(CodingAgentText.readsLokalBot(command: "lokalbot search 'budget'"))
         XCTAssertTrue(CodingAgentText.readsLokalBot(command: "/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli list"))

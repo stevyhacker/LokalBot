@@ -723,6 +723,10 @@ fn text_rules_match_the_mac() {
         actions_in_command("pnpm run test"),
         vec![CodingAgentAction::RanTests {}]
     );
+    // The UI-test runner moved to Scripts/test/; older sessions still name the old path.
+    for command in ["Scripts/test/ui-tests.sh --remote", "bash Scripts/ui-tests.sh --remote"] {
+        assert_eq!(actions_in_command(command), vec![CodingAgentAction::RanTests {}]);
+    }
     assert!(actions_in_command("ls -la").is_empty());
     assert!(reads_lokalbot_command("lokalbot-cli search foo"));
     assert!(reads_lokalbot_command("cd x; lokalbot get abc"));

@@ -95,7 +95,7 @@ static RELEASE_TAG: LazyLock<Regex> =
 static GIT_PUSH: LazyLock<Regex> = LazyLock::new(|| regex(r"\bgit\s+(?:-C\s+\S+\s+)?push\b"));
 static TEST_RUN: LazyLock<Regex> = LazyLock::new(|| {
     regex(
-        r"\bxcodebuild\b[^\n;&|]*\btest(?:-without-building)?\b|\b(?:swift|cargo|go|forge|bun|deno)\s+test\b|\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b|\bpytest\b|Scripts/ui-tests\.sh",
+        r"\bxcodebuild\b[^\n;&|]*\btest(?:-without-building)?\b|\b(?:swift|cargo|go|forge|bun|deno)\s+test\b|\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b|\bpytest\b|Scripts/(?:test/)?ui-tests\.sh",
     )
 });
 static PULL_REQUEST_URL: LazyLock<Regex> =
