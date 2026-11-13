@@ -375,7 +375,8 @@ impl Default for Settings {
             cotyping_debounce_ms: 160,
             cotyping_multi_line: false,
             cotyping_accept_granularity: AcceptGranularity::Word,
-            cotyping_built_in_model_id: "lfm2.5-1.2b-instruct".into(),
+            // Gemma 4 E2B Base, as on macOS (`ModelCatalog.recommendedCotypingID`).
+            cotyping_built_in_model_id: "gemma4-e2b-base-q6".into(),
             cotyping_excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             cotyping_excluded_domains: String::new(),
             cotyping_use_visible_context: true,

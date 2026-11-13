@@ -3709,7 +3709,7 @@ mod tests {
         assert_eq!(day.surfaces["other"].shown, 1);
         assert_eq!(
             day.models.keys().next().map(String::as_str),
-            Some("lfm2.5-1.2b-instruct")
+            Some("gemma4-e2b-base-q6")
         );
 
         let h = harness(&[" up on the plan"], 0);
