@@ -459,10 +459,10 @@ impl AppData {
         // Each enabled period of the overnight review has a start, so an update
         // to a version that has it doesn't review older days.
         let normalized = settings.normalize_dreaming_boundary(chrono::Local::now().date_naive());
-        let adopted =
-            lokalbot_ai::catalog::adopt_default_autocomplete(&mut settings, library.paths());
-        if adopted {
-            log::info!("autocomplete: the untouched LFM2.5 default is now Gemma 4 E2B");
+        let autocomplete = settings.cotyping_built_in_model_id.clone();
+        let adopted = lokalbot_ai::catalog::adopt_default_autocomplete(&mut settings);
+        if settings.cotyping_built_in_model_id != autocomplete {
+            log::info!("autocomplete: the unused LFM2.5 default is now Gemma 4 E2B");
         }
         if (normalized || adopted)
             && let Err(err) = settings.save(&library.paths().settings_file())

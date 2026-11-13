@@ -279,6 +279,10 @@ pub struct Settings {
     pub github_star_dismissed: bool,
     pub github_star_summary_completed: bool,
     pub github_star_active_days: Vec<String>,
+    /// The one-time move of an unused LFM2.5 Autocomplete default to Gemma 4
+    /// E2B has run (`lokalbot_ai::catalog::adopt_default_autocomplete`), so
+    /// a later choice of LFM2.5 is kept. Port-only.
+    pub autocomplete_default_adopted: bool,
     /// Pane widths you dragged, by pane (`LokalBot.people`). The Mac keeps
     /// these in its split views instead.
     pub pane_widths: std::collections::BTreeMap<String, f64>,
@@ -468,6 +472,7 @@ impl Default for Settings {
             github_star_dismissed: false,
             github_star_summary_completed: false,
             github_star_active_days: Vec::new(),
+            autocomplete_default_adopted: false,
             pane_widths: Default::default(),
             other: serde_json::Map::new(),
         }
