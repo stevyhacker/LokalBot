@@ -34,7 +34,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | Signed automatic updates | ✓ (installed with `install.sh`, or run from the extracted folder) | ✓ (installed with the installer, or run from the extracted folder) | Checks GitHub daily; installs only when you choose Install and Relaunch. Package installs are told how to update with the package manager; other copies under `/usr`, `/opt` or Program Files are pointed at the download. On Windows, Installed apps (and winget) then shows the new version. |
 | Live transcript preview while recording | ✓ | ✓ | Opt-in from the live meeting view. Each track is transcribed in 4–12 s chunks cut at a pause, as Me and Remote speaker; the full transcript replaces it after the meeting. |
 | Autocomplete in other apps | X11 (GTK; Qt, Chromium/Electron and Firefox once system accessibility is on); on Wayland as an input method on Sway, Hyprland, GNOME and KDE Plasma, see [below](#autocomplete-on-wayland); elsewhere the practice editor in Settings only | ✓ (apps whose fields support UI Automation) | Off until you turn it on in Settings → Autocomplete. Gemma 4 E2B on this computer by default, as on macOS; the Lightweight preset uses LFM2.5 1.2B, about 250 ms to a suggestion on CPU. Accept keys are configurable; Esc dismisses. It can also use a server you approve. Password fields, terminals and excluded apps are never read, and text is stored only as encrypted learned examples, with local counts. |
-| Agent Mode | ✓ | ✓ (Git Bash, or PowerShell without it) | Runs the pi coding agent with your Think model. Setup downloads Bun and pi (pinned and checksum-verified, about 65 MB on Linux and 70 MB on Windows). File changes and commands need your approval. |
+| Agent Mode | ✓ | ✓ (Git Bash, or PowerShell without it) | Runs the pi coding agent with your Think model. Setup downloads Bun and pi (pinned and checksum-verified, about 75 MB on Linux and 80 MB on Windows). File changes and commands need your approval. |
 | Import recordings, merge meetings, meeting boundaries | ✓ | ✓ | Import an audio or video file from the Meetings header or by dropping it on the list: MP3, M4A/AAC, MP4/MOV, WAV, AIFF, CAF, FLAC, Ogg Vorbis and MKV (not Opus). Every audio track is mixed into the meeting's `system.wav`. Ctrl-click or Shift-click meetings to merge them into one timeline, with Undo; **Edit start and end…** keeps part of a recording and rebuilds its notes. A Mac reads the WAV tracks these write. |
 | Calendar | ✓ (private iCal/CalDAV links; Evolution Data Server, including GNOME Online Accounts) | ✓ (private iCal/CalDAV links) | Off until you turn it on in Settings → Meetings. Titles and stamps recordings like macOS, backs browser calls with the event's meeting link, splits back-to-back meetings, suggests attendee names for speakers, and lists today's meetings on Today with Join, Record and a pre-meeting brief from the local Think model. Links are kept in the system credential store. |
 | Selection actions | X11; on Wayland, through the shortcuts portal on KDE Plasma and GNOME 48 or later, and a key bound to `lokalbot selection-actions` in your compositor elsewhere | ✓ | Accessibility first, then X11's primary selection when the frontmost app owns it, then Ctrl+C (never in terminals). Apps without accessibility get copy-only results. |
@@ -61,7 +61,7 @@ version and each GPU's compute capability (read with `nvidia-smi`):
 
 | Build | Prebuilt kernels | Other GPUs (compiled from PTX) |
 | --- | --- | --- |
-| CUDA 13.4 | RTX 30, 40 and 50 (compute capability 8.6, 8.9, 12.x) on a CUDA 13.0+ driver (R580+) | Turing, A100, H100 and newer with a CUDA 13.4+ driver |
+| CUDA 13.5 | RTX 30, 40 and 50 (compute capability 8.6, 8.9, 12.x) on a CUDA 13.0+ driver (R580+) | Turing, A100, H100 and newer with a CUDA 13.5+ driver |
 | CUDA 12.8 (Linux) / 12.4 (Windows) | RTX 30 and 40 on a CUDA 12.0+ driver (R525+) | Maxwell, Pascal, Volta, Turing and newer with a CUDA 12.8 / 12.4+ driver |
 
 [NVIDIA's minor-version compatibility](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)
@@ -70,7 +70,7 @@ but it compiles PTX only from a toolkit no newer than itself. So a Turing GPU
 on an R580 driver gets the CUDA 12 build, and a GTX 10-series GPU works with a
 CUDA 12.8 (Linux) or 12.4 (Windows) driver. LokalBot takes the newest build
 that every NVIDIA GPU in the PC can run; without `nvidia-smi` it takes one whose
-PTX the driver can compile. `LOKALBOT_CUDA_RUNTIME=13.4`, `12.8` or `12.4` forces
+PTX the driver can compile. `LOKALBOT_CUDA_RUNTIME=13.5`, `12.8` or `12.4` forces
 a build for troubleshooting. Actual device detection and model offload must
 still succeed. Kepler and older GPUs, and drivers older than CUDA 12.0, can keep
 using Vulkan or CPU. **Automatic** continues to select Vulkan or CPU; CUDA
@@ -79,11 +79,11 @@ remains opt-in pending broader hardware validation and performance comparisons.
 LokalBot first tries compatible system CUDA libraries. If the CUDA backend cannot
 use them, it downloads the pinned CUDA runtime, cuBLAS and cuBLASLt libraries into
 its own runtime folder. You do not need the CUDA compiler or full toolkit. A fresh
-download is at most about 594 MB (CUDA 13.4) or 767 MB (CUDA 12.8) on Linux, and
-578 MB (CUDA 13.4) or 658 MB (CUDA 12.4) on Windows. Reusing system libraries
-reduces that to the server archive: about 154 MB for CUDA 13.4, 173 MB for
-CUDA 12.8 and 267 MB for CUDA 12.4, excluding models. Settings estimates the CUDA
-13.4 size until setup has picked a build. Downloads are verified and an
+download is at most about 594 MB (CUDA 13.5) or 757 MB (CUDA 12.8) on Linux, and
+578 MB (CUDA 13.5) or 678 MB (CUDA 12.4) on Windows. Reusing system libraries
+reduces that to the server archive: about 171 MB for CUDA 13.5, 190 MB for
+CUDA 12.8 and 304 MB for CUDA 12.4, excluding models. Settings estimates the CUDA
+13.5 size until setup has picked a build. Downloads are verified and an
 incomplete setup does not count as installed.
 
 Changing the backend lets in-flight requests finish; models switch when next

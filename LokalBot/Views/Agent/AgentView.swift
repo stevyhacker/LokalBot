@@ -90,6 +90,6 @@ struct AgentView: View {
         let inference = InferencePresentation(settings: app.settings).detail(
             local: "Model inference runs on this Mac.",
             remote: "Prompts and approved context are sent to your configured remote Think model.")
-        return "A local coding and file agent powered by your selected Think model. Setup downloads about 50 MB and uses about 225 MB after installation. \(inference) Session history stays local; commands you approve run with your Mac user permissions and may access files or the network."
+        return "A local coding and file agent powered by your selected Think model. Setup downloads about 65 MB and uses about 215 MB after installation. \(inference) Session history stays local; commands you approve run with your Mac user permissions and may access files or the network."
     }
 }

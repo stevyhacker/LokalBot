@@ -25,13 +25,13 @@ settings:
 packages:
   FluidAudio:
     url: https://github.com/FluidInference/FluidAudio
-    exactVersion: 0.17.7   # current patch; upstream TTS changes are not used by LokalBot
+    exactVersion: 0.18.3   # offline diarizer keeps exclusive segments explicitly (0.18.2 default changed)
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit
     exactVersion: 1.1.1   # crash and model-download cancellation fixes
   Qwen3Speech:
     url: https://github.com/stevyhacker/speech-swift
-    revision: 33f42bc0d48efa5baf39f2531f52c333d92e519a  # v0.0.28 + MLX-LM pin; upstream soniqo/speech-swift#501
+    revision: 8e8782120803e8812805041b9ae51197c5959c31  # v0.0.29 + MLX-LM 3.32.3 pin; upstream soniqo/speech-swift#501
   MLXSwift:
     url: https://github.com/ml-explore/mlx-swift
     exactVersion: 0.32.3   # MLX-LM 3.32.3 is compatible; CUDA plugin is Linux-only
@@ -273,7 +273,7 @@ targetTemplates:
         STRINGS_FILE_OUTPUT_ENCODING: binary
         # In-process libllama: link the vendored dylib (-lllama resolves the
         # libllama.dylib symlink in Vendor/llama-cpp) and make its @rpath install
-        # name (@rpath/libllama.0.dylib) resolve at runtime against the copies the
+        # name (@rpath/libllama.1.dylib) resolve at runtime against the copies the
         # Vendor/llama-cpp folder-resource phase places in Contents/Resources/llama-cpp.
         LIBRARY_SEARCH_PATHS:
           - $(inherited)
