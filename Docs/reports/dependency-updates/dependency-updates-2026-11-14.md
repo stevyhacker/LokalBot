@@ -331,7 +331,8 @@ meeting, split into a mic track (Maya) and a system track (Daniel).
 - **Windows PC (Radeon RX 6600 XT).** The release build of `lokalbot-app` and `lokalbot-cli` finished with 0 warnings (529 s cold). `process_meeting --prepare --ask` passed in 236 s:
   - It downloaded the default models and the 38 MB b12359 runtime and ran on Vulkan.
   - It transcribed both tracks, wrote complete notes (TL;DR, decisions, actions, open questions), and answered "What did we decide?" with meeting citations.
-  - Page captures were not taken, because the user was signed in and active at the PC.
+  - The app then ran in the user's desktop session, on a separate library from their own install. The 17 demo-library pages (14 light, 3 dark) and 3 pages of the pipeline library all rendered, with no blank windows or errors. Settings → Models reported Qwen3-ASR and Qwen3.5 4B ready and "Everything is working", and the Agent page showed the new setup sizes (about 80 MB, 230 MB installed).
+  - With the app running, `lokalbot-cli` list, search and actions returned the meeting, and two asks were answered correctly in 6 s and 2 s ("the delivery window is optional"; "Daniel updates the API spec by Friday").
 - **Ubuntu box (CPU).** The release build had no warnings, and `process_meeting` passed in 193 s on the b12359 CPU runtime. On a virtual X11 desktop:
   - All 27 page captures (light and dark) showed real content.
   - Ask through `lokalbot-cli` and in the app answered correctly against the real model.
