@@ -151,6 +151,9 @@ pub struct MeetingsPage {
     playing: bool,
     poll: Option<Task<()>>,
     page_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    /// Where the Back button at the toolbar's leading edge is, so the tab
+    /// switcher never covers it.
+    back_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     tick: Option<Task<()>>,
     /// Where each meeting's playback stood, for coming back to it.
     playback_memory: std::collections::HashMap<Uuid, (f64, f32)>,
@@ -330,6 +333,7 @@ impl MeetingsPage {
             playing: false,
             poll: None,
             page_bounds: Rc::new(Cell::new(None)),
+            back_bounds: Rc::new(Cell::new(None)),
             tick: None,
             playback_memory: Default::default(),
             exporting_audio: false,
@@ -1041,25 +1045,12 @@ impl MeetingsPage {
 
     // --------------------------------------------------------------- render
 
-    /// Where the tab switcher sits: centered over the page, but clear of the
-    /// toolbar items and window controls on the right. Returns x, segment width.
+    /// Where the tab switcher sits ([`tabs_geometry`]).
     fn tabs_geometry(&self) -> Option<(Pixels, Pixels)> {
-        let page = self.page_bounds.get()?;
-        let width = page.size.width;
-        let segment = if width < px(760.) {
-            px(70.)
-        } else if width < px(900.) {
-            px(74.)
-        } else {
-            px(86.)
-        };
-        let tabs = segmented_tabs::width(TABS.len(), segment);
-        let reserved = if width < px(900.) { px(270.) } else { px(390.) };
-        let centered = page.origin.x + width / 2. - tabs / 2.;
-        let x = centered
-            .min(page.origin.x + width - reserved - tabs)
-            .max(page.origin.x + px(120.));
-        Some((x, segment))
+        Some(tabs_geometry(
+            self.page_bounds.get()?,
+            self.back_bounds.get(),
+        ))
     }
 
     fn toolbar_tabs(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1078,6 +1069,33 @@ impl MeetingsPage {
         );
         Some(deferred(anchored().position(point(x, y)).child(tabs)).into_any_element())
     }
+}
+
+/// Where the tab switcher sits over `page`: centered, but clear of the
+/// toolbar items and window controls on the right and of Back at the leading
+/// edge (`back`, on the right in right-to-left languages) when it shows.
+/// Returns x, segment width.
+fn tabs_geometry(page: Bounds<Pixels>, back: Option<Bounds<Pixels>>) -> (Pixels, Pixels) {
+    let width = page.size.width;
+    let segment = if width < px(760.) {
+        px(70.)
+    } else if width < px(900.) {
+        px(74.)
+    } else {
+        px(86.)
+    };
+    let tabs = segmented_tabs::width(TABS.len(), segment);
+    let reserved = if width < px(900.) { px(270.) } else { px(390.) };
+    let centered = page.origin.x + width / 2. - tabs / 2.;
+    let x = centered
+        .min(page.origin.x + width - reserved - tabs)
+        .max(page.origin.x + px(120.));
+    let x = match back {
+        Some(back) if back.center().x < page.center().x => x.max(back.right() + px(12.)),
+        Some(back) => x.min(back.left() - px(12.) - tabs),
+        None => x,
+    };
+    (x, segment)
 }
 
 fn doc_has_journal(doc: &Option<Rc<MeetingDoc>>) -> bool {
@@ -1115,6 +1133,57 @@ impl Page for MeetingsPage {
             return meeting.display_title().into();
         }
         SharedString::default()
+    }
+
+    /// Back to the page the meeting was opened from, at the toolbar's leading
+    /// edge (the Mac's `.navigation` placement), where the centered tab
+    /// switcher can't cover it at any window width.
+    fn title_control(
+        &mut self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let back = self
+            .data
+            .read(cx)
+            .evidence_return
+            .filter(|_| self.selected.is_some() && !self.is_live_selected(cx));
+        let Some(back) = back else {
+            self.back_bounds.set(None);
+            return None;
+        };
+        let data = self.data.clone();
+        let cell = self.back_bounds.clone();
+        let measure = canvas(
+            move |bounds, window, _| {
+                if cell.get() != Some(bounds) {
+                    cell.set(Some(bounds));
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_full();
+        Some(
+            div()
+                .relative()
+                .child(measure)
+                .child(
+                    Button::new("meeting-evidence-back")
+                        .ghost()
+                        .icon(Icon::new(Ico::ChevronLeft))
+                        .label(if back.section == crate::state::Section::Actions {
+                            lokalbot_i18n::tr("Back to Actions")
+                        } else {
+                            lokalbot_i18n::tr("Back")
+                        })
+                        .on_click(move |_, _, cx| {
+                            data.update(cx, |data, cx| data.return_from_evidence(cx));
+                        }),
+                )
+                .into_any_element(),
+        )
     }
 
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1172,7 +1241,6 @@ impl Page for MeetingsPage {
             .is_some_and(|d| d.meeting.is_merged_meeting());
         let has_audio = self.doc.as_ref().is_some_and(|d| d.has_audio);
         let exporting_audio = self.exporting_audio;
-        let back = self.data.read(cx).evidence_return;
         let spoken = self.spoken_menu_items(cx);
         let page = cx.entity().downgrade();
         let share_page = page.clone();
@@ -1180,22 +1248,6 @@ impl Page for MeetingsPage {
         let toolbar = h_flex()
             .gap_1()
             .items_center()
-            .when_some(back, |this, back| {
-                let data = self.data.clone();
-                this.child(
-                    Button::new("meeting-evidence-back")
-                        .ghost()
-                        .icon(Icon::new(Ico::ChevronLeft))
-                        .label(if back.section == crate::state::Section::Actions {
-                            lokalbot_i18n::tr("Back to Actions")
-                        } else {
-                            lokalbot_i18n::tr("Back")
-                        })
-                        .on_click(move |_, _, cx| {
-                            data.update(cx, |data, cx| data.return_from_evidence(cx));
-                        }),
-                )
-            })
             .children(self.toolbar_tabs(cx))
             .child(if compact {
                 Button::new("meeting-ask")
@@ -1490,5 +1542,42 @@ pub(crate) fn status_text(status: &NotesStatus) -> SharedString {
         NotesStatus::Saved => lokalbot_i18n::tr("Saved on this PC").into(),
         NotesStatus::Saving => lokalbot_i18n::tr("Saving…").into(),
         NotesStatus::Failed(_) => lokalbot_i18n::tr("Not saved").into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui_kit::{point, size};
+
+    fn page(width: f32) -> Bounds<Pixels> {
+        Bounds::new(point(px(225.), px(52.)), size(px(width), px(700.)))
+    }
+
+    /// The default window (a page about 1015 px wide) used to put the tabs
+    /// over Back; at the leading edge it stays clear of them at any width,
+    /// on the left or, right to left, on the right.
+    #[test]
+    fn the_tabs_never_cover_back() {
+        for width in [600., 735., 900., 1015., 1215.] {
+            let left = Bounds::new(point(px(237.), px(10.)), size(px(140.), px(28.)));
+            let (x, _) = tabs_geometry(page(width), Some(left));
+            assert!(x >= left.right() + px(12.), "width {width}: tabs at {x:?}");
+            let right_edge = px(225. + width);
+            let right = Bounds::new(
+                point(right_edge - px(152.), px(10.)),
+                size(px(140.), px(28.)),
+            );
+            let (x, segment) = tabs_geometry(page(width), Some(right));
+            let tabs = segmented_tabs::width(TABS.len(), segment);
+            assert!(
+                x + tabs <= right.left() - px(12.),
+                "width {width}: tabs at {x:?}"
+            );
+        }
+        // Without Back the tabs stay centered where there is room.
+        let (x, segment) = tabs_geometry(page(1215.), None);
+        let tabs = segmented_tabs::width(TABS.len(), segment);
+        assert_eq!(x, px(225.) + px(1215.) / 2. - tabs / 2.);
     }
 }
