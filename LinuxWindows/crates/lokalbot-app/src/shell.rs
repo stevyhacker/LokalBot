@@ -68,13 +68,19 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) -> PageParts {
         fn parts<P: Page>(page: &Entity<P>, window: &mut Window, cx: &mut App) -> PageParts {
-            let (title, subtitle, toolbar) = page.update(cx, |page, cx| {
-                (page.title(cx), page.subtitle(cx), page.toolbar(window, cx))
+            let (title, subtitle, toolbar, title_control) = page.update(cx, |page, cx| {
+                (
+                    page.title(cx),
+                    page.subtitle(cx),
+                    page.toolbar(window, cx),
+                    page.title_control(window, cx),
+                )
             });
             PageParts {
                 title,
                 subtitle,
                 toolbar,
+                title_control,
                 page: page.clone().into_any_element(),
             }
         }
@@ -367,14 +373,24 @@ impl Workspace {
         title: SharedString,
         subtitle: Option<SharedString>,
         toolbar: Option<AnyElement>,
+        title_control: Option<AnyElement>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
-        TitleBar::new()
+        let title_bar = TitleBar::new()
             .h(metric::TOOLBAR_HEIGHT)
             .bg(lb.title_bar)
-            .border_color(lb.separator)
-            .child(
+            .border_color(lb.separator);
+        let title_bar = match title_control {
+            // The control takes clicks; the rest of the bar still drags the window.
+            Some(control) => title_bar.child(
+                div()
+                    .pl(px(12.))
+                    .min_w_0()
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .child(control),
+            ),
+            None => title_bar.child(
                 v_flex()
                     .pl(px(16.))
                     .min_w_0()
@@ -396,16 +412,17 @@ impl Workspace {
                                 .child(subtitle),
                         )
                     }),
-            )
-            .child(
-                h_flex()
-                    .h_full()
-                    .items_center()
-                    .gap_1()
-                    .pr_2()
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .children(toolbar),
-            )
+            ),
+        };
+        title_bar.child(
+            h_flex()
+                .h_full()
+                .items_center()
+                .gap_1()
+                .pr_2()
+                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .children(toolbar),
+        )
     }
 }
 
@@ -414,6 +431,7 @@ struct PageParts {
     title: SharedString,
     subtitle: Option<SharedString>,
     toolbar: Option<AnyElement>,
+    title_control: Option<AnyElement>,
     page: AnyElement,
 }
 
@@ -578,7 +596,13 @@ impl Render for Workspace {
                     .flex_1()
                     .min_w_0()
                     .h_full()
-                    .child(self.render_toolbar(parts.title, parts.subtitle, parts.toolbar, cx))
+                    .child(self.render_toolbar(
+                        parts.title,
+                        parts.subtitle,
+                        parts.toolbar,
+                        parts.title_control,
+                        cx,
+                    ))
                     .child(div().flex_1().min_h_0().relative().child(parts.page))
                     .children(toast),
             )

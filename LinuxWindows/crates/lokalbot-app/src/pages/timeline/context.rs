@@ -1,28 +1,41 @@
-//! Timeline's context panel: the selected work session or meeting
-//! (`TimelineContextPanel`, `TimelineMeetingPreview`).
+//! Timeline's main area when something other than the day is chosen in the
+//! rail (`TimelineContextPanel`): a work session, a meeting's short preview,
+//! all captured activity, or one activity block or screen moment opened from
+//! those. Each is a title panel, then one panel per section it has; "‹ Day
+//! digest" above goes back.
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::scroll::ScrollableElement as _;
 use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
-    SharedString, StatefulInteractiveElement as _, Styled as _, Window, div, px,
+    AnyElement, Context, ElementId, FontWeight, InteractiveElement as _, IntoElement, ObjectFit,
+    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
+    StyledImage as _, Window, div, img, px,
 };
-use lokalbot_core::{ActionReference, ActionStatus, Library, Meeting, WorkSession};
+use lokalbot_core::{Library, Meeting, ScreenMoment, WorkSession};
 
+use super::day_list::{self, mac};
+use super::rail::{capture_counts, time_range};
 use super::{DayModel, Selection, TimelinePage};
 use crate::pages::meetings::model as meeting_model;
+use crate::pages::today::digest::hm;
+use crate::state::Section;
 use crate::theme::{LbThemeExt as _, metric, ty};
-use crate::ui::action_row::open_meeting;
-use crate::ui::{self, Ico, action_row};
+use crate::ui::action_row::{self, ThreadRowOptions, open_meeting};
+use crate::ui::section_panel::{SectionPanel, SectionPanelLead};
+use crate::ui::{self, Ico};
+use crate::windows::screen_image::ScreenImage;
 
-/// What the meeting panel shows, loaded in the background.
+/// A meeting preview stays short; the meeting has the rest.
+const PREVIEW_ROWS: usize = 6;
+/// Representative moments a session shows before "Show all".
+const REPRESENTATIVE_MOMENTS: usize = 3;
+
+/// What the meeting page shows, loaded in the background.
 pub(crate) struct MeetingPreview {
     pub meeting: Meeting,
     pub recap: Option<String>,
-    pub actions: Vec<ActionReference>,
     pub decisions: Vec<String>,
 }
 
@@ -34,29 +47,15 @@ impl MeetingPreview {
             .flatten()
             .as_deref()
             .and_then(meeting_model::recap);
-        let actions = library
-            .meeting_actions(&meeting)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|r| r.is_for_user)
-            .take(4)
-            .collect();
         let decisions = library
             .outcomes(&meeting)
             .ok()
             .flatten()
-            .map(|o| {
-                o.decision_records
-                    .into_iter()
-                    .take(4)
-                    .map(|d| d.text)
-                    .collect()
-            })
+            .map(|o| o.decision_records.into_iter().map(|d| d.text).collect())
             .unwrap_or_default();
         Self {
             meeting,
             recap,
-            actions,
             decisions,
         }
     }
@@ -66,392 +65,240 @@ impl TimelinePage {
     pub(super) fn render_context(
         &self,
         model: &DayModel,
-        drawer: bool,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let content = match &self.selection {
+        let page: Option<Vec<AnyElement>> = match &self.selection {
             Some(Selection::Session(id)) => model
                 .activity
                 .sessions
                 .iter()
                 .find(|s| &s.id == id)
-                .map(|session| self.render_session(model, session, drawer, cx)),
-            Some(Selection::Meeting(_)) => Some(self.render_meeting(drawer, cx)),
-            Some(Selection::RawCapture) => Some(self.render_raw_capture(model, drawer, cx)),
+                .map(|session| self.session_page(model, session, cx)),
+            Some(Selection::Meeting(_)) => Some(self.meeting_page(model, cx)),
+            Some(Selection::RawCapture) => Some(self.raw_capture_page(model, cx)),
             Some(Selection::Moment(id)) => {
-                Some(self.render_moment(model.moments.iter().find(|m| m.id == *id), drawer, cx))
+                Some(vec![self.render_moment(
+                    model.moments.iter().find(|m| m.id == *id),
+                    cx,
+                )])
             }
             Some(Selection::Block(id)) => model
                 .activity
                 .blocks
                 .iter()
                 .find(|b| b.id == *id)
-                .map(|block| self.render_block(model, block, drawer, cx)),
+                .map(|block| vec![self.render_block(model, block, cx)]),
             None => None,
         };
-        let content = content.unwrap_or_else(|| {
-            v_flex()
-                .gap(px(14.))
-                .child(self.panel_header(Ico::ScanText, lokalbot_i18n::tr("Details").into(), String::new(), drawer, cx))
-                .child(
-                    div()
-                        .text_size(ty::BODY)
-                        .text_color(cx.lb().text_secondary)
-                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Select a work session, meeting, or captured moment to review its details."))),
-                )
-                .into_any_element()
-        });
-        div()
-            .id("timeline-context")
-            .size_full()
-            .overflow_y_scrollbar()
-            .child(div().p(px(if drawer { 16. } else { 24. })).child(content))
-            .into_any_element()
-    }
-
-    pub(super) fn panel_header(
-        &self,
-        icon: Ico,
-        title: SharedString,
-        subtitle: String,
-        drawer: bool,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let lb = cx.lb().clone();
-        let back_label = match self.selection_trail.last() {
-            Some(Selection::Session(_)) => lokalbot_i18n::tr("Work session"),
-            Some(Selection::RawCapture) => lokalbot_i18n::tr("Raw capture"),
-            Some(Selection::Block(_)) => lokalbot_i18n::tr("Activity"),
-            Some(Selection::Meeting(_)) => lokalbot_i18n::tr("Meeting"),
-            _ => lokalbot_i18n::tr("Day"),
-        };
-        v_flex()
-            .gap(px(10.))
-            .child(
-                h_flex()
-                    .items_center()
-                    .child(
-                        h_flex()
-                            .id("context-back")
-                            .gap(px(4.))
-                            .items_center()
-                            .cursor_pointer()
-                            .text_size(ty::BODY)
-                            .text_color(lb.accent_text)
-                            .hover(|s| s.underline())
-                            .child(ui::icon(Ico::ChevronLeft, px(14.), lb.accent_text))
-                            .child(crate::ui::text::paragraph(back_label))
-                            .on_click(cx.listener(|this, _, _, cx| this.go_back(cx))),
-                    )
-                    .child(div().flex_1())
-                    .when(drawer, |this| {
-                        this.child(
-                            Button::new("context-close")
-                                .ghost()
-                                .icon(Icon::new(Ico::X))
-                                .tooltip(lokalbot_i18n::tr("Close context panel"))
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.drawer_open = false;
-                                    this.selection = None;
-                                    cx.notify();
-                                })),
-                        )
-                    }),
-            )
-            .child(
-                h_flex()
-                    .gap(px(9.))
-                    .items_start()
-                    .child(
-                        div()
-                            .pt(px(3.))
-                            .child(ui::icon(icon, px(18.), lb.accent_text)),
-                    )
+        // A selection still loading, or one the day no longer has.
+        let page = page.unwrap_or_else(|| {
+            vec![
+                SectionPanelLead::new("timeline-details")
                     .child(
                         v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(2.))
+                            .gap(px(10.))
+                            .child(page_header(
+                                header_icon(Ico::ScanText, cx),
+                                lokalbot_i18n::tr("Details").into(),
+                                String::new(),
+                                cx,
+                            ))
                             .child(
                                 div()
-                                    .line_clamp(2)
-                                    .text_size(ty::QUESTION)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(lb.text)
-                                    .child(title),
-                            )
-                            .when(!subtitle.is_empty(), |this| {
-                                this.child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(lb.text_secondary)
-                                        .child(subtitle),
-                                )
-                            }),
-                    ),
+                                    .text_size(ty::BODY)
+                                    .text_color(cx.lb().supporting)
+                                    .child(ui::text::paragraph(lokalbot_i18n::tr(
+                                        "Select a work session, meeting, or captured moment to review its details.",
+                                    ))),
+                            ),
+                    )
+                    .into_any_element(),
+            ]
+        });
+        // Pages opened inside another have their own way back.
+        let opened_inside = !self.selection_trail.is_empty()
+            || matches!(
+                self.selection,
+                Some(Selection::Moment(_) | Selection::Block(_))
+            );
+        let mut children = Vec::new();
+        if !opened_inside {
+            children.push(self.digest_link(cx));
+        }
+        children.extend(page);
+        self.page_column("timeline-context", children, cx)
+    }
+
+    /// The way back from a page opened inside another: an activity block to
+    /// its session, a moment to its activity. The destination alone is the
+    /// visible text.
+    pub(super) fn back_link(&self, cx: &mut Context<Self>) -> AnyElement {
+        let lb = cx.lb().clone();
+        let label = match self.selection_trail.last() {
+            Some(Selection::Session(_)) => lokalbot_i18n::tr("Work session"),
+            Some(Selection::RawCapture) => lokalbot_i18n::tr("All captured activity"),
+            Some(Selection::Block(_)) => lokalbot_i18n::tr("Activity"),
+            Some(Selection::Meeting(_)) => lokalbot_i18n::tr("Meeting"),
+            _ => lokalbot_i18n::tr("Day digest"),
+        };
+        let back = if lokalbot_i18n::current().rtl {
+            Ico::ChevronRight
+        } else {
+            Ico::ChevronLeft
+        };
+        h_flex()
+            .child(
+                h_flex()
+                    .id("context-back")
+                    .gap(px(4.))
+                    .items_center()
+                    .cursor_pointer()
+                    .text_size(ty::BODY)
+                    .text_color(lb.accent_text)
+                    .hover(|s| s.underline())
+                    .child(ui::icon(back, px(14.), lb.accent_text))
+                    .child(label)
+                    .on_click(cx.listener(|this, _, _, cx| this.go_back(cx))),
             )
             .into_any_element()
     }
 
-    fn render_session(
+    // ------------------------------------------------------- a session
+
+    fn session_page(
         &self,
         model: &DayModel,
         session: &WorkSession,
-        drawer: bool,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> Vec<AnyElement> {
         let lb = cx.lb().clone();
-        let subtitle = lokalbot_i18n::format(
-            "{0}–{1} · {2} active",
-            &[
-                (
-                    "0",
-                    lokalbot_core::time::clock_time(session.start).to_string(),
-                ),
-                (
-                    "1",
-                    lokalbot_core::time::clock_time(session.end).to_string(),
-                ),
-                (
-                    "2",
-                    crate::pages::today::digest::hm(session.active_seconds).to_string(),
-                ),
-            ],
+        let used_apps = day_list::used_apps(session, &model.activity.blocks);
+        let outcomes = super::agent_work::outcome_text(
+            &lokalbot_core::coding_agents::attribution::Outcomes::of(&session.agent_bursts),
         );
-        let agent_work = self
-            .render_agent_work(&session.agent_bursts, cx)
-            .map(|work| context_section(Ico::Terminal, lokalbot_i18n::tr("Agent work"), work, cx));
-        let moments: Vec<&lokalbot_core::ScreenMoment> = model
+        let text = day_list::work_text(session, &used_apps, outcomes);
+        // The dot the session has in the rail and the hour strip.
+        let color_key = model
+            .list
+            .row(&session.id)
+            .map(|row| row.color_key.clone())
+            .unwrap_or_else(|| {
+                Some(
+                    day_list::session_project(session)
+                        .map_or_else(|| session.primary_app.clone(), str::to_string),
+                )
+            });
+        let color = color_key.map_or(lb.text_tertiary.opacity(0.8), |key| lb.app_color(&key));
+        let mut parts: Vec<String> = Vec::new();
+        if session.title_names_project
+            && let (project, Some(_)) = day_list::project_and_task(session)
+        {
+            parts.push(project);
+        }
+        parts.push(time_range(session.start, session.end));
+        parts.push(mac("%@ active", &[&hm(session.active_seconds)]));
+        let apps = used_apps
+            .iter()
+            .take(4)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !apps.is_empty() {
+            parts.push(apps);
+        }
+        let mut panels = vec![
+            SectionPanelLead::new("timeline-session-lead")
+                .child(page_header(
+                    div()
+                        .pt(px(7.))
+                        .child(ui::status_dot(color, px(12.)))
+                        .into_any_element(),
+                    text.title.into(),
+                    parts.join(" · "),
+                    cx,
+                ))
+                .into_any_element(),
+        ];
+
+        if let Some(work) = self.render_agent_work(&session.agent_bursts, cx) {
+            panels.push(
+                SectionPanel::new("timeline-session-agent", lokalbot_i18n::tr("Coding agent"))
+                    .section(Section::Agent)
+                    .child(div().px(metric::PANEL_INSET).py(px(14.)).child(work))
+                    .into_any_element(),
+            );
+        }
+
+        let moments: Vec<&ScreenMoment> = model
             .moments
             .iter()
             .filter(|m| m.ts >= session.start && m.ts <= session.end)
             .collect();
         let scenes = Self::session_scenes(model, session);
-        let representative = lokalbot_core::timeline::representative(&scenes, 3);
-        let representative_rows: Vec<AnyElement> = representative
-            .iter()
-            .map(|moment| self.moment_row(("session-moment", moment.id as u64), moment, true, cx))
-            .collect();
-        let evidence = v_flex()
-            .gap(px(9.))
-            .when(representative.is_empty(), |this| {
-                this.child(
-                    div()
-                        .text_size(ty::BODY)
-                        .text_color(lb.text_secondary)
-                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("No context moments were captured during this session."))),
-                )
-            })
-            .children(representative_rows)
-            .when(scenes.len() > representative.len(), |this| {
-                this.child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::format("Showing {0} representative scenes from {1}. Browse raw capture for every scene.", &[("0", format!("{}", representative.len())), ("1", format!("{}", scenes.len()))]))))
-            });
-        let browser =
-            (!moments.is_empty()).then(|| self.render_moment_browser(&moments, scenes.len(), cx));
-
-        // Window titles with the blocks behind them, most observed first.
-        let blocks: Vec<&lokalbot_core::ActivityBlock> = model
-            .activity
-            .blocks
-            .iter()
-            .filter(|b| session.block_ids.contains(&b.id))
-            .collect();
-        let titles: Vec<(String, Vec<&lokalbot_core::ActivityBlock>, f64)> = session
-            .notable_titles
-            .iter()
-            .map(|title| {
-                let matching: Vec<_> = blocks
-                    .iter()
-                    .copied()
-                    .filter(|b| {
-                        lokalbot_core::timeline::cleaned_title(&b.title, &b.app).as_deref()
-                            == Some(title.as_str())
-                    })
-                    .collect();
-                let observed = lokalbot_core::timeline::merged_duration(&matching);
-                (title.clone(), matching, observed)
-            })
-            .collect();
-        let documents = (!titles.is_empty()).then(|| {
-            let rows = titles.into_iter().enumerate().map(|(ix, (title, matching, observed))| {
-                let expanded = self.expanded_titles.contains(&title);
-                let key = title.clone();
-                v_flex()
-                    .gap(px(6.))
-                    .px(px(12.))
-                    .py(px(9.))
-                    .rounded(metric::GROUP_RADIUS)
-                    .bg(lb.chip_fill.opacity(0.4))
-                    .child(
-                        h_flex()
-                            .id(("session-title", ix))
-                            .gap(px(8.))
-                            .items_start()
-                            .cursor_pointer()
-                            .child(
-                                div().pt(px(2.)).child(ui::icon(
-                                    if expanded { Ico::ChevronDown } else { Ico::ChevronRight },
-                                    px(13.),
-                                    lb.text_secondary,
-                                )),
-                            )
-                            .child(
-                                v_flex()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .gap(px(3.))
-                                    .child(
-                                        div()
-                                            .line_clamp(2)
-                                            .text_size(ty::BODY)
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .text_color(lb.text)
-                                            .child(title.clone()),
-                                    )
-                                    .child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::format("{duration} observed · Activity entries: {count}", &[("duration", crate::pages::today::digest::hm(observed)), ("count", matching.len().to_string())])))),
-                            )
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                if !this.expanded_titles.remove(&key) {
-                                    this.expanded_titles.insert(key.clone());
-                                }
-                                cx.notify();
-                            })),
-                    )
-                    .when(expanded, |this| {
-                        this.children(matching.iter().map(|block| {
-                            v_flex()
-                                .pl(px(21.))
-                                .gap(px(2.))
-                                .child(div().line_clamp(2).text_size(ty::SECONDARY).text_color(lb.text).child(block.title.clone()))
-                                .child(div().text_size(ty::CAPTION).text_color(lb.text_secondary).child(format!(
-                                    "{} · {}–{}",
-                                    block.app,
-                                    lokalbot_core::time::clock_time(block.start),
-                                    lokalbot_core::time::clock_time(block.end)
-                                )))
-                        }))
-                    })
-            });
-            context_section(
-                Ico::FileText,
-                lokalbot_i18n::tr("Documents and windows"),
-                v_flex()
-                    .gap(px(9.))
-                    .child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::tr("These are captured window titles. Expand a title to inspect the activity behind it."))))
-                    .children(rows),
-                cx,
-            )
-        });
-
-        let details_open = self.session_details_open;
-        let apps = session.apps.len();
-        let details = v_flex()
-            .gap(px(10.))
-            .child(
-                h_flex()
-                    .id("session-details")
-                    .gap(px(6.))
-                    .items_center()
-                    .cursor_pointer()
-                    .text_size(ty::BODY)
-                    .text_color(lb.text)
-                    .child(ui::icon(
-                        if details_open {
-                            Ico::ChevronDown
-                        } else {
-                            Ico::ChevronRight
-                        },
-                        px(13.),
-                        lb.text_secondary,
-                    ))
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "Session details",
-                    )))
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.session_details_open = !this.session_details_open;
+        let representative =
+            lokalbot_core::timeline::representative(&scenes, REPRESENTATIVE_MOMENTS);
+        let mut moments_panel = SectionPanel::new(
+            "timeline-session-moments",
+            lokalbot_i18n::tr("Screen moments"),
+        )
+        .icon(Ico::Image)
+        .count(moments.len());
+        if moments.len() > representative.len() {
+            let label = if self.moments_browsing {
+                lokalbot_i18n::tr("Show fewer").to_string()
+            } else {
+                mac("Show all %lld", &[&lokalbot_i18n::number(moments.len())])
+            };
+            let page = cx.entity().downgrade();
+            moments_panel =
+                moments_panel.trailing_link("timeline-browse-moments", label, move |_, cx| {
+                    let _ = page.update(cx, |this, cx| {
+                        this.moments_browsing = !this.moments_browsing;
+                        this.moment_app = None;
                         cx.notify();
-                    })),
-            )
-            .when(details_open, |this| {
-                this.child(
-                    v_flex()
-                        .gap(px(10.))
-                        .p(px(12.))
-                        .rounded(metric::GROUP_RADIUS)
-                        .bg(lb.app_color(&session.primary_app).opacity(0.10))
-                        .child(
-                            h_flex()
-                                .flex_wrap()
-                                .gap(px(8.))
-                                .child(ui::stat_chip(
-                                    Ico::Clock,
-                                    crate::pages::today::digest::hm(session.active_seconds),
-                                    lokalbot_i18n::tr("active"),
-                                    cx,
-                                ))
-                                .child(ui::stat_chip(
-                                    Ico::LayoutGrid,
-                                    lokalbot_i18n::number(apps),
-                                    if apps == 1 {
-                                        lokalbot_i18n::tr("app")
-                                    } else {
-                                        lokalbot_i18n::tr("apps")
-                                    },
-                                    cx,
-                                ))
-                                .when(session.context_switch_count > 0, |this| {
-                                    this.child(ui::stat_chip(
-                                        Ico::ArrowRightLeft,
-                                        session.context_switch_count.to_string(),
-                                        lokalbot_i18n::tr("switches"),
-                                        cx,
-                                    ))
-                                }),
-                        )
-                        .child(
-                            div()
-                                .text_size(ty::SECONDARY)
-                                .text_color(lb.text_secondary)
-                                .child(
-                                    session
-                                        .apps
-                                        .iter()
-                                        .take(5)
-                                        .cloned()
-                                        .collect::<Vec<_>>()
-                                        .join(" · "),
-                                ),
-                        ),
+                    });
+                });
+        }
+        let body: AnyElement = if moments.is_empty() {
+            div()
+                .text_size(ty::BODY)
+                .text_color(lb.supporting)
+                .child(ui::text::paragraph(lokalbot_i18n::tr(
+                    "None were kept for this session.",
+                )))
+                .into_any_element()
+        } else if self.moments_browsing {
+            self.render_moment_browser(&moments, cx)
+        } else {
+            h_flex()
+                .flex_wrap()
+                .gap(px(14.))
+                .children(
+                    representative
+                        .iter()
+                        .map(|moment| self.moment_card(moment, cx)),
                 )
-            });
+                .into_any_element()
+        };
+        panels.push(
+            moments_panel
+                .child(div().px(metric::PANEL_INSET).py(px(14.)).child(body))
+                .into_any_element(),
+        );
+
+        if let Some(open) = self.what_was_open(model, session, cx) {
+            panels.push(open);
+        }
+
         let title = session.title.clone();
-        let session_moments: Vec<lokalbot_core::ScreenMoment> =
-            moments.iter().map(|moment| (*moment).clone()).collect();
-        v_flex()
-            .gap(px(16.))
-            .child(self.panel_header(
-                Ico::Briefcase,
-                session.title.clone().into(),
-                subtitle,
-                drawer,
-                cx,
-            ))
-            .children(agent_work)
-            .child(context_section(
-                Ico::ScanText,
-                lokalbot_i18n::tr("Representative evidence"),
-                evidence,
-                cx,
-            ))
-            .children(browser)
-            .children(documents)
-            .child(details)
-            .child(
-                h_flex().justify_end().child(
+        let session_moments: Vec<ScreenMoment> = moments.iter().map(|m| (*m).clone()).collect();
+        panels.push(
+            h_flex()
+                .child(
                     ui::controls::bordered_icon(
                         "ask-session",
-                        Ico::Sparkles,
+                        Ico::Search,
                         lokalbot_i18n::tr("Ask about this session"),
                     )
                     .on_click(cx.listener(move |this, _, _, cx| {
@@ -464,285 +311,484 @@ impl TimelinePage {
                             cx,
                         )
                     })),
-                ),
+                )
+                .into_any_element(),
+        );
+        panels
+    }
+
+    /// A moment as a picture with what it shows and when, opening the moment.
+    fn moment_card(&self, moment: &ScreenMoment, cx: &mut Context<Self>) -> AnyElement {
+        let lb = cx.lb().clone();
+        let title = if !moment.window_title.is_empty() {
+            moment.window_title.clone()
+        } else {
+            moment.app.clone()
+        };
+        let picture: AnyElement = match self.thumbnail(moment, cx) {
+            Some(ScreenImage::Ready(image)) => div()
+                .size_full()
+                .bg(gpui_kit::black().opacity(0.82))
+                .child(img(image).size_full().object_fit(ObjectFit::Contain))
+                .into_any_element(),
+            _ => v_flex()
+                .size_full()
+                .items_center()
+                .justify_center()
+                .gap(px(4.))
+                .bg(lb.chip_fill)
+                .child(ui::icon(
+                    if moment.path.is_empty() {
+                        Ico::ScanText
+                    } else {
+                        Ico::Camera
+                    },
+                    px(16.),
+                    lb.supporting,
+                ))
+                .into_any_element(),
+        };
+        let id = moment.id;
+        v_flex()
+            .id(ElementId::from(("timeline-session-moment", id as u64)))
+            .w(px(170.))
+            .gap(px(2.))
+            .cursor_pointer()
+            .child(
+                div()
+                    .w_full()
+                    .h(px(106.))
+                    .mb(px(4.))
+                    .rounded(px(8.))
+                    .overflow_hidden()
+                    .child(picture),
             )
+            .child(
+                div()
+                    .truncate()
+                    .text_size(ty::BODY)
+                    .text_color(lb.text)
+                    .child(title),
+            )
+            .child(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.supporting)
+                    .child(lokalbot_core::time::clock_time(moment.ts)),
+            )
+            .on_click(cx.listener(move |this, _, _, cx| this.open_child(Selection::Moment(id), cx)))
             .into_any_element()
     }
 
-    /// Raw activity blocks by hour, then the day's screen moments.
-    fn render_raw_capture(
+    /// The windows and documents the session had open, with their time.
+    /// Opening a row lists the activity behind the title, which stays
+    /// inspectable.
+    fn what_was_open(
         &self,
         model: &DayModel,
-        drawer: bool,
+        session: &WorkSession,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> Option<AnyElement> {
+        if session.notable_titles.is_empty() {
+            return None;
+        }
         let lb = cx.lb().clone();
-        let empty = model.activity.blocks.is_empty() && model.moments.is_empty();
-        let has_track = !model.activity.blocks.is_empty() || !model.meetings.is_empty();
-        let track = has_track.then(|| self.render_track(model, cx));
-        let activity = track.map(|track| {
-            context_section(
-                Ico::ChartGantt,
-                lokalbot_i18n::tr("App activity"),
-                track,
-                cx,
-            )
-        });
-        let moment_rows: Vec<AnyElement> = model
-            .moments
+        let blocks: Vec<&lokalbot_core::ActivityBlock> = model
+            .activity
+            .blocks
             .iter()
-            .map(|moment| self.moment_row(("raw-moment", moment.id as u64), moment, true, cx))
+            .filter(|b| session.block_ids.contains(&b.id))
             .collect();
-        let moments = (!model.moments.is_empty()).then(|| {
-            context_section(
-                Ico::ScanText,
-                lokalbot_i18n::tr("Screen moments"),
-                v_flex().gap(px(9.)).children(moment_rows),
-                cx,
-            )
-        });
-        v_flex()
-            .gap(px(16.))
-            .child(self.panel_header(Ico::Activity, lokalbot_i18n::tr("Raw capture").into(), capture_counts(model), drawer, cx))
-            .child(div().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Individual app activity and retained screen moments. Use this for exact evidence or cleanup."))))
-            .children(self.render_range_deletion(&model.moments, cx))
-            .when(empty, |this| {
-                this.child(ui::empty_state(
-                    Ico::Activity,
-                    lokalbot_i18n::tr("No raw capture"),
-                    lokalbot_i18n::tr("No activity or screen moments were retained for this day."),
-                    cx,
-                ))
-            })
-            .children(activity)
-            .children(moments)
-            .into_any_element()
-    }
-
-    fn render_meeting(&self, drawer: bool, cx: &mut Context<Self>) -> AnyElement {
-        let lb = cx.lb().clone();
-        let Some(preview) = self.meeting_preview.as_ref() else {
-            return div()
-                .child(gpui_kit::component::spinner::Spinner::new())
-                .into_any_element();
-        };
-        let meeting = &preview.meeting;
-        let live = meeting.is_live();
-        let subtitle = format!(
-            "{} · {}",
-            meeting_model::date_label(meeting.started_at),
-            meeting_model::duration_label(meeting)
-        );
-        let mut sections: Vec<AnyElement> = Vec::new();
-        if live {
-            sections.push(
-                h_flex()
-                    .gap(px(8.))
-                    .items_center()
-                    .p(px(12.))
-                    .rounded(metric::GROUP_RADIUS)
-                    .bg(lb.chip_fill.opacity(0.5))
-                    .child(ui::status_dot(lb.recording, px(9.)))
-                    .child(
-                        div()
-                            .text_size(ty::BODY)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(lb.recording_text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                "Recording in progress",
-                            ))),
-                    )
-                    .into_any_element(),
-            );
-        }
-        if let Some(recap) = preview.recap.clone() {
-            sections.push(context_section(
-                Ico::FileText,
-                lokalbot_i18n::tr("Recap"),
-                v_flex().gap(px(6.)).children(
-                    meeting_model::recap_points(&recap)
-                        .into_iter()
-                        .map(|point| div().text_size(ty::BODY).text_color(lb.text).child(point)),
-                ),
-                cx,
-            ));
-        }
-        if !preview.actions.is_empty() {
-            let data = self.data.clone();
-            let count = preview.actions.len();
-            sections.push(context_section(
-                Ico::ListChecks,
-                lokalbot_i18n::tr("My actions"),
-                v_flex().children(preview.actions.iter().enumerate().map(|(ix, reference)| {
-                    let data = data.clone();
-                    let (meeting_id, action_id, status) = (
-                        reference.meeting_id,
-                        reference.action_id.clone(),
-                        reference.status,
-                    );
-                    let done = status == ActionStatus::Done;
-                    v_flex()
-                        .child(
-                            h_flex()
-                                .gap(px(9.))
-                                .items_start()
-                                .py(px(8.))
-                                .child(action_row::status_toggle(
-                                    ("preview-toggle", ix),
-                                    status,
-                                    false,
-                                    move |_, cx| {
-                                        let next = if done {
-                                            ActionStatus::Open
-                                        } else {
-                                            ActionStatus::Done
-                                        };
-                                        let action_id = action_id.clone();
-                                        data.update(cx, |data, cx| {
-                                            data.set_action_status(meeting_id, action_id, next, cx)
-                                        });
-                                    },
-                                    cx,
-                                ))
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w_0()
-                                        .text_size(ty::BODY)
-                                        .text_color(if done { lb.text_secondary } else { lb.text })
-                                        .when(done, |this| this.line_through())
-                                        .child(reference.text.clone()),
-                                ),
-                        )
-                        .when(ix + 1 < count, |this| {
-                            this.child(div().h(px(1.)).bg(lb.separator))
-                        })
-                })),
-                cx,
-            ));
-        }
-        if !preview.decisions.is_empty() {
-            sections.push(context_section(
-                Ico::BadgeCheck,
-                lokalbot_i18n::tr("Decisions"),
+        let rows = session
+            .notable_titles
+            .iter()
+            .enumerate()
+            .map(|(ix, title)| {
+                let matching: Vec<&lokalbot_core::ActivityBlock> = blocks
+                    .iter()
+                    .copied()
+                    .filter(|b| {
+                        lokalbot_core::timeline::cleaned_title(&b.title, &b.app).as_deref()
+                            == Some(title.as_str())
+                    })
+                    .collect();
+                let observed = lokalbot_core::timeline::merged_duration(&matching);
+                let expanded = self.expanded_titles.contains(title);
+                let key = title.clone();
+                let chevron = if expanded {
+                    Ico::ChevronDown
+                } else if lokalbot_i18n::current().rtl {
+                    Ico::ChevronLeft
+                } else {
+                    Ico::ChevronRight
+                };
                 v_flex()
-                    .gap(px(10.))
-                    .children(preview.decisions.iter().map(|decision| {
+                    .child(
                         h_flex()
-                            .gap(px(8.))
-                            .items_start()
-                            .child(div().pt(px(2.)).child(ui::icon(
-                                Ico::Check,
-                                px(14.),
-                                lb.accent_text,
-                            )))
+                            .id(("timeline-open-title", ix))
+                            .gap(px(12.))
+                            .items_center()
+                            .py(px(9.))
+                            .cursor_pointer()
                             .child(
                                 div()
                                     .flex_1()
                                     .min_w_0()
                                     .text_size(ty::BODY)
                                     .text_color(lb.text)
-                                    .child(decision.clone()),
+                                    .when(!expanded, |this| this.truncate())
+                                    .child(title.clone()),
                             )
-                    })),
-                cx,
-            ));
-        }
-        if sections.is_empty() && !live {
-            sections.push(
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(lb.supporting)
+                                    .child(hm(observed)),
+                            )
+                            .child(ui::icon(chevron, px(12.), lb.supporting))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                if !this.expanded_titles.remove(&key) {
+                                    this.expanded_titles.insert(key.clone());
+                                }
+                                cx.notify();
+                            })),
+                    )
+                    .when(expanded, |this| {
+                        this.child(v_flex().pl(px(14.)).pb(px(9.)).gap(px(8.)).children(
+                            matching.iter().map(|block| {
+                                let id = block.id;
+                                v_flex()
+                                    .id(ElementId::from(("timeline-title-source", id as u64)))
+                                    .gap(px(2.))
+                                    .cursor_pointer()
+                                    .child(
+                                        div()
+                                            .line_clamp(2)
+                                            .text_size(ty::BODY)
+                                            .text_color(lb.text)
+                                            .child(block.title.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(ty::SECONDARY)
+                                            .text_color(lb.supporting)
+                                            .child(format!(
+                                                "{} · {}",
+                                                block.app,
+                                                time_range(block.start, block.end)
+                                            )),
+                                    )
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.open_child(Selection::Block(id), cx)
+                                    }))
+                            }),
+                        ))
+                    })
+            });
+        Some(
+            SectionPanel::new("timeline-session-open", lokalbot_i18n::tr("What was open"))
+                .icon(Ico::AppWindow)
+                .rows(rows)
+                .into_any_element(),
+        )
+    }
+
+    // ------------------------------------------------- all captured activity
+
+    /// Its title and the way to delete screen moments on top, the hour track
+    /// under them.
+    fn raw_capture_page(&self, model: &DayModel, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let lb = cx.lb().clone();
+        let empty = model.activity.blocks.is_empty() && model.moments.is_empty();
+        let has_track = !model.activity.blocks.is_empty() || !model.meetings.is_empty();
+        let lead = SectionPanelLead::new("timeline-raw-lead").child(
+            v_flex()
+                .gap(px(10.))
+                .child(
+                    h_flex()
+                        .gap(px(12.))
+                        .items_start()
+                        .child(div().flex_1().min_w_0().child(page_header(
+                            header_icon(Ico::Activity, cx),
+                            lokalbot_i18n::tr("All captured activity").into(),
+                            capture_counts(model),
+                            cx,
+                        )))
+                        .children(self.range_deletion_toggle(&model.moments, cx)),
+                )
+                .child(
+                    div()
+                        .text_size(ty::BODY)
+                        .text_color(lb.supporting)
+                        .child(ui::text::paragraph(lokalbot_i18n::tr(
+                            "Every app and window LokalBot saw, hour by hour. Use it to check exact times.",
+                        ))),
+                )
+                .children(self.render_range_deletion(&model.moments, cx))
+                .when(empty, |this| {
+                    this.child(
+                        div()
+                            .text_size(ty::BODY)
+                            .text_color(lb.supporting)
+                            .child(ui::text::paragraph(lokalbot_i18n::tr(
+                                "No activity or screen moments were retained for this day.",
+                            ))),
+                    )
+                }),
+        );
+        let lead = if has_track {
+            lead.below(
                 div()
-                    .text_size(ty::BODY)
-                    .text_color(lb.text_secondary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "No outcome summary has been extracted for this meeting yet.",
-                    )))
+                    .px(metric::PANEL_INSET)
+                    .pt(px(16.))
+                    .pb(px(8.))
+                    .child(self.render_track(model, cx)),
+            )
+        } else {
+            lead
+        };
+        vec![lead.into_any_element()]
+    }
+
+    // -------------------------------------------------------- a meeting
+
+    fn meeting_page(&self, model: &DayModel, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let lb = cx.lb().clone();
+        let Some(preview) = self.meeting_preview.as_ref() else {
+            return vec![
+                div()
+                    .child(gpui_kit::component::spinner::Spinner::new())
                     .into_any_element(),
+            ];
+        };
+        let meeting = &preview.meeting;
+        let live = meeting.is_live();
+        let end = lokalbot_core::timeline::meeting_end(meeting, chrono::Utc::now());
+        let facts: Vec<String> = [
+            time_range(meeting.started_at, end),
+            hm((end - meeting.started_at).num_seconds().max(0) as f64),
+            meeting.app_name.trim().to_string(),
+        ]
+        .into_iter()
+        .filter(|fact| !fact.is_empty())
+        .collect();
+        let threads: Vec<&lokalbot_core::ActionThread> = model
+            .threads
+            .iter()
+            .filter(|t| t.references.iter().any(|r| r.meeting_id == meeting.id))
+            .collect();
+        let no_outcomes =
+            preview.recap.is_none() && threads.is_empty() && preview.decisions.is_empty() && !live;
+
+        let mut lead = v_flex().gap(px(12.)).child(page_header(
+            header_icon(Ico::AudioLines, cx),
+            meeting.display_title().into(),
+            facts.join(" · "),
+            cx,
+        ));
+        if live {
+            lead = lead.child(
+                h_flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .child(ui::status_dot(lb.recording, px(9.)))
+                    .child(
+                        div()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(lb.recording_text)
+                            .child(lokalbot_i18n::tr("Recording in progress")),
+                    ),
             );
         }
+        // The recap only: decisions and actions follow as their own panels.
+        if let Some(recap) = preview.recap.clone() {
+            lead = lead.child(ui::divider(cx)).child(
+                v_flex()
+                    .max_w(metric::READING_MAX_WIDTH)
+                    .gap(px(6.))
+                    .children(
+                        meeting_model::recap_points(&recap)
+                            .into_iter()
+                            .map(|point| {
+                                div()
+                                    .text_size(ty::READING)
+                                    .line_height(px(22.))
+                                    .text_color(lb.text)
+                                    .child(point)
+                            }),
+                    ),
+            );
+        } else if no_outcomes {
+            lead = lead.child(ui::divider(cx)).child(
+                div()
+                    .text_size(ty::BODY)
+                    .text_color(lb.supporting)
+                    .child(ui::text::paragraph(lokalbot_i18n::tr(
+                        "No outcome summary has been extracted for this meeting yet.",
+                    ))),
+            );
+        }
+        let mut panels = vec![
+            SectionPanelLead::new("timeline-meeting-lead")
+                .child(lead)
+                .into_any_element(),
+        ];
+
+        if !threads.is_empty() {
+            panels.push(
+                SectionPanel::new(
+                    "timeline-meeting-actions",
+                    lokalbot_i18n::tr("Your actions"),
+                )
+                .section(Section::Actions)
+                .count(threads.len())
+                .rows(
+                    threads
+                        .iter()
+                        .take(PREVIEW_ROWS)
+                        .enumerate()
+                        .map(|(ix, thread)| {
+                            action_row::thread_row(
+                                format!("timeline-meeting-thread-{ix}").into(),
+                                thread,
+                                ThreadRowOptions {
+                                    hide_single_meeting_link: true,
+                                    hint: model.hints.get(&thread.id),
+                                    ..Default::default()
+                                },
+                                &self.data,
+                                cx,
+                            )
+                        }),
+                )
+                .into_any_element(),
+            );
+        }
+        if !preview.decisions.is_empty() {
+            let shown: Vec<String> = preview
+                .decisions
+                .iter()
+                .take(PREVIEW_ROWS)
+                .cloned()
+                .collect();
+            panels.push(decisions_panel_counted(&shown, preview.decisions.len(), cx));
+        }
+
         let meeting_id = meeting.id;
         let title = meeting.display_title();
         let open_data = self.data.clone();
-        v_flex()
-            .gap(px(16.))
-            .child(self.panel_header(
-                Ico::AudioLines,
-                meeting.display_title().into(),
-                subtitle,
-                drawer,
-                cx,
-            ))
-            .children(sections)
-            .child(
-                h_flex()
-                    .gap(px(8.))
-                    .justify_end()
-                    .child(
-                        ui::controls::bordered_icon(
-                            "ask-meeting",
-                            Ico::Sparkles,
-                            lokalbot_i18n::tr("Ask about this meeting"),
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.ask_day(
-                                lokalbot_i18n::format(
-                                    "What matters from {title}?",
-                                    &[("title", title.to_string())],
-                                ),
-                                vec![meeting_id],
-                                cx,
-                            )
-                        })),
+        panels.push(
+            h_flex()
+                .gap(px(8.))
+                .child(
+                    Button::new("open-meeting")
+                        .primary()
+                        .icon(Icon::new(Ico::ArrowUpRight))
+                        .label(lokalbot_i18n::tr("Open meeting"))
+                        .on_click(move |_, _, cx| open_meeting(&open_data, meeting_id, None, cx)),
+                )
+                .child(
+                    ui::controls::bordered(
+                        "ask-meeting",
+                        lokalbot_i18n::tr("Ask about this meeting"),
                     )
-                    .child(
-                        Button::new("open-meeting")
-                            .primary()
-                            .icon(Icon::new(Ico::ArrowUpRight))
-                            .label(lokalbot_i18n::tr("Open meeting"))
-                            .on_click(move |_, _, cx| {
-                                open_meeting(&open_data, meeting_id, None, cx)
-                            }),
-                    ),
-            )
-            .into_any_element()
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.ask_day(
+                            lokalbot_i18n::format(
+                                "What matters from {title}?",
+                                &[("title", title.to_string())],
+                            ),
+                            vec![meeting_id],
+                            cx,
+                        )
+                    })),
+                )
+                .into_any_element(),
+        );
+        panels
     }
 }
 
-/// "12 activity entries · 6 screen moments".
-pub(super) fn capture_counts(model: &DayModel) -> String {
-    let blocks = model.activity.blocks.len();
-    let moments = model.moments.len();
-    lokalbot_i18n::format(
-        "Activity entries: {blocks} · Screen moments: {moments}",
-        &[
-            ("blocks", lokalbot_i18n::number(blocks)),
-            ("moments", lokalbot_i18n::number(moments)),
-        ],
-    )
+/// A meeting's decisions panel: the first few, counted in all.
+fn decisions_panel_counted(
+    decisions: &[String],
+    count: usize,
+    cx: &Context<TimelinePage>,
+) -> AnyElement {
+    let lb = cx.lb();
+    SectionPanel::new("timeline-meeting-decisions", lokalbot_i18n::tr("Decisions"))
+        .icon(Ico::Flag)
+        .count(count)
+        .rows(decisions.iter().map(|decision| {
+            h_flex()
+                .py(px(10.))
+                .gap(px(10.))
+                .items_start()
+                .child(
+                    div()
+                        .w(px(18.))
+                        .flex_none()
+                        .pt(px(2.))
+                        .flex()
+                        .justify_center()
+                        .child(ui::icon(Ico::Check, px(14.), lb.accent_text)),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .text_size(ty::BODY)
+                        .text_color(lb.text)
+                        .child(ui::text::paragraph(decision.clone())),
+                )
+        }))
+        .into_any_element()
 }
 
-/// `TimelineContextSection`: icon + headline over grouped content.
-fn context_section(
-    icon: Ico,
-    title: &'static str,
-    content: impl IntoElement,
-    cx: &mut Context<TimelinePage>,
+/// A page's mark: an icon in the accent.
+pub(super) fn header_icon(icon: Ico, cx: &Context<TimelinePage>) -> AnyElement {
+    div()
+        .pt(px(4.))
+        .child(ui::icon(icon, px(20.), cx.lb().accent_text))
+        .into_any_element()
+}
+
+/// A page's heading: its mark (a colour dot or an icon), the title, and one
+/// quiet line under it (`TimelinePageHeader`).
+pub(super) fn page_header(
+    mark: AnyElement,
+    title: SharedString,
+    subtitle: String,
+    cx: &Context<TimelinePage>,
 ) -> AnyElement {
-    let lb = cx.lb().clone();
-    ui::grouped_surface(cx)
-        .p(px(12.))
-        .flex()
-        .flex_col()
-        .gap(px(10.))
+    let lb = cx.lb();
+    h_flex()
+        .gap(px(12.))
+        .items_start()
+        .child(div().flex_none().child(mark))
         .child(
-            h_flex()
-                .gap(px(8.))
-                .items_center()
-                .text_size(ty::SECTION)
-                .font_weight(FontWeight::BOLD)
-                .text_color(lb.text)
-                .child(ui::icon(icon, px(15.), lb.text))
-                .child(title),
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap(px(2.))
+                .child(
+                    div()
+                        .line_clamp(3)
+                        .text_size(px(21.))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(lb.text)
+                        .child(title),
+                )
+                .when(!subtitle.is_empty(), |this| {
+                    this.child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.supporting)
+                            .child(ui::text::paragraph(subtitle)),
+                    )
+                }),
         )
-        .child(content)
         .into_any_element()
 }

@@ -538,6 +538,7 @@
   "LokalBot is following your OpenRouter policy, but OpenRouter couldn't find an allowed endpoint for {0}.": "LokalBotはOpenRouterのポリシーに従っていますが、OpenRouterは{0}に使える許可済みのエンドポイントを見つけられませんでした。",
   "LokalBot is not the desktop's input method yet, so autocomplete cannot suggest in other apps. Choose it in System Settings, under Keyboard, Virtual Keyboard.": "LokalBot はまだデスクトップの入力メソッドではないため、オートコンプリートは他のアプリで提案できません。システム設定の キーボード、仮想キーボード で選択してください。",
   "LokalBot is up to date.": "LokalBot は最新です。",
+  "LokalBot keeps only what happens on this PC while day memory is on.": "LokalBotが保存するのは、一日の記憶がオンの間にこのPCで起きたことだけです。",
   "LokalBot lost its connection to the desktop, so autocomplete has stopped. Restart LokalBot to use it again.": "LokalBot はデスクトップとの接続を失ったため、オートコンプリートを停止しました。再び使うには LokalBot を再起動してください。",
   "LokalBot reads the folders you choose and keeps an index of their text, pictures and sound in its library. Nothing leaves this computer. The first time, it downloads EmbeddingGemma 2's image model (555 MB). Turning Files off deletes the index.": "LokalBotは、選んだフォルダを読み取り、そのテキスト、画像、音声のインデックスをライブラリに保持します。データがこのコンピューターから出ることはありません。初回は、EmbeddingGemma 2の画像モデル（555 MB）をダウンロードします。「ファイル」をオフにすると、インデックスは削除されます。",
   "LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this PC. Turning this off deletes the copy.": "LokalBotは、Claude CodeとCodexが作業した各プロジェクトで自分用に保存したメモを読み取り、検索可能なコピーをライブラリに保存します。データがこのPCの外に出ることはありません。オフにするとコピーは削除されます。",

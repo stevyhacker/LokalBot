@@ -538,6 +538,7 @@
   "LokalBot is following your OpenRouter policy, but OpenRouter couldn't find an allowed endpoint for {0}.": "LokalBot 正在遵循你的 OpenRouter 政策，但 OpenRouter 未能为 {0} 找到允许的端点。",
   "LokalBot is not the desktop's input method yet, so autocomplete cannot suggest in other apps. Choose it in System Settings, under Keyboard, Virtual Keyboard.": "LokalBot 还不是桌面的输入法，因此自动完成无法在其他应用中提供建议。请在系统设置的“键盘”>“虚拟键盘”中选择它。",
   "LokalBot is up to date.": "LokalBot 已是最新版本。",
+  "LokalBot keeps only what happens on this PC while day memory is on.": "LokalBot 只保留工作记忆开启期间在这台电脑上发生的事。",
   "LokalBot lost its connection to the desktop, so autocomplete has stopped. Restart LokalBot to use it again.": "LokalBot 与桌面的连接已断开，因此自动完成已停止。请重新启动 LokalBot 以再次使用。",
   "LokalBot reads the folders you choose and keeps an index of their text, pictures and sound in its library. Nothing leaves this computer. The first time, it downloads EmbeddingGemma 2's image model (555 MB). Turning Files off deletes the index.": "LokalBot 会读取你选择的文件夹，并在资料库中保存其文字、图片和声音的索引。任何内容都不会离开这台电脑。首次使用时，它会下载 EmbeddingGemma 2 的图像模型（555 MB）。关闭“文件”会删除该索引。",
   "LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this PC. Turning this off deletes the copy.": "LokalBot 会读取 Claude Code 和 Codex 在其工作过的每个项目中为自己保存的笔记，并在资料库中保留一份可搜索的副本。任何数据都不会离开这台 PC。关闭此功能会删除该副本。",

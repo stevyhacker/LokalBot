@@ -16,7 +16,7 @@ use gpui_kit::{
     InteractiveElement as _, IntoElement, ParentElement as _, StatefulInteractiveElement as _,
     Styled as _, Window, div, px,
 };
-use lokalbot_core::digest::{BRIEF_ROW_LIMIT, TASK_GROUP_ORDER, folds_brief_rows, title_and_tag};
+use lokalbot_core::digest::title_and_tag;
 use lokalbot_core::{DayActivity, DayDigest, DigestTask, TaskStatus};
 
 use crate::state::{AppData, AppEvent};
@@ -26,12 +26,8 @@ use crate::ui::{self, Ico};
 /// Toggles a task's details by index, or one of the keys below.
 pub(crate) type TaskToggle = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 
-/// Toggle keys past the task indices: follow-up rows, a Timeline section's
-/// "Show N more" (plus the section's place in `TASK_GROUP_ORDER`), and
-/// Timeline's Done line.
+/// Toggle key past the task indices for the follow-up rows.
 const FOLLOW_UP_KEY: usize = 10_000;
-const SHOW_ALL_KEY: usize = 20_000;
-const DONE_KEY: usize = 30_000;
 /// The status column of a task row plus its gap; details align to it.
 const TASK_TEXT_INSET: f32 = 26.;
 
@@ -325,7 +321,12 @@ pub(crate) fn digest_controls(
         .into_any_element()
 }
 
-fn export_markdown(data: Entity<AppData>, day: NaiveDate, markdown: String, cx: &mut App) {
+pub(crate) fn export_markdown(
+    data: Entity<AppData>,
+    day: NaiveDate,
+    markdown: String,
+    cx: &mut App,
+) {
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(std::path::PathBuf::from)
@@ -581,254 +582,6 @@ fn digest_view(
     v_flex().gap(px(20.)).children(parts).into_any_element()
 }
 
-/// `DayDigestView` in its Timeline mode, below Needs Attention: blockers,
-/// highlights, decisions, one section per task status and follow-ups, then
-/// when a current digest was written.
-pub(crate) fn timeline_digest(
-    digest: &DayDigest,
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let mut parts: Vec<AnyElement> = Vec::new();
-    parts.extend(blockers_callout(digest, cx));
-    parts.extend(highlights(digest, cx));
-    if !digest.decisions.is_empty() {
-        parts.push(timeline_decisions(&digest.decisions, cx));
-    }
-    if !digest.tasks.is_empty() {
-        parts.push(timeline_task_sections(
-            digest,
-            expanded,
-            on_toggle.clone(),
-            cx,
-        ));
-    }
-    parts.extend(follow_ups(digest, expanded, on_toggle, cx));
-    // A stale digest says when it was written in the status line instead.
-    let updated = digest_updated_at(digest).filter(|_| !digest.is_stale);
-    v_flex()
-        .gap(px(20.))
-        .children(parts)
-        .when_some(updated, |this, at| {
-            this.child(
-                div()
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_tertiary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                        "Updated {0}",
-                        &[("0", lokalbot_core::time::clock_time(at))],
-                    ))),
-            )
-        })
-        .into_any_element()
-}
-
-/// A Timeline heading with its count: "In Progress 3".
-pub(crate) fn counted_heading(
-    title: impl Into<gpui_kit::SharedString>,
-    count: usize,
-    cx: &App,
-) -> Div {
-    h_flex()
-        .gap(px(8.))
-        .items_baseline()
-        .child(ui::section_title(title, cx))
-        .child(
-            div()
-                .text_size(ty::SECONDARY)
-                .text_color(cx.lb().text_secondary)
-                .child(lokalbot_i18n::number(count)),
-        )
-}
-
-fn timeline_decisions(decisions: &[String], cx: &App) -> AnyElement {
-    let lb = cx.lb();
-    v_flex()
-        .gap(px(6.))
-        .child(ui::section_title(lokalbot_i18n::tr("Decisions"), cx))
-        .children(decisions.iter().map(|decision| {
-            h_flex()
-                .gap(px(8.))
-                .items_start()
-                .child(
-                    div()
-                        .w(px(TASK_TEXT_INSET - 8.))
-                        .flex_none()
-                        .pt(px(3.))
-                        .flex()
-                        .justify_center()
-                        .child(ui::icon(Ico::BadgeCheck, px(14.), lb.accent_text)),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .text_size(ty::BODY)
-                        .line_height(px(21.))
-                        .text_color(lb.text)
-                        .child(decision.clone()),
-                )
-        }))
-        .into_any_element()
-}
-
-/// Each status gets its own section. Tasks with a next step stay in full,
-/// the rest of the open work becomes one-line rows, and finished work folds
-/// into a single Done line.
-fn timeline_task_sections(
-    digest: &DayDigest,
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let task_first = digest.is_task_first();
-    let sections = digest.task_groups().into_iter().map(|group| {
-        let rows = digest.timeline_rows(&group);
-        if group.status == TaskStatus::Completed && task_first {
-            return done_section(digest, &rows.brief, expanded, on_toggle.clone(), cx);
-        }
-        let title = match group.status {
-            TaskStatus::Blocked => lokalbot_i18n::tr("Blocked"),
-            TaskStatus::InProgress => lokalbot_i18n::tr("In Progress"),
-            TaskStatus::Unknown if task_first => lokalbot_i18n::tr("Other Work"),
-            TaskStatus::Unknown => lokalbot_i18n::tr("Work Summary"),
-            TaskStatus::Completed => lokalbot_i18n::tr("Done"),
-        };
-        let show_all_key = SHOW_ALL_KEY
-            + TASK_GROUP_ORDER
-                .iter()
-                .position(|status| *status == group.status)
-                .unwrap_or(0);
-        v_flex()
-            .gap(px(2.))
-            .child(counted_heading(title, group.tasks.len(), cx).pb(px(2.)))
-            .child(indexed_task_rows(
-                digest,
-                &rows.full,
-                expanded,
-                on_toggle.clone(),
-                cx,
-            ))
-            .when(!rows.brief.is_empty(), |this| {
-                this.child(brief_task_list(
-                    digest,
-                    &rows.brief,
-                    !rows.full.is_empty(),
-                    show_all_key,
-                    expanded,
-                    on_toggle.clone(),
-                    cx,
-                ))
-            })
-            .into_any_element()
-    });
-    v_flex().gap(px(22.)).children(sections).into_any_element()
-}
-
-/// Full task rows with tags, by index into `digest.tasks`.
-fn indexed_task_rows(
-    digest: &DayDigest,
-    indices: &[usize],
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let count = indices.len();
-    v_flex()
-        .children(indices.iter().enumerate().map(|(pos, &ix)| {
-            v_flex()
-                .child(div().py(px(7.)).child(task_row(
-                    &digest.tasks[ix],
-                    ix,
-                    expanded.contains(&ix),
-                    true,
-                    on_toggle.clone(),
-                    cx,
-                )))
-                .when(pos + 1 < count, |this| {
-                    this.child(div().ml(px(TASK_TEXT_INSET)).h(px(1.)).bg(lb.separator))
-                })
-        }))
-        .into_any_element()
-}
-
-/// One-line rows for open tasks without a next step. A long list shows its
-/// first rows until asked for the rest.
-fn brief_task_list(
-    digest: &DayDigest,
-    indices: &[usize],
-    follows_full_rows: bool,
-    show_all_key: usize,
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let folds = folds_brief_rows(indices.len());
-    let shows_all = expanded.contains(&show_all_key);
-    let visible = if folds && !shows_all {
-        &indices[..BRIEF_ROW_LIMIT]
-    } else {
-        indices
-    };
-    let toggle = on_toggle.clone();
-    v_flex()
-        .when(follows_full_rows, |this| {
-            // Below full rows, a heading says what these rows are.
-            this.child(
-                div()
-                    .pt(px(12.))
-                    .pb(px(2.))
-                    .text_size(ty::SECONDARY)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(lb.text_secondary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                        "{count} more without a next step",
-                        &[("count", lokalbot_i18n::number(indices.len()))],
-                    ))),
-            )
-        })
-        .children(visible.iter().map(|&ix| {
-            brief_task_row(
-                &digest.tasks[ix],
-                ix,
-                false,
-                expanded.contains(&ix),
-                on_toggle.clone(),
-                cx,
-            )
-        }))
-        .when(folds, |this| {
-            let label = if shows_all {
-                lokalbot_i18n::tr("Show fewer").to_string()
-            } else {
-                lokalbot_i18n::format(
-                    "Show {count} more",
-                    &[(
-                        "count",
-                        lokalbot_i18n::number(indices.len() - BRIEF_ROW_LIMIT),
-                    )],
-                )
-            };
-            this.child(
-                div()
-                    .pl(px(TASK_TEXT_INSET))
-                    .pt(px(4.))
-                    .text_size(ty::SECONDARY)
-                    .child(ui::link(
-                        ("digest-show-all", show_all_key),
-                        label,
-                        move |window, cx| toggle(show_all_key, window, cx),
-                        cx,
-                    )),
-            )
-        })
-        .into_any_element()
-}
-
 /// A project or pull request split off a task title.
 fn task_tag(tag: &str, cx: &App) -> Div {
     let lb = cx.lb();
@@ -842,97 +595,6 @@ fn task_tag(tag: &str, cx: &App) -> Div {
         .text_color(lb.text_secondary)
         .whitespace_nowrap()
         .child(tag.to_string())
-}
-
-/// One line for a task without a next step; what was done opens in place.
-fn brief_task_row(
-    task: &DigestTask,
-    ix: usize,
-    is_done: bool,
-    expanded: bool,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let has_details = task.has_heading && !task.summary.trim().is_empty();
-    let (title, tag) = title_and_tag(&task.title);
-    let marker: AnyElement = if is_done {
-        ui::icon(Ico::Check, px(14.), lb.success_text).into_any_element()
-    } else {
-        div()
-            .text_size(ty::BODY)
-            .text_color(lb.text_tertiary)
-            .child("•")
-            .into_any_element()
-    };
-    let group = gpui_kit::SharedString::from(format!("brief-task-{ix}"));
-    let line = h_flex()
-        .id(("brief-task", ix))
-        .group(group.clone())
-        .w_full()
-        .gap(px(8.))
-        .items_center()
-        .child(
-            div()
-                .w(px(TASK_TEXT_INSET - 8.))
-                .flex_none()
-                .flex()
-                .justify_center()
-                .child(marker),
-        )
-        .child(
-            div()
-                .min_w_0()
-                .when(!expanded, |this| this.truncate())
-                .text_size(ty::BODY)
-                .line_height(px(20.))
-                .text_color(lb.text)
-                .child(title.to_string()),
-        )
-        .when_some(tag, |this, tag| this.child(task_tag(tag, cx)))
-        .child(div().flex_1())
-        .when(has_details, |this| {
-            let toggle = on_toggle.clone();
-            this.cursor_pointer()
-                .child(
-                    div()
-                        .flex_none()
-                        .when(!expanded, |this| {
-                            this.opacity(0.)
-                                .group_hover(group, |style| style.opacity(1.))
-                        })
-                        .child(ui::icon(
-                            if expanded {
-                                Ico::ChevronDown
-                            } else {
-                                Ico::ChevronRight
-                            },
-                            px(13.),
-                            lb.text_tertiary,
-                        )),
-                )
-                .on_click(move |_, window, cx| toggle(ix, window, cx))
-        });
-    v_flex()
-        .py(px(4.))
-        .gap(px(4.))
-        .child(line)
-        .when(has_details && expanded, |this| {
-            this.child(
-                div()
-                    .pl(px(TASK_TEXT_INSET))
-                    .text_size(ty::SECONDARY)
-                    .line_height(px(19.))
-                    .text_color(lb.text_secondary)
-                    .child(task.summary.clone()),
-            )
-            .child(
-                v_flex()
-                    .pl(px(TASK_TEXT_INSET))
-                    .children(source_links(task, ix, cx)),
-            )
-        })
-        .into_any_element()
 }
 
 /// The screens a task cites, each opening on Timeline (`DayDigestSourceLinks`).
@@ -970,92 +632,6 @@ fn source_links(task: &DigestTask, ix: usize, cx: &App) -> Vec<AnyElement> {
                 .into_any_element(),
         })
         .collect()
-}
-
-/// Finished tasks fold into one line that names them; opening it lists each.
-fn done_section(
-    digest: &DayDigest,
-    indices: &[usize],
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let open = expanded.contains(&DONE_KEY);
-    let preview = indices
-        .iter()
-        .map(|&ix| title_and_tag(&digest.tasks[ix].title).0)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let toggle = on_toggle.clone();
-    v_flex()
-        .pt(px(12.))
-        .gap(px(2.))
-        .border_t_1()
-        .border_color(lb.separator)
-        .child(
-            h_flex()
-                .id("digest-done")
-                .w_full()
-                .gap(px(8.))
-                .items_center()
-                .cursor_pointer()
-                .child(
-                    div()
-                        .w(px(TASK_TEXT_INSET - 8.))
-                        .flex_none()
-                        .flex()
-                        .justify_center()
-                        .child(ui::icon(Ico::CircleCheck, px(16.), lb.success_text)),
-                )
-                .child(
-                    div()
-                        .flex_none()
-                        .text_size(ty::SECTION)
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(lb.text)
-                        .child(lokalbot_i18n::tr("Done")),
-                )
-                .child(
-                    div()
-                        .flex_none()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(lokalbot_i18n::number(indices.len())),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .truncate()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .when(!open, |this| this.child(preview)),
-                )
-                .child(ui::icon(
-                    if open {
-                        Ico::ChevronDown
-                    } else {
-                        Ico::ChevronRight
-                    },
-                    px(13.),
-                    lb.text_tertiary,
-                ))
-                .on_click(move |_, window, cx| toggle(DONE_KEY, window, cx)),
-        )
-        .when(open, |this| {
-            this.child(v_flex().pt(px(4.)).children(indices.iter().map(|&ix| {
-                brief_task_row(
-                    &digest.tasks[ix],
-                    ix,
-                    true,
-                    expanded.contains(&ix),
-                    on_toggle.clone(),
-                    cx,
-                )
-            })))
-        })
-        .into_any_element()
 }
 
 /// Card grid of 1/2/3 columns at widths below 560 / from 560 / from 900.

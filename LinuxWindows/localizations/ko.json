@@ -538,6 +538,7 @@
   "LokalBot is following your OpenRouter policy, but OpenRouter couldn't find an allowed endpoint for {0}.": "LokalBot이 OpenRouter 정책을 따르고 있지만, OpenRouter가 {0}에 허용되는 엔드포인트를 찾지 못했습니다.",
   "LokalBot is not the desktop's input method yet, so autocomplete cannot suggest in other apps. Choose it in System Settings, under Keyboard, Virtual Keyboard.": "LokalBot이 아직 데스크톱의 입력기가 아니므로 자동 완성이 다른 앱에서 제안할 수 없습니다. 시스템 설정의 키보드, 가상 키보드에서 선택하세요.",
   "LokalBot is up to date.": "LokalBot이 최신 버전입니다.",
+  "LokalBot keeps only what happens on this PC while day memory is on.": "LokalBot은 하루 메모리가 켜져 있는 동안 이 PC에서 일어난 일만 보관합니다.",
   "LokalBot lost its connection to the desktop, so autocomplete has stopped. Restart LokalBot to use it again.": "LokalBot이 데스크톱과의 연결을 잃어 자동 완성이 중지되었습니다. 다시 사용하려면 LokalBot을 다시 시작하세요.",
   "LokalBot reads the folders you choose and keeps an index of their text, pictures and sound in its library. Nothing leaves this computer. The first time, it downloads EmbeddingGemma 2's image model (555 MB). Turning Files off deletes the index.": "LokalBot은 선택한 폴더를 읽고 텍스트, 사진, 소리의 색인을 라이브러리에 보관합니다. 어떤 것도 이 컴퓨터를 벗어나지 않습니다. 처음에는 EmbeddingGemma 2의 이미지 모델(555 MB)을 다운로드합니다. 파일을 끄면 색인이 삭제됩니다.",
   "LokalBot reads the notes Claude Code and Codex saved for themselves, for every project they worked in, and keeps a searchable copy in its library. Nothing leaves this PC. Turning this off deletes the copy.": "LokalBot은 Claude Code와 Codex가 작업한 모든 프로젝트에서 스스로를 위해 저장해 둔 노트를 읽고, 검색할 수 있는 사본을 라이브러리에 보관합니다. 어떤 데이터도 이 PC 밖으로 나가지 않습니다. 이 기능을 끄면 사본이 삭제됩니다.",
