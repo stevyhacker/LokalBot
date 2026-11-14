@@ -60,7 +60,7 @@ pub fn max_response_tokens(max_words: u32, multi_line: bool) -> usize {
     }
 }
 
-/// `CotypingPersonalization`: the optional voice cues from Settings → Writing.
+/// `CotypingPersonalization`: the optional voice cues from Settings → Autocomplete.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Personalization {
     pub user_name: Option<String>,

@@ -73,7 +73,7 @@ Name: "{userdesktop}\LokalBot"; Filename: "{app}\lokalbot.exe"; Tasks: desktopic
 Filename: "{app}\lokalbot.exe"; Description: "{cm:LaunchProgram,LokalBot}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; Removes the coding-agent skill and the CLI copy that Settings → Advanced →
+; Removes the coding-agent skill and the CLI copy that Settings → AI agents →
 ; Agent CLI installed, and nothing else.
 Filename: "{app}\lokalbot-cli.exe"; Parameters: "install-skill --uninstall"; Flags: runhidden; RunOnceId: "RemoveAgentSkill"
 

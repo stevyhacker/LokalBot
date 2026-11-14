@@ -2,9 +2,9 @@
 
 A native Rust port of LokalBot built with [GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui),
 Zed's GPU-accelerated UI framework, and [GPUI Kit](https://github.com/longbridge/gpui-kit). It follows the
-macOS app's experience (the same Today, Meetings, Timeline, People, Projects, Ask and Settings) and its
-library format, so a library recorded on one platform opens on the other. Recording, transcription,
-summaries, search and the CLI/MCP server all run on your computer by default.
+macOS app's experience (the same Today, Actions, Meetings, Timeline, People, Projects, Ask, Agent and
+Settings) and its library format, so a library recorded on one platform opens on the other. Recording,
+transcription, summaries, search and the CLI/MCP server all run on your computer by default.
 
 It is an **alpha**: the Windows build isn't code-signed yet, some features depend on your Linux desktop,
 and Gmail in meeting briefs hasn't been ported (see below). Bug reports are welcome.
@@ -25,26 +25,26 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | Notes, actions, decisions, day digest, project notes, follow-up drafts | ✓ | ✓ | The macOS prompts, run by the built-in llama.cpp server (Vulkan, experimental CUDA or CPU), Ollama, an OpenAI-compatible server you approve, or your own ChatGPT or Claude plan (see [Think providers](#think-providers)). Follow-ups are written only by a model on your computer, and LokalBot never sends them. |
 | Ask with citations | ✓ | ✓ | As on macOS, the model looks things up with tools (search, list and read meetings, action items, screen text, app activity) and answers once it has enough; each citation must match a source a tool returned. A Think model running on the CPU, or one with a context window under 16K tokens, instead gets the relevant meetings found first (keyword and meaning search) and answers in one turn. |
 | Keyword and meaning search, Quick Recall | ✓ | ✓ | SQLite FTS5 plus EmbeddingGemma vectors, kept up to date in the background; Ask's result list fuses keyword and meaning matches by meeting, and saved screens can be found by what they show. Quick Recall opens from its system-wide shortcut or Ctrl+K inside LokalBot: it lists meetings, screens, files and agent notes three of each, runs every app command, and answers Ctrl+Return questions in place with numbered sources. |
-| Day memory (app and window activity) | X11, Hyprland, Sway, KDE; GNOME with the Window Calls extension | ✓ | Window titles are cleared after the retention window in Privacy settings. |
-| Screen context (visible text, optional encrypted screenshots) | X11; Sway and Hyprland with `grim`; other Wayland desktops through the screenshot portal when it can capture just the active window | ✓ | Off until you choose it in Settings → Day Memory. Text comes from accessibility (AT-SPI, UI Automation) and on-device OCR in your app and system languages: the recognizer built into Windows, or Tesseract on Linux, with ocrs as the fallback for Latin letters. Any download is offered in that same setting and starts only when you ask. Screenshots are AES-GCM encrypted with a key in the system credential store. |
+| Day memory (app and window activity) | X11, Hyprland, Sway, KDE; GNOME with the Window Calls extension | ✓ | Window titles are cleared after the retention window set in Settings → Screen & activity. |
+| Screen context (visible text, optional encrypted screenshots) | X11; Sway and Hyprland with `grim`; other Wayland desktops through the screenshot portal when it can capture just the active window | ✓ | Off until you choose it in Settings → Screen & activity. Text comes from accessibility (AT-SPI, UI Automation) and on-device OCR in your app and system languages: the recognizer built into Windows, or Tesseract on Linux, with ocrs as the fallback for Latin letters. Any download is offered in that same setting and starts only when you ask. Screenshots are AES-GCM encrypted with a key in the system credential store. |
 | Dictation (hold a shortcut, speak, release) | X11; on Wayland, KDE Plasma and GNOME 48 or later take the shortcut from LokalBot through the desktop's shortcuts portal, which may ask you to confirm it; on other Wayland desktops bind a key to `lokalbot dictate` in your compositor | ✓ | Transcribe inserts what you said; Compose rewrites it with the Think model. Pastes at the cursor, or copies to the clipboard and says why when it cannot. Players pause while you dictate and resume afterwards. On X11 and Windows the shortcut can be two modifier keys alone. |
 | Meeting detection | ✓ (PulseAudio source outputs) | ✓ (WASAPI capture sessions) | Asks with a notification by default. Knows Tencent Meeting, VooV, Feishu, Lark, DingTalk and WeCom too. |
 | System tray, launch at login | ✓ (StatusNotifierItem; GNOME needs the AppIndicator extension) | ✓ | |
-| `lokalbot-cli` + MCP for coding agents | ✓ | ✓ | Library access is read-only and off until you allow it in Settings → Privacy & Data. Changing settings needs its own switch there, and anything that widens capture or sharing waits for your approval in the app. |
+| `lokalbot-cli` + MCP for coding agents | ✓ | ✓ | Library access is read-only and off until you allow it in Settings → AI agents. Changing settings needs its own switch there, and anything that widens capture or sharing waits for your approval in the app. |
 | Signed automatic updates | ✓ (installed with `install.sh`, or run from the extracted folder) | ✓ (installed with the installer, or run from the extracted folder) | Checks GitHub daily; installs only when you choose Install and Relaunch. Package installs are told how to update with the package manager; other copies under `/usr`, `/opt` or Program Files are pointed at the download. On Windows, Installed apps (and winget) then shows the new version. |
 | Live transcript preview while recording | ✓ | ✓ | Opt-in from the live meeting view. Each track is transcribed in 4–12 s chunks cut at a pause, as Me and Remote speaker; the full transcript replaces it after the meeting. |
-| Autocomplete in other apps | X11 (GTK; Qt, Chromium/Electron and Firefox once system accessibility is on); on Wayland as an input method on Sway, Hyprland, GNOME and KDE Plasma, see [below](#autocomplete-on-wayland); elsewhere the practice editor in Settings only | ✓ (apps whose fields support UI Automation) | Off until you turn it on in Settings → Writing. Gemma 4 E2B on this computer by default, as on macOS; the Lightweight preset uses LFM2.5 1.2B, about 250 ms to a suggestion on CPU. Accept keys are configurable; Esc dismisses. It can also use a server you approve. Password fields, terminals and excluded apps are never read, and text is stored only as encrypted learned examples, with local counts. |
+| Autocomplete in other apps | X11 (GTK; Qt, Chromium/Electron and Firefox once system accessibility is on); on Wayland as an input method on Sway, Hyprland, GNOME and KDE Plasma, see [below](#autocomplete-on-wayland); elsewhere the practice editor in Settings only | ✓ (apps whose fields support UI Automation) | Off until you turn it on in Settings → Autocomplete. Gemma 4 E2B on this computer by default, as on macOS; the Lightweight preset uses LFM2.5 1.2B, about 250 ms to a suggestion on CPU. Accept keys are configurable; Esc dismisses. It can also use a server you approve. Password fields, terminals and excluded apps are never read, and text is stored only as encrypted learned examples, with local counts. |
 | Agent Mode | ✓ | ✓ (Git Bash, or PowerShell without it) | Runs the pi coding agent with your Think model. Setup downloads Bun and pi (pinned and checksum-verified, about 65 MB on Linux and 70 MB on Windows). File changes and commands need your approval. |
-| Import recordings, merge meetings, meeting boundaries | ✓ | ✓ | Import an audio or video file from the Meetings header or by dropping it on the list: MP3, M4A/AAC, MP4/MOV, WAV, AIFF, CAF, FLAC, Ogg Vorbis and MKV (not Opus). Every audio track is mixed into the meeting's `system.wav`. Ctrl-click or Shift-click meetings to merge them into one timeline, with Undo; **Meeting boundaries…** keeps part of a recording and rebuilds its notes. A Mac reads the WAV tracks these write. |
+| Import recordings, merge meetings, meeting boundaries | ✓ | ✓ | Import an audio or video file from the Meetings header or by dropping it on the list: MP3, M4A/AAC, MP4/MOV, WAV, AIFF, CAF, FLAC, Ogg Vorbis and MKV (not Opus). Every audio track is mixed into the meeting's `system.wav`. Ctrl-click or Shift-click meetings to merge them into one timeline, with Undo; **Edit start and end…** keeps part of a recording and rebuilds its notes. A Mac reads the WAV tracks these write. |
 | Calendar | ✓ (private iCal/CalDAV links; Evolution Data Server, including GNOME Online Accounts) | ✓ (private iCal/CalDAV links) | Off until you turn it on in Settings → Meetings. Titles and stamps recordings like macOS, backs browser calls with the event's meeting link, splits back-to-back meetings, suggests attendee names for speakers, and lists today's meetings on Today with Join, Record and a pre-meeting brief from the local Think model. Links are kept in the system credential store. |
 | Selection actions | X11; on Wayland, through the shortcuts portal on KDE Plasma and GNOME 48 or later, and a key bound to `lokalbot selection-actions` in your compositor elsewhere | ✓ | Accessibility first, then X11's primary selection when the frontmost app owns it, then Ctrl+C (never in terminals). Apps without accessibility get copy-only results. |
 | Spoken summaries | ✓ | ✓ | Read summaries and answers aloud, or export a WAV, with Kokoro 82M on this computer. |
 | Remembered speakers | ✓ | ✓ | Naming a speaker teaches an encrypted voice profile; later meetings offer the name for you to apply. Unlike on macOS, names aren't applied automatically: the matching thresholds haven't been calibrated on real calls with this voice model. |
-| Coding-agent sessions, meeting note and daily exports, routines, library health | ✓ | ✓ | Sessions stay unread until you choose in setup or Settings → Day Memory. |
-| Overnight review and Personal Context | ✓ | ✓ | As on macOS. Reviews wait for mains power. |
-| Agent notes: search what Claude Code and Codex wrote down for themselves | ✓ | ✓ | Off until turned on after a notice in Settings → Day Memory. Reads the Markdown notes in `~/.claude/projects/*/memory` and Codex's `MEMORY.md`, `memory_summary.md` and session summaries in `~/.codex/memories`, never instruction files such as `CLAUDE.md` or `AGENTS.md`. Found by their words in Ask and Quick Recall, and a result opens the agent's own file. `lokalbot-cli search-notes` and the MCP tool `search_agent_notes` need their own switch in Settings → Privacy & Data. Turning the setting off deletes the saved copy. |
+| Coding-agent sessions, meeting note and daily exports, routines, library health | ✓ | ✓ | Sessions stay unread until you choose in setup or Settings → Screen & activity. |
+| Overnight review and About you | ✓ | ✓ | As on macOS. Reviews wait for mains power. |
+| Agent notes: search what Claude Code and Codex wrote down for themselves | ✓ | ✓ | Off until turned on after a notice in Settings → Screen & activity. Reads the Markdown notes in `~/.claude/projects/*/memory` and Codex's `MEMORY.md`, `memory_summary.md` and session summaries in `~/.codex/memories`, never instruction files such as `CLAUDE.md` or `AGENTS.md`. Found by their words in Ask and Quick Recall, and a result opens the agent's own file. `lokalbot-cli search-notes` and the MCP tool `search_agent_notes` need their own switch in Settings → AI agents. Turning the setting off deletes the saved copy. |
 | Files: search chosen folders by words and meaning | ✓ | ✓ | Off until turned on after a notice. Scanned PDF pages are read only when stored as JPEG or plain raster; .doc and RAW aren't read. Video frames, HEIC and AVIF need ffmpeg. Results open in their default app. |
-| Actions review, People and Projects curation, agent handoff | ✓ | ✓ | Threads, filters and batch status; merge people and projects; Open in Agent, Claude Code or Codex fills the prompt and never sends it. |
+| Actions page, People and Projects curation, agent handoff | ✓ | ✓ | Threads, filters and batch status; merge people and projects; Open in Agent, Claude Code or Codex fills the prompt and never sends it. |
 | Sharing with phones and tablets | ✓ | ✓ | Off until you turn it on in Settings → Phones & tablets. A firewall must allow TCP port 17890. Paired devices can also send their recordings here, where they become meetings. |
 | Gmail in meeting briefs | — | — | macOS only for now: it needs a Google OAuth client registered for desktop apps. |
 
@@ -52,7 +52,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 
 ### NVIDIA CUDA (experimental)
 
-Settings → Models → llama.cpp offers **CUDA (experimental)** on Linux x86_64 and
+Settings → Models → Advanced → llama.cpp offers **CUDA (experimental)** on Linux x86_64 and
 Windows x64. It accelerates the built-in Think, search and autocomplete models;
 transcription and speaker separation still use their separate CPU engines.
 
@@ -90,7 +90,7 @@ Changing the backend lets in-flight requests finish; models switch when next
 loaded. Selecting CUDA does not stop the built-in models: they keep using the
 Vulkan or CPU runtime Automatic would choose until CUDA setup succeeds, and no
 background role starts a CUDA download. Download under Settings → Models →
-llama.cpp prepares CUDA. If setup downloads everything but the final GPU check
+Advanced → llama.cpp prepares CUDA. If setup downloads everything but the final GPU check
 fails, for example because another app has filled GPU memory, the verified files
 are kept, Settings shows "Not ready · CUDA", and **Check again** repeats only the
 check. Once CUDA is set up, explicit CUDA reports a startup error if it cannot
@@ -133,7 +133,7 @@ cache. See the
 ### Other Think providers
 
 Think (notes, digests, Ask, Compose) runs on the built-in model by default. On a PC without a
-supported GPU, local models are slow, so Settings → Models → Connections also offers:
+supported GPU, local models are slow, so Settings → Models → Online services also offers:
 
 - **OpenAI-compatible server**: any `/v1` URL, such as OpenRouter, OpenAI, Cerebras, LM Studio or
   llama-server. With OpenRouter, **Provider data use** keeps every request on private endpoints
@@ -323,13 +323,13 @@ default transcription, Think and search models.
 
 Your library lives in `~/.local/share/LokalBot` on Linux and `%LOCALAPPDATA%\LokalBot` on Windows.
 Set `LOKALBOT_STORAGE_ROOT` or pass `--lokalbot-storage-root <dir>` to use another folder. Logs are in
-the library's `logs` folder (Settings → Advanced → Logs).
+the library's `logs` folder (Settings → Diagnostics → Logs).
 
 ### Coding agents
 
 To let Claude Code, Codex and other coding agents read your library, turn on "Allow external agents to read
-your meeting library" in Settings → Privacy & Data, then click **Install for your coding agent…** in
-Settings → Advanced → Agent CLI. It installs the LokalBot skill into `~/.agents/skills` and `~/.claude/skills`
+your meeting library" in Settings → AI agents, then click **Install for your coding agent…** under Agent CLI
+on the same page. It installs the LokalBot skill into `~/.agents/skills` and `~/.claude/skills`
 (under your user folder on Windows) and puts `lokalbot-cli` here:
 
 - **Linux**: `~/.local/bin/lokalbot-cli`. If you used `install.sh`, the CLI is already there and is left as
