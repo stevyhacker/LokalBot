@@ -603,7 +603,11 @@ impl AskPage {
     fn set_composer_text(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.query = text.to_string();
         self.composer.update(cx, |state, cx| {
-            state.set_value(text.to_string(), window, cx)
+            state.set_value(text.to_string(), window, cx);
+            // A multi-line field puts its caret at the start; a question
+            // handed over from elsewhere goes on from its end, as on the Mac.
+            let end = state.text().len();
+            state.set_selected_range(end..end, cx);
         });
         self.on_query_changed(window, cx);
     }
