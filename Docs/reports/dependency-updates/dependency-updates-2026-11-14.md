@@ -4,6 +4,7 @@
 | --- | --- | --- | --- |
 | Medium | [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/v1.0.0) | v0.9.0 (build b12110) → v1.0.0 (build b12359) | Updates local chat, structured output, tool calls, embeddings and autocomplete on every platform. ggml moves from 0.29.0 to 1.0.0 and the library names gain major version 1. Linux and Windows fetch the new runtime on their own after updating, and their newer CUDA build moves from CUDA 13.4 to 13.5. Chat, JSON output, tool calls, completions and text and image embeddings came out identical in the probes below on the Mac and with Vulkan on Windows, and Mac speed is unchanged. On a Radeon RX 6600 XT with Vulkan, Qwen3.5 0.8B generates about 1.8× faster and reads prompts about 2.3× faster through the server. The CPU build moves slightly, because upstream now accumulates in F32 on the CPU ([#29810](https://github.com/ggml-org/llama.cpp/pull/29810), [#31854](https://github.com/ggml-org/llama.cpp/pull/31854)): a few greedy words changed on Linux and Windows, and embeddings stay above 0.9998 cosine, so search indexes stay valid. |
 | Medium | [FluidAudio](https://github.com/FluidInference/FluidAudio/releases/tag/v0.18.3) | 0.17.7 → 0.18.3 | Parakeet transcription recovers dropped opening speech and repairs seam gaps in long recordings; the CTC mel spectrogram runs on the CPU (fixes all-blank output on M1/M4 with macOS 27.0.1); interrupted model downloads resume. The offline speaker separation keeps one speaker per segment: 0.18.2 changed the default to keep overlapping speech, so LokalBot now sets `exclusiveSegments` itself. |
+| Medium | [speech-swift](https://github.com/soniqo/speech-swift/releases/tag/v0.0.29) | v0.0.28 + MLX-LM pin (fork `33f42bc`) → v0.0.29 + MLX-LM pin (fork `8e87821`) | Qwen transcription frees MLX's spare buffers after every window instead of keeping them: with Qwen3-ASR 1.7B the cache left after a 25 s window drops from 2,894 MB to 4 MB, and each window is about 13% faster. Transcripts in English, German, Serbian and Chinese and the aligner's word timings are identical. |
 | Medium | [Pi](https://github.com/earendil-works/pi/releases/tag/v1.5.2) and [Bun](https://github.com/oven-sh/bun/releases/tag/bun-v1.4.4) | pi 1.3.0 → 1.5.2, Bun 1.4.2 → 1.4.4 | Updates Agent Mode's runtime on every platform. Tool arguments are validated by pi's own schema checker, and large streamed tool calls and file reads use less CPU and memory. Setup downloads about 15 MB more, because Bun's archives grew: about 65 MB on macOS, 75 MB on Linux and 80 MB on Windows. Approvals, private-library access and approved-origin restrictions are unchanged. |
 | Low | Other Swift packages | 23 packages, within their declared ranges | Listed under Swift packages. Only swift-log (1.16.1 → 1.17.0) is a direct dependency; the rest come in through other packages, mostly speech-swift and MLX-LM. LokalBot's code needed no changes; swift-transformers 1.4.0 now resolves swift-jinja 3.1.0 and swift-huggingface 1.0.0, which its manifest allows. |
 | Low | Rust crates (`LinuxWindows/Cargo.lock`) | 112 semver-compatible updates | tokio 1.54, ureq 3.5, zip 9.5, uuid 1.29 and others. notify-rust stays at 4.18.2, because 4.19 adds a third copy of zbus (version 6). |
@@ -12,7 +13,6 @@
 Not updated, and why:
 
 - **MLX Swift 0.33.0.** mlx-swift-lm 3.32.3, the newest release, accepts only `0.32.x`. Stays at 0.32.3.
-- **speech-swift 0.0.29.** Upstream pins mlx-swift-lm 3.31.4 again ([#501](https://github.com/soniqo/speech-swift/pull/501) is still open), so it would move MLX back to 0.31. Taking it means rebasing the fork on 0.0.29 with the 3.32.3 pin. 0.0.29 fixes repeated-request cache growth in Qwen3-ASR, which matters for meeting transcription.
 - **Sparkle 2.10.1.** The DigUp fork (pinned by commit) requires Sparkle 2.10.0 exactly.
 - **Android targetSdk 37.** Targeting API 37 makes local network access a runtime permission (`ACCESS_LOCAL_NETWORK`), which pairing and sync need, so it is its own change. CameraX 1.7.0, biometric 1.4.0 and Kotlin 2.5.0 are not stable yet.
 - **Major versions that need code changes:** sherpa-onnx 2.0 (Mac vendor build and the Rust crate), gpui-kit 0.9 / gpui-pre 0.3.12, rusqlite 0.42, keyring 4, ocrs 0.14 / rten 0.28, lopdf 0.47, ashpd 0.14, global-hotkey 0.10, zbus 6, windows-core 0.100.
@@ -61,6 +61,44 @@ Upstream changes that were checked:
 - **Log levels.** `common/log.h` still has TRACE at 4 and DEBUG at 5, and request and response bodies are still logged only at 5. The only new TRACE lines report router proxying, which the apps do not use. The "offloaded N/M layers to GPU" line is unchanged, so the Linux and Windows CUDA servers keep verbosity 4. A server started with the app's arguments at verbosity 4 kept a marker word from the prompt out of its log on both builds.
 - **CUDA.** Upstream's CUDA 13 builds moved from 13.4 to 13.5 with the same architecture list (8.6, 8.9 and 12.x prebuilt, PTX from 7.5), so the newer build now needs a CUDA 13.5 driver for PTX on Turing, A100 and H100; prebuilt kernels still run on any CUDA 13 driver. `ggml-cuda` now links cuBLASLt directly, which the companion libraries already include.
 - **MoE expert cache, FP8 KV caches, external PLE shards and the `/v1/audio/speech` endpoint** are new and off unless asked for. The apps use none of them.
+
+## speech-swift 0.0.29
+
+Upstream [v0.0.29](https://github.com/soniqo/speech-swift/releases/tag/v0.0.29)
+(`7f382bb`) still pins mlx-swift-lm 3.31.4 exactly, which would move MLX back to
+0.31 ([#501](https://github.com/soniqo/speech-swift/pull/501), the same pin change
+upstream, is still open). As for 0.0.28, the app uses a fork revision:
+[`8e87821`](https://github.com/stevyhacker/speech-swift/commit/8e8782120803e8812805041b9ae51197c5959c31)
+on branch `update-mlx-lm-3.32.3-v0.0.29` of `stevyhacker/speech-swift`. It is
+v0.0.29 with only the exact mlx-swift-lm pin and its two comment lines changed to
+3.32.3, the same three-line change as `33f42bc` on 0.0.28. The earlier branch and
+revision are untouched.
+
+LokalBot links only the `Qwen3ASR` product, whose target still depends on
+AudioCommon, MLXCommon, SpeechVAD and MLX, none of which use mlx-swift-lm.
+v0.0.29 adds a dependency on `mlc-ai/xgrammar` 0.2.7 (Swift tools 6.0) for its chat
+targets. It now resolves into `Package.resolved` but is not built into the app.
+Nothing else in the resolved graph moved.
+
+What changed for LokalBot:
+
+- **Memory.** Each loaded model takes a lease on a shared MLX cache ceiling ([#537](https://github.com/soniqo/speech-swift/pull/537)), min(2 GiB, RAM/4) by default and 4 GiB for the 1.7B ASR model. A lease never raises a lower limit the caller set, and the previous limit comes back when the last model unloads. Qwen3-ASR also synchronizes the stream and clears MLX's cache after every transcription. The aligner keeps its 2 GiB lease while loaded.
+- **Cancellation and downloads.** `transcribeThrowing` and download options were added. The app keeps calling `transcribeCheckingCancellation`, and `QwenASREngineTests`'s cancellation check still passes.
+
+Measured on the M4 Max with the cached Qwen3-ASR 1.7B 8-bit and ForcedAligner
+0.6B 4-bit models, on 25-second slices of the sample meeting's English, German,
+Serbian and Chinese recordings (synthetic voices), through `QwenASREngine.transcribeWindow`
+and `QwenWordAligner.align`. The old run used the same app build with only the
+fork revision reverted:
+
+| | v0.0.28 fork | v0.0.29 fork |
+| --- | ---: | ---: |
+| Transcripts, 4 languages × repetition blocking on/off | — | 8 of 8 identical |
+| MLX cache after each of 8 repeated windows | 2,894 MB | 4 MB |
+| Peak memory over those 8 windows | 3,667 MB | 3,621 MB |
+| Time per 25 s window | 2.29–2.31 s | 1.98–2.02 s |
+| Aligner: 68 words, first five start times | identical | identical |
+| Aligner peak memory over 4 runs | 2,159 MB | 2,175 MB |
 
 ## Swift packages
 

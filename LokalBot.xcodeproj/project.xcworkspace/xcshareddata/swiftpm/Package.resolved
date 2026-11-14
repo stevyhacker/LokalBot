@@ -104,7 +104,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stevyhacker/speech-swift",
       "state" : {
-        "revision" : "33f42bc0d48efa5baf39f2531f52c333d92e519a"
+        "revision" : "8e8782120803e8812805041b9ae51197c5959c31"
       }
     },
     {
@@ -375,6 +375,15 @@
       "state" : {
         "revision" : "1bbc57cb7fe6410248a685b1c5a3c6d56adc2ed4",
         "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "xgrammar",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mlc-ai/xgrammar",
+      "state" : {
+        "revision" : "82505d0d987c36a4209fb3d8571cf6b0f28b5acd",
+        "version" : "0.2.7"
       }
     },
     {

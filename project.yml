@@ -31,7 +31,7 @@ packages:
     exactVersion: 1.1.1   # crash and model-download cancellation fixes
   Qwen3Speech:
     url: https://github.com/stevyhacker/speech-swift
-    revision: 33f42bc0d48efa5baf39f2531f52c333d92e519a  # v0.0.28 + MLX-LM pin; upstream soniqo/speech-swift#501
+    revision: 8e8782120803e8812805041b9ae51197c5959c31  # v0.0.29 + MLX-LM 3.32.3 pin; upstream soniqo/speech-swift#501
   MLXSwift:
     url: https://github.com/ml-explore/mlx-swift
     exactVersion: 0.32.3   # MLX-LM 3.32.3 is compatible; CUDA plugin is Linux-only
