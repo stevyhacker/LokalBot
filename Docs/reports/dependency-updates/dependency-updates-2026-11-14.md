@@ -319,6 +319,36 @@ Upstream changes that were checked:
 - **Robolectric 4.18** drops SDK 23 and removes `@TextLayoutMode`, `shadows-httpclient` and `ShadowRemoteCallbackList`. The tests use none of these, and they run on the default SDK 36 and on SDK 32. Robolectric now extracts its native-runtime fonts and ICU once into `/tmp/robolectric-nativeruntime-assets` (about 190 MB), shared between runs.
 - **Roborazzi 1.78.0** writes opaque screenshots as RGB PNGs. `verify` still passes against the goldens, but the next `recordRoborazziDebug` rewrites every golden's bytes once with the same pixels, so review that commit by pixels. Version 1.79.0 adds an experimental accessibility-legend capture and recycles bitmaps sooner. Roborazzi builds against Robolectric 4.14.1 and runs on 4.18.
 
+## Smoke checks on the user's devices
+
+Each app was built from this branch and run the way a user would see it, against
+a throwaway library. The Windows and Linux runs used the synthetic English sample
+meeting, split into a mic track (Maya) and a system track (Daniel).
+
+- **MacBook (M4 Max).** Release build signed with the team's Developer ID, not installed. `Scripts/test/e2e.sh` against a hermetic library passed 12 checks: transcription and notes, crash recovery, keyword, prefix and semantic search, the day digest, Dream, chat, and MCP. T1 (microphone) and T6 (screen capture) were skipped so as not to record the real room or screen. T10 (Agent Mode) skips because the runtime lives in the shared Application Support folder, which holds the installed 0.12.3 app's pi 1.3.0. Two checks failed identically on a master build signed the same way, so both predate this update and the script needs updating:
+  - T2 greps for the speaker labels `"me"` and `"them"`, but diarized transcripts have used `"local 1"` and `"them 1"` since September.
+  - T8 expects the digest to use a seeded `ocr_fts` row that the day-evidence snapshot no longer reads.
+- **Windows PC (Radeon RX 6600 XT).** The release build of `lokalbot-app` and `lokalbot-cli` finished with 0 warnings (529 s cold). `process_meeting --prepare --ask` passed in 236 s:
+  - It downloaded the default models and the 38 MB b12359 runtime and ran on Vulkan.
+  - It transcribed both tracks, wrote complete notes (TL;DR, decisions, actions, open questions), and answered "What did we decide?" with meeting citations.
+  - Page captures were not taken, because the user was signed in and active at the PC.
+- **Ubuntu box (CPU).** The release build had no warnings, and `process_meeting` passed in 193 s on the b12359 CPU runtime. On a virtual X11 desktop:
+  - All 27 page captures (light and dark) showed real content.
+  - Ask through `lokalbot-cli` and in the app answered correctly against the real model.
+  - The Agent page and `agent_turn` installed Bun 1.4.4 and pi 1.5.2 and completed approved file writes.
+  - The logs had no runtime, embedding or agent errors.
+- **iPhone (iOS Simulator).** `Companion/e2e/ios_trip.py` passed in 23 s:
+  - pairing, syncing all 19 records, and a changed action item;
+  - a recording queued while the computer was away and then delivered byte-identical;
+  - a second recording.
+- **Android (emulator).** The release-build phone trip passed twice (see Android companion above).
+
+Unrelated to this update and left as they are:
+- Qwen3-ASR 0.6B sometimes writes "嗯。" for a filler sound.
+- The Linux Ask history stays empty without a message while a credential store hangs.
+- The Timeline header chevron is clipped, as on master.
+- Running the phone trip or a test host from a checkout under `~/Documents` stalls on the folder's privacy prompt.
+
 ## Verification
 
 - **macOS vendor build.** `bash Scripts/build/fetch-llama.sh` cold-built v1.0.0 in 35 s. CMake printed only its usual configuration notes (no OpenMP, no `.git`, no web UI). The receipt validates, and the runtime has the same file set with the version suffixes moving to 1 (57 MB, as before). `python3 -m unittest discover -s Scripts/tests` ran 222 tests: OK. `swiftlint lint --strict --quiet` passed.
