@@ -40,6 +40,15 @@ enum QwenLlamaASR {
     /// The default 8 GiB host prompt cache grew the benchmark server to 14 GB.
     static let serverArguments = ["--parallel", "1", "--cache-ram", "256"]
 
+    /// The 1.7B tier's llama-server, as `QwenASREngine` starts it.
+    static func makeServer(projector: URL) -> LlamaServer {
+        LlamaServer(
+            role: .qwenASR, contextTokens: contextTokens,
+            extraArgs: ["--mmproj", projector.path] + serverArguments,
+            environment: serverEnvironment,
+            runtimeAllowanceBytes: 768 * 1_048_576)
+    }
+
     static func downloadURL(for file: File) -> URL {
         URL(string: "https://huggingface.co/\(repository)/resolve/\(revision)/\(file.name)")!
     }

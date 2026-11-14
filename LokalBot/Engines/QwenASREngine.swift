@@ -136,11 +136,7 @@ actor QwenASREngine: TranscriptionEngine {
         let paths = try await QwenLlamaASR.prepareFiles(
             appSupport: AppDirectories.applicationSupport, progress: progress)
         report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
-        let server = self.server ?? LlamaServer(
-            role: .qwenASR, contextTokens: QwenLlamaASR.contextTokens,
-            extraArgs: ["--mmproj", paths.projector.path] + QwenLlamaASR.serverArguments,
-            environment: QwenLlamaASR.serverEnvironment,
-            runtimeAllowanceBytes: 768 * 1_048_576)
+        let server = self.server ?? QwenLlamaASR.makeServer(projector: paths.projector)
         self.server = server
         try await server.ensureRunning(modelAt: paths.model)
     }
