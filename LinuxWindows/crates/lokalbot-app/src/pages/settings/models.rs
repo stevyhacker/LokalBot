@@ -122,15 +122,6 @@ pub fn models_in_use(settings: &Settings) -> Vec<String> {
     ids
 }
 
-/// The name of the engine reading screen text here.
-pub fn screen_text_engine_name(status: &lokalbot_ai::ocr::OcrStatus) -> &'static str {
-    match status.backend {
-        lokalbot_ai::ocr::OcrBackend::Tesseract => "Screen text recognition (Tesseract)",
-        lokalbot_ai::ocr::OcrBackend::Windows => "Screen text recognition (Windows)",
-        _ => lokalbot_ai::ocr::OCR_DISPLAY_NAME,
-    }
-}
-
 /// What Autocomplete downloads: its model and the llama.cpp runtime. A
 /// server needs no download.
 pub fn autocomplete_needs(settings: &Settings) -> Vec<String> {
