@@ -1,66 +1,96 @@
-//! Today: what is recording, what needs attention, the day digest and the
-//! day's sessions (`TodayView.swift`, `TodaySessionsSection.swift`,
-//! `GettingStartedCard.swift`). "Review Actions…" opens the Actions page.
+//! Today (`TodayView.swift`): what is live, what is next, and what needs you.
+//! A card leads only while it matters (the recording in progress, a meeting
+//! within the hour); the rest is the day's panels (Needs attention, Meetings
+//! today, So far today, Yesterday), side by side when the page has room, and
+//! Get started on the first days. Sessions, the digest's tasks and its menu
+//! are on Timeline; planning the open actions is on Actions.
 
 pub(crate) mod brief;
 pub(crate) mod digest;
+mod getting_started;
+mod live;
+mod model;
+mod panels;
 mod upcoming;
 
 use std::cell::Cell;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::i18n::h_flex;
-use chrono::{Local, NaiveDate};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::scroll::ScrollableElement as _;
-use gpui_kit::component::{Icon, v_flex};
-use gpui_kit::prelude::FluentBuilder as _;
+use gpui_kit::component::{Disableable as _, Icon, v_flex};
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Bounds, Context, Entity, FontWeight, InteractiveElement as _,
-    IntoElement, ParentElement as _, Pixels, Render, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Subscription, Task, Window, canvas, div, px,
+    AnyElement, App, AppContext as _, Bounds, Context, Div, Entity, Hsla, InteractiveElement as _,
+    IntoElement, ParentElement as _, Pixels, Render, SharedString, Styled as _, Subscription, Task,
+    Window, canvas, div, px,
 };
-use lokalbot_core::{ActionThread, DayActivity, DayDigest, WorkSession};
+use lokalbot_core::calendar::CalendarEvent;
+use lokalbot_core::calendar::upcoming as selector;
+use lokalbot_core::{ActionThread, DayActivity, DayDigest, Meeting};
+use lokalbot_engine::CalendarStatus;
+use uuid::Uuid;
 
+use crate::i18n::h_flex;
 use crate::pages::Page;
-use crate::state::{AppData, AskRequest, RecordingState, Section};
+use crate::state::{AppData, AskRequest};
 use crate::theme::{LbThemeExt as _, metric, ty};
-use crate::ui::{self, Ico, action_row};
+use crate::ui::section_panel::{page_surface, panel_column, panel_surface};
+use crate::ui::{Ico, action_row};
+use model::{AttentionSummary, Entry, EntryStatus, PageLayout, columns};
+
+/// The title of the card at the top (`TodayType.cardTitle`, 20 pt on macOS).
+const CARD_TITLE: Pixels = px(21.);
+/// The next meeting's title while another one is being recorded, and Get
+/// started's title (`TodayType.cardTitleCompact`).
+const CARD_TITLE_COMPACT: Pixels = ty::QUESTION;
+/// The page's padding at its top and bottom.
+const PAGE_TOP: Pixels = px(16.);
+const PAGE_BOTTOM: Pixels = px(32.);
 
 /// What Today shows, loaded off the main thread.
 struct TodayModel {
     day: NaiveDate,
     activity: DayActivity,
     digest: Option<DayDigest>,
-    /// The rows shown: at most three.
+    /// The most urgent of the user's open actions, overdue first: at most
+    /// `model::ATTENTION_LIMIT`.
     attention: Vec<ActionThread>,
-    /// The open threads "Plan in Agent…" lists: at most eight.
-    attention_open: Vec<ActionThread>,
+    summary: AttentionSummary,
     /// "Looks done?" suggestions, by thread.
-    hints: std::collections::HashMap<String, lokalbot_core::action_completion::CompletionHint>,
-    /// Yesterday's overnight review.
+    hints: HashMap<String, lokalbot_core::action_completion::CompletionHint>,
+    /// Yesterday's overnight brief.
     brief: brief::BriefModel,
+    /// One line per finished recording of today, from its saved summary.
+    recaps: HashMap<Uuid, String>,
 }
 
 pub struct TodayPage {
     data: Entity<AppData>,
     model: Option<TodayModel>,
-    loading: bool,
     load_generation: u64,
     loaded_revision: Option<u64>,
-    sessions_expanded: bool,
-    expanded_tasks: HashSet<usize>,
+    /// The page's size, for the column decision.
     bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// Today's calendar meetings and the next one's preparation.
+    /// The next meeting's card: its preparation and what is open in it.
     upcoming: upcoming::UpcomingState,
-    /// A planted demo library never asks for a GitHub star.
+    /// A planted demo library never counts days toward the GitHub star.
     seeded_demo_library: bool,
-    brief: brief::BriefState,
     tick: Option<Task<()>>,
     _refresh: Task<()>,
     _subscriptions: Vec<Subscription>,
+}
+
+/// What the page is built from at one moment: the day's meetings, the card
+/// at the top and which panels have something to say.
+struct Frame {
+    now: DateTime<Utc>,
+    live: Option<Meeting>,
+    next: Option<CalendarEvent>,
+    entries: Vec<Entry>,
+    calendar_off: bool,
 }
 
 impl TodayPage {
@@ -73,7 +103,8 @@ impl TodayPage {
         let seeded_demo_library = lokalbot_core::github_star::is_seeded_demo_library(
             data.read(cx).library.paths().root(),
         );
-        // Today re-anchors after midnight and picks up new activity.
+        // Today re-anchors after midnight, moves the now line and picks up
+        // new activity.
         let refresh = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -87,15 +118,11 @@ impl TodayPage {
         let mut this = Self {
             data,
             model: None,
-            loading: false,
             load_generation: 0,
             loaded_revision: None,
-            sessions_expanded: false,
-            expanded_tasks: HashSet::new(),
             bounds: Rc::new(Cell::new(None)),
             upcoming: Default::default(),
             seeded_demo_library,
-            brief: Default::default(),
             tick: None,
             _refresh: refresh,
             _subscriptions: subscriptions,
@@ -118,12 +145,23 @@ impl TodayPage {
 
     fn reload(&mut self, cx: &mut Context<Self>) {
         self.record_active_day(cx);
-        let library = self.data.read(cx).library.clone();
-        let suggest_done = action_row::suggests_completion(&self.data.read(cx).settings);
+        let data = self.data.read(cx);
+        let library = data.library.clone();
+        let suggest_done = action_row::suggests_completion(&data.settings);
         let day = Local::now().date_naive();
+        // Finished recordings of today, for their recap lines.
+        let finished: Vec<Meeting> = data
+            .meetings
+            .iter()
+            .filter(|m| {
+                m.is_own_work()
+                    && m.ended_at.is_some()
+                    && lokalbot_core::time::local_day(m.started_at) == day
+            })
+            .cloned()
+            .collect();
         self.load_generation += 1;
         let generation = self.load_generation;
-        self.loading = self.model.is_none();
         cx.spawn(async move |this, cx| {
             let model = cx
                 .background_spawn(async move {
@@ -135,34 +173,47 @@ impl TodayPage {
                         log::warn!("digest for {day}: {err:#}");
                         None
                     });
-                    let attention_open = library.needs_attention(None, 8).unwrap_or_else(|err| {
-                        log::warn!("needs attention: {err:#}");
-                        Vec::new()
-                    });
+                    // Every open action of the user's, in attention order, so
+                    // the panel can say how many there are and how many are
+                    // overdue.
+                    let open = library
+                        .needs_attention(None, usize::MAX)
+                        .unwrap_or_else(|err| {
+                            log::warn!("needs attention: {err:#}");
+                            Vec::new()
+                        });
+                    let summary = AttentionSummary::new(&open, model::ATTENTION_LIMIT, day);
                     let attention: Vec<ActionThread> =
-                        attention_open.iter().take(3).cloned().collect();
+                        open.into_iter().take(summary.shown).collect();
                     // Suggestions only, and only from text kept with consent.
                     let hints = if suggest_done {
-                        library.action_completion_hints(&attention, chrono::Utc::now())
+                        library.action_completion_hints(&attention, Utc::now())
                     } else {
                         Default::default()
                     };
                     let brief = brief::load(&library, day);
+                    let recaps = finished
+                        .iter()
+                        .filter_map(|meeting| {
+                            let summary = library.summary(meeting).ok().flatten()?;
+                            Some((meeting.id, model::recap_line(&summary)?))
+                        })
+                        .collect();
                     TodayModel {
                         day,
                         activity,
                         digest,
                         attention,
-                        attention_open,
+                        summary,
                         hints,
                         brief,
+                        recaps,
                     }
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 if this.load_generation == generation {
                     this.model = Some(model);
-                    this.loading = false;
                     cx.notify();
                 }
             });
@@ -170,6 +221,7 @@ impl TodayPage {
         .detach();
     }
 
+    /// Redraws every second while recording, for the timer.
     fn sync_tick(&mut self, recording: bool, cx: &mut Context<Self>) {
         if recording && self.tick.is_none() {
             self.tick = Some(cx.spawn(async move |this, cx| {
@@ -199,68 +251,9 @@ impl TodayPage {
         });
     }
 
-    /// Today's one-time request for a GitHub star, at the end of the page. It
-    /// appears only when `github_star::should_show` allows, and either button
-    /// retires it for good (`GitHubStarCard`).
-    fn render_github_star(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let data = self.data.read(cx);
-        let settings = &data.settings;
-        if !lokalbot_core::github_star::should_show(
-            settings.github_star_dismissed,
-            settings.github_star_summary_completed,
-            &settings.github_star_active_days,
-            self.seeded_demo_library,
-        ) {
-            return None;
-        }
-        let lb = cx.lb().clone();
-        let (star, later) = (self.data.clone(), self.data.clone());
-        let answer = |data: &Entity<AppData>, cx: &mut App| {
-            data.update(cx, |data, cx| {
-                data.update_settings(|s| s.github_star_dismissed = true, cx)
-            })
-        };
-        Some(
-            ui::grouped_surface(cx)
-                .p(px(14.))
-                .child(
-                    h_flex()
-                        .flex_wrap()
-                        .gap(px(10.))
-                        .items_center()
-                        .child(ui::icon(Ico::Star, px(16.), lb.accent_text))
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_w(px(240.))
-                                .text_size(ty::BODY)
-                                .text_color(lb.text)
-                                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                    "LokalBot is free and built by one person. A GitHub star helps others find it.",
-                                ))),
-                        )
-                        .child(
-                            ui::controls::bordered(
-                                "today-github-star",
-                                lokalbot_i18n::tr("Star on GitHub"),
-                            )
-                            .on_click(move |_, _, cx| {
-                                cx.open_url(crate::pages::settings::general::REPOSITORY);
-                                answer(&star, cx);
-                            }),
-                        )
-                        .child(ui::link(
-                            "today-github-star-later",
-                            lokalbot_i18n::tr("Not now"),
-                            move |_, cx| answer(&later, cx),
-                            cx,
-                        )),
-                )
-                .into_any_element(),
-        )
-    }
-
-    /// Counts today once toward asking for a GitHub star.
+    /// Counts today once toward the GitHub star prompt's active days, as the
+    /// Mac does at launch. The prompt itself is no longer on Today: the
+    /// Mac shows "Star on GitHub" in Settings only.
     fn record_active_day(&mut self, cx: &mut Context<Self>) {
         if self.seeded_demo_library {
             return;
@@ -277,541 +270,113 @@ impl TodayPage {
         }
     }
 
-    /// Content width inside the page column, for the task grid.
-    fn content_width(&self) -> Pixels {
-        let page = self.bounds.get().map(|b| b.size.width).unwrap_or(px(1000.));
-        page.min(metric::TODAY_MAX_WIDTH) - metric::DETAIL_PADDING * 2. - px(32.)
+    /// The meetings, the card and the calendar's state at `now`.
+    fn frame(&self, cx: &App) -> Frame {
+        let now = Utc::now();
+        let data = self.data.read(cx);
+        let live = data.recording.meeting().cloned();
+        let calendar = &data.calendar;
+        let enabled = data.settings.calendar_detection_enabled;
+        let events = if enabled && calendar.status == CalendarStatus::Ready {
+            selector::schedule(&calendar.events, lokalbot_core::time::local_day(now))
+        } else {
+            Vec::new()
+        };
+        // The recording in progress leads, so it is found even before the
+        // library lists it.
+        let recordings: Vec<&Meeting> = live.iter().chain(data.meetings.iter()).collect();
+        let recorded = model::recorded_event_ids(&recordings, &events);
+        let next = model::next_meeting(&events, now, &recorded).cloned();
+        let entries = model::agenda_entries(&recordings, &events, live.as_ref().map(|m| m.id), now);
+        Frame {
+            now,
+            live,
+            next,
+            entries,
+            // Off in Settings, or no calendar to read yet.
+            calendar_off: !enabled
+                || matches!(
+                    calendar.status,
+                    CalendarStatus::Off | CalendarStatus::NoSources
+                ),
+        }
     }
 
-    // --------------------------------------------------------------- render
+    /// The page content's width inside its side padding.
+    fn content_width(&self, maximum: f32) -> f32 {
+        let page = self
+            .bounds
+            .get()
+            .map(|b| f32::from(b.size.width))
+            .unwrap_or(1000.);
+        page.min(maximum) - f32::from(metric::DETAIL_PADDING) * 2.
+    }
+}
 
-    fn render_now(&self, cx: &mut Context<Self>) -> AnyElement {
-        let lb = cx.lb().clone();
-        let data = self.data.read(cx);
-        if let RecordingState::Recording {
-            meeting, started, ..
-        } = &data.recording
-        {
-            let id = meeting.id;
-            let title = meeting.display_title();
-            let elapsed = started.elapsed().as_secs_f64();
-            let open = self.data.clone();
-            let stop = self.data.clone();
-            return ui::status_surface(lb.recording, cx)
-                .p(metric::PANEL_PADDING)
-                .flex()
-                .items_center()
-                .gap(px(10.))
-                .child(ui::status_dot(lb.recording, px(8.)))
-                .child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap(px(3.))
-                        .child(
-                            div()
-                                .truncate()
-                                .text_size(ty::BODY)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(lb.text)
-                                .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                    "Recording — {title}",
-                                    &[("title", title.to_string())],
-                                ))),
-                        )
-                        .child(
-                            div()
-                                .text_size(ty::SECONDARY)
-                                .text_color(lb.recording_text)
-                                .child(lokalbot_core::time::timer(elapsed)),
-                        ),
-                )
-                .child(
-                    ui::controls::bordered("now-live", lokalbot_i18n::tr("Live Meeting Notes"))
-                        .on_click(move |_, _, cx| {
-                            open.update(cx, |data, cx| {
-                                data.open_meeting(id, Default::default(), None, cx)
-                            })
-                        }),
-                )
-                .child(
-                    ui::controls::bordered("now-stop", lokalbot_i18n::tr("Stop Recording"))
-                        .text_color(lb.recording_text)
-                        .on_click(move |_, _, cx| {
-                            stop.update(cx, |data, cx| data.stop_recording(cx))
-                        }),
-                )
-                .into_any_element();
-        }
-        let start = self.data.clone();
-        ui::panel(cx)
-            .flex()
-            .items_center()
-            .gap(px(10.))
-            .child(ui::icon(Ico::AudioLines, px(16.), lb.text_secondary))
+/// The raised card at the top of Today and around Get started
+/// (`todayCardSurface`): the panel surface, tinted for a recording.
+fn card_surface(tint: Option<Hsla>, cx: &App) -> Div {
+    let lb = cx.lb();
+    let surface = panel_surface(cx);
+    match tint {
+        Some(tint) => surface
+            .border_color(lb.status_stroke(tint))
             .child(
                 div()
-                    .flex_1()
-                    .text_size(ty::BODY)
-                    .text_color(lb.text)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "Nothing recording right now",
-                    ))),
-            )
-            .child(
-                ui::controls::bordered("now-record", lokalbot_i18n::tr("Record Now")).on_click(
-                    move |_, _, cx| start.update(cx, |data, cx| data.start_recording(cx)),
-                ),
-            )
-            .into_any_element()
-    }
-
-    fn render_attention(&self, model: &TodayModel, cx: &mut Context<Self>) -> Option<AnyElement> {
-        if model.attention.is_empty() {
-            return None;
-        }
-        let lb = cx.lb().clone();
-        let count = model.attention.len();
-        let rows = model.attention.iter().enumerate().map(|(ix, thread)| {
-            v_flex()
-                .child(action_row::thread_row(
-                    format!("today-thread-{ix}").into(),
-                    thread,
-                    action_row::ThreadRowOptions {
-                        hint: model.hints.get(&thread.id),
-                        ..Default::default()
-                    },
-                    &self.data,
-                    cx,
-                ))
-                .when(ix + 1 < count, |this| {
-                    this.child(div().h(px(1.)).bg(lb.separator))
-                })
-        });
-        let plan = lokalbot_core::agent_handoff::agent_prompt_for_plan(&model.attention_open);
-        let plan_data = self.data.clone();
-        let content = v_flex().children(rows).child(
-            h_flex()
-                .pt(px(8.))
-                .gap(px(8.))
-                .child(
-                    ui::controls::bordered("review-actions", lokalbot_i18n::tr("Review Actions…"))
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.data.update(cx, |data, cx| data.open_actions(cx))
-                        })),
-                )
-                .child(
-                    ui::controls::bordered("plan-in-agent", lokalbot_i18n::tr("Plan in Agent…"))
-                        .tooltip(lokalbot_i18n::tr(
-                            "Open a new Agent task with these action threads",
-                        ))
-                        .on_click(move |_, _, cx| {
-                            let prompt = plan.clone();
-                            plan_data.update(cx, |data, cx| data.open_agent(prompt, cx));
-                        }),
-                ),
-        );
-        Some(ui::section(lokalbot_i18n::tr("Needs Attention"), content, cx).into_any_element())
-    }
-
-    fn render_digest(&self, model: &TodayModel, cx: &mut Context<Self>) -> AnyElement {
-        let lb = cx.lb().clone();
-        let header = h_flex()
-            .gap(px(12.))
-            .items_center()
-            .flex_wrap()
-            .child(
-                h_flex()
-                    .flex_1()
-                    .gap(px(10.))
-                    .items_center()
-                    .child(ui::icon(Ico::Sparkles, px(16.), lb.accent_text))
-                    .child(
-                        div()
-                            .text_size(ty::SECTION)
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(lb.text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Day Digest"))),
-                    ),
-            )
-            .child(digest::digest_controls(
-                model.day,
-                model.digest.as_ref(),
-                false,
-                false,
-                &self.data,
-                cx,
-            ));
-
-        let page = cx.entity().downgrade();
-        let toggle: digest::TaskToggle = Rc::new(move |ix, _, cx| {
-            let _ = page.update(cx, |this, cx| {
-                if !this.expanded_tasks.remove(&ix) {
-                    this.expanded_tasks.insert(ix);
-                }
-                cx.notify();
-            });
-        });
-        let sessions: Vec<&WorkSession> = model
-            .activity
-            .sessions
-            .iter()
-            .filter(|s| !s.is_meeting())
-            .collect();
-        let panel = ui::grouped_surface(cx)
-            .p(px(16.))
-            .flex()
-            .flex_col()
-            .gap(px(18.))
-            .child(digest::day_overview(
-                lokalbot_i18n::tr("Day So Far"),
-                &model.activity,
-                false,
-                false,
-                cx,
-            ))
-            .child(ui::divider(cx))
-            .child(digest::digest_card(
-                model.digest.as_ref(),
-                self.content_width(),
-                &self.expanded_tasks,
-                toggle,
-                cx,
-            ))
-            .when(!sessions.is_empty(), |this| {
-                this.child(ui::divider(cx))
-                    .child(self.render_sessions(model.day, &sessions, cx))
-            });
-        v_flex()
-            .gap(px(16.))
-            .child(header)
-            .child(panel)
-            .into_any_element()
-    }
-
-    fn render_sessions(
-        &self,
-        day: NaiveDate,
-        sessions: &[&WorkSession],
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let lb = cx.lb().clone();
-        let total = sessions.len();
-        let shown = if self.sessions_expanded {
-            total
-        } else {
-            total.min(4)
-        };
-        let open_timeline = self.data.clone();
-        let cards = sessions
-            .iter()
-            .take(shown)
-            .enumerate()
-            .map(|(ix, session)| {
-                let data = self.data.clone();
-                let session_id = session.id.clone();
-                let hover = lb.hover;
-                h_flex()
-                    .id(("today-session", ix))
-                    .items_start()
-                    .gap(px(12.))
-                    .p(px(12.))
+                    .absolute()
+                    .inset_0()
                     .rounded(metric::GROUP_RADIUS)
-                    .bg(lb.group_fill)
-                    .border_1()
-                    .border_color(lb.group_stroke)
-                    .cursor_pointer()
-                    .hover(move |s| s.bg(hover))
-                    .child(div().pt(px(2.)).child(ui::icon(
-                        Ico::Briefcase,
-                        px(16.),
-                        lb.accent_text,
-                    )))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(5.))
-                            .child(
-                                div()
-                                    .line_clamp(2)
-                                    .text_size(ty::BODY)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(lb.text)
-                                    .child(session.title.clone()),
-                            )
-                            .child(
-                                div()
-                                    .truncate()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(session.apps.join(" · ")),
-                            ),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_none()
-                            .items_end()
-                            .gap(px(5.))
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(lokalbot_core::time::clock_time(session.start))
-                            .child(crate::pages::today::digest::hm(session.active_seconds)),
-                    )
-                    .on_click(move |_, _, cx| {
-                        let session_id = session_id.clone();
-                        data.update(cx, |data, cx| data.open_timeline(day, Some(session_id), cx))
-                    })
-            });
-        let more = (total > 4).then(|| {
-            let label = if self.sessions_expanded {
-                lokalbot_i18n::tr("Show Fewer Sessions").to_string()
-            } else {
-                lokalbot_i18n::format(
-                    "Show All {total} Sessions",
-                    &[("total", format!("{}", total))],
-                )
-            };
-            ui::link(
-                "sessions-more",
-                label,
-                {
-                    let page = cx.entity().downgrade();
-                    move |_, cx| {
-                        let _ = page.update(cx, |this, cx| {
-                            this.sessions_expanded = !this.sessions_expanded;
-                            cx.notify();
-                        });
-                    }
-                },
-                cx,
+                    .bg(tint.opacity(0.06)),
             )
-            .text_size(ty::SECONDARY)
-        });
-        v_flex()
-            .gap(px(12.))
-            .child(
-                h_flex()
-                    .items_center()
-                    .child(
-                        div()
-                            .flex_1()
-                            .text_size(ty::SECTION)
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(lb.text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Sessions"))),
-                    )
-                    .child(
-                        ui::link(
-                            "sessions-timeline",
-                            lokalbot_i18n::tr("Open Timeline"),
-                            move |_, cx| {
-                                open_timeline
-                                    .update(cx, |data, cx| data.navigate(Section::Timeline, cx))
-                            },
-                            cx,
-                        )
-                        .text_size(ty::SECONDARY),
-                    ),
-            )
-            .children(cards)
-            .children(more)
-            .into_any_element()
+            .relative(),
+        None => surface,
     }
+}
 
-    fn render_getting_started(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let data = self.data.read(cx);
-        let own_meetings = data.meetings.iter().filter(|m| m.is_own_work()).count();
-        if data.settings.getting_started_dismissed || own_meetings >= 3 {
-            return None;
+/// A meeting's place in the day in words: "In 12 min", "Recording", "Ended"
+/// (`TodayMeetingStatusText`).
+fn status_text(status: EntryStatus) -> String {
+    model::directional(match status {
+        EntryStatus::Recording => lokalbot_i18n::tr("Recording").to_string(),
+        // A saved recording's row shows its app and length instead.
+        EntryStatus::Recorded | EntryStatus::Ended => lokalbot_i18n::tr("Ended").to_string(),
+        EntryStatus::InProgress => lokalbot_i18n::tr("In progress").to_string(),
+        EntryStatus::StartingNow => lokalbot_i18n::tr("Starting now").to_string(),
+        EntryStatus::Upcoming { minutes } if minutes < 60 => model::fill(
+            lokalbot_i18n::tr("In %lld min"),
+            &[&lokalbot_i18n::number(minutes.max(0) as usize)],
+        ),
+        EntryStatus::Upcoming { minutes } => {
+            let hours = lokalbot_i18n::number((minutes / 60) as usize);
+            match minutes % 60 {
+                0 => model::fill(lokalbot_i18n::tr("In %lldh"), &[&hours]),
+                rest => model::fill(
+                    lokalbot_i18n::tr("In %lldh %lldm"),
+                    &[&hours, &lokalbot_i18n::number(rest as usize)],
+                ),
+            }
         }
-        let lb = cx.lb().clone();
-        let tracking = data.settings.tracking_enabled;
-        let transcription_ready = data.models.transcription_ready;
-        let has_meeting = own_meetings > 0;
-        let has_sample = data.sample_meeting().is_some();
-        let pillar = |icon: Ico, title: &'static str, text: &'static str| {
-            v_flex()
-                .flex_1()
-                .min_w_0()
-                .gap(px(4.))
-                .p(px(12.))
-                .rounded(metric::GROUP_RADIUS)
-                .bg(lb.chip_fill.opacity(0.6))
-                .child(
-                    h_flex()
-                        .gap(px(6.))
-                        .items_center()
-                        .text_size(ty::BODY)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(lb.text)
-                        .child(ui::icon(icon, px(15.), lb.accent_text))
-                        .child(title),
-                )
-                .child(
-                    div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(text),
-                )
-        };
-        let step = |done: bool, content: AnyElement| {
-            h_flex()
-                .gap(px(10.))
-                .items_center()
-                .child(if done {
-                    ui::icon(Ico::CircleCheck, px(16.), lb.success_text).into_any_element()
-                } else {
-                    ui::icon(Ico::Circle, px(16.), lb.accent_text).into_any_element()
-                })
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .text_size(ty::BODY)
-                        .text_color(lb.text)
-                        .child(content),
-                )
-        };
-        let models = self.data.clone();
-        let sample = self.data.clone();
-        let tracking_data = self.data.clone();
-        let dictation = self.data.clone();
-        let dismiss = self.data.clone();
-        let link_step = |id: &'static str,
-                         label: &'static str,
-                         rest: &'static str,
-                         on_click: Box<dyn Fn(&mut App)>| {
-            h_flex()
-                .flex_wrap()
-                .gap(px(5.))
-                .child(ui::link(id, label, move |_, cx| on_click(cx), cx))
-                .child(div().text_color(lb.text_secondary).child(rest))
-                .into_any_element()
-        };
-        Some(
-            ui::panel(cx)
-                .max_w(px(560.))
-                .p(px(28.))
-                .flex()
-                .flex_col()
-                .gap(px(18.))
-                .child(
-                    h_flex()
-                        .gap(px(14.))
-                        .items_start()
-                        .child(ui::icon_tile(Ico::AudioLines, lb.accent_text, px(48.)))
-                        .child(
-                            v_flex()
-                                .flex_1()
-                                .gap(px(4.))
-                                .child(
-                                    div()
-                                        .text_size(ty::QUESTION)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_color(lb.text)
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Welcome to LokalBot"))),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::BODY)
-                                        .text_color(lb.text_secondary)
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Your private AI memory for work — on-device by default."))),
-                                ),
-                        )
-                        .child(
-                            Button::new("getting-started-dismiss")
-                                .ghost()
-                                .icon(Icon::new(Ico::X))
-                                .tooltip(lokalbot_i18n::tr("Dismiss"))
-                                .on_click(move |_, _, cx| {
-                                    dismiss.update(cx, |data, cx| {
-                                        data.update_settings(|s| s.getting_started_dismissed = true, cx)
-                                    })
-                                }),
-                        ),
-                )
-                .child(
-                    v_flex()
-                        .gap(px(10.))
-                        .child(
-                            h_flex()
-                                .gap(px(10.))
-                                .child(pillar(Ico::AudioLines, lokalbot_i18n::tr("Remember"), lokalbot_i18n::tr("Capture meetings and the day context you choose.")))
-                                .child(pillar(Ico::TextSearch, lokalbot_i18n::tr("Ask"), lokalbot_i18n::tr("Search, ask, and open the evidence behind an answer."))),
-                        )
-                        .child(
-                            h_flex()
-                                .gap(px(10.))
-                                .child(pillar(Ico::Keyboard, lokalbot_i18n::tr("Write"), lokalbot_i18n::tr("Dictate text into the app where you're working.")))
-                                .child(pillar(
-                                    Ico::SquareArrowOutUpRight,
-                                    lokalbot_i18n::tr("Act"),
-                                    lokalbot_i18n::tr("Create inspectable drafts and exports, and share meetings with your coding agent."),
-                                )),
-                        ),
-                )
-                .child(div().text_size(ty::SECTION).font_weight(FontWeight::BOLD).text_color(lb.text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Get started"))))
-                .child(
-                    v_flex()
-                        .gap(px(10.))
-                        .child(step(
-                            transcription_ready,
-                            if transcription_ready {
-                                div().child(crate::ui::text::paragraph(lokalbot_i18n::tr("Transcription model ready — recaps run entirely on-device."))).into_any_element()
-                            } else {
-                                link_step(
-                                    "gs-download",
-                                    lokalbot_i18n::tr("Download the transcription model"),
-                                    lokalbot_i18n::tr("one-time — or it downloads with your first recap."),
-                                    Box::new(move |cx| {
-                                        models.update(cx, |data, cx| data.request(crate::state::AppEvent::PrepareModels, cx))
-                                    }),
-                                )
-                            },
-                        ))
-                        .child(step(
-                            has_sample,
-                            link_step(
-                                "gs-sample",
-                                if has_sample {
-                                    lokalbot_i18n::tr("Open the sample meeting")
-                                } else {
-                                    lokalbot_i18n::tr("Try a sample meeting")
-                                },
-                                lokalbot_i18n::tr("— a made-up call, to try Ask before you record."),
-                                Box::new(move |cx| sample.update(cx, |data, cx| data.try_sample(cx))),
-                            ),
-                        ))
-                        .child(step(has_meeting, div().child(crate::ui::text::paragraph(lokalbot_i18n::tr("Record a meeting — it appears in the list automatically."))).into_any_element()))
-                        .child(step(
-                            tracking,
-                            link_step(
-                                "gs-tracking",
-                                lokalbot_i18n::tr("Turn on day tracking"),
-                                lokalbot_i18n::tr("to see where your time goes."),
-                                Box::new(move |cx| {
-                                    tracking_data.update(cx, |data, cx| data.update_settings(|s| s.tracking_enabled = true, cx))
-                                }),
-                            ),
-                        ))
-                        .child(step(
-                            false,
-                            link_step(
-                                "gs-dictation",
-                                lokalbot_i18n::tr("Try dictation"),
-                                lokalbot_i18n::tr("— speak, and LokalBot types it in the app you're using."),
-                                Box::new(move |cx| {
-                                    dictation.update(cx, |data, cx| {
-                                        data.open_settings(crate::state::SettingsCategory::Dictation, cx)
-                                    })
-                                }),
-                            ),
-                        )),
-                )
-                .into_any_element(),
-        )
-    }
+    })
+}
+
+/// The red dot of Record buttons (`circle.fill` in the recording colour).
+fn record_dot(cx: &App) -> Div {
+    div()
+        .flex_none()
+        .size(px(10.))
+        .rounded_full()
+        .bg(cx.lb().recording)
+}
+
+/// A bordered button with the red dot and "Record".
+fn record_button(id: impl Into<gpui_kit::ElementId>, cx: &App) -> Button {
+    Button::new(id).secondary().child(
+        h_flex()
+            .gap(px(6.))
+            .items_center()
+            .child(record_dot(cx))
+            .child(lokalbot_i18n::tr("Record")),
+    )
 }
 
 impl Page for TodayPage {
@@ -832,28 +397,29 @@ impl Page for TodayPage {
         )
     }
 
+    /// Ask About Today and Record. The page has no recording bar: Record
+    /// lives here, and the live card holds the only Stop.
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let data = self.data.clone();
+        let recording = self.data.read(cx).recording.is_active();
         Some(
             h_flex()
                 .gap_1()
                 .child(
-                    ui::controls::toolbar_icon(
-                        "today-ask",
-                        Ico::TextSearch,
-                        lokalbot_i18n::tr("Ask About Today"),
-                    )
-                    .on_click(cx.listener(|this, _, _, cx| this.ask_today(cx))),
+                    Button::new("today-ask")
+                        .ghost()
+                        .icon(Icon::new(Ico::TextSearch))
+                        .label(lokalbot_i18n::tr("Ask About Today"))
+                        .on_click(cx.listener(|this, _, _, cx| this.ask_today(cx))),
                 )
                 .child(
-                    ui::controls::toolbar_icon(
-                        "today-timeline",
-                        Ico::ChartGantt,
-                        lokalbot_i18n::tr("Open Timeline"),
-                    )
-                    .on_click(move |_, _, cx| {
-                        data.update(cx, |data, cx| data.navigate(Section::Timeline, cx))
-                    }),
+                    record_button("today-record", cx)
+                        .ghost()
+                        .tooltip(lokalbot_i18n::tr("Record Now"))
+                        .disabled(recording)
+                        .on_click(move |_, _, cx| {
+                            data.update(cx, |data, cx| data.start_recording(cx))
+                        }),
                 )
                 .into_any_element(),
         )
@@ -878,33 +444,138 @@ impl Render for TodayPage {
         .absolute()
         .size_full();
 
-        // The date is the toolbar's subtitle, as on every page that has one.
-        let mut sections: Vec<AnyElement> = vec![self.render_now(cx)];
-        sections.extend(self.render_upcoming(cx));
-        match self.model.take() {
-            Some(model) => {
-                sections.extend(self.render_attention(&model, cx));
-                sections.push(self.render_digest(&model, cx));
-                sections.extend(self.render_brief(&model.brief, model.day, cx));
-                self.model = Some(model);
-            }
-            None => sections.push(
-                h_flex()
-                    .gap(px(8.))
-                    .items_center()
-                    .text_size(ty::BODY)
-                    .text_color(lb.text_secondary)
-                    .child(gpui_kit::component::spinner::Spinner::new())
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "Loading today…",
-                    )))
-                    .into_any_element(),
-            ),
-        }
-        sections.extend(self.render_getting_started(cx));
-        sections.extend(self.render_github_star(cx));
+        let frame = self.frame(cx);
+        let next = frame.next.clone();
+        let revision = self.data.read(cx).revision;
+        self.upcoming
+            .sync(next.as_ref(), recording, revision, &self.data, cx);
 
-        div()
+        // The cards on top, then the panels in their columns, then Get
+        // started or the placeholder.
+        let mut cards: Vec<AnyElement> = Vec::new();
+        cards.extend(self.render_live_card(frame.live.as_ref(), cx));
+        if let Some(event) = &next {
+            cards.push(self.render_next_meeting(event, frame.now, cx));
+        }
+        let mut leading: Vec<AnyElement> = Vec::new();
+        let mut trailing: Vec<AnyElement> = Vec::new();
+        let mut below: Vec<AnyElement> = Vec::new();
+        let (has_leading, has_trailing) = match self.model.take() {
+            Some(model) => {
+                let writing = self.data.read(cx).digest_running == Some(model.day);
+                let has_day = !model.activity.blocks.is_empty()
+                    || model.digest.is_some()
+                    || writing
+                    || frame
+                        .entries
+                        .iter()
+                        .any(|e| e.status == EntryStatus::Recorded);
+                let has_content = frame.live.is_some()
+                    || next.is_some()
+                    || !model.attention.is_empty()
+                    || !frame.entries.is_empty()
+                    || has_day
+                    || model.brief.has_report();
+                let dismissed = self.data.read(cx).settings.getting_started_dismissed;
+                let layout = PageLayout::new(has_content, dismissed);
+                let shows_meetings = !frame.entries.is_empty() || frame.calendar_off;
+                if layout.shows_sections() {
+                    leading.extend(self.render_attention(&model, cx));
+                    if shows_meetings {
+                        let count = frame.entries.len();
+                        let rows = model::agenda_rows(frame.entries.clone(), frame.now);
+                        leading.push(self.render_meetings(
+                            rows,
+                            count,
+                            &model.recaps,
+                            frame.calendar_off,
+                            cx,
+                        ));
+                    }
+                    if has_day {
+                        trailing.push(self.render_so_far(&model, writing, cx));
+                    }
+                    trailing.extend(self.render_yesterday(&model.brief, model.day, cx));
+                }
+                match layout {
+                    PageLayout::Sections {
+                        getting_started_below: true,
+                    }
+                    | PageLayout::GettingStarted => below.push(self.render_getting_started(cx)),
+                    PageLayout::Sections { .. } => {}
+                    PageLayout::Placeholder => below.push(
+                        div()
+                            .w_full()
+                            .py(px(120.))
+                            .flex()
+                            .justify_center()
+                            .text_size(ty::BODY)
+                            .text_color(lb.text_secondary)
+                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                "Meetings, actions and your day show up here.",
+                            )))
+                            .into_any_element(),
+                    ),
+                }
+                self.model = Some(model);
+                (!leading.is_empty(), !trailing.is_empty())
+            }
+            None => {
+                // Nothing is said about the day before it has loaded once.
+                below.push(
+                    h_flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .text_size(ty::BODY)
+                        .text_color(lb.text_secondary)
+                        .child(gpui_kit::component::spinner::Spinner::new())
+                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                            "Loading today…",
+                        )))
+                        .into_any_element(),
+                );
+                (false, false)
+            }
+        };
+
+        let maximum = columns::page_maximum_width(has_leading, has_trailing);
+        let scale = self.data.read(cx).settings.text_size.scale();
+        let two = columns::count(
+            self.content_width(maximum),
+            scale,
+            has_leading,
+            has_trailing,
+        ) == 2;
+        let panels: Option<AnyElement> = (has_leading || has_trailing).then(|| {
+            if two {
+                h_flex()
+                    .w_full()
+                    .items_start()
+                    .gap(px(columns::GAP))
+                    .child(panel_column().flex_1().min_w_0().children(leading))
+                    .child(
+                        panel_column()
+                            .flex_none()
+                            .w(px(columns::trailing_width(scale)))
+                            .children(trailing),
+                    )
+                    .into_any_element()
+            } else {
+                panel_column()
+                    .children(leading)
+                    .children(trailing)
+                    .into_any_element()
+            }
+        });
+        let cards = (!cards.is_empty()).then(|| {
+            v_flex()
+                .w_full()
+                .gap(px(10.))
+                .children(cards)
+                .into_any_element()
+        });
+
+        page_surface(cx)
             .id("today-scroll")
             .relative()
             .size_full()
@@ -918,15 +589,40 @@ impl Render for TodayPage {
                         h_flex().w_full().justify_center().child(
                             v_flex()
                                 .w_full()
-                                .max_w(metric::TODAY_MAX_WIDTH)
+                                .max_w(px(maximum))
                                 .px(metric::DETAIL_PADDING)
-                                .pt(px(8.))
-                                .pb(metric::DETAIL_PADDING)
-                                .gap(metric::SECTION_SPACING)
-                                .children(sections),
+                                .pt(PAGE_TOP)
+                                .pb(PAGE_BOTTOM)
+                                .gap(px(columns::GAP))
+                                .children(cards)
+                                .children(panels)
+                                .children(below),
                         ),
                     ),
             )
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_words_follow_the_mac_wording() {
+        assert_eq!(status_text(EntryStatus::Recording), "Recording");
+        assert_eq!(status_text(EntryStatus::Recorded), "Ended");
+        assert_eq!(status_text(EntryStatus::Ended), "Ended");
+        assert_eq!(status_text(EntryStatus::InProgress), "In progress");
+        assert_eq!(status_text(EntryStatus::StartingNow), "Starting now");
+        assert_eq!(
+            status_text(EntryStatus::Upcoming { minutes: 12 }),
+            "In 12 min"
+        );
+        assert_eq!(status_text(EntryStatus::Upcoming { minutes: 120 }), "In 2h");
+        assert_eq!(
+            status_text(EntryStatus::Upcoming { minutes: 192 }),
+            "In 3h 12m"
+        );
     }
 }

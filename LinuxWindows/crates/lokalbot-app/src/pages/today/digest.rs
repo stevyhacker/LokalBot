@@ -1,6 +1,7 @@
-//! The Day Digest and the day's activity overview, shared by Today and
-//! Timeline (`DayDigestCard.swift`, `DayDigestView.swift`,
-//! `DayActivityOverview.swift`).
+//! The Day Digest and the day's activity overview on Timeline
+//! (`DayDigestCard.swift`, `DayDigestView.swift`, `DayActivityOverview.swift`).
+//! Today's So far today shows only the digest's highlights and when it was
+//! written, with `hm` and `digest_updated_at` from here.
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -97,108 +98,6 @@ pub(crate) fn share_color(share: &AppShare, cx: &App) -> Hsla {
     } else {
         lb.app_color(&share.label)
     }
-}
-
-/// "Day So Far" / "Day Overview": stat chips, proportion bar, optional legend.
-pub(crate) fn day_overview(
-    title: &'static str,
-    activity: &DayActivity,
-    legend: bool,
-    narrow: bool,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let apps = app_count(activity);
-    let mut chips = vec![
-        ui::stat_chip(
-            Ico::Clock,
-            crate::pages::today::digest::hm(activity.tracked_seconds),
-            lokalbot_i18n::tr("tracked"),
-            cx,
-        )
-        .into_any_element(),
-        ui::stat_chip(
-            Ico::LayoutGrid,
-            lokalbot_i18n::number(apps),
-            lokalbot_i18n::tr(if apps == 1 { "app" } else { "apps" }),
-            cx,
-        )
-        .into_any_element(),
-        ui::stat_chip(
-            Ico::ScanText,
-            lokalbot_i18n::number(activity.moment_count),
-            lokalbot_i18n::tr(if activity.moment_count == 1 {
-                "moment"
-            } else {
-                "moments"
-            }),
-            cx,
-        )
-        .into_any_element(),
-    ];
-    if activity.meeting_count > 0 || narrow {
-        chips.push(
-            ui::stat_chip(
-                Ico::AudioLines,
-                lokalbot_i18n::number(activity.meeting_count),
-                lokalbot_i18n::tr(if activity.meeting_count == 1 {
-                    "meeting"
-                } else {
-                    "meetings"
-                }),
-                cx,
-            )
-            .into_any_element(),
-        );
-    }
-    let shares = app_shares(activity);
-    let segments: Vec<(Hsla, f32)> = shares
-        .iter()
-        .map(|s| (share_color(s, cx), s.seconds as f32))
-        .collect();
-    v_flex()
-        .gap(px(10.))
-        .child(
-            div()
-                .text_size(ty::SECTION)
-                .font_weight(FontWeight::BOLD)
-                .text_color(lb.text)
-                .child(title),
-        )
-        .child(h_flex().flex_wrap().gap(px(8.)).children(chips))
-        .when(!shares.is_empty(), |this| {
-            this.child(ui::proportion_bar(&segments, cx))
-                .when(legend, |this| {
-                    this.child(
-                        div()
-                            .flex()
-                            .flex_wrap()
-                            .gap_y(px(8.))
-                            .children(shares.iter().map(|share| {
-                                h_flex()
-                                    .w(px(150.))
-                                    .gap(px(6.))
-                                    .items_center()
-                                    .text_size(ty::SECONDARY)
-                                    .child(ui::status_dot(share_color(share, cx), px(6.)))
-                                    .child(
-                                        div()
-                                            .min_w_0()
-                                            .truncate()
-                                            .text_color(lb.text)
-                                            .child(share.label.clone()),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex_none()
-                                            .text_color(lb.text_secondary)
-                                            .child(crate::pages::today::digest::hm(share.seconds)),
-                                    )
-                            })),
-                    )
-                })
-        })
-        .into_any_element()
 }
 
 // --------------------------------------------------------------- controls
@@ -364,51 +263,6 @@ pub(crate) fn digest_updated_at(digest: &DayDigest) -> Option<DateTime<Utc>> {
         .or(digest.modified_at)
 }
 
-/// Today's digest, its freshness line, or the empty text.
-pub(crate) fn digest_card(
-    digest: Option<&DayDigest>,
-    width: gpui_kit::Pixels,
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let Some(digest) = digest else {
-        return div()
-            .text_size(ty::BODY)
-            .text_color(lb.text_secondary)
-            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                "Your digest brings together this day's meetings and captured activity.",
-            )))
-            .into_any_element();
-    };
-    let updated = digest_updated_at(digest);
-    v_flex()
-        .gap(px(14.))
-        .child(digest_view(digest, width, expanded, on_toggle, cx))
-        .when(updated.is_some() || digest.is_stale, |this| {
-            this.child(
-                h_flex()
-                    .flex_wrap()
-                    .gap_x(px(8.))
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_secondary)
-                    .when_some(updated, |this, at| {
-                        this.child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                            "Updated {0}",
-                            &[("0", lokalbot_core::time::clock_time(at).to_string())],
-                        )))
-                    })
-                    .when(digest.is_stale, |this| {
-                        this.child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                            "New activity available · Update digest to include it",
-                        )))
-                    }),
-            )
-        })
-        .into_any_element()
-}
-
 fn digest_section(icon: Ico, title: &str, content: impl IntoElement, cx: &App) -> AnyElement {
     let lb = cx.lb();
     v_flex()
@@ -529,56 +383,6 @@ fn follow_ups(
     } else {
         None
     }
-}
-
-/// `DayDigestView` in its Today mode.
-fn digest_view(
-    digest: &DayDigest,
-    width: gpui_kit::Pixels,
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let mut parts: Vec<AnyElement> = Vec::new();
-    parts.extend(blockers_callout(digest, cx));
-    parts.extend(highlights(digest, cx));
-    if !digest.decisions.is_empty() {
-        parts.push(digest_section(
-            Ico::BadgeCheck,
-            lokalbot_i18n::tr("Decisions"),
-            div()
-                .max_w(metric::READING_MAX_WIDTH)
-                .child(bullet_list(&digest.decisions, cx)),
-            cx,
-        ));
-    }
-    if !digest.tasks.is_empty() {
-        parts.push(
-            v_flex()
-                .gap(px(12.))
-                .child(
-                    h_flex()
-                        .gap(px(8.))
-                        .items_center()
-                        .text_size(ty::SECTION)
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(lb.text)
-                        .child(ui::icon(Ico::Briefcase, px(16.), lb.text))
-                        .child(lokalbot_i18n::tr("Tasks")),
-                )
-                .child(task_grid(
-                    &digest.tasks,
-                    width,
-                    expanded,
-                    on_toggle.clone(),
-                    cx,
-                ))
-                .into_any_element(),
-        );
-    }
-    parts.extend(follow_ups(digest, expanded, on_toggle, cx));
-    v_flex().gap(px(20.)).children(parts).into_any_element()
 }
 
 /// `DayDigestView` in its Timeline mode, below Needs Attention: blockers,
@@ -1056,51 +860,6 @@ fn done_section(
             })))
         })
         .into_any_element()
-}
-
-/// Card grid of 1/2/3 columns at widths below 560 / from 560 / from 900.
-fn task_grid(
-    tasks: &[DigestTask],
-    width: gpui_kit::Pixels,
-    expanded: &HashSet<usize>,
-    on_toggle: TaskToggle,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let columns = if width >= px(900.) {
-        3
-    } else if width >= px(560.) {
-        2
-    } else {
-        1
-    };
-    let rows = tasks.chunks(columns).enumerate().map(|(row_ix, row)| {
-        h_flex()
-            .gap(px(12.))
-            .items_stretch()
-            .children(row.iter().enumerate().map(|(col, task)| {
-                let ix = row_ix * columns + col;
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .p(metric::PANEL_PADDING)
-                    .rounded(metric::GROUP_RADIUS)
-                    .bg(lb.chip_fill.opacity(0.5))
-                    .border_1()
-                    .border_color(lb.separator.opacity(0.9))
-                    .child(task_row(
-                        task,
-                        ix,
-                        expanded.contains(&ix),
-                        false,
-                        on_toggle.clone(),
-                        cx,
-                    ))
-                    .into_any_element()
-            }))
-            .children((row.len()..columns).map(|_| div().flex_1().into_any_element()))
-    });
-    v_flex().gap(px(12.)).children(rows).into_any_element()
 }
 
 fn task_rows(

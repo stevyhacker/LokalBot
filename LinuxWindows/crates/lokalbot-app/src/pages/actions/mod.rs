@@ -1390,6 +1390,39 @@ impl Page for ActionsPage {
                 .into(),
         )
     }
+
+    /// Planning the open actions with Agent, moved here from Today as on the
+    /// Mac: a new Agent task with the most urgent open threads as its draft,
+    /// never sent by itself.
+    fn toolbar(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> Option<AnyElement> {
+        let open: Vec<ActionThread> = self
+            .loaded
+            .threads
+            .iter()
+            .filter(|t| t.status() == ActionStatus::Open)
+            .cloned()
+            .collect();
+        if open.is_empty() {
+            return None;
+        }
+        let open = lokalbot_core::actions::attention_sorted(open, Local::now().date_naive());
+        let prompt = lokalbot_core::agent_handoff::agent_prompt_for_plan(&open);
+        let data = self.data.clone();
+        Some(
+            Button::new("actions-plan-in-agent")
+                .ghost()
+                .icon(Icon::new(Ico::WandSparkles))
+                .label(lokalbot_i18n::tr("Plan in Agent…"))
+                .tooltip(lokalbot_i18n::tr(
+                    "Open a new Agent task with these action threads",
+                ))
+                .on_click(move |_, _, cx| {
+                    let prompt = prompt.clone();
+                    data.update(cx, |data, cx| data.open_agent(prompt, cx));
+                })
+                .into_any_element(),
+        )
+    }
 }
 
 impl Render for ActionsPage {
