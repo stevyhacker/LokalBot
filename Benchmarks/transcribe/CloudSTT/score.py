@@ -16,7 +16,7 @@ from transformers.models.whisper.english_normalizer import EnglishTextNormalizer
 from common import DATA, ROOT, SYSTEMS, load_manifest, load_output
 from run_api import PRICES, cost as price
 
-SPELLING = ROOT.parent / 'ModelAlternatives' / '2026-09-07' / 'english-spelling.json'
+SPELLING = ROOT.parent.parent / 'think' / 'ModelAlternatives' / '2026-09-07' / 'english-spelling.json'
 RUN = 4  # consecutive inserted/deleted words that count as a hallucinated/dropped span
 LOW_OVERLAP = 0.3  # AMI windows with less overlapped talk, reported as a secondary subset
 MIN_COVERAGE = 0.9  # systems below this share of finished chunks are left out of a set's table
