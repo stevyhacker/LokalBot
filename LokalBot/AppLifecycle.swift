@@ -165,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 await LlamaServer.embedder.stop()
                 await LlamaServer.cotyping.stop()
                 await GraniteSpeechEngine.shared.shutdown()
+                await QwenASREngine.accuracy.shutdown()
                 await FileMediaEmbedderRuntime.shared.shutdown()
             }
             self?.terminationCleanupFinished = true

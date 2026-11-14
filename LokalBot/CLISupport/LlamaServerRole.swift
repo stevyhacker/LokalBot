@@ -49,6 +49,8 @@ enum LlamaServerRole: String, CaseIterable, Sendable {
     /// EmbeddingGemma 2 with its image and audio projector, for indexing the
     /// folders chosen under Files. Searches embed their words on `embedder`.
     case mediaEmbedder = "media-embedder"
+    /// Qwen3-ASR 1.7B with its audio projector (`QwenLlamaASR`).
+    case qwenASR = "qwen-asr"
 
     /// The installed app's ports. The CLI, MCP clients and DEVELOPMENT.md
     /// rely on them, so they never move.
@@ -59,6 +61,7 @@ enum LlamaServerRole: String, CaseIterable, Sendable {
         case .cotyping: 17_874
         case .graniteASR: 17_875
         case .mediaEmbedder: 17_876
+        case .qwenASR: 17_877
         }
     }
 

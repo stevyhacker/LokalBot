@@ -66,12 +66,34 @@ final class TranscriptionModelStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
 
         try writeQwenModel(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit", in: environment)
-        try writeQwenModel(modelID: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit", in: environment)
+        for file in QwenLlamaASR.files {
+            try writeGGUF(QwenLlamaASR.url(for: file, appSupport: environment.appSupport))
+        }
 
         try TranscriptionModelStore.delete(.qwenASR06B, environment: environment)
 
         XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR06B, environment: environment))
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+    }
+
+    /// 1.7B runs on llama.cpp now: its GGUFs count as downloaded, the old MLX
+    /// weights alone do not, and deleting the tier removes both.
+    func testQwen17BIsTheGGUFPairAndDeletionAlsoRemovesTheOldMLXWeights() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeQwenModel(modelID: PinnedModelSnapshot.legacyQwenAccuracyRepository, in: environment)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+
+        try writeGGUF(QwenLlamaASR.url(for: QwenLlamaASR.model, appSupport: environment.appSupport))
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment),
+                       "the audio projector is required too")
+        try writeGGUF(QwenLlamaASR.url(for: QwenLlamaASR.projector, appSupport: environment.appSupport))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+
+        try TranscriptionModelStore.delete(.qwenASR17B, environment: environment)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: QwenLlamaASR.legacyMLXDirectory(appSupport: environment.appSupport).path))
     }
 
     func testUltraRequiresItsOwnCompleteCacheAndDeletionPreservesV3() throws {

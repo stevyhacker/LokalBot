@@ -80,8 +80,7 @@ struct TranscriptionModelStore {
                 at: parakeetDirectory(.parakeetV2, environment: environment),
                 version: .v2)
         case .qwenASR17B:
-            return qwenModelExists(modelID: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit",
-                                   environment: environment)
+            return QwenLlamaASR.isDownloaded(appSupport: environment.appSupport)
         case .qwenASR06B:
             return qwenModelExists(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
                                    environment: environment)
@@ -142,8 +141,8 @@ struct TranscriptionModelStore {
         case .parakeetV2:
             [parakeetDirectory(.parakeetV2, environment: environment)]
         case .qwenASR17B:
-            [qwenDirectory(modelID: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit",
-                           environment: environment)]
+            [QwenLlamaASR.modelRoot(appSupport: environment.appSupport),
+             QwenLlamaASR.legacyMLXDirectory(appSupport: environment.appSupport)]
         case .qwenASR06B:
             [qwenDirectory(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
                            environment: environment)]

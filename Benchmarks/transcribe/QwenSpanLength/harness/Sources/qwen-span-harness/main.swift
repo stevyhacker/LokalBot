@@ -5,10 +5,16 @@
 // Usage: qwen-span-harness <jobs.json>
 // Output: JSON lines appended to jobs.output; (condition, id) pairs already
 // present are skipped, so runs are resumable.
+//
+// ASR_BACKEND=llama sends every decode window to a llama-server running
+// Qwen3-ASR GGUF weights (LLAMA_URL, default http://127.0.0.1:8080) instead
+// of speech-swift. Windows, language and context are identical; the window is
+// posted as a 16 kHz float WAV with speech-swift's exact prompt layout.
 import CoreML
 import FluidAudio
 import Foundation
 import NaturalLanguage
+import MLX
 import Qwen3ASR
 
 let sampleRate = 16_000
@@ -62,6 +68,8 @@ struct Condition: Decodable {
     var maxTokens: Int?
     /// Only items whose id starts with one of these prefixes.
     var prefixes: [String]?
+    /// Vocabulary/context prompt, passed as Qwen3DecodingOptions.context like the app.
+    var context: String?
 }
 
 struct Window: Encodable {
@@ -72,6 +80,7 @@ struct Window: Encodable {
 }
 
 struct Record: Encodable {
+    var backend: String
     var condition: String
     var id: String
     /// Language actually passed to Qwen ("auto" when none), and detection details.
@@ -256,6 +265,71 @@ func languageVote(_ texts: [String]) -> (code: String, share: Double)? {
     return (best.key, best.value / total)
 }
 
+// MARK: - llama.cpp backend
+
+let environment = ProcessInfo.processInfo.environment
+let backend = environment["ASR_BACKEND"] ?? "mlx"
+let llamaURL = URL(string: (environment["LLAMA_URL"] ?? "http://127.0.0.1:8080") + "/completion")!
+/// Must match the server's LLAMA_MEDIA_MARKER (llama.cpp randomizes it otherwise).
+let mediaMarker = environment["LLAMA_MEDIA_MARKER"] ?? "<__media__>"
+
+/// 16 kHz mono IEEE-float WAV, so llama.cpp hears the exact samples MLX gets.
+func floatWAV(_ samples: [Float]) -> Data {
+    var data = Data()
+    func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
+    func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { data.append(contentsOf: $0) } }
+    let bytes = UInt32(samples.count * 4)
+    data.append(contentsOf: Array("RIFF".utf8)); u32(36 + bytes)
+    data.append(contentsOf: Array("WAVEfmt ".utf8)); u32(16); u16(3); u16(1)
+    u32(UInt32(sampleRate)); u32(UInt32(sampleRate * 4)); u16(4); u16(32)
+    data.append(contentsOf: Array("data".utf8)); u32(bytes)
+    samples.withUnsafeBufferPointer { data.append(UnsafeBufferPointer(start: $0.baseAddress, count: $0.count)) }
+    return data
+}
+
+/// speech-swift's Qwen3ASRModel prompt, token for token: system = context,
+/// user = audio (mtmd adds <|audio_start|>/<|audio_end|> around the marker),
+/// assistant = optional "language X" then <asr_text>.
+func llamaPrompt(language: String?, context: String?) -> String {
+    "<|im_start|>system\n\(context ?? "")<|im_end|>\n<|im_start|>user\n\(mediaMarker)<|im_end|>\n"
+        + "<|im_start|>assistant\n\(language.map { "language \($0)" } ?? "")<asr_text>"
+}
+
+struct LlamaTimings { var promptMs = 0.0, predictedMs = 0.0, promptTokens = 0, predictedTokens = 0 }
+var llamaTotals = LlamaTimings()
+
+func llamaTranscribe(_ samples: [Float], language: String?, context: String?, maxTokens: Int) async throws -> String {
+    var request = URLRequest(url: llamaURL)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.timeoutInterval = 600
+    let body: [String: Any] = [
+        "prompt": ["prompt_string": llamaPrompt(language: language, context: context),
+                   "multimodal_data": [floatWAV(samples).base64EncodedString()]],
+        // Greedy, like speech-swift's default fast path (no penalties, no n-gram block).
+        "n_predict": maxTokens, "temperature": 0, "top_k": 1, "samplers": ["top_k"],
+        "repeat_penalty": 1.0, "cache_prompt": false, "stream": false,
+    ]
+    request.httpBody = try JSONSerialization.data(withJSONObject: body)
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard (response as? HTTPURLResponse)?.statusCode == 200,
+          let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let content = object["content"] as? String else {
+        throw NSError(domain: "llama", code: 1, userInfo: [NSLocalizedDescriptionKey: String(decoding: data, as: UTF8.self)])
+    }
+    if let t = object["timings"] as? [String: Any] {
+        llamaTotals.promptMs += t["prompt_ms"] as? Double ?? 0
+        llamaTotals.predictedMs += t["predicted_ms"] as? Double ?? 0
+        llamaTotals.promptTokens += t["prompt_n"] as? Int ?? 0
+        llamaTotals.predictedTokens += t["predicted_n"] as? Int ?? 0
+    }
+    // Same post-processing as speech-swift: keep what follows <asr_text> if the
+    // model emitted it again (auto-detection), then trim spaces.
+    var text = content
+    if let range = text.range(of: "<asr_text>") { text = String(text[range.upperBound...]) }
+    return text.trimmingCharacters(in: .whitespaces)
+}
+
 // MARK: - Main
 
 func log(_ message: String) {
@@ -372,14 +446,15 @@ let handle = try FileHandle(forWritingTo: outputURL)
 handle.seekToEndOfFile()
 
 let loadStarted = Date()
-let model = try await Qwen3ASRModel.fromPretrained(
+// The llama backend never loads the MLX weights, so each process measures one runtime.
+let model: Qwen3ASRModel? = backend == "llama" ? nil : try await Qwen3ASRModel.fromPretrained(
     modelId: jobs.modelId, cacheDir: URL(fileURLWithPath: jobs.modelDir), offlineMode: true)
 let vadConfig = MLModelConfiguration()
 vadConfig.computeUnits = VadConfig.default.computeUnits
 let loadedVadModel = try MLModel(contentsOf: URL(fileURLWithPath: jobs.vadModel), configuration: vadConfig)
 vadModelForThresholds = loadedVadModel
 let vad = VadManager(vadModel: loadedVadModel)
-log("loaded in \(String(format: "%.1f", Date().timeIntervalSince(loadStarted)))s")
+log("backend \(backend): loaded in \(String(format: "%.1f", Date().timeIntervalSince(loadStarted)))s")
 
 var audioCache: [String: [Float]] = [:]
 func audio(for item: Item) throws -> [Float] {
@@ -391,9 +466,14 @@ func audio(for item: Item) throws -> [Float] {
 
 // Warm-up (excluded from timing).
 if let first = jobs.items.first {
-    _ = model.transcribe(audio: Array(try audio(for: first).prefix(sampleRate * 5)), sampleRate: sampleRate,
-                         language: "en", maxTokens: 64, context: nil)
+    let warm = Array(try audio(for: first).prefix(sampleRate * 5))
+    if let model {
+        _ = model.transcribe(audio: warm, sampleRate: sampleRate, language: "en", maxTokens: 64, context: nil)
+    } else {
+        _ = try await llamaTranscribe(warm, language: "en", context: nil, maxTokens: 64)
+    }
 }
+let runStarted = Date()
 
 for condition in jobs.conditions {
     let items = jobs.items.filter { item in
@@ -406,17 +486,23 @@ for condition in jobs.conditions {
         var parts: [String] = []
         var records: [Window] = []
         let started = Date()
-        func decode(_ window: [Float], language: String?) -> String {
+        func decode(_ window: [Float], language: String?) async throws -> String {
             let cap = condition.maxTokens ?? appMaxTokens(for: window.count)
+            guard let model else {
+                // llama.cpp has no n-gram block; the conditions compared here never
+                // trigger speech-swift's (ngram off, or windows <= 15 s).
+                return try await llamaTranscribe(samplesForInference(window), language: language,
+                                                 context: condition.context, maxTokens: cap)
+            }
             if condition.ngram == "off" {
                 return model.transcribe(
                     audio: samplesForInference(window), sampleRate: sampleRate,
                     options: Qwen3DecodingOptions(maxTokens: cap, language: language,
-                                                  context: nil, longInputThresholdSeconds: .infinity))
+                                                  context: condition.context, longInputThresholdSeconds: .infinity))
             }
             return model.transcribe(
                 audio: samplesForInference(window), sampleRate: sampleRate,
-                language: language, maxTokens: cap, context: nil)
+                language: language, maxTokens: cap, context: condition.context)
         }
         var language = condition.language
         var detected: String?
@@ -432,7 +518,7 @@ for condition in jobs.conditions {
             for (start, end) in spans.sorted(by: { ($0.1 - $0.0) > ($1.1 - $1.0) }) where probed < 30 {
                 let window = slice(samples, start, end)
                 guard !window.isEmpty else { continue }
-                probe.append(normalized(decode(window, language: nil)))
+                probe.append(normalized(try await decode(window, language: nil)))
                 probed += end - start
             }
             let (pinned, summary) = pinnedLanguage(for: probe.joined(separator: " "))
@@ -445,7 +531,7 @@ for condition in jobs.conditions {
             for (start, end) in spans {
                 let window = slice(samples, start, end)
                 guard !window.isEmpty else { continue }
-                let text = normalized(decode(window, language: nil))
+                let text = normalized(try await decode(window, language: nil))
                 if !text.isEmpty { texts.append(text) }
             }
             let vote = languageVote(texts)
@@ -462,7 +548,7 @@ for condition in jobs.conditions {
             let window = slice(samples, start, end)
             guard !window.isEmpty else { continue }
             let cap = condition.maxTokens ?? appMaxTokens(for: window.count)
-            let raw = decode(window, language: language)
+            let raw = try await decode(window, language: language)
             let text = normalized(raw)
             records.append(Window(start: start, end: end, cap: cap, text: text))
             if !text.isEmpty { parts.append(text) }
@@ -471,7 +557,7 @@ for condition in jobs.conditions {
         let seconds = Double(samples.count) / Double(sampleRate)
         conditionAudio += seconds
         conditionDecode += decode
-        let record = Record(condition: condition.name, id: item.id, languageUsed: language ?? "auto",
+        let record = Record(backend: backend, condition: condition.name, id: item.id, languageUsed: language ?? "auto",
                             detected: detected, text: parts.joined(separator: " "),
                             windows: records, audioSeconds: seconds, decodeSeconds: decode)
         handle.write(try JSONEncoder().encode(record))
@@ -483,3 +569,10 @@ for condition in jobs.conditions {
     }
 }
 try handle.close()
+log("run wall \(String(format: "%.1f", Date().timeIntervalSince(runStarted)))s")
+if model != nil {
+    log("mlx peak memory \(String(format: "%.2f", Double(MLX.Memory.peakMemory) / 1_073_741_824)) GiB")
+} else {
+    log("llama prompt \(llamaTotals.promptTokens) tok \(String(format: "%.1f", llamaTotals.promptMs / 1000))s, "
+        + "generated \(llamaTotals.predictedTokens) tok \(String(format: "%.1f", llamaTotals.predictedMs / 1000))s")
+}
