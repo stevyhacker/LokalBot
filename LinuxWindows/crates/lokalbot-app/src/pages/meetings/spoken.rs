@@ -65,7 +65,7 @@ impl MeetingsPage {
         }
     }
 
-    /// "Read summary aloud" and "Export spoken summary" for the More menu.
+    /// "Read summary aloud" for the … menu and "Export spoken summary…" for Share.
     pub(super) fn spoken_menu_items(&self, cx: &gpui_kit::App) -> SpokenMenu {
         SpokenMenu {
             has_summary: self.doc.as_ref().is_some_and(|d| d.has_summary()),
@@ -84,8 +84,8 @@ pub(super) struct SpokenMenu {
 }
 
 impl SpokenMenu {
-    pub(super) fn add(self, menu: PopupMenu, page: WeakEntity<MeetingsPage>) -> PopupMenu {
-        let toggle = page.clone();
+    /// "Read summary aloud" (or "Stop spoken summary") in the … menu.
+    pub(super) fn add_read(self, menu: PopupMenu, page: WeakEntity<MeetingsPage>) -> PopupMenu {
         menu.item(
             PopupMenuItem::new(if self.reading {
                 lokalbot_i18n::tr("Stop spoken summary")
@@ -94,14 +94,18 @@ impl SpokenMenu {
             })
             .disabled(!self.has_summary)
             .on_click(move |_, _, cx| {
-                let _ = toggle.update(cx, |this, cx| this.toggle_spoken_summary(cx));
+                let _ = page.update(cx, |this, cx| this.toggle_spoken_summary(cx));
             }),
         )
-        .item(
+    }
+
+    /// "Export spoken summary" under Share, with the other exports.
+    pub(super) fn add_export(self, menu: PopupMenu, page: WeakEntity<MeetingsPage>) -> PopupMenu {
+        menu.item(
             PopupMenuItem::new(if self.exporting {
-                lokalbot_i18n::tr("Exporting spoken summary...")
+                lokalbot_i18n::tr("Exporting spoken summary…")
             } else {
-                lokalbot_i18n::tr("Export spoken summary")
+                lokalbot_i18n::tr("Export spoken summary…")
             })
             .disabled(self.exporting || !self.has_summary)
             .on_click(move |_, _, cx| {
