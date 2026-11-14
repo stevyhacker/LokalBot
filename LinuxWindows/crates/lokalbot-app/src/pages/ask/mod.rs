@@ -8,7 +8,7 @@
 mod composer;
 mod history;
 mod matches;
-mod model;
+pub(crate) mod model;
 mod passage;
 mod remember;
 

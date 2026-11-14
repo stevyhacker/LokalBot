@@ -108,7 +108,7 @@ def source_keys():
         ("lokalbot-core/src/model/activity.rs", {"label"}),
         ("lokalbot-core/src/model/outcomes.rs", {"label"}),
         ("lokalbot-audio/src/recorder.rs", {"label"}),
-        ("lokalbot-agent/src/policy.rs", {"title", "detail", "confirmation_title", "confirmation_message", "confirmation_action"}),
+        ("lokalbot-agent/src/policy.rs", {"confirmation_title", "confirmation_message", "confirmation_action"}),
         ("lokalbot-agent/src/session.rs", {"reasoning_name"}),
         ("lokalbot-i18n/src/lib.rs", {"count"}),
     ]

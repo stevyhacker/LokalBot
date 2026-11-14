@@ -1,7 +1,9 @@
 //! Agent (`AgentView.swift`): a local coding and file agent powered by the
 //! selected Think model. Before setup the page explains Agent Mode and offers
-//! "Set Up Agent Mode"; afterwards it shows the task list, the conversation
-//! with its approval dock and composer, and an optional results panel.
+//! "Set Up Agent Mode"; afterwards it shows the task list grouped by day, the
+//! task (a new task's composer mid-page, or the conversation with its folded
+//! steps, approval card and composer), and an optional results panel. The
+//! task's title and status sit in the toolbar.
 //!
 //! The work happens in [`model::AgentModel`] (the installer and the
 //! `lokalbot-agent` task list); this view owns only presentation state.
@@ -14,23 +16,25 @@ pub mod model;
 mod results;
 mod setup;
 mod sidebar;
+mod words;
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::i18n::h_flex;
 use gpui_kit::component::input::{InputEvent, InputState, TextareaState};
-use gpui_kit::component::{Icon, Selectable as _};
+use gpui_kit::component::{Disableable as _, Icon, Selectable as _};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, InteractiveElement as _,
     IntoElement, KeyBinding, ParentElement as _, Render, ScrollHandle, SharedString, Styled as _,
-    Subscription, Window, actions, div,
+    Subscription, Window, actions, div, px,
 };
 use uuid::Uuid;
 
-use lokalbot_agent::InstallPhase;
+use lokalbot_agent::presentation::{self, ChangedFile, TaskStatus, Tone};
 use lokalbot_agent::tasks::ResultPreview;
+use lokalbot_agent::{InstallPhase, SessionState, Tab};
 
 use self::model::AgentModel;
 use crate::pages::Page;
@@ -109,10 +113,10 @@ pub struct AgentPage {
     transcript_scroll: ScrollHandle,
     follow_output: bool,
     last_item_count: usize,
-    expanded_groups: HashSet<String>,
-    expanded_details: HashSet<String>,
-    collapsed_approvals: HashSet<String>,
-    queue_expanded: bool,
+    /// Runs of steps opened to a row per step.
+    expanded_steps: HashSet<String>,
+    /// Approval requests whose whole preview is open.
+    approval_previews: HashSet<String>,
     text_size: f32,
     copied: Option<String>,
     /// Parsed responses by item id, with the hash of the text they came from.
@@ -231,10 +235,8 @@ impl AgentPage {
             transcript_scroll: ScrollHandle::new(),
             follow_output: true,
             last_item_count: 0,
-            expanded_groups: HashSet::new(),
-            expanded_details: HashSet::new(),
-            collapsed_approvals: HashSet::new(),
-            queue_expanded: true,
+            expanded_steps: HashSet::new(),
+            approval_previews: HashSet::new(),
             text_size: DEFAULT_TEXT_SIZE,
             copied: None,
             answers: HashMap::new(),
@@ -341,33 +343,17 @@ impl AgentPage {
     /// the draft; a change made by the task (sent, restored, edited from the
     /// queue) is written back into the composer.
     fn sync_composer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some((id, draft, running)) = self.model(cx).and_then(|m| {
-            let tasks = m.tasks.as_ref()?;
-            let tab = tasks.selected()?;
-            Some((
-                tab.id,
-                tab.session.draft.clone(),
-                tab.session.state == lokalbot_agent::SessionState::Running,
-            ))
+        let Some((id, draft)) = self.model(cx).and_then(|m| {
+            let tab = m.tasks.as_ref()?.selected()?;
+            Some((tab.id, tab.session.draft.clone()))
         }) else {
             return;
-        };
-        let placeholder = if running {
-            lokalbot_i18n::tr("Add a follow-up or steer the agent…")
-        } else {
-            lokalbot_i18n::tr("Ask the agent…")
         };
         if self.composer_task != Some(id) || draft != self.synced_draft {
             self.composer_task = Some(id);
             self.synced_draft = draft.clone();
             self.composer
                 .update(cx, |state, cx| state.set_value(draft, window, cx));
-        }
-        if self.composer_placeholder != placeholder {
-            self.composer_placeholder = placeholder;
-            self.composer.update(cx, |state, cx| {
-                state.set_placeholder(placeholder, window, cx)
-            });
         }
     }
 
@@ -392,7 +378,8 @@ impl AgentPage {
             .update(cx, |state, cx| state.focus(window, cx));
     }
 
-    /// Send, queue a follow-up, or (with `steer`) steer the running turn.
+    /// Send, or while the agent works queue the message; with `steer`
+    /// (Ctrl+Enter) a message steers the running turn instead.
     fn submit(&mut self, steer: bool, _window: &mut Window, cx: &mut Context<Self>) {
         self.follow_output = true;
         self.with_tasks(cx, |tasks| {
@@ -410,6 +397,7 @@ impl AgentPage {
         self.preview_error = None;
         self.find_query.clear();
         self.find_visible = false;
+        self.expanded_steps.clear();
         self.follow_output = true;
         self.with_tasks(cx, |tasks| tasks.select(id));
         self.sync_composer(window, cx);
@@ -461,12 +449,56 @@ impl Page for AgentPage {
         lokalbot_i18n::tr("Agent").into()
     }
 
-    /// Find and the results panel (`taskActions`).
-    fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let installed = self.model(cx)?.phase == InstallPhase::Installed;
-        if !installed {
+    /// The task's own title and where it stands replace the section name.
+    fn title_control(
+        &mut self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let model = self.model(cx)?;
+        if model.phase != InstallPhase::Installed {
             return None;
         }
+        let tab = model.tasks.as_ref()?.selected()?;
+        let title = task_title(tab);
+        let status = task_status(tab);
+        let lb = cx.lb().clone();
+        // A new task needs no word beside its title; the list row says "Not started".
+        let word = (status != TaskStatus::NotStarted)
+            .then(|| words::status_title(status))
+            .flatten();
+        Some(
+            h_flex()
+                .h_full()
+                .max_w(px(460.))
+                .gap(px(10.))
+                .items_center()
+                .pl(px(4.))
+                .child(
+                    div()
+                        .min_w_0()
+                        .truncate()
+                        .text_size(crate::theme::ty::COLUMN_TITLE)
+                        .font_weight(gpui_kit::FontWeight::BOLD)
+                        .text_color(lb.text)
+                        .child(title),
+                )
+                .when_some(word, |this, word| this.child(status_pill(status, word, cx)))
+                .into_any_element(),
+        )
+    }
+
+    /// Find and the results panel (`taskActions`).
+    fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let model = self.model(cx)?;
+        if model.phase != InstallPhase::Installed {
+            return None;
+        }
+        let has_items = model
+            .tasks
+            .as_ref()
+            .and_then(|t| t.selected())
+            .is_some_and(|t| !t.session.items().is_empty());
         Some(
             h_flex()
                 .gap_1()
@@ -476,6 +508,7 @@ impl Page for AgentPage {
                         Ico::Search,
                         lokalbot_i18n::tr("Find in task (Ctrl+F)"),
                     )
+                    .disabled(!has_items)
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.open_find(window, cx);
                     })),
@@ -495,6 +528,90 @@ impl Page for AgentPage {
                 .into_any_element(),
         )
     }
+}
+
+/// The task's name: its own, the conversation's, the saved one's, or "New task".
+fn task_title(tab: &Tab) -> String {
+    tab.record
+        .title
+        .clone()
+        .or_else(|| tab.session.session_title.clone())
+        .or_else(|| tab.saved.as_ref().map(|s| s.title.clone()))
+        .unwrap_or_else(|| lokalbot_i18n::tr("New task").to_string())
+}
+
+/// The files the given steps wrote or edited in a task.
+fn changed_files(tab: &Tab, steps: &[lokalbot_agent::TranscriptItem]) -> Vec<ChangedFile> {
+    let session = &tab.session;
+    ChangedFile::list(
+        steps,
+        &session.workspace,
+        &session.workspace_display_name(),
+        |id| session.write_target_existed(id),
+    )
+}
+
+/// Where a task stands. Only a finished task counts its changed files;
+/// counting reads the disk.
+fn task_status(tab: &Tab) -> TaskStatus {
+    let session = &tab.session;
+    let approvals = session.pending_approvals().len();
+    let changed = if session.state == SessionState::Ready && approvals == 0 {
+        changed_files(tab, presentation::last_turn(session.items())).len()
+    } else {
+        0
+    };
+    TaskStatus::resolve(
+        &session.state,
+        approvals,
+        session.turn_error.is_some(),
+        session.was_stopped(),
+        session.items(),
+        tab.saved.is_some(),
+        changed,
+    )
+}
+
+/// The task's status beside its title: amber when it needs an answer, teal
+/// with a spinner while it works, a quiet word otherwise.
+fn status_pill(status: TaskStatus, word: &'static str, cx: &App) -> impl IntoElement + use<> {
+    use gpui_kit::component::Sizable as _;
+    let lb = cx.lb();
+    let tone = status.tone();
+    let (color, fill) = match tone {
+        Tone::Attention => (lb.attention_text, Some(lb.attention.opacity(0.16))),
+        Tone::Working => (lb.accent_text, None),
+        Tone::Done => (lb.accent_text, Some(lb.accent_wash)),
+        Tone::Quiet => (lb.text_secondary, None),
+    };
+    h_flex()
+        .flex_none()
+        .gap(px(5.))
+        .items_center()
+        .py(px(3.))
+        .rounded_full()
+        .when_some(fill, |this, fill| this.px(px(8.)).bg(fill))
+        .when(tone == Tone::Working, |this| {
+            this.child(
+                gpui_kit::component::spinner::Spinner::new()
+                    .xsmall()
+                    .color(lb.accent_text),
+            )
+        })
+        .when(tone == Tone::Attention, |this| {
+            this.child(crate::ui::icon(
+                sidebar::status_icon(status),
+                px(12.),
+                color,
+            ))
+        })
+        .child(
+            div()
+                .text_size(crate::theme::ty::SECONDARY)
+                .font_weight(gpui_kit::FontWeight::MEDIUM)
+                .text_color(color)
+                .child(word),
+        )
 }
 
 /// The live page, so the palette can list its tasks.
@@ -525,7 +642,7 @@ pub fn palette_tasks(cx: &App) -> Vec<(Uuid, String, String)> {
                 .file_name()
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default();
-            (tab.id, tab.title(), workspace)
+            (tab.id, task_title(tab), workspace)
         })
         .collect()
 }
@@ -551,7 +668,7 @@ impl Render for AgentPage {
             let conversation = self.render_conversation(window, cx);
             let split = crate::ui::split::leading(
                 "LokalBot.agent",
-                gpui_kit::px(sidebar::SIDEBAR_WIDTH),
+                px(sidebar::SIDEBAR_WIDTH),
                 crate::ui::split::LIST_RANGE,
                 sidebar,
                 div().size_full().child(conversation),
