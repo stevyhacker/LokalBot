@@ -1,11 +1,11 @@
-//! Settings → Writing → Statistics (`AutocompleteStatisticsView.swift`) and
+//! Settings → Autocomplete → Usage: Statistics (`AutocompleteStatisticsView.swift`) and
 //! Usage and timing (`AutocompleteExperienceView.usage`): how much autocomplete
 //! wrote, what it was shown and what was kept. These are worked out from reads
 //! of the field rather than from keys, so they are estimates, and the footer
 //! says so. Bars are drawn with plain elements.
 
 use crate::i18n::h_flex;
-use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariant};
 use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::{
     AnyElement, App, ClipboardItem, Context, FontWeight, IntoElement, ParentElement as _,
@@ -481,22 +481,11 @@ impl SettingsPage {
         ))
     }
 
-    /// Counters and timings from typing in other apps, under a disclosure.
+    /// Counters and timings from typing in other apps, on Usage under "How
+    /// quickly suggestions arrive" (`AutocompleteMeasurements`).
     pub(super) fn usage_timing(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
-        let open = self.writing.timing_open;
-        let toggle = Button::new("settings-autocomplete-usage-timing")
-            .ghost()
-            .small()
-            .label(lokalbot_i18n::tr("Usage and timing"))
-            .on_click(cx.listener(|this, _, _, cx| {
-                this.writing.timing_open = !this.writing.timing_open;
-                cx.notify();
-            }));
-        let mut body = v_flex().w_full().gap(px(8.)).child(h_flex().child(toggle));
-        if !open {
-            return body.into_any_element();
-        }
+        let mut body = v_flex().w_full().gap(px(8.));
         let Some(autocomplete) = crate::autocomplete::global(cx) else {
             return body.into_any_element();
         };

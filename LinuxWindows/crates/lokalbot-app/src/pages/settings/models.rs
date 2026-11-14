@@ -1,7 +1,7 @@
-//! Models (`ModelsView.swift`, `ModelStackOverviewView.swift`,
-//! `ModelConnectionsView.swift`): the Transcribe, Think and Autocomplete
-//! roles, presets, remote servers, storage, the processing budget and server
-//! connections.
+//! Models (`ModelsView.swift`, `ModelConnectionsView.swift`): the model
+//! catalog helpers, the pages Models opens, the "Change…" menus and Online
+//! services (the servers and plan sign-ins Think can use, and what is
+//! approved to receive data). The first page is `model_overview`.
 //!
 //! Names and sizes come from the catalogs: `lokalbot_ai::catalog` for text
 //! models, `lokalbot_speech::models` for speech, `lokalbot_ai::runtime` for
@@ -11,12 +11,11 @@ use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
-use gpui_kit::component::{Disableable as _, Icon, Sizable as _, WindowExt as _, v_flex};
+use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Context, Div, Entity, FontWeight, InteractiveElement as _,
-    IntoElement as _, ParentElement as _, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Subscription, Window, div, px,
+    AnyElement, App, AppContext as _, Context, Div, Entity, FontWeight, IntoElement as _,
+    ParentElement as _, SharedString, Styled as _, Subscription, Window, div, px,
 };
 use lokalbot_agent::session::reasoning_name;
 use lokalbot_core::Settings;
@@ -25,6 +24,7 @@ use lokalbot_core::settings::{
 };
 
 use super::model_setup::{ModelPatch, ModelSetup};
+use super::status::Role;
 use super::{Section, SettingsPage};
 use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
@@ -146,7 +146,7 @@ pub fn unused_models(settings: &Settings, installed: &[String]) -> Vec<String> {
 }
 
 /// What a downloaded model is for, for the storage list.
-fn model_purpose(id: &str) -> &'static str {
+pub(super) fn model_purpose(id: &str) -> &'static str {
     if id == RUNTIME_ID {
         return lokalbot_i18n::tr("Runs Think, Autocomplete and search models");
     }
@@ -191,7 +191,7 @@ pub fn size_label(bytes: u64) -> String {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Preset {
     Balanced,
     Lightweight,
@@ -207,7 +207,7 @@ impl Preset {
         }
     }
 
-    fn subtitle(self) -> &'static str {
+    pub fn subtitle(self) -> &'static str {
         match self {
             Preset::Balanced => lokalbot_ai::catalog::PRESETS[0].description,
             Preset::Lightweight => lokalbot_ai::catalog::PRESETS[1].description,
@@ -217,7 +217,7 @@ impl Preset {
     /// Transcribe and Think model ids (`lokalbot_ai::catalog::PRESETS`).
     /// Autocomplete keeps its own model here: its lighter default suits
     /// suggestions on a CPU, and a preset should not swap it unasked.
-    fn models(self) -> (&'static str, &'static str) {
+    pub fn models(self) -> (&'static str, &'static str) {
         let index = match self {
             Preset::Balanced => 0,
             Preset::Lightweight => 1,
@@ -228,7 +228,7 @@ impl Preset {
         )
     }
 
-    fn summary(self) -> String {
+    pub fn summary(self) -> String {
         let (speech, think) = self.models();
         lokalbot_i18n::format(
             "Transcribe: {0}, Think: {1}",
@@ -257,7 +257,7 @@ impl Preset {
     }
 }
 
-fn budget_label(budget: GenerationBudget) -> &'static str {
+pub(super) fn budget_label(budget: GenerationBudget) -> &'static str {
     match budget {
         GenerationBudget::Conservative => lokalbot_i18n::tr("Conservative"),
         GenerationBudget::Standard => lokalbot_i18n::tr("Default"),
@@ -266,7 +266,7 @@ fn budget_label(budget: GenerationBudget) -> &'static str {
     }
 }
 
-fn budget_detail(budget: GenerationBudget) -> &'static str {
+pub(super) fn budget_detail(budget: GenerationBudget) -> &'static str {
     match budget {
         GenerationBudget::Conservative => lokalbot_i18n::tr(
             "Half the normal time and tokens. Long meetings may need a second pass.",
@@ -283,17 +283,25 @@ fn budget_detail(budget: GenerationBudget) -> &'static str {
     }
 }
 
-const BUDGETS: [GenerationBudget; 4] = [
+pub(super) const BUDGETS: [GenerationBudget; 4] = [
     GenerationBudget::Conservative,
     GenerationBudget::Standard,
     GenerationBudget::Generous,
     GenerationBudget::Unlimited,
 ];
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModelsPage {
+    /// What each model does, More and Advanced (`ModelStackOverviewView`).
     Active,
+    /// Online services: what is approved, then the connections
+    /// (`ModelRemoteOverview`, `ModelConnectionsView`).
     Connections,
+    /// The models on this computer (`ModelDownloadsView`).
+    Downloaded,
+    /// Dictation's Compose, Read aloud and search by meaning
+    /// (`ModelOtherModelsView`).
+    Other,
     /// Voice, speed and the sample (`ModelSpeechSettingsSheet`).
     ReadAloud,
     /// `ModelTranscriptionOptionsSheet`.
@@ -313,12 +321,14 @@ impl ModelsPage {
             | "settings.openAIBaseURL"
             | "settings.openAIModel"
             | "settings.ollamaBaseURL" => ModelsPage::Connections,
+            "settings.unusedModels" => ModelsPage::Downloaded,
+            "settings.semanticSearchEnabled" => ModelsPage::Other,
             "settings.speechVoice" | "settings.speechSpeed" => ModelsPage::ReadAloud,
             "settings.transcriptionLanguage"
             | "settings.transcriptionPrompt"
             | "settings.autoTranscriptionVocabulary" => ModelsPage::TranscriptionOptions,
             "settings.remoteTranscription" => ModelsPage::TranscriptionServer,
-            "settings.modelChecks" => ModelsPage::Checks,
+            super::status::MODEL_CHECKS_FOCUS => ModelsPage::Checks,
             "settings.modelBrowse" => ModelsPage::Browse,
             _ => ModelsPage::Active,
         }
@@ -328,6 +338,8 @@ impl ModelsPage {
 /// The Models subpage and the connection form drafts.
 pub struct ModelsState {
     pub page: ModelsPage,
+    /// Advanced, under More, is open (`settings.models.advancedOpen`).
+    pub(super) advanced_open: bool,
     /// The connection form shown: OpenAI-compatible, Ollama, or a plan.
     connection: SummarizerBackend,
     /// ChatGPT and Claude plan accounts, loaded when their form shows.
@@ -364,6 +376,7 @@ impl ModelsState {
         };
         Self {
             page: ModelsPage::Active,
+            advanced_open: false,
             connection: match settings.summarizer_backend {
                 SummarizerBackend::BuiltIn => SummarizerBackend::OpenAICompatible,
                 other => other,
@@ -485,8 +498,10 @@ impl SettingsPage {
         cx: &mut Context<Self>,
     ) -> Vec<Section> {
         match self.models.page {
-            ModelsPage::Active => self.active_models(cx),
+            ModelsPage::Active => self.models_overview(window, cx),
             ModelsPage::Connections => self.connections(window, cx),
+            ModelsPage::Downloaded => self.downloaded_models_page(cx),
+            ModelsPage::Other => self.other_models_page(cx),
             ModelsPage::ReadAloud => self.read_aloud_page(cx),
             ModelsPage::TranscriptionOptions => self.transcription_options_page(cx),
             ModelsPage::TranscriptionServer => self.transcription_server_page(cx),
@@ -497,7 +512,7 @@ impl SettingsPage {
 
     /// Asks the Think server what the selected model accepts, once per model; the
     /// picker shows the answer when it comes (`ModelStackOverviewView`).
-    fn look_up_reasoning(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn look_up_reasoning(&mut self, cx: &mut Context<Self>) {
         let settings = self.data.read(cx).settings.clone();
         let key = lokalbot_ai::think::reasoning_lookup_key(&settings);
         if self.models.reasoning_asked.as_ref() == Some(&key) {
@@ -514,898 +529,15 @@ impl SettingsPage {
         .detach();
     }
 
-    fn active_models(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
-        self.look_up_reasoning(cx);
-        let (settings, status, downloads, root) = {
-            let data = self.data.read(cx);
-            (
-                data.settings.clone(),
-                data.models.clone(),
-                data.downloads.clone(),
-                data.library.paths().clone(),
-            )
-        };
-        let lb = cx.lb().clone();
-        let local = settings.think_is_local()
-            && lokalbot_core::remote_transcription::audio_destination(&settings).is_none();
-        let setup = Preset::ALL
-            .iter()
-            .find(|p| p.matches(&settings))
-            .map(|p| p.title())
-            .unwrap_or(lokalbot_i18n::tr("Custom"));
-        let location = if local {
-            lokalbot_i18n::tr("On this PC")
-        } else {
-            lokalbot_i18n::tr("Local + remote")
-        };
-
-        let summary = Section::new(None).row(
-            "settings.models",
-            settings_row::content_row(
-                "settings.models",
-                h_flex()
-                    .gap(px(18.))
-                    .items_center()
-                    .child(
-                        div()
-                            .text_size(ty::BODY)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(lb.text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                "Current setup",
-                            ))),
-                    )
-                    .child(
-                        div()
-                            .text_size(ty::BODY)
-                            .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                "{setup} · {location}",
-                                &[
-                                    ("setup", setup.to_string()),
-                                    ("location", location.to_string()),
-                                ],
-                            ))),
-                    ),
-                self.is_focused("settings.models"),
-                cx,
-            ),
-        );
-
-        // Core roles.
-        let think_name = match settings.summarizer_backend {
-            SummarizerBackend::BuiltIn => model_name(&settings.built_in_model_id),
-            SummarizerBackend::Ollama => {
-                if settings.ollama_model.is_empty() {
-                    lokalbot_i18n::tr("Ollama").into()
-                } else {
-                    settings.ollama_model.clone()
-                }
-            }
-            SummarizerBackend::OpenAICompatible => {
-                if settings.openai_model.is_empty() {
-                    lokalbot_i18n::tr("OpenAI-compatible server").into()
-                } else {
-                    settings.openai_model.clone()
-                }
-            }
-            SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => {
-                plan_model_name(&settings)
-            }
-        };
-        let think_location = match settings.summarizer_backend {
-            SummarizerBackend::BuiltIn => None,
-            SummarizerBackend::Ollama => Some(settings.ollama_base_url.clone()),
-            SummarizerBackend::OpenAICompatible => Some(settings.openai_base_url.clone()),
-            SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => settings
-                .think_plan()
-                .map(|plan| format!("https://{}", plan.destination_host())),
-        };
-        // What each role downloads: Transcribe with voice detection (and speaker
-        // separation when on); built-in Think with the llama.cpp runtime.
-        let speech_needs = speech_needs(&settings);
-        let think_needs = if settings.summarizer_backend == SummarizerBackend::BuiltIn {
-            vec![settings.built_in_model_id.clone(), RUNTIME_ID.to_string()]
-        } else {
-            Vec::new()
-        };
-        let progress = |needs: &[String]| {
-            needs
-                .iter()
-                .find_map(|id| downloads.get(id).filter(|d| d.error.is_none()))
-                .map(|d| d.fraction())
-        };
-        let speech_server =
-            lokalbot_speech::models::is_remote(&settings.transcription_model).then(|| {
-                lokalbot_core::remote_transcription::RemoteTranscription::from_settings(&settings)
-            });
-        let mut roles = Section::new(lokalbot_i18n::tr("Core Roles"));
-        roles = roles.row(
-            "settings.transcriptionModel",
-            self.role_row(
-                RoleRow {
-                    id: "settings.transcriptionModel",
-                    icon: Ico::AudioLines,
-                    title: lokalbot_i18n::tr("Transcribe"),
-                    detail: lokalbot_i18n::tr("Meeting audio to text"),
-                    model: super::model_options::transcription_name(&settings),
-                    remote: speech_server
-                        .as_ref()
-                        .filter(|server| !server.is_on_this_computer())
-                        .map(|_| settings.remote_transcription_base_url.clone()),
-                    ready: status.transcription_ready,
-                    downloading: progress(&speech_needs),
-                    needs: speech_needs.clone(),
-                    installed: status.installed.clone(),
-                    review: speech_server
-                        .as_ref()
-                        .is_some_and(|server| !server.is_ready()),
-                    check: Some(lokalbot_engine::ModelRole::Transcribe),
-                },
-                RoleChoices::Speech,
-                cx,
-            ),
-        );
-        roles = roles.row(
-            "settings.builtInModelID",
-            self.role_row(
-                RoleRow {
-                    id: "settings.builtInModelID",
-                    icon: Ico::Brain,
-                    title: lokalbot_i18n::tr("Think"),
-                    detail: lokalbot_i18n::tr("Summaries, Ask, and Compose"),
-                    model: think_name,
-                    remote: think_location
-                        .filter(|url| !lokalbot_core::access::is_loopback_url(url)),
-                    ready: status.think_ready
-                        || settings.summarizer_backend != SummarizerBackend::BuiltIn,
-                    downloading: progress(&think_needs),
-                    needs: think_needs.clone(),
-                    installed: status.installed.clone(),
-                    review: false,
-                    check: Some(lokalbot_engine::ModelRole::Think),
-                },
-                RoleChoices::Think,
-                cx,
-            ),
-        );
-        let autocomplete_needs = autocomplete_needs(&settings);
-        roles = roles.row(
-            "settings.cotypingBuiltInModelID",
-            self.role_row(
-                RoleRow {
-                    id: "settings.cotypingBuiltInModelID",
-                    icon: Ico::TextCursorInput,
-                    title: lokalbot_i18n::tr("Autocomplete"),
-                    detail: lokalbot_i18n::tr("Suggestions as you type"),
-                    model: super::writing_server::model_display_name(&settings).to_string(),
-                    remote: None,
-                    ready: status.autocomplete_ready,
-                    downloading: progress(&autocomplete_needs),
-                    needs: autocomplete_needs.clone(),
-                    installed: status.installed.clone(),
-                    review: false,
-                    check: Some(lokalbot_engine::ModelRole::Autocomplete),
-                },
-                RoleChoices::Autocomplete,
-                cx,
-            ),
-        );
-        let prepare_data = self.data.clone();
-        let any_missing = !(status.transcription_ready && status.think_ready);
-        let downloading = downloads.values().any(|d| d.error.is_none());
-        let checks_page = cx.entity();
-        roles = roles.row(
-            "settings.prepareModels",
-            settings_row::content_row(
-                "settings.prepareModels",
-                h_flex()
-                    .gap(px(10.))
-                    .items_center()
-                    .child(settings_row::help(
-                        if downloading {
-                            lokalbot_i18n::tr("Downloading models. You can keep using LokalBot meanwhile.")
-                        } else {
-                            lokalbot_i18n::tr("Downloads come from the model provider and never include your meeting content.")
-                        },
-                        cx,
-                    ).flex_1().min_w_0())
-                    .child(
-                        Button::new("settings-check-models")
-                            .outline()
-                            .small()
-                            .label(lokalbot_i18n::tr("Check Model Setup…"))
-                            .on_click(move |_, _, cx| {
-                                checks_page.update(cx, |page, cx| {
-                                    page.models.page = ModelsPage::Checks;
-                                    cx.notify();
-                                })
-                            }),
-                    )
-                    .child(
-                        Button::new("settings-prepare-models")
-                            .outline()
-                            .small()
-                            .icon(Icon::new(Ico::CircleArrowDown))
-                            .label(lokalbot_i18n::tr("Prepare Selected Models"))
-                            .disabled(!any_missing || downloading)
-                            .on_click(move |_, _, cx| prepare_data.update(cx, |data, cx| data.request(AppEvent::PrepareModels, cx))),
-                    ),
-                false,
-                cx,
-            ),
-        );
-
-        // Presets.
-        let mut presets = Section::new(lokalbot_i18n::tr("Presets"));
-        for preset in Preset::ALL {
-            let current = preset.matches(&settings);
-            let (speech, think) = preset.models();
-            let download: u64 = [speech, think]
-                .iter()
-                .filter(|id| !status.installed.iter().any(|installed| installed == *id))
-                .map(|id| model_bytes(id, &settings))
-                .sum();
-            let page = cx.entity();
-            let switching = self.models.setup.is_switching();
-            presets = presets.row(
-                if preset == Preset::Balanced {
-                    "settings.presetBalanced"
-                } else {
-                    "settings.presetLightweight"
-                },
-                settings_row::content_row(
-                    if preset == Preset::Balanced {
-                        "settings.presetBalanced"
-                    } else {
-                        "settings.presetLightweight"
-                    },
-                    h_flex()
-                        .gap(px(12.))
-                        .items_center()
-                        .child(
-                            v_flex()
-                                .flex_1()
-                                .min_w_0()
-                                .gap(px(3.))
-                                .child(
-                                    div()
-                                        .text_size(ty::BODY)
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(lb.text)
-                                        .child(preset.title()),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(lb.text_secondary)
-                                        .child(preset.subtitle()),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::CAPTION)
-                                        .text_color(lb.text_secondary)
-                                        .child(preset.summary()),
-                                ),
-                        )
-                        .when(current, |this| {
-                            this.child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.accent_text)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                        "Current",
-                                    ))),
-                            )
-                        })
-                        .child(
-                            Button::new(if preset == Preset::Balanced {
-                                "preset-balanced"
-                            } else {
-                                "preset-lightweight"
-                            })
-                            .outline()
-                            .small()
-                            .label(lokalbot_i18n::tr("Apply…"))
-                            .disabled(current || switching)
-                            .on_click(move |_, window, cx| {
-                                confirm_preset(page.clone(), preset, download, window, cx)
-                            }),
-                        ),
-                    false,
-                    cx,
-                ),
-            );
-        }
-        presets = presets.row(
-            "settings.presetsHelp",
-            settings_row::content_row(
-                "settings.presetsHelp",
-                settings_row::help(lokalbot_i18n::tr("Review model changes and download sizes before applying. Existing models are kept."), cx),
-                false,
-                cx,
-            ),
-        );
-
-        // Remote servers.
-        let page = cx.entity();
-        let mut remote = Section::new(lokalbot_i18n::tr("Remote Server")).row(
-            "settings.summarizerBackend",
-            settings_row::content_row(
-                "settings.summarizerBackend",
-                h_flex()
-                    .items_center()
-                    .child(
-                        h_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(8.))
-                            .items_center()
-                            .child(ui::icon(Ico::ShieldCheck, px(15.), lb.text_secondary))
-                            .child(
-                                div()
-                                    .text_size(ty::BODY)
-                                    .text_color(lb.text_secondary)
-                                    .child(
-                                        if settings.approved_remote_inference_origins.is_empty() {
-                                            lokalbot_i18n::tr("No remote servers approved")
-                                        } else {
-                                            lokalbot_i18n::tr("Approved remote servers")
-                                        },
-                                    ),
-                            ),
-                    )
-                    .child(settings_row::link_button(
-                        "settings-manage-connections",
-                        lokalbot_i18n::tr("Manage Connections…"),
-                        move |_, cx| {
-                            page.update(cx, |page, cx| {
-                                page.models.page = ModelsPage::Connections;
-                                cx.notify();
-                            })
-                        },
-                        cx,
-                    )),
-                self.is_focused("settings.summarizerBackend"),
-                cx,
-            ),
-        );
-        if settings.approved_remote_inference_origins.is_empty() {
-            remote = remote.row(
-                "settings.remoteHelp",
-                settings_row::content_row(
-                    "settings.remoteHelp",
-                    settings_row::help(lokalbot_i18n::tr("Local models process on this PC. Each remote server requires its own approval before context can leave this PC."), cx),
-                    false,
-                    cx,
-                ),
-            );
-        }
-        for origin in settings.approved_remote_inference_origins.clone() {
-            let data = self.data.clone();
-            let revoke = origin.clone();
-            let shown = origin_display_name(&origin);
-            remote = remote.row(
-                "settings.remoteOrigin",
-                settings_row::content_row(
-                    SharedString::from(format!("settings-origin-{origin}")),
-                    v_flex()
-                        .gap(px(8.))
-                        .child(
-                            h_flex()
-                                .gap(px(8.))
-                                .items_center()
-                                .child(ui::icon(Ico::Network, px(15.), lb.attention_text))
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w_0()
-                                        .text_size(ty::BODY)
-                                        .text_color(lb.text)
-                                        .child(shown),
-                                )
-                                .child(
-                                    Button::new(SharedString::from(format!("revoke-{origin}")))
-                                        .outline()
-                                        .small()
-                                        .label(lokalbot_i18n::tr("Revoke…"))
-                                        .on_click(move |_, window, cx| {
-                                            confirm_revoke(data.clone(), revoke.clone(), window, cx)
-                                        }),
-                                ),
-                        )
-                        .child(settings_row::help(approved_origin_notice(), cx)),
-                    false,
-                    cx,
-                ),
-            );
-        }
-        for origin in settings.approved_remote_transcription_origins.clone() {
-            let data = self.data.clone();
-            let revoke = origin.clone();
-            remote = remote.row(
-                "settings.remoteOrigin",
-                settings_row::content_row(
-                    SharedString::from(format!("settings-audio-origin-{origin}")),
-                    v_flex()
-                        .gap(px(8.))
-                        .child(
-                            h_flex()
-                                .gap(px(8.))
-                                .items_center()
-                                .child(ui::icon(Ico::AudioLines, px(15.), lb.attention_text))
-                                .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w_0()
-                                        .text_size(ty::BODY)
-                                        .text_color(lb.text)
-                                        .child(origin.clone()),
-                                )
-                                .child(
-                                    Button::new(SharedString::from(format!(
-                                        "revoke-audio-{origin}"
-                                    )))
-                                    .outline()
-                                    .small()
-                                    .label(lokalbot_i18n::tr("Revoke…"))
-                                    .on_click(
-                                        move |_, window, cx| {
-                                            confirm_revoke_audio(
-                                                data.clone(),
-                                                revoke.clone(),
-                                                window,
-                                                cx,
-                                            )
-                                        },
-                                    ),
-                                ),
-                        )
-                        .child(settings_row::help(approved_audio_origin_notice(), cx)),
-                    false,
-                    cx,
-                ),
-            );
-        }
-
-        // Storage: what is downloaded, and the models the settings don't use.
-        let models_dir = root.models_dir();
-        let open_dir = models_dir.clone();
-        let library_root = root.root().to_path_buf();
-        let stored = status
-            .installed
-            .iter()
-            .filter(|id| id.as_str() != RUNTIME_ID)
-            .count();
-        let unused = unused_models(&settings, &status.installed);
-        let mut storage = Section::new(lokalbot_i18n::tr("Model Storage")).row(
-            "settings.modelStorage",
-            settings_row::content_row(
-                "settings.modelStorage",
-                h_flex()
-                    .gap(px(12.))
-                    .items_center()
-                    .child(ui::icon(Ico::HardDrive, px(20.), lb.text_secondary))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(3.))
-                            .child(div().text_size(ty::BODY).text_color(lb.text).child(
-                                match stored {
-                                    0 => lokalbot_i18n::tr("No models downloaded yet").to_string(),
-                                    1 => lokalbot_i18n::tr("1 model on this PC").to_string(),
-                                    n => lokalbot_i18n::format(
-                                        "{n} models on this PC",
-                                        &[("n", format!("{}", n))],
-                                    ),
-                                },
-                            ))
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .truncate()
-                                    .child(models_dir.display().to_string()),
-                            )
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(crate::ui::text::paragraph(
-                                        super::resource_monitor::memory_summary(cx),
-                                    )),
-                            ),
-                    )
-                    .child(
-                        Button::new("settings-open-models")
-                            .outline()
-                            .small()
-                            .label(lokalbot_i18n::tr("Show in Folder"))
-                            .on_click(move |_, _, cx| {
-                                let target = if open_dir.is_dir() {
-                                    open_dir.clone()
-                                } else {
-                                    library_root.clone()
-                                };
-                                cx.open_with_system(&target);
-                            }),
-                    ),
-                self.is_focused("settings.modelStorage"),
-                cx,
-            ),
-        );
-        for runtime in &status.runtime_storage {
-            let path = runtime.path.clone();
-            let id = SharedString::from(format!("settings-runtime-storage-{}", runtime.name));
-            storage = storage.row(
-                "settings.modelStorage",
-                settings_row::content_row(
-                    id.clone(),
-                    h_flex()
-                        .gap(px(12.))
-                        .items_center()
-                        .child(div().flex_1().child(settings_row::help(
-                            format!(
-                                "llama.cpp · {} · {}",
-                                lokalbot_i18n::tr(&runtime.name),
-                                size_label(runtime.bytes)
-                            ),
-                            cx,
-                        )))
-                        .child(
-                            Button::new(id)
-                                .outline()
-                                .small()
-                                .label(lokalbot_i18n::tr("Show in Folder"))
-                                .on_click(move |_, _, cx| cx.open_with_system(&path)),
-                        ),
-                    false,
-                    cx,
-                ),
-            );
-        }
-        if let Some(row) = self.read_aloud_storage_row(cx) {
-            storage = storage.row("settings.modelStorage", row);
-        }
-        let source_data = self.data.clone();
-        storage = storage.row(
-            "settings.modelDownloadSource",
-            super::model_options::download_source_row(
-                settings.model_download_source,
-                self.is_focused("settings.modelDownloadSource"),
-                move |source, _, cx| {
-                    source_data.update(cx, |data, cx| {
-                        data.update_settings(|s| s.model_download_source = source, cx)
-                    })
-                },
-                cx,
-            )
-            .into_any_element(),
-        );
-        if !unused.is_empty() {
-            let total: u64 = unused.iter().map(|id| model_bytes(id, &settings)).sum();
-            let rows = unused.iter().map(|id| {
-                let data = self.data.clone();
-                let remove = id.clone();
-                h_flex()
-                    .gap(px(12.))
-                    .items_center()
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(2.))
-                            .child(
-                                div()
-                                    .text_size(ty::BODY)
-                                    .text_color(lb.text)
-                                    .truncate()
-                                    .child(model_name(id)),
-                            )
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(format!(
-                                        "{} · {}",
-                                        model_purpose(id),
-                                        size_label(model_bytes(id, &settings))
-                                    )),
-                            ),
-                    )
-                    .child(
-                        Button::new(SharedString::from(format!("settings-remove-{id}")))
-                            .outline()
-                            .small()
-                            .label(lokalbot_i18n::tr("Remove…"))
-                            .on_click(move |_, window, cx| {
-                                confirm_remove(data.clone(), remove.clone(), window, cx)
-                            }),
-                    )
-            });
-            storage = storage.row(
-                "settings.unusedModels",
-                settings_row::content_row(
-                    "settings.unusedModels",
-                    v_flex()
-                        .gap(px(10.))
-                        .child(
-                            v_flex()
-                                .gap(px(2.))
-                                .child(
-                                    div()
-                                        .text_size(ty::BODY)
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(lb.text)
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Not used by your current settings"))),
-                                )
-                                .child(settings_row::help(
-                                    lokalbot_i18n::format("Removing all of them frees about {0}. You can download any of them again later.", &[("0", size_label(total).to_string())]),
-                                    cx,
-                                )),
-                        )
-                        .children(rows),
-                    false,
-                    cx,
-                ),
-            );
-        }
-
-        // Processing budget.
-        let budget_data = self.data.clone();
-        let budget_index = BUDGETS
-            .iter()
-            .position(|b| *b == settings.generation_budget_preset)
-            .unwrap_or(1);
-        let mut budget_column = v_flex()
-            .gap(px(8.))
-            .child(
-                div()
-                    .text_size(ty::SECTION)
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(lb.text)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "Think processing budget",
-                    ))),
-            )
-            .child(settings_row::segmented(
-                "settings-budget",
-                &BUDGETS.map(budget_label),
-                budget_index,
-                move |index, _, cx| {
-                    let budget = BUDGETS[index];
-                    budget_data.update(cx, |data, cx| {
-                        data.update_settings(|s| s.generation_budget_preset = budget, cx)
-                    });
-                },
-                cx,
-            ))
-            .child(settings_row::help(
-                lokalbot_i18n::format(
-                    "Applies to every Think model — built-in and servers. {0}",
-                    &[(
-                        "0",
-                        budget_detail(settings.generation_budget_preset).to_string(),
-                    )],
-                ),
-                cx,
-            ));
-        if settings.generation_budget_preset == GenerationBudget::Unlimited {
-            budget_column = budget_column.child(
-                div().text_size(ty::SECONDARY).text_color(lb.attention_text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Unlimited removes practical caps: a single meeting can process for up to 6 hours. On a paid API this can run up significant token costs; on a local model it can keep this PC busy and hot for a long time."))),
-            );
-        }
-        let budget = Section::new(None).row(
-            "settings.generationBudgetPreset",
-            settings_row::content_row(
-                "settings.generationBudgetPreset",
-                budget_column,
-                self.is_focused("settings.generationBudgetPreset"),
-                cx,
-            ),
-        );
-
-        let semantic_data = self.data.clone();
-        let also = Section::new(lokalbot_i18n::tr("Also used by LokalBot"))
-            .row("settings.speechVoice", self.read_aloud_row(cx))
-            .row(
-                "settings.semanticSearchEnabled",
-                settings_row::row(
-                    "settings.semanticSearchEnabled",
-                    lokalbot_i18n::tr("Search by meaning"),
-                    Some(
-                        if settings.semantic_search_enabled {
-                            lokalbot_i18n::tr("Managed automatically · On this PC")
-                        } else {
-                            lokalbot_i18n::tr("Off · On this PC")
-                        }
-                        .into(),
-                    ),
-                    settings_row::switch(
-                        "settings.semanticSearchEnabled",
-                        settings.semantic_search_enabled,
-                        move |on, _, cx| {
-                            semantic_data.update(cx, |data, cx| {
-                                data.update_settings(|s| s.semantic_search_enabled = on, cx)
-                            })
-                        },
-                    ),
-                    self.is_focused("settings.semanticSearchEnabled"),
-                    cx,
-                ),
-            );
-
-        let backend_data = self.data.clone();
-        let backends = ["auto", "vulkan", "cuda", "cpu"];
-        let selected_backend = backends
-            .iter()
-            .position(|b| settings.llama_backend.trim().eq_ignore_ascii_case(b))
-            .unwrap_or(0);
-        let cuda_selected = selected_backend == 2;
-        let runtime_progress = downloads.get(RUNTIME_ID);
-        let runtime_downloading = runtime_progress.is_some_and(|d| d.error.is_none());
-        let runtime_detail = match runtime_progress {
-            Some(progress) if progress.error.is_some() => progress
-                .error
-                .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_default(),
-            Some(progress) => lokalbot_i18n::format(
-                "Downloading · {0}%",
-                &[("0", format!("{}", (progress.fraction() * 100.).round()))],
-            ),
-            None if status.runtime_backend.is_some() => format!(
-                "{} · {}",
-                lokalbot_i18n::tr("Ready"),
-                status.runtime_backend.as_ref().unwrap()
-            ),
-            // Downloaded, but the setup GPU check failed: no download is left.
-            None if status.runtime_needs_check => {
-                format!("{} · CUDA", lokalbot_i18n::tr("Not ready"))
-            }
-            None => lokalbot_i18n::format(
-                "About {0} to download",
-                &[(
-                    "0",
-                    size_label(lokalbot_ai::runtime::download_bytes(
-                        &settings.llama_backend,
-                    )),
-                )],
-            ),
-        };
-        let runtime_data = self.data.clone();
-        let runtime = Section::new("llama.cpp").row(
-            "settings.llamaBackend",
-            settings_row::content_row(
-                "settings.llamaBackend",
-                v_flex()
-                    .gap(px(8.))
-                    .child(settings_row::segmented(
-                        "settings-llama-backend",
-                        &[
-                            lokalbot_i18n::tr("Automatic"),
-                            "Vulkan",
-                            lokalbot_i18n::tr("CUDA (experimental)"),
-                            "CPU",
-                        ],
-                        selected_backend,
-                        move |index, _, cx| {
-                            backend_data.update(cx, |data, cx| {
-                                data.update_settings(
-                                    |s| s.llama_backend = backends[index].into(),
-                                    cx,
-                                )
-                            });
-                        },
-                        cx,
-                    ))
-                    .child(
-                        h_flex()
-                            .gap(px(12.))
-                            .items_center()
-                            .child(div().flex_1().child(settings_row::help(runtime_detail, cx)))
-                            .child(
-                                Button::new("settings-runtime-download")
-                                    .outline()
-                                    .small()
-                                    .label(if runtime_downloading {
-                                        lokalbot_i18n::tr("Cancel")
-                                    } else if cuda_selected
-                                        && (status.runtime_backend.is_some()
-                                            || status.runtime_needs_check)
-                                    {
-                                        // Setup repeats the GPU check and repairs
-                                        // missing libraries without a full download.
-                                        lokalbot_i18n::tr("Check again")
-                                    } else {
-                                        lokalbot_i18n::tr("Download")
-                                    })
-                                    .disabled(
-                                        status.runtime_backend.is_some()
-                                            && !cuda_selected
-                                            && runtime_progress.is_none(),
-                                    )
-                                    .on_click(move |_, _, cx| {
-                                        runtime_data.update(cx, |data, cx| {
-                                            data.request(
-                                                if runtime_downloading {
-                                                    AppEvent::CancelDownload(RUNTIME_ID.into())
-                                                } else {
-                                                    AppEvent::DownloadModel(RUNTIME_ID.into())
-                                                },
-                                                cx,
-                                            )
-                                        });
-                                    }),
-                            ),
-                    ),
-                self.is_focused("settings.llamaBackend"),
-                cx,
-            ),
-        );
-
-        let feedback = self
-            .model_setup_feedback(cx)
-            .map(|row| Section::new(None).row("settings-model-switch", row));
-        let mut sections = vec![summary];
-        sections.extend(feedback);
-        sections.extend([roles, runtime, presets, remote, storage, budget, also]);
-        sections
-    }
-
-    fn role_row(&self, row: RoleRow, choices: RoleChoices, cx: &mut Context<Self>) -> AnyElement {
-        let lb = cx.lb().clone();
+    /// "Change…" beside a role (`ModelPickerSheet`): the models to choose
+    /// from, then what sets the role up beyond its model. A model is
+    /// prepared before the switch, so the current one stays until then
+    /// (`ModelSetup`). Autocomplete's servers are set up on its own page.
+    pub(super) fn change_button(&self, role: Role, cx: &mut Context<Self>) -> AnyElement {
         let settings = self.data.read(cx).settings.clone();
-        let remote = row.remote.clone();
-        let tint = if remote.is_some() {
-            lb.attention_text
-        } else {
-            lb.accent_text
-        };
-        let location: SharedString = match (&remote, row.ready) {
-            (Some(url), _) => {
-                let host = lokalbot_core::access::origin_of(url).unwrap_or_else(|| url.clone());
-                lokalbot_i18n::format("Remote · {host}", &[("host", host.to_string())]).into()
-            }
-            (None, true) => lokalbot_i18n::tr("On this PC · Downloaded").into(),
-            (None, false) => lokalbot_i18n::tr("On this PC").into(),
-        };
-        // What this role still has to download.
-        let missing: Vec<String> = row
-            .needs
-            .iter()
-            .filter(|id| !row.installed.contains(id))
-            .cloned()
-            .collect();
-        let missing_bytes: u64 = missing.iter().map(|id| model_bytes(id, &settings)).sum();
-        let status: Option<(SharedString, gpui_kit::Hsla)> =
-            match (row.downloading, row.ready, &remote) {
-                (Some(fraction), _, _) => Some((
-                    lokalbot_i18n::format(
-                        "Downloading · {0}%",
-                        &[("0", format!("{}", (fraction * 100.).round()))],
-                    )
-                    .into(),
-                    lb.text_secondary,
-                )),
-                (None, false, None) if missing_bytes > 0 => Some((
-                    lokalbot_i18n::format(
-                        "Download required · {0}",
-                        &[("0", size_label(missing_bytes).to_string())],
-                    )
-                    .into(),
-                    lb.attention_text,
-                )),
-                (None, false, None) => Some((
-                    lokalbot_i18n::tr("Download required").into(),
-                    lb.attention_text,
-                )),
-                _ => None,
-            };
         let page = cx.entity();
-        let options: Vec<ModelChoice> = match choices {
-            RoleChoices::Speech => lokalbot_speech::models::transcription_models()
+        let options: Vec<ModelChoice> = match role {
+            Role::Transcribe => lokalbot_speech::models::transcription_models()
                 .iter()
                 .map(|m| {
                     (
@@ -1423,7 +555,7 @@ impl SettingsPage {
                     )
                 })
                 .collect(),
-            RoleChoices::Think => {
+            Role::Think => {
                 let mut items: Vec<ModelChoice> = lokalbot_ai::catalog::think_entries()
                     .map(|m| {
                         (
@@ -1464,7 +596,7 @@ impl SettingsPage {
                 }
                 items
             }
-            RoleChoices::Autocomplete => lokalbot_ai::catalog::autocomplete_entries(Some(
+            Role::Autocomplete => lokalbot_ai::catalog::autocomplete_entries(Some(
                 &settings.cotyping_built_in_model_id,
             ))
             .map(|m| {
@@ -1485,18 +617,33 @@ impl SettingsPage {
             .collect(),
         };
         let options = std::rc::Rc::new(options);
-        // Pages the menu opens: the role's setup beyond choosing a model.
-        let links: &'static [(&'static str, ModelsPage)] = match choices {
-            RoleChoices::Speech => &[
-                ("Transcription server…", ModelsPage::TranscriptionServer),
-                ("Language & vocabulary…", ModelsPage::TranscriptionOptions),
+        // What the menu opens beyond choosing a model.
+        let links: &'static [(&'static str, ChangeLink)] = match role {
+            Role::Transcribe => &[
+                (
+                    "Transcription server…",
+                    ChangeLink::Page(ModelsPage::TranscriptionServer),
+                ),
+                (
+                    "Language & vocabulary…",
+                    ChangeLink::Page(ModelsPage::TranscriptionOptions),
+                ),
             ],
-            RoleChoices::Think => &[("Browse Hugging Face…", ModelsPage::Browse)],
-            RoleChoices::Autocomplete => &[],
+            Role::Think => &[("Browse Hugging Face…", ChangeLink::Page(ModelsPage::Browse))],
+            // Servers for autocomplete are set up on Autocomplete's page.
+            Role::Autocomplete => &[(
+                "Where autocomplete runs…",
+                ChangeLink::Reveal("settings.cotypingBackend"),
+            )],
         };
-        let server_checked = matches!(choices, RoleChoices::Speech)
-            && lokalbot_speech::models::is_remote(&settings.transcription_model);
-        let change = Button::new(SharedString::from(format!("{}-change", row.id)))
+        let server_checked = match role {
+            Role::Transcribe => lokalbot_speech::models::is_remote(&settings.transcription_model),
+            Role::Autocomplete => {
+                settings.cotyping_backend != lokalbot_core::settings::CotypingBackend::OnDevice
+            }
+            Role::Think => false,
+        };
+        Button::new(SharedString::from(format!("{}-change", role_setting(role))))
             .outline()
             .small()
             .label(lokalbot_i18n::tr("Change…"))
@@ -1531,254 +678,116 @@ impl SettingsPage {
                 if !links.is_empty() {
                     menu = menu.separator();
                 }
-                for (title, target) in links {
+                for (title, link) in links {
                     let page = page.clone();
-                    let target = *target;
+                    let link = *link;
+                    let checked = matches!(
+                        link,
+                        ChangeLink::Page(ModelsPage::TranscriptionServer) | ChangeLink::Reveal(_)
+                    ) && server_checked;
                     menu = menu.item(
                         PopupMenuItem::new(lokalbot_i18n::tr(title))
-                            .checked(target == ModelsPage::TranscriptionServer && server_checked)
-                            .on_click(move |_, _, cx| {
-                                page.update(cx, |page, cx| {
-                                    page.models.page = target;
-                                    cx.notify();
+                            .checked(checked)
+                            .on_click(move |_, window, cx| {
+                                page.update(cx, |page, cx| match link {
+                                    ChangeLink::Page(target) => {
+                                        page.models.page = target;
+                                        cx.notify();
+                                    }
+                                    ChangeLink::Reveal(id) => page.reveal(id, window, cx),
                                 });
                             }),
                     );
                 }
                 menu
-            });
+            })
+            .into_any_element()
+    }
 
-        let reasoning = matches!(choices, RoleChoices::Think).then(|| {
-            // Only the levels this model accepts; a stored level it lacks shows
-            // as the one it maps to (`ReasoningSupport`).
-            let support = lokalbot_agent::session::ReasoningChoices::for_settings(&settings);
-            let control = if support.is_adjustable() {
-                let data = self.data.clone();
-                let shown = support.displayed(settings.think_reasoning_level);
-                let automatic = match support.default_level {
-                    Some(default) => lokalbot_i18n::format(
-                        "Automatic ({level})",
-                        &[("level", lokalbot_i18n::tr(reasoning_name(default)).into())],
-                    ),
-                    None => lokalbot_i18n::tr("Automatic").to_string(),
+    /// How long Think reasons (`ModelStackOverviewView.reasoningRow`): only
+    /// the levels the selected model accepts; a stored level it lacks shows
+    /// as the one it maps to (`ReasoningSupport`).
+    pub(super) fn reasoning_control(&self, cx: &mut Context<Self>) -> AnyElement {
+        let lb = cx.lb().clone();
+        let settings = self.data.read(cx).settings.clone();
+        let support = lokalbot_agent::session::ReasoningChoices::for_settings(&settings);
+        if !support.is_adjustable() {
+            return div()
+                .text_size(ty::SECONDARY)
+                .text_color(lb.text_secondary)
+                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                    "Set by the model",
+                )))
+                .into_any_element();
+        }
+        let data = self.data.clone();
+        let shown = support.displayed(settings.think_reasoning_level);
+        let automatic = match support.default_level {
+            Some(default) => lokalbot_i18n::format(
+                "Automatic ({level})",
+                &[("level", lokalbot_i18n::tr(reasoning_name(default)).into())],
+            ),
+            None => lokalbot_i18n::tr("Automatic").to_string(),
+        };
+        let title = if shown == ReasoningLevel::Automatic {
+            automatic.clone()
+        } else {
+            lokalbot_i18n::tr(reasoning_name(shown)).to_string()
+        };
+        Button::new("settings-reasoning")
+            .outline()
+            .small()
+            .label(title)
+            .dropdown_caret(true)
+            .tooltip(lokalbot_i18n::tr("How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic keeps LokalBot's per-task amounts and the server's own default. A level sets the most any task uses. Agent Mode follows this unless you pick its own level in the Agent composer."))
+            .dropdown_menu(move |mut menu, _, _| {
+                let choose = |level: ReasoningLevel| {
+                    let data = data.clone();
+                    move |_: &gpui_kit::ClickEvent, _: &mut Window, cx: &mut App| {
+                        data.update(cx, |data, cx| {
+                            data.update_settings(|s| s.think_reasoning_level = level, cx)
+                        })
+                    }
                 };
-                let title = if shown == ReasoningLevel::Automatic {
-                    automatic.clone()
-                } else {
-                    lokalbot_i18n::tr(reasoning_name(shown)).to_string()
-                };
-                Button::new("settings-reasoning")
-                    .outline()
-                    .small()
-                    .label(title)
-                    .dropdown_caret(true)
-                    .tooltip(lokalbot_i18n::tr("How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic keeps LokalBot's per-task amounts and the server's own default. A level sets the most any task uses. Agent Mode follows this unless you pick its own level in the Agent composer."))
-                    .dropdown_menu(move |mut menu, _, _| {
-                        let choose = |level: ReasoningLevel| {
-                            let data = data.clone();
-                            move |_: &gpui_kit::ClickEvent, _: &mut Window, cx: &mut App| {
-                                data.update(cx, |data, cx| {
-                                    data.update_settings(|s| s.think_reasoning_level = level, cx)
-                                })
-                            }
-                        };
-                        menu = menu.item(
-                            PopupMenuItem::new(automatic.clone())
-                                .checked(shown == ReasoningLevel::Automatic)
-                                .on_click(choose(ReasoningLevel::Automatic)),
-                        );
-                        for level in support.levels.iter().copied() {
-                            menu = menu.item(
-                                PopupMenuItem::new(lokalbot_i18n::tr(reasoning_name(level)))
-                                    .checked(shown == level)
-                                    .on_click(choose(level)),
-                            );
-                        }
-                        menu
-                    })
-                    .into_any_element()
-            } else {
-                div()
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_secondary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "Set by the model",
-                    )))
-                    .into_any_element()
-            };
-            h_flex()
-                .gap(px(6.))
-                .items_center()
-                .child(
-                    div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Reasoning"))),
-                )
-                .child(control)
-        });
-
-        // The last check of this role's current configuration, or a link to
-        // review a transcription server that can't receive audio yet.
-        let check_line = row
-            .check
-            .and_then(|role| {
-                let data = self.data.read(cx);
-                if data.model_checks.testing == Some(role) {
-                    return Some((lokalbot_i18n::tr("Checking…").to_string(), false));
+                menu = menu.item(
+                    PopupMenuItem::new(automatic.clone())
+                        .checked(shown == ReasoningLevel::Automatic)
+                        .on_click(choose(ReasoningLevel::Automatic)),
+                );
+                for level in support.levels.iter().copied() {
+                    menu = menu.item(
+                        PopupMenuItem::new(lokalbot_i18n::tr(reasoning_name(level)))
+                            .checked(shown == level)
+                            .on_click(choose(level)),
+                    );
                 }
-                data.model_checks.result(role).map(|result| {
+                menu
+            })
+            .into_any_element()
+    }
+
+    /// Think processing budget as a menu (`budgetRow`).
+    pub(super) fn budget_control(&self, cx: &mut Context<Self>) -> AnyElement {
+        let settings = self.data.read(cx).settings.clone();
+        let data = self.data.clone();
+        settings_row::picker(
+            "settings-budget",
+            budget_label(settings.generation_budget_preset),
+            BUDGETS
+                .iter()
+                .map(|budget| {
                     (
-                        super::model_checks::result_label(result),
-                        result.failure.is_some(),
+                        SharedString::from(budget_label(*budget)),
+                        *budget == settings.generation_budget_preset,
                     )
                 })
-            })
-            .filter(|_| row.ready)
-            .map(|(text, failed)| {
-                div()
-                    .text_size(ty::SECONDARY)
-                    .text_color(if failed {
-                        lb.attention_text
-                    } else {
-                        lb.text_secondary
-                    })
-                    .child(crate::ui::text::paragraph(text))
-            });
-        let review = row.review.then(|| {
-            let page = cx.entity();
-            settings_row::link_button(
-                "settings-review-transcription-server",
-                lokalbot_i18n::tr("Review Connection…"),
-                move |_, cx| {
-                    page.update(cx, |page, cx| {
-                        page.models.page = ModelsPage::TranscriptionServer;
-                        cx.notify();
-                    })
-                },
-                cx,
-            )
-        });
-
-        settings_row::content_row(
-            row.id,
-            h_flex()
-                .w_full()
-                .gap(px(20.))
-                .items_start()
-                .py(px(4.))
-                .child(
-                    h_flex()
-                        .w(px(210.))
-                        .flex_none()
-                        .gap(px(10.))
-                        .items_center()
-                        .child(
-                            div()
-                                .w(px(30.))
-                                .flex_none()
-                                .flex()
-                                .justify_center()
-                                .child(ui::icon(row.icon, px(20.), tint)),
-                        )
-                        .child(
-                            v_flex()
-                                .flex_1()
-                                .min_w_0()
-                                .gap(px(3.))
-                                .child(
-                                    div()
-                                        .text_size(ty::BODY)
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(lb.text)
-                                        .child(row.title),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(lb.text_secondary)
-                                        .child(row.detail),
-                                ),
-                        ),
-                )
-                .child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap(px(4.))
-                        .child(
-                            div()
-                                .text_size(ty::BODY)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(lb.text)
-                                .truncate()
-                                .child(row.model),
-                        )
-                        .child(location_label(location, remote.is_some(), cx))
-                        .when_some(status, |this, (text, color)| {
-                            let cancel = row.downloading.is_some().then(|| {
-                                let data = self.data.clone();
-                                let ids = row.needs.clone();
-                                div()
-                                    .id(SharedString::from(format!("{}-cancel", row.id)))
-                                    .cursor_pointer()
-                                    .text_color(lb.accent_text)
-                                    .hover(|s| s.underline())
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Cancel")))
-                                    .on_click(move |_, _, cx| {
-                                        data.update(cx, |data, cx| {
-                                            for id in &ids {
-                                                data.request(
-                                                    AppEvent::CancelDownload(id.clone()),
-                                                    cx,
-                                                );
-                                            }
-                                        })
-                                    })
-                            });
-                            // Download only what this role is missing.
-                            let download =
-                                (row.downloading.is_none() && !missing.is_empty()).then(|| {
-                                    let data = self.data.clone();
-                                    div()
-                                        .id(SharedString::from(format!("{}-download", row.id)))
-                                        .ml(px(4.))
-                                        .cursor_pointer()
-                                        .text_color(lb.accent_text)
-                                        .hover(|s| s.underline())
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                            "Download",
-                                        )))
-                                        .on_click(move |_, _, cx| {
-                                            data.update(cx, |data, cx| {
-                                                for id in &missing {
-                                                    data.request(
-                                                        AppEvent::DownloadModel(id.clone()),
-                                                        cx,
-                                                    );
-                                                }
-                                            })
-                                        })
-                                });
-                            this.child(
-                                h_flex()
-                                    .gap(px(5.))
-                                    .items_center()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(color)
-                                    .child(ui::icon(Ico::CircleAlert, px(13.), color))
-                                    .child(text)
-                                    .children(cancel)
-                                    .children(download),
-                            )
-                        })
-                        .children(check_line)
-                        .children(review)
-                        .children(reasoning),
-                )
-                .child(change),
-            self.is_focused(row.id),
-            cx,
+                .collect(),
+            move |index, _, cx| {
+                let budget = BUDGETS[index.min(BUDGETS.len() - 1)];
+                data.update(cx, |data, cx| {
+                    data.update_settings(|s| s.generation_budget_preset = budget, cx)
+                });
+            },
         )
         .into_any_element()
     }
@@ -1795,26 +804,37 @@ impl SettingsPage {
         let (draft_url, _) = self.models.draft(cx);
         let has_changes = self.models.has_changes(&settings, cx);
 
-        let back_page = page.clone();
         let header = v_flex()
-            .gap(px(10.))
+            .gap(px(4.))
             .child(
-                h_flex().child(
-                    Button::new("settings-models-back")
-                        .ghost()
-                        .small()
-                        .icon(Icon::new(Ico::ChevronLeft))
-                        .label(lokalbot_i18n::tr("Models"))
-                        .on_click(move |_, _, cx| {
-                            back_page.update(cx, |page, cx| {
-                                page.models.page = ModelsPage::Active;
-                                cx.notify();
-                            })
-                        }),
-                ),
+                div()
+                    .text_size(ty::SECTION)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(lb.text)
+                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                        "Model connections",
+                    ))),
             )
-            .child(div().text_size(ty::SECTION).font_weight(FontWeight::BOLD).text_color(lb.text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Model connections"))))
-            .child(settings_row::help(lokalbot_i18n::tr("Manage servers and credentials. Choose which provider Think uses under Core Roles."), cx));
+            .child(settings_row::help(
+                lokalbot_i18n::tr(
+                    "Manage servers and credentials. To use one, choose it with Change… beside Think.",
+                ),
+                cx,
+            ));
+        let bar = Section::bare(super::subpage::bar(
+            "settings-models-back",
+            lokalbot_i18n::tr("Models"),
+            lokalbot_i18n::tr("Online services"),
+            move |_, cx| {
+                page.update(cx, |page, cx| {
+                    page.models.page = ModelsPage::Active;
+                    cx.notify();
+                })
+            },
+            cx,
+        ));
+        let approvals = self.approvals_section(cx);
+        let page = cx.entity();
 
         let tab_page = page.clone();
         const TABS: [SummarizerBackend; 4] = [
@@ -1892,15 +912,13 @@ impl SettingsPage {
         if let Some(plan) = plan {
             let form = form.child(self.plan_form(plan, cx));
             return vec![
-                Section::new(None).row(
-                    "settings.connectionsHeader",
-                    settings_row::content_row("settings.connectionsHeader", header, false, cx),
-                ),
+                bar,
+                approvals,
                 Section::new(None).row(
                     "settings.summarizerBackend",
                     settings_row::content_row(
                         "settings.summarizerBackend",
-                        form.py(px(4.)),
+                        v_flex().gap(px(14.)).child(header).child(form.py(px(4.))),
                         self.is_focused("settings.summarizerBackend"),
                         cx,
                     ),
@@ -1986,20 +1004,129 @@ impl SettingsPage {
         form = form.child(connection_check);
 
         vec![
-            Section::new(None).row(
-                "settings.connectionsHeader",
-                settings_row::content_row("settings.connectionsHeader", header, false, cx),
-            ),
+            bar,
+            approvals,
             Section::new(None).row(
                 "settings.summarizerBackend",
                 settings_row::content_row(
                     "settings.summarizerBackend",
-                    form.py(px(4.)),
+                    v_flex().gap(px(14.)).child(header).child(form.py(px(4.))),
                     self.is_focused("settings.summarizerBackend"),
                     cx,
                 ),
             ),
         ]
+    }
+
+    /// What is approved to receive data, each with Revoke… and what it
+    /// covers (`ModelRemoteOverview`). Nothing is approved or chosen here.
+    fn approvals_section(&self, cx: &mut Context<Self>) -> Section {
+        let lb = cx.lb().clone();
+        let settings = self.data.read(cx).settings.clone();
+        let mut section = Section::new(lokalbot_i18n::tr("Approved to receive your data"));
+        if settings.approved_remote_inference_origins.is_empty() {
+            section = section.row(
+                "settings.remoteHelp",
+                settings_row::content_row(
+                    "settings.remoteHelp",
+                    v_flex()
+                        .gap(px(6.))
+                        .child(
+                            h_flex()
+                                .gap(px(8.))
+                                .items_center()
+                                .child(ui::icon(Ico::ShieldCheck, px(15.), lb.text_secondary))
+                                .child(
+                                    div()
+                                        .text_size(ty::BODY)
+                                        .text_color(lb.text_secondary)
+                                        .child(lokalbot_i18n::tr("No remote servers approved")),
+                                ),
+                        )
+                        .child(settings_row::help(
+                            lokalbot_i18n::tr("Local models process on this PC. Each remote server requires its own approval before context can leave this PC."),
+                            cx,
+                        )),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        let origin_row = |id: SharedString,
+                          icon: Ico,
+                          name: String,
+                          button: Button,
+                          notice: &'static str,
+                          cx: &mut Context<Self>| {
+            settings_row::content_row(
+                id,
+                v_flex()
+                    .gap(px(8.))
+                    .child(
+                        h_flex()
+                            .gap(px(8.))
+                            .items_center()
+                            .child(ui::icon(icon, px(15.), lb.attention_text))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .text_size(ty::BODY)
+                                    .text_color(lb.text)
+                                    .child(name),
+                            )
+                            .child(button),
+                    )
+                    .child(settings_row::help(notice, cx)),
+                false,
+                cx,
+            )
+        };
+        for origin in settings.approved_remote_inference_origins.clone() {
+            let data = self.data.clone();
+            let revoke = origin.clone();
+            let button = Button::new(SharedString::from(format!("revoke-{origin}")))
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Revoke…"))
+                .on_click(move |_, window, cx| {
+                    confirm_revoke(data.clone(), revoke.clone(), window, cx)
+                });
+            section = section.row(
+                "settings.remoteOrigin",
+                origin_row(
+                    SharedString::from(format!("settings-origin-{origin}")),
+                    Ico::Network,
+                    origin_display_name(&origin),
+                    button,
+                    approved_origin_notice(),
+                    cx,
+                ),
+            );
+        }
+        for origin in settings.approved_remote_transcription_origins.clone() {
+            let data = self.data.clone();
+            let revoke = origin.clone();
+            let button = Button::new(SharedString::from(format!("revoke-audio-{origin}")))
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Revoke…"))
+                .on_click(move |_, window, cx| {
+                    confirm_revoke_audio(data.clone(), revoke.clone(), window, cx)
+                });
+            section = section.row(
+                "settings.remoteOrigin",
+                origin_row(
+                    SharedString::from(format!("settings-audio-origin-{origin}")),
+                    Ico::AudioLines,
+                    origin.clone(),
+                    button,
+                    approved_audio_origin_notice(),
+                    cx,
+                ),
+            );
+        }
+        section
     }
 
     /// Loopback, blocked HTTP, or a remote origin with its consent toggle.
@@ -2244,60 +1371,47 @@ fn plan_model_name(settings: &Settings) -> String {
     }
 }
 
-struct RoleRow {
-    id: &'static str,
-    icon: Ico,
-    title: &'static str,
-    detail: &'static str,
-    model: String,
-    remote: Option<String>,
-    ready: bool,
-    /// Progress of the first of `needs` that is downloading.
-    downloading: Option<f32>,
-    /// Ids the role downloads (empty for a model server).
-    needs: Vec<String>,
-    installed: Vec<String>,
-    /// A transcription server that isn't set up or approved yet.
-    review: bool,
-    check: Option<lokalbot_engine::ModelRole>,
-}
-
+/// What "Change…" opens beyond a model: a page of Models, or a setting on
+/// another page.
 #[derive(Clone, Copy)]
-enum RoleChoices {
-    Speech,
-    Think,
-    Autocomplete,
+enum ChangeLink {
+    Page(ModelsPage),
+    Reveal(&'static str),
 }
 
-/// "On this PC · Downloaded", or a remote origin in an amber capsule.
-fn location_label(text: SharedString, remote: bool, cx: &App) -> Div {
-    let lb = cx.lb();
-    if remote {
-        h_flex().child(
-            h_flex()
-                .gap(px(5.))
-                .items_center()
-                .px(px(7.))
-                .py(px(2.))
-                .rounded_full()
-                .bg(lb.attention_text.opacity(if lb.dark { 0.16 } else { 0.08 }))
-                .text_size(ty::SECONDARY)
-                .text_color(lb.attention_text)
-                .child(ui::icon(Ico::Network, px(12.), lb.attention_text))
-                .child(text),
-        )
-    } else {
-        h_flex()
-            .gap(px(5.))
-            .items_center()
-            .text_size(ty::SECONDARY)
-            .text_color(lb.text_secondary)
-            .child(ui::icon(Ico::Monitor, px(12.), lb.text_secondary))
-            .child(text)
+/// The catalog setting a role's row stands for, so search and links land on it.
+pub(super) fn role_setting(role: Role) -> &'static str {
+    match role {
+        Role::Transcribe => "settings.transcriptionModel",
+        Role::Think => "settings.builtInModelID",
+        Role::Autocomplete => "settings.cotypingBuiltInModelID",
     }
 }
 
-fn confirm_preset(
+/// Think's model as people know it: a built-in model, a server's model or the
+/// server, or a plan (`ModelSettingsPresentation.assistantName`).
+pub(super) fn think_name(settings: &Settings) -> String {
+    match settings.summarizer_backend {
+        SummarizerBackend::BuiltIn => model_name(&settings.built_in_model_id),
+        SummarizerBackend::Ollama => {
+            if settings.ollama_model.is_empty() {
+                lokalbot_i18n::tr("Ollama").into()
+            } else {
+                settings.ollama_model.clone()
+            }
+        }
+        SummarizerBackend::OpenAICompatible => {
+            if settings.openai_model.is_empty() {
+                lokalbot_i18n::tr("OpenAI-compatible server").into()
+            } else {
+                settings.openai_model.clone()
+            }
+        }
+        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => plan_model_name(settings),
+    }
+}
+
+pub(super) fn confirm_preset(
     page: Entity<SettingsPage>,
     preset: Preset,
     download: u64,
@@ -2347,7 +1461,7 @@ fn confirm_preset(
 }
 
 /// Asks before deleting a downloaded model the settings don't use.
-fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Window, cx: &mut App) {
+pub(super) fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Window, cx: &mut App) {
     let name = model_name(&id);
     let size = size_label(model_bytes(&id, &data.read(cx).settings));
     window.open_alert_dialog(cx, move |alert, _, _| {

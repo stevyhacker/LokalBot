@@ -215,7 +215,7 @@ pub fn size(bytes: u64) -> String {
 }
 
 /// What a role needs downloaded, and whether anything downloads at all.
-fn role_ids(role: Role, settings: &Settings) -> (Vec<String>, bool) {
+pub(super) fn role_ids(role: Role, settings: &Settings) -> (Vec<String>, bool) {
     match role {
         Role::Transcribe => {
             let downloads = !lokalbot_speech::models::is_remote(&settings.transcription_model);
@@ -333,7 +333,13 @@ pub struct StatusInput {
     pub paired_devices: usize,
     /// Why autocomplete can't work on this desktop at all, if so.
     pub autocomplete_unavailable: Option<String>,
+    /// The roles whose last check failed (`failedChecks`).
+    pub failed_checks: Vec<Role>,
 }
+
+/// The setting a failed check's line opens: the page that runs the checks
+/// (`SettingsStatus.modelChecksFocus`).
+pub const MODEL_CHECKS_FOCUS: &str = "settings.modelChecks";
 
 /// `AgentReadAccess.Kind`: meetings, screen memory, personal context, files
 /// and agent notes.
@@ -421,19 +427,38 @@ impl SettingsStatus {
     fn permission_lines(&self, page: SettingsCategory) -> Vec<StatusLine> {
         self.missing_for(page)
             .into_iter()
-            .map(|p| {
-                let line = StatusLine::new("permission", Tone::Need, p.detail.clone());
-                match (p.fix_action(), p.fix_title()) {
-                    (Some(action), Some(title)) => line.action(action).titled(title),
-                    _ => line
-                        .action(StatusAction::Open(
-                            SettingsCategory::Privacy,
-                            Some("settings.permissions"),
-                        ))
-                        .titled("Review…"),
-                }
-            })
+            .map(Self::permission_line)
             .collect()
+    }
+
+    fn permission_line(p: &Permission) -> StatusLine {
+        let line = StatusLine::new("permission", Tone::Need, p.detail.clone());
+        match (p.fix_action(), p.fix_title()) {
+            (Some(action), Some(title)) => line.action(action).titled(title),
+            _ => line
+                .action(StatusAction::Open(
+                    SettingsCategory::Privacy,
+                    Some("settings.permissions"),
+                ))
+                .titled("Review…"),
+        }
+    }
+
+    /// What stops trying dictation in its sheet: the microphone and the
+    /// Transcribe model, said as the page's own lines say them, whether or
+    /// not the shortcut is on (`DictationTrySheet.blockers`).
+    pub fn dictation_try_blockers(&self) -> Vec<StatusLine> {
+        let mut input = self.input.clone();
+        input.settings.dictation_enabled = true;
+        let status = SettingsStatus::new(input);
+        let mut lines: Vec<StatusLine> = status
+            .missing_for(SettingsCategory::Dictation)
+            .into_iter()
+            .filter(|p| p.name == "microphone")
+            .map(Self::permission_line)
+            .collect();
+        lines.extend(status.model_line(Role::Transcribe, "settings.transcriptionModel"));
+        lines
     }
 
     // ------------------------------------------------------------ models
@@ -497,10 +522,9 @@ impl SettingsStatus {
         models.iter().map(|m| m.bytes).sum::<Option<u64>>()
     }
 
-    /// What every model that still has to arrive weighs together, for a
-    /// "Download all" button. `None` when nothing is missing or a size is
-    /// unknown.
-    #[allow(dead_code)] // Models' "Download all" (Settings, part 2).
+    /// What every model that still has to arrive weighs together, for the
+    /// header's "Download all" button. `None` when nothing is missing or a
+    /// size is unknown.
     pub fn bytes_to_download(&self) -> Option<u64> {
         let downloads = self.models_to_download();
         Self::total_bytes(&downloads).filter(|bytes| !downloads.is_empty() && *bytes > 0)
@@ -811,11 +835,13 @@ impl SettingsStatus {
                         .join(", ")],
                 ),
             };
+            // The header's own button downloads them all. While it shows
+            // Cancel for a running download, this line keeps the button.
             let line = StatusLine::new("download", Tone::Need, text);
             lines.push(if working.is_empty() {
-                line.action(StatusAction::Download)
-            } else {
                 line
+            } else {
+                line.action(StatusAction::Download)
             });
         }
         lines.extend(self.models_needing_attention().into_iter().map(|m| {
@@ -832,6 +858,25 @@ impl SettingsStatus {
                 self.downloading_text(&working),
             ));
         }
+        // A model that is here and did not answer its check.
+        lines.extend(self.input.failed_checks.iter().filter_map(|role| {
+            let model = self.model(*role).filter(|m| m.state == ModelState::Ready)?;
+            Some(
+                StatusLine::new(
+                    "check",
+                    Tone::Need,
+                    fill(
+                        lokalbot_i18n::tr("%@ didn’t pass its check."),
+                        &[&model.name],
+                    ),
+                )
+                .action(StatusAction::Open(
+                    SettingsCategory::Models,
+                    Some(MODEL_CHECKS_FOCUS),
+                ))
+                .titled("Review…"),
+            )
+        }));
         if !lines.is_empty() {
             return lines;
         }
@@ -1363,7 +1408,8 @@ mod tests {
             lines[0].text,
             "Not downloaded yet. They need 5.2 GB, and this PC has 40.0 GB free."
         );
-        assert_eq!(lines[0].action, Some(StatusAction::Download));
+        // The header's "Download all" downloads them; the line has no button.
+        assert_eq!(lines[0].action, None);
         // Meetings says which ones, with the same download.
         let meetings = s.lines(Page::Meetings);
         assert_eq!(
@@ -1399,6 +1445,81 @@ mod tests {
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].tone, Tone::Progress(Some(0.25)));
         assert_eq!(lines[0].text, "Downloading · 1.0 GB of 4.0 GB");
+    }
+
+    #[test]
+    fn a_missing_model_keeps_its_button_while_the_header_shows_cancel() {
+        let s = status(StatusInput {
+            models: vec![
+                model(
+                    Role::Transcribe,
+                    ModelState::Downloading(Some(0.5)),
+                    Some(1),
+                ),
+                model(Role::Think, ModelState::Missing, Some(2_000_000_000)),
+                model(Role::Autocomplete, ModelState::Ready, None),
+            ],
+            ..Default::default()
+        });
+        let lines = s.lines(Page::Models);
+        assert_eq!(lines[0].id, "download");
+        assert_eq!(lines[0].action, Some(StatusAction::Download));
+        assert_eq!(lines[1].id, "downloading");
+    }
+
+    #[test]
+    fn trying_dictation_names_only_what_stops_it_even_with_the_shortcut_off() {
+        let mut microphone = permission("microphone", false, &["Dictation"]);
+        microphone.checked = true;
+        let s = status(StatusInput {
+            permissions: vec![
+                microphone,
+                permission("accessibility", false, &["Dictation"]),
+            ],
+            models: vec![
+                model(Role::Transcribe, ModelState::Missing, Some(1_000_000_000)),
+                model(Role::Think, ModelState::Missing, Some(1)),
+                model(Role::Autocomplete, ModelState::Ready, None),
+            ],
+            ..Default::default()
+        });
+        // The page says only that it is off.
+        assert_eq!(s.lines(Page::Dictation)[0].id, "off");
+        let blockers = s.dictation_try_blockers();
+        assert_eq!(blockers.len(), 2);
+        assert_eq!(blockers[0].text, "microphone detail");
+        assert_eq!(blockers[1].id, "model.download");
+        assert_eq!(blockers[1].action, Some(StatusAction::Download));
+    }
+
+    #[test]
+    fn a_failed_check_is_a_line_that_opens_the_checks() {
+        let s = status(StatusInput {
+            models: ready_models(),
+            failed_checks: vec![Role::Think, Role::Autocomplete],
+            ..Default::default()
+        });
+        let lines = s.lines(Page::Models);
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].text, "Think model didn’t pass its check.");
+        assert_eq!(
+            lines[0].action,
+            Some(StatusAction::Open(Page::Models, Some(MODEL_CHECKS_FOCUS)))
+        );
+        // A check is no need of its own: nothing is badged for it.
+        assert!(s.needs().is_empty());
+        // A model that is not here has no check to fail.
+        let missing = status(StatusInput {
+            models: vec![model(Role::Think, ModelState::Missing, Some(1))],
+            failed_checks: vec![Role::Think],
+            ..Default::default()
+        });
+        assert!(
+            missing
+                .lines(Page::Models)
+                .iter()
+                .all(|line| line.id != "check")
+        );
     }
 
     #[test]

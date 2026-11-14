@@ -807,30 +807,6 @@ impl SettingsPage {
         )
     }
 
-    /// The row under "Also used by LokalBot" that opens the page below.
-    pub(super) fn read_aloud_row(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let page = cx.entity();
-        settings_row::row(
-            "settings.speechVoice",
-            lokalbot_i18n::tr("Read aloud"),
-            Some(lokalbot_i18n::tr("Kokoro 82M · On this PC").into()),
-            settings_row::link_button(
-                "settings-read-aloud",
-                lokalbot_i18n::tr("Change…"),
-                move |_, cx| {
-                    page.update(cx, |page, cx| {
-                        page.models.page = ModelsPage::ReadAloud;
-                        cx.notify();
-                    })
-                },
-                cx,
-            ),
-            self.is_focused("settings.speechVoice"),
-            cx,
-        )
-        .into_any_element()
-    }
-
     pub(super) fn read_aloud_page(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let lb = cx.lb().clone();
         let (settings, installed, download, speech) = {

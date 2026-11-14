@@ -1,4 +1,5 @@
-//! Settings → Writing → Where autocomplete runs (`AutocompleteServerSetup`):
+//! Settings → Autocomplete → Where autocomplete runs (`AutocompleteServerSetup`,
+//! the Mac's autocomplete model picker):
 //! on this computer, on Think's server with the same or another model, or on
 //! any OpenAI-compatible server, hosted or on the user's own network. It edits
 //! a draft that Use model applies. Typing goes to a server only after its
@@ -345,7 +346,8 @@ impl SettingsPage {
             },
         );
         let id = "settings.cotypingBackend";
-        let mut section = Section::new(lokalbot_i18n::tr("Where autocomplete runs")).row(
+        // Its own page, under the bar that names it.
+        let mut section = Section::new(None).row(
             id,
             settings_row::row(
                 id,
@@ -605,7 +607,7 @@ impl SettingsPage {
                     )),
             )
             .child(settings_row::help(
-                lokalbot_i18n::tr("What you type goes to this server as you type, with the context you turn on under Settings → Writing."),
+                lokalbot_i18n::tr("What you type goes to this server as you type, with the context you turn on under Settings → Autocomplete."),
                 cx,
             ));
         if !https {

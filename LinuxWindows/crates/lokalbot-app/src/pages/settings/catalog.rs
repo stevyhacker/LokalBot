@@ -1455,6 +1455,52 @@ pub const ENTRIES: &[Entry] = &[
 ];
 
 /// Entries whose title, aliases or category contain every query word.
+/// The setting's name on its page, where it differs from its title
+/// (`SettingDescriptor.label`): results show it, and it is searched too.
+pub fn label(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "settings.cotypingDebounceMs" => "Wait after you stop typing",
+        "settings.cotypingMaxWords" => "Length",
+        "settings.generationBudgetPreset" => "Effort on long meetings",
+        "settings.thinkReasoningLevel" => "How long Think reasons",
+        "settings.cotypingMultiLine" => "Suggestions longer than one line",
+        "settings.cotypingAcceptKey" => "Accept with",
+        "settings.cotypingAcceptGranularity" => "Each press accepts",
+        "settings.cotypingAutoAcceptTrailingPunctuation" => "Take punctuation with the word",
+        "settings.cotypingUseAppContext" => "App and window name",
+        "settings.cotypingUseClipboard" => "Clipboard",
+        "settings.cotypingUseVisibleContext" => "Text above where you type",
+        "settings.cotypingUseWindowText" => "The whole window",
+        "settings.cotypingUseMeetingMemory" => "Facts from your meetings",
+        "settings.cotypingUseScreenMemory" => "Facts from your screen history",
+        "settings.cotypingMatchHostStyle" => "Match the app’s font and text color",
+        "settings.cotypingAutocorrect" => "Fix typos in the current word",
+        "settings.cotypingEmoji" => "Suggest emoji",
+        "settings.dictationTriggerMode" => "Start and stop",
+        "settings.dictationIntent" => "Mode",
+        "settings.dictationOutputMode" => "When you finish",
+        "settings.dictationShowOverlay" => "Show a small status window",
+        "settings.dictationLivePreview" => "Show the words as you speak",
+        "settings.dictationRetainAudio" => "Keep the audio files",
+        "settings.dictationUseScreenContext" => "The focused window",
+        "settings.dictationUseVisibleContext" => "Text above where you type",
+        "settings.dictationUseMeetingMemory" => "Facts from your meetings",
+        "settings.dictationUseScreenMemory" => "Facts from your screen history",
+        "settings.dictationTranscribeModel" | "settings.dictationCompositionBuiltInModelID" => {
+            "Who writes the text"
+        }
+        "settings.autocompletePreview" => "Try autocomplete",
+        "settings.modelChecks" => "Check the models",
+        "settings.summarizerBackend" => "Online services",
+        _ => return None,
+    })
+}
+
+/// What a result is called: its name on the page, else its title.
+pub fn display_title(entry: &Entry) -> &'static str {
+    label(entry.id).unwrap_or(entry.title)
+}
+
 pub fn search(query: &str) -> Vec<&'static Entry> {
     search_in(query, lokalbot_i18n::current().code)
 }
@@ -1481,10 +1527,13 @@ fn search_in(query: &str, locale: &str) -> Vec<&'static Entry> {
                 .map(|key| format!("{key} {}", lokalbot_i18n::translate(locale, key)))
                 .collect::<Vec<_>>()
                 .join(" ");
+            let label = label(entry.id).unwrap_or_default();
             lokalbot_core::text::settings_search_matches(
                 query,
                 &[
                     entry.title,
+                    label,
+                    lokalbot_i18n::translate(locale, label),
                     entry.aliases,
                     entry.id.trim_start_matches("settings."),
                     category_key(entry.category),
@@ -1567,10 +1616,6 @@ pub fn focus_target<'a>(id: &'a str, settings: &Settings) -> &'a str {
     }
     if key == "ollamaBaseURL" && settings.summarizer_backend != SummarizerBackend::Ollama {
         return "settings.summarizerBackend";
-    }
-    // The level sits on Think's row, the model it applies to.
-    if key == "thinkReasoningLevel" {
-        return "settings.builtInModelID";
     }
     if key == "screenshotIntervalMinutes"
         && settings.screen_context_capture_mode == ScreenContextMode::ActivityOnly
@@ -1781,9 +1826,10 @@ mod tests {
             focus_target("settings.openAIBaseURL", &off),
             "settings.summarizerBackend"
         );
+        // The level is a row of its own under Models' Advanced now.
         assert_eq!(
             focus_target("settings.thinkReasoningLevel", &off),
-            "settings.builtInModelID"
+            "settings.thinkReasoningLevel"
         );
         assert_eq!(
             focus_target("settings.screenshotIntervalMinutes", &off),

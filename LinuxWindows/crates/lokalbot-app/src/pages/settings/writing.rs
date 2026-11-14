@@ -1,6 +1,9 @@
-//! Writing: autocomplete, its practice editor, the writing profile and
-//! exclusions (`AutocompleteExperienceView.swift`, `SettingsView.cotypingSection`).
-//! The writing profile is also what Compose dictation writes as.
+//! Settings › Autocomplete (the port's "Writing" category,
+//! `AutocompleteSettingsPage.swift`, `AutocompleteExperienceView.swift`):
+//! under the shared header, the settings in groups, then rows that open the
+//! writing profile, the apps and sites to skip and the usage numbers. The
+//! practice editor is the header's "Try it…" sheet (`try_sheet`). The
+//! writing profile is also what Compose dictation writes as.
 //!
 //! The practice editor goes through the same engine path as a field in
 //! another app: its text is sent as a field context, the suggestion is drawn
@@ -33,7 +36,9 @@ use lokalbot_engine::{AutocompleteCommand, Command};
 use lokalbot_platform::autocomplete::session::replaced_bytes;
 use lokalbot_platform::autocomplete::{AcceptKeys, InterceptedKey, Support};
 
+use super::subpage::Subpage;
 use super::{Section, SettingsPage, models, writing_rehearsal, writing_server};
+use crate::pages::people::model::fill;
 use crate::state::{AppEvent, SettingsCategory};
 use crate::theme::UiFont as _;
 use crate::theme::{LbThemeExt as _, ty};
@@ -226,7 +231,7 @@ fn screen_memory_state(settings: &Settings, inventory: &Inventory) -> ContextSta
         if blocked > 0 {
             text.push(' ');
             text.push_str(&lokalbot_i18n::format(
-                "{0} more also draw on meetings and need Use meeting and work memory.",
+                "{0} more also draw on meetings and need Facts from your meetings.",
                 &[("0", blocked.to_string())],
             ));
         }
@@ -234,10 +239,10 @@ fn screen_memory_state(settings: &Settings, inventory: &Inventory) -> ContextSta
     }
     if blocked > 0 {
         return ContextState::Unavailable(if blocked == 1 {
-            lokalbot_i18n::tr("Unavailable: the 1 saved fact also draws on meetings. Turn on Use meeting and work memory.").to_string()
+            lokalbot_i18n::tr("Unavailable: the 1 saved fact also draws on meetings. Turn on Facts from your meetings.").to_string()
         } else {
             lokalbot_i18n::format(
-                "Unavailable: the {0} saved facts also draw on meetings. Turn on Use meeting and work memory.",
+                "Unavailable: the {0} saved facts also draw on meetings. Turn on Facts from your meetings.",
                 &[("0", blocked.to_string())],
             )
         });
@@ -260,7 +265,6 @@ pub struct WritingState {
     pub(super) range: UsageRange,
     /// The chart shows words rather than the share of suggestions used.
     pub(super) chart_words: bool,
-    pub(super) timing_open: bool,
     inventory: Option<(std::time::Instant, Inventory)>,
 }
 
@@ -291,7 +295,6 @@ impl WritingState {
             server: writing_server::ServerDraft::new(settings, window, cx),
             range: UsageRange::default(),
             chart_words: true,
-            timing_open: false,
             inventory: None,
         }
     }
@@ -421,221 +424,81 @@ impl SettingsPage {
         })
     }
 
+    /// Settings › Autocomplete under its header, or the page one of its rows
+    /// opened (`AutocompleteSettingsSections`).
     pub(super) fn writing_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
-        let (settings, model_ready, downloads, installed, ocr_ready) = {
-            let data = self.data.read(cx);
-            (
-                data.settings.clone(),
-                data.models.autocomplete_ready,
-                data.downloads.clone(),
-                data.models.installed.clone(),
-                data.models.screen_text_ready,
-            )
+        match self.open_subpage(SettingsCategory::Writing) {
+            Some(Subpage::AutocompleteProfile) => vec![self.autocomplete_profile_section(cx)],
+            Some(Subpage::AutocompleteExclusions) => {
+                vec![self.autocomplete_exclusions_section(cx)]
+            }
+            Some(Subpage::AutocompleteUsage) => self.autocomplete_usage_sections(cx),
+            Some(Subpage::AutocompleteServer) => vec![self.server_section(cx)],
+            _ => self.autocomplete_main_sections(cx),
+        }
+    }
+
+    /// What autocomplete runs on, why a server can't be used, and what this
+    /// desktop allows: the page's notices (`AutocompleteNotices`), plus the
+    /// port's input-method steps and limits. Nothing when all is well.
+    fn autocomplete_notices(&mut self, cx: &mut Context<Self>) -> Option<Section> {
+        let lb = cx.lb().clone();
+        let settings = self.data.read(cx).settings.clone();
+        let (support, limitation, server_problem) = match crate::autocomplete::global(cx) {
+            Some(autocomplete) => {
+                let autocomplete = autocomplete.read(cx);
+                (
+                    autocomplete.support().clone(),
+                    autocomplete.limitation(),
+                    autocomplete.server_problem.clone(),
+                )
+            }
+            None => (Support::Available, None, None),
         };
-        let (support, limitation, ghost, learning, memory_use, server_problem, rehearsal) =
-            match crate::autocomplete::global(cx) {
-                Some(autocomplete) => {
-                    let autocomplete = autocomplete.read(cx);
-                    (
-                        autocomplete.support().clone(),
-                        autocomplete.limitation(),
-                        autocomplete.practice.ghost(&settings),
-                        autocomplete.learning.clone(),
-                        autocomplete.memory_use.clone(),
-                        autocomplete.server_problem.clone(),
-                        autocomplete.rehearsal.clone(),
-                    )
-                }
-                None => (
-                    Support::Available,
-                    None,
-                    None,
-                    Default::default(),
-                    Default::default(),
-                    None,
-                    None,
-                ),
-            };
         let route = server::route(&settings, None);
         let uses_server = settings.cotyping_backend != CotypingBackend::OnDevice;
-        // Why the selected server's last request brought no suggestion, shown
-        // only for the server it belongs to.
-        let server_failure = match &route {
-            Route::Server(endpoint) => server_problem
-                .as_ref()
-                .filter(|problem| problem.identity == endpoint.identity())
-                .map(writing_server::failure_text),
-            _ => None,
-        };
-        let setup_problem = match &route {
-            Route::Unavailable(problem) => Some(writing_server::problem_text(problem)),
-            _ => None,
-        };
-        let lb = cx.lb().clone();
-        let data = self.data.clone();
-        let model_name = writing_server::model_display_name(&settings);
-        let needs = models::autocomplete_needs(&settings);
-        let missing: Vec<String> = needs
-            .iter()
-            .filter(|id| !installed.contains(id))
-            .cloned()
-            .collect();
-        let downloading = needs
-            .iter()
-            .find_map(|id| downloads.get(id))
-            .map(|d| d.fraction());
-        let other_apps = support == Support::Available;
-
-        // Summary: what autocomplete is doing, its readiness and the switch.
-        let summary_detail = if settings.cotyping_enabled && other_apps {
-            lokalbot_i18n::format(
-                "{model_name} · suggestions appear as you type in other apps.",
-                &[("model_name", model_name.to_string())],
-            )
-        } else if settings.cotyping_enabled {
-            lokalbot_i18n::format(
-                "{model_name} · suggestions appear in the practice editor below.",
-                &[("model_name", model_name.to_string())],
-            )
-        } else if uses_server && model_ready {
-            lokalbot_i18n::tr("The server is ready. Turn on autocomplete to start.").into()
-        } else if uses_server {
-            lokalbot_i18n::tr("Finish the server setup under Where autocomplete runs to try it.")
-                .into()
-        } else if model_ready {
-            lokalbot_i18n::tr("The model is ready. Turn on autocomplete to start.").into()
-        } else {
-            lokalbot_i18n::tr("Download the Autocomplete model to try it.").into()
-        };
-        let readiness: AnyElement = match (model_ready, downloading) {
-            _ if server_failure.is_some() => {
-                status_pill(lokalbot_i18n::tr("Server problem"), false, cx).into_any_element()
-            }
-            _ if uses_server && model_ready => {
-                status_pill(lokalbot_i18n::tr("Server ready"), true, cx).into_any_element()
-            }
-            _ if uses_server => {
-                status_pill(lokalbot_i18n::tr("Server setup needed"), false, cx).into_any_element()
-            }
-            (true, _) => status_pill(lokalbot_i18n::tr("Model ready"), true, cx).into_any_element(),
-            (false, Some(fraction)) => status_pill_text(
-                lokalbot_i18n::format(
-                    "Downloading · {0}%",
-                    &[("0", format!("{}", (fraction * 100.).round()))],
-                ),
-                false,
-                cx,
-            )
-            .into_any_element(),
-            (false, None) => {
-                let size = models::size_label(
-                    missing
-                        .iter()
-                        .map(|id| models::model_bytes(id, &settings))
-                        .sum(),
-                );
-                let download_data = data.clone();
-                let ids = missing.clone();
-                h_flex()
-                    .gap(px(8.))
-                    .items_center()
-                    .child(status_pill(lokalbot_i18n::tr("Model needed"), false, cx))
-                    .child(
-                        Button::new("settings-cotyping-download")
-                            .outline()
-                            .small()
-                            .icon(Icon::new(Ico::CircleArrowDown))
-                            .label(lokalbot_i18n::format(
-                                "Download · {size}",
-                                &[("size", size.to_string())],
-                            ))
-                            .on_click(move |_, _, cx| {
-                                download_data.update(cx, |data, cx| {
-                                    for id in &ids {
-                                        data.request(AppEvent::DownloadModel(id.clone()), cx);
-                                    }
-                                })
-                            }),
-                    )
-                    .into_any_element()
-            }
-        };
-        let enable_data = data.clone();
-        let summary = h_flex()
-            .w_full()
-            .gap(px(12.))
-            .items_start()
-            .child(ui::icon_tile(
-                Ico::TextCursorInput,
-                if settings.cotyping_enabled {
-                    lb.accent_text
-                } else {
-                    lb.text_tertiary
-                },
-                px(40.),
-            ))
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(4.))
-                    .child(
-                        div()
-                            .text_size(ty::BODY)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(lb.text)
-                            .child(if settings.cotyping_enabled {
-                                lokalbot_i18n::tr("Autocomplete on")
-                            } else {
-                                lokalbot_i18n::tr("Autocomplete off")
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(summary_detail),
-                    )
-                    .child(h_flex().pt(px(2.)).child(readiness)),
-            )
-            .child(settings_row::switch(
-                "settings.cotypingEnabled",
-                settings.cotyping_enabled,
-                move |on, _, cx| {
-                    enable_data.update(cx, |data, cx| {
-                        data.update_settings(|s| s.cotyping_enabled = on, cx)
-                    })
-                },
-            ));
-        let mut home = Section::new(None).row(
-            "settings.cotypingEnabled",
-            settings_row::content_row(
-                "settings.cotypingEnabled",
-                summary,
-                self.is_focused("settings.cotypingEnabled"),
-                cx,
-            ),
-        );
-        if let Some(problem) = setup_problem.as_ref().filter(|_| uses_server) {
-            home = home.row(
-                "settings.autocompleteServerSetup",
-                settings_row::content_row(
+        let mut section = Section::new(None);
+        // A model chosen with Change… below is prepared before the switch.
+        if let Some(feedback) = self.model_setup_feedback(cx) {
+            section = section.row("settings-model-switch", feedback);
+        }
+        match &route {
+            Route::Unavailable(problem) if uses_server => {
+                section = section.row(
                     "settings.autocompleteServerSetup",
-                    notice(Ico::TriangleAlert, problem.clone(), lb.text_secondary, cx),
-                    false,
-                    cx,
-                ),
-            );
-        } else if let Some(failure) = &server_failure {
-            home = home.row(
-                "settings.autocompleteServerProblem",
-                settings_row::content_row(
-                    "settings.autocompleteServerProblem",
-                    notice(Ico::TriangleAlert, failure.clone(), lb.attention_text, cx),
-                    false,
-                    cx,
-                ),
-            );
+                    settings_row::content_row(
+                        "settings.autocompleteServerSetup",
+                        notice(
+                            Ico::TriangleAlert,
+                            writing_server::problem_text(problem),
+                            lb.text_secondary,
+                            cx,
+                        ),
+                        false,
+                        cx,
+                    ),
+                );
+            }
+            // Why the selected server's last request brought no suggestion,
+            // shown only for the server it belongs to.
+            Route::Server(endpoint) => {
+                if let Some(failure) = server_problem
+                    .as_ref()
+                    .filter(|problem| problem.identity == endpoint.identity())
+                    .map(writing_server::failure_text)
+                {
+                    section = section.row(
+                        "settings.autocompleteServerProblem",
+                        settings_row::content_row(
+                            "settings.autocompleteServerProblem",
+                            notice(Ico::TriangleAlert, failure, lb.attention_text, cx),
+                            false,
+                            cx,
+                        ),
+                    );
+                }
+            }
+            _ => {}
         }
         // Where autocomplete reaches other apps as an input method, say what
         // that means on this desktop, before it is turned on too.
@@ -681,26 +544,17 @@ impl SettingsPage {
                         ),
                 );
             }
-            home = home.row(
+            section = section.row(
                 "settings.autocompleteInputSource",
                 settings_row::content_row("settings.autocompleteInputSource", content, false, cx),
             );
         }
-        // Where autocomplete cannot follow the user into other apps, say so.
-        if let Support::Unavailable(reason) = &support {
-            home = home.row(
-                "settings.autocompleteSupport",
-                settings_row::content_row(
-                    "settings.autocompleteSupport",
-                    notice(Ico::TriangleAlert, reason.clone(), lb.attention_text, cx),
-                    false,
-                    cx,
-                ),
-            );
-        } else if let Some(limitation) = limitation
-            && settings.cotyping_enabled
+        // Where autocomplete can't follow the user into other apps the
+        // header says so; a partial limit is said here while it is on.
+        if support == Support::Available
+            && let Some(limitation) = limitation.filter(|_| settings.cotyping_enabled)
         {
-            home = home.row(
+            section = section.row(
                 "settings.autocompleteLimitation",
                 settings_row::content_row(
                     "settings.autocompleteLimitation",
@@ -710,7 +564,825 @@ impl SettingsPage {
                 ),
             );
         }
+        (!section.rows.is_empty()).then_some(section)
+    }
 
+    fn autocomplete_main_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
+        let (settings, downloads, ocr_ready, usage_empty) = {
+            let data = self.data.read(cx);
+            (
+                data.settings.clone(),
+                data.downloads.clone(),
+                data.models.screen_text_ready,
+                crate::autocomplete::global(cx)
+                    .is_none_or(|autocomplete| autocomplete.read(cx).measures.usage.is_empty()),
+            )
+        };
+        let (support, memory_use) = match crate::autocomplete::global(cx) {
+            Some(autocomplete) => {
+                let autocomplete = autocomplete.read(cx);
+                (
+                    autocomplete.support().clone(),
+                    autocomplete.memory_use.clone(),
+                )
+            }
+            None => (Support::Available, Default::default()),
+        };
+        let other_apps = support == Support::Available;
+        let lb = cx.lb().clone();
+        let data = self.data.clone();
+        let mut sections: Vec<Section> = self.autocomplete_notices(cx).into_iter().collect();
+
+        // Suggestions.
+        let words = settings.cotyping_max_words.clamp(2, 50);
+        let words_data = data.clone();
+        let suggestions = Section::new(lokalbot_i18n::tr("Suggestions"))
+            .row(
+                "settings.cotypingMaxWords",
+                settings_row::row(
+                    "settings.cotypingMaxWords",
+                    lokalbot_i18n::tr("Length"),
+                    None,
+                    settings_row::stepper(
+                        "settings-cotyping-words",
+                        fill(
+                            lokalbot_i18n::tr("Up to %lld words"),
+                            &[&lokalbot_i18n::number(words as usize)],
+                        ),
+                        words > 2,
+                        words < 50,
+                        move |step, _, cx| {
+                            let next = (words as i32 + step).clamp(2, 50) as u32;
+                            words_data.update(cx, |data, cx| {
+                                data.update_settings(|s| s.cotyping_max_words = next, cx)
+                            });
+                        },
+                        cx,
+                    ),
+                    self.is_focused("settings.cotypingMaxWords"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingDebounceMs",
+                settings_row::row(
+                    "settings.cotypingDebounceMs",
+                    lokalbot_i18n::tr("Wait after you stop typing"),
+                    Some(lokalbot_i18n::tr("Shorter shows suggestions sooner").into()),
+                    h_flex()
+                        .gap(px(10.))
+                        .items_center()
+                        .child(div().w(px(220.)).child(Slider::new(&self.debounce_slider)))
+                        .child(
+                            div()
+                                .min_w(px(56.))
+                                .text_size(ty::BODY)
+                                .text_color(lb.text_secondary)
+                                .flex()
+                                .justify_end()
+                                .child(crate::ui::text::paragraph(lokalbot_i18n::format(
+                                    "{0} ms",
+                                    &[("0", format!("{}", settings.cotyping_debounce_ms))],
+                                ))),
+                        ),
+                    self.is_focused("settings.cotypingDebounceMs"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingAcceptKey",
+                self.choice(
+                    "settings.cotypingAcceptKey",
+                    lokalbot_i18n::tr("Accept with"),
+                    None,
+                    [CotypingAcceptKey::Tab, CotypingAcceptKey::RightArrow]
+                        .map(|key| (key, accept_key_label(key).into()))
+                        .to_vec(),
+                    settings.cotyping_accept_key,
+                    |s, v| s.cotyping_accept_key = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingAcceptGranularity",
+                self.choice(
+                    "settings.cotypingAcceptGranularity",
+                    lokalbot_i18n::tr("Each press accepts"),
+                    None,
+                    vec![
+                        (
+                            AcceptGranularity::Word,
+                            granularity_label(AcceptGranularity::Word).into(),
+                        ),
+                        (
+                            AcceptGranularity::Phrase,
+                            granularity_label(AcceptGranularity::Phrase).into(),
+                        ),
+                    ],
+                    settings.cotyping_accept_granularity,
+                    |s, v| s.cotyping_accept_granularity = v,
+                    cx,
+                ),
+            )
+            // Port-only: a second key takes the whole suggestion.
+            .row(
+                "settings.cotypingFullAcceptKey",
+                self.choice(
+                    "settings.cotypingFullAcceptKey",
+                    lokalbot_i18n::tr("Accept the rest"),
+                    None,
+                    [
+                        CotypingFullAcceptKey::Backtick,
+                        CotypingFullAcceptKey::RightArrow,
+                        CotypingFullAcceptKey::Off,
+                    ]
+                    .map(|key| (key, full_accept_key_label(key).into()))
+                    .to_vec(),
+                    settings.cotyping_full_accept_key,
+                    |s, v| s.cotyping_full_accept_key = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingAutoAcceptTrailingPunctuation",
+                self.toggle(
+                    "settings.cotypingAutoAcceptTrailingPunctuation",
+                    lokalbot_i18n::tr("Take punctuation with the word"),
+                    Some(lokalbot_i18n::tr("When off, a full stop or comma after a word takes its own press, so you can still end the sentence differently.")),
+                    settings.cotyping_auto_accept_trailing_punctuation,
+                    |s, v| s.cotyping_auto_accept_trailing_punctuation = v,
+                    cx,
+                ),
+            )
+            // Port-only.
+            .row(
+                "settings.cotypingAddSpaceAfterAccept",
+                self.toggle(
+                    "settings.cotypingAddSpaceAfterAccept",
+                    lokalbot_i18n::tr("Add a space after accepting a word"),
+                    None,
+                    settings.cotyping_add_space_after_accept,
+                    |s, v| s.cotyping_add_space_after_accept = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingEscapeBehavior",
+                self.choice(
+                    "settings.cotypingEscapeBehavior",
+                    lokalbot_i18n::tr("Escape on a suggestion"),
+                    Some(lokalbot_i18n::tr("Pausing keeps Escape from also reaching the app and holds suggestions in that field for a few seconds. Escape is never touched when no suggestion is showing.").into()),
+                    [CotypingEscapeBehavior::Pause, CotypingEscapeBehavior::PassThrough]
+                        .map(|behavior| (behavior, escape_label(behavior).into()))
+                        .to_vec(),
+                    settings.cotyping_escape_behavior,
+                    |s, v| s.cotyping_escape_behavior = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingMultiLine",
+                self.toggle(
+                    "settings.cotypingMultiLine",
+                    lokalbot_i18n::tr("Suggestions longer than one line"),
+                    None,
+                    settings.cotyping_multi_line,
+                    |s, v| s.cotyping_multi_line = v,
+                    cx,
+                ),
+            );
+        sections.push(suggestions);
+
+        // What it can read.
+        let inventory = self.context_inventory(cx);
+        let visible_state = visible_text_state(&settings, other_apps);
+        let window_state = window_text_state(&settings, other_apps, ocr_ready);
+        let meeting_state = meeting_memory_state(&settings, &inventory);
+        let screen_state = screen_memory_state(&settings, &inventory);
+        let context = Section::new(lokalbot_i18n::tr("What it can read"))
+            .row(
+                "settings.cotypingUseAppContext",
+                self.toggle(
+                    "settings.cotypingUseAppContext",
+                    lokalbot_i18n::tr("App and window name"),
+                    None,
+                    settings.cotyping_use_app_context,
+                    |s, v| s.cotyping_use_app_context = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingUseClipboard",
+                self.toggle(
+                    "settings.cotypingUseClipboard",
+                    lokalbot_i18n::tr("Clipboard"),
+                    None,
+                    settings.cotyping_use_clipboard,
+                    |s, v| s.cotyping_use_clipboard = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingUseVisibleContext",
+                self.toggle(
+                    "settings.cotypingUseVisibleContext",
+                    lokalbot_i18n::tr("Text above where you type"),
+                    Some(
+                        lokalbot_i18n::tr("Use nearby messages and labels to suggest relevant replies. Processed on this PC, never saved; capture exclusions apply and private browser windows are skipped."),
+                    ),
+                    settings.cotyping_use_visible_context,
+                    |s, v| s.cotyping_use_visible_context = v,
+                    cx,
+                ),
+            );
+        let context = with_state(
+            context,
+            "settings.cotypingUseVisibleContextState",
+            &visible_state,
+            cx,
+        );
+        let context = context.row(
+            "settings.cotypingUseWindowText",
+            self.toggle(
+                "settings.cotypingUseWindowText",
+                lokalbot_i18n::tr("The whole window"),
+                Some(lokalbot_i18n::tr("Read the whole window you are typing in with on-device text recognition, so suggestions follow the full conversation or page. The image and text stay on this computer and are never saved; capture exclusions apply and private browser windows are skipped.")),
+                settings.cotyping_use_window_text,
+                |s, v| s.cotyping_use_window_text = v,
+                cx,
+            ),
+        );
+        let context = if window_state == ContextState::Off {
+            context
+        } else {
+            context.row(
+                "settings.cotypingUseWindowTextState",
+                self.window_text_row(&window_state, ocr_ready, &downloads, cx),
+            )
+        };
+        let context = context.row(
+            "settings.cotypingUseMeetingMemory",
+            self.toggle(
+                "settings.cotypingUseMeetingMemory",
+                lokalbot_i18n::tr("Facts from your meetings"),
+                Some(
+                    lokalbot_i18n::tr("Use up to two relevant facts from recent meeting notes, decisions, and work memory to help with names and details. Processed on this PC."),
+                ),
+                settings.cotyping_use_meeting_memory,
+                |s, v| s.cotyping_use_meeting_memory = v,
+                cx,
+            ),
+        );
+        let context = with_state(
+            context,
+            "settings.cotypingUseMeetingMemoryState",
+            &meeting_state,
+            cx,
+        );
+        let context = context.row(
+            "settings.cotypingUseScreenMemory",
+            self.toggle(
+                "settings.cotypingUseScreenMemory",
+                lokalbot_i18n::tr("Facts from your screen history"),
+                Some(lokalbot_i18n::tr("Also allow relevant work memory derived from screen activity and daily journals. Reads what is already saved; it does not capture new screens or start an overnight review. Mixed meeting and screen memories require both settings.")),
+                settings.cotyping_use_screen_memory,
+                |s, v| s.cotyping_use_screen_memory = v,
+                cx,
+            ),
+        );
+        let mut context = with_state(
+            context,
+            "settings.cotypingUseScreenMemoryState",
+            &screen_state,
+            cx,
+        );
+        let memory_use_text = if !memory_use.0.is_empty() {
+            Some(lokalbot_i18n::format(
+                "Last suggestion used: {0}",
+                &[("0", memory_use.0.join(", "))],
+            ))
+        } else if memory_use.1 {
+            Some(lokalbot_i18n::tr("Last suggestion: no relevant memory found.").to_string())
+        } else {
+            None
+        };
+        if let Some(text) = memory_use_text {
+            context = context.row(
+                "settings.cotypingMemoryUse",
+                settings_row::content_row(
+                    "settings.cotypingMemoryUse",
+                    settings_row::help(text, cx),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        // A server receives what is turned on here; only this computer can
+        // promise that nothing it reads is kept.
+        let footer = match server::configured_host(&settings)
+            .filter(|_| server::leaves_this_computer(&settings))
+        {
+            Some(host) => notice(
+                Ico::Network,
+                fill(
+                    lokalbot_i18n::tr("Context you turn on here is sent to %@ with what you type."),
+                    &[&host],
+                ),
+                lb.attention_text,
+                cx,
+            ),
+            None => settings_row::help(
+                lokalbot_i18n::tr(
+                    "Read only while you type, on this PC. Nothing it reads is saved.",
+                ),
+                cx,
+            ),
+        };
+        context = context.row(
+            "settings.cotypingContextDestination",
+            settings_row::content_row("settings.cotypingContextDestination", footer, false, cx),
+        );
+        sections.push(context);
+
+        // Extras.
+        sections.push(
+            Section::new(lokalbot_i18n::tr("Extras"))
+                .row(
+                    "settings.cotypingAutocorrect",
+                    self.toggle(
+                        "settings.cotypingAutocorrect",
+                        lokalbot_i18n::tr("Fix typos in the current word"),
+                        Some(if lokalbot_platform::autocomplete::spell::has_dictionaries() {
+                            lokalbot_i18n::tr("Offers a one-key correction for the word you are typing.")
+                        } else {
+                            lokalbot_i18n::tr("Needs a spelling dictionary on this computer, such as a Hunspell dictionary package for your language.")
+                        }),
+                        settings.cotyping_autocorrect,
+                        |s, v| s.cotyping_autocorrect = v,
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.cotypingEmoji",
+                    self.toggle(
+                        "settings.cotypingEmoji",
+                        lokalbot_i18n::tr("Suggest emoji"),
+                        Some(lokalbot_i18n::tr("Complete :shortcode: emoji.")),
+                        settings.cotyping_emoji,
+                        |s, v| s.cotyping_emoji = v,
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.cotypingMacros",
+                    self.toggle(
+                        "settings.cotypingMacros",
+                        lokalbot_i18n::tr("Macros"),
+                        Some(lokalbot_i18n::tr(
+                            "Complete /macros such as math, dates, units, and currency.",
+                        )),
+                        settings.cotyping_macros,
+                        |s, v| s.cotyping_macros = v,
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.cotypingMatchHostStyle",
+                    self.toggle(
+                        "settings.cotypingMatchHostStyle",
+                        lokalbot_i18n::tr("Match the app’s font and text color"),
+                        None,
+                        settings.cotyping_match_host_style,
+                        |s, v| s.cotyping_match_host_style = v,
+                        cx,
+                    ),
+                ),
+        );
+
+        // More: the model, then rows that open their pages.
+        let page = cx.entity();
+        let open = move |sub: Subpage| {
+            let page = page.clone();
+            move |_: &mut Window, cx: &mut App| {
+                page.update(cx, |page, cx| page.show_subpage(sub, cx))
+            }
+        };
+        let skipped = lokalbot_core::settings::split_list(&settings.cotyping_excluded_apps).len()
+            + lokalbot_core::settings::split_list(&settings.cotyping_excluded_domains).len();
+        let model_name = writing_server::model_display_name(&settings);
+        let change = self.change_button(super::status::Role::Autocomplete, cx);
+        sections.push(
+            Section::new(lokalbot_i18n::tr("More"))
+                .row(
+                    "settings.cotypingModel",
+                    settings_row::row(
+                        "settings.cotypingModel",
+                        lokalbot_i18n::tr("Autocomplete model"),
+                        None,
+                        h_flex()
+                            .gap(px(10.))
+                            .items_center()
+                            .child(
+                                div()
+                                    .max_w(px(240.))
+                                    .truncate()
+                                    .text_size(ty::BODY)
+                                    .text_color(lb.text_secondary)
+                                    .child(model_name),
+                            )
+                            .child(change),
+                        false,
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.autocompleteProfile",
+                    super::model_overview::drill_row(
+                        "settings-autocomplete-profile",
+                        lokalbot_i18n::tr("Writing profile"),
+                        Some(lokalbot_i18n::tr(
+                            "Your name, style and languages. Dictation uses it too.",
+                        )),
+                        Some(super::dictation::writing_profile_summary(&settings)),
+                        open(Subpage::AutocompleteProfile),
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.autocompleteExclusions",
+                    super::model_overview::drill_row(
+                        "settings-autocomplete-exclusions",
+                        lokalbot_i18n::tr("Apps and sites to skip"),
+                        None,
+                        Some(if skipped == 0 {
+                            lokalbot_i18n::tr("None").to_string()
+                        } else {
+                            lokalbot_i18n::number(skipped)
+                        }),
+                        open(Subpage::AutocompleteExclusions),
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.autocompleteUsage",
+                    super::model_overview::drill_row(
+                        "settings-autocomplete-usage",
+                        lokalbot_i18n::tr("Usage"),
+                        Some(lokalbot_i18n::tr(
+                            "Words accepted and time saved, counted on this PC",
+                        )),
+                        usage_empty.then(|| lokalbot_i18n::tr("None yet").to_string()),
+                        open(Subpage::AutocompleteUsage),
+                        cx,
+                    ),
+                ),
+        );
+        sections
+    }
+
+    /// Writing profile (`profileSection`): who autocomplete and Compose write
+    /// as, and what is learned from accepted text.
+    fn autocomplete_profile_section(&mut self, cx: &mut Context<Self>) -> Section {
+        let lb = cx.lb().clone();
+        let settings = self.data.read(cx).settings.clone();
+        let learning = crate::autocomplete::global(cx)
+            .map(|autocomplete| autocomplete.read(cx).learning.clone())
+            .unwrap_or_default();
+        let learning_message = if learning.forgetting {
+            None
+        } else {
+            match learning.forgotten {
+                Some(true) => Some(lokalbot_i18n::tr("Learned text deleted.")),
+                Some(false) => Some(lokalbot_i18n::tr(
+                    "Could not delete learned text. Please try again.",
+                )),
+                None => None,
+            }
+        };
+        let examples = settings.cotyping_learning_examples_in_prompt.clamp(1, 5);
+        let examples_data = self.data.clone();
+        self.writing_profile_fields(Section::new(None), cx)
+            .row(
+                "settings.cotypingUseLocalLearning",
+                self.toggle(
+                    "settings.cotypingUseLocalLearning",
+                    lokalbot_i18n::tr("Learn locally from accepted completions"),
+                    Some(lokalbot_i18n::tr("Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.")),
+                    settings.cotyping_use_local_learning,
+                    |s, v| s.cotyping_use_local_learning = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingLearningExamplesInPrompt",
+                settings_row::row(
+                    "settings.cotypingLearningExamplesInPrompt",
+                    lokalbot_i18n::tr("Learned examples per suggestion"),
+                    None,
+                    settings_row::stepper(
+                        "settings-cotyping-learned-examples",
+                        examples.to_string(),
+                        examples > 1,
+                        examples < 5,
+                        move |step, _, cx| {
+                            let next = (examples as i32 + step).clamp(1, 5) as u32;
+                            examples_data.update(cx, |data, cx| {
+                                data.update_settings(
+                                    |s| s.cotyping_learning_examples_in_prompt = next,
+                                    cx,
+                                )
+                            });
+                        },
+                        cx,
+                    ),
+                    self.is_focused("settings.cotypingLearningExamplesInPrompt"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingForgetLearned",
+                settings_row::content_row(
+                    "settings.cotypingForgetLearned",
+                    v_flex()
+                        .w_full()
+                        .gap(px(6.))
+                        .when_some(learning.problem.clone(), |this, problem| {
+                            this.child(notice(Ico::TriangleAlert, problem, lb.attention_text, cx))
+                        })
+                        .child(
+                            h_flex().child(
+                                Button::new("settings-forget-learned")
+                                    .outline()
+                                    .small()
+                                    .label(if learning.forgetting {
+                                        lokalbot_i18n::tr("Forgetting…")
+                                    } else {
+                                        lokalbot_i18n::tr("Forget learned text")
+                                    })
+                                    .disabled(learning.forgetting)
+                                    .on_click(move |_, _, cx| {
+                                        crate::bridge::send(
+                                            Command::Autocomplete(
+                                                AutocompleteCommand::ForgetLearned,
+                                            ),
+                                            cx,
+                                        );
+                                    }),
+                            ),
+                        )
+                        .when_some(learning_message, |this, message| {
+                            this.child(settings_row::help(message, cx))
+                        }),
+                    self.is_focused("settings.cotypingForgetLearned"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.writingProfileHelp",
+                settings_row::content_row(
+                    "settings.writingProfileHelp",
+                    settings_row::help(
+                        lokalbot_i18n::tr("Autocomplete and Compose dictation write as you, in this style. Both are optional and stay on this PC unless your Think model runs on a server."),
+                        cx,
+                    ),
+                    false,
+                    cx,
+                ),
+            )
+    }
+
+    /// The writing profile's fields, which Autocomplete and Dictation's
+    /// Compose share (`WritingProfileFields`): both pages show them, bound to
+    /// the same settings. Notes for autocomplete is the port's own field.
+    pub(super) fn writing_profile_fields(
+        &self,
+        section: Section,
+        cx: &mut Context<Self>,
+    ) -> Section {
+        section
+            .row(
+                "settings.cotypingUserName",
+                settings_row::row(
+                    "settings.cotypingUserName",
+                    lokalbot_i18n::tr("Your name"),
+                    Some(lokalbot_i18n::tr("Also keeps you out of People.").into()),
+                    div()
+                        .w(px(280.))
+                        .child(Input::new(&self.cotyping_name).small()),
+                    self.is_focused("settings.cotypingUserName"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingStyleNote",
+                settings_row::row(
+                    "settings.cotypingStyleNote",
+                    lokalbot_i18n::tr("Writing style"),
+                    None,
+                    div()
+                        .w(px(280.))
+                        .child(Input::new(&self.cotyping_style).small()),
+                    self.is_focused("settings.cotypingStyleNote"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingLanguages",
+                settings_row::row(
+                    "settings.cotypingLanguages",
+                    lokalbot_i18n::tr("Languages"),
+                    None,
+                    div()
+                        .w(px(280.))
+                        .child(Input::new(&self.writing.languages).small()),
+                    self.is_focused("settings.cotypingLanguages"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingExtendedContext",
+                settings_row::row(
+                    "settings.cotypingExtendedContext",
+                    lokalbot_i18n::tr("Notes for autocomplete"),
+                    None,
+                    div()
+                        .w(px(280.))
+                        .child(Textarea::new(&self.writing.notes).h(px(72.))),
+                    self.is_focused("settings.cotypingExtendedContext"),
+                    cx,
+                ),
+            )
+    }
+
+    /// Apps and sites to skip (`exclusionsSection`).
+    fn autocomplete_exclusions_section(&mut self, cx: &mut Context<Self>) -> Section {
+        let settings = self.data.read(cx).settings.clone();
+        Section::new(None)
+            .row(
+                "settings.cotypingExcludedApps",
+                settings_row::content_row(
+                    "settings.cotypingExcludedApps",
+                    self.cotyping_excluded_apps.clone(),
+                    self.is_focused("settings.cotypingExcludedApps"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingExcludedDomains",
+                settings_row::content_row(
+                    "settings.cotypingExcludedDomains",
+                    self.cotyping_excluded_sites.clone(),
+                    self.is_focused("settings.cotypingExcludedDomains"),
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingSuggestInIntegratedTerminals",
+                self.toggle(
+                    "settings.cotypingSuggestInIntegratedTerminals",
+                    lokalbot_i18n::tr("Suggest in integrated terminals"),
+                    None,
+                    settings.cotyping_suggest_in_integrated_terminals,
+                    |s, v| s.cotyping_suggest_in_integrated_terminals = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingExclusionsHelp",
+                settings_row::content_row(
+                    "settings.cotypingExclusionsHelp",
+                    settings_row::help(
+                        lokalbot_i18n::tr("Password managers, password fields and terminals are always skipped. Autocomplete never reads an excluded app or site."),
+                        cx,
+                    ),
+                    false,
+                    cx,
+                ),
+            )
+    }
+
+    /// Usage (`usageSections`): the statistics, then how quickly suggestions
+    /// arrive.
+    fn autocomplete_usage_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
+        let statistics = self.statistics_section(cx).unwrap_or_else(|| {
+            let id = "settings.autocompleteStatistics";
+            Section::new(lokalbot_i18n::tr("Statistics")).row(
+                id,
+                settings_row::content_row(
+                    id,
+                    settings_row::help(
+                        lokalbot_i18n::tr(
+                            "Statistics appear here once you use autocomplete in other apps.",
+                        ),
+                        cx,
+                    ),
+                    self.is_focused(id),
+                    cx,
+                ),
+            )
+        });
+        let timing = self.usage_timing(cx);
+        vec![
+            statistics,
+            Section::new(lokalbot_i18n::tr("How quickly suggestions arrive")).row(
+                "settings.autocompleteUsage",
+                settings_row::content_row("settings.autocompleteUsage", timing, false, cx),
+            ),
+        ]
+    }
+
+    /// "Try it…" (`AutocompleteTrySheet`): the practice editor, over the page.
+    /// It goes through the same engine path as a field in another app, with
+    /// the page's settings; nothing is turned on by opening it.
+    pub(super) fn autocomplete_try(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let (settings, model_ready, downloads, installed) = {
+            let data = self.data.read(cx);
+            (
+                data.settings.clone(),
+                data.models.autocomplete_ready,
+                data.downloads.clone(),
+                data.models.installed.clone(),
+            )
+        };
+        let (support, ghost, server_problem, rehearsal) = match crate::autocomplete::global(cx) {
+            Some(autocomplete) => {
+                let autocomplete = autocomplete.read(cx);
+                (
+                    autocomplete.support().clone(),
+                    autocomplete.practice.ghost(&settings),
+                    autocomplete.server_problem.clone(),
+                    autocomplete.rehearsal.clone(),
+                )
+            }
+            None => (Support::Available, None, None, None),
+        };
+        let lb = cx.lb().clone();
+        let route = server::route(&settings, None);
+        let uses_server = settings.cotyping_backend != CotypingBackend::OnDevice;
+        let problem = match &route {
+            Route::Unavailable(problem) if uses_server => {
+                Some(writing_server::problem_text(problem))
+            }
+            Route::Server(endpoint) => server_problem
+                .as_ref()
+                .filter(|problem| problem.identity == endpoint.identity())
+                .map(writing_server::failure_text),
+            _ => None,
+        };
+        let other_apps = support == Support::Available;
+        let mut body = v_flex().w_full().gap(px(12.));
+        if let Some(problem) = problem {
+            body = body.child(notice(Ico::TriangleAlert, problem, lb.attention_text, cx));
+        } else if !model_ready && !uses_server {
+            // Download it here to try it.
+            let missing: Vec<String> = models::autocomplete_needs(&settings)
+                .into_iter()
+                .filter(|id| !installed.contains(id))
+                .collect();
+            let progress = missing
+                .iter()
+                .find_map(|id| downloads.get(id).filter(|d| d.error.is_none()))
+                .map(|d| d.fraction());
+            let size = models::size_label(
+                missing
+                    .iter()
+                    .map(|id| models::model_bytes(id, &settings))
+                    .sum(),
+            );
+            let data = self.data.clone();
+            body = body.child(
+                h_flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .child(status_pill(lokalbot_i18n::tr("Model needed"), false, cx))
+                    .when(!missing.is_empty(), |this| {
+                        this.child(
+                            Button::new("settings-cotyping-download")
+                                .outline()
+                                .small()
+                                .icon(Icon::new(Ico::CircleArrowDown))
+                                .label(match progress {
+                                    Some(fraction) => lokalbot_i18n::format(
+                                        "Downloading · {0}%",
+                                        &[("0", format!("{}", (fraction * 100.).round()))],
+                                    ),
+                                    None => lokalbot_i18n::format(
+                                        "Download · {size}",
+                                        &[("size", size.to_string())],
+                                    ),
+                                })
+                                .disabled(progress.is_some())
+                                .on_click(move |_, _, cx| {
+                                    data.update(cx, |data, cx| {
+                                        for id in &missing {
+                                            data.request(AppEvent::DownloadModel(id.clone()), cx);
+                                        }
+                                    })
+                                }),
+                        )
+                    }),
+            );
+        }
         let inventory = self.context_inventory(cx);
         let rehearsal_sources = writing_rehearsal::statuses(
             &visible_text_state(&settings, other_apps),
@@ -722,7 +1394,6 @@ impl SettingsPage {
             .as_ref()
             .and_then(|rehearsal| rehearsal.suppression)
             .filter(|_| ghost.is_none());
-        // The practice editor, through the same engine path as other apps.
         let conversation =
             v_flex()
                 .gap(px(6.))
@@ -792,6 +1463,7 @@ impl SettingsPage {
                     cx.stop_propagation();
                 }
             }))
+            // Esc takes a suggestion away; with none showing it closes the sheet.
             .capture_action(cx.listener(|this, _: &InputEscape, _, cx| {
                 let taken = this.practice_dismiss(cx);
                 log::debug!("autocomplete: practice Esc, dismissed: {taken}");
@@ -816,10 +1488,7 @@ impl SettingsPage {
                 this.child(ghost)
             });
         let has_ghost = ghost.is_some();
-        let practice = v_flex()
-            .w_full()
-            .gap(px(10.))
-            .child(conversation)
+        body.child(conversation)
             .child(editor)
             .child(
                 h_flex()
@@ -861,613 +1530,24 @@ impl SettingsPage {
             .when_some(empty_answer, |this, reason| {
                 this.child(writing_rehearsal::explanation_line(reason, cx))
             })
-            .child(writing_rehearsal::render(&rehearsal_sources, cx));
-        let usage_timing = self.usage_timing(cx);
-        let try_it = Section::new(lokalbot_i18n::tr("Try the real autocomplete"))
-            .row(
-                "settings.autocompletePreview",
-                settings_row::content_row(
-                    "settings.autocompletePreview",
-                    practice,
-                    self.is_focused("settings.autocompletePreview"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.autocompleteUsage",
-                settings_row::content_row("settings.autocompleteUsage", usage_timing, false, cx),
-            );
+            .child(writing_rehearsal::render(&rehearsal_sources, cx))
+            .into_any_element()
+    }
 
-        let words = settings.cotyping_max_words.clamp(2, 50);
-        let words_data = data.clone();
-        let change_data = data.clone();
-        let autocomplete = Section::new(lokalbot_i18n::tr("Autocomplete"))
-            .row(
-                "settings.cotypingModel",
-                settings_row::row(
-                    "settings.cotypingModel",
-                    lokalbot_i18n::tr("Autocomplete model"),
-                    None,
-                    h_flex()
-                        .gap(px(10.))
-                        .items_center()
-                        .child(
-                            div()
-                                .text_size(ty::BODY)
-                                .text_color(lb.text_secondary)
-                                .child(model_name.clone()),
-                        )
-                        .child(
-                            Button::new("settings-cotyping-model")
-                                .outline()
-                                .small()
-                                .label(lokalbot_i18n::tr("Change…"))
-                                .on_click(move |_, _, cx| {
-                                    change_data.update(cx, |data, cx| {
-                                        data.open_settings(SettingsCategory::Models, cx)
-                                    });
-                                }),
-                        ),
-                    false,
-                    cx,
+    /// What typing in the try-out sends, for the sheet's line under its
+    /// title. A server receives it as it receives typing in other apps.
+    pub(super) fn autocomplete_try_explanation(&self, cx: &App) -> String {
+        let settings = &self.data.read(cx).settings;
+        match server::configured_host(settings).filter(|_| server::leaves_this_computer(settings)) {
+            Some(host) => fill(
+                lokalbot_i18n::tr(
+                    "Type in the box. What you type here is sent to %@, as it is in other apps. Nothing is saved.",
                 ),
-            )
-            .row(
-                "settings.cotypingMaxWords",
-                settings_row::row(
-                    "settings.cotypingMaxWords",
-                    lokalbot_i18n::format(
-                        "Suggestion length: up to {words} words",
-                        &[("words", format!("{}", words))],
-                    ),
-                    None,
-                    settings_row::stepper(
-                        "settings-cotyping-words",
-                        "",
-                        words > 2,
-                        words < 50,
-                        move |step, _, cx| {
-                            let next = (words as i32 + step).clamp(2, 50) as u32;
-                            words_data.update(cx, |data, cx| {
-                                data.update_settings(|s| s.cotyping_max_words = next, cx)
-                            });
-                        },
-                        cx,
-                    ),
-                    self.is_focused("settings.cotypingMaxWords"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingMultiLine",
-                self.toggle(
-                    "settings.cotypingMultiLine",
-                    lokalbot_i18n::tr("Allow multi-line suggestions"),
-                    None,
-                    settings.cotyping_multi_line,
-                    |s, v| s.cotyping_multi_line = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingDebounceMs",
-                settings_row::row(
-                    "settings.cotypingDebounceMs",
-                    lokalbot_i18n::tr("Pause before suggesting"),
-                    None,
-                    h_flex()
-                        .gap(px(10.))
-                        .items_center()
-                        .child(div().w(px(220.)).child(Slider::new(&self.debounce_slider)))
-                        .child(
-                            div()
-                                .min_w(px(56.))
-                                .text_size(ty::BODY)
-                                .text_color(lb.text_secondary)
-                                .flex()
-                                .justify_end()
-                                .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                    "{0} ms",
-                                    &[("0", format!("{}", settings.cotyping_debounce_ms))],
-                                ))),
-                        ),
-                    self.is_focused("settings.cotypingDebounceMs"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingAcceptGranularity",
-                self.choice(
-                    "settings.cotypingAcceptGranularity",
-                    lokalbot_i18n::tr("Each accept takes"),
-                    None,
-                    vec![
-                        (
-                            AcceptGranularity::Word,
-                            granularity_label(AcceptGranularity::Word).into(),
-                        ),
-                        (
-                            AcceptGranularity::Phrase,
-                            granularity_label(AcceptGranularity::Phrase).into(),
-                        ),
-                    ],
-                    settings.cotyping_accept_granularity,
-                    |s, v| s.cotyping_accept_granularity = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingAcceptKey",
-                self.choice(
-                    "settings.cotypingAcceptKey",
-                    lokalbot_i18n::tr("Accept next"),
-                    None,
-                    [CotypingAcceptKey::Tab, CotypingAcceptKey::RightArrow]
-                        .map(|key| (key, accept_key_label(key).into()))
-                        .to_vec(),
-                    settings.cotyping_accept_key,
-                    |s, v| s.cotyping_accept_key = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingFullAcceptKey",
-                self.choice(
-                    "settings.cotypingFullAcceptKey",
-                    lokalbot_i18n::tr("Accept the rest"),
-                    None,
-                    [
-                        CotypingFullAcceptKey::Backtick,
-                        CotypingFullAcceptKey::RightArrow,
-                        CotypingFullAcceptKey::Off,
-                    ]
-                    .map(|key| (key, full_accept_key_label(key).into()))
-                    .to_vec(),
-                    settings.cotyping_full_accept_key,
-                    |s, v| s.cotyping_full_accept_key = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingAutoAcceptTrailingPunctuation",
-                self.toggle(
-                    "settings.cotypingAutoAcceptTrailingPunctuation",
-                    lokalbot_i18n::tr("Accept punctuation with the word"),
-                    Some(lokalbot_i18n::tr("When off, a full stop or comma after a word takes its own press, so you can still end the sentence differently.")),
-                    settings.cotyping_auto_accept_trailing_punctuation,
-                    |s, v| s.cotyping_auto_accept_trailing_punctuation = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingAddSpaceAfterAccept",
-                self.toggle(
-                    "settings.cotypingAddSpaceAfterAccept",
-                    lokalbot_i18n::tr("Add a space after accepting a word"),
-                    None,
-                    settings.cotyping_add_space_after_accept,
-                    |s, v| s.cotyping_add_space_after_accept = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingEscapeBehavior",
-                self.choice(
-                    "settings.cotypingEscapeBehavior",
-                    lokalbot_i18n::tr("Escape on a suggestion"),
-                    Some(lokalbot_i18n::tr("Pausing keeps Escape from also reaching the app and holds suggestions in that field for a few seconds. Escape is never touched when no suggestion is showing.").into()),
-                    [CotypingEscapeBehavior::Pause, CotypingEscapeBehavior::PassThrough]
-                        .map(|behavior| (behavior, escape_label(behavior).into()))
-                        .to_vec(),
-                    settings.cotyping_escape_behavior,
-                    |s, v| s.cotyping_escape_behavior = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingSuggestInIntegratedTerminals",
-                self.toggle(
-                    "settings.cotypingSuggestInIntegratedTerminals",
-                    lokalbot_i18n::tr("Suggest in integrated terminals"),
-                    None,
-                    settings.cotyping_suggest_in_integrated_terminals,
-                    |s, v| s.cotyping_suggest_in_integrated_terminals = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingMatchHostStyle",
-                self.toggle(
-                    "settings.cotypingMatchHostStyle",
-                    lokalbot_i18n::tr("Match the app font and text color"),
-                    None,
-                    settings.cotyping_match_host_style,
-                    |s, v| s.cotyping_match_host_style = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingAutocorrect",
-                self.toggle(
-                    "settings.cotypingAutocorrect",
-                    lokalbot_i18n::tr("Autocorrect the current word"),
-                    Some(if lokalbot_platform::autocomplete::spell::has_dictionaries() {
-                        lokalbot_i18n::tr("Offers a one-key correction for the word you are typing.")
-                    } else {
-                        lokalbot_i18n::tr("Needs a spelling dictionary on this computer, such as a Hunspell dictionary package for your language.")
-                    }),
-                    settings.cotyping_autocorrect,
-                    |s, v| s.cotyping_autocorrect = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingEmoji",
-                self.toggle(
-                    "settings.cotypingEmoji",
-                    lokalbot_i18n::tr("Emoji autocomplete"),
-                    Some(lokalbot_i18n::tr("Complete :shortcode: emoji.")),
-                    settings.cotyping_emoji,
-                    |s, v| s.cotyping_emoji = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingMacros",
-                self.toggle(
-                    "settings.cotypingMacros",
-                    lokalbot_i18n::tr("Macros"),
-                    Some(lokalbot_i18n::tr("Complete /macros such as math, dates, units, and currency.")),
-                    settings.cotyping_macros,
-                    |s, v| s.cotyping_macros = v,
-                    cx,
-                ),
-            );
-
-        let visible_state = visible_text_state(&settings, other_apps);
-        let window_state = window_text_state(&settings, other_apps, ocr_ready);
-        let meeting_state = meeting_memory_state(&settings, &inventory);
-        let screen_state = screen_memory_state(&settings, &inventory);
-        let mut context = Section::new(lokalbot_i18n::tr("Context"));
-        if server::leaves_this_computer(&settings)
-            && let Some(host) = server::configured_host(&settings)
-        {
-            context = context.row(
-                "settings.cotypingContextDestination",
-                settings_row::content_row(
-                    "settings.cotypingContextDestination",
-                    notice(
-                        Ico::Network,
-                        lokalbot_i18n::format(
-                            "Context you turn on here is sent to {0} with what you type.",
-                            &[("0", host)],
-                        ),
-                        lb.text_secondary,
-                        cx,
-                    ),
-                    false,
-                    cx,
-                ),
-            );
-        }
-        let context = context
-            .row(
-                "settings.cotypingUseAppContext",
-                self.toggle(
-                    "settings.cotypingUseAppContext",
-                    lokalbot_i18n::tr("Use app and window context"),
-                    None,
-                    settings.cotyping_use_app_context,
-                    |s, v| s.cotyping_use_app_context = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingUseClipboard",
-                self.toggle(
-                    "settings.cotypingUseClipboard",
-                    lokalbot_i18n::tr("Use clipboard as temporary context"),
-                    None,
-                    settings.cotyping_use_clipboard,
-                    |s, v| s.cotyping_use_clipboard = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingUseVisibleContext",
-                self.toggle(
-                    "settings.cotypingUseVisibleContext",
-                    lokalbot_i18n::tr("Use visible text above the field"),
-                    Some(
-                        lokalbot_i18n::tr("Use nearby messages and labels to suggest relevant replies. Processed on this PC, never saved; capture exclusions apply and private browser windows are skipped."),
-                    ),
-                    settings.cotyping_use_visible_context,
-                    |s, v| s.cotyping_use_visible_context = v,
-                    cx,
-                ),
-            )
-;
-        let context = with_state(
-            context,
-            "settings.cotypingUseVisibleContextState",
-            &visible_state,
-            cx,
-        );
-        let context = context
-            .row(
-                "settings.cotypingUseWindowText",
-                self.toggle(
-                    "settings.cotypingUseWindowText",
-                    lokalbot_i18n::tr("Use the focused window as context"),
-                    Some(lokalbot_i18n::tr("Read the whole window you are typing in with on-device text recognition, so suggestions follow the full conversation or page. The image and text stay on this computer and are never saved; capture exclusions apply and private browser windows are skipped.")),
-                    settings.cotyping_use_window_text,
-                    |s, v| s.cotyping_use_window_text = v,
-                    cx,
-                ),
-            )
-;
-        let context = if window_state == ContextState::Off {
-            context
-        } else {
-            context.row(
-                "settings.cotypingUseWindowTextState",
-                self.window_text_row(&window_state, ocr_ready, &downloads, cx),
-            )
-        };
-        let context = context
-            .row(
-                "settings.cotypingUseMeetingMemory",
-                self.toggle(
-                    "settings.cotypingUseMeetingMemory",
-                    lokalbot_i18n::tr("Use meeting and work memory"),
-                    Some(
-                        lokalbot_i18n::tr("Use up to two relevant facts from recent meeting notes, decisions, and work memory to help with names and details. Processed on this PC."),
-                    ),
-                    settings.cotyping_use_meeting_memory,
-                    |s, v| s.cotyping_use_meeting_memory = v,
-                    cx,
-                ),
-            )
-;
-        let context = with_state(
-            context,
-            "settings.cotypingUseMeetingMemoryState",
-            &meeting_state,
-            cx,
-        );
-        let context = context
-            .row(
-                "settings.cotypingUseScreenMemory",
-                self.toggle(
-                    "settings.cotypingUseScreenMemory",
-                    lokalbot_i18n::tr("Use screen-derived work memory"),
-                    Some(lokalbot_i18n::tr("Also allow relevant work memory derived from screen activity and daily journals. Reads what is already saved; it does not capture new screens or start an overnight review. Mixed meeting and screen memories require both settings.")),
-                    settings.cotyping_use_screen_memory,
-                    |s, v| s.cotyping_use_screen_memory = v,
-                    cx,
-                ),
-            )
-            ;
-        let context = with_state(
-            context,
-            "settings.cotypingUseScreenMemoryState",
-            &screen_state,
-            cx,
-        );
-        let memory_use_text = if !memory_use.0.is_empty() {
-            Some(lokalbot_i18n::format(
-                "Last suggestion used: {0}",
-                &[("0", memory_use.0.join(", "))],
-            ))
-        } else if memory_use.1 {
-            Some(lokalbot_i18n::tr("Last suggestion: no relevant memory found.").to_string())
-        } else {
-            None
-        };
-        let context = match memory_use_text {
-            Some(text) => context.row(
-                "settings.cotypingMemoryUse",
-                settings_row::content_row(
-                    "settings.cotypingMemoryUse",
-                    settings_row::help(text, cx),
-                    false,
-                    cx,
-                ),
+                &[&host],
             ),
-            None => context,
-        };
-
-        let learning_message = if learning.forgetting {
-            None
-        } else {
-            match learning.forgotten {
-                Some(true) => Some(lokalbot_i18n::tr("Learned text deleted.")),
-                Some(false) => Some(lokalbot_i18n::tr(
-                    "Could not delete learned text. Please try again.",
-                )),
-                None => None,
-            }
-        };
-        let examples = settings.cotyping_learning_examples_in_prompt.clamp(1, 5);
-        let examples_data = data.clone();
-        let profile = Section::new(lokalbot_i18n::tr("Writing profile"))
-            .row(
-                "settings.cotypingUserName",
-                settings_row::row(
-                    "settings.cotypingUserName",
-                    lokalbot_i18n::tr("Your name"),
-                    Some(lokalbot_i18n::tr("Also keeps you out of People.").into()),
-                    div()
-                        .w(px(280.))
-                        .child(Input::new(&self.cotyping_name).small()),
-                    self.is_focused("settings.cotypingUserName"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingStyleNote",
-                settings_row::row(
-                    "settings.cotypingStyleNote",
-                    lokalbot_i18n::tr("Writing style"),
-                    None,
-                    div()
-                        .w(px(280.))
-                        .child(Input::new(&self.cotyping_style).small()),
-                    self.is_focused("settings.cotypingStyleNote"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingLanguages",
-                settings_row::row(
-                    "settings.cotypingLanguages",
-                    lokalbot_i18n::tr("Languages"),
-                    None,
-                    div()
-                        .w(px(280.))
-                        .child(Input::new(&self.writing.languages).small()),
-                    self.is_focused("settings.cotypingLanguages"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingExtendedContext",
-                settings_row::row(
-                    "settings.cotypingExtendedContext",
-                    lokalbot_i18n::tr("Notes for autocomplete"),
-                    None,
-                    div()
-                        .w(px(280.))
-                        .child(Textarea::new(&self.writing.notes).h(px(72.))),
-                    self.is_focused("settings.cotypingExtendedContext"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingUseLocalLearning",
-                self.toggle(
-                    "settings.cotypingUseLocalLearning",
-                    lokalbot_i18n::tr("Learn locally from accepted completions"),
-                    Some(lokalbot_i18n::tr("Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.")),
-                    settings.cotyping_use_local_learning,
-                    |s, v| s.cotyping_use_local_learning = v,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingLearningExamplesInPrompt",
-                settings_row::row(
-                    "settings.cotypingLearningExamplesInPrompt",
-                    lokalbot_i18n::tr("Learned examples per suggestion"),
-                    None,
-                    settings_row::stepper(
-                        "settings-cotyping-learned-examples",
-                        examples.to_string(),
-                        examples > 1,
-                        examples < 5,
-                        move |step, _, cx| {
-                            let next = (examples as i32 + step).clamp(1, 5) as u32;
-                            examples_data.update(cx, |data, cx| {
-                                data.update_settings(
-                                    |s| s.cotyping_learning_examples_in_prompt = next,
-                                    cx,
-                                )
-                            });
-                        },
-                        cx,
-                    ),
-                    self.is_focused("settings.cotypingLearningExamplesInPrompt"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingForgetLearned",
-                settings_row::content_row(
-                    "settings.cotypingForgetLearned",
-                    v_flex()
-                        .w_full()
-                        .gap(px(6.))
-                        .when_some(learning.problem.clone(), |this, problem| {
-                            this.child(notice(Ico::TriangleAlert, problem, lb.attention_text, cx))
-                        })
-                        .child(
-                            h_flex().child(
-                                Button::new("settings-forget-learned")
-                                    .outline()
-                                    .small()
-                                    .label(if learning.forgetting {
-                                        lokalbot_i18n::tr("Forgetting…")
-                                    } else {
-                                        lokalbot_i18n::tr("Forget learned text")
-                                    })
-                                    .disabled(learning.forgetting)
-                                    .on_click(move |_, _, cx| {
-                                        crate::bridge::send(
-                                            Command::Autocomplete(AutocompleteCommand::ForgetLearned),
-                                            cx,
-                                        );
-                                    }),
-                            ),
-                        )
-                        .when_some(learning_message, |this, message| {
-                            this.child(settings_row::help(message, cx))
-                        }),
-                    false,
-                    cx,
-                ),
-            )
-            .row(
-                "settings.writingProfileHelp",
-                settings_row::content_row(
-                    "settings.writingProfileHelp",
-                    settings_row::help(
-                        lokalbot_i18n::tr("Autocomplete and Compose dictation write as you, in this style. Both are optional and stay on this PC unless your Think model runs on a server."),
-                        cx,
-                    ),
-                    false,
-                    cx,
-                ),
-            );
-
-        let exclusions = Section::new(lokalbot_i18n::tr("Exclusions"))
-            .row(
-                "settings.cotypingExcludedApps",
-                settings_row::content_row(
-                    "settings.cotypingExcludedApps",
-                    self.cotyping_excluded_apps.clone(),
-                    self.is_focused("settings.cotypingExcludedApps"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingExcludedDomains",
-                settings_row::content_row(
-                    "settings.cotypingExcludedDomains",
-                    self.cotyping_excluded_sites.clone(),
-                    self.is_focused("settings.cotypingExcludedDomains"),
-                    cx,
-                ),
-            )
-            .row(
-                "settings.cotypingExclusionsHelp",
-                settings_row::content_row(
-                    "settings.cotypingExclusionsHelp",
-                    settings_row::help(
-                        lokalbot_i18n::tr("Password managers, password fields and terminals are always skipped. Autocomplete never reads an excluded app or site."),
-                        cx,
-                    ),
-                    false,
-                    cx,
-                ),
-            );
-
-        let server_section = self.server_section(cx);
-        let mut sections = vec![home, try_it, server_section, autocomplete, context, profile];
-        if let Some(statistics) = self.statistics_section(cx) {
-            sections.push(statistics);
+            None => lokalbot_i18n::tr("Type in the box. Nothing here leaves this PC or is saved.")
+                .to_string(),
         }
-        sections.push(exclusions);
-        sections
     }
 
     /// Counted once in a while, not per redraw: facts come from a file.

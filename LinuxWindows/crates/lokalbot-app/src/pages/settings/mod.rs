@@ -22,6 +22,7 @@ pub mod meetings;
 mod model_browse;
 mod model_checks;
 pub(crate) mod model_options;
+mod model_overview;
 pub(crate) mod model_setup;
 pub mod models;
 mod overnight_review;
@@ -35,6 +36,8 @@ mod retention_review;
 pub(crate) use retention_review::needs_review as needs_retention_review;
 mod routines;
 pub mod status;
+mod subpage;
+mod try_sheet;
 pub mod writing;
 mod writing_rehearsal;
 mod writing_server;
@@ -198,6 +201,9 @@ pub fn category_summary(category: SettingsCategory, settings: &Settings) -> Stri
 /// One grouped section of a category; `ids` are the rows it holds, for search jumps.
 pub struct Section {
     pub title: Option<&'static str>,
+    /// Drawn in place of the title (a disclosure, a way back). A section
+    /// with a header and no rows is the header alone, with no panel.
+    pub header: Option<AnyElement>,
     pub ids: Vec<&'static str>,
     pub rows: Vec<AnyElement>,
 }
@@ -206,9 +212,21 @@ impl Section {
     pub fn new(title: impl Into<Option<&'static str>>) -> Self {
         Self {
             title: title.into(),
+            header: None,
             ids: Vec::new(),
             rows: Vec::new(),
         }
+    }
+
+    /// An element on its own, outside any panel: a subpage's way back, the
+    /// Advanced disclosure.
+    pub fn bare(element: impl IntoElement) -> Self {
+        Self::new(None).header(element)
+    }
+
+    pub fn header(mut self, element: impl IntoElement) -> Self {
+        self.header = Some(element.into_any_element());
+        self
     }
 
     pub fn row(mut self, id: &'static str, element: impl IntoElement) -> Self {
@@ -280,6 +298,8 @@ pub struct SettingsPage {
     last_settings: Settings,
     /// Back and forward through the pages shown in this window.
     history: status::PageHistory,
+    /// The page a row of Autocomplete or Dictation opened in its place.
+    subpage: Option<subpage::Subpage>,
     /// The library without its models, and the free space where the models
     /// are, for Overview and Privacy & permissions. Measured off the main
     /// thread now and then.
@@ -716,6 +736,7 @@ impl SettingsPage {
             pending_jobs: 0,
             storage_measured_at: None,
             history: status::PageHistory::new(opened_on),
+            subpage: None,
             library_size: None,
             free_bytes: None,
             library_measured_at: None,
@@ -877,8 +898,33 @@ impl SettingsPage {
         self.focused = None;
         self.clear_search(window, cx);
         self.scroll.set_offset(gpui_kit::point(px(0.), px(0.)));
+        // A row's page belongs to the Settings page that opened it.
+        if self.subpage.is_some_and(|sub| sub.page() != category) {
+            self.subpage = None;
+        }
         self.data
             .update(cx, |data, cx| data.select_settings_category(category, cx));
+    }
+
+    /// The page a row opened, while its own Settings page is the one shown.
+    fn open_subpage(&self, category: SettingsCategory) -> Option<subpage::Subpage> {
+        self.subpage.filter(|sub| sub.page() == category)
+    }
+
+    /// Opens the page behind one of Autocomplete's or Dictation's rows, at
+    /// its top.
+    fn show_subpage(&mut self, sub: subpage::Subpage, cx: &mut Context<Self>) {
+        self.subpage = Some(sub);
+        self.focused = None;
+        self.scroll.set_offset(gpui_kit::point(px(0.), px(0.)));
+        cx.notify();
+    }
+
+    fn close_subpage(&mut self, cx: &mut Context<Self>) {
+        self.subpage = None;
+        self.focused = None;
+        self.scroll.set_offset(gpui_kit::point(px(0.), px(0.)));
+        cx.notify();
     }
 
     fn clear_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -904,11 +950,31 @@ impl SettingsPage {
             .find(|candidate| candidate.id == target)
             .unwrap_or(entry);
         self.clear_search(window, cx);
+        // The try-out opens as a sheet over its page (`SettingsSheet`).
+        if entry.id == "settings.autocompletePreview" {
+            self.focused = None;
+            if self.subpage.is_some() {
+                self.subpage = None;
+            }
+            self.data.update(cx, |data, cx| {
+                data.select_settings_category(entry.category, cx)
+            });
+            // After this update: the page may still be opening its window.
+            cx.defer_in(window, |_, window, cx| {
+                try_sheet::open(cx.entity(), try_sheet::TryKind::Autocomplete, window, cx)
+            });
+            cx.notify();
+            return;
+        }
         self.focused = Some(entry.id);
         self.pending_scroll = Some(entry.id);
         if entry.category == SettingsCategory::Models {
             self.models.page = models::ModelsPage::for_setting(entry.id);
         }
+        // A setting a row's page holds opens that page; one on the page
+        // itself closes it (`revealFocusedSetting`).
+        self.subpage = subpage::Subpage::containing(entry.id, entry.category)
+            .or(self.subpage.filter(|sub| sub.page() != entry.category));
         self.data.update(cx, |data, cx| {
             data.select_settings_category(entry.category, cx)
         });
@@ -1071,11 +1137,74 @@ impl SettingsPage {
     fn header_spec(
         &mut self,
         category: SettingsCategory,
-        window: &mut Window,
+        status: &status::SettingsStatus,
         cx: &mut Context<Self>,
     ) -> header::HeaderSpec {
-        let _ = (category, window, cx);
-        header::HeaderSpec::default()
+        let settings = self.data.read(cx).settings.clone();
+        let page = cx.entity();
+        let data = self.data.clone();
+        match category {
+            // "Download all", or Cancel while the models arrive.
+            SettingsCategory::Models => header::HeaderSpec {
+                accessory: header::download_control(status, &self.data),
+                ..Default::default()
+            },
+            // The switch does what the page's own switch did: it sets the
+            // setting, with no confirmation, as before.
+            SettingsCategory::Writing => header::HeaderSpec {
+                try_it: Some(std::rc::Rc::new(move |window, cx| {
+                    try_sheet::open(page.clone(), try_sheet::TryKind::Autocomplete, window, cx)
+                })),
+                switch: Some(header::HeaderSwitch {
+                    setting_id: "settings.cotypingEnabled",
+                    on: settings.cotyping_enabled,
+                    on_change: std::rc::Rc::new(move |on, _, cx| {
+                        data.update(cx, |data, cx| {
+                            data.update_settings(|s| s.cotyping_enabled = on, cx)
+                        })
+                    }),
+                }),
+                ..Default::default()
+            },
+            SettingsCategory::Dictation => header::HeaderSpec {
+                try_it: Some(std::rc::Rc::new(move |window, cx| {
+                    try_sheet::open(page.clone(), try_sheet::TryKind::Dictation, window, cx)
+                })),
+                switch: Some(header::HeaderSwitch {
+                    setting_id: "settings.dictationEnabled",
+                    on: settings.dictation_enabled,
+                    on_change: std::rc::Rc::new(move |on, _, cx| {
+                        data.update(cx, |data, cx| {
+                            data.update_settings(|s| s.dictation_enabled = on, cx)
+                        })
+                    }),
+                }),
+                ..Default::default()
+            },
+            _ => header::HeaderSpec::default(),
+        }
+    }
+
+    /// What opens in place of the shared header: a row's page starts with
+    /// its way back (`SettingsSubpageBar`), and Models' own pages draw
+    /// theirs. `None` keeps the header.
+    fn replaces_header(
+        &self,
+        category: SettingsCategory,
+        cx: &mut Context<Self>,
+    ) -> Option<Option<AnyElement>> {
+        if category == SettingsCategory::Models && self.models.page != models::ModelsPage::Active {
+            return Some(None);
+        }
+        let sub = self.open_subpage(category)?;
+        let page = cx.entity();
+        Some(Some(subpage::bar(
+            "settings-subpage-back",
+            catalog::category_title(category),
+            lokalbot_i18n::tr(sub.title()),
+            move |_, cx| page.update(cx, |page, cx| page.close_subpage(cx)),
+            cx,
+        )))
     }
 
     /// Back to the page shown before (`SettingsPageHistory.goBack`).
@@ -1189,8 +1318,20 @@ impl SettingsPage {
             lokalbot_platform::autocomplete::Support::Unavailable(reason) => Some(reason),
             _ => None,
         };
+        let failed_checks = data
+            .model_checks
+            .results
+            .iter()
+            .filter(|result| result.failure.is_some())
+            .map(|result| match result.role {
+                lokalbot_engine::ModelRole::Transcribe => status::Role::Transcribe,
+                lokalbot_engine::ModelRole::Think => status::Role::Think,
+                lokalbot_engine::ModelRole::Autocomplete => status::Role::Autocomplete,
+            })
+            .collect();
         status::SettingsStatus::new(status::StatusInput {
             models: status::models(&settings, &data.models, &data.downloads),
+            failed_checks,
             permissions,
             free_bytes: self.free_bytes,
             agent_kinds,
@@ -1547,7 +1688,7 @@ impl SettingsPage {
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(lb.text)
                                     .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                        entry.title,
+                                        catalog::display_title(entry),
                                     ))),
                             )
                             .child(
@@ -1658,27 +1799,33 @@ impl Render for SettingsPage {
             self.render_overview(&status, cx)
         } else {
             let sections = self.sections(category, window, cx);
-            let spec = self.header_spec(category, window, cx);
-            let settings = self.data.read(cx).settings.clone();
-            let switch_highlighted = spec
-                .switch
-                .as_ref()
-                .is_some_and(|switch| self.is_focused(switch.setting_id));
-            let header = header::page_header(
-                category,
-                category_summary(category, &settings),
-                status.lines(category),
-                spec,
-                switch_highlighted,
-                &self.data,
-                header::opener(&cx.entity()),
-                cx,
-            );
+            let header = match self.replaces_header(category, cx) {
+                Some(bar) => bar,
+                None => {
+                    let spec = self.header_spec(category, &status, cx);
+                    let settings = self.data.read(cx).settings.clone();
+                    let switch_highlighted = spec
+                        .switch
+                        .as_ref()
+                        .is_some_and(|switch| self.is_focused(switch.setting_id));
+                    Some(header::page_header(
+                        category,
+                        category_summary(category, &settings),
+                        status.lines(category),
+                        spec,
+                        switch_highlighted,
+                        &self.data,
+                        header::opener(&cx.entity()),
+                        cx,
+                    ))
+                }
+            };
+            let leading = usize::from(header.is_some());
             if let Some(target) = self.pending_scroll.take()
                 && let Some(index) = sections.iter().position(|s| s.ids.contains(&target))
             {
                 // The header comes first.
-                let index = index + 1;
+                let index = index + leading;
                 self.scroll.scroll_to_item(index);
                 // A page drawn for the first time has no layout to scroll in yet.
                 let scroll = self.scroll.clone();
@@ -1687,23 +1834,39 @@ impl Render for SettingsPage {
                     window.refresh();
                 });
             }
-            let mut children: Vec<AnyElement> = vec![
-                reading_column()
-                    .pt(px(20.))
-                    .pb(metric::SECTION_SPACING)
-                    .child(header)
-                    .into_any_element(),
-            ];
-            children.extend(sections.into_iter().map(|section| {
-                reading_column()
-                    .pb(metric::SECTION_SPACING)
-                    .child(settings_row::section(
+            let mut children: Vec<AnyElement> = header
+                .map(|header| {
+                    reading_column()
+                        .pt(px(20.))
+                        .pb(metric::SECTION_SPACING)
+                        .child(header)
+                        .into_any_element()
+                })
+                .into_iter()
+                .collect();
+            children.extend(sections.into_iter().enumerate().map(|(index, section)| {
+                let body = match section.header {
+                    Some(header) if section.rows.is_empty() => header,
+                    Some(header) => v_flex()
+                        .w_full()
+                        .gap(px(8.))
+                        .child(header)
+                        .child(settings_row::section(None, section.rows, cx))
+                        .into_any_element(),
+                    None => settings_row::section(
                         section
                             .title
                             .map(|key| SharedString::from(lokalbot_i18n::tr(key))),
                         section.rows,
                         cx,
-                    ))
+                    )
+                    .into_any_element(),
+                };
+                reading_column()
+                    // A page without the header starts where the header would.
+                    .when(index == 0 && leading == 0, |this| this.pt(px(20.)))
+                    .pb(metric::SECTION_SPACING)
+                    .child(body)
                     .into_any_element()
             }));
             v_flex()
