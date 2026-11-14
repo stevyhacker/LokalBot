@@ -70,28 +70,34 @@ actor LlamaServer {
     nonisolated let role: LlamaServerRole?
     nonisolated let contextTokens: Int
     private let extraArgs: [String]
+    /// Added to the inherited environment of the server process.
+    private let environment: [String: String]
     private let runtimeAllowanceBytes: Int64
     nonisolated var baseURL: URL { URL(string: "http://127.0.0.1:\(port)/v1")! }
 
     /// One of the app's servers, on this app copy's port for `role`.
     init(role: LlamaServerRole, contextTokens: Int, extraArgs: [String],
+         environment: [String: String] = [:],
          runtimeAllowanceBytes: Int64 = 512 * 1_048_576) {
         self.init(port: role.port, role: role, contextTokens: contextTokens,
-                  extraArgs: extraArgs, runtimeAllowanceBytes: runtimeAllowanceBytes)
+                  extraArgs: extraArgs, environment: environment,
+                  runtimeAllowanceBytes: runtimeAllowanceBytes)
     }
 
     init(port: Int, contextTokens: Int, extraArgs: [String],
          runtimeAllowanceBytes: Int64 = 512 * 1_048_576) {
         self.init(port: port, role: nil, contextTokens: contextTokens,
-                  extraArgs: extraArgs, runtimeAllowanceBytes: runtimeAllowanceBytes)
+                  extraArgs: extraArgs, environment: [:],
+                  runtimeAllowanceBytes: runtimeAllowanceBytes)
     }
 
     private init(port: Int, role: LlamaServerRole?, contextTokens: Int, extraArgs: [String],
-                 runtimeAllowanceBytes: Int64) {
+                 environment: [String: String], runtimeAllowanceBytes: Int64) {
         self.port = port
         self.role = role
         self.contextTokens = contextTokens
         self.extraArgs = extraArgs
+        self.environment = environment
         self.runtimeAllowanceBytes = runtimeAllowanceBytes
     }
 
@@ -262,6 +268,10 @@ actor LlamaServer {
                 "--no-webui",
                 "--api-key", authenticationToken,
             ] + extraArgs
+            if !environment.isEmpty {
+                process.environment = ProcessInfo.processInfo.environment
+                    .merging(environment) { _, added in added }
+            }
             process.standardOutput = FileHandle.nullDevice
             let output = LlamaServerOutputTail()
             let errorPipe = Pipe()

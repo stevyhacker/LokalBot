@@ -181,20 +181,9 @@ struct PinnedModelSnapshot: Sendable, Decodable {
 
 // Source: Hugging Face model metadata, including immutable commit and LFS/Git digests.
 extension PinnedModelSnapshot {
-    static let qwenAccuracy = Self(repository: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit", revision: "e5450a26d1fd417c45fc9c405651ddc3180a27a6", files: [
-        .init(path: "config.json", bytes: 7188,
-              digest: "888cc7fae19ea9ede543b1ae82e9c78aa06104ca", isGitBlob: true),
-        .init(path: "merges.txt", bytes: 1671853,
-              digest: "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7", isGitBlob: true),
-        .init(path: "model.safetensors", bytes: 2463307541,
-              digest: "bf304b009cc7eca79283056f787b44c952d24ac22cec787b39732bba3c23c13c", isGitBlob: false),
-        .init(path: "model.safetensors.index.json", bytes: 78968,
-              digest: "f0191caac2794d5b6fba0ab3eeb70f8eff90319e", isGitBlob: true),
-        .init(path: "tokenizer_config.json", bytes: 12487,
-              digest: "b93109843922a40c6654c5449d3bf95372267c66", isGitBlob: true),
-        .init(path: "vocab.json", bytes: 2776833,
-              digest: "4783fe10ac3adce15ac8f358ef5462739852c569", isGitBlob: true),
-    ])
+    /// Qwen3-ASR 1.7B's former MLX weights. The tier now runs on llama.cpp
+    /// (`QwenLlamaASR`), which deletes this folder once its GGUFs are in.
+    static let legacyQwenAccuracyRepository = "aufklarer/Qwen3-ASR-1.7B-MLX-8bit"
     /// speech-swift's default Qwen3 forced aligner (4-bit MLX). It times the
     /// words of a whole-track Qwen transcript for speaker attribution.
     static let qwenAligner = Self(repository: "aufklarer/Qwen3-ForcedAligner-0.6B-4bit", revision: "f0e9f12a0ddbcb5f1e1b7f0339090628f1cede1d", files: [

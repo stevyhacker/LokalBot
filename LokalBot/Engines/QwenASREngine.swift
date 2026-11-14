@@ -2,14 +2,24 @@ import Foundation
 import FluidAudio
 import Qwen3ASR
 
-/// Qwen3-ASR through Speech Swift's MLX implementation. This is intentionally
-/// a post-meeting engine: LokalBot keeps using its existing file-based pipeline,
-/// VAD-splits each track into timestamped spans, then transcribes those spans
-/// with Qwen.
+/// Qwen3-ASR as a post-meeting engine: LokalBot keeps using its existing
+/// file-based pipeline, VAD-splits each track into timestamped spans, then
+/// transcribes those spans with Qwen. The 1.7B tier runs on the bundled
+/// llama.cpp server (`QwenLlamaASR`); the 0.6B tier still runs on speech-swift's
+/// MLX implementation.
 actor QwenASREngine: TranscriptionEngine {
     enum Variant: Sendable {
         case accuracy
         case compact
+
+        enum Runtime: Sendable { case llama, mlx }
+
+        var runtime: Runtime {
+            switch self {
+            case .accuracy: .llama
+            case .compact: .mlx
+            }
+        }
 
         var displayName: String {
             switch self {
@@ -20,7 +30,7 @@ actor QwenASREngine: TranscriptionEngine {
 
         var modelID: String {
             switch self {
-            case .accuracy: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit"
+            case .accuracy: "\(QwenLlamaASR.repository):\(QwenLlamaASR.model.name)"
             case .compact: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit"
             }
         }
@@ -59,6 +69,8 @@ actor QwenASREngine: TranscriptionEngine {
 
     private let variant: Variant
     private var model: Qwen3ASRModel?
+    /// The 1.7B tier's llama-server, started on first use.
+    private var server: LlamaServer?
     private let preparation = AsyncSingleFlight()
     private var activeUses = 0
     private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
@@ -68,7 +80,10 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
-        if model != nil { return }
+        // The llama-server can be evicted under memory pressure, so the 1.7B
+        // tier always checks its files and server, as Granite does; both are
+        // cheap once installed and running.
+        if variant.runtime == .mlx, model != nil { return }
         report(.init(fractionCompleted: 0, status: "Checking..."), to: progress)
         try await preparation.run { [weak self] in
             guard let self else { return }
@@ -79,6 +94,10 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     private func performPreparation(progress: ModelPreparationProgressHandler?) async throws {
+        if variant.runtime == .llama {
+            try await prepareServer(progress: progress)
+            return
+        }
         guard model == nil else { return }
         let runtimeID = variant == .accuracy
             ? "transcription:qwen-1.7b" : "transcription:qwen-0.6b"
@@ -91,8 +110,7 @@ actor QwenASREngine: TranscriptionEngine {
             try Task.checkCancellation()
             let cacheDir = try Self.cacheDir(for: variant)
             try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-            let snapshot = variant == .accuracy ? PinnedModelSnapshot.qwenAccuracy : .qwenCompact
-            try await snapshot.prepare(in: cacheDir, progress: progress)
+            try await PinnedModelSnapshot.qwenCompact.prepare(in: cacheDir, progress: progress)
 
             model = try await Qwen3ASRModel.fromPretrained(
                 modelId: variant.modelID,
@@ -112,6 +130,19 @@ actor QwenASREngine: TranscriptionEngine {
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
             throw error
         }
+    }
+
+    private func prepareServer(progress: ModelPreparationProgressHandler?) async throws {
+        let paths = try await QwenLlamaASR.prepareFiles(
+            appSupport: AppDirectories.applicationSupport, progress: progress)
+        report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
+        let server = self.server ?? LlamaServer(
+            role: .qwenASR, contextTokens: QwenLlamaASR.contextTokens,
+            extraArgs: ["--mmproj", paths.projector.path] + QwenLlamaASR.serverArguments,
+            environment: QwenLlamaASR.serverEnvironment,
+            runtimeAllowanceBytes: 768 * 1_048_576)
+        self.server = server
+        try await server.ensureRunning(modelAt: paths.model)
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
@@ -138,8 +169,17 @@ actor QwenASREngine: TranscriptionEngine {
         try choice.validateLanguage(language)
         activeUses += 1
         defer { finishUse() }
+        // The server's model-memory row must not be evicted mid-track.
+        let pin: UUID? = variant.runtime == .llama
+            ? await ModelResidency.shared.pin(id: LlamaServerRole.qwenASR.residencyID) : nil
+        defer { if let pin { Task { @MainActor in ModelResidency.shared.unpin(pin) } } }
         try await prepare()
-        guard let model else { throw EngineError.notLoaded }
+        let model = self.model
+        let server = self.server
+        switch variant.runtime {
+        case .mlx: guard model != nil else { throw EngineError.notLoaded }
+        case .llama: guard server != nil else { throw EngineError.notLoaded }
+        }
 
         let started = Date()
         var spans = try await SpeechActivity.shared.spans(
@@ -150,7 +190,12 @@ actor QwenASREngine: TranscriptionEngine {
         let unblocked = windows?.disablesRepetitionBlocking == true
         func decode(language qwenLanguage: String?) async throws -> [Transcript.Segment] {
             try await SpanTranscription.segments(in: url, spans: spans) { samples, _ in
-                try Self.transcribeWindow(
+                if let server {
+                    return try await Self.transcribeWindow(
+                        samples: samples, language: qwenLanguage, prompt: prompt, server: server)
+                }
+                guard let model else { throw EngineError.notLoaded }
+                return try Self.transcribeWindow(
                     samples: samples, language: qwenLanguage, prompt: prompt,
                     disablesRepetitionBlocking: unblocked, model: model)
             }
@@ -174,7 +219,31 @@ actor QwenASREngine: TranscriptionEngine {
         let duration = spans.last?.end ?? 0
         lokalbotLog(
             "qwen-asr profile model=\(variant.modelID) spans=\(spans.count) merged=\(windows != nil) language=\(Self.qwenLanguage(language) ?? pinned.map { "auto→\($0)" } ?? "auto") elapsed=\(String(format: "%.2fs", elapsed)) rtfx=\(String(format: "%.1fx", elapsed > 0 ? duration / elapsed : 0))")
-        return (Transcript(segments: segments, engine: "\(variant.modelID) (Qwen3ASR MLX)"), pinned)
+        let runtimeName = variant.runtime == .llama ? "llama.cpp" : "Qwen3ASR MLX"
+        return (Transcript(segments: segments, engine: "\(variant.modelID) (\(runtimeName))"), pinned)
+    }
+
+    /// One window through llama-server's `/completion` with speech-swift's
+    /// prompt. URLSession's async API cancels the request with the task.
+    nonisolated static func transcribeWindow(
+        samples: [Float], language: String?, prompt: String?, server: LlamaServer
+    ) async throws -> String {
+        let input = samplesForInference(samples)
+        let request = try QwenLlamaASR.makeRequest(
+            serverBaseURL: server.baseURL,
+            authenticationToken: await server.authenticationToken(),
+            samples: input, sampleRate: sampleRate, language: language,
+            context: TranscriptionPrompt.normalized(prompt),
+            maxTokens: maxTokens(for: samples.count))
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw EngineError.transcriptionFailed("no response")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw EngineError.transcriptionFailed(
+                "HTTP \(http.statusCode): \(String(decoding: data.prefix(512), as: UTF8.self))")
+        }
+        return try QwenLlamaASR.transcript(fromCompletion: data)
     }
 
     /// Use the throwing API for every window so an abandoned transcription
@@ -203,8 +272,19 @@ actor QwenASREngine: TranscriptionEngine {
         return options
     }
 
+    /// Stops the 1.7B tier's llama-server at quit, like Granite's.
+    func shutdown() async {
+        await server?.stop()
+        server = nil
+    }
+
     private func unload() async {
         guard activeUses == 0, !(await preparation.isRunning) else { return }
+        if variant.runtime == .llama {
+            await server?.stop()
+            server = nil
+            return
+        }
         // The package's unload frees the weights and restores the MLX cache
         // limit it lowered at load; then return the buffer pool itself.
         model?.unload()
@@ -284,7 +364,7 @@ actor QwenASREngine: TranscriptionEngine {
         return windows
     }
 
-    private static func maxTokens(for sampleCount: Int) -> Int {
+    nonisolated static func maxTokens(for sampleCount: Int) -> Int {
         let seconds = Double(sampleCount) / Double(sampleRate)
         return min(768, max(128, Int(seconds * 18)))
     }
@@ -342,10 +422,12 @@ actor QwenASREngine: TranscriptionEngine {
 
     enum EngineError: LocalizedError {
         case notLoaded
+        case transcriptionFailed(String)
 
         var errorDescription: String? {
             switch self {
             case .notLoaded: "Qwen3-ASR failed to load."
+            case .transcriptionFailed(let detail): "Qwen3-ASR transcription failed: \(detail)"
             }
         }
     }

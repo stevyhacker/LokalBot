@@ -300,7 +300,7 @@ Different jobs use different models. These are the Mac defaults on a fresh insta
 
 | Role | Default model | Format | Approx. model files |
 | --- | --- | --- | ---: |
-| Transcription | Qwen3-ASR 1.7B | MLX 8-bit | 2.47 GB |
+| Transcription | Qwen3-ASR 1.7B | GGUF Q8_0 | 2.52 GB |
 | Summaries and chat | Qwen3.5 4B | `Q4_K_M` | 2.74 GB |
 | Autocomplete | Gemma 4 E2B Base | `Q6_K` | 3.85 GB |
 | Semantic search | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
