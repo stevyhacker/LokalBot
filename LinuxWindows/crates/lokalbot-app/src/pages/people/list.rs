@@ -10,7 +10,7 @@ use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, Context, Div, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
+    AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
     SharedString, StatefulInteractiveElement as _, Styled as _, div, px,
 };
 
@@ -18,41 +18,8 @@ use super::model::{self, Badge, Row};
 use super::{PROVENANCE, PeoplePage};
 use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::ui::side_column::label_chip;
 use crate::ui::{self, Ico, profile};
-
-/// A capsule label (`LabelChip`): amber for what needs the reader, quiet
-/// otherwise. The list's badge is the small size.
-pub(super) fn label_chip(
-    text: impl Into<SharedString>,
-    attention: bool,
-    small: bool,
-    cx: &gpui_kit::App,
-) -> Div {
-    let lb = cx.lb();
-    let (fill, color) = if attention {
-        (lb.attention.opacity(0.12), lb.attention_text)
-    } else {
-        (lb.quiet_fill, lb.supporting)
-    };
-    div()
-        .flex_none()
-        .rounded_full()
-        .bg(fill)
-        .text_color(color)
-        .when(small, |this| {
-            this.px(px(7.))
-                .py(px(1.))
-                .text_size(ty::CAPTION)
-                .font_weight(FontWeight::MEDIUM)
-        })
-        .when(!small, |this| {
-            this.px(px(9.))
-                .py(px(3.))
-                .text_size(ty::SECONDARY)
-                .font_weight(FontWeight::SEMIBOLD)
-        })
-        .child(text.into())
-}
 
 impl PeoplePage {
     pub(super) fn render_list(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {

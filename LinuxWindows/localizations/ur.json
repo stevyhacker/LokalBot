@@ -1306,6 +1306,8 @@
   "Writing…": "تحریر",
   "Written as an evidence-only fallback and saved locally.": "صرف شواہد پر مبنی متبادل کے طور پر لکھا گیا اور مقامی طور پر محفوظ کیا گیا۔",
   "Written on this PC by {model}. Review before sending.": "اس PC پر {model} کے ذریعے لکھا گیا۔ بھیجنے سے پہلے جائزہ لیں۔",
+  "Written today, {time}, by {model} on this PC": "آج {time} پر {model} نے اس PC پر لکھا",
+  "Written {date} by {model} on this PC": "{date} کو {model} نے اس PC پر لکھا",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{date} تحریر کردہ {model} {place}۔ اس پر بھروسہ کرنے سے پہلے ملاقاتوں کو چیک کریں۔",
   "You dictated": "آپ نے املا کرایا",
   "You said": "آپ نے کہا",

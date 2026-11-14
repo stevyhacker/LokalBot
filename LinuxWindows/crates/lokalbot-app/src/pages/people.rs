@@ -7,7 +7,7 @@
 
 mod detail;
 mod list;
-mod model;
+pub(crate) mod model;
 mod sheets;
 
 use std::cell::{Cell, RefCell};

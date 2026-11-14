@@ -1306,6 +1306,8 @@
   "Writing…": "写作",
   "Written as an evidence-only fallback and saved locally.": "已作为仅含证据的备用内容写入并保存在本地。",
   "Written on this PC by {model}. Review before sending.": "由 {model} 在这台 PC 上编写。发送前检查。",
+  "Written today, {time}, by {model} on this PC": "今天 {time} 由 {model} 在这台电脑上撰写",
+  "Written {date} by {model} on this PC": "{date} 由 {model} 在这台电脑上撰写",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "由{model}{place}撰写{date}。在依赖之前检查会议。",
   "You dictated": "你听写了",
   "You said": "你说了",

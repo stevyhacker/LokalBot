@@ -1306,6 +1306,8 @@
   "Writing…": "Writing…",
   "Written as an evidence-only fallback and saved locally.": "Dem write am as evidence-only fallback and save am for here.",
   "Written on this PC by {model}. Review before sending.": "Written for this PC by {model}. Review am before you send.",
+  "Written today, {time}, by {model} on this PC": "Today, {time}, na {model} write am for this PC",
+  "Written {date} by {model} on this PC": "For {date}, na {model} write am for this PC",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{model} write am {date} {place}. Check the meetings before you rely on am.",
   "You dictated": "You dictate",
   "You said": "You talk",

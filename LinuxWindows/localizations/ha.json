@@ -1306,6 +1306,8 @@
   "Writing…": "Rubutu",
   "Written as an evidence-only fallback and saved locally.": "An rubuta shi a matsayin madadin shaida kawai kuma an adana shi a gida.",
   "Written on this PC by {model}. Review before sending.": "An rubuta akan wannan PC ta {model}. Bita kafin aikawa.",
+  "Written today, {time}, by {model} on this PC": "Yau, {time}, {model} ya rubuta a wannan PC",
+  "Written {date} by {model} on this PC": "Ran {date}, {model} ya rubuta a wannan PC",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "An rubuta {date} ta {model} {place}. Bincika tarurruka kafin dogara da shi.",
   "You dictated": "Ka faɗa don rubutawa",
   "You said": "Ka ce",

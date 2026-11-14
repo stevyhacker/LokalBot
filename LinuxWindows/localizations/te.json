@@ -1306,6 +1306,8 @@
   "Writing…": "రచన",
   "Written as an evidence-only fallback and saved locally.": "ఆధారాలతో మాత్రమే ఉన్న ప్రత్యామ్నాయంగా రాయబడి స్థానికంగా సేవ్ చేయబడింది.",
   "Written on this PC by {model}. Review before sending.": "ఈ PCలో {model} ద్వారా వ్రాయబడింది. పంపే ముందు సమీక్షించండి.",
+  "Written today, {time}, by {model} on this PC": "ఈరోజు {time}కి, {model} మోడల్ ఈ PCలో రాసింది",
+  "Written {date} by {model} on this PC": "{date}న {model} మోడల్ ఈ PCలో రాసింది",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{date} {model} {place} ద్వారా వ్రాయబడింది. దానిపై ఆధారపడే ముందు సమావేశాలను తనిఖీ చేయండి.",
   "You dictated": "మీరు డిక్టేట్ చేశారు",
   "You said": "మీరు చెప్పారు",

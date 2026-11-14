@@ -1306,6 +1306,8 @@
   "Writing…": "Scrittura",
   "Written as an evidence-only fallback and saved locally.": "Scritto come ripiego basato solo sui riscontri e salvato in locale.",
   "Written on this PC by {model}. Review before sending.": "Scritto su questo PC da {model}. Rivedere prima di inviare.",
+  "Written today, {time}, by {model} on this PC": "Scritto oggi, {time}, da {model} su questo PC",
+  "Written {date} by {model} on this PC": "Scritto il {date} da {model} su questo PC",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Scritto {date} da {model} {place}. Controlla gli incontri prima di fare affidamento su di esso.",
   "You dictated": "Hai dettato",
   "You said": "Hai detto",

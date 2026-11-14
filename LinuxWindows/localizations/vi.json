@@ -1306,6 +1306,8 @@
   "Writing…": "Viết",
   "Written as an evidence-only fallback and saved locally.": "Được viết làm phương án dự phòng chỉ gồm bằng chứng và lưu cục bộ.",
   "Written on this PC by {model}. Review before sending.": "Được viết trên PC này bởi {model}. Xem xét trước khi gửi.",
+  "Written today, {time}, by {model} on this PC": "Viết hôm nay lúc {time} bởi {model} trên PC này",
+  "Written {date} by {model} on this PC": "Viết vào {date} bởi {model} trên PC này",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Được viết {date} bởi {model} {place}. Kiểm tra các cuộc họp trước khi dựa vào nó.",
   "You dictated": "Bạn đã đọc chính tả",
   "You said": "Bạn đã nói",

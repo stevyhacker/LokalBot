@@ -6,90 +6,25 @@
 
 use chrono::{DateTime, Utc};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, Context, Div, ElementId, FontWeight, HighlightStyle, InteractiveElement as _,
-    IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
-    StyledText, div, px,
+    AnyElement, Context, ElementId, FontWeight, HighlightStyle, IntoElement, ParentElement as _,
+    SharedString, Styled as _, StyledText, div, px,
 };
 use lokalbot_core::people::upcoming::PersonUpcomingMeeting;
 use lokalbot_core::{ActionThread, PersonProfile};
 
 use super::PeoplePage;
-use super::list::label_chip;
-use super::model::{self, Occasion, Series, side_column};
+use super::model::{self, Occasion, Series};
 use crate::i18n::h_flex;
-use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::action_row::{self, ThreadRowOptions};
 use crate::ui::section_panel::SectionPanelLead;
+use crate::ui::side_column::{
+    self, Disclosure, decision_row, label_chip, meeting_link_row, section_heading, side_block,
+};
 use crate::ui::{self, Ico};
-
-/// Between the page's sections, and between the side column's blocks
-/// (`WorkspaceMetric.sectionGap`).
-const SECTION_GAP: f32 = 22.;
-
-/// A page section's heading (`PageSectionHeading`): its name, how many rows
-/// follow, and one link.
-fn section_heading(
-    title: impl Into<SharedString>,
-    count: Option<usize>,
-    trailing: Option<AnyElement>,
-    cx: &App,
-) -> Div {
-    let lb = cx.lb();
-    h_flex()
-        .w_full()
-        .gap(px(8.))
-        .items_baseline()
-        .child(
-            div()
-                .flex_none()
-                .text_size(ty::SECTION)
-                .font_weight(FontWeight::BOLD)
-                .text_color(lb.text)
-                .child(title.into()),
-        )
-        .when_some(count, |this, count| {
-            this.child(
-                div()
-                    .flex_none()
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_secondary)
-                    .child(lokalbot_i18n::number(count)),
-            )
-        })
-        .when_some(trailing, |this, trailing| {
-            this.child(div().min_w_0().child(trailing))
-        })
-}
-
-/// One block of the side column (`SideColumnBlock`): a quiet heading over a
-/// few links or rows.
-fn side_block(title: impl Into<SharedString>, count: Option<usize>, cx: &App) -> Div {
-    let lb = cx.lb();
-    v_flex().w_full().gap(px(6.)).child(
-        h_flex()
-            .gap(px(6.))
-            .items_baseline()
-            .child(
-                div()
-                    .text_size(ty::SECONDARY)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(lb.supporting)
-                    .child(title.into()),
-            )
-            .when_some(count, |this, count| {
-                this.child(
-                    div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(lokalbot_i18n::number(count)),
-                )
-            }),
-    )
-}
 
 /// "Show 3 more" / "Show fewer" under a list.
 fn more_link(
@@ -120,16 +55,10 @@ impl PeoplePage {
         person: &PersonProfile,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let lb = cx.lb().clone();
         let now = Utc::now();
         let next = self.upcoming.get(&person.id).cloned();
         let series = model::series(model::occasions(person));
         let has_notes = !person.recent_notes.is_empty();
-        let has_main =
-            next.is_some() || person.open_count() > 0 || has_notes || !person.decisions.is_empty();
-        let has_side = !person.project_links.is_empty()
-            || !series.is_empty()
-            || !person.other_names.is_empty();
 
         let mut main: Vec<AnyElement> = Vec::new();
         if let Some(next) = &next {
@@ -162,55 +91,15 @@ impl PeoplePage {
             .detail_bounds
             .get()
             .map_or(1000., |b| f32::from(b.size.width));
-        let beside = has_main && has_side && side_column::beside(pane, scale);
-        let gap = px(SECTION_GAP + 4.);
-        let content: AnyElement = if beside {
-            let rtl = lokalbot_i18n::current().rtl;
-            h_flex()
-                .w_full()
-                .min_h_full()
-                .items_stretch()
-                .child(
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .gap(gap)
-                        .when(!rtl, |this| this.pl(metric::DETAIL_PADDING).pr(px(32.)))
-                        .when(rtl, |this| this.pr(metric::DETAIL_PADDING).pl(px(32.)))
-                        .py(px(24.))
-                        .children(main),
-                )
-                .child(
-                    v_flex()
-                        .flex_none()
-                        .w(px(side_column::width(scale)))
-                        .gap(px(SECTION_GAP))
-                        .px(px(20.))
-                        .py(px(24.))
-                        .border_color(lb.separator)
-                        .when(!rtl, |this| this.border_l_1())
-                        .when(rtl, |this| this.border_r_1())
-                        .children(side),
-                )
-                .into_any_element()
-        } else {
-            v_flex()
-                .w_full()
-                .max_w(metric::READING_MAX_WIDTH + metric::DETAIL_PADDING * 2.)
-                .gap(gap)
-                .px(metric::DETAIL_PADDING)
-                .py(px(24.))
-                .when(has_main, |this| this.children(main))
-                .when(has_side, |this| this.children(side))
-                .into_any_element()
-        };
-        div()
-            .id("person-detail")
-            .size_full()
-            .overflow_y_scroll()
-            .track_scroll(&self.detail_scroll)
-            .child(content)
-            .into_any_element()
+        side_column::page(
+            "person-detail",
+            main,
+            side,
+            pane,
+            scale,
+            &self.detail_scroll,
+            cx,
+        )
     }
 
     /// The next calendar meeting with the person (`PersonNextMeetingCard`):
@@ -450,7 +339,6 @@ impl PeoplePage {
         now: DateTime<Utc>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let lb = cx.lb().clone();
         let total = person.decisions.len();
         let hidden = model::hidden_count(total, model::VISIBLE_DECISIONS);
         let shown = if self.shows_all_decisions {
@@ -466,45 +354,15 @@ impl PeoplePage {
             .map(|(index, (meeting, decision))| {
                 let page = cx.entity();
                 let id = meeting.id;
-                let description: SharedString =
-                    model::meeting_link(&meeting.title, meeting.started_at, now).into();
-                h_flex()
-                    .w_full()
-                    .gap(px(8.))
-                    .items_start()
-                    .py(px(4.))
-                    .child(div().flex_none().w(px(16.)).pt(px(2.)).child(ui::icon(
-                        Ico::CircleCheck,
-                        px(14.),
-                        lb.success_text,
-                    )))
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .text_size(ty::BODY)
-                            .text_color(lb.text)
-                            .child(ui::text::paragraph(decision.text.clone())),
-                    )
-                    .child(
-                        div()
-                            .id(("person-decision", index))
-                            .flex_none()
-                            .max_w(px(200.))
-                            .truncate()
-                            .cursor_pointer()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.supporting)
-                            .hover(|s| s.underline())
-                            .child(meeting.title.clone())
-                            .tooltip(move |window, cx| {
-                                Tooltip::new(description.clone()).build(window, cx)
-                            })
-                            .on_click(move |_, _, cx| {
-                                page.update(cx, |page, cx| page.open_meeting(id, None, cx))
-                            }),
-                    )
-                    .into_any_element()
+                decision_row(
+                    ("person-decision", index),
+                    decision.text.clone(),
+                    meeting.title.clone(),
+                    model::meeting_link(&meeting.title, meeting.started_at, now),
+                    false,
+                    move |_, cx| page.update(cx, |page, cx| page.open_meeting(id, None, cx)),
+                    cx,
+                )
             })
             .collect::<Vec<_>>();
         v_flex()
@@ -707,76 +565,4 @@ impl PeoplePage {
             )
             .into_any_element()
     }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum Disclosure {
-    None,
-    Collapsed,
-    Expanded,
-}
-
-/// A meeting title in the side column with its detail under it and a
-/// chevron that turns down while a series is open (`MeetingLinkRow`).
-fn meeting_link_row(
-    id: SharedString,
-    title: String,
-    detail: Option<String>,
-    disclosure: Disclosure,
-    indented: bool,
-    on_click: impl Fn(&mut gpui_kit::Window, &mut App) + 'static,
-    cx: &App,
-) -> AnyElement {
-    let lb = cx.lb();
-    let chevron = match disclosure {
-        Disclosure::Expanded => Ico::ChevronDown,
-        _ if lokalbot_i18n::current().rtl => Ico::ChevronLeft,
-        _ => Ico::ChevronRight,
-    };
-    let chevron_color = if disclosure == Disclosure::None {
-        lb.text_tertiary
-    } else {
-        lb.text_secondary
-    };
-    h_flex()
-        .id(id)
-        .w_full()
-        .gap(px(8.))
-        .items_center()
-        .mx(px(-6.))
-        .px(px(6.))
-        .py(px(5.))
-        .when(indented, |this| this.pl(px(18.)))
-        .rounded(px(6.))
-        .cursor_pointer()
-        .hover(|s| s.bg(lb.hover))
-        .child(
-            v_flex()
-                .flex_1()
-                .min_w_0()
-                .gap(px(1.))
-                .child(
-                    div()
-                        .truncate()
-                        .text_size(ty::BODY)
-                        .text_color(lb.text)
-                        .child(title),
-                )
-                .when_some(detail, |this, detail| {
-                    this.child(
-                        div()
-                            .truncate()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(detail),
-                    )
-                }),
-        )
-        .child(
-            div()
-                .flex_none()
-                .child(ui::icon(chevron, px(11.), chevron_color)),
-        )
-        .on_click(move |_, window, cx| on_click(window, cx))
-        .into_any_element()
 }

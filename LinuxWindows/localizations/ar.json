@@ -1306,6 +1306,8 @@
   "Writing…": "الكتابة",
   "Written as an evidence-only fallback and saved locally.": "كُتب كبديل احتياطي يعتمد على الأدلة فقط وحُفظ محليًا.",
   "Written on this PC by {model}. Review before sending.": "تمت كتابته على هذا الكمبيوتر بواسطة {model}. المراجعة قبل الإرسال.",
+  "Written today, {time}, by {model} on this PC": "كُتب اليوم، {time}، بواسطة {model} على هذا الكمبيوتر",
+  "Written {date} by {model} on this PC": "كُتب في {date} بواسطة {model} على هذا الكمبيوتر",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "بقلم {date} بواسطة {model} {place}. التحقق من الاجتماعات قبل الاعتماد عليها.",
   "You dictated": "أمليت",
   "You said": "قلت",

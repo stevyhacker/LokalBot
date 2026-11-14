@@ -1306,6 +1306,8 @@
   "Writing…": "Письмо",
   "Written as an evidence-only fallback and saved locally.": "Записано как резервный вариант только по материалам и сохранено локально.",
   "Written on this PC by {model}. Review before sending.": "Написано на этом компьютере {model}. Проверьте перед отправкой.",
+  "Written today, {time}, by {model} on this PC": "Написано сегодня в {time} моделью {model} на этом ПК",
+  "Written {date} by {model} on this PC": "Написано {date} моделью {model} на этом ПК",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Написал {date} {model} {place}. Проверьте встречи, прежде чем полагаться на это.",
   "You dictated": "Вы продиктовали",
   "You said": "Вы сказали",

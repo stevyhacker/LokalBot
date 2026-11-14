@@ -1306,6 +1306,8 @@
   "Writing…": "Writing…",
   "Written as an evidence-only fallback and saved locally.": "Written as an evidence-only fallback and saved locally.",
   "Written on this PC by {model}. Review before sending.": "Written on this PC by {model}. Review before sending.",
+  "Written today, {time}, by {model} on this PC": "Written today, {time}, by {model} on this PC",
+  "Written {date} by {model} on this PC": "Written {date} by {model} on this PC",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Written {date} by {model} {place}. Check the meetings before relying on it.",
   "You dictated": "You dictated",
   "You said": "You said",

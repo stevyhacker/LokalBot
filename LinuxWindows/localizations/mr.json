@@ -1306,6 +1306,8 @@
   "Writing…": "लेखन",
   "Written as an evidence-only fallback and saved locally.": "फक्त पुराव्यावर आधारित पर्याय म्हणून लिहिले आणि स्थानिकरीत्या जतन केले.",
   "Written on this PC by {model}. Review before sending.": "या PC वर {model} ने लिहिलेले. पाठवण्यापूर्वी पुनरावलोकन करा.",
+  "Written today, {time}, by {model} on this PC": "आज, {time}, {model} ने या PC वर लिहिले",
+  "Written {date} by {model} on this PC": "{date} रोजी {model} ने या PC वर लिहिले",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{date} {model} {place} ने लिहिलेले. त्यावर अवलंबून राहण्यापूर्वी मीटिंग तपासा.",
   "You dictated": "तुम्ही श्रुतलेखन केले",
   "You said": "तुम्ही म्हणालात",

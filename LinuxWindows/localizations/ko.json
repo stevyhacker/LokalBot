@@ -1306,6 +1306,8 @@
   "Writing…": "글쓰기",
   "Written as an evidence-only fallback and saved locally.": "근거만 담은 대체본으로 작성하여 로컬에 저장했습니다.",
   "Written on this PC by {model}. Review before sending.": "{model}가 이 PC에 작성했습니다. 보내기 전에 검토하세요.",
+  "Written today, {time}, by {model} on this PC": "오늘 {time}에 {model} 모델이 이 PC에서 작성",
+  "Written {date} by {model} on this PC": "{date}에 {model} 모델이 이 PC에서 작성",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{date} 작성자: {model} {place}. 그것에 의존하기 전에 회의를 확인하십시오.",
   "You dictated": "받아쓴 내용",
   "You said": "말한 내용",

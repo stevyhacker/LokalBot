@@ -1306,6 +1306,8 @@
   "Writing…": "লেখা",
   "Written as an evidence-only fallback and saved locally.": "শুধু প্রমাণভিত্তিক বিকল্প হিসেবে লেখা হয়েছে এবং স্থানীয়ভাবে সংরক্ষিত হয়েছে।",
   "Written on this PC by {model}. Review before sending.": "এই পিসিতে {model} দ্বারা লেখা। পাঠানোর আগে পর্যালোচনা করুন।",
+  "Written today, {time}, by {model} on this PC": "আজ {time}-এ লেখা, {model} দিয়ে, এই পিসিতে",
+  "Written {date} by {model} on this PC": "{date} তারিখে লেখা, {model} দিয়ে, এই পিসিতে",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{date} {model} {place} লিখেছে। এটির উপর নির্ভর করার আগে মিটিংগুলি পরীক্ষা করুন।",
   "You dictated": "আপনি শ্রুতিলিখন করেছেন",
   "You said": "আপনি বলেছেন",

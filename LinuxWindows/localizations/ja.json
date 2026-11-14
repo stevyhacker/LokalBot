@@ -1306,6 +1306,8 @@
   "Writing…": "文章作成",
   "Written as an evidence-only fallback and saved locally.": "根拠だけの代替として書き出し、ローカルに保存しました。",
   "Written on this PC by {model}. Review before sending.": "{model} によってこの PC に書き込まれました。送信する前に確認してください。",
+  "Written today, {time}, by {model} on this PC": "今日 {time}、{model} がこの PC 上で作成",
+  "Written {date} by {model} on this PC": "{date}、{model} がこの PC 上で作成",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "{date} によって {model} {place} によって書かれました。信頼する前に会議を確認してください。",
   "You dictated": "音声入力した内容",
   "You said": "あなたの発言",

@@ -200,6 +200,7 @@ mod tests {
             week_seconds: 0.0,
             days: Vec::new(),
             windows: Vec::new(),
+            window_count: 0,
             last_active: None,
             summary: None,
             review_notes: Vec::new(),

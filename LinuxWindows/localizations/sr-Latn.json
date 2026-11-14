@@ -1306,6 +1306,8 @@
   "Writing…": "Pisanje",
   "Written as an evidence-only fallback and saved locally.": "Upisano kao rezervna varijanta zasnovana samo na dokazima i sačuvano lokalno.",
   "Written on this PC by {model}. Review before sending.": "Napisano na ovom računaru od strane {model}. Pregledajte pre slanja.",
+  "Written today, {time}, by {model} on this PC": "Napisano danas u {time}, model {model} na ovom računaru",
+  "Written {date} by {model} on this PC": "Napisano {date}, model {model} na ovom računaru",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Napisano {date}, model: {model}, {place}. Proverite sastanke pre nego što se oslonite na ovaj tekst.",
   "You dictated": "Diktirali ste",
   "You said": "Rekli ste",

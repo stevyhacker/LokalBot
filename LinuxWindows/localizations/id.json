@@ -1306,6 +1306,8 @@
   "Writing…": "Menulis",
   "Written as an evidence-only fallback and saved locally.": "Ditulis sebagai cadangan berbasis bukti saja dan disimpan secara lokal.",
   "Written on this PC by {model}. Review before sending.": "Ditulis di PC ini oleh {model}. Tinjau sebelum mengirim.",
+  "Written today, {time}, by {model} on this PC": "Ditulis hari ini pukul {time} oleh {model} di PC ini",
+  "Written {date} by {model} on this PC": "Ditulis {date} oleh {model} di PC ini",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Ditulis {date} oleh {model} {place}. Periksa rapat sebelum mengandalkannya.",
   "You dictated": "Anda mendiktekan",
   "You said": "Anda berkata",

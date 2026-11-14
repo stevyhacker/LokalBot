@@ -22,7 +22,7 @@ pub(super) const RECENT_DAYS: u64 = 14;
 /// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
 /// itself is the caller's `lokalbot_i18n::tr`, so the key stays a literal the
 /// catalog checks can see.
-pub(super) fn fill(template: &str, values: &[&str]) -> String {
+pub(crate) fn fill(template: &str, values: &[&str]) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
     let mut next = 0;
@@ -67,7 +67,7 @@ pub(super) fn fill(template: &str, values: &[&str]) -> String {
 /// direction when that is right-to-left. Without it a translated phrase that
 /// starts with a number ("2 …", "14:00 …") loses the number in an Arabic or
 /// Urdu interface. Left-to-right text is returned as it is.
-pub(super) fn directional(text: impl Into<String>) -> String {
+pub(crate) fn directional(text: impl Into<String>) -> String {
     let text = text.into();
     if lokalbot_i18n::content_is_rtl(&text) && !text.starts_with('\u{200f}') {
         format!("\u{200f}{text}")
@@ -157,7 +157,7 @@ pub(super) fn series(occasions: Vec<Occasion>) -> Vec<Series> {
 
 /// The person's initials as their avatar shows them: the first and last
 /// words that start with a letter (`InitialsAvatar.initials`).
-pub(super) fn initials(name: &str) -> String {
+pub(crate) fn initials(name: &str) -> String {
     let words: Vec<&str> = name
         .split(' ')
         .filter(|w| w.chars().next().is_some_and(char::is_alphabetic))
@@ -404,7 +404,7 @@ fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
 }
 
 /// "Nov 10", with the year once it is not this year.
-pub(super) fn short_date(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
+pub(crate) fn short_date(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
     if local(date).year() == local(now).year() {
         formatted(date, "%b %-d")
     } else {
@@ -414,7 +414,7 @@ pub(super) fn short_date(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
 
 /// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
 /// "Oct 27" (`ActionListWording.day`).
-pub(super) fn day(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
+pub(crate) fn day(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
     let days_ago = (local(now).date_naive() - local(date).date_naive()).num_days();
     match days_ago {
         0 => lokalbot_i18n::tr("Today").to_string(),
@@ -517,7 +517,7 @@ pub(super) fn subtitle(person: &PersonProfile, now: DateTime<Utc>) -> String {
 }
 
 /// "Design review meeting · Nov 10".
-pub(super) fn meeting_link(title: &str, date: DateTime<Utc>, now: DateTime<Utc>) -> String {
+pub(crate) fn meeting_link(title: &str, date: DateTime<Utc>, now: DateTime<Utc>) -> String {
     format!("{title} · {}", short_date(date, now))
 }
 
@@ -565,7 +565,7 @@ pub(super) fn restore_hidden(count: usize) -> String {
 }
 
 /// "Show 3 more" or "Show fewer".
-pub(super) fn show_more(expanded: bool, hidden: usize) -> String {
+pub(crate) fn show_more(expanded: bool, hidden: usize) -> String {
     if expanded {
         lokalbot_i18n::tr("Show fewer").to_string()
     } else {
@@ -577,33 +577,13 @@ pub(super) fn show_more(expanded: bool, hidden: usize) -> String {
 }
 
 /// How many rows stay behind "Show N more".
-pub(super) fn hidden_count(total: usize, visible: usize) -> usize {
+pub(crate) fn hidden_count(total: usize, visible: usize) -> usize {
     total.saturating_sub(visible)
 }
 
 /// The day the list's wording was made for: rows say "Today" and "Thu".
 pub(super) fn local_day(now: DateTime<Utc>) -> NaiveDate {
     local(now).date_naive()
-}
-
-// ------------------------------------------------------------- columns
-
-/// Where the side column goes (`PageSideColumnLayout`): beside the page
-/// while the pane has room for both, under it otherwise. Both widths grow
-/// with the text size.
-pub(super) mod side_column {
-    /// The side column's width at the standard text size.
-    pub const WIDTH: f32 = 252.;
-    /// The page keeps at least this much beside the column.
-    pub const PAGE_MINIMUM_WIDTH: f32 = 388.;
-
-    pub fn width(text_scale: f32) -> f32 {
-        (WIDTH * text_scale.max(1.)).round()
-    }
-
-    pub fn beside(pane_width: f32, text_scale: f32) -> bool {
-        pane_width >= ((PAGE_MINIMUM_WIDTH + WIDTH) * text_scale.max(1.)).round()
-    }
 }
 
 /// Below this width the toolbar's Ask button shows its icon alone.
@@ -951,21 +931,5 @@ mod tests {
         assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
         assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
         assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
-    }
-
-    #[test]
-    fn the_side_column_moves_under_the_page_when_the_pane_is_narrow() {
-        assert!(side_column::beside(640., 1.0));
-        assert!(!side_column::beside(639., 1.0));
-        assert!(
-            !side_column::beside(700., 1.2),
-            "larger text needs a wider pane"
-        );
-        assert_eq!(side_column::width(1.2), 302.);
-        assert_eq!(
-            side_column::width(0.93),
-            252.,
-            "never narrower than standard"
-        );
     }
 }

@@ -1306,6 +1306,8 @@
   "Writing…": "Uandishi",
   "Written as an evidence-only fallback and saved locally.": "Imeandikwa kama mbadala wa ushahidi pekee na kuhifadhiwa ndani ya kifaa.",
   "Written on this PC by {model}. Review before sending.": "Imeandikwa kwenye Kompyuta hii na {model}. Kagua kabla ya kutuma.",
+  "Written today, {time}, by {model} on this PC": "Yameandikwa leo saa {time} na {model} kwenye Kompyuta hii",
+  "Written {date} by {model} on this PC": "Yameandikwa {date} na {model} kwenye Kompyuta hii",
   "Written {date} by {model} {place}. Check the meetings before relying on it.": "Imeandikwa {date} na {model} {place}. Angalia mikutano kabla ya kuitegemea.",
   "You dictated": "Ulisema kwa imla",
   "You said": "Ulisema",

@@ -1,61 +1,14 @@
-//! Pieces shared by People and Projects: section cards with a teal icon,
-//! name tints, monograms and relative days.
+//! Pieces shared by People and Projects: name tints, the project monogram,
+//! relative days, durations and links.
 
-use crate::i18n::h_flex;
-use chrono::{DateTime, Local, NaiveDate, Utc};
+use chrono::{DateTime, Local, Utc};
 use gpui_kit::component::v_flex;
 use gpui_kit::{
-    AnyElement, App, Div, ElementId, FontWeight, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, Pixels, SharedString, Stateful, StatefulInteractiveElement as _,
-    Styled as _, Window, div, px,
+    AnyElement, App, Div, ElementId, FontWeight, Hsla, InteractiveElement as _, ParentElement as _,
+    Pixels, SharedString, Stateful, StatefulInteractiveElement as _, Styled as _, Window, div, px,
 };
 
-use super::{Ico, icon};
-use crate::theme::{LbThemeExt as _, metric, ty};
-
-/// `WorkspaceSection` with its symbol: teal icon and bold title over a panel.
-pub fn section(
-    icon_name: Ico,
-    title: impl Into<SharedString>,
-    content: impl IntoElement,
-    cx: &App,
-) -> Div {
-    let lb = cx.lb();
-    v_flex()
-        .w_full()
-        .gap(metric::HEADER_TO_CONTENT)
-        .child(
-            h_flex()
-                .gap(px(7.))
-                .items_center()
-                .child(icon(icon_name, px(14.), lb.accent_text))
-                .child(
-                    div()
-                        .text_size(ty::SECTION)
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(lb.text)
-                        .child(title.into()),
-                ),
-        )
-        .child(
-            div()
-                .w_full()
-                .p(metric::PANEL_PADDING)
-                .rounded(metric::GROUP_RADIUS)
-                .bg(lb.group_fill)
-                .border_1()
-                .border_color(lb.group_stroke)
-                .child(content),
-        )
-}
-
-/// A quiet line inside an empty section (`EmptyWorkspaceRow`).
-pub fn empty_row(text: impl Into<SharedString>, cx: &App) -> Div {
-    div()
-        .text_size(ty::BODY)
-        .text_color(cx.lb().text_secondary)
-        .child(text.into())
-}
+use crate::theme::{LbThemeExt as _, ty};
 
 /// A stable color per name, from the speaker palette.
 pub fn name_tint(name: &str, cx: &App) -> Hsla {
@@ -66,32 +19,38 @@ pub fn name_tint(name: &str, cx: &App) -> Hsla {
     cx.lb().speaker(hash as usize % 8)
 }
 
-/// Up to two initials.
-pub fn initials(name: &str) -> String {
-    name.split_whitespace()
-        .filter_map(|w| w.chars().next())
-        .take(2)
-        .collect::<String>()
-        .to_uppercase()
-}
-
-/// A project's rounded-square monogram (`ProjectMonogram`, radius 0.26× size).
-pub fn monogram(name: &str, size: Pixels, cx: &App) -> Div {
+/// A project's first letter on a rounded square tinted from its name
+/// (`ProjectMonogram`, radius 0.26× size). A suggestion, which nobody tracks
+/// yet, is a dashed outline.
+pub fn monogram(name: &str, size: Pixels, suggestion: bool, cx: &App) -> Div {
+    let lb = cx.lb();
     let tint = name_tint(name, cx);
-    div()
+    let letter: String = name
+        .trim()
+        .chars()
+        .next()
+        .map(|c| c.to_uppercase().collect())
+        .unwrap_or_default();
+    let tile = div()
         .size(size)
         .flex_none()
         .rounded(size * 0.26)
-        .bg(tint.opacity(0.16))
         .border_1()
-        .border_color(tint.opacity(0.28))
         .flex()
         .items_center()
         .justify_center()
-        .text_size(size * 0.38)
+        .text_size(size * 0.46)
         .font_weight(FontWeight::SEMIBOLD)
-        .text_color(tint)
-        .child(initials(name))
+        .child(letter);
+    if suggestion {
+        tile.border_dashed()
+            .border_color(lb.text_secondary.opacity(0.7))
+            .text_color(lb.text_secondary)
+    } else {
+        tile.bg(tint.opacity(0.16))
+            .border_color(tint.opacity(0.28))
+            .text_color(tint)
+    }
 }
 
 /// "today", "yesterday", "3 days ago", then "Oct 3" (`PersonDetailView.relativeDay`).
@@ -109,16 +68,6 @@ pub fn relative_day(at: DateTime<Utc>, now: DateTime<Local>) -> String {
             )
             .to_string(),
     }
-}
-
-/// "Oct 8, 2026".
-pub fn short_date(at: DateTime<Utc>) -> String {
-    at.with_timezone(&Local)
-        .format_localized(
-            lokalbot_i18n::date_pattern("%b %-d, %Y"),
-            lokalbot_i18n::date_locale(),
-        )
-        .to_string()
 }
 
 /// "1 meeting" / "3 meetings".
@@ -163,19 +112,6 @@ pub fn divided(rows: Vec<AnyElement>, cx: &App) -> Div {
     column
 }
 
-/// The day a project or person was last active, as a key like "Mon, Oct 12".
-pub fn day_key_label(key: &str) -> String {
-    NaiveDate::parse_from_str(key, "%Y-%m-%d")
-        .map(|d| {
-            d.format_localized(
-                lokalbot_i18n::date_pattern("%a, %b %-d"),
-                lokalbot_i18n::date_locale(),
-            )
-            .to_string()
-        })
-        .unwrap_or_else(|_| key.to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,7 +130,6 @@ mod tests {
         assert_eq!(relative_day(at(17), now), "yesterday");
         assert_eq!(relative_day(at(15), now), "3 days ago");
         assert_eq!(relative_day(at(3), now), "Oct 3");
-        assert_eq!(initials("Maya van Dijk"), "MV");
         assert_eq!(duration(3.0 * 3600.0 + 600.0), "3h 10m");
         assert_eq!(duration(20.0), "1m");
     }
