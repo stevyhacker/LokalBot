@@ -378,26 +378,6 @@ pub fn question_scope_summary(message: &ChatMessage, offered: Offered) -> Option
     Some(parts.join(" · "))
 }
 
-/// `questionScopeChanged`: a question shows its scope when it differs from the
-/// one before it.
-pub fn question_scope_changed(message: &ChatMessage, previous: Option<&ChatMessage>) -> bool {
-    if message.role != ChatRole::User {
-        return false;
-    }
-    let Some(previous) = previous else {
-        return true;
-    };
-    let set = |m: &ChatMessage| {
-        m.source_scopes
-            .iter()
-            .copied()
-            .collect::<std::collections::BTreeSet<_>>()
-    };
-    set(message) != set(previous)
-        || message.day_scope_key != previous.day_scope_key
-        || message.attached_screen_day_keys != previous.attached_screen_day_keys
-}
-
 /// The sources a session's moments leave (`selectEvidence`): its screens, or the
 /// day's meetings when it has none.
 pub fn session_sources(screen_ids: &[i64]) -> Sources {
@@ -882,9 +862,6 @@ mod tests {
             question_scope_summary(&ChatMessage::new(ChatRole::Assistant, "A"), none),
             None
         );
-        assert!(question_scope_changed(&all, None));
-        assert!(question_scope_changed(&narrow, Some(&all)));
-        assert!(!question_scope_changed(&all, Some(&all)));
     }
 
     #[test]

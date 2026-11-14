@@ -76,7 +76,8 @@ def source_keys():
     # Every crate: an error from core or the engine is shown as it is, and a key
     # with no entry would stay in English in every language.
     paths = [path for path in CRATES.glob("*/src/**/*.rs") if path.name != "catalogs.rs"]
-    calls = re.compile(r'(?:lokalbot_i18n::(?:tr|format)|crate::i18n::placeholder|\btr)\s*\(')
+    # `mac(…)` fills a macOS catalog entry's %@ fields after looking it up.
+    calls = re.compile(r'(?:lokalbot_i18n::(?:tr|format)|crate::i18n::placeholder|\btr|\bmac)\s*\(')
     for path in paths:
         source = path.read_text().split("#[cfg(test)]")[0]
         for call in calls.finditer(source):
@@ -99,7 +100,7 @@ def source_keys():
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
     source = (APP / "component_i18n.rs").read_text().split("struct ComponentTranslations")[0]
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
-    for file in ["pages/ask/transcript.rs", "windows/quick_recall.rs"]:
+    for file in ["pages/ask/model.rs", "windows/quick_recall.rs"]:
         source = (APP / file).read_text()
         keys.update(strings(re.search(r'const SUGGESTIONS[^=]*=\s*\[(.*?)\];', source, re.S)[1]))
     providers = [
@@ -107,7 +108,7 @@ def source_keys():
         ("lokalbot-core/src/model/activity.rs", {"label"}),
         ("lokalbot-core/src/model/outcomes.rs", {"label"}),
         ("lokalbot-audio/src/recorder.rs", {"label"}),
-        ("lokalbot-agent/src/policy.rs", {"title", "detail", "confirmation_title", "confirmation_message", "confirmation_action"}),
+        ("lokalbot-agent/src/policy.rs", {"confirmation_title", "confirmation_message", "confirmation_action"}),
         ("lokalbot-agent/src/session.rs", {"reasoning_name"}),
         ("lokalbot-i18n/src/lib.rs", {"count"}),
     ]

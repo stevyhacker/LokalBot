@@ -31,4 +31,14 @@ pub trait Page: Render + Sized {
     fn toolbar(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> Option<AnyElement> {
         None
     }
+
+    /// A control drawn in the title's place, as Timeline's date opens its
+    /// calendar. `None` draws `title` and `subtitle` as text.
+    fn title_control(
+        &mut self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        None
+    }
 }

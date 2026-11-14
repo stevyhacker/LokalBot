@@ -1,5 +1,6 @@
-//! The composer dock (`AskView.composerDock`): filter chips, the evidence
-//! boundary, answer sources, the input box and the inference status.
+//! The field (`AskView.composerPanel`): screens attached as context, the
+//! input, the two scope menus (sources, time), Ask or Stop, and a line under
+//! it only when a remote or blocked model changes where the question goes.
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -10,13 +11,14 @@ use gpui_kit::component::popover::Popover;
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, Context, Div, Focusable as _, FontWeight, InteractiveElement as _,
+    AnyElement, App, Context, Div, ElementId, Focusable as _, FontWeight, InteractiveElement as _,
     IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Window, div, linear_color_stop, linear_gradient, px,
+    Window, div, px,
 };
 use lokalbot_core::settings::SummarizerBackend;
 
 use super::AskPage;
+use super::model::{self, PageKind};
 use super::scope::{DateScope, Source};
 use super::search::Facet;
 use crate::state::SettingsCategory;
@@ -92,99 +94,65 @@ pub fn inference(cx: &App) -> Inference {
 }
 
 impl AskPage {
-    pub(super) fn render_dock(
+    /// The field and what belongs to it, at the reading width. On a new
+    /// question it sits mid-page; in a conversation it is docked below the
+    /// thread with a fade above it.
+    pub(super) fn render_field_column(
         &mut self,
+        page: PageKind,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> impl IntoElement + use<> {
+    ) -> Div {
         let lb = cx.lb().clone();
-        let searching = !self.query.trim().is_empty();
-        let mut rows: Vec<AnyElement> = Vec::new();
-        if let Some(filters) = self.render_filter_chips(cx) {
-            rows.push(filters.into_any_element());
-        }
-        if !self.pins.is_empty() {
-            rows.push(self.render_pins(cx).into_any_element());
-        }
-        if self.meeting_scope.is_some() || self.screen_scope.is_some() {
-            let label = format!(
-                "{} · {}",
-                self.meeting_scope.as_ref().map_or_else(
-                    || lokalbot_i18n::tr("All meetings").to_string(),
-                    |scope| super::history::count_label(scope.len(), "meeting"),
-                ),
-                self.screen_scope.as_ref().map_or_else(
-                    || lokalbot_i18n::tr("All screens").to_string(),
-                    |scope| lokalbot_i18n::format(
-                        "{0} screens",
-                        &[("0", lokalbot_i18n::number(scope.len()))],
-                    ),
-                ),
-            );
-            rows.push(
-                h_flex()
-                    .child(
-                        Button::new("ask-evidence-scope")
-                            .outline()
-                            .small()
-                            .icon(Icon::new(Ico::CircleX))
-                            .label(label)
-                            .tooltip(lokalbot_i18n::tr("Clear the selected evidence boundary"))
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.meeting_scope = None;
-                                this.screen_scope = None;
-                                this.restore_sources();
-                                this.scope_from_results = false;
-                                this.scope_had_files = false;
-                                this.scope_had_notes = false;
-                                this.scope_changed(window, cx);
-                            })),
-                    )
-                    .into_any_element(),
-            );
-        }
-        if searching {
-            rows.push(self.render_answer_sources(cx).into_any_element());
-        }
-        rows.push(self.render_composer(window, cx).into_any_element());
-        rows.push(self.render_inference_status(cx).into_any_element());
-
-        div()
+        let docked = page == PageKind::Conversation;
+        let column = v_flex()
+            .w_full()
+            .max_w(metric::READING_MAX_WIDTH)
+            .px(metric::DETAIL_PADDING)
+            .when(docked, |this| this.pt(px(10.)).pb(px(14.)))
+            .gap(px(8.))
+            .when(!self.pins.is_empty(), |this| {
+                this.child(self.render_pins(cx))
+            })
+            .child(self.render_composer(page, window, cx))
+            .children(self.render_inference_status(cx));
+        v_flex()
             .relative()
             .w_full()
             .flex_none()
-            .child(
-                div()
-                    .absolute()
-                    .top(px(-14.))
-                    .left_0()
-                    .right_0()
-                    .h(px(14.))
-                    .bg(linear_gradient(
-                        180.,
-                        linear_color_stop(lb.window.opacity(0.), 0.),
-                        linear_color_stop(lb.window.opacity(0.7), 1.),
-                    )),
-            )
-            .child(
-                v_flex().w_full().items_center().bg(lb.window).child(
-                    v_flex()
-                        .w_full()
-                        .max_w(metric::READING_MAX_WIDTH + metric::DETAIL_PADDING * 2.)
-                        .px(metric::DETAIL_PADDING)
-                        .pt(px(10.))
-                        .pb(px(14.))
-                        .gap(px(8.))
-                        .children(rows),
-                ),
-            )
+            .items_center()
+            .when(docked, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .top(px(-14.))
+                        .left_0()
+                        .right_0()
+                        .h(px(14.))
+                        .bg(gpui_kit::linear_gradient(
+                            180.,
+                            gpui_kit::linear_color_stop(lb.page.opacity(0.), 0.),
+                            gpui_kit::linear_color_stop(lb.page.opacity(0.7), 1.),
+                        )),
+                )
+            })
+            .child(column)
     }
 
-    /// Screens attached to the next question, each with its way off.
-    /// `pinnedContextRow`: what each attached screen is, by its picture.
+    /// `pinnedContextRow`: the screens attached to the next question, each by
+    /// its picture, with a way to take one or all off.
     fn render_pins(&self, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
-        let mut row = h_flex().gap(px(8.)).flex_wrap();
+        let mut row = h_flex().gap(px(8.)).items_center().flex_wrap().child(
+            h_flex()
+                .gap(px(5.))
+                .items_center()
+                .text_size(ty::SECONDARY)
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(lb.text_secondary)
+                .child(ui::icon(Ico::Pin, px(12.), lb.text_secondary))
+                .child(lokalbot_i18n::tr("Context")),
+        );
         for (index, pin) in self.pins.iter().enumerate() {
             let title = if pin.window_title.trim().is_empty() {
                 pin.app.clone()
@@ -240,239 +208,23 @@ impl AskPage {
                     ),
             );
         }
-        row
-    }
-
-    fn render_filter_chips(&self, cx: &mut Context<Self>) -> Option<Div> {
-        if self.facet == Facet::All && self.screen_app.is_none() {
-            return None;
-        }
-        let mut row = h_flex().gap(px(8.)).flex_wrap();
-        if self.facet != Facet::All {
-            row = row.child(
-                Button::new("ask-filter-result-type")
-                    .outline()
-                    .small()
-                    .icon(Icon::new(Ico::CircleX))
-                    .label(lokalbot_i18n::format(
-                        "Results: {0}",
-                        &[("0", lokalbot_i18n::tr(self.facet.label()).to_string())],
-                    ))
-                    .tooltip(lokalbot_i18n::tr("Clear the result-type filter"))
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.facet = Facet::All;
-                        this.scope_changed(window, cx);
-                    })),
-            );
-        }
-        if let Some(app) = &self.screen_app {
-            row = row.child(
-                Button::new("ask-filter-screen-app")
-                    .outline()
-                    .small()
-                    .icon(Icon::new(Ico::CircleX))
-                    .label(lokalbot_i18n::format(
-                        "Screen app: {0}",
-                        &[("0", app.clone())],
-                    ))
-                    .tooltip(lokalbot_i18n::tr(
-                        "Clear the screen-app filter; it does not filter meetings or activity",
-                    ))
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.screen_app = None;
-                        this.scope_changed(window, cx);
-                    })),
-            );
-        }
-        Some(row)
-    }
-
-    /// "Answer sources: 3 meetings · 0 screen moments" with the list on demand.
-    fn render_answer_sources(&self, cx: &mut Context<Self>) -> Div {
-        let lb = cx.lb().clone();
-        let count = self.results.meetings.len();
-        let screens = self.results.screens.len();
-        let files = self.results.files.len();
-        let notes = self.results.notes.len();
-        let label = if self.results.running {
-            lokalbot_i18n::tr("Finding sources…").to_string()
-        } else if count + screens + files + notes > 0 {
-            let mut label = lokalbot_i18n::format(
-                "Answer sources: {0} · {1}",
-                &[
-                    (
-                        "0",
-                        super::history::count_label(count, "meeting").to_string(),
-                    ),
-                    (
-                        "1",
-                        super::history::count_label(screens, "screen moment").to_string(),
-                    ),
-                ],
-            );
-            if files > 0 {
-                label.push_str(" · ");
-                label.push_str(&super::history::count_label(files, "file"));
-            }
-            if notes > 0 {
-                label.push_str(" · ");
-                label.push_str(&super::history::count_label(notes, "note"));
-            }
-            label
-        } else {
-            lokalbot_i18n::format(
-                "Answer sources: {0} · {1}",
-                &[
-                    ("0", self.sources.summary(self.offered(cx)).to_string()),
-                    ("1", self.date_scope.label().to_string()),
-                ],
-            )
-        };
-        let expanded = self.sources_expanded;
-        let mut details: Vec<AnyElement> = Vec::new();
-        if expanded {
-            if count + screens + files > 0 {
-                details.push(
-                    div()
-                        .text_color(lb.supporting)
-                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("The answer can retrieve passages from these meetings and screen moments, including collapsed matches. It may use only the passages relevant to your question.")))
-                        .into_any_element(),
-                );
-                for group in &self.results.meetings {
-                    let date = group
-                        .meeting
-                        .started_at
-                        .with_timezone(&chrono::Local)
-                        .format_localized(
-                            lokalbot_i18n::date_pattern("%b %-d, %Y"),
-                            lokalbot_i18n::date_locale(),
-                        );
-                    details.push(
-                        div()
-                            .truncate()
-                            .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                "Meeting · {0} · {date}",
-                                &[
-                                    ("0", group.meeting.display_title().to_string()),
-                                    ("date", format!("{}", date)),
-                                ],
-                            )))
-                            .into_any_element(),
-                    );
-                }
-                for screen in &self.results.screens {
-                    let when = screen
-                        .moment
-                        .ts
-                        .with_timezone(&chrono::Local)
-                        .format_localized(
-                            lokalbot_i18n::date_pattern("%b %-d, %Y at %-I:%M %p"),
-                            lokalbot_i18n::date_locale(),
-                        );
-                    details.push(
-                        div()
-                            .truncate()
-                            .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                "Screen · {0} · {when} · {1}",
-                                &[
-                                    ("0", screen.moment.app.to_string()),
-                                    ("when", format!("{}", when)),
-                                    (
-                                        "1",
-                                        super::history::count_label(screen.captures, "moment")
-                                            .to_string(),
-                                    ),
-                                ],
-                            )))
-                            .into_any_element(),
-                    );
-                }
-                for hit in &self.results.files {
-                    details.push(
-                        div()
-                            .truncate()
-                            .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                "File · {0} · {1}",
-                                &[
-                                    ("0", hit.name()),
-                                    ("1", super::search::file_kind_label(hit)),
-                                ],
-                            )))
-                            .into_any_element(),
-                    );
-                }
-                for hit in &self.results.notes {
-                    details.push(
-                        div()
-                            .truncate()
-                            .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::format(
-                                "Agent note · {0}",
-                                &[("0", hit.title.clone())],
-                            )))
-                            .into_any_element(),
-                    );
-                }
-            } else {
-                let text = if self.meeting_scope.is_some() {
-                    lokalbot_i18n::tr("Ask stays within the selected evidence shown above, even when this search has no matches.").to_string()
-                } else {
-                    lokalbot_i18n::format(
-                        "Ask can search the selected sources within {0}. Result-type and screen-app filters apply to search results only.",
-                        &[("0", self.date_scope.label().to_lowercase().to_string())],
-                    )
-                };
-                details.push(
-                    div()
-                        .text_color(lb.supporting)
-                        .child(text)
-                        .into_any_element(),
-                );
-            }
-        }
-        v_flex()
-            .gap(px(6.))
-            .text_size(ty::SECONDARY)
-            .child(
-                h_flex()
-                    .id("ask-answer-sources")
-                    .gap(px(6.))
-                    .items_center()
-                    .cursor_pointer()
-                    .text_color(lb.text_secondary)
-                    .hover(|s| s.text_color(lb.text))
-                    .child(ui::icon(
-                        if expanded {
-                            Ico::ChevronDown
-                        } else {
-                            Ico::ChevronRight
-                        },
-                        px(12.),
-                        lb.text_secondary,
-                    ))
-                    .child(label)
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.sources_expanded = !this.sources_expanded;
+        row.child(div().text_size(ty::SECONDARY).child(ui::link(
+            "ask-pins-clear",
+            lokalbot_i18n::tr("Clear"),
+            {
+                let page = cx.entity();
+                move |_, cx| {
+                    page.update(cx, |page, cx| {
+                        page.pins.clear();
                         cx.notify();
-                    })),
-            )
-            .when(expanded, |this| {
-                this.child(
-                    v_flex()
-                        .id("ask-answer-sources-list")
-                        .pl(px(18.))
-                        .gap(px(4.))
-                        .max_h(px(160.))
-                        .overflow_y_scroll()
-                        .children(details),
-                )
-            })
+                    })
+                }
+            },
+            cx,
+        )))
     }
 
-    fn render_composer(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
+    fn render_composer(&self, page: PageKind, window: &mut Window, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let focused = self
             .composer
@@ -482,25 +234,38 @@ impl AskPage {
         let responding = self.is_responding(cx);
         let can_submit = !self.query.trim().is_empty() && !responding;
         let waiting = self.pending_question.is_some();
-        let label = if waiting {
-            lokalbot_i18n::tr("Waiting for sources…")
-        } else if self.results.count() > 0 && !self.query.trim().is_empty() {
-            lokalbot_i18n::tr("Ask about results")
+        let _ = page;
+        let send = if responding {
+            Button::new("ask-stop")
+                .outline()
+                .icon(Icon::new(Ico::Square))
+                .label(lokalbot_i18n::tr("Stop"))
+                .font_weight(FontWeight::SEMIBOLD)
+                .tooltip(lokalbot_i18n::tr("Stop answering (Esc)"))
+                .on_click(cx.listener(|this, _, _, cx| this.stop_answer(cx)))
+                .into_any_element()
         } else {
-            lokalbot_i18n::tr("Ask")
+            Button::new("ask-submit")
+                .primary()
+                .icon(Icon::new(Ico::ArrowUp))
+                .label(lokalbot_i18n::tr("Ask"))
+                .font_weight(FontWeight::SEMIBOLD)
+                .disabled(!can_submit || waiting)
+                .on_click(cx.listener(|this, _, window, cx| this.ask_about_results(window, cx)))
+                .into_any_element()
         };
-
         v_flex()
             .w_full()
-            .gap(px(12.))
-            .px(px(10.))
+            .gap(px(10.))
+            .pl(px(16.))
+            .pr(px(12.))
             .pt(px(12.))
-            .pb(px(12.))
-            .rounded(metric::COMPOSER_RADIUS)
-            .bg(lb.elevated)
+            .pb(px(10.))
+            .rounded(px(16.))
+            .bg(lb.panel)
             .border_1()
             .border_color(if focused {
-                lb.accent_fill.opacity(0.45)
+                lb.accent_fill.opacity(0.6)
             } else {
                 lb.separator
             })
@@ -514,74 +279,75 @@ impl AskPage {
             )
             .child(
                 h_flex()
-                    .gap(px(10.))
+                    .w_full()
+                    .gap(px(8.))
                     .items_center()
-                    .px(px(4.))
+                    .flex_wrap()
                     .child(self.render_sources_menu(cx))
-                    .child(self.render_date_scope(cx))
-                    .child(div().flex_1().min_w_0())
-                    .child(
-                        h_flex()
-                            .flex_none()
-                            .gap(px(8.))
-                            .justify_end()
-                            .when(responding, |this| {
-                                this.child(
-                                    Button::new("ask-stop")
-                                        .ghost()
-                                        .icon(Icon::new(Ico::CircleStop))
-                                        .tooltip(lokalbot_i18n::tr("Stop answering (Esc)"))
-                                        .on_click(
-                                            cx.listener(|this, _, _, cx| this.stop_answer(cx)),
-                                        ),
-                                )
-                            })
-                            .child(
-                                Button::new("ask-submit")
-                                    .primary()
-                                    .icon(Icon::new(Ico::Sparkles))
-                                    .label(label)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .disabled(!can_submit || waiting)
-                                    .tooltip(lokalbot_i18n::tr(
-                                        "Ask using the displayed results (Ctrl+Return)",
-                                    ))
-                                    .on_click(cx.listener(|this, _, window, cx| {
-                                        this.submit(true, window, cx)
-                                    })),
-                            ),
-                    ),
+                    .child(self.render_time_menu(cx))
+                    .child(div().flex_1().min_w(px(4.)))
+                    .child(send),
             )
     }
 
+    /// The bordered look of the two menus; one that limits the question (to
+    /// earlier matches, a filter or dates) is tinted.
+    fn menu_button(id: &'static str, label: String, highlighted: bool, cx: &App) -> Button {
+        let lb = cx.lb();
+        Button::new(id)
+            .outline()
+            .small()
+            .label(label)
+            .dropdown_caret(true)
+            .when(highlighted, |this| {
+                this.bg(lb.accent_wash)
+                    .border_color(lb.accent_fill.opacity(0.35))
+            })
+    }
+
+    /// Sources, their finer filters and the way to source permissions. When
+    /// the question is limited to earlier matches or to evidence another page
+    /// handed over, the button names that limit and the menu offers to widen it.
     fn render_sources_menu(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let page = cx.entity();
+        let summary = self.scope_summary(cx);
         let sources = self.sources;
         let facet = self.facet;
         let offered = self.offered(cx);
+        let has_pins = !self.pins.is_empty();
         let screen_app = self.screen_app.clone();
         let screen_apps = self.screen_apps.clone();
-        Button::new("ask-sources")
-            .ghost()
-            .small()
-            .label(sources.summary(offered))
-            .font_weight(FontWeight::SEMIBOLD)
-            .dropdown_caret(true)
+        let highlighted = summary.narrowed || summary.has_filters;
+        Self::menu_button("ask-sources", summary.title.clone(), highlighted, cx)
             .tooltip(lokalbot_i18n::tr("Choose sources and result filters"))
             .dropdown_menu(move |menu, window, cx| {
                 let mut menu = menu.min_w(px(220.));
+                if let (Some(narrowed_to), Some(widen)) =
+                    (summary.narrowed_to.clone(), summary.widen_title.clone())
+                {
+                    let widen_page = page.clone();
+                    menu = menu
+                        .item(
+                            PopupMenuItem::new(model::mac("Only %@", &[&narrowed_to]))
+                                .checked(true),
+                        )
+                        .item(PopupMenuItem::new(widen).on_click(move |_, window, cx| {
+                            widen_page.update(cx, |page, cx| page.widen_sources(window, cx))
+                        }))
+                        .separator();
+                }
                 for source in Source::available(offered) {
                     let page = page.clone();
                     let checked = sources.contains(source);
                     menu = menu.item(
-                        PopupMenuItem::new(lokalbot_i18n::tr(source.label()))
+                        PopupMenuItem::new(source.label())
                             .checked(checked)
-                            .disabled(checked && sources.count(offered) == 1)
+                            .disabled(
+                                (checked && sources.count(offered) == 1)
+                                    || (source == Source::Screen && has_pins),
+                            )
                             .on_click(move |_, window, cx| {
-                                page.update(cx, |page, cx| {
-                                    page.sources.toggle(source, offered);
-                                    page.scope_changed(window, cx);
-                                })
+                                page.update(cx, |page, cx| page.toggle_source(source, window, cx))
                             }),
                     );
                 }
@@ -594,7 +360,7 @@ impl AskPage {
                     }) {
                         let page = facet_page.clone();
                         menu = menu.item(
-                            PopupMenuItem::new(lokalbot_i18n::tr(option.label()))
+                            PopupMenuItem::new(option.label())
                                 .checked(option == facet)
                                 .on_click(move |_, window, cx| {
                                     page.update(cx, |page, cx| {
@@ -606,7 +372,6 @@ impl AskPage {
                     }
                     menu
                 });
-                let settings_page = page.clone();
                 let app_page = page.clone();
                 let apps_selected = screen_app.clone();
                 let apps_list = screen_apps.clone();
@@ -640,7 +405,7 @@ impl AskPage {
                     menu
                 });
                 let menu = menu.separator().item(PopupMenuItem::submenu(
-                    lokalbot_i18n::tr("Result type"),
+                    lokalbot_i18n::tr("Match type"),
                     facets,
                 ));
                 let menu = if sources.screen {
@@ -651,8 +416,9 @@ impl AskPage {
                 } else {
                     menu
                 };
+                let settings_page = page.clone();
                 menu.separator().item(
-                    PopupMenuItem::new(lokalbot_i18n::tr("Manage source permissions…")).on_click(
+                    PopupMenuItem::new(lokalbot_i18n::tr("Source permissions…")).on_click(
                         move |_, _, cx| {
                             let data = settings_page.read(cx).data.clone();
                             data.update(cx, |data, cx| {
@@ -664,147 +430,164 @@ impl AskPage {
             })
     }
 
-    fn render_date_scope(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
+    /// One date scope for search and answers across every source: Any time,
+    /// Today, Yesterday, Last 7 days, a chosen day, and the way to choose one.
+    fn render_time_menu(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let page = cx.entity();
         let current = self.date_scope;
         let picker = self.date_picker.clone();
-        h_flex()
-            .gap(px(4.))
-            .items_center()
-            .child(
-                Popover::new("ask-date-scope")
-                    .anchor(gpui_kit::Anchor::BottomLeft)
-                    .trigger(
-                        Button::new("ask-date-scope-button")
-                            .outline()
-                            .small()
-                            .icon(Icon::new(Ico::Calendar))
-                            .label(current.label())
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .tooltip(lokalbot_i18n::tr("One date scope for meeting and screen search and answers")),
-                    )
-                    .content(move |_, _, cx| {
-                        let lb = cx.lb().clone();
-                        let popover = cx.entity();
-                        let preset = |label: &'static str, scope: DateScope, cx: &App| {
-                            let page = page.clone();
-                            let popover = popover.clone();
-                            let selected = scope == current;
-                            let _ = cx;
-                            Button::new(SharedString::from(format!("ask-date-{scope:?}")))
-                                .outline()
-                                .small()
-                                .flex_1()
-                                .min_w_0()
-                                .icon(Icon::new(if selected { Ico::Check } else { Ico::Calendar }))
-                                .label(label)
-                                .on_click(move |_, window, cx| {
-                                    page.update(cx, |page, cx| {
-                                        page.date_scope = scope;
-                                        page.scope_changed(window, cx);
-                                    });
-                                    popover.update(cx, |popover, cx| popover.dismiss(window, cx));
-                                })
-                        };
-                        let use_page = page.clone();
-                        let use_popover = popover.clone();
-                        let calendar = picker.clone();
-                        let picked_label = page.read(cx).picked_day.map(|day| {
-                            day.format_localized(lokalbot_i18n::date_pattern("%b %-d, %Y"), lokalbot_i18n::date_locale()).to_string()
-                        }).unwrap_or_else(|| lokalbot_i18n::tr("Select date").into());
-                        v_flex()
-                            .w(px(340.))
-                            .gap(px(12.))
-                            .p(px(4.))
-                            .child(
-                                div()
-                                    .text_size(ty::SECTION)
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_color(lb.text)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Date scope"))),
-                            )
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.supporting)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Applies to search results and answers across all selected sources."))),
-                            )
-                            .child(
-                                h_flex()
-                                    .gap(px(8.))
-                                    .child(preset(lokalbot_i18n::tr("Any time"), DateScope::AnyTime, cx))
-                                    .child(preset(lokalbot_i18n::tr("Today"), DateScope::Today, cx)),
-                            )
-                            .child(
-                                h_flex()
-                                    .gap(px(8.))
-                                    .child(preset(lokalbot_i18n::tr("Yesterday"), DateScope::Yesterday, cx))
-                                    .child(preset(lokalbot_i18n::tr("Last 7 days"), DateScope::LastSevenDays, cx)),
-                            )
-                            .child(ui::divider(cx))
-                            .child(
-                                h_flex()
-                                    .gap(px(8.))
-                                    .items_center()
-                                    .child(
-                                        div()
-                                            .flex_none()
-                                            .text_size(ty::SECONDARY)
-                                            .text_color(lb.text)
-                                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Specific date"))),
-                                    )
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .min_w_0()
-                                            .child(
-                                                Popover::new("ask-specific-date")
-                                                    .trigger(Button::new("ask-specific-date-button").outline().small().icon(Icon::new(Ico::Calendar)).label(picked_label))
-                                                    .content(move |_, _, _| Calendar::new(&calendar).small().first_day_of_week(lokalbot_i18n::first_weekday())),
-                                            ),
-                                    )
-                                    .child(
-                                        Button::new("ask-date-use")
-                                            .outline()
-                                            .small()
-                                            .label(lokalbot_i18n::tr("Use date"))
-                                            .on_click(move |_, window, cx| {
-                                                use_page.update(cx, |page, cx| {
-                                                    if let Some(day) = page.picked_day {
-                                                        page.date_scope = DateScope::Day(day);
-                                                        page.scope_changed(window, cx);
-                                                    }
-                                                });
-                                                use_popover.update(cx, |popover, cx| {
-                                                    popover.dismiss(window, cx)
-                                                });
-                                            }),
-                                    ),
-                            )
-                    }),
-            )
-            .when(current != DateScope::AnyTime, |this| {
-                this.child(
-                    Button::new("ask-date-clear")
-                        .ghost()
-                        .xsmall()
-                        .icon(Icon::new(Ico::CircleX))
-                        .tooltip(lokalbot_i18n::tr("Clear date filter"))
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.date_scope = DateScope::AnyTime;
-                            this.scope_changed(window, cx);
-                        })),
+        let reset_page = page.clone();
+        Popover::new("ask-time-scope")
+            .anchor(gpui_kit::Anchor::TopLeft)
+            .trigger(
+                Self::menu_button(
+                    "ask-time-scope-button",
+                    current.label(),
+                    current != DateScope::AnyTime,
+                    cx,
                 )
+                .tooltip(lokalbot_i18n::tr(
+                    "One date scope for meeting, activity, and screen search and answers",
+                )),
+            )
+            .on_open_change(move |open, _, cx| {
+                if !*open {
+                    reset_page.update(cx, |page, cx| {
+                        page.choosing_date = false;
+                        cx.notify();
+                    });
+                }
+            })
+            .content(move |_, _, cx| {
+                let lb = cx.lb().clone();
+                let popover = cx.entity();
+                let choosing = page.read(cx).choosing_date;
+                let presets = [
+                    ("Any time", DateScope::AnyTime),
+                    ("Today", DateScope::Today),
+                    ("Yesterday", DateScope::Yesterday),
+                    ("Last 7 days", DateScope::LastSevenDays),
+                ];
+                let mut list = v_flex().min_w(px(220.)).gap(px(1.));
+                for (key, scope) in presets {
+                    let page = page.clone();
+                    let popover = popover.clone();
+                    list = list.child(time_row(
+                        SharedString::from(format!("ask-time-{key}")),
+                        lokalbot_i18n::tr(key).to_string(),
+                        scope == current,
+                        move |window, cx| {
+                            page.update(cx, |page, cx| {
+                                page.date_scope = scope;
+                                page.scope_changed(window, cx);
+                            });
+                            popover.update(cx, |popover, cx| popover.dismiss(window, cx));
+                        },
+                        &lb,
+                    ));
+                }
+                if !matches!(
+                    current,
+                    DateScope::AnyTime
+                        | DateScope::Today
+                        | DateScope::Yesterday
+                        | DateScope::LastSevenDays
+                ) {
+                    list = list.child(time_row(
+                        "ask-time-custom".into(),
+                        current.label(),
+                        true,
+                        |_, _| {},
+                        &lb,
+                    ));
+                }
+                let choose_page = page.clone();
+                list = list
+                    .child(div().my(px(4.)).h(px(1.)).bg(lb.separator))
+                    .child(time_row(
+                        "ask-time-choose".into(),
+                        lokalbot_i18n::tr("Choose a date…").to_string(),
+                        false,
+                        move |_, cx| {
+                            choose_page.update(cx, |page, cx| {
+                                page.choosing_date = !page.choosing_date;
+                                cx.notify();
+                            })
+                        },
+                        &lb,
+                    ));
+                if choosing {
+                    let calendar = picker.clone();
+                    let use_page = page.clone();
+                    let use_popover = popover.clone();
+                    let picked_label = page
+                        .read(cx)
+                        .picked_day
+                        .map(|day| {
+                            day.format_localized(
+                                lokalbot_i18n::date_pattern("%b %-d, %Y"),
+                                lokalbot_i18n::date_locale(),
+                            )
+                            .to_string()
+                        })
+                        .unwrap_or_else(|| lokalbot_i18n::tr("Specific date").into());
+                    list = list.child(
+                        h_flex()
+                            .gap(px(8.))
+                            .items_center()
+                            .px(px(8.))
+                            .pt(px(6.))
+                            .pb(px(4.))
+                            .child(
+                                div().flex_1().min_w_0().child(
+                                    Popover::new("ask-specific-date")
+                                        .trigger(
+                                            Button::new("ask-specific-date-button")
+                                                .outline()
+                                                .small()
+                                                .icon(Icon::new(Ico::Calendar))
+                                                .label(picked_label),
+                                        )
+                                        .content(move |_, _, _| {
+                                            Calendar::new(&calendar)
+                                                .small()
+                                                .first_day_of_week(lokalbot_i18n::first_weekday())
+                                        }),
+                                ),
+                            )
+                            .child(
+                                Button::new("ask-date-use")
+                                    .outline()
+                                    .small()
+                                    .label(lokalbot_i18n::tr("Use date"))
+                                    .on_click(move |_, window, cx| {
+                                        use_page.update(cx, |page, cx| {
+                                            if let Some(day) = page.picked_day {
+                                                page.date_scope = DateScope::Day(day);
+                                                page.choosing_date = false;
+                                                page.scope_changed(window, cx);
+                                            }
+                                        });
+                                        use_popover
+                                            .update(cx, |popover, cx| popover.dismiss(window, cx));
+                                    }),
+                            ),
+                    );
+                }
+                list
             })
     }
 
-    fn render_inference_status(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
-        let lb = cx.lb().clone();
+    /// Shown only when it changes where the question goes: a remote model, or
+    /// a model connection that is blocked.
+    fn render_inference_status(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let inference = inference(cx);
+        if !inference.remote && !inference.blocked {
+            return None;
+        }
+        let lb = cx.lb().clone();
         let tint = if inference.blocked {
             lb.attention_text
-        } else if inference.remote {
-            lb.accent_text
         } else {
             lb.text_secondary
         };
@@ -817,30 +600,59 @@ impl AskPage {
                 "Answers and selected evidence are processed on this PC. Open model settings.",
             )
         };
-        h_flex().child(
+        Some(
             h_flex()
-                .id("ask-inference-status")
-                .gap(px(5.))
-                .items_center()
-                .min_h(px(24.))
-                .cursor_pointer()
-                .text_size(ty::SECONDARY)
-                .text_color(if inference.remote || inference.blocked {
-                    lb.text
-                } else {
-                    lb.text_secondary
-                })
-                .hover(|s| s.underline())
-                .child(ui::icon(inference.icon, px(14.), tint))
-                .child(inference.label)
-                .tooltip(move |window, cx| {
-                    gpui_kit::component::tooltip::Tooltip::new(help).build(window, cx)
-                })
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.data.update(cx, |data, cx| {
-                        data.open_settings(SettingsCategory::Models, cx)
-                    });
-                })),
+                .child(
+                    h_flex()
+                        .id("ask-inference-status")
+                        .gap(px(6.))
+                        .items_center()
+                        .min_h(px(22.))
+                        .pl(px(6.))
+                        .cursor_pointer()
+                        .text_size(ty::SECONDARY)
+                        .text_color(tint)
+                        .hover(|s| s.underline())
+                        .child(ui::icon(inference.icon, px(14.), tint))
+                        .child(inference.label)
+                        .tooltip(move |window, cx| {
+                            gpui_kit::component::tooltip::Tooltip::new(help).build(window, cx)
+                        })
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.data.update(cx, |data, cx| {
+                                data.open_settings(SettingsCategory::Models, cx)
+                            });
+                        })),
+                )
+                .into_any_element(),
         )
     }
+}
+
+/// One row of the time menu: a check when it is the chosen scope, then its name.
+fn time_row(
+    id: SharedString,
+    label: String,
+    checked: bool,
+    on_click: impl Fn(&mut Window, &mut App) + 'static,
+    lb: &crate::theme::Palette,
+) -> gpui_kit::Stateful<Div> {
+    let hover = lb.hover;
+    h_flex()
+        .id(ElementId::Name(id))
+        .w_full()
+        .gap(px(8.))
+        .items_center()
+        .px(px(8.))
+        .py(px(5.))
+        .rounded(px(6.))
+        .cursor_pointer()
+        .hover(move |style| style.bg(hover))
+        .text_size(ty::SECONDARY)
+        .text_color(lb.text)
+        .child(div().w(px(14.)).flex_none().when(checked, |this| {
+            this.child(ui::icon(Ico::Check, px(14.), lb.text))
+        }))
+        .child(label)
+        .on_click(move |_, window, cx| on_click(window, cx))
 }

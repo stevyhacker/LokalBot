@@ -17,7 +17,9 @@ use gpui_kit::{
 use lokalbot_core::ScreenMoment;
 
 use super::TimelinePage;
+use super::context::{header_icon, page_header};
 use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::ui::section_panel::SectionPanelLead;
 use crate::ui::{self, Ico};
 use crate::windows::screen_image::{self, ScreenImage};
 
@@ -84,27 +86,32 @@ impl TimelinePage {
     pub(super) fn render_moment(
         &self,
         moment: Option<&ScreenMoment>,
-        drawer: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
         let Some(moment) = moment else {
             return v_flex()
-                .gap(px(14.))
-                .child(self.panel_header(
-                    Ico::ScanText,
-                    lokalbot_i18n::tr("Screen moment").into(),
-                    String::new(),
-                    drawer,
-                    cx,
-                ))
+                .gap(metric::PANEL_SPACING)
+                .child(self.back_link(cx))
                 .child(
-                    div()
-                        .text_size(ty::BODY)
-                        .text_color(lb.text_secondary)
-                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                            "This moment is no longer kept. It may have been deleted or expired.",
-                        ))),
+                    SectionPanelLead::new("timeline-moment-lead").child(
+                        v_flex()
+                            .gap(px(14.))
+                            .child(page_header(
+                                header_icon(Ico::ScanText, cx),
+                                lokalbot_i18n::tr("Screen moment").into(),
+                                String::new(),
+                                cx,
+                            ))
+                            .child(
+                                div()
+                                    .text_size(ty::BODY)
+                                    .text_color(lb.supporting)
+                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                        "This moment is no longer kept. It may have been deleted or expired.",
+                                    ))),
+                            ),
+                    ),
                 )
                 .into_any_element();
         };
@@ -117,15 +124,17 @@ impl TimelinePage {
             )
             .to_string();
         let has_pixels = !moment.path.is_empty();
-        let header = self.panel_header(
-            if has_pixels {
-                Ico::Camera
-            } else {
-                Ico::ScanText
-            },
+        let header = page_header(
+            header_icon(
+                if has_pixels {
+                    Ico::Camera
+                } else {
+                    Ico::ScanText
+                },
+                cx,
+            ),
             moment.app.clone().into(),
             when,
-            drawer,
             cx,
         );
 
@@ -391,7 +400,7 @@ impl TimelinePage {
                 })),
         );
 
-        v_flex()
+        let body = v_flex()
             .gap(px(14.))
             .child(header)
             .child(visual)
@@ -409,7 +418,11 @@ impl TimelinePage {
             .child(actions)
             .children(saved_note)
             .child(details)
-            .child(delete)
+            .child(delete);
+        v_flex()
+            .gap(metric::PANEL_SPACING)
+            .child(self.back_link(cx))
+            .child(SectionPanelLead::new("timeline-moment-lead").child(body))
             .into_any_element()
     }
 

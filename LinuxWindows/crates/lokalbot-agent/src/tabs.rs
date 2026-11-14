@@ -446,6 +446,18 @@ impl TaskList {
         self.needs_persist = true;
     }
 
+    /// "Send now" on one queued message, starting the task when needed.
+    pub fn send_queued_now(&mut self, id: Uuid, prompt: Uuid) {
+        let Some(tab) = self.tab(id) else { return };
+        if !tab.session.has_live_runtime() && !self.prepare_start(id) {
+            return;
+        }
+        if let Some(session) = self.session_mut(id) {
+            session.send_queued_now(prompt);
+        }
+        self.needs_persist = true;
+    }
+
     /// Opens one saved session, in the selected blank task when there is one.
     pub fn open_saved_session(&mut self, session: &SavedSession) -> Result<(), String> {
         let Some(refreshed) = history::validated(session, &self.store.directory) else {

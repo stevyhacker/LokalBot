@@ -1,21 +1,28 @@
-//! The task list (`AgentTaskSidebar.swift`): pinned and recent tasks with
-//! their status, search, archive, and the Tasks menu.
+//! The task list (`AgentTaskSidebar.swift`): search and New on top, tasks
+//! grouped by day with their status and time, and Archived at the bottom.
+//! Refresh, saved sessions, the runtime check and clearing history are in
+//! the … menu beside Archived.
 
 use crate::i18n::h_flex;
+use chrono::{DateTime, Local};
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::Input;
 use gpui_kit::component::menu::{ContextMenuExt as _, DropdownMenu as _, PopupMenuItem};
+use gpui_kit::component::spinner::Spinner;
+use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Icon, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, Context, FontWeight, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, Window, div, px,
+    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div,
+    px,
 };
 use uuid::Uuid;
 
 use lokalbot_agent::SessionState;
+use lokalbot_agent::presentation::{ListEntry, TaskListSection, TaskStatus, Tone};
 
-use super::{AgentPage, key as element_key};
+use super::{AgentPage, key as element_key, words};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
@@ -25,9 +32,11 @@ pub(super) const SIDEBAR_WIDTH: f32 = 272.;
 struct Row {
     id: Uuid,
     title: String,
-    detail: Option<String>,
+    line: String,
+    workspace: String,
+    tone: Tone,
     icon: Ico,
-    attention: bool,
+    time: Option<String>,
     pinned: bool,
     archived: bool,
     busy: bool,
@@ -40,16 +49,118 @@ impl AgentPage {
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
-        let rows = self.task_rows(cx);
+        let now = Local::now();
+        let (rows, sections) = self.task_rows(now, cx);
         let selected = self.selected_id(cx);
-        let any_running = self
-            .model(cx)
-            .and_then(|m| m.tasks.as_ref())
-            .is_some_and(|t| t.any_running());
         let query = self.task_query.trim().to_string();
 
-        let page = cx.entity();
+        // A search field and New; the list below needs no heading.
+        let header = h_flex()
+            .gap(px(8.))
+            .items_center()
+            .px(px(12.))
+            .pt(px(10.))
+            .pb(px(10.))
+            .child(
+                div().flex_1().min_w_0().child(
+                    Input::new(&self.task_search)
+                        .small()
+                        .cleanable(true)
+                        .prefix(ui::icon(Ico::Search, px(14.), lb.text_secondary)),
+                ),
+            )
+            .child(
+                Button::new("agent-new-task")
+                    .ghost()
+                    .small()
+                    .icon(Icon::new(Ico::SquarePen))
+                    .tooltip(lokalbot_i18n::tr("New task (Ctrl+N)"))
+                    .on_click(cx.listener(|this, _, window, cx| this.new_task(window, cx))),
+            );
+
+        let mut list: Vec<AnyElement> = Vec::new();
+        if self.show_archived {
+            list.push(
+                h_flex()
+                    .px(px(14.))
+                    .pb(px(6.))
+                    .gap(px(6.))
+                    .items_center()
+                    .child(ui::icon(Ico::Archive, px(13.), lb.text_secondary))
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.text)
+                            .child(lokalbot_i18n::tr("Archived")),
+                    )
+                    .child(div().text_size(ty::SECONDARY).child(ui::link(
+                        "agent-show-active",
+                        lokalbot_i18n::tr("Show Active"),
+                        {
+                            let page = cx.entity();
+                            move |_, cx| {
+                                page.update(cx, |page, cx| {
+                                    page.show_archived = false;
+                                    cx.notify();
+                                })
+                            }
+                        },
+                        cx,
+                    )))
+                    .into_any_element(),
+            );
+        }
+        if rows.is_empty() && !query.is_empty() {
+            list.push(
+                div()
+                    .px(px(18.))
+                    .py(px(6.))
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.text_secondary)
+                    .child(lokalbot_i18n::format(
+                        "No tasks match “{query}”.",
+                        &[("query", query.clone())],
+                    ))
+                    .into_any_element(),
+            );
+        }
+        for section in &sections {
+            list.push(section_title(words::section_title(section.kind), &lb));
+            for id in &section.ids {
+                if let Some(row) = rows.iter().find(|r| r.id == *id) {
+                    list.push(self.render_task_row(row, selected == Some(row.id), cx));
+                }
+            }
+        }
+
+        v_flex()
+            .size_full()
+            .bg(lb.window)
+            .child(header)
+            .child(
+                div()
+                    .id("agent-tasks")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .pb(px(12.))
+                    .children(list),
+            )
+            .child(ui::divider(cx))
+            .child(self.render_sidebar_footer(cx))
+    }
+
+    /// Archived and its count, and the task options.
+    fn render_sidebar_footer(&mut self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
+        let lb = cx.lb().clone();
+        let tasks = self.model(cx).and_then(|m| m.tasks.as_ref());
+        let any_running = tasks.is_some_and(|t| t.any_running());
+        let archived_count = tasks.map_or(0, |t| {
+            t.tabs.iter().filter(|tab| tab.record.is_archived).count()
+        });
         let show_archived = self.show_archived;
+        let page = cx.entity();
         let menu = Button::new("agent-task-options")
             .ghost()
             .small()
@@ -110,127 +221,51 @@ impl AgentPage {
                             }),
                     )
             });
-
-        let header = v_flex()
-            .gap(px(8.))
-            .px(px(10.))
-            .pt(px(14.))
-            .pb(px(10.))
+        let label = if show_archived {
+            lokalbot_i18n::tr("Show Active")
+        } else {
+            lokalbot_i18n::tr("Archived")
+        };
+        h_flex()
+            .flex_none()
+            .gap(px(4.))
+            .items_center()
+            .px(px(6.))
+            .py(px(4.))
             .child(
                 h_flex()
-                    .gap(px(4.))
+                    .id("agent-archived")
+                    .flex_1()
+                    .min_w_0()
+                    .h(px(28.))
+                    .px(px(8.))
+                    .gap(px(8.))
                     .items_center()
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .pl(px(4.))
-                            .text_size(ty::COLUMN_TITLE)
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(lb.text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Tasks"))),
-                    )
-                    .child(
-                        Button::new("agent-new-task")
-                            .ghost()
-                            .small()
-                            .icon(Icon::new(Ico::SquarePen))
-                            .tooltip(lokalbot_i18n::tr("New task (Ctrl+N)"))
-                            .on_click(cx.listener(|this, _, window, cx| this.new_task(window, cx))),
-                    )
-                    .child(menu),
-            )
-            .child(
-                Input::new(&self.task_search)
-                    .cleanable(true)
-                    .prefix(ui::icon(Ico::Search, px(14.), lb.text_secondary)),
-            )
-            .when(self.show_archived, |this| {
-                this.child(
-                    h_flex()
-                        .px(px(4.))
-                        .gap(px(6.))
-                        .items_center()
-                        .child(ui::icon(Ico::Archive, px(12.), lb.text_secondary))
-                        .child(
-                            div()
-                                .flex_1()
-                                .text_size(ty::CAPTION)
-                                .text_color(lb.text_secondary)
-                                .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Archived"))),
-                        )
-                        .child(div().text_size(ty::CAPTION).child(ui::link(
-                            "agent-show-active",
-                            lokalbot_i18n::tr("Show Active"),
-                            {
-                                let page = cx.entity();
-                                move |_, cx| {
-                                    page.update(cx, |page, cx| {
-                                        page.show_archived = false;
-                                        cx.notify();
-                                    })
-                                }
-                            },
-                            cx,
-                        ))),
-                )
-            });
-
-        let mut list: Vec<AnyElement> = Vec::new();
-        let (pinned, recent): (Vec<&Row>, Vec<&Row>) = rows.iter().partition(|r| r.pinned);
-        if rows.is_empty() {
-            let message = if query.is_empty() {
-                lokalbot_i18n::tr("No tasks yet.").to_string()
-            } else {
-                lokalbot_i18n::format("No tasks match “{query}”.", &[("query", query.to_string())])
-            };
-            list.push(
-                div()
-                    .px(px(18.))
-                    .py(px(6.))
+                    .rounded(metric::ROW_RADIUS)
+                    .cursor_pointer()
+                    .hover(|style| style.bg(lb.hover))
                     .text_size(ty::SECONDARY)
                     .text_color(lb.text_secondary)
-                    .child(message)
-                    .into_any_element(),
-            );
-        }
-        if !pinned.is_empty() {
-            list.push(section_title(lokalbot_i18n::tr("Pinned"), cx));
-            for row in pinned {
-                list.push(self.render_task_row(row, selected == Some(row.id), cx));
-            }
-        }
-        if !recent.is_empty() {
-            list.push(section_title(
-                if self.show_archived {
-                    lokalbot_i18n::tr("Archived tasks")
-                } else {
-                    lokalbot_i18n::tr("Recent")
-                },
-                cx,
-            ));
-            for row in recent {
-                list.push(self.render_task_row(row, selected == Some(row.id), cx));
-            }
-        }
-
-        v_flex().size_full().child(header).child(
-            div()
-                .id("agent-tasks")
-                .flex_1()
-                .min_h_0()
-                .overflow_y_scroll()
-                .pb(px(12.))
-                .children(list),
-        )
+                    .child(ui::icon(Ico::Archive, px(14.), lb.text_secondary))
+                    .child(div().flex_1().min_w_0().truncate().child(label))
+                    .when(!show_archived && archived_count > 0, |this| {
+                        this.child(lokalbot_i18n::number(archived_count))
+                    })
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        this.show_archived = !this.show_archived;
+                        cx.notify();
+                    })),
+            )
+            .child(menu)
     }
 
-    fn task_rows(&self, cx: &App) -> Vec<Row> {
+    /// The rows in view and how they group.
+    fn task_rows(&self, now: DateTime<Local>, cx: &App) -> (Vec<Row>, Vec<TaskListSection>) {
         let Some(tasks) = self.model(cx).and_then(|m| m.tasks.as_ref()) else {
-            return Vec::new();
+            return (Vec::new(), Vec::new());
         };
         let query = self.task_query.trim().to_lowercase();
-        tasks
+        let visible: Vec<_> = tasks
             .ordered()
             .into_iter()
             .filter(|tab| tab.record.is_archived == self.show_archived)
@@ -238,7 +273,7 @@ impl AgentPage {
                 query.is_empty() || {
                     let haystack = format!(
                         "{} {} {}",
-                        tab.title(),
+                        super::task_title(tab),
                         tab.session.workspace_display_name(),
                         tab.saved.as_ref().map(|s| s.preview.as_str()).unwrap_or("")
                     )
@@ -246,57 +281,77 @@ impl AgentPage {
                     haystack.contains(&query)
                 }
             })
+            .collect();
+        let entries: Vec<ListEntry> = visible
+            .iter()
+            .map(|tab| ListEntry {
+                id: tab.id,
+                modified_at: tab.record.modified_at,
+                is_pinned: tab.record.is_pinned,
+            })
+            .collect();
+        let sections = TaskListSection::make(&entries, now);
+        let rows = visible
+            .into_iter()
             .map(|tab| {
-                let session = &tab.session;
-                let approvals = !session.pending_approvals().is_empty();
-                let failed = session.is_failed();
-                let attention = approvals || failed;
-                let running = session.state == SessionState::Running;
-                let busy = matches!(
-                    session.state,
-                    SessionState::Running | SessionState::Starting
-                );
-                let detail = if attention || busy {
-                    Some(session.task_status().to_string())
-                } else if tab.record.is_archived {
-                    Some(lokalbot_i18n::tr("Archived").into())
+                let status = super::task_status(tab);
+                let tone = status.tone();
+                let quiet_archive = tab.record.is_archived && tone == Tone::Quiet;
+                // The status, or for a task that is doing nothing, where it works.
+                let line = if quiet_archive {
+                    lokalbot_i18n::tr("Archived").to_string()
                 } else {
-                    Some(session.workspace_display_name())
-                };
-                let icon = if approvals {
-                    Ico::Hand
-                } else if running {
-                    Ico::CircleEllipsis
-                } else if failed {
-                    Ico::CircleAlert
-                } else if tab.record.is_archived {
-                    Ico::Archive
-                } else {
-                    Ico::MessageSquareText
+                    words::status_line(status)
+                        .unwrap_or_else(|| tab.session.workspace_display_name())
                 };
                 Row {
                     id: tab.id,
-                    title: tab.title(),
-                    detail,
-                    icon,
-                    attention,
+                    title: super::task_title(tab),
+                    line,
+                    workspace: tab.session.workspace_display_name(),
+                    tone,
+                    icon: if quiet_archive {
+                        Ico::Archive
+                    } else {
+                        status_icon(status)
+                    },
+                    time: words::row_time(tab.record.modified_at, tab.record.is_pinned, now),
                     pinned: tab.record.is_pinned,
                     archived: tab.record.is_archived,
-                    busy,
+                    busy: matches!(
+                        tab.session.state,
+                        SessionState::Running | SessionState::Starting
+                    ),
                 }
             })
-            .collect()
+            .collect();
+        (rows, sections)
     }
 
     fn render_task_row(&self, row: &Row, selected: bool, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let id = row.id;
-        let tint: Hsla = if row.attention {
-            lb.attention_text
+        let tint: Hsla = match row.tone {
+            Tone::Attention => lb.attention_text,
+            Tone::Working => lb.accent_text,
+            Tone::Quiet | Tone::Done => lb.text_secondary,
+        };
+        let symbol: AnyElement = if row.tone == Tone::Working {
+            Spinner::new()
+                .xsmall()
+                .color(lb.accent_text)
+                .into_any_element()
         } else {
-            lb.text_secondary
+            let color = if row.tone == Tone::Attention {
+                tint
+            } else {
+                lb.text_secondary
+            };
+            ui::icon(row.icon, px(15.), color).into_any_element()
         };
         let page = cx.entity();
+        let tooltip =
+            SharedString::from(format!("{}\n{} · {}", row.title, row.workspace, row.line));
         let (title, pinned, archived, busy) =
             (row.title.clone(), row.pinned, row.archived, row.busy);
         div()
@@ -308,33 +363,57 @@ impl AgentPage {
             .cursor_pointer()
             .when(selected, |this| this.bg(lb.sidebar_selection))
             .when(!selected, |this| this.hover(|style| style.bg(lb.hover)))
+            .tooltip(move |window, cx| Tooltip::new(tooltip.clone()).build(window, cx))
             .child(
                 h_flex()
                     .gap(px(8.))
                     .items_start()
-                    .child(div().pt(px(2.)).child(ui::icon(row.icon, px(15.), tint)))
+                    .child(
+                        div()
+                            .flex_none()
+                            .w(px(16.))
+                            .h(px(20.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(symbol),
+                    )
                     .child(
                         v_flex()
                             .flex_1()
                             .min_w_0()
-                            .gap(px(3.))
+                            .gap(px(2.))
+                            .child(
+                                h_flex()
+                                    .gap(px(6.))
+                                    .items_center()
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .min_w_0()
+                                            .truncate()
+                                            .text_size(ty::BODY)
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(lb.text)
+                                            .child(row.title.clone()),
+                                    )
+                                    .when_some(row.time.clone(), |this, time| {
+                                        this.child(
+                                            div()
+                                                .flex_none()
+                                                .text_size(ty::CAPTION)
+                                                .text_color(lb.text_secondary)
+                                                .child(time),
+                                        )
+                                    }),
+                            )
                             .child(
                                 div()
-                                    .line_clamp(2)
-                                    .text_size(ty::BODY)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(lb.text)
-                                    .child(row.title.clone()),
-                            )
-                            .when_some(row.detail.clone(), |this, detail| {
-                                this.child(
-                                    div()
-                                        .truncate()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(tint)
-                                        .child(detail),
-                                )
-                            }),
+                                    .truncate()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(tint)
+                                    .child(row.line.clone()),
+                            ),
                     ),
             )
             .on_click(cx.listener(move |this, _, window, cx| this.select_task(id, window, cx)))
@@ -378,14 +457,25 @@ impl AgentPage {
     }
 }
 
-fn section_title(title: &'static str, cx: &App) -> AnyElement {
+/// `AgentTaskStatus.symbol`.
+pub(super) fn status_icon(status: TaskStatus) -> Ico {
+    match status {
+        TaskStatus::NotStarted | TaskStatus::Saved | TaskStatus::Stopped => Ico::MessageSquareText,
+        TaskStatus::Starting | TaskStatus::Working => Ico::CircleEllipsis,
+        TaskStatus::NeedsApproval(_) => Ico::Hand,
+        TaskStatus::NeedsAttention => Ico::CircleAlert,
+        TaskStatus::Done { .. } => Ico::CircleCheck,
+    }
+}
+
+fn section_title(title: String, lb: &crate::theme::Palette) -> AnyElement {
     div()
         .px(px(18.))
         .pt(px(10.))
         .pb(px(4.))
         .text_size(ty::SECONDARY)
         .font_weight(FontWeight::SEMIBOLD)
-        .text_color(cx.lb().supporting)
+        .text_color(lb.supporting)
         .child(title)
         .into_any_element()
 }

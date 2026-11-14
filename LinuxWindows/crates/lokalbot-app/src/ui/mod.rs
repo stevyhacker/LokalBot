@@ -70,6 +70,7 @@ pub fn status_surface(tint: Hsla, cx: &App) -> Div {
         .border_color(lb.status_stroke(tint))
 }
 
+#[allow(dead_code)] // unused after the redesign; removed once Settings lands
 /// `WorkspaceSection`: a bold title, an 8px gap, then a padded panel.
 pub fn section(title: impl Into<SharedString>, content: impl IntoElement, cx: &App) -> Div {
     v_flex()
@@ -78,6 +79,7 @@ pub fn section(title: impl Into<SharedString>, content: impl IntoElement, cx: &A
         .child(panel(cx).child(content))
 }
 
+#[allow(dead_code)] // unused after the redesign; removed once Settings lands
 /// Bold section heading (13pt headline on macOS): a group's title above
 /// its well, such as Settings' "Your data". Inside a section panel use
 /// `section_panel::panel_label` instead.
@@ -169,6 +171,7 @@ pub fn divider(cx: &App) -> Div {
     div().h(px(1.)).w_full().bg(cx.lb().separator)
 }
 
+#[allow(dead_code)] // unused after the redesign; removed once Settings lands
 /// `ProportionBar`: a 10px capsule split by share (at least 1px per segment).
 pub fn proportion_bar(segments: &[(Hsla, f32)], cx: &App) -> Div {
     let total: f32 = segments.iter().map(|(_, share)| share.max(0.0)).sum();

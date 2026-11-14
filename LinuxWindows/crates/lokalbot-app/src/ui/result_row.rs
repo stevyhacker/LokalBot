@@ -93,6 +93,8 @@ pub fn highlighted(snippet: &str, emphasis: Hsla) -> StyledText {
 }
 
 /// Compact capsule for a result kind ("Summary", "▶ 00:12:04 · Maya").
+// Ask's matches have their own rows now; kept while Quick Recall is redesigned.
+#[allow(dead_code)]
 pub fn kind_chip(label: impl Into<SharedString>, cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -109,6 +111,7 @@ pub fn kind_chip(label: impl Into<SharedString>, cx: &App) -> Div {
 }
 
 /// The body of an Ask meeting result.
+#[allow(dead_code)]
 pub fn result_body(
     title: SharedString,
     date: Option<SharedString>,

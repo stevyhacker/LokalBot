@@ -1465,10 +1465,15 @@ platform differences:
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
-  - File changes and commands need your approval. On the Mac, read-only
+  - File changes and commands need your approval. As on the Mac, read-only
     lookups of your own library (`lokalbot-cli brief`, `list`, `get`,
-    `search`) run without asking when the model runs on this Mac. Session
-    history stays in the library.
+    `search`, under the same rule as above) run without asking at every
+    level when the task's model runs on this computer, a loopback server
+    included; with a remote server, a subscription plan or a model whose
+    place is unknown they ask as before. The rule reads Bash commands, so on
+    Windows without Git Bash, where commands run in PowerShell, every lookup
+    asks. The app has no Agent Mode hand-offs, so there is no hand-off
+    exception. Session history stays in the library.
 - **The live transcript preview** runs only when you start it during a
   recording. It uses the local transcription model and is not saved; the
   full transcript replaces it after the meeting. **Turn-by-turn live text**

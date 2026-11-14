@@ -721,79 +721,6 @@ pub fn speaker_label(name: &str) -> String {
     trimmed.to_string()
 }
 
-/// What Return does in Ask (`AskReturnAction`). Keywords open the highlighted
-/// result and never start inference; a question or a "Remember …" statement goes
-/// through the same path as Ctrl+Return, unless a result was picked with the
-/// arrow keys first.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ReturnAction {
-    OpenResult,
-    Ask,
-    Nothing,
-}
-
-pub fn return_action(query: &str, results: usize, picked_with_keyboard: bool) -> ReturnAction {
-    if !picked_with_keyboard
-        && (is_question(query) || lokalbot_core::personal::remember_statement(query).is_some())
-    {
-        return ReturnAction::Ask;
-    }
-    if results > 0 {
-        ReturnAction::OpenResult
-    } else {
-        ReturnAction::Nothing
-    }
-}
-
-/// Questions go to the assistant on Return (`AskIntent.isQuestion`).
-pub fn is_question(query: &str) -> bool {
-    const STARTS: &[&str] = &[
-        "what",
-        "why",
-        "how",
-        "when",
-        "where",
-        "who",
-        "whom",
-        "whose",
-        "which",
-        "did",
-        "do",
-        "does",
-        "is",
-        "are",
-        "was",
-        "were",
-        "can",
-        "could",
-        "should",
-        "would",
-        "will",
-        "has",
-        "have",
-        "had",
-        "summarize",
-        "summarise",
-        "explain",
-        "list",
-        "tell",
-        "compare",
-        "remind",
-        "draft",
-    ];
-    let words: Vec<&str> = query.split_whitespace().collect();
-    let Some(first) = words.first() else {
-        return false;
-    };
-    if query.trim().ends_with('?') {
-        return words.len() >= 2;
-    }
-    let lead = first
-        .trim_matches(|c: char| c.is_ascii_punctuation())
-        .to_lowercase();
-    words.len() >= 3 && STARTS.contains(&lead.as_str())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -882,33 +809,6 @@ mod tests {
             .map(|hit| hit.moment.id)
             .collect();
         assert_eq!(ids, [2], "a boundary still applies");
-    }
-
-    #[test]
-    fn return_saves_a_remember_statement_and_opens_keywords() {
-        use ReturnAction::*;
-        assert_eq!(return_action("Remember that I like tea", 3, false), Ask);
-        assert_eq!(return_action("zapamti da volim čaj", 0, false), Ask);
-        // A question about the past isn't a statement, whatever it matched.
-        assert_eq!(return_action("redis cluster", 3, false), OpenResult);
-        assert_eq!(return_action("redis cluster", 0, false), Nothing);
-        assert_eq!(return_action("What did we decide?", 3, false), Ask);
-        // Arrow keys picked a row: Return opens it.
-        assert_eq!(
-            return_action("Remember that I like tea", 3, true),
-            OpenResult
-        );
-        assert_eq!(return_action("What did we decide?", 3, true), OpenResult);
-        assert_eq!(return_action("Remember that I like tea", 0, true), Nothing);
-    }
-
-    #[test]
-    fn question_detection_matches_the_mac() {
-        assert!(is_question("What did we decide about Redis?"));
-        assert!(is_question("redis status?"));
-        assert!(is_question("list my recent meetings"));
-        assert!(!is_question("redis cluster"));
-        assert!(!is_question("what?"));
     }
 
     #[test]
