@@ -757,7 +757,7 @@ impl QuickRecallAnswer {
                     .text_size(ty::SECONDARY)
                     .text_color(lb.text_secondary)
                     .child(ui::icon(Ico::UserRoundCheck, px(13.), lb.text_secondary))
-                    .child(model::directional(label)),
+                    .child(lokalbot_i18n::directional(label)),
             );
         }
         column

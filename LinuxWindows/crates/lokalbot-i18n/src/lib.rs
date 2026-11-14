@@ -304,6 +304,43 @@ pub fn directional(text: impl Into<String>) -> String {
 /// U+200F, which [`directional`] puts in front of right-to-left phrases.
 pub const RIGHT_TO_LEFT_MARK: char = '\u{200f}';
 
+/// Like [`directional`], but by the interface rather than the text: in a
+/// right-to-left interface every phrase gets the mark, a bare count too.
+/// Text in a left-to-right interface is returned as it is.
+pub fn interface_directional(text: &str) -> String {
+    if current().rtl && !text.starts_with(RIGHT_TO_LEFT_MARK) {
+        format!("{RIGHT_TO_LEFT_MARK}{text}")
+    } else {
+        text.to_string()
+    }
+}
+
+/// "Nov 10", with the year once it is not `today`'s year
+/// (`AskDateLabel.day`). Both are local days.
+pub fn short_date(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
+    use chrono::Datelike as _;
+    let pattern = if date.year() == today.year() {
+        "%b %-d"
+    } else {
+        "%b %-d, %Y"
+    };
+    date.format_localized(date_pattern(pattern), date_locale())
+        .to_string()
+}
+
+/// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
+/// [`short_date`] (`ActionListWording.day`). Both are local days.
+pub fn day_label(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
+    match (today - date).num_days() {
+        0 => tr("Today").to_string(),
+        1 => tr("Yesterday").to_string(),
+        2..=6 => date
+            .format_localized(date_pattern("%a, %b %-d"), date_locale())
+            .to_string(),
+        _ => short_date(date, today),
+    }
+}
+
 /// Complete count phrases are translated together; never append an English
 /// plural suffix to a translated noun.
 pub fn count(n: usize, noun: &str) -> String {
@@ -411,6 +448,18 @@ pub fn fill(template: &str, values: &[&str]) -> String {
     out
 }
 
+/// [`fill`] with the Mac catalog key looked up first: `mac("Only %@",
+/// &[name])`.
+pub fn mac(key: &str, values: &[&str]) -> String {
+    fill(tr(key), values)
+}
+
+/// A count phrase from the Mac catalog, "%lld meeting" or "%lld meetings",
+/// with the count in the locale's digits.
+pub fn mac_count(count: usize, one: &str, many: &str) -> String {
+    mac(if count == 1 { one } else { many }, &[&number(count)])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -426,6 +475,17 @@ mod tests {
     }
 
     #[test]
+    fn right_to_left_marks_by_content_never_touch_left_to_right_phrases() {
+        // From Today and People, where these lived before.
+        assert_eq!(directional("2 متأخرة"), "\u{200f}2 متأخرة");
+        assert_eq!(directional("\u{200f}2 متأخرة"), "\u{200f}2 متأخرة");
+        assert_eq!(directional("2 overdue"), "2 overdue");
+        assert_eq!(directional("10:48"), "10:48");
+        // The tests run in the English interface.
+        assert_eq!(interface_directional("3"), "3");
+    }
+
+    #[test]
     fn fill_puts_values_in_mac_fields() {
         assert_eq!(fill("In %lldh %lldm", &["2", "10"]), "In 2h 10m");
         assert_eq!(
@@ -435,6 +495,45 @@ mod tests {
         assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
         assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
         assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
+        // From Today, People, Ask and Timeline, where copies lived before.
+        assert_eq!(fill("Now · %@", &["10:48 AM"]), "Now · 10:48 AM");
+        assert_eq!(fill("No fields", &["x"]), "No fields");
+        assert_eq!(fill("You owe %lld", &["2"]), "You owe 2");
+        assert_eq!(fill("Only %@", &["Atlas"]), "Only Atlas");
+        assert_eq!(
+            fill("%1$lld in %2$lld meetings", &["5", "2"]),
+            "5 in 2 meetings"
+        );
+        assert_eq!(fill("%2$@ · %1$@", &["a", "b"]), "b · a");
+        assert_eq!(fill("100% sure, %@", &["yes"]), "100% sure, yes");
+        assert_eq!(fill("100% %@", &["done"]), "100% done");
+        assert_eq!(fill("%lld open", &["2"]), "2 open");
+        assert_eq!(fill("Away %@", &["1h 5m"]), "Away 1h 5m");
+        // A value is never read as another template.
+        assert_eq!(fill("%1$@ and %2$@", &["%2$@", "b"]), "%2$@ and b");
+    }
+
+    #[test]
+    fn mac_looks_up_the_key_then_fills_it() {
+        assert_eq!(mac("Only %@", &["Atlas"]), "Only Atlas");
+        assert_eq!(mac_count(1, "%lld meeting", "%lld meetings"), "1 meeting");
+        assert_eq!(
+            mac_count(1_200, "%lld meeting", "%lld meetings"),
+            "1,200 meetings"
+        );
+    }
+
+    #[test]
+    fn days_read_today_yesterday_weekday_then_date() {
+        let day = |y, m, d| chrono::NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        let today = day(2026, 10, 30);
+        assert_eq!(day_label(today, today), "Today");
+        assert_eq!(day_label(day(2026, 10, 29), today), "Yesterday");
+        assert_eq!(day_label(day(2026, 10, 26), today), "Mon, Oct 26");
+        assert_eq!(day_label(day(2026, 10, 23), today), "Oct 23");
+        assert_eq!(day_label(day(2025, 12, 1), today), "Dec 1, 2025");
+        assert_eq!(short_date(day(2026, 11, 12), today), "Nov 12");
+        assert_eq!(short_date(day(2025, 11, 12), today), "Nov 12, 2025");
     }
 
     #[test]

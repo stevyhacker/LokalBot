@@ -19,10 +19,10 @@ use super::header::{self, Opener, perform};
 use super::status::{Need, SettingsStatus, StatusAction};
 use super::{SettingsPage, category_icon};
 use crate::i18n::h_flex;
-use crate::pages::people::model::{directional, fill};
 use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::{directional, fill};
 
 /// The label of the key that accepts a suggestion.
 fn accept_key_label(settings: &Settings) -> String {

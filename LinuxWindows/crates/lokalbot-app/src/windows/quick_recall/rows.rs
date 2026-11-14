@@ -560,7 +560,7 @@ pub fn group_header(
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(lb.accent_text)
                     .hover(|s| s.underline())
-                    .child(model::directional(label.to_string()))
+                    .child(lokalbot_i18n::directional(label.to_string()))
                     .on_click(on_show_all),
             )
         })

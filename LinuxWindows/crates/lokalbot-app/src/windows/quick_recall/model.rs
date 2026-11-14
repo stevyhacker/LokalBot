@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use chrono::{DateTime, Datelike as _, Local, Utc};
+use chrono::{DateTime, Local, Utc};
 use uuid::Uuid;
 
 use lokalbot_core::{AskSourceScope, QuestionScope};
@@ -542,15 +542,6 @@ pub fn quote_line(text: &str, question: &str, limit: usize) -> Option<String> {
     Some(marked(&excerpt, &terms))
 }
 
-// ------------------------------------------------------------------- text
-
-/// A phrase GPUI draws as one shaped line, starting with the mark of its own
-/// direction when that is right-to-left, so a translated "Show all 7" or
-/// "3 meetings" keeps its number in Arabic and Urdu (as Today's `directional`).
-pub fn directional(text: impl Into<String>) -> String {
-    lokalbot_i18n::directional(text)
-}
-
 // ------------------------------------------------------------------- dates
 
 /// "Today 10:43 AM", "Yesterday 4:00 PM", "Wed 11:47 AM" within a week, else
@@ -572,12 +563,7 @@ pub fn date_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
             local.format_localized(lokalbot_i18n::date_pattern("%a"), locale),
             time()
         ),
-        _ if local.year() == now.year() => local
-            .format_localized(lokalbot_i18n::date_pattern("%b %-d"), locale)
-            .to_string(),
-        _ => local
-            .format_localized(lokalbot_i18n::date_pattern("%b %-d, %Y"), locale)
-            .to_string(),
+        _ => lokalbot_i18n::short_date(local.date_naive(), now.date_naive()),
     }
 }
 

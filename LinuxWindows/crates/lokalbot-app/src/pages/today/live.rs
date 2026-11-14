@@ -11,7 +11,7 @@ use gpui_kit::{
 };
 use lokalbot_core::Meeting;
 
-use super::{CARD_TITLE, TodayPage, card_surface, model};
+use super::{CARD_TITLE, TodayPage, card_surface};
 use crate::i18n::h_flex;
 use crate::state::RecordingState;
 use crate::theme::{LbThemeExt as _, ty};
@@ -87,14 +87,17 @@ impl TodayPage {
                             .gap(px(5.))
                             .items_center()
                             .child(ui::icon(Ico::Mic, px(13.), lb.text_secondary))
-                            .child(model::fill(lokalbot_i18n::tr("Mic · %@"), &[&mic_status])),
+                            .child(lokalbot_i18n::fill(
+                                lokalbot_i18n::tr("Mic · %@"),
+                                &[&mic_status],
+                            )),
                     )
                     .child(
                         h_flex()
                             .gap(px(5.))
                             .items_center()
                             .child(ui::icon(Ico::Volume2, px(13.), lb.text_secondary))
-                            .child(model::fill(
+                            .child(lokalbot_i18n::fill(
                                 lokalbot_i18n::tr("System · %@"),
                                 &[&system_status],
                             ))

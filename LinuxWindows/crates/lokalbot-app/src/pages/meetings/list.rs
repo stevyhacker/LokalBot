@@ -221,66 +221,69 @@ impl MeetingsPage {
 
         // The header is the search field and Record (`MeetingListView`).
         // Importing has no File menu here, so its button stays beside Record.
-        let header =
-            v_flex()
-                .flex_none()
-                .p(metric::PANEL_PADDING)
-                .gap(px(10.))
-                .child(
+        let header = v_flex()
+            .flex_none()
+            .p(metric::PANEL_PADDING)
+            .gap(px(10.))
+            .child(
+                h_flex()
+                    .gap(px(6.))
+                    .items_center()
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .child(Input::new(&self.search).small().cleanable(true)),
+                    )
+                    .child(import_button)
+                    .child(record_button),
+            )
+            .when_some(importing, |this, name| {
+                this.child(
                     h_flex()
-                        .gap(px(6.))
+                        .gap(px(8.))
                         .items_center()
+                        .text_size(ty::SECONDARY)
+                        .text_color(lb.text_secondary)
+                        .child(Spinner::new().xsmall())
                         .child(
                             div()
                                 .flex_1()
                                 .min_w_0()
-                                .child(Input::new(&self.search).small().cleanable(true)),
-                        )
-                        .child(import_button)
-                        .child(record_button),
+                                .truncate()
+                                .child(lokalbot_i18n::mac("Importing %@…", &[&name])),
+                        ),
                 )
-                .when_some(importing, |this, name| {
-                    this.child(
-                        h_flex()
-                            .gap(px(8.))
-                            .items_center()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(Spinner::new().xsmall())
-                            .child(div().flex_1().min_w_0().truncate().child(
-                                lokalbot_i18n::tr("Importing %@…").replacen("%@", &name, 1),
+            })
+            .when(!failed.is_empty(), |this| {
+                let data_entity = data_entity.clone();
+                let failed = failed.clone();
+                this.child(
+                    h_flex()
+                        .gap(px(6.))
+                        .items_center()
+                        .text_size(ty::SECONDARY)
+                        .child(ui::icon(Ico::TriangleAlert, px(14.), lb.recording_text))
+                        .child(div().flex_1().text_color(lb.recording_text).child(
+                            crate::ui::text::paragraph(lokalbot_i18n::format(
+                                "{0} failed",
+                                &[("0", format!("{}", failed.len()))],
                             )),
-                    )
-                })
-                .when(!failed.is_empty(), |this| {
-                    let data_entity = data_entity.clone();
-                    let failed = failed.clone();
-                    this.child(
-                        h_flex()
-                            .gap(px(6.))
-                            .items_center()
-                            .text_size(ty::SECONDARY)
-                            .child(ui::icon(Ico::TriangleAlert, px(14.), lb.recording_text))
-                            .child(div().flex_1().text_color(lb.recording_text).child(
-                                crate::ui::text::paragraph(lokalbot_i18n::format(
-                                    "{0} failed",
-                                    &[("0", format!("{}", failed.len()))],
-                                )),
-                            ))
-                            .child(ui::link(
-                                "meetings-retry-failed",
-                                lokalbot_i18n::tr("Retry"),
-                                move |_, cx| {
-                                    data_entity.update(cx, |data, cx| {
-                                        for id in &failed {
-                                            data.retry_processing(*id, cx);
-                                        }
-                                    })
-                                },
-                                cx,
-                            )),
-                    )
-                });
+                        ))
+                        .child(ui::link(
+                            "meetings-retry-failed",
+                            lokalbot_i18n::tr("Retry"),
+                            move |_, cx| {
+                                data_entity.update(cx, |data, cx| {
+                                    for id in &failed {
+                                        data.retry_processing(*id, cx);
+                                    }
+                                })
+                            },
+                            cx,
+                        )),
+                )
+            });
 
         let body: AnyElement = if !loaded {
             v_flex()

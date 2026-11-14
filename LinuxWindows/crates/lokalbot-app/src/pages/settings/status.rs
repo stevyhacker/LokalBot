@@ -15,8 +15,8 @@ use std::collections::HashMap;
 use lokalbot_core::Settings;
 use lokalbot_core::settings::{CotypingBackend, SummarizerBackend};
 
-use crate::pages::people::model::fill;
 use crate::state::{DownloadProgress, ModelStatus, SettingsCategory};
+use lokalbot_i18n::fill;
 
 /// How a status line is marked.
 #[derive(Clone, Debug, PartialEq)]

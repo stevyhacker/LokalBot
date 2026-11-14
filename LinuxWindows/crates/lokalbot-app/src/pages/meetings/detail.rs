@@ -343,8 +343,7 @@ impl MeetingsPage {
             let label = if unnamed == 1 {
                 lokalbot_i18n::tr("Name speaker…").to_string()
             } else {
-                lokalbot_i18n::tr("Name %lld speakers…")
-                    .replace("%lld", &lokalbot_i18n::number(unnamed))
+                lokalbot_i18n::mac("Name %lld speakers…", &[&lokalbot_i18n::number(unnamed)])
             };
             row =
                 row.child(attention_chip("meeting-name-speakers", label, cx).on_click(
@@ -1114,10 +1113,14 @@ impl MeetingsPage {
                 )))
                 .into_any_element();
         }
-        let for_you = lokalbot_i18n::tr("For you · %lld")
-            .replace("%lld", &lokalbot_i18n::number(panel.for_you.len()));
-        let for_others = lokalbot_i18n::tr("For others · %lld")
-            .replace("%lld", &lokalbot_i18n::number(panel.for_others.len()));
+        let for_you = lokalbot_i18n::mac(
+            "For you · %lld",
+            &[&lokalbot_i18n::number(panel.for_you.len())],
+        );
+        let for_others = lokalbot_i18n::mac(
+            "For others · %lld",
+            &[&lokalbot_i18n::number(panel.for_others.len())],
+        );
         let yours = if panel.for_you.is_empty() {
             self.empty_group_line(lokalbot_i18n::tr("Nothing for you from this meeting."), cx)
         } else {

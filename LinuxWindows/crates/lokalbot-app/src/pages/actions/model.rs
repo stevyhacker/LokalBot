@@ -8,13 +8,13 @@
 
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, Datelike as _, Local, NaiveDate, Utc};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use lokalbot_core::action_completion::CompletionHint;
 use lokalbot_core::{ActionCorrection, ActionStatus, ActionThread, PersonProfile, ProjectProfile};
 use uuid::Uuid;
 
-use crate::pages::today::model::fill;
 use crate::ui::action_row::DueTone;
+use lokalbot_i18n::fill;
 
 /// Meetings the Filter menu offers, newest first.
 pub(super) const MAXIMUM_MEETING_CHOICES: usize = 40;
@@ -390,20 +390,9 @@ pub(super) fn weekday_date(date: NaiveDate) -> String {
 }
 
 /// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
-/// "Oct 27", with the year once it is not this year.
-pub(super) fn day_label(date: NaiveDate, today: NaiveDate) -> String {
-    match (today - date).num_days() {
-        0 => lokalbot_i18n::tr("Today").to_string(),
-        1 => lokalbot_i18n::tr("Yesterday").to_string(),
-        2..=6 => weekday_date(date),
-        _ if date.year() == today.year() => format_day(date, "%b %-d"),
-        _ => format_day(date, "%b %-d, %Y"),
-    }
-}
-
-/// [`day_label`] for a moment, on its local day.
+/// "Oct 27" (`lokalbot_i18n::day_label`), for a moment on its local day.
 pub(super) fn day(at: DateTime<Utc>, today: NaiveDate) -> String {
-    day_label(lokalbot_core::time::local_day(at), today)
+    lokalbot_i18n::day_label(lokalbot_core::time::local_day(at), today)
 }
 
 /// The due words on a row and how they read.
@@ -1652,16 +1641,7 @@ mod tests {
     }
 
     #[test]
-    fn days_read_today_yesterday_weekday_then_date() {
-        let today = today();
-        assert_eq!(day_label(today, today), "Today");
-        assert_eq!(day_label(day_of(29), today), "Yesterday");
-        assert_eq!(day_label(day_of(26), today), "Mon, Oct 26");
-        assert_eq!(day_label(day_of(23), today), "Oct 23");
-        assert_eq!(
-            day_label(NaiveDate::from_ymd_opt(2025, 12, 1).unwrap(), today),
-            "Dec 1, 2025"
-        );
+    fn the_stale_summary_counts_open_actions() {
         assert_eq!(
             stale_summary(1),
             "1 open action hasn’t been mentioned in 3 weeks."

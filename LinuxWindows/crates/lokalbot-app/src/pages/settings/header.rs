@@ -20,10 +20,10 @@ use gpui_kit::{
 
 use super::status::{StatusAction, StatusLine, Tone};
 use crate::i18n::h_flex;
-use crate::pages::people::model::directional;
 use crate::state::{AppData, AppEvent, SettingsCategory};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::directional;
 
 /// Opens a Settings page, revealing a setting on it when one is named (a
 /// catalog id such as "settings.permissions"): what a status line's `Open`
@@ -150,7 +150,7 @@ pub fn download_control(
         return None;
     }
     let label = match status.bytes_to_download() {
-        Some(bytes) => crate::pages::people::model::fill(
+        Some(bytes) => lokalbot_i18n::fill(
             lokalbot_i18n::tr("Download all · %@"),
             &[&super::status::size(bytes)],
         ),

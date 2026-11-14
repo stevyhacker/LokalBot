@@ -116,22 +116,10 @@ fn meta_line(claim: &Claim, shows_kind: bool, meeting_title: Option<&str>) -> St
     if saved_automatically(claim) {
         parts.push(lokalbot_i18n::tr("Saved automatically").to_string());
     }
-    let local = claim.created_at.with_timezone(&chrono::Local);
-    let pattern = if local.date_naive().format("%Y").to_string()
-        == chrono::Local::now().format("%Y").to_string()
-    {
-        "%b %-d"
-    } else {
-        "%b %-d, %Y"
-    };
-    parts.push(
-        local
-            .format_localized(
-                lokalbot_i18n::date_pattern(pattern),
-                lokalbot_i18n::date_locale(),
-            )
-            .to_string(),
-    );
+    parts.push(lokalbot_i18n::short_date(
+        claim.created_at.with_timezone(&chrono::Local).date_naive(),
+        chrono::Local::now().date_naive(),
+    ));
     parts.join(" · ")
 }
 

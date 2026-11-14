@@ -64,7 +64,7 @@ impl TodayPage {
                 .section(Section::Actions)
                 .count(summary.open)
                 .when(summary.overdue > 0, |panel| {
-                    panel.alert(model::directional(model::fill(
+                    panel.alert(lokalbot_i18n::directional(lokalbot_i18n::fill(
                         lokalbot_i18n::tr("%lld overdue"),
                         &[&lokalbot_i18n::number(summary.overdue)],
                     )))
@@ -77,13 +77,13 @@ impl TodayPage {
                 .rows(rows)
                 .when(footer, |panel| {
                     panel
-                        .footer(footer_text(model::fill(
+                        .footer(footer_text(lokalbot_i18n::fill(
                             lokalbot_i18n::tr("Showing the %lld most urgent"),
                             &[&lokalbot_i18n::number(summary.shown)],
                         )))
                         .footer(panel_link(
                             "today-attention-more",
-                            model::directional(model::fill(
+                            lokalbot_i18n::directional(lokalbot_i18n::fill(
                                 lokalbot_i18n::tr("%lld more in Actions"),
                                 &[&lokalbot_i18n::number(summary.remainder)],
                             )),
@@ -138,7 +138,7 @@ impl TodayPage {
                                     .text_size(NOW_LINE)
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(lb.recording_text)
-                                    .child(model::fill(
+                                    .child(lokalbot_i18n::fill(
                                         lokalbot_i18n::tr("Now · %@"),
                                         &[&lokalbot_core::time::clock_time(*at)],
                                     )),
@@ -218,7 +218,7 @@ impl TodayPage {
                     })
                     .unwrap_or_default();
                 (
-                    model::directional(parts.join(" · ")),
+                    lokalbot_i18n::directional(parts.join(" · ")),
                     lb.text_secondary,
                     FontWeight::NORMAL,
                 )
@@ -350,7 +350,7 @@ impl TodayPage {
                                 .text_size(TRACKED_TOTAL)
                                 .font_weight(FontWeight::BOLD)
                                 .text_color(lb.text)
-                                .child(model::directional(super::digest::hm(total))),
+                                .child(lokalbot_i18n::directional(super::digest::hm(total))),
                         )
                         .child(
                             div()
@@ -408,7 +408,7 @@ impl TodayPage {
                                 .w(px(APP_DURATION_WIDTH * scale))
                                 .when(!rtl, |this| this.justify_end())
                                 .text_color(lb.supporting)
-                                .child(model::directional(super::digest::hm(bar.seconds))),
+                                .child(lokalbot_i18n::directional(super::digest::hm(bar.seconds))),
                         )
                 }))
         });
@@ -479,7 +479,7 @@ impl TodayPage {
             )
         };
         let written = |at: chrono::DateTime<chrono::Utc>| {
-            model::fill(
+            lokalbot_i18n::fill(
                 lokalbot_i18n::tr("Digest written %@"),
                 &[&lokalbot_core::time::clock_time(at)],
             )

@@ -16,9 +16,9 @@ use gpui_kit::{
 use super::ProjectsPage;
 use super::model::{self, Row};
 use crate::i18n::h_flex;
-use crate::pages::people::model::fill;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, profile};
+use lokalbot_i18n::fill;
 
 impl ProjectsPage {
     pub(super) fn render_list(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {

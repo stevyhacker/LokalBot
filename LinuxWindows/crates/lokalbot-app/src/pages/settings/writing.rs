@@ -38,11 +38,11 @@ use lokalbot_platform::autocomplete::{AcceptKeys, InterceptedKey, Support};
 
 use super::subpage::Subpage;
 use super::{Section, SettingsPage, models, writing_rehearsal, writing_server};
-use crate::pages::people::model::fill;
 use crate::state::{AppEvent, SettingsCategory};
 use crate::theme::UiFont as _;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::fill;
 
 /// What the practice editor starts with (`AutocompleteExperienceView.openingText`).
 pub const PRACTICE_OPENING: &str = "Hi Sarah, thanks for the update. I wanted to follow";

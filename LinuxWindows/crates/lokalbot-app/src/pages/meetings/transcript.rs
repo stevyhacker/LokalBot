@@ -507,8 +507,7 @@ impl MeetingsPage {
             .tooltip({
                 let stamp = stamp.clone();
                 move |window, cx| {
-                    Tooltip::new(lokalbot_i18n::tr("Play from %@").replace("%@", &stamp))
-                        .build(window, cx)
+                    Tooltip::new(lokalbot_i18n::mac("Play from %@", &[&stamp])).build(window, cx)
                 }
             })
             .on_click(cx.listener(move |this, _, _, cx| {

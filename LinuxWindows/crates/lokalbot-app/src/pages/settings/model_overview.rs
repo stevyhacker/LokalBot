@@ -35,10 +35,10 @@ use super::models::{
 };
 use super::status::{self, ModelInfo, ModelState, Role};
 use super::{Section, SettingsPage};
-use crate::pages::people::model::{directional, fill};
 use crate::state::{AppEvent, DownloadProgress};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::{directional, fill};
 
 /// What a row, or the button at its end, does when chosen.
 type RowAction = std::rc::Rc<dyn Fn(&mut Window, &mut App)>;

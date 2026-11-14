@@ -25,15 +25,14 @@ use uuid::Uuid;
 use super::model::{self, Home};
 use super::{ProjectsPage, add_name_items};
 use crate::i18n::h_flex;
-use crate::pages::people::model::{
-    fill, hidden_count, initials, meeting_link, short_date, show_more,
-};
+use crate::pages::people::model::{hidden_count, initials, meeting_link, short_date, show_more};
 use crate::state::AppEvent;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::action_row::{self, ThreadRowOptions};
 use crate::ui::section_panel::SectionPanelLead;
 use crate::ui::side_column::{self, decision_row, label_chip, section_heading, side_block};
 use crate::ui::{self, Ico, profile};
+use lokalbot_i18n::fill;
 
 /// "Show 3 more" / "Show all 12" / "Show fewer" under a list.
 fn more_link(

@@ -17,10 +17,10 @@ use lokalbot_core::access::ScreenScope;
 
 use super::status::{AGENT_READ_KINDS, Access, SettingsStatus};
 use super::{Section, SettingsPage, header, models};
-use crate::pages::people::model::fill;
 use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::fill;
 
 const SCOPES: [ScreenScope; 3] = [
     ScreenScope::Today,

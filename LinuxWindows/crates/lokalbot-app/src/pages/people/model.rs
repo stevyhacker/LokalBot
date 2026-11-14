@@ -3,9 +3,10 @@
 //! only, each row's wording, and the wording put together from counts, dates
 //! and names on the page. Kept apart from drawing so it can be tested.
 
+use lokalbot_i18n::{directional, fill};
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, Datelike as _, Local, NaiveDate, Utc};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use lokalbot_core::people::upcoming::PersonUpcomingMeeting;
 use lokalbot_core::{MeetingRef, PersonProfile};
 
@@ -17,59 +18,6 @@ pub(super) const VISIBLE_SERIES: usize = 8;
 pub(super) const VISIBLE_INVITEES: usize = 3;
 /// "Last 2 weeks" reaches this many days back.
 pub(super) const RECENT_DAYS: u64 = 14;
-
-/// Fills a Mac catalog string's fields (`%lld`, `%@`, `%d`, or numbered
-/// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
-/// itself is the caller's `lokalbot_i18n::tr`, so the key stays a literal the
-/// catalog checks can see.
-pub(crate) fn fill(template: &str, values: &[&str]) -> String {
-    let mut out = String::with_capacity(template.len());
-    let mut rest = template;
-    let mut next = 0;
-    while let Some(start) = rest.find('%') {
-        out.push_str(&rest[..start]);
-        let after = &rest[start + 1..];
-        // "%%" is a literal percent sign.
-        if let Some(tail) = after.strip_prefix('%') {
-            out.push('%');
-            rest = tail;
-            continue;
-        }
-        let digits = after.chars().take_while(char::is_ascii_digit).count();
-        let (position, spec) = match after[digits..].strip_prefix('$') {
-            Some(spec) if digits > 0 => (after[..digits].parse::<usize>().ok(), spec),
-            _ => (None, after),
-        };
-        let length = ["lld", "ld", "@", "d"]
-            .iter()
-            .find(|candidate| spec.starts_with(**candidate))
-            .map(|candidate| candidate.len());
-        let Some(length) = length else {
-            out.push('%');
-            rest = after;
-            continue;
-        };
-        let index = match position {
-            Some(position) => position.saturating_sub(1),
-            None => {
-                next += 1;
-                next - 1
-            }
-        };
-        out.push_str(values.get(index).copied().unwrap_or_default());
-        rest = &spec[length..];
-    }
-    out.push_str(rest);
-    out
-}
-
-/// A phrase GPUI draws as one shaped line, starting with the mark of its own
-/// direction when that is right-to-left. Without it a translated phrase that
-/// starts with a number ("2 …", "14:00 …") loses the number in an Arabic or
-/// Urdu interface. Left-to-right text is returned as it is.
-pub(crate) fn directional(text: impl Into<String>) -> String {
-    lokalbot_i18n::directional(text)
-}
 
 // ------------------------------------------------------------- meetings
 
@@ -385,11 +333,14 @@ fn row(person: &PersonProfile, next: Option<&PersonUpcomingMeeting>, now: DateTi
 
 // -------------------------------------------------------------- wording
 
-fn local(date: DateTime<Utc>) -> DateTime<Local> {
+/// The moment on the local clock.
+pub(crate) fn local(date: DateTime<Utc>) -> DateTime<Local> {
     date.with_timezone(&Local)
 }
 
-fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
+/// The moment on the local clock in a date pattern, in the interface's
+/// locale (`lokalbot_i18n::date_pattern`).
+pub(crate) fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
     local(date)
         .format_localized(
             lokalbot_i18n::date_pattern(pattern),
@@ -398,25 +349,16 @@ fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
         .to_string()
 }
 
-/// "Nov 10", with the year once it is not this year.
+/// "Nov 10", with the year once it is not this year
+/// (`lokalbot_i18n::short_date` on the local days).
 pub(crate) fn short_date(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
-    if local(date).year() == local(now).year() {
-        formatted(date, "%b %-d")
-    } else {
-        formatted(date, "%b %-d, %Y")
-    }
+    lokalbot_i18n::short_date(local(date).date_naive(), local(now).date_naive())
 }
 
 /// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
-/// "Oct 27" (`ActionListWording.day`).
+/// "Oct 27" (`lokalbot_i18n::day_label` on the local days).
 pub(crate) fn day(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
-    let days_ago = (local(now).date_naive() - local(date).date_naive()).num_days();
-    match days_ago {
-        0 => lokalbot_i18n::tr("Today").to_string(),
-        1 => lokalbot_i18n::tr("Yesterday").to_string(),
-        2..=6 => formatted(date, "%a, %b %-d"),
-        _ => short_date(date, now),
-    }
+    lokalbot_i18n::day_label(local(date).date_naive(), local(now).date_naive())
 }
 
 /// "Thu 2:00 PM", or the time alone for a meeting today. A meeting under way
@@ -918,13 +860,5 @@ mod tests {
         assert_eq!(initials("Priya"), "P");
         assert_eq!(initials("Ana  (host) Petrović"), "AP");
         assert_eq!(initials(""), "");
-    }
-
-    #[test]
-    fn fill_replaces_fields_in_order_or_by_number() {
-        assert_eq!(fill("You owe %lld", &["2"]), "You owe 2");
-        assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
-        assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
-        assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
     }
 }

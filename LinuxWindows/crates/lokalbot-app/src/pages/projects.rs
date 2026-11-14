@@ -32,10 +32,10 @@ use uuid::Uuid;
 use self::model::{ListContent, selection_id};
 use crate::i18n::h_flex;
 use crate::pages::Page;
-use crate::pages::people::model::fill;
 use crate::state::{AppData, AskRequest, MeetingTab};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
+use lokalbot_i18n::fill;
 
 pub struct ProjectsPage {
     data: Entity<AppData>,

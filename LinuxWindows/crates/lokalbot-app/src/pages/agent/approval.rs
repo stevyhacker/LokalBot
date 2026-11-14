@@ -101,12 +101,10 @@ impl AgentPage {
                                 .flex_none()
                                 .text_size(ty::SECONDARY)
                                 .text_color(lb.attention_text)
-                                .child(crate::pages::ask::model::directional(
-                                    &crate::pages::ask::model::mac(
-                                        "1 of %lld",
-                                        &[&lokalbot_i18n::number(waiting)],
-                                    ),
-                                )),
+                                .child(lokalbot_i18n::interface_directional(&lokalbot_i18n::mac(
+                                    "1 of %lld",
+                                    &[&lokalbot_i18n::number(waiting)],
+                                ))),
                         )
                     }),
             )

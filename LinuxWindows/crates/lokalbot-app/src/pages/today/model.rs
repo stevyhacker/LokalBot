@@ -19,23 +19,6 @@ pub(super) const ATTENTION_LIMIT: usize = 3;
 /// Apps So far today names before folding the rest into "Other".
 pub(super) const APP_LIMIT: usize = 4;
 
-/// Fills a Mac catalog string's fields (`%lld`, `%@`, `%d`, or numbered
-/// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
-/// itself is the caller's `lokalbot_i18n::tr`, so the key stays a literal the
-/// catalog checks can see. Shared with the tray menu through `lokalbot_i18n`.
-pub(crate) fn fill(template: &str, values: &[&str]) -> String {
-    lokalbot_i18n::fill(template, values)
-}
-
-/// A phrase GPUI draws as one shaped line, starting with the mark of its own
-/// direction when that is right-to-left. Without it a translated phrase that
-/// starts with a number ("2 متأخرة", "3ح 57م") loses the number in an Arabic
-/// or Urdu interface. The mark is for shaping only, as in
-/// `ui::text::paragraph`; left-to-right text is returned as it is.
-pub(crate) fn directional(text: impl Into<String>) -> String {
-    lokalbot_i18n::directional(text)
-}
-
 // ---------------------------------------------------------------- columns
 
 /// One column or two (`TodayColumns`). The panels sit side by side when the
@@ -829,24 +812,6 @@ mod tests {
             participant_identities: Vec::new(),
             agenda: None,
         }
-    }
-
-    #[test]
-    fn fill_replaces_fields_in_order_or_by_number() {
-        assert_eq!(fill("In %lldh %lldm", &["2", "10"]), "In 2h 10m");
-        assert_eq!(fill("Now · %@", &["10:48 AM"]), "Now · 10:48 AM");
-        assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
-        assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
-        assert_eq!(fill("No fields", &["x"]), "No fields");
-        assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
-    }
-
-    #[test]
-    fn right_to_left_phrases_keep_their_leading_number() {
-        assert_eq!(directional("2 متأخرة"), "\u{200f}2 متأخرة");
-        assert_eq!(directional("\u{200f}2 متأخرة"), "\u{200f}2 متأخرة");
-        assert_eq!(directional("2 overdue"), "2 overdue");
-        assert_eq!(directional("10:48"), "10:48");
     }
 
     #[test]

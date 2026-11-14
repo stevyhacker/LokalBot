@@ -18,10 +18,10 @@ use gpui_kit::{
 use lokalbot_core::digest::{BRIEF_ROW_LIMIT, folds_brief_rows, title_and_tag};
 use lokalbot_core::{DayDigest, DigestTask, TaskStatus};
 
-use super::day_list::mac;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::section_panel::SectionPanel;
 use crate::ui::{self, Ico};
+use lokalbot_i18n::mac;
 
 /// Toggles a task's details by index, or one of the keys below.
 pub(super) type TaskToggle = Rc<dyn Fn(usize, &mut Window, &mut App)>;

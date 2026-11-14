@@ -14,7 +14,7 @@ use gpui_kit::{
 };
 
 use super::day_list::{
-    self, ActionsPill, DigestLine, actions_pill, actions_show_rows, actions_summary, mac,
+    self, ActionsPill, DigestLine, actions_pill, actions_show_rows, actions_summary,
 };
 use super::work_summary::{self, OpenSession, TaskToggle, WorkSummary};
 use super::{DayModel, Selection, TimelinePage};
@@ -25,6 +25,7 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::action_row::{self, ThreadRowOptions};
 use crate::ui::section_panel::{PillTone, SectionPanel, footer_text, panel_link};
 use crate::ui::{self, Ico};
+use lokalbot_i18n::mac;
 
 impl TimelinePage {
     pub(super) fn render_day_page(

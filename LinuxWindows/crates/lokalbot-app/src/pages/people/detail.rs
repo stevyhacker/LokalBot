@@ -184,7 +184,7 @@ impl PeoplePage {
         );
         if !person.my_actions.is_empty() {
             column = column.child(self.owed(
-                model::fill(lokalbot_i18n::tr("You owe %@"), &[&first]),
+                lokalbot_i18n::fill(lokalbot_i18n::tr("You owe %@"), &[&first]),
                 true,
                 &person.my_actions,
                 "person-you-owe",
@@ -196,7 +196,7 @@ impl PeoplePage {
                 div()
                     .when(!person.my_actions.is_empty(), |this| this.pt(px(10.)))
                     .child(self.owed(
-                        model::fill(lokalbot_i18n::tr("%@ owes you"), &[&first]),
+                        lokalbot_i18n::fill(lokalbot_i18n::tr("%@ owes you"), &[&first]),
                         false,
                         &person.their_actions,
                         "person-owes-you",
@@ -557,7 +557,7 @@ impl PeoplePage {
                             .min_w_0()
                             .text_size(ty::SECONDARY)
                             .text_color(lb.text)
-                            .child(ui::text::paragraph(model::fill(
+                            .child(ui::text::paragraph(lokalbot_i18n::fill(
                                 lokalbot_i18n::tr("Also appears as %@"),
                                 &[&person.other_names.join(", ")],
                             ))),

@@ -256,7 +256,7 @@ impl NamingSheet {
             1 => format!("{speech} · {}", lokalbot_i18n::tr("1 action")),
             many => format!(
                 "{speech} · {}",
-                lokalbot_i18n::tr("%lld actions").replace("%lld", &lokalbot_i18n::number(many))
+                lokalbot_i18n::mac("%lld actions", &[&lokalbot_i18n::number(many)])
             ),
         }
     }

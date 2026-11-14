@@ -18,7 +18,7 @@ use gpui_kit::{
 use lokalbot_core::settings::SummarizerBackend;
 
 use super::AskPage;
-use super::model::{self, PageKind};
+use super::model::PageKind;
 use super::scope::{DateScope, Source};
 use super::search::Facet;
 use crate::state::SettingsCategory;
@@ -328,7 +328,7 @@ impl AskPage {
                     let widen_page = page.clone();
                     menu = menu
                         .item(
-                            PopupMenuItem::new(model::mac("Only %@", &[&narrowed_to]))
+                            PopupMenuItem::new(lokalbot_i18n::mac("Only %@", &[&narrowed_to]))
                                 .checked(true),
                         )
                         .item(PopupMenuItem::new(widen).on_click(move |_, window, cx| {

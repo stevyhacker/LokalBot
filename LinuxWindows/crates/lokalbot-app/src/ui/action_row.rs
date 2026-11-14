@@ -248,11 +248,7 @@ pub fn play_time(
     let tooltip: SharedString = excerpt
         .filter(|e| !e.trim().is_empty())
         .map(|e| SharedString::from(format!("“{}”", e.trim())))
-        .unwrap_or_else(|| {
-            lokalbot_i18n::tr("Play from %@")
-                .replace("%@", &stamp)
-                .into()
-        });
+        .unwrap_or_else(|| lokalbot_i18n::mac("Play from %@", &[&stamp]).into());
     h_flex()
         .id(id)
         .flex_none()

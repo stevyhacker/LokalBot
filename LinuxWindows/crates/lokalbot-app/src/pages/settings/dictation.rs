@@ -19,10 +19,10 @@ use super::model_overview::{Place, place};
 use super::status::Role;
 use super::subpage::Subpage;
 use super::{Section, SettingsPage};
-use crate::pages::people::model::{directional, fill};
 use crate::state::{AppEvent, DictationHud, SettingsCategory};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{Ico, settings_row};
+use lokalbot_i18n::{directional, fill};
 
 const INTENTS: [DictationIntent; 2] = [DictationIntent::Transcribe, DictationIntent::Compose];
 

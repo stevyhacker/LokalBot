@@ -770,7 +770,7 @@ fn render_access(
             cx,
         ));
     let remote = match &access.model.destination {
-        Destination::Remote(host) => Some(crate::pages::ask::model::mac(
+        Destination::Remote(host) => Some(lokalbot_i18n::mac(
             "Your messages, attached context and what the agent reads are sent to %@.",
             &[host],
         )),

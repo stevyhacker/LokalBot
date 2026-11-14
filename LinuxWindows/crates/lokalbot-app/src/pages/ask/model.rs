@@ -6,6 +6,7 @@
 
 use chrono::{DateTime, Datelike as _, Local, Utc};
 use lokalbot_core::{ChatMessage, ChatRole, QuestionScope};
+use lokalbot_i18n::{interface_directional, mac, mac_count};
 use uuid::Uuid;
 
 use super::scope::{Offered, Source, Sources};
@@ -217,12 +218,12 @@ pub fn matches_count_label(
 ) -> String {
     let count = meetings + others;
     if truncated {
-        return directional(&format!("{}+", lokalbot_i18n::number(count)));
+        return interface_directional(&format!("{}+", lokalbot_i18n::number(count)));
     }
     if others > 0 || meetings == 0 {
         return lokalbot_i18n::number(count);
     }
-    directional(&if meetings == 1 {
+    interface_directional(&if meetings == 1 {
         mac("%lld in 1 meeting", &[&lokalbot_i18n::number(passages)])
     } else {
         mac(
@@ -322,7 +323,7 @@ fn narrowed_label(
             "%lld screen moments",
         ));
     }
-    (!parts.is_empty()).then(|| directional(&parts.join(", ")))
+    (!parts.is_empty()).then(|| interface_directional(&parts.join(", ")))
 }
 
 /// A limit that holds no meeting and no screen moment names what remains.
@@ -674,18 +675,7 @@ pub fn moment_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
 
 /// "Nov 12", with the year only once it isn't this year (`AskDateLabel.day`).
 pub fn day_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
-    let local = at.with_timezone(&Local);
-    let pattern = if local.year() == now.year() {
-        "%b %-d"
-    } else {
-        "%b %-d, %Y"
-    };
-    local
-        .format_localized(
-            lokalbot_i18n::date_pattern(pattern),
-            lokalbot_i18n::date_locale(),
-        )
-        .to_string()
+    lokalbot_i18n::short_date(at.with_timezone(&Local).date_naive(), now.date_naive())
 }
 
 /// The divider a question shows above it (`visibleDateDividerTitle`): a
@@ -701,65 +691,6 @@ pub fn visible_date_divider(
         return None;
     }
     super::transcript::date_divider(created_at, previous, now)
-}
-
-// ------------------------------------------------------------------ text
-
-/// A macOS catalog entry with `%@` / `%lld` fields (or numbered ones), filled
-/// in order with `values`.
-pub fn fill(template: &str, values: &[&str]) -> String {
-    let mut text = template.to_string();
-    for (index, value) in values.iter().enumerate() {
-        for spec in ["@", "lld", "ld", "d"] {
-            text = text.replace(&format!("%{}${spec}", index + 1), value);
-        }
-    }
-    let mut result = String::with_capacity(text.len());
-    let mut rest = text.as_str();
-    let mut next = values.iter();
-    while let Some(at) = rest.find('%') {
-        result.push_str(&rest[..at]);
-        let after = &rest[at + 1..];
-        let spec = ["lld", "ld", "@", "d"]
-            .into_iter()
-            .find(|spec| after.starts_with(spec));
-        match (spec, spec.and_then(|_| next.next())) {
-            (Some(spec), Some(value)) => {
-                result.push_str(value);
-                rest = &after[spec.len()..];
-            }
-            _ => {
-                result.push('%');
-                rest = after;
-            }
-        }
-    }
-    result.push_str(rest);
-    result
-}
-
-/// `fill` with the key translated first.
-pub fn mac(key: &str, values: &[&str]) -> String {
-    fill(lokalbot_i18n::tr(key), values)
-}
-
-/// A count phrase from the macOS catalog: "%lld meeting" / "%lld meetings".
-pub fn mac_count(count: usize, one: &str, many: &str) -> String {
-    mac(
-        if count == 1 { one } else { many },
-        &[&lokalbot_i18n::number(count)],
-    )
-}
-
-/// GPUI drops a number that starts a right-to-left line; a direction mark
-/// in front keeps it. Unlike `lokalbot_i18n::directional`, any text in a
-/// right-to-left interface gets it, a bare count too.
-pub fn directional(text: &str) -> String {
-    if lokalbot_i18n::current().rtl && !text.starts_with(lokalbot_i18n::RIGHT_TO_LEFT_MARK) {
-        format!("{}{text}", lokalbot_i18n::RIGHT_TO_LEFT_MARK)
-    } else {
-        text.to_string()
-    }
 }
 
 #[cfg(test)]
@@ -1128,17 +1059,6 @@ mod tests {
             visible_date_divider(None, None, now).as_deref(),
             Some("Earlier conversation")
         );
-    }
-
-    #[test]
-    fn mac_fields_fill_in_order() {
-        assert_eq!(fill("Only %@", &["Atlas"]), "Only Atlas");
-        assert_eq!(
-            fill("%1$lld in %2$lld meetings", &["5", "2"]),
-            "5 in 2 meetings"
-        );
-        assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
-        assert_eq!(fill("100% sure, %@", &["yes"]), "100% sure, yes");
     }
 
     #[test]

@@ -757,8 +757,10 @@ fn companion_line(devices: usize) -> String {
     match devices {
         0 => lokalbot_i18n::tr("Phones & tablets: none paired").to_string(),
         1 => lokalbot_i18n::tr("Copy on 1 paired device").to_string(),
-        many => lokalbot_i18n::tr("Copies on %lld paired devices")
-            .replace("%lld", &lokalbot_i18n::number(many)),
+        many => lokalbot_i18n::mac(
+            "Copies on %lld paired devices",
+            &[&lokalbot_i18n::number(many)],
+        ),
     }
 }
 

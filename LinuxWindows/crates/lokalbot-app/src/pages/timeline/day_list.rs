@@ -835,54 +835,6 @@ pub(crate) fn digest_menu_title(writing: bool, has_digest: bool, stale: bool) ->
     }
 }
 
-// ------------------------------------------------------------- catalog
-
-/// A macOS catalog entry with `%@` / `%lld` fields (or their numbered
-/// forms), filled in order with `values`.
-pub(crate) fn fill(template: &str, values: &[&str]) -> String {
-    let mut text = template.to_string();
-    for (index, value) in values.iter().enumerate() {
-        for spec in ["@", "lld", "ld", "d"] {
-            text = text.replace(&format!("%{}${spec}", index + 1), value);
-        }
-    }
-    let mut result = String::with_capacity(text.len());
-    let mut rest = text.as_str();
-    let mut next = values.iter();
-    while let Some(at) = rest.find('%') {
-        result.push_str(&rest[..at]);
-        let after = &rest[at + 1..];
-        let spec = ["lld", "ld", "@", "d"]
-            .into_iter()
-            .find(|spec| after.starts_with(spec));
-        match (spec, spec.and_then(|_| next.next())) {
-            (Some(spec), Some(value)) => {
-                result.push_str(value);
-                rest = &after[spec.len()..];
-            }
-            _ => {
-                result.push('%');
-                rest = after;
-            }
-        }
-    }
-    result.push_str(rest);
-    result
-}
-
-/// `fill` with the key translated first.
-pub(crate) fn mac(key: &str, values: &[&str]) -> String {
-    fill(lokalbot_i18n::tr(key), values)
-}
-
-/// A count phrase from the macOS catalog: "%lld meeting" / "%lld meetings".
-pub(crate) fn mac_count(count: usize, one: &str, many: &str) -> String {
-    mac(
-        if count == 1 { one } else { many },
-        &[&lokalbot_i18n::number(count)],
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1288,14 +1240,5 @@ mod tests {
         assert!(list.work_row_in_time_range("14:00–15:00", day).is_none());
         assert!(list.work_row_in_time_range("Fixture", day).is_none());
         assert!(interval_from_time_range("25:00–26:00", day).is_none());
-    }
-
-    #[test]
-    fn catalog_fields_fill_in_order_or_by_number() {
-        assert_eq!(fill("%lld open", &["2"]), "2 open");
-        assert_eq!(fill("Away %@", &["1h 5m"]), "Away 1h 5m");
-        assert_eq!(fill("%2$@ · %1$@", &["a", "b"]), "b · a");
-        assert_eq!(fill("100% %@", &["done"]), "100% done");
-        assert_eq!(fill("no fields", &["x"]), "no fields");
     }
 }

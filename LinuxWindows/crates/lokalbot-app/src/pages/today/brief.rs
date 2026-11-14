@@ -369,7 +369,7 @@ fn priorities_label(report_day: &str, today: NaiveDate) -> String {
                     .to_string(),
                 DayNaming::Date => abbreviated(day),
             };
-            super::model::fill(lokalbot_i18n::tr("Priorities from %@"), &[&name])
+            lokalbot_i18n::fill(lokalbot_i18n::tr("Priorities from %@"), &[&name])
         }
     }
 }

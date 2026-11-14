@@ -379,7 +379,7 @@ impl AskPage {
                                     .label(if playing {
                                         lokalbot_i18n::tr("Pause").to_string()
                                     } else {
-                                        model::mac("Play from %@", &[&stamp])
+                                        lokalbot_i18n::mac("Play from %@", &[&stamp])
                                     })
                                     .disabled(!can_play)
                                     .on_click(

@@ -251,7 +251,7 @@ impl AskPage {
             )
             .to_string()
         } else {
-            model::mac("No matches for “%@”.", &[self.query.trim()])
+            lokalbot_i18n::mac("No matches for “%@”.", &[self.query.trim()])
         };
         let filtered = self.date_scope != DateScope::AnyTime
             || self.facet != Facet::All
@@ -792,7 +792,7 @@ impl AskPage {
             .text_size(ty::SECONDARY)
             .child(ui::link(
                 ElementId::NamedInteger(SharedString::from(format!("{id}-more")), index as u64),
-                model::directional(&model::mac(
+                lokalbot_i18n::interface_directional(&lokalbot_i18n::mac(
                     "Show %lld more",
                     &[&lokalbot_i18n::number(hidden)],
                 )),

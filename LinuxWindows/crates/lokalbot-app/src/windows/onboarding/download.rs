@@ -22,7 +22,6 @@ use super::{
     Onboarding, attention_label, card, done_label, heading, note, progress_bar, quiet, row,
     row_title,
 };
-use crate::pages::ask::model::{directional, mac};
 use crate::pages::settings::model_options::download_source_row;
 use crate::pages::settings::models::{
     RUNTIME_ID, autocomplete_needs, model_bytes, model_name, models_in_use, size_label,
@@ -31,6 +30,7 @@ use crate::pages::settings::models::{
 use crate::state::{AppData, AppEvent, DownloadProgress};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
+use lokalbot_i18n::{interface_directional, mac};
 
 /// Slack a download needs beyond its own size (`DiskSpacePrecheck.headroomBytes`).
 const HEADROOM_BYTES: u64 = 2_000_000_000;
@@ -688,7 +688,7 @@ impl Onboarding {
                         ),
                         None => lokalbot_i18n::tr("Downloading…").to_string(),
                     };
-                    div().child(directional(&text)).into_any_element()
+                    div().child(interface_directional(&text)).into_any_element()
                 }
             };
         let amount = (plan.total_bytes > 0).then(|| {
@@ -738,7 +738,7 @@ impl Onboarding {
                             .flex_none()
                             .text_size(ty::SECONDARY)
                             .text_color(lb.text_secondary)
-                            .child(directional(&amount))
+                            .child(interface_directional(&amount))
                     })),
             )
             .children(fraction.map(|fraction| progress_bar(fraction, cx)))
@@ -862,43 +862,42 @@ impl Onboarding {
         let free = plan.available_bytes.map(size_label);
         let fits = plan.fits_on_disk();
         let tone = if fits { lb.text } else { lb.attention_text };
-        let size_note =
-            (total.is_some() || free.is_some()).then(|| {
-                h_flex()
-                    .px(px(2.))
-                    .gap(px(6.))
-                    .items_center()
-                    .flex_wrap()
-                    .child(ui::icon(
-                        if fits {
-                            Ico::ArrowDownToLine
-                        } else {
-                            Ico::TriangleAlert
-                        },
-                        px(13.),
-                        tone,
+        let size_note = (total.is_some() || free.is_some()).then(|| {
+            h_flex()
+                .px(px(2.))
+                .gap(px(6.))
+                .items_center()
+                .flex_wrap()
+                .child(ui::icon(
+                    if fits {
+                        Ico::ArrowDownToLine
+                    } else {
+                        Ico::TriangleAlert
+                    },
+                    px(13.),
+                    tone,
+                ))
+                .when_some(total.clone(), |this, total| {
+                    this.child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(tone)
+                            .child(interface_directional(&mac("%@ in all", &[&total]))),
+                    )
+                })
+                .when(total.is_some() && free.is_some(), |this| {
+                    this.child(div().text_size(ty::SECONDARY).text_color(tone).child("·"))
+                })
+                .when_some(free, |this, free| {
+                    this.child(div().text_size(ty::SECONDARY).text_color(tone).child(
+                        interface_directional(&lokalbot_i18n::format(
+                            "{size} free on this PC",
+                            &[("size", free)],
+                        )),
                     ))
-                    .when_some(total.clone(), |this, total| {
-                        this.child(
-                            div()
-                                .text_size(ty::SECONDARY)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(tone)
-                                .child(directional(&mac("%@ in all", &[&total]))),
-                        )
-                    })
-                    .when(total.is_some() && free.is_some(), |this| {
-                        this.child(div().text_size(ty::SECONDARY).text_color(tone).child("·"))
-                    })
-                    .when_some(free, |this, free| {
-                        this.child(div().text_size(ty::SECONDARY).text_color(tone).child(
-                            directional(&lokalbot_i18n::format(
-                                "{size} free on this PC",
-                                &[("size", free)],
-                            )),
-                        ))
-                    })
-            });
+                })
+        });
         let source_page = cx.entity();
         let source = shows_download_source(settings).then(|| {
             div().pt(px(6.)).child(download_source_row(

@@ -248,7 +248,7 @@ impl TodayPage {
                         } else {
                             lokalbot_i18n::tr("%lld items")
                         };
-                        this.child(model::directional(model::fill(
+                        this.child(lokalbot_i18n::directional(lokalbot_i18n::fill(
                             words,
                             &[&lokalbot_i18n::number(count)],
                         )))
@@ -308,7 +308,7 @@ impl TodayPage {
                 let label: SharedString = if shows_more {
                     lokalbot_i18n::tr("Show fewer").into()
                 } else {
-                    model::directional(model::fill(
+                    lokalbot_i18n::directional(lokalbot_i18n::fill(
                         lokalbot_i18n::tr("Show %lld more"),
                         &[&lokalbot_i18n::number(more.len())],
                     ))

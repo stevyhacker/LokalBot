@@ -15,7 +15,7 @@ use gpui_kit::{
 };
 use lokalbot_core::{Library, Meeting, ScreenMoment, WorkSession};
 
-use super::day_list::{self, mac};
+use super::day_list;
 use super::rail::{capture_counts, time_range};
 use super::{DayModel, Selection, TimelinePage};
 use crate::pages::meetings::model as meeting_model;
@@ -26,6 +26,7 @@ use crate::ui::action_row::{self, ThreadRowOptions, open_meeting};
 use crate::ui::section_panel::{SectionPanel, SectionPanelLead};
 use crate::ui::{self, Ico};
 use crate::windows::screen_image::ScreenImage;
+use lokalbot_i18n::mac;
 
 /// A meeting preview stays short; the meeting has the rest.
 const PREVIEW_ROWS: usize = 6;

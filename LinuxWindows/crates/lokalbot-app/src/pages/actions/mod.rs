@@ -409,7 +409,7 @@ impl ActionsPage {
             return;
         }
         let meetings = model::confirmation_meetings(&changing);
-        let title = crate::pages::today::model::fill(
+        let title = lokalbot_i18n::fill(
             lokalbot_i18n::tr("Update actions in %lld meetings?"),
             &[&lokalbot_i18n::number(meetings.len())],
         );
@@ -640,9 +640,10 @@ impl Page for ActionsPage {
     fn subtitle(&self, cx: &gpui_kit::App) -> Option<SharedString> {
         let open = self.data.read(cx).open_action_count?;
         Some(
-            crate::pages::today::model::directional(
-                lokalbot_i18n::tr("%lld open").replace("%lld", &lokalbot_i18n::number(open)),
-            )
+            lokalbot_i18n::directional(lokalbot_i18n::mac(
+                "%lld open",
+                &[&lokalbot_i18n::number(open)],
+            ))
             .into(),
         )
     }

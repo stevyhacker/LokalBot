@@ -7,11 +7,12 @@
 
 use std::collections::HashSet;
 
-use chrono::{DateTime, Local, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use lokalbot_core::{ActionThread, ProjectCuration, ProjectKind, ProjectProfile, ProjectSummary};
 use uuid::Uuid;
 
-use crate::pages::people::model::{day, directional, fill, short_date};
+use crate::pages::people::model::{day, formatted, local, short_date};
+use lokalbot_i18n::{directional, fill};
 
 /// A project nothing has named for this many days reads "Quiet since…";
 /// the same two weeks after which other people's open work stops counting
@@ -35,19 +36,6 @@ pub(super) const COMPACT_TOOLBAR_WIDTH: f32 = 720.;
 /// `tracked:<UUID>`, the selection and note id of a tracked project.
 pub(super) fn selection_id(id: Uuid) -> String {
     format!("tracked:{}", lokalbot_core::ids::uuid_upper(&id))
-}
-
-fn local(date: DateTime<Utc>) -> DateTime<Local> {
-    date.with_timezone(&Local)
-}
-
-fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
-    local(date)
-        .format_localized(
-            lokalbot_i18n::date_pattern(pattern),
-            lokalbot_i18n::date_locale(),
-        )
-        .to_string()
 }
 
 /// The start of a local day, for wording that takes an instant.
@@ -716,7 +704,7 @@ fn is_wide(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{Duration, TimeZone as _};
+    use chrono::{Duration, Local, TimeZone as _};
     use lokalbot_core::{MeetingRef, ProjectWindowTime, TrackedProject};
 
     /// A Tuesday at noon, local time, so day words do not depend on the

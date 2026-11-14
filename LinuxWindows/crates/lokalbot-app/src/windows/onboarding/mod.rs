@@ -504,15 +504,10 @@ impl Onboarding {
                             div()
                                 .text_size(ty::SECONDARY)
                                 .text_color(lb.text_secondary)
-                                .child(crate::pages::ask::model::directional(
-                                    &crate::pages::ask::model::mac(
-                                        "%lld of %lld allowed",
-                                        &[
-                                            &lokalbot_i18n::number(allowed),
-                                            &lokalbot_i18n::number(of),
-                                        ],
-                                    ),
-                                )),
+                                .child(lokalbot_i18n::interface_directional(&lokalbot_i18n::mac(
+                                    "%lld of %lld allowed",
+                                    &[&lokalbot_i18n::number(allowed), &lokalbot_i18n::number(of)],
+                                ))),
                         )
                     })
                     .child(div().flex_1().min_w(px(8.)))

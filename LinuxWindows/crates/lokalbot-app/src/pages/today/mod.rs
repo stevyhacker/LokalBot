@@ -336,21 +336,21 @@ fn card_surface(tint: Option<Hsla>, cx: &App) -> Div {
 /// A meeting's place in the day in words: "In 12 min", "Recording", "Ended"
 /// (`TodayMeetingStatusText`). The tray menu's next meeting says it the same.
 pub(crate) fn status_text(status: EntryStatus) -> String {
-    model::directional(match status {
+    lokalbot_i18n::directional(match status {
         EntryStatus::Recording => lokalbot_i18n::tr("Recording").to_string(),
         // A saved recording's row shows its app and length instead.
         EntryStatus::Recorded | EntryStatus::Ended => lokalbot_i18n::tr("Ended").to_string(),
         EntryStatus::InProgress => lokalbot_i18n::tr("In progress").to_string(),
         EntryStatus::StartingNow => lokalbot_i18n::tr("Starting now").to_string(),
-        EntryStatus::Upcoming { minutes } if minutes < 60 => model::fill(
+        EntryStatus::Upcoming { minutes } if minutes < 60 => lokalbot_i18n::fill(
             lokalbot_i18n::tr("In %lld min"),
             &[&lokalbot_i18n::number(minutes.max(0) as usize)],
         ),
         EntryStatus::Upcoming { minutes } => {
             let hours = lokalbot_i18n::number((minutes / 60) as usize);
             match minutes % 60 {
-                0 => model::fill(lokalbot_i18n::tr("In %lldh"), &[&hours]),
-                rest => model::fill(
+                0 => lokalbot_i18n::fill(lokalbot_i18n::tr("In %lldh"), &[&hours]),
+                rest => lokalbot_i18n::fill(
                     lokalbot_i18n::tr("In %lldh %lldm"),
                     &[&hours, &lokalbot_i18n::number(rest as usize)],
                 ),

@@ -64,12 +64,12 @@ use lokalbot_core::Settings;
 use lokalbot_core::access::ScreenScope;
 use lokalbot_platform::shortcuts::Shortcut;
 
-use crate::pages::people::model::fill as people_fill;
 use crate::state::{AppData, SettingsCategory};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::rule_list::{RuleKind, RuleList, RuleListEvent};
 use crate::ui::shortcut_field::{ShortcutEvent, ShortcutField};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::fill;
 
 /// Every page, in the order the window lists them: the LokalBot row
 /// (Overview), the pages above the first heading, each heading's pages, then
@@ -180,7 +180,7 @@ pub fn category_summary(category: SettingsCategory, settings: &Settings) -> Stri
         }
         SettingsCategory::Dictation => {
             // Dictation's line names its shortcut.
-            return people_fill(
+            return fill(
                 lokalbot_i18n::tr("Press %@, speak, and the text lands where you type."),
                 &[&settings.dictation_shortcut],
             );
@@ -1468,7 +1468,7 @@ impl SettingsPage {
                             .text_size(ty::SECONDARY)
                             .text_color(summary_color)
                             .line_clamp(2)
-                            .child(crate::pages::people::model::directional(status.summary())),
+                            .child(lokalbot_i18n::directional(status.summary())),
                     ),
             )
             .on_click(cx.listener(|this, _, window, cx| {

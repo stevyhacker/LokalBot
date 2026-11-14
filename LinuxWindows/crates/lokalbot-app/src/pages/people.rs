@@ -524,7 +524,7 @@ impl PeoplePage {
     fn render_toolbar(&self, person: &PersonProfile, cx: &mut Context<Self>) -> AnyElement {
         let first = model::first_name(person).to_string();
         let ask_label: SharedString =
-            model::fill(lokalbot_i18n::tr("Ask about %@"), &[&first]).into();
+            lokalbot_i18n::fill(lokalbot_i18n::tr("Ask about %@"), &[&first]).into();
         let ask_data = self.data.clone();
         let question = lokalbot_i18n::format(
             "What has {0} been working on lately, and what is open between us?",
@@ -574,7 +574,7 @@ impl PeoplePage {
                 );
                 if let Some(meeting) = follow_up.clone() {
                     let data = follow_up_data.clone();
-                    let label = model::fill(
+                    let label = lokalbot_i18n::fill(
                         lokalbot_i18n::tr("Draft follow-up for %@…"),
                         &[&meeting.display_title()],
                     );

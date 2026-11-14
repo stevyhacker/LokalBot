@@ -30,10 +30,10 @@ use uuid::Uuid;
 
 use super::model::{self, ListContent, MAXIMUM_LINKS, STATUSES, state_key};
 use super::{ActionsPage, DuePicker, Passages};
-use crate::pages::today::model::{directional, fill};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::action_row::{self, open_meeting};
 use crate::ui::{self, Ico, controls};
+use lokalbot_i18n::{directional, fill};
 
 impl ActionsPage {
     pub(super) fn render_details(

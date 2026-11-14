@@ -14,8 +14,8 @@ use lokalbot_agent::presentation::{
 };
 use lokalbot_agent::transcript::{ApprovalRequest, ToolStatus, is_shell_tool};
 
-use crate::pages::ask::model::{directional, fill, mac};
 use lokalbot_i18n::tr;
+use lokalbot_i18n::{fill, interface_directional, mac};
 
 // ------------------------------------------------------------------ steps
 
@@ -38,9 +38,9 @@ impl StepLabel {
     pub fn text(&self, status: ToolStatus, task_is_working: bool) -> String {
         match status {
             ToolStatus::Succeeded => self.done.clone(),
-            ToolStatus::Failed => directional(&mac("%@ · failed", &[&self.doing])),
+            ToolStatus::Failed => interface_directional(&mac("%@ · failed", &[&self.doing])),
             ToolStatus::Running if task_is_working => format!("{}…", self.doing),
-            ToolStatus::Running => directional(&mac("%@ · not finished", &[&self.doing])),
+            ToolStatus::Running => interface_directional(&mac("%@ · not finished", &[&self.doing])),
         }
     }
 }
@@ -77,8 +77,8 @@ pub fn step_label(tool: &str, args_json: &str, context: &StepContext) -> StepLab
 fn named(done: &str, doing: &str, name: &str, detail: Option<String>) -> StepLabel {
     StepLabel {
         // A right-to-left translation can begin with the name.
-        done: directional(&fill(done, &[name])),
-        doing: directional(&fill(doing, &[name])),
+        done: interface_directional(&fill(done, &[name])),
+        doing: interface_directional(&fill(doing, &[name])),
         detail,
         begins_with_name: done.starts_with('%'),
     }
@@ -196,7 +196,7 @@ pub fn steps_count(steps: usize) -> String {
     if steps == 1 {
         tr("1 step").to_string()
     } else {
-        directional(&mac("%lld steps", &[&lokalbot_i18n::number(steps)]))
+        interface_directional(&mac("%lld steps", &[&lokalbot_i18n::number(steps)]))
     }
 }
 
@@ -220,10 +220,12 @@ pub fn status_title(status: TaskStatus) -> Option<&'static str> {
 pub fn status_line(status: TaskStatus) -> Option<String> {
     match status {
         TaskStatus::Done { changed_files: 1 } => Some(tr("Done · 1 file changed").to_string()),
-        TaskStatus::Done { changed_files } if changed_files > 1 => Some(directional(&mac(
-            "Done · %lld files changed",
-            &[&lokalbot_i18n::number(changed_files)],
-        ))),
+        TaskStatus::Done { changed_files } if changed_files > 1 => {
+            Some(interface_directional(&mac(
+                "Done · %lld files changed",
+                &[&lokalbot_i18n::number(changed_files)],
+            )))
+        }
         other => status_title(other).map(str::to_string),
     }
 }
@@ -254,7 +256,7 @@ pub fn changed_file_detail(file: &ChangedFile) -> String {
         });
     }
     parts.push(file.target.folder.clone());
-    directional(&parts.join(" · "))
+    interface_directional(&parts.join(" · "))
 }
 
 // --------------------------------------------------------------- task list
@@ -343,7 +345,7 @@ pub fn level_detail(mode: ApprovalMode, workspace_name: &str) -> String {
         )
         .to_string(),
     };
-    directional(&detail)
+    interface_directional(&detail)
 }
 
 /// The line under the heading of a new task.
@@ -514,8 +516,8 @@ impl ApprovalCard {
         // A right-to-left translation can begin with the file's or folder's name.
         ApprovalCard {
             is_command,
-            title: directional(&title),
-            effect: directional(&effect),
+            title: interface_directional(&title),
+            effect: interface_directional(&effect),
             caution,
             destination,
             preview,
@@ -530,7 +532,7 @@ impl ApprovalCard {
 
 /// "Show all 12 lines"
 pub fn show_all(lines: usize) -> String {
-    directional(&mac(
+    interface_directional(&mac(
         "Show all %lld lines",
         &[&lokalbot_i18n::number(lines)],
     ))

@@ -15,13 +15,14 @@ use gpui_kit::{
     canvas, div, px,
 };
 
-use super::day_list::{self, DayStrip, Entry, ListSelection, Row, mac, mac_count};
+use super::day_list::{self, DayStrip, Entry, ListSelection, Row};
 use super::{DayModel, TimelinePage, agent_work};
 use crate::i18n::h_flex;
 use crate::pages::today::digest::{self, hm};
 use crate::theme::{LbThemeExt as _, Palette, metric, ty};
 use crate::ui::section_panel::{PillTone, pill};
 use crate::ui::{self, Ico};
+use lokalbot_i18n::{mac, mac_count};
 
 /// From the rail's edge to its text, the panels' own inset.
 const INSET: f32 = 16.;
