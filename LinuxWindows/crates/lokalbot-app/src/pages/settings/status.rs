@@ -829,28 +829,32 @@ impl SettingsStatus {
         let downloads = self.models_to_download();
         let working = self.models_downloading();
         if !downloads.is_empty() {
-            let text = match (Self::total_bytes(&downloads), self.input.free_bytes) {
-                (Some(bytes), Some(free)) if bytes > 0 => lokalbot_i18n::format(
+            let together = match (Self::total_bytes(&downloads), self.input.free_bytes) {
+                (Some(bytes), Some(free)) if bytes > 0 => Some(lokalbot_i18n::format(
                     "Not downloaded yet. They need {0}, and this PC has {1} free.",
                     &[("0", size(bytes)), ("1", size(free))],
-                ),
-                _ => fill(
-                    lokalbot_i18n::tr("%@ isn’t downloaded yet."),
-                    &[&downloads
-                        .iter()
-                        .map(|m| m.name_and_size())
-                        .collect::<Vec<_>>()
-                        .join(", ")],
-                ),
+                )),
+                _ => None,
             };
+            let texts = together.map_or_else(|| Self::missing_each(&downloads), |text| vec![text]);
             // The header's own button downloads them all. While it shows
-            // Cancel for a running download, this line keeps the button.
-            let line = StatusLine::new("download", Tone::Need, text);
-            lines.push(if working.is_empty() {
-                line
-            } else {
-                line.action(StatusAction::Download)
-            });
+            // Cancel for a running download, the first line keeps the button.
+            for (index, text) in texts.into_iter().enumerate() {
+                let line = StatusLine::new(
+                    if index == 0 {
+                        "download"
+                    } else {
+                        "download.more"
+                    },
+                    Tone::Need,
+                    text,
+                );
+                lines.push(if working.is_empty() || index > 0 {
+                    line
+                } else {
+                    line.action(StatusAction::Download)
+                });
+            }
         }
         lines.extend(self.models_needing_attention().into_iter().map(|m| {
             StatusLine::new(
@@ -1126,24 +1130,38 @@ impl SettingsStatus {
             .into_iter()
             .filter(|m| m.role != Role::Autocomplete)
             .collect();
-        if !downloads.is_empty() {
-            lines.push(
-                StatusLine::new(
-                    "model.download",
-                    Tone::Need,
-                    fill(
-                        lokalbot_i18n::tr("%@ isn’t downloaded yet."),
-                        &[&downloads
-                            .iter()
-                            .map(|m| m.name_and_size())
-                            .collect::<Vec<_>>()
-                            .join(", ")],
-                    ),
-                )
-                .action(StatusAction::Download),
+        // Which ones, each by name; the first line's button downloads them all.
+        for (index, text) in Self::missing_each(&downloads).into_iter().enumerate() {
+            let line = StatusLine::new(
+                if index == 0 {
+                    "model.download"
+                } else {
+                    "model.download.more"
+                },
+                Tone::Need,
+                text,
             );
+            lines.push(if index == 0 {
+                line.action(StatusAction::Download)
+            } else {
+                line
+            });
         }
         lines
+    }
+
+    /// "X isn’t downloaded yet." for each model: the Mac's sentence names one
+    /// model, so several are never joined into one "isn’t".
+    fn missing_each(downloads: &[&ModelInfo]) -> Vec<String> {
+        downloads
+            .iter()
+            .map(|m| {
+                fill(
+                    lokalbot_i18n::tr("%@ isn’t downloaded yet."),
+                    &[&m.name_and_size()],
+                )
+            })
+            .collect()
     }
 }
 
@@ -1418,13 +1436,61 @@ mod tests {
         );
         // The header's "Download all" downloads them; the line has no button.
         assert_eq!(lines[0].action, None);
-        // Meetings says which ones, with the same download.
+        // Meetings says which ones, one sentence each, with the same download.
         let meetings = s.lines(Page::Meetings);
+        let texts: Vec<&str> = meetings.iter().map(|l| l.text.as_str()).collect();
         assert_eq!(
-            meetings[0].text,
-            "Transcribe model (2.5 GB), Think model (2.7 GB) isn’t downloaded yet."
+            texts,
+            [
+                "Transcribe model (2.5 GB) isn’t downloaded yet.",
+                "Think model (2.7 GB) isn’t downloaded yet."
+            ]
         );
+        assert_eq!(meetings[0].action, Some(StatusAction::Download));
+        assert_eq!(meetings[1].action, None);
         assert_eq!(s.bytes_to_download(), Some(5_210_000_000));
+    }
+
+    /// The Mac's "%@ isn’t downloaded yet." names one model; two never share
+    /// one "isn’t", even before the free space is known.
+    #[test]
+    fn several_missing_models_are_never_one_isnt() {
+        let two = || {
+            vec![
+                model(Role::Transcribe, ModelState::Missing, Some(927_000_000)),
+                model(Role::Think, ModelState::Missing, Some(2_800_000_000)),
+            ]
+        };
+        let unknown_space = status(StatusInput {
+            models: two(),
+            free_bytes: None,
+            ..Default::default()
+        });
+        for page in [Page::Models, Page::Meetings] {
+            for line in unknown_space.lines(page) {
+                assert!(
+                    !line.text.contains(", ") || !line.text.contains("isn’t"),
+                    "{page:?}: {}",
+                    line.text
+                );
+            }
+        }
+        let models = unknown_space.lines(Page::Models);
+        assert_eq!(
+            models[0].text,
+            "Transcribe model (927 MB) isn’t downloaded yet."
+        );
+        assert_eq!(models[1].text, "Think model (2.8 GB) isn’t downloaded yet.");
+        // One missing model keeps the sentence that names it.
+        let one = status(StatusInput {
+            models: vec![model(Role::Think, ModelState::Missing, Some(2_800_000_000))],
+            free_bytes: None,
+            ..Default::default()
+        });
+        assert_eq!(
+            one.lines(Page::Models)[0].text,
+            "Think model (2.8 GB) isn’t downloaded yet."
+        );
     }
 
     #[test]

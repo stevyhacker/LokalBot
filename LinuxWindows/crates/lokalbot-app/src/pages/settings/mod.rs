@@ -306,6 +306,9 @@ pub struct SettingsPage {
     library_size: Option<u64>,
     free_bytes: Option<u64>,
     library_measured_at: Option<std::time::Instant>,
+    /// The free space alone, which the download lines on every page's header
+    /// weigh the missing models against.
+    free_measured_at: Option<std::time::Instant>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -740,6 +743,7 @@ impl SettingsPage {
             library_size: None,
             free_bytes: None,
             library_measured_at: None,
+            free_measured_at: None,
             last_settings: settings,
             _subscriptions: subscriptions,
         };
@@ -1218,6 +1222,35 @@ impl SettingsPage {
         if let Some(page) = self.history.go_forward() {
             self.select_category(page, window, cx);
         }
+    }
+
+    /// The free space where the models go, for the header's download line
+    /// ("They need 3.7 GB, and this PC has 79 GB free"), measured off the main
+    /// thread at most every 30 seconds.
+    fn refresh_free_space(&mut self, cx: &mut Context<Self>) {
+        if self
+            .free_measured_at
+            .is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(30))
+        {
+            return;
+        }
+        self.free_measured_at = Some(std::time::Instant::now());
+        let paths = self.data.read(cx).library.paths().clone();
+        cx.spawn(async move |this, cx| {
+            let free = cx
+                .background_spawn(async move {
+                    lokalbot_ai::download::free_space(&paths.models_dir())
+                        .or_else(|| lokalbot_ai::download::free_space(paths.root()))
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if free.is_some() && this.free_bytes != free {
+                    this.free_bytes = free;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
     }
 
     /// The library's size without its models, and the free space where the
@@ -1729,6 +1762,7 @@ impl Render for SettingsPage {
         // extension installed, a service started): read it again now and then.
         self.data
             .update(cx, |data, cx| data.refresh_access_if_stale(cx));
+        self.refresh_free_space(cx);
         let searching = !self.query.trim().is_empty();
         let status = self.status(cx);
         let title: SharedString = if searching {
