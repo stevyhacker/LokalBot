@@ -40,6 +40,8 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     Pin,
     // Setup: the Accessibility and credential store rows, the download size line
     Accessibility, KeyRound, ArrowDownToLine,
+    // Settings: a permission nothing uses now (minus.circle.fill)
+    CircleMinus,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

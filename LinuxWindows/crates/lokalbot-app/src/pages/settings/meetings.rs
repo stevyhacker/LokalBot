@@ -352,7 +352,7 @@ impl SettingsPage {
             self.toggle(
                 "settings.meetingNotesUseScreenTitles",
                 lokalbot_i18n::tr("Give notes the titles of documents on screen"),
-                Some(lokalbot_i18n::tr("Adds titles of documents and pages captured during the call, never their captured text. Requires screen context in Settings → Day Memory.")),
+                Some(lokalbot_i18n::tr("Adds titles of documents and pages captured during the call, never their captured text. Requires screen context in Screen & Activity.")),
                 settings.meeting_notes_use_screen_titles,
                 |s, v| s.meeting_notes_use_screen_titles = v,
                 cx,

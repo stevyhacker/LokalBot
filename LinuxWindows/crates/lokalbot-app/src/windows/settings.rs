@@ -13,7 +13,7 @@ use gpui_kit::{
 
 use crate::pages::settings::SettingsPage;
 use crate::state::{AppData, AppEvent};
-use crate::theme::{LbThemeExt as _, UiFont as _, metric};
+use crate::theme::{LbThemeExt as _, UiFont as _};
 
 /// `SettingsView.defaultSize` and its minimum.
 const WIDTH: f32 = 1020.;
@@ -130,20 +130,15 @@ impl Render for SettingsWindow {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
         let toast = crate::shell::toast(&self.data, cx);
-        // The bar holds the window's controls and moves it. Like the Mac's
-        // hidden title bar it has no words: the category list under it says
-        // "Settings", and the window manager still gets the title.
+        // The page draws the window's bar itself, over its right side, as
+        // the Mac's runs to the top edge beside the category list: back,
+        // forward and the page's name, with the window's buttons. The strip
+        // above the list's search moves the window too.
         v_flex()
             .size_full()
             .bg(lb.window)
             .text_color(lb.text)
             .ui_font()
-            .child(
-                TitleBar::new()
-                    .h(metric::TOOLBAR_HEIGHT)
-                    .bg(lb.title_bar)
-                    .border_color(lb.separator),
-            )
             .child(div().flex_1().min_h_0().relative().child(self.page.clone()))
             .children(toast)
     }

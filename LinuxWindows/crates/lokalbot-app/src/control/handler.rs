@@ -766,9 +766,11 @@ impl ControlHost {
 /// The page that holds a registry category.
 fn settings_page_for(category: SettingCategory) -> SettingsCategory {
     match category {
-        SettingCategory::General | SettingCategory::Ask => SettingsCategory::General,
+        SettingCategory::General => SettingsCategory::General,
+        SettingCategory::Ask => SettingsCategory::Ask,
         SettingCategory::Recording => SettingsCategory::Meetings,
-        SettingCategory::DayMemory | SettingCategory::Daily => SettingsCategory::DayMemory,
+        SettingCategory::DayMemory => SettingsCategory::DayMemory,
+        SettingCategory::Daily => SettingsCategory::DailyReview,
         SettingCategory::Writing => SettingsCategory::Writing,
         SettingCategory::Dictation => SettingsCategory::Dictation,
         SettingCategory::Models => SettingsCategory::Models,

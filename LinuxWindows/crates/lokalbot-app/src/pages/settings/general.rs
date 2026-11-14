@@ -1,4 +1,5 @@
-//! General: startup, appearance, the Ask shortcut, updates and about.
+//! General (startup, appearance, updates and about) and Ask (the Ask
+//! shortcut, selection actions and what Ask can search).
 
 use crate::i18n::h_flex;
 use crate::updates;
@@ -133,6 +134,38 @@ impl SettingsPage {
                 ),
             );
 
+        let updates = self.updates_section(&settings, cx);
+        let about = Section::new(lokalbot_i18n::tr("About"))
+            .row(
+                "settings.githubStar",
+                settings_row::row(
+                    "settings.githubStar",
+                    lokalbot_i18n::tr("Open source"),
+                    Some(
+                        lokalbot_i18n::tr("LokalBot is free and built by one person. A GitHub star helps others find it.")
+                            .into(),
+                    ),
+                    Button::new("settings-github-star")
+                        .outline()
+                        .small()
+                        .icon(Icon::new(Ico::Star))
+                        .label(lokalbot_i18n::tr("Star on GitHub"))
+                        .on_click(|_, _, cx| cx.open_url(REPOSITORY))
+                        .into_any_element(),
+                    false,
+                    cx,
+                ),
+            );
+
+        vec![general, appearance, updates, about]
+    }
+
+    /// Ask from any app, act on selected text, and what answers use
+    /// (`SettingsTab.ask`): the Ask shortcut, selection actions and what Ask
+    /// can search, which General held before.
+    pub(super) fn ask_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
+        let settings = self.data.read(cx).settings.clone();
+        let data = self.data.clone();
         let shortcut_help: SharedString = lokalbot_i18n::format("Press {0} in any app to search your work memory or ask a question. LokalBot registers only this shortcut and never reads other keystrokes.", &[("0", settings.quick_recall_shortcut.to_string())])
         .into();
         let shortcut_data = data.clone();
@@ -214,39 +247,8 @@ impl SettingsPage {
             );
         }
 
-        let updates = self.updates_section(&settings, cx);
-        let about = Section::new(lokalbot_i18n::tr("About"))
-            .row(
-                "settings.githubStar",
-                settings_row::row(
-                    "settings.githubStar",
-                    lokalbot_i18n::tr("Open source"),
-                    Some(
-                        lokalbot_i18n::tr("LokalBot is free and built by one person. A GitHub star helps others find it.")
-                            .into(),
-                    ),
-                    Button::new("settings-github-star")
-                        .outline()
-                        .small()
-                        .icon(Icon::new(Ico::Star))
-                        .label(lokalbot_i18n::tr("Star on GitHub"))
-                        .on_click(|_, _, cx| cx.open_url(REPOSITORY))
-                        .into_any_element(),
-                    false,
-                    cx,
-                ),
-            );
-
         let sources = self.ask_sources_section(&settings, cx);
-        vec![
-            general,
-            appearance,
-            shortcut,
-            selection_actions,
-            sources,
-            updates,
-            about,
-        ]
+        vec![shortcut, selection_actions, sources]
     }
 
     /// What Ask can search, each row leading to the page that decides it
@@ -267,7 +269,7 @@ impl SettingsPage {
             (
                 "settings.askSources.dayMemory",
                 crate::state::SettingsCategory::DayMemory,
-                "Day Memory",
+                "Screen & activity",
                 on_off(
                     settings.screen_context_capture_mode
                         != lokalbot_core::ScreenContextMode::ActivityOnly,
@@ -282,7 +284,7 @@ impl SettingsPage {
             (
                 "settings.askSources.personalContext",
                 crate::state::SettingsCategory::PersonalContext,
-                "Personal Context",
+                "About you",
                 on_off(settings.ask_memory_enabled),
             ),
         ];

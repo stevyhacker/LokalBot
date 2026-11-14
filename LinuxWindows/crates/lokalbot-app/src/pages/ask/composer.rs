@@ -422,7 +422,7 @@ impl AskPage {
                         move |_, _, cx| {
                             let data = settings_page.read(cx).data.clone();
                             data.update(cx, |data, cx| {
-                                data.open_settings(SettingsCategory::Privacy, cx)
+                                data.open_settings(SettingsCategory::Ask, cx)
                             });
                         },
                     ),

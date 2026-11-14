@@ -28,12 +28,12 @@ pub fn needs(data: &AppData, cx: &App) -> Vec<PermissionNeed> {
     let captures_pixels = mode == ScreenContextMode::TextAndVisual;
     let tr = |key: &str| lokalbot_i18n::tr(key).to_string();
 
-    let mut microphone = vec![tr("Meeting recording")];
+    let mut microphone = vec![tr("Meetings")];
     let mut accessibility = Vec::new();
     let mut screen = Vec::new();
     let mut input = Vec::new();
     if settings.tracking_enabled || captures_text {
-        accessibility.push(tr("Day Memory"));
+        accessibility.push(tr("Screen & activity"));
     }
     if captures_pixels {
         screen.push(tr("Screen images"));

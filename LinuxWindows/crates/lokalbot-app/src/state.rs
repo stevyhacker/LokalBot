@@ -86,44 +86,98 @@ pub enum MeetingTab {
     Notes,
 }
 
-/// Settings categories, in sidebar order.
+/// A Settings page (`AppState.SettingsTab`). Each feature has one page with
+/// everything that sets it up; the window lists them in
+/// `pages::settings::CATEGORIES`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SettingsCategory {
-    /// Where Settings opens: every feature and whether it is on.
+    /// The LokalBot row at the top of the list: what needs you, where your
+    /// data is, and the keyboard shortcuts.
     #[default]
     Overview,
     General,
+    Models,
+    /// Privacy & permissions: what LokalBot may use here, and what leaves.
+    Privacy,
     Meetings,
+    /// Screen & activity.
     DayMemory,
+    Files,
+    /// Quick Recall, selection actions and what Ask can search.
+    Ask,
+    /// About you.
     PersonalContext,
+    /// The day digest, the overnight review, routines and the daily note.
+    DailyReview,
+    /// Autocomplete.
     Writing,
     Dictation,
-    Files,
-    Models,
+    /// AI agents: what external agents may read or change, and the CLI.
+    Agents,
+    /// Phones & tablets.
     Devices,
-    Privacy,
+    /// Diagnostics.
     Advanced,
 }
 
 impl SettingsCategory {
     /// The Settings page a `--page` name opens: "settings" is Overview, and
-    /// "settings-<page>" names one page.
+    /// "settings-<page>" names one page, by its name now or before Settings
+    /// was organized by feature (`SettingsTab.init(captureName:)`).
     pub fn named(name: &str) -> Option<SettingsCategory> {
-        Some(match name.to_ascii_lowercase().as_str() {
-            "settings" | "settings-overview" => SettingsCategory::Overview,
-            "settings-general" => SettingsCategory::General,
-            "settings-meetings" => SettingsCategory::Meetings,
-            "settings-day-memory" => SettingsCategory::DayMemory,
-            "settings-personal-context" => SettingsCategory::PersonalContext,
-            "settings-writing" => SettingsCategory::Writing,
-            "settings-dictation" => SettingsCategory::Dictation,
-            "settings-files" => SettingsCategory::Files,
-            "settings-models" => SettingsCategory::Models,
-            "settings-devices" => SettingsCategory::Devices,
-            "settings-privacy" => SettingsCategory::Privacy,
-            "settings-advanced" => SettingsCategory::Advanced,
+        let name = name.to_ascii_lowercase();
+        if name == "settings" {
+            return Some(SettingsCategory::Overview);
+        }
+        let page = name.strip_prefix("settings-")?;
+        Some(match page {
+            "overview" => SettingsCategory::Overview,
+            "general" => SettingsCategory::General,
+            "models" => SettingsCategory::Models,
+            "privacy" | "permissions" => SettingsCategory::Privacy,
+            "meetings" | "recording" => SettingsCategory::Meetings,
+            "day-memory" | "screen" | "activity" => SettingsCategory::DayMemory,
+            "files" => SettingsCategory::Files,
+            "ask" => SettingsCategory::Ask,
+            "personal-context" | "about-you" => SettingsCategory::PersonalContext,
+            "daily" | "daily-review" | "overnight" | "routines" => SettingsCategory::DailyReview,
+            "writing" | "autocomplete" => SettingsCategory::Writing,
+            "dictation" => SettingsCategory::Dictation,
+            "agents" | "ai-agents" | "external-agents" => SettingsCategory::Agents,
+            "devices" | "phones" => SettingsCategory::Devices,
+            "advanced" | "diagnostics" => SettingsCategory::Advanced,
             _ => return None,
         })
+    }
+
+    /// The Mac's raw value (`SettingsTab.rawValue`), which is what
+    /// `Settings::settings_page` keeps.
+    pub fn key(self) -> &'static str {
+        match self {
+            SettingsCategory::Overview => "overview",
+            SettingsCategory::General => "general",
+            SettingsCategory::Models => "models",
+            SettingsCategory::Privacy => "privacy",
+            SettingsCategory::Meetings => "recording",
+            SettingsCategory::DayMemory => "dayMemory",
+            SettingsCategory::Files => "files",
+            SettingsCategory::Ask => "ask",
+            SettingsCategory::PersonalContext => "personalContext",
+            SettingsCategory::DailyReview => "daily",
+            SettingsCategory::Writing => "writing",
+            SettingsCategory::Dictation => "dictation",
+            SettingsCategory::Agents => "agents",
+            SettingsCategory::Devices => "devices",
+            SettingsCategory::Advanced => "advanced",
+        }
+    }
+
+    /// The page a saved [`Self::key`] names; anything else opens Overview.
+    pub fn from_key(key: &str) -> SettingsCategory {
+        crate::pages::settings::CATEGORIES
+            .into_iter()
+            .find(|category| category.key() == key)
+            .unwrap_or_default()
     }
 }
 
@@ -538,6 +592,7 @@ impl AppData {
         }
         let (inference_label, remote_hosts) = inference_presentation(&settings);
         let privacy = PrivacyLine::new(&settings);
+        let settings_category = SettingsCategory::from_key(&settings.settings_page);
         Self {
             library,
             settings,
@@ -547,7 +602,7 @@ impl AppData {
             reload_applied: 0,
             revision: 0,
             section: Section::Today,
-            settings_category: SettingsCategory::Overview,
+            settings_category,
             settings_window_open: false,
             settings_focus: None,
             meeting_focus: None,
@@ -745,17 +800,39 @@ impl AppData {
     /// comes through here.
     pub fn open_settings(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
         self.refresh_audio_inputs(cx);
-        self.settings_category = category;
+        self.select_settings_category(category, cx);
         cx.defer(crate::windows::settings::open);
         cx.notify();
     }
 
     /// A category picked inside the Settings window, which is already open.
+    /// It is remembered, so Settings opens on it again after a relaunch
+    /// (`AppState.settingsTab`).
     pub fn select_settings_category(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
-        if self.settings_category != category {
-            self.settings_category = category;
-            cx.notify();
+        if self.settings_category == category {
+            return;
         }
+        self.settings_category = category;
+        self.remember_settings_page(cx);
+        cx.notify();
+    }
+
+    /// Saves the page shown without telling the engine: nothing it does
+    /// depends on which page Settings shows.
+    fn remember_settings_page(&mut self, cx: &mut Context<Self>) {
+        let key = self.settings_category.key();
+        if self.settings.settings_page == key {
+            return;
+        }
+        self.settings.settings_page = key.to_string();
+        let path = self.library.paths().settings_file();
+        let settings = self.settings.clone();
+        cx.background_spawn(async move {
+            if let Err(err) = settings.save(&path) {
+                log::error!("saving settings failed: {err}");
+            }
+        })
+        .detach();
     }
 
     /// The Settings window shows `category` right now.
@@ -1596,6 +1673,32 @@ mod tests {
             Some(SettingsCategory::Models)
         );
         assert_eq!(SettingsCategory::named("today"), None);
+        // Former page names still land on the page that holds them now.
+        assert_eq!(
+            SettingsCategory::named("settings-diagnostics"),
+            Some(SettingsCategory::Advanced)
+        );
+        assert_eq!(
+            SettingsCategory::named("settings-ai-agents"),
+            Some(SettingsCategory::Agents)
+        );
+        assert_eq!(
+            SettingsCategory::named("settings-daily-review"),
+            Some(SettingsCategory::DailyReview)
+        );
+        assert_eq!(SettingsCategory::named("settings-nope"), None);
+    }
+
+    #[test]
+    fn the_saved_settings_page_round_trips() {
+        for category in crate::pages::settings::CATEGORIES {
+            assert_eq!(SettingsCategory::from_key(category.key()), category);
+        }
+        assert_eq!(SettingsCategory::from_key(""), SettingsCategory::Overview);
+        assert_eq!(
+            SettingsCategory::from_key("tabThatIsGone"),
+            SettingsCategory::Overview
+        );
     }
 
     #[test]

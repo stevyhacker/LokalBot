@@ -884,14 +884,7 @@ impl SettingsPage {
         for origin in settings.approved_remote_inference_origins.clone() {
             let data = self.data.clone();
             let revoke = origin.clone();
-            let shown = match SubscriptionPlan::for_consent_key(&origin) {
-                Some(plan) => format!(
-                    "{} · {}",
-                    lokalbot_i18n::tr(plan.title()),
-                    plan.destination_host()
-                ),
-                None => origin.clone(),
-            };
+            let shown = origin_display_name(&origin);
             remote = remote.row(
                 "settings.remoteOrigin",
                 settings_row::content_row(
@@ -2380,7 +2373,25 @@ fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Window, cx: &m
     });
 }
 
-fn confirm_revoke(data: Entity<AppData>, origin: String, window: &mut Window, cx: &mut App) {
+/// An approved Think origin as people know it: a plan by its name and
+/// host, a server by its origin (`SubscriptionPlan.approvalDisplayName`).
+pub(super) fn origin_display_name(origin: &str) -> String {
+    match SubscriptionPlan::for_consent_key(origin) {
+        Some(plan) => format!(
+            "{} · {}",
+            lokalbot_i18n::tr(plan.title()),
+            plan.destination_host()
+        ),
+        None => origin.to_string(),
+    }
+}
+
+pub(super) fn confirm_revoke(
+    data: Entity<AppData>,
+    origin: String,
+    window: &mut Window,
+    cx: &mut App,
+) {
     window.open_alert_dialog(cx, move |alert, _, _| {
         let data = data.clone();
         let origin = origin.clone();
@@ -2409,13 +2420,13 @@ fn remote_processing_notice() -> &'static str {
 }
 
 /// Under an approved origin in Overview (`ModelOverviewSections`).
-fn approved_origin_notice() -> &'static str {
+pub(super) fn approved_origin_notice() -> &'static str {
     lokalbot_i18n::tr(
         "Includes scheduled daily summaries and overnight review, which can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time.",
     )
 }
 
-fn approved_audio_origin_notice() -> &'static str {
+pub(super) fn approved_audio_origin_notice() -> &'static str {
     lokalbot_i18n::tr(
         "Transcription server. Receives meeting and dictation audio, the language hint, and transcription vocabulary, including automatic processing after meetings.",
     )
@@ -2428,7 +2439,12 @@ fn revoke_audio_origin(settings: &mut Settings, origin: &str) {
         .retain(|o| o != origin);
 }
 
-fn confirm_revoke_audio(data: Entity<AppData>, origin: String, window: &mut Window, cx: &mut App) {
+pub(super) fn confirm_revoke_audio(
+    data: Entity<AppData>,
+    origin: String,
+    window: &mut Window,
+    cx: &mut App,
+) {
     window.open_alert_dialog(cx, move |alert, _, _| {
         let data = data.clone();
         let origin = origin.clone();

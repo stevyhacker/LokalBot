@@ -295,7 +295,7 @@ fn choice_token(choices: &[SettingChoice], stored: &Value) -> Value {
 /// Stored keys that are bookkeeping or that only the app's own screens change:
 /// never listed or changed from the terminal. `launchAtLogin` has its own
 /// method, and `codingAgentEvidenceConfirmed` records the person's own choice.
-pub const INTERNAL_KEYS: [&str; 10] = [
+pub const INTERNAL_KEYS: [&str; 11] = [
     "onboardingCompleted",
     "gettingStartedDismissed",
     "chatGPTPlanNoticeAcknowledged",
@@ -306,6 +306,7 @@ pub const INTERNAL_KEYS: [&str; 10] = [
     "githubStarActiveDays",
     "autocompleteDefaultAdopted",
     "paneWidths",
+    "settingsPage",
 ];
 
 /// Stored only so a library from a Mac round-trips; nothing reads it here.
