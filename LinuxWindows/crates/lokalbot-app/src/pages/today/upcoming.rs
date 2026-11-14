@@ -479,7 +479,7 @@ impl TodayPage {
 }
 
 /// "11:00 AM – 11:30 AM", local time.
-fn interval(event: &CalendarEvent) -> String {
+pub(crate) fn interval(event: &CalendarEvent) -> String {
     if event.end <= event.start {
         return lokalbot_core::time::clock_time(event.start);
     }

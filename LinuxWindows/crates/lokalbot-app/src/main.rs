@@ -24,6 +24,7 @@ mod state;
 #[cfg(test)]
 mod test_support;
 mod theme;
+mod tray_status;
 mod ui;
 mod updates;
 mod windows;

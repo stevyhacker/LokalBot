@@ -348,9 +348,67 @@ pub fn number_in(locale: chrono::Locale, n: usize) -> String {
     groups.join(separator)
 }
 
+/// Fills a Mac catalog string's fields (`%lld`, `%@`, `%d`, or numbered
+/// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
+/// itself is the caller's [`tr`], so the key stays a literal the catalog
+/// checks can see.
+pub fn fill(template: &str, values: &[&str]) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    let mut next = 0;
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        // "%%" is a literal percent sign.
+        if let Some(tail) = after.strip_prefix('%') {
+            out.push('%');
+            rest = tail;
+            continue;
+        }
+        let digits = after.chars().take_while(char::is_ascii_digit).count();
+        let (position, spec) = match after[digits..].strip_prefix('$') {
+            Some(spec) if digits > 0 => (after[..digits].parse::<usize>().ok(), spec),
+            _ => (None, after),
+        };
+        let length = ["lld", "ld", "@", "d"]
+            .iter()
+            .find(|candidate| spec.starts_with(**candidate))
+            .map(|candidate| candidate.len());
+        let Some(length) = length else {
+            out.push('%');
+            rest = after;
+            continue;
+        };
+        let index = match position {
+            Some(position) => position.saturating_sub(1),
+            None => {
+                next += 1;
+                next - 1
+            }
+        };
+        out.push_str(values.get(index).copied().unwrap_or(""));
+        let consumed = template.len() - spec.len() + length;
+        rest = &template[consumed..];
+    }
+    out.push_str(rest);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fill_puts_values_in_mac_fields() {
+        assert_eq!(fill("In %lldh %lldm", &["2", "10"]), "In 2h 10m");
+        assert_eq!(
+            fill("%@ saved · %@", &["Standup", "12 min"]),
+            "Standup saved · 12 min"
+        );
+        assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
+        assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
+        assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
+    }
 
     #[test]
     fn every_catalog_table_is_sorted_for_binary_search() {

@@ -22,47 +22,9 @@ pub(super) const APP_LIMIT: usize = 4;
 /// Fills a Mac catalog string's fields (`%lld`, `%@`, `%d`, or numbered
 /// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
 /// itself is the caller's `lokalbot_i18n::tr`, so the key stays a literal the
-/// catalog checks can see.
+/// catalog checks can see. Shared with the tray menu through `lokalbot_i18n`.
 pub(crate) fn fill(template: &str, values: &[&str]) -> String {
-    let mut out = String::with_capacity(template.len());
-    let mut rest = template;
-    let mut next = 0;
-    while let Some(start) = rest.find('%') {
-        out.push_str(&rest[..start]);
-        let after = &rest[start + 1..];
-        // "%%" is a literal percent sign.
-        if let Some(tail) = after.strip_prefix('%') {
-            out.push('%');
-            rest = tail;
-            continue;
-        }
-        let digits = after.chars().take_while(char::is_ascii_digit).count();
-        let (position, spec) = match after[digits..].strip_prefix('$') {
-            Some(spec) if digits > 0 => (after[..digits].parse::<usize>().ok(), spec),
-            _ => (None, after),
-        };
-        let length = ["lld", "ld", "@", "d"]
-            .iter()
-            .find(|candidate| spec.starts_with(**candidate))
-            .map(|candidate| candidate.len());
-        let Some(length) = length else {
-            out.push('%');
-            rest = after;
-            continue;
-        };
-        let index = match position {
-            Some(position) => position.saturating_sub(1),
-            None => {
-                next += 1;
-                next - 1
-            }
-        };
-        out.push_str(values.get(index).copied().unwrap_or(""));
-        let consumed = template.len() - spec.len() + length;
-        rest = &template[consumed..];
-    }
-    out.push_str(rest);
-    out
+    lokalbot_i18n::fill(template, values)
 }
 
 /// A phrase GPUI draws as one shaped line, starting with the mark of its own
@@ -231,7 +193,7 @@ pub(super) const NEXT_MEETING_WINDOW_SECONDS: i64 = 60 * 60;
 
 /// Where a meeting stands in the day.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum EntryStatus {
+pub(crate) enum EntryStatus {
     Recording,
     Recorded,
     Ended,
@@ -262,7 +224,7 @@ pub(super) enum AgendaRow {
 }
 
 /// Where a calendar event stands at `now`.
-pub(super) fn event_status(event: &CalendarEvent, now: DateTime<Utc>) -> EntryStatus {
+pub(crate) fn event_status(event: &CalendarEvent, now: DateTime<Utc>) -> EntryStatus {
     match selector::status(event, now) {
         selector::EventStatus::Ended => EntryStatus::Ended,
         selector::EventStatus::InProgress => EntryStatus::InProgress,
@@ -277,7 +239,7 @@ pub(super) fn event_status(event: &CalendarEvent, now: DateTime<Utc>) -> EntrySt
 /// The calendar events in `events` some recording is linked to. They are
 /// listed once, as that recording, and never offered again as the next
 /// meeting. Any recording claims its event, a merged source included.
-pub(super) fn recorded_event_ids(
+pub(crate) fn recorded_event_ids(
     recordings: &[&Meeting],
     events: &[CalendarEvent],
 ) -> HashSet<String> {

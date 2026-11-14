@@ -32,6 +32,8 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     RotateCcwClock,
     // Actions: the Filter menu (line.3.horizontal.decrease)
     ListFilter,
+    // Tray menu on Windows: Quit LokalBot (power)
+    Power,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

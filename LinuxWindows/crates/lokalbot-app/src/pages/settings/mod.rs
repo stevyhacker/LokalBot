@@ -39,7 +39,6 @@ use day_memory::hour_label;
 pub use day_memory::mode_detail as day_memory_mode_detail;
 pub(crate) use day_memory::{screen_text_control, screen_text_help};
 pub(crate) use devices::{history_label, pairing_prompt_changed};
-pub use general::REPOSITORY;
 
 use std::collections::HashSet;
 

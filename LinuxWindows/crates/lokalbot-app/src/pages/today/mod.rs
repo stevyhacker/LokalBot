@@ -11,7 +11,7 @@ mod getting_started;
 mod live;
 pub(crate) mod model;
 mod panels;
-mod upcoming;
+pub(crate) mod upcoming;
 
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -334,8 +334,8 @@ fn card_surface(tint: Option<Hsla>, cx: &App) -> Div {
 }
 
 /// A meeting's place in the day in words: "In 12 min", "Recording", "Ended"
-/// (`TodayMeetingStatusText`).
-fn status_text(status: EntryStatus) -> String {
+/// (`TodayMeetingStatusText`). The tray menu's next meeting says it the same.
+pub(crate) fn status_text(status: EntryStatus) -> String {
     model::directional(match status {
         EntryStatus::Recording => lokalbot_i18n::tr("Recording").to_string(),
         // A saved recording's row shows its app and length instead.

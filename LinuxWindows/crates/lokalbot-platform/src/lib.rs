@@ -59,6 +59,7 @@ pub use shortcuts::{
     ShortcutProblem,
 };
 pub use tray::{
-    Tray, TrayDictation, TrayEvent, TrayItem, TrayMeeting, TrayMenuState, TrayUpdate,
+    Tray, TrayAttention, TrayBlock, TrayDictation, TrayEvent, TrayGlyph, TrayIconState, TrayItem,
+    TrayLabel, TrayMeeting, TrayMenuState, TrayRecording, TraySoonMeeting, TraySource, TrayUpdate,
     TrayUpdateAction,
 };
