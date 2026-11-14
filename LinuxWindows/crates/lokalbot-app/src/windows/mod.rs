@@ -2,7 +2,6 @@
 //! onboarding and the full-size screen image.
 
 pub mod agent_setup;
-pub mod command_palette;
 pub mod onboarding;
 pub mod quick_recall;
 pub mod screen_image;
@@ -24,8 +23,6 @@ struct SecondaryWindows {
     settings: Option<AnyWindowHandle>,
     settings_approval: Option<AnyWindowHandle>,
     agent_setup: Option<AnyWindowHandle>,
-    command_palette: Option<AnyWindowHandle>,
-    command_palette_view: Option<WeakEntity<command_palette::CommandPalette>>,
 }
 
 impl Global for SecondaryWindows {}

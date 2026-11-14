@@ -641,7 +641,8 @@ impl SettingsPage {
                 settings.cotyping_enabled,
                 Some(SettingsCategory::Writing),
             ),
-            ("Command palette", "Ctrl+K".to_string(), true, None),
+            // Ctrl+K opens Quick Recall inside LokalBot (the palette is retired).
+            ("Quick Recall in LokalBot", "Ctrl+K".to_string(), true, None),
         ];
         let count = rows.len();
         let elements: Vec<AnyElement> =

@@ -274,7 +274,10 @@ pub struct AppData {
     pub ask_screen: Option<lokalbot_core::ScreenMoment>,
     /// A work session's moments, as the next question's boundary.
     pub ask_screens: Option<Vec<i64>>,
-    /// A conversation for Ask to open (Quick Recall's Open full Ask).
+    /// The sources the next question searches, when the handoff narrows them
+    /// (Quick Recall's "Show all" for one kind). `None` leaves them as chosen.
+    pub ask_sources: Option<Vec<lokalbot_core::AskSourceScope>>,
+    /// A conversation for Ask to open (Quick Recall's Continue in main window).
     pub ask_open_conversation: Option<Uuid>,
     /// The latest question of each conversation that attached screens. Their
     /// ids stay in memory for a retry; only their days reach the conversation.
@@ -598,6 +601,7 @@ impl AppData {
             pairing_prompt: None,
             ask_screen: None,
             ask_screens: None,
+            ask_sources: None,
             ask_open_conversation: None,
             attached_asks: Default::default(),
             files: Default::default(),

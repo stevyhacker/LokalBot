@@ -1,12 +1,11 @@
-//! The commands the Ctrl+K palette and Quick Recall can run
-//! (`PaletteCommands.swift`), computed live from app state so titles follow
-//! recording and dictation status.
+//! The commands Quick Recall can run (`PaletteCommands.swift`), computed live
+//! from app state so titles follow recording and dictation status. Ctrl+K and
+//! the system-wide shortcut open the same window, so there is one list.
 
 use gpui_kit::{App, AppContext as _};
 use lokalbot_engine::{Command, DictationCommand};
-use uuid::Uuid;
 
-use crate::state::{AgentRequest, AppData, AskRequest, DictationHud, Section, SettingsCategory};
+use crate::state::{AgentRequest, AppData, DictationHud, Section, SettingsCategory};
 use crate::ui::Ico;
 
 /// Where a command's result appears. Workspace commands show something in the
@@ -25,38 +24,78 @@ pub enum CommandAction {
     Actions,
     FollowUp,
     OpenAsk,
-    /// "Ask…": the panel, from anywhere.
-    QuickRecall,
-    /// "Import Recording…", from anywhere.
+    /// "Import Recording…", from anywhere (the port's own command).
     ImportRecording,
-    AskAbout(String),
     ToggleDictation,
     CopyLastDictation,
     Settings(SettingsCategory),
-    Meeting(Uuid),
     Agent(AgentRequest),
 }
 
-/// One command the palette and Quick Recall can run.
+/// One command Quick Recall can run.
 #[derive(Clone, Debug)]
 pub struct PaletteCommand {
     pub id: String,
     pub icon: Ico,
     pub title: String,
+    /// The area the command belongs to ("Library", "Recording"). Typed words
+    /// match it; the row does not show it.
     pub subtitle: String,
     /// English words that still find a translated command.
     pub search_aliases: String,
     pub placement: Placement,
+    /// Grey text after the title, when it says something ("2 open").
+    pub detail: Option<String>,
+    /// The command's own keyboard shortcut, shown at the row's end.
+    pub shortcut: Option<String>,
     pub action: CommandAction,
+}
+
+impl PaletteCommand {
+    fn with_detail(mut self, detail: Option<String>) -> Self {
+        self.detail = detail;
+        self
+    }
+
+    fn with_shortcut(mut self, shortcut: Option<&str>) -> Self {
+        self.shortcut = shortcut.filter(|s| !s.is_empty()).map(str::to_string);
+        self
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Matching {
-    /// Each query word may appear anywhere (the Ctrl+K palette).
+    /// Each query word may appear anywhere.
     Substring,
-    /// Each query word must start a word. Quick Recall mixes commands with
-    /// memory search, so "ion" must not offer Dictation.
+    /// Each query word must start a word of the command.
     WordPrefix,
+}
+
+/// The commands typed words find, in two parts (`PaletteCommandFilter.split`).
+/// `leading` are those where each typed word starts a word of the command;
+/// Quick Recall lists them first, so Return runs the top one. `loose` only
+/// hold the words somewhere ("ion" in "Start dictation"); Quick Recall lists
+/// them under the search results, where they can be found but Return alone
+/// never runs one. Each part keeps the catalog's order.
+pub fn split(
+    commands: &[PaletteCommand],
+    query: &str,
+) -> (Vec<PaletteCommand>, Vec<PaletteCommand>) {
+    let leading = filter(commands, query, Matching::WordPrefix);
+    let loose = filter(commands, query, Matching::Substring)
+        .into_iter()
+        .filter(|command| !leading.iter().any(|lead| lead.id == command.id))
+        .collect();
+    (leading, loose)
+}
+
+/// The order before anything is typed: what acts in place (recording,
+/// dictation) first, then the rest as the catalog lists them.
+pub fn idle_order(commands: Vec<PaletteCommand>) -> Vec<PaletteCommand> {
+    let (background, rest): (Vec<_>, Vec<_>) = commands
+        .into_iter()
+        .partition(|command| command.placement == Placement::Background);
+    background.into_iter().chain(rest).collect()
 }
 
 pub fn words(text: &str) -> Vec<String> {
@@ -124,6 +163,8 @@ fn command(
         subtitle: lokalbot_i18n::tr(subtitle).to_string(),
         search_aliases: format!("{title} {subtitle}"),
         placement,
+        detail: None,
+        shortcut: None,
         action,
     }
 }
@@ -141,12 +182,21 @@ fn dictation_title(state: &DictationHud) -> &'static str {
 }
 
 /// `in_workspace` adds commands that act on the main window's current section
-/// (Agent tasks), which only make sense from inside it.
+/// (Agent tasks), which only make sense when Quick Recall was opened from it.
 pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteCommand> {
     use CommandAction as A;
     use Placement::{Background, Workspace};
     let recording = data.recording.is_active();
     let dictation = dictation_title(&data.dictation);
+    let open_actions = data
+        .open_action_count
+        .filter(|count| *count > 0)
+        .map(|count| lokalbot_i18n::fill(lokalbot_i18n::tr("%lld open"), &[&count.to_string()]));
+    // The dictation shortcut is registered only while Dictation is on.
+    let dictation_shortcut = data
+        .settings
+        .dictation_enabled
+        .then_some(data.settings.dictation_shortcut.as_str());
     let mut list = vec![
         command(
             "record",
@@ -163,7 +213,8 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
             "Recording",
             Background,
             A::ToggleRecording,
-        ),
+        )
+        .with_shortcut(Some("Ctrl+Shift+R")),
         command(
             "nav.today",
             Ico::Sun,
@@ -174,15 +225,16 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
         ),
         command(
             "nav.actions",
-            Ico::ListChecks,
+            Section::Actions.icon(),
             "Review all actions",
-            "Today",
+            "Home",
             Workspace,
             A::Actions,
-        ),
+        )
+        .with_detail(open_actions),
         command(
             "nav.timeline",
-            Ico::ChartGantt,
+            Section::Timeline.icon(),
             "Go to Timeline",
             "Library",
             Workspace,
@@ -222,7 +274,7 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
         ),
         command(
             "nav.ask",
-            Ico::TextSearch,
+            Section::Ask.icon(),
             "Go to Ask",
             "Library",
             Workspace,
@@ -235,26 +287,9 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
             "Automation",
             Background,
             A::ToggleDictation,
-        ),
+        )
+        .with_shortcut(dictation_shortcut),
     ];
-    list.extend([
-        command(
-            "ask.panel",
-            Ico::TextSearch,
-            "Ask…",
-            "Library",
-            Background,
-            A::QuickRecall,
-        ),
-        command(
-            "recording.import",
-            Ico::Upload,
-            "Import Recording…",
-            "Recording",
-            Workspace,
-            A::ImportRecording,
-        ),
-    ]);
     // From Quick Recall this hands focus back, ready to paste.
     if !data.recent_dictations.is_empty() {
         list.push(command(
@@ -266,6 +301,15 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
             A::CopyLastDictation,
         ));
     }
+    // The port's own: the Mac imports from its File menu.
+    list.push(command(
+        "recording.import",
+        Ico::Import,
+        "Import Recording…",
+        "Recording",
+        Workspace,
+        A::ImportRecording,
+    ));
     list.extend([
         command(
             "nav.dictation",
@@ -314,7 +358,8 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
             "Settings",
             Workspace,
             A::Settings(SettingsCategory::Overview),
-        ),
+        )
+        .with_shortcut(Some("Ctrl+,")),
     ]);
     if in_workspace && data.section == Section::Agent {
         list.extend([
@@ -322,34 +367,38 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
                 "agent.new",
                 Ico::SquarePen,
                 "New Agent task",
-                "Ctrl+N",
+                "Agent",
                 Workspace,
                 A::Agent(AgentRequest::NewTask),
-            ),
+            )
+            .with_shortcut(Some("Ctrl+N")),
             command(
                 "agent.search",
                 Ico::Search,
                 "Search Agent tasks",
-                "Ctrl+Shift+F",
+                "Agent",
                 Workspace,
                 A::Agent(AgentRequest::SearchTasks),
-            ),
+            )
+            .with_shortcut(Some("Ctrl+Shift+F")),
             command(
                 "agent.find",
                 Ico::TextSearch,
                 "Find in this task",
-                "Ctrl+F",
+                "Agent",
                 Workspace,
                 A::Agent(AgentRequest::FindInTask),
-            ),
+            )
+            .with_shortcut(Some("Ctrl+F")),
             command(
                 "agent.results",
                 Ico::PanelRight,
                 "Toggle results and sources",
-                "Ctrl+Alt+B",
+                "Agent",
                 Workspace,
                 A::Agent(AgentRequest::ToggleResults),
-            ),
+            )
+            .with_shortcut(Some("Ctrl+Alt+B")),
         ]);
         // User-owned titles are added after translation, as they are.
         for (id, title, workspace) in crate::pages::agent::palette_tasks(cx).into_iter().take(30) {
@@ -357,52 +406,16 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
                 id: format!("agent.task.{id}"),
                 icon: Ico::MessageSquareText,
                 title,
-                subtitle: lokalbot_i18n::format("Agent task · {0}", &[("0", workspace)]),
+                subtitle: lokalbot_i18n::format("Agent task · {0}", &[("0", workspace.clone())]),
                 search_aliases: String::new(),
                 placement: Workspace,
+                detail: Some(workspace),
+                shortcut: None,
                 action: A::Agent(AgentRequest::SelectTask(id)),
             });
         }
     }
     list
-}
-
-/// Everything the palette lists: commands plus recent meetings when idle; typed
-/// queries add one handoff row into Ask. The palette stays a command surface,
-/// Ask is the search surface.
-pub fn palette_results(data: &AppData, query: &str, cx: &App) -> Vec<PaletteCommand> {
-    let actions = commands(data, true, cx);
-    let trimmed = query.trim();
-    if trimmed.is_empty() {
-        let mut results = actions;
-        results.extend(data.meetings.iter().take(8).map(|meeting| {
-            let duration = lokalbot_core::time::timer(meeting.duration_seconds());
-            PaletteCommand {
-                id: format!("meeting.{}", meeting.id),
-                icon: Ico::AudioLines,
-                title: meeting.display_title(),
-                subtitle: lokalbot_i18n::format(
-                    "Open · {0} · {1}",
-                    &[("0", meeting.app_name.clone()), ("1", duration)],
-                ),
-                search_aliases: String::new(),
-                placement: Placement::Workspace,
-                action: CommandAction::Meeting(meeting.id),
-            }
-        }));
-        return results;
-    }
-    let mut results = filter(&actions, trimmed, Matching::Substring);
-    results.push(PaletteCommand {
-        id: "ask.handoff".to_string(),
-        icon: Ico::TextSearch,
-        title: lokalbot_i18n::format("Search “{0}” in Ask", &[("0", trimmed.to_string())]),
-        subtitle: lokalbot_i18n::tr("Ask").to_string(),
-        search_aliases: String::new(),
-        placement: Placement::Workspace,
-        action: CommandAction::AskAbout(trimmed.to_string()),
-    });
-    results
 }
 
 /// Runs a command. Workspace commands bring the main window forward.
@@ -422,22 +435,7 @@ pub fn run(command: &PaletteCommand, cx: &mut App) {
         A::Actions => data.update(cx, |data, cx| data.open_actions(cx)),
         A::FollowUp => draft_follow_up_for_latest(&data, cx),
         A::OpenAsk => data.update(cx, |data, cx| data.navigate(Section::Ask, cx)),
-        A::QuickRecall => crate::windows::quick_recall::open(cx),
         A::ImportRecording => crate::pages::meetings::list::choose_recordings(data.clone(), cx),
-        A::AskAbout(query) => {
-            let question = query.clone();
-            data.update(cx, |data, cx| {
-                data.ask(
-                    AskRequest {
-                        day: None,
-                        question,
-                        meeting_ids: Vec::new(),
-                        submit: false,
-                    },
-                    cx,
-                )
-            });
-        }
         A::ToggleDictation => {
             crate::bridge::send(Command::Dictation(DictationCommand::ToggleFromMenu), cx)
         }
@@ -447,12 +445,6 @@ pub fn run(command: &PaletteCommand, cx: &mut App) {
         A::Settings(category) => {
             let category = *category;
             data.update(cx, |data, cx| data.open_settings(category, cx));
-        }
-        A::Meeting(id) => {
-            let id = *id;
-            data.update(cx, |data, cx| {
-                data.open_meeting(id, Default::default(), None, cx)
-            });
         }
         A::Agent(request) => {
             let request = request.clone();
@@ -510,7 +502,13 @@ mod tests {
             title: title.to_string(),
             subtitle: subtitle.to_string(),
             search_aliases: aliases.to_string(),
-            placement: Placement::Workspace,
+            placement: if id.starts_with("record") || id.starts_with("dictation") {
+                Placement::Background
+            } else {
+                Placement::Workspace
+            },
+            detail: None,
+            shortcut: None,
             action: CommandAction::OpenAsk,
         };
         vec![
@@ -546,14 +544,14 @@ mod tests {
     }
 
     #[test]
-    fn the_palette_matches_words_anywhere() {
+    fn substring_matching_finds_words_anywhere() {
         assert_eq!(ids("ion", Matching::Substring), ["dictation"]);
         assert_eq!(ids("follow-up", Matching::Substring), ["followUp"]);
         assert_eq!(ids("GO MEET", Matching::Substring), ["nav.meetings"]);
     }
 
     #[test]
-    fn quick_recall_matches_only_word_starts() {
+    fn word_start_matching() {
         assert!(ids("ion", Matching::WordPrefix).is_empty());
         assert_eq!(ids("rec", Matching::WordPrefix), ["record"]);
         assert_eq!(ids("Record now", Matching::WordPrefix), ["record"]);
@@ -563,6 +561,52 @@ mod tests {
         );
         assert_eq!(ids("draft follow", Matching::WordPrefix), ["followUp"]);
         assert!(ids("failover", Matching::WordPrefix).is_empty());
+    }
+
+    fn split_ids(query: &str) -> (Vec<String>, Vec<String>) {
+        let (leading, loose) = split(&sample(), query);
+        (
+            leading.into_iter().map(|c| c.id).collect(),
+            loose.into_iter().map(|c| c.id).collect(),
+        )
+    }
+
+    #[test]
+    fn commands_matching_only_inside_a_word_come_last() {
+        // "ion" sits inside "dictation": findable, but never under Return.
+        assert_eq!(split_ids("ion"), (vec![], vec!["dictation".to_string()]));
+        assert_eq!(split_ids("rec"), (vec!["record".to_string()], vec![]));
+        // "meet" starts a word of both; "eet" only sits inside them.
+        assert_eq!(
+            split_ids("meet"),
+            (
+                vec!["nav.meetings".to_string(), "followUp".to_string()],
+                vec![]
+            )
+        );
+        assert_eq!(
+            split_ids("eet"),
+            (
+                vec![],
+                vec!["nav.meetings".to_string(), "followUp".to_string()]
+            )
+        );
+        assert_eq!(split_ids(""), (vec![], vec![]));
+    }
+
+    #[test]
+    fn before_typing_commands_that_act_in_place_lead() {
+        let ids: Vec<String> = idle_order(sample()).into_iter().map(|c| c.id).collect();
+        assert_eq!(
+            ids,
+            [
+                "record",
+                "dictation",
+                "nav.meetings",
+                "followUp",
+                "nav.settings"
+            ]
+        );
     }
 
     #[test]

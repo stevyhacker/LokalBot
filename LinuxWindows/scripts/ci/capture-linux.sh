@@ -3,7 +3,8 @@
 # when installed, an xfce4-panel with a task list, system tray and clock), one
 # PNG per page. Usage: capture-linux.sh <lokalbot> <library> <out-dir> [pages...]
 # Pages are `--page` names: today, actions, meetings, timeline, people,
-# projects, ask, agent, and settings or settings-<page> for the Settings window.
+# projects, ask, agent, and settings or settings-<page> for the Settings window;
+# quick-recall captures the Quick Recall window over the main window.
 set -euo pipefail
 # Under set -e a failing command would end the script without saying which.
 trap 'echo "capture-linux.sh: line $LINENO failed: $BASH_COMMAND" >&2' ERR
@@ -105,18 +106,20 @@ for page in "${PAGES[@]}"; do
   # Keep the pointer off the window from the start: moving the window later
   # leaves GPUI with a stale hover under the old pointer position.
   DISPLAY="$DISPLAY_NUM" xdotool mousemove 2 2 2>/dev/null || true
-  DISPLAY="$DISPLAY_NUM" LOKALBOT_STORAGE_ROOT="$ROOT" "$BIN" --page "$page" >/tmp/lokalbot-$page.log 2>&1 &
+  # Settings pages open the Settings window alone (titled "Settings" in the
+  # English interface the captures use); Quick Recall opens its own window
+  # over the main one; every other page is the main window.
+  case "$page" in
+    settings*) TITLE='^Settings$'; ARGS=(--page "$page") ;;
+    quick-recall) TITLE='^Quick Recall$'; ARGS=(--window quick-recall) ;;
+    *) TITLE='^LokalBot$'; ARGS=(--page "$page") ;;
+  esac
+  DISPLAY="$DISPLAY_NUM" LOKALBOT_STORAGE_ROOT="$ROOT" "$BIN" "${ARGS[@]}" >/tmp/lokalbot-$page.log 2>&1 &
   APP=$!
   sleep "${CAPTURE_WAIT:-8}"
   if ! kill -0 "$APP" 2>/dev/null; then
     echo "LokalBot exited early on page $page:"; cat "/tmp/lokalbot-$page.log"; exit 1
   fi
-  # Settings pages open the Settings window alone (titled "Settings" in the
-  # English interface the captures use); every other page is the main window.
-  case "$page" in
-    settings*) TITLE='^Settings$' ;;
-    *) TITLE='^LokalBot$' ;;
-  esac
   WID=$(DISPLAY="$DISPLAY_NUM" xdotool search --sync --onlyvisible --name "$TITLE" | head -1 || true)
   if [ -n "$WID" ]; then
     # Center the window above the panel, as a user would see it.

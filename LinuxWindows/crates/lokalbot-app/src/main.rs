@@ -41,7 +41,7 @@ use lokalbot_platform::{InstanceError, IpcCommand};
 
 actions!(
     lokalbot,
-    [Quit, ToggleRecording, OpenCommandPalette, OpenSettings]
+    [Quit, ToggleRecording, OpenQuickRecall, OpenSettings]
 );
 
 /// Command-line options. Most users never pass any; they exist for tests,
@@ -389,14 +389,16 @@ fn bind_actions(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("ctrl-q", Quit, None),
         KeyBinding::new("ctrl-shift-r", ToggleRecording, None),
-        KeyBinding::new("ctrl-k", OpenCommandPalette, None),
+        // Ctrl+K opens Quick Recall, the window the system-wide shortcut opens:
+        // search, commands and Ask in one place, from any LokalBot window.
+        KeyBinding::new("ctrl-k", OpenQuickRecall, None),
         KeyBinding::new("ctrl-,", OpenSettings, None),
     ]);
     cx.on_action(|_: &Quit, cx: &mut App| quit::request(cx));
     cx.on_action(|_: &ToggleRecording, cx: &mut App| {
         AppData::global(cx).update(cx, |data, cx| data.toggle_recording(cx));
     });
-    cx.on_action(|_: &OpenCommandPalette, cx: &mut App| windows::command_palette::open(cx));
+    cx.on_action(|_: &OpenQuickRecall, cx: &mut App| windows::quick_recall::open_from_shortcut(cx));
     // Ctrl+, opens Settings on the page it last showed, or brings it forward.
     cx.on_action(|_: &OpenSettings, cx: &mut App| {
         AppData::global(cx).update(cx, |data, cx| {

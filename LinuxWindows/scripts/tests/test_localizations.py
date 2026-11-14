@@ -100,9 +100,9 @@ def source_keys():
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
     source = (APP / "component_i18n.rs").read_text().split("struct ComponentTranslations")[0]
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
-    for file in ["pages/ask/model.rs", "windows/quick_recall.rs"]:
-        source = (APP / file).read_text()
-        keys.update(strings(re.search(r'const SUGGESTIONS[^=]*=\s*\[(.*?)\];', source, re.S)[1]))
+    # Ask's suggested questions are looked up as they render.
+    source = (APP / "pages/ask/model.rs").read_text()
+    keys.update(strings(re.search(r'const SUGGESTIONS[^=]*=\s*\[(.*?)\];', source, re.S)[1]))
     providers = [
         ("lokalbot-core/src/settings.rs", {"label"}),
         ("lokalbot-core/src/model/activity.rs", {"label"}),

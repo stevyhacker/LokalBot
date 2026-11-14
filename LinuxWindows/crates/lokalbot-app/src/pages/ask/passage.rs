@@ -433,10 +433,7 @@ impl AskPage {
                         .child(div().flex_1())
                         .child(self.open_link(
                             "Show in Timeline",
-                            move |this, cx| {
-                                super::open_screen_moment(&this.data, &opened, cx);
-                                this.reveal_main_window(cx);
-                            },
+                            move |this, cx| super::open_screen_moment(&this.data, &opened, cx),
                             cx,
                         )),
                 )

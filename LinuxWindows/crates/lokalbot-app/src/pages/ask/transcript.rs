@@ -262,9 +262,8 @@ impl AskPage {
         let passage = self.render_passage(cx);
         // The tray of matches covers the end of the conversation while typing.
         let near_bottom = near_bottom
-            || (!self.embedded
-                && self.ask_phase(cx).matches_placement()
-                    == Some(super::model::MatchesPlacement::TrayAboveField));
+            || self.ask_phase(cx).matches_placement()
+                == Some(super::model::MatchesPlacement::TrayAboveField);
         div()
             .relative()
             .size_full()
@@ -1277,7 +1276,6 @@ impl AskPage {
         if let CitationSource::Screen { snapshot_id } = source {
             if let Some(Some(moment)) = self.screen_citations.get(snapshot_id) {
                 super::open_screen_moment(&self.data, moment, cx);
-                self.reveal_main_window(cx);
             }
             return;
         }

@@ -587,9 +587,19 @@ mod tests {
         let path = f.workspace.join("a.rs");
         let edit = serde_json::json!({"file_path": path.to_string_lossy()});
         assert_eq!(label(&f, "Edit", edit).done, "Edited a.rs");
-        let outside = label(&f, "read", serde_json::json!({"path": "/etc/hosts"}));
+        // A file outside the workspace shows its full folder. The path must be
+        // absolute on each system: on Windows "/etc/hosts" is on the current drive.
+        let (hosts, folder) = if cfg!(windows) {
+            (
+                r"C:\Windows\System32\drivers\etc\hosts",
+                r"C:\Windows\System32\drivers\etc",
+            )
+        } else {
+            ("/etc/hosts", "/etc")
+        };
+        let outside = label(&f, "read", serde_json::json!({ "path": hosts }));
         assert_eq!(outside.done, "Read hosts");
-        assert_eq!(outside.detail.as_deref(), Some("/etc"));
+        assert_eq!(outside.detail.as_deref(), Some(folder));
     }
 
     #[test]
