@@ -89,7 +89,8 @@ def main():
         path = OUT / f'fleurs-{code}.wav'
         write(path, audio)
         items.append({'id': f'fleurs-{code}', 'wav': str(path), 'language': code,
-                      'reference': ' '.join(t for _, t in utts), 'duration': round(len(audio) / 16000, 1)})
+                      'reference': ' '.join(t for _, t in utts), 'utterances': [t for _, t in utts],
+                      'duration': round(len(audio) / 16000, 1)})
         print(f'fleurs-{code}: {len(utts)} utterances, {len(audio) / 16000 / 60:.1f} min')
     (OUT / 'items.json').write_text(json.dumps(items, ensure_ascii=False, indent=1))
 
