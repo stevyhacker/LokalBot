@@ -207,7 +207,7 @@ test("workspace symlinks do not turn private-library reads into implicit access"
   });
 });
 
-// pi's file tools rewrite a requested path before opening it (pi 1.3.0
+// pi's file tools rewrite a requested path before opening it (pi 1.5.2
 // utils/paths.js and core/tools/path-utils.js). Checked as typed, each of
 // these named a missing file inside the workspace and ran without asking.
 

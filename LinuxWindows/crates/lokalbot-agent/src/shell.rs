@@ -2,7 +2,7 @@
 //!
 //! On Linux pi runs `/bin/bash -c` (then `bash` on PATH, then `sh`).
 //!
-//! On Windows pi 1.3.0 looks for Bash in this order: the `shellPath`
+//! On Windows pi 1.5.2 looks for Bash in this order: the `shellPath`
 //! setting, Git Bash under `%ProgramFiles%` and `%ProgramFiles(x86)%`, then
 //! any `bash.exe` on PATH; without one, every command fails. The first
 //! `bash.exe` on PATH is often WSL's launcher in `System32`, which would run

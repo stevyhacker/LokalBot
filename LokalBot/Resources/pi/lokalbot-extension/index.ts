@@ -6,7 +6,7 @@
 // PiLaunchPlanner; the confirm() below surfaces in LokalBot as an
 // extension_ui_request on stdout, answered over stdin.
 //
-// Paths are resolved exactly as pi 1.3.0's file tools resolve them (a leading
+// Paths are resolved exactly as pi 1.5.2's file tools resolve them (a leading
 // "@", "~", file URLs, Unicode spaces, look-alike names, the session folder),
 // so the boundary check and the approval card name the file pi will open.
 
@@ -324,7 +324,7 @@ function isIPv4Loopback(hostname: string): boolean {
     && Number(octets[0]) === 127;
 }
 
-/// pi 1.3.0 `normalizePath` (utils/paths.js). `forTool` adds the options its
+/// pi 1.5.2 `normalizePath` (utils/paths.js). `forTool` adds the options its
 /// file tools pass. pi's Windows drive-path conversions never apply on macOS.
 function normalizeToolPath(input: string, forTool: boolean): string {
   let normalized = input;
@@ -339,7 +339,7 @@ function normalizeToolPath(input: string, forTool: boolean): string {
   return normalized;
 }
 
-/// pi 1.3.0 `resolveToCwd`, which its write and edit tools use.
+/// pi 1.5.2 `resolveToCwd`, which its write and edit tools use.
 export function resolveToCwd(path: string, cwd: string): string {
   const normalized = normalizeToolPath(path, true);
   return isAbsolute(normalized)
@@ -347,7 +347,7 @@ export function resolveToCwd(path: string, cwd: string): string {
     : resolve(normalizeToolPath(cwd, false), normalized);
 }
 
-/// pi 1.3.0 `resolveReadPath`: a missing file is opened through a look-alike
+/// pi 1.5.2 `resolveReadPath`: a missing file is opened through a look-alike
 /// name when one exists, so a read is checked against the file pi will open.
 export function resolveReadPath(path: string, cwd: string): string {
   const resolved = resolveToCwd(path, cwd);
