@@ -185,13 +185,6 @@ impl AskPage {
         page
     }
 
-    /// One conversation's transcript, for Quick Recall to show.
-    pub fn embedded(conversation: Uuid, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let mut page = Self::build(true, window, cx);
-        page.selected = Some(conversation);
-        page
-    }
-
     fn build(embedded: bool, window: &mut Window, cx: &mut Context<Self>) -> Self {
         bind_keys(cx);
         let data = AppData::global(cx);
@@ -388,13 +381,6 @@ impl AskPage {
 
     fn selected_conversation(&self) -> Option<&Conversation> {
         self.selected.and_then(|id| self.conversation(id))
-    }
-
-    /// What a follow-up in this conversation asks within: its latest question's
-    /// scope. `None` until the conversation is known, rather than a wider guess.
-    pub fn follow_up_scope(&self, id: Uuid) -> Option<crate::state::AskScope> {
-        let saved = QuestionScope::current(&self.conversation(id)?.messages)?;
-        Some(scope::scope_for(&saved))
     }
 
     fn delete_conversation(&mut self, id: Uuid, cx: &mut Context<Self>) {

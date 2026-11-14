@@ -58,17 +58,6 @@ impl Hit {
         }
     }
 
-    /// Quick Recall's kind word: "Transcript", "Your notes", "Summary".
-    pub fn recall_kind(&self) -> &'static str {
-        match self.kind {
-            DocKind::Segment => lokalbot_i18n::tr("Transcript"),
-            DocKind::Notes => lokalbot_i18n::tr("Your notes"),
-            DocKind::Title => lokalbot_i18n::tr("Title"),
-            DocKind::Summary => lokalbot_i18n::tr("Summary"),
-            DocKind::Outcome => lokalbot_i18n::tr("Outcome"),
-        }
-    }
-
     /// Where opening this hit lands: a transcript moment, or `None` for the summary.
     pub fn moment(&self) -> Option<f64> {
         (self.kind == DocKind::Segment).then(|| self.start.unwrap_or(0.0))
