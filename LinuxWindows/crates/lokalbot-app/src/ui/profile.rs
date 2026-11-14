@@ -1,10 +1,9 @@
 //! Pieces shared by People and Projects: section cards with a teal icon,
-//! name tints, monograms, relative days and open-work rows.
+//! name tints, monograms and relative days.
 
 use crate::i18n::h_flex;
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use gpui_kit::component::v_flex;
-use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, Div, ElementId, FontWeight, Hsla, InteractiveElement as _, IntoElement,
     ParentElement as _, Pixels, SharedString, Stateful, StatefulInteractiveElement as _,
@@ -175,49 +174,6 @@ pub fn day_key_label(key: &str) -> String {
             .to_string()
         })
         .unwrap_or_else(|_| key.to_string())
-}
-
-/// A count pill for open work: ↗2 waiting on you, ↙1 waiting on them.
-pub fn open_work_pills(you_owe: usize, they_owe: usize, cx: &App) -> Option<Div> {
-    if you_owe + they_owe == 0 {
-        return None;
-    }
-    let lb = cx.lb();
-    let pill = |n: usize, glyph: Ico, attention: bool| {
-        let color = if attention {
-            lb.attention_text
-        } else {
-            lb.text_secondary
-        };
-        let fill = if attention {
-            lb.attention.opacity(0.15)
-        } else {
-            lb.text_secondary.opacity(0.12)
-        };
-        h_flex()
-            .gap(px(2.))
-            .items_center()
-            .px(px(6.))
-            .py(px(1.))
-            .rounded_full()
-            .bg(fill)
-            .text_size(ty::CAPTION)
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(color)
-            .child(icon(glyph, px(10.), color))
-            .child(n.to_string())
-    };
-    Some(
-        h_flex()
-            .gap(px(4.))
-            .flex_none()
-            .when(you_owe > 0, |this| {
-                this.child(pill(you_owe, Ico::ArrowUpRight, true))
-            })
-            .when(they_owe > 0, |this| {
-                this.child(pill(they_owe, Ico::ArrowDownLeft, false))
-            }),
-    )
 }
 
 #[cfg(test)]
