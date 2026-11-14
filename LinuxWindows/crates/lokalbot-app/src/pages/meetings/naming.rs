@@ -247,9 +247,9 @@ impl NamingSheet {
 
     /// "12 min of speech · 2 actions".
     fn speech_summary(voice: &NamingVoice) -> String {
-        let speech = lokalbot_i18n::tr("%lld min of speech").replace(
-            "%lld",
-            &presentation::speech_minutes(voice.speech_seconds).to_string(),
+        let speech = lokalbot_i18n::mac(
+            "%lld min of speech",
+            &[&presentation::speech_minutes(voice.speech_seconds).to_string()],
         );
         match voice.action_count {
             0 => speech,
