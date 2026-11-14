@@ -61,6 +61,23 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertFalse(downloaded.contains(TranscriptionModelChoice.senseVoice.id))
     }
 
+    func testInterruptedParakeetDownloadIsNotDownloaded() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeFluidAudioParakeetV3(in: environment)
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.parakeetV3, environment: environment))
+
+        let directory = environment.fluidAudioModelsRoot.appendingPathComponent(Repo.parakeetV3.folderName)
+        let encoder = directory.appendingPathComponent(
+            ModelNames.ASR.requiredModelsV3(precision: .int8V2).first { $0.hasPrefix("Encoder") }!)
+        try writeEmptyFile(encoder.appendingPathComponent("weights/weight.bin.partial"))
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.parakeetV3, environment: environment))
+
+        try FileManager.default.removeItem(at: encoder)
+        try writeEmptyFile(encoder)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.parakeetV3, environment: environment))
+    }
+
     func testDeleteRemovesOnlySelectedTranscriptionCache() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -83,10 +100,10 @@ final class TranscriptionModelStoreTests: XCTestCase {
         let directory = environment.fluidAudioModelsRoot.appendingPathComponent(Repo.parakeetUltra.folderName)
         for fileName in ModelNames.ASR.requiredModelsV3().union([ModelNames.ASR.vocabularyFile])
         where fileName != ModelNames.ASR.encoderFile {
-            try writeEmptyFile(directory.appendingPathComponent(fileName))
+            try writeFluidAudioComponent(directory.appendingPathComponent(fileName))
         }
         XCTAssertFalse(TranscriptionModelStore.isDownloaded(.parakeetUltra, environment: environment))
-        try writeEmptyFile(directory.appendingPathComponent(ModelNames.ASR.encoderFile))
+        try writeFluidAudioComponent(directory.appendingPathComponent(ModelNames.ASR.encoderFile))
         XCTAssertTrue(TranscriptionModelStore.downloadedChoices(environment: environment).contains("parakeet-ultra"))
 
         try TranscriptionModelStore.delete(.parakeetUltra, environment: environment)
@@ -231,8 +248,15 @@ final class TranscriptionModelStoreTests: XCTestCase {
     private func writeFluidAudioParakeetV3(in environment: TranscriptionModelStore.Environment) throws {
         let directory = environment.fluidAudioModelsRoot.appendingPathComponent(Repo.parakeetV3.folderName)
         for fileName in ModelNames.ASR.requiredModelsV3(precision: .int8V2).union([ModelNames.ASR.vocabularyFile]) {
-            try writeEmptyFile(directory.appendingPathComponent(fileName))
+            try writeFluidAudioComponent(directory.appendingPathComponent(fileName))
         }
+    }
+
+    /// FluidAudio counts a compiled model only when it is a folder with its
+    /// `coremldata.bin` and no `*.partial` download left inside.
+    private func writeFluidAudioComponent(_ url: URL) throws {
+        guard url.pathExtension == "mlmodelc" else { return try writeEmptyFile(url) }
+        try writeEmptyFile(url.appendingPathComponent("coremldata.bin"))
     }
 
     private func writeFluidAudioCohere(in environment: TranscriptionModelStore.Environment) throws {

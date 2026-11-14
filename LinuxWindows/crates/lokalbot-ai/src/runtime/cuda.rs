@@ -3,7 +3,7 @@
 //!
 //! Two upstream builds cover different GPUs and drivers. A driver runs a
 //! build's prebuilt kernels when it supports the same CUDA major version, but
-//! compiles PTX only from a toolkit no newer than itself. CUDA 13.4 has
+//! compiles PTX only from a toolkit no newer than itself. CUDA 13.5 has
 //! prebuilt kernels for 8.6, 8.9 and 12.x and PTX from Turing (7.5); the
 //! CUDA 12 builds add PTX for Maxwell, Pascal and Volta.
 //! https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html
@@ -37,23 +37,23 @@ pub(super) struct Build {
 
 #[cfg(windows)]
 const NEWEST: Build = Build {
-    version: "13.4",
+    version: "13.5",
     server: RuntimeAsset {
         backend: LlamaBackend::Cuda,
-        tag: "win-cuda-13.4-x64",
-        name: "llama-b12110-bin-win-cuda-13.4-x64.zip",
-        size: 169_175_655,
-        sha256: "dc910a969190b5d42e189afd73117f6bbdd8dd8ed6586342c5e0b82cab62c673",
+        tag: "win-cuda-13.5-x64",
+        name: "llama-b12359-bin-win-cuda-13.5-x64.zip",
+        size: 179_546_112,
+        sha256: "1de9ca1ff408d6e348ea0007c6880ad2393311a02e7799bcde26dc16daef03dd",
     },
     libraries: RuntimeAsset {
         backend: LlamaBackend::Cuda,
-        tag: "win-cuda-13.4-x64",
-        name: "cudart-llama-bin-win-cuda-13.4-x64.zip",
-        size: 423_535_356,
-        sha256: "738f8c251ac22b70c3ae6f83a10cf222725df0395246a2cf58f32bdb85fbe668",
+        tag: "win-cuda-13.5-x64",
+        name: "cudart-llama-bin-win-cuda-13.5-x64.zip",
+        size: 426_314_199,
+        sha256: "c2bf4cc202bfbaaa7a0b75f5082457c3811326947bb216059b72839d844e9cba",
     },
     library_names: ["cudart64_13.dll", "cublas64_13.dll", "cublasLt64_13.dll"],
-    toolkit: 13_040,
+    toolkit: 13_050,
     prebuilt: &[86, 89, 120, 121],
     oldest: 75,
 };
@@ -64,9 +64,9 @@ const OLDER: Build = Build {
     server: RuntimeAsset {
         backend: LlamaBackend::Cuda,
         tag: "win-cuda-12.4-x64",
-        name: "llama-b12110-bin-win-cuda-12.4-x64.zip",
-        size: 287_014_657,
-        sha256: "1ce755bc3a061889234048f88e33328e17971eaad73c4666cfeb26026b317fee",
+        name: "llama-b12359-bin-win-cuda-12.4-x64.zip",
+        size: 318_976_332,
+        sha256: "e9c0abf442e8339c06728366c1ad2c711332f9939c0c00603fb75d85fd44c914",
     },
     libraries: RuntimeAsset {
         backend: LlamaBackend::Cuda,
@@ -83,23 +83,23 @@ const OLDER: Build = Build {
 
 #[cfg(not(windows))]
 const NEWEST: Build = Build {
-    version: "13.4",
+    version: "13.5",
     server: RuntimeAsset {
         backend: LlamaBackend::Cuda,
-        tag: "ubuntu-cuda-13.4-x64",
-        name: "llama-b12110-bin-ubuntu-cuda-13.4-x64.tar.gz",
-        size: 168_275_993,
-        sha256: "2afd2ca540da119570b1dac36b5a2c862bb03a3b789c46661dfa55e600f5b19b",
+        tag: "ubuntu-cuda-13.5-x64",
+        name: "llama-b12359-bin-ubuntu-cuda-13.5-x64.tar.gz",
+        size: 178_419_847,
+        sha256: "9440f417615bed0e191acef03bff0249117d2be74335358265a6d28475a9baf0",
     },
     libraries: RuntimeAsset {
         backend: LlamaBackend::Cuda,
-        tag: "ubuntu-cuda-13.4-x64",
-        name: "cudart-llama-b12110-bin-ubuntu-cuda-13.4-x64.tar.gz",
-        size: 440_232_657,
-        sha256: "9b1110161943882ec85c8e9ae641075ee8c962a50f8f1e36534ee65ea1e56ed9",
+        tag: "ubuntu-cuda-13.5-x64",
+        name: "cudart-llama-b12359-bin-ubuntu-cuda-13.5-x64.tar.gz",
+        size: 444_078_822,
+        sha256: "976a9146bb8a487a6ea701224d7fb14b05e494ab3c8f5c1799ffc4e5805d640c",
     },
     library_names: ["libcudart.so.13", "libcublas.so.13", "libcublasLt.so.13"],
-    toolkit: 13_040,
+    toolkit: 13_050,
     prebuilt: &[86, 89, 120, 121],
     oldest: 75,
 };
@@ -110,16 +110,16 @@ const OLDER: Build = Build {
     server: RuntimeAsset {
         backend: LlamaBackend::Cuda,
         tag: "ubuntu-cuda-12.8-x64",
-        name: "llama-b12110-bin-ubuntu-cuda-12.8-x64.tar.gz",
-        size: 187_314_621,
-        sha256: "4af1e1da23661db4a5b84b29aae16ebc053df689c5b8b1427c4670f2c6406d8c",
+        name: "llama-b12359-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        size: 199_223_370,
+        sha256: "50c937bec5bbd9f74c99138034f7403283ee21f1943f2429d7b1e4c079eafc11",
     },
     libraries: RuntimeAsset {
         backend: LlamaBackend::Cuda,
         tag: "ubuntu-cuda-12.8-x64",
-        name: "cudart-llama-b12110-bin-ubuntu-cuda-12.8-x64.tar.gz",
-        size: 594_371_477,
-        sha256: "6f1d562086d84ae85df880d3711079ec225602b51d530608e5001600625067dd",
+        name: "cudart-llama-b12359-bin-ubuntu-cuda-12.8-x64.tar.gz",
+        size: 594_371_571,
+        sha256: "75a12d227f44a391608992329241765343bd143ee9445b90dc62e154ee726e5d",
     },
     library_names: ["libcudart.so.12", "libcublas.so.12", "libcublasLt.so.12"],
     toolkit: 12_080,
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn prebuilt_kernels_need_only_the_major_driver_version() {
         let (newest, older) = (&BUILDS[0], &BUILDS[1]);
-        // RTX 30/40/50 run CUDA 13.4 on any CUDA 13 driver (R580+).
+        // RTX 30/40/50 run CUDA 13.5 on any CUDA 13 driver (R580+).
         for capability in [86, 89, 120] {
             assert_eq!(
                 version_of(13_000, Some(&[capability])),
@@ -412,25 +412,25 @@ mod tests {
     #[test]
     fn ptx_needs_a_driver_as_new_as_the_toolkit() {
         let (newest, older) = (&BUILDS[0], &BUILDS[1]);
-        // Turing and A100 have only PTX in CUDA 13.4: a 13.0-13.3 driver
+        // Turing and A100 have only PTX in CUDA 13.5: a 13.0-13.4 driver
         // cannot compile it, so they get the CUDA 12 build.
         for capability in [75, 80, 90] {
-            assert_eq!(version_of(13_020, Some(&[capability])), Some(older.version));
+            assert_eq!(version_of(13_040, Some(&[capability])), Some(older.version));
             assert_eq!(
-                version_of(13_040, Some(&[capability])),
+                version_of(13_050, Some(&[capability])),
                 Some(newest.version)
             );
         }
         // Maxwell, Pascal and Volta need CUDA 12 and a driver for its PTX.
         for capability in [52, 61, 70] {
-            assert_eq!(version_of(13_040, Some(&[capability])), Some(older.version));
+            assert_eq!(version_of(13_050, Some(&[capability])), Some(older.version));
             assert_eq!(
                 version_of(older.toolkit, Some(&[capability])),
                 Some(older.version)
             );
             assert!(version_of(older.toolkit - 10, Some(&[capability])).is_none());
         }
-        assert!(version_of(13_040, Some(&[35])).is_none(), "Kepler");
+        assert!(version_of(13_050, Some(&[35])).is_none(), "Kepler");
     }
 
     #[test]
@@ -445,8 +445,8 @@ mod tests {
 
     #[test]
     fn unknown_gpus_get_a_build_whose_ptx_the_driver_compiles() {
-        assert_eq!(version_of(13_020, None), Some(BUILDS[1].version));
-        assert_eq!(version_of(13_040, None), Some(BUILDS[0].version));
+        assert_eq!(version_of(13_040, None), Some(BUILDS[1].version));
+        assert_eq!(version_of(13_050, None), Some(BUILDS[0].version));
         assert!(version_of(12_000, None).is_none());
     }
 

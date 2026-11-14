@@ -29,8 +29,8 @@ use crate::process;
 mod cuda;
 
 /// The llama.cpp release every platform runs. macOS builds the same commit
-/// from its `v0.9.0` tag.
-pub const LLAMA_BUILD: &str = "b12110";
+/// from its `v1.0.0` tag.
+pub const LLAMA_BUILD: &str = "b12359";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -87,8 +87,8 @@ impl RuntimeAsset {
     }
 }
 
-/// The build in a runtime folder or archive name: `b12110-ubuntu-x64`,
-/// `llama-b12110-bin-ubuntu-x64.tar.gz`, `cudart-llama-b12110-bin-….tar.gz`.
+/// The build in a runtime folder or archive name: `b12359-ubuntu-x64`,
+/// `llama-b12359-bin-ubuntu-x64.tar.gz`, `cudart-llama-b12359-bin-….tar.gz`.
 fn build_in_name(name: &str) -> Option<&str> {
     let name = name.strip_prefix("cudart-").unwrap_or(name);
     let name = name.strip_prefix("llama-").unwrap_or(name);
@@ -104,16 +104,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "win-vulkan-x64",
-        name: "llama-b12110-bin-win-vulkan-x64.zip",
-        size: 37_661_146,
-        sha256: "9732a5e48887ca54d0bfe4af4324dc85fd56cd8cda19b52df3542fa6ebe6874f",
+        name: "llama-b12359-bin-win-vulkan-x64.zip",
+        size: 38_090_643,
+        sha256: "e8d18c6e4210cca87e7307c2ea78363ac8d158e4e1397358ec96ab70b53a0d5e",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "win-cpu-x64",
-        name: "llama-b12110-bin-win-cpu-x64.zip",
-        size: 24_708_445,
-        sha256: "98901e327c252875accaf2d1bf364e10e868843b0b63468baad1aa945cdc5da2",
+        name: "llama-b12359-bin-win-cpu-x64.zip",
+        size: 25_097_509,
+        sha256: "837c1655e87df3b66989f4be33a792a1399c785bf259038dc75c900096683e69",
     },
 ];
 
@@ -124,16 +124,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "ubuntu-vulkan-x64",
-        name: "llama-b12110-bin-ubuntu-vulkan-x64.tar.gz",
-        size: 35_858_360,
-        sha256: "a5d741940956ec62e8783aee7e5a4c7c761af867d6f027c3277a51e1a3ac59b0",
+        name: "llama-b12359-bin-ubuntu-vulkan-x64.tar.gz",
+        size: 36_153_377,
+        sha256: "19b60f00395a3f4954e46a5037695bc1d843404fc9d3124f82a612ecd8fbe9f0",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "ubuntu-x64",
-        name: "llama-b12110-bin-ubuntu-x64.tar.gz",
-        size: 23_051_958,
-        sha256: "368227edcc229be5f9bed16a2223d79b5e41d0ac2e19bcf5825e82291c060e55",
+        name: "llama-b12359-bin-ubuntu-x64.tar.gz",
+        size: 23_311_084,
+        sha256: "0bc1f091e8916102b6d8f2cf944233a620e90a0f856c72d0ce41150c65c2e72e",
     },
 ];
 
@@ -2085,7 +2085,7 @@ fn valid_cuda_device_id(id: &str) -> bool {
 }
 
 fn cuda_launch_args(device: &str) -> Vec<String> {
-    // b12110 hides offload evidence at verbosity 3. Preserve plain startup logs.
+    // b12359 hides offload evidence at verbosity 3. Preserve plain startup logs.
     [
         "--device",
         device,
@@ -2557,7 +2557,7 @@ mod tests {
             assert!(
                 asset
                     .url()
-                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12110/")
+                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12359/")
             );
             assert!(asset.name.contains(asset.tag));
         }
@@ -2878,7 +2878,7 @@ mod tests {
     #[test]
     fn folder_and_archive_names_give_their_build() {
         for (name, build) in [
-            ("b12110-ubuntu-x64", Some("b12110")),
+            ("b12359-ubuntu-x64", Some("b12359")),
             ("b11669-win-cuda-13.4-x64", Some("b11669")),
             ("llama-b11669-bin-ubuntu-x64.tar.gz", Some("b11669")),
             ("llama-b11669-bin-ubuntu-x64.tar.gz.part", Some("b11669")),
@@ -3586,7 +3586,7 @@ mod tests {
         assert_eq!(manager.installed_backend(), None);
         let stored = manager.storage();
         assert_eq!(stored.len(), 1);
-        assert_eq!(stored[0].name, "CUDA 13.4");
+        assert_eq!(stored[0].name, "CUDA 13.5");
         assert!(stored[0].bytes > 0);
         manager.uninstall().unwrap();
         assert!(manager.storage().is_empty());

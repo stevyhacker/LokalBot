@@ -7,36 +7,36 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-TAG=v0.9.0
+TAG=v1.0.0
 # The source archive has no .git, so upstream's build-info would report build
-# 0. Pass the number of the build tag on the same commit (b12110) explicitly so
+# 0. Pass the number of the build tag on the same commit (b12359) explicitly so
 # `llama-server --version` identifies the pinned build.
-BUILD_NUMBER=12110
+BUILD_NUMBER=12359
 DEPLOYMENT_TARGET=15.0
 SOURCE_URL="https://github.com/ggml-org/llama.cpp/archive/refs/tags/$TAG.tar.gz"
-SOURCE_SHA256=5d0f1aaf55fd8629c29a55e81b7cb63b80239f83c33a580963071204896836a8
+SOURCE_SHA256=3f5f750e36326aea4d65c7623e7d597a33e395d65f4d76e5e0532171f252532b
 SERVER_DIR=Vendor/llama-cpp
 BUILD_MARKER="$TAG-macos$DEPLOYMENT_TARGET-arm64-generic-loader-rpath"
 RUNTIME_MANIFEST=.lokalbot-runtime.sha256
 REQUIRED_RUNTIME_FILES=(
   llama-server
   libllama.dylib
-  libllama.0.dylib
+  libllama.1.dylib
   libggml.dylib
-  libggml.0.dylib
+  libggml.1.dylib
   libggml-base.dylib
-  libggml-base.0.dylib
+  libggml-base.1.dylib
   libggml-cpu.dylib
-  libggml-cpu.0.dylib
+  libggml-cpu.1.dylib
   libggml-blas.dylib
-  libggml-blas.0.dylib
+  libggml-blas.1.dylib
   libggml-metal.dylib
-  libggml-metal.0.dylib
+  libggml-metal.1.dylib
   libllama-common.dylib
-  libllama-common.0.dylib
+  libllama-common.1.dylib
   libllama-server-impl.dylib
   libmtmd.dylib
-  libmtmd.0.dylib
+  libmtmd.1.dylib
   include/llama.h
 )
 

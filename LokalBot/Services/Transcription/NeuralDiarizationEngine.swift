@@ -112,6 +112,9 @@ actor NeuralDiarizationEngine {
 
         var postProcessing = OfflineDiarizerConfig.PostProcessing.community
         postProcessing.minGapDurationSeconds = 0.05 // tolerate close turns
+        // One speaker at a time, so each transcript word has one owner.
+        // FluidAudio 0.18.2 changed the community default to keep overlaps.
+        postProcessing.exclusiveSegments = true
 
         var segmentation = OfflineDiarizerConfig.Segmentation.community
         segmentation.stepRatio = 0.15   // finer windows (slower but better recall)

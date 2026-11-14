@@ -38,16 +38,16 @@ printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-
         destination = self.root / "Vendor" / runtime
         destination.mkdir(parents=True)
         if runtime == "llama-cpp":
-            marker = "v0.9.0-macos15.0-arm64-generic-loader-rpath"
+            marker = "v1.0.0-macos15.0-arm64-generic-loader-rpath"
             names = [
-                "llama-server", "libllama.dylib", "libllama.0.dylib",
-                "libggml.dylib", "libggml.0.dylib",
-                "libggml-base.dylib", "libggml-base.0.dylib",
-                "libggml-cpu.dylib", "libggml-cpu.0.dylib",
-                "libggml-blas.dylib", "libggml-blas.0.dylib",
-                "libggml-metal.dylib", "libggml-metal.0.dylib",
-                "libllama-common.dylib", "libllama-common.0.dylib",
-                "libllama-server-impl.dylib", "libmtmd.dylib", "libmtmd.0.dylib",
+                "llama-server", "libllama.dylib", "libllama.1.dylib",
+                "libggml.dylib", "libggml.1.dylib",
+                "libggml-base.dylib", "libggml-base.1.dylib",
+                "libggml-cpu.dylib", "libggml-cpu.1.dylib",
+                "libggml-blas.dylib", "libggml-blas.1.dylib",
+                "libggml-metal.dylib", "libggml-metal.1.dylib",
+                "libllama-common.dylib", "libllama-common.1.dylib",
+                "libllama-server-impl.dylib", "libmtmd.dylib", "libmtmd.1.dylib",
                 "include/llama.h",
             ]
         else:
@@ -85,7 +85,7 @@ printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-
 
     def test_missing_llama_dependency_does_not_pass_cached_marker(self):
         destination = self.prepare("llama-cpp")
-        (destination / "libggml-metal.0.dylib").unlink()
+        (destination / "libggml-metal.1.dylib").unlink()
         self.assertNotEqual(self.run_script("fetch-llama.sh").returncode, 0)
 
     def test_changed_llama_content_does_not_pass_cached_marker(self):
