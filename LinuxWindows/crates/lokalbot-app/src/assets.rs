@@ -30,6 +30,8 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     SquareChartGantt, ShieldLock,
     // Today: a recent meeting before you join (clock.arrow.circlepath)
     RotateCcwClock,
+    // Actions: the Filter menu (line.3.horizontal.decrease)
+    ListFilter,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

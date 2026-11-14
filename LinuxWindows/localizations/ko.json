@@ -289,6 +289,7 @@
   "Create or replace the file shown below with the proposed content.": "아래 표시된 파일을 제안된 콘텐츠로 생성하거나 교체하세요.",
   "Created": "생성됨",
   "Credential store": "자격 증명 저장소",
+  "Ctrl-click rows to add or remove them.": "Ctrl-클릭으로 행을 추가하거나 제외합니다.",
   "Cut": "잘라내기",
   "Daily memory export folder": "일일 메모리 내보내기 폴더",
   "Daily memory export hour": "일일 메모리 내보내기 시각",

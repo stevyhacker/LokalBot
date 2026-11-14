@@ -11,8 +11,8 @@ use crate::state::AppData;
 
 /// The list column's limits (`contentColumnMinWidth`, `maxWidth: 340`).
 pub const LIST_RANGE: Range<f32> = 240.0..340.0;
-/// The details pane's limits in Actions.
-pub const DETAILS_RANGE: Range<f32> = 280.0..380.0;
+/// The details pane's limits in Actions (`detailsMinWidth`, `detailsMaxWidth`).
+pub const DETAILS_RANGE: Range<f32> = 280.0..440.0;
 
 fn saved_width(
     key: &str,

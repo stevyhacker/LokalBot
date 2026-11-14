@@ -289,6 +289,7 @@
   "Create or replace the file shown below with the proposed content.": "以下に示すファイルを作成するか、提案された内容に置き換えます。",
   "Created": "作成しました",
   "Credential store": "認証情報ストア",
+  "Ctrl-click rows to add or remove them.": "Ctrl キーを押しながらクリックすると行を追加・解除できます。",
   "Cut": "切り取り",
   "Daily memory export folder": "毎日の記憶のエクスポート先フォルダ",
   "Daily memory export hour": "毎日の記憶のエクスポート時刻",

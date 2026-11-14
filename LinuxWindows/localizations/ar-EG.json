@@ -289,6 +289,7 @@
   "Create or replace the file shown below with the proposed content.": "قم بإنشاء أو استبدال الملف الموضح أدناه بالمحتوى المقترح.",
   "Created": "تم الإنشاء",
   "Credential store": "مخزن بيانات الاعتماد",
+  "Ctrl-click rows to add or remove them.": "دوس على الصفوف مع Ctrl عشان تضيفها أو تشيلها.",
   "Cut": "قص",
   "Daily memory export folder": "فولدر تصدير الذاكرة اليومية",
   "Daily memory export hour": "ساعة تصدير الذاكرة اليومية",

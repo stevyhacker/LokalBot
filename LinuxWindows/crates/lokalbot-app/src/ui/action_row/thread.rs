@@ -194,32 +194,6 @@ pub(crate) fn agent_menu_items_for_thread(
     menu
 }
 
-/// The same for one action.
-pub(crate) fn agent_menu_items_for_reference(
-    menu: PopupMenu,
-    reference: &ActionReference,
-    data: &Entity<AppData>,
-) -> PopupMenu {
-    let prompt = lokalbot_core::agent_handoff::agent_prompt_for_action(reference);
-    let agent_data = data.clone();
-    let mut menu = menu.item(
-        PopupMenuItem::new(lokalbot_i18n::tr("Open in Agent")).on_click(move |_, _, cx| {
-            let prompt = prompt.clone();
-            agent_data.update(cx, |data, cx| data.open_agent(prompt, cx));
-        }),
-    );
-    for target in crate::agent_handoff::for_actions() {
-        let data = data.clone();
-        let reference = reference.clone();
-        menu = menu.item(
-            PopupMenuItem::new(open_in_label(target)).on_click(move |_, _, cx| {
-                crate::agent_handoff::hand_off_reference(&data, &reference, target, cx)
-            }),
-        );
-    }
-    menu
-}
-
 /// "Open in Claude Code".
 pub(crate) fn open_in_label(target: crate::agent_handoff::Target) -> SharedString {
     lokalbot_i18n::format("Open in {target}", &[("target", target.name().to_string())]).into()
@@ -430,7 +404,7 @@ fn apply_thread_status(
 }
 
 /// Keeps an action out of (or back in) cross-meeting threads.
-fn set_excluded(
+pub(super) fn set_excluded(
     data: Entity<AppData>,
     meeting_id: uuid::Uuid,
     action_id: String,

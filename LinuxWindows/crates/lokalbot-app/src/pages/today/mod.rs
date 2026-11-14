@@ -9,7 +9,7 @@ pub(crate) mod brief;
 pub(crate) mod digest;
 mod getting_started;
 mod live;
-mod model;
+pub(crate) mod model;
 mod panels;
 mod upcoming;
 

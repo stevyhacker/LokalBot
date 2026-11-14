@@ -23,7 +23,7 @@ pub(super) const APP_LIMIT: usize = 4;
 /// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
 /// itself is the caller's `lokalbot_i18n::tr`, so the key stays a literal the
 /// catalog checks can see.
-pub(super) fn fill(template: &str, values: &[&str]) -> String {
+pub(crate) fn fill(template: &str, values: &[&str]) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
     let mut next = 0;
@@ -70,7 +70,7 @@ pub(super) fn fill(template: &str, values: &[&str]) -> String {
 /// starts with a number ("2 متأخرة", "3ح 57م") loses the number in an Arabic
 /// or Urdu interface. The mark is for shaping only, as in
 /// `ui::text::paragraph`; left-to-right text is returned as it is.
-pub(super) fn directional(text: impl Into<String>) -> String {
+pub(crate) fn directional(text: impl Into<String>) -> String {
     let text = text.into();
     if lokalbot_i18n::content_is_rtl(&text) && !text.starts_with('\u{200f}') {
         format!("\u{200f}{text}")

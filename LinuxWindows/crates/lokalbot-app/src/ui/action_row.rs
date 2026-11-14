@@ -21,12 +21,17 @@
 //! primitives instead: [`status_toggle`], [`meta_link`], [`due_text`] with a
 //! [`DueTone`], [`evidence_pill`] or [`play_time`], [`options_menu`] and
 //! [`action_row_with`].
+//!
+//! The Actions page draws the row in its list style with [`list_row`]
+//! (`ActionListRowStyle`): its own wording, selection and status handling.
 
+mod list;
 mod thread;
 
+pub(crate) use list::{ListRowStyle, OnRowAction, OnRowClick, OnStatus, hand_off_items, list_row};
+
 pub(crate) use thread::{
-    ThreadRowOptions, agent_menu_items_for_reference, open_in_label, open_meeting,
-    suggests_completion, thread_row,
+    ThreadRowOptions, open_in_label, open_meeting, suggests_completion, thread_row,
 };
 
 use crate::i18n::h_flex;
