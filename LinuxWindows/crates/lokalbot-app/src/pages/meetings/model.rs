@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use gpui_kit::SharedString;
 use lokalbot_core::{
     ActionReference, ActionStatus, Decision, Library, Meeting, MeetingOutcomes,
@@ -29,14 +29,14 @@ pub struct MeetingDoc {
     pub actions: Vec<MeetingAction>,
     pub decisions: Vec<Decision>,
     pub questions: Vec<String>,
+    /// Outcomes are saved for this meeting (`projection != nil`).
+    pub has_projection: bool,
     pub recap: Vec<String>,
     /// The summary's provenance line ("Duration 32m  ·  App Zoom").
     pub summary_meta: Option<String>,
     pub summary_body: String,
     pub rows: Vec<TranscriptRow>,
     pub review: Vec<ReviewSpeaker>,
-    /// Remote speakers without a name (`unnamedRemoteSpeakers`).
-    pub unnamed_remote: usize,
     /// The sealed speaker journal, when this computer can open it. Private:
     /// it only ever reaches the speaker sheet and the recognized-voices line.
     pub identity: Option<lokalbot_core::voice::IdentityState>,
@@ -47,8 +47,24 @@ pub struct MeetingDoc {
     pub notes_need_refresh: bool,
     /// Notes still being written, shown in place of final ones.
     pub partial_progress: Option<SharedString>,
-    /// Actions from the notes a refresh moved aside, for the Review tab.
+    /// The outcomes a refresh moved aside: what the summary shows until the
+    /// new notes are written (`previousReviewProjection`).
     pub previous_actions: Vec<MeetingAction>,
+    pub previous_decisions: Vec<Decision>,
+    pub previous_questions: Vec<String>,
+    pub has_previous_projection: bool,
+    /// Who spoke, you first: the title block's speaker line.
+    pub speakers: Vec<super::presentation::Speaker>,
+    /// Seconds of speech per speaker key.
+    pub speech: HashMap<String, f64>,
+    /// The name the transcript saves for each speaker key.
+    pub stored_names: HashMap<String, String>,
+    /// Calendar guests and name hints to name voices from.
+    pub suggestions: Vec<lokalbot_core::calendar::SpeakerSuggestion>,
+    /// Invited people's names, for action owners.
+    pub invited: Vec<String>,
+    /// Speakers named by voice recognition rather than by a person.
+    pub recognized_before: HashSet<String>,
     /// Saved edits that didn't match a regenerated action: text and detail.
     pub unmatched_edits: Vec<(String, String)>,
     /// `recording-health.json` reports a problem.
@@ -61,13 +77,45 @@ pub struct MeetingDoc {
 }
 
 impl MeetingDoc {
-    /// The notes have outcomes, so the Decisions card shows.
-    pub(crate) fn has_outcomes(&self) -> bool {
-        self.outcomes.as_ref().is_some_and(|o| {
-            !o.action_items.is_empty()
-                || !o.decision_records.is_empty()
-                || !o.open_questions.is_empty()
-        })
+    /// The outcomes the page shows: the saved ones, or while none are saved
+    /// the ones a refresh moved aside, which stay readable until it finishes
+    /// (`shownProjection`).
+    pub fn shows_previous(&self) -> bool {
+        !self.has_projection && self.has_previous_projection
+    }
+
+    pub fn shown_actions(&self) -> &[MeetingAction] {
+        if self.shows_previous() {
+            &self.previous_actions
+        } else {
+            &self.actions
+        }
+    }
+
+    pub fn shown_decisions(&self) -> &[Decision] {
+        if self.shows_previous() {
+            &self.previous_decisions
+        } else {
+            &self.decisions
+        }
+    }
+
+    pub fn shown_questions(&self) -> &[String] {
+        if self.shows_previous() {
+            &self.previous_questions
+        } else {
+            &self.questions
+        }
+    }
+
+    /// The Summary tab has something to lead with (`hasSummaryContent`).
+    pub fn has_summary_content(&self) -> bool {
+        self.has_summary() || self.has_projection || self.has_previous_projection
+    }
+
+    /// Call voices still waiting for a name.
+    pub fn unnamed(&self) -> impl Iterator<Item = &super::presentation::Speaker> {
+        self.speakers.iter().filter(|s| s.needs_name)
     }
 
     pub fn has_summary(&self) -> bool {
@@ -102,8 +150,12 @@ pub struct MeetingAction {
     pub due: Option<String>,
     /// "Due Fri, Oct 2 · said “Friday”".
     pub due_label: Option<String>,
+    /// The day the due phrase resolves to, for its colour.
+    pub resolved_due_date: Option<NaiveDate>,
     pub status: ActionStatus,
     pub citation: Option<OutcomeSourceCitation>,
+    /// Yours: it goes under "For you" and shows no owner.
+    pub is_for_user: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -121,27 +173,10 @@ pub struct TranscriptRow {
 pub struct ReviewSpeaker {
     pub key: String,
     pub name: String,
-    pub color: usize,
     pub is_user: bool,
     pub is_named: bool,
-    pub can_confirm: bool,
     pub sample: Option<(f64, String)>,
     pub action_count: usize,
-}
-
-impl ReviewSpeaker {
-    /// `MeetingSpeakerReviewItem.status`.
-    pub fn status(&self) -> &'static str {
-        if self.is_user {
-            lokalbot_i18n::tr("Attributed to you")
-        } else if !self.can_confirm {
-            lokalbot_i18n::tr("Mixed or unresolved audio")
-        } else if self.is_named {
-            lokalbot_i18n::tr("Named in this meeting")
-        } else {
-            lokalbot_i18n::tr("Name not confirmed")
-        }
-    }
 }
 
 /// Display names and colors for a transcript's speakers
@@ -194,6 +229,12 @@ impl Speakers {
             .get(&key)
             .cloned()
             .unwrap_or_else(|| display_label(&Transcript::default_speaker_name(&key), false))
+    }
+
+    /// The voice is yours.
+    pub fn is_user(&self, speaker: &str) -> bool {
+        self.users
+            .contains(&Transcript::canonical_speaker_key(speaker))
     }
 
     pub fn color_index(&self, speaker: &str) -> usize {
@@ -282,7 +323,9 @@ pub fn meeting_action(reference: ActionReference, speakers: &Speakers) -> Meetin
         owner_label,
         due: reference.due,
         due_label,
+        resolved_due_date: reference.resolved_due_date,
         status: reference.status,
+        is_for_user: reference.is_for_user,
     }
 }
 
@@ -385,22 +428,25 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         .as_ref()
         .map(|t| transcript_rows(t, &speakers))
         .unwrap_or_default();
-    let previous_actions = if outcomes.is_none() {
-        library
-            .previous_outcome_projection(&meeting)
-            .ok()
-            .flatten()
-            .map(|projection| {
+    let previous = if outcomes.is_none() {
+        library.previous_outcome_projection(&meeting).ok().flatten()
+    } else {
+        None
+    };
+    let has_previous_projection = previous.is_some();
+    let (previous_actions, previous_decisions, previous_questions) = previous
+        .map(|projection| {
+            (
                 projection
                     .action_references()
                     .into_iter()
                     .map(|reference| meeting_action(reference, &speakers))
-                    .collect()
-            })
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
+                    .collect(),
+                projection.outcomes.decision_records.clone(),
+                projection.outcomes.open_questions.clone(),
+            )
+        })
+        .unwrap_or_default();
     // Voices with action-linked speech first, from the previous notes if need be.
     let review = transcript
         .as_ref()
@@ -414,10 +460,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         })
         .unwrap_or_default();
 
-    let unnamed_remote = transcript
-        .as_ref()
-        .map(unnamed_remote_speakers)
-        .unwrap_or(0);
     let memory = lokalbot_engine::voice::memory(library);
     // No journal means no reason to open the credential store.
     let identity = folder
@@ -449,6 +491,31 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
     let recovery_needs_attention = lokalbot_core::audio_files::recovery_needs_attention(&folder);
     let additional_audio = meeting.additional_saved_audio_duration();
     let screen = library.meeting_screen_context(&meeting);
+    let header_speakers = super::presentation::speakers(transcript.as_ref(), &speakers);
+    let speech = super::presentation::speech_seconds(transcript.as_ref());
+    let stored_names =
+        super::presentation::stored_speaker_names(transcript.as_ref(), &header_speakers);
+    let guests = lokalbot_core::calendar::resolved_meeting_identities(&meeting);
+    let hints = meeting.participant_name_hints.clone().unwrap_or_default();
+    let suggestions = lokalbot_core::calendar::SpeakerSuggestion::choices(&guests, &hints);
+    let invited = guests
+        .iter()
+        .filter_map(|guest| guest.suggested_speaker_name())
+        .collect();
+    let recognized_before = identity
+        .as_ref()
+        .map(|state| {
+            state
+                .assignments
+                .iter()
+                .filter(|a| {
+                    a.origin == lokalbot_core::voice::Origin::ProfileAutomatic && a.name.is_some()
+                })
+                .map(|a| a.label.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    let has_projection = outcomes.is_some();
     let partial_progress = partial.as_ref().map(|partial| {
         SharedString::from(lokalbot_i18n::format(
             "Partial notes · {completed} of {total} parts complete",
@@ -459,7 +526,16 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         ))
     });
     MeetingDoc {
-        unnamed_remote,
+        has_projection,
+        previous_decisions,
+        previous_questions,
+        has_previous_projection,
+        speakers: header_speakers,
+        speech,
+        stored_names,
+        suggestions,
+        invited,
+        recognized_before,
         identity,
         speaker_notice,
         recognized,
@@ -490,21 +566,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         rows,
         review,
     }
-}
-
-/// Remote voices (system track or `them…`) the user has not named yet.
-fn unnamed_remote_speakers(transcript: &Transcript) -> usize {
-    let mut seen = Vec::<String>::new();
-    for segment in &transcript.segments {
-        let key = Transcript::canonical_speaker_key(&segment.speaker);
-        let remote = key.starts_with("them")
-            || Transcript::resolved_attribution(segment).source
-                == lokalbot_core::AttributionSource::System;
-        if remote && !transcript.speaker_aliases.contains_key(&key) && !seen.contains(&key) {
-            seen.push(key);
-        }
-    }
-    seen.len()
 }
 
 fn transcript_rows(transcript: &Transcript, speakers: &Speakers) -> Vec<TranscriptRow> {
@@ -588,10 +649,8 @@ fn review_speakers(
                 .count();
             ReviewSpeaker {
                 key: key.clone(),
-                color: speakers.color_index(key),
                 is_user: speakers.users.contains(key),
                 is_named: alias.is_some() && !is_placeholder_name(&name),
-                can_confirm: !key.contains("unclear"),
                 sample,
                 action_count,
                 name,
@@ -778,7 +837,9 @@ pub fn duration_label(meeting: &Meeting) -> String {
     }
 }
 
-/// List row metadata: "Zoom · 10:57 AM · 2 min"; merged meetings omit the app.
+/// List row metadata, "10:57 AM · 2 min · Zoom": when, how long, then where
+/// (`MeetingDetailPresentation.rowSubtitle`). Merged meetings omit the app;
+/// the sample says what it is where a meeting names its app.
 pub fn row_detail(meeting: &Meeting, live: bool) -> String {
     let time = if live {
         lokalbot_i18n::tr("in progress").to_string()
@@ -787,42 +848,23 @@ pub fn row_detail(meeting: &Meeting, live: bool) -> String {
     };
     let duration = if live {
         lokalbot_i18n::format(
-            "{0} min",
+            "{minutes} min",
             &[(
-                "0",
-                format!(
-                    "{}",
-                    ((Utc::now() - meeting.started_at).num_seconds().max(60) / 60)
-                ),
+                "minutes",
+                ((Utc::now() - meeting.started_at).num_seconds().max(60) / 60).to_string(),
             )],
         )
     } else {
         duration_label(meeting)
     };
-    if meeting.is_merged_meeting() {
-        lokalbot_i18n::format(
-            "{time} · {duration}",
-            &[
-                ("time", time.to_string()),
-                ("duration", duration.to_string()),
-            ],
-        )
+    let source = if meeting.is_merged_meeting() {
+        None
+    } else if meeting.is_sample() {
+        Some(lokalbot_i18n::tr("Sample").to_string())
     } else {
-        // The sample says what it is where a meeting names its app.
-        let source = if meeting.is_sample() {
-            lokalbot_i18n::tr("Sample").to_string()
-        } else {
-            meeting.app_name.to_string()
-        };
-        lokalbot_i18n::format(
-            "{0} · {time} · {duration}",
-            &[
-                ("0", source),
-                ("time", time.to_string()),
-                ("duration", duration.to_string()),
-            ],
-        )
-    }
+        Some(meeting.app_name.to_string())
+    };
+    super::presentation::row_subtitle(&time, &duration, source.as_deref())
 }
 
 // ------------------------------------------------------------------ export

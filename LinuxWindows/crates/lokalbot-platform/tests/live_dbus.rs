@@ -220,7 +220,7 @@ fn labels(children: &[OwnedValue]) -> Vec<(i32, String)> {
 #[test]
 #[ignore]
 fn tray_menu_items_reach_the_callback() {
-    use lokalbot_platform::tray::{TrayMenuState, standard_items};
+    use lokalbot_platform::tray::{TrayIconState, TrayMenuState, standard_items};
     use lokalbot_platform::{Tray, TrayEvent};
 
     let (items_tx, registered) = unbounded();
@@ -238,10 +238,8 @@ fn tray_menu_items_reach_the_callback() {
     let tray = Tray::new(
         icon,
         "LokalBot",
-        standard_items(&TrayMenuState {
-            subtitle: "Asks before recording meetings".into(),
-            ..Default::default()
-        }),
+        standard_items(&TrayMenuState::default()),
+        Vec::new(),
         Box::new(move |event| {
             let _ = events_tx.send(event);
         }),
@@ -279,9 +277,9 @@ fn tray_menu_items_reach_the_callback() {
     println!("menu: {rows:?}");
     let record = rows
         .iter()
-        .find(|(_, label)| label == "Record Now")
+        .find(|(_, label)| label == "Record now")
         .map(|(id, _)| *id)
-        .expect("a Record Now item");
+        .expect("a Record now item");
     let _: () = menu
         .call(
             "Event",
@@ -296,7 +294,12 @@ fn tray_menu_items_reach_the_callback() {
     let _: () = item.call("Activate", &(0i32, 0i32)).unwrap();
     assert_eq!(events.recv_timeout(WAIT).unwrap(), TrayEvent::Activated);
 
-    tray.set_recording(true, Some("01:02".into())).unwrap();
+    tray.set_icon_state(TrayIconState {
+        recording: true,
+        timer: Some("01:02".into()),
+        ..Default::default()
+    })
+    .unwrap();
     std::thread::sleep(Duration::from_millis(300));
     let (_, _, title, _): ToolTip = item.get_property("ToolTip").unwrap();
     assert_eq!(title, "LokalBot — Recording 01:02");

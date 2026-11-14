@@ -25,7 +25,7 @@ const PASSAGE_CHARACTERS: usize = 1_500;
 
 pub const KINDS: [&str; 6] = ["screenshot", "image", "pdf", "doc", "audio", "video"];
 
-pub const DISABLED_MESSAGE: &str = "File access is off. The user can turn it on in LokalBot → Settings → Privacy & Data → \"Allow external agents to search your files\".";
+pub const DISABLED_MESSAGE: &str = "File access is off. The user can turn it on in LokalBot → Settings → AI agents → \"Allow external agents to search your files\".";
 pub const UNAVAILABLE_MESSAGE: &str = "File access is on, but Files is off in LokalBot or has no folder yet. The user can choose folders in LokalBot → Settings → Files.";
 pub const NOTE: &str = "Found by their words: text LokalBot read from documents, PDF pages, screenshots and pictures, and file names. Recordings and video match only by name here. Paths point at the user's own files; LokalBot never changes them.";
 

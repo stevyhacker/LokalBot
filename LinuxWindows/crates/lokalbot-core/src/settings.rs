@@ -286,6 +286,10 @@ pub struct Settings {
     /// Pane widths you dragged, by pane (`LokalBot.people`). The Mac keeps
     /// these in its split views instead.
     pub pane_widths: std::collections::BTreeMap<String, f64>,
+    /// The Settings page shown last, so the window opens there again
+    /// (`lokalbotv4.settings.selectedPage`, which the Mac keeps in its
+    /// defaults). Empty opens Overview. Port-only.
+    pub settings_page: String,
 
     /// Keys this port doesn't model. A library moves between computers, so
     /// saving here must not lose what the Mac wrote.
@@ -474,6 +478,7 @@ impl Default for Settings {
             github_star_active_days: Vec::new(),
             autocomplete_default_adopted: false,
             pane_widths: Default::default(),
+            settings_page: String::new(),
             other: serde_json::Map::new(),
         }
     }

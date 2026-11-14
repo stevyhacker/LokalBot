@@ -166,19 +166,10 @@ impl TimelinePage {
         if bursts.is_empty() {
             return None;
         }
-        let lb = cx.lb().clone();
         let tasks = AgentTask::from_bursts(bursts);
         Some(
             v_flex()
                 .gap(px(12.))
-                .child(
-                    div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(ui::text::paragraph(lokalbot_i18n::tr(
-                            "What you asked Claude Code and Codex during this session, and what they recorded doing.",
-                        ))),
-                )
                 .children(
                     tasks
                         .iter()

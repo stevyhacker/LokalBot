@@ -136,7 +136,7 @@ pub enum Origin {
         #[serde(rename = "messageID", with = "uuid_upper_serde")]
         message_id: Uuid,
     },
-    /// Added in Settings → Personal Context.
+    /// Added in Settings → About you.
     Added {},
     /// Picked up overnight from the person's own line in this meeting.
     Learned {
@@ -427,7 +427,7 @@ pub enum EditError {
     )]
     TooLong(usize),
     #[error(
-        "LokalBot already remembers {MAX_CLAIMS} things about you. Forget some in Settings → Personal Context first."
+        "LokalBot already remembers {MAX_CLAIMS} things about you. Forget some in Settings → About you first."
     )]
     Full,
     #[error("This looks like a password, key, or card number. LokalBot doesn't remember those.")]
@@ -447,7 +447,7 @@ impl EditError {
                 &[("0", count.to_string()), ("1", MAX_CHARACTERS.to_string())],
             ),
             Self::Full => lokalbot_i18n::format(
-                "LokalBot already remembers {0} things about you. Forget some in Settings → Personal Context first.",
+                "LokalBot already remembers {0} things about you. Forget some in Settings → About you first.",
                 &[("0", MAX_CLAIMS.to_string())],
             ),
             Self::LooksSecret => lokalbot_i18n::tr(

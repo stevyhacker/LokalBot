@@ -23,7 +23,7 @@ use lokalbot_core::{Library, Settings};
 
 use crate::archive;
 use crate::context::{self, ContextResolver, MAX_ATTACHMENTS};
-use crate::endpoint::{LlmEndpoint, ModelContext};
+use crate::endpoint::{Destination, LlmEndpoint, ModelContext};
 use crate::history::{self, SavedSession};
 use crate::launch::SessionChoice;
 use crate::layout::{AgentDirectories, RuntimeLayout};
@@ -262,6 +262,16 @@ fn reasoning_key(level: ReasoningLevel) -> &'static str {
     }
 }
 
+/// The file an approval request names, as its card describes it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ApprovalFile {
+    pub target: crate::presentation::FileTarget,
+    /// Part of LokalBot's own data: a change there is only ever allowed once.
+    pub is_protected: bool,
+    /// The file is already there, so a write replaces it.
+    pub exists: bool,
+}
+
 /// One task.
 pub struct AgentSession {
     env: Arc<AgentEnvironment>,
@@ -289,6 +299,11 @@ pub struct AgentSession {
     pub failed_prompt: Option<QueuedPrompt>,
     pub composer_error: Option<String>,
     approval_mode: ApprovalMode,
+    /// True after Stop ended a turn, until the next message or turn.
+    was_stopped: bool,
+    /// For each write step seen as it started, whether its file was already
+    /// there. It tells a new file from a replaced one afterwards.
+    write_target_existed: HashMap<String, bool>,
 
     last_submitted_prompt: Option<QueuedPrompt>,
     connected_endpoint: Option<String>,
@@ -351,6 +366,8 @@ impl AgentSession {
             failed_prompt: None,
             composer_error: None,
             approval_mode,
+            was_stopped: false,
+            write_target_existed: HashMap::new(),
             last_submitted_prompt: None,
             connected_endpoint: None,
             connected_plan: None,
@@ -410,6 +427,26 @@ impl AgentSession {
 
     pub fn is_waiting_to_send(&self) -> bool {
         self.pending_submission.is_some()
+    }
+
+    /// True after Stop ended a turn, until the next message or turn.
+    pub fn was_stopped(&self) -> bool {
+        self.was_stopped
+    }
+
+    /// Whether the file a write step named was already there when the step
+    /// started; `None` for a step not seen starting (restored history).
+    pub fn write_target_existed(&self, step_id: &str) -> Option<bool> {
+        self.write_target_existed.get(step_id).copied()
+    }
+
+    /// True only while the task's model is known to run on this computer:
+    /// the launched connection's, or before launch none (it is not known).
+    pub fn model_runs_on_this_computer(&self) -> bool {
+        matches!(
+            self.model_context.as_ref().map(|m| &m.destination),
+            Some(Destination::OnDevice)
+        )
     }
 
     /// "Needs approval", "Working…", "Saved", …
@@ -510,6 +547,33 @@ impl AgentSession {
                 &self.workspace,
                 &self.policy.protected_write_roots,
             )
+    }
+
+    /// The file an approval request names (`approvalTarget`): a relative
+    /// path starts at the folder the request came from, and where it sits is
+    /// judged against this task's working folder. `None` when it names none.
+    pub fn approval_file(&self, request: &ApprovalRequest) -> Option<ApprovalFile> {
+        let path = request.path.as_deref()?;
+        let origin = request
+            .workspace
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.workspace.clone());
+        let asked = crate::presentation::resolve_tool_path(path, &origin);
+        let target = crate::presentation::FileTarget::resolve(
+            &asked.to_string_lossy(),
+            &self.workspace,
+            &self.workspace_display_name(),
+        );
+        // Inside LokalBot's library, runtime, saved tasks or app.
+        let is_protected = self.policy.protected_write_roots.iter().any(|root| {
+            policy::canonical_path(root).is_none_or(|root| policy::is_within(&target.path, &root))
+        });
+        Some(ApprovalFile {
+            exists: target.path.exists(),
+            target,
+            is_protected,
+        })
     }
 
     // ---------------------------------------------------------- lifecycle
@@ -696,6 +760,8 @@ impl AgentSession {
 
     fn apply_preview(&mut self, session: SavedSession, preview: archive::Preview) {
         self.folder = preview.folder;
+        self.was_stopped = false;
+        self.write_target_existed.clear();
         self.message_attachments = preview.attachments;
         let sources: Vec<Attachment> = self
             .message_attachments
@@ -721,6 +787,8 @@ impl AgentSession {
         }
         self.shutdown();
         self.folder = TranscriptFolder::default();
+        self.was_stopped = false;
+        self.write_target_existed.clear();
         self.reset_approval_policy();
         self.session_title = None;
         self.draft.clear();
@@ -830,6 +898,7 @@ impl AgentSession {
         self.last_submitted_prompt = Some(pending.clone());
         self.composer_error = None;
         self.turn_error = None;
+        self.was_stopped = false;
         self.queue_is_paused = false;
         if self.session_title.is_none() {
             self.session_title = Some(make_session_title(prompt));
@@ -997,6 +1066,38 @@ impl AgentSession {
         }
     }
 
+    /// "Send now" on one queued message (`sendQueuedNow`): as a steering
+    /// message while the agent works, as the next message when it is ready.
+    /// An idle or failed task starts and sends it first. The message keeps
+    /// its place when it cannot be sent.
+    pub fn send_queued_now(&mut self, id: Uuid) {
+        let Some(index) = self.queued_prompts.iter().position(|p| p.id == id) else {
+            return;
+        };
+        match self.state {
+            SessionState::Ready | SessionState::Running => {
+                if self.is_sending || self.is_stopping {
+                    return;
+                }
+                let prompt = self.queued_prompts.remove(index);
+                let steer = self.state == SessionState::Running;
+                if !self.send(&prompt.text, prompt.attachments.clone(), steer, true)
+                    && !self.queued_prompts.iter().any(|p| p.id == id)
+                {
+                    let at = index.min(self.queued_prompts.len());
+                    self.queued_prompts.insert(at, prompt);
+                }
+            }
+            SessionState::Idle | SessionState::Failed(_) => {
+                let prompt = self.queued_prompts.remove(index);
+                self.queued_prompts.insert(0, prompt);
+                self.queue_is_paused = false;
+                self.start();
+            }
+            SessionState::Starting => {}
+        }
+    }
+
     /// "Send next": resumes the queue, starting the task when it is idle.
     pub fn send_next_queued(&mut self) {
         if self.queued_prompts.is_empty() {
@@ -1027,6 +1128,9 @@ impl AgentSession {
             return;
         }
         self.is_stopping = true;
+        if self.state == SessionState::Running {
+            self.was_stopped = true;
+        }
         self.cancel_pending_approvals();
         let id = self.fresh_id("a");
         client.request(PiCommand::Abort { id }, RequestTag::Abort);
@@ -1044,6 +1148,7 @@ impl AgentSession {
         self.policy.reset_session();
         self.approval_mode = mode;
         self.policy.mode = mode;
+        self.policy.model_runs_on_this_computer = self.model_runs_on_this_computer();
         if let Err(err) = policy::save_mode(&self.env.dirs.approval_mode_file(), mode) {
             log::warn!("saving the agent approval mode failed: {err}");
         }
@@ -1055,6 +1160,7 @@ impl AgentSession {
                 self.policy.verdict(
                     &request.tool,
                     request.path.as_deref(),
+                    request.command.as_deref(),
                     request.workspace.as_deref(),
                     &self.workspace,
                 ) == Verdict::Allow
@@ -1234,7 +1340,13 @@ impl AgentSession {
             PiEvent::AgentStart => {
                 self.state = SessionState::Running;
                 self.turn_error = None;
+                self.was_stopped = false;
             }
+            PiEvent::ToolExecutionStart {
+                call_id,
+                name,
+                args_json,
+            } => self.note_write_target(call_id, name, args_json),
             PiEvent::AgentSettled => self.state = SessionState::Ready,
             PiEvent::ExtensionUiRequest(request) => self.handle_ui_request(request.clone()),
             _ => {}
@@ -1296,9 +1408,13 @@ impl AgentSession {
             });
             return;
         }
+        // Library lookups skip approval only with a model known to run on
+        // this computer; the bound connection decides, never later Settings.
+        self.policy.model_runs_on_this_computer = self.model_runs_on_this_computer();
         match self.policy.verdict(
             &approval.tool,
             approval.path.as_deref(),
+            approval.command.as_deref(),
             approval.workspace.as_deref(),
             &self.workspace,
         ) {
@@ -1534,6 +1650,24 @@ impl AgentSession {
         // preference and survives closing or resuming a task.
         self.policy.reset_session();
         self.policy.mode = self.approval_mode;
+        self.policy.model_runs_on_this_computer = self.model_runs_on_this_computer();
+    }
+
+    /// Remembers, before a write runs, whether its file is already there.
+    fn note_write_target(&mut self, call_id: &str, tool: &str, args_json: &str) {
+        if !tool.eq_ignore_ascii_case("write") {
+            return;
+        }
+        let Some(path) = crate::presentation::StepArguments::parse(args_json).path else {
+            return;
+        };
+        if self.write_target_existed.len() > TranscriptFolder::MAX_ITEMS {
+            self.write_target_existed.clear();
+        }
+        let target = crate::presentation::resolve_tool_path(&path, &self.workspace);
+        let exists = policy::canonical_path(&target).is_some_and(|p| p.exists());
+        self.write_target_existed
+            .insert(call_id.to_string(), exists);
     }
 
     /// Invalidates the generation before the process stop, so frames already

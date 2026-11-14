@@ -118,10 +118,14 @@ pub fn content_alignment(text: &str) -> TextAlign {
     }
 }
 
+/// "3h 57m", "39m", "<1m": every compact duration in the app (Today's bars,
+/// Timeline's rail and sessions, Projects, People). Arabic writes them with
+/// its own letters ("3ح 57م"), so they carry the right-to-left mark that keeps
+/// their leading number in GPUI (`lokalbot_i18n::directional`).
 pub fn compact_duration(seconds: f64) -> String {
     let minutes = (seconds / 60.0).floor() as u64;
-    if minutes == 0 {
-        tr("<1m").into()
+    lokalbot_i18n::directional(if minutes == 0 {
+        tr("<1m").to_string()
     } else if minutes < 60 {
         lokalbot_i18n::format("{minutes}m", &[("minutes", minutes.to_string())])
     } else {
@@ -132,5 +136,5 @@ pub fn compact_duration(seconds: f64) -> String {
                 ("minutes", (minutes % 60).to_string()),
             ],
         )
-    }
+    })
 }

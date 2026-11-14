@@ -17,10 +17,12 @@ use gpui_kit::{
 };
 use lokalbot_core::{ActivityBlock, Meeting, ScreenMoment, WorkSession};
 
+use super::context::page_header;
 use super::{DayModel, Selection, TimelinePage};
 use crate::i18n::h_flex;
 use crate::pages::today::digest::hm;
 use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::ui::section_panel::{SectionPanel, SectionPanelLead};
 use crate::ui::{self, Ico};
 use crate::windows::screen_image::{self, ScreenImage};
 
@@ -34,7 +36,11 @@ const RELATED_MOMENTS: usize = 6;
 
 impl TimelinePage {
     /// A moment's small image, loading it the first time it is asked for.
-    fn thumbnail(&self, moment: &ScreenMoment, cx: &mut Context<Self>) -> Option<ScreenImage> {
+    pub(super) fn thumbnail(
+        &self,
+        moment: &ScreenMoment,
+        cx: &mut Context<Self>,
+    ) -> Option<ScreenImage> {
         if moment.path.is_empty() {
             return None;
         }
@@ -171,48 +177,15 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// "Browse all N retained moments": every moment of the session, findable
-    /// by window, document or retained text, and by app (`SessionMomentBrowser`).
+    /// Every moment of the session, findable by window, document or retained
+    /// text, and by app (`SessionMomentBrowser`). "Show all N" in the Screen
+    /// moments panel opens it.
     pub(super) fn render_moment_browser(
         &self,
         moments: &[&ScreenMoment],
-        scenes: usize,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
-        let open = self.moments_browsing;
-        let label = if scenes == 1 {
-            lokalbot_i18n::tr("Browse the retained moment").to_string()
-        } else {
-            lokalbot_i18n::format(
-                "Browse all {count}",
-                &[("count", lokalbot_i18n::count(scenes, "retained moment"))],
-            )
-        };
-        let disclosure = h_flex()
-            .id("session-browse-moments")
-            .gap(px(6.))
-            .items_center()
-            .cursor_pointer()
-            .text_size(ty::BODY)
-            .text_color(lb.text)
-            .child(ui::icon(
-                if open {
-                    Ico::ChevronDown
-                } else {
-                    Ico::ChevronRight
-                },
-                px(14.),
-                lb.text_secondary,
-            ))
-            .child(label)
-            .on_click(cx.listener(|this, _, _, cx| {
-                this.moments_browsing = !this.moments_browsing;
-                cx.notify();
-            }));
-        if !open {
-            return disclosure.into_any_element();
-        }
         let query = self.moment_search.read(cx).value().to_string();
         let filtered =
             lokalbot_core::timeline::moments_matching(moments, self.moment_app.as_deref(), &query);
@@ -237,7 +210,6 @@ impl TimelinePage {
             .collect();
         v_flex()
             .gap(px(10.))
-            .child(disclosure)
             .child(
                 div()
                     .text_size(ty::SECONDARY)
@@ -289,12 +261,12 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// One activity block (`activityPreview`).
+    /// One activity block (`activityPreview`): its app, time and title with
+    /// the app's day in two figures, then the moments kept during it.
     pub(super) fn render_block(
         &self,
         model: &DayModel,
         block: &ActivityBlock,
-        drawer: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
@@ -311,16 +283,18 @@ impl TimelinePage {
             .collect();
         let app_total: f64 = same_app.iter().map(|b| b.duration_seconds()).sum();
         let subtitle = format!(
-            "{}–{} · {}",
-            lokalbot_core::time::clock_time(block.start),
-            lokalbot_core::time::clock_time(block.end),
+            "{} · {}",
+            super::rail::time_range(block.start, block.end),
             hm(block.duration_seconds())
         );
-        let color = lb.app_color(&block.app);
         let tile = |value: String, label: SharedString| {
             v_flex()
-                .flex_1()
+                .min_w(px(96.))
                 .gap(px(1.))
+                .px(px(12.))
+                .py(px(8.))
+                .rounded(metric::ROW_RADIUS)
+                .bg(lb.group_fill)
                 .child(
                     div()
                         .text_size(ty::BODY)
@@ -331,7 +305,7 @@ impl TimelinePage {
                 .child(
                     div()
                         .text_size(ty::CAPTION)
-                        .text_color(lb.text_secondary)
+                        .text_color(lb.supporting)
                         .child(label),
                 )
         };
@@ -344,86 +318,71 @@ impl TimelinePage {
             "What matters from my {app} activity, {title}?",
             &[("app", block.app.clone()), ("title", block.title.clone())],
         );
-        v_flex()
-            .gap(px(16.))
-            .child(self.panel_header(
-                Ico::LayoutGrid,
-                block.app.clone().into(),
-                subtitle,
-                drawer,
-                cx,
-            ))
-            .child(
-                v_flex()
-                    .gap(px(8.))
-                    .p(px(12.))
-                    .rounded(metric::GROUP_RADIUS)
-                    .bg(color.opacity(0.10))
-                    .when(!block.title.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_size(ty::BODY)
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(lb.text)
-                                .child(block.title.clone()),
-                        )
-                    })
-                    .child(
-                        h_flex()
-                            .gap(px(8.))
-                            .child(tile(hm(app_total), lokalbot_i18n::tr("today").into()))
-                            .child(tile(
-                                same_app.len().to_string(),
-                                if same_app.len() == 1 {
-                                    lokalbot_i18n::tr("block").into()
-                                } else {
-                                    lokalbot_i18n::tr("blocks").into()
-                                },
-                            )),
-                    ),
-            )
-            .child(
-                v_flex()
-                    .gap(px(9.))
-                    .child(
-                        h_flex()
-                            .gap(px(6.))
-                            .items_center()
-                            .child(ui::icon(Ico::ScanText, px(14.), lb.accent_text))
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .text_size(ty::SECTION)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(lb.text)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                        "Related moments",
-                                    ))),
-                            )
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(scoped.len().to_string()),
-                            ),
+        let lead = SectionPanelLead::new("timeline-block-lead").child(
+            v_flex()
+                .gap(px(12.))
+                .child(page_header(
+                    div()
+                        .pt(px(7.))
+                        .child(ui::status_dot(lb.app_color(&block.app), px(12.)))
+                        .into_any_element(),
+                    block.app.clone().into(),
+                    subtitle,
+                    cx,
+                ))
+                .when(!block.title.is_empty(), |this| {
+                    this.child(
+                        div()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(lb.text)
+                            .child(block.title.clone()),
                     )
-                    .when(scoped.is_empty(), |this| {
-                        this.child(
-                            div()
-                                .text_size(ty::BODY)
-                                .text_color(lb.text_secondary)
-                                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                    "No context moments were captured during this activity.",
-                                ))),
-                        )
-                    })
-                    .children(related),
-            )
+                })
+                .child(
+                    h_flex()
+                        .gap(px(8.))
+                        .child(tile(hm(app_total), lokalbot_i18n::tr("today").into()))
+                        .child(tile(
+                            lokalbot_i18n::number(same_app.len()),
+                            if same_app.len() == 1 {
+                                lokalbot_i18n::tr("block").into()
+                            } else {
+                                lokalbot_i18n::tr("blocks").into()
+                            },
+                        )),
+                ),
+        );
+        let moments = SectionPanel::new(
+            "timeline-block-moments",
+            lokalbot_i18n::tr("Related moments"),
+        )
+        .icon(Ico::Image)
+        .count(scoped.len())
+        .child(
+            v_flex()
+                .px(metric::PANEL_INSET)
+                .py(px(12.))
+                .gap(px(8.))
+                .when(scoped.is_empty(), |this| {
+                    this.child(div().text_size(ty::BODY).text_color(lb.supporting).child(
+                        crate::ui::text::paragraph(lokalbot_i18n::tr(
+                            "No context moments were captured during this activity.",
+                        )),
+                    ))
+                })
+                .children(related),
+        );
+        v_flex()
+            .gap(metric::PANEL_SPACING)
+            .child(self.back_link(cx))
+            .child(lead)
+            .child(moments)
             .child(
-                h_flex().justify_end().child(
+                h_flex().child(
                     ui::controls::bordered_icon(
                         "ask-activity",
-                        Ico::Sparkles,
+                        Ico::Search,
                         lokalbot_i18n::tr("Ask about this activity"),
                     )
                     .on_click(cx.listener(move |this, _, _, cx| {
@@ -539,7 +498,7 @@ impl TimelinePage {
                 .on_click({
                     let id = meeting.id;
                     cx.listener(move |this, _, _, cx| {
-                        this.open_child(Selection::Meeting(id), cx);
+                        this.select(Some(Selection::Meeting(id)), cx);
                     })
                 })
                 .into_any_element()

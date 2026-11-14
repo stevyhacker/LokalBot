@@ -99,7 +99,7 @@ pub fn render(
             ));
         }
     } else {
-        lines.push("- Meetings: off. The user can turn on Settings → Privacy & Data → \"Allow external agents to read your meeting library\".".into());
+        lines.push("- Meetings: off. The user can turn on Settings → AI agents → \"Allow external agents to read your meeting library\".".into());
     }
     match scope {
         Some(scope) => {
@@ -117,7 +117,7 @@ pub fn render(
                 }
             ));
         }
-        None => lines.push("- Screen memory: off. The user can turn on Settings → Privacy & Data → \"Allow external agents to read screen memory\".".into()),
+        None => lines.push("- Screen memory: off. The user can turn on Settings → AI agents → \"Allow external agents to read screen memory\".".into()),
     }
     if personal_on {
         match &projection {
@@ -137,7 +137,7 @@ pub fn render(
             ),
         }
     } else {
-        lines.push("- Personal Context: off. The user can turn on Settings → Personal Context → \"What I shared about myself\".".into());
+        lines.push("- Personal Context: off. The user can turn on Settings → About you → \"What I shared about myself\".".into());
     }
     if lokalbot_core::files::access::is_enabled(&session.paths) {
         match lokalbot_core::files::access::read_projection(&session.paths) {
@@ -160,7 +160,7 @@ pub fn render(
             }
         }
     } else {
-        lines.push("- Files: off. The user can turn it on in Settings → Privacy & Data → \"Allow external agents to search your files\".".into());
+        lines.push("- Files: off. The user can turn it on in Settings → AI agents → \"Allow external agents to search your files\".".into());
     }
     if lokalbot_core::agent_notes::access::is_enabled(&session.paths) {
         let saved = lokalbot_core::agent_notes::NotesIndex::new(session.paths.root()).total();
@@ -181,7 +181,7 @@ pub fn render(
             );
         }
     } else {
-        lines.push("- Agent notes: off. The user can turn it on in Settings → Privacy & Data → \"Allow external agents to search agent notes\".".into());
+        lines.push("- Agent notes: off. The user can turn it on in Settings → AI agents → \"Allow external agents to search agent notes\".".into());
     }
     sections.push(lines.join("\n"));
 

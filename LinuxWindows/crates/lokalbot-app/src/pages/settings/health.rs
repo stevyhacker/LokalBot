@@ -78,19 +78,16 @@ fn activity_status(tracking: bool, paused: bool) -> &'static str {
 }
 
 /// `missingPermissions`: Linux and Windows have no permission prompts, so this is
-/// what this desktop can't do for the features that are on: capturing the active
-/// window, reading text over the accessibility bus or UI Automation, global
-/// shortcuts, and the credential store that keeps the screen image key.
+/// what this desktop can't do for the features that are on: seeing the window in
+/// front, capturing it, reading text over the accessibility bus or UI Automation,
+/// global shortcuts, and the credential store that keeps the screen image key,
+/// as Privacy & permissions and setup read them.
 fn missing_capabilities(data: &AppData, cx: &App) -> Vec<String> {
-    let mut missing: Vec<String> = crate::control::permissions::needs(data, cx)
+    crate::control::permissions::needs(data, cx)
         .into_iter()
-        .filter(|need| need.name != "calendar" && !need.granted && !need.needed_by.is_empty())
+        .filter(|need| need.name != "calendar" && need.missing())
         .map(|need| need.title)
-        .collect();
-    if data.screen.images_unavailable.is_some() {
-        missing.push(lokalbot_i18n::tr("Credential store").to_string());
-    }
-    missing
+        .collect()
 }
 
 /// The Permissions row, from what this desktop is missing.

@@ -20,7 +20,7 @@
 //!
 //! Autocomplete stays quiet while dictation runs or a meeting records, in a
 //! field for ten seconds after Esc, in LokalBot's own windows (the practice
-//! editor in Settings → Writing feeds the engine itself), and whenever
+//! editor in Settings → Autocomplete feeds the engine itself), and whenever
 //! `cotyping_enabled` is off. `LOKALBOT_FAKE_AUTOCOMPLETE=<text>` makes the
 //! app suggest `<text>` itself instead of asking the engine, for checking the
 //! desktop side without a model; it is a development switch, off unless set.

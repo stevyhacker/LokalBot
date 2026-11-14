@@ -141,17 +141,19 @@ impl AgentPage {
                         .text_size(ty::BODY)
                         .line_height(px(21.))
                         .text_color(lb.supporting)
-                        .child(description),
+                        // Wrapped in logical order, so Arabic and Urdu stay
+                        // inside the column.
+                        .child(crate::ui::text::paragraph(description)),
                 )
                 .when_some(shell_note, |this, note| this.child(note))
                 .child(div().pt(px(4.)).child(action))
                 .child(
                     div().pt(px(18.)).text_size(ty::SECONDARY).child(ui::link(
                         "agent-external-cli",
-                        lokalbot_i18n::tr("Using your own coding agent? Set up lokalbot-cli and MCP in Settings → Advanced."),
+                        lokalbot_i18n::tr("Using your own coding agent? Set up lokalbot-cli and MCP in Settings → AI agents."),
                         move |_, cx| {
                             settings_data.update(cx, |data, cx| {
-                                data.open_settings(SettingsCategory::Advanced, cx)
+                                data.open_settings(SettingsCategory::Agents, cx)
                             })
                         },
                         cx,

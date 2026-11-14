@@ -1,21 +1,20 @@
-//! The composer (`AgentComposer.swift`): queued follow-ups, attachments, the
-//! working folder, approval mode and reasoning level, send/steer/stop, and the
-//! model line with the task's access details.
+//! The composer (`AgentComposer.swift`): what the agent is told to do, what
+//! to attach, the working folder and how much it may do on its own. A message
+//! sent while the agent works waits above the field until the turn ends.
 
 use std::path::PathBuf;
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::Textarea;
-use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
+use gpui_kit::component::menu::{ContextMenuExt as _, DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::popover::Popover;
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Div, ExternalPaths, Focusable as _, FontWeight,
     InteractiveElement as _, IntoElement, ParentElement as _, PathPromptOptions, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Window, div, linear_color_stop, linear_gradient,
-    px,
+    StatefulInteractiveElement as _, Styled as _, Window, div, px,
 };
 use uuid::Uuid;
 
@@ -25,8 +24,9 @@ use lokalbot_agent::tasks::{Attachment, AttachmentKind, QueuedPrompt};
 use lokalbot_agent::{ApprovalMode, SessionState};
 use lokalbot_core::settings::ReasoningLevel;
 
-use super::AgentPage;
 use super::conversation::Snapshot;
+use super::{AgentPage, words};
+use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
@@ -44,7 +44,6 @@ fn destination_label(destination: &Destination) -> String {
 struct View {
     task: Uuid,
     queued: Vec<QueuedPrompt>,
-    queue_paused: bool,
     notice: Option<&'static str>,
     error: Option<String>,
     attachments: Vec<Attachment>,
@@ -53,10 +52,20 @@ struct View {
     model: ModelContext,
     model_differs: bool,
     workspace_name: String,
-    workspace_path: PathBuf,
     state: SessionState,
     stopping: bool,
     sending: bool,
+}
+
+/// What the access popover needs, cloned into its content builder.
+#[derive(Clone)]
+struct Access {
+    mode: ApprovalMode,
+    workspace_name: String,
+    model: ModelContext,
+    model_differs: bool,
+    choices: ReasoningChoices,
+    shell: Option<String>,
 }
 
 impl AgentPage {
@@ -70,7 +79,6 @@ impl AgentPage {
         Some(View {
             task: tab.id,
             queued: session.queued_prompts.clone(),
-            queue_paused: session.queue_is_paused,
             notice: session.workspace_access_notice(),
             error: session.composer_error.clone(),
             attachments: session.attachments.clone(),
@@ -83,7 +91,6 @@ impl AgentPage {
                 && presented != ModelContext::from_settings(&settings),
             model: presented,
             workspace_name: session.workspace_display_name(),
-            workspace_path: session.workspace.clone(),
             state: session.state.clone(),
             stopping: session.is_stopping,
             sending: session.is_sending || session.is_waiting_to_send(),
@@ -109,9 +116,12 @@ impl AgentPage {
         .detach();
     }
 
+    /// The queue, notices, the field and its controls, and where prompts go
+    /// when the model is not on this computer.
     pub(super) fn render_composer(
         &mut self,
         snapshot: &Snapshot,
+        is_new_task: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -122,7 +132,7 @@ impl AgentPage {
         let lb = cx.lb().clone();
         let mut rows: Vec<AnyElement> = Vec::new();
         if !view.queued.is_empty() {
-            rows.push(self.render_queue(&view, cx).into_any_element());
+            rows.push(self.render_queue(&view, cx));
         }
         if let Some(notice) = view.notice {
             rows.push(
@@ -172,147 +182,130 @@ impl AgentPage {
                     .into_any_element(),
             );
         } else {
-            rows.push(self.render_surface(&view, window, cx).into_any_element());
+            rows.push(
+                self.render_surface(&view, is_new_task, window, cx)
+                    .into_any_element(),
+            );
         }
-        rows.push(self.render_model_line(&view, cx).into_any_element());
-
-        div()
-            .relative()
+        if let Some(line) = self.render_destination_line(&view, cx) {
+            rows.push(line);
+        }
+        v_flex()
             .w_full()
-            .flex_none()
-            .child(
-                div()
-                    .absolute()
-                    .top(px(-14.))
-                    .left_0()
-                    .right_0()
-                    .h(px(14.))
-                    .bg(linear_gradient(
-                        180.,
-                        linear_color_stop(lb.window.opacity(0.), 0.),
-                        linear_color_stop(lb.window.opacity(0.7), 1.),
-                    )),
-            )
-            .child(
-                v_flex().w_full().items_center().bg(lb.window).child(
-                    v_flex()
-                        .w_full()
-                        .max_w(metric::READING_MAX_WIDTH + px(40.))
-                        .px(px(20.))
-                        .pt(px(12.))
-                        .pb(px(14.))
-                        .gap(px(8.))
-                        .children(rows),
-                ),
-            )
+            .gap(px(8.))
+            .children(rows)
             .into_any_element()
     }
 
-    fn render_queue(&mut self, view: &View, cx: &mut Context<Self>) -> Div {
+    /// Up to three rows show whole; a longer queue scrolls in the same space.
+    fn render_queue(&mut self, view: &View, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
-        let expanded = self.queue_expanded;
+        let working = view.state == SessionState::Running;
         let task = view.task;
-        let idle = !matches!(view.state, SessionState::Running | SessionState::Starting);
-        let title = lokalbot_i18n::format(
-            if view.queue_paused {
-                "Queued follow-ups: {count} · paused"
-            } else {
-                "Queued follow-ups: {count}"
-            },
-            &[("count", view.queued.len().to_string())],
-        );
-        let mut list = v_flex().gap(px(6.)).pt(px(6.));
+        let send_disabled = view.sending || view.stopping || view.state == SessionState::Starting;
+        let label = if working {
+            lokalbot_i18n::tr("Sends when done")
+        } else {
+            lokalbot_i18n::tr("Not sent yet")
+        };
+        let page = cx.entity();
+        let mut list = v_flex().gap(px(6.));
         for prompt in &view.queued {
-            let edit_id = prompt.id;
-            let cancel_id = prompt.id;
+            let id = prompt.id;
+            let key = super::key(id);
+            let menu_page = page.clone();
             list = list.child(
                 h_flex()
+                    .id(("agent-queue", key))
                     .gap(px(8.))
                     .items_center()
+                    .pl(px(12.))
+                    .pr(px(6.))
+                    .py(px(5.))
+                    .rounded(px(10.))
+                    .bg(lb.panel)
+                    .border_1()
+                    .border_color(lb.group_stroke)
+                    .text_size(ty::SECONDARY)
+                    .child(ui::icon(Ico::Clock, px(13.), lb.text_secondary))
+                    .child(div().flex_none().text_color(lb.text_secondary).child(label))
                     .child(
                         div()
                             .flex_1()
                             .min_w_0()
-                            .line_clamp(2)
-                            .text_size(ty::SECONDARY)
+                            .truncate()
                             .text_color(lb.text)
                             .child(prompt.text.clone()),
                     )
                     .child(
-                        Button::new(("agent-queue-edit", super::key(prompt.id)))
-                            .ghost()
+                        Button::new(("agent-queue-send", key))
+                            .outline()
                             .xsmall()
-                            .label(lokalbot_i18n::tr("Edit"))
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                this.with_session(cx, |s| s.edit_queued(edit_id));
-                                this.sync_composer(window, cx);
-                                this.focus_composer(window, cx);
-                            })),
-                    )
-                    .child(
-                        Button::new(("agent-queue-cancel", super::key(prompt.id)))
-                            .ghost()
-                            .xsmall()
-                            .label(lokalbot_i18n::tr("Cancel"))
+                            .label(lokalbot_i18n::tr("Send now"))
+                            .tooltip(if working {
+                                lokalbot_i18n::tr("Steer the current task at its next opportunity")
+                            } else {
+                                lokalbot_i18n::tr("Send now")
+                            })
+                            .disabled(send_disabled)
                             .on_click(cx.listener(move |this, _, _, cx| {
-                                this.with_session(cx, |s| s.cancel_queued(cancel_id))
-                            })),
-                    ),
-            );
-        }
-        v_flex()
-            .child(
-                h_flex()
-                    .gap(px(6.))
-                    .items_center()
-                    .child(
-                        h_flex()
-                            .id("agent-queue-toggle")
-                            .flex_1()
-                            .gap(px(6.))
-                            .items_center()
-                            .cursor_pointer()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(ui::icon(
-                                if expanded {
-                                    Ico::ChevronDown
-                                } else {
-                                    Ico::ChevronRight
-                                },
-                                px(11.),
-                                lb.text_secondary,
-                            ))
-                            .child(title)
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.queue_expanded = !this.queue_expanded;
-                                cx.notify();
+                                this.follow_output = true;
+                                this.with_tasks(cx, |tasks| tasks.send_queued_now(task, id));
                             })),
                     )
-                    .when(idle, |this| {
-                        this.child(
-                            Button::new("agent-queue-send-next")
-                                .ghost()
-                                .xsmall()
-                                .label(lokalbot_i18n::tr("Send next"))
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.with_tasks(cx, |tasks| tasks.send_next_queued(task))
-                                })),
+                    .child(
+                        super::small_icon_button(
+                            ("agent-queue-remove", key),
+                            Ico::X,
+                            lokalbot_i18n::tr("Remove queued message"),
+                        )
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.with_session(cx, |s| s.cancel_queued(id))
+                        })),
+                    )
+                    .context_menu(move |menu, _, _| {
+                        let edit = menu_page.clone();
+                        let remove = menu_page.clone();
+                        menu.item(PopupMenuItem::new(lokalbot_i18n::tr("Edit")).on_click(
+                            move |_, window, cx| {
+                                edit.update(cx, |page, cx| {
+                                    page.with_session(cx, |s| s.edit_queued(id));
+                                    page.sync_composer(window, cx);
+                                    page.focus_composer(window, cx);
+                                })
+                            },
+                        ))
+                        .item(
+                            PopupMenuItem::new(lokalbot_i18n::tr("Remove")).on_click(
+                                move |_, _, cx| {
+                                    remove.update(cx, |page, cx| {
+                                        page.with_session(cx, |s| s.cancel_queued(id))
+                                    })
+                                },
+                            ),
                         )
                     }),
-            )
-            .when(expanded, |this| {
-                this.child(
-                    div()
-                        .id("agent-queue")
-                        .max_h(px(120.))
-                        .overflow_y_scroll()
-                        .child(list),
-                )
-            })
+            );
+        }
+        if view.queued.len() <= 3 {
+            list.into_any_element()
+        } else {
+            div()
+                .id("agent-queue-scroll")
+                .h(px(118.))
+                .overflow_y_scroll()
+                .child(list)
+                .into_any_element()
+        }
     }
 
-    fn render_surface(&mut self, view: &View, window: &mut Window, cx: &mut Context<Self>) -> Div {
+    fn render_surface(
+        &mut self,
+        view: &View,
+        is_new_task: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Div {
         let lb = cx.lb().clone();
         let focused = self
             .composer
@@ -320,8 +313,9 @@ impl AgentPage {
             .focus_handle(cx)
             .contains_focused(window, cx);
         let has_prompt = !self.synced_draft.trim().is_empty();
-        let running = view.state == SessionState::Running;
+        let working = view.state == SessionState::Running;
         let starting = view.state == SessionState::Starting;
+        self.update_placeholder(working, is_new_task, window, cx);
 
         let mut chips = h_flex().gap(px(8.)).flex_wrap();
         for attachment in &view.attachments {
@@ -376,51 +370,35 @@ impl AgentPage {
             );
         }
 
-        let send_label = if running {
-            lokalbot_i18n::tr("Queue follow-up")
-        } else {
-            lokalbot_i18n::tr("Send")
-        };
-        let send_icon = if running { Ico::ListPlus } else { Ico::ArrowUp };
+        // While the agent works, Send queues the message (Ctrl+Enter steers).
         let send = h_flex()
             .gap(px(8.))
             .items_center()
-            .when(running, |this| {
+            .when(working, |this| {
                 this.child(
                     Button::new("agent-stop")
                         .outline()
-                        .small()
-                        .icon(Icon::new(Ico::CircleStop))
+                        .icon(Icon::new(Ico::Square))
                         .label(lokalbot_i18n::tr("Stop"))
                         .disabled(view.stopping)
                         .on_click(
                             cx.listener(|this, _, _, cx| this.with_session(cx, |s| s.abort())),
                         ),
                 )
-                .child(
-                    Button::new("agent-steer")
-                        .outline()
-                        .small()
-                        .label(lokalbot_i18n::tr("Send now"))
-                        .tooltip(lokalbot_i18n::tr(
-                            "Steer the current task at its next opportunity (Ctrl+Enter)",
-                        ))
-                        .disabled(!has_prompt || view.sending || view.stopping)
-                        .on_click(cx.listener(|this, _, window, cx| this.submit(true, window, cx))),
-                )
             })
             .child(
                 Button::new("agent-send")
                     .primary()
-                    .icon(Icon::new(send_icon))
-                    .label(send_label)
+                    .icon(Icon::new(Ico::ArrowUp))
+                    .label(lokalbot_i18n::tr("Send"))
                     .font_weight(FontWeight::SEMIBOLD)
                     .disabled(!has_prompt || view.stopping || starting || view.sending)
                     .on_click(cx.listener(|this, _, window, cx| this.submit(false, window, cx))),
             );
 
         let controls = h_flex()
-            .gap(px(6.))
+            .w_full()
+            .gap(px(4.))
             .items_center()
             .flex_wrap()
             .child(self.attach_menu(cx))
@@ -430,27 +408,25 @@ impl AgentPage {
                     .small()
                     .icon(Icon::new(Ico::Folder))
                     .label(view.workspace_name.clone())
-                    .tooltip(lokalbot_i18n::tr("Files in the chosen folder can be read automatically and sent to the displayed model. Private-library reads still follow the approval mode. Changing folders in an existing conversation starts a new task."))
+                    .tooltip(lokalbot_i18n::tr("The agent works in this folder. Choosing another folder after a task has started opens a new task."))
                     .on_click(cx.listener(|this, _, window, cx| this.choose_workspace(window, cx))),
             )
-            .child(self.approval_menu(view.mode, cx))
-            .when(view.choices.is_adjustable(), |this| {
-                this.child(self.reasoning_menu(&view.choices, cx))
-            })
-            .child(div().flex_1())
+            .child(self.access_chip(view, cx))
+            .child(div().flex_1().min_w(px(4.)))
             .child(send);
 
         v_flex()
             .w_full()
-            .gap(px(12.))
-            .px(px(10.))
-            .pt(px(12.))
-            .pb(px(12.))
+            .gap(px(10.))
+            .pl(px(14.))
+            .pr(px(10.))
+            .pt(px(14.))
+            .pb(px(10.))
             .rounded(metric::COMPOSER_RADIUS)
-            .bg(lb.elevated)
+            .bg(lb.panel)
             .border_1()
             .border_color(if focused {
-                lb.accent_fill.opacity(0.45)
+                lb.accent_fill.opacity(0.6)
             } else {
                 lb.separator
             })
@@ -470,6 +446,30 @@ impl AgentPage {
                     .disabled(starting),
             )
             .child(controls)
+    }
+
+    /// "Add to this task" while it works, "Ask the agent…" for a new task,
+    /// "Ask a follow-up" otherwise.
+    fn update_placeholder(
+        &mut self,
+        working: bool,
+        is_new_task: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let placeholder = if working {
+            lokalbot_i18n::tr("Add to this task")
+        } else if is_new_task {
+            lokalbot_i18n::tr("Ask the agent…")
+        } else {
+            lokalbot_i18n::tr("Ask a follow-up")
+        };
+        if self.composer_placeholder != placeholder {
+            self.composer_placeholder = placeholder;
+            self.composer.update(cx, |state, cx| {
+                state.set_placeholder(placeholder, window, cx)
+            });
+        }
     }
 
     fn attach_menu(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
@@ -496,189 +496,74 @@ impl AgentPage {
             })
     }
 
-    fn approval_menu(
-        &self,
-        mode: ApprovalMode,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement + use<> {
-        let page = cx.entity();
-        Button::new("agent-approval-mode")
-            .ghost()
-            .small()
-            .icon(Icon::new(mode_icon(mode)))
-            .label(lokalbot_i18n::tr(mode.title()))
-            .dropdown_caret(true)
-            .tooltip(lokalbot_i18n::tr(mode.detail()))
-            .dropdown_menu(move |mut menu, _, _| {
-                menu = menu.min_w(px(240.));
-                for option in ApprovalMode::ALL {
-                    let page = page.clone();
-                    menu = menu.item(
-                        PopupMenuItem::new(lokalbot_i18n::tr(option.title()))
-                            .checked(option == mode)
-                            .on_click(move |_, window, cx| {
-                                if option > mode {
-                                    confirm_mode(page.clone(), option, window, cx);
-                                } else {
-                                    page.update(cx, |page, cx| {
-                                        page.with_session(cx, |s| s.set_approval_mode(option))
-                                    });
-                                }
-                            }),
-                    );
-                }
-                menu
-            })
-    }
-
-    /// Agent Mode's own level, or "Same as Think", offering only the levels
-    /// the model accepts.
-    fn reasoning_menu(
-        &self,
-        choices: &ReasoningChoices,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement + use<> {
-        let settings = self.data.read(cx).settings.clone();
-        let chosen = settings.agent_reasoning_level;
-        let shown = choices.displayed(settings.effective_agent_reasoning_level());
-        let checked = chosen.map(|level| choices.displayed(level));
-        let same_as_think = lokalbot_i18n::format(
-            "Same as Think ({0})",
-            &[(
-                "0",
-                lokalbot_i18n::tr(reasoning_name(
-                    choices.displayed(settings.think_reasoning_level),
-                ))
-                .to_string(),
-            )],
-        );
-        let data = self.data.clone();
-        let choices = choices.clone();
-        Button::new("agent-reasoning")
-            .ghost()
-            .small()
-            .icon(Icon::new(Ico::Brain))
-            .label(lokalbot_i18n::format("Reasoning: {0}", &[("0", lokalbot_i18n::tr(reasoning_name(shown)).to_string())]))
-            .dropdown_caret(true)
-            .tooltip(lokalbot_i18n::tr("How much the agent reasons before each step, from the levels this model accepts. Same as Think follows Settings → Models. A change applies from the agent's next step."))
-            .dropdown_menu(move |mut menu, _, _| {
-                let choose = |level: Option<ReasoningLevel>| {
-                    let data = data.clone();
-                    move |_: &gpui_kit::ClickEvent, _: &mut Window, cx: &mut App| {
-                        data.update(cx, |data, cx| {
-                            data.update_settings(|s| s.agent_reasoning_level = level, cx)
-                        })
-                    }
-                };
-                menu = menu
-                    .min_w(px(220.))
-                    .item(
-                        PopupMenuItem::new(same_as_think.clone())
-                            .checked(chosen.is_none())
-                            .on_click(choose(None)),
-                    )
-                    .separator();
-                let mut levels = vec![ReasoningLevel::Automatic];
-                levels.extend(choices.levels.iter().copied());
-                for level in levels {
-                    let title = if level == ReasoningLevel::Automatic {
-                        match choices.default_level {
-                            Some(default) => lokalbot_i18n::format("Automatic ({level})", &[("level", lokalbot_i18n::tr(reasoning_name(default)).into())]),
-                            None => lokalbot_i18n::tr("Automatic").into(),
-                        }
-                    } else {
-                        lokalbot_i18n::tr(reasoning_name(level)).to_string()
-                    };
-                    menu = menu.item(
-                        PopupMenuItem::new(title)
-                            .checked(checked == Some(level))
-                            .on_click(choose(Some(level))),
-                    );
-                }
-                menu
-            })
-    }
-
-    fn render_model_line(&mut self, view: &View, cx: &mut Context<Self>) -> Div {
+    /// Names what the agent does on its own, and opens the levels with the
+    /// model and reasoning below them.
+    fn access_chip(&self, view: &View, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
-        let (icon, tint) = match &view.model.destination {
-            Destination::OnDevice => (Ico::Monitor, lb.text_secondary),
-            Destination::Remote(_) => (Ico::Network, lb.accent_text),
-            Destination::Blocked(_) => (Ico::TriangleAlert, lb.attention_text),
-        };
-        let label = format!(
-            "{} · {}",
-            view.model.name,
-            destination_label(&view.model.destination)
-        );
         let mode = view.mode;
-        let path = view.workspace_path.display().to_string();
-        let destination = destination_label(&view.model.destination);
-        let differs = view.model_differs;
-        let shell = self
-            .model(cx)
-            .map(|m| m.shell.description())
-            .filter(|_| cfg!(windows));
-        h_flex()
-            .gap(px(5.))
-            .items_center()
-            .text_size(ty::SECONDARY)
-            .text_color(lb.text_secondary)
-            .child(ui::icon(icon, px(13.), tint))
-            .child(div().flex_1().min_w_0().truncate().child(label))
-            .child(
-                Popover::new("agent-access")
-                    .anchor(gpui_kit::Anchor::BottomRight)
-                    .trigger(
-                        Button::new("agent-access-button")
-                            .ghost()
-                            .xsmall()
-                            .icon(Icon::new(Ico::Info))
-                            .tooltip(lokalbot_i18n::tr("Task access details")),
+        let access = Access {
+            mode,
+            workspace_name: view.workspace_name.clone(),
+            model: view.model.clone(),
+            model_differs: view.model_differs,
+            choices: view.choices.clone(),
+            shell: self
+                .model(cx)
+                .map(|m| m.shell.description())
+                .filter(|_| cfg!(windows)),
+        };
+        let page = cx.entity();
+        let data = self.data.clone();
+        let tint = if words::needs_caution(mode) {
+            lb.attention_text
+        } else {
+            lb.text
+        };
+        Popover::new("agent-access")
+            .anchor(gpui_kit::Anchor::TopLeft)
+            .trigger(
+                Button::new("agent-approval-mode")
+                    .ghost()
+                    .small()
+                    .icon(Icon::new(mode_icon(mode)).text_color(tint))
+                    .child(
+                        div()
+                            .text_color(tint)
+                            .font_weight(FontWeight::MEDIUM)
+                            .child(words::chip_title(mode)),
                     )
-                    .content(move |_, _, cx| {
-                        let lb = cx.lb().clone();
-                        let paragraph = |text: String| {
-                            div()
-                                .text_size(ty::SECONDARY)
-                                .text_color(lb.text)
-                                .child(text)
-                        };
-                        v_flex()
-                            .w(px(360.))
-                            .gap(px(12.))
-                            .p(px(6.))
-                            .child(
-                                div()
-                                    .text_size(ty::SECTION)
-                                    .font_weight(FontWeight::BOLD)
-                                    .text_color(lb.text)
-                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("This task’s access"))),
-                            )
-                            .child(
-                                h_flex()
-                                    .gap(px(6.))
-                                    .items_center()
-                                    .child(ui::icon(Ico::Folder, px(13.), lb.text_secondary))
-                                    .child(
-                                        div()
-                                            .flex_1()
-                                            .min_w_0()
-                                            .truncate()
-                                            .text_size(ty::SECONDARY)
-                                            .text_color(lb.text)
-                                            .child(path.clone()),
-                                    ),
-                            )
-                            .child(paragraph(lokalbot_i18n::tr(mode.detail()).to_string()))
-                            .child(paragraph(lokalbot_i18n::tr("The working folder is separate from LokalBot’s private data. Meeting Library tools provide scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant. Raw private-library file reads follow the approval mode even when a parent folder is selected.").to_string()))
-                            .child(paragraph(lokalbot_i18n::format("{destination}. Attached text is included when you send. Files and tool actions follow the approval mode above.", &[("destination", destination.to_string())])))
-                            .when_some(shell.clone(), |this, shell| this.child(paragraph(shell)))
-                            .when(differs, |this| {
-                                this.child(paragraph(lokalbot_i18n::tr("New tasks use the model selected in Settings.").to_string()))
-                            })
-                    }),
+                    .dropdown_caret(true)
+                    .tooltip(words::level_detail(mode, &view.workspace_name)),
             )
+            .content(move |_, _, cx| render_access(&access, &page, &data, cx))
+    }
+
+    /// Shown only when the model is not on this computer, so where a task's
+    /// prompts go stays in view without opening the access list.
+    fn render_destination_line(&self, view: &View, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if view.model.destination == Destination::OnDevice {
+            return None;
+        }
+        let lb = cx.lb().clone();
+        let icon = match view.model.destination {
+            Destination::Remote(_) => Ico::Network,
+            _ => Ico::TriangleAlert,
+        };
+        Some(
+            h_flex()
+                .gap(px(5.))
+                .items_center()
+                .px(px(4.))
+                .text_size(ty::SECONDARY)
+                .text_color(lb.attention_text)
+                .child(ui::icon(icon, px(13.), lb.attention_text))
+                .child(div().flex_1().min_w_0().child(format!(
+                    "{} · {}",
+                    view.model.name,
+                    destination_label(&view.model.destination)
+                )))
+                .into_any_element(),
+        )
     }
 
     // ------------------------------------------------------- attachments
@@ -784,6 +669,247 @@ impl AgentPage {
     }
 }
 
+/// The access list: the levels by what still asks, then the model and
+/// reasoning. The level is one remembered choice for every task.
+fn render_access(
+    access: &Access,
+    page: &gpui_kit::Entity<AgentPage>,
+    data: &gpui_kit::Entity<crate::state::AppData>,
+    cx: &mut Context<gpui_kit::component::popover::PopoverState>,
+) -> AnyElement {
+    let lb = cx.lb().clone();
+    let mut levels = v_flex().gap(px(10.));
+    for mode in ApprovalMode::ALL {
+        let selected = mode == access.mode;
+        let current = access.mode;
+        let page = page.clone();
+        levels = levels.child(
+            h_flex()
+                .id(("agent-access-level", mode.raw_value() as u64))
+                .gap(px(10.))
+                .items_start()
+                .cursor_pointer()
+                .rounded(px(6.))
+                .child(div().pt(px(2.)).child(ui::icon(
+                    if selected {
+                        Ico::CircleDot
+                    } else {
+                        Ico::Circle
+                    },
+                    px(15.),
+                    if selected {
+                        lb.accent_text
+                    } else {
+                        lb.text_secondary
+                    },
+                )))
+                .child(
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .gap(px(2.))
+                        .child(
+                            div()
+                                .text_size(ty::BODY)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(lb.text)
+                                .child(words::level_title(mode)),
+                        )
+                        .child(
+                            div()
+                                .text_size(ty::SECONDARY)
+                                .text_color(if words::needs_caution(mode) {
+                                    lb.attention_text
+                                } else {
+                                    lb.text_secondary
+                                })
+                                .child(crate::ui::text::paragraph(words::level_detail(
+                                    mode,
+                                    &access.workspace_name,
+                                ))),
+                        ),
+                )
+                .on_click(cx.listener(move |state, _, window, cx| {
+                    state.dismiss(window, cx);
+                    // Raising the level is confirmed; lowering it applies at once.
+                    if mode > current {
+                        confirm_mode(page.clone(), mode, window, cx);
+                    } else {
+                        page.update(cx, |page, cx| {
+                            page.with_session(cx, |s| s.set_approval_mode(mode))
+                        });
+                    }
+                })),
+        );
+    }
+    let label = |text: &'static str| {
+        div()
+            .w(px(78.))
+            .flex_none()
+            .text_color(lb.text_secondary)
+            .child(text)
+    };
+    let open_models = data.clone();
+    let model_row = h_flex()
+        .gap(px(10.))
+        .items_start()
+        .child(label(lokalbot_i18n::tr("Model")))
+        .child(div().flex_1().min_w_0().text_color(lb.text).child(format!(
+            "{} · {}",
+            access.model.name,
+            destination_label(&access.model.destination)
+        )))
+        .child(ui::link(
+            "agent-change-model",
+            lokalbot_i18n::tr("Change…"),
+            move |_, cx| {
+                open_models.update(cx, |data, cx| {
+                    data.open_settings(SettingsCategory::Models, cx)
+                })
+            },
+            cx,
+        ));
+    let remote = match &access.model.destination {
+        Destination::Remote(host) => Some(lokalbot_i18n::mac(
+            "Your messages, attached context and what the agent reads are sent to %@.",
+            &[host],
+        )),
+        _ => None,
+    };
+    v_flex()
+        .w(px(360.))
+        .p(px(6.))
+        .gap(px(12.))
+        .text_size(ty::SECONDARY)
+        .child(
+            h_flex()
+                .items_center()
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(ty::SECTION)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(lb.text)
+                        .child(lokalbot_i18n::tr("Access")),
+                )
+                .child(
+                    div()
+                        .text_color(lb.text_secondary)
+                        .child(lokalbot_i18n::tr("All tasks")),
+                ),
+        )
+        .child(levels)
+        .child(
+            div()
+                .text_color(lb.text_secondary)
+                .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                    "Editing LokalBot’s own data files always asks first.",
+                ))),
+        )
+        .child(ui::divider(cx))
+        .child(model_row)
+        .when(access.choices.is_adjustable(), |this| {
+            this.child(
+                h_flex()
+                    .gap(px(10.))
+                    .items_center()
+                    .child(label(lokalbot_i18n::tr("Reasoning")))
+                    .child(reasoning_menu(&access.choices, data, cx)),
+            )
+        })
+        .when_some(remote, |this, remote| {
+            this.child(
+                div()
+                    .text_color(lb.attention_text)
+                    .child(crate::ui::text::paragraph(remote)),
+            )
+        })
+        .when(access.model_differs, |this| {
+            this.child(
+                div()
+                    .text_color(lb.text_secondary)
+                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                        "New tasks use the model selected in Settings.",
+                    ))),
+            )
+        })
+        .when_some(access.shell.clone(), |this, shell| {
+            this.child(
+                div()
+                    .text_color(lb.text_secondary)
+                    .child(crate::ui::text::paragraph(shell)),
+            )
+        })
+        .into_any_element()
+}
+
+/// Agent Mode's own level, or "Same as Think", offering only the levels the
+/// model accepts.
+fn reasoning_menu(
+    choices: &ReasoningChoices,
+    data: &gpui_kit::Entity<crate::state::AppData>,
+    cx: &App,
+) -> impl IntoElement + use<> {
+    let settings = data.read(cx).settings.clone();
+    let chosen = settings.agent_reasoning_level;
+    let shown = choices.displayed(settings.effective_agent_reasoning_level());
+    let checked = chosen.map(|level| choices.displayed(level));
+    let same_as_think = lokalbot_i18n::format(
+        "Same as Think ({0})",
+        &[(
+            "0",
+            lokalbot_i18n::tr(reasoning_name(
+                choices.displayed(settings.think_reasoning_level),
+            ))
+            .to_string(),
+        )],
+    );
+    let data = data.clone();
+    let choices = choices.clone();
+    Button::new("agent-reasoning")
+        .outline()
+        .small()
+        .label(lokalbot_i18n::tr(reasoning_name(shown)))
+        .dropdown_caret(true)
+        .tooltip(lokalbot_i18n::tr("How much the agent reasons before each step, from the levels this model accepts. Same as Think follows Settings → Models. A change applies from the agent's next step."))
+        .dropdown_menu(move |mut menu, _, _| {
+            let choose = |level: Option<ReasoningLevel>| {
+                let data = data.clone();
+                move |_: &gpui_kit::ClickEvent, _: &mut Window, cx: &mut App| {
+                    data.update(cx, |data, cx| {
+                        data.update_settings(|s| s.agent_reasoning_level = level, cx)
+                    })
+                }
+            };
+            menu = menu
+                .min_w(px(220.))
+                .item(
+                    PopupMenuItem::new(same_as_think.clone())
+                        .checked(chosen.is_none())
+                        .on_click(choose(None)),
+                )
+                .separator();
+            let mut levels = vec![ReasoningLevel::Automatic];
+            levels.extend(choices.levels.iter().copied());
+            for level in levels {
+                let title = if level == ReasoningLevel::Automatic {
+                    match choices.default_level {
+                        Some(default) => lokalbot_i18n::format("Automatic ({level})", &[("level", lokalbot_i18n::tr(reasoning_name(default)).into())]),
+                        None => lokalbot_i18n::tr("Automatic").into(),
+                    }
+                } else {
+                    lokalbot_i18n::tr(reasoning_name(level)).to_string()
+                };
+                menu = menu.item(
+                    PopupMenuItem::new(title)
+                        .checked(checked == Some(level))
+                        .on_click(choose(Some(level))),
+                );
+            }
+            menu
+        })
+}
+
 /// Canonical folder paths (no `\\?\` on Windows) compare and display cleanly.
 fn dunce_like(path: PathBuf) -> PathBuf {
     std::fs::canonicalize(&path)
@@ -802,7 +928,7 @@ fn attachment_icon(kind: AttachmentKind) -> Ico {
     }
 }
 
-fn mode_icon(mode: ApprovalMode) -> Ico {
+pub(super) fn mode_icon(mode: ApprovalMode) -> Ico {
     match mode {
         ApprovalMode::AskBeforeChanges => Ico::Hand,
         ApprovalMode::ApproveReads => Ico::Eye,

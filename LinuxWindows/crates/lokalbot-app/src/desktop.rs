@@ -15,12 +15,11 @@ use lokalbot_engine::{Command, DictationCommand, SelectionCommand};
 use lokalbot_platform::chord::ChordAction;
 use lokalbot_platform::shortcuts::{GlobalShortcuts, Shortcut, ShortcutError, ShortcutEvent};
 use lokalbot_platform::tray::{
-    self, Tray, TrayDictation, TrayDictationEntry, TrayEvent, TrayMeeting, TrayMenuState,
-    TrayUpdate, TrayUpdateAction, item_ids,
+    self, Tray, TrayEvent, TrayMenuState, TrayUpdate, TrayUpdateAction, item_ids,
 };
 use lokalbot_platform::{IpcCommand, IpcServer};
 
-use crate::state::{AppData, DictationHud, MeetingTab, RecordingState, SettingsCategory};
+use crate::state::{AppData, AppEvent, DictationHud, MeetingTab, SettingsCategory};
 
 const DICTATION_ID: &str = "dictation";
 const QUICK_RECALL_ID: &str = "quick-recall";
@@ -192,7 +191,19 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
             Some(icon) => match Tray::new(
                 icon,
                 "LokalBot",
-                tray::standard_items(&tray_state(data.read(cx), tray_update(cx), 0)),
+                tray::standard_items(&crate::tray_status::menu_state(
+                    data.read(cx),
+                    chrono::Utc::now(),
+                    tray_update(cx),
+                    0,
+                )),
+                // Only Windows' menus draw row icons from pixels; Linux names
+                // theme icons.
+                if cfg!(windows) {
+                    crate::tray_status::glyph_pixels()
+                } else {
+                    Vec::new()
+                },
                 Box::new(move |event| {
                     let _ = tx.send_blocking(DesktopEvent::Tray(event));
                 }),
@@ -269,12 +280,12 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
     })
     .detach();
 
-    // Keep the tray's status line and recording timer current.
+    // Keep the tray's status block, its timers and the icon current.
     let data_for_tray = AppData::global(cx);
     cx.spawn(async move |cx| {
         loop {
             smol::Timer::after(Duration::from_secs(1)).await;
-            cx.update(|cx| refresh_tray(&data_for_tray, cx));
+            cx.update(|cx| refresh_tray(&data_for_tray, false, cx));
         }
     })
     .detach();
@@ -305,104 +316,35 @@ fn tray_update(cx: &App) -> Option<TrayUpdate> {
     })
 }
 
-fn tray_state(data: &AppData, update: Option<TrayUpdate>, approvals: usize) -> TrayMenuState {
-    let (recording, timer, subtitle) = match &data.recording {
-        RecordingState::Recording {
-            meeting, started, ..
-        } => (
-            true,
-            Some(lokalbot_core::time::timer(started.elapsed().as_secs_f64())),
-            meeting.display_title(),
-        ),
-        _ => (false, None, mode_status(&data.settings).to_string()),
-    };
-    TrayMenuState {
-        interface_language: lokalbot_i18n::current().code.into(),
-        recording,
-        timer,
-        subtitle,
-        day_memory_paused: data.day_memory_paused,
-        screen_capture: data.settings.tracking_enabled
-            && data.settings.screen_context_capture_mode
-                != lokalbot_core::ScreenContextMode::ActivityOnly,
-        recent_dictations: data
-            .recent_dictations
-            .iter()
-            .map(|entry| TrayDictationEntry {
-                id: entry.id.to_string(),
-                preview: entry.preview(),
-                menu_title: entry.menu_title(),
-            })
-            .collect(),
-        update,
-        dictation: match &data.dictation {
-            DictationHud::Starting => TrayDictation::Starting,
-            DictationHud::Listening { .. } => TrayDictation::Recording,
-            DictationHud::Transcribing | DictationHud::Preparing(_) => TrayDictation::Transcribing,
-            DictationHud::Composing => TrayDictation::Composing,
-            _ => TrayDictation::Idle,
-        },
-        dictation_enabled: data.settings.dictation_enabled,
-        dictation_shortcut: data.settings.dictation_shortcut.clone(),
-        autocomplete_enabled: data.settings.cotyping_enabled,
-        tracking_enabled: data.settings.tracking_enabled,
-        recent_meetings: data
-            .meetings
-            .iter()
-            .take(2)
-            .map(|meeting| TrayMeeting {
-                id: meeting.id.to_string(),
-                title: meeting.display_title(),
-                detail: format!(
-                    "{} · {}",
-                    meeting.app_name,
-                    lokalbot_core::time::timer(meeting.duration_seconds())
-                ),
-            })
-            .collect(),
-        last_error: data
-            .toast
-            .as_ref()
-            .filter(|toast| toast.is_error)
-            .map(|toast| toast.message.to_string()),
-        approvals_waiting: approvals,
-    }
-}
-
-/// The menu's second line when nothing is recording (`MenuBarView.swift`).
-fn mode_status(settings: &lokalbot_core::Settings) -> &'static str {
-    use lokalbot_core::settings::AutoRecordMode;
-    match settings.auto_record_mode {
-        AutoRecordMode::Automatic => lokalbot_i18n::tr("Auto-records detected meetings"),
-        AutoRecordMode::Ask => lokalbot_i18n::tr("Asks before recording meetings"),
-        AutoRecordMode::Manual => lokalbot_i18n::tr("Manual recording only"),
-    }
-}
-
-fn refresh_tray(data: &Entity<AppData>, cx: &mut App) {
+/// Sends the tray what changed since the last call; `opening` sends the menu
+/// even when nothing did, for the tray to apply anything still waiting (a
+/// Windows menu that was open when the last change came).
+fn refresh_tray(data: &Entity<AppData>, opening: bool, cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let Some(tray) = desktop.tray.as_ref() else {
         return;
     };
     let approvals =
         crate::control::global(cx).map_or(0, |host| host.read(cx).approvals.pending.len());
-    let state = tray_state(data.read(cx), tray_update(cx), approvals);
+    let state = crate::tray_status::menu_state(
+        data.read(cx),
+        chrono::Utc::now(),
+        tray_update(cx),
+        approvals,
+    );
     let mut last = desktop.tray_state.lock();
-    if last.as_ref() == Some(&state) {
+    if !opening && last.as_ref() == Some(&state) {
         return;
     }
-    // Only the timer changes without changing the menu.
-    let without_timer = |state: &TrayMenuState| TrayMenuState {
-        timer: None,
-        ..state.clone()
-    };
-    let menu_changed = last
+    // The timers are in the menu too: Linux hosts get only the changed
+    // labels; Windows takes the new menu the next time it opens.
+    let _ = tray.set_items(tray::standard_items(&state));
+    if last
         .as_ref()
-        .is_none_or(|l| without_timer(l) != without_timer(&state));
-    if menu_changed {
-        let _ = tray.set_items(tray::standard_items(&state));
+        .is_none_or(|last| last.icon_state() != state.icon_state())
+    {
+        let _ = tray.set_icon_state(state.icon_state());
     }
-    let _ = tray.set_recording(state.recording, state.timer.clone());
     *last = Some(state);
 }
 
@@ -639,16 +581,15 @@ pub fn invoke_selection_actions(data: &Entity<AppData>, cx: &mut App) {
     if data.read(cx).settings.selection_actions_enabled {
         crate::bridge::send(Command::Selection(SelectionCommand::Invoke), cx);
     } else {
-        show_main_window(cx);
-        data.update(cx, |data, cx| {
-            data.open_settings(SettingsCategory::General, cx)
-        });
+        data.update(cx, |data, cx| data.open_settings(SettingsCategory::Ask, cx));
     }
 }
 
 fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
     match event {
         DesktopEvent::Tray(TrayEvent::Activated) => show_main_window(cx),
+        // The host is about to show the menu: bring its status up to date.
+        DesktopEvent::Tray(TrayEvent::MenuOpening) => refresh_tray(data, true, cx),
         DesktopEvent::Tray(TrayEvent::Item(id)) => match id.as_str() {
             item_ids::RECORD => crate::bridge::send(
                 Command::StartRecording {
@@ -663,12 +604,10 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
             }
             item_ids::ASK => crate::windows::quick_recall::open(cx),
             item_ids::OPEN => show_main_window(cx),
-            item_ids::SETTINGS => {
-                show_main_window(cx);
-                data.update(cx, |data, cx| {
-                    data.open_settings(SettingsCategory::Overview, cx)
-                });
-            }
+            item_ids::SETTINGS => data.update(cx, |data, cx| {
+                let category = data.settings_category;
+                data.open_settings(category, cx)
+            }),
             item_ids::LIVE_TRANSCRIPT => {
                 show_main_window(cx);
                 data.update(cx, |data, cx| {
@@ -677,24 +616,14 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
                     }
                 });
             }
-            item_ids::DICTATION_ENABLED => data.update(cx, |data, cx| {
-                data.update_settings(|s| s.dictation_enabled = !s.dictation_enabled, cx)
-            }),
             item_ids::DICTATION_BUTTON => {
                 crate::bridge::send(Command::Dictation(DictationCommand::ToggleFromMenu), cx)
             }
             item_ids::AUTOCOMPLETE_ENABLED => data.update(cx, |data, cx| {
                 data.update_settings(|s| s.cotyping_enabled = !s.cotyping_enabled, cx)
             }),
-            item_ids::VIEW_ALL_MEETINGS => {
-                show_main_window(cx);
-                data.update(cx, |data, cx| {
-                    data.meeting_focus = None;
-                    data.navigate(crate::state::Section::Meetings, cx);
-                });
-            }
             item_ids::APPROVALS => crate::windows::settings_approval::open(cx),
-            item_ids::STAR_ON_GITHUB => cx.open_url(crate::pages::settings::REPOSITORY),
+            item_ids::DISMISS_ERROR => data.update(cx, |data, cx| data.dismiss_toast(cx)),
             item_ids::PAUSE_DAY_MEMORY | item_ids::RESUME_DAY_MEMORY => {
                 let paused = id == item_ids::PAUSE_DAY_MEMORY;
                 data.update(cx, |data, cx| {
@@ -710,13 +639,28 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
                 }
             }
             item_ids::DOWNLOAD_UPDATE => crate::updates::open_release_page(cx),
-            item_ids::SHOW_UPDATE => {
-                show_main_window(cx);
-                data.update(cx, |data, cx| {
-                    data.open_settings(SettingsCategory::General, cx)
-                });
-            }
+            item_ids::SHOW_UPDATE => data.update(cx, |data, cx| {
+                data.open_settings(SettingsCategory::General, cx)
+            }),
             item_ids::QUIT => crate::quit::request(cx),
+            other if other.starts_with(item_ids::JOIN_PREFIX) => {
+                let id = other
+                    .strip_prefix(item_ids::JOIN_PREFIX)
+                    .unwrap_or_default();
+                if let Some(url) = calendar_event(data, id, cx).and_then(|e| e.meeting_url) {
+                    cx.open_url(&url);
+                }
+            }
+            other if other.starts_with(item_ids::RECORD_EVENT_PREFIX) => {
+                let id = other
+                    .strip_prefix(item_ids::RECORD_EVENT_PREFIX)
+                    .unwrap_or_default();
+                if let Some(event) = calendar_event(data, id, cx) {
+                    data.update(cx, |data, cx| {
+                        data.request(AppEvent::RecordCalendarEvent(Box::new(event)), cx)
+                    });
+                }
+            }
             other if other.starts_with(item_ids::DICTATION_PREFIX) => {
                 let id = other
                     .strip_prefix(item_ids::DICTATION_PREFIX)
@@ -791,12 +735,9 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
             },
             cx,
         ),
-        DesktopEvent::ShowUpdate => {
-            show_main_window(cx);
-            data.update(cx, |data, cx| {
-                data.open_settings(SettingsCategory::General, cx)
-            });
-        }
+        DesktopEvent::ShowUpdate => data.update(cx, |data, cx| {
+            data.open_settings(SettingsCategory::General, cx)
+        }),
         DesktopEvent::ShortcutsApplied(outcomes) => shortcuts_applied(data, outcomes, cx),
         DesktopEvent::ShortcutsUnavailable => data.update(cx, |data, cx| {
             data.dictation_shortcut_inactive = data.settings.dictation_enabled;
@@ -805,6 +746,20 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
         #[cfg(target_os = "linux")]
         DesktopEvent::Terminate => crate::quit::request(cx),
     }
+}
+
+/// The calendar event the tray menu named, as the calendar has it now.
+fn calendar_event(
+    data: &Entity<AppData>,
+    external_id: &str,
+    cx: &App,
+) -> Option<lokalbot_core::calendar::CalendarEvent> {
+    data.read(cx)
+        .calendar
+        .events
+        .iter()
+        .find(|event| event.external_id == external_id)
+        .cloned()
 }
 
 /// Push to talk records while held; Toggle starts and stops on presses;

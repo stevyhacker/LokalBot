@@ -1,5 +1,5 @@
 //! The Files grant for external agents (`FilesAccessGate`, `FilesAccessManager`):
-//! a marker the app sets from Settings → Privacy & Data or Settings → Files,
+//! a marker the app sets from Settings → AI agents or Settings → Files,
 //! plus a list of the chosen folders, so the CLI and its MCP server can search
 //! the index with the app closed and without reading the app's settings. Separate
 //! from every other grant; no Agent Mode capability satisfies it.

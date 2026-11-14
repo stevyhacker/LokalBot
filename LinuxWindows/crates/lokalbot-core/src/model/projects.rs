@@ -205,7 +205,11 @@ pub struct ProjectProfile {
     pub week_seconds: f64,
     /// `(YYYY-MM-DD, seconds)`, newest day first.
     pub days: Vec<(String, f64)>,
+    /// The longest windows, at most six.
     pub windows: Vec<ProjectWindowTime>,
+    /// Every window with tracked time in those days; `windows` lists only
+    /// the longest (`ProjectProfile.windowCount`).
+    pub window_count: usize,
     pub last_active: Option<DateTime<Utc>>,
     /// The saved "Where it stands" note.
     pub summary: Option<ProjectSummary>,

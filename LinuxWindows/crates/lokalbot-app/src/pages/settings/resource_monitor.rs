@@ -1,4 +1,4 @@
-//! Resource Monitor in Settings → Advanced (`ResourceMonitorSection`): a live
+//! Resource Monitor in Settings → Diagnostics (`ResourceMonitorSection`): a live
 //! readout of LokalBot and its helpers, updated every 2 seconds while it shows.
 
 use std::time::Duration;
@@ -109,8 +109,7 @@ impl SettingsPage {
                     .update(cx, |page, cx| {
                         let showing = {
                             let data = page.data.read(cx);
-                            data.section == crate::state::Section::Settings
-                                && data.settings_category == SettingsCategory::Advanced
+                            data.settings_showing(SettingsCategory::Advanced)
                         };
                         if showing {
                             page.sample_resources(cx);

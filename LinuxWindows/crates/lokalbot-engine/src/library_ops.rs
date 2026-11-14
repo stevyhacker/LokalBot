@@ -97,7 +97,7 @@ impl DeviceRecording<'_> {
         )
         .replace('\n', " ");
         if chosen.is_empty() {
-            lokalbot_i18n::tr("Recording from %@").replacen("%@", self.device_name, 1)
+            lokalbot_i18n::mac("Recording from %@", &[self.device_name])
         } else {
             chosen
         }

@@ -1,5 +1,5 @@
 # Captures the LokalBot window on a Windows desktop session, one PNG per page.
-# Usage: capture-windows.ps1 -Exe <lokalbot.exe> -Root <library> -OutDir <dir> [-Pages today,meetings] [-Theme light|dark]
+# Usage: capture-windows.ps1 -Exe <lokalbot.exe> -Root <library> -OutDir <dir> [-Pages today,actions,settings-models,quick-recall] [-Theme light|dark]
 param(
   [Parameter(Mandatory = $true)][string]$Exe,
   [Parameter(Mandatory = $true)][string]$Root,
@@ -33,10 +33,14 @@ foreach ($page in $Pages) {
   if ($p.HasExited) { throw "LokalBot exited with code $($p.ExitCode) before showing a window" }
   if ($p.MainWindowHandle -eq 0) { throw "LokalBot did not open a window" }
   Start-Sleep -Seconds $WaitSeconds
+  # Settings pages (settings, settings-models, ...) open the Settings window
+  # alone, so the process's main window is that window; every other page is
+  # the LokalBot main window.
   $h = $p.MainWindowHandle
   [LbWin]::SetForegroundWindow($h) | Out-Null
-  # The palette is its own window, opened as a person would: the desktop capture below shows it.
-  if ($page -eq "palette") { [System.Windows.Forms.SendKeys]::SendWait("^k"); Start-Sleep -Seconds 2 }
+  # Quick Recall is its own window, opened with Ctrl+K as a person would: the
+  # desktop capture below shows it over the main window.
+  if ($page -eq "quick-recall") { [System.Windows.Forms.SendKeys]::SendWait("^k"); Start-Sleep -Seconds 2 }
   # Park the pointer in a corner so no hover state shows.
   [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Width - 2), ([System.Windows.Forms.Screen]::PrimaryScreen.Bounds.Height - 2))
   Start-Sleep -Milliseconds 600

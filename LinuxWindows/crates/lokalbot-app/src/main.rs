@@ -5,6 +5,7 @@
     windows_subsystem = "windows"
 )]
 
+mod access;
 mod agent_handoff;
 mod assets;
 mod autocomplete;
@@ -21,7 +22,10 @@ mod quit;
 mod sample;
 mod shell;
 mod state;
+#[cfg(test)]
+mod test_support;
 mod theme;
+mod tray_status;
 mod ui;
 mod updates;
 mod windows;
@@ -38,7 +42,7 @@ use lokalbot_platform::{InstanceError, IpcCommand};
 
 actions!(
     lokalbot,
-    [Quit, ToggleRecording, OpenCommandPalette, OpenSettings]
+    [Quit, ToggleRecording, OpenQuickRecall, OpenSettings]
 );
 
 /// Command-line options. Most users never pass any; they exist for tests,
@@ -47,7 +51,8 @@ actions!(
 struct Options {
     storage_root: Option<std::path::PathBuf>,
     section: Option<Section>,
-    /// Screenshot target inside Settings, such as the Models runtime selection.
+    /// `--page settings` or `settings-<page>`: open the Settings window alone
+    /// on that page, as the Mac launches on a Settings page.
     settings_category: Option<state::SettingsCategory>,
     /// `--window quick-recall|onboarding` opens that window at startup.
     window: Option<String>,
@@ -112,8 +117,8 @@ fn parse_options() -> Options {
     while let Some(arg) = iter.next() {
         if arg == "--page" {
             if let Some(name) = iter.next() {
-                options.section = section_named(name);
-                options.settings_category = settings_category_named(name);
+                options.section = Section::named(name);
+                options.settings_category = state::SettingsCategory::named(name);
             }
         } else if arg == "--window" {
             options.window = iter.next().cloned();
@@ -124,7 +129,7 @@ fn parse_options() -> Options {
     options
 }
 
-/// Logs go to `<library>/logs/lokalbot.log` (Settings → Advanced → Logs) and,
+/// Logs go to `<library>/logs/lokalbot.log` (Settings → Diagnostics → Logs) and,
 /// when there is one, the terminal. Release builds on Windows have no console.
 fn init_logging(paths: &LibraryPaths) {
     let mut builder = env_logger::Builder::from_env(
@@ -163,33 +168,6 @@ impl std::io::Write for Tee {
         let _ = std::io::stderr().flush();
         self.0.flush()
     }
-}
-
-fn section_named(name: &str) -> Option<Section> {
-    Some(match name.to_ascii_lowercase().as_str() {
-        "today" => Section::Today,
-        "meetings" => Section::Meetings,
-        "timeline" => Section::Timeline,
-        "people" => Section::People,
-        "projects" => Section::Projects,
-        "ask" => Section::Ask,
-        "agent" => Section::Agent,
-        "settings" => Section::Settings,
-        _ => {
-            settings_category_named(name)?;
-            Section::Settings
-        }
-    })
-}
-
-fn settings_category_named(name: &str) -> Option<state::SettingsCategory> {
-    Some(match name.to_ascii_lowercase().as_str() {
-        "settings-models" => state::SettingsCategory::Models,
-        "settings-files" => state::SettingsCategory::Files,
-        "settings-devices" => state::SettingsCategory::Devices,
-        "settings-personal-context" => state::SettingsCategory::PersonalContext,
-        _ => return None,
-    })
 }
 
 /// `lokalbot --version` (or `-V`) wherever it appears. `main` checks it before
@@ -301,12 +279,12 @@ fn main() {
             cx.set_app_identity("com.lokalbot.LokalBot", "LokalBot");
 
             let data = cx.new(|_| AppData::new(library, settings));
-            data.update(cx, |data, cx| data.refresh_audio_inputs(cx));
+            data.update(cx, |data, cx| {
+                data.refresh_audio_inputs(cx);
+                data.refresh_access(cx);
+            });
             if let Some(section) = options.section {
                 data.update(cx, |data, _| data.section = section);
-            }
-            if let Some(category) = options.settings_category {
-                data.update(cx, |data, cx| data.open_settings(category, cx));
             }
             if let Some(id) = options.moment {
                 let moment = data.read(cx).library.screen_moment(id).ok().flatten();
@@ -340,7 +318,10 @@ fn main() {
                 !first_launch,
                 desktop::desktop(cx).is_some_and(|d| d.has_tray()),
             );
-            if !silent {
+            // A Settings page opens the Settings window alone.
+            if let Some(category) = options.settings_category {
+                data.update(cx, |data, cx| data.open_settings(category, cx));
+            } else if !silent {
                 open_main_window(data.clone(), cx);
             }
             data.update(cx, |data, cx| data.reload(cx));
@@ -350,7 +331,11 @@ fn main() {
                 Some("onboarding") => windows::onboarding::open(cx),
                 // An agent's setup request replaces the wizard; declining it
                 // opens the wizard instead.
-                _ if first_launch && options.section.is_none() && !control::setup_waiting(cx) => {
+                _ if first_launch
+                    && options.section.is_none()
+                    && options.settings_category.is_none()
+                    && !control::setup_waiting(cx) =>
+                {
                     windows::onboarding::open(cx)
                 }
                 _ => {}
@@ -408,18 +393,21 @@ fn bind_actions(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new("ctrl-q", Quit, None),
         KeyBinding::new("ctrl-shift-r", ToggleRecording, None),
-        KeyBinding::new("ctrl-k", OpenCommandPalette, None),
+        // Ctrl+K opens Quick Recall, the window the system-wide shortcut opens:
+        // search, commands and Ask in one place, from any LokalBot window.
+        KeyBinding::new("ctrl-k", OpenQuickRecall, None),
         KeyBinding::new("ctrl-,", OpenSettings, None),
     ]);
     cx.on_action(|_: &Quit, cx: &mut App| quit::request(cx));
     cx.on_action(|_: &ToggleRecording, cx: &mut App| {
         AppData::global(cx).update(cx, |data, cx| data.toggle_recording(cx));
     });
-    cx.on_action(|_: &OpenCommandPalette, cx: &mut App| windows::command_palette::open(cx));
+    cx.on_action(|_: &OpenQuickRecall, cx: &mut App| windows::quick_recall::open_from_shortcut(cx));
+    // Ctrl+, opens Settings on the page it last showed, or brings it forward.
     cx.on_action(|_: &OpenSettings, cx: &mut App| {
-        desktop::show_main_window(cx);
         AppData::global(cx).update(cx, |data, cx| {
-            data.open_settings(state::SettingsCategory::Overview, cx)
+            let category = data.settings_category;
+            data.open_settings(category, cx)
         });
     });
 }
@@ -510,7 +498,7 @@ fn close_last_window(cx: &mut App) {
     }
 }
 
-fn apply_appearance(data: &Entity<AppData>, window: &mut Window, cx: &mut App) {
+pub(crate) fn apply_appearance(data: &Entity<AppData>, window: &mut Window, cx: &mut App) {
     let settings = data.read(cx).settings.clone();
     let dark = theme::is_dark(settings.app_theme, window.appearance());
     theme::apply(dark, settings.text_size.scale(), Some(window), cx);

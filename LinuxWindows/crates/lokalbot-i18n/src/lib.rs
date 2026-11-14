@@ -287,6 +287,60 @@ pub fn content_is_rtl(text: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// A phrase drawn as one shaped line, starting with the right-to-left mark
+/// when its own text reads right to left. GPUI drops a number that starts such
+/// a line ("39م" shows as "م", "3ح 57م" as "ح 57م"); the mark keeps it. It is
+/// for shaping only and invisible. Text that reads left to right, which is all
+/// of it in a left-to-right interface, is returned as it is.
+pub fn directional(text: impl Into<String>) -> String {
+    let text = text.into();
+    if content_is_rtl(&text) && !text.starts_with(RIGHT_TO_LEFT_MARK) {
+        format!("{RIGHT_TO_LEFT_MARK}{text}")
+    } else {
+        text
+    }
+}
+
+/// U+200F, which [`directional`] puts in front of right-to-left phrases.
+pub const RIGHT_TO_LEFT_MARK: char = '\u{200f}';
+
+/// Like [`directional`], but by the interface rather than the text: in a
+/// right-to-left interface every phrase gets the mark, a bare count too.
+/// Text in a left-to-right interface is returned as it is.
+pub fn interface_directional(text: &str) -> String {
+    if current().rtl && !text.starts_with(RIGHT_TO_LEFT_MARK) {
+        format!("{RIGHT_TO_LEFT_MARK}{text}")
+    } else {
+        text.to_string()
+    }
+}
+
+/// "Nov 10", with the year once it is not `today`'s year
+/// (`AskDateLabel.day`). Both are local days.
+pub fn short_date(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
+    use chrono::Datelike as _;
+    let pattern = if date.year() == today.year() {
+        "%b %-d"
+    } else {
+        "%b %-d, %Y"
+    };
+    date.format_localized(date_pattern(pattern), date_locale())
+        .to_string()
+}
+
+/// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
+/// [`short_date`] (`ActionListWording.day`). Both are local days.
+pub fn day_label(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
+    match (today - date).num_days() {
+        0 => tr("Today").to_string(),
+        1 => tr("Yesterday").to_string(),
+        2..=6 => date
+            .format_localized(date_pattern("%a, %b %-d"), date_locale())
+            .to_string(),
+        _ => short_date(date, today),
+    }
+}
+
 /// Complete count phrases are translated together; never append an English
 /// plural suffix to a translated noun.
 pub fn count(n: usize, noun: &str) -> String {
@@ -348,9 +402,139 @@ pub fn number_in(locale: chrono::Locale, n: usize) -> String {
     groups.join(separator)
 }
 
+/// Fills a Mac catalog string's fields (`%lld`, `%@`, `%d`, or numbered
+/// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
+/// itself is the caller's [`tr`], so the key stays a literal the catalog
+/// checks can see.
+pub fn fill(template: &str, values: &[&str]) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    let mut next = 0;
+    while let Some(start) = rest.find('%') {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 1..];
+        // "%%" is a literal percent sign.
+        if let Some(tail) = after.strip_prefix('%') {
+            out.push('%');
+            rest = tail;
+            continue;
+        }
+        let digits = after.chars().take_while(char::is_ascii_digit).count();
+        let (position, spec) = match after[digits..].strip_prefix('$') {
+            Some(spec) if digits > 0 => (after[..digits].parse::<usize>().ok(), spec),
+            _ => (None, after),
+        };
+        let length = ["lld", "ld", "@", "d"]
+            .iter()
+            .find(|candidate| spec.starts_with(**candidate))
+            .map(|candidate| candidate.len());
+        let Some(length) = length else {
+            out.push('%');
+            rest = after;
+            continue;
+        };
+        let index = match position {
+            Some(position) => position.saturating_sub(1),
+            None => {
+                next += 1;
+                next - 1
+            }
+        };
+        out.push_str(values.get(index).copied().unwrap_or(""));
+        let consumed = template.len() - spec.len() + length;
+        rest = &template[consumed..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// [`fill`] with the Mac catalog key looked up first: `mac("Only %@",
+/// &[name])`.
+pub fn mac(key: &str, values: &[&str]) -> String {
+    fill(tr(key), values)
+}
+
+/// A count phrase from the Mac catalog, "%lld meeting" or "%lld meetings",
+/// with the count in the locale's digits.
+pub fn mac_count(count: usize, one: &str, many: &str) -> String {
+    mac(if count == 1 { one } else { many }, &[&number(count)])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn right_to_left_phrases_keep_a_leading_number() {
+        assert_eq!(directional("39م"), "\u{200f}39م");
+        assert_eq!(directional("3ح 57م"), "\u{200f}3ح 57م");
+        // Once only, and never on text that reads left to right.
+        assert_eq!(directional("\u{200f}39م"), "\u{200f}39م");
+        assert_eq!(directional("39m"), "39m");
+        assert_eq!(directional("11:23 · Zoom"), "11:23 · Zoom");
+    }
+
+    #[test]
+    fn right_to_left_marks_by_content_never_touch_left_to_right_phrases() {
+        // From Today and People, where these lived before.
+        assert_eq!(directional("2 متأخرة"), "\u{200f}2 متأخرة");
+        assert_eq!(directional("\u{200f}2 متأخرة"), "\u{200f}2 متأخرة");
+        assert_eq!(directional("2 overdue"), "2 overdue");
+        assert_eq!(directional("10:48"), "10:48");
+        // The tests run in the English interface.
+        assert_eq!(interface_directional("3"), "3");
+    }
+
+    #[test]
+    fn fill_puts_values_in_mac_fields() {
+        assert_eq!(fill("In %lldh %lldm", &["2", "10"]), "In 2h 10m");
+        assert_eq!(
+            fill("%@ saved · %@", &["Standup", "12 min"]),
+            "Standup saved · 12 min"
+        );
+        assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
+        assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
+        assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
+        // From Today, People, Ask and Timeline, where copies lived before.
+        assert_eq!(fill("Now · %@", &["10:48 AM"]), "Now · 10:48 AM");
+        assert_eq!(fill("No fields", &["x"]), "No fields");
+        assert_eq!(fill("You owe %lld", &["2"]), "You owe 2");
+        assert_eq!(fill("Only %@", &["Atlas"]), "Only Atlas");
+        assert_eq!(
+            fill("%1$lld in %2$lld meetings", &["5", "2"]),
+            "5 in 2 meetings"
+        );
+        assert_eq!(fill("%2$@ · %1$@", &["a", "b"]), "b · a");
+        assert_eq!(fill("100% sure, %@", &["yes"]), "100% sure, yes");
+        assert_eq!(fill("100% %@", &["done"]), "100% done");
+        assert_eq!(fill("%lld open", &["2"]), "2 open");
+        assert_eq!(fill("Away %@", &["1h 5m"]), "Away 1h 5m");
+        // A value is never read as another template.
+        assert_eq!(fill("%1$@ and %2$@", &["%2$@", "b"]), "%2$@ and b");
+    }
+
+    #[test]
+    fn mac_looks_up_the_key_then_fills_it() {
+        assert_eq!(mac("Only %@", &["Atlas"]), "Only Atlas");
+        assert_eq!(mac_count(1, "%lld meeting", "%lld meetings"), "1 meeting");
+        assert_eq!(
+            mac_count(1_200, "%lld meeting", "%lld meetings"),
+            "1,200 meetings"
+        );
+    }
+
+    #[test]
+    fn days_read_today_yesterday_weekday_then_date() {
+        let day = |y, m, d| chrono::NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        let today = day(2026, 10, 30);
+        assert_eq!(day_label(today, today), "Today");
+        assert_eq!(day_label(day(2026, 10, 29), today), "Yesterday");
+        assert_eq!(day_label(day(2026, 10, 26), today), "Mon, Oct 26");
+        assert_eq!(day_label(day(2026, 10, 23), today), "Oct 23");
+        assert_eq!(day_label(day(2025, 12, 1), today), "Dec 1, 2025");
+        assert_eq!(short_date(day(2026, 11, 12), today), "Nov 12");
+        assert_eq!(short_date(day(2025, 11, 12), today), "Nov 12, 2025");
+    }
 
     #[test]
     fn every_catalog_table_is_sorted_for_binary_search() {

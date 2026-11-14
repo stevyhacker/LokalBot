@@ -6,7 +6,7 @@ use chrono::{DateTime, Duration, Local, Utc};
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Disableable as _, Icon, WindowExt as _, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Selectable as _, WindowExt as _, v_flex};
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Entity, FontWeight, IntoElement as _,
     ParentElement as _, Styled as _, Window, div, px,
@@ -74,7 +74,9 @@ fn clock(at: DateTime<Utc>) -> String {
 }
 
 impl TimelinePage {
-    pub(super) fn render_range_deletion(
+    /// "Delete screen moments…": a toggle, so it keeps its name while the
+    /// range controls are open and reads as on. `None` with nothing kept.
+    pub(super) fn range_deletion_toggle(
         &self,
         moments: &[ScreenMoment],
         cx: &mut Context<Self>,
@@ -83,34 +85,39 @@ impl TimelinePage {
             return None;
         }
         let count = moments.len();
-        let toggle = Button::new("timeline-delete-range")
-            .ghost()
-            .small()
-            .icon(Icon::new(Ico::Trash))
-            .label(if self.range_deletion.is_some() {
-                lokalbot_i18n::tr("Cancel Range Deletion")
-            } else {
-                lokalbot_i18n::tr("Delete Captures in a Time Range…")
-            })
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.range_deletion = match this.range_deletion {
-                    Some(_) => None,
-                    None => Some(RangeDeletion::new(count)),
-                };
-                cx.notify();
-            }));
-        // The moments can shrink under an open range.
-        let controls = self.range_deletion.clone().map(|mut range| {
-            range.clamp(count);
-            self.render_range_controls(&range, moments, cx)
-        });
         Some(
-            v_flex()
-                .gap(px(8.))
-                .child(toggle)
-                .children(controls)
+            Button::new("timeline-delete-range")
+                .outline()
+                .small()
+                .icon(Icon::new(Ico::Trash))
+                .label(lokalbot_i18n::tr("Delete screen moments…"))
+                .selected(self.range_deletion.is_some())
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.range_deletion = match this.range_deletion {
+                        Some(_) => None,
+                        None => Some(RangeDeletion::new(count)),
+                    };
+                    cx.notify();
+                }))
                 .into_any_element(),
         )
+    }
+
+    /// The range to delete while the toggle is on. Nothing is deleted before
+    /// the review lists what goes.
+    pub(super) fn render_range_deletion(
+        &self,
+        moments: &[ScreenMoment],
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        if moments.is_empty() {
+            return None;
+        }
+        // The moments can shrink under an open range.
+        self.range_deletion.clone().map(|mut range| {
+            range.clamp(moments.len());
+            self.render_range_controls(&range, moments, cx)
+        })
     }
 
     fn render_range_controls(

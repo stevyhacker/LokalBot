@@ -8,6 +8,7 @@
 //! a desktop cannot provide something (for example GNOME on Wayland without a
 //! window-information extension).
 
+pub mod access;
 pub mod activity;
 pub mod agent_links;
 pub mod autocomplete;
@@ -59,6 +60,7 @@ pub use shortcuts::{
     ShortcutProblem,
 };
 pub use tray::{
-    Tray, TrayDictation, TrayEvent, TrayItem, TrayMeeting, TrayMenuState, TrayUpdate,
+    Tray, TrayAttention, TrayBlock, TrayDictation, TrayEvent, TrayGlyph, TrayIconState, TrayItem,
+    TrayLabel, TrayMeeting, TrayMenuState, TrayRecording, TraySoonMeeting, TraySource, TrayUpdate,
     TrayUpdateAction,
 };

@@ -1,7 +1,7 @@
 //! The conversation list (`ChatConversationList`).
 
 use chrono::{DateTime, Days, Local, Utc};
-use gpui_kit::component::button::{Button, ButtonVariant};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 
 use crate::i18n::h_flex;
 use gpui_kit::component::input::Input;
@@ -27,60 +27,39 @@ impl AskPage {
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
-        let count = self.conversations.len();
-        let sections = sections(&self.conversations, &self.history_query, Local::now());
+        let now = Local::now();
+        let sections = sections(&self.conversations, &self.history_query, now);
         let query = self.history_query.trim().to_string();
 
-        let header =
-            v_flex()
-                .gap(px(8.))
-                .px(px(10.))
-                .pt(px(14.))
-                .pb(px(10.))
-                .child(
-                    h_flex()
-                        .gap(px(8.))
-                        .items_center()
-                        .child(
-                            v_flex()
-                                .flex_1()
-                                .min_w_0()
-                                .gap(px(2.))
-                                .child(
-                                    div()
-                                        .text_size(ty::COLUMN_TITLE)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_color(lb.text)
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                            "Conversations",
-                                        ))),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(lb.supporting)
-                                        .child(count_label(count, "conversation")),
-                                ),
-                        )
-                        .child(
-                            Button::new("ask-new-conversation")
-                                .outline()
-                                .small()
-                                .icon(Icon::new(Ico::SquarePen))
-                                .tooltip(lokalbot_i18n::tr("Start a new question (Ctrl+N)"))
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.new_conversation(window, cx)
-                                })),
-                        ),
-                )
-                .child(
+        // A search field and the New button; the list below needs no heading.
+        let header = h_flex()
+            .gap(px(8.))
+            .items_center()
+            .px(px(10.))
+            .pt(px(10.))
+            .pb(px(8.))
+            .child(
+                div().flex_1().min_w_0().child(
                     Input::new(&self.history_input)
+                        .small()
                         .cleanable(true)
                         .prefix(ui::icon(Ico::Search, px(14.), lb.text_secondary)),
-                );
+                ),
+            )
+            .child(
+                Button::new("ask-new-conversation")
+                    .ghost()
+                    .small()
+                    .icon(Icon::new(Ico::SquarePen))
+                    .tooltip(lokalbot_i18n::tr("Start a new question (Ctrl+N)"))
+                    .on_click(cx.listener(|this, _, window, cx| this.new_conversation(window, cx))),
+            );
 
+        // The unsaved new question is listed, selected, until it is asked.
+        let draft = (self.selected.is_none() && query.is_empty())
+            .then(|| self.render_draft_row(now, cx).into_any_element());
         let mut rows: Vec<AnyElement> = Vec::new();
-        if sections.is_empty() {
+        if sections.is_empty() && draft.is_none() {
             let message = if query.is_empty() {
                 if self.conversations_loaded {
                     lokalbot_i18n::tr("Questions you ask appear here.").to_string()
@@ -103,18 +82,17 @@ impl AskPage {
                     .into_any_element(),
             );
         }
+        let today = lokalbot_i18n::tr("Today");
+        let mut draft = draft;
+        if draft.is_some() && sections.first().is_none_or(|(title, _)| *title != today) {
+            rows.push(section_title(today, &lb).into_any_element());
+            rows.extend(draft.take());
+        }
         for (title, conversations) in sections {
-            rows.push(
-                div()
-                    .px(px(18.))
-                    .pt(px(10.))
-                    .pb(px(4.))
-                    .text_size(ty::SECONDARY)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(lb.supporting)
-                    .child(title)
-                    .into_any_element(),
-            );
+            rows.push(section_title(title, &lb).into_any_element());
+            if title == today {
+                rows.extend(draft.take());
+            }
             for conversation in conversations {
                 rows.push(self.render_history_row(conversation, cx).into_any_element());
             }
@@ -130,6 +108,42 @@ impl AskPage {
                 .pb(px(12.))
                 .children(rows),
         )
+    }
+
+    /// "New question" and when it was started (`ChatConversationList.row` for
+    /// a conversation with no question yet).
+    fn render_draft_row(
+        &self,
+        now: chrono::DateTime<Local>,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let lb = cx.lb().clone();
+        div()
+            .id("ask-conversation-draft")
+            .mx(px(8.))
+            .px(px(10.))
+            .py(px(6.))
+            .rounded(metric::ROW_RADIUS)
+            .bg(lb.sidebar_selection)
+            .child(
+                v_flex()
+                    .gap(px(2.))
+                    .min_w_0()
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(lb.text)
+                            .child(lokalbot_i18n::tr("New question")),
+                    )
+                    .child(
+                        div()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.text_secondary)
+                            .child(row_timestamp(self.draft_started, now)),
+                    ),
+            )
     }
 
     fn render_history_row(
@@ -189,6 +203,17 @@ impl AskPage {
     }
 }
 
+fn section_title(title: &str, lb: &crate::theme::Palette) -> gpui_kit::Div {
+    div()
+        .px(px(18.))
+        .pt(px(10.))
+        .pb(px(4.))
+        .text_size(ty::SECONDARY)
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(lb.supporting)
+        .child(title.to_string())
+}
+
 fn confirm_delete(
     page: gpui_kit::Entity<AskPage>,
     id: uuid::Uuid,
@@ -219,11 +244,6 @@ fn confirm_delete(
 pub fn element_key(id: uuid::Uuid) -> u64 {
     let (high, low) = id.as_u64_pair();
     high ^ low
-}
-
-/// "N conversations" / "1 conversation".
-pub fn count_label(count: usize, noun: &str) -> String {
-    lokalbot_i18n::count(count, noun)
 }
 
 /// The list title (`ChatViewModel.displayTitle`).

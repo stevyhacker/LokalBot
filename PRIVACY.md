@@ -25,7 +25,7 @@ LokalBot can store the following under its Application Support directory:
   only when you turn on **Use invitation agendas**, the invitation's agenda
   with joining details, links, phone numbers, and addresses removed;
 - the names LokalBot added to a meeting's transcription vocabulary;
-- the projects you track in Projects, suggestions you mark **Not a Project**,
+- the projects you track in Projects, suggestions you mark **Not a project**,
   and the "Where it stands" notes written for tracked projects;
 - downloaded transcription, embedding, speech, and language models;
 - permission-gated app/window activity history;
@@ -409,7 +409,7 @@ The app may make these outbound connections:
   Follow-up drafts and pre-meeting briefs are written only by an on-device
   Think model; Follow-through, below, is a separate feature you start yourself
   and follows the Think model you chose. A tracked project's "Where it stands" note uses the Think model
-  you chose: **Write Note** or **Update** sends the project's names, the lines
+  you chose: **Write note** or **Update** sends the project's names, the lines
   of its ten most recent meetings that name it, the decisions and open actions
   that name it, and its overnight review notes.
   The same origin approval covers scheduled daily summaries and overnight Dream
@@ -1152,10 +1152,10 @@ before any pixel file or text record is committed.
 People and Projects are derived on this Mac from meeting metadata, summaries,
 transcripts, outcomes, applied speaker names, Dream projects, and activity
 titles each time they are shown. Projects stores only what you choose in it:
-the names of projects you track and suggestions you mark **Not a Project**
+the names of projects you track and suggestions you mark **Not a project**
 (`projects/tracked.json`), and the "Where it stands" notes
 (`projects/summaries.json`). Deleting a meeting withdraws every note that used
-it; **Stop Tracking** deletes the project's note. People stores only the
+it; **Stop tracking** deletes the project's note. People stores only the
 corrections you make there — names you choose, people you merge, and entries
 you mark **Not a person** — in `people/curation.json`, keyed by opaque person
 ids, never by attendee addresses; undoing every correction deletes the file.
@@ -1465,10 +1465,15 @@ platform differences:
 - **Agent Mode** is off until you set it up.
   - Setup downloads Bun from GitHub and the pi agent packages from npm, both
     pinned and checksum-verified.
-  - File changes and commands need your approval. On the Mac, read-only
+  - File changes and commands need your approval. As on the Mac, read-only
     lookups of your own library (`lokalbot-cli brief`, `list`, `get`,
-    `search`) run without asking when the model runs on this Mac. Session
-    history stays in the library.
+    `search`, under the same rule as above) run without asking at every
+    level when the task's model runs on this computer, a loopback server
+    included; with a remote server, a subscription plan or a model whose
+    place is unknown they ask as before. The rule reads Bash commands, so on
+    Windows without Git Bash, where commands run in PowerShell, every lookup
+    asks. The app has no Agent Mode hand-offs, so there is no hand-off
+    exception. Session history stays in the library.
 - **The live transcript preview** runs only when you start it during a
   recording. It uses the local transcription model and is not saved; the
   full transcript replaces it after the meeting. **Turn-by-turn live text**
@@ -1495,7 +1500,7 @@ platform differences:
   attendee lists and skip invitations you declined. The pre-meeting brief on
   Today is written only by a Think model on this computer and is not saved.
 - **Remote Think** is off until you choose a server or plan under Settings →
-  Models → Connections and turn on its approval. The built-in model on this
+  Models → Online services and turn on its approval. The built-in model on this
   PC stays the default.
   - An Anthropic API URL (`api.anthropic.com`) uses its Messages API with
     prompt caching, as described above; Agent Mode reaches the same origin
@@ -1566,7 +1571,7 @@ platform differences:
   desktops may show portal prompts for screenshots and global shortcuts, some
   apps expose their text only once system accessibility is on, and GNOME needs
   the Window Calls extension for app and window activity.
-- **External agents.** Settings → Privacy & Data has a separate switch for each
+- **External agents.** Settings → AI agents has a separate switch for each
   kind of data, where macOS has boxes under one switch: the meeting library,
   files, agent notes, screen memory, and What I shared about myself. The same
   commands work under the same toggle: the socket lives in your private
@@ -1578,27 +1583,28 @@ platform differences:
   cannot be checked for a focused password field, so LokalBot relies on toolkits
   refusing to copy from one; results there are copy-only.
 - **Coding-agent sessions** are read only after you choose it in setup or
-  Settings → Day Memory, even if an earlier version or a Mac saved the setting as
-  on. Until then nothing under `~/.claude` or `~/.codex` is opened, and sessions a
-  Mac recorded in the library aren't used.
-- **Coding-agent notes.** **Read coding agent notes** is under Settings → Day
-  Memory, off until you turn it on after a notice, and works as described under
-  [Data stored on your Mac](#data-stored-on-your-mac): the same files are read
+  Settings → Screen & activity, even if an earlier version or a Mac saved the
+  setting as on. Until then nothing under `~/.claude` or `~/.codex` is opened, and
+  sessions a Mac recorded in the library aren't used.
+- **Coding-agent notes.** **Read coding agent notes** is under Settings → Screen
+  & activity, off until you turn it on after a notice, and works as described
+  under [Data stored on your Mac](#data-stored-on-your-mac): the same files are read
   from `.claude/projects/*/memory` and `.codex/memories` in your home folder
   (`%USERPROFILE%` on Windows), never instruction files, and the notes are a
   search source only, in Ask and Quick Recall. The copy is `agent-notes.sqlite`
   in the library, with mode 0600 on Linux; on Windows it is protected by your
   user profile's folder permissions. Turning the setting off deletes it.
   External agents can search the notes only while **Allow external agents to
-  search agent notes** is on in Settings → Privacy & Data.
-- **Review the day overnight** is under Settings → Day Memory, on by default as
+  search agent notes** is on in Settings → AI agents.
+- **Review the day overnight** is under Settings → Daily review, on by default as
   on macOS.
 - **Remembered voices.** The key is in the system credential store; without one,
   names stay on the transcript and no voice is kept. A voice match is only
-  offered: **Apply Names** names the speaker. Sealed voice files are per install:
-  on another computer they stay untouched and voices aren't remembered there. A
-  meeting deleted while voices can't be opened is still deleted, this is reported,
-  and its contributions leave at the next opening.
+  offered: it starts picked in **Name speakers**, and only **Save names** names
+  the speaker. Sealed voice files are per install: on another computer they stay
+  untouched and voices aren't remembered there. A meeting deleted while voices
+  can't be opened is still deleted, this is reported, and its contributions leave
+  at the next opening.
 - **Files you choose.** Page counts and durations come from the files' own
   headers. Words in screenshots come from screen text recognition only if it's
   already available, and matched files open in their default app. A scanned page

@@ -29,10 +29,21 @@ pub struct Palette {
     /// Grey used for metadata lines ("FaceTime · 10:57 AM · 2 min").
     pub supporting: Hsla,
     pub separator: Hsla,
+    /// Wells and the faint strips of a section panel: its footer and bands
+    /// (`groupFill`).
     pub group_fill: Hsla,
+    /// The edge of grouped wells and section panels (`groupStroke`).
     pub group_stroke: Hsla,
     /// Chips and quiet wells (quaternary fill at about 50%).
     pub chip_fill: Hsla,
+    /// Count pills and the empty part of a bar on a panel: quiet, and still a
+    /// visible shape in both appearances (`quietFill`).
+    pub quiet_fill: Hsla,
+    /// The page behind section panels (`windowBackgroundColor`), so each
+    /// panel reads as its own raised surface.
+    pub page: Hsla,
+    /// A section panel's raised surface (`controlBackgroundColor`).
+    pub panel: Hsla,
     pub hover: Hsla,
     /// Filled buttons, selected rows in a focused list, switches. White text on it.
     pub accent_fill: Hsla,
@@ -46,6 +57,12 @@ pub struct Palette {
     pub success_text: Hsla,
     pub recording: Hsla,
     pub recording_text: Hsla,
+    /// Due text of open work whose day has passed: the recording red's text
+    /// colour. At least 4.5:1 on panels and pages in both appearances.
+    pub overdue_text: Hsla,
+    /// Due text of open work due within the week: the attention amber's text
+    /// colour. At least 4.5:1 on panels and pages in both appearances.
+    pub due_soon_text: Hsla,
     pub speakers: [Hsla; 8],
 }
 
@@ -66,6 +83,9 @@ impl Palette {
             group_fill: rgba(0x0000_0009).into(),
             group_stroke: rgba(0x0000_0012).into(),
             chip_fill: rgba(0x0000_000F).into(),
+            quiet_fill: rgba(0x0000_000F).into(),
+            page: rgb(0xF6F6F6).into(),
+            panel: rgb(0xFFFFFF).into(),
             hover: rgba(0x0000_000A).into(),
             accent_fill: rgb(0x0C8275).into(),
             accent_fill_hover: rgb(0x0A7166).into(),
@@ -77,6 +97,8 @@ impl Palette {
             success_text: rgb(0x176F2C).into(),
             recording: rgb(0xFF3B30).into(),
             recording_text: rgb(0xB60012).into(),
+            overdue_text: rgb(0xB60012).into(),
+            due_soon_text: rgb(0x984C00).into(),
             speakers: [
                 rgb(0x075F55).into(),
                 rgb(0x007AFF).into(),
@@ -106,6 +128,9 @@ impl Palette {
             group_fill: rgba(0xFFFF_FF0D).into(),
             group_stroke: rgba(0xFFFF_FF0F).into(),
             chip_fill: rgba(0xFFFF_FF14).into(),
+            quiet_fill: rgba(0xFFFF_FF1A).into(),
+            page: rgb(0x282828).into(),
+            panel: rgb(0x1E1E1F).into(),
             hover: rgba(0xFFFF_FF0F).into(),
             accent_fill: rgb(0x0C8275).into(),
             accent_fill_hover: rgb(0x0E9384).into(),
@@ -117,6 +142,8 @@ impl Palette {
             success_text: rgb(0x4BDC71).into(),
             recording: rgb(0xFF453A).into(),
             recording_text: rgb(0xFF9C95).into(),
+            overdue_text: rgb(0xFF9C95).into(),
+            due_soon_text: rgb(0xFFB84D).into(),
             speakers: [
                 rgb(0x6EF2DC).into(),
                 rgb(0x0A84FF).into(),
@@ -194,6 +221,12 @@ pub mod ty {
     pub const CAPTION: Pixels = px(12.);
     pub const SIDEBAR_SECTION: Pixels = px(12.);
     pub const SMALL: Pixels = px(11.);
+    /// A section panel's title: one step above the section heading.
+    pub const PANEL_TITLE: Pixels = px(15.);
+    /// Count and status pills, band and group labels inside a panel.
+    pub const PILL: Pixels = px(12.);
+    /// The toolbar's second line under the page title ("2 open", a date).
+    pub const TOOLBAR_SUBTITLE: Pixels = px(12.);
 }
 
 /// Layout metrics (`LBTokens.Metric`).
@@ -205,17 +238,24 @@ pub mod metric {
     pub const SETTINGS_CATEGORIES_WIDTH: Pixels = px(240.);
     pub const DETAIL_PADDING: Pixels = px(28.);
     pub const SECTION_SPACING: Pixels = px(22.);
-    pub const HEADER_TO_CONTENT: Pixels = px(8.);
     pub const PANEL_PADDING: Pixels = px(14.);
     pub const GROUP_RADIUS: Pixels = px(10.);
     pub const ROW_RADIUS: Pixels = px(8.);
     pub const SIDEBAR_ROW_HEIGHT: Pixels = px(32.);
     pub const TOOLBAR_HEIGHT: Pixels = px(52.);
     pub const READING_MAX_WIDTH: Pixels = px(720.);
-    pub const TODAY_MAX_WIDTH: Pixels = px(980.);
-    pub const CONTENT_MAX_WIDTH: Pixels = px(1360.);
     pub const COMPOSER_RADIUS: Pixels = px(18.);
     pub const ACTION_TOGGLE: Pixels = px(18.);
+    /// Section panels (`SectionPanelMetric`): the inset between a panel's
+    /// edge and its text, and the heights of its strips.
+    pub const PANEL_INSET: Pixels = px(16.);
+    pub const PANEL_HEADER_HEIGHT: Pixels = px(46.);
+    pub const PANEL_FOOTER_HEIGHT: Pixels = px(38.);
+    pub const PANEL_BAND_HEIGHT: Pixels = px(30.);
+    /// Space between panels on a page.
+    pub const PANEL_SPACING: Pixels = px(16.);
+    /// An action row's padding above and below (`rowVerticalPadding`).
+    pub const ROW_VERTICAL_PADDING: Pixels = px(10.);
 }
 
 /// The interface font: Geist (Vercel with basement.studio, SIL OFL 1.1), the
@@ -370,6 +410,77 @@ pub fn apply(dark: bool, text_scale: f32, window: Option<&mut Window>, cx: &mut 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `color` drawn over the opaque `background`, as linear sRGB luminance.
+    fn luminance(color: Hsla, background: Hsla) -> f32 {
+        let top = gpui_kit::Rgba::from(color);
+        let base = gpui_kit::Rgba::from(background);
+        let channel = |c: f32, b: f32| {
+            let v = c * top.a + b * (1.0 - top.a);
+            if v <= 0.03928 {
+                v / 12.92
+            } else {
+                ((v + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(top.r, base.r)
+            + 0.7152 * channel(top.g, base.g)
+            + 0.0722 * channel(top.b, base.b)
+    }
+
+    fn contrast(text: Hsla, background: Hsla) -> f32 {
+        let (a, b) = (
+            luminance(text, background),
+            luminance(background, background),
+        );
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    /// Text on panels, their footer strips and the page stays readable.
+    #[test]
+    fn panel_text_colours_meet_four_and_a_half_to_one() {
+        for palette in [Palette::light(), Palette::dark()] {
+            let footer = {
+                let fill = gpui_kit::Rgba::from(palette.group_fill);
+                let base = gpui_kit::Rgba::from(palette.panel);
+                let mix = |c: f32, b: f32| c * fill.a + b * (1.0 - fill.a);
+                Hsla::from(gpui_kit::Rgba {
+                    r: mix(fill.r, base.r),
+                    g: mix(fill.g, base.g),
+                    b: mix(fill.b, base.b),
+                    a: 1.0,
+                })
+            };
+            for (name, text) in [
+                ("text", palette.text),
+                ("supporting", palette.supporting),
+                ("accent_text", palette.accent_text),
+                ("overdue_text", palette.overdue_text),
+                ("due_soon_text", palette.due_soon_text),
+            ] {
+                for (surface, background) in [
+                    ("panel", palette.panel),
+                    ("page", palette.page),
+                    ("footer", footer),
+                ] {
+                    let ratio = contrast(text, background);
+                    assert!(
+                        ratio >= 4.5,
+                        "{name} on {surface} (dark: {}) is {ratio:.2}:1",
+                        palette.dark
+                    );
+                }
+            }
+        }
+    }
+
+    /// The page and its panels differ, so a panel reads as raised.
+    #[test]
+    fn panels_stand_apart_from_the_page() {
+        for palette in [Palette::light(), Palette::dark()] {
+            assert!(contrast(palette.panel, palette.page) > 1.05);
+        }
+    }
 
     #[test]
     fn hausa_keeps_inter_for_its_hooked_letters() {

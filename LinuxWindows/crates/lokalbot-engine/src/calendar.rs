@@ -3,9 +3,10 @@
 //!
 //! Detection and recording read the cached events and never wait on the
 //! network: a refresh thread reads Evolution every minute and private links
-//! every five minutes, over yesterday to tomorrow (so the detector's −15/+90
-//! minute window works across midnight and Today sees the whole day). Nothing
-//! is read while calendar detection is off.
+//! every five minutes, from yesterday to a week ahead (so the detector's
+//! −15/+90 minute window works across midnight, Today sees the whole day and
+//! People sees who is coming up in the next seven days). Nothing is read while
+//! calendar detection is off.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -28,7 +29,7 @@ const LINK_INTERVAL: Duration = Duration::from_secs(5 * 60);
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CalendarSnapshot {
     pub status: CalendarStatus,
-    /// Recordable meetings from yesterday to tomorrow, by start.
+    /// Recordable meetings from yesterday to a week ahead, by start.
     pub events: Vec<CalendarEvent>,
     pub refreshed_at: Option<DateTime<Utc>>,
     /// Private links saved in the credential store.
@@ -284,10 +285,17 @@ impl From<lokalbot_platform::calendar::FetchReport> for SourceResult {
     }
 }
 
-/// Yesterday 00:00 to the end of tomorrow, local time.
+/// Yesterday 00:00 to the end of the day a week from today, local time:
+/// People's "Coming up" reads the next seven days
+/// (`PeopleUpcomingMeetings.windowDays`).
 fn window(settings: &Settings, today: chrono::NaiveDate) -> ParseOptions {
     let (from, _) = lokalbot_core::time::local_day_bounds(today.pred_opt().unwrap_or(today));
-    let (_, to) = lokalbot_core::time::local_day_bounds(today.succ_opt().unwrap_or(today));
+    let last = today
+        .checked_add_days(chrono::Days::new(
+            lokalbot_core::people::upcoming::WINDOW_DAYS as u64,
+        ))
+        .unwrap_or(today);
+    let (_, to) = lokalbot_core::time::local_day_bounds(last);
     ParseOptions {
         provider: String::new(),
         from,
@@ -334,5 +342,17 @@ mod tests {
             my_addresses(&settings),
             ["ana@example.com", "ana.work@example.org"]
         );
+    }
+
+    #[test]
+    fn the_window_runs_from_yesterday_to_a_week_ahead() {
+        let today = chrono::NaiveDate::from_ymd_opt(2026, 11, 10).unwrap();
+        let options = window(&Settings::default(), today);
+        let day = |d| chrono::NaiveDate::from_ymd_opt(2026, 11, d).unwrap();
+        assert_eq!(
+            options.from,
+            lokalbot_core::time::local_day_bounds(day(9)).0
+        );
+        assert_eq!(options.to, lokalbot_core::time::local_day_bounds(day(17)).1);
     }
 }

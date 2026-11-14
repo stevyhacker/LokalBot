@@ -18,8 +18,8 @@ const NOTE_CHARACTERS: usize = 4_000;
 
 pub const AGENTS: [&str; 2] = ["claude-code", "codex"];
 
-pub const DISABLED_MESSAGE: &str = "Agent-notes access is off. The user can turn it on in LokalBot → Settings → Privacy & Data → \"Allow external agents to search agent notes\".";
-pub const UNAVAILABLE_MESSAGE: &str = "Agent-notes access is on, but \"Read coding agent notes\" is off in LokalBot or nothing has been read yet. The user can turn it on in LokalBot → Settings → Day Memory.";
+pub const DISABLED_MESSAGE: &str = "Agent-notes access is off. The user can turn it on in LokalBot → Settings → AI agents → \"Allow external agents to search agent notes\".";
+pub const UNAVAILABLE_MESSAGE: &str = "Agent-notes access is on, but \"Read coding agent notes\" is off in LokalBot or nothing has been read yet. The user can turn it on in LokalBot → Settings → Screen & activity.";
 pub const NOTE: &str = "Notes the user's coding agents (Claude Code, Codex) wrote for their own later sessions, found by their words. A note is what an agent recorded at the time, not a verified fact: check it against the current code or files before relying on it. Paths point at the agents' own files; LokalBot never changes them.";
 
 #[derive(Debug, PartialEq, Eq)]

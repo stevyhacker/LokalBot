@@ -188,7 +188,7 @@ impl Render for AgentSetup {
                         div()
                             .text_size(ty::SECONDARY)
                             .text_color(lb.text_secondary)
-                            .child(ui::text::paragraph(lokalbot_i18n::tr("Allowing it lets the agent change your LokalBot settings and download models. Turning on capture, a data source, or sharing still asks you here. You can turn this off at any time in Settings → Privacy & Data."))),
+                            .child(ui::text::paragraph(lokalbot_i18n::tr("Allowing it lets the agent change your LokalBot settings and download models. Turning on capture, a data source, or sharing still asks you here. You can turn this off at any time in Settings → AI agents."))),
                     )
                     .when(request.grants.contains(&Grant::MeetingLibrary), |this| {
                         this.child(settings_row::row(

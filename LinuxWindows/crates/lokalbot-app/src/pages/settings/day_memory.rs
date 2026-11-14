@@ -1,4 +1,6 @@
-//! Day Memory: activity tracking, screen context and the day digest.
+//! Screen & activity (activity tracking and screen context) and Daily
+//! review (the day digest, with the overnight review, routines and the
+//! daily note from their own files).
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -53,7 +55,6 @@ impl SettingsPage {
     pub(super) fn day_memory_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let settings = self.data.read(cx).settings.clone();
         let data = self.data.clone();
-        let lb = cx.lb().clone();
 
         let captures_text = settings.tracking_enabled
             && settings.screen_context_capture_mode != ScreenContextMode::ActivityOnly;
@@ -68,7 +69,7 @@ impl SettingsPage {
                 )
             })
             .collect();
-        let mut memory = Section::new(lokalbot_i18n::tr("Day Memory"))
+        let mut memory = Section::new(lokalbot_i18n::tr("Activity"))
             .row(
                 "settings.trackingEnabled",
                 settings_row::row(
@@ -153,30 +154,13 @@ impl SettingsPage {
                     ),
                 )
                 .row(
-                    "settings.captureManage",
-                    settings_row::content_row(
-                        "settings.captureManage",
-                        h_flex()
-                            .gap(px(8.))
-                            .flex_wrap()
-                            .child(Button::new("settings-manage-retention").outline().small().label(lokalbot_i18n::tr("Manage retention and cleanup…")).on_click(
-                                cx.listener(|this, _, window, cx| this.reveal("settings.retentionDays", window, cx)),
-                            ))
-                            .child(Button::new("settings-manage-exclusions").outline().small().label(lokalbot_i18n::tr("Manage capture exclusions…")).on_click(
-                                cx.listener(|this, _, window, cx| this.reveal("settings.excludedApps", window, cx)),
-                            )),
-                        false,
-                        cx,
-                    ),
-                )
-                .row(
                     "settings.captureDetails",
                     settings_row::content_row(
                         "settings.captureDetails",
                         self.details(
                             "settings.captureDetails",
                             lokalbot_i18n::tr("How screen context is captured"),
-                            lokalbot_i18n::tr("Captures context after app or window changes, a pause in typing or pointer input, a clipboard change, or the idle fallback, without storing keys, pointer positions, or clipboard contents. Accessible text is preferred; on-device OCR fills gaps. Private windows, excluded apps and sites, password fields, and detected credentials are never captured, and nothing is captured while day memory is paused or the screen is locked. Images are encrypted with a key kept in this PC's credential store; extracted text follows the same retention (see Privacy & Data). Saved moments keep their encrypted frame and text until you unsave or delete them. Excluded apps log as “Private”."),
+                            lokalbot_i18n::tr("Captures context after app or window changes, a pause in typing or pointer input, a clipboard change, or the idle fallback, without storing keys, pointer positions, or clipboard contents. Accessible text is preferred; on-device OCR fills gaps. Private windows, excluded apps and sites, password fields, and detected credentials are never captured, and nothing is captured while day memory is paused or the screen is locked. Images are encrypted with a key kept in this PC's credential store; extracted text follows the same retention. Saved moments keep their encrypted frame and text until you unsave or delete them. Excluded apps log as “Private”."),
                             cx,
                         ),
                         false,
@@ -186,30 +170,13 @@ impl SettingsPage {
         } else {
             memory = memory
                 .row(
-                    "settings.activityManage",
-                    settings_row::content_row(
-                        "settings.activityManage",
-                        h_flex()
-                            .gap(px(8.))
-                            .flex_wrap()
-                            .child(Button::new("settings-manage-retention").outline().small().label(lokalbot_i18n::tr("Manage retention…")).on_click(
-                                cx.listener(|this, _, window, cx| this.reveal("settings.retentionDays", window, cx)),
-                            ))
-                            .child(Button::new("settings-manage-exclusions").outline().small().label(lokalbot_i18n::tr("Manage exclusions…")).on_click(
-                                cx.listener(|this, _, window, cx| this.reveal("settings.excludedApps", window, cx)),
-                            )),
-                        false,
-                        cx,
-                    ),
-                )
-                .row(
                     "settings.activityDetails",
                     settings_row::content_row(
                         "settings.activityDetails",
                         self.details(
                             "settings.activityDetails",
                             lokalbot_i18n::tr("What is recorded"),
-                            lokalbot_i18n::tr("Every few seconds LokalBot notes the app in front and its window title, and how long you stay. With screen context off it never records what you type, the clipboard, or what is on screen. Excluded apps and sites are logged as “Private” with the time only, password managers are always excluded, and passwords or keys in window titles are redacted. Window titles are cleared after the retention period in Privacy & Data."),
+                            lokalbot_i18n::tr("Every few seconds LokalBot notes the app in front and its window title, and how long you stay. With screen context off it never records what you type, the clipboard, or what is on screen. Excluded apps and sites are logged as “Private” with the time only, password managers are always excluded, and passwords or keys in window titles are redacted. Window titles are cleared after the retention period set below."),
                             cx,
                         ),
                         false,
@@ -218,6 +185,15 @@ impl SettingsPage {
                 );
         }
 
+        vec![memory]
+    }
+
+    /// Daily review (`SettingsTab.daily`): the day digest, the overnight
+    /// review, routines and the daily note, which Day Memory held before.
+    pub(super) fn daily_review_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
+        let settings = self.data.read(cx).settings.clone();
+        let data = self.data.clone();
+        let lb = cx.lb().clone();
         let hour = settings.day_digest_hour.min(23);
         let hour_data = data.clone();
         let used = settings.day_digest_custom_prompt.trim().chars().count();
@@ -302,39 +278,22 @@ impl SettingsPage {
             ),
         );
 
-        let coding_agents = self.coding_agents_section(cx);
         let routines = self.routines_section(cx);
         let daily_notes = self.daily_note_export_section(cx);
         let overnight = self.overnight_review_section(cx);
-        vec![
-            memory,
-            digest,
-            overnight,
-            coding_agents,
-            routines,
-            daily_notes,
-        ]
+        vec![digest, overnight, routines, daily_notes]
     }
 
     /// What capture can do on this desktop right now (`MemoryHealthSection`).
     fn screen_status(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
-        let (status, settings, paused) = {
+        let (status, paused) = {
             let data = self.data.read(cx);
-            (
-                data.screen.clone(),
-                data.settings.clone(),
-                data.day_memory_paused,
-            )
+            (data.screen.clone(), data.day_memory_paused)
         };
-        let visual = settings.screen_context_capture_mode == ScreenContextMode::TextAndVisual;
+        // What this desktop doesn't allow (window pixels, the credential
+        // store) is said in the page's header, beside its fix.
         let mut notes: Vec<(Ico, String, bool)> = Vec::new();
-        if let Some(limitation) = &status.capture_limitation {
-            notes.push((Ico::TriangleAlert, limitation.clone(), true));
-        }
-        if visual && let Some(images) = &status.images_unavailable {
-            notes.push((Ico::TriangleAlert, images.clone(), true));
-        }
         if paused {
             notes.push((
                 Ico::Pause,

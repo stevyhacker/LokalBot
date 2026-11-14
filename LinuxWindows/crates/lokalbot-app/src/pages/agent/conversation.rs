@@ -1,18 +1,21 @@
-//! The conversation (`AgentSessionView.swift`): task header, find bar,
-//! transcript with activity groups and responses, the approval dock and the
-//! composer.
+//! One task (`AgentSessionView.swift`): a new task's heading and composer
+//! mid-page, or the conversation with the composer docked under it. While
+//! the agent works its words show in full and its steps fold to one line a
+//! run; a finished turn folds its work into one steps line above its answer
+//! and the files it changed. An approval request docks above the composer.
 
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash as _, Hasher as _};
+use std::path::PathBuf;
 use std::rc::Rc;
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::Input;
-use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
+use gpui_kit::component::menu::{ContextMenuExt as _, DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::spinner::Spinner;
-use gpui_kit::component::{Icon, Sizable as _, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, Context, Div, FontWeight, Hsla, InteractiveElement as _, IntoElement,
@@ -21,10 +24,12 @@ use gpui_kit::{
 };
 use uuid::Uuid;
 
-use lokalbot_agent::tasks::{AttachmentKind, ResultPreview, TranscriptGroup, activity_summary};
+use lokalbot_agent::presentation::{self, Block, ChangedFile, Place, StepGroup, TaskStatus};
+use lokalbot_agent::tasks::{AttachmentKind, ResultPreview};
 use lokalbot_agent::transcript::ApprovalRequest;
 use lokalbot_agent::{RecoveryAction, SessionState, ToolStatus, TranscriptItem};
 
+use super::words::{self, StepContext, StepLabel};
 use super::{AgentPage, small_icon_button};
 use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
@@ -36,18 +41,38 @@ use crate::ui::{self, Ico};
 /// model so rendering can borrow the page mutably.
 pub(super) struct Snapshot {
     pub task: Uuid,
-    pub title: String,
-    pub status: &'static str,
+    pub status: TaskStatus,
     pub state: SessionState,
     pub items: Vec<TranscriptItem>,
     pub approvals: Vec<ApprovalRequest>,
-    pub can_allow_first: bool,
     pub recovery: Option<RecoveryAction>,
     pub has_failed_prompt: bool,
     pub archived: bool,
     pub can_branch: bool,
+    /// Nothing has been said yet, so the composer sits mid-page.
+    pub is_new_task: bool,
+    pub workspace: PathBuf,
+    pub workspace_name: String,
+    pub write_targets: Vec<(String, bool)>,
 }
 
+impl Snapshot {
+    fn is_working(&self) -> bool {
+        self.state == SessionState::Running
+    }
+
+    /// The files the given steps wrote or edited.
+    pub fn changed_files(&self, steps: &[TranscriptItem]) -> Vec<ChangedFile> {
+        ChangedFile::list(steps, &self.workspace, &self.workspace_name, |id| {
+            self.write_targets
+                .iter()
+                .find(|(step, _)| step == id)
+                .map(|(_, existed)| *existed)
+        })
+    }
+}
+
+/// `starters` in `AgentSessionView`.
 const STARTERS: [(&str, &str, Ico); 3] = [
     (
         "Draft follow-up",
@@ -77,22 +102,56 @@ impl AgentPage {
             session.state,
             SessionState::Running | SessionState::Starting
         ) || session.is_sending;
+        let items = session.items().to_vec();
+        let write_targets = items
+            .iter()
+            .filter_map(|item| match item {
+                TranscriptItem::Tool { id, .. } => session
+                    .write_target_existed(id)
+                    .map(|existed| (id.clone(), existed)),
+                _ => None,
+            })
+            .collect();
         Some(Snapshot {
             task: tab.id,
-            title: tab.title(),
-            status: session.task_status(),
+            status: super::task_status(tab),
             state: session.state.clone(),
-            items: session.items().to_vec(),
-            can_allow_first: approvals
-                .first()
-                .is_some_and(|r| session.can_allow_for_session(r)),
+            is_new_task: items.is_empty()
+                && tab.saved.is_none()
+                && !session.is_failed()
+                && session.state != SessionState::Running,
+            items,
             approvals,
             recovery: session.recovery_action,
             has_failed_prompt: session.failed_prompt.is_some(),
             archived: tab.record.is_archived,
             can_branch: !busy
                 && (session.active_session_file.is_some() || tab.record.session_file.is_some()),
+            workspace: session.workspace.clone(),
+            workspace_name: session.workspace_display_name(),
+            write_targets,
         })
+    }
+
+    /// A meeting's title from the ID or ID prefix a lookup names.
+    pub(super) fn meeting_title(&self, cx: &App) -> impl Fn(&str) -> Option<String> + 'static {
+        let meetings: Vec<(String, String)> = self
+            .data
+            .read(cx)
+            .meetings
+            .iter()
+            .map(|m| (m.id.to_string().to_lowercase(), m.display_title()))
+            .collect();
+        move |id: &str| {
+            if id.chars().count() < 6 {
+                return None;
+            }
+            let id = id.to_lowercase();
+            meetings
+                .iter()
+                .find(|(meeting, _)| meeting.starts_with(&id))
+                .map(|(_, title)| title.clone())
+        }
     }
 
     pub(super) fn render_conversation(
@@ -104,40 +163,18 @@ impl AgentPage {
             return div().into_any_element();
         };
         let lb = cx.lb().clone();
-        let header = v_flex()
-            .w_full()
-            .max_w(metric::READING_MAX_WIDTH)
-            .gap(px(6.))
-            .child(
-                div()
-                    .line_clamp(2)
-                    .text_size(px(22.))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(lb.text)
-                    .child(snapshot.title.clone()),
-            )
-            .child(
-                div()
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_secondary)
-                    .child(snapshot.status),
-            );
+        if snapshot.is_new_task {
+            return self.render_new_task(&snapshot, window, cx);
+        }
         let approval = snapshot
             .approvals
             .first()
             .cloned()
             .map(|request| self.render_approval_dock(&request, &snapshot, window, cx));
+        let composer = self.render_composer(&snapshot, false, window, cx);
         v_flex()
             .size_full()
-            .child(
-                h_flex()
-                    .w_full()
-                    .justify_center()
-                    .px(px(20.))
-                    .pt(px(20.))
-                    .pb(px(16.))
-                    .child(header),
-            )
+            .bg(lb.page)
             .when(self.find_visible, |this| {
                 this.child(self.render_find_bar(&snapshot, cx))
             })
@@ -148,36 +185,100 @@ impl AgentPage {
                     .child(self.render_transcript(&snapshot, window, cx)),
             )
             .when_some(approval, |this, dock| {
-                this.child(
-                    h_flex()
-                        .w_full()
-                        .justify_center()
-                        .px(px(20.))
-                        .pb(px(8.))
-                        .child(dock),
-                )
+                this.child(reading_column(dock).pb(px(8.)))
             })
-            .child(self.render_composer(&snapshot, window, cx))
+            .child(reading_column(composer).pt(px(4.)).pb(px(14.)))
+            .into_any_element()
+    }
+
+    /// The heading, what the agent may do, the composer and three starters,
+    /// a little above the middle of the pane.
+    fn render_new_task(
+        &mut self,
+        snapshot: &Snapshot,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let mode = self
+            .model(cx)
+            .and_then(|m| m.tasks.as_ref()?.selected())
+            .map(|t| t.session.approval_mode())
+            .unwrap_or_default();
+        let mut starters = h_flex().flex_wrap().gap(px(10.));
+        for (index, (title, prompt, icon)) in STARTERS.iter().enumerate() {
+            let prompt = prompt.to_string();
+            starters = starters.child(
+                Button::new(("agent-starter", index as u64))
+                    .outline()
+                    .icon(Icon::new(*icon))
+                    .label(lokalbot_i18n::tr(title))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        let prompt = prompt.clone();
+                        this.with_session(cx, |session| session.draft = prompt);
+                        this.sync_composer(window, cx);
+                        this.focus_composer(window, cx);
+                    })),
+            );
+        }
+        let composer = self.render_composer(snapshot, true, window, cx);
+        div()
+            .id("agent-new-task")
+            .size_full()
+            .bg(lb.page)
+            .overflow_y_scroll()
+            .child(
+                v_flex()
+                    .min_h_full()
+                    .w_full()
+                    .items_center()
+                    .justify_center()
+                    .px(px(20.))
+                    .pt(px(24.))
+                    .pb(px(84.))
+                    .child(
+                        v_flex()
+                            .w_full()
+                            .max_w(px(640.))
+                            .child(
+                                div()
+                                    .text_size(ty::QUESTION)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(lb.text)
+                                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
+                                        "What would you like to work on?",
+                                    ))),
+                            )
+                            .child(
+                                div()
+                                    .pt(px(8.))
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(if words::needs_caution(mode) {
+                                        lb.attention_text
+                                    } else {
+                                        lb.text_secondary
+                                    })
+                                    .child(crate::ui::text::paragraph(words::capability(mode))),
+                            )
+                            .child(div().pt(px(18.)).child(composer))
+                            .child(div().pt(px(22.)).child(starters)),
+                    ),
+            )
             .into_any_element()
     }
 
     // ------------------------------------------------------------ find
 
-    /// Group ids whose text contains the find query.
-    fn matches(&self, items: &[TranscriptItem]) -> Vec<String> {
+    /// Block ids whose text contains the find query.
+    fn matches(&self, blocks: &[Block]) -> Vec<String> {
         let query = self.find_query.trim().to_lowercase();
         if query.is_empty() {
             return Vec::new();
         }
-        TranscriptGroup::make(items)
-            .into_iter()
-            .filter(|group| {
-                group
-                    .items
-                    .iter()
-                    .any(|item| item.searchable_text().to_lowercase().contains(&query))
-            })
-            .map(|group| group.id)
+        blocks
+            .iter()
+            .filter(|block| block.searchable_text().to_lowercase().contains(&query))
+            .map(Block::id)
             .collect()
     }
 
@@ -185,17 +286,27 @@ impl AgentPage {
         let Some(snapshot) = self.snapshot(cx) else {
             return;
         };
-        let matches = self.matches(&snapshot.items);
+        let blocks = presentation::layout(&snapshot.items, snapshot.is_working());
+        // A match inside a folded run of steps opens that run.
+        let query = self.find_query.trim().to_lowercase();
+        if !query.is_empty() {
+            for block in &blocks {
+                if let Block::Steps(group) = block
+                    && group
+                        .entries
+                        .iter()
+                        .any(|e| e.searchable_text().to_lowercase().contains(&query))
+                {
+                    self.expanded_steps.insert(group.id.clone());
+                }
+            }
+        }
+        let matches = self.matches(&blocks);
         let Some(target) = matches.get(self.match_index) else {
             return;
         };
-        let groups = TranscriptGroup::make(&snapshot.items);
-        if let Some(index) = groups.iter().position(|g| &g.id == target) {
-            let offset = self.transcript_offset(&snapshot);
-            self.transcript_scroll.scroll_to_item(index + offset);
-            if groups[index].is_activity() {
-                self.expanded_groups.insert(target.clone());
-            }
+        if let Some(index) = blocks.iter().position(|b| &b.id() == target) {
+            self.transcript_scroll.scroll_to_item(index);
         }
     }
 
@@ -203,7 +314,8 @@ impl AgentPage {
         let Some(snapshot) = self.snapshot(cx) else {
             return;
         };
-        let count = self.matches(&snapshot.items).len() as isize;
+        let blocks = presentation::layout(&snapshot.items, snapshot.is_working());
+        let count = self.matches(&blocks).len() as isize;
         if count == 0 {
             return;
         }
@@ -216,7 +328,8 @@ impl AgentPage {
 
     fn render_find_bar(&self, snapshot: &Snapshot, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
-        let count = self.matches(&snapshot.items).len();
+        let blocks = presentation::layout(&snapshot.items, snapshot.is_working());
+        let count = self.matches(&blocks).len();
         let label = if count == 0 {
             lokalbot_i18n::tr("0 matches").to_string()
         } else {
@@ -228,53 +341,43 @@ impl AgentPage {
                 ],
             )
         };
-        h_flex()
-            .w_full()
-            .justify_center()
-            .px(px(20.))
-            .pb(px(8.))
-            .child(
-                h_flex()
-                    .w_full()
-                    .max_w(metric::READING_MAX_WIDTH)
-                    .gap(px(8.))
-                    .items_center()
-                    .child(
-                        div().flex_1().child(
-                            Input::new(&self.find_input)
-                                .small()
-                                .cleanable(true)
-                                .prefix(ui::icon(Ico::Search, px(13.), lb.text_secondary)),
-                        ),
+        reading_column(
+            h_flex()
+                .w_full()
+                .gap(px(8.))
+                .items_center()
+                .child(
+                    div().flex_1().child(
+                        Input::new(&self.find_input)
+                            .small()
+                            .cleanable(true)
+                            .prefix(ui::icon(Ico::Search, px(13.), lb.text_secondary)),
+                    ),
+                )
+                .child(
+                    div()
+                        .text_size(ty::CAPTION)
+                        .text_color(lb.text_secondary)
+                        .child(label),
+                )
+                .child(
+                    small_icon_button(
+                        "agent-find-previous",
+                        Ico::ChevronUp,
+                        lokalbot_i18n::tr("Previous match"),
                     )
-                    .child(
-                        div()
-                            .text_size(ty::CAPTION)
-                            .text_color(lb.text_secondary)
-                            .child(label),
+                    .on_click(cx.listener(|this, _, _, cx| this.next_match(-1, cx))),
+                )
+                .child(
+                    small_icon_button(
+                        "agent-find-next",
+                        Ico::ChevronDown,
+                        lokalbot_i18n::tr("Next match"),
                     )
-                    .child(
-                        small_icon_button(
-                            "agent-find-previous",
-                            Ico::ChevronUp,
-                            lokalbot_i18n::tr("Previous match"),
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| this.next_match(-1, cx))),
-                    )
-                    .child(
-                        small_icon_button(
-                            "agent-find-next",
-                            Ico::ChevronDown,
-                            lokalbot_i18n::tr("Next match"),
-                        )
-                        .on_click(cx.listener(|this, _, _, cx| this.next_match(1, cx))),
-                    )
-                    .child(
-                        small_icon_button(
-                            "agent-find-close",
-                            Ico::X,
-                            lokalbot_i18n::tr("Close find"),
-                        )
+                    .on_click(cx.listener(|this, _, _, cx| this.next_match(1, cx))),
+                )
+                .child(
+                    small_icon_button("agent-find-close", Ico::X, lokalbot_i18n::tr("Close find"))
                         .on_click(cx.listener(|this, _, window, cx| {
                             this.find_visible = false;
                             this.find_query.clear();
@@ -282,17 +385,14 @@ impl AgentPage {
                                 .update(cx, |state, cx| state.set_value("", window, cx));
                             cx.notify();
                         })),
-                    ),
-            )
+                )
+                .into_any_element(),
+        )
+        .pt(px(10.))
+        .pb(px(8.))
     }
 
     // ------------------------------------------------------- transcript
-
-    /// Children of the scroll container before the first group.
-    fn transcript_offset(&self, snapshot: &Snapshot) -> usize {
-        usize::from(snapshot.items.is_empty())
-            + usize::from(matches!(snapshot.state, SessionState::Failed(_)))
-    }
 
     fn render_transcript(
         &mut self,
@@ -301,41 +401,83 @@ impl AgentPage {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
-        let groups = TranscriptGroup::make(&snapshot.items);
-        let matches = self.matches(&snapshot.items);
+        let blocks = presentation::layout(&snapshot.items, snapshot.is_working());
+        let matches = self.matches(&blocks);
         let current = matches.get(self.match_index).cloned();
         let first_id = snapshot.items.first().map(|i| i.id().to_string());
+        let meeting_title = self.meeting_title(cx);
+        let context = StepContext {
+            workspace: &snapshot.workspace,
+            workspace_name: &snapshot.workspace_name,
+            meeting_title: &meeting_title,
+        };
         let mut rows: Vec<AnyElement> = Vec::new();
-        if snapshot.items.is_empty() {
-            rows.push(centered(self.render_empty_state(cx).into_any_element()));
+        for block in &blocks {
+            let highlighted = current.as_deref() == Some(block.id().as_str());
+            let element = match block {
+                Block::User(item) => {
+                    self.render_user(item, first_id.as_deref() == Some(item.id()), snapshot, cx)
+                }
+                Block::Said(item) => self.render_said(item, cx),
+                Block::Answer { item, steps } => self.render_answer(item, steps, snapshot, cx),
+                Block::Notice(item) => render_notice(item, cx),
+                Block::Steps(group) => self.render_steps(group, &context, snapshot, cx),
+                Block::Live(item) => render_live(item, &context, cx),
+            };
+            rows.push(
+                reading_column(
+                    div()
+                        .w_full()
+                        .rounded(metric::GROUP_RADIUS)
+                        .when(highlighted, |this| {
+                            this.border_1().border_color(lb.accent_fill.opacity(0.6))
+                        })
+                        .child(element)
+                        .into_any_element(),
+                )
+                .into_any_element(),
+            );
         }
         if let SessionState::Failed(message) = &snapshot.state {
-            rows.push(centered(
-                self.render_recovery(message, snapshot, cx)
-                    .into_any_element(),
-            ));
+            rows.push(
+                reading_column(
+                    self.render_recovery(message, snapshot, cx)
+                        .into_any_element(),
+                )
+                .into_any_element(),
+            );
         }
-        for group in &groups {
-            let highlighted = current.as_deref() == Some(group.id.as_str());
-            let element = if group.is_activity() {
-                self.render_activity_group(group, cx).into_any_element()
-            } else if let Some(item) = group.items.first() {
-                self.render_message(item, first_id.as_deref() == Some(item.id()), snapshot, cx)
-            } else {
-                continue;
-            };
-            rows.push(centered(
-                div()
-                    .w_full()
-                    .rounded(metric::GROUP_RADIUS)
-                    .when(highlighted, |this| {
-                        this.border_1().border_color(lb.accent_fill.opacity(0.6))
-                    })
-                    .child(element)
-                    .into_any_element(),
-            ));
+        if !snapshot.approvals.is_empty() {
+            rows.push(
+                reading_column(
+                    h_flex()
+                        .gap(px(7.))
+                        .items_center()
+                        .text_size(ty::SECONDARY)
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(lb.attention_text)
+                        .child(ui::icon(Ico::Hand, px(14.), lb.attention_text))
+                        .child(lokalbot_i18n::tr("Waiting for your answer below"))
+                        .into_any_element(),
+                )
+                .into_any_element(),
+            );
+        } else if snapshot.status == TaskStatus::Stopped {
+            rows.push(
+                reading_column(
+                    h_flex()
+                        .gap(px(7.))
+                        .items_center()
+                        .text_size(ty::SECONDARY)
+                        .text_color(lb.text_secondary)
+                        .child(ui::icon(Ico::CircleStop, px(14.), lb.text_secondary))
+                        .child(lokalbot_i18n::tr("Stopped. Send a message to continue."))
+                        .into_any_element(),
+                )
+                .into_any_element(),
+            );
         }
-        rows.push(div().h(px(24.)).into_any_element());
+        rows.push(div().h(px(12.)).into_any_element());
         let near_end = {
             let offset = self.transcript_scroll.offset();
             let max = self.transcript_scroll.max_offset();
@@ -357,11 +499,10 @@ impl AgentPage {
                         this.follow_output = max.y + offset.y < px(120.);
                         cx.notify();
                     }))
-                    .px(px(20.))
-                    .pt(px(4.))
+                    .pt(px(24.))
                     .flex()
                     .flex_col()
-                    .gap(px(12.))
+                    .gap(px(14.))
                     .children(rows),
             )
             .when(show_jump, |this| {
@@ -383,48 +524,6 @@ impl AgentPage {
                 )
             })
             .into_any_element()
-    }
-
-    fn render_empty_state(&mut self, cx: &mut Context<Self>) -> Div {
-        let lb = cx.lb().clone();
-        let mut starters = h_flex().flex_wrap().gap(px(12.));
-        for (index, (title, prompt, icon)) in STARTERS.iter().enumerate() {
-            let prompt = prompt.to_string();
-            starters = starters.child(
-                Button::new(("agent-starter", index as u64))
-                    .outline()
-                    .icon(Icon::new(*icon))
-                    .label(lokalbot_i18n::tr(title))
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        let prompt = prompt.clone();
-                        this.with_session(cx, |session| session.draft = prompt);
-                        this.sync_composer(window, cx);
-                        this.focus_composer(window, cx);
-                    })),
-            );
-        }
-        v_flex()
-            .w_full()
-            .gap(px(20.))
-            .py(px(24.))
-            .child(
-                div()
-                    .text_size(px(22.))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(lb.text)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "What would you like to work on?",
-                    ))),
-            )
-            .child(
-                div()
-                    .text_size(ty::BODY)
-                    .text_color(lb.text_secondary)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                        "Start with your work memory or a file. The agent starts when you send.",
-                    ))),
-            )
-            .child(starters)
     }
 
     fn render_recovery(
@@ -510,280 +609,555 @@ impl AgentPage {
             )
     }
 
-    fn render_message(
+    /// The user's message on the trailing side; Copy, Edit as follow-up and
+    /// Branch from here are in its menu.
+    fn render_user(
         &mut self,
         item: &TranscriptItem,
         is_first: bool,
         snapshot: &Snapshot,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let TranscriptItem::User { id, text } = item else {
+            return div().into_any_element();
+        };
         let lb = cx.lb().clone();
         let size = px(self.text_size);
-        match item {
-            TranscriptItem::User { id, text } => {
-                let copy_key = format!("user-{id}");
-                let copied = self.copied.as_deref() == Some(copy_key.as_str());
-                let page = cx.entity();
-                let item_id = id.clone();
-                let branch_id = id.clone();
-                let can_branch = snapshot.can_branch;
-                let task = snapshot.task;
-                let text_for_copy = text.clone();
-                v_flex()
-                    .w_full()
-                    .items_end()
-                    .gap(px(8.))
-                    .pb(px(12.))
-                    .when(!is_first, |this| {
-                        this.child(
-                            div()
-                                .w_full()
-                                .pt(px(12.))
-                                .pb(px(16.))
-                                .child(ui::divider(cx)),
-                        )
-                    })
-                    .child(
-                        div()
-                            .max_w(relative(0.85))
-                            .p(px(12.))
-                            .rounded(metric::GROUP_RADIUS)
-                            .bg(lb.group_fill)
-                            .border_1()
-                            .border_color(lb.group_stroke)
-                            .text_size(size)
-                            .line_height(size * 1.45)
-                            .text_color(lb.text)
-                            .child(text.clone()),
-                    )
-                    .child(
-                        h_flex()
-                            .gap(px(4.))
-                            .child(
-                                Button::new(SharedString::from(format!("agent-copy-{id}")))
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(if copied { Ico::Check } else { Ico::Copy }))
-                                    .label(if copied {
-                                        lokalbot_i18n::tr("Copied")
-                                    } else {
-                                        lokalbot_i18n::tr("Copy")
+        let page = cx.entity();
+        let (item_id, can_branch, task, copy_text) =
+            (id.clone(), snapshot.can_branch, snapshot.task, text.clone());
+        let copy_key = format!("user-{id}");
+        h_flex()
+            .w_full()
+            .justify_end()
+            .when(!is_first, |this| this.pt(px(18.)))
+            .child(
+                div()
+                    .id(SharedString::from(format!("agent-user-{id}")))
+                    .max_w(relative(0.85))
+                    .px(px(14.))
+                    .py(px(10.))
+                    .rounded(metric::GROUP_RADIUS)
+                    .bg(lb.panel)
+                    .border_1()
+                    .border_color(lb.group_stroke)
+                    .text_size(size)
+                    .line_height(size * 1.45)
+                    .text_color(lb.text)
+                    .child(text.clone())
+                    .context_menu(move |menu, _, _| {
+                        let copy = page.clone();
+                        let edit = page.clone();
+                        let branch = page.clone();
+                        let (copy_text, copy_key, edit_id, branch_id) = (
+                            copy_text.clone(),
+                            copy_key.clone(),
+                            item_id.clone(),
+                            item_id.clone(),
+                        );
+                        menu.item(PopupMenuItem::new(lokalbot_i18n::tr("Copy")).on_click(
+                            move |_, _, cx| {
+                                let (key, text) = (copy_key.clone(), copy_text.clone());
+                                copy.update(cx, |page, cx| page.copy(key, text, cx))
+                            },
+                        ))
+                        .item(
+                            PopupMenuItem::new(lokalbot_i18n::tr("Edit as follow-up")).on_click(
+                                move |_, window, cx| {
+                                    let edit_id = edit_id.clone();
+                                    edit.update(cx, |page, cx| {
+                                        page.with_session(cx, |s| s.edit_as_follow_up(&edit_id));
+                                        page.sync_composer(window, cx);
+                                        page.focus_composer(window, cx);
                                     })
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.copy(copy_key.clone(), text_for_copy.clone(), cx)
-                                    })),
-                            )
-                            .child(
-                                Button::new(SharedString::from(format!("agent-user-more-{id}")))
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(Ico::Ellipsis))
-                                    .tooltip(lokalbot_i18n::tr("More message actions"))
-                                    .dropdown_menu(move |menu, _, _| {
-                                        let edit = page.clone();
-                                        let branch = page.clone();
-                                        let item_id = item_id.clone();
-                                        let branch_id = branch_id.clone();
-                                        menu.item(
-                                            PopupMenuItem::new(lokalbot_i18n::tr(
-                                                "Edit as follow-up",
-                                            ))
-                                            .on_click(move |_, window, cx| {
-                                                let item_id = item_id.clone();
-                                                edit.update(cx, |page, cx| {
-                                                    page.with_session(cx, |s| {
-                                                        s.edit_as_follow_up(&item_id)
-                                                    });
-                                                    page.sync_composer(window, cx);
-                                                    page.focus_composer(window, cx);
-                                                })
-                                            }),
-                                        )
-                                        .item(
-                                            PopupMenuItem::new(lokalbot_i18n::tr(
-                                                "Branch from here",
-                                            ))
-                                            .disabled(!can_branch)
-                                            .on_click(move |_, _, cx| {
-                                                let branch_id = branch_id.clone();
-                                                branch.update(cx, |page, cx| {
-                                                    page.with_tasks(cx, |tasks| {
-                                                        tasks.fork(task, &branch_id)
-                                                    })
-                                                })
-                                            }),
-                                        )
-                                    }),
+                                },
                             ),
-                    )
-                    .into_any_element()
+                        )
+                        .item(
+                            PopupMenuItem::new(lokalbot_i18n::tr("Branch from here"))
+                                .disabled(!can_branch)
+                                .on_click(move |_, _, cx| {
+                                    let branch_id = branch_id.clone();
+                                    branch.update(cx, |page, cx| {
+                                        page.with_tasks(cx, |tasks| tasks.fork(task, &branch_id))
+                                    })
+                                }),
+                        )
+                    }),
+            )
+            .into_any_element()
+    }
+
+    /// The agent's words, in full: plain while they stream, formatted after.
+    fn render_text(
+        &mut self,
+        id: &str,
+        text: &str,
+        streaming: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let size = px(self.text_size);
+        if streaming {
+            return div()
+                .w_full()
+                .text_size(size)
+                .line_height(size * 1.5)
+                .text_color(lb.text)
+                .child(text.to_string())
+                .into_any_element();
+        }
+        let answer = self.parsed_answer(id, text);
+        let style = AnswerStyle {
+            size,
+            line_height: size * 1.5,
+            color: lb.text,
+        };
+        let citations = answer.citations.clone();
+        let cite_page = cx.entity();
+        let on_cite: answer_text::CiteHandler = Rc::new(move |index, _, cx| {
+            if let Some(source) = citations.get(index).cloned() {
+                cite_page.update(cx, |page, cx| page.open_cited_source(&source, cx));
             }
+        });
+        let link_page = cx.entity();
+        let on_link: answer_text::LinkHandler = Rc::new(move |url, _, cx| {
+            link_page.update(cx, |page, cx| page.open_answer_link(url, cx));
+        });
+        answer_text::render_linked(
+            SharedString::from(format!("agent-answer-{id}")),
+            &answer,
+            style,
+            on_cite,
+            Some(on_link),
+            cx,
+        )
+        .w_full()
+        .into_any_element()
+    }
+
+    /// What the agent says while it works, in full and without actions.
+    fn render_said(&mut self, item: &TranscriptItem, cx: &mut Context<Self>) -> AnyElement {
+        match item {
             TranscriptItem::Assistant {
                 id,
                 text,
                 is_streaming,
-            } => {
-                if *is_streaming {
-                    return div()
-                        .w_full()
-                        .text_size(size)
-                        .line_height(size * 1.5)
-                        .text_color(lb.text)
-                        .child(text.clone())
-                        .into_any_element();
-                }
-                let answer = self.parsed_answer(id, text);
-                let style = AnswerStyle {
-                    size,
-                    line_height: size * 1.5,
-                    color: lb.text,
-                };
-                let citations = answer.citations.clone();
-                let cite_page = cx.entity();
-                let on_cite: answer_text::CiteHandler = Rc::new(move |index, _, cx| {
-                    if let Some(source) = citations.get(index).cloned() {
-                        cite_page.update(cx, |page, cx| page.open_cited_source(&source, cx));
-                    }
-                });
-                let link_page = cx.entity();
-                let on_link: answer_text::LinkHandler = Rc::new(move |url, _, cx| {
-                    link_page.update(cx, |page, cx| page.open_answer_link(url, cx));
-                });
-                let copy_key = format!("assistant-{id}");
-                let copied = self.copied.as_deref() == Some(copy_key.as_str());
-                let page = cx.entity();
-                let retry_id = id.clone();
-                let more_id = id.clone();
-                let text_for_copy = text.clone();
-                let text_for_results = text.clone();
-                let can_branch = snapshot.can_branch;
-                let task = snapshot.task;
-                v_flex()
+            } => self.render_text(id, text, *is_streaming, cx),
+            _ => div().into_any_element(),
+        }
+    }
+
+    /// The answer a finished turn ends with: the focal point, then the files
+    /// that turn changed and quiet copy and retry controls.
+    fn render_answer(
+        &mut self,
+        item: &TranscriptItem,
+        steps: &[TranscriptItem],
+        snapshot: &Snapshot,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let TranscriptItem::Assistant { id, text, .. } = item else {
+            return div().into_any_element();
+        };
+        let body = self.render_text(id, text, false, cx);
+        let files = snapshot.changed_files(steps);
+        let copy_key = format!("assistant-{id}");
+        let copied = self.copied.as_deref() == Some(copy_key.as_str());
+        let page = cx.entity();
+        let (retry_id, more_id) = (id.clone(), id.clone());
+        let (text_for_copy, text_for_results) = (text.clone(), text.clone());
+        let (can_branch, task) = (snapshot.can_branch, snapshot.task);
+        let actions = h_flex()
+            .gap(px(4.))
+            .child(
+                Button::new(SharedString::from(format!("agent-copy-{id}")))
+                    .ghost()
+                    .small()
+                    .icon(Icon::new(if copied { Ico::Check } else { Ico::Copy }))
+                    .label(if copied {
+                        lokalbot_i18n::tr("Copied")
+                    } else {
+                        lokalbot_i18n::tr("Copy")
+                    })
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.copy(copy_key.clone(), text_for_copy.clone(), cx)
+                    })),
+            )
+            .child(
+                Button::new(SharedString::from(format!("agent-retry-{id}")))
+                    .ghost()
+                    .small()
+                    .icon(Icon::new(Ico::RotateCcw))
+                    .label(lokalbot_i18n::tr("Retry"))
+                    .tooltip(lokalbot_i18n::tr("Retry response"))
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        let retry_id = retry_id.clone();
+                        this.with_session(cx, |s| s.review_response_retry(&retry_id));
+                        this.sync_composer(window, cx);
+                        this.focus_composer(window, cx);
+                    })),
+            )
+            .child(
+                Button::new(SharedString::from(format!("agent-answer-more-{id}")))
+                    .ghost()
+                    .small()
+                    .icon(Icon::new(Ico::Ellipsis))
+                    .tooltip(lokalbot_i18n::tr("More response actions"))
+                    .dropdown_menu(move |menu, _, _| {
+                        let open = page.clone();
+                        let branch = page.clone();
+                        let text = text_for_results.clone();
+                        let more_id = more_id.clone();
+                        let branch_id = more_id.clone();
+                        menu.item(
+                            PopupMenuItem::new(lokalbot_i18n::tr("Open in results")).on_click(
+                                move |_, _, cx| {
+                                    let preview = ResultPreview {
+                                        id: more_id.clone(),
+                                        title: lokalbot_i18n::tr("Agent response").into(),
+                                        detail: lokalbot_i18n::tr("Conversation result").into(),
+                                        text: text.clone(),
+                                        original: None,
+                                        proposed: None,
+                                        file_path: None,
+                                    };
+                                    open.update(cx, |page, cx| page.show_preview(preview, cx))
+                                },
+                            ),
+                        )
+                        .item(
+                            PopupMenuItem::new(lokalbot_i18n::tr("Branch from here"))
+                                .disabled(!can_branch)
+                                .on_click(move |_, _, cx| {
+                                    let branch_id = branch_id.clone();
+                                    branch.update(cx, |page, cx| {
+                                        page.with_tasks(cx, |tasks| tasks.fork(task, &branch_id))
+                                    })
+                                }),
+                        )
+                    }),
+            );
+        v_flex()
+            .w_full()
+            .gap(px(14.))
+            .child(body)
+            .when(!files.is_empty(), |this| {
+                this.child(self.render_changed_files(&files, steps, cx))
+            })
+            .child(actions)
+            .into_any_element()
+    }
+
+    /// The files one turn wrote or edited, under its answer.
+    fn render_changed_files(
+        &mut self,
+        files: &[ChangedFile],
+        steps: &[TranscriptItem],
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let mut card = v_flex()
+            .w_full()
+            .gap(px(10.))
+            .p(px(12.))
+            .rounded(metric::GROUP_RADIUS)
+            .bg(lb.panel)
+            .border_1()
+            .border_color(lb.group_stroke)
+            .child(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(lb.text_secondary)
+                    .child(lokalbot_i18n::tr("Changed files")),
+            );
+        for (index, file) in files.iter().enumerate() {
+            let exists = file.target.path.exists();
+            let preview = steps
+                .iter()
+                .find(|s| s.id() == file.step_id)
+                .and_then(ResultPreview::tool);
+            let (open_path, reveal_path) = (file.target.path.clone(), file.target.path.clone());
+            let detail_tint: Hsla = if file.target.place == Place::Outside {
+                lb.attention_text
+            } else {
+                lb.text_secondary
+            };
+            card = card.child(
+                h_flex()
                     .w_full()
                     .gap(px(10.))
-                    .child(answer_text::render_linked(
-                        SharedString::from(format!("agent-answer-{id}")),
-                        &answer,
-                        style,
-                        on_cite,
-                        Some(on_link),
-                        cx,
-                    ))
+                    .items_center()
+                    .flex_wrap()
                     .child(
                         h_flex()
-                            .gap(px(4.))
+                            .id(("agent-changed-file", index as u64))
+                            .flex_1()
+                            .min_w(px(160.))
+                            .gap(px(10.))
+                            .items_center()
+                            .cursor_pointer()
+                            .child(ui::icon(Ico::FileText, px(22.), lb.accent_text))
                             .child(
-                                Button::new(SharedString::from(format!("agent-copy-{id}")))
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(if copied { Ico::Check } else { Ico::Copy }))
-                                    .label(if copied {
-                                        lokalbot_i18n::tr("Copied")
-                                    } else {
-                                        lokalbot_i18n::tr("Copy")
-                                    })
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        this.copy(copy_key.clone(), text_for_copy.clone(), cx)
-                                    })),
+                                v_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .gap(px(2.))
+                                    .child(
+                                        div()
+                                            .truncate()
+                                            .text_size(ty::BODY)
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(lb.text)
+                                            .child(file.target.name.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .line_clamp(2)
+                                            .text_size(ty::SECONDARY)
+                                            .text_color(detail_tint)
+                                            .child(words::changed_file_detail(file)),
+                                    ),
                             )
-                            .child(
-                                Button::new(SharedString::from(format!("agent-retry-{id}")))
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(Ico::RotateCcw))
-                                    .label(lokalbot_i18n::tr("Retry response"))
-                                    .on_click(cx.listener(move |this, _, window, cx| {
-                                        let retry_id = retry_id.clone();
-                                        this.with_session(cx, |s| {
-                                            s.review_response_retry(&retry_id)
-                                        });
-                                        this.sync_composer(window, cx);
-                                        this.focus_composer(window, cx);
-                                    })),
-                            )
-                            .child(
-                                Button::new(SharedString::from(format!("agent-answer-more-{id}")))
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(Ico::Ellipsis))
-                                    .tooltip(lokalbot_i18n::tr("More response actions"))
-                                    .dropdown_menu(move |menu, _, _| {
-                                        let open = page.clone();
-                                        let branch = page.clone();
-                                        let text = text_for_results.clone();
-                                        let more_id = more_id.clone();
-                                        let branch_id = more_id.clone();
-                                        menu.item(
-                                            PopupMenuItem::new(lokalbot_i18n::tr(
-                                                "Open in results",
-                                            ))
-                                            .on_click(move |_, _, cx| {
-                                                let preview = ResultPreview {
-                                                    id: more_id.clone(),
-                                                    title: lokalbot_i18n::tr("Agent response")
-                                                        .into(),
-                                                    detail: lokalbot_i18n::tr(
-                                                        "Conversation result",
-                                                    )
-                                                    .into(),
-                                                    text: text.clone(),
-                                                    original: None,
-                                                    proposed: None,
-                                                    file_path: None,
-                                                };
-                                                open.update(cx, |page, cx| {
-                                                    page.show_preview(preview, cx)
-                                                })
-                                            }),
-                                        )
-                                        .item(
-                                            PopupMenuItem::new(lokalbot_i18n::tr(
-                                                "Branch from here",
-                                            ))
-                                            .disabled(!can_branch)
-                                            .on_click(move |_, _, cx| {
-                                                let branch_id = branch_id.clone();
-                                                branch.update(cx, |page, cx| {
-                                                    page.with_tasks(cx, |tasks| {
-                                                        tasks.fork(task, &branch_id)
-                                                    })
-                                                })
-                                            }),
-                                        )
-                                    }),
-                            ),
+                            .when_some(preview, |this, preview| {
+                                this.on_click(cx.listener(move |this, _, _, cx| {
+                                    this.show_preview(preview.clone(), cx)
+                                }))
+                            }),
                     )
-                    .into_any_element()
-            }
-            TranscriptItem::Notice { text, is_error, .. } => {
-                let tint: Hsla = if *is_error {
+                    .child(
+                        h_flex()
+                            .gap(px(8.))
+                            .child(
+                                Button::new(("agent-changed-open", index as u64))
+                                    .outline()
+                                    .small()
+                                    .label(lokalbot_i18n::tr("Open"))
+                                    .disabled(!exists)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        if let Err(err) =
+                                            lokalbot_platform::opener::open_path(&open_path)
+                                        {
+                                            let message = format!("{err:#}");
+                                            this.with_session(cx, |s| {
+                                                s.composer_error = Some(message)
+                                            });
+                                        }
+                                    })),
+                            )
+                            .child(
+                                Button::new(("agent-changed-reveal", index as u64))
+                                    .outline()
+                                    .small()
+                                    .label(lokalbot_i18n::tr("Show in folder"))
+                                    .disabled(!exists)
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        if let Err(err) =
+                                            lokalbot_platform::opener::reveal_in_file_manager(
+                                                &reveal_path,
+                                            )
+                                        {
+                                            let message = format!("{err:#}");
+                                            this.with_session(cx, |s| {
+                                                s.composer_error = Some(message)
+                                            });
+                                        }
+                                    })),
+                            ),
+                    ),
+            );
+        }
+        card.into_any_element()
+    }
+
+    /// A run of steps as one quiet line that opens to a row per step. A
+    /// finished turn's line counts its steps and holds what the agent said
+    /// between them.
+    fn render_steps(
+        &mut self,
+        group: &StepGroup,
+        context: &StepContext,
+        snapshot: &Snapshot,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        let working = snapshot.is_working();
+        let expanded = self.expanded_steps.contains(&group.id);
+        let labels: Vec<(StepLabel, ToolStatus)> = group
+            .steps()
+            .filter_map(|step| match step {
+                TranscriptItem::Tool {
+                    name,
+                    args_json,
+                    status,
+                    ..
+                } => Some((words::step_label(name, args_json, context), *status)),
+                _ => None,
+            })
+            .collect();
+        let texts: Vec<(String, bool)> = labels
+            .iter()
+            .map(|(label, status)| (label.text(*status, working), label.begins_with_name))
+            .collect();
+        let summary = words::steps_summary(&texts, words::lowercases_list_items());
+        let count =
+            (group.is_turn_summary && labels.len() > 1).then(|| words::steps_count(labels.len()));
+        let failed = group.has_failure();
+        let group_id = group.id.clone();
+        let header = h_flex()
+            .id(SharedString::from(format!("agent-steps-{}", group.id)))
+            .w_full()
+            .gap(px(7.))
+            .items_center()
+            .cursor_pointer()
+            .text_size(ty::SECONDARY)
+            .text_color(lb.text_secondary)
+            // Points along the reading direction while folded, down once open.
+            .child(ui::icon(
+                if expanded {
+                    Ico::ChevronDown
+                } else if lokalbot_i18n::current().rtl {
+                    Ico::ChevronLeft
+                } else {
+                    Ico::ChevronRight
+                },
+                px(11.),
+                lb.text_secondary,
+            ))
+            .child(ui::icon(
+                if failed {
+                    Ico::CircleAlert
+                } else {
+                    Ico::CircleCheck
+                },
+                px(14.),
+                if failed {
                     lb.attention_text
                 } else {
                     lb.text_secondary
+                },
+            ))
+            .when_some(count, |this, count| {
+                this.child(
+                    div()
+                        .flex_none()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(lb.text)
+                        .child(count),
+                )
+            })
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .when(expanded, |this| this.line_clamp(3))
+                    .when(!expanded, |this| this.truncate())
+                    .child(summary),
+            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                if !this.expanded_steps.remove(&group_id) {
+                    this.expanded_steps.insert(group_id.clone());
+                }
+                cx.notify();
+            }));
+        let mut column = v_flex().w_full().gap(px(8.)).child(header);
+        if expanded {
+            let mut rows = v_flex()
+                .gap(px(8.))
+                .ml(px(4.))
+                .pl(px(12.))
+                .border_l_1()
+                .border_color(lb.group_stroke);
+            for entry in &group.entries {
+                rows = rows.child(self.render_step_row(entry, context, working, cx));
+            }
+            column = column.child(rows);
+        }
+        column.into_any_element()
+    }
+
+    fn render_step_row(
+        &mut self,
+        entry: &TranscriptItem,
+        context: &StepContext,
+        working: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let lb = cx.lb().clone();
+        match entry {
+            TranscriptItem::Tool {
+                id,
+                name,
+                args_json,
+                status,
+                ..
+            } => {
+                let label = words::step_label(name, args_json, context);
+                let icon: AnyElement = match status {
+                    ToolStatus::Succeeded => {
+                        ui::icon(Ico::Check, px(13.), lb.text_secondary).into_any_element()
+                    }
+                    ToolStatus::Failed => {
+                        ui::icon(Ico::CircleAlert, px(13.), lb.attention_text).into_any_element()
+                    }
+                    ToolStatus::Running if working => Spinner::new()
+                        .xsmall()
+                        .color(lb.text_secondary)
+                        .into_any_element(),
+                    ToolStatus::Running => {
+                        ui::icon(Ico::Minus, px(13.), lb.text_secondary).into_any_element()
+                    }
                 };
+                let preview = ResultPreview::tool(entry);
                 h_flex()
                     .w_full()
                     .gap(px(8.))
-                    .items_start()
-                    .child(div().pt(px(2.)).child(ui::icon(
-                        if *is_error {
-                            Ico::TriangleAlert
-                        } else {
-                            Ico::Info
-                        },
-                        px(14.),
-                        tint,
-                    )))
+                    .items_center()
+                    .text_size(ty::SECONDARY)
+                    .child(div().flex_none().w(px(14.)).child(icon))
                     .child(
                         div()
-                            .flex_1()
-                            .min_w_0()
-                            .text_size(ty::SECONDARY)
-                            .text_color(tint)
-                            .child(text.clone()),
+                            .flex_none()
+                            .max_w(relative(0.6))
+                            .text_color(lb.text)
+                            .child(label.text(*status, working)),
                     )
+                    .when_some(label.detail.clone(), |this, detail| {
+                        this.child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .truncate()
+                                .text_color(lb.text_secondary)
+                                .child(detail),
+                        )
+                    })
+                    .when(label.detail.is_none(), |this| this.child(div().flex_1()))
+                    .when_some(preview, |this, preview| {
+                        this.child(div().flex_none().child(ui::link(
+                            SharedString::from(format!("agent-step-open-{id}")),
+                            lokalbot_i18n::tr("Open"),
+                            {
+                                let page = cx.entity();
+                                move |_, cx| {
+                                    let preview = preview.clone();
+                                    page.update(cx, |page, cx| page.show_preview(preview, cx))
+                                }
+                            },
+                            cx,
+                        )))
+                    })
                     .into_any_element()
             }
+            // What the agent said between steps, kept in order and quieter than the answer.
+            TranscriptItem::Assistant { text, .. } => div()
+                .w_full()
+                .text_size(px((self.text_size - 2.).max(12.)))
+                .line_height(px((self.text_size - 2.).max(12.) * 1.4))
+                .text_color(lb.text_secondary)
+                .child(text.clone())
+                .into_any_element(),
             _ => div().into_any_element(),
         }
     }
@@ -858,192 +1232,6 @@ impl AgentPage {
         }
     }
 
-    // --------------------------------------------------------- activity
-
-    fn render_activity_group(&mut self, group: &TranscriptGroup, cx: &mut Context<Self>) -> Div {
-        let lb = cx.lb().clone();
-        let expanded = self.expanded_groups.contains(&group.id);
-        let running = group.is_running();
-        let failed = group.has_failure();
-        let group_id = group.id.clone();
-        let status: AnyElement = if running {
-            Spinner::new()
-                .xsmall()
-                .color(lb.text_secondary)
-                .into_any_element()
-        } else {
-            ui::icon(
-                if failed {
-                    Ico::CircleAlert
-                } else {
-                    Ico::CircleCheck
-                },
-                px(14.),
-                if failed {
-                    lb.attention_text
-                } else {
-                    lb.text_secondary
-                },
-            )
-            .into_any_element()
-        };
-        let header = h_flex()
-            .id(SharedString::from(format!("agent-activity-{}", group.id)))
-            .gap(px(8.))
-            .items_center()
-            .cursor_pointer()
-            .child(status)
-            .child(
-                div()
-                    .text_size(ty::SECONDARY)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(lb.text)
-                    .child(group.summary()),
-            )
-            .when(running, |this| {
-                this.child(
-                    div()
-                        .text_size(ty::CAPTION)
-                        .text_color(lb.text_secondary)
-                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr("In progress"))),
-                )
-            })
-            .child(div().flex_1())
-            .child(ui::icon(
-                if expanded {
-                    Ico::ChevronDown
-                } else {
-                    Ico::ChevronRight
-                },
-                px(12.),
-                lb.text_secondary,
-            ))
-            .on_click(cx.listener(move |this, _, _, cx| {
-                if !this.expanded_groups.remove(&group_id) {
-                    this.expanded_groups.insert(group_id.clone());
-                }
-                cx.notify();
-            }));
-        let mut column = v_flex().gap(px(10.)).child(header);
-        if expanded {
-            for item in &group.items {
-                column = column.child(self.render_tool(item, cx));
-            }
-        }
-        ui::grouped_surface(cx)
-            .w_full()
-            .py(px(8.))
-            .px(px(10.))
-            .child(column)
-    }
-
-    fn render_tool(&mut self, item: &TranscriptItem, cx: &mut Context<Self>) -> AnyElement {
-        let TranscriptItem::Tool {
-            id,
-            name,
-            args_json,
-            output,
-            status,
-        } = item
-        else {
-            return div().into_any_element();
-        };
-        let lb = cx.lb().clone();
-        let details_open = self.expanded_details.contains(id);
-        let detail_id = id.clone();
-        let preview = ResultPreview::tool(item);
-        let icon: AnyElement = match status {
-            ToolStatus::Running => Spinner::new()
-                .xsmall()
-                .color(lb.text_secondary)
-                .into_any_element(),
-            ToolStatus::Succeeded => {
-                ui::icon(Ico::CircleCheck, px(13.), lb.text_secondary).into_any_element()
-            }
-            ToolStatus::Failed => {
-                ui::icon(Ico::CircleAlert, px(13.), lb.attention_text).into_any_element()
-            }
-        };
-        let body = if output.is_empty() {
-            args_json.clone()
-        } else {
-            format!("{args_json}\n\n{output}")
-        };
-        h_flex()
-            .w_full()
-            .gap(px(8.))
-            .items_start()
-            .child(div().pt(px(2.)).child(icon))
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .gap(px(5.))
-                    .child(
-                        div()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text)
-                            .child(activity_summary(name, args_json)),
-                    )
-                    .child(
-                        h_flex()
-                            .id(SharedString::from(format!("agent-tool-details-{id}")))
-                            .gap(px(4.))
-                            .items_center()
-                            .cursor_pointer()
-                            .text_size(ty::CAPTION)
-                            .text_color(lb.text_secondary)
-                            .child(ui::icon(
-                                if details_open {
-                                    Ico::ChevronDown
-                                } else {
-                                    Ico::ChevronRight
-                                },
-                                px(10.),
-                                lb.text_secondary,
-                            ))
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Details")))
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                if !this.expanded_details.remove(&detail_id) {
-                                    this.expanded_details.insert(detail_id.clone());
-                                }
-                                cx.notify();
-                            })),
-                    )
-                    .when(details_open, |this| {
-                        this.child(
-                            div()
-                                .id(SharedString::from(format!("agent-tool-body-{id}")))
-                                .max_h(px(180.))
-                                .overflow_y_scroll()
-                                .p(px(8.))
-                                .rounded(px(6.))
-                                .bg(lb.chip_fill)
-                                .font_family(mono_font(cx))
-                                .text_size(ty::CAPTION)
-                                .text_color(lb.text)
-                                .child(body),
-                        )
-                    }),
-            )
-            .when_some(preview, |this, preview| {
-                this.child(
-                    Button::new(SharedString::from(format!("agent-tool-open-{id}")))
-                        .ghost()
-                        .xsmall()
-                        .label(lokalbot_i18n::tr("Open"))
-                        .tooltip(lokalbot_i18n::format(
-                            "Open {name} result",
-                            &[("name", name.to_string())],
-                        ))
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.show_preview(preview.clone(), cx)
-                        })),
-                )
-            })
-            .into_any_element()
-    }
-
     /// Task errors (`sessions.error`, an alert on macOS) appear as a toast once.
     pub(super) fn show_task_error(&mut self, cx: &mut Context<Self>) {
         let Some(error) = self
@@ -1064,18 +1252,84 @@ impl AgentPage {
     }
 }
 
-/// Centers a row at the reading width.
-fn centered(element: AnyElement) -> AnyElement {
+/// A denial, an error or a note from the task.
+fn render_notice(item: &TranscriptItem, cx: &App) -> AnyElement {
+    let TranscriptItem::Notice { text, is_error, .. } = item else {
+        return div().into_any_element();
+    };
+    let lb = cx.lb();
+    let tint: Hsla = if *is_error {
+        lb.attention_text
+    } else {
+        lb.text_secondary
+    };
     h_flex()
         .w_full()
-        .justify_center()
+        .gap(px(8.))
+        .items_start()
+        .child(div().pt(px(2.)).child(ui::icon(
+            if *is_error {
+                Ico::TriangleAlert
+            } else {
+                Ico::Info
+            },
+            px(14.),
+            tint,
+        )))
         .child(
             div()
-                .w_full()
-                .max_w(metric::READING_MAX_WIDTH)
-                .child(element),
+                .flex_1()
+                .min_w_0()
+                .text_size(ty::SECONDARY)
+                .text_color(tint)
+                .child(text.clone()),
         )
         .into_any_element()
+}
+
+/// The step the agent is on right now: "Reading open actions…".
+fn render_live(item: &TranscriptItem, context: &StepContext, cx: &App) -> AnyElement {
+    let TranscriptItem::Tool {
+        name, args_json, ..
+    } = item
+    else {
+        return div().into_any_element();
+    };
+    let lb = cx.lb();
+    let label = words::step_label(name, args_json, context);
+    h_flex()
+        .w_full()
+        .gap(px(8.))
+        .items_center()
+        .text_size(ty::SECONDARY)
+        .child(Spinner::new().xsmall().color(lb.text_secondary))
+        .child(
+            div()
+                .flex_none()
+                .text_color(lb.text_secondary)
+                .child(format!("{}…", label.doing)),
+        )
+        .when_some(label.detail, |this, detail| {
+            this.child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .truncate()
+                    .text_color(lb.text_tertiary)
+                    .child(detail),
+            )
+        })
+        .into_any_element()
+}
+
+/// A row centred at the reading width, 20 px from the pane's edges.
+fn reading_column(element: AnyElement) -> Div {
+    h_flex().w_full().justify_center().px(px(20.)).child(
+        div()
+            .w_full()
+            .max_w(metric::READING_MAX_WIDTH)
+            .child(element),
+    )
 }
 
 pub(super) fn mono_font(cx: &App) -> SharedString {

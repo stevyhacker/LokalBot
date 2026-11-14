@@ -12,7 +12,7 @@ APP_ID=com.lokalbot.LokalBot
 IM_ENTRY=$APP_ID.InputMethod.desktop
 if [ "${1:-}" = "--uninstall" ]; then
   # What this copy set up outside those folders goes too, as the Windows
-  # uninstaller removes it: the coding-agent skill from Settings → Advanced →
+  # uninstaller removes it: the coding-agent skill from Settings → AI agents →
   # Agent CLI, and a launch-at-login entry that starts this copy.
   [ -x "$BIN/lokalbot-cli" ] && "$BIN/lokalbot-cli" install-skill --uninstall >/dev/null 2>&1 || true
   AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/lokalbot.desktop"

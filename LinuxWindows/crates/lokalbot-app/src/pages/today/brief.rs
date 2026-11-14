@@ -1,58 +1,51 @@
-//! Yesterday's brief on Today (`YesterdayDigestLine`, `DreamBriefText`,
-//! `BriefContextView`): the overnight review's narrative, priorities with their
-//! real checkable actions, and the projects and goals it keeps, which can be
-//! pinned. Reads what the review saved; never starts one by itself.
+//! Yesterday's brief on Today (`YesterdayBriefPanel`, `DreamBriefText`): the
+//! overnight review's narrative, its priorities with their real checkable
+//! actions, and its notes. Reads what the review saved; never starts one by
+//! itself. Pinning the projects and goals it keeps is in Settings › Day
+//! memory, as on the Mac.
 
 use std::collections::HashMap;
 
 use chrono::NaiveDate;
-use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::switch::Switch;
+use gpui_kit::component::button::Button;
 use gpui_kit::component::{Disableable as _, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Context, Entity, FontWeight, HighlightStyle,
-    InteractiveElement as _, InteractiveText, IntoElement, ParentElement as _, SharedString,
-    StatefulInteractiveElement as _, Styled as _, StyledText, UnderlineStyle, div, px,
+    AnyElement, App, AppContext as _, Context, Entity, HighlightStyle, InteractiveText,
+    IntoElement, ParentElement as _, SharedString, Styled as _, StyledText, UnderlineStyle, div,
+    px,
 };
 use lokalbot_ai::dream::{is_retryable_failure, today_report};
-use lokalbot_core::dream::presentation::{BriefPiece, brief_pieces, brief_plain};
+use lokalbot_core::dream::presentation::{BriefPiece, brief_pieces};
 use lokalbot_core::dream::{
-    DreamMemory, DreamReport, DreamStore, FallbackReason, InferenceLocation, MemoryEntry,
-    day_from_key, day_key,
+    DreamReport, DreamStore, FallbackReason, InferenceLocation, MemoryEntry, day_from_key,
 };
 use lokalbot_core::{ActionThread, Library, Meeting};
 
 use super::TodayPage;
 use crate::i18n::h_flex;
-use crate::state::{AppData, AppEvent, SettingsCategory};
+use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::ui::section_panel::{SectionPanel, footer_text, panel_label};
 use crate::ui::{self, Ico};
 
 /// What Today reads for the brief, off the main thread.
 #[derive(Default)]
 pub(super) struct BriefModel {
     report: Option<DreamReport>,
-    memory: Option<DreamMemory>,
     /// Action threads a top action can point at, by id.
     threads: HashMap<String, ActionThread>,
 }
 
-/// What stays open across reloads.
-#[derive(Default)]
-pub(super) struct BriefState {
-    expanded: bool,
-    context_expanded: bool,
+impl BriefModel {
+    /// There is a brief to show.
+    pub(super) fn has_report(&self) -> bool {
+        self.report.is_some()
+    }
 }
 
 pub(super) fn load(library: &Library, today: NaiveDate) -> BriefModel {
     let report = today_report(library, today);
-    let memory = DreamStore::new(library.paths().root())
-        .load_memory()
-        .unwrap_or_else(|err| {
-            log::warn!("reading work memory: {err:#}");
-            None
-        });
     let threads = if report
         .as_ref()
         .is_some_and(|r| r.top_action_thread_ids.is_some())
@@ -72,11 +65,7 @@ pub(super) fn load(library: &Library, today: NaiveDate) -> BriefModel {
     } else {
         HashMap::new()
     };
-    BriefModel {
-        report,
-        memory,
-        threads,
-    }
+    BriefModel { report, threads }
 }
 
 /// `DreamReport.provenanceDescription`, translated for the page. The saved
@@ -173,7 +162,7 @@ fn brief_text(
                 ranges,
                 move |index, _, cx| {
                     if let Some(meeting) = targets.get(index) {
-                        super::threads::open_meeting(&data, *meeting, None, cx);
+                        crate::ui::action_row::open_meeting(&data, *meeting, None, cx);
                     }
                 },
             ),
@@ -189,286 +178,199 @@ fn note(text: impl Into<SharedString>, cx: &App) -> gpui_kit::Div {
 }
 
 impl TodayPage {
-    /// The card below the day's digest, when there is a brief to show. A brief
-    /// older than yesterday is labeled with its own day.
-    pub(super) fn render_brief(
+    /// Yesterday's overnight brief as a panel (`YesterdayBriefPanel`): what
+    /// happened, the priorities it leaves and its notes without a click,
+    /// "Open day", and the brief's own account of how it was written in the
+    /// footer. A brief older than yesterday is titled with its own day.
+    pub(super) fn render_yesterday(
         &self,
         model: &BriefModel,
         today: NaiveDate,
         cx: &mut Context<Self>,
-    ) -> Vec<AnyElement> {
-        let mut sections = Vec::new();
+    ) -> Option<AnyElement> {
+        let report = model.report.as_ref()?;
         let lb = cx.lb().clone();
-        if let Some(report) = &model.report {
-            let current = report.day == day_key(today - chrono::Duration::days(1));
-            let label: String = if current {
-                lokalbot_i18n::tr("Yesterday").to_string()
-            } else {
-                day_from_key(&report.day)
-                    .map(|day| {
-                        day.format_localized(
-                            lokalbot_i18n::date_pattern("%b %-d, %Y"),
-                            lokalbot_i18n::date_locale(),
+        let current = super::model::brief_is_current(&report.day, today);
+        let report_day = day_from_key(&report.day);
+        let title: String = if current {
+            lokalbot_i18n::tr("Yesterday").to_string()
+        } else {
+            report_day
+                .map(abbreviated)
+                .unwrap_or_else(|| report.day.clone())
+        };
+        let meetings = self.data.read(cx).meetings.clone();
+        let mut body = v_flex()
+            .w_full()
+            .px(metric::PANEL_INSET)
+            .py(px(14.))
+            .gap(px(14.));
+        if !report.narrative.is_empty() {
+            body = body.child(brief_text(
+                "today-brief-narrative".into(),
+                &report.narrative,
+                &meetings,
+                &self.data,
+                cx,
+            ));
+        }
+        if !report.top_actions.is_empty() {
+            let mut list = v_flex().w_full().gap(px(3.));
+            for (index, action) in report.top_actions.iter().enumerate() {
+                // A top action taken from the recorded candidates is the real
+                // thread: it can be checked off here and stays in sync. The
+                // rest are numbered advice.
+                let thread = report
+                    .top_action_thread_id(index)
+                    .and_then(|id| model.threads.get(id));
+                list = list.child(match thread {
+                    Some(thread) => crate::ui::action_row::thread_row(
+                        format!("today-brief-action-{index}").into(),
+                        thread,
+                        crate::ui::action_row::ThreadRowOptions::default(),
+                        &self.data,
+                        cx,
+                    ),
+                    None => h_flex()
+                        .w_full()
+                        .items_start()
+                        .gap(px(6.))
+                        .child(
+                            div()
+                                .flex_none()
+                                .text_size(ty::BODY)
+                                .line_height(px(21.))
+                                .text_color(lb.text)
+                                .child(format!("{}.", lokalbot_i18n::number(index + 1))),
                         )
-                        .to_string()
-                    })
-                    .unwrap_or_else(|| lokalbot_i18n::tr("Previous workday").to_string())
-            };
-            let expanded = self.brief.expanded;
-            let header = h_flex()
-                .id("today-brief-toggle")
-                .gap(px(8.))
-                .items_baseline()
-                .cursor_pointer()
-                .child(ui::icon(
-                    if expanded {
-                        Ico::ChevronDown
-                    } else {
-                        Ico::ChevronRight
-                    },
-                    px(12.),
-                    lb.text_secondary,
-                ))
-                .child(
-                    div()
-                        .flex_none()
-                        .text_size(ty::BODY)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(lb.text)
-                        .child(label),
-                )
-                .when(!expanded, |this| {
-                    this.child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .truncate()
-                            .text_size(ty::BODY)
-                            .text_color(lb.text_secondary)
-                            .child(brief_plain(&report.narrative, &self.data.read(cx).meetings)),
-                    )
-                })
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.brief.expanded = !this.brief.expanded;
-                    cx.notify();
-                }));
-            let mut card = ui::panel(cx).child(header);
-            if expanded {
-                let meetings = self.data.read(cx).meetings.clone();
-                let mut body = v_flex().gap(px(10.)).pt(px(8.)).child(brief_text(
-                    "today-brief-narrative".into(),
-                    &report.narrative,
-                    &meetings,
-                    &self.data,
-                    cx,
-                ));
-                for (index, action) in report.top_actions.iter().enumerate() {
-                    // A top action taken from the recorded candidates is the real
-                    // thread: it can be checked off here and stays in sync.
-                    let thread = report
-                        .top_action_thread_id(index)
-                        .and_then(|id| model.threads.get(id));
-                    body = body.child(match thread {
-                        Some(thread) => super::threads::thread_row_with(
-                            format!("today-brief-action-{index}").into(),
-                            thread,
-                            super::threads::RowOptions::default(),
-                            &self.data,
-                            cx,
-                        ),
-                        None => brief_text(
+                        .child(div().flex_1().min_w_0().child(brief_text(
                             format!("today-brief-top-{index}").into(),
-                            &format!("• {action}"),
+                            action,
                             &meetings,
                             &self.data,
                             cx,
-                        ),
-                    });
-                }
-                for (index, text) in report
-                    .attention
-                    .iter()
-                    .chain(&report.repeated_work)
-                    .chain(&report.suggested_checks)
-                    .chain(&report.frictions)
-                    .enumerate()
-                {
-                    body = body.child(brief_text(
+                        )))
+                        .into_any_element(),
+                });
+            }
+            body = body.child(
+                v_flex()
+                    .w_full()
+                    .gap(px(6.))
+                    .child(panel_label(priorities_label(&report.day, today), cx))
+                    .child(list),
+            );
+        }
+        let notes: Vec<&String> = report
+            .attention
+            .iter()
+            .chain(&report.repeated_work)
+            .chain(&report.suggested_checks)
+            .chain(&report.frictions)
+            .collect();
+        if !notes.is_empty() {
+            body = body.child(v_flex().w_full().gap(px(4.)).children(
+                notes.into_iter().enumerate().map(|(index, text)| {
+                    brief_text(
                         format!("today-brief-item-{index}").into(),
                         &format!("• {text}"),
                         &meetings,
                         &self.data,
                         cx,
-                    ));
-                }
-                if report.is_fallback() {
-                    body = body.child(note(
-                        lokalbot_i18n::tr("Previous-day summary uses captured evidence only."),
-                        cx,
-                    ));
-                }
-                if report.inference_provenance.as_ref().map(|p| p.location)
-                    == Some(InferenceLocation::Remote)
-                {
-                    body = body.child(
-                        h_flex()
-                            .gap(px(6.))
-                            .items_center()
-                            .child(ui::icon(Ico::Network, px(13.), lb.attention_text))
-                            .child(note(
-                                lokalbot_i18n::tr(
-                                    "Previous-day summary used approved remote inference",
-                                ),
-                                cx,
-                            )),
-                    );
-                }
-                body = body.child(note(provenance_line(report), cx));
-                if is_retryable_failure(report, today) {
-                    let dreaming = self.data.read(cx).dream.is_dreaming;
-                    let data = self.data.clone();
-                    body = body.child(
-                        Button::new("today-brief-retry")
-                            .outline()
-                            .small()
-                            .label(if dreaming {
-                                lokalbot_i18n::tr("Updating…")
-                            } else {
-                                lokalbot_i18n::tr("Retry previous-day summary")
-                            })
-                            .disabled(dreaming)
-                            .on_click(move |_, _, cx| {
-                                data.update(cx, |data, cx| data.request(AppEvent::ReviewNow, cx))
-                            }),
-                    );
-                }
-                card = card.child(body);
-            }
-            sections.push(card.into_any_element());
+                    )
+                }),
+            ));
         }
-        if let Some(context) = self.render_brief_context(model, cx) {
-            sections.push(context);
-        }
-        sections
-    }
-
-    /// `BriefContextView`: what the review reads besides the day's evidence.
-    fn render_brief_context(
-        &self,
-        model: &BriefModel,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
-        if !self.data.read(cx).settings.dreaming_enabled && model.memory.is_none() {
-            return None;
-        }
-        let lb = cx.lb().clone();
-        let expanded = self.brief.context_expanded;
-        let header = h_flex()
-            .id("today-brief-context")
-            .gap(px(6.))
-            .items_center()
-            .cursor_pointer()
-            .text_size(ty::SECONDARY)
-            .font_weight(FontWeight::MEDIUM)
-            .text_color(lb.text_secondary)
-            .hover(|s| s.text_color(lb.text))
-            .child(ui::icon(
-                if expanded {
-                    Ico::ChevronDown
-                } else {
-                    Ico::ChevronRight
-                },
-                px(12.),
-                lb.text_secondary,
-            ))
-            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                "Context used for the morning brief",
-            )))
-            .on_click(cx.listener(|this, _, _, cx| {
-                this.brief.context_expanded = !this.brief.context_expanded;
-                cx.notify();
-            }));
-        let mut column = v_flex().gap(px(8.)).child(header);
-        if expanded {
-            let dreaming = self.data.read(cx).dream.is_dreaming;
-            let mut body = v_flex().gap(px(10.)).pl(px(18.)).child(note(
-                lokalbot_i18n::tr(
-                    "Overnight review uses your recorded evidence and the projects and goals below. Pin an item to keep it in future reviews.",
-                ),
+        if report.is_fallback() {
+            body = body.child(note(
+                lokalbot_i18n::tr("Previous-day summary uses captured evidence only."),
                 cx,
             ));
-            let rows = model
-                .memory
-                .as_ref()
-                .map(|memory| {
-                    let projects = memory.active_projects.iter().map(|project| {
-                        (
-                            project.name.clone(),
-                            project.status.clone(),
-                            project.pinned,
-                            MemoryEntry::Project(project.name.clone()),
-                        )
-                    });
-                    let goals = memory.work_goals.iter().map(|goal| {
-                        (
-                            goal.text.clone(),
-                            goal.horizon.clone(),
-                            goal.pinned,
-                            MemoryEntry::Goal(goal.text.clone()),
-                        )
-                    });
-                    projects.chain(goals).collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            if rows.is_empty() {
-                body = body.child(note(
-                    lokalbot_i18n::tr("No projects or goals have been identified yet."),
-                    cx,
-                ));
-            }
-            for (index, (title, detail, pinned, entry)) in rows.into_iter().enumerate() {
-                let data = self.data.clone();
-                body = body.child(
-                    h_flex()
-                        .gap(px(10.))
-                        .items_center()
-                        .child(
-                            Switch::new(("today-brief-pin", index))
-                                .checked(pinned)
-                                .disabled(dreaming)
-                                .on_click(move |checked, _, cx| {
-                                    set_pinned(&data, *checked, entry.clone(), cx);
-                                }),
-                        )
-                        .child(
-                            v_flex()
-                                .flex_1()
-                                .min_w_0()
-                                .child(
-                                    div()
-                                        .text_size(ty::BODY)
-                                        .text_color(lb.text)
-                                        .child(crate::ui::text::paragraph(title)),
-                                )
-                                .child(note(detail, cx)),
-                        ),
-                );
-            }
+        }
+        if report.inference_provenance.as_ref().map(|p| p.location)
+            == Some(InferenceLocation::Remote)
+        {
+            body = body.child(
+                h_flex()
+                    .gap(px(6.))
+                    .items_center()
+                    .child(ui::icon(Ico::Network, px(13.), lb.attention_text))
+                    .child(note(
+                        lokalbot_i18n::tr("Previous-day summary used approved remote inference"),
+                        cx,
+                    )),
+            );
+        }
+        if is_retryable_failure(report, today) {
+            let data = self.data.read(cx);
+            let dreaming = data.dream.is_dreaming;
+            let ready = data.meetings_loaded;
             let data = self.data.clone();
             body = body.child(
-                Button::new("today-brief-configure")
-                    .ghost()
-                    .small()
-                    .label(lokalbot_i18n::tr("Configure overnight review"))
-                    .on_click(move |_, _, cx| {
-                        data.update(cx, |data, cx| {
-                            data.open_settings(SettingsCategory::DayMemory, cx)
+                h_flex().child(
+                    Button::new("today-brief-retry")
+                        .outline()
+                        .small()
+                        .label(if dreaming {
+                            lokalbot_i18n::tr("Updating…")
+                        } else {
+                            lokalbot_i18n::tr("Retry previous-day summary")
                         })
-                    }),
+                        .disabled(dreaming || !ready)
+                        .on_click(move |_, _, cx| {
+                            data.update(cx, |data, cx| data.request(AppEvent::ReviewNow, cx))
+                        }),
+                ),
             );
-            column = column.child(body);
         }
-        Some(column.pb(metric::HEADER_TO_CONTENT).into_any_element())
+        let open_day = self.data.clone();
+        Some(
+            SectionPanel::new("today-yesterday", title)
+                .icon(Ico::Moon)
+                .when_some(report_day, |panel, day| {
+                    panel.trailing_link(
+                        "today-open-day",
+                        lokalbot_i18n::tr("Open day"),
+                        move |_, cx| {
+                            open_day.update(cx, |data, cx| data.open_timeline(day, None, cx))
+                        },
+                    )
+                })
+                .child(body)
+                // The report's own account of which model wrote it and where.
+                .footer(footer_text(provenance_line(report)))
+                .into_any_element(),
+        )
+    }
+}
+
+/// "Nov 12, 2026".
+fn abbreviated(day: NaiveDate) -> String {
+    day.format_localized(
+        lokalbot_i18n::date_pattern("%b %-d, %Y"),
+        lokalbot_i18n::date_locale(),
+    )
+    .to_string()
+}
+
+/// Whose priorities the brief holds: today's for yesterday's brief, an older
+/// day's by its weekday within the week and its date beyond.
+fn priorities_label(report_day: &str, today: NaiveDate) -> String {
+    use super::model::{DayNaming, PrioritiesSource};
+    match super::model::priorities_source(report_day, today) {
+        PrioritiesSource::Today => lokalbot_i18n::tr("Priorities for today").to_string(),
+        PrioritiesSource::PreviousWorkday => {
+            lokalbot_i18n::tr("Priorities from a previous workday").to_string()
+        }
+        PrioritiesSource::Day(day, naming) => {
+            let name = match naming {
+                DayNaming::Weekday => day
+                    .format_localized("%A", lokalbot_i18n::date_locale())
+                    .to_string(),
+                DayNaming::Date => abbreviated(day),
+            };
+            lokalbot_i18n::fill(lokalbot_i18n::tr("Priorities from %@"), &[&name])
+        }
     }
 }
 

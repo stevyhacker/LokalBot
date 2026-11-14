@@ -8,8 +8,10 @@ pub(crate) mod follow_up;
 pub(crate) mod list;
 mod live;
 pub mod model;
+mod naming;
 mod page_search;
 mod playback;
+mod presentation;
 mod speaker_identity;
 mod speaker_suggestions;
 mod spoken;
@@ -43,14 +45,15 @@ use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, RecordingState};
 use crate::theme::metric;
 use crate::ui::{self, Ico, segmented_tabs};
 
-const TABS: [&str; 4] = ["Summary", "Transcript", "Notes", "Review"];
+/// Summary, Transcript and Notes. The Review tab is gone: its jobs are the
+/// naming sheet, the owner menu on each action and the refresh banner.
+const TABS: [&str; 3] = ["Summary", "Transcript", "Notes"];
 
 fn tab_index(tab: MeetingTab) -> usize {
     match tab {
         MeetingTab::Summary => 0,
         MeetingTab::Transcript => 1,
         MeetingTab::Notes => 2,
-        MeetingTab::Review => 3,
     }
 }
 
@@ -58,7 +61,6 @@ fn tab_at(index: usize) -> MeetingTab {
     match index {
         1 => MeetingTab::Transcript,
         2 => MeetingTab::Notes,
-        3 => MeetingTab::Review,
         _ => MeetingTab::Summary,
     }
 }
@@ -133,7 +135,6 @@ pub struct MeetingsPage {
     pending_reveal: bool,
     recap_expanded: bool,
     full_notes_expanded: bool,
-    speakers_expanded: bool,
     transcript_state: ListState,
     find: FindBar,
     notes: NotesEditor,
@@ -150,13 +151,12 @@ pub struct MeetingsPage {
     playing: bool,
     poll: Option<Task<()>>,
     page_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    /// Where the Back button at the toolbar's leading edge is, so the tab
+    /// switcher never covers it.
+    back_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     tick: Option<Task<()>>,
-    /// "Apply Names" is saving.
-    applying_names: bool,
     /// Where each meeting's playback stood, for coming back to it.
     playback_memory: std::collections::HashMap<Uuid, (f64, f32)>,
-    /// Evidence opened from the Review tab offers the way back.
-    returning_to_review: bool,
     exporting_audio: bool,
     unmatched_expanded: bool,
     /// Small images of what was on screen, by snapshot. Decrypted pixels stay
@@ -206,7 +206,7 @@ impl MeetingsPage {
         });
         let find_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(crate::i18n::placeholder(
-                "Search Transcript",
+                "Find in transcript",
                 window,
                 cx,
             ))
@@ -296,7 +296,6 @@ impl MeetingsPage {
             pending_reveal: false,
             recap_expanded: false,
             full_notes_expanded: false,
-            speakers_expanded: false,
             transcript_state: ListState::new(0, ListAlignment::Top, px(600.)),
             find: FindBar {
                 scroll: gpui_kit::ScrollHandle::new(),
@@ -334,10 +333,9 @@ impl MeetingsPage {
             playing: false,
             poll: None,
             page_bounds: Rc::new(Cell::new(None)),
+            back_bounds: Rc::new(Cell::new(None)),
             tick: None,
-            applying_names: false,
             playback_memory: Default::default(),
-            returning_to_review: false,
             exporting_audio: false,
             unmatched_expanded: false,
             screen_thumbnails: Default::default(),
@@ -513,11 +511,9 @@ impl MeetingsPage {
         self.stop_playback();
         self.stop_spoken_summary(cx);
         self.selected = Some(id);
-        self.returning_to_review = false;
         self.focus_at = None;
         self.recap_expanded = false;
         self.full_notes_expanded = false;
-        self.speakers_expanded = false;
         self.playhead = 0.;
         self.speed = self
             .playback_memory
@@ -635,9 +631,6 @@ impl MeetingsPage {
         if self.tab == MeetingTab::Transcript && tab != MeetingTab::Transcript && !self.find.open {
             self.find.matches.clear();
         }
-        if tab != MeetingTab::Transcript {
-            self.returning_to_review = false;
-        }
         self.tab = tab;
         self.reveal_focus();
         cx.notify();
@@ -645,7 +638,6 @@ impl MeetingsPage {
 
     /// Opens the transcript at `seconds`, highlighting that passage.
     pub(crate) fn show_evidence(&mut self, seconds: f64, cx: &mut Context<Self>) {
-        self.returning_to_review = self.tab == MeetingTab::Review;
         self.tab = MeetingTab::Transcript;
         self.focus_at = Some(seconds);
         self.pending_reveal = true;
@@ -821,7 +813,7 @@ impl MeetingsPage {
             .update(cx, |input, cx| input.set_selection_focus(None, cx));
         self.find.input.update(cx, |input, cx| {
             input.set_value("", window, cx);
-            input.set_placeholder(lokalbot_i18n::tr("Search Transcript"), window, cx);
+            input.set_placeholder(lokalbot_i18n::tr("Find in transcript"), window, cx);
         });
         cx.notify();
     }
@@ -844,7 +836,8 @@ impl MeetingsPage {
             } else {
                 doc.notes.clone()
             };
-            let sources = page_search::sources(&doc, stage, &notes, self.find.open);
+            let processing = self.data.read(cx).is_processing(doc.meeting.id);
+            let sources = page_search::sources(&doc, stage, processing, &notes, self.find.open);
             self.find.matches = page_search::matches(&self.find.query, &sources);
         }
         if reveal {
@@ -1052,25 +1045,12 @@ impl MeetingsPage {
 
     // --------------------------------------------------------------- render
 
-    /// Where the tab switcher sits: centered over the page, but clear of the
-    /// toolbar items and window controls on the right. Returns x, segment width.
+    /// Where the tab switcher sits ([`tabs_geometry`]).
     fn tabs_geometry(&self) -> Option<(Pixels, Pixels)> {
-        let page = self.page_bounds.get()?;
-        let width = page.size.width;
-        let segment = if width < px(760.) {
-            px(70.)
-        } else if width < px(900.) {
-            px(74.)
-        } else {
-            px(86.)
-        };
-        let tabs = segmented_tabs::width(TABS.len(), segment);
-        let reserved = if width < px(900.) { px(270.) } else { px(390.) };
-        let centered = page.origin.x + width / 2. - tabs / 2.;
-        let x = centered
-            .min(page.origin.x + width - reserved - tabs)
-            .max(page.origin.x + px(120.));
-        Some((x, segment))
+        Some(tabs_geometry(
+            self.page_bounds.get()?,
+            self.back_bounds.get(),
+        ))
     }
 
     fn toolbar_tabs(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1089,6 +1069,33 @@ impl MeetingsPage {
         );
         Some(deferred(anchored().position(point(x, y)).child(tabs)).into_any_element())
     }
+}
+
+/// Where the tab switcher sits over `page`: centered, but clear of the
+/// toolbar items and window controls on the right and of Back at the leading
+/// edge (`back`, on the right in right-to-left languages) when it shows.
+/// Returns x, segment width.
+fn tabs_geometry(page: Bounds<Pixels>, back: Option<Bounds<Pixels>>) -> (Pixels, Pixels) {
+    let width = page.size.width;
+    let segment = if width < px(760.) {
+        px(70.)
+    } else if width < px(900.) {
+        px(74.)
+    } else {
+        px(86.)
+    };
+    let tabs = segmented_tabs::width(TABS.len(), segment);
+    let reserved = if width < px(900.) { px(270.) } else { px(390.) };
+    let centered = page.origin.x + width / 2. - tabs / 2.;
+    let x = centered
+        .min(page.origin.x + width - reserved - tabs)
+        .max(page.origin.x + px(120.));
+    let x = match back {
+        Some(back) if back.center().x < page.center().x => x.max(back.right() + px(12.)),
+        Some(back) => x.min(back.left() - px(12.) - tabs),
+        None => x,
+    };
+    (x, segment)
 }
 
 fn doc_has_journal(doc: &Option<Rc<MeetingDoc>>) -> bool {
@@ -1116,24 +1123,67 @@ fn directories_home() -> std::path::PathBuf {
 }
 
 impl Page for MeetingsPage {
+    /// A recording in progress keeps its own title. Every state of the saved
+    /// library shares one toolbar without one: a meeting's page carries its
+    /// own title, and the toolbar read it as the list's.
     fn title(&self, cx: &App) -> SharedString {
-        let Some(meeting) = self.selected_meeting(cx) else {
-            return lokalbot_i18n::tr("Meetings").into();
-        };
-        let title = meeting.display_title();
-        // Keep the title clear of the tabs.
-        let budget = match (self.page_bounds.get(), self.tabs_geometry()) {
-            (Some(page), Some((x, _))) => {
-                (f32::from(x - page.origin.x - px(36.)) / 9.2).max(8.) as usize
-            }
-            _ => 40,
-        };
-        if title.chars().count() > budget {
-            let cut: String = title.chars().take(budget.saturating_sub(1)).collect();
-            format!("{}…", cut.trim_end()).into()
-        } else {
-            title.into()
+        if self.is_live_selected(cx)
+            && let Some(meeting) = self.selected_meeting(cx)
+        {
+            return meeting.display_title().into();
         }
+        SharedString::default()
+    }
+
+    /// Back to the page the meeting was opened from, at the toolbar's leading
+    /// edge (the Mac's `.navigation` placement), where the centered tab
+    /// switcher can't cover it at any window width.
+    fn title_control(
+        &mut self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let back = self
+            .data
+            .read(cx)
+            .evidence_return
+            .filter(|_| self.selected.is_some() && !self.is_live_selected(cx));
+        let Some(back) = back else {
+            self.back_bounds.set(None);
+            return None;
+        };
+        let data = self.data.clone();
+        let cell = self.back_bounds.clone();
+        let measure = canvas(
+            move |bounds, window, _| {
+                if cell.get() != Some(bounds) {
+                    cell.set(Some(bounds));
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_full();
+        Some(
+            div()
+                .relative()
+                .child(measure)
+                .child(
+                    Button::new("meeting-evidence-back")
+                        .ghost()
+                        .icon(Icon::new(Ico::ChevronLeft))
+                        .label(if back.section == crate::state::Section::Actions {
+                            lokalbot_i18n::tr("Back to Actions")
+                        } else {
+                            lokalbot_i18n::tr("Back")
+                        })
+                        .on_click(move |_, _, cx| {
+                            data.update(cx, |data, cx| data.return_from_evidence(cx));
+                        }),
+                )
+                .into_any_element(),
+        )
     }
 
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1152,6 +1202,10 @@ impl Page for MeetingsPage {
                 .into_any_element(),
             );
         }
+        // Several meetings selected: nothing here acts on one of them.
+        if self.selection.len() > 1 {
+            return None;
+        }
         let compact = self
             .page_bounds
             .get()
@@ -1162,6 +1216,7 @@ impl Page for MeetingsPage {
         let can_follow_up = self.doc.as_ref().is_some_and(|d| {
             use crate::state::ProcessingStage as Stage;
             d.outcomes.as_ref().is_some_and(|o| !o.is_empty())
+                && d.partial_progress.is_none()
                 && !matches!(
                     self.data.read(cx).processing.get(&d.meeting.id),
                     Some(
@@ -1186,118 +1241,118 @@ impl Page for MeetingsPage {
             .is_some_and(|d| d.meeting.is_merged_meeting());
         let has_audio = self.doc.as_ref().is_some_and(|d| d.has_audio);
         let exporting_audio = self.exporting_audio;
-        let back = self.data.read(cx).evidence_return;
         let spoken = self.spoken_menu_items(cx);
         let page = cx.entity().downgrade();
-        let export_page = page.clone();
+        let share_page = page.clone();
         let more_page = page;
         let toolbar = h_flex()
             .gap_1()
             .items_center()
-            .when_some(back, |this, back| {
-                let data = self.data.clone();
-                this.child(
-                    Button::new("meeting-evidence-back")
-                        .ghost()
-                        .icon(Icon::new(Ico::ChevronLeft))
-                        .label(if back.actions {
-                            lokalbot_i18n::tr("Back to Actions")
-                        } else {
-                            lokalbot_i18n::tr("Back")
-                        })
-                        .on_click(move |_, _, cx| {
-                            data.update(cx, |data, cx| data.return_from_evidence(cx));
-                        }),
-                )
-            })
             .children(self.toolbar_tabs(cx))
             .child(if compact {
                 Button::new("meeting-ask")
                     .ghost()
-                    .icon(Icon::new(Ico::MessagesSquare))
-                    .tooltip(lokalbot_i18n::tr("Ask This Meeting"))
+                    .icon(Icon::new(Ico::Search))
+                    .tooltip(lokalbot_i18n::tr("Ask about this meeting"))
                     .on_click(cx.listener(|this, _, _, cx| this.ask_meeting(cx)))
             } else {
-                ui::controls::bordered("meeting-ask", lokalbot_i18n::tr("Ask This Meeting"))
-                    .on_click(cx.listener(|this, _, _, cx| this.ask_meeting(cx)))
+                ui::controls::bordered_icon(
+                    "meeting-ask",
+                    Ico::Search,
+                    lokalbot_i18n::tr("Ask about this meeting"),
+                )
+                .on_click(cx.listener(|this, _, _, cx| this.ask_meeting(cx)))
             })
+            // Everything that copies or exports the meeting.
             .child(
-                Button::new("meeting-export")
+                Button::new("meeting-share")
                     .ghost()
                     .child(menu_glyph(Ico::Share, !compact, cx))
-                    .tooltip(lokalbot_i18n::tr("Export meeting"))
+                    .tooltip(lokalbot_i18n::tr("Share"))
                     .dropdown_menu(move |menu, _, _| {
-                        let p1 = export_page.clone();
-                        let p2 = export_page.clone();
-                        let p3 = export_page.clone();
-                        let p4 = export_page.clone();
-                        menu.item(
-                            PopupMenuItem::new(lokalbot_i18n::tr("Copy Meeting as Markdown"))
-                                .on_click(move |_, _, cx| {
-                                    let _ = p1.update(cx, |this, cx| {
-                                        if let Some(doc) = this.doc.clone() {
-                                            this.copy_text(
-                                                model::meeting_markdown(&doc),
-                                                lokalbot_i18n::tr("Meeting copied as Markdown."),
-                                                cx,
-                                            );
-                                        }
-                                    });
-                                }),
-                        )
-                        .item(
-                            PopupMenuItem::new(lokalbot_i18n::tr("Export Meeting as Markdown…"))
-                                .on_click(move |_, _, cx| {
-                                    let _ = p2.update(cx, |this, cx| this.export_markdown(cx));
-                                }),
-                        )
-                        .item(
-                            PopupMenuItem::new(lokalbot_i18n::tr("Copy Summary"))
-                                .disabled(!has_summary)
-                                .on_click(move |_, _, cx| {
-                                    let _ = p3.update(cx, |this, cx| {
-                                        if let Some(summary) =
-                                            this.doc.as_ref().and_then(|d| d.summary.clone())
-                                        {
-                                            this.copy_text(
-                                                summary,
-                                                lokalbot_i18n::tr("Summary copied."),
-                                                cx,
-                                            );
-                                        }
-                                    });
-                                }),
-                        )
-                        .item(
-                            PopupMenuItem::new(lokalbot_i18n::tr("Copy Transcript"))
-                                .disabled(!has_transcript)
-                                .on_click(move |_, _, cx| {
-                                    let _ = p4.update(cx, |this, cx| {
-                                        if let Some(doc) = this.doc.clone() {
-                                            this.copy_text(
-                                                model::transcript_text(&doc),
-                                                lokalbot_i18n::tr("Transcript copied."),
-                                                cx,
-                                            );
-                                        }
-                                    });
-                                }),
-                        )
+                        let p = share_page.clone();
+                        let item = |label: &'static str,
+                                    f: fn(&mut MeetingsPage, &mut Context<MeetingsPage>)| {
+                            let p = p.clone();
+                            PopupMenuItem::new(label).on_click(move |_, _, cx| {
+                                let _ = p.update(cx, f);
+                            })
+                        };
+                        let menu = menu
+                            .item(item(lokalbot_i18n::tr("Copy as Markdown"), |this, cx| {
+                                if let Some(doc) = this.doc.clone() {
+                                    this.copy_text(
+                                        model::meeting_markdown(&doc),
+                                        lokalbot_i18n::tr("Meeting copied as Markdown."),
+                                        cx,
+                                    );
+                                }
+                            }))
+                            .item(item(
+                                lokalbot_i18n::tr("Export as Markdown…"),
+                                |this, cx| this.export_markdown(cx),
+                            ))
+                            .separator()
+                            .item(
+                                item(lokalbot_i18n::tr("Copy summary"), |this, cx| {
+                                    if let Some(summary) =
+                                        this.doc.as_ref().and_then(|d| d.summary.clone())
+                                    {
+                                        this.copy_text(
+                                            summary,
+                                            lokalbot_i18n::tr("Summary copied."),
+                                            cx,
+                                        );
+                                    }
+                                })
+                                .disabled(!has_summary),
+                            )
+                            .item(
+                                item(lokalbot_i18n::tr("Copy transcript"), |this, cx| {
+                                    if let Some(doc) = this.doc.clone() {
+                                        this.copy_text(
+                                            model::transcript_text(&doc),
+                                            lokalbot_i18n::tr("Transcript copied."),
+                                            cx,
+                                        );
+                                    }
+                                })
+                                .disabled(!has_transcript),
+                            )
+                            .separator()
+                            .item(
+                                item(
+                                    if exporting_audio {
+                                        lokalbot_i18n::tr("Exporting audio…")
+                                    } else {
+                                        lokalbot_i18n::tr("Export audio…")
+                                    },
+                                    |this, cx| this.export_audio(cx),
+                                )
+                                .disabled(exporting_audio || !has_audio),
+                            );
+                        spoken.add_export(menu, p.clone()).separator().item(item(
+                            lokalbot_i18n::tr("Copy meeting path"),
+                            |this, cx| {
+                                if let Some(path) =
+                                    this.doc.as_ref().map(|d| d.folder.display().to_string())
+                                {
+                                    this.copy_text(
+                                        path,
+                                        lokalbot_i18n::tr("Meeting path copied."),
+                                        cx,
+                                    );
+                                }
+                            },
+                        ))
                     }),
-            )
-            .child(
-                Button::new("meeting-find")
-                    .ghost()
-                    .icon(Icon::new(Ico::Search))
-                    .tooltip(lokalbot_i18n::tr("Find on this meeting page (Ctrl+F)"))
-                    .on_click(cx.listener(|this, _, window, cx| this.open_find(window, cx))),
             )
             .child(
                 Button::new("meeting-more")
                     .ghost()
                     .child(menu_glyph(Ico::Ellipsis, !compact, cx))
                     .tooltip(lokalbot_i18n::tr("More meeting actions"))
-                    .dropdown_menu(move |menu, _, _| {
+                    .dropdown_menu(move |menu, window, cx| {
                         let p = more_page.clone();
                         let item = |label: &'static str,
                                     f: fn(
@@ -1310,131 +1365,113 @@ impl Page for MeetingsPage {
                                 let _ = p.update(cx, |this, cx| f(this, window, cx));
                             })
                         };
-                        let follow_up = p.clone();
-                        let mut menu = menu;
-                        for target in crate::agent_handoff::for_meetings() {
+                        let mut menu = menu.item(
+                            item(
+                                lokalbot_i18n::tr("Draft follow-up…"),
+                                |this, window, cx| this.open_follow_up(window, cx),
+                            )
+                            .disabled(!can_follow_up),
+                        );
+                        let targets = crate::agent_handoff::for_meetings();
+                        if !targets.is_empty() {
                             let data = handoff_data.clone();
                             let meeting = handoff_meeting.clone();
-                            menu = menu.item(
-                                PopupMenuItem::new(crate::pages::today::threads::open_in_label(
-                                    target,
-                                ))
-                                .disabled(!has_notes)
-                                .on_click(move |_, _, cx| {
-                                    if let Some(meeting) = meeting.as_ref() {
-                                        crate::agent_handoff::hand_off_meeting(
-                                            &data, meeting, target, cx,
+                            menu = menu.submenu(
+                                lokalbot_i18n::tr("Open in"),
+                                window,
+                                cx,
+                                move |sub, _, _| {
+                                    let mut sub = sub;
+                                    for target in &targets {
+                                        let target = *target;
+                                        let data = data.clone();
+                                        let meeting = meeting.clone();
+                                        sub = sub.item(
+                                            PopupMenuItem::new(target.name())
+                                                .disabled(!has_notes)
+                                                .on_click(move |_, _, cx| {
+                                                    if let Some(meeting) = meeting.as_ref() {
+                                                        crate::agent_handoff::hand_off_meeting(
+                                                            &data, meeting, target, cx,
+                                                        );
+                                                    }
+                                                }),
                                         );
                                     }
-                                }),
+                                    sub
+                                },
                             );
                         }
+                        let menu = spoken.add_read(menu.separator(), p.clone()).separator();
                         let menu = menu
                             .item(
-                                PopupMenuItem::new(lokalbot_i18n::tr("Draft follow-up…"))
-                                    .disabled(!can_follow_up)
-                                    .on_click(move |_, window, cx| {
-                                        let _ = follow_up
-                                            .update(cx, |this, cx| this.open_follow_up(window, cx));
-                                    }),
-                            )
-                            .separator();
-                        let menu = spoken.add(menu, p.clone()).separator();
-                        let boundaries = p.clone();
-                        let undo = p.clone();
-                        let menu = menu
-                            .item(
-                                PopupMenuItem::new(lokalbot_i18n::tr("Meeting boundaries…"))
-                                    .disabled(!has_transcript || busy)
-                                    .on_click(move |_, window, cx| {
-                                        let _ = boundaries.update(cx, |this, cx| {
-                                            if let Some(doc) = this.doc.clone() {
-                                                dialogs::BoundarySheet::open(
-                                                    this.data.clone(),
-                                                    doc.meeting.clone(),
-                                                    window,
-                                                    cx,
-                                                );
-                                            }
-                                        });
-                                    }),
-                            )
-                            .when(is_merged, |menu| {
-                                menu.item(
-                                    PopupMenuItem::new(lokalbot_i18n::tr("Undo merge…"))
-                                        .disabled(busy)
-                                        .on_click(move |_, window, cx| {
-                                            let _ = undo.update(cx, |this, cx| {
-                                                if let Some(doc) = this.doc.clone() {
-                                                    dialogs::confirm_undo_merge(
-                                                        this.data.clone(),
-                                                        &doc.meeting,
-                                                        window,
-                                                        cx,
-                                                    );
-                                                }
-                                            });
-                                        }),
+                                item(
+                                    lokalbot_i18n::tr("Edit start and end…"),
+                                    |this, window, cx| {
+                                        if let Some(doc) = this.doc.clone() {
+                                            dialogs::BoundarySheet::open(
+                                                this.data.clone(),
+                                                doc.meeting.clone(),
+                                                window,
+                                                cx,
+                                            );
+                                        }
+                                    },
                                 )
-                            });
-                        menu.item(item(
-                            lokalbot_i18n::tr("Transcribe & Summarize"),
-                            |this, _, cx| this.process(true, true, cx),
-                        ))
-                        .item(item(lokalbot_i18n::tr("Transcribe only"), |this, _, cx| {
-                            this.process(true, false, cx)
-                        }))
-                        .item(item(lokalbot_i18n::tr("Summarize again"), |this, _, cx| {
-                            this.process(false, true, cx)
-                        }))
-                        .separator()
-                        .when(has_audio, |menu| {
-                            let audio = p.clone();
-                            menu.item(
-                                PopupMenuItem::new(if exporting_audio {
-                                    lokalbot_i18n::tr("Exporting audio...")
-                                } else {
-                                    lokalbot_i18n::tr("Export audio")
+                                .disabled(!has_transcript || busy),
+                            )
+                            .submenu(lokalbot_i18n::tr("Reprocess"), window, cx, {
+                                let p = p.clone();
+                                move |sub, _, _| {
+                                    let run =
+                                        |label: &'static str, transcribe: bool, summarize: bool| {
+                                            let p = p.clone();
+                                            PopupMenuItem::new(label).on_click(move |_, _, cx| {
+                                                let _ = p.update(cx, |this, cx| {
+                                                    this.process(transcribe, summarize, cx)
+                                                });
+                                            })
+                                        };
+                                    sub.item(run(
+                                        lokalbot_i18n::tr("Transcribe & Summarize"),
+                                        true,
+                                        true,
+                                    ))
+                                    .item(run(lokalbot_i18n::tr("Transcribe only"), true, false))
+                                    .item(run(
+                                        lokalbot_i18n::tr("Summarize again"),
+                                        false,
+                                        true,
+                                    ))
+                                }
+                            })
+                            .separator()
+                            .item(item(lokalbot_i18n::tr("Show in Folder"), |this, _, cx| {
+                                if let Some(doc) = this.doc.as_ref() {
+                                    cx.reveal_path(&doc.folder);
+                                }
+                            }))
+                            // Linux and Windows have no Edit menu to carry
+                            // Find; Ctrl+F works everywhere on the page.
+                            .item(item(
+                                lokalbot_i18n::tr("Find on this meeting page (Ctrl+F)"),
+                                |this, window, cx| this.open_find(window, cx),
+                            ));
+                        menu.when(is_merged, |menu| {
+                            menu.separator().item(
+                                item(lokalbot_i18n::tr("Undo merge…"), |this, window, cx| {
+                                    if let Some(doc) = this.doc.clone() {
+                                        dialogs::confirm_undo_merge(
+                                            this.data.clone(),
+                                            &doc.meeting,
+                                            window,
+                                            cx,
+                                        );
+                                    }
                                 })
-                                .disabled(exporting_audio)
-                                .on_click(move |_, _, cx| {
-                                    let _ = audio.update(cx, |this, cx| this.export_audio(cx));
-                                }),
+                                .disabled(busy),
                             )
                         })
-                        .item(item(lokalbot_i18n::tr("Show in Folder"), |this, _, cx| {
-                            if let Some(doc) = this.doc.as_ref() {
-                                cx.reveal_path(&doc.folder);
-                            }
-                        }))
-                        .item(item(
-                            lokalbot_i18n::tr("Copy Meeting Path"),
-                            |this, _, cx| {
-                                if let Some(path) =
-                                    this.doc.as_ref().map(|d| d.folder.display().to_string())
-                                {
-                                    this.copy_text(
-                                        path,
-                                        lokalbot_i18n::tr("Meeting path copied."),
-                                        cx,
-                                    );
-                                }
-                            },
-                        ))
-                        .separator()
-                        .item(item(
-                            lokalbot_i18n::tr("Delete…"),
-                            |this, window, cx| {
-                                if let Some(id) = this.selected {
-                                    dialogs::confirm_delete(
-                                        this.data.clone(),
-                                        vec![id],
-                                        window,
-                                        cx,
-                                    );
-                                }
-                            },
-                        ))
                     }),
             );
         Some(toolbar.into_any_element())
@@ -1505,5 +1542,42 @@ pub(crate) fn status_text(status: &NotesStatus) -> SharedString {
         NotesStatus::Saved => lokalbot_i18n::tr("Saved on this PC").into(),
         NotesStatus::Saving => lokalbot_i18n::tr("Saving…").into(),
         NotesStatus::Failed(_) => lokalbot_i18n::tr("Not saved").into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gpui_kit::{point, size};
+
+    fn page(width: f32) -> Bounds<Pixels> {
+        Bounds::new(point(px(225.), px(52.)), size(px(width), px(700.)))
+    }
+
+    /// The default window (a page about 1015 px wide) used to put the tabs
+    /// over Back; at the leading edge it stays clear of them at any width,
+    /// on the left or, right to left, on the right.
+    #[test]
+    fn the_tabs_never_cover_back() {
+        for width in [600., 735., 900., 1015., 1215.] {
+            let left = Bounds::new(point(px(237.), px(10.)), size(px(140.), px(28.)));
+            let (x, _) = tabs_geometry(page(width), Some(left));
+            assert!(x >= left.right() + px(12.), "width {width}: tabs at {x:?}");
+            let right_edge = px(225. + width);
+            let right = Bounds::new(
+                point(right_edge - px(152.), px(10.)),
+                size(px(140.), px(28.)),
+            );
+            let (x, segment) = tabs_geometry(page(width), Some(right));
+            let tabs = segmented_tabs::width(TABS.len(), segment);
+            assert!(
+                x + tabs <= right.left() - px(12.),
+                "width {width}: tabs at {x:?}"
+            );
+        }
+        // Without Back the tabs stay centered where there is room.
+        let (x, segment) = tabs_geometry(page(1215.), None);
+        let tabs = segmented_tabs::width(TABS.len(), segment);
+        assert_eq!(x, px(225.) + px(1215.) / 2. - tabs / 2.);
     }
 }

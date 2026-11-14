@@ -302,8 +302,7 @@ impl SettingsPage {
                     .update(cx, |page, cx| {
                         let showing = {
                             let data = page.data.read(cx);
-                            data.section == crate::state::Section::Settings
-                                && data.settings_category == SettingsCategory::Devices
+                            data.settings_showing(SettingsCategory::Devices)
                                 && data.companion.pairing.is_some()
                         };
                         if showing {
@@ -867,8 +866,9 @@ fn qr_image(payload: &str) -> Option<Arc<RenderImage>> {
 
 // ---------------------------------------------------------- the pairing prompt
 
-/// Brings the window up with the question a scanning device is waiting on, or
-/// takes it away once the request is gone. Called off the engine's update.
+/// Brings the Settings window up on Phones & tablets with the question a
+/// scanning device is waiting on, or takes it away once the request is gone.
+/// Called off the engine's update.
 pub(crate) fn pairing_prompt_changed(
     data: Entity<AppData>,
     request: Option<PairingRequest>,
@@ -879,7 +879,7 @@ pub(crate) fn pairing_prompt_changed(
             .update(cx, |data, _| data.pairing_prompt.take())
             .is_some()
         {
-            on_main_window(cx, |window, cx| window.close_dialog(cx));
+            crate::windows::settings::if_open(cx, |window, cx| window.close_dialog(cx));
         }
         return;
     };
@@ -887,19 +887,9 @@ pub(crate) fn pairing_prompt_changed(
         data.pairing_prompt = Some(request.id);
         data.open_settings(SettingsCategory::Devices, cx);
     });
-    crate::desktop::show_main_window(cx);
-    on_main_window(cx, move |window, cx| {
+    crate::windows::settings::with_window(cx, move |window, cx| {
         open_pairing_prompt(data.clone(), request.clone(), window, cx)
     });
-}
-
-fn on_main_window(cx: &mut App, action: impl FnOnce(&mut Window, &mut App)) {
-    let handle = crate::desktop::desktop(cx)
-        .and_then(|desktop| *desktop.main_window.lock())
-        .or_else(|| cx.windows().into_iter().next());
-    if let Some(handle) = handle {
-        let _ = handle.update(cx, |_, window, cx| action(window, cx));
-    }
 }
 
 fn open_pairing_prompt(

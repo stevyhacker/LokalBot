@@ -452,14 +452,14 @@ pub enum AutocompleteCommand {
     RequestStatus,
 }
 
-/// Counters for Settings → Writing.
+/// Counters for Settings → Autocomplete.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AutocompleteMeasures {
     pub stats: lokalbot_core::cotyping_stats::CotypingStats,
     pub usage: lokalbot_core::cotyping_stats::UsageHistory,
 }
 
-/// The learned examples' state, for Settings → Writing.
+/// The learned examples' state, for Settings → Autocomplete.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AutocompleteLearning {
     /// Why the store cannot be used, worded for Settings. Learning then stays

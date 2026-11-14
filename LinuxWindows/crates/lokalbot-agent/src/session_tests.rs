@@ -758,3 +758,172 @@ fn a_running_task_stops_sending_to_plain_http_off_this_computer() {
         None
     );
 }
+
+fn lookup(workspace: &str, command: &str) -> Value {
+    serde_json::json!({"tool": "bash", "workspace": workspace, "command": command})
+}
+
+/// The owner's decision: a read-only library lookup runs without a card at
+/// the default level only while the task's model runs on this computer.
+#[test]
+fn a_library_lookup_runs_unasked_with_a_model_on_this_computer() {
+    let mut h = Harness::new();
+    h.start();
+    assert!(h.session.model_runs_on_this_computer());
+    assert_eq!(h.session.approval_mode(), ApprovalMode::AskBeforeChanges);
+    let ws = h.workspace();
+    h.confirm(
+        "l1",
+        lookup(&ws, "lokalbot-cli search \"design review\" --limit 5"),
+    );
+    assert!(h.session.pending_approvals().is_empty());
+    assert_eq!(h.last_line()["id"], "l1");
+    assert_eq!(h.last_line()["confirmed"], true);
+    // Anything that is not a proven lookup still asks.
+    h.confirm("l2", lookup(&ws, "lokalbot-cli list > notes.md"));
+    assert_eq!(h.session.pending_approvals().len(), 1);
+    // After the task's agent stops, where the model runs is not known.
+    h.session.shutdown();
+    assert!(!h.session.model_runs_on_this_computer());
+}
+
+#[test]
+fn a_library_lookup_asks_when_the_model_is_not_on_this_computer() {
+    let mut h = Harness::new();
+    let plan = SubscriptionPlan::ChatGpt;
+    plan.set_approved(&mut h.env.settings.write(), true);
+    *h.launcher.plan.lock() = Some(plan);
+    h.start();
+    assert!(!h.session.model_runs_on_this_computer());
+    let ws = h.workspace();
+    h.confirm("l1", lookup(&ws, "lokalbot-cli brief"));
+    assert_eq!(h.session.pending_approvals().len(), 1);
+    assert_eq!(h.session.pending_approvals()[0].id, "l1");
+    // The read levels do not let it through either; full access runs every command.
+    h.session
+        .set_approval_mode(ApprovalMode::ApproveReadsAndEdits);
+    assert_eq!(h.session.pending_approvals().len(), 1);
+    h.session.set_approval_mode(ApprovalMode::FullAccess);
+    assert!(h.session.pending_approvals().is_empty());
+    assert_eq!(h.last_line()["confirmed"], true);
+    h.session.set_approval_mode(ApprovalMode::AskBeforeChanges);
+}
+
+#[test]
+fn send_now_steers_a_working_task_and_sends_on_a_ready_one() {
+    let mut h = Harness::new();
+    h.send("first");
+    h.ack(true);
+    h.event(r#"{"type":"agent_start"}"#);
+    h.session.draft = "second".into();
+    h.session.submit(false);
+    h.session.draft = "third".into();
+    h.session.submit(false);
+    let third = h.session.queued_prompts[1].id;
+    h.session.send_queued_now(third);
+    let line = h.last_line();
+    assert_eq!(line["type"], "steer");
+    assert_eq!(line["message"], "third");
+    let left: Vec<&str> = h
+        .session
+        .queued_prompts
+        .iter()
+        .map(|p| p.text.as_str())
+        .collect();
+    assert_eq!(left, ["second"]);
+    h.ack(true);
+    // A paused queue on a ready task: Send now sends that message as the next one.
+    h.event(r#"{"type":"message_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"502 Bad Gateway"}}"#);
+    h.event(r#"{"type":"agent_settled"}"#);
+    assert!(h.session.queue_is_paused);
+    let second = h.session.queued_prompts[0].id;
+    h.session.send_queued_now(second);
+    let line = h.last_line();
+    assert_eq!(line["type"], "prompt");
+    assert_eq!(line["message"], "second");
+    assert!(h.session.queued_prompts.is_empty());
+}
+
+#[test]
+fn send_now_starts_an_idle_task_with_that_message_first() {
+    let mut h = Harness::new();
+    h.session.restore_queue(vec![
+        crate::tasks::QueuedPrompt::new("one", Vec::new()),
+        crate::tasks::QueuedPrompt::new("two", Vec::new()),
+    ]);
+    let two = h.session.queued_prompts[1].id;
+    h.session.send_queued_now(two);
+    h.pump();
+    let line = h.last_line();
+    assert_eq!(line["type"], "prompt");
+    assert_eq!(line["message"], "two");
+    let left: Vec<&str> = h
+        .session
+        .queued_prompts
+        .iter()
+        .map(|p| p.text.as_str())
+        .collect();
+    assert_eq!(left, ["one"]);
+}
+
+#[test]
+fn stop_marks_the_turn_stopped_until_the_next_message() {
+    let mut h = Harness::new();
+    h.send("first");
+    h.ack(true);
+    assert!(!h.session.was_stopped());
+    h.event(r#"{"type":"agent_start"}"#);
+    h.session.abort();
+    assert!(h.session.was_stopped());
+    h.ack(true);
+    h.event(r#"{"type":"agent_settled"}"#);
+    assert!(h.session.was_stopped());
+    h.send("again");
+    assert!(!h.session.was_stopped());
+}
+
+#[test]
+fn a_write_remembers_whether_its_file_was_there() {
+    let mut h = Harness::new();
+    h.start();
+    std::fs::write(h.session.workspace.join("old.md"), "x").unwrap();
+    h.event(r#"{"type":"agent_start"}"#);
+    h.event(r#"{"type":"tool_execution_start","toolCallId":"w1","toolName":"write","args":{"path":"old.md","content":"y"}}"#);
+    h.event(r#"{"type":"tool_execution_start","toolCallId":"w2","toolName":"write","args":{"path":"@new.md","content":"y"}}"#);
+    h.event(r#"{"type":"tool_execution_start","toolCallId":"r1","toolName":"read","args":{"path":"old.md"}}"#);
+    assert_eq!(h.session.write_target_existed("w1"), Some(true));
+    assert_eq!(h.session.write_target_existed("w2"), Some(false));
+    assert_eq!(h.session.write_target_existed("r1"), None);
+}
+
+#[test]
+fn an_approval_names_its_file_and_where_it_sits() {
+    let mut h = Harness::new();
+    h.start();
+    let ws = h.workspace();
+    std::fs::write(h.session.workspace.join("there.md"), "x").unwrap();
+    h.confirm("w1", file_payload("write", &ws, "there.md"));
+    let request = h.session.pending_approvals()[0].clone();
+    let file = h.session.approval_file(&request).unwrap();
+    assert_eq!(file.target.name, "there.md");
+    assert_eq!(file.target.place, crate::presentation::Place::WorkingFolder);
+    assert!(file.exists);
+    assert!(!file.is_protected);
+    // LokalBot's own data can only ever be allowed once.
+    let private = h
+        .env
+        .library
+        .paths()
+        .root()
+        .join("meetings")
+        .join("meta.json");
+    h.confirm("w2", file_payload("write", &ws, &private.to_string_lossy()));
+    let request = h.session.pending_approvals()[1].clone();
+    let file = h.session.approval_file(&request).unwrap();
+    assert!(file.is_protected);
+    assert!(!h.session.can_allow_for_session(&request));
+    // A command names no file.
+    h.confirm("c1", lookup(&ws, "ls -la"));
+    let request = h.session.pending_approvals()[2].clone();
+    assert_eq!(h.session.approval_file(&request), None);
+}

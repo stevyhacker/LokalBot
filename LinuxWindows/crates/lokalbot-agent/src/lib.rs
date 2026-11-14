@@ -26,6 +26,7 @@ pub mod layout;
 pub mod manifest;
 pub mod messages;
 pub mod policy;
+pub mod presentation;
 pub mod process;
 pub mod resources;
 pub mod rpc;

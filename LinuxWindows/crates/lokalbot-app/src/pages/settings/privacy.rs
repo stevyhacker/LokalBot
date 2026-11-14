@@ -1,5 +1,7 @@
-//! Privacy & Data: where data lives, screen retention, external agent access
-//! and capture exclusions.
+//! Privacy & permissions (what LokalBot may use on this computer and what
+//! leaves it), and the sections that moved out of the old Privacy & Data:
+//! screen retention and capture exclusions (now on Screen & activity) and
+//! external agent access (now on AI agents).
 
 use crate::i18n::h_flex;
 use gpui_kit::component::Sizable as _;
@@ -7,13 +9,18 @@ use gpui_kit::component::button::Button;
 use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{Disableable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
-use gpui_kit::{AppContext as _, Context, ParentElement as _, SharedString, Styled as _, div, px};
+use gpui_kit::{
+    AnyElement, AppContext as _, Context, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, div, px,
+};
 use lokalbot_core::access::ScreenScope;
-use lokalbot_core::settings::SummarizerBackend;
 
-use super::{Section, SettingsPage};
+use super::status::{AGENT_READ_KINDS, Access, SettingsStatus};
+use super::{Section, SettingsPage, header, models};
+use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
+use lokalbot_i18n::fill;
 
 const SCOPES: [ScreenScope; 3] = [
     ScreenScope::Today,
@@ -128,7 +135,7 @@ impl SettingsPage {
                 "settings.agentKindHelp",
                 settings_row::help(
                     lokalbot_i18n::tr(
-                        "The same switch as on External Agents. Agents read only; they never change anything.",
+                        "The same switch as on AI agents. Agents read only; they never change anything.",
                     ),
                     cx,
                 ),
@@ -266,98 +273,49 @@ impl SettingsPage {
         cx.notify();
     }
 
+    /// Privacy & permissions (`SettingsPrivacySections`): the one place
+    /// that shows what LokalBot may use on this computer and what leaves it.
+    /// Each permission says which features use it and where it stands; each
+    /// server that receives something is listed with the control that
+    /// revokes it; sharing with agents and with phones is summed up and opens
+    /// its own page, where its consent lives. PRIVACY.md is the contract for
+    /// every sentence here.
     pub(super) fn privacy_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
-        let (settings, root) = {
-            let data = self.data.read(cx);
-            (
-                data.settings.clone(),
-                data.library.paths().root().to_path_buf(),
-            )
-        };
-        let lb = cx.lb().clone();
+        self.refresh_library_size(cx);
+        let status = self.status(cx);
+        let permissions = self.permissions_section(&status, cx);
+        let leaves = self.leaves_section(&status, cx);
+        let kept = Section::new(lokalbot_i18n::tr("Where it’s kept"))
+            .row("settings.libraryLocation", self.library_row(true, cx));
+        let links = Section::new(None).row(
+            "settings.privacyLinks",
+            settings_row::content_row(
+                "settings.privacyLinks",
+                h_flex()
+                    .gap(px(16.))
+                    .child(settings_row::link_button(
+                        "settings-privacy-policy",
+                        lokalbot_i18n::tr("Privacy Policy"),
+                        |_, cx| cx.open_url("https://www.lokalbot.com/privacy"),
+                        cx,
+                    ))
+                    .child(settings_row::link_button(
+                        "settings-support",
+                        lokalbot_i18n::tr("Support"),
+                        |_, cx| cx.open_url("https://www.lokalbot.com/support"),
+                        cx,
+                    )),
+                false,
+                cx,
+            ),
+        );
 
-        let audio_host = lokalbot_core::remote_transcription::audio_destination(&settings);
-        let backend = match settings.summarizer_backend {
-            SummarizerBackend::Ollama => lokalbot_i18n::tr("Ollama"),
-            SummarizerBackend::ChatGptPlan => lokalbot_i18n::tr("ChatGPT plan"),
-            SummarizerBackend::ClaudePlan => lokalbot_i18n::tr("Claude plan"),
-            _ => lokalbot_i18n::tr("OpenAI-compatible server"),
-        };
-        let where_text = match (&audio_host, settings.think_is_local()) {
-            (None, true) => lokalbot_i18n::tr("Audio, transcripts, and captured context stay on this PC. Network access is limited to model downloads, updates, and optional Agent Mode setup.").to_string(),
-            (None, false) => lokalbot_i18n::format(
-                "Audio stays on this PC. Transcripts and approved context may be sent to your remote Think model ({backend}). Other network access is for model downloads, updates, and optional Agent Mode setup.",
-                &[("backend", backend.to_string())],
-            ),
-            (Some(host), true) => lokalbot_i18n::format(
-                "Audio and your vocabulary go to your transcription server ({host}). Transcripts and captured context stay on this PC. Other network access is for model downloads, updates, and optional Agent Mode setup.",
-                &[("host", host.clone())],
-            ),
-            (Some(host), false) => lokalbot_i18n::format(
-                "Audio and your vocabulary go to your transcription server ({host}). Transcripts and approved context may be sent to your remote Think model ({backend}). Other network access is for model downloads, updates, and optional Agent Mode setup.",
-                &[("host", host.clone()), ("backend", backend.to_string())],
-            ),
-        };
-        let autocomplete_leaves =
-            lokalbot_ai::autocomplete::server::leaves_this_computer(&settings);
-        let where_text = match autocomplete_leaves
-            .then(|| lokalbot_ai::autocomplete::server::configured_host(&settings))
-            .flatten()
-        {
-            Some(host) => format!(
-                "{where_text} {}",
-                lokalbot_i18n::format(
-                    "Autocomplete also sends what you type, with the context you turn on under Writing, to {0}.",
-                    &[("0", host)],
-                )
-            ),
-            None => where_text,
-        };
-        let local = settings.think_is_local() && audio_host.is_none() && !autocomplete_leaves;
-        let root_text: SharedString = root.display().to_string().into();
-        let where_row = h_flex()
-            .gap(px(10.))
-            .items_start()
-            .child(ui::icon(
-                if local {
-                    Ico::ShieldCheck
-                } else {
-                    Ico::Network
-                },
-                px(16.),
-                if local {
-                    lb.accent_text
-                } else {
-                    lb.attention_text
-                },
-            ))
-            .child(settings_row::help(where_text, cx).flex_1().min_w_0());
-        let open_root = root.clone();
-        let data_section = Section::new(lokalbot_i18n::tr("Where your data lives"))
-            .row(
-                "settings.whereData",
-                settings_row::content_row("settings.whereData", where_row, false, cx),
-            )
-            .row(
-                "settings.libraryLocation",
-                settings_row::row(
-                    "settings.libraryLocation",
-                    lokalbot_i18n::tr("Library location"),
-                    Some(lokalbot_i18n::tr("Meetings, day memory, and the search index.").into()),
-                    v_flex().items_end().max_w(px(320.)).child(
-                        settings_row::link_button(
-                            "settings-library-path",
-                            root_text,
-                            move |_, cx| cx.open_with_system(&open_root),
-                            cx,
-                        )
-                        .truncate(),
-                    ),
-                    self.is_focused("settings.libraryLocation"),
-                    cx,
-                ),
-            );
+        vec![permissions, leaves, kept, links]
+    }
 
+    /// Screen memory retention (`retentionSection`), on Screen & activity.
+    pub(super) fn retention_section(&mut self, cx: &mut Context<Self>) -> Section {
+        let settings = self.data.read(cx).settings.clone();
         let days = self
             .retention_draft
             .unwrap_or(settings.retention_days)
@@ -458,6 +416,12 @@ impl SettingsPage {
             );
         }
 
+        retention
+    }
+
+    /// What external agents may read or change (`agentAccessSection`), on
+    /// AI agents. The switches are the same as before the move.
+    pub(super) fn agent_access_section(&mut self, cx: &mut Context<Self>) -> Section {
         self.reload_personal(cx);
         let page = cx.entity();
         let meetings_page = page.clone();
@@ -653,9 +617,12 @@ impl SettingsPage {
             );
         }
 
-        agents = self.settings_control_rows(agents, cx);
+        self.settings_control_rows(agents, cx)
+    }
 
-        let exclusions = Section::new(lokalbot_i18n::tr("Capture exclusions"))
+    /// Capture exclusions (`exclusionsSection`), on Screen & activity.
+    pub(super) fn exclusions_section(&mut self, cx: &mut Context<Self>) -> Section {
+        Section::new(lokalbot_i18n::tr("Capture exclusions"))
             .row(
                 "settings.excludedApps",
                 settings_row::content_row("settings.excludedApps", self.excluded_apps.clone(), self.is_focused("settings.excludedApps"), cx),
@@ -677,40 +644,7 @@ impl SettingsPage {
                     false,
                     cx,
                 ),
-            );
-
-        let links = Section::new(None).row(
-            "settings.privacyLinks",
-            settings_row::content_row(
-                "settings.privacyLinks",
-                h_flex()
-                    .gap(px(16.))
-                    .child(settings_row::link_button(
-                        "settings-privacy-policy",
-                        lokalbot_i18n::tr("Privacy Policy"),
-                        |_, cx| cx.open_url("https://www.lokalbot.com/privacy"),
-                        cx,
-                    ))
-                    .child(settings_row::link_button(
-                        "settings-support",
-                        lokalbot_i18n::tr("Support"),
-                        |_, cx| cx.open_url("https://www.lokalbot.com/support"),
-                        cx,
-                    )),
-                false,
-                cx,
-            ),
-        );
-
-        let permissions = self.permissions_section(cx);
-        vec![
-            data_section,
-            retention,
-            agents,
-            permissions,
-            exclusions,
-            links,
-        ]
+            )
     }
 
     /// "Allow external agents to change LokalBot settings", and what they changed.
@@ -816,33 +750,54 @@ impl SettingsPage {
         section
     }
 
-    /// What LokalBot needs from this computer (`PermissionRow.swift`).
-    fn permissions_section(&mut self, cx: &mut Context<Self>) -> Section {
+    /// Every permission this desktop has, with its real state and its fix
+    /// (`SettingsPrivacySections.permissionRow`). Features that are on and
+    /// use one name it; one that nothing uses now says so.
+    fn permissions_section(&mut self, status: &SettingsStatus, cx: &mut Context<Self>) -> Section {
         let lb = cx.lb().clone();
-        let needs = crate::control::permissions::needs(self.data.read(cx), cx);
         let focused = self.is_focused("settings.permissions");
+        let open = header::opener(&cx.entity());
         let mut section = Section::new(lokalbot_i18n::tr("Permissions"));
-        for (index, need) in needs.into_iter().enumerate() {
-            let granted = need.granted;
-            let name = need.name;
-            let data = self.data.clone();
-            let can_open = cfg!(target_os = "windows") && name == "microphone";
+        for (index, permission) in status.input.permissions.iter().enumerate() {
+            let access = permission.access();
+            let (sign, color) = match access {
+                Access::Allowed => (Ico::CircleCheck, lb.success_text),
+                Access::Missing => (Ico::CircleAlert, lb.attention_text),
+                Access::NotNeeded | Access::Unchecked => (Ico::CircleMinus, lb.text_tertiary),
+            };
+            let state: Option<AnyElement> = match access {
+                Access::Allowed => {
+                    Some(settings_row::value(lokalbot_i18n::tr("Allowed"), cx).into_any_element())
+                }
+                Access::NotNeeded => Some(
+                    settings_row::value(lokalbot_i18n::tr("Not needed now"), cx).into_any_element(),
+                ),
+                Access::Missing | Access::Unchecked => None,
+            };
+            let fix = permission
+                .fix_action()
+                .zip(permission.fix_title())
+                .map(|(action, title)| {
+                    let data = self.data.clone();
+                    let open = open.clone();
+                    Button::new(("settings-permission-fix", index))
+                        .outline()
+                        .small()
+                        .label(lokalbot_i18n::tr(title))
+                        .on_click(move |_, window, cx| {
+                            header::perform(&action, &data, &open, window, cx)
+                        })
+                });
+            let needed = (access == Access::Missing).then(|| {
+                fill(
+                    lokalbot_i18n::tr("Needed for: %@"),
+                    &[&permission.needed_by.join(", ")],
+                )
+            });
             let row = h_flex()
                 .gap(px(10.))
-                .items_start()
-                .child(ui::icon(
-                    if granted {
-                        Ico::CircleCheck
-                    } else {
-                        Ico::TriangleAlert
-                    },
-                    px(16.),
-                    if granted {
-                        lb.accent_text
-                    } else {
-                        lb.attention_text
-                    },
-                ))
+                .items_center()
+                .child(ui::icon(sign, px(16.), color))
                 .child(
                     v_flex()
                         .flex_1()
@@ -852,21 +807,20 @@ impl SettingsPage {
                             div()
                                 .text_size(ty::BODY)
                                 .text_color(lb.text)
-                                .child(need.title),
+                                .child(permission.title.clone()),
                         )
-                        .child(settings_row::help(need.detail, cx)),
+                        .child(settings_row::help(permission.detail.clone(), cx))
+                        .when_some(needed, |this, needed| {
+                            this.child(
+                                div()
+                                    .text_size(ty::SECONDARY)
+                                    .text_color(lb.attention_text)
+                                    .child(ui::text::paragraph(needed)),
+                            )
+                        }),
                 )
-                .when(can_open, |this| {
-                    this.child(
-                        Button::new(("settings-permission-open", index))
-                            .outline()
-                            .small()
-                            .label(lokalbot_i18n::tr("Open System Settings…"))
-                            .on_click(move |_, _, cx| {
-                                crate::control::permissions::request(name, &data, cx)
-                            }),
-                    )
-                });
+                .children(state)
+                .children(fix);
             section = section.row(
                 "settings.permissions",
                 settings_row::content_row(
@@ -877,6 +831,263 @@ impl SettingsPage {
                 ),
             );
         }
-        section
+        section.row(
+            "settings.permissionsHelp",
+            settings_row::content_row(
+                "settings.permissionsHelp",
+                settings_row::help(
+                    lokalbot_i18n::tr(
+                        "This desktop doesn’t ask for these: each row says what it allows LokalBot now. Only the features listed use them.",
+                    ),
+                    cx,
+                ),
+                false,
+                cx,
+            ),
+        )
     }
+
+    /// Every server approved to receive something, with its Revoke; the
+    /// server Autocomplete sends typing to; what agents and phones may have,
+    /// each opening its own page; and the rest of the network use.
+    fn leaves_section(&mut self, status: &SettingsStatus, cx: &mut Context<Self>) -> Section {
+        let lb = cx.lb().clone();
+        let settings = self.data.read(cx).settings.clone();
+        let open = header::opener(&cx.entity());
+        let mut section = Section::new(lokalbot_i18n::tr("What leaves this PC"));
+        let autocomplete_host = lokalbot_ai::autocomplete::server::leaves_this_computer(&settings)
+            .then(|| lokalbot_ai::autocomplete::server::configured_host(&settings))
+            .flatten();
+        if settings.approved_remote_inference_origins.is_empty()
+            && settings.approved_remote_transcription_origins.is_empty()
+            && autocomplete_host.is_none()
+        {
+            let models_open = open.clone();
+            section = section.row(
+                "settings.onlineModels",
+                settings_row::row(
+                    "settings.onlineModels",
+                    lokalbot_i18n::tr("Online models"),
+                    Some(lokalbot_i18n::tr("None. Every model runs on this PC.").into()),
+                    Button::new("settings-privacy-models")
+                        .outline()
+                        .small()
+                        .label(lokalbot_i18n::tr("Models…"))
+                        .on_click(move |_, window, cx| {
+                            models_open(SettingsCategory::Models, None, window, cx)
+                        }),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        let origin_row = |id: SharedString,
+                          icon: Ico,
+                          name: String,
+                          detail: &'static str,
+                          control: AnyElement,
+                          cx: &mut Context<Self>| {
+            settings_row::content_row(
+                id,
+                h_flex()
+                    .gap(px(10.))
+                    .items_center()
+                    .child(ui::icon(icon, px(16.), lb.attention_text))
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .gap(px(2.))
+                            .child(div().text_size(ty::BODY).text_color(lb.text).child(name))
+                            .child(settings_row::help(detail, cx)),
+                    )
+                    .child(control),
+                false,
+                cx,
+            )
+        };
+        for origin in settings.approved_remote_inference_origins.clone() {
+            let data = self.data.clone();
+            let revoke = origin.clone();
+            let control = Button::new(SharedString::from(format!("privacy-revoke-{origin}")))
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Revoke…"))
+                .on_click(move |_, window, cx| {
+                    models::confirm_revoke(data.clone(), revoke.clone(), window, cx)
+                })
+                .into_any_element();
+            let row = origin_row(
+                SharedString::from(format!("settings-privacy-origin-{origin}")),
+                Ico::Globe,
+                models::origin_display_name(&origin),
+                models::approved_origin_notice(),
+                control,
+                cx,
+            );
+            section = section.row("settings.privacyOrigin", row);
+        }
+        for origin in settings.approved_remote_transcription_origins.clone() {
+            let data = self.data.clone();
+            let revoke = origin.clone();
+            let control = Button::new(SharedString::from(format!("privacy-revoke-audio-{origin}")))
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Revoke…"))
+                .on_click(move |_, window, cx| {
+                    models::confirm_revoke_audio(data.clone(), revoke.clone(), window, cx)
+                })
+                .into_any_element();
+            let row = origin_row(
+                SharedString::from(format!("settings-privacy-audio-origin-{origin}")),
+                Ico::AudioLines,
+                origin.clone(),
+                models::approved_audio_origin_notice(),
+                control,
+                cx,
+            );
+            section = section.row("settings.privacyOrigin", row);
+        }
+        if let Some(host) = autocomplete_host {
+            let change = open.clone();
+            let control = settings_row::link_button(
+                "settings-privacy-autocomplete-server",
+                lokalbot_i18n::tr("Change…"),
+                move |window, cx| {
+                    change(
+                        SettingsCategory::Models,
+                        Some("settings.cotypingBackend"),
+                        window,
+                        cx,
+                    )
+                },
+                cx,
+            )
+            .into_any_element();
+            let detail = fill(
+                lokalbot_i18n::tr(
+                    "Autocomplete also sends what you type, with the context you turn on under Autocomplete, to %@.",
+                ),
+                &[&host],
+            );
+            section = section.row(
+                "settings.privacyAutocompleteServer",
+                settings_row::content_row(
+                    "settings-privacy-autocomplete",
+                    h_flex()
+                        .gap(px(10.))
+                        .items_center()
+                        .child(ui::icon(Ico::TextCursorInput, px(16.), lb.attention_text))
+                        .child(
+                            v_flex()
+                                .flex_1()
+                                .min_w_0()
+                                .gap(px(2.))
+                                .child(
+                                    div()
+                                        .text_size(ty::BODY)
+                                        .text_color(lb.text)
+                                        .child(host.clone()),
+                                )
+                                .child(settings_row::help(detail, cx)),
+                        )
+                        .child(control),
+                    false,
+                    cx,
+                ),
+            );
+        }
+        // Sharing with agents and phones is agreed to on its own page.
+        let kinds = status.input.agent_kinds;
+        let agents_detail = if kinds == 0 {
+            lokalbot_i18n::tr("Can’t read anything").to_string()
+        } else {
+            fill(
+                lokalbot_i18n::tr("%lld of %lld kinds"),
+                &[&kinds.to_string(), &AGENT_READ_KINDS.to_string()],
+            )
+        };
+        section = section.row(
+            "settings.privacyAgents",
+            page_row(
+                "settings-privacy-agents",
+                lokalbot_i18n::tr("AI agents on this PC"),
+                agents_detail,
+                SettingsCategory::Agents,
+                open.clone(),
+                cx,
+            ),
+        );
+        let devices_detail = if settings.companion_sharing_enabled {
+            fill(
+                lokalbot_i18n::tr("%lld paired"),
+                &[&status.input.paired_devices.to_string()],
+            )
+        } else {
+            lokalbot_i18n::tr("Off").to_string()
+        };
+        section = section.row(
+            "settings.privacyDevices",
+            page_row(
+                "settings-privacy-devices",
+                lokalbot_i18n::tr("Phones & tablets"),
+                devices_detail,
+                SettingsCategory::Devices,
+                open,
+                cx,
+            ),
+        );
+        section.row(
+            "settings.privacyElse",
+            settings_row::row(
+                "settings.privacyElse",
+                lokalbot_i18n::tr("Anything else"),
+                Some(
+                    lokalbot_i18n::tr(
+                        "Model downloads, update checks, and Agent Mode’s one-time setup use the internet. So do calendar links you add under Meetings.",
+                    )
+                    .into(),
+                ),
+                div(),
+                false,
+                cx,
+            ),
+        )
+    }
+}
+
+/// A summary that opens the page where the sharing is set up and agreed to.
+fn page_row(
+    id: &'static str,
+    title: &'static str,
+    detail: String,
+    page: SettingsCategory,
+    open: header::Opener,
+    cx: &gpui_kit::App,
+) -> gpui_kit::Stateful<gpui_kit::Div> {
+    let lb = cx.lb();
+    settings_row::content_row(
+        id,
+        h_flex()
+            .id(SharedString::from(format!("{id}-open")))
+            .gap(px(12.))
+            .items_center()
+            .cursor_pointer()
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(2.))
+                    .child(div().text_size(ty::BODY).text_color(lb.text).child(title))
+                    .child(settings_row::help(detail, cx)),
+            )
+            .child(ui::icon(
+                super::overview::chevron(),
+                px(12.),
+                lb.text_secondary,
+            ))
+            .on_click(move |_, window, cx| open(page, None, window, cx)),
+        false,
+        cx,
+    )
 }

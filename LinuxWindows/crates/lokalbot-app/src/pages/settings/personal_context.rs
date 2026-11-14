@@ -1,4 +1,4 @@
-//! Settings → Personal Context (`PersonalContextSettings`): learned items waiting
+//! Settings → About you (`PersonalContextSettings`): learned items waiting
 //! for review, what LokalBot keeps about the person grouped by kind, the learning
 //! switches, and whether agents can read the shared items. Every item can be
 //! edited or forgotten here. Nothing reads the saved file until this page opens.
@@ -116,22 +116,10 @@ fn meta_line(claim: &Claim, shows_kind: bool, meeting_title: Option<&str>) -> St
     if saved_automatically(claim) {
         parts.push(lokalbot_i18n::tr("Saved automatically").to_string());
     }
-    let local = claim.created_at.with_timezone(&chrono::Local);
-    let pattern = if local.date_naive().format("%Y").to_string()
-        == chrono::Local::now().format("%Y").to_string()
-    {
-        "%b %-d"
-    } else {
-        "%b %-d, %Y"
-    };
-    parts.push(
-        local
-            .format_localized(
-                lokalbot_i18n::date_pattern(pattern),
-                lokalbot_i18n::date_locale(),
-            )
-            .to_string(),
-    );
+    parts.push(lokalbot_i18n::short_date(
+        claim.created_at.with_timezone(&chrono::Local).date_naive(),
+        chrono::Local::now().date_naive(),
+    ));
     parts.join(" · ")
 }
 
@@ -328,7 +316,7 @@ impl SettingsPage {
                                     menu = menu.item(
                                         PopupMenuItem::new(lokalbot_i18n::tr("Open Meeting"))
                                             .on_click(move |_, _, cx| {
-                                                crate::pages::today::threads::open_meeting(
+                                                crate::ui::action_row::open_meeting(
                                                     &open_data, meeting, None, cx,
                                                 );
                                             }),
@@ -457,7 +445,7 @@ impl SettingsPage {
                                 menu = menu.item(
                                     PopupMenuItem::new(lokalbot_i18n::tr("Open Meeting")).on_click(
                                         move |_, _, cx| {
-                                            crate::pages::today::threads::open_meeting(
+                                            crate::ui::action_row::open_meeting(
                                                 &open_data, meeting, None, cx,
                                             );
                                         },

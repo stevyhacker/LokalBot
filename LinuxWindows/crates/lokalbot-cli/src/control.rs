@@ -310,7 +310,8 @@ pub enum PermissionsCommand {
     ///
     /// Opens the system's settings where it has any; the person decides.
     Request {
-        /// microphone, accessibility, screen-recording, input-monitoring, or calendar.
+        /// microphone, window-titles, accessibility, screen-recording,
+        /// credential-store, input-monitoring, or calendar.
         name: String,
         #[command(flatten)]
         launch: LaunchOptions,
@@ -1262,7 +1263,7 @@ pub fn run_doctor(launch: &LaunchOptions, client: &Client) -> Result<String, Cli
     let detail = if on_path {
         "lokalbot-cli is on PATH."
     } else {
-        "lokalbot-cli is not on PATH. Settings → Advanced → Agent CLI installs it."
+        "lokalbot-cli is not on PATH. Settings → AI agents → Agent CLI installs it."
     };
     let mut checks = report
         .get("checks")

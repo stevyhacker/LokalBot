@@ -793,7 +793,11 @@ fn warning(text: impl Into<SharedString>, cx: &App) -> Div {
         )
 }
 
-fn manage_usage(id: &'static str, plan: SubscriptionPlan, cx: &App) -> gpui_kit::Stateful<Div> {
+pub(super) fn manage_usage(
+    id: &'static str,
+    plan: SubscriptionPlan,
+    cx: &App,
+) -> gpui_kit::Stateful<Div> {
     settings_row::link_button(
         id,
         lokalbot_i18n::tr("Manage usage"),

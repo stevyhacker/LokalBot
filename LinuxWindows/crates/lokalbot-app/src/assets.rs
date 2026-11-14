@@ -26,6 +26,22 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     ClipboardCheck, Languages, Lightbulb, Minimize2, Reply, TextAlignStart, TextCursor,
     // Files
     FileCode, FileHeadphone, FileImage, FileVideoCamera,
+    // Sidebar: Timeline (calendar.day.timeline.left) and the privacy line (lock.shield)
+    SquareChartGantt, ShieldLock,
+    // Today: a recent meeting before you join (clock.arrow.circlepath)
+    RotateCcwClock,
+    // Actions: the Filter menu (line.3.horizontal.decrease)
+    ListFilter,
+    // Tray menu on Windows: Quit LokalBot (power)
+    Power,
+    // Timeline panels: Work Summary (list.bullet), Decisions (flag), Screen moments (photo)
+    List, Flag, Image,
+    // Ask: a screen moment pinned as context (pin)
+    Pin,
+    // Setup: the Accessibility and credential store rows, the download size line
+    Accessibility, KeyRound, ArrowDownToLine,
+    // Settings: a permission nothing uses now (minus.circle.fill)
+    CircleMinus,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

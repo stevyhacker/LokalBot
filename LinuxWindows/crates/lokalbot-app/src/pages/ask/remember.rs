@@ -8,8 +8,8 @@ use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::{Sizable as _, v_flex};
 use gpui_kit::{
-    AnyElement, AppContext as _, Context, FontWeight, InteractiveElement as _, IntoElement,
-    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, div, px,
+    AnyElement, AppContext as _, Context, FontWeight, IntoElement, ParentElement as _,
+    SharedString, Styled as _, div, px,
 };
 use lokalbot_core::RememberReceipt;
 use lokalbot_core::personal::{Claim, ClaimEdit, ClaimKind, EditError};
@@ -25,13 +25,11 @@ use crate::ui::{self, Ico};
 #[derive(Default)]
 pub(super) struct RememberState {
     pub(super) claims: HashMap<Uuid, Claim>,
-    /// The answers whose "Used N things" list is open.
-    open: HashSet<Uuid>,
 }
 
 impl AskPage {
     /// Runs one edit off the main thread. One that could not be saved says
-    /// so, as in Settings → Personal Context: Undo must not look done.
+    /// so, as in Settings → About you: Undo must not look done.
     fn edit_claim(
         &mut self,
         change: impl FnOnce(&lokalbot_core::Library) -> Result<(), EditError> + Send + 'static,
@@ -194,7 +192,8 @@ impl AskPage {
         v_flex().w_full().child(card)
     }
 
-    /// "Used 2 things you told LokalBot".
+    /// The sources list's last row (`PersonalContextRow`): what the person told
+    /// LokalBot about themselves that went into this answer.
     pub(super) fn render_used_claims(
         &mut self,
         message_id: Uuid,
@@ -202,71 +201,55 @@ impl AskPage {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
-        let open = self.remember.open.contains(&message_id);
-        let title = if claim_ids.len() == 1 {
-            lokalbot_i18n::tr("Used 1 thing you told LokalBot").to_string()
-        } else {
-            lokalbot_i18n::format(
-                "Used {0} things you told LokalBot",
-                &[("0", claim_ids.len().to_string())],
-            )
-        };
-        let header = h_flex()
-            .id(SharedString::from(format!("remember-used-{message_id}")))
-            .gap(px(6.))
+        let told: Vec<String> = claim_ids
+            .iter()
+            .map(|id| match self.remember.claims.get(id) {
+                Some(claim) => format!("“{}”", claim.text),
+                None => lokalbot_i18n::tr("Forgotten since this answer").to_string(),
+            })
+            .collect();
+        let data = self.data.clone();
+        h_flex()
+            .w_full()
+            .min_h(px(36.))
+            .gap(px(10.))
             .items_center()
-            .cursor_pointer()
-            .text_size(ty::SECONDARY)
-            .text_color(lb.text_secondary)
-            .hover(|s| s.text_color(lb.text))
-            .child(ui::icon(
-                if open {
-                    Ico::ChevronDown
-                } else {
-                    Ico::ChevronRight
-                },
-                px(12.),
-                lb.text_secondary,
+            .pl(px(8.))
+            .pr(px(12.))
+            .py(px(7.))
+            .child(super::matches::source_tile(
+                Ico::UserRoundCheck,
+                px(32.),
+                px(22.),
+                &lb,
             ))
-            .child(ui::icon(Ico::UserRoundCheck, px(13.), lb.text_secondary))
-            .child(title)
-            .on_click(cx.listener(move |this, _, _, cx| {
-                if !this.remember.open.remove(&message_id) {
-                    this.remember.open.insert(message_id);
-                }
-                cx.notify();
-            }));
-        let mut column = v_flex().gap(px(6.)).child(header);
-        if open {
-            let mut list = v_flex().gap(px(4.)).pl(px(18.));
-            for id in claim_ids {
-                list = list.child(match self.remember.claims.get(id) {
-                    Some(claim) => div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text)
-                        .child(ui::text::paragraph(SharedString::from(claim.text.clone()))),
-                    None => div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(lokalbot_i18n::tr("Forgotten since this answer")),
-                });
-            }
-            let data = self.data.clone();
-            list = list.child(
-                Button::new(SharedString::from(format!(
-                    "remember-used-manage-{message_id}"
-                )))
-                .ghost()
-                .small()
-                .label(lokalbot_i18n::tr("Manage what LokalBot remembers…"))
-                .on_click(move |_, _, cx| {
+            .child(
+                div()
+                    .flex_none()
+                    .text_size(ty::BODY)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(lb.text)
+                    .child(lokalbot_i18n::tr("You told LokalBot")),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .truncate()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.supporting)
+                    .child(told.join(" · ")),
+            )
+            .child(div().flex_none().text_size(ty::SECONDARY).child(ui::link(
+                SharedString::from(format!("remember-used-manage-{message_id}")),
+                lokalbot_i18n::tr("Manage"),
+                move |_, cx| {
                     data.update(cx, |data, cx| {
                         data.open_settings(SettingsCategory::PersonalContext, cx)
                     })
-                }),
-            );
-            column = column.child(list);
-        }
-        column.into_any_element()
+                },
+                cx,
+            )))
+            .into_any_element()
     }
 }

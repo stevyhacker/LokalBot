@@ -865,6 +865,7 @@ fn profile(
             .unwrap_or(std::cmp::Ordering::Equal)
             .then(a.title.cmp(&b.title))
     });
+    let window_count = windows.len();
     windows.truncate(MAXIMUM_WINDOWS);
 
     let mut decisions: Vec<(MeetingRef, Decision)> = context
@@ -938,6 +939,7 @@ fn profile(
         week_seconds,
         days,
         windows,
+        window_count,
         last_active,
         summary: None,
         review_notes,
@@ -1394,6 +1396,42 @@ mod tests {
             .to_string(),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn a_project_lists_its_longest_windows_and_counts_them_all() {
+        let now = Utc::now();
+        let activity: Vec<ActivityBlock> = (0..8)
+            .map(|index| ActivityBlock {
+                id: index,
+                app: "Editor".into(),
+                title: format!("Atlas notes {index}"),
+                start: now - chrono::Duration::minutes(10 * (index + 1)),
+                end: now - chrono::Duration::minutes(10 * index),
+            })
+            .collect();
+        let context = Context {
+            texts: Vec::new(),
+            threads: Vec::new(),
+            projections: &[],
+            activity,
+            people: &[],
+            window_start: now - chrono::Duration::days(REVIEW_DAYS),
+            now,
+            today: crate::time::local_day(now),
+        };
+        let project = profile(
+            "tracked:A".into(),
+            "Atlas".into(),
+            ProjectKind::Tracked,
+            Vec::new(),
+            vec![significant_terms("Atlas")],
+            Vec::new(),
+            &context,
+        );
+        assert_eq!(project.windows.len(), MAXIMUM_WINDOWS);
+        assert_eq!(project.window_count, 8, "every window counts");
+        assert_eq!(project.week_seconds.round(), 80. * 60.);
     }
 
     #[test]

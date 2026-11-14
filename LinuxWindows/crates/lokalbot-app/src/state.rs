@@ -12,30 +12,68 @@ use gpui_kit::{App, AppContext as _, Context, Entity, Global, SharedString};
 use lokalbot_core::{ActionStatus, Library, Meeting, Settings};
 use uuid::Uuid;
 
+/// A destination in the main window's sidebar (`AppState.NavSection`).
+/// Settings is not one: it has its own window ([`AppData::open_settings`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Section {
     Today,
+    Actions,
     Meetings,
     Timeline,
     People,
     Projects,
     Ask,
     Agent,
-    Settings,
 }
 
 impl Section {
     pub fn title(self) -> &'static str {
         match self {
             Section::Today => lokalbot_i18n::tr("Today"),
+            Section::Actions => lokalbot_i18n::tr("Actions"),
             Section::Meetings => lokalbot_i18n::tr("Meetings"),
             Section::Timeline => lokalbot_i18n::tr("Timeline"),
             Section::People => lokalbot_i18n::tr("People"),
             Section::Projects => lokalbot_i18n::tr("Projects"),
             Section::Ask => lokalbot_i18n::tr("Ask"),
             Section::Agent => lokalbot_i18n::tr("Agent"),
-            Section::Settings => lokalbot_i18n::tr("Settings"),
         }
+    }
+
+    /// The icon beside the section in the sidebar. Panels that lead to a
+    /// section show the same one (`NavSection.symbol`, as Lucide icons:
+    /// sun.max, checkmark.circle, waveform.circle, calendar.day.timeline.left,
+    /// person.2, folder, sparkle.magnifyingglass, wand.and.sparkles).
+    pub fn icon(self) -> crate::ui::Ico {
+        use crate::ui::Ico;
+        match self {
+            Section::Today => Ico::Sun,
+            Section::Actions => Ico::CircleCheck,
+            Section::Meetings => Ico::AudioLines,
+            Section::Timeline => Ico::SquareChartGantt,
+            Section::People => Ico::Users,
+            Section::Projects => Ico::Folder,
+            Section::Ask => Ico::Search,
+            Section::Agent => Ico::WandSparkles,
+        }
+    }
+
+    /// Section names accepted by `--page` and deep links. "capture" (the old
+    /// merged section) lands on Timeline and "search"/"chat" on Ask, as on
+    /// the Mac (`NavSection.init(captureName:)`). Settings pages have their
+    /// own window: see `SettingsCategory::named`.
+    pub fn named(name: &str) -> Option<Section> {
+        Some(match name.to_ascii_lowercase().as_str() {
+            "today" => Section::Today,
+            "actions" => Section::Actions,
+            "meetings" => Section::Meetings,
+            "timeline" | "capture" => Section::Timeline,
+            "people" => Section::People,
+            "projects" => Section::Projects,
+            "ask" | "search" | "chat" => Section::Ask,
+            "agent" => Section::Agent,
+            _ => return None,
+        })
     }
 }
 
@@ -46,26 +84,101 @@ pub enum MeetingTab {
     Summary,
     Transcript,
     Notes,
-    Review,
 }
 
-/// Settings categories, in sidebar order.
+/// A Settings page (`AppState.SettingsTab`). Each feature has one page with
+/// everything that sets it up; the window lists them in
+/// `pages::settings::CATEGORIES`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SettingsCategory {
-    /// Where Settings opens: every feature and whether it is on.
+    /// The LokalBot row at the top of the list: what needs you, where your
+    /// data is, and the keyboard shortcuts.
     #[default]
     Overview,
     General,
+    Models,
+    /// Privacy & permissions: what LokalBot may use here, and what leaves.
+    Privacy,
     Meetings,
+    /// Screen & activity.
     DayMemory,
+    Files,
+    /// Quick Recall, selection actions and what Ask can search.
+    Ask,
+    /// About you.
     PersonalContext,
+    /// The day digest, the overnight review, routines and the daily note.
+    DailyReview,
+    /// Autocomplete.
     Writing,
     Dictation,
-    Files,
-    Models,
+    /// AI agents: what external agents may read or change, and the CLI.
+    Agents,
+    /// Phones & tablets.
     Devices,
-    Privacy,
+    /// Diagnostics.
     Advanced,
+}
+
+impl SettingsCategory {
+    /// The Settings page a `--page` name opens: "settings" is Overview, and
+    /// "settings-<page>" names one page, by its name now or before Settings
+    /// was organized by feature (`SettingsTab.init(captureName:)`).
+    pub fn named(name: &str) -> Option<SettingsCategory> {
+        let name = name.to_ascii_lowercase();
+        if name == "settings" {
+            return Some(SettingsCategory::Overview);
+        }
+        let page = name.strip_prefix("settings-")?;
+        Some(match page {
+            "overview" => SettingsCategory::Overview,
+            "general" => SettingsCategory::General,
+            "models" => SettingsCategory::Models,
+            "privacy" | "permissions" => SettingsCategory::Privacy,
+            "meetings" | "recording" => SettingsCategory::Meetings,
+            "day-memory" | "screen" | "activity" => SettingsCategory::DayMemory,
+            "files" => SettingsCategory::Files,
+            "ask" => SettingsCategory::Ask,
+            "personal-context" | "about-you" => SettingsCategory::PersonalContext,
+            "daily" | "daily-review" | "overnight" | "routines" => SettingsCategory::DailyReview,
+            "writing" | "autocomplete" => SettingsCategory::Writing,
+            "dictation" => SettingsCategory::Dictation,
+            "agents" | "ai-agents" | "external-agents" => SettingsCategory::Agents,
+            "devices" | "phones" => SettingsCategory::Devices,
+            "advanced" | "diagnostics" => SettingsCategory::Advanced,
+            _ => return None,
+        })
+    }
+
+    /// The Mac's raw value (`SettingsTab.rawValue`), which is what
+    /// `Settings::settings_page` keeps.
+    pub fn key(self) -> &'static str {
+        match self {
+            SettingsCategory::Overview => "overview",
+            SettingsCategory::General => "general",
+            SettingsCategory::Models => "models",
+            SettingsCategory::Privacy => "privacy",
+            SettingsCategory::Meetings => "recording",
+            SettingsCategory::DayMemory => "dayMemory",
+            SettingsCategory::Files => "files",
+            SettingsCategory::Ask => "ask",
+            SettingsCategory::PersonalContext => "personalContext",
+            SettingsCategory::DailyReview => "daily",
+            SettingsCategory::Writing => "writing",
+            SettingsCategory::Dictation => "dictation",
+            SettingsCategory::Agents => "agents",
+            SettingsCategory::Devices => "devices",
+            SettingsCategory::Advanced => "advanced",
+        }
+    }
+
+    /// The page a saved [`Self::key`] names; anything else opens Overview.
+    pub fn from_key(key: &str) -> SettingsCategory {
+        crate::pages::settings::CATEGORIES
+            .into_iter()
+            .find(|category| category.key() == key)
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -147,8 +260,6 @@ pub struct AskRequest {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EvidenceReturn {
     pub section: Section,
-    /// The Actions workspace stays open behind the evidence.
-    pub actions: bool,
 }
 
 /// What the palette asks of the Agent page.
@@ -195,14 +306,15 @@ pub struct AppData {
     /// Bumped whenever library content changes, so pages can reload lazily.
     pub revision: u64,
     pub section: Section,
+    /// The page the Settings window shows, or opens on.
     pub settings_category: SettingsCategory,
+    /// The Settings window is open (`windows::settings`).
+    pub settings_window_open: bool,
     /// A setting for Settings to scroll to and highlight (`focusedSettingID`).
     pub settings_focus: Option<String>,
     pub meeting_focus: Option<MeetingFocus>,
     /// Where evidence was opened from, for the Back button (`evidenceReturnSection`).
     pub evidence_return: Option<EvidenceReturn>,
-    /// The Actions workspace is showing on Today.
-    pub actions_open: bool,
     /// Warnings of the recording in progress.
     pub capture_warnings: Vec<SharedString>,
     pub ask_request: Option<AskRequest>,
@@ -216,7 +328,10 @@ pub struct AppData {
     pub ask_screen: Option<lokalbot_core::ScreenMoment>,
     /// A work session's moments, as the next question's boundary.
     pub ask_screens: Option<Vec<i64>>,
-    /// A conversation for Ask to open (Quick Recall's Open full Ask).
+    /// The sources the next question searches, when the handoff narrows them
+    /// (Quick Recall's "Show all" for one kind). `None` leaves them as chosen.
+    pub ask_sources: Option<Vec<lokalbot_core::AskSourceScope>>,
+    /// A conversation for Ask to open (Quick Recall's Continue in main window).
     pub ask_open_conversation: Option<Uuid>,
     /// The latest question of each conversation that attached screens. Their
     /// ids stay in memory for a retry; only their days reach the conversation.
@@ -226,8 +341,6 @@ pub struct AppData {
     /// How many coding-agent notes are saved, or why none could be.
     pub agent_notes: lokalbot_engine::agent_notes::AgentNotesStatus,
     pub timeline_focus: Option<TimelineFocus>,
-    /// Today should open its Actions workspace ("Review Actions…").
-    pub actions_requested: bool,
     /// A person (`PersonProfile::id`) for People to select.
     pub person_focus: Option<String>,
     /// A project (`ProjectProfile::id`) for Projects to select.
@@ -239,8 +352,16 @@ pub struct AppData {
     pub background: Vec<BackgroundItem>,
     pub toast: Option<Toast>,
     pub day_memory_paused: bool,
+    /// What Settings says about Think and its hosts ([`inference_presentation`]).
     pub inference_label: SharedString,
     pub remote_hosts: Vec<SharedString>,
+    /// The sidebar's line about where the library and the AI are.
+    pub privacy: PrivacyLine,
+    /// How many open action threads are the user's: the Actions row's count
+    /// (`OutcomeIndex.openUserActionThreads`). `None` until first counted.
+    pub open_action_count: Option<usize>,
+    /// The library revision `open_action_count` was counted at.
+    open_actions_counted: Option<u64>,
     /// The answer being written right now, if any. The engine appends text
     /// as it streams and saves the finished turn into the conversation file.
     pub ask_stream: Option<AskStream>,
@@ -262,6 +383,11 @@ pub struct AppData {
     pub dream: lokalbot_engine::dreaming::DreamStatus,
     /// Microphone names for the device pickers in Settings, filled by the engine.
     pub audio_inputs: Vec<SharedString>,
+    /// What this computer allows, as setup and Settings both show it
+    /// (`crate::access`), read by `refresh_access`.
+    pub access: crate::access::Probe,
+    access_read_at: Option<std::time::Instant>,
+    access_reading: bool,
     /// Settings is recording a new shortcut: global shortcuts should pause
     /// so the keystroke reaches the recorder.
     pub shortcut_recording: bool,
@@ -470,6 +596,8 @@ impl AppData {
             log::error!("saving settings failed: {err}");
         }
         let (inference_label, remote_hosts) = inference_presentation(&settings);
+        let privacy = PrivacyLine::new(&settings);
+        let settings_category = SettingsCategory::from_key(&settings.settings_page);
         Self {
             library,
             settings,
@@ -479,18 +607,17 @@ impl AppData {
             reload_applied: 0,
             revision: 0,
             section: Section::Today,
-            settings_category: SettingsCategory::Overview,
+            settings_category,
+            settings_window_open: false,
             settings_focus: None,
             meeting_focus: None,
             evidence_return: None,
-            actions_open: false,
             capture_warnings: Vec::new(),
             ask_request: None,
             agent_request: None,
             meeting_find_requested: false,
             follow_up_request: None,
             timeline_focus: None,
-            actions_requested: false,
             person_focus: None,
             project_focus: None,
             recording: RecordingState::Idle,
@@ -500,6 +627,9 @@ impl AppData {
             day_memory_paused: false,
             inference_label,
             remote_hosts,
+            privacy,
+            open_action_count: None,
+            open_actions_counted: None,
             ask_stream: None,
             downloads: HashMap::new(),
             models: ModelStatus::default(),
@@ -522,6 +652,9 @@ impl AppData {
             follow_up: None,
             live_preview: Default::default(),
             audio_inputs: Vec::new(),
+            access: Default::default(),
+            access_read_at: None,
+            access_reading: false,
             shortcut_recording: false,
             dictation_shortcut_inactive: false,
             screen: Default::default(),
@@ -531,6 +664,7 @@ impl AppData {
             pairing_prompt: None,
             ask_screen: None,
             ask_screens: None,
+            ask_sources: None,
             ask_open_conversation: None,
             attached_asks: Default::default(),
             files: Default::default(),
@@ -565,10 +699,52 @@ impl AppData {
         .detach();
     }
 
-    pub fn navigate(&mut self, section: Section, cx: &mut Context<Self>) {
-        if section == Section::Settings {
-            self.refresh_audio_inputs(cx);
+    /// Reads what this computer allows away from the UI thread: the checks
+    /// can wait on the session bus and the screenshot portal for seconds.
+    /// Only reads; nothing prompts or turns on.
+    pub fn refresh_access(&mut self, cx: &mut Context<Self>) {
+        if self.access_reading {
+            return;
         }
+        self.access_reading = true;
+        cx.spawn(async move |this, cx| {
+            let probe = cx
+                .background_spawn(async { crate::access::Probe::read() })
+                .await;
+            this.update(cx, |this, cx| {
+                this.access_reading = false;
+                this.access_read_at = Some(std::time::Instant::now());
+                if this.access != probe {
+                    this.access = probe;
+                    cx.notify();
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// `refresh_access`, unless the reading is only a few seconds old, for
+    /// views that show it while open.
+    pub fn refresh_access_if_stale(&mut self, cx: &mut Context<Self>) {
+        if self
+            .access_read_at
+            .is_none_or(|at| at.elapsed() >= std::time::Duration::from_secs(10))
+        {
+            self.refresh_access(cx);
+        }
+    }
+
+    /// What the running app has seen for itself, beside the reading.
+    pub fn access_observed(&self) -> crate::access::Observed {
+        crate::access::Observed {
+            microphone_found: !self.audio_inputs.is_empty(),
+            capture_failed: self.screen.capture_limitation.is_some(),
+            key_failed: self.screen.images_unavailable.is_some(),
+        }
+    }
+
+    pub fn navigate(&mut self, section: Section, cx: &mut Context<Self>) {
         self.section = section;
         self.evidence_return = None;
         cx.notify();
@@ -584,7 +760,6 @@ impl AppData {
         if self.section != Section::Meetings {
             self.evidence_return = Some(EvidenceReturn {
                 section: self.section,
-                actions: self.section == Section::Today && self.actions_open,
             });
         }
         self.meeting_focus = Some(MeetingFocus {
@@ -600,9 +775,6 @@ impl AppData {
     pub fn return_from_evidence(&mut self, cx: &mut Context<Self>) {
         if let Some(back) = self.evidence_return.take() {
             self.section = back.section;
-            if back.actions {
-                self.actions_requested = true;
-            }
             cx.notify();
         }
     }
@@ -647,7 +819,6 @@ impl AppData {
         if self.section != Section::Timeline {
             self.evidence_return = Some(EvidenceReturn {
                 section: self.section,
-                actions: self.section == Section::Today && self.actions_open,
             });
         }
         self.timeline_focus = Some(TimelineFocus {
@@ -659,11 +830,9 @@ impl AppData {
         cx.notify();
     }
 
-    /// Today's Actions workspace (`openActions`).
+    /// The Actions page (`openActions`).
     pub fn open_actions(&mut self, cx: &mut Context<Self>) {
-        self.actions_requested = true;
-        self.section = Section::Today;
-        cx.notify();
+        self.navigate(Section::Actions, cx);
     }
 
     pub fn open_person(&mut self, id: String, cx: &mut Context<Self>) {
@@ -678,11 +847,86 @@ impl AppData {
         cx.notify();
     }
 
+    /// Opens the Settings window on `category`, or brings it forward there
+    /// (`AppState.openSettings(tab:)`). The main window stays where it was.
+    /// Every link, menu, command and notification that leads to Settings
+    /// comes through here.
     pub fn open_settings(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
         self.refresh_audio_inputs(cx);
-        self.settings_category = category;
-        self.section = Section::Settings;
+        self.refresh_access(cx);
+        self.select_settings_category(category, cx);
+        cx.defer(crate::windows::settings::open);
         cx.notify();
+    }
+
+    /// A category picked inside the Settings window, which is already open.
+    /// It is remembered, so Settings opens on it again after a relaunch
+    /// (`AppState.settingsTab`).
+    pub fn select_settings_category(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
+        if self.settings_category == category {
+            return;
+        }
+        self.settings_category = category;
+        self.remember_settings_page(cx);
+        cx.notify();
+    }
+
+    /// Saves the page shown without telling the engine: nothing it does
+    /// depends on which page Settings shows.
+    fn remember_settings_page(&mut self, cx: &mut Context<Self>) {
+        let key = self.settings_category.key();
+        if self.settings.settings_page == key {
+            return;
+        }
+        self.settings.settings_page = key.to_string();
+        let path = self.library.paths().settings_file();
+        let settings = self.settings.clone();
+        cx.background_spawn(async move {
+            if let Err(err) = settings.save(&path) {
+                log::error!("saving settings failed: {err}");
+            }
+        })
+        .detach();
+    }
+
+    /// The Settings window shows `category` right now.
+    pub fn settings_showing(&self, category: SettingsCategory) -> bool {
+        self.settings_window_open && self.settings_category == category
+    }
+
+    /// Counts the user's open action threads again when the library changed
+    /// since the last count. The count runs off the UI thread.
+    pub fn refresh_open_action_count(&mut self, cx: &mut Context<Self>) {
+        if !self.meetings_loaded || self.open_actions_counted == Some(self.revision) {
+            return;
+        }
+        let revision = self.revision;
+        self.open_actions_counted = Some(revision);
+        let library = self.library.clone();
+        cx.spawn(async move |this, cx| {
+            let count = cx
+                .background_spawn(async move {
+                    library
+                        .action_threads(None)
+                        .map(|threads| open_user_action_count(&threads))
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                // A newer count has started; it will report.
+                if this.open_actions_counted != Some(revision) {
+                    return;
+                }
+                match count {
+                    Ok(count) if this.open_action_count != Some(count) => {
+                        this.open_action_count = Some(count);
+                        cx.notify();
+                    }
+                    Ok(_) => {}
+                    Err(err) => log::warn!("counting open actions: {err:#}"),
+                }
+            });
+        })
+        .detach();
     }
 
     pub fn ask(&mut self, request: AskRequest, cx: &mut Context<Self>) {
@@ -1062,6 +1306,7 @@ impl AppData {
         let (label, hosts) = inference_presentation(&self.settings);
         self.inference_label = label;
         self.remote_hosts = hosts;
+        self.privacy = PrivacyLine::new(&self.settings);
         let path = self.library.paths().settings_file();
         let settings = self.settings.clone();
         cx.background_spawn(async move {
@@ -1201,7 +1446,9 @@ pub enum AppEvent {
 
 impl gpui_kit::EventEmitter<AppEvent> for AppData {}
 
-/// The sidebar storage card's AI line and remote hosts.
+/// Think's line and the hosts Settings names in its disclosures (Overview's
+/// Models status, Compose dictation, phones' questions). The sidebar's own
+/// line is [`PrivacyLine`].
 pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedString>) {
     use lokalbot_core::settings::SummarizerBackend;
     if let Some(plan) = settings.think_plan() {
@@ -1238,6 +1485,96 @@ pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedS
     }
 }
 
+/// The sidebar's line about where the library and the AI are
+/// (`SidebarPrivacyLine`). It reflects the actual setup instead of a fixed
+/// claim: with everything on this computer it is one line; a remote Think,
+/// transcription or autocomplete server, or a Think connection that is
+/// blocked, splits storage from AI and names each host once, because
+/// meeting and workday text goes to those hosts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PrivacyLine {
+    /// "On this PC".
+    Local,
+    /// "Storage: this PC", the AI line, then each host.
+    Split { blocked: bool, hosts: Vec<String> },
+}
+
+impl PrivacyLine {
+    pub fn new(settings: &Settings) -> Self {
+        let blocked = !lokalbot_ai::think::allows_automatic_main_inference(settings);
+        let hosts = remote_ai_hosts(settings);
+        if hosts.is_empty() && !blocked {
+            PrivacyLine::Local
+        } else {
+            PrivacyLine::Split { blocked, hosts }
+        }
+    }
+
+    /// The AI line under "Storage: this PC": what the Mac's sidebar says for
+    /// a split setup.
+    pub fn ai_label(blocked: bool) -> &'static str {
+        if blocked {
+            lokalbot_i18n::tr("AI: connection blocked")
+        } else {
+            lokalbot_i18n::tr("AI: local + remote")
+        }
+    }
+}
+
+/// Every server that receives what this computer's AI features send, each
+/// named once: Think's (while its connection is allowed), the transcription
+/// server and, while autocomplete is on, the server it sends typing to
+/// (`AppSettings.remoteAIHosts`). Leaving autocomplete out once read "on this
+/// computer" while every suggestion request went to a server.
+pub fn remote_ai_hosts(settings: &Settings) -> Vec<String> {
+    use lokalbot_core::settings::SummarizerBackend;
+    let mut hosts: Vec<String> = Vec::new();
+    let mut add = |host: String| {
+        if !host.is_empty() && !hosts.contains(&host) {
+            hosts.push(host);
+        }
+    };
+    if lokalbot_ai::think::allows_automatic_main_inference(settings) {
+        if let Some(plan) = settings.think_plan() {
+            add(plan.destination_host().to_string());
+        } else {
+            let url = match settings.summarizer_backend {
+                SummarizerBackend::Ollama => Some(settings.ollama_base_url.as_str()),
+                SummarizerBackend::OpenAICompatible => Some(settings.openai_base_url.as_str()),
+                SummarizerBackend::BuiltIn
+                | SummarizerBackend::ChatGptPlan
+                | SummarizerBackend::ClaudePlan => None,
+            };
+            if let Some(host) = url
+                .map(str::trim)
+                .filter(|url| !lokalbot_core::access::is_loopback_url(url))
+                .and_then(lokalbot_core::access::host_of)
+            {
+                add(host);
+            }
+        }
+    }
+    if let Some(host) = lokalbot_core::remote_transcription::audio_destination(settings) {
+        add(host);
+    }
+    if settings.cotyping_enabled
+        && lokalbot_ai::autocomplete::server::leaves_this_computer(settings)
+        && let Some(host) = lokalbot_ai::autocomplete::server::configured_host(settings)
+    {
+        add(host);
+    }
+    hosts
+}
+
+/// How many action threads are open and the user's: the number beside
+/// Actions in the sidebar (`OutcomeIndex.openUserActionThreads.count`).
+pub fn open_user_action_count(threads: &[lokalbot_core::ActionThread]) -> usize {
+    threads
+        .iter()
+        .filter(|thread| thread.is_for_user() && thread.status() == ActionStatus::Open)
+        .count()
+}
+
 /// Friendly day label for list groups: "Today", "Yesterday", "Wednesday, October 7".
 pub fn day_label(at: DateTime<Utc>) -> String {
     let day = lokalbot_core::time::local_day(at);
@@ -1258,6 +1595,165 @@ pub fn day_label(at: DateTime<Utc>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::{reference, thread};
+    use lokalbot_core::settings::{CotypingBackend, SubscriptionPlan, SummarizerBackend};
+
+    #[test]
+    fn everything_on_this_computer_is_one_line() {
+        assert_eq!(PrivacyLine::new(&Settings::default()), PrivacyLine::Local);
+        // A model server on this computer is still this computer.
+        let ollama = Settings {
+            summarizer_backend: SummarizerBackend::Ollama,
+            ollama_base_url: "http://127.0.0.1:11434".into(),
+            ..Default::default()
+        };
+        assert_eq!(PrivacyLine::new(&ollama), PrivacyLine::Local);
+    }
+
+    fn openai(url: &str, approved: &[&str]) -> Settings {
+        Settings {
+            summarizer_backend: SummarizerBackend::OpenAICompatible,
+            openai_base_url: url.into(),
+            approved_remote_inference_origins: approved.iter().map(|o| o.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    fn backend(backend: SummarizerBackend) -> Settings {
+        Settings {
+            summarizer_backend: backend,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_remote_think_server_splits_storage_and_names_its_host() {
+        let settings = openai("https://api.openai.com/v1", &["https://api.openai.com"]);
+        assert_eq!(
+            PrivacyLine::new(&settings),
+            PrivacyLine::Split {
+                blocked: false,
+                hosts: vec!["api.openai.com".into()]
+            }
+        );
+        // A subscription plan names the host it sends to once approved.
+        let mut plan = backend(SummarizerBackend::ChatGptPlan);
+        SubscriptionPlan::ChatGpt.set_approved(&mut plan, true);
+        assert_eq!(
+            PrivacyLine::new(&plan),
+            PrivacyLine::Split {
+                blocked: false,
+                hosts: vec!["api.openai.com".into()]
+            }
+        );
+    }
+
+    #[test]
+    fn a_blocked_think_connection_says_so_and_names_no_host() {
+        let blocked = PrivacyLine::Split {
+            blocked: true,
+            hosts: Vec::new(),
+        };
+        let unapproved = openai("https://gpu.example/v1", &[]);
+        assert_eq!(PrivacyLine::new(&unapproved), blocked);
+        let plan = backend(SummarizerBackend::ClaudePlan);
+        assert_eq!(PrivacyLine::new(&plan), blocked);
+        assert_eq!(PrivacyLine::ai_label(true), "AI: connection blocked");
+        assert_eq!(PrivacyLine::ai_label(false), "AI: local + remote");
+    }
+
+    #[test]
+    fn autocomplete_names_its_server_only_while_on_and_each_host_once() {
+        let mut settings = Settings {
+            cotyping_backend: CotypingBackend::Server,
+            cotyping_server_base_url: "https://complete.example/v1".into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            PrivacyLine::new(&settings),
+            PrivacyLine::Local,
+            "autocomplete off"
+        );
+        settings.cotyping_enabled = true;
+        assert_eq!(
+            PrivacyLine::new(&settings),
+            PrivacyLine::Split {
+                blocked: false,
+                hosts: vec!["complete.example".into()]
+            }
+        );
+        // Autocomplete on Think's own server lists that server once.
+        let mut think = openai("https://api.openai.com/v1", &["https://api.openai.com"]);
+        think.cotyping_enabled = true;
+        think.cotyping_backend = CotypingBackend::ThinkServer;
+        assert_eq!(remote_ai_hosts(&think), vec!["api.openai.com".to_string()]);
+        // On this computer it sends nothing anywhere.
+        think.cotyping_backend = CotypingBackend::OnDevice;
+        assert_eq!(remote_ai_hosts(&think), vec!["api.openai.com".to_string()]);
+    }
+
+    #[test]
+    fn the_actions_count_is_open_threads_that_are_yours() {
+        let threads = vec![
+            thread(vec![reference("a", ActionStatus::Open, true, None, 2)]),
+            thread(vec![reference("b", ActionStatus::Done, true, None, 3)]),
+            thread(vec![reference("c", ActionStatus::Deferred, true, None, 4)]),
+            // Someone else's work is theirs to count.
+            thread(vec![reference("d", ActionStatus::Open, false, None, 5)]),
+            // Done in one meeting, still open in another: open.
+            thread(vec![
+                reference("e", ActionStatus::Done, true, None, 7),
+                reference("e", ActionStatus::Open, true, None, 6),
+            ]),
+        ];
+        assert_eq!(open_user_action_count(&threads), 2);
+        assert_eq!(open_user_action_count(&[]), 0);
+    }
+
+    #[test]
+    fn page_names_reach_their_section_or_settings_page() {
+        assert_eq!(Section::named("actions"), Some(Section::Actions));
+        assert_eq!(Section::named("Timeline"), Some(Section::Timeline));
+        assert_eq!(Section::named("capture"), Some(Section::Timeline));
+        assert_eq!(Section::named("search"), Some(Section::Ask));
+        // Settings is a window, not a section.
+        assert_eq!(Section::named("settings"), None);
+        assert_eq!(
+            SettingsCategory::named("settings"),
+            Some(SettingsCategory::Overview)
+        );
+        assert_eq!(
+            SettingsCategory::named("settings-models"),
+            Some(SettingsCategory::Models)
+        );
+        assert_eq!(SettingsCategory::named("today"), None);
+        // Former page names still land on the page that holds them now.
+        assert_eq!(
+            SettingsCategory::named("settings-diagnostics"),
+            Some(SettingsCategory::Advanced)
+        );
+        assert_eq!(
+            SettingsCategory::named("settings-ai-agents"),
+            Some(SettingsCategory::Agents)
+        );
+        assert_eq!(
+            SettingsCategory::named("settings-daily-review"),
+            Some(SettingsCategory::DailyReview)
+        );
+        assert_eq!(SettingsCategory::named("settings-nope"), None);
+    }
+
+    #[test]
+    fn the_saved_settings_page_round_trips() {
+        for category in crate::pages::settings::CATEGORIES {
+            assert_eq!(SettingsCategory::from_key(category.key()), category);
+        }
+        assert_eq!(SettingsCategory::from_key(""), SettingsCategory::Overview);
+        assert_eq!(
+            SettingsCategory::from_key("tabThatIsGone"),
+            SettingsCategory::Overview
+        );
+    }
 
     #[test]
     fn pickers_offer_named_microphones_only() {

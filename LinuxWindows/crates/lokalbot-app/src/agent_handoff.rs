@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use gpui_kit::{App, AppContext as _, ClipboardItem, Entity};
 use lokalbot_core::agent_handoff as prompts;
-use lokalbot_core::{ActionReference, ActionThread, Library, Meeting};
+use lokalbot_core::{ActionThread, Library, Meeting};
 
 use crate::state::AppData;
 
@@ -338,26 +338,6 @@ fn hand_off(
         });
     })
     .detach();
-}
-
-/// "Open in Claude Code" and "Open in Codex" on one action.
-pub(crate) fn hand_off_reference(
-    data: &Entity<AppData>,
-    reference: &ActionReference,
-    target: Target,
-    cx: &mut App,
-) {
-    let meetings = data.read(cx).meetings.clone();
-    let reference = reference.clone();
-    hand_off(
-        data,
-        target,
-        move |library, limit| {
-            let brief = prompts::ActionBrief::for_reference(library, &meetings, &reference);
-            prompts::action_prompt(&brief, limit)
-        },
-        cx,
-    );
 }
 
 /// The same from a meeting's page, which has the action's id.

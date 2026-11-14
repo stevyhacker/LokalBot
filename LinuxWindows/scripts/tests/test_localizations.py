@@ -47,6 +47,77 @@ def strings(source):
     return {json.loads(m[0]) for m in STRING.finditer(source)}
 
 
+LITERAL = re.compile(r'"(?:[^"\\]|\\.)*"', re.S)
+CHAR = re.compile(r"'(?:[^'\\\n]|\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]{1,6}\}|.))'")
+RAW = re.compile(r'b?r(#*)"')
+
+
+def literal_end(source, index):
+    """Where a comment, string or char literal that starts at `index` ends."""
+    if source.startswith('//', index):
+        end = source.find('\n', index)
+        return len(source) if end < 0 else end
+    if source.startswith('/*', index):
+        depth, index = 1, index + 2
+        while index < len(source) and depth:
+            if source.startswith('/*', index):
+                depth, index = depth + 1, index + 2
+            elif source.startswith('*/', index):
+                depth, index = depth - 1, index + 2
+            else:
+                index += 1
+        return index
+    after_word = index > 0 and (source[index - 1].isalnum() or source[index - 1] == '_')
+    raw = None if after_word else RAW.match(source, index)
+    if raw:
+        end = source.find('"' + raw[1], raw.end())
+        return len(source) if end < 0 else end + 1 + len(raw[1])
+    if source[index] == '"' or (source.startswith('b"', index) and not after_word):
+        match = LITERAL.match(source, index + (source[index] == 'b'))
+        return match.end() if match else None
+    if source[index] == "'":
+        match = CHAR.match(source, index)
+        return match.end() if match else None
+    return None
+
+
+def item_end(source, index):
+    """The end of the Rust item that starts at `index`: a module, function or
+    impl with its braces, or a `use`, field, variant or arm up to its `;` or
+    `,`. Stops before a bracket that closes the enclosing item."""
+    depth, braced = 0, False
+    while index < len(source):
+        end = literal_end(source, index)
+        if end is not None:
+            index = end
+            continue
+        ch = source[index]
+        if ch in '([{':
+            braced = braced or (ch == '{' and depth == 0)
+            depth += 1
+        elif ch in ')]}':
+            if depth == 0:
+                return index
+            depth -= 1
+            if depth == 0 and braced:
+                return index + 1
+        elif ch in ';,' and depth == 0:
+            return index + 1
+        index += 1
+    return index
+
+
+def without_tests(source):
+    """The source without its `#[cfg(test)]` items (test modules, helpers
+    compiled only for tests), keeping everything around them."""
+    kept, index = [], 0
+    while (start := source.find('#[cfg(test)]', index)) >= 0:
+        kept.append(source[index:start])
+        index = item_end(source, start + len('#[cfg(test)]'))
+    kept.append(source[index:])
+    return ''.join(kept)
+
+
 def function_body(source, start):
     start = source.index('{', start)
     depth, index = 0, start
@@ -76,9 +147,10 @@ def source_keys():
     # Every crate: an error from core or the engine is shown as it is, and a key
     # with no entry would stay in English in every language.
     paths = [path for path in CRATES.glob("*/src/**/*.rs") if path.name != "catalogs.rs"]
-    calls = re.compile(r'(?:lokalbot_i18n::(?:tr|format)|crate::i18n::placeholder|\btr)\s*\(')
+    # `mac(…)` fills a macOS catalog entry's %@ fields after looking it up.
+    calls = re.compile(r'(?:lokalbot_i18n::(?:tr|format)|crate::i18n::placeholder|\btr|\bmac)\s*\(')
     for path in paths:
-        source = path.read_text().split("#[cfg(test)]")[0]
+        source = without_tests(path.read_text())
         for call in calls.finditer(source):
             keys.update(strings(first_argument(source, call.end())))
     # Static settings descriptors and names are looked up as they render.
@@ -99,15 +171,15 @@ def source_keys():
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
     source = (APP / "component_i18n.rs").read_text().split("struct ComponentTranslations")[0]
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
-    for file in ["pages/ask/transcript.rs", "windows/quick_recall.rs"]:
-        source = (APP / file).read_text()
-        keys.update(strings(re.search(r'const SUGGESTIONS[^=]*=\s*\[(.*?)\];', source, re.S)[1]))
+    # Ask's suggested questions are looked up as they render.
+    source = (APP / "pages/ask/model.rs").read_text()
+    keys.update(strings(re.search(r'const SUGGESTIONS[^=]*=\s*\[(.*?)\];', source, re.S)[1]))
     providers = [
         ("lokalbot-core/src/settings.rs", {"label"}),
         ("lokalbot-core/src/model/activity.rs", {"label"}),
         ("lokalbot-core/src/model/outcomes.rs", {"label"}),
         ("lokalbot-audio/src/recorder.rs", {"label"}),
-        ("lokalbot-agent/src/policy.rs", {"title", "detail", "confirmation_title", "confirmation_message", "confirmation_action"}),
+        ("lokalbot-agent/src/policy.rs", {"confirmation_title", "confirmation_message", "confirmation_action"}),
         ("lokalbot-agent/src/session.rs", {"reasoning_name"}),
         ("lokalbot-i18n/src/lib.rs", {"count"}),
     ]
@@ -141,6 +213,34 @@ class LocalizationTests(unittest.TestCase):
 
     def test_app_lookup_keys_are_translated(self):
         self.assertEqual(source_keys() - (self.shared.keys() | self.desktop['en'].keys()), set())
+
+    def test_only_test_items_are_skipped(self):
+        source = '\n'.join([
+            'pub mod access;',
+            '#[cfg(test)]',
+            'mod tests;',
+            'fn shown() { tr("Kept after a test module declaration") }',
+            '#[cfg(test)]',
+            'fn helper() { tr("Only in a test helper {") }',
+            'enum Request {',
+            '    #[cfg(test)]',
+            '    Flush(Sender<Report>),',
+            '    Stop,',
+            '}',
+            "fn also_shown<'a>(_: &'a str) { let _ = '{'; tr(\"Kept after a brace\") }",
+            '#[cfg(test)]',
+            'mod tests {',
+            '    // a stray " or { in a comment',
+            '    fn t() { tr("Test text") }',
+            '}',
+        ])
+        kept = without_tests(source)
+        for text in ['Kept after a test module declaration', 'Stop,', 'Kept after a brace']:
+            self.assertIn(text, kept)
+        for text in ['Only in a test helper', 'Flush', 'Test text']:
+            self.assertNotIn(text, kept)
+        # personal/mod.rs declares its tests near the top; its messages follow.
+        self.assertIn("There's nothing to remember.", source_keys())
 
     def test_command_syntax_is_never_a_translation_key(self):
         all_keys = self.shared.keys() | self.desktop['en'].keys()
@@ -186,7 +286,7 @@ class LocalizationTests(unittest.TestCase):
         composer = (APP / 'pages/ask/composer.rs').read_text()
         self.assertNotIn('ask-date-{label}', composer)
         for path in APP.rglob('*.rs'):
-            source = path.read_text().split('#[cfg(test)]')[0]
+            source = without_tests(path.read_text())
             for call in re.finditer(r'(?:\.id|Button::new|InputState::new|\.key_context)\(', source):
                 self.assertNotIn('lokalbot_i18n::', first_argument(source, call.end()), str(path))
 

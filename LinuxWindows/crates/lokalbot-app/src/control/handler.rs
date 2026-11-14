@@ -559,6 +559,9 @@ impl ControlHost {
                     "name": need.name,
                     "title": need.title,
                     "granted": need.granted,
+                    // False where nothing can be read before the feature
+                    // first runs: then "granted" claims nothing.
+                    "checked": need.checked,
                     "neededBy": need.needed_by,
                     "detail": need.detail,
                 })
@@ -571,8 +574,16 @@ impl ControlHost {
         self.approvals.expire_stale(Utc::now());
         let data = self.data.read(cx);
         let mut granted = Map::new();
+        // Null where it can't be known before the feature first runs.
         for need in permissions::needs(data, cx) {
-            granted.insert(need.title, json!(need.granted));
+            granted.insert(
+                need.title,
+                if need.checked {
+                    json!(need.granted)
+                } else {
+                    Value::Null
+                },
+            );
         }
         json!({
             "app": hello(),
@@ -632,7 +643,7 @@ impl ControlHost {
 
         let missing: Vec<permissions::PermissionNeed> = permissions::needs(data, cx)
             .into_iter()
-            .filter(|need| !need.granted && !need.needed_by.is_empty())
+            .filter(permissions::PermissionNeed::missing)
             .collect();
         let missing_text = missing
             .iter()
@@ -737,7 +748,6 @@ impl ControlHost {
             ));
         }
         let Some(key) = params.get("key").and_then(Value::as_str) else {
-            cx.defer(crate::desktop::show_main_window);
             self.data.update(cx, |data, cx| {
                 data.open_settings(SettingsCategory::Overview, cx)
             });
@@ -753,7 +763,6 @@ impl ControlHost {
             .map(|entry| entry.category)
             .or_else(|| spec.map(|spec| settings_page_for(spec.category)))
             .unwrap_or(SettingsCategory::Overview);
-        cx.defer(crate::desktop::show_main_window);
         self.data.update(cx, |data, cx| {
             data.open_settings(category, cx);
             if entry.is_some() {
@@ -768,9 +777,11 @@ impl ControlHost {
 /// The page that holds a registry category.
 fn settings_page_for(category: SettingCategory) -> SettingsCategory {
     match category {
-        SettingCategory::General | SettingCategory::Ask => SettingsCategory::General,
+        SettingCategory::General => SettingsCategory::General,
+        SettingCategory::Ask => SettingsCategory::Ask,
         SettingCategory::Recording => SettingsCategory::Meetings,
-        SettingCategory::DayMemory | SettingCategory::Daily => SettingsCategory::DayMemory,
+        SettingCategory::DayMemory => SettingsCategory::DayMemory,
+        SettingCategory::Daily => SettingsCategory::DailyReview,
         SettingCategory::Writing => SettingsCategory::Writing,
         SettingCategory::Dictation => SettingsCategory::Dictation,
         SettingCategory::Models => SettingsCategory::Models,
