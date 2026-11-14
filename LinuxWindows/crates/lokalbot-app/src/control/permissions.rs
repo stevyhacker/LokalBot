@@ -298,10 +298,16 @@ mod tests {
                 "{permission:?}"
             );
         }
-        // The microphone says when it is checked instead.
+        // The microphone says when it is checked instead; Windows also names
+        // its own privacy switch.
+        let expected = if cfg!(target_os = "windows") {
+            "Checked when you first record. Windows keeps its own switch under Privacy & security → Microphone."
+        } else {
+            "Checked when you first record."
+        };
         assert_eq!(
             need(&needs, "microphone").detail,
-            lokalbot_i18n::tr("Checked when you first record.")
+            lokalbot_i18n::tr(expected)
         );
     }
 
