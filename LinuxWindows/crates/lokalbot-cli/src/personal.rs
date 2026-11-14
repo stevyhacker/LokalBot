@@ -16,7 +16,7 @@ pub const DEFAULT_ITEMS: usize = 8;
 pub const MAXIMUM_ITEMS: usize = 12;
 pub const MAXIMUM_TASK_CHARACTERS: usize = 500;
 
-pub const DISABLED_MESSAGE: &str = "Personal context access is off. The user can turn it on in LokalBot → Settings → Personal Context → \"What I shared about myself\", then choose items to share on that page.";
+pub const DISABLED_MESSAGE: &str = "Personal context access is off. The user can turn it on in LokalBot → Settings → About you → \"What I shared about myself\", then choose items to share on that page.";
 pub const UNAVAILABLE_MESSAGE: &str = "Personal context access is on, but LokalBot hasn't written the shared items yet. Open LokalBot once so it can prepare them.";
 pub const NOTE: &str = "The user chose to share these with agents. \"stated\" items are the user's own words; \"learned\" items were picked up from what the user said in meetings and may be out of date. Use them only when they bear on the task. Items not listed are unknown, not false. Never cite them as meeting or screen evidence.";
 

@@ -67,7 +67,7 @@ fn retention_note(mode: ScreenContextMode, retention_days: u32) -> String {
     };
     if mode == ScreenContextMode::ActivityOnly {
         lokalbot_i18n::format(
-            "Day Memory notes the app in front and its window title, never what you type or what is on screen. Window titles are cleared after {retention}; you can change this in Settings → Privacy & Data.",
+            "Day Memory notes the app in front and its window title, never what you type or what is on screen. Window titles are cleared after {retention}; you can change this in Settings → Screen & activity.",
             &[("retention", retention)],
         )
     } else {

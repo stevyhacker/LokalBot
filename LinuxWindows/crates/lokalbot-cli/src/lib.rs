@@ -30,7 +30,7 @@ pub const MAXIMUM_MEETING_COUNT: usize = 1000;
     name = "lokalbot-cli",
     version,
     about = "Read your local LokalBot meeting library and inspect app settings.",
-    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, search-files needs file access, search-notes needs agent-notes access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → Privacy & Data. setup start asks the person for it."
+    long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, search-files needs file access, search-notes needs agent-notes access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → AI agents. setup start asks the person for it."
 )]
 pub struct Cli {
     /// Read another library (same as LOKALBOT_STORAGE_ROOT).
@@ -203,7 +203,7 @@ pub enum Command {
         table: bool,
     },
     /// Show what the user shared about themselves that is relevant to a task
-    /// (chosen in the Personal Context settings).
+    /// (chosen on About you in Settings).
     #[command(name = "personal-context")]
     PersonalContext {
         /// What you are helping with, in a sentence.
@@ -237,7 +237,7 @@ pub enum Command {
     /// schema, describe, and search read the built-in settings list and need no
     /// permission. list, get, set, reset, export, and import use the running
     /// app and need "Allow external agents to change LokalBot settings" in
-    /// LokalBot → Settings → Privacy & Data. They start LokalBot in the
+    /// LokalBot → Settings → AI agents. They start LokalBot in the
     /// background when it is not running; pass --no-launch to fail instead.
     /// Values use the tokens shown by describe. JSON by default. Changes that
     /// widen capture or sharing wait for the person's approval in LokalBot;

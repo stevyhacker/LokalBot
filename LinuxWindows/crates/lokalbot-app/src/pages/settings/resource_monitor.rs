@@ -1,4 +1,4 @@
-//! Resource Monitor in Settings → Advanced (`ResourceMonitorSection`): a live
+//! Resource Monitor in Settings → Diagnostics (`ResourceMonitorSection`): a live
 //! readout of LokalBot and its helpers, updated every 2 seconds while it shows.
 
 use std::time::Duration;

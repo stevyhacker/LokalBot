@@ -29,7 +29,7 @@ pub(super) struct RememberState {
 
 impl AskPage {
     /// Runs one edit off the main thread. One that could not be saved says
-    /// so, as in Settings → Personal Context: Undo must not look done.
+    /// so, as in Settings → About you: Undo must not look done.
     fn edit_claim(
         &mut self,
         change: impl FnOnce(&lokalbot_core::Library) -> Result<(), EditError> + Send + 'static,

@@ -257,7 +257,7 @@ fn screen_memory_state(settings: &Settings, inventory: &Inventory) -> ContextSta
     })
 }
 
-/// Autocomplete's editors and view state in Settings → Writing.
+/// Autocomplete's editors and view state in Settings → Autocomplete.
 pub struct WritingState {
     languages: Entity<InputState>,
     notes: Entity<TextareaState>,

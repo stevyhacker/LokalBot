@@ -1,5 +1,5 @@
 //! The Agent notes grant for external agents (`AgentNotesAccessGate`): a marker
-//! the app sets from Settings → Privacy & Data. `lokalbot-cli` and its MCP
+//! the app sets from Settings → AI agents. `lokalbot-cli` and its MCP
 //! server search the saved notes themselves, without the app running, and find
 //! none while Read coding agent notes is off, because turning that off deletes
 //! them. Separate from every other grant; no Agent Mode capability satisfies it.

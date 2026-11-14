@@ -1179,7 +1179,7 @@ fn setup_downloads(
 /// What preparing Autocomplete means for what it reads (`OnboardingView`).
 fn autocomplete_disclosure() -> &'static str {
     lokalbot_i18n::tr(
-        "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once its text recognition model is downloaded, the whole window with on-device text recognition. It stays on this PC and is never saved; turn either off in Settings → Writing.",
+        "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once its text recognition model is downloaded, the whole window with on-device text recognition. It stays on this PC and is never saved; turn either off in Settings → Autocomplete.",
     )
 }
 

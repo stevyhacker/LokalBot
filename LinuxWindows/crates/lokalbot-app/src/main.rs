@@ -128,7 +128,7 @@ fn parse_options() -> Options {
     options
 }
 
-/// Logs go to `<library>/logs/lokalbot.log` (Settings → Advanced → Logs) and,
+/// Logs go to `<library>/logs/lokalbot.log` (Settings → Diagnostics → Logs) and,
 /// when there is one, the terminal. Release builds on Windows have no console.
 fn init_logging(paths: &LibraryPaths) {
     let mut builder = env_logger::Builder::from_env(

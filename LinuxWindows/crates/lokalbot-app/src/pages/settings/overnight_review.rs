@@ -1,4 +1,4 @@
-//! Settings → Day Memory → Overnight review (`SettingsView.dreamingSection`):
+//! Settings → Daily review → Overnight review (`SettingsView.dreamingSection`):
 //! the switch and hour, Review now, the projects and goals it keeps, Clear work
 //! memory, and what the review uses.
 

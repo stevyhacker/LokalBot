@@ -26,10 +26,10 @@ const WAKE_ERROR_FILE: &str = "agent-wake-error";
 /// "Allow external agents to change LokalBot settings" (`SettingsControlGate.swift`).
 pub const SETTINGS_CONTROL_MARKER: &str = "settings-control-enabled";
 
-pub const MEETINGS_DISABLED_MESSAGE: &str = "External agent access is off. Enable it in LokalBot → Settings → Privacy & Data → \"Allow external agents to read your meeting library\".";
-pub const SCREEN_DISABLED_MESSAGE: &str = "External screen-memory access is off. Enable it separately in LokalBot → Settings → Privacy & Data → \"Allow external agents to read screen memory\".";
+pub const MEETINGS_DISABLED_MESSAGE: &str = "External agent access is off. Enable it in LokalBot → Settings → AI agents → \"Allow external agents to read your meeting library\".";
+pub const SCREEN_DISABLED_MESSAGE: &str = "External screen-memory access is off. Enable it separately in LokalBot → Settings → AI agents → \"Allow external agents to read screen memory\".";
 
-pub const SETTINGS_CONTROL_DISABLED_MESSAGE: &str = "External settings access is off. Enable it in LokalBot → Settings → Privacy & Data → \"Allow external agents to change LokalBot settings\".";
+pub const SETTINGS_CONTROL_DISABLED_MESSAGE: &str = "External settings access is off. Enable it in LokalBot → Settings → AI agents → \"Allow external agents to change LokalBot settings\".";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

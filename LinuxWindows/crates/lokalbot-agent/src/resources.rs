@@ -126,6 +126,7 @@ mod tests {
             );
         }
         assert!(SKILL.contains("[settings_access_disabled]"));
-        assert!(SKILL.contains("Settings → Personal Context"));
+        assert!(SKILL.contains("Settings → About you"));
+        assert!(!SKILL.contains("Privacy & Data"));
     }
 }

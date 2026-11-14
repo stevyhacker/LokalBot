@@ -463,7 +463,7 @@ impl Worker {
                         self.manual_until = Some(Instant::now() + MANUAL_WAIT);
                     } else {
                         self.shared.message(
-                            "Screen context is off. Choose Text context or Text + visual context in Settings → Day Memory.",
+                            "Screen context is off. Choose Text context or Text + visual context in Settings → Screen & activity.",
                         );
                     }
                 }

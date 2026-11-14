@@ -1,4 +1,4 @@
-//! Settings → Personal Context (`PersonalContextSettings`): learned items waiting
+//! Settings → About you (`PersonalContextSettings`): learned items waiting
 //! for review, what LokalBot keeps about the person grouped by kind, the learning
 //! switches, and whether agents can read the shared items. Every item can be
 //! edited or forgotten here. Nothing reads the saved file until this page opens.
