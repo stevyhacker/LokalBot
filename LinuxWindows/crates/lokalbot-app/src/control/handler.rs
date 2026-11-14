@@ -559,6 +559,9 @@ impl ControlHost {
                     "name": need.name,
                     "title": need.title,
                     "granted": need.granted,
+                    // False where nothing can be read before the feature
+                    // first runs: then "granted" claims nothing.
+                    "checked": need.checked,
                     "neededBy": need.needed_by,
                     "detail": need.detail,
                 })
@@ -571,8 +574,16 @@ impl ControlHost {
         self.approvals.expire_stale(Utc::now());
         let data = self.data.read(cx);
         let mut granted = Map::new();
+        // Null where it can't be known before the feature first runs.
         for need in permissions::needs(data, cx) {
-            granted.insert(need.title, json!(need.granted));
+            granted.insert(
+                need.title,
+                if need.checked {
+                    json!(need.granted)
+                } else {
+                    Value::Null
+                },
+            );
         }
         json!({
             "app": hello(),
@@ -632,7 +643,7 @@ impl ControlHost {
 
         let missing: Vec<permissions::PermissionNeed> = permissions::needs(data, cx)
             .into_iter()
-            .filter(|need| !need.granted && !need.needed_by.is_empty())
+            .filter(permissions::PermissionNeed::missing)
             .collect();
         let missing_text = missing
             .iter()

@@ -98,24 +98,17 @@ impl StatusLine {
 }
 
 /// The fix a permission has on this platform.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PermissionFix {
-    /// Windows' own switch (Privacy & security → Microphone).
-    SystemSettings,
-    /// The calendar links under Meetings.
-    CalendarLinks,
-}
+pub use crate::control::permissions::Fix as PermissionFix;
 
 /// One row on Privacy & permissions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Permission {
-    /// `microphone`, `accessibility`, …, as `permissions request` takes them,
-    /// or `credential-store`.
+    /// `microphone`, `accessibility`, …, as `permissions request` takes them.
     pub name: &'static str,
     pub title: String,
     pub granted: bool,
-    /// False where nothing can be read before the feature is used: the
-    /// microphone, which is checked when you first record.
+    /// False where nothing can be read before the feature is used, the way
+    /// setup leaves it unclaimed too (`crate::access`).
     pub checked: bool,
     /// The features that are on and use it, already translated.
     pub needed_by: Vec<String>,
@@ -134,6 +127,20 @@ pub enum Access {
     NotNeeded,
     /// Nothing can be read before it is used (the microphone).
     Unchecked,
+}
+
+impl From<crate::control::permissions::PermissionNeed> for Permission {
+    fn from(need: crate::control::permissions::PermissionNeed) -> Self {
+        Self {
+            name: need.name,
+            title: need.title,
+            granted: need.granted,
+            checked: need.checked,
+            needed_by: need.needed_by,
+            detail: need.detail,
+            fix: need.fix,
+        }
+    }
 }
 
 impl Permission {
@@ -159,6 +166,7 @@ impl Permission {
         self.fix.map(|fix| match fix {
             PermissionFix::SystemSettings => "Open System Settings…",
             PermissionFix::CalendarLinks => "Change…",
+            PermissionFix::WindowCalls => "Get Window Calls…",
         })
     }
 

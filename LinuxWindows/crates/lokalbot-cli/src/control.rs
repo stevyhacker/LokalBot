@@ -310,7 +310,8 @@ pub enum PermissionsCommand {
     ///
     /// Opens the system's settings where it has any; the person decides.
     Request {
-        /// microphone, accessibility, screen-recording, input-monitoring, or calendar.
+        /// microphone, window-titles, accessibility, screen-recording,
+        /// credential-store, input-monitoring, or calendar.
         name: String,
         #[command(flatten)]
         launch: LaunchOptions,

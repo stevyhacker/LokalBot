@@ -220,7 +220,6 @@ pub struct Onboarding {
     /// The choices the settings held when this draft was started.
     baseline: Draft,
     download: download::Session,
-    access: access::Probe,
     /// The access checks are running in the background.
     checking: bool,
     /// False once setup has finished, so nothing more is saved for it.
@@ -267,7 +266,6 @@ impl Onboarding {
             draft,
             baseline,
             download,
-            access: access::Probe::default(),
             checking: false,
             saves: true,
             _subscriptions: subscriptions,
@@ -312,7 +310,8 @@ impl Onboarding {
     }
 
     /// Reads what this computer allows, away from the UI thread, and again
-    /// every few seconds while the access step shows (`startPolling`).
+    /// every few seconds while the access step shows (`startPolling`). The
+    /// reading is `AppData`'s, the one Settings shows.
     fn start_checks(&mut self, cx: &mut Context<Self>) {
         if self.checking {
             return;
@@ -320,13 +319,9 @@ impl Onboarding {
         self.checking = true;
         cx.spawn(async move |this, cx| {
             loop {
-                let probe = cx.background_spawn(async { access::Probe::read() }).await;
                 let again = this
                     .update(cx, |this, cx| {
-                        if this.access != probe {
-                            this.access = probe;
-                            cx.notify();
-                        }
+                        this.data.update(cx, |data, cx| data.refresh_access(cx));
                         let again = this.step == Step::Access;
                         if again {
                             this.data

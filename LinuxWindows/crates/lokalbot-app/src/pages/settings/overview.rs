@@ -575,7 +575,8 @@ impl SettingsPage {
 pub(super) fn permission_icon(name: &str) -> Ico {
     match name {
         "microphone" => Ico::Mic,
-        "accessibility" => Ico::AppWindow,
+        "window-titles" => Ico::AppWindow,
+        "accessibility" => Ico::Accessibility,
         "screen-recording" => Ico::Monitor,
         "input-monitoring" => Ico::Keyboard,
         "calendar" => Ico::Calendar,

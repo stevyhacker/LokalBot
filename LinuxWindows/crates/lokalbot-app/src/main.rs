@@ -5,6 +5,7 @@
     windows_subsystem = "windows"
 )]
 
+mod access;
 mod agent_handoff;
 mod assets;
 mod autocomplete;
@@ -278,7 +279,10 @@ fn main() {
             cx.set_app_identity("com.lokalbot.LokalBot", "LokalBot");
 
             let data = cx.new(|_| AppData::new(library, settings));
-            data.update(cx, |data, cx| data.refresh_audio_inputs(cx));
+            data.update(cx, |data, cx| {
+                data.refresh_audio_inputs(cx);
+                data.refresh_access(cx);
+            });
             if let Some(section) = options.section {
                 data.update(cx, |data, _| data.section = section);
             }

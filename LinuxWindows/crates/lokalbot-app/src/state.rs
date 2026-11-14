@@ -383,6 +383,11 @@ pub struct AppData {
     pub dream: lokalbot_engine::dreaming::DreamStatus,
     /// Microphone names for the device pickers in Settings, filled by the engine.
     pub audio_inputs: Vec<SharedString>,
+    /// What this computer allows, as setup and Settings both show it
+    /// (`crate::access`), read by `refresh_access`.
+    pub access: crate::access::Probe,
+    access_read_at: Option<std::time::Instant>,
+    access_reading: bool,
     /// Settings is recording a new shortcut: global shortcuts should pause
     /// so the keystroke reaches the recorder.
     pub shortcut_recording: bool,
@@ -647,6 +652,9 @@ impl AppData {
             follow_up: None,
             live_preview: Default::default(),
             audio_inputs: Vec::new(),
+            access: Default::default(),
+            access_read_at: None,
+            access_reading: false,
             shortcut_recording: false,
             dictation_shortcut_inactive: false,
             screen: Default::default(),
@@ -689,6 +697,51 @@ impl AppData {
             .ok();
         })
         .detach();
+    }
+
+    /// Reads what this computer allows away from the UI thread: the checks
+    /// can wait on the session bus and the screenshot portal for seconds.
+    /// Only reads; nothing prompts or turns on.
+    pub fn refresh_access(&mut self, cx: &mut Context<Self>) {
+        if self.access_reading {
+            return;
+        }
+        self.access_reading = true;
+        cx.spawn(async move |this, cx| {
+            let probe = cx
+                .background_spawn(async { crate::access::Probe::read() })
+                .await;
+            this.update(cx, |this, cx| {
+                this.access_reading = false;
+                this.access_read_at = Some(std::time::Instant::now());
+                if this.access != probe {
+                    this.access = probe;
+                    cx.notify();
+                }
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    /// `refresh_access`, unless the reading is only a few seconds old, for
+    /// views that show it while open.
+    pub fn refresh_access_if_stale(&mut self, cx: &mut Context<Self>) {
+        if self
+            .access_read_at
+            .is_none_or(|at| at.elapsed() >= std::time::Duration::from_secs(10))
+        {
+            self.refresh_access(cx);
+        }
+    }
+
+    /// What the running app has seen for itself, beside the reading.
+    pub fn access_observed(&self) -> crate::access::Observed {
+        crate::access::Observed {
+            microphone_found: !self.audio_inputs.is_empty(),
+            capture_failed: self.screen.capture_limitation.is_some(),
+            key_failed: self.screen.images_unavailable.is_some(),
+        }
     }
 
     pub fn navigate(&mut self, section: Section, cx: &mut Context<Self>) {
@@ -800,6 +853,7 @@ impl AppData {
     /// comes through here.
     pub fn open_settings(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
         self.refresh_audio_inputs(cx);
+        self.refresh_access(cx);
         self.select_settings_category(category, cx);
         cx.defer(crate::windows::settings::open);
         cx.notify();

@@ -1255,52 +1255,11 @@ impl SettingsPage {
     fn status(&self, cx: &App) -> status::SettingsStatus {
         let data = self.data.read(cx);
         let settings = data.settings.clone();
-        let mut permissions: Vec<status::Permission> = crate::control::permissions::needs(data, cx)
+        // Read the way setup reads it (`crate::access`), so the two agree.
+        let permissions: Vec<status::Permission> = crate::control::permissions::needs(data, cx)
             .into_iter()
-            .map(|need| status::Permission {
-                name: need.name,
-                title: need.title,
-                granted: need.granted,
-                // The microphone is checked when you first record, and no
-                // calendar is read while calendar use is off.
-                checked: match need.name {
-                    "microphone" => false,
-                    "calendar" => settings.calendar_detection_enabled,
-                    _ => true,
-                },
-                needed_by: need.needed_by,
-                detail: need.detail,
-                fix: match need.name {
-                    "microphone" if cfg!(target_os = "windows") => {
-                        Some(status::PermissionFix::SystemSettings)
-                    }
-                    "calendar" => Some(status::PermissionFix::CalendarLinks),
-                    _ => None,
-                },
-            })
+            .map(status::Permission::from)
             .collect();
-        // The key that encrypts screen images, private calendar links and
-        // server keys live in the system's credential store.
-        let visual =
-            settings.screen_context_capture_mode == lokalbot_core::ScreenContextMode::TextAndVisual;
-        permissions.push(status::Permission {
-            name: "credential-store",
-            title: lokalbot_i18n::tr("Credential store").to_string(),
-            granted: data.screen.images_unavailable.is_none(),
-            checked: true,
-            needed_by: if visual && settings.tracking_enabled {
-                vec![lokalbot_i18n::tr("Screen images").to_string()]
-            } else {
-                Vec::new()
-            },
-            detail: data.screen.images_unavailable.clone().unwrap_or_else(|| {
-                lokalbot_i18n::tr(
-                    "Keeps the key for screen images, private calendar links, and server keys.",
-                )
-                .to_string()
-            }),
-            fix: None,
-        });
         let files_shared = self
             .files_access
             .unwrap_or_else(|| lokalbot_core::files::access::is_enabled(data.library.paths()));
@@ -1766,6 +1725,10 @@ impl Render for SettingsPage {
         let category = self.category(cx);
         // Pages opened from elsewhere (links, the CLI) count as visits too.
         self.history.visit(category);
+        // What this computer allows can change while Settings is open (an
+        // extension installed, a service started): read it again now and then.
+        self.data
+            .update(cx, |data, cx| data.refresh_access_if_stale(cx));
         let searching = !self.query.trim().is_empty();
         let status = self.status(cx);
         let title: SharedString = if searching {

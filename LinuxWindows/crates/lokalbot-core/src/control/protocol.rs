@@ -27,11 +27,14 @@ pub const SETTINGS_DESTINATIONS: [&str; 12] = [
     "dictationWritingProfile",
 ];
 
-/// Names `permissions request` accepts.
-pub const PERMISSION_NAMES: [&str; 5] = [
+/// Names `permissions request` accepts: the Mac's, plus the window in front
+/// and the credential store, which Linux and Windows check on their own.
+pub const PERMISSION_NAMES: [&str; 7] = [
     "microphone",
+    "window-titles",
     "accessibility",
     "screen-recording",
+    "credential-store",
     "input-monitoring",
     "calendar",
 ];
