@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: The redesigned Windows and Linux app</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Website/generator/render_explainer.py Docs/explainers/windows-linux-app-tour.html Website/public/explainers/windows-linux-app-tour.pdf
+  Two A4 sheets, pictures first. The stills in windows-linux-app-tour/ are crops of Linux captures
+  (Xvfb, 1440x900, light) of the merged redesign build with the --seed-demo library, taken with
+  LinuxWindows/scripts/ci/capture-linux.sh. The Agent and setup stills come from the redesign
+  branch's own checks on synthetic test libraries.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24; --no: #f0857a;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12px; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 10mm 14mm 8mm; display: flex; flex-direction: column; gap: 10px; background: radial-gradient(120% 60% at 80% 0%, #0d1c26 0%, var(--bg) 60%); break-after: page; }
+.page:last-child { break-after: auto; }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 30px; line-height: 1.05; letter-spacing: -0.025em; font-weight: 760; }
+.lede { font-size: 14px; color: var(--text-dim); max-width: 64ch; }
+.eyebrow, .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent-text); }
+.label { display: flex; align-items: center; gap: 8px; }
+.label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.stack { display: grid; gap: 8px; align-content: start; }
+.shot { border-radius: 8px; border: 1px solid var(--line-strong); overflow: hidden; background: #f6f6f6; position: relative; }
+.shot img { display: block; width: 100%; }
+.cap { font-size: 10.5px; color: var(--text-dim); margin-top: 4px; line-height: 1.35; }
+.cap b { color: var(--text); font-weight: 650; }
+.pin { position: absolute; transform: translate(-50%, -50%); width: 19px; height: 19px; border-radius: 50%; background: var(--accent); color: #04211d; border: 2px solid #fff; display: grid; place-items: center; font-weight: 800; font-size: 10.5px; line-height: 1; }
+.steps { display: grid; gap: 7px; }
+.step { display: grid; grid-template-columns: 19px 1fr; gap: 8px; align-items: start; font-size: 11px; color: var(--text-dim); line-height: 1.35; }
+.step b { color: var(--text); font-weight: 650; }
+.num { width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #04211d; font-weight: 800; font-size: 10.5px; }
+.key { display: inline-grid; place-items: center; min-width: 22px; height: 21px; padding: 0 6px; border-radius: 5px; background: linear-gradient(#263444, #18222e); border: 1px solid var(--line-strong); border-bottom-width: 2px; font-size: 11px; font-weight: 600; color: var(--text); }
+.cap .key, .moved .key { display: inline-grid; height: 16px; min-width: 18px; padding: 0 4px; font-size: 9.5px; border-bottom-width: 1.5px; vertical-align: 0; }
+.moved { margin: 0; padding-left: 16px; display: grid; gap: 3px; font-size: 10.5px; color: var(--text-dim); line-height: 1.35; }
+.moved b { color: var(--text); font-weight: 650; }
+.warn { color: var(--warn-text); font-size: 10.5px; }
+.note { color: var(--text-faint); font-size: 9.5px; }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 6px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Windows · Linux · New in 0.13.1</div>
+  <h1>The Windows and Linux app, redrawn</h1>
+  <p class="lede">It now has the redesigned Mac app's layout: each screen shows a thing once and leads with what you came for.</p>
+
+  <div class="label">The window</div>
+  <div style="display:grid;grid-template-columns:104px 1fr;gap:12px;align-items:start">
+    <div class="shot"><img src="windows-linux-app-tour/sidebar.png" alt="The sidebar: Today, Actions with a count of 12, the Remember group (Meetings, Timeline, People, Projects), the Assistant group (Ask, Agent), and Settings with 'On this PC' at the foot">
+      <span class="pin" style="left:88%;top:13.5%">1</span>
+      <span class="pin" style="left:70%;top:18.3%">2</span>
+      <span class="pin" style="left:70%;top:92.2%">3</span>
+    </div>
+    <div class="stack">
+      <div class="shot"><img src="windows-linux-app-tour/today-panels.png" alt="Today as panels: Needs attention with the three most urgent actions and 2 overdue, Meetings today with three meetings, and So far today with 3h 57m tracked by app and the day's highlights">
+        <span class="pin" style="left:3%;top:13.9%">4</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div class="step"><span class="num">1</span><span><b>Actions has its own page.</b> The number is what's still open.</span></div>
+        <div class="step"><span class="num">2</span><span><b>Two groups:</b> Remember and Assistant.</span></div>
+        <div class="step"><span class="num">3</span><span><b>Settings</b> opens in its own window. The line under it says what leaves this PC.</span></div>
+        <div class="step"><span class="num">4</span><span><b>Today is panels,</b> with what needs you first, in two columns when the window is wide.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">A meeting, and Actions</div>
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:12px;align-items:start">
+    <div class="shot"><img src="windows-linux-app-tour/meeting.png" alt="A meeting's Summary: title, speakers, the player bar, the recap, Decisions with time links, and Actions split into For you and For others, with the Share and more menus in the toolbar">
+      <span class="pin" style="left:50%;top:27.1%">5</span>
+      <span class="pin" style="left:17%;top:82.9%">6</span>
+      <span class="pin" style="left:25%;top:20.3%">7</span>
+      <span class="pin" style="left:73.8%;top:3.9%">8</span>
+    </div>
+    <div class="stack" style="gap:10px">
+      <div class="steps">
+        <div class="step"><span class="num">5</span><span><b>The player</b> stays under the title on every tab. This sample meeting has no audio.</span></div>
+        <div class="step"><span class="num">6</span><span><b>Actions split</b> into For you and For others. Each owner is a menu on its row.</span></div>
+        <div class="step"><span class="num">7</span><span><b>No Review tab.</b> A <b>Name speaker…</b> button beside the speakers opens one sheet for every unnamed voice. Nothing changes until <b>Save names</b>.</span></div>
+        <div class="step"><span class="num">8</span><span><b>Share</b> holds copy and export; the … menu is shorter.</span></div>
+      </div>
+      <div><div class="shot"><img src="windows-linux-app-tour/actions.png" alt="The Actions page: Open, Deferred and Done, a Filter menu, actions grouped by Overdue, Next 7 days and Later, and the selected action's details with what was said"></div><p class="cap"><b>Actions:</b> Open, Deferred, Done and one Filter menu, overdue first, details beside the list. Ctrl-click or Shift-click picks several. <b>Plan in Agent…</b> moved here from Today.</p></div>
+    </div>
+  </div>
+
+  <div class="foot"><span>LokalBot · The redesigned Windows and Linux app · Pictures: Linux captures of the demo library</span><span>1 / 2</span></div>
+</section>
+
+<section class="page">
+  <div class="eyebrow">Windows · Linux · New in 0.13.1</div>
+
+  <div class="label">Elsewhere</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;align-items:start">
+    <div><div class="shot"><img src="windows-linux-app-tour/timeline.png" alt="Timeline: the day's highlights and actions on the left, the sessions rail on the right with tracked time, an hour strip, time by app and the day's sessions"></div><p class="cap"><b>Timeline:</b> the day's page beside a sessions rail. Drag the divider to widen the rail; it stays that width.</p></div>
+    <div><div class="shot"><img src="windows-linux-app-tour/people.png" alt="People: Maya Chen with what's open between you, split into You owe Maya and Maya owes you, the last meeting, and a side column of projects and meetings"></div><p class="cap"><b>People:</b> what's open between you, both ways. With a calendar connected, the next meeting and <b>Prepare</b> come first.</p></div>
+    <div><div class="shot"><img src="windows-linux-app-tour/projects.png" alt="Projects: Holiday shoot with Where it stands, your actions, what you're waiting on from others, its meetings, and the last 7 days in a side column"></div><p class="cap"><b>Projects:</b> Where it stands first, then your actions and what you're waiting on, with the last 7 days beside them.</p></div>
+    <div><div class="shot"><img src="windows-linux-app-tour/agent.png" alt="Agent: a finished task with its three steps folded into one line, the answer, the changed file, and a composer with a folder and the Asks first access chip"></div><p class="cap"><b>Agent:</b> steps fold into one line, a finished task shows its answer and changed files, and an approval docks above the composer.</p></div>
+  </div>
+
+  <div class="label">Settings, setup and quick ways in</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 12px;align-items:start">
+    <div><div class="shot"><img src="windows-linux-app-tour/privacy.png" alt="The Settings window on Privacy & permissions: All set, nothing leaves this PC, and each permission with its state"></div><p class="cap"><b>Settings</b> (<span class="key">Ctrl+,</span>): <b>Privacy &amp; permissions</b> is the one home for permissions and what leaves the PC.</p></div>
+    <div><div class="shot"><img src="windows-linux-app-tour/quick-recall.png" alt="Quick Recall: a search field, recent meetings and screens, and commands such as Record now and Go to Today"></div><p class="cap"><b>Quick Recall</b> (<span class="key">Ctrl+K</span>) replaces the command palette: search, commands and Ask in one window. <span class="key">Ctrl+Enter</span> answers there with numbered sources.</p></div>
+    <div><div class="shot"><img src="windows-linux-app-tour/setup.png" alt="Setup step 2 of 3, Allow access: only the access your choices need, each with its real state"></div><p class="cap"><b>Setup</b> has three steps. It asks only for the access your choices need and downloads nothing until you say so.</p></div>
+  </div>
+
+  <div class="label">Where things moved</div>
+  <ul class="moved">
+    <li><b>Settings</b> is a separate window. Overview is a status page with no switches. Pages are renamed as on the Mac: Screen &amp; activity, About you, AI agents, Daily review. Backends and mirrors are under Models → Advanced; plans and Ollama under Models → Online services.</li>
+    <li><b>Meetings</b> have no Review tab: name voices with Name speaker…, and export from Share.</li>
+    <li><b>Ask</b> has one field. Enter asks, even about a single word; press ↓ and Enter to open a match. A full question reads everything in the chosen sources and dates.</li>
+    <li><b><span class="key">Ctrl+K</span></b> opens Quick Recall, where every command still runs. Its system-wide shortcut is off until you turn it on.</li>
+    <li><b>The tray menu</b> shows what's recording or coming up, with Stop, Join or Record, then your two most recent meetings. The meeting-soon line leaves out attendee names.</li>
+    <li><b>Calendar:</b> while it's on, People reads the next seven days of events to show who is coming up. Nothing is stored.</li>
+  </ul>
+
+  <p class="warn">Windows and Linux remain in alpha, and the Windows app isn't code-signed yet. The screens were checked on Linux under a virtual display and by Windows CI; Wayland, KDE and GNOME desktops, the Windows tray and setup's access checks haven't been tried by hand. Wording new to Windows and Linux is machine-translated in 24 languages, not yet reviewed by native speakers. Follow-through, Hand off my actions, Live Radar and Gmail in briefs stay Mac only.</p>
+
+  <div class="foot"><span>LokalBot · Agent and setup pictures: test libraries · Full details: README · PRIVACY.md</span><span>2 / 2</span></div>
+</section>
+</body>
+</html>
