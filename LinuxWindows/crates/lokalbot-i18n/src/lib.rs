@@ -287,6 +287,23 @@ pub fn content_is_rtl(text: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// A phrase drawn as one shaped line, starting with the right-to-left mark
+/// when its own text reads right to left. GPUI drops a number that starts such
+/// a line ("39م" shows as "م", "3ح 57م" as "ح 57م"); the mark keeps it. It is
+/// for shaping only and invisible. Text that reads left to right, which is all
+/// of it in a left-to-right interface, is returned as it is.
+pub fn directional(text: impl Into<String>) -> String {
+    let text = text.into();
+    if content_is_rtl(&text) && !text.starts_with(RIGHT_TO_LEFT_MARK) {
+        format!("{RIGHT_TO_LEFT_MARK}{text}")
+    } else {
+        text
+    }
+}
+
+/// U+200F, which [`directional`] puts in front of right-to-left phrases.
+pub const RIGHT_TO_LEFT_MARK: char = '\u{200f}';
+
 /// Complete count phrases are translated together; never append an English
 /// plural suffix to a translated noun.
 pub fn count(n: usize, noun: &str) -> String {
@@ -397,6 +414,16 @@ pub fn fill(template: &str, values: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn right_to_left_phrases_keep_a_leading_number() {
+        assert_eq!(directional("39م"), "\u{200f}39م");
+        assert_eq!(directional("3ح 57م"), "\u{200f}3ح 57م");
+        // Once only, and never on text that reads left to right.
+        assert_eq!(directional("\u{200f}39م"), "\u{200f}39م");
+        assert_eq!(directional("39m"), "39m");
+        assert_eq!(directional("11:23 · Zoom"), "11:23 · Zoom");
+    }
 
     #[test]
     fn fill_puts_values_in_mac_fields() {

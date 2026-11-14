@@ -13,7 +13,7 @@ use crate::theme::LbThemeExt as _;
 /// `CaptureStyle.hm`: "3h 50m", "48m", "<1m" (and "0m" for nothing).
 pub(crate) fn hm(seconds: f64) -> String {
     if seconds <= 0. {
-        lokalbot_i18n::tr("0m").into()
+        lokalbot_i18n::directional(lokalbot_i18n::tr("0m"))
     } else {
         crate::i18n::compact_duration(seconds)
     }

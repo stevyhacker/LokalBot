@@ -141,7 +141,9 @@ impl AgentPage {
                         .text_size(ty::BODY)
                         .line_height(px(21.))
                         .text_color(lb.supporting)
-                        .child(description),
+                        // Wrapped in logical order, so Arabic and Urdu stay
+                        // inside the column.
+                        .child(crate::ui::text::paragraph(description)),
                 )
                 .when_some(shell_note, |this, note| this.child(note))
                 .child(div().pt(px(4.)).child(action))

@@ -68,12 +68,7 @@ pub(crate) fn fill(template: &str, values: &[&str]) -> String {
 /// starts with a number ("2 …", "14:00 …") loses the number in an Arabic or
 /// Urdu interface. Left-to-right text is returned as it is.
 pub(crate) fn directional(text: impl Into<String>) -> String {
-    let text = text.into();
-    if lokalbot_i18n::content_is_rtl(&text) && !text.starts_with('\u{200f}') {
-        format!("\u{200f}{text}")
-    } else {
-        text
-    }
+    lokalbot_i18n::directional(text)
 }
 
 // ------------------------------------------------------------- meetings

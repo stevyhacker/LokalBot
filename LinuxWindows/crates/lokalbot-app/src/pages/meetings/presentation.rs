@@ -92,14 +92,18 @@ pub fn date_text(at: DateTime<Utc>, today: NaiveDate) -> String {
     }
 }
 
-/// "1:00 PM · 50 min · Zoom": when, how long, then where it happened.
+/// "1:00 PM · 50 min · Zoom": when, how long, then where it happened. In
+/// Arabic and Urdu it starts with the right-to-left mark that keeps the
+/// leading time.
 pub fn row_subtitle(time: &str, duration: &str, source: Option<&str>) -> String {
-    [Some(time), Some(duration), source]
-        .into_iter()
-        .flatten()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join(" · ")
+    lokalbot_i18n::directional(
+        [Some(time), Some(duration), source]
+            .into_iter()
+            .flatten()
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · "),
+    )
 }
 
 // ------------------------------------------------------------ speech time

@@ -201,20 +201,25 @@ pub(crate) fn sources(
     if whole_page {
         let meeting = &doc.meeting;
         push(meeting.display_title(), Location::Title);
+        // As the page shows them, each its own line (`render_date_line`).
+        let shown = |text: String| lokalbot_i18n::directional(text);
         push(
-            super::presentation::date_text(meeting.started_at, chrono::Local::now().date_naive()),
+            shown(super::presentation::date_text(
+                meeting.started_at,
+                chrono::Local::now().date_naive(),
+            )),
             Location::Metadata(MetadataField::Date),
         );
         push(
-            super::model::duration_label(meeting),
+            shown(super::model::duration_label(meeting)),
             Location::Metadata(MetadataField::Duration),
         );
         if let Some(app) = app_chip(meeting) {
-            push(app, Location::Metadata(MetadataField::App));
+            push(shown(app), Location::Metadata(MetadataField::App));
         }
         if let Some(audio) = audio_chip(meeting) {
             push(
-                audio.to_string(),
+                shown(audio.to_string()),
                 Location::Metadata(MetadataField::AudioSource),
             );
         }

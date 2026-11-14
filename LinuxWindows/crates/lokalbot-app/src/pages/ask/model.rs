@@ -752,10 +752,11 @@ pub fn mac_count(count: usize, one: &str, many: &str) -> String {
 }
 
 /// GPUI drops a number that starts a right-to-left line; a direction mark
-/// in front keeps it.
+/// in front keeps it. Unlike `lokalbot_i18n::directional`, any text in a
+/// right-to-left interface gets it, a bare count too.
 pub fn directional(text: &str) -> String {
-    if lokalbot_i18n::current().rtl {
-        format!("\u{200F}{text}")
+    if lokalbot_i18n::current().rtl && !text.starts_with(lokalbot_i18n::RIGHT_TO_LEFT_MARK) {
+        format!("{}{text}", lokalbot_i18n::RIGHT_TO_LEFT_MARK)
     } else {
         text.to_string()
     }

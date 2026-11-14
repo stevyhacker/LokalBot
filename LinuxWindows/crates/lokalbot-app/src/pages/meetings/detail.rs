@@ -259,6 +259,9 @@ impl MeetingsPage {
             if ix > 0 {
                 row = row.child(div().flex_none().child(" · "));
             }
+            // Each part is its own line: "25 دقيقة" keeps its number in
+            // Arabic only with the right-to-left mark (as page search sees it).
+            let text = lokalbot_i18n::directional(text);
             let marked =
                 self.find_marked(Location::Metadata(field), &text, text.clone(), false, cx);
             row = row.child(if warning {

@@ -548,12 +548,7 @@ pub fn quote_line(text: &str, question: &str, limit: usize) -> Option<String> {
 /// direction when that is right-to-left, so a translated "Show all 7" or
 /// "3 meetings" keeps its number in Arabic and Urdu (as Today's `directional`).
 pub fn directional(text: impl Into<String>) -> String {
-    let text = text.into();
-    if lokalbot_i18n::content_is_rtl(&text) && !text.starts_with('\u{200f}') {
-        format!("\u{200f}{text}")
-    } else {
-        text
-    }
+    lokalbot_i18n::directional(text)
 }
 
 // ------------------------------------------------------------------- dates
