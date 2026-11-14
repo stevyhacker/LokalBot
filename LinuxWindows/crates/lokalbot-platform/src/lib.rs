@@ -8,6 +8,7 @@
 //! a desktop cannot provide something (for example GNOME on Wayland without a
 //! window-information extension).
 
+pub mod access;
 pub mod activity;
 pub mod agent_links;
 pub mod autocomplete;

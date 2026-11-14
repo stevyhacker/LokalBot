@@ -38,6 +38,8 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     List, Flag, Image,
     // Ask: a screen moment pinned as context (pin)
     Pin,
+    // Setup: the Accessibility and credential store rows, the download size line
+    Accessibility, KeyRound, ArrowDownToLine,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.
