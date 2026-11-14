@@ -77,6 +77,9 @@ impl CitationSource {
     }
 
     /// Key that identifies the underlying source (ignoring the moment).
+    // Ask's sources list groups citations itself now; kept while other pages
+    // are being redesigned.
+    #[allow(dead_code)]
     fn source_key(&self) -> String {
         match self {
             CitationSource::Meeting { id, .. } => format!("meeting:{}", id.to_lowercase()),
@@ -185,6 +188,7 @@ pub fn display_text(text: &str) -> String {
 
 /// "1 source · Design review", "3 citations · Design review" or
 /// "3 citations · 2 sources" (`EvidenceDisclosure.evidenceSummary`).
+#[allow(dead_code)]
 pub fn evidence_summary(
     citations: &[CitationSource],
     meetings: &[Meeting],
@@ -220,6 +224,7 @@ pub fn evidence_summary(
 
 /// What an evidence row shows for a citation.
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
 pub struct ResolvedCitation {
     pub title: String,
     pub detail: String,
@@ -227,6 +232,7 @@ pub struct ResolvedCitation {
     pub is_screen: bool,
 }
 
+#[allow(dead_code)]
 pub fn resolve(
     source: &CitationSource,
     meetings: &[Meeting],
@@ -329,6 +335,7 @@ pub fn resolve(
 }
 
 /// "Oct 8, 2026 at 11:57 AM" (Swift's abbreviated date + shortened time).
+#[allow(dead_code)]
 pub fn date_and_time(at: DateTime<Utc>) -> String {
     at.with_timezone(&Local)
         .format_localized(

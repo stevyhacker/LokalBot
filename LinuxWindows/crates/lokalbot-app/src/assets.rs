@@ -30,6 +30,8 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     SquareChartGantt, ShieldLock,
     // Timeline panels: Work Summary (list.bullet), Decisions (flag), Screen moments (photo)
     List, Flag, Image,
+    // Ask: a screen moment pinned as context (pin)
+    Pin,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

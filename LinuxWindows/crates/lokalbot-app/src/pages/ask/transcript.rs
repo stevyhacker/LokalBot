@@ -1,4 +1,7 @@
-//! The conversation (`ChatTranscriptView`, `EditorialTurn`) and the empty state.
+//! The conversation (`ChatTranscriptView`, `EditorialTurn`): each question
+//! with its time, then the answer as flat text, one sources list that ends it,
+//! and quiet actions; a failed answer keeps its matches. Also the questions an
+//! empty page suggests.
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash as _, Hasher as _};
@@ -6,29 +9,25 @@ use std::rc::Rc;
 
 use crate::i18n::h_flex;
 use chrono::{DateTime, Local, Utc};
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Context, Div, FontWeight, InteractiveElement as _,
+    AnyElement, App, AppContext as _, Context, Div, ElementId, FontWeight, InteractiveElement as _,
     IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
     Window, div, px, relative,
 };
-use lokalbot_core::{ChatActivity, ChatRole, settings::SummarizerBackend};
+use lokalbot_core::{ChatActivity, ChatMessage, ChatRole, settings::SummarizerBackend};
 use uuid::Uuid;
 
 use super::AskPage;
+use super::model::{self, SourceGroup, SourceKind, Suggestion, SuggestionKind};
+use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::answer_text::{self, Answer, AnswerStyle};
 use crate::ui::citations::{self, CitationSource};
-use crate::ui::{self, Ico};
-
-const SUGGESTIONS: [&str; 3] = [
-    "What did we decide in my last meeting?",
-    "List my recent meetings",
-    "Search my meetings for action items",
-];
+use crate::ui::{self, Ico, screen_thumbnail};
 
 /// Read aloud as it applies to one answer.
 struct AnswerSpeech {
@@ -89,7 +88,6 @@ pub(crate) fn stop_answer_speech(cx: &mut App) {
 #[derive(Clone)]
 struct Step {
     text: String,
-    icon: Ico,
     done: bool,
 }
 
@@ -102,20 +100,22 @@ enum Turn {
         divider: Option<String>,
         separator: bool,
         latest: bool,
-        /// Shown when the question's scope differs from the one before it.
+        /// What it was limited to, for the time's tooltip.
         scope: Option<String>,
     },
     Assistant {
         id: Uuid,
         text: String,
-        created_at: Option<DateTime<Utc>>,
         steps: Vec<Step>,
         pending: bool,
         status: Option<SharedString>,
         error: Option<SharedString>,
         can_retry: bool,
+        can_ask_again: bool,
         receipt: Option<lokalbot_core::RememberReceipt>,
         used_claims: Vec<Uuid>,
+        /// The question a failed last answer replied to: its matches stay.
+        failed_question: Option<Box<ChatMessage>>,
     },
 }
 
@@ -145,10 +145,13 @@ impl AskPage {
         let live_attachments = self
             .selected
             .is_some_and(|id| data.attached_asks.contains_key(&id));
+        let responding = stream.is_some_and(|s| s.error.is_none());
         let offered = super::scope::Offered::new(&data.settings);
+        let now = Local::now();
+        let last_id = messages.last().map(|m| m.id);
         let mut turns = Vec::new();
         let mut previous_user: Option<Option<DateTime<Utc>>> = None;
-        let mut previous_question: Option<&lokalbot_core::ChatMessage> = None;
+        let mut previous_question: Option<&ChatMessage> = None;
         for (index, message) in messages.iter().enumerate() {
             // An older turn dated from its conversation shows no time.
             let created_at = message
@@ -156,7 +159,7 @@ impl AskPage {
                 .filter(|_| !message.created_at_is_estimated);
             match message.role {
                 ChatRole::User => {
-                    let divider = date_divider(created_at, previous_user, Local::now());
+                    let divider = model::visible_date_divider(created_at, previous_user, now);
                     turns.push(Turn::User {
                         id: message.id,
                         text: message.text.clone(),
@@ -164,9 +167,7 @@ impl AskPage {
                         separator: index > 0 && divider.is_none(),
                         divider,
                         latest: Some(message.id) == latest_user,
-                        scope: super::scope::question_scope_changed(message, previous_question)
-                            .then(|| super::scope::question_scope_summary(message, offered))
-                            .flatten(),
+                        scope: super::scope::question_scope_summary(message, offered),
                     });
                     previous_user = Some(created_at);
                     previous_question = Some(message);
@@ -174,15 +175,20 @@ impl AskPage {
                 ChatRole::Assistant => turns.push(Turn::Assistant {
                     id: message.id,
                     text: message.text.clone(),
-                    created_at,
                     steps: message.activity.iter().map(step).collect(),
                     pending: false,
                     status: None,
                     error: message.is_error.then(|| message.text.clone().into()),
                     can_retry: stream.is_none()
                         && lokalbot_core::can_retry(messages, message.id, live_attachments),
+                    can_ask_again: !responding && model::ask_again(messages, message.id).is_some(),
                     receipt: message.remember_receipt.clone(),
                     used_claims: message.used_claim_ids.clone().unwrap_or_default(),
+                    failed_question: (message.is_error
+                        && Some(message.id) == last_id
+                        && stream.is_none())
+                    .then(|| previous_question.cloned().map(Box::new))
+                    .flatten(),
                 }),
             }
         }
@@ -191,12 +197,12 @@ impl AskPage {
                 .last()
                 .is_some_and(|m| m.role == ChatRole::User && m.text == stream.question);
             if !saved_question {
-                let now = Utc::now();
-                let divider = date_divider(Some(now), previous_user, Local::now());
+                let at = Utc::now();
+                let divider = model::visible_date_divider(Some(at), previous_user, now);
                 turns.push(Turn::User {
                     id: Uuid::from_u128(STREAM_ID.as_u128() + 1),
                     text: stream.question.clone(),
-                    created_at: Some(now),
+                    created_at: Some(at),
                     separator: !messages.is_empty() && divider.is_none(),
                     divider,
                     latest: true,
@@ -210,14 +216,12 @@ impl AskPage {
             turns.push(Turn::Assistant {
                 id: STREAM_ID,
                 text: stream.text.clone(),
-                created_at: None,
                 steps: stream
                     .activity
                     .iter()
                     .enumerate()
                     .map(|(i, text)| Step {
                         text: text.clone(),
-                        icon: Ico::Search,
                         done: !answering || i + 1 < count || !stream.text.is_empty(),
                     })
                     .collect(),
@@ -227,11 +231,15 @@ impl AskPage {
                 status: stream.status.clone(),
                 error: stream.error.clone(),
                 can_retry: false,
+                can_ask_again: false,
+                failed_question: None,
             });
         }
         turns
     }
 
+    /// The conversation, scrolled to its end while an answer streams. Quick
+    /// Recall shows the same view for its one conversation.
     pub(crate) fn render_transcript(
         &mut self,
         _window: &mut Window,
@@ -251,6 +259,12 @@ impl AskPage {
             max.y + offset.y < px(96.)
         };
         let lb = cx.lb().clone();
+        let passage = self.render_passage(cx);
+        // The tray of matches covers the end of the conversation while typing.
+        let near_bottom = near_bottom
+            || (!self.embedded
+                && self.ask_phase(cx).matches_placement()
+                    == Some(super::model::MatchesPlacement::TrayAboveField));
         div()
             .relative()
             .size_full()
@@ -270,7 +284,7 @@ impl AskPage {
                         v_flex().w_full().items_center().child(
                             v_flex()
                                 .w_full()
-                                .max_w(metric::READING_MAX_WIDTH + metric::DETAIL_PADDING * 2.)
+                                .max_w(metric::READING_MAX_WIDTH)
                                 .px(metric::DETAIL_PADDING)
                                 .pt(px(20.))
                                 .pb(metric::DETAIL_PADDING)
@@ -303,8 +317,12 @@ impl AskPage {
                         ),
                 )
             })
+            .children(passage)
     }
 
+    /// The question in its own words, with the time it was asked. What it was
+    /// limited to is in the time's tooltip; the composer's two menus are where
+    /// scope is chosen.
     fn render_user_turn(&self, turn: Turn, cx: &mut Context<Self>) -> Div {
         let Turn::User {
             id,
@@ -321,32 +339,62 @@ impl AskPage {
         let lb = cx.lb().clone();
         let long = text.chars().count() > 180 || text.lines().count() > 3;
         let expanded = latest || self.turns.questions.contains(&id);
+        let key = super::history::element_key(id);
+        let time = created_at.map(|at| {
+            at.with_timezone(&Local)
+                .format_localized(
+                    lokalbot_i18n::date_pattern("%-I:%M %p"),
+                    lokalbot_i18n::date_locale(),
+                )
+                .to_string()
+        });
         v_flex()
             .gap(px(12.))
             .when_some(divider, |this, title| {
                 this.child(date_divider_row(title, cx))
             })
-            .when(separator, |this| this.child(ui::divider(cx)))
+            .when(separator, |this| {
+                this.child(div().pb(px(8.)).child(ui::divider(cx)))
+            })
             .child(
                 v_flex()
                     .gap(px(7.))
                     .child(
-                        turn_meta(Ico::CircleUser, lokalbot_i18n::tr("You"), created_at, cx)
-                            .when_some(scope, |this, scope| {
-                                let color = lb.text.opacity(0.68);
-                                this.child(div().text_color(lb.text_tertiary).child("·"))
-                                    .child(ui::icon(Ico::Crosshair, px(13.), color))
-                                    .child(div().min_w_0().truncate().child(scope))
+                        h_flex()
+                            .w_full()
+                            .gap(px(12.))
+                            .items_start()
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .text_size(ty::QUESTION)
+                                    .line_height(px(25.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(lb.text)
+                                    .when(!expanded, |this| this.line_clamp(3))
+                                    .child(text),
+                            )
+                            .when_some(time, |this, time| {
+                                let scope = scope.clone();
+                                this.child(
+                                    div()
+                                        .id(("ask-question-time", key))
+                                        .flex_none()
+                                        .pt(px(3.))
+                                        .text_size(ty::SECONDARY)
+                                        .text_color(lb.supporting)
+                                        .child(time)
+                                        .when_some(scope, |this, scope| {
+                                            this.tooltip(move |window, cx| {
+                                                gpui_kit::component::tooltip::Tooltip::new(
+                                                    scope.clone(),
+                                                )
+                                                .build(window, cx)
+                                            })
+                                        }),
+                                )
                             }),
-                    )
-                    .child(
-                        div()
-                            .text_size(ty::QUESTION)
-                            .line_height(px(25.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(lb.text)
-                            .when(!expanded, |this| this.line_clamp(3))
-                            .child(text),
                     )
                     .when(long && !latest, |this| {
                         let label = if expanded {
@@ -356,7 +404,7 @@ impl AskPage {
                         };
                         this.child(
                             div()
-                                .id(("ask-question-toggle", super::history::element_key(id)))
+                                .id(("ask-question-toggle", key))
                                 .cursor_pointer()
                                 .text_size(ty::SECONDARY)
                                 .font_weight(FontWeight::SEMIBOLD)
@@ -378,14 +426,15 @@ impl AskPage {
         let Turn::Assistant {
             id,
             text,
-            created_at,
             steps,
             pending,
             status,
             error,
             can_retry,
+            can_ask_again,
             receipt,
             used_claims,
+            failed_question,
         } = turn
         else {
             return div();
@@ -399,50 +448,54 @@ impl AskPage {
             normalized == "stopped." || normalized.starts_with("response stopped")
         };
         let answer = self.parsed_answer(id, &text);
-        let mut column = v_flex().gap(px(10.)).w_full();
+        let mut column = v_flex().gap(px(12.)).w_full();
 
         if stopped {
-            column = column.child(status_row(
+            return column.child(self.status_card(
+                id,
                 lokalbot_i18n::tr("Response stopped"),
-                if can_retry {
-                    lokalbot_i18n::tr(
-                        "The response was interrupted. You can try the question again.",
-                    )
-                } else {
-                    lokalbot_i18n::tr("This earlier response was not completed.")
-                },
+                None,
                 Ico::CircleStop,
                 lb.text_secondary,
+                false,
+                can_retry,
                 cx,
             ));
-        } else if let Some(error) = error.clone() {
-            column = column.child(status_row(
-                lokalbot_i18n::tr("Answer unavailable"),
-                &error,
+        }
+        if let Some(error) = error {
+            column = column.child(self.status_card(
+                id,
+                lokalbot_i18n::tr("Couldn't answer"),
+                Some(error),
                 Ico::TriangleAlert,
                 lb.attention_text,
+                true,
+                can_retry,
                 cx,
             ));
-        } else {
-            let title = if pending {
-                lokalbot_i18n::tr("LokalBot is answering")
-            } else {
-                "LokalBot"
-            };
-            column = column.child(turn_meta(Ico::Sparkles, title, created_at, cx));
-            if !steps.is_empty() {
-                column = column.child(self.render_worked_line(id, &steps, cx));
+            if let Some(question) = failed_question {
+                column = column.children(self.render_failed_matches(id, &question, cx));
             }
+            return column;
         }
-
-        if pending && text.trim().is_empty() && error.is_none() {
-            column = column.child(self.render_preparation(status, cx));
-        } else if !stopped && error.is_none() && !answer.is_empty() {
+        if steps.iter().any(|step| !step.done) {
+            column = column.child(render_worked_line(&steps, cx));
+        }
+        if pending && text.trim().is_empty() {
+            return column.child(self.render_preparation(status, cx));
+        }
+        if !answer.is_empty() {
             let page = cx.entity();
             let citations = answer.citations.clone();
-            let on_cite: answer_text::CiteHandler = Rc::new(move |index, _, cx| {
+            let on_cite: answer_text::CiteHandler = Rc::new(move |index, window, cx| {
                 if let Some(source) = citations.get(index).cloned() {
-                    page.update(cx, |page, cx| page.open_citation(&source, cx));
+                    page.update(cx, |page, cx| {
+                        if pending {
+                            page.open_citation(&source, cx)
+                        } else {
+                            page.toggle_passage(id, index + 1, source, window, cx)
+                        }
+                    });
                 }
             });
             column = column.child(answer_text::render(
@@ -453,103 +506,628 @@ impl AskPage {
                 cx,
             ));
         }
-
-        let copy_text = citations::display_text(&text);
-        let has_text = !copy_text.trim().is_empty() && !stopped && error.is_none();
-        let copied = self.turns.copied == Some(id);
-        let responding = self.is_responding(cx);
         let speech = answer_speech(id, cx);
-        let speech_error = speech.error.clone();
-        let speech_text = copy_text.clone();
-        column = column.child(
-            h_flex()
-                .gap(px(8.))
-                .pt(px(2.))
-                .when(has_text && !pending, |this| {
-                    this.child(
-                        Button::new(("ask-copy", super::history::element_key(id)))
-                            .outline()
-                            .small()
-                            .icon(Icon::new(if copied { Ico::Check } else { Ico::Copy }))
-                            .label(if copied {
-                                lokalbot_i18n::tr("Copied")
-                            } else {
-                                lokalbot_i18n::tr("Copy")
-                            })
-                            .disabled(copied)
-                            .tooltip(lokalbot_i18n::tr("Copy this answer"))
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.copy_answer(id, copy_text.clone(), cx)
-                            })),
-                    )
-                    .child(
-                        Button::new(("ask-read-aloud", super::history::element_key(id)))
-                            .outline()
-                            .small()
-                            .icon(Icon::new(if speech.preparing {
-                                Ico::Hourglass
-                            } else if speech.reading {
-                                Ico::Square
-                            } else {
-                                Ico::Volume2
-                            }))
-                            .label(if speech.reading {
-                                lokalbot_i18n::tr("Stop reading")
-                            } else {
-                                lokalbot_i18n::tr("Read aloud")
-                            })
-                            .tooltip(if speech.reading {
-                                lokalbot_i18n::tr("Stop reading aloud")
-                            } else {
-                                lokalbot_i18n::tr("Read this answer aloud")
-                            })
-                            .on_click(cx.listener(move |_, _, _, cx| {
-                                toggle_answer_speech(id, &speech_text, cx)
-                            })),
-                    )
-                })
-                .when(can_retry && !responding, |this| {
-                    this.child(
-                        Button::new(("ask-retry", super::history::element_key(id)))
-                            .outline()
-                            .small()
-                            .icon(Icon::new(Ico::RotateCw))
-                            .label(lokalbot_i18n::tr("Retry"))
-                            .tooltip(lokalbot_i18n::tr("Try this question again"))
-                            .on_click(cx.listener(move |this, _, _, cx| this.retry(id, cx))),
-                    )
-                })
-                .when(pending && responding, |this| {
-                    this.child(
-                        Button::new("ask-stop-answer")
-                            .outline()
-                            .small()
-                            .icon(Icon::new(Ico::Square))
-                            .label(lokalbot_i18n::tr("Stop"))
-                            .tooltip(lokalbot_i18n::tr("Stop answering (Esc)"))
-                            .on_click(cx.listener(|this, _, _, cx| this.stop_answer(cx))),
-                    )
-                }),
-        );
-        if let Some(message) = speech_error {
+        if let Some(message) = speech.error.clone() {
             column = column.child(
                 div()
-                    .text_size(ty::SECONDARY)
+                    .text_size(ty::CAPTION)
                     .text_color(cx.lb().attention_text)
-                    .child(crate::ui::text::paragraph(message)),
+                    .truncate()
+                    .child(message),
             );
         }
-
-        if !answer.citations.is_empty() && !stopped && error.is_none() {
+        if pending {
+            return column;
+        }
+        if !answer.citations.is_empty() {
             self.load_screen_citations(&answer.citations, cx);
             self.load_file_citations(&answer.citations, cx);
             self.load_note_citations(&answer.citations, cx);
-            column = column.child(self.render_evidence(id, &answer.citations, cx));
         }
-        if !used_claims.is_empty() && !stopped && error.is_none() {
-            column = column.child(self.render_used_claims(id, &used_claims, cx));
+        if !answer.citations.is_empty() || !used_claims.is_empty() {
+            column =
+                column.child(self.render_sources_list(id, &answer.citations, &used_claims, cx));
         }
-        column
+        let copy_text = citations::display_text(&text);
+        column.child(self.render_answer_actions(id, copy_text, can_ask_again, speech, cx))
+    }
+
+    /// A short notice in place of an answer, with the way to fix it.
+    #[allow(clippy::too_many_arguments)]
+    fn status_card(
+        &self,
+        id: Uuid,
+        title: &str,
+        detail: Option<SharedString>,
+        icon: Ico,
+        tint: gpui_kit::Hsla,
+        offers_model_settings: bool,
+        can_retry: bool,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let lb = cx.lb().clone();
+        let key = super::history::element_key(id);
+        let responding = self.is_responding(cx);
+        h_flex()
+            .w_full()
+            .gap(px(10.))
+            .items_center()
+            .px(px(12.))
+            .py(px(10.))
+            .rounded(metric::GROUP_RADIUS)
+            .bg(lb.panel)
+            .border_1()
+            .border_color(lb.group_stroke)
+            .child(ui::icon(icon, px(16.), tint))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(1.))
+                    .child(
+                        div()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(lb.text)
+                            .child(title.to_string()),
+                    )
+                    .when_some(detail, |this, detail| {
+                        this.child(
+                            div()
+                                .text_size(ty::SECONDARY)
+                                .text_color(lb.supporting)
+                                .child(ui::text::paragraph(detail)),
+                        )
+                    }),
+            )
+            .when(offers_model_settings, |this| {
+                this.child(
+                    Button::new(("ask-model-settings", key))
+                        .outline()
+                        .small()
+                        .label(lokalbot_i18n::tr("Model settings"))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.data.update(cx, |data, cx| {
+                                data.open_settings(SettingsCategory::Models, cx)
+                            })
+                        })),
+                )
+            })
+            .when(can_retry && !responding, |this| {
+                this.child(
+                    Button::new(("ask-retry", key))
+                        .outline()
+                        .small()
+                        .icon(Icon::new(Ico::RotateCw))
+                        .label(lokalbot_i18n::tr("Retry"))
+                        .on_click(cx.listener(move |this, _, _, cx| this.retry(id, cx))),
+                )
+            })
+    }
+
+    /// Copy, read aloud and ask again: quiet icons, each named in its tooltip.
+    fn render_answer_actions(
+        &self,
+        id: Uuid,
+        copy_text: String,
+        can_ask_again: bool,
+        speech: AnswerSpeech,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let key = super::history::element_key(id);
+        let has_text = !copy_text.trim().is_empty();
+        let copied = self.turns.copied == Some(id);
+        let speech_text = copy_text.clone();
+        h_flex()
+            .gap(px(2.))
+            .ml(px(-6.))
+            .mt(px(-4.))
+            .when(has_text, |this| {
+                this.child(
+                    Button::new(("ask-copy", key))
+                        .ghost()
+                        .small()
+                        .icon(Icon::new(if copied { Ico::Check } else { Ico::Copy }))
+                        .disabled(copied)
+                        .tooltip(if copied {
+                            lokalbot_i18n::tr("Copied")
+                        } else {
+                            lokalbot_i18n::tr("Copy this answer")
+                        })
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.copy_answer(id, copy_text.clone(), cx)
+                        })),
+                )
+                .child(
+                    Button::new(("ask-read-aloud", key))
+                        .ghost()
+                        .small()
+                        .icon(Icon::new(if speech.preparing {
+                            Ico::Hourglass
+                        } else if speech.reading {
+                            Ico::Square
+                        } else {
+                            Ico::Volume2
+                        }))
+                        .tooltip(if speech.reading {
+                            lokalbot_i18n::tr("Stop reading aloud")
+                        } else {
+                            lokalbot_i18n::tr("Read aloud")
+                        })
+                        .on_click(cx.listener(move |_, _, _, cx| {
+                            toggle_answer_speech(id, &speech_text, cx)
+                        })),
+                )
+            })
+            .when(can_ask_again, |this| {
+                this.child(
+                    Button::new(("ask-again", key))
+                        .ghost()
+                        .small()
+                        .icon(Icon::new(Ico::RotateCw))
+                        .tooltip(lokalbot_i18n::tr("Ask again"))
+                        .on_click(cx.listener(move |this, _, _, cx| this.ask_again(id, cx))),
+                )
+            })
+    }
+
+    /// The list that ends an answer (`AnswerSourcesList`): a row per meeting,
+    /// screen moment, file or note it cited, with the answer's numbers and
+    /// times, and one row for what the person told LokalBot when that went into
+    /// the answer. It replaces the Evidence disclosure.
+    fn render_sources_list(
+        &mut self,
+        id: Uuid,
+        sources: &[CitationSource],
+        used_claims: &[Uuid],
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let lb = cx.lb().clone();
+        let meetings = self.data.read(cx).meetings.clone();
+        let groups = model::source_groups(
+            sources,
+            |id| citations::resolve_meeting(id, &meetings).map(|m| m.id.to_string()),
+            |file| {
+                citations::known_file_citation(file)
+                    .flatten()
+                    .map(|hit| hit.path)
+            },
+        );
+        let mut card = v_flex()
+            .w_full()
+            .rounded(metric::GROUP_RADIUS)
+            .bg(lb.panel)
+            .border_1()
+            .border_color(lb.group_stroke)
+            .overflow_hidden();
+        let key = super::history::element_key(id);
+        let mut first = true;
+        for (index, group) in groups.iter().enumerate() {
+            if !first {
+                card = card.child(div().h(px(1.)).bg(lb.separator));
+            }
+            first = false;
+            card = card.child(self.source_row(id, key, index, group, &meetings, cx));
+        }
+        if !used_claims.is_empty() {
+            if !first {
+                card = card.child(div().h(px(1.)).bg(lb.separator));
+            }
+            card = card.child(self.render_used_claims(id, used_claims, cx));
+        }
+        card
+    }
+
+    fn source_row(
+        &self,
+        answer: Uuid,
+        key: u64,
+        index: usize,
+        group: &SourceGroup,
+        meetings: &[lokalbot_core::Meeting],
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let lb = cx.lb().clone();
+        let now = Local::now();
+        let first = group.first().clone();
+        let (lead, title, meta, available) = match &first {
+            CitationSource::Meeting { id, .. } => match citations::resolve_meeting(id, meetings) {
+                Some(meeting) => (
+                    super::matches::source_tile(Ico::AudioLines, px(32.), px(22.), &lb),
+                    meeting.display_title(),
+                    model::moment_label(meeting.started_at, now),
+                    true,
+                ),
+                None => (
+                    super::matches::source_tile(Ico::AudioLines, px(32.), px(22.), &lb),
+                    lokalbot_i18n::tr("Meeting").to_string(),
+                    lokalbot_i18n::tr("Unavailable").to_string(),
+                    false,
+                ),
+            },
+            CitationSource::Screen { snapshot_id } => {
+                match self.screen_citations.get(snapshot_id) {
+                    Some(Some(moment)) => {
+                        let when = model::moment_label(moment.ts, now);
+                        let titled = !moment.window_title.trim().is_empty();
+                        let image = self.thumbnails.image(moment, cx, |page| &page.thumbnails);
+                        (
+                            screen_thumbnail::tile(image, moment, px(32.), px(22.), cx)
+                                .rounded(px(5.))
+                                .into_any_element(),
+                            if titled {
+                                moment.window_title.clone()
+                            } else {
+                                moment.app.clone()
+                            },
+                            if titled {
+                                format!("{} · {when}", moment.app)
+                            } else {
+                                when
+                            },
+                            true,
+                        )
+                    }
+                    known => (
+                        super::matches::source_tile(Ico::Monitor, px(32.), px(22.), &lb),
+                        lokalbot_i18n::tr("Screen").to_string(),
+                        if known.is_some() {
+                            lokalbot_i18n::tr("Unavailable").to_string()
+                        } else {
+                            String::new()
+                        },
+                        false,
+                    ),
+                }
+            }
+            CitationSource::File { id } => match citations::known_file_citation(*id) {
+                Some(Some(hit)) => (
+                    div()
+                        .w(px(32.))
+                        .h(px(22.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(ui::icon(
+                            super::search::file_icon(hit.kind),
+                            px(18.),
+                            lb.text_secondary,
+                        ))
+                        .into_any_element(),
+                    hit.name(),
+                    hit.folder(),
+                    true,
+                ),
+                known => (
+                    super::matches::source_tile(Ico::File, px(32.), px(22.), &lb),
+                    lokalbot_i18n::tr("Files").to_string(),
+                    if known.is_some() {
+                        lokalbot_i18n::tr("Unavailable").to_string()
+                    } else {
+                        String::new()
+                    },
+                    false,
+                ),
+            },
+            CitationSource::Note { id } => match citations::known_note_citation(id) {
+                Some(Some(hit)) => (
+                    super::matches::source_tile(Ico::FileText, px(32.), px(22.), &lb),
+                    hit.title.clone(),
+                    format!(
+                        "{} · {}",
+                        lokalbot_i18n::tr("Agent note"),
+                        hit.source_label()
+                    ),
+                    true,
+                ),
+                known => (
+                    super::matches::source_tile(Ico::FileText, px(32.), px(22.), &lb),
+                    lokalbot_i18n::tr("Agent note").to_string(),
+                    if known.is_some() {
+                        lokalbot_i18n::tr("Unavailable").to_string()
+                    } else {
+                        String::new()
+                    },
+                    false,
+                ),
+            },
+        };
+        let row_key = key.wrapping_mul(64).wrapping_add(index as u64);
+        let open_source = first.clone();
+        let mut numbers = h_flex().flex_none().gap(px(12.)).items_center();
+        for (number, citation) in &group.entries {
+            let number = *number;
+            let on = self.passage_is_open(answer, number);
+            let cited = citation.clone();
+            let mut entry = h_flex().gap(px(5.)).items_center().child(citation_pill(
+                ElementId::NamedInteger(
+                    SharedString::from(format!("ask-cite-{row_key}")),
+                    number as u64,
+                ),
+                number,
+                on,
+                cx.listener(move |this, _, window, cx| {
+                    this.toggle_passage(answer, number, cited.clone(), window, cx)
+                }),
+                &lb,
+            ));
+            if let (SourceKind::Meeting, CitationSource::Meeting { at: Some(at), .. }) =
+                (group.kind, citation)
+                && available
+            {
+                let at = *at;
+                let meeting = citations::resolve_meeting(
+                    match citation {
+                        CitationSource::Meeting { id, .. } => id,
+                        _ => unreachable!(),
+                    },
+                    meetings,
+                )
+                .map(|m| m.id);
+                entry = entry.child(
+                    h_flex()
+                        .id(ElementId::NamedInteger(
+                            SharedString::from(format!("ask-cite-time-{row_key}")),
+                            number as u64,
+                        ))
+                        .gap(px(3.))
+                        .items_center()
+                        .cursor_pointer()
+                        .text_size(ty::SECONDARY)
+                        .text_color(lb.accent_text)
+                        .child(ui::icon(Ico::Play, px(7.), lb.accent_text))
+                        .child(ui::action_row::short_stamp(at))
+                        .tooltip(|window, cx| {
+                            gpui_kit::component::tooltip::Tooltip::new(lokalbot_i18n::tr(
+                                "Open in meeting",
+                            ))
+                            .build(window, cx)
+                        })
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            if let Some(meeting) = meeting {
+                                this.open_meeting(meeting, Some(at), cx);
+                            }
+                        })),
+                );
+            }
+            numbers = numbers.child(entry);
+        }
+        h_flex()
+            .w_full()
+            .min_h(px(36.))
+            .gap(px(10.))
+            .items_center()
+            .pl(px(8.))
+            .pr(px(12.))
+            .py(px(7.))
+            .child(div().flex_none().child(lead))
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(10.))
+                    .items_center()
+                    .child(
+                        div()
+                            .id(("ask-source-title", row_key))
+                            .min_w_0()
+                            .truncate()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(if available {
+                                lb.text
+                            } else {
+                                lb.text_secondary
+                            })
+                            .when(available, |this| {
+                                this.cursor_pointer()
+                                    .hover(|style| style.underline())
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.open_citation(&open_source, cx)
+                                    }))
+                            })
+                            .child(title),
+                    )
+                    .child(
+                        div()
+                            .min_w_0()
+                            .truncate()
+                            .text_size(ty::SECONDARY)
+                            .text_color(lb.supporting)
+                            .child(meta),
+                    ),
+            )
+            .child(numbers)
+    }
+
+    /// The matches for a question whose answer failed, found again here within
+    /// the sources, dates and evidence limits recorded with the question.
+    fn render_failed_matches(
+        &mut self,
+        answer: Uuid,
+        question: &ChatMessage,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let found = match self.failed_matches.get(&answer) {
+            Some(Some(found)) => found.clone(),
+            Some(None) => return None,
+            None => {
+                self.load_failed_matches(answer, question, cx);
+                return None;
+            }
+        };
+        if found.meetings.is_empty()
+            && found.screens.is_empty()
+            && found.files.is_empty()
+            && found.notes.is_empty()
+        {
+            return None;
+        }
+        let lb = cx.lb().clone();
+        Some(
+            v_flex()
+                .w_full()
+                .gap(px(8.))
+                .child(
+                    div()
+                        .text_size(ty::CAPTION)
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(lb.supporting)
+                        .child(lokalbot_i18n::tr("Matches")),
+                )
+                .child(self.match_card(&found, "ask-failed-match", cx))
+                .into_any_element(),
+        )
+    }
+
+    fn load_failed_matches(
+        &mut self,
+        answer: Uuid,
+        question: &ChatMessage,
+        cx: &mut Context<Self>,
+    ) {
+        self.failed_matches.insert(answer, None);
+        let (library, meetings, settings) = {
+            let data = self.data.read(cx);
+            (
+                data.library.clone(),
+                data.meetings.clone(),
+                data.settings.clone(),
+            )
+        };
+        let sources = super::scope::Sources::from_saved(&question.source_scopes);
+        let bounds = question
+            .day_scope_key
+            .as_deref()
+            .map_or(super::scope::DateScope::AnyTime, |key| {
+                super::scope::DateScope::from_storage_key(key)
+            })
+            .bounds();
+        let query = super::search::Query {
+            text: question.text.trim().to_string(),
+            facet: super::search::Facet::All,
+            meetings: sources.meetings,
+            screen: sources.screen,
+            file_folders: if sources.files && settings.file_search_enabled {
+                settings.file_search_folders.clone()
+            } else {
+                Vec::new()
+            },
+            agent_notes: sources.agent_notes && settings.coding_agent_notes_enabled,
+            screen_app: question.screen_app.clone(),
+            screen_ids: question.screen_snapshot_ids.clone(),
+            meeting_ids: question.meeting_ids.clone(),
+            since: bounds.map(|(since, _)| since),
+            until: bounds.map(|(_, until)| until),
+            limit: super::search::DISPLAY_LIMIT,
+        };
+        cx.spawn(async move |this, cx| {
+            let found = cx
+                .background_spawn(async move { super::search::run(&library, &meetings, &query) })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.failed_matches.insert(answer, Some(found));
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Questions about the person's own latest meeting, a colleague and a
+    /// project, then one word to search for.
+    pub(super) fn render_suggestions(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let lb = cx.lb().clone();
+        let all = self.suggestions(cx);
+        let mut rows: Vec<AnyElement> = vec![div().h(px(14.)).into_any_element()];
+        for (index, suggestion) in all
+            .iter()
+            .filter(|s| s.kind != SuggestionKind::Keyword)
+            .enumerate()
+        {
+            let text = suggestion.text.clone();
+            rows.push(
+                suggestion_row(("ask-suggestion", index), suggestion, None, &lb)
+                    .on_click(cx.listener(move |this, _, window, cx| {
+                        this.ask_suggestion(&text, window, cx)
+                    }))
+                    .into_any_element(),
+            );
+        }
+        if let Some(word) = all.iter().find(|s| s.kind == SuggestionKind::Keyword) {
+            rows.push(
+                div()
+                    .pt(px(6.))
+                    .pb(px(5.))
+                    .child(div().h(px(1.)).bg(lb.separator))
+                    .into_any_element(),
+            );
+            let text = word.text.clone();
+            rows.push(
+                suggestion_row(
+                    ("ask-suggestion-word", 0usize),
+                    word,
+                    Some(lokalbot_i18n::tr("Type a word to see where it came up")),
+                    &lb,
+                )
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    this.set_composer_text(&text, window, cx);
+                    this.focus_composer(window, cx);
+                }))
+                .into_any_element(),
+            );
+        }
+        rows
+    }
+
+    fn suggestions(&mut self, cx: &mut Context<Self>) -> Vec<Suggestion> {
+        self.load_suggestion_names(cx);
+        let latest = self
+            .data
+            .read(cx)
+            .meetings
+            .iter()
+            .filter(|m| m.is_own_work() && m.ended_at.is_some())
+            .max_by_key(|m| m.started_at)
+            .map(|m| m.display_title());
+        let (person, project) = self
+            .suggestion_names
+            .as_ref()
+            .map(|names| (names.person.clone(), names.project.clone()))
+            .unwrap_or_default();
+        model::suggestions(latest.as_deref(), person.as_deref(), project.as_deref())
+    }
+
+    /// A colleague and a project to name, read off the UI thread once per
+    /// library change.
+    fn load_suggestion_names(&mut self, cx: &mut Context<Self>) {
+        let revision = self.data.read(cx).revision;
+        if self.suggestion_names_revision == Some(revision) {
+            return;
+        }
+        self.suggestion_names_revision = Some(revision);
+        let library = self.data.read(cx).library.clone();
+        cx.spawn(async move |this, cx| {
+            let names = cx
+                .background_spawn(async move {
+                    let (people, projects) =
+                        lokalbot_core::projects::build_people_and_projects(&library).ok()?;
+                    let project = projects
+                        .iter()
+                        .find(|p| p.kind == lokalbot_core::ProjectKind::Tracked)
+                        .or(projects.first())
+                        .map(|p| p.name.clone());
+                    Some(super::SuggestionNames {
+                        person: people.first().map(|p| p.name.clone()),
+                        project,
+                    })
+                })
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                this.suggestion_names = names;
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     /// Reads the cited screen moments that are not loaded yet, off the UI thread.
@@ -712,77 +1290,6 @@ impl AskPage {
         }
     }
 
-    fn render_worked_line(&self, id: Uuid, steps: &[Step], cx: &mut Context<Self>) -> Div {
-        let lb = cx.lb().clone();
-        if let Some(current) = steps.iter().find(|s| !s.done) {
-            return h_flex()
-                .gap(px(6.))
-                .items_center()
-                .text_size(ty::SECONDARY)
-                .text_color(lb.text_secondary)
-                .child(Spinner::new().xsmall().color(lb.text_secondary))
-                .child(current.text.clone());
-        }
-        let expanded = self.turns.worked.contains(&id);
-        let summary = format!(
-            "worked: {}",
-            steps
-                .iter()
-                .map(|s| s.text.as_str())
-                .collect::<Vec<_>>()
-                .join(" · ")
-        );
-        v_flex()
-            .gap(px(6.))
-            .child(
-                h_flex()
-                    .id(("ask-worked", super::history::element_key(id)))
-                    .gap(px(6.))
-                    .items_center()
-                    .cursor_pointer()
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_secondary)
-                    .hover(|s| s.text_color(lb.text))
-                    .child(ui::icon(Ico::CircleCheck, px(12.), lb.text_secondary))
-                    .child(div().min_w_0().truncate().child(summary))
-                    .child(ui::icon(
-                        if expanded {
-                            Ico::ChevronDown
-                        } else {
-                            Ico::ChevronRight
-                        },
-                        px(12.),
-                        lb.text_secondary,
-                    ))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if !this.turns.worked.remove(&id) {
-                            this.turns.worked.insert(id);
-                        }
-                        cx.notify();
-                    })),
-            )
-            .when(expanded, |this| {
-                this.child(
-                    h_flex()
-                        .flex_wrap()
-                        .gap(px(6.))
-                        .children(steps.iter().map(|step| {
-                            h_flex()
-                                .gap(px(6.))
-                                .items_center()
-                                .px(px(8.))
-                                .py(px(3.))
-                                .rounded(px(6.))
-                                .bg(lb.chip_fill)
-                                .text_size(ty::SECONDARY)
-                                .text_color(lb.text_secondary)
-                                .child(ui::icon(step.icon, px(12.), lb.text_secondary))
-                                .child(step.text.clone())
-                        })),
-                )
-            })
-    }
-
     fn render_preparation(&self, status: Option<SharedString>, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let data = self.data.read(cx);
@@ -860,237 +1367,117 @@ impl AskPage {
                 )
             })
     }
+}
 
-    fn render_evidence(&self, id: Uuid, sources: &[CitationSource], cx: &mut Context<Self>) -> Div {
-        let lb = cx.lb().clone();
-        let meetings = self.data.read(cx).meetings.clone();
-        let expanded = self
-            .turns
-            .evidence
-            .get(&id)
-            .copied()
-            .unwrap_or(sources.len() <= 3);
-        let summary = citations::evidence_summary(sources, &meetings, &self.screen_citations);
-        let key = super::history::element_key(id);
-        let rows: Vec<AnyElement> = sources
-            .iter()
-            .enumerate()
-            .map(|(index, source)| {
-                let resolved = citations::resolve(source, &meetings, &self.screen_citations);
-                let source = source.clone();
-                let available = resolved.available;
-                h_flex()
-                    .id(("ask-evidence-row", key.wrapping_add(index as u64 + 1)))
-                    .gap(px(10.))
-                    .items_center()
-                    .p(px(12.))
-                    .rounded(metric::GROUP_RADIUS)
-                    .bg(lb.group_fill)
-                    .border_1()
-                    .border_color(lb.group_stroke)
-                    .when(available, |this| {
-                        this.cursor_pointer().hover(|s| s.bg(lb.hover))
-                    })
-                    .child(
-                        div()
-                            .size(px(20.))
-                            .flex_none()
-                            .rounded(px(4.))
-                            .bg(lb.accent_fill)
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .text_size(ty::SECONDARY)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(gpui_kit::white())
-                            .child((index + 1).to_string()),
-                    )
-                    .child(div().w(px(20.)).flex_none().child(ui::icon(
-                        if resolved.is_screen {
-                            Ico::Monitor
-                        } else {
-                            Ico::Users
-                        },
-                        px(15.),
-                        lb.text_secondary,
-                    )))
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .gap(px(3.))
-                            .child(
-                                div()
-                                    .text_size(ty::BODY)
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(if available {
-                                        lb.text
-                                    } else {
-                                        lb.text_secondary
-                                    })
-                                    .line_clamp(2)
-                                    .child(resolved.title),
-                            )
-                            .child(
-                                div()
-                                    .text_size(ty::SECONDARY)
-                                    .text_color(lb.text_secondary)
-                                    .child(resolved.detail),
-                            ),
-                    )
-                    .child(if available {
-                        ui::icon(Ico::ChevronRight, px(12.), lb.text_tertiary).into_any_element()
-                    } else {
-                        div()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Unavailable")))
-                            .into_any_element()
-                    })
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        if available {
-                            this.open_citation(&source, cx);
-                        }
-                    }))
-                    .into_any_element()
-            })
-            .collect();
+/// The step in flight, with a spinner (`WorkedLine` while a tool runs).
+fn render_worked_line(steps: &[Step], cx: &App) -> Div {
+    let lb = cx.lb();
+    let current = steps.iter().find(|s| !s.done);
+    h_flex()
+        .gap(px(6.))
+        .items_center()
+        .text_size(ty::SECONDARY)
+        .text_color(lb.text_secondary)
+        .child(Spinner::new().xsmall().color(lb.text_secondary))
+        .when_some(current, |this, step| {
+            this.child(div().min_w_0().truncate().child(step.text.clone()))
+        })
+}
 
-        v_flex()
-            .w_full()
-            .rounded(metric::GROUP_RADIUS)
-            .bg(lb.chip_fill.opacity(0.5))
-            .child(
-                h_flex()
-                    .id(("ask-evidence", key))
-                    .gap(px(8.))
-                    .items_center()
-                    .px(px(12.))
-                    .py(px(9.))
-                    .cursor_pointer()
-                    .child(ui::icon(if expanded { Ico::ChevronDown } else { Ico::ChevronRight }, px(12.), lb.text_secondary))
-                    .child(ui::icon(Ico::ShieldCheck, px(14.), lb.accent_text))
-                    .child(div().text_size(ty::BODY).text_color(lb.text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Evidence"))))
-                    .child(div().min_w_0().truncate().text_size(ty::SECONDARY).text_color(lb.text_secondary).child(summary))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.turns.evidence.insert(id, !expanded);
-                        cx.notify();
-                    })),
-            )
-            .when(expanded, |this| {
-                this.child(
-                    v_flex()
-                        .gap(px(8.))
-                        .px(px(12.))
-                        .pb(px(12.))
-                        .children(rows)
-                        .child(
-                            div()
-                                .pt(px(2.))
-                                .text_size(ty::SECONDARY)
-                                .text_color(lb.text_secondary)
-                                .child(crate::ui::text::paragraph(lokalbot_i18n::tr("LokalBot used only the sources enabled for this question. Citation numbers remain stable even when a local source is later removed."))),
-                        ),
-                )
-            })
-    }
+/// A citation number as a small pill, filled while its passage is showing.
+fn citation_pill(
+    id: ElementId,
+    number: usize,
+    on: bool,
+    on_click: impl Fn(&gpui_kit::ClickEvent, &mut Window, &mut App) + 'static,
+    lb: &crate::theme::Palette,
+) -> gpui_kit::Stateful<Div> {
+    let (bg, fg) = if on {
+        (lb.accent_fill, gpui_kit::white())
+    } else {
+        (lb.accent_fill.opacity(0.12), lb.accent_text)
+    };
+    div()
+        .id(id)
+        .flex_none()
+        .min_w(px(17.))
+        .h(px(16.))
+        .px(px(4.))
+        .rounded(px(4.))
+        .bg(bg)
+        .flex()
+        .items_center()
+        .justify_center()
+        .cursor_pointer()
+        .text_size(ty::CAPTION)
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(fg)
+        .child(number.to_string())
+        .tooltip(|window, cx| {
+            gpui_kit::component::tooltip::Tooltip::new(lokalbot_i18n::tr("Show the quoted passage"))
+                .build(window, cx)
+        })
+        .on_click(on_click)
+}
 
-    pub(super) fn render_empty_state(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
-        let lb = cx.lb().clone();
-        let suggestions: Vec<AnyElement> = SUGGESTIONS
-            .iter()
-            .enumerate()
-            .map(|(index, suggestion)| {
-                h_flex()
-                    .id(("ask-suggestion", index))
-                    .w_full()
-                    .max_w(px(400.))
-                    .gap(px(8.))
-                    .items_center()
-                    .px(px(12.))
-                    .py(px(9.))
-                    .rounded(metric::GROUP_RADIUS)
-                    .bg(lb.chip_fill)
-                    .cursor_pointer()
-                    .hover(|s| s.bg(lb.hover.opacity(2.0)))
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .text_size(ty::BODY)
-                            .text_color(lb.text)
-                            .child(crate::ui::text::paragraph(lokalbot_i18n::tr(suggestion))),
-                    )
-                    .child(ui::icon(Ico::CircleArrowUp, px(16.), lb.accent_text))
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.ask_suggestion(lokalbot_i18n::tr(suggestion), window, cx)
-                    }))
-                    .into_any_element()
-            })
-            .collect();
-        v_flex()
-            .size_full()
-            .items_center()
-            .justify_center()
-            .p(px(24.))
-            .gap(px(12.))
-            .child(crate::ui::glyphs::ask_glyph(px(34.), lb.text))
-            .child(div().text_size(ty::PAGE_TITLE).font_weight(FontWeight::BOLD).text_color(lb.text).child(crate::ui::text::paragraph(lokalbot_i18n::tr("Ask your work memory"))))
-            .child(
+/// One suggestion: its symbol, the question, and for the word a hint.
+fn suggestion_row(
+    id: impl Into<ElementId>,
+    suggestion: &Suggestion,
+    hint: Option<&str>,
+    lb: &crate::theme::Palette,
+) -> gpui_kit::Stateful<Div> {
+    let icon = match suggestion.kind {
+        SuggestionKind::Project => Ico::Folder,
+        SuggestionKind::Meeting => Ico::AudioLines,
+        SuggestionKind::Person => Ico::Users,
+        SuggestionKind::General => Ico::Sparkles,
+        SuggestionKind::Keyword => Ico::Search,
+    };
+    let hover = lb.hover;
+    h_flex()
+        .id(id)
+        .w_full()
+        .min_h(px(34.))
+        .gap(px(11.))
+        .items_center()
+        .px(px(12.))
+        .rounded(px(8.))
+        .cursor_pointer()
+        .hover(move |style| style.bg(hover))
+        .child(
+            div()
+                .w(px(18.))
+                .flex_none()
+                .flex()
+                .justify_center()
+                .child(ui::icon(icon, px(14.), lb.accent_text)),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_size(ty::BODY)
+                .text_color(lb.text)
+                .child(suggestion.text.clone()),
+        )
+        .when_some(hint, |this, hint| {
+            this.child(
                 div()
-                    .max_w(px(400.))
-                    .text_center()
-                    .text_size(ty::BODY)
-                    .line_height(px(21.))
-                    .text_color(lb.text)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; Ctrl+Return always asks."))),
+                    .flex_none()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.supporting)
+                    .child(hint.to_string()),
             )
-            .child(v_flex().w_full().items_center().gap(px(8.)).pt(px(4.)).children(suggestions))
-    }
+        })
 }
 
 fn step(activity: &ChatActivity) -> Step {
-    let icon = match activity.icon.as_str() {
-        "magnifyingglass" => Ico::Search,
-        "doc.text" => Ico::FileText,
-        "calendar" | "calendar.day.timeline.left" => Ico::Calendar,
-        "rectangle.on.rectangle" | "display" => Ico::Monitor,
-        "list.bullet" | "checklist" => Ico::ListChecks,
-        _ => Ico::CircleCheck,
-    };
     Step {
         text: activity.text.clone(),
-        icon,
         done: activity.done,
     }
-}
-
-/// "You · 10:42 AM" in callout type at 68% of the primary color.
-fn turn_meta(icon: Ico, title: &str, created_at: Option<DateTime<Utc>>, cx: &App) -> Div {
-    let lb = cx.lb();
-    let color = lb.text.opacity(0.68);
-    h_flex()
-        .gap(px(7.))
-        .items_center()
-        .text_size(ty::SECONDARY)
-        .text_color(color)
-        .child(ui::icon(icon, px(14.), color))
-        .child(
-            div()
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(title.to_string()),
-        )
-        .when_some(created_at, |this, at| {
-            this.child(div().text_color(lb.text_tertiary).child("·"))
-                .child(
-                    at.with_timezone(&Local)
-                        .format_localized(
-                            lokalbot_i18n::date_pattern("%-I:%M %p"),
-                            lokalbot_i18n::date_locale(),
-                        )
-                        .to_string(),
-                )
-        })
 }
 
 fn date_divider_row(title: String, cx: &App) -> Div {
@@ -1107,36 +1494,6 @@ fn date_divider_row(title: String, cx: &App) -> Div {
                 .child(title),
         )
         .child(div().flex_1().min_w_0().h(px(1.)).bg(lb.text.opacity(0.10)))
-}
-
-fn status_row(title: &str, detail: &str, icon: Ico, tint: gpui_kit::Hsla, cx: &App) -> Div {
-    let lb = cx.lb();
-    h_flex()
-        .gap(px(10.))
-        .items_start()
-        .p(px(10.))
-        .rounded(metric::GROUP_RADIUS)
-        .bg(lb.chip_fill.opacity(0.4))
-        .border_1()
-        .border_color(lb.text.opacity(0.08))
-        .child(ui::icon(icon, px(16.), tint))
-        .child(
-            v_flex()
-                .gap(px(2.))
-                .child(
-                    div()
-                        .text_size(ty::BODY)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(lb.text)
-                        .child(title.to_string()),
-                )
-                .child(
-                    div()
-                        .text_size(ty::SECONDARY)
-                        .text_color(lb.text_secondary)
-                        .child(detail.to_string()),
-                ),
-        )
 }
 
 /// `ChatTranscriptPresentation.dateDividerTitle`. `previous` is the previous
