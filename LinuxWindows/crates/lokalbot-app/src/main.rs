@@ -21,6 +21,8 @@ mod quit;
 mod sample;
 mod shell;
 mod state;
+#[cfg(test)]
+mod test_support;
 mod theme;
 mod ui;
 mod updates;
@@ -47,7 +49,8 @@ actions!(
 struct Options {
     storage_root: Option<std::path::PathBuf>,
     section: Option<Section>,
-    /// Screenshot target inside Settings, such as the Models runtime selection.
+    /// `--page settings` or `settings-<page>`: open the Settings window alone
+    /// on that page, as the Mac launches on a Settings page.
     settings_category: Option<state::SettingsCategory>,
     /// `--window quick-recall|onboarding` opens that window at startup.
     window: Option<String>,
@@ -112,8 +115,8 @@ fn parse_options() -> Options {
     while let Some(arg) = iter.next() {
         if arg == "--page" {
             if let Some(name) = iter.next() {
-                options.section = section_named(name);
-                options.settings_category = settings_category_named(name);
+                options.section = Section::named(name);
+                options.settings_category = state::SettingsCategory::named(name);
             }
         } else if arg == "--window" {
             options.window = iter.next().cloned();
@@ -163,33 +166,6 @@ impl std::io::Write for Tee {
         let _ = std::io::stderr().flush();
         self.0.flush()
     }
-}
-
-fn section_named(name: &str) -> Option<Section> {
-    Some(match name.to_ascii_lowercase().as_str() {
-        "today" => Section::Today,
-        "meetings" => Section::Meetings,
-        "timeline" => Section::Timeline,
-        "people" => Section::People,
-        "projects" => Section::Projects,
-        "ask" => Section::Ask,
-        "agent" => Section::Agent,
-        "settings" => Section::Settings,
-        _ => {
-            settings_category_named(name)?;
-            Section::Settings
-        }
-    })
-}
-
-fn settings_category_named(name: &str) -> Option<state::SettingsCategory> {
-    Some(match name.to_ascii_lowercase().as_str() {
-        "settings-models" => state::SettingsCategory::Models,
-        "settings-files" => state::SettingsCategory::Files,
-        "settings-devices" => state::SettingsCategory::Devices,
-        "settings-personal-context" => state::SettingsCategory::PersonalContext,
-        _ => return None,
-    })
 }
 
 /// `lokalbot --version` (or `-V`) wherever it appears. `main` checks it before
@@ -305,9 +281,6 @@ fn main() {
             if let Some(section) = options.section {
                 data.update(cx, |data, _| data.section = section);
             }
-            if let Some(category) = options.settings_category {
-                data.update(cx, |data, cx| data.open_settings(category, cx));
-            }
             if let Some(id) = options.moment {
                 let moment = data.read(cx).library.screen_moment(id).ok().flatten();
                 if let Some(moment) = moment {
@@ -340,7 +313,10 @@ fn main() {
                 !first_launch,
                 desktop::desktop(cx).is_some_and(|d| d.has_tray()),
             );
-            if !silent {
+            // A Settings page opens the Settings window alone.
+            if let Some(category) = options.settings_category {
+                data.update(cx, |data, cx| data.open_settings(category, cx));
+            } else if !silent {
                 open_main_window(data.clone(), cx);
             }
             data.update(cx, |data, cx| data.reload(cx));
@@ -350,7 +326,11 @@ fn main() {
                 Some("onboarding") => windows::onboarding::open(cx),
                 // An agent's setup request replaces the wizard; declining it
                 // opens the wizard instead.
-                _ if first_launch && options.section.is_none() && !control::setup_waiting(cx) => {
+                _ if first_launch
+                    && options.section.is_none()
+                    && options.settings_category.is_none()
+                    && !control::setup_waiting(cx) =>
+                {
                     windows::onboarding::open(cx)
                 }
                 _ => {}
@@ -416,10 +396,11 @@ fn bind_actions(cx: &mut App) {
         AppData::global(cx).update(cx, |data, cx| data.toggle_recording(cx));
     });
     cx.on_action(|_: &OpenCommandPalette, cx: &mut App| windows::command_palette::open(cx));
+    // Ctrl+, opens Settings on the page it last showed, or brings it forward.
     cx.on_action(|_: &OpenSettings, cx: &mut App| {
-        desktop::show_main_window(cx);
         AppData::global(cx).update(cx, |data, cx| {
-            data.open_settings(state::SettingsCategory::Overview, cx)
+            let category = data.settings_category;
+            data.open_settings(category, cx)
         });
     });
 }
@@ -510,7 +491,7 @@ fn close_last_window(cx: &mut App) {
     }
 }
 
-fn apply_appearance(data: &Entity<AppData>, window: &mut Window, cx: &mut App) {
+pub(crate) fn apply_appearance(data: &Entity<AppData>, window: &mut Window, cx: &mut App) {
     let settings = data.read(cx).settings.clone();
     let dark = theme::is_dark(settings.app_theme, window.appearance());
     theme::apply(dark, settings.text_size.scale(), Some(window), cx);

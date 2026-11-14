@@ -328,7 +328,7 @@ impl SettingsPage {
                                     menu = menu.item(
                                         PopupMenuItem::new(lokalbot_i18n::tr("Open Meeting"))
                                             .on_click(move |_, _, cx| {
-                                                crate::pages::today::threads::open_meeting(
+                                                crate::ui::action_row::open_meeting(
                                                     &open_data, meeting, None, cx,
                                                 );
                                             }),
@@ -457,7 +457,7 @@ impl SettingsPage {
                                 menu = menu.item(
                                     PopupMenuItem::new(lokalbot_i18n::tr("Open Meeting")).on_click(
                                         move |_, _, cx| {
-                                            crate::pages::today::threads::open_meeting(
+                                            crate::ui::action_row::open_meeting(
                                                 &open_data, meeting, None, cx,
                                             );
                                         },

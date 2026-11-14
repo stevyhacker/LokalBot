@@ -462,7 +462,8 @@ pub fn run(command: &PaletteCommand, cx: &mut App) {
             });
         }
     }
-    if command.placement == Placement::Workspace {
+    // Settings has its own window; everything else is in the main one.
+    if command.placement == Placement::Workspace && !matches!(command.action, A::Settings(_)) {
         crate::desktop::show_main_window(cx);
     }
 }

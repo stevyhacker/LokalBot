@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "Google 캘린더의 iCal 형식 비공개 주소나 게시된 Outlook 캘린더 같은 비공개 iCal 또는 CalDAV 링크입니다. 링크는 시스템 자격 증명 저장소에 보관되고 5분마다 읽히며, 캘린더의 호스트만 표시됩니다.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "스레드는 여러 회의에 걸친 같은 실행 항목을 하나로 묶습니다. 상태를 변경하면 연결된 모든 회의에 반영됩니다.",
   "AI brief unavailable; showing saved context.": "AI 브리핑을 사용할 수 없어 저장된 맥락을 표시합니다.",
+  "AI: connection blocked": "AI: 연결 차단됨",
   "AI: local + remote": "AI: 로컬 + 원격",
   "AI: on this PC": "AI: 이 PC에서",
   "API key (optional)": "API 키(옵션)",

@@ -5,6 +5,10 @@
 //!
 //! Page code should compose these instead of restyling raw `div`s so every
 //! page keeps the same radii, paddings and colors.
+//!
+//! The redesign's shared parts: [`section_panel`] (a section of a page on its
+//! own raised surface, with its pills, bands and lead variant) and
+//! [`action_row`] (the action row every page draws).
 
 pub mod action_row;
 pub mod answer_text;
@@ -16,6 +20,7 @@ pub mod profile;
 pub mod result_row;
 pub mod rule_list;
 pub mod screen_thumbnail;
+pub mod section_panel;
 pub mod segmented_tabs;
 pub mod settings_row;
 pub mod shortcut_field;
@@ -72,7 +77,9 @@ pub fn section(title: impl Into<SharedString>, content: impl IntoElement, cx: &A
         .child(panel(cx).child(content))
 }
 
-/// Bold section heading (13pt headline on macOS).
+/// Bold section heading (13pt headline on macOS): a group's title above
+/// its well, such as Settings' "Your data". Inside a section panel use
+/// `section_panel::panel_label` instead.
 pub fn section_title(title: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .text_size(ty::SECTION)

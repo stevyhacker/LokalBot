@@ -737,7 +737,6 @@ impl ControlHost {
             ));
         }
         let Some(key) = params.get("key").and_then(Value::as_str) else {
-            cx.defer(crate::desktop::show_main_window);
             self.data.update(cx, |data, cx| {
                 data.open_settings(SettingsCategory::Overview, cx)
             });
@@ -753,7 +752,6 @@ impl ControlHost {
             .map(|entry| entry.category)
             .or_else(|| spec.map(|spec| settings_page_for(spec.category)))
             .unwrap_or(SettingsCategory::Overview);
-        cx.defer(crate::desktop::show_main_window);
         self.data.update(cx, |data, cx| {
             data.open_settings(category, cx);
             if entry.is_some() {

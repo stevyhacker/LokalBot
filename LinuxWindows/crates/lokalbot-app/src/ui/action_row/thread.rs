@@ -1,5 +1,8 @@
-//! Action-thread rows for Today, Timeline and the Actions workspace
-//! (`ActionThreadRow` in `OutcomeOverviewViews.swift`).
+//! The action-thread row every page draws (`ActionThreadRow` in
+//! `OutcomeOverviewViews.swift`) and what it does: status changes (asking
+//! first when a thread spans meetings), the sources dialog, the "Looks
+//! done?" and "Still open?" lines, and the hand-off menu items. Use it
+//! through `ui::action_row::thread_row`.
 
 use crate::i18n::h_flex;
 use chrono::Local;
@@ -462,21 +465,32 @@ fn set_excluded(
 
 /// What a row adds beyond the action (`ActionThreadRow`'s options).
 #[derive(Clone, Copy, Default)]
-pub(crate) struct RowOptions<'a> {
+pub(crate) struct ThreadRowOptions<'a> {
     /// Projects show whose work it is when it is someone else's.
     pub show_owner: bool,
     /// People show deferred work as deferred and ask about open work nobody
     /// has mentioned for weeks.
     pub show_staleness: bool,
+    /// Timeline's meeting preview lists that meeting's actions, so a row
+    /// from one meeting does not name it again.
+    pub hide_single_meeting_link: bool,
+    /// People show the moment as a ▶ time that opens the meeting at that
+    /// moment, like the notes beside it, instead of the quote pill.
+    pub plays_evidence: bool,
+    /// A "Looks done?" suggestion for this thread.
     pub hint: Option<&'a CompletionHint>,
 }
 
-/// `ActionThreadRow` with its options: the row, then a "Looks done?" or
-/// "Still open?" line.
-pub(crate) fn thread_row_with(
+/// The shared action row (`ActionThreadRow` on Today, Timeline, People and
+/// Projects): completion circle, the action, a meta line (owner, mixed or
+/// deferred status, source meeting link or "Mentioned in N meetings", due
+/// text red when overdue and amber when due within a week, "Deadline
+/// updated", the time it was said) and the "…" menu; then a "Looks done?" or
+/// "Still open?" line. `id` must be unique on the page.
+pub(crate) fn thread_row(
     id: SharedString,
     thread: &ActionThread,
-    options: RowOptions<'_>,
+    options: ThreadRowOptions<'_>,
     data: &Entity<AppData>,
     cx: &App,
 ) -> AnyElement {
@@ -535,7 +549,7 @@ pub(crate) fn thread_row_with(
             data,
             cx,
         ));
-    } else {
+    } else if !options.hide_single_meeting_link {
         let data = data.clone();
         let meeting_id = latest.meeting_id;
         meta.push(
@@ -550,15 +564,13 @@ pub(crate) fn thread_row_with(
         );
     }
     if let (Some(due), Some(spoken)) = (thread.due.as_deref(), thread.due_reference_date) {
-        let overdue = thread.is_overdue(today);
+        let tone = action_row::DueTone::of_thread(thread, today);
         meta.push(
-            action_row::meta_text(
+            action_row::due_text(
+                SharedString::from(format!("{id}-due")),
                 lokalbot_core::due::label(due, spoken),
-                if overdue {
-                    lb.attention_text
-                } else {
-                    lb.text_secondary
-                },
+                tone,
+                cx,
             )
             .into_any_element(),
         );
@@ -573,16 +585,27 @@ pub(crate) fn thread_row_with(
         let data = data.clone();
         let meeting_id = latest.meeting_id;
         let start = citation.start;
-        meta.push(
+        let open =
+            move |_: &mut Window, cx: &mut App| open_meeting(&data, meeting_id, Some(start), cx);
+        meta.push(if options.plays_evidence {
+            action_row::play_time(
+                SharedString::from(format!("{id}-play")),
+                start,
+                Some(citation.excerpt.into()),
+                open,
+                cx,
+            )
+            .into_any_element()
+        } else {
             action_row::evidence_pill(
                 SharedString::from(format!("{id}-evidence")),
                 start,
                 Some(citation.excerpt.into()),
-                move |_, cx| open_meeting(&data, meeting_id, Some(start), cx),
+                open,
                 cx,
             )
-            .into_any_element(),
-        );
+            .into_any_element()
+        });
     }
 
     let menu = {

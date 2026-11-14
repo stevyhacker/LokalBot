@@ -639,7 +639,6 @@ pub fn invoke_selection_actions(data: &Entity<AppData>, cx: &mut App) {
     if data.read(cx).settings.selection_actions_enabled {
         crate::bridge::send(Command::Selection(SelectionCommand::Invoke), cx);
     } else {
-        show_main_window(cx);
         data.update(cx, |data, cx| {
             data.open_settings(SettingsCategory::General, cx)
         });
@@ -663,12 +662,10 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
             }
             item_ids::ASK => crate::windows::quick_recall::open(cx),
             item_ids::OPEN => show_main_window(cx),
-            item_ids::SETTINGS => {
-                show_main_window(cx);
-                data.update(cx, |data, cx| {
-                    data.open_settings(SettingsCategory::Overview, cx)
-                });
-            }
+            item_ids::SETTINGS => data.update(cx, |data, cx| {
+                let category = data.settings_category;
+                data.open_settings(category, cx)
+            }),
             item_ids::LIVE_TRANSCRIPT => {
                 show_main_window(cx);
                 data.update(cx, |data, cx| {
@@ -710,12 +707,9 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
                 }
             }
             item_ids::DOWNLOAD_UPDATE => crate::updates::open_release_page(cx),
-            item_ids::SHOW_UPDATE => {
-                show_main_window(cx);
-                data.update(cx, |data, cx| {
-                    data.open_settings(SettingsCategory::General, cx)
-                });
-            }
+            item_ids::SHOW_UPDATE => data.update(cx, |data, cx| {
+                data.open_settings(SettingsCategory::General, cx)
+            }),
             item_ids::QUIT => crate::quit::request(cx),
             other if other.starts_with(item_ids::DICTATION_PREFIX) => {
                 let id = other
@@ -791,12 +785,9 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
             },
             cx,
         ),
-        DesktopEvent::ShowUpdate => {
-            show_main_window(cx);
-            data.update(cx, |data, cx| {
-                data.open_settings(SettingsCategory::General, cx)
-            });
-        }
+        DesktopEvent::ShowUpdate => data.update(cx, |data, cx| {
+            data.open_settings(SettingsCategory::General, cx)
+        }),
         DesktopEvent::ShortcutsApplied(outcomes) => shortcuts_applied(data, outcomes, cx),
         DesktopEvent::ShortcutsUnavailable => data.update(cx, |data, cx| {
             data.dictation_shortcut_inactive = data.settings.dictation_enabled;

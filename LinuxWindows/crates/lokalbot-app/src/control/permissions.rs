@@ -145,5 +145,4 @@ pub fn request(name: &str, data: &Entity<AppData>, cx: &mut App) {
         data.settings_focus = Some(focus.to_string());
         cx.notify();
     });
-    crate::desktop::show_main_window(cx);
 }

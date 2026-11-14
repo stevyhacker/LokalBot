@@ -1,5 +1,7 @@
 //! The main window: sidebar, toolbar (which doubles as the title bar) and the
-//! current page. Mirrors `MainWindowView.swift`.
+//! current page. Mirrors `MainWindowView.swift`: Today and Actions lead,
+//! Remember and Assistant group the rest, and Settings with the privacy line
+//! sits in the sidebar's foot. Settings opens its own window.
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -14,10 +16,10 @@ use gpui_kit::{
 };
 
 use crate::pages::{
-    Page, agent::AgentPage, ask::AskPage, meetings::MeetingsPage, people::PeoplePage,
-    projects::ProjectsPage, settings::SettingsPage, timeline::TimelinePage, today::TodayPage,
+    Page, actions::ActionsPage, agent::AgentPage, ask::AskPage, meetings::MeetingsPage,
+    people::PeoplePage, projects::ProjectsPage, timeline::TimelinePage, today::TodayPage,
 };
-use crate::state::{AppData, BackgroundItem, BackgroundKind, RecordingState, Section};
+use crate::state::{AppData, BackgroundItem, BackgroundKind, PrivacyLine, RecordingState, Section};
 use crate::theme::UiFont as _;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
@@ -25,30 +27,35 @@ use crate::ui::{self, Ico};
 pub struct Workspace {
     data: Entity<AppData>,
     today: Entity<TodayPage>,
+    actions: Entity<ActionsPage>,
     meetings: Entity<MeetingsPage>,
     timeline: Entity<TimelinePage>,
     people: Entity<PeoplePage>,
     projects: Entity<ProjectsPage>,
     ask: Entity<AskPage>,
     agent: Entity<AgentPage>,
-    settings: Entity<SettingsPage>,
     _subscriptions: Vec<Subscription>,
 }
 
 impl Workspace {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
-        let subscriptions = vec![cx.observe(&data, |_, _, cx| cx.notify())];
+        let subscriptions = vec![cx.observe(&data, |_, data, cx| {
+            // The Actions row's count follows the library.
+            data.update(cx, |data, cx| data.refresh_open_action_count(cx));
+            cx.notify();
+        })];
+        data.update(cx, |data, cx| data.refresh_open_action_count(cx));
         crate::agent_handoff::refresh_in_background();
         Self {
             today: cx.new(|cx| TodayPage::new(window, cx)),
+            actions: cx.new(|cx| ActionsPage::new(window, cx)),
             meetings: cx.new(|cx| MeetingsPage::new(window, cx)),
             timeline: cx.new(|cx| TimelinePage::new(window, cx)),
             people: cx.new(|cx| PeoplePage::new(window, cx)),
             projects: cx.new(|cx| ProjectsPage::new(window, cx)),
             ask: cx.new(|cx| AskPage::new(window, cx)),
             agent: cx.new(|cx| AgentPage::new(window, cx)),
-            settings: cx.new(|cx| SettingsPage::new(window, cx)),
             data,
             _subscriptions: subscriptions,
         }
@@ -59,58 +66,66 @@ impl Workspace {
         section: Section,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> (SharedString, Option<AnyElement>, AnyElement) {
-        fn parts<P: Page>(
-            page: &Entity<P>,
-            window: &mut Window,
-            cx: &mut App,
-        ) -> (SharedString, Option<AnyElement>, AnyElement) {
-            let (title, toolbar) =
-                page.update(cx, |page, cx| (page.title(cx), page.toolbar(window, cx)));
-            (title, toolbar, page.clone().into_any_element())
+    ) -> PageParts {
+        fn parts<P: Page>(page: &Entity<P>, window: &mut Window, cx: &mut App) -> PageParts {
+            let (title, subtitle, toolbar) = page.update(cx, |page, cx| {
+                (page.title(cx), page.subtitle(cx), page.toolbar(window, cx))
+            });
+            PageParts {
+                title,
+                subtitle,
+                toolbar,
+                page: page.clone().into_any_element(),
+            }
         }
         match section {
             Section::Today => parts(&self.today, window, cx),
+            Section::Actions => parts(&self.actions, window, cx),
             Section::Meetings => parts(&self.meetings, window, cx),
             Section::Timeline => parts(&self.timeline, window, cx),
             Section::People => parts(&self.people, window, cx),
             Section::Projects => parts(&self.projects, window, cx),
             Section::Ask => parts(&self.ask, window, cx),
             Section::Agent => parts(&self.agent, window, cx),
-            Section::Settings => parts(&self.settings, window, cx),
         }
     }
 
+    /// Today and Actions lead; Remember holds what was captured; Assistant
+    /// holds the two places you ask for work. Settings and the privacy line
+    /// sit in the footer, outside the destinations (`MainWindowView.sidebar`).
     fn render_sidebar(&self, section: Section, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
-        let item = |id: &'static str, icon: Ico, target: Section, cx: &mut Context<Self>| {
+        let open_actions = self
+            .data
+            .read(cx)
+            .open_action_count
+            .filter(|count| *count > 0);
+        let item = |target: Section, count: Option<usize>, cx: &mut Context<Self>| {
             let selected = section == target;
             let data = self.data.clone();
-            h_flex()
-                .id(id)
-                .mx_2()
-                .px(px(10.))
-                .h(metric::SIDEBAR_ROW_HEIGHT)
-                .gap(px(10.))
-                .items_center()
-                .rounded(metric::ROW_RADIUS)
-                .cursor_pointer()
-                .when(selected, |this| this.bg(lb.sidebar_selection))
-                .when(!selected, |this| this.hover(|style| style.bg(lb.hover)))
-                .child(ui::icon(icon, px(16.), lb.accent_text))
-                .child(
+            sidebar_row(
+                SharedString::from(format!("sidebar-{target:?}").to_lowercase()),
+                target.icon(),
+                target.title(),
+                selected,
+                &lb,
+            )
+            .when_some(count, |this, count| {
+                this.child(
                     div()
-                        .text_size(ty::BODY)
-                        .text_color(lb.text)
-                        .when(selected, |this| this.font_weight(FontWeight::MEDIUM))
-                        .child(target.title()),
+                        .id("sidebar-actions-count")
+                        .flex_none()
+                        .text_size(ty::CAPTION)
+                        .text_color(lb.text_secondary)
+                        .child(lokalbot_i18n::number(count)),
                 )
-                .on_click(cx.listener(move |_, _, _, cx| {
-                    data.update(cx, |data, cx| {
-                        data.meeting_focus = None;
-                        data.navigate(target, cx);
-                    });
-                }))
+            })
+            .on_click(cx.listener(move |_, _, _, cx| {
+                data.update(cx, |data, cx| {
+                    data.meeting_focus = None;
+                    data.navigate(target, cx);
+                });
+            }))
         };
         let header = |title: &'static str, top: f32| {
             div()
@@ -133,39 +148,28 @@ impl Workspace {
             .child(self.render_brand(cx))
             .child(
                 v_flex()
+                    .id("sidebar-destinations")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
                     .pt_1()
                     .gap(px(2.))
-                    .child(item("sidebar-today", Ico::Sun, Section::Today, cx))
+                    .child(item(Section::Today, None, cx))
+                    .child(item(Section::Actions, open_actions, cx))
                     .child(header(lokalbot_i18n::tr("Remember"), 10.))
-                    .child(item(
-                        "sidebar-meetings",
-                        Ico::AudioLines,
-                        Section::Meetings,
-                        cx,
-                    ))
-                    .child(item(
-                        "sidebar-timeline",
-                        Ico::ChartGantt,
-                        Section::Timeline,
-                        cx,
-                    ))
-                    .child(item("sidebar-people", Ico::Users, Section::People, cx))
-                    .child(item("sidebar-projects", Ico::Folder, Section::Projects, cx))
-                    .child(item("sidebar-ask", Ico::TextSearch, Section::Ask, cx))
-                    .child(header(lokalbot_i18n::tr("Tools"), 14.))
-                    .child(item("sidebar-agent", Ico::WandSparkles, Section::Agent, cx))
-                    .child(item(
-                        "sidebar-settings",
-                        Ico::Settings,
-                        Section::Settings,
-                        cx,
-                    )),
+                    .child(item(Section::Meetings, None, cx))
+                    .child(item(Section::Timeline, None, cx))
+                    .child(item(Section::People, None, cx))
+                    .child(item(Section::Projects, None, cx))
+                    .child(header(lokalbot_i18n::tr("Assistant"), 14.))
+                    .child(item(Section::Ask, None, cx))
+                    .child(item(Section::Agent, None, cx)),
             )
-            .child(div().flex_1())
             .child(self.render_sidebar_footer(cx))
     }
 
     /// The app mark at the top of the sidebar; also a window drag handle.
+    /// The Mac has its window buttons here instead.
     fn render_brand(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         drag_region(
@@ -198,6 +202,8 @@ impl Workspace {
         )
     }
 
+    /// The sidebar's foot: what is running now, then Settings, then where
+    /// the library and the AI are (`SidebarFooter`).
     fn render_sidebar_footer(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let data = self.data.read(cx);
         let lb = cx.lb().clone();
@@ -208,15 +214,16 @@ impl Workspace {
             _ => None,
         };
         let background = data.background.clone();
-        let inference_label = data.inference_label.clone();
-        let remote_hosts = data.remote_hosts.clone();
+        let privacy = data.privacy.clone();
         let companion_line = data
             .settings
             .companion_sharing_enabled
             .then(|| companion_line(data.companion.devices.len()));
         let data_entity = self.data.clone();
+        let settings_data = self.data.clone();
 
         v_flex()
+            .flex_none()
             .p(px(10.))
             .gap(px(10.))
             .when_some(recording, |this, (_title, elapsed)| {
@@ -329,61 +336,36 @@ impl Workspace {
                 )
             })
             .child(
-                ui::grouped_surface(cx).p(px(10.)).child(
-                    h_flex()
-                        .gap(px(8.))
-                        .items_start()
-                        .child(ui::icon(Ico::ShieldCheck, px(16.), lb.accent_text))
-                        .child(
-                            v_flex()
-                                .gap(px(2.))
-                                .child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .text_color(lb.text)
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                            "Storage: this PC",
-                                        ))),
-                                )
-                                .child(
-                                    h_flex()
-                                        .gap(px(4.))
-                                        .items_center()
-                                        .child(
-                                            div()
-                                                .text_size(ty::CAPTION)
-                                                .text_color(lb.supporting)
-                                                .child(inference_label),
-                                        )
-                                        .when(!remote_hosts.is_empty(), |this| {
-                                            this.child(ui::status_dot(lb.attention, px(5.)))
-                                        }),
-                                )
-                                .children(remote_hosts.into_iter().map(|host| {
-                                    div()
-                                        .text_size(ty::CAPTION)
-                                        .text_color(lb.supporting)
-                                        .child(host)
-                                }))
-                                // While sharing is on, the library also has
-                                // copies on the paired phones and tablets.
-                                .when_some(companion_line, |this, line| {
-                                    this.child(
-                                        div()
-                                            .text_size(ty::CAPTION)
-                                            .text_color(lb.supporting)
-                                            .child(line),
-                                    )
-                                }),
-                        ),
-                ),
+                v_flex()
+                    .gap(px(2.))
+                    // Settings is a place you visit rarely, so it sits at the
+                    // foot and not among the destinations. It opens the
+                    // Settings window and is never selected: the main window
+                    // stays where it was (`SidebarSettingsRow`).
+                    .child(
+                        sidebar_row(
+                            "sidebar-settings",
+                            Ico::Settings,
+                            lokalbot_i18n::tr("Settings"),
+                            false,
+                            &lb,
+                        )
+                        .mx_0()
+                        .on_click(move |_, _, cx| {
+                            settings_data.update(cx, |data, cx| {
+                                let category = data.settings_category;
+                                data.open_settings(category, cx)
+                            })
+                        }),
+                    )
+                    .child(privacy_line(&privacy, companion_line, &lb)),
             )
     }
 
     fn render_toolbar(
         &self,
         title: SharedString,
+        subtitle: Option<SharedString>,
         toolbar: Option<AnyElement>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
@@ -393,12 +375,27 @@ impl Workspace {
             .bg(lb.title_bar)
             .border_color(lb.separator)
             .child(
-                div()
+                v_flex()
                     .pl(px(16.))
-                    .text_size(ty::COLUMN_TITLE)
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(lb.text)
-                    .child(title),
+                    .min_w_0()
+                    .justify_center()
+                    .child(
+                        div()
+                            .text_size(ty::COLUMN_TITLE)
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(lb.text)
+                            .truncate()
+                            .child(title),
+                    )
+                    .when_some(subtitle, |this, subtitle| {
+                        this.child(
+                            div()
+                                .text_size(ty::TOOLBAR_SUBTITLE)
+                                .text_color(lb.text_secondary)
+                                .truncate()
+                                .child(subtitle),
+                        )
+                    }),
             )
             .child(
                 h_flex()
@@ -410,18 +407,119 @@ impl Workspace {
                     .children(toolbar),
             )
     }
+}
 
-    fn render_toast(&self, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
-        let toast = self.data.read(cx).toast.clone()?;
-        let lb = cx.lb().clone();
-        let tint = if toast.is_error {
-            lb.attention_text
-        } else {
-            lb.accent_text
-        };
-        let data = self.data.clone();
-        Some(
-            div().p(px(12.)).child(
+/// What the shell takes from the current page.
+struct PageParts {
+    title: SharedString,
+    subtitle: Option<SharedString>,
+    toolbar: Option<AnyElement>,
+    page: AnyElement,
+}
+
+/// A row in the sidebar's style: icon, title, then whatever the caller adds
+/// (a count). The selected row gets the selection fill.
+fn sidebar_row(
+    id: impl Into<gpui_kit::ElementId>,
+    icon: Ico,
+    title: &'static str,
+    selected: bool,
+    lb: &crate::theme::Palette,
+) -> gpui_kit::Stateful<gpui_kit::Div> {
+    let hover = lb.hover;
+    h_flex()
+        .id(id)
+        .mx_2()
+        .px(px(10.))
+        .h(metric::SIDEBAR_ROW_HEIGHT)
+        .gap(px(10.))
+        .items_center()
+        .rounded(metric::ROW_RADIUS)
+        .cursor_pointer()
+        .when(selected, |this| this.bg(lb.sidebar_selection))
+        .when(!selected, |this| this.hover(move |style| style.bg(hover)))
+        .child(ui::icon(icon, px(16.), lb.accent_text))
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .truncate()
+                .text_size(ty::BODY)
+                .text_color(lb.text)
+                .when(selected, |this| this.font_weight(FontWeight::MEDIUM))
+                .child(title),
+        )
+}
+
+/// Where the library and the AI are, under Settings (`SidebarPrivacyLine`),
+/// with the paired devices line while sharing is on.
+fn privacy_line(
+    privacy: &PrivacyLine,
+    companion_line: Option<String>,
+    lb: &crate::theme::Palette,
+) -> impl IntoElement + use<> {
+    let line = |text: SharedString| {
+        div()
+            .text_size(ty::CAPTION)
+            .text_color(lb.supporting)
+            .child(crate::ui::text::paragraph(text))
+    };
+    let lines: Vec<AnyElement> = match privacy {
+        PrivacyLine::Local => vec![line(lokalbot_i18n::tr("On this PC").into()).into_any_element()],
+        PrivacyLine::Split { blocked, hosts } => {
+            let mut lines = vec![
+                line(lokalbot_i18n::tr("Storage: this PC").into()).into_any_element(),
+                h_flex()
+                    .gap(px(4.))
+                    .items_center()
+                    .child(line(PrivacyLine::ai_label(*blocked).into()))
+                    .child(ui::status_dot(lb.attention, px(5.)))
+                    .into_any_element(),
+            ];
+            lines.extend(
+                hosts
+                    .iter()
+                    .map(|host| line(host.clone().into()).into_any_element()),
+            );
+            lines
+        }
+    };
+    h_flex()
+        .id("sidebar-privacy")
+        .px(px(10.))
+        .py(px(6.))
+        .gap(px(10.))
+        .items_start()
+        .child(div().w(px(16.)).flex_none().pt(px(1.)).child(ui::icon(
+            Ico::ShieldLock,
+            px(16.),
+            lb.accent_text,
+        )))
+        .child(
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .gap(px(3.))
+                .children(lines)
+                .when_some(companion_line, |this, text| this.child(line(text.into()))),
+        )
+}
+
+/// The latest message or error, at the foot of a window (`ErrorToast`). The
+/// main window and the Settings window both show it.
+pub fn toast(data: &Entity<AppData>, cx: &App) -> Option<AnyElement> {
+    let toast = data.read(cx).toast.clone()?;
+    let lb = cx.lb().clone();
+    let tint = if toast.is_error {
+        lb.attention_text
+    } else {
+        lb.accent_text
+    };
+    let data = data.clone();
+    Some(
+        div()
+            .p(px(12.))
+            .child(
                 h_flex()
                     .gap(px(10.))
                     .items_center()
@@ -457,17 +555,17 @@ impl Workspace {
                                 data.update(cx, |data, cx| data.dismiss_toast(cx))
                             }),
                     ),
-            ),
-        )
-    }
+            )
+            .into_any_element(),
+    )
 }
 
 impl Render for Workspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let section = self.data.read(cx).section;
-        let (title, toolbar, page) = self.page_parts(section, window, cx);
+        let parts = self.page_parts(section, window, cx);
         let lb = cx.lb().clone();
-        let toast = self.render_toast(cx);
+        let toast = toast(&self.data, cx);
 
         h_flex()
             .size_full()
@@ -480,8 +578,8 @@ impl Render for Workspace {
                     .flex_1()
                     .min_w_0()
                     .h_full()
-                    .child(self.render_toolbar(title, toolbar, cx))
-                    .child(div().flex_1().min_h_0().relative().child(page))
+                    .child(self.render_toolbar(parts.title, parts.subtitle, parts.toolbar, cx))
+                    .child(div().flex_1().min_h_0().relative().child(parts.page))
                     .children(toast),
             )
     }
@@ -629,7 +727,7 @@ pub fn drag_region<
     }
 }
 
-/// What the storage card says about paired phones and tablets
+/// What the privacy line says about paired phones and tablets
 /// (`SidebarCompanionLine`).
 fn companion_line(devices: usize) -> String {
     match devices {
@@ -685,7 +783,7 @@ mod tests {
     }
 
     #[test]
-    fn the_storage_card_counts_paired_devices() {
+    fn the_privacy_line_counts_paired_devices() {
         assert_eq!(companion_line(0), "Phones & tablets: none paired");
         assert_eq!(companion_line(1), "Copy on 1 paired device");
         assert_eq!(companion_line(3), "Copies on 3 paired devices");

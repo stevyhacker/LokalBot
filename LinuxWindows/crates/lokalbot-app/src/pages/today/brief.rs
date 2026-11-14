@@ -173,7 +173,7 @@ fn brief_text(
                 ranges,
                 move |index, _, cx| {
                     if let Some(meeting) = targets.get(index) {
-                        super::threads::open_meeting(&data, *meeting, None, cx);
+                        crate::ui::action_row::open_meeting(&data, *meeting, None, cx);
                     }
                 },
             ),
@@ -269,10 +269,10 @@ impl TodayPage {
                         .top_action_thread_id(index)
                         .and_then(|id| model.threads.get(id));
                     body = body.child(match thread {
-                        Some(thread) => super::threads::thread_row_with(
+                        Some(thread) => crate::ui::action_row::thread_row(
                             format!("today-brief-action-{index}").into(),
                             thread,
-                            super::threads::RowOptions::default(),
+                            crate::ui::action_row::ThreadRowOptions::default(),
                             &self.data,
                             cx,
                         ),

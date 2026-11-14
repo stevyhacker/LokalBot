@@ -65,7 +65,7 @@ fn stop_reading_off_page(data: &Entity<AppData>, cx: &mut App) {
     } else if key.starts_with("answer:") {
         data.section == Section::Ask
     } else {
-        data.section == Section::Settings && data.settings_category == SettingsCategory::Models
+        data.settings_showing(SettingsCategory::Models)
     };
     if !stays {
         send(Command::Speech(SpeechCommand::Stop), cx);

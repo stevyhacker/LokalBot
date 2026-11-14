@@ -1,5 +1,6 @@
 //! Settings (`SettingsView.swift`): categories with teal icons on the left,
 //! a title and grouped form on the right, and search across every category.
+//! It lives in its own window (`windows::settings`).
 
 pub mod advanced;
 mod calendar;
@@ -56,7 +57,6 @@ use lokalbot_core::Settings;
 use lokalbot_core::access::ScreenScope;
 use lokalbot_platform::shortcuts::Shortcut;
 
-use crate::pages::Page;
 use crate::state::{AppData, SettingsCategory};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::rule_list::{RuleKind, RuleList, RuleListEvent};
@@ -804,7 +804,7 @@ impl SettingsPage {
         self.clear_search(window, cx);
         self.scroll.set_offset(gpui_kit::point(px(0.), px(0.)));
         self.data
-            .update(cx, |data, cx| data.open_settings(category, cx));
+            .update(cx, |data, cx| data.select_settings_category(category, cx));
     }
 
     fn clear_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -835,8 +835,9 @@ impl SettingsPage {
         if entry.category == SettingsCategory::Models {
             self.models.page = models::ModelsPage::for_setting(entry.id);
         }
-        self.data
-            .update(cx, |data, cx| data.open_settings(entry.category, cx));
+        self.data.update(cx, |data, cx| {
+            data.select_settings_category(entry.category, cx)
+        });
         cx.notify();
     }
 
@@ -1166,12 +1167,6 @@ fn sync_text(input: &Entity<TextareaState>, value: &str, window: &mut Window, cx
 fn sync_slider(slider: &Entity<SliderState>, value: f32, window: &mut Window, cx: &mut App) {
     if (slider.read(cx).value().start() - value).abs() > f32::EPSILON {
         slider.update(cx, |slider, cx| slider.set_value(value, window, cx));
-    }
-}
-
-impl Page for SettingsPage {
-    fn title(&self, _cx: &App) -> SharedString {
-        lokalbot_i18n::tr("Settings").into()
     }
 }
 

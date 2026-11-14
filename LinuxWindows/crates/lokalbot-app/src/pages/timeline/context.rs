@@ -14,8 +14,8 @@ use lokalbot_core::{ActionReference, ActionStatus, Library, Meeting, WorkSession
 
 use super::{DayModel, Selection, TimelinePage};
 use crate::pages::meetings::model as meeting_model;
-use crate::pages::today::threads::open_meeting;
 use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::ui::action_row::open_meeting;
 use crate::ui::{self, Ico, action_row};
 
 /// What the meeting panel shows, loaded in the background.

@@ -1,7 +1,10 @@
-//! The Actions workspace behind "Review Actions…" (`ActionsWorkspaceView.swift`):
-//! every action of yours, or the threads they form, with filters, batch status
+//! Actions, a sidebar destination (`ActionsWorkspaceView.swift`): every
+//! action of yours, or the threads they form, with filters, batch status
 //! changes and an inspector that plays the supporting passage. Corrections
 //! never alter evidence.
+//!
+//! Moved from Today, where it opened behind "Review Actions…", with its
+//! behaviour unchanged; the redesigned list and details come later.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -25,10 +28,11 @@ use lokalbot_core::action_completion::CompletionHint;
 use lokalbot_core::{ActionReference, ActionStatus, ActionThread};
 use uuid::Uuid;
 
-use super::threads::{self, open_meeting};
+use crate::pages::Page;
 use crate::pages::meetings::model::{self as meeting_model, Speakers};
 use crate::state::{AppData, Section};
 use crate::theme::{LbThemeExt as _, metric, ty};
+use crate::ui::action_row::open_meeting;
 use crate::ui::{self, Ico, action_row, segmented_tabs};
 
 const STATUS_LABELS: [&str; 4] = ["All", "Open", "Done", "Deferred"];
@@ -206,7 +210,7 @@ struct Passages {
     poll: Option<Task<()>>,
 }
 
-pub(crate) struct ActionsWorkspace {
+pub struct ActionsPage {
     data: Entity<AppData>,
     search: Entity<InputState>,
     query: String,
@@ -229,8 +233,8 @@ pub(crate) struct ActionsWorkspace {
     _subscriptions: Vec<Subscription>,
 }
 
-impl ActionsWorkspace {
-    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+impl ActionsPage {
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
         let search = cx.new(|cx| {
             InputState::new(window, cx).placeholder(crate::i18n::placeholder(
@@ -247,11 +251,17 @@ impl ActionsWorkspace {
                 }
             }),
             cx.observe_in(&data, window, |this, data, window, cx| {
-                if data.read(cx).section != Section::Today {
+                let (section, revision) = {
+                    let data = data.read(cx);
+                    (data.section, data.revision)
+                };
+                if section != Section::Actions {
+                    // Leaving the page stops a passage that is playing.
                     this.stop_passage();
+                    return;
                 }
-                let revision = data.read(cx).revision;
-                if this.is_loaded && this.loaded_revision != Some(revision) {
+                // Loads when first shown, then whenever the library changes.
+                if this.loaded_revision != Some(revision) {
                     this.reload(window, cx);
                 }
             }),
@@ -282,7 +292,7 @@ impl ActionsWorkspace {
         crate::agent_handoff::refresh_in_background();
         let data = self.data.read(cx);
         let library = data.library.clone();
-        let suggest_done = threads::suggests_completion(&data.settings);
+        let suggest_done = action_row::suggests_completion(&data.settings);
         self.loaded_revision = Some(data.revision);
         cx.spawn(async move |this, cx| {
             let loaded = cx
@@ -452,11 +462,6 @@ impl ActionsWorkspace {
         );
     }
 
-    fn back(&mut self, cx: &mut Context<Self>) {
-        self.stop_passage();
-        cx.emit(BackToToday);
-    }
-
     fn click_row(
         &mut self,
         id: &str,
@@ -617,20 +622,7 @@ impl ActionsWorkspace {
             .pb(px(10.))
             .gap(px(12.))
             .items_center()
-            .child(
-                Button::new("actions-back")
-                    .ghost()
-                    .icon(Icon::new(Ico::ChevronLeft))
-                    .label(lokalbot_i18n::tr("Today"))
-                    .on_click(cx.listener(|this, _, _, cx| this.back(cx))),
-            )
-            .child(
-                div()
-                    .text_size(ty::COLUMN_TITLE)
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(lb.text)
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Actions"))),
-            )
+            // The page's title is the toolbar's.
             .child(
                 div()
                     .text_size(ty::BODY)
@@ -937,10 +929,10 @@ impl ActionsWorkspace {
         let count = threads.len();
         let rows = threads.iter().enumerate().map(|(ix, thread)| {
             v_flex()
-                .child(threads::thread_row_with(
+                .child(action_row::thread_row(
                     format!("actions-thread-{ix}").into(),
                     thread,
-                    threads::RowOptions {
+                    action_row::ThreadRowOptions {
                         hint: self.loaded.hints.get(&thread.id),
                         ..Default::default()
                     },
@@ -1000,7 +992,12 @@ impl ActionsWorkspace {
             .as_deref()
             .map(|o| meeting_model::display_label(o, reference.is_for_user))
             .unwrap_or_else(|| lokalbot_i18n::tr("Owner unclear").into());
-        let overdue = Due::Overdue.matches(reference, today);
+        // Red once passed, amber within the week, as every action row reads.
+        let due_tone = action_row::DueTone::of(
+            reference.resolved_due_date,
+            reference.status == ActionStatus::Open,
+            today,
+        );
         let due = reference
             .due
             .as_deref()
@@ -1062,7 +1059,7 @@ impl ActionsWorkspace {
                             },
                         ),
                     );
-                threads::agent_menu_items_for_reference(menu, &reference, &data)
+                action_row::agent_menu_items_for_reference(menu, &reference, &data)
             })
         };
         let selecting = self.selecting;
@@ -1128,11 +1125,7 @@ impl ActionsWorkspace {
                     .flex_none()
                     .truncate()
                     .text_size(ty::SECONDARY)
-                    .text_color(if overdue {
-                        lb.recording_text
-                    } else {
-                        lb.text_secondary
-                    })
+                    .text_color(due_tone.color(cx))
                     .child(due),
             )
             .when(columns.meeting, |this| {
@@ -1383,13 +1376,28 @@ struct Columns {
     wide: bool,
 }
 
-/// Asks Today to close the workspace.
-pub(crate) struct BackToToday;
+impl Page for ActionsPage {
+    fn title(&self, _cx: &gpui_kit::App) -> SharedString {
+        lokalbot_i18n::tr("Actions").into()
+    }
 
-impl gpui_kit::EventEmitter<BackToToday> for ActionsWorkspace {}
+    /// "2 open", as the Mac's toolbar says under the title.
+    fn subtitle(&self, cx: &gpui_kit::App) -> Option<SharedString> {
+        let open = self.data.read(cx).open_action_count?;
+        Some(
+            lokalbot_i18n::tr("%lld open")
+                .replace("%lld", &lokalbot_i18n::number(open))
+                .into(),
+        )
+    }
+}
 
-impl Render for ActionsWorkspace {
+impl Render for ActionsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Drawn only while it is the current page: the first time, load.
+        if self.loaded_revision.is_none() {
+            self.reload(window, cx);
+        }
         let lb = cx.lb().clone();
         let today = Local::now().date_naive();
         let filters = self.filters();

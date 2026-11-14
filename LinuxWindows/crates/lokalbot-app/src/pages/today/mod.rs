@@ -1,11 +1,9 @@
 //! Today: what is recording, what needs attention, the day digest and the
 //! day's sessions (`TodayView.swift`, `TodaySessionsSection.swift`,
-//! `GettingStartedCard.swift`). "Review Actions…" opens the Actions workspace.
+//! `GettingStartedCard.swift`). "Review Actions…" opens the Actions page.
 
-mod actions;
 pub(crate) mod brief;
 pub(crate) mod digest;
-pub(crate) mod threads;
 mod upcoming;
 
 use std::cell::Cell;
@@ -26,11 +24,10 @@ use gpui_kit::{
 };
 use lokalbot_core::{ActionThread, DayActivity, DayDigest, WorkSession};
 
-use self::actions::ActionsWorkspace;
 use crate::pages::Page;
 use crate::state::{AppData, AskRequest, RecordingState, Section};
 use crate::theme::{LbThemeExt as _, metric, ty};
-use crate::ui::{self, Ico};
+use crate::ui::{self, Ico, action_row};
 
 /// What Today shows, loaded off the main thread.
 struct TodayModel {
@@ -55,10 +52,6 @@ pub struct TodayPage {
     loaded_revision: Option<u64>,
     sessions_expanded: bool,
     expanded_tasks: HashSet<usize>,
-    showing_actions: bool,
-    /// "Review Actions…" from another page; opened on the next render.
-    pending_actions: bool,
-    actions: Entity<ActionsWorkspace>,
     bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     /// Today's calendar meetings and the next one's preparation.
     upcoming: upcoming::UpcomingState,
@@ -71,21 +64,12 @@ pub struct TodayPage {
 }
 
 impl TodayPage {
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(_window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
-        let actions = cx.new(|cx| ActionsWorkspace::new(window, cx));
-        let subscriptions = vec![
-            cx.observe(&data, |this, _, cx| {
-                this.on_data_changed(cx);
-                cx.notify();
-            }),
-            cx.observe(&actions, |_, _, cx| cx.notify()),
-            cx.subscribe(&actions, |this, _, _: &actions::BackToToday, cx| {
-                this.showing_actions = false;
-                this.data.update(cx, |data, _| data.actions_open = false);
-                cx.notify();
-            }),
-        ];
+        let subscriptions = vec![cx.observe(&data, |this, _, cx| {
+            this.on_data_changed(cx);
+            cx.notify();
+        })];
         let seeded_demo_library = lokalbot_core::github_star::is_seeded_demo_library(
             data.read(cx).library.paths().root(),
         );
@@ -108,9 +92,6 @@ impl TodayPage {
             loaded_revision: None,
             sessions_expanded: false,
             expanded_tasks: HashSet::new(),
-            showing_actions: false,
-            pending_actions: false,
-            actions,
             bounds: Rc::new(Cell::new(None)),
             upcoming: Default::default(),
             seeded_demo_library,
@@ -124,18 +105,6 @@ impl TodayPage {
     }
 
     fn on_data_changed(&mut self, cx: &mut Context<Self>) {
-        if self
-            .data
-            .update(cx, |data, _| std::mem::take(&mut data.actions_requested))
-        {
-            self.pending_actions = true;
-            cx.notify();
-        }
-        if self.data.read(cx).section != Section::Today && self.showing_actions {
-            // Leaving Today closes the Actions workspace; Back reopens it.
-            self.showing_actions = false;
-            self.data.update(cx, |data, _| data.actions_open = false);
-        }
         let data = self.data.read(cx);
         if !data.meetings_loaded {
             return;
@@ -150,7 +119,7 @@ impl TodayPage {
     fn reload(&mut self, cx: &mut Context<Self>) {
         self.record_active_day(cx);
         let library = self.data.read(cx).library.clone();
-        let suggest_done = threads::suggests_completion(&self.data.read(cx).settings);
+        let suggest_done = action_row::suggests_completion(&self.data.read(cx).settings);
         let day = Local::now().date_naive();
         self.load_generation += 1;
         let generation = self.load_generation;
@@ -214,16 +183,6 @@ impl TodayPage {
         } else if !recording {
             self.tick = None;
         }
-    }
-
-    pub(crate) fn show_actions(&mut self, show: bool, window: &mut Window, cx: &mut Context<Self>) {
-        self.showing_actions = show;
-        self.data.update(cx, |data, _| data.actions_open = show);
-        if show {
-            self.actions
-                .update(cx, |actions, cx| actions.reload(window, cx));
-        }
-        cx.notify();
     }
 
     fn ask_today(&mut self, cx: &mut Context<Self>) {
@@ -415,10 +374,10 @@ impl TodayPage {
         let count = model.attention.len();
         let rows = model.attention.iter().enumerate().map(|(ix, thread)| {
             v_flex()
-                .child(threads::thread_row_with(
+                .child(action_row::thread_row(
                     format!("today-thread-{ix}").into(),
                     thread,
-                    threads::RowOptions {
+                    action_row::ThreadRowOptions {
                         hint: model.hints.get(&thread.id),
                         ..Default::default()
                     },
@@ -437,9 +396,9 @@ impl TodayPage {
                 .gap(px(8.))
                 .child(
                     ui::controls::bordered("review-actions", lokalbot_i18n::tr("Review Actions…"))
-                        .on_click(
-                            cx.listener(|this, _, window, cx| this.show_actions(true, window, cx)),
-                        ),
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.data.update(cx, |data, cx| data.open_actions(cx))
+                        })),
                 )
                 .child(
                     ui::controls::bordered("plan-in-agent", lokalbot_i18n::tr("Plan in Agent…"))
@@ -857,17 +816,23 @@ impl TodayPage {
 
 impl Page for TodayPage {
     fn title(&self, _cx: &App) -> SharedString {
-        if self.showing_actions {
-            lokalbot_i18n::tr("Actions").into()
-        } else {
-            lokalbot_i18n::tr("Today").into()
-        }
+        lokalbot_i18n::tr("Today").into()
+    }
+
+    /// The full date under the title (`navigationSubtitle`).
+    fn subtitle(&self, _cx: &App) -> Option<SharedString> {
+        Some(
+            Local::now()
+                .format_localized(
+                    lokalbot_i18n::date_pattern("%A, %B %-d, %Y"),
+                    lokalbot_i18n::date_locale(),
+                )
+                .to_string()
+                .into(),
+        )
     }
 
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
-        if self.showing_actions {
-            return None;
-        }
         let data = self.data.clone();
         Some(
             h_flex()
@@ -896,18 +861,9 @@ impl Page for TodayPage {
 }
 
 impl Render for TodayPage {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        if std::mem::take(&mut self.pending_actions) {
-            self.show_actions(true, window, cx);
-        }
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let recording = self.data.read(cx).recording.is_active();
         self.sync_tick(recording, cx);
-        if self.showing_actions {
-            return div()
-                .size_full()
-                .child(self.actions.clone())
-                .into_any_element();
-        }
         let lb = cx.lb().clone();
         let bounds = self.bounds.clone();
         let measure = canvas(
@@ -922,20 +878,8 @@ impl Render for TodayPage {
         .absolute()
         .size_full();
 
-        let date = Local::now()
-            .format_localized(
-                lokalbot_i18n::date_pattern("%A, %B %-d, %Y"),
-                lokalbot_i18n::date_locale(),
-            )
-            .to_string();
-        let mut sections: Vec<AnyElement> = vec![
-            div()
-                .text_size(ty::BODY)
-                .text_color(lb.text_secondary)
-                .child(date)
-                .into_any_element(),
-            self.render_now(cx),
-        ];
+        // The date is the toolbar's subtitle, as on every page that has one.
+        let mut sections: Vec<AnyElement> = vec![self.render_now(cx)];
         sections.extend(self.render_upcoming(cx));
         match self.model.take() {
             Some(model) => {

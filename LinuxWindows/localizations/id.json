@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "Tautan iCal atau CalDAV pribadi, seperti alamat rahasia dalam format iCal dari Google Kalender atau kalender Outlook yang dipublikasikan. Tautan disimpan di penyimpanan kredensial sistem dan dibaca setiap lima menit; hanya host kalender yang ditampilkan.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "Satu utas mengelompokkan tindakan yang sama dari berbagai rapat. Mengubah statusnya akan memperbarui setiap rapat yang terhubung.",
   "AI brief unavailable; showing saved context.": "Ringkasan AI tidak tersedia; menampilkan konteks yang tersimpan.",
+  "AI: connection blocked": "AI: koneksi diblokir",
   "AI: local + remote": "AI: lokal + jarak jauh",
   "AI: on this PC": "AI: di PC ini",
   "API key (optional)": "Kunci API (opsional)",

@@ -39,9 +39,9 @@ use uuid::Uuid;
 use self::context::MeetingPreview;
 use crate::pages::Page;
 use crate::pages::today::digest;
-use crate::pages::today::threads;
 use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, Palette, metric, ty};
+use crate::ui::action_row;
 use crate::ui::{self, Ico};
 
 /// Below this page width, selections open in a drawer over a single column.
@@ -227,7 +227,7 @@ impl TimelinePage {
 
     pub(crate) fn reload(&mut self, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
-        let suggest_done = threads::suggests_completion(&self.data.read(cx).settings);
+        let suggest_done = action_row::suggests_completion(&self.data.read(cx).settings);
         let day = self.day;
         self.load_generation += 1;
         let generation = self.load_generation;
@@ -587,10 +587,10 @@ impl TimelinePage {
         let shown = &model.attention[..model.attention.len().min(ATTENTION_ROWS)];
         let rows = shown.iter().enumerate().map(|(ix, thread)| {
             v_flex()
-                .child(div().py(px(6.)).child(threads::thread_row_with(
+                .child(div().py(px(6.)).child(action_row::thread_row(
                     format!("timeline-thread-{ix}").into(),
                     thread,
-                    threads::RowOptions {
+                    action_row::ThreadRowOptions {
                         hint: model.hints.get(&thread.id),
                         ..Default::default()
                     },

@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "ప్రైవేట్ iCal లేదా CalDAV లింక్, ఉదాహరణకు Google క్యాలెండర్ యొక్క iCal ఫార్మాట్‌లోని రహస్య చిరునామా లేదా ప్రచురించిన Outlook క్యాలెండర్. లింక్‌లు సిస్టమ్ క్రెడెన్షియల్ స్టోర్‌లో ఉంచబడతాయి, ప్రతి ఐదు నిమిషాలకు చదవబడతాయి; క్యాలెండర్ హోస్ట్ మాత్రమే చూపబడుతుంది.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "ఒక పని సంభాషణ వేర్వేరు సమావేశాల్లోని ఒకే పనిని కలిపి ఉంచుతుంది. దాని స్థితిని మార్చితే లింక్ అయిన ప్రతి సమావేశం అప్‌డేట్ అవుతుంది.",
   "AI brief unavailable; showing saved context.": "AI సంక్షిప్తం అందుబాటులో లేదు; సేవ్ చేసిన సందర్భం చూపబడుతోంది.",
+  "AI: connection blocked": "AI: కనెక్షన్ బ్లాక్ అయింది",
   "AI: local + remote": "AI: లోకల్ + రిమోట్",
   "AI: on this PC": "AI: ఈ PCలో",
   "API key (optional)": "API కీ (ఐచ్ఛికం)",

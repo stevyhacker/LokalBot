@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "निजी iCal या CalDAV लिंक, जैसे Google कैलेंडर का iCal फ़ॉर्मेट में गुप्त पता या प्रकाशित Outlook कैलेंडर। लिंक सिस्टम क्रेडेंशियल स्टोर में रखे जाते हैं और हर पाँच मिनट में पढ़े जाते हैं; सिर्फ़ कैलेंडर का होस्ट दिखाया जाता है।",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "काम की बातचीत अलग-अलग मीटिंग के एक ही काम को एक साथ रखती है। इसकी स्थिति बदलने पर जुड़ी हर मीटिंग अपडेट हो जाती है।",
   "AI brief unavailable; showing saved context.": "AI सार उपलब्ध नहीं है; सहेजा गया संदर्भ दिखाया जा रहा है।",
+  "AI: connection blocked": "एआई: कनेक्शन अवरुद्ध",
   "AI: local + remote": "एआई: स्थानीय + रिमोट",
   "AI: on this PC": "एआई: इस पीसी पर",
   "API key (optional)": "API कुंजी (वैकल्पिक)",

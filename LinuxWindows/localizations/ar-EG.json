@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "لينك iCal أو CalDAV خاص، زي العنوان السري بصيغة iCal في تقويم Google أو تقويم Outlook منشور. اللينكات بتتحفظ في مخزن بيانات اعتماد النظام وبتتقري كل خمس دقايق؛ وبيظهر بس مضيف التقويم.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "السلسلة بتجمع نفس الإجراء عبر الاجتماعات. وتغيير حالتها بيحدّث كل اجتماع مرتبط بيها.",
   "AI brief unavailable; showing saved context.": "ملخص الذكاء الاصطناعي مش متاح؛ بنعرض السياق المحفوظ.",
+  "AI: connection blocked": "AI: الاتصال محظور",
   "AI: local + remote": "AI: محلي + بعيد",
   "AI: on this PC": "الذكاء الاصطناعي: على هذا الكمبيوتر",
   "API key (optional)": "مفتاح API (اختياري)",

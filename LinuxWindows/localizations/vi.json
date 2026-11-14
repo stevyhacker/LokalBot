@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "Liên kết iCal hoặc CalDAV riêng tư, như địa chỉ bí mật ở định dạng iCal của Google Lịch hoặc lịch Outlook đã xuất bản. Liên kết được giữ trong kho thông tin xác thực hệ thống và được đọc mỗi năm phút; chỉ máy chủ của lịch được hiển thị.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "Một luồng gom cùng một hành động qua nhiều cuộc họp. Đổi trạng thái của luồng sẽ cập nhật mọi cuộc họp được liên kết.",
   "AI brief unavailable; showing saved context.": "Không có bản tóm tắt AI; đang hiển thị ngữ cảnh đã lưu.",
+  "AI: connection blocked": "AI: kết nối bị chặn",
   "AI: local + remote": "AI: cục bộ + từ xa",
   "AI: on this PC": "AI: trên PC này",
   "API key (optional)": "Phím API (tùy chọn)",

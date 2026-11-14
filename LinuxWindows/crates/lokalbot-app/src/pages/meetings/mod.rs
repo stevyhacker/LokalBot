@@ -1200,7 +1200,7 @@ impl Page for MeetingsPage {
                     Button::new("meeting-evidence-back")
                         .ghost()
                         .icon(Icon::new(Ico::ChevronLeft))
-                        .label(if back.actions {
+                        .label(if back.section == crate::state::Section::Actions {
                             lokalbot_i18n::tr("Back to Actions")
                         } else {
                             lokalbot_i18n::tr("Back")
@@ -1316,17 +1316,15 @@ impl Page for MeetingsPage {
                             let data = handoff_data.clone();
                             let meeting = handoff_meeting.clone();
                             menu = menu.item(
-                                PopupMenuItem::new(crate::pages::today::threads::open_in_label(
-                                    target,
-                                ))
-                                .disabled(!has_notes)
-                                .on_click(move |_, _, cx| {
-                                    if let Some(meeting) = meeting.as_ref() {
-                                        crate::agent_handoff::hand_off_meeting(
-                                            &data, meeting, target, cx,
-                                        );
-                                    }
-                                }),
+                                PopupMenuItem::new(crate::ui::action_row::open_in_label(target))
+                                    .disabled(!has_notes)
+                                    .on_click(move |_, _, cx| {
+                                        if let Some(meeting) = meeting.as_ref() {
+                                            crate::agent_handoff::hand_off_meeting(
+                                                &data, meeting, target, cx,
+                                            );
+                                        }
+                                    }),
                             );
                         }
                         let menu = menu

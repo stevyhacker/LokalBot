@@ -93,8 +93,7 @@ impl ProjectsPage {
     fn reload(&mut self, cx: &mut Context<Self>) {
         crate::agent_handoff::refresh_in_background();
         let library = self.data.read(cx).library.clone();
-        let suggest_done =
-            crate::pages::today::threads::suggests_completion(&self.data.read(cx).settings);
+        let suggest_done = crate::ui::action_row::suggests_completion(&self.data.read(cx).settings);
         self.loaded_revision = Some(self.data.read(cx).revision);
         cx.spawn(async move |this, cx| {
             let loaded = cx
@@ -781,10 +780,10 @@ impl ProjectsPage {
             let rows: Vec<AnyElement> = threads
                 .iter()
                 .map(|thread| {
-                    crate::pages::today::threads::thread_row_with(
+                    crate::ui::action_row::thread_row(
                         SharedString::from(format!("{prefix}-{}", thread.id)),
                         thread,
-                        crate::pages::today::threads::RowOptions {
+                        crate::ui::action_row::ThreadRowOptions {
                             show_owner,
                             hint: self.hints.get(&thread.id),
                             ..Default::default()

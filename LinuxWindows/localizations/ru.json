@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "Закрытая ссылка iCal или CalDAV, например секретный адрес в формате iCal из Google Календаря или опубликованный календарь Outlook. Ссылки хранятся в системном хранилище учетных данных и читаются каждые пять минут; показывается только хост календаря.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "Цепочка объединяет одно и то же действие из разных встреч. Изменение её статуса обновляет все связанные встречи.",
   "AI brief unavailable; showing saved context.": "ИИ-сводка недоступна; показан сохраненный контекст.",
+  "AI: connection blocked": "AI: подключение заблокировано",
   "AI: local + remote": "AI: локальный + удаленный",
   "AI: on this PC": "ИИ: на этом ПК",
   "API key (optional)": "Ключ API (дополнительно)",

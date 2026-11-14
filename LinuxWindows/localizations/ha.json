@@ -29,6 +29,7 @@
   "A private iCal or CalDAV link, such as Google Calendar's secret address in iCal format or a published Outlook calendar. Links are kept in the system credential store and read every five minutes; only the calendar's host is shown.": "Hanyar haɗin iCal ko CalDAV ta sirri, kamar adireshin sirri a tsarin iCal na Google Calendar ko kalandar Outlook da aka wallafa. Ana ajiye hanyoyin haɗin a ma'ajin bayanan shaidar tsarin kuma ana karanta su kowane minti biyar; mai masaukin kalandar kawai ake nunawa.",
   "A thread groups the same action across meetings. Changing its status updates every linked meeting.": "Tattaunawar mataki tana tattara mataki ɗaya daga taruka daban-daban. Canza matsayinta yana sabunta kowane taron da aka haɗa.",
   "AI brief unavailable; showing saved context.": "Taƙaitaccen bayanin AI ba ya samuwa; ana nuna mahallin da aka ajiye.",
+  "AI: connection blocked": "AI: an toshe haɗi",
   "AI: local + remote": "AI: na gida + nesa",
   "AI: on this PC": "AI: akan wannan PC",
   "API key (optional)": "maɓallin API (na zaɓi)",

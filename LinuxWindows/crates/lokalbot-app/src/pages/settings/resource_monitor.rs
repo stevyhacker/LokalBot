@@ -109,8 +109,7 @@ impl SettingsPage {
                     .update(cx, |page, cx| {
                         let showing = {
                             let data = page.data.read(cx);
-                            data.section == crate::state::Section::Settings
-                                && data.settings_category == SettingsCategory::Advanced
+                            data.settings_showing(SettingsCategory::Advanced)
                         };
                         if showing {
                             page.sample_resources(cx);

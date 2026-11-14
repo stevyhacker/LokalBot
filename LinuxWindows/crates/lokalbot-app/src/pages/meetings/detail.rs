@@ -1072,8 +1072,8 @@ impl MeetingsPage {
                 let meeting = menu_meeting.clone();
                 let id = menu_action.id.clone();
                 menu = menu.item(
-                    PopupMenuItem::new(crate::pages::today::threads::open_in_label(target))
-                        .on_click(move |_, _, cx| {
+                    PopupMenuItem::new(crate::ui::action_row::open_in_label(target)).on_click(
+                        move |_, _, cx| {
                             crate::agent_handoff::hand_off_meeting_action(
                                 &data,
                                 &meeting,
@@ -1081,7 +1081,8 @@ impl MeetingsPage {
                                 target,
                                 cx,
                             )
-                        }),
+                        },
+                    ),
                 );
             }
             menu
