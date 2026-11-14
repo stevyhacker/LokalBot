@@ -84,7 +84,6 @@ pub enum MeetingTab {
     Summary,
     Transcript,
     Notes,
-    Review,
 }
 
 /// Settings categories, in sidebar order.

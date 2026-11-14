@@ -42,7 +42,7 @@ use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::{Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, Context, Div, ElementId, FontWeight, InteractiveElement as _, IntoElement,
+    AnyElement, App, Context, Div, ElementId, InteractiveElement as _, IntoElement,
     ParentElement as _, SharedString, Stateful, StatefulInteractiveElement as _, Styled as _,
     Window, div, px, white,
 };
@@ -301,29 +301,6 @@ pub fn meta_link(
         .when_some(leading, |this, name| this.child(icon(name, px(13.), color)))
         .child(div().min_w_0().truncate().child(text.into()))
         .on_click(move |_, window, cx| on_click(window, cx))
-}
-
-/// Compact due chip with a calendar symbol ("by Thursday").
-pub fn due_chip(text: impl Into<SharedString>, overdue: bool, cx: &App) -> Div {
-    let lb = cx.lb();
-    let color = if overdue {
-        lb.attention_text
-    } else {
-        lb.supporting
-    };
-    h_flex()
-        .flex_none()
-        .gap(px(4.))
-        .items_center()
-        .px(px(7.))
-        .py(px(1.))
-        .rounded_full()
-        .bg(lb.chip_fill)
-        .text_size(ty::CAPTION)
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(color)
-        .child(icon(Ico::Calendar, px(12.), color))
-        .child(text.into())
 }
 
 /// The trailing `ellipsis` menu.

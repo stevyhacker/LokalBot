@@ -15,6 +15,8 @@ use crate::actions::{attention_sorted, cluster_threads, normalized_words};
 use crate::library::{Library, write_json};
 use crate::model::*;
 
+pub mod upcoming;
+
 /// Decisions kept per person.
 pub const MAXIMUM_DECISIONS: usize = 8;
 /// A meeting with at most this many other named people counts as "with"
@@ -1100,8 +1102,8 @@ pub fn same_occasion(left: &MeetingRef, right: &MeetingRef) -> bool {
     later.started_at <= earlier_end + chrono::Duration::seconds(RECORDING_GAP_TOLERANCE_SECONDS)
 }
 
-/// The occasion's longest recording.
-fn primary(occasion: &[MeetingRef]) -> &MeetingRef {
+/// The occasion's longest recording, the one worth opening.
+pub fn primary(occasion: &[MeetingRef]) -> &MeetingRef {
     let duration = |m: &MeetingRef| {
         (m.ended_at.unwrap_or(m.started_at) - m.started_at)
             .num_milliseconds()

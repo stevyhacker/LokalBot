@@ -24,6 +24,7 @@ pub mod section_panel;
 pub mod segmented_tabs;
 pub mod settings_row;
 pub mod shortcut_field;
+pub mod side_column;
 pub mod split;
 pub mod text;
 pub mod waveform;

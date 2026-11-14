@@ -135,11 +135,6 @@ impl MeetingsPage {
     ) -> impl IntoElement {
         let lb = cx.lb().clone();
         let data = self.data.read(cx);
-        let count = data
-            .meetings
-            .iter()
-            .filter(|m| !m.is_merged_source())
-            .count();
         let recording = data.recording.is_active();
         let loaded = data.meetings_loaded;
         let library_empty = data.meetings.is_empty() && data.recording.meeting().is_none();
@@ -164,34 +159,36 @@ impl MeetingsPage {
             .on_click(move |_, _, cx| choose_recordings(data_entity.clone(), cx))
         };
 
+        // `.bordered` Record: the red mark carries the colour, the words stay
+        // plain.
         let record_button = {
-            let tint = lb.recording;
-            let text = lb.recording_text;
+            let red = lb.recording;
+            let hover = lb.hover;
             let data_entity = data_entity.clone();
             h_flex()
                 .id("meetings-record")
                 .flex_none()
-                .h(px(28.))
-                .px(px(10.))
+                .h(px(26.))
+                .px(px(9.))
                 .gap(px(6.))
                 .items_center()
                 .rounded(px(7.))
-                .bg(tint.opacity(0.10))
+                .bg(lb.panel)
                 .border_1()
-                .border_color(tint.opacity(0.32))
-                .hover(move |s| s.bg(tint.opacity(0.18)))
+                .border_color(lb.separator)
+                .hover(move |s| s.bg(hover))
                 .cursor_pointer()
                 .child(if recording {
                     div()
-                        .size(px(11.))
+                        .size(px(10.))
                         .rounded(px(2.))
-                        .bg(tint)
+                        .bg(red)
                         .into_any_element()
                 } else {
                     div()
                         .size(px(13.))
                         .rounded_full()
-                        .bg(tint)
+                        .bg(red)
                         .flex()
                         .items_center()
                         .justify_center()
@@ -201,8 +198,8 @@ impl MeetingsPage {
                 .child(
                     div()
                         .text_size(ty::SECONDARY)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(text)
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(lb.text)
                         .child(if recording {
                             lokalbot_i18n::tr("Stop Recording")
                         } else {
@@ -222,6 +219,8 @@ impl MeetingsPage {
                 })
         };
 
+        // The header is the search field and Record (`MeetingListView`).
+        // Importing has no File menu here, so its button stays beside Record.
         let header =
             v_flex()
                 .flex_none()
@@ -229,33 +228,17 @@ impl MeetingsPage {
                 .gap(px(10.))
                 .child(
                     h_flex()
-                        .gap(px(8.))
-                        .items_start()
+                        .gap(px(6.))
+                        .items_center()
                         .child(
-                            v_flex()
+                            div()
                                 .flex_1()
                                 .min_w_0()
-                                .gap(px(2.))
-                                .child(
-                                    div()
-                                        .text_size(ty::COLUMN_TITLE)
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_color(lb.text)
-                                        .child(crate::ui::text::paragraph(lokalbot_i18n::tr(
-                                            "Meetings",
-                                        ))),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(ty::SECONDARY)
-                                        .text_color(lb.text_secondary)
-                                        .child(lokalbot_i18n::count(count, "meeting")),
-                                ),
+                                .child(Input::new(&self.search).small().cleanable(true)),
                         )
                         .child(import_button)
                         .child(record_button),
                 )
-                .child(Input::new(&self.search).small().cleanable(true))
                 .when_some(importing, |this, name| {
                     this.child(
                         h_flex()
@@ -277,8 +260,8 @@ impl MeetingsPage {
                             .gap(px(6.))
                             .items_center()
                             .text_size(ty::SECONDARY)
-                            .child(ui::icon(Ico::TriangleAlert, px(14.), lb.attention_text))
-                            .child(div().flex_1().text_color(lb.attention_text).child(
+                            .child(ui::icon(Ico::TriangleAlert, px(14.), lb.recording_text))
+                            .child(div().flex_1().text_color(lb.recording_text).child(
                                 crate::ui::text::paragraph(lokalbot_i18n::format(
                                     "{0} failed",
                                     &[("0", format!("{}", failed.len()))],
@@ -703,13 +686,11 @@ fn stage_badge(
             .items_end()
             .gap(px(2.))
             .child(
-                h_flex()
-                    .gap(px(4.))
-                    .items_center()
+                div()
                     .text_size(ty::SECONDARY)
-                    .text_color(lb.attention_text)
-                    .child(ui::icon(Ico::TriangleAlert, px(13.), lb.attention_text))
-                    .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Failed"))),
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(lb.recording_text)
+                    .child(lokalbot_i18n::tr("Failed")),
             )
             .child(retry(lokalbot_i18n::tr("Retry"), "row-retry"))
             .id(("row-failed", meeting_id.as_u128() as u64))
@@ -744,8 +725,8 @@ fn stage_badge(
             .flex_none()
             .gap(px(5.))
             .items_center()
-            .text_size(ty::CAPTION)
-            .text_color(lb.text_secondary)
+            .text_size(ty::SECONDARY)
+            .text_color(lb.supporting)
             .child(Spinner::new().xsmall())
             .child(row_stage_label(other))
             .into_any_element(),

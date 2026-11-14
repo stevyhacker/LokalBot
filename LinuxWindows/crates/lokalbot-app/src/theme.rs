@@ -245,7 +245,6 @@ pub mod metric {
     pub const SIDEBAR_ROW_HEIGHT: Pixels = px(32.);
     pub const TOOLBAR_HEIGHT: Pixels = px(52.);
     pub const READING_MAX_WIDTH: Pixels = px(720.);
-    pub const CONTENT_MAX_WIDTH: Pixels = px(1360.);
     pub const COMPOSER_RADIUS: Pixels = px(18.);
     pub const ACTION_TOGGLE: Pixels = px(18.);
     /// Section panels (`SectionPanelMetric`): the inset between a panel's

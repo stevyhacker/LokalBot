@@ -1,22 +1,20 @@
-//! Speaker review inside Name Speaker (`SpeakerIdentityReview`) and the
-//! "Recognized voices" line. Evidence stays out of the transcript model and
-//! its search and export paths; only names a person accepts reach them.
+//! Speaker review inside Name Speaker (`SpeakerIdentityReview`). Evidence
+//! stays out of the transcript model and its search and export paths; only
+//! names a person accepts reach them. Names recognized from earlier meetings
+//! start picked in the naming sheet (`naming.rs`) and are applied only when
+//! the person saves.
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Disableable as _, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, AppContext as _, Context, FontWeight, IntoElement, ParentElement as _, Styled as _,
-    Window, div, px,
+    AnyElement, Context, FontWeight, IntoElement, ParentElement as _, Styled as _, Window, div, px,
 };
 use lokalbot_core::voice::{Choice, DecisionAction, NameMatch};
 
-use super::MeetingsPage;
 use super::dialogs::NameSpeakerSheet;
-use super::model::MeetingDoc;
 use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, ty};
-use crate::ui::{self, Ico};
 
 /// `SpeakerNameMatch.explanation`.
 fn explanation(found: &NameMatch) -> String {
@@ -338,93 +336,5 @@ impl NameSpeakerSheet {
                 ));
         }
         out.into_any_element()
-    }
-}
-
-impl MeetingsPage {
-    /// Applies every recognized name as if the user named each speaker.
-    pub(super) fn apply_recognized(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(doc) = self.doc.clone() else { return };
-        let Some(transcript) = doc.transcript.clone() else {
-            return;
-        };
-        if self.applying_names || doc.recognized.is_empty() {
-            return;
-        }
-        self.applying_names = true;
-        cx.notify();
-        let recognized = doc.recognized.clone();
-        let meeting = doc.meeting.clone();
-        let library = self.data.read(cx).library.clone();
-        let data = self.data.clone();
-        cx.spawn_in(window, async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    lokalbot_engine::voice::apply_recognized_names(
-                        &library,
-                        &meeting,
-                        &transcript,
-                        &recognized,
-                    )
-                })
-                .await;
-            let _ = this.update(cx, |this, cx| {
-                this.applying_names = false;
-                data.update(cx, |data, cx| {
-                    match result {
-                        Ok(_) => data.request(crate::state::AppEvent::LearnSpeakerVoices, cx),
-                        Err(err) => data.show_error(
-                            lokalbot_i18n::format(
-                                "Could not save speaker names: {err}",
-                                &[("err", format!("{err:#}"))],
-                            ),
-                            cx,
-                        ),
-                    }
-                    data.mark_library_changed(cx);
-                });
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// "Recognized voices: Ana, Marko" with Apply Names. On these platforms a
-    /// person always confirms a voice match, so this is how a name is applied.
-    pub(super) fn render_recognized(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
-        let lb = cx.lb().clone();
-        let names = doc
-            .recognized
-            .iter()
-            .map(|(_, found)| found.name.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        ui::status_surface(lb.accent_fill, cx)
-            .px(px(12.))
-            .py(px(10.))
-            .flex()
-            .items_center()
-            .gap(px(10.))
-            .child(ui::icon(Ico::Users, px(16.), lb.accent_text))
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .text_size(ty::BODY)
-                    .text_color(lb.text)
-                    .child(lokalbot_i18n::format(
-                        "Recognized voices: {names}",
-                        &[("names", names)],
-                    )),
-            )
-            .child(
-                Button::new("apply-recognized")
-                    .outline()
-                    .small()
-                    .label(lokalbot_i18n::tr("Apply Names"))
-                    .disabled(self.applying_names)
-                    .on_click(cx.listener(|this, _, window, cx| this.apply_recognized(window, cx))),
-            )
-            .into_any_element()
     }
 }
