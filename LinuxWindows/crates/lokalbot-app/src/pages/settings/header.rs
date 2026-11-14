@@ -9,7 +9,7 @@
 
 use std::rc::Rc;
 
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::{Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -100,6 +100,71 @@ pub fn start_downloads(data: &Entity<AppData>, cx: &mut App) {
             }
         }
     });
+}
+
+/// Stops the downloads "Download all" started: every model of the three
+/// roles that is on its way (`cancelCoreModelDownloads`).
+pub fn cancel_downloads(data: &Entity<AppData>, cx: &mut App) {
+    data.update(cx, |data, cx| {
+        let settings = data.settings.clone();
+        let mut ids: Vec<String> = Vec::new();
+        for role in [
+            super::status::Role::Transcribe,
+            super::status::Role::Think,
+            super::status::Role::Autocomplete,
+        ] {
+            for id in super::status::role_ids(role, &settings).0 {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+        for id in ids {
+            if data.downloads.get(&id).is_some_and(|d| d.error.is_none()) {
+                data.request(AppEvent::CancelDownload(id), cx);
+            }
+        }
+    });
+}
+
+/// Models' own header control (`ModelsView.downloadControl`): Cancel while
+/// models arrive, "Download all · 5.9 GB" while some are missing, nothing
+/// once they are all here.
+pub fn download_control(
+    status: &super::status::SettingsStatus,
+    data: &Entity<AppData>,
+) -> Option<AnyElement> {
+    if !status.models_downloading().is_empty() {
+        let data = data.clone();
+        return Some(
+            Button::new("settings-models-cancel-downloads")
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Cancel"))
+                .tooltip(lokalbot_i18n::tr("Cancel the download"))
+                .on_click(move |_, _, cx| cancel_downloads(&data, cx))
+                .into_any_element(),
+        );
+    }
+    if status.models_to_download().is_empty() {
+        return None;
+    }
+    let label = match status.bytes_to_download() {
+        Some(bytes) => crate::pages::people::model::fill(
+            lokalbot_i18n::tr("Download all · %@"),
+            &[&super::status::size(bytes)],
+        ),
+        None => lokalbot_i18n::tr("Download all").to_string(),
+    };
+    let data = data.clone();
+    Some(
+        Button::new("settings-models-download-all")
+            .primary()
+            .small()
+            .label(directional(label))
+            .on_click(move |_, _, cx| start_downloads(&data, cx))
+            .into_any_element(),
+    )
 }
 
 /// The header: a card with the page's name and controls, then its status
