@@ -28,6 +28,8 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     FileCode, FileHeadphone, FileImage, FileVideoCamera,
     // Sidebar: Timeline (calendar.day.timeline.left) and the privacy line (lock.shield)
     SquareChartGantt, ShieldLock,
+    // Settings: a permission nothing uses now (minus.circle.fill)
+    CircleMinus,
 ]);
 
 /// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.

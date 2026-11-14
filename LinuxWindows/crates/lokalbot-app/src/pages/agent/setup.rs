@@ -148,10 +148,10 @@ impl AgentPage {
                 .child(
                     div().pt(px(18.)).text_size(ty::SECONDARY).child(ui::link(
                         "agent-external-cli",
-                        lokalbot_i18n::tr("Using your own coding agent? Set up lokalbot-cli and MCP in Settings → Advanced."),
+                        lokalbot_i18n::tr("Using your own coding agent? Set up lokalbot-cli and MCP in Settings → AI agents."),
                         move |_, cx| {
                             settings_data.update(cx, |data, cx| {
-                                data.open_settings(SettingsCategory::Advanced, cx)
+                                data.open_settings(SettingsCategory::Agents, cx)
                             })
                         },
                         cx,

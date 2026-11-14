@@ -639,9 +639,7 @@ pub fn invoke_selection_actions(data: &Entity<AppData>, cx: &mut App) {
     if data.read(cx).settings.selection_actions_enabled {
         crate::bridge::send(Command::Selection(SelectionCommand::Invoke), cx);
     } else {
-        data.update(cx, |data, cx| {
-            data.open_settings(SettingsCategory::General, cx)
-        });
+        data.update(cx, |data, cx| data.open_settings(SettingsCategory::Ask, cx));
     }
 }
 

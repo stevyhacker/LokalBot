@@ -67,28 +67,28 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.dreamingEnabled",
         title: "Review the day overnight",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "dreamingEnabled dream morning brief projects goals pins overnight review",
         value: |s| on_off(s.dreaming_enabled),
     },
     Entry {
         id: "settings.dreamingHour",
         title: "Overnight review hour",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "dream time overnight review after",
         value: |s| format!("{}:00", s.dreaming_hour),
     },
     Entry {
         id: "settings.dreamNow",
         title: "Review now",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "dream now overnight review run morning brief",
         value: details,
     },
     Entry {
         id: "settings.clearWorkMemory",
         title: "Clear work memory",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "delete overnight reviews projects goals patterns dream memory",
         value: details,
     },
@@ -116,7 +116,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.personalContextAccess",
         title: "What I shared about myself",
-        category: PersonalContext,
+        category: Agents,
         aliases: "external agents mcp cli personal context grant share items",
         value: details,
     },
@@ -158,28 +158,28 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.quickRecallEnabled",
         title: "Enable the system-wide Ask shortcut",
-        category: General,
+        category: Ask,
         aliases: "quick recall hotkey global search",
         value: |s| on_off(s.quick_recall_enabled),
     },
     Entry {
         id: "settings.quickRecallShortcut",
         title: "Ask shortcut",
-        category: General,
+        category: Ask,
         aliases: "quick recall hotkey keyboard",
         value: |s| s.quick_recall_shortcut.clone(),
     },
     Entry {
         id: "settings.selectionActionsEnabled",
         title: "Enable the selection actions shortcut",
-        category: General,
+        category: Ask,
         aliases: "selected text rewrite translate summarize reply grammar improve shorten",
         value: |s| on_off(s.selection_actions_enabled),
     },
     Entry {
         id: "settings.selectionActionsShortcut",
         title: "Selection actions shortcut",
-        category: General,
+        category: Ask,
         aliases: "selected text rewrite hotkey keyboard",
         value: |s| s.selection_actions_shortcut.clone(),
     },
@@ -419,14 +419,14 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.dailyMemoryExportEnabled",
         title: "Export a daily memory note",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "daily note obsidian logseq markdown journal export folder",
         value: |s| on_off(s.daily_memory_export_enabled),
     },
     Entry {
         id: "settings.dailyMemoryExportFormat",
         title: "Format",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "daily note export obsidian logseq markdown",
         value: |s| {
             use lokalbot_core::settings::DailyMemoryExportFormat::*;
@@ -441,14 +441,14 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.memoryRoutinesEnabled",
         title: "Enable safe local routines",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "routines stand-up standup weekly work log unfinished actions journal follow-up",
         value: |s| on_off(s.memory_routines_enabled),
     },
     Entry {
         id: "settings.memoryRoutineWeekday",
         title: "Weekly log day",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "routines weekly work log weekday",
         value: details,
     },
@@ -519,7 +519,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.askSources",
         title: "What Ask can search",
-        category: General,
+        category: Ask,
         aliases: "ask sources meetings day memory files personal context",
         value: |_| String::new(),
     },
@@ -630,21 +630,21 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.retentionCleanup",
         title: "Review expired context…",
-        category: Privacy,
+        category: DayMemory,
         aliases: "cleanup retention expired delete",
         value: details,
     },
     Entry {
         id: "settings.dayDigestAutoEnabled",
         title: "Generate the day digest automatically",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "digest journal schedule",
         value: |s| on_off(s.day_digest_auto_enabled),
     },
     Entry {
         id: "settings.dayDigestCustomPrompt",
         title: "Digest instructions (optional)",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "digest prompt instructions",
         value: |s| text(&s.day_digest_custom_prompt),
     },
@@ -1151,14 +1151,14 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.retentionDays",
         title: "Keep screen context",
-        category: Privacy,
+        category: DayMemory,
         aliases: "retention delete days cleanup window titles history activity screenshots",
         value: |s| lokalbot_i18n::format("{0} days", &[("0", format!("{}", s.retention_days))]),
     },
     Entry {
         id: "settings.keepOCRTextForever",
         title: "Keep screen text forever",
-        category: Privacy,
+        category: DayMemory,
         aliases: "retention ocr text",
         value: |s| on_off(s.keep_ocr_text_forever),
     },
@@ -1193,35 +1193,35 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.filesAccess",
         title: "External file access",
-        category: Privacy,
+        category: Agents,
         aliases: "mcp agent files folders documents search_files search-files",
         value: details,
     },
     Entry {
         id: "settings.agentNotesAccess",
         title: "External agent notes access",
-        category: Privacy,
+        category: Agents,
         aliases: "mcp agent notes memory claude code codex search_agent_notes search-notes",
         value: details,
     },
     Entry {
         id: "settings.agentAccess",
         title: "Allow external agents to read your meeting library",
-        category: Privacy,
+        category: Agents,
         aliases: "mcp claude cursor cli agents",
         value: details,
     },
     Entry {
         id: "settings.screenMemoryAccess",
         title: "Allow external agents to read screen memory",
-        category: Privacy,
+        category: Agents,
         aliases: "mcp agents screen activity timeline",
         value: details,
     },
     Entry {
         id: "settings.excludedApps",
         title: "Never capture these apps",
-        category: Privacy,
+        category: DayMemory,
         aliases: "exclusions private password activity",
         value: |s| {
             lokalbot_i18n::format(
@@ -1233,7 +1233,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.excludedScreenDomains",
         title: "Never capture these sites",
-        category: Privacy,
+        category: DayMemory,
         aliases: "exclusions domains websites private",
         value: |s| {
             lokalbot_i18n::format(
@@ -1252,7 +1252,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.agentCLI",
         title: "Agent CLI",
-        category: Advanced,
+        category: Agents,
         aliases: "cli terminal claude codex install path mcp",
         value: details,
     },
@@ -1280,7 +1280,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.settingsControlAccess",
         title: "External settings access",
-        category: Privacy,
+        category: Agents,
         aliases: "cli terminal agent configure settings control change",
         value: |_| lokalbot_i18n::tr("Open details").into(),
     },
@@ -1294,7 +1294,7 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.screenMemoryScope",
         title: "Granted history",
-        category: Privacy,
+        category: Agents,
         aliases: "screen memory scope agent mcp today week retained external",
         value: |_| lokalbot_i18n::tr("Open details").into(),
     },
@@ -1357,42 +1357,42 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         id: "settings.dayDigestHour",
         title: "Day digest hour",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "journal daily summary time",
         value: |s| s.day_digest_hour.to_string(),
     },
     Entry {
         id: "settings.dailyMemoryExportFolder",
         title: "Daily memory export folder",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "markdown obsidian logseq export folder",
         value: |s| text(&s.daily_memory_export_folder),
     },
     Entry {
         id: "settings.dailyMemoryExportHour",
         title: "Daily memory export hour",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "markdown obsidian logseq export time",
         value: |s| s.daily_memory_export_hour.to_string(),
     },
     Entry {
         id: "settings.meetingNoteExportFolder",
         title: "Meeting note export folder",
-        category: DayMemory,
+        category: Meetings,
         aliases: "obsidian logseq markdown vault meeting notes export folder",
         value: |s| text(&s.meeting_note_export_folder),
     },
     Entry {
         id: "settings.memoryRoutineFolder",
         title: "Routine folder",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "routines standup work log journal folder",
         value: |s| text(&s.memory_routine_folder),
     },
     Entry {
         id: "settings.memoryRoutineHour",
         title: "Routine hour",
-        category: DayMemory,
+        category: DailyReview,
         aliases: "routines standup time",
         value: |s| s.memory_routine_hour.to_string(),
     },
@@ -1476,6 +1476,11 @@ fn search_in(query: &str, locale: &str) -> Vec<&'static Entry> {
             } else {
                 String::new()
             };
+            let former = former_keys(entry.category)
+                .iter()
+                .map(|key| format!("{key} {}", lokalbot_i18n::translate(locale, key)))
+                .collect::<Vec<_>>()
+                .join(" ");
             lokalbot_core::text::settings_search_matches(
                 query,
                 &[
@@ -1486,6 +1491,7 @@ fn search_in(query: &str, locale: &str) -> Vec<&'static Entry> {
                     lokalbot_i18n::translate(locale, category_key(entry.category)),
                     lokalbot_i18n::translate(locale, entry.title),
                     &languages,
+                    &former,
                 ],
             )
         })
@@ -1596,16 +1602,34 @@ pub fn category_key(category: SettingsCategory) -> &'static str {
     match category {
         Overview => "Overview",
         General => "General",
-        Meetings => "Meetings",
-        DayMemory => "Day Memory",
-        PersonalContext => "Personal Context",
-        Writing => "Writing",
-        Dictation => "Dictation",
-        Files => "Files",
         Models => "Models",
+        Privacy => "Privacy & permissions",
+        Meetings => "Meetings",
+        DayMemory => "Screen & activity",
+        Files => "Files",
+        Ask => "Ask",
+        PersonalContext => "About you",
+        DailyReview => "Daily review",
+        Writing => "Autocomplete",
+        Dictation => "Dictation",
+        Agents => "AI agents",
         Devices => "Phones & tablets",
-        Privacy => "Privacy & Data",
-        Advanced => "Advanced",
+        Advanced => "Diagnostics",
+    }
+}
+
+/// What a page was called before, so search still finds its settings by the
+/// old name (`SettingsTab.formerNames`).
+pub fn former_keys(category: SettingsCategory) -> &'static [&'static str] {
+    match category {
+        PersonalContext => &["Personal Context"],
+        Agents => &["External Agents"],
+        DayMemory => &["Day Memory"],
+        Writing => &["Writing"],
+        Meetings => &["Recording"],
+        Advanced => &["Advanced"],
+        Privacy => &["Privacy & Data"],
+        _ => &[],
     }
 }
 
@@ -1780,6 +1804,34 @@ mod tests {
         );
         assert!(prerequisite("settings.useCalendarTitles", &on).is_none());
         assert_eq!(focus_target("settings.appTheme", &off), "settings.appTheme");
+    }
+
+    #[test]
+    fn settings_sit_on_the_page_that_holds_them_now() {
+        let page = |id: &str| ENTRIES.iter().find(|e| e.id == id).unwrap().category;
+        assert_eq!(page("settings.quickRecallShortcut"), Ask);
+        assert_eq!(page("settings.dreamingEnabled"), DailyReview);
+        assert_eq!(page("settings.retentionDays"), DayMemory);
+        assert_eq!(page("settings.excludedApps"), DayMemory);
+        assert_eq!(page("settings.agentAccess"), Agents);
+        assert_eq!(page("settings.agentCLI"), Agents);
+        assert_eq!(page("settings.permissions"), Privacy);
+        // Old page names still find what they held.
+        assert!(
+            search("day memory")
+                .iter()
+                .any(|e| e.id == "settings.trackingEnabled")
+        );
+        assert!(
+            search("external agents")
+                .iter()
+                .any(|e| e.id == "settings.agentAccess")
+        );
+        assert!(
+            search("diagnostics")
+                .iter()
+                .any(|e| e.id == "settings.logs")
+        );
     }
 
     #[test]

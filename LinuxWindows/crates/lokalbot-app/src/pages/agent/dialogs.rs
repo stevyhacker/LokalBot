@@ -284,11 +284,13 @@ impl Render for ContextPicker {
                         Button::new("agent-context-privacy")
                             .outline()
                             .small()
-                            .label(lokalbot_i18n::tr("Open Privacy settings"))
+                            .label(lokalbot_i18n::tr("Open AI agents settings"))
                             .on_click(move |_, window, cx| {
                                 window.close_dialog(cx);
                                 data.update(cx, |data, cx| {
-                                    data.open_settings(SettingsCategory::Privacy, cx)
+                                    data.open_settings(SettingsCategory::Agents, cx);
+                                    data.settings_focus =
+                                        Some("settings.screenMemoryAccess".into());
                                 })
                             }),
                     )

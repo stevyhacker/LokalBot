@@ -1,4 +1,5 @@
-//! Advanced: setup, the Agent CLI, logs and build details.
+//! Diagnostics (memory health, setup again, logs, resources and build
+//! details) and the Agent CLI section that AI agents shows.
 
 use std::path::PathBuf;
 
@@ -121,7 +122,7 @@ fn mcp_commands(
         );
     }
     column.child(settings_row::help(
-        lokalbot_i18n::tr("Agents also need \"Allow external agents to read your meeting library\" in Privacy & Data. Try it in a terminal with: lokalbot-cli brief"),
+        lokalbot_i18n::tr("Agents also need \"Allow external agents to read your meeting library\" above. Try it in a terminal with: lokalbot-cli brief"),
         cx,
     ))
 }
@@ -243,11 +244,10 @@ impl SettingsPage {
         .detach();
     }
 
-    pub(super) fn advanced_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
-        let (paths, data) = (
-            self.data.read(cx).library.paths().clone(),
-            self.data.clone(),
-        );
+    /// lokalbot-cli, its skill and the MCP commands (`agentCLISection`), on
+    /// AI agents beside the switches that decide what agents may read.
+    pub(super) fn agent_cli_section(&mut self, cx: &mut Context<Self>) -> Section {
+        let data = self.data.clone();
         let path = cli_install_path();
         let installed = self.cli_installed;
         let status = match installed {
@@ -255,26 +255,7 @@ impl SettingsPage {
             Some(false) => settings_row::value(lokalbot_i18n::tr("Not installed"), cx),
             None => settings_row::value(lokalbot_i18n::tr("Checking…"), cx),
         };
-        let setup_data = data.clone();
-        let setup = Section::new(lokalbot_i18n::tr("Setup")).row(
-            "settings.setupAgain",
-            settings_row::row(
-                "settings.setupAgain",
-                lokalbot_i18n::tr("Setup assistant"),
-                Some(lokalbot_i18n::tr("Walk through meeting recording, day memory, and models again. Nothing changes until you apply your choices at the end.").into()),
-                Button::new("settings-setup-again")
-                    .outline()
-                    .small()
-                    .label(lokalbot_i18n::tr("Set Up LokalBot Again…"))
-                    .on_click(move |_, _, cx| {
-                        setup_data.update(cx, |data, cx| data.request(AppEvent::OpenOnboarding, cx))
-                    }),
-                self.is_focused("settings.setupAgain"),
-                cx,
-            ),
-        );
-
-        let cli = Section::new(lokalbot_i18n::tr("Agent CLI"))
+        Section::new(lokalbot_i18n::tr("Agent CLI"))
             .row("settings.agentCLI", settings_row::row("settings.agentCLI", lokalbot_i18n::tr("Status"), None, status, self.is_focused("settings.agentCLI"), cx))
             .row(
                 "settings.agentCLIInstall",
@@ -320,7 +301,7 @@ impl SettingsPage {
                             this.child(settings_row::help(message, cx))
                         })
                         .child(settings_row::help(
-                            lokalbot_i18n::format("Installs lokalbot-cli at {0} and the LokalBot skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own switch in Privacy & Data.", &[("0", format!("{}", path.display()))]),
+                            lokalbot_i18n::format("Installs lokalbot-cli at {0} and the LokalBot skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own switch above.", &[("0", format!("{}", path.display()))]),
                             cx,
                         )),
                     false,
@@ -335,7 +316,32 @@ impl SettingsPage {
                     false,
                     cx,
                 ),
-            );
+            )
+    }
+
+    pub(super) fn advanced_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
+        let (paths, data) = (
+            self.data.read(cx).library.paths().clone(),
+            self.data.clone(),
+        );
+        let setup_data = data.clone();
+        let setup = Section::new(lokalbot_i18n::tr("Setup")).row(
+            "settings.setupAgain",
+            settings_row::row(
+                "settings.setupAgain",
+                lokalbot_i18n::tr("Setup assistant"),
+                Some(lokalbot_i18n::tr("Walk through meeting recording, day memory, and models again. Nothing changes until you apply your choices at the end.").into()),
+                Button::new("settings-setup-again")
+                    .outline()
+                    .small()
+                    .label(lokalbot_i18n::tr("Set Up LokalBot Again…"))
+                    .on_click(move |_, _, cx| {
+                        setup_data.update(cx, |data, cx| data.request(AppEvent::OpenOnboarding, cx))
+                    }),
+                self.is_focused("settings.setupAgain"),
+                cx,
+            ),
+        );
 
         let logs = paths.logs_dir();
         let open_logs = logs.clone();
@@ -442,7 +448,7 @@ impl SettingsPage {
 
         let resources = self.resource_monitor_section(cx);
         let mut sections = self.memory_health_sections(cx);
-        sections.extend([setup, cli, diagnostics, resources, system]);
+        sections.extend([setup, diagnostics, resources, system]);
         sections
     }
 }
