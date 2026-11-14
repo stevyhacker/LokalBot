@@ -322,7 +322,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 | 角色 | 默认模型 | 格式 | 模型文件约 |
 | --- | --- | --- | ---: |
-| 转写 | Qwen3-ASR 1.7B | MLX 8-bit | 2.47 GB |
+| 转写 | Qwen3-ASR 1.7B | GGUF Q8_0 | 2.52 GB |
 | 纪要与对话 | Qwen3.5 4B | `Q4_K_M` | 2.74 GB |
 | 自动补全 | Gemma 4 E2B Base | `Q6_K` | 3.85 GB |
 | 语义搜索 | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
