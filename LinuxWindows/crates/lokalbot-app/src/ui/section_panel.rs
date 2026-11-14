@@ -3,7 +3,7 @@
 //! Timeline's day are made of these.
 //!
 //! A panel has a header bar (the section's icon, its title, a count pill, an
-//! optional red alert pill or status pill, and one trailing link or control),
+//! optional red alert pill or status pill, and one trailing link),
 //! a hairline, a body, and an optional footer strip on a faint fill for the
 //! one extra line a section has.
 //!
@@ -27,9 +27,6 @@
 //!
 //! Put panels on [`page_surface`] (the grey page behind them) so they read
 //! as raised, and stack them in a [`panel_column`].
-
-// The screens adopt these one at a time; drop this once every part is used.
-#![allow(dead_code)]
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -177,12 +174,10 @@ type Handler = Box<dyn Fn(&mut Window, &mut App) + 'static>;
 ///
 /// - Header: [`icon`](Self::icon) or [`section`](Self::section), the title,
 ///   [`count`](Self::count), [`alert`](Self::alert) (red) or
-///   [`status`](Self::status), then one [`trailing`](Self::trailing) element
-///   or [`trailing_link`](Self::trailing_link).
+///   [`status`](Self::status), then one [`trailing_link`](Self::trailing_link).
 /// - Body, in the order added: [`rows`](Self::rows) (inset rows divided by
-///   inset hairlines, like Needs attention), [`flush_rows`](Self::flush_rows)
-///   (rows with their own padding, hairlines edge to edge, like Meetings
-///   today), [`band`](Self::band) and free [`child`](Self::child) content.
+///   inset hairlines, like Needs attention), [`band`](Self::band) and free
+///   [`child`](Self::child) content.
 /// - [`footer`](Self::footer): each call adds to the strip; use
 ///   [`footer_text`] for its words.
 /// - [`disclosure`](Self::disclosure): a collapsed panel whose header opens
@@ -195,22 +190,15 @@ pub struct SectionPanel {
     count: Option<usize>,
     alert: Option<SharedString>,
     status: Option<(SharedString, PillTone)>,
-    trailing: Option<Trailing>,
-    trailing_fills: bool,
+    trailing: Option<(ElementId, SharedString, Handler)>,
     title_lines: usize,
     disclosure: Option<Disclosure>,
     body: Vec<BodyPart>,
     footer: Vec<AnyElement>,
 }
 
-enum Trailing {
-    Element(AnyElement),
-    Link(ElementId, SharedString, Handler),
-}
-
 enum BodyPart {
     Rows(Vec<AnyElement>),
-    FlushRows(Vec<AnyElement>),
     Band(SharedString, bool),
     Child(AnyElement),
 }
@@ -226,7 +214,6 @@ impl SectionPanel {
             alert: None,
             status: None,
             trailing: None,
-            trailing_fills: false,
             title_lines: 1,
             disclosure: None,
             body: Vec::new(),
@@ -265,12 +252,6 @@ impl SectionPanel {
         self
     }
 
-    /// The one link or control at the header's trailing edge.
-    pub fn trailing(mut self, element: impl IntoElement) -> Self {
-        self.trailing = Some(Trailing::Element(element.into_any_element()));
-        self
-    }
-
     /// A link at the header's trailing edge ("All actions", "Open Timeline").
     pub fn trailing_link(
         mut self,
@@ -278,14 +259,7 @@ impl SectionPanel {
         label: impl Into<SharedString>,
         on_click: impl Fn(&mut Window, &mut App) + 'static,
     ) -> Self {
-        self.trailing = Some(Trailing::Link(id.into(), label.into(), Box::new(on_click)));
-        self
-    }
-
-    /// The trailing control is a field: it takes the room the title leaves,
-    /// where a link keeps its own width.
-    pub fn trailing_fills(mut self) -> Self {
-        self.trailing_fills = true;
+        self.trailing = Some((id.into(), label.into(), Box::new(on_click)));
         self
     }
 
@@ -315,16 +289,6 @@ impl SectionPanel {
         let rows: Vec<AnyElement> = rows.into_iter().map(|r| r.into_any_element()).collect();
         if !rows.is_empty() {
             self.body.push(BodyPart::Rows(rows));
-        }
-        self
-    }
-
-    /// Rows that bring their own horizontal padding, divided by hairlines
-    /// that run edge to edge.
-    pub fn flush_rows(mut self, rows: impl IntoIterator<Item = impl IntoElement>) -> Self {
-        let rows: Vec<AnyElement> = rows.into_iter().map(|r| r.into_any_element()).collect();
-        if !rows.is_empty() {
-            self.body.push(BodyPart::FlushRows(rows));
         }
         self
     }
@@ -449,18 +413,13 @@ impl RenderOnce for SectionPanel {
                     this.child(pill(text, tone, cx))
                 })
                 .child(div().flex_1().min_w(px(8.)))
-                .when_some(self.trailing.take(), |this, trailing| {
-                    let trailing = match trailing {
-                        Trailing::Element(element) => element,
-                        Trailing::Link(id, label, on_click) => {
-                            panel_link(id, label, move |window, cx| on_click(window, cx), cx)
-                        }
-                    };
-                    if self.trailing_fills {
-                        this.child(div().flex_1().min_w_0().child(trailing))
-                    } else {
-                        this.child(div().flex_none().child(trailing))
-                    }
+                .when_some(self.trailing.take(), |this, (id, label, on_click)| {
+                    this.child(div().flex_none().child(panel_link(
+                        id,
+                        label,
+                        move |window, cx| on_click(window, cx),
+                        cx,
+                    )))
                 })
                 .into_any_element(),
         };
@@ -507,19 +466,6 @@ fn render_part(part: BodyPart, cx: &App) -> AnyElement {
             v_flex()
                 .w_full()
                 .px(metric::PANEL_INSET)
-                .children(rows.into_iter().enumerate().flat_map(|(ix, row)| {
-                    let mut parts = vec![row];
-                    if ix + 1 < count {
-                        parts.push(super::divider(cx).into_any_element());
-                    }
-                    parts
-                }))
-                .into_any_element()
-        }
-        BodyPart::FlushRows(rows) => {
-            let count = rows.len();
-            v_flex()
-                .w_full()
                 .children(rows.into_iter().enumerate().flat_map(|(ix, row)| {
                     let mut parts = vec![row];
                     if ix + 1 < count {

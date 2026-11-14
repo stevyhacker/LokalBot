@@ -32,9 +32,8 @@ use crate::i18n::h_flex;
 pub use gpui_kit::assets::IconName as Ico;
 use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::{
-    App, Div, ElementId, FontWeight, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, Pixels, SharedString, Stateful, StatefulInteractiveElement as _,
-    Styled as _, Window, div, px, relative,
+    App, Div, ElementId, FontWeight, Hsla, InteractiveElement as _, ParentElement as _, Pixels,
+    SharedString, Stateful, StatefulInteractiveElement as _, Styled as _, Window, div, px,
 };
 
 use crate::theme::{LbThemeExt as _, metric, ty};
@@ -67,27 +66,6 @@ pub fn status_surface(tint: Hsla, cx: &App) -> Div {
         .bg(lb.status_fill(tint))
         .border_1()
         .border_color(lb.status_stroke(tint))
-}
-
-#[allow(dead_code)] // unused after the redesign; removed once Settings lands
-/// `WorkspaceSection`: a bold title, an 8px gap, then a padded panel.
-pub fn section(title: impl Into<SharedString>, content: impl IntoElement, cx: &App) -> Div {
-    v_flex()
-        .gap(metric::HEADER_TO_CONTENT)
-        .child(section_title(title, cx))
-        .child(panel(cx).child(content))
-}
-
-#[allow(dead_code)] // unused after the redesign; removed once Settings lands
-/// Bold section heading (13pt headline on macOS): a group's title above
-/// its well, such as Settings' "Your data". Inside a section panel use
-/// `section_panel::panel_label` instead.
-pub fn section_title(title: impl Into<SharedString>, cx: &App) -> Div {
-    div()
-        .text_size(ty::SECTION)
-        .font_weight(FontWeight::BOLD)
-        .text_color(cx.lb().text)
-        .child(title.into())
 }
 
 /// `StatTile`: icon + bold value + label, in a chip ("3h 50m tracked").
@@ -168,32 +146,6 @@ pub fn empty_state(
 /// Hairline separator.
 pub fn divider(cx: &App) -> Div {
     div().h(px(1.)).w_full().bg(cx.lb().separator)
-}
-
-#[allow(dead_code)] // unused after the redesign; removed once Settings lands
-/// `ProportionBar`: a 10px capsule split by share (at least 1px per segment).
-pub fn proportion_bar(segments: &[(Hsla, f32)], cx: &App) -> Div {
-    let total: f32 = segments.iter().map(|(_, share)| share.max(0.0)).sum();
-    let track = cx.lb().chip_fill;
-    h_flex()
-        .w_full()
-        .h(px(10.))
-        .rounded_full()
-        .overflow_hidden()
-        .bg(track)
-        .children(
-            segments
-                .iter()
-                .filter(|(_, share)| *share > 0.0)
-                .map(|(color, share)| {
-                    let fraction = if total > 0.0 { share / total } else { 0.0 };
-                    div()
-                        .h_full()
-                        .min_w(px(1.))
-                        .w(relative(fraction))
-                        .bg(*color)
-                }),
-        )
 }
 
 /// A clickable text link in the accent color.

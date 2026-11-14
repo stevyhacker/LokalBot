@@ -238,8 +238,6 @@ pub mod metric {
     pub const SETTINGS_CATEGORIES_WIDTH: Pixels = px(240.);
     pub const DETAIL_PADDING: Pixels = px(28.);
     pub const SECTION_SPACING: Pixels = px(22.);
-    #[allow(dead_code)] // unused after the redesign; removed once Settings lands
-    pub const HEADER_TO_CONTENT: Pixels = px(8.);
     pub const PANEL_PADDING: Pixels = px(14.);
     pub const GROUP_RADIUS: Pixels = px(10.);
     pub const ROW_RADIUS: Pixels = px(8.);

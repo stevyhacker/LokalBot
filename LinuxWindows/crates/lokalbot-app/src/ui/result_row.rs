@@ -1,17 +1,9 @@
-//! Search result anatomy shared by Ask and Quick Recall (`ResultRow.swift`):
-//! title, date and kind chip, then a snippet whose «matched» words are bold.
+//! Search snippets shared by Ask and Quick Recall (`ResultRow.swift`):
+//! «matched» words in bold, and no lines that only repeat the row's title.
 
 use std::ops::Range;
 
-use crate::i18n::h_flex;
-use gpui_kit::component::v_flex;
-use gpui_kit::prelude::FluentBuilder as _;
-use gpui_kit::{
-    App, Div, FontWeight, HighlightStyle, Hsla, ParentElement as _, SharedString, Styled as _,
-    StyledText, div, px,
-};
-
-use crate::theme::{LbThemeExt as _, ty};
+use gpui_kit::{FontWeight, HighlightStyle, Hsla, StyledText};
 
 /// Splits an FTS snippet on «» markers (`SnippetHighlighter.segments`).
 /// Returns the plain text and the byte ranges of the matched runs.
@@ -90,85 +82,6 @@ pub fn highlighted(snippet: &str, emphasis: Hsla) -> StyledText {
         )
     });
     StyledText::new(text).with_highlights(highlights.collect::<Vec<_>>())
-}
-
-/// Compact capsule for a result kind ("Summary", "▶ 00:12:04 · Maya").
-// Ask's matches have their own rows now; kept while Quick Recall is redesigned.
-#[allow(dead_code)]
-pub fn kind_chip(label: impl Into<SharedString>, cx: &App) -> Div {
-    let lb = cx.lb();
-    div()
-        .flex_none()
-        .px(px(8.))
-        .py(px(2.))
-        .rounded_full()
-        .bg(lb.chip_fill)
-        .text_size(ty::SMALL)
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(lb.text_secondary)
-        .whitespace_nowrap()
-        .child(label.into())
-}
-
-/// The body of an Ask meeting result.
-#[allow(dead_code)]
-pub fn result_body(
-    title: SharedString,
-    date: Option<SharedString>,
-    kind: SharedString,
-    match_label: Option<SharedString>,
-    snippet: &str,
-    cx: &App,
-) -> Div {
-    let lb = cx.lb();
-    v_flex()
-        .gap(px(3.))
-        .w_full()
-        .min_w_0()
-        .child(
-            h_flex()
-                .gap(px(6.))
-                .items_center()
-                .min_w_0()
-                .child(
-                    div()
-                        .min_w_0()
-                        .truncate()
-                        .text_size(ty::BODY)
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(lb.text)
-                        .child(title),
-                )
-                .when_some(date, |this, date| {
-                    this.child(
-                        div()
-                            .flex_none()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.supporting)
-                            .child(date),
-                    )
-                })
-                .child(div().flex_1().min_w_0())
-                .child(kind_chip(kind, cx)),
-        )
-        .when_some(match_label, |this, label| {
-            this.child(
-                div()
-                    .text_size(ty::SECONDARY)
-                    .text_color(lb.text_secondary)
-                    .child(label),
-            )
-        })
-        .when(!snippet.trim().is_empty(), |this| {
-            this.child(
-                div()
-                    .text_size(ty::SECONDARY)
-                    .line_height(px(19.))
-                    .text_color(lb.supporting)
-                    .line_clamp(3)
-                    .child(highlighted(snippet, lb.text)),
-            )
-        })
 }
 
 #[cfg(test)]

@@ -7,7 +7,6 @@
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
-use chrono::{DateTime, Local, Utc};
 use lokalbot_core::{Meeting, ScreenMoment};
 use uuid::Uuid;
 
@@ -74,19 +73,6 @@ impl CitationSource {
             return None;
         };
         resolve_meeting(id, meetings)
-    }
-
-    /// Key that identifies the underlying source (ignoring the moment).
-    // Ask's sources list groups citations itself now; kept while other pages
-    // are being redesigned.
-    #[allow(dead_code)]
-    fn source_key(&self) -> String {
-        match self {
-            CitationSource::Meeting { id, .. } => format!("meeting:{}", id.to_lowercase()),
-            CitationSource::Screen { snapshot_id } => format!("screen:{snapshot_id}"),
-            CitationSource::File { id } => format!("file:{id}"),
-            CitationSource::Note { id } => format!("note:{id}"),
-        }
     }
 }
 
@@ -184,165 +170,6 @@ pub fn extract(text: &str) -> CitedText {
 /// Plain answer text for the clipboard: markers become `[n]`.
 pub fn display_text(text: &str) -> String {
     extract(text).text
-}
-
-/// "1 source · Design review", "3 citations · Design review" or
-/// "3 citations · 2 sources" (`EvidenceDisclosure.evidenceSummary`).
-#[allow(dead_code)]
-pub fn evidence_summary(
-    citations: &[CitationSource],
-    meetings: &[Meeting],
-    screens: &ScreenCitations,
-) -> String {
-    let Some(first) = citations.first() else {
-        return lokalbot_i18n::tr("No sources").into();
-    };
-    let mut keys: Vec<String> = citations.iter().map(CitationSource::source_key).collect();
-    keys.sort();
-    keys.dedup();
-    let title = resolve(first, meetings, screens).title;
-    if citations.len() == 1 {
-        lokalbot_i18n::format("1 source · {title}", &[("title", title.to_string())])
-    } else if keys.len() == 1 {
-        lokalbot_i18n::format(
-            "{0} citations · {title}",
-            &[
-                ("0", format!("{}", citations.len())),
-                ("title", title.to_string()),
-            ],
-        )
-    } else {
-        lokalbot_i18n::format(
-            "{0} citations · {1} sources",
-            &[
-                ("0", format!("{}", citations.len())),
-                ("1", format!("{}", keys.len())),
-            ],
-        )
-    }
-}
-
-/// What an evidence row shows for a citation.
-#[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)]
-pub struct ResolvedCitation {
-    pub title: String,
-    pub detail: String,
-    pub available: bool,
-    pub is_screen: bool,
-}
-
-#[allow(dead_code)]
-pub fn resolve(
-    source: &CitationSource,
-    meetings: &[Meeting],
-    screens: &ScreenCitations,
-) -> ResolvedCitation {
-    match source {
-        CitationSource::Meeting { id, at } => match resolve_meeting(id, meetings) {
-            Some(meeting) => {
-                let stamp = at
-                    .map(|t| format!(" · {}", lokalbot_core::time::stamp(t)))
-                    .unwrap_or_default();
-                ResolvedCitation {
-                    title: meeting.display_title(),
-                    detail: lokalbot_i18n::format(
-                        "Meeting · {0}{stamp}",
-                        &[
-                            ("0", date_and_time(meeting.started_at).to_string()),
-                            ("stamp", stamp.to_string()),
-                        ],
-                    ),
-                    available: true,
-                    is_screen: false,
-                }
-            }
-            None => ResolvedCitation {
-                title: lokalbot_i18n::format("Meeting {id}", &[("id", id.to_string())]),
-                detail: lokalbot_i18n::tr("Local source missing").into(),
-                available: false,
-                is_screen: false,
-            },
-        },
-        CitationSource::File { id } => match known_file_citation(*id) {
-            Some(Some(hit)) => ResolvedCitation {
-                title: hit.name(),
-                detail: lokalbot_i18n::format("File · {0}", &[("0", hit.folder())]),
-                available: true,
-                is_screen: false,
-            },
-            known => ResolvedCitation {
-                title: lokalbot_i18n::tr("File").into(),
-                detail: if known.is_some() {
-                    lokalbot_i18n::tr("Local source missing").into()
-                } else {
-                    lokalbot_i18n::tr("File · Loading…").into()
-                },
-                available: false,
-                is_screen: false,
-            },
-        },
-        CitationSource::Note { id } => match known_note_citation(id) {
-            Some(Some(hit)) => ResolvedCitation {
-                detail: lokalbot_i18n::format("Agent note · {0}", &[("0", hit.source_label())]),
-                title: hit.title,
-                available: true,
-                is_screen: false,
-            },
-            known => ResolvedCitation {
-                title: lokalbot_i18n::tr("Agent note").into(),
-                detail: if known.is_some() {
-                    lokalbot_i18n::tr("Local source missing").into()
-                } else {
-                    lokalbot_i18n::tr("Agent note · Loading…").into()
-                },
-                available: false,
-                is_screen: false,
-            },
-        },
-        CitationSource::Screen { snapshot_id } => match screens.get(snapshot_id) {
-            Some(Some(moment)) => {
-                let title = [&moment.window_title, &moment.document_name]
-                    .into_iter()
-                    .find(|t| !t.trim().is_empty())
-                    .cloned()
-                    .unwrap_or_else(|| moment.app.clone());
-                ResolvedCitation {
-                    title,
-                    detail: lokalbot_i18n::format(
-                        "Screen · {0} · {1}",
-                        &[
-                            ("0", moment.app.to_string()),
-                            ("1", date_and_time(moment.ts).to_string()),
-                        ],
-                    ),
-                    available: true,
-                    is_screen: true,
-                }
-            }
-            known => ResolvedCitation {
-                title: lokalbot_i18n::tr("Screen moment").into(),
-                detail: if known.is_some() {
-                    lokalbot_i18n::tr("Local source missing").into()
-                } else {
-                    lokalbot_i18n::tr("Screen · Loading…").into()
-                },
-                available: false,
-                is_screen: true,
-            },
-        },
-    }
-}
-
-/// "Oct 8, 2026 at 11:57 AM" (Swift's abbreviated date + shortened time).
-#[allow(dead_code)]
-pub fn date_and_time(at: DateTime<Utc>) -> String {
-    at.with_timezone(&Local)
-        .format_localized(
-            lokalbot_i18n::date_pattern("%b %-d, %Y at %-I:%M %p"),
-            lokalbot_i18n::date_locale(),
-        )
-        .to_string()
 }
 
 /// Full UUIDs, or a unique prefix of the dashless id (`SessionLookup.find`).
@@ -522,40 +349,10 @@ mod tests {
     }
 
     #[test]
-    fn summary_counts_sources() {
-        let cited = extract(REDIS);
-        assert_eq!(
-            evidence_summary(&cited.citations, &[], &ScreenCitations::new()),
-            "3 citations · 2 sources"
-        );
-        let one = extract("x [screen:3]");
-        assert_eq!(
-            evidence_summary(&one.citations, &[], &ScreenCitations::new()),
-            "1 source · Screen moment"
-        );
-        let moment = ScreenMoment {
-            id: 3,
-            ts: Utc::now(),
-            app: "Firefox".into(),
-            window_title: "Quarterly plan".into(),
-            capture_trigger: "app_switch".into(),
-            path: String::new(),
-            source_url: String::new(),
-            document_name: String::new(),
-            meeting_id: None,
-            privacy_redactions: 0,
-            text: None,
-            saved_note: None,
-            is_saved: false,
-            similarity_group: 0,
-        };
-        let screens = ScreenCitations::from([(3, Some(moment))]);
+    fn parses_file_and_note_markers() {
         let (_, files) = split("In the plan [file:12], and again [file:12].");
         assert_eq!(files, [CitationSource::File { id: 12 }]);
         assert!(split("Broken [file:abc] and [file:3@00:10]").1.is_empty());
-        remember_file_citation(12, None);
-        let gone = resolve(&files[0], &[], &HashMap::new());
-        assert!(!gone.available);
         let noted = extract(
             "Releases are tagged by SHA [note:c0ffee000001]. Builds use Bazel [note:C0FFEE0000FF], as said [note:c0ffee000001].",
         );
@@ -579,35 +376,6 @@ mod tests {
                 .1
                 .is_empty()
         );
-        let loading = resolve(&noted.citations[0], &[], &HashMap::new());
-        assert!(!loading.available && !loading.is_screen);
-        assert_eq!(loading.title, "Agent note");
-        remember_note_citation(
-            "c0ffee000001",
-            Some(lokalbot_core::agent_notes::NoteHit {
-                id: "c0ffee000001".into(),
-                agent: "claude-code".into(),
-                title: "Release runbook".into(),
-                summary: None,
-                category: None,
-                working_directory: Some("/Users/me/GitHub/app".into()),
-                path: "/Users/me/.claude/projects/-Users-me-GitHub-app/memory/release.md".into(),
-                modified: Utc::now(),
-                snippet: String::new(),
-            }),
-        );
-        let note = resolve(&noted.citations[0], &[], &HashMap::new());
-        assert!(note.available);
-        assert_eq!(note.title, "Release runbook");
-        assert_eq!(note.detail, "Agent note · Claude Code · app");
-        remember_note_citation("c0ffee0000ff", None);
-        assert!(!resolve(&noted.citations[1], &[], &HashMap::new()).available);
-        let resolved = resolve(&one.citations[0], &[], &screens);
-        assert!(resolved.available && resolved.is_screen);
-        assert_eq!(resolved.title, "Quarterly plan");
-        assert!(resolved.detail.starts_with("Screen · Firefox · "));
-        let gone = ScreenCitations::from([(3, None)]);
-        assert!(!resolve(&one.citations[0], &[], &gone).available);
     }
 
     #[test]
