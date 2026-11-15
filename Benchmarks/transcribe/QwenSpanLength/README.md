@@ -2,7 +2,7 @@
 
 This benchmark asks whether the length of the audio windows LokalBot hands to Qwen3-ASR changes accuracy, and where the gap between the app's saved transcripts and the [CloudSTT](../CloudSTT/README.md) benchmark comes from. It holds the model, weights and runtime fixed and varies only how audio is cut into decode windows, the language hint, speech-swift's long-input repetition blocking, and the token cap.
 
-`harness/` is a headless Swift executable that replicates `QwenASREngine`'s span path with the app's exact package pins: speech-swift 0.0.26, FluidAudio 0.17.1 and mlx-swift 0.31.4. It loads `aufklarer/Qwen3-ASR-1.7B-MLX-8bit` and the Silero VAD v6.2.1 Core ML model the app uses, and it never launches the app. `SpeechActivity.split`, `samplesForInference`, the token formula, span sample slicing and `Transcript.normalizedText` are copied from the app.
+`harness/` is a headless Swift executable that replicates `QwenASREngine`'s span path with the app's exact package pins: today the `stevyhacker/speech-swift` fork at `8e87821` (v0.0.29), FluidAudio 0.18.3 and mlx-swift 0.32.3. The 2026-09-30 results used speech-swift 0.0.26, FluidAudio 0.17.1 and mlx-swift 0.31.4. It loads `aufklarer/Qwen3-ASR-1.7B-MLX-8bit` and the Silero VAD v6.2.1 Core ML model the app uses, and it never launches the app. `SpeechActivity.split`, `samplesForInference`, the token formula, span sample slicing and `Transcript.normalizedText` are copied from the app.
 
 ## Data
 
@@ -91,6 +91,35 @@ RUNS_FILE=runs-06b.jsonl ALIGNED_PREFIX=aligned06 .venv/bin/python make_region_j
 for f in $SPAN_BENCH_OUT/align-aligned06-*.json; do $SPAN_BENCH_OUT/dd/Build/Products/Release/qwen-span-harness align $f; done
 .venv/bin/python score_compact.py --results results/2026-09-30
 ```
+
+### CoreML aligner
+
+`align` mode also runs speech-swift's `CoreMLForcedAligner` (`engine: "coreml"` in the job, set by `ALIGNER_ENGINE=coreml`). It records each window's time and any failure: over 30 s of audio or over the decoder's fixed 768 tokens. Each run writes a `.stats.json` with its load time and peak physical footprint. `score_coreml.py` compares the shipped MLX layout, MLX on ≤30 s windows and both CoreML exports, and diffs raw word boundaries on identical text. Fetch only the compiled bundles, the embedding table and the tokenizer at the pinned revisions (INT8 `a9d6ec64612e3d764cd0addfac0749e43b72dc07`, FP16 `11f686d7058a41ee5b7c26be2d8cfb154098633c`), and check them against the Hub's digests:
+
+```sh
+for f in audio_encoder.mlmodelc/{analytics/coremldata.bin,coremldata.bin,metadata.json,model.mil,weights/weight.bin} \
+         text_decoder.mlmodelc/{analytics/coremldata.bin,coremldata.bin,metadata.json,model.mil,weights/weight.bin} \
+         embed_tokens.fp16.bin config.json vocab.json merges.txt tokenizer_config.json; do
+  curl -fL --create-dirs -o $SPAN_BENCH_OUT/aligner-coreml-int8/$f \
+    https://huggingface.co/aufklarer/Qwen3-ForcedAligner-0.6B-CoreML-INT8/resolve/a9d6ec64612e3d764cd0addfac0749e43b72dc07/$f
+done   # FP16 likewise into aligner-coreml-fp16
+# merge-30-off-v14: the app's ≤14 s VAD regions merged across ≤5 s pauses into ≤30 s, blocking off
+.venv/bin/python make_region_jobs.py diarize-job && $SPAN_BENCH_OUT/dd/Build/Products/Release/qwen-span-harness diarize $SPAN_BENCH_OUT/diarize.json
+ALIGNER_MODEL_DIR=$SPAN_BENCH_OUT/aligner/models/aufklarer/Qwen3-ForcedAligner-0.6B-4bit \
+  .venv/bin/python make_region_jobs.py align-job merge-60-off-v14 merge-30-off-v14
+for v in int8 fp16; do
+  ALIGNER_ENGINE=coreml ALIGNER_VARIANT=$v ALIGNER_MODEL_DIR=$SPAN_BENCH_OUT/aligner-coreml-$v \
+    .venv/bin/python make_region_jobs.py align-job merge-30-off-v14
+done
+# One process per run, so each stats file holds one aligner's peak. ALIGN_IDS=<chunk> ALIGN_SUFFIX=-long
+# makes the one-chunk memory jobs the scorer reads.
+for f in $SPAN_BENCH_OUT/align-{4bit,coreml-int8,coreml-fp16}-merge-*.json; do
+  $SPAN_BENCH_OUT/dd/Build/Products/Release/qwen-span-harness align $f; sleep 30
+done
+.venv/bin/python score_coreml.py --results results/2026-11-15
+```
+
+`SPEECH_COREML_COMPUTE_UNITS=gpu|ane|cpu|all` overrides speech-swift's default compute units (encoder CPU + Neural Engine, decoder all). Without CloudSTT's vendor outputs in `STT_BENCH_DATA/outputs`, `score_coreml.py` compares meeting text with the shipped layout's text instead of the consensus.
 
 ### Language auto-detection
 

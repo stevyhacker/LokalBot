@@ -1,6 +1,7 @@
-// Headless replica of LokalBot's QwenASREngine span path (speech-swift 0.0.26,
-// FluidAudio 0.17.1, aufklarer/Qwen3-ASR-1.7B-MLX-8bit) with the span layout,
-// language hint, n-gram escalation and token cap exposed as experiment knobs.
+// Headless replica of LokalBot's QwenASREngine span path (the speech-swift fork
+// at 8e87821, FluidAudio 0.18.3, mlx-swift 0.32.3, aufklarer/Qwen3-ASR-1.7B-MLX-8bit)
+// with the span layout, language hint, n-gram escalation and token cap exposed
+// as experiment knobs.
 //
 // Usage: qwen-span-harness <jobs.json>
 // Output: JSON lines appended to jobs.output; (condition, id) pairs already
@@ -8,6 +9,7 @@
 import CoreML
 import FluidAudio
 import Foundation
+import MLX
 import NaturalLanguage
 import Qwen3ASR
 
@@ -299,9 +301,12 @@ if CommandLine.arguments[1] == "diarize" {
 
 // `align <job.json>`: word timings for an existing condition's decode windows
 // with speech-swift's Qwen3 forced aligner (transcribe first, attribute after).
+// `engine` "mlx" (default) is Qwen3ForcedAligner, trimmed like QwenWordAligner;
+// "coreml" is CoreMLForcedAligner loaded from modelDir's compiled bundles.
 struct AlignJob: Decodable {
     var modelId: String
     var modelDir: String
+    var engine: String?
     var runs: String
     var condition: String
     var language: String
@@ -311,16 +316,76 @@ struct AlignJob: Decodable {
 
 struct AlignedRecord: Encodable {
     var id: String
-    /// [surface, start, end] on the item's timeline, per decode window.
+    /// [surface, start, end] on the item's timeline, per decode window; empty when it failed.
     var windows: [[[String]]]
+    /// Per window: audio length, word count, align time, and the error for a failed window.
+    var info: [WindowInfo]
     var seconds: Double
 }
+
+struct WindowInfo: Encodable {
+    var audioSeconds: Double
+    var words: Int
+    var seconds: Double
+    var error: String?
+}
+
+/// The two aligners behind one call; only CoreML throws (30 s encoder, fixed T).
+enum AnyAligner {
+    case mlx(Qwen3ForcedAligner)
+    case coreml(CoreMLForcedAligner)
+
+    /// (surface, start, end) relative to the first sample.
+    func align(_ audio: [Float], text: String, language: String) throws -> [(String, Double, Double)] {
+        switch self {
+        case .mlx(let model):
+            // QwenWordAligner.align: return MLX scratch buffers above 512 MB after each pass.
+            defer { if Memory.cacheMemory > 512 * 1024 * 1024 { Memory.clearCache() } }
+            return model.align(audio: audio, text: text, sampleRate: sampleRate, language: language)
+                .map { ($0.text, Double($0.startTime), Double($0.endTime)) }
+        case .coreml(let model):
+            // CoreML returns autoreleased MLMultiArrays (about 12 MB a pass, mostly
+            // logits); without a pool per pass a long loop keeps every one of them.
+            return try autoreleasepool {
+                try model.align(audio: audio, text: text, sampleRate: sampleRate, language: language)
+                    .map { ($0.text, Double($0.startTime), Double($0.endTime)) }
+            }
+        }
+    }
+
+    /// QwenWordAligner.finishBatch after each track.
+    func finishBatch() {
+        if case .mlx = self { Memory.clearCache() }
+    }
+}
+
+/// Peak and current physical footprint of this process, the figure Activity Monitor shows.
+func footprint() -> (current: UInt64, peak: UInt64) {
+    var info = rusage_info_v4()
+    let status = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+            proc_pid_rusage(getpid(), RUSAGE_INFO_V4, $0)
+        }
+    }
+    guard status == 0 else { return (0, 0) }
+    return (info.ri_phys_footprint, info.ri_lifetime_max_phys_footprint)
+}
+
+func gigabytes(_ bytes: UInt64) -> String { String(format: "%.2f GB", Double(bytes) / 1_073_741_824) }
 
 if CommandLine.arguments[1] == "align" {
     let job = try JSONDecoder().decode(
         AlignJob.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
-    let aligner = try await Qwen3ForcedAligner.fromPretrained(
-        modelId: job.modelId, cacheDir: URL(fileURLWithPath: job.modelDir), offlineMode: true)
+    let engine = job.engine ?? "mlx"
+    let loadStarted = Date()
+    let aligner: AnyAligner
+    if engine == "coreml" {
+        aligner = .coreml(try CoreMLForcedAligner.fromDirectory(URL(fileURLWithPath: job.modelDir)))
+    } else {
+        aligner = .mlx(try await Qwen3ForcedAligner.fromPretrained(
+            modelId: job.modelId, cacheDir: URL(fileURLWithPath: job.modelDir), offlineMode: true))
+    }
+    let loadSeconds = Date().timeIntervalSince(loadStarted)
     var windowsByID: [String: [(Double, Double, String)]] = [:]
     for line in try String(contentsOfFile: job.runs, encoding: .utf8).split(separator: "\n") {
         guard let object = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
@@ -332,25 +397,63 @@ if CommandLine.arguments[1] == "align" {
             return (start, end, text)
         }
     }
+    // Warm-up on the first window (excluded from timing): CoreML specializes
+    // its bundles for the device on the first prediction.
+    let warmStarted = Date()
+    if let item = job.items.first, let (start, end, text) = windowsByID[item.id]?.first {
+        let samples = try AudioConverter().resampleAudioFile(URL(fileURLWithPath: item.wav))
+        _ = try? aligner.align(samplesForInference(slice(samples, start, end)), text: text, language: job.language)
+    }
+    let warmSeconds = Date().timeIntervalSince(warmStarted)
+    log("\(engine) aligner: loaded in \(String(format: "%.1f", loadSeconds))s, warm-up \(String(format: "%.1f", warmSeconds))s, "
+        + "footprint \(gigabytes(footprint().current))")
     FileManager.default.createFile(atPath: job.output, contents: nil)
     let out = try FileHandle(forWritingTo: URL(fileURLWithPath: job.output))
     var total = 0.0
+    var failures: [String: Int] = [:]
+    var windowCount = 0
     for item in job.items {
         let samples = try AudioConverter().resampleAudioFile(URL(fileURLWithPath: item.wav))
         let started = Date()
         var aligned: [[[String]]] = []
+        var info: [WindowInfo] = []
         for (start, end, text) in windowsByID[item.id] ?? [] {
-            let words = aligner.align(audio: samplesForInference(slice(samples, start, end)),
-                                      text: text, sampleRate: sampleRate, language: job.language)
-            aligned.append(words.map { [$0.text, String(start + Double($0.startTime)), String(start + Double($0.endTime))] })
+            let audio = samplesForInference(slice(samples, start, end))
+            let windowStarted = Date()
+            var words: [(String, Double, Double)] = []
+            var failure: String?
+            do {
+                words = try aligner.align(audio, text: text, language: job.language)
+            } catch {
+                let message = "\(error)"
+                failure = message.contains("mel frames") ? "over-30s" : message.contains("fixed T") ? "over-fixedT" : message
+                failures[failure!, default: 0] += 1
+            }
+            windowCount += 1
+            let elapsed = Date().timeIntervalSince(windowStarted)
+            let audioSeconds = Double(audio.count) / Double(sampleRate)
+            let wordCount = text.split(whereSeparator: { $0.isWhitespace }).count
+            info.append(WindowInfo(audioSeconds: audioSeconds, words: wordCount, seconds: elapsed, error: failure))
+            let timed: [[String]] = words.map { word in [word.0, String(start + word.1), String(start + word.2)] }
+            aligned.append(timed)
         }
+        aligner.finishBatch()
         let seconds = Date().timeIntervalSince(started)
         total += seconds
-        out.write(try JSONEncoder().encode(AlignedRecord(id: item.id, windows: aligned, seconds: seconds)))
+        out.write(try JSONEncoder().encode(AlignedRecord(id: item.id, windows: aligned, info: info, seconds: seconds)))
         out.write("\n".data(using: .utf8)!)
     }
     try out.close()
-    log("aligned \(job.items.count) items in \(String(format: "%.1f", total))s")
+    let memory = footprint()
+    log("aligned \(job.items.count) items (\(windowCount) windows) in \(String(format: "%.1f", total))s; "
+        + "failures \(failures.isEmpty ? "none" : failures.map { "\($0.key)=\($0.value)" }.joined(separator: ", ")); "
+        + "footprint now \(gigabytes(memory.current)), peak \(gigabytes(memory.peak))")
+    let stats: [String: Any] = ["engine": engine, "modelDir": job.modelDir, "loadSeconds": loadSeconds,
+                                "warmupSeconds": warmSeconds, "alignSeconds": total, "windows": windowCount,
+                                "failures": failures, "footprintBytes": memory.current,
+                                "peakFootprintBytes": memory.peak]
+    try JSONSerialization.data(withJSONObject: stats, options: [.prettyPrinted, .sortedKeys])
+        .write(to: URL(fileURLWithPath: job.output + ".stats.json"))
     exit(0)
 }
 
