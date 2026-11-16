@@ -1,4 +1,4 @@
-import MLX
+import Darwin
 import XCTest
 @testable import LokalBot
 
@@ -127,8 +127,9 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(QwenASREngine.accuracy.speakerAttribution, .alignedWords)
         XCTAssertEqual(QwenASREngine.compact.speakerAttribution, .alignedWords)
         XCTAssertEqual(TranscriptionModelChoice.parakeetV3.engine.speakerAttribution, .regions)
+        // 1.7B used 60 s with the MLX aligner; the CoreML aligner takes 30 s at most.
         XCTAssertEqual(QwenASREngine.wordAttributionWindows(for: .accuracy),
-                       .init(maxSeconds: 60, maxGapSeconds: 5, disablesRepetitionBlocking: true))
+                       .init(maxSeconds: 30, maxGapSeconds: 5, disablesRepetitionBlocking: true))
         // 0.6B stays at 15 s: longer windows decoded 5–10× slower for a small gain.
         XCTAssertEqual(QwenASREngine.wordAttributionWindows(for: .compact),
                        .init(maxSeconds: 15, maxGapSeconds: 5, disablesRepetitionBlocking: false))
@@ -141,15 +142,77 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertNil(QwenWordAligner.detectedLanguage(of: ["Dit is een Nederlandse zin over het kwartaalplan van het team."]))
 
         let snapshot = QwenWordAligner.snapshot
-        XCTAssertEqual(snapshot.repository, "aufklarer/Qwen3-ForcedAligner-0.6B-4bit")
+        XCTAssertEqual(snapshot.repository, "aufklarer/Qwen3-ForcedAligner-0.6B-CoreML-INT8")
         XCTAssertEqual(snapshot.revision.count, 40)
-        let weights = try XCTUnwrap(snapshot.files.first { $0.path == "model.safetensors" })
-        XCTAssertFalse(weights.isGitBlob)
-        XCTAssertEqual(weights.digest.count, 64)
-        XCTAssertEqual(Set(snapshot.files.map(\.path)), ["config.json", "merges.txt", "model.safetensors",
-                                                         "quantize_config.json", "tokenizer_config.json", "vocab.json"])
-        // Settings and PRIVACY.md describe this download as about 1 GB.
-        XCTAssertEqual(Double(snapshot.files.reduce(0) { $0 + $1.bytes }) / 1e9, 1, accuracy: 0.05)
+        for path in ["audio_encoder.mlmodelc/weights/weight.bin", "text_decoder.mlmodelc/weights/weight.bin",
+                     "embed_tokens.fp16.bin"] {
+            let weights = try XCTUnwrap(snapshot.files.first { $0.path == path }, path)
+            XCTAssertFalse(weights.isGitBlob, path)
+            XCTAssertEqual(weights.digest.count, 64, path)
+        }
+        // Compiled bundles only: an .mlpackage would compile on every load.
+        XCTAssertFalse(snapshot.files.contains { $0.path.contains(".mlpackage") })
+        XCTAssertEqual(Set(snapshot.files.filter { !$0.path.contains("/") }.map(\.path)),
+                       ["config.json", "embed_tokens.fp16.bin", "merges.txt", "tokenizer_config.json", "vocab.json"])
+        // Settings and PRIVACY.md describe this download as about 1.1 GB.
+        XCTAssertEqual(Double(snapshot.files.reduce(0) { $0 + $1.bytes }) / 1e9, 1.08, accuracy: 0.02)
+    }
+
+    /// Every window handed to the aligner fits its 30 s encoder, including the
+    /// extra sample that flooring both edges can add.
+    func testWordAttributionWindowsFitTheAlignerEncoder() {
+        let limits = [QwenASREngine.wordAttributionWindows(for: .accuracy).maxSeconds,
+                      QwenASREngine.wordAttributionWindows(for: .compact).maxSeconds,
+                      RemoteTranscriptionEngine.attributionWindows.maxSeconds]
+        for limit in limits {
+            XCTAssertLessThanOrEqual(limit, QwenWordAligner.maxSegmentSeconds)
+            for start in [0.0, 0.000_03, 12.345_678, 3_599.999_97] {
+                // SpanAudioReader floors both frame positions.
+                let samples = Int((start + limit) * 16_000) - Int(start * 16_000)
+                XCTAssertLessThanOrEqual(samples, QwenWordAligner.maxSamples, "\(limit) s from \(start)")
+                XCTAssertLessThanOrEqual(samples / 160, 3_000, "mel frames for \(limit) s from \(start)")
+            }
+        }
+    }
+
+    /// A segment past the encoder's 30 s is refused before any model loads,
+    /// so the caller's one-speaker fallback applies without a download.
+    func testAlignerRefusesSegmentsLongerThanItsEncoder() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-aligner-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let samples = [Float](repeating: 0, count: QwenWordAligner.maxSamples + 1)
+        do {
+            _ = try await QwenWordAligner(directory: directory).align(samples, text: "Too long.", language: "en")
+            XCTFail("expected the aligner to refuse a segment over 30 s")
+        } catch QwenWordAligner.AlignerError.segmentTooLong(let seconds) {
+            XCTAssertEqual(seconds, 30.01, accuracy: 0.01)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+    }
+
+    /// The MLX aligner's folder is deleted once the CoreML snapshot is
+    /// verified; other folders and symlinked ones are left alone.
+    func testObsoleteAlignerFolderIsRemovedByExactPath() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-aligner-root-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let obsolete = QwenASREngine.hubStyleCacheDir(base: root, modelID: "aufklarer/Qwen3-ForcedAligner-0.6B-4bit")
+        let current = QwenASREngine.hubStyleCacheDir(base: root, modelID: QwenWordAligner.snapshot.repository)
+        let asr = QwenASREngine.hubStyleCacheDir(base: root, modelID: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit")
+        for folder in [obsolete, current, asr] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: folder.appendingPathComponent("model.safetensors"))
+        }
+        try QwenWordAligner.removeObsoleteModels(in: root)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: obsolete.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: current.appendingPathComponent("model.safetensors").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: asr.appendingPathComponent("model.safetensors").path))
+
+        // A symlink in the obsolete folder's place is not followed or removed.
+        try FileManager.default.createSymbolicLink(at: obsolete, withDestinationURL: asr)
+        try QwenWordAligner.removeObsoleteModels(in: root)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: asr.appendingPathComponent("model.safetensors").path))
     }
 
     // MARK: - Word times from the transcription server
@@ -338,7 +401,7 @@ final class WordAttributionTests: XCTestCase {
     /// load offline and time every word. No network access is allowed.
     func testCachedAlignerVerifiesPinsAndTimesEveryWord() async throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_QWEN_ALIGNER_TEST_DIR"] else {
-            throw XCTSkip("Set LOKALBOT_QWEN_ALIGNER_TEST_DIR to a downloaded Qwen3-ForcedAligner-0.6B-4bit folder")
+            throw XCTSkip("Set LOKALBOT_QWEN_ALIGNER_TEST_DIR to a downloaded Qwen3-ForcedAligner-0.6B-CoreML-INT8 folder")
         }
         let directory = URL(fileURLWithPath: path, isDirectory: true)
         try await QwenWordAligner.snapshot.prepare(in: directory) { _ in throw URLError(.notConnectedToInternet) }
@@ -349,27 +412,42 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertTrue(words.allSatisfy { $0.start >= 0 && $0.start <= $0.end && $0.end <= 3.1 })
     }
 
-    /// Opt-in hardware check: segments of different lengths leave MLX buffers
-    /// that the next pass cannot reuse. Untrimmed, the pool grew by about
-    /// 1 GB a segment over a real meeting, until MLX's own limit (31 GB).
-    func testCachedAlignerKeepsScratchBuffersBoundedAcrossSegmentLengths() async throws {
+    /// Opt-in hardware check: many passes over segments of different lengths
+    /// keep the footprint flat. Each CoreML pass returns about 12 MB of
+    /// autoreleased arrays; without a pool per pass, a long track's footprint
+    /// grew from 0.8 GB to 4.6 GB.
+    func testCachedAlignerKeepsFootprintFlatAcrossSegments() async throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_QWEN_ALIGNER_TEST_DIR"] else {
-            throw XCTSkip("Set LOKALBOT_QWEN_ALIGNER_TEST_DIR to a downloaded Qwen3-ForcedAligner-0.6B-4bit folder")
+            throw XCTSkip("Set LOKALBOT_QWEN_ALIGNER_TEST_DIR to a downloaded Qwen3-ForcedAligner-0.6B-CoreML-INT8 folder")
         }
         let aligner = QwenWordAligner(directory: URL(fileURLWithPath: path, isDirectory: true))
         let vocabulary = "The quarterly plan covers budget numbers, hiring, and the launch schedule for next month."
             .split(separator: " ")
-        Memory.clearCache()
-        for seconds in [4, 9, 13, 18, 22, 27, 30, 7, 24, 16] {
+        func pass(_ seconds: Int) async throws {
             // About 2.5 words a second, as in conversation.
             let text = (0..<(seconds * 5 / 2)).map { vocabulary[$0 % vocabulary.count] }.joined(separator: " ")
             let samples = (0..<(seconds * 16_000)).map { Float(sin(Double($0) * 0.05) * 0.1) }
             let words = try await aligner.align(samples, text: text, language: "en")
-            XCTAssertFalse(words.isEmpty)
-            XCTAssertLessThanOrEqual(Memory.cacheMemory, QwenWordAligner.scratchCacheLimit, "after a \(seconds) s segment")
+            XCTAssertFalse(words.isEmpty, "\(seconds) s")
+        }
+        try await pass(30)
+        let baseline = Self.physicalFootprint()
+        for _ in 0..<4 {
+            for seconds in [4, 9, 13, 18, 22, 27, 30, 7, 24, 16] { try await pass(seconds) }
         }
         await aligner.finishBatch()
-        XCTAssertEqual(Memory.cacheMemory, 0)
+        let growth = Double(Self.physicalFootprint()) - Double(baseline)
+        XCTAssertLessThan(growth, 150_000_000, "footprint grew \(Int(growth / 1_000_000)) MB over 40 passes")
+    }
+
+    private static func physicalFootprint() -> UInt64 {
+        var info = rusage_info_v4()
+        let status = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) {
+                proc_pid_rusage(getpid(), RUSAGE_INFO_V4, $0)
+            }
+        }
+        return status == 0 ? info.ri_phys_footprint : 0
     }
 }
 
