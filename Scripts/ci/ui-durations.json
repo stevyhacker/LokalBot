@@ -16,7 +16,6 @@
   "DictationSettingsUITests/testDedicatedCompositionModelSelectionPersistsAcrossRelaunch": 53.4,
   "DictationSettingsUITests/testEnablingGlobalShortcutRevealsPermissionRepairRows": 36.7,
   "GettingStartedUITests/testDismissedCardStaysDismissedAcrossRelaunch": 12.0,
-  "HackathonFilmUITests/testFilmLiveRadarAndFollowThrough": 190.1,
   "MainWindowUITests/testActionCompletionImmediatelyLeavesTodayAttention": 15.1,
   "MainWindowUITests/testAskDetailResistsConversationListSqueeze": 12.6,
   "MainWindowUITests/testAskEscalationShowsConversationWithUserTurn": 13.0,
