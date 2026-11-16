@@ -25,7 +25,7 @@ final class ModelRoleNamingTests: XCTestCase {
 
 final class ModelStorageCopyTests: XCTestCase {
     func testTranscriptionSizesComeFromTheBlurb() {
-        XCTAssertEqual(TranscriptionModelChoice.qwenASR17B.sizeLabel, "2.47 GB")
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR17B.sizeLabel, "2.52 GB")
         XCTAssertEqual(TranscriptionModelChoice.parakeetV3.sizeLabel, "0.6 GB")
         XCTAssertNil(TranscriptionModelChoice.graniteSpeech.sizeLabel)
     }
@@ -40,7 +40,7 @@ final class ModelStorageCopyTests: XCTestCase {
             (.parakeetUltra, total([.catalog("parakeetUltra")])),
             (.parakeetV3, total([.catalog("parakeetV3")])),
             (.parakeetV2, total([.catalog("parakeetV2")])),
-            (.qwenASR17B, total([.qwenAccuracy])),
+            (.qwenASR17B, QwenLlamaASR.files.reduce(0) { $0 + $1.bytes }),
             (.qwenASR06B, total([.qwenCompact])),
             (.whisperLarge, total([.catalog("whisper"), .catalog("whisperTokenizer")])),
             (.graniteTurbo, GraniteTurboEngine.artifacts.reduce(0) { $0 + $1.bytes }),

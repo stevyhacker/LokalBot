@@ -123,7 +123,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .parakeetUltra: "0.63 GB · 25 European languages, fast multilingual transcription"
         case .parakeetV3: "0.6 GB · 25 European languages, ~190× realtime"
         case .parakeetV2: "0.46 GB · English only, slightly higher recall"
-        case .qwenASR17B: "2.47 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"
+        case .qwenASR17B: "2.52 GB · llama.cpp, 52 languages/dialects, best Qwen accuracy tier"
         case .qwenASR06B: "0.7 GB · MLX, 52 languages/dialects, compact global tier"
         case .graniteSpeech: "2B parameters · Apache-2.0, local speech recognition"
         case .graniteSpeech5: "3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"
