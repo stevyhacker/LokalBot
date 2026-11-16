@@ -75,6 +75,12 @@
       ]
     },
     {
+      "reason": "Needs the pinned Qwen3-ASR 1.7B GGUFs (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR) and a public speech clip (LOKALBOT_QWEN_LLAMA_TEST_AUDIO). Run for a llama.cpp or Qwen3-ASR update.",
+      "tests": [
+        "QwenLlamaASRTests/testCachedModelsTranscribeAWindowOnTheAppServer"
+      ]
+    },
+    {
       "reason": "Needs the downloaded Qwen3 forced aligner (LOKALBOT_QWEN_ALIGNER_TEST_DIR). Run for an aligner or MLX update.",
       "tests": [
         "WordAttributionTests/testCachedAlignerKeepsScratchBuffersBoundedAcrossSegmentLengths",
