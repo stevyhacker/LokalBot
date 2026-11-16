@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import struct
 import plistlib
+import re
 import subprocess
 import tempfile
 import unittest
@@ -352,7 +353,7 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
     def test_a_website_push_starts_nothing_that_cancels_a_candidates_gates(self):
         # A new run cancels the same group's running one, so a website push must
         # either start no run or land in a group of its own.
-        for workflow in ['build.yml', 'xcodegen.yml']:
+        for workflow in ['build.yml', 'ci-helpers.yml']:
             with self.subTest(workflow=workflow):
                 text = (ROOT / '.github/workflows' / workflow).read_text()
                 push = text.split('\n  push:\n', 1)[1].split('\nconcurrency:', 1)[0]
@@ -363,7 +364,7 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
         self.assertIn("group: lint-${{ github.ref == 'refs/heads/master' && github.sha || github.ref }}", lint)
         ui = (ROOT / '.github/workflows/ui-tests.yml').read_text()
         self.assertNotIn('\n  push:', ui.split('\non:\n', 1)[1].split('\nconcurrency:', 1)[0])
-        self.assertEqual(set(release.GATES), {'build.yml', 'xcodegen.yml', 'lint.yml', 'ui-tests.yml'})
+        self.assertEqual(set(release.GATES), {'build.yml', 'ci-helpers.yml', 'lint.yml', 'ui-tests.yml'})
 
 
 class CompleteCoverageTests(unittest.TestCase):
@@ -488,6 +489,39 @@ class ParallelGateTests(unittest.TestCase):
         workflow = (ROOT / '.github/workflows/ui-tests.yml').read_text()
         self.assertIn('background', workflow.split('phase: [', 1)[1].split(']', 1)[0])
 
+    def test_workflow_matrix_runs_every_planned_shard_once(self):
+        workflow = (ROOT / '.github/workflows/ui-tests.yml').read_text()
+        matrix = workflow.split('phase: [', 1)[1].split(']', 1)[0].split(', ')
+        self.assertEqual(sorted(matrix), sorted(shards.matrix_jobs()))
+        self.assertIn('visual', matrix)
+        self.assertFalse([phase for phase in matrix if phase.startswith('visual-')])
+
+    def test_visual_runs_every_size_and_reports_the_first_failure(self):
+        calls = []
+        real = shards.execute
+        def fake(phase, selected=None):
+            if phase == 'visual':
+                return real(phase, selected)
+            calls.append(phase)
+            return 1 if phase == 'visual-1180x740' else 0
+        with patch.object(shards, 'execute', side_effect=fake):
+            self.assertEqual(shards.execute('visual'), 1)
+        self.assertEqual(calls, [f'visual-{size}' for size in shards.SIZES])
+
+
+class MacOnlyHelperTestsTests(unittest.TestCase):
+    def test_every_macos_only_helper_test_runs_in_build(self):
+        build = (ROOT / '.github/workflows/build.yml').read_text()
+        step = build.split('id: macos-helpers\n', 1)[1].split('      - name:', 1)[0]
+        selected = set(re.findall(r'-k (\w+)', step))
+        skipped = set()
+        for path in (ROOT / 'Scripts/tests').glob('test_*.py'):
+            skipped |= set(re.findall(r'@unittest\.skipUnless\(sys\.platform == "darwin"[^\n]*\)\nclass (\w+)',
+                                      path.read_text()))
+        self.assertTrue(skipped)
+        self.assertEqual(skipped, selected)
+
+
 class NightlyTests(unittest.TestCase):
     def test_nightly_build_only_compiles_and_a_failed_build_opens_an_issue(self):
         build = (ROOT / '.github/workflows/build.yml').read_text()
@@ -607,7 +641,7 @@ class WorkdayBesideUnitTestsTests(unittest.TestCase):
         # A failed workday must not fail the unit-test check, and must not hang it.
         for setting in ['background: true', 'continue-on-error: true', 'timeout-minutes:']:
             self.assertIn(setting, workday)
-        wait = tests.index('wait: [workday, audio-recovery]')
+        wait = tests.index('wait: [workday, audio-recovery, macos-helpers]')
         self.assertLess(tests.index('Run unit tests without rebuilding'), wait)
         self.assertLess(wait, tests.index('Keep the failed library'))
         report = build.split('\n  day-in-the-life:\n', 1)[1]

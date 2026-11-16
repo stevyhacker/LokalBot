@@ -296,6 +296,13 @@ jobs:
         id: audio-recovery
         background: true
         run: bash Scripts/tests/audio-recovery-crash.sh
+      # The Scripts/ helper tests that need macOS tools. The rest run on Linux in
+      # the CI helpers workflow, where these skip.
+      - name: Run the macOS-only helper tests
+        id: macos-helpers
+        background: true
+        timeout-minutes: 10
+        run: python3 -m unittest discover -s Scripts/tests -v -k SeedProfileTests -k CotypingProbeContractTests
       - name: Run unit tests without rebuilding
         env:
           TEST_RUNNER_CI: "true"
@@ -309,8 +316,8 @@ jobs:
       # Scripts/ci/unit-skips.json may skip, and here each of them must.
       - name: Require every skipped test to be a listed opt-in test
         run: python3 Scripts/ci/unit-skips.py check .build/unit.xcresult --strict
-      - name: Wait for the workday and the crash probe
-        wait: [workday, audio-recovery]
+      - name: Wait for the workday, the crash probe and the helper tests
+        wait: [workday, audio-recovery, macos-helpers]
       - name: Save unit results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

@@ -81,7 +81,7 @@ class ReleaseMetadataTests(unittest.TestCase):
 
     def test_general_ci_accepts_prerelease_notes_or_generated_notes(self):
         shutil.copy2(SOURCE / "Scripts/release/release-preflight.py", self.root / "Scripts/release/release-preflight.py")
-        workflow = (SOURCE / ".github/workflows/xcodegen.yml").read_text()
+        workflow = (SOURCE / ".github/workflows/ci-helpers.yml").read_text()
         command = next(line.strip() for line in workflow.splitlines()
                        if line.strip().startswith("python3 Scripts/release/release-preflight.py"))
         self.notes.unlink()

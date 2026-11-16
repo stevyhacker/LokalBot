@@ -342,7 +342,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        phase: [functional-1, functional-2, background, visual-1000x700, visual-1180x740, visual-1440x900]
+        # Scripts/ci/ui-shards.py matrix_jobs(); a test keeps them equal. `visual`
+        # runs the three window sizes one after another on one runner.
+        phase: [functional-1, functional-2, background, visual]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Select Xcode
