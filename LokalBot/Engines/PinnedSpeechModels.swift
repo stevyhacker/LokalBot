@@ -181,9 +181,6 @@ struct PinnedModelSnapshot: Sendable, Decodable {
 
 // Source: Hugging Face model metadata, including immutable commit and LFS/Git digests.
 extension PinnedModelSnapshot {
-    /// Qwen3-ASR 1.7B's former MLX weights. The tier now runs on llama.cpp
-    /// (`QwenLlamaASR`), which deletes this folder once its GGUFs are in.
-    static let legacyQwenAccuracyRepository = "aufklarer/Qwen3-ASR-1.7B-MLX-8bit"
     /// speech-swift's CoreML Qwen3 forced aligner (INT8-palettized encoder and
     /// decoder, fp16 embedding table). It times the words of a whole-track
     /// transcript for speaker attribution. Only the compiled `.mlmodelc`
@@ -217,20 +214,6 @@ extension PinnedModelSnapshot {
               digest: "083cfeabb070794b7745694564f0154aa4329020c7eb344aff3406f348b25e3f", isGitBlob: false),
         .init(path: "tokenizer_config.json", bytes: 12666,
               digest: "3df92df83b22342e36a7b11cf9a70de2a2996bec", isGitBlob: true),
-        .init(path: "vocab.json", bytes: 2776833,
-              digest: "4783fe10ac3adce15ac8f358ef5462739852c569", isGitBlob: true),
-    ])
-    static let qwenCompact = Self(repository: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit", revision: "bc441bd1e4295c1f42d9879f056049a925b6e013", files: [
-        .init(path: "config.json", bytes: 7187,
-              digest: "049989ad1e19719b99c2f374eb7067040aa4c830", isGitBlob: true),
-        .init(path: "merges.txt", bytes: 1671853,
-              digest: "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7", isGitBlob: true),
-        .init(path: "model.safetensors", bytes: 708236945,
-              digest: "70c7e67e588062adce4f10796e47ad42ead51c6671eda61a0987eae38ca95ddf", isGitBlob: false),
-        .init(path: "model.safetensors.index.json", bytes: 71814,
-              digest: "b507ef4ee5b57e6147c4bda5d9db05992477030d", isGitBlob: true),
-        .init(path: "tokenizer_config.json", bytes: 12487,
-              digest: "b93109843922a40c6654c5449d3bf95372267c66", isGitBlob: true),
         .init(path: "vocab.json", bytes: 2776833,
               digest: "4783fe10ac3adce15ac8f358ef5462739852c569", isGitBlob: true),
     ])

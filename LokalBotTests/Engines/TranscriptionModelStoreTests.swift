@@ -77,7 +77,9 @@ final class TranscriptionModelStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
 
         try writeFluidAudioParakeetV3(in: environment)
-        try writeQwenModel(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit", in: environment)
+        for file in QwenLlamaASR.compact.files {
+            try writeGGUF(QwenLlamaASR.compact.url(for: file, appSupport: environment.appSupport))
+        }
         try writeGraniteModel(in: environment)
         try writeWhisperModel(in: environment)
         try writeFluidAudioCohere(in: environment)
@@ -118,9 +120,10 @@ final class TranscriptionModelStoreTests: XCTestCase {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        try writeQwenModel(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit", in: environment)
-        for file in QwenLlamaASR.files {
-            try writeGGUF(QwenLlamaASR.url(for: file, appSupport: environment.appSupport))
+        for weights in [QwenLlamaASR.accuracy, QwenLlamaASR.compact] {
+            for file in weights.files {
+                try writeGGUF(weights.url(for: file, appSupport: environment.appSupport))
+            }
         }
 
         try TranscriptionModelStore.delete(.qwenASR06B, environment: environment)
@@ -129,24 +132,27 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
     }
 
-    /// 1.7B runs on llama.cpp now: its GGUFs count as downloaded, the old MLX
-    /// weights alone do not, and deleting the tier removes both.
-    func testQwen17BIsTheGGUFPairAndDeletionAlsoRemovesTheOldMLXWeights() throws {
-        let (root, environment) = try makeEnvironment()
-        defer { try? FileManager.default.removeItem(at: root) }
-        try writeQwenModel(modelID: PinnedModelSnapshot.legacyQwenAccuracyRepository, in: environment)
-        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+    /// Both tiers run on llama.cpp now: their GGUFs count as downloaded, the
+    /// old MLX weights alone do not, and deleting a tier removes both.
+    func testQwenTiersAreTheirGGUFPairsAndDeletionAlsoRemovesTheOldMLXWeights() throws {
+        for (choice, weights) in [(TranscriptionModelChoice.qwenASR17B, QwenLlamaASR.accuracy),
+                                  (.qwenASR06B, QwenLlamaASR.compact)] {
+            let (root, environment) = try makeEnvironment()
+            defer { try? FileManager.default.removeItem(at: root) }
+            try writeQwenModel(modelID: weights.legacyMLXRepository, in: environment)
+            XCTAssertFalse(TranscriptionModelStore.isDownloaded(choice, environment: environment))
 
-        try writeGGUF(QwenLlamaASR.url(for: QwenLlamaASR.model, appSupport: environment.appSupport))
-        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment),
-                       "the audio projector is required too")
-        try writeGGUF(QwenLlamaASR.url(for: QwenLlamaASR.projector, appSupport: environment.appSupport))
-        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+            try writeGGUF(weights.url(for: weights.model, appSupport: environment.appSupport))
+            XCTAssertFalse(TranscriptionModelStore.isDownloaded(choice, environment: environment),
+                           "the audio projector is required too")
+            try writeGGUF(weights.url(for: weights.projector, appSupport: environment.appSupport))
+            XCTAssertTrue(TranscriptionModelStore.isDownloaded(choice, environment: environment))
 
-        try TranscriptionModelStore.delete(.qwenASR17B, environment: environment)
-        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
-        XCTAssertFalse(FileManager.default.fileExists(
-            atPath: QwenLlamaASR.legacyMLXDirectory(appSupport: environment.appSupport).path))
+            try TranscriptionModelStore.delete(choice, environment: environment)
+            XCTAssertFalse(TranscriptionModelStore.isDownloaded(choice, environment: environment))
+            XCTAssertFalse(FileManager.default.fileExists(
+                atPath: weights.legacyMLXDirectory(appSupport: environment.appSupport).path))
+        }
     }
 
     func testUltraRequiresItsOwnCompleteCacheAndDeletionPreservesV3() throws {
