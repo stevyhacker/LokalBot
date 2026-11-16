@@ -1,5 +1,5 @@
 import Foundation
-import Qwen3ASR
+import Qwen3ForcedAlignerCoreML
 
 /// A transcript word located in the audio, on the caller's timeline.
 struct AlignedWordTiming: Sendable, Equatable {

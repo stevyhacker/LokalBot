@@ -2,7 +2,7 @@
 
 Part of the [development guide](../../DEVELOPMENT.md).
 
-Build with Xcode 26.4 or newer (Swift 6.3 and the Metal toolchain), as required by the pinned MLX package. The app deployment target remains macOS 15.
+Build with Xcode 26.4 or newer (Swift 6.3). The app links no MLX, but speech-swift's package graph still includes mlx-swift, whose manifest needs tools version 6.3 to resolve. The app deployment target remains macOS 15, which speech-swift declares.
 
 The Xcode project is generated from `project.yml`. Regenerate it after editing project configuration or adding/removing source files:
 

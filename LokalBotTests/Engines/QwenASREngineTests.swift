@@ -1,5 +1,5 @@
 import XCTest
-import Qwen3ASR
+import Qwen3ForcedAlignerCoreML
 @testable import LokalBot
 
 final class QwenASREngineTests: XCTestCase {

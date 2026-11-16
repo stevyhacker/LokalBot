@@ -2,7 +2,7 @@
 
 Part of the [development guide](../../DEVELOPMENT.md).
 
-Engines (Settings → Models; CoreML/MLX, in-process, Neural Engine/Metal):
+Engines (Settings → Models; CoreML in-process on the Neural Engine, or a bundled llama.cpp server on Metal; the app links no MLX):
 
 | Engine | Coverage | Notes |
 | --- | --- | --- |
