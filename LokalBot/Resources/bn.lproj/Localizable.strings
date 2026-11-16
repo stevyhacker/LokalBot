@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "এই সংশোধন বের করা উৎস থেকে আলাদাভাবে সংরক্ষিত হয়।";
 "This meeting has no outcomes yet. Summarize it first." = "এই মিটিংয়ে এখনো ফলাফল নেই। আগে সারাংশ তৈরি করুন।";
 "This meeting only" = "শুধু এই মিটিং";
-"This model supports English only and does not use vocabulary prompts." = "এই মডেল শুধু ইংরেজি সমর্থন করে এবং শব্দভান্ডারের প্রম্পট ব্যবহার করে না।";
 "This moment retained text context without screen pixels." = "এই মুহূর্তে স্ক্রিনের পিক্সেল ছাড়াই পাঠ্য প্রসঙ্গ রাখা হয়েছে।";
 "This permanently deletes the audio, transcript and summary files." = "এতে অডিও, প্রতিলিপি ও সারাংশের ফাইল স্থায়ীভাবে মুছে যাবে।";
 "This permanently removes its pixels, captured text, and metadata." = "এতে এর পিক্সেল, ধারণ করা পাঠ্য ও মেটাডেটা স্থায়ীভাবে সরিয়ে দেওয়া হবে।";

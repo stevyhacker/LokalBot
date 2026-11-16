@@ -132,27 +132,22 @@ struct ModelTranscriptionOptionsSheet: View {
                         .font(.scaled(.callout)).foregroundStyle(.secondary)
                         .accessibilityIdentifier("models.transcription.languageSupport")
                 }
-                if app.settings.transcriptionModel == .graniteTurbo {
-                    Text("This model supports English only and does not use vocabulary prompts.")
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("Names and vocabulary").font(.scaled(.body).weight(.medium))
+                    TextField("Names, acronyms, and domain vocabulary", text: $app.settings.transcriptionPrompt, axis: .vertical)
+                        .lineLimit(3...6).textFieldStyle(.roundedBorder)
+                        .settingTarget("settings.transcriptionPrompt", selected: app.focusedSettingID)
+                    Toggle("Add names LokalBot already knows", isOn: $app.settings.autoTranscriptionVocabulary)
+                        .settingTarget("settings.autoTranscriptionVocabulary", selected: app.focusedSettingID)
+                    Text("Calendar attendee names, names you applied in related meetings, and active project names are added on this Mac. Email addresses are never used.")
                         .font(.scaled(.callout)).foregroundStyle(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("Names and vocabulary").font(.scaled(.body).weight(.medium))
-                        TextField("Names, acronyms, and domain vocabulary", text: $app.settings.transcriptionPrompt, axis: .vertical)
-                            .lineLimit(3...6).textFieldStyle(.roundedBorder)
-                            .settingTarget("settings.transcriptionPrompt", selected: app.focusedSettingID)
-                        Toggle("Add names LokalBot already knows", isOn: $app.settings.autoTranscriptionVocabulary)
-                            .settingTarget("settings.autoTranscriptionVocabulary", selected: app.focusedSettingID)
-                        Text("Calendar attendee names, names you applied in related meetings, and active project names are added on this Mac. Email addresses are never used.")
+                    if app.settings.transcriptionModel.isRemote {
+                        Text("Your transcription server receives this vocabulary, including any added names, with the audio.")
                             .font(.scaled(.callout)).foregroundStyle(.secondary)
-                        if app.settings.transcriptionModel.isRemote {
-                            Text("Your transcription server receives this vocabulary, including any added names, with the audio.")
-                                .font(.scaled(.callout)).foregroundStyle(.secondary)
-                        }
-                        if !app.settings.transcriptionModel.acceptsVocabularyPrompt {
-                            Text("\(app.settings.transcriptionModelDisplayName) ignores vocabulary. Whisper and Qwen3-ASR use it.")
-                                .font(.scaled(.callout)).foregroundStyle(.secondary)
-                        }
+                    }
+                    if !app.settings.transcriptionModel.acceptsVocabularyPrompt {
+                        Text("\(app.settings.transcriptionModelDisplayName) ignores vocabulary. Whisper and Qwen3-ASR use it.")
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
                     }
                 }
             }

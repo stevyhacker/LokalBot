@@ -82,6 +82,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forceActivateForUITests()
             return
         }
+        // The unit-test host shares the release app's folders; never touch them there.
+        if !UITestRuntime.isUnitTesting {
+            Task.detached(priority: .utility) {
+                TranscriptionModelStore.removeRetiredModels(appSupport: AppDirectories.applicationSupport)
+            }
+        }
         // Menu-bar-only *start* is gated on HOW we launched. Only a login
         // auto-start (the "Launch at login" item firing) should come up silent
         // in the menu bar; a manual open (Finder/Launchpad/Dock/`open`) must

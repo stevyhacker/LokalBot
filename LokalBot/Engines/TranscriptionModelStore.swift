@@ -2,6 +2,30 @@ import Foundation
 import FluidAudio
 
 struct TranscriptionModelStore {
+    /// Folders of transcription models the app no longer offers, relative to
+    /// Application Support: Granite Speech 5 TurboCTC (about 0.95 GB, MLX).
+    static let retiredModelFolders = ["granite-turbo"]
+
+    /// Deletes the retired models' folders by exact path. Never follows a
+    /// symlink in a folder's place. Returns the folders it removed.
+    @discardableResult
+    static func removeRetiredModels(appSupport: URL) -> [URL] {
+        var removed: [URL] = []
+        for name in retiredModelFolders {
+            let folder = appSupport.appendingPathComponent(name, isDirectory: true)
+            let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values?.isDirectory == true, values?.isSymbolicLink != true else { continue }
+            do {
+                try FileManager.default.removeItem(at: folder)
+                removed.append(folder)
+                lokalbotLog("removed retired transcription model folder=\(name)")
+            } catch {
+                lokalbotLog("could not remove retired transcription model folder=\(name): \(error.localizedDescription)")
+            }
+        }
+        return removed
+    }
+
     struct Environment {
         let appSupport: URL
         let fluidAudioRoot: URL
@@ -80,10 +104,9 @@ struct TranscriptionModelStore {
                 at: parakeetDirectory(.parakeetV2, environment: environment),
                 version: .v2)
         case .qwenASR17B:
-            return QwenLlamaASR.isDownloaded(appSupport: environment.appSupport)
+            return QwenLlamaASR.accuracy.isDownloaded(appSupport: environment.appSupport)
         case .qwenASR06B:
-            return qwenModelExists(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
-                                   environment: environment)
+            return QwenLlamaASR.compact.isDownloaded(appSupport: environment.appSupport)
         case .graniteSpeech, .graniteSpeech5:
             let graniteConfiguration = choice == .graniteSpeech5
                 ? GraniteSpeechModelConfiguration.speech5 : graniteConfiguration
@@ -93,8 +116,6 @@ struct TranscriptionModelStore {
                 && ModelFileValidator.looksLikeGGUF(GraniteSpeechEngine.projectorURL(
                     configuration: graniteConfiguration,
                     appSupport: environment.appSupport))
-        case .graniteTurbo:
-            return GraniteTurboEngine.isDownloaded(appSupport: environment.appSupport)
         case .whisperLarge:
             return whisperModelDirectories(environment: environment).contains { directory in
                 requiredFilesPresent(
@@ -141,11 +162,11 @@ struct TranscriptionModelStore {
         case .parakeetV2:
             [parakeetDirectory(.parakeetV2, environment: environment)]
         case .qwenASR17B:
-            [QwenLlamaASR.modelRoot(appSupport: environment.appSupport),
-             QwenLlamaASR.legacyMLXDirectory(appSupport: environment.appSupport)]
+            [QwenLlamaASR.accuracy.modelRoot(appSupport: environment.appSupport),
+             QwenLlamaASR.accuracy.legacyMLXDirectory(appSupport: environment.appSupport)]
         case .qwenASR06B:
-            [qwenDirectory(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
-                           environment: environment)]
+            [QwenLlamaASR.compact.modelRoot(appSupport: environment.appSupport),
+             QwenLlamaASR.compact.legacyMLXDirectory(appSupport: environment.appSupport)]
         case .graniteSpeech:
             [GraniteSpeechEngine.modelRoot(
                 configuration: graniteConfiguration,
@@ -154,8 +175,6 @@ struct TranscriptionModelStore {
             [GraniteSpeechEngine.modelRoot(
                 configuration: .speech5,
                 appSupport: environment.appSupport)]
-        case .graniteTurbo:
-            [GraniteTurboEngine.modelRoot(appSupport: environment.appSupport)]
         case .whisperLarge:
             whisperModelDirectories(environment: environment)
         case .cohere:
@@ -180,17 +199,6 @@ struct TranscriptionModelStore {
     private static func cohereDirectory(environment: Environment) -> URL {
         environment.fluidAudioRoot.appendingPathComponent(Repo.cohereTranscribeCoreml.folderName,
                                                           isDirectory: true)
-    }
-
-    private static func qwenDirectory(modelID: String, environment: Environment) -> URL {
-        QwenASREngine.hubStyleCacheDir(
-            base: environment.appSupport.appendingPathComponent("qwen3-asr-models", isDirectory: true),
-            modelID: modelID)
-    }
-
-    private static func qwenModelExists(modelID: String, environment: Environment) -> Bool {
-        directoryContainsFile(withExtension: "safetensors",
-                              at: qwenDirectory(modelID: modelID, environment: environment))
     }
 
     private static func onnxDirectory(folderName: String, environment: Environment) -> URL {

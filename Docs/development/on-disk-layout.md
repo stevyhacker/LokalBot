@@ -13,7 +13,7 @@ Part of the [development guide](../../DEVELOPMENT.md).
 ├── activity/YYYY-MM-DD/shots/  # <epoch>.heic.enc  (AES-GCM sealed)
 ├── companion/companion.sqlite  # records shared with paired phones and tablets, their public keys (only while sharing is on)
 ├── models/                     # downloaded GGUFs
-├── qwen3-asr-models/           # downloaded Qwen3-ASR MLX weights
+├── qwen3-asr-models/           # Qwen3-ASR GGUFs (gguf/) and the CoreML forced aligner (models/aufklarer/)
 └── lokalbotv3.sqlite           # FTS5 (docs) + embeddings + activity_blocks + ocr_fts + screenshots + coding_agent_bursts
 ```
 

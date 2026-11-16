@@ -1165,7 +1165,6 @@
 "This correction is stored separately from the extracted source." = "This correction is stored separately from the extracted source.";
 "This meeting has no outcomes yet. Summarize it first." = "This meeting has no outcomes yet. Summarize it first.";
 "This meeting only" = "This meeting only";
-"This model supports English only and does not use vocabulary prompts." = "This model supports English only and does not use vocabulary prompts.";
 "This moment retained text context without screen pixels." = "This moment retained text context without screen pixels.";
 "This permanently deletes the audio, transcript and summary files." = "This permanently deletes the audio, transcript and summary files.";
 "This permanently removes its pixels, captured text, and metadata." = "This permanently removes its pixels, captured text, and metadata.";

@@ -50,7 +50,6 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case qwenASR06B = "qwen3-asr-0.6b"
     case graniteSpeech = "granite-speech"
     case graniteSpeech5 = "granite-speech-5.0-2b"
-    case graniteTurbo = "granite-speech-5-turbo"
     case whisperLarge = "whisper-large-v3-turbo"
     case funASRNano = "fun-asr-nano-2512"
     case senseVoice = "sense-voice"
@@ -78,7 +77,6 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR06B: "Qwen3-ASR 0.6B"
         case .graniteSpeech: "Granite Speech 4.1 2B"
         case .graniteSpeech5: "Granite Speech 5.0 2B"
-        case .graniteTurbo: "Granite Speech 5 fast (English)"
         case .whisperLarge: "Whisper large-v3 turbo"
         case .cohere: "Cohere Transcribe (multilingual)"
         case .funASRNano: "Fun-ASR-Nano-2512"
@@ -88,12 +86,18 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Granite Speech 5 TurboCTC (English only, MLX) was removed. A saved
+    /// selection of it moves to Parakeet v2, the other fast English-only model.
+    static let removedGraniteTurbo = ["granite-speech-5-turbo", "Granite Speech 5 fast (English)"]
+
     /// Settings written before the raw values were stabilized persisted the
     /// display strings. Keep decoding them so an update never silently resets
     /// a user's model choice.
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
-        if let choice = Self(rawValue: raw)
+        if Self.removedGraniteTurbo.contains(raw) {
+            self = .parakeetV2
+        } else if let choice = Self(rawValue: raw)
             ?? Self.allCases.first(where: { $0.displayName == raw }) {
             self = choice
         } else {
@@ -124,10 +128,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .parakeetV3: "0.6 GB · 25 European languages, ~190× realtime"
         case .parakeetV2: "0.46 GB · English only, slightly higher recall"
         case .qwenASR17B: "2.52 GB · llama.cpp, 52 languages/dialects, best Qwen accuracy tier"
-        case .qwenASR06B: "0.7 GB · MLX, 52 languages/dialects, compact global tier"
+        case .qwenASR06B: "1.02 GB · llama.cpp, 52 languages/dialects, compact global tier"
         case .graniteSpeech: "2B parameters · Apache-2.0, local speech recognition"
         case .graniteSpeech5: "3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"
-        case .graniteTurbo: "0.95 GB · English only · fast local transcription without punctuation or vocabulary prompts"
         case .whisperLarge: "1.6 GB · 99 languages, word timestamps, wide-language legacy fallback"
         case .cohere: "2B params · legacy — no auto language detection, timestamps, or diarization"
         case .funASRNano: "Chinese · English · Japanese · local ONNX model folder"
@@ -146,7 +149,6 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR06B: QwenASREngine.compact
         case .graniteSpeech: GraniteSpeechEngine.shared
         case .graniteSpeech5: GraniteSpeechEngine.configured(.speech5)
-        case .graniteTurbo: GraniteTurboEngine.shared
         case .whisperLarge: WhisperEngine.shared
         case .cohere: CohereEngine.shared
         case .funASRNano: FunASRNanoEngine(directory: "")

@@ -129,10 +129,10 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(TranscriptionModelChoice.parakeetV3.engine.speakerAttribution, .regions)
         // 1.7B used 60 s with the MLX aligner; the CoreML aligner takes 30 s at most.
         XCTAssertEqual(QwenASREngine.wordAttributionWindows(for: .accuracy),
-                       .init(maxSeconds: 30, maxGapSeconds: 5, disablesRepetitionBlocking: true))
+                       .init(maxSeconds: 30, maxGapSeconds: 5))
         // 0.6B stays at 15 s: longer windows decoded 5–10× slower for a small gain.
         XCTAssertEqual(QwenASREngine.wordAttributionWindows(for: .compact),
-                       .init(maxSeconds: 15, maxGapSeconds: 5, disablesRepetitionBlocking: false))
+                       .init(maxSeconds: 15, maxGapSeconds: 5))
     }
 
     func testAlignerLanguagesAndPinnedSnapshot() throws {

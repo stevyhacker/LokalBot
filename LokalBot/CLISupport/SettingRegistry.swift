@@ -572,7 +572,6 @@ enum SettingRegistry {
                   .init("qwenASR06B", stored: "qwen3-asr-0.6b"),
                   .init("graniteSpeech", stored: "granite-speech"),
                   .init("graniteSpeech5", stored: "granite-speech-5.0-2b"),
-                  .init("graniteTurbo", stored: "granite-speech-5-turbo"),
                   .init("whisperLarge", stored: "whisper-large-v3-turbo"),
                   .init("funASRNano", stored: "fun-asr-nano-2512"),
                   .init("senseVoice", stored: "sense-voice"),

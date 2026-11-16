@@ -32,20 +32,13 @@ extension TranscriptionModelChoice {
         // FluidAudio 0.17.7 maps Ukrainian and Russian to the same script filter.
         case .parakeetUltra, .parakeetV3: .scriptHint
         case .remoteServer: .serverDependent
-        case .parakeetV2, .qwenASR17B, .qwenASR06B, .graniteSpeech, .graniteSpeech5, .graniteTurbo,
+        case .parakeetV2, .qwenASR17B, .qwenASR06B, .graniteSpeech, .graniteSpeech5,
              .funASRNano, .senseVoice, .gigaamRussian, .cohere: .unsupported
         }
     }
 
     func isLanguageSelectable(_ language: TranscriptionLanguage) -> Bool {
-        if self == .graniteTurbo { return GraniteTurboEngine.accepts(language: language.code) }
         return language != .uk || ukrainianSupport.isAvailable
-    }
-
-    /// Preserve a deliberate Ukrainian choice even when selecting English-only
-    /// fast mode. Its existing default-to-English behavior still applies otherwise.
-    func languageOverrideOnSelection(current: TranscriptionLanguage) -> TranscriptionLanguage? {
-        self == .graniteTurbo && current != .uk ? .en : nil
     }
 
     func languageSelectionMessage(for language: TranscriptionLanguage) -> String? {

@@ -67,15 +67,7 @@
       ]
     },
     {
-      "reason": "Needs cached Qwen3-ASR weights (LOKALBOT_QWEN_TEST_MODEL_DIR, and LOKALBOT_QWEN_TEST_REFERENCE for upgrade parity). Run for a speech runtime update.",
-      "tests": [
-        "QwenASREngineTests/testCachedModelCancellationThrowsInsteadOfReturningTranscript",
-        "QwenASREngineTests/testCachedModelTranscribesSubFrameAudio",
-        "QwenASREngineTests/testCachedModelTranscriptionMatchesReferenceWhenProvided"
-      ]
-    },
-    {
-      "reason": "Needs the pinned Qwen3-ASR 1.7B GGUFs (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR) and a public speech clip (LOKALBOT_QWEN_LLAMA_TEST_AUDIO). Run for a llama.cpp or Qwen3-ASR update.",
+      "reason": "Needs a pinned Qwen3-ASR GGUF pair (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR; LOKALBOT_QWEN_LLAMA_TEST_TIER=0.6b for the compact pair) and a public speech clip (LOKALBOT_QWEN_LLAMA_TEST_AUDIO). Run for a llama.cpp or Qwen3-ASR update.",
       "tests": [
         "QwenLlamaASRTests/testCachedModelsTranscribeAWindowOnTheAppServer"
       ]
@@ -110,13 +102,6 @@
       "tests": [
         "FileMediaEmbedderReferenceTests/testATextLongerThanTheBatchIsCutLikeDigUpCutsIt",
         "FileMediaEmbedderReferenceTests/testDigUpsReferenceInputsMakeItsReferenceVectors"
-      ]
-    },
-    {
-      "reason": "Needs Granite speech weights and a public-audio reference manifest (LOKALBOT_GRANITE5_REFERENCE). Run for a Granite runtime update.",
-      "tests": [
-        "GraniteTurboTests/testNativeEnginePreparesAndTranscribesPublicAudioWhenFixtureProvided",
-        "GraniteTurboTests/testNativeInferenceMatchesReferenceWhenFixtureProvided"
       ]
     },
     {

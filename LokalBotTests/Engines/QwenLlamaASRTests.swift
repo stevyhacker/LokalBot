@@ -48,25 +48,41 @@ final class QwenLlamaASRTests: XCTestCase {
 
     func testPinnedFilesLiveUnderTheQwenCacheAndPointAtTheRevision() {
         let appSupport = URL(fileURLWithPath: "/tmp/app", isDirectory: true)
-        XCTAssertEqual(QwenLlamaASR.url(for: QwenLlamaASR.model, appSupport: appSupport).path,
+        let accuracy = QwenLlamaASR.accuracy, compact = QwenLlamaASR.compact
+        XCTAssertEqual(accuracy.url(for: accuracy.model, appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-1.7B-Q8_0/Qwen3-ASR-1.7B-Q8_0.gguf")
         XCTAssertEqual(
-            QwenLlamaASR.downloadURL(for: QwenLlamaASR.projector).absoluteString,
+            accuracy.downloadURL(for: accuracy.projector).absoluteString,
             "https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF/resolve/"
                 + "36a678687ba7d07a74ca70ccb0e36902e005fb80/mmproj-Qwen3-ASR-1.7B-Q8_0.gguf")
-        for file in QwenLlamaASR.files {
+        XCTAssertEqual(compact.url(for: compact.model, appSupport: appSupport).path,
+                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-0.6B-Q8_0/Qwen3-ASR-0.6B-Q8_0.gguf")
+        XCTAssertEqual(
+            compact.downloadURL(for: compact.projector).absoluteString,
+            "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/"
+                + "928ab958557df9aa2ef1c93e0e83c7ad0933fae2/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf")
+        for file in accuracy.files + compact.files {
             XCTAssertEqual(file.sha256.count, 64, file.name)
         }
-        XCTAssertEqual(QwenLlamaASR.legacyMLXDirectory(appSupport: appSupport).path,
+        XCTAssertEqual(accuracy.legacyMLXDirectory(appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/models/aufklarer/Qwen3-ASR-1.7B-MLX-8bit")
+        XCTAssertEqual(compact.legacyMLXDirectory(appSupport: appSupport).path,
+                       "/tmp/app/qwen3-asr-models/models/aufklarer/Qwen3-ASR-0.6B-MLX-4bit")
         XCTAssertTrue(QwenLlamaASR.serverArguments.contains("--cache-ram"))
     }
 
-    func testQwenServerHasItsOwnPortAndTranscribeRow() {
+    /// Each tier has its own server: dictation and meetings can use different
+    /// tiers at the same time.
+    func testQwenServersHaveTheirOwnPortsAndTranscribeRows() {
         XCTAssertEqual(LlamaServerRole.qwenASR.releasePort, 17_877)
+        XCTAssertEqual(LlamaServerRole.qwenASRCompact.releasePort, 17_878)
+        XCTAssertEqual(QwenLlamaASR.accuracy.role, .qwenASR)
+        XCTAssertEqual(QwenLlamaASR.compact.role, .qwenASRCompact)
         XCTAssertEqual(Set(LlamaServerRole.allCases.map(\.releasePort)).count, LlamaServerRole.allCases.count)
-        XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.qwenASR.residencyID), "Transcribe")
-        XCTAssertNil(InferenceRole(serverRole: .qwenASR))
+        for role in [LlamaServerRole.qwenASR, .qwenASRCompact] {
+            XCTAssertEqual(ResourceMonitorPresentation.role(for: role.residencyID), "Transcribe")
+            XCTAssertNil(InferenceRole(serverRole: role))
+        }
     }
 
     /// Opt-in end to end: the app's `qwen-asr` llama-server with the pinned
@@ -81,8 +97,10 @@ final class QwenLlamaASRTests: XCTestCase {
             throw XCTSkip("Set LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR (both GGUFs) and LOKALBOT_QWEN_LLAMA_TEST_AUDIO")
         }
         let models = URL(fileURLWithPath: modelPath, isDirectory: true)
-        let server = QwenLlamaASR.makeServer(
-            projector: models.appendingPathComponent(QwenLlamaASR.projector.name))
+        // LOKALBOT_QWEN_LLAMA_TEST_TIER=0.6b runs the compact tier's pair.
+        let weights = environment["LOKALBOT_QWEN_LLAMA_TEST_TIER"] == "0.6b" ? QwenLlamaASR.compact : QwenLlamaASR.accuracy
+        let server = weights.makeServer(
+            projector: models.appendingPathComponent(weights.projector.name))
         guard LocalLlamaServerAuthentication.readMarker(port: server.port) == nil else {
             throw XCTSkip("Needs the unused port \(server.port).")
         }
@@ -90,7 +108,7 @@ final class QwenLlamaASRTests: XCTestCase {
         let samples = try reader.samples(from: 0, to: min(15, reader.duration))
         XCTAssertGreaterThan(samples.count, 16_000)
         do {
-            try await server.ensureRunning(modelAt: models.appendingPathComponent(QwenLlamaASR.model.name))
+            try await server.ensureRunning(modelAt: models.appendingPathComponent(weights.model.name))
             for language in [environment["LOKALBOT_QWEN_LLAMA_TEST_LANGUAGE"], nil] {
                 let text = try await QwenASREngine.transcribeWindow(
                     samples: samples, language: language, prompt: nil, server: server)

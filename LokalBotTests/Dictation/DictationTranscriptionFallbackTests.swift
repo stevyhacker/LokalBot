@@ -87,7 +87,7 @@ final class DictationTranscriptionFallbackTests: XCTestCase {
         XCTAssertNil(choice(settings(.qwenASR17B), onDisk: onDisk), "only the server is replaced")
 
         // English-only models stand in for English alone, and narrow ones never.
-        XCTAssertNil(choice(settings(), onDisk: [.parakeetV2, .graniteTurbo, .gigaamRussian, .senseVoice]))
+        XCTAssertNil(choice(settings(), onDisk: [.parakeetV2, .gigaamRussian, .senseVoice]))
         XCTAssertEqual(choice(settings(language: .en), onDisk: [.parakeetV2, .gigaamRussian]), .parakeetV2)
         // Qwen cannot be told to write Ukrainian; Whisper can.
         XCTAssertEqual(choice(settings(language: .uk), onDisk: [.qwenASR17B, .whisperLarge]), .whisperLarge)

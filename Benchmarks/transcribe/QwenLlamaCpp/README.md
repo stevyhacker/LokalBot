@@ -50,3 +50,19 @@ Scripts/build/fetch-llama.sh   # from the repo root, if Vendor/llama-cpp is miss
 `run_backend.sh` runs the harness under `/usr/bin/time -l`, which records peak RSS and peak memory footprint. For llama.cpp it also samples the server's RSS every 0.5 s and reads `footprint`'s peak at the end. The server memory-maps the GGUF, and those file-backed pages count in RSS but not in the footprint, so both figures are reported.
 
 Meeting audio and transcripts are read through `lokalbot-cli path`, which is read-only, and they stay in `SPAN_BENCH_OUT`. Nothing is sent over the network except the localhost requests to llama-server. `results/` holds aggregates only.
+
+### Qwen3-ASR 0.6B
+
+`TIER=0.6b` runs the same comparison for the compact tier: `aufklarer/Qwen3-ASR-0.6B-MLX-4bit` (fetch revision `bc441bd1e4295c1f42d9879f056049a925b6e013` into `$SPAN_BENCH_OUT/qwen06/models/aufklarer/`) against `ggml-org/Qwen3-ASR-0.6B-GGUF` Q8_0 at `928ab958557df9aa2ef1c93e0e83c7ad0933fae2`. The jobs use the app's 0.6B layouts, `merge-15-v14` and `engine-15`. The scorer adds token-cap hits, agreement with the 1.7B transcripts in `runs.jsonl` (`PROXY_RUNS`, `PROXY_CONDITION`), and AMI cpWER from CoreML-aligned words (see the QwenSpanLength README's "CoreML aligner"):
+
+```sh
+export TIER=0.6b
+.venv/bin/python make_backend_jobs.py
+./run_backend.sh mlx && ./run_backend.sh llama
+for b in mlx llama; do
+  (cd ../QwenSpanLength && ALIGNER_ENGINE=coreml ALIGNER_MODEL_DIR=$SPAN_BENCH_OUT/aligner-coreml-int8 \
+    RUNS_FILE=runs-$b-06b.jsonl ALIGN_SUFFIX=-${b}06b ../QwenLlamaCpp/.venv/bin/python make_region_jobs.py align-job merge-15-v14)
+  $SPAN_BENCH_OUT/dd/Build/Products/Release/qwen-span-harness align $SPAN_BENCH_OUT/align-coreml-int8-merge-15-v14-${b}06b.json
+done
+.venv/bin/python score_backends.py --results results/<date>-0.6b
+```

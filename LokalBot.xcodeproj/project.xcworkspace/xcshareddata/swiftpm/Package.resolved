@@ -1,5 +1,5 @@
 {
-  "originHash" : "ba6d737d4d10cd28da3fe0833f1ba13c4b8995ce19146520f3f9615cfccf945e",
+  "originHash" : "a1d7faf9834ec5d60b7d8deee83cfc491363541dee476c199546eb67738d1fc7",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -104,7 +104,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stevyhacker/speech-swift",
       "state" : {
-        "revision" : "8e8782120803e8812805041b9ae51197c5959c31"
+        "revision" : "228ec483f48ad7b2104165d4c2bd8a7e91dd1775"
       }
     },
     {

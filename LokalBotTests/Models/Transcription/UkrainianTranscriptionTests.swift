@@ -55,14 +55,6 @@ final class UkrainianTranscriptionTests: XCTestCase {
         XCTAssertTrue(restored.transcriptionModel.isLanguageSelectable(.en))
     }
 
-    func testModelPickerNeverReplacesUkrainianWithEnglish() {
-        for choice in TranscriptionModelChoice.allCases {
-            XCTAssertNil(choice.languageOverrideOnSelection(current: .uk), choice.rawValue)
-        }
-        XCTAssertEqual(TranscriptionModelChoice.graniteTurbo.languageOverrideOnSelection(current: .auto), .en)
-        XCTAssertNil(TranscriptionModelChoice.whisperLarge.languageOverrideOnSelection(current: .auto))
-    }
-
     func testUkrainianAvailabilityMatchesEveryBackend() throws {
         let available: Set<TranscriptionModelChoice> = [.whisperLarge, .parakeetUltra, .parakeetV3, .remoteServer]
         for choice in TranscriptionModelChoice.allCases {
@@ -77,8 +69,6 @@ final class UkrainianTranscriptionTests: XCTestCase {
         }
         XCTAssertEqual(TranscriptionModelChoice.remoteServer.ukrainianSupport, .serverDependent)
         XCTAssertNotNil(TranscriptionModelChoice.remoteServer.languageSelectionMessage(for: .uk))
-        XCTAssertFalse(TranscriptionModelChoice.graniteTurbo.isLanguageSelectable(.uk))
-        XCTAssertTrue(TranscriptionModelChoice.graniteTurbo.isLanguageSelectable(.en))
     }
 
     func testMultilingualParakeetReceivesUkrainianButOnlyConstrainsScript() throws {
@@ -112,14 +102,8 @@ final class UkrainianTranscriptionTests: XCTestCase {
                     }
                     XCTFail("\(choice) accepted Ukrainian on path \(path)")
                 } catch {
-                    if choice == .graniteTurbo {
-                        guard case GraniteTurboError.unsupportedLanguage = error else {
-                            return XCTFail("Expected language rejection, received \(error)")
-                        }
-                    } else {
-                        XCTAssertEqual(error as? UnsupportedTranscriptionLanguage,
-                                       .init(language: "Ukrainian", model: choice.displayName), "\(choice), path \(path)")
-                    }
+                    XCTAssertEqual(error as? UnsupportedTranscriptionLanguage,
+                                   .init(language: "Ukrainian", model: choice.displayName), "\(choice), path \(path)")
                 }
             }
         }

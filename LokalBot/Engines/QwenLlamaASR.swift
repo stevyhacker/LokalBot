@@ -1,11 +1,16 @@
 import Foundation
 
-/// Qwen3-ASR 1.7B on the bundled llama.cpp server (`LlamaServerRole.qwenASR`).
+/// Qwen3-ASR on the bundled llama.cpp server, both tiers: 1.7B
+/// (`LlamaServerRole.qwenASR`) and 0.6B (`LlamaServerRole.qwenASRCompact`).
 ///
-/// Benchmarks/transcribe/QwenLlamaCpp measured the ggml-org Q8_0 GGUF against
-/// speech-swift's MLX 8-bit build on identical windows: AMI WER 17.76% vs
-/// 17.80%, Serbian with `sr` and a vocabulary list 12.4% vs 13.4%, about 10–17%
-/// slower, and a 2.3 GB server instead of up to 8.5 GB of MLX allocations.
+/// Benchmarks/transcribe/QwenLlamaCpp measured ggml-org's Q8_0 GGUFs against
+/// speech-swift's MLX builds on identical windows:
+/// - 1.7B: AMI WER 17.76% vs 17.80%, Serbian with `sr` and a vocabulary list
+///   12.4% vs 13.4%, about 10–17% slower, a 2.3 GB server instead of up to
+///   8.5 GB of MLX allocations.
+/// - 0.6B (against MLX 4-bit): AMI WER 19.47% vs 20.90%, cpWER −0.74, FLEURS
+///   3–4 points better and Serbian 11 points better, about 30% slower, a
+///   1.6 GB server instead of a 2.5 GB process.
 ///
 /// llama-server's own `/v1/audio/transcriptions` is not used: it puts the
 /// language in a user instruction, ignores the system turn and leaves the
@@ -18,51 +23,112 @@ enum QwenLlamaASR {
         let sha256: String
     }
 
-    // Source: Hugging Face tree API at this revision (LFS oids).
-    static let repository = "ggml-org/Qwen3-ASR-1.7B-GGUF"
-    static let revision = "36a678687ba7d07a74ca70ccb0e36902e005fb80"
-    static let model = File(
-        name: "Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 2_165_034_944,
-        sha256: "58e22d0532d4eacaf034cfac17a6fed159f37c41390c710186783be439d1fc57")
-    static let projector = File(
-        name: "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 355_709_344,
-        sha256: "46c1d533af3f354ceb37ce855dbceff7da7fa7cf1e6a523df3b13440bd164c0d")
-    static var files: [File] { [model, projector] }
+    /// One tier's pinned GGUF pair, its server role, and the MLX weights it replaced.
+    struct Weights: Sendable, Equatable {
+        let repository: String
+        let revision: String
+        let model: File
+        let projector: File
+        let folderName: String
+        let role: LlamaServerRole
+        /// The speech-swift MLX snapshot this tier used before (Hub-style folder).
+        let legacyMLXRepository: String
+
+        var files: [File] { [model, projector] }
+
+        func downloadURL(for file: File) -> URL {
+            URL(string: "https://huggingface.co/\(repository)/resolve/\(revision)/\(file.name)")!
+        }
+
+        func modelRoot(appSupport: URL) -> URL {
+            appSupport
+                .appendingPathComponent("qwen3-asr-models", isDirectory: true)
+                .appendingPathComponent("gguf", isDirectory: true)
+                .appendingPathComponent(folderName, isDirectory: true)
+        }
+
+        func url(for file: File, appSupport: URL) -> URL {
+            modelRoot(appSupport: appSupport).appendingPathComponent(file.name)
+        }
+
+        func isDownloaded(appSupport: URL) -> Bool {
+            files.allSatisfy { ModelFileValidator.looksLikeGGUF(url(for: $0, appSupport: appSupport)) }
+        }
+
+        /// The MLX weights this tier replaced, deleted once the GGUFs are in.
+        func legacyMLXDirectory(appSupport: URL) -> URL {
+            QwenASREngine.hubStyleCacheDir(
+                base: appSupport.appendingPathComponent("qwen3-asr-models", isDirectory: true),
+                modelID: legacyMLXRepository)
+        }
+
+        /// The tier's llama-server, as `QwenASREngine` starts it.
+        func makeServer(projector: URL) -> LlamaServer {
+            LlamaServer(
+                role: role, contextTokens: QwenLlamaASR.contextTokens,
+                extraArgs: ["--mmproj", projector.path] + QwenLlamaASR.serverArguments,
+                environment: QwenLlamaASR.serverEnvironment,
+                runtimeAllowanceBytes: 768 * 1_048_576)
+        }
+
+        /// Fetches both GGUFs through the shared download stack (mirrors, ranged
+        /// parts, SHA-256 verification) and installs them atomically.
+        func prepareFiles(appSupport: URL, progress: ModelPreparationProgressHandler?) async throws -> (model: URL, projector: URL) {
+            try FileManager.default.createDirectory(at: modelRoot(appSupport: appSupport),
+                                                    withIntermediateDirectories: true)
+            for (file, status) in [(model, "Downloading Qwen3-ASR model..."),
+                                   (projector, "Downloading Qwen3-ASR audio encoder...")] {
+                try await QwenLlamaASR.downloadIfNeeded(file, from: downloadURL(for: file),
+                                                        to: url(for: file, appSupport: appSupport),
+                                                        status: status, progress: progress)
+            }
+            removeLegacyMLXWeights(appSupport: appSupport)
+            return (url(for: model, appSupport: appSupport), url(for: projector, appSupport: appSupport))
+        }
+
+        private func removeLegacyMLXWeights(appSupport: URL) {
+            let legacy = legacyMLXDirectory(appSupport: appSupport)
+            guard FileManager.default.fileExists(atPath: legacy.path) else { return }
+            do {
+                try FileManager.default.removeItem(at: legacy)
+                lokalbotLog("qwen-asr removed the replaced MLX weights repository=\(legacyMLXRepository)")
+            } catch {
+                lokalbotLog("qwen-asr could not remove the replaced MLX weights repository=\(legacyMLXRepository): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // Source: Hugging Face tree API at these revisions (LFS oids).
+    static let accuracy = Weights(
+        repository: "ggml-org/Qwen3-ASR-1.7B-GGUF",
+        revision: "36a678687ba7d07a74ca70ccb0e36902e005fb80",
+        model: File(name: "Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 2_165_034_944,
+                    sha256: "58e22d0532d4eacaf034cfac17a6fed159f37c41390c710186783be439d1fc57"),
+        projector: File(name: "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 355_709_344,
+                        sha256: "46c1d533af3f354ceb37ce855dbceff7da7fa7cf1e6a523df3b13440bd164c0d"),
+        folderName: "Qwen3-ASR-1.7B-Q8_0", role: .qwenASR,
+        legacyMLXRepository: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit")
+
+    static let compact = Weights(
+        repository: "ggml-org/Qwen3-ASR-0.6B-GGUF",
+        revision: "928ab958557df9aa2ef1c93e0e83c7ad0933fae2",
+        model: File(name: "Qwen3-ASR-0.6B-Q8_0.gguf", bytes: 804_749_248,
+                    sha256: "bca259818b50ca7c4c05e9bdb35a5dc04fa039653a6d6f3f0f331f96f6aa1971"),
+        projector: File(name: "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf", bytes: 214_392_480,
+                        sha256: "41a342b5e4c514e968cb756de6cd1b7be39eff43c44c57a2ef5fc6522e36603d"),
+        folderName: "Qwen3-ASR-0.6B-Q8_0", role: .qwenASRCompact,
+        legacyMLXRepository: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit")
 
     /// llama.cpp randomizes its media marker per process unless this is set;
     /// the prompt must contain the server's marker exactly once.
     static let mediaMarker = "<__media__>"
     static let serverEnvironment = ["LLAMA_MEDIA_MARKER": mediaMarker]
 
-    /// A 60 s merged window is about 750 audio tokens, plus at most 768
+    /// A 30 s merged window is about 390 audio tokens, plus at most 768
     /// generated tokens and the vocabulary context.
     static let contextTokens = 4_096
     /// The default 8 GiB host prompt cache grew the benchmark server to 14 GB.
     static let serverArguments = ["--parallel", "1", "--cache-ram", "256"]
-
-    /// The 1.7B tier's llama-server, as `QwenASREngine` starts it.
-    static func makeServer(projector: URL) -> LlamaServer {
-        LlamaServer(
-            role: .qwenASR, contextTokens: contextTokens,
-            extraArgs: ["--mmproj", projector.path] + serverArguments,
-            environment: serverEnvironment,
-            runtimeAllowanceBytes: 768 * 1_048_576)
-    }
-
-    static func downloadURL(for file: File) -> URL {
-        URL(string: "https://huggingface.co/\(repository)/resolve/\(revision)/\(file.name)")!
-    }
-
-    static func modelRoot(appSupport: URL) -> URL {
-        appSupport
-            .appendingPathComponent("qwen3-asr-models", isDirectory: true)
-            .appendingPathComponent("gguf", isDirectory: true)
-            .appendingPathComponent("Qwen3-ASR-1.7B-Q8_0", isDirectory: true)
-    }
-
-    static func url(for file: File, appSupport: URL) -> URL {
-        modelRoot(appSupport: appSupport).appendingPathComponent(file.name)
-    }
 
     /// speech-swift's Qwen3ASRModel prompt: system = context, user = audio
     /// (mtmd wraps the marker in <|audio_start|>/<|audio_end|>), assistant =
@@ -130,44 +196,8 @@ enum QwenLlamaASR {
 
     // MARK: - Download
 
-    static func isDownloaded(appSupport: URL) -> Bool {
-        files.allSatisfy { ModelFileValidator.looksLikeGGUF(url(for: $0, appSupport: appSupport)) }
-    }
-
-    /// Fetches both GGUFs through the shared download stack (mirrors, ranged
-    /// parts, SHA-256 verification) and installs them atomically.
-    static func prepareFiles(appSupport: URL, progress: ModelPreparationProgressHandler?) async throws -> (model: URL, projector: URL) {
-        try FileManager.default.createDirectory(at: modelRoot(appSupport: appSupport),
-                                                withIntermediateDirectories: true)
-        for (file, status) in [(model, "Downloading Qwen3-ASR model..."),
-                               (projector, "Downloading Qwen3-ASR audio encoder...")] {
-            try await downloadIfNeeded(file, to: url(for: file, appSupport: appSupport),
-                                       status: status, progress: progress)
-        }
-        removeLegacyMLXWeights(appSupport: appSupport)
-        return (url(for: model, appSupport: appSupport), url(for: projector, appSupport: appSupport))
-    }
-
-    /// The MLX 8-bit weights this replaced (2.47 GB), once the GGUFs are in.
-    static func legacyMLXDirectory(appSupport: URL) -> URL {
-        QwenASREngine.hubStyleCacheDir(
-            base: appSupport.appendingPathComponent("qwen3-asr-models", isDirectory: true),
-            modelID: PinnedModelSnapshot.legacyQwenAccuracyRepository)
-    }
-
-    private static func removeLegacyMLXWeights(appSupport: URL) {
-        let legacy = legacyMLXDirectory(appSupport: appSupport)
-        guard FileManager.default.fileExists(atPath: legacy.path) else { return }
-        do {
-            try FileManager.default.removeItem(at: legacy)
-            lokalbotLog("qwen-asr removed the replaced MLX 1.7B weights")
-        } catch {
-            lokalbotLog("qwen-asr could not remove the replaced MLX 1.7B weights: \(error.localizedDescription)")
-        }
-    }
-
-    private static func downloadIfNeeded(_ file: File, to destination: URL, status: String,
-                                         progress: ModelPreparationProgressHandler?) async throws {
+    fileprivate static func downloadIfNeeded(_ file: File, from source: URL, to destination: URL, status: String,
+                                             progress: ModelPreparationProgressHandler?) async throws {
         if ModelFileValidator.looksLikeGGUF(destination),
            await DownloadIntegrity.verifiedExisting(
                at: destination, expectedBytes: file.bytes, expectedSHA256: file.sha256) {
@@ -176,7 +206,7 @@ enum QwenLlamaASR {
         DownloadIntegrity.removeFileAndMarker(at: destination)
         report(.init(fractionCompleted: 0, status: status), to: progress)
         let stashed = try await ModelDownloadRouting.download(
-            from: downloadURL(for: file), session: .shared,
+            from: source, session: .shared,
             expectedSHA256: file.sha256, expectedBytes: file.bytes) { update in
             report(.init(fractionCompleted: update.fractionCompleted, status: status), to: progress)
         }

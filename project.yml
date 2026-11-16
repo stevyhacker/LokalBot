@@ -2,7 +2,7 @@ name: LokalBot
 options:
   bundleIdPrefix: me.dotenv
   deploymentTarget:
-    macOS: "15.0"   # Qwen3-ASR's MLX Swift package requires macOS 15+
+    macOS: "15.0"   # speech-swift (the CoreML forced aligner's package) declares macOS 15+
   minimumXcodeGenVersion: "2.40"
   createIntermediateGroups: true
   generateEmptyDirectories: true
@@ -31,10 +31,7 @@ packages:
     exactVersion: 1.1.1   # crash and model-download cancellation fixes
   Qwen3Speech:
     url: https://github.com/stevyhacker/speech-swift
-    revision: 8e8782120803e8812805041b9ae51197c5959c31  # v0.0.29 + MLX-LM 3.32.3 pin; upstream soniqo/speech-swift#501
-  MLXSwift:
-    url: https://github.com/ml-explore/mlx-swift
-    exactVersion: 0.32.3   # MLX-LM 3.32.3 is compatible; CUDA plugin is Linux-only
+    revision: 228ec483f48ad7b2104165d4c2bd8a7e91dd1775  # v0.0.29 + MLX-LM 3.32.3 pin (soniqo/speech-swift#501) + MLX-free Qwen3ForcedAlignerCoreML product, branch lokalbot-mlx-free-aligner
   ArgumentParser:
     url: https://github.com/apple/swift-argument-parser
     from: "1.3.0"
@@ -131,10 +128,9 @@ targetTemplates:
     dependencies:
       - package: FluidAudio
       - package: WhisperKit
+      # Only the CoreML forced aligner: this product links no MLX.
       - package: Qwen3Speech
-        product: Qwen3ASR
-      - package: MLXSwift
-        product: MLX
+        product: Qwen3ForcedAlignerCoreML
       - package: Sparkle
         product: Sparkle
       - package: swift-log

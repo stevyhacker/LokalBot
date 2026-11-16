@@ -40,10 +40,9 @@ final class ModelStorageCopyTests: XCTestCase {
             (.parakeetUltra, total([.catalog("parakeetUltra")])),
             (.parakeetV3, total([.catalog("parakeetV3")])),
             (.parakeetV2, total([.catalog("parakeetV2")])),
-            (.qwenASR17B, QwenLlamaASR.files.reduce(0) { $0 + $1.bytes }),
-            (.qwenASR06B, total([.qwenCompact])),
+            (.qwenASR17B, QwenLlamaASR.accuracy.files.reduce(0) { $0 + $1.bytes }),
+            (.qwenASR06B, QwenLlamaASR.compact.files.reduce(0) { $0 + $1.bytes }),
             (.whisperLarge, total([.catalog("whisper"), .catalog("whisperTokenizer")])),
-            (.graniteTurbo, GraniteTurboEngine.artifacts.reduce(0) { $0 + $1.bytes }),
             (.graniteSpeech5, GraniteSpeechModelConfiguration.speech5.model.sizeBytes
                 + GraniteSpeechModelConfiguration.speech5.projector.sizeBytes),
         ]

@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "Ova ispravka se čuva odvojeno od izdvojenog izvora.";
 "This meeting has no outcomes yet. Summarize it first." = "Ovaj sastanak još nema ishode. Prvo napravite njegov sažetak.";
 "This meeting only" = "Samo ovaj sastanak";
-"This model supports English only and does not use vocabulary prompts." = "Ovaj model podržava samo engleski i ne koristi nagoveštaje iz rečnika.";
 "This moment retained text context without screen pixels." = "Za ovaj trenutak sačuvan je tekstualni kontekst bez piksela ekrana.";
 "This permanently deletes the audio, transcript and summary files." = "Ovo trajno briše datoteke zvuka, transkripta i sažetka.";
 "This permanently removes its pixels, captured text, and metadata." = "Ovo trajno uklanja njegove piksele, zabeleženi tekst i metapodatke.";
