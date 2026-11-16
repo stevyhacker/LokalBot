@@ -1,6 +1,6 @@
 # Demo script: From meeting to done
 
-> Historical. The hackathon ended on 4 November 2026 and the submission is published. The workflow that filmed `HackathonFilmUITests` (`.github/workflows/meta-hackathon-film.yml`, with `Scripts/film/`) and the live-take helper `Scripts/meta-hackathon-demo.sh` were removed afterwards; they are in the repository's history up to commit `648005e`. The test itself still runs in the UI suite with scripted replies. Live Radar has since moved to the Think model and has its own switch, so the settings named below no longer match the app.
+> Historical. The hackathon ended on 4 November 2026 and the submission is published. The workflow that filmed `HackathonFilmUITests` (`.github/workflows/meta-hackathon-film.yml`, with `Scripts/film/`) and the live-take helper `Scripts/meta-hackathon-demo.sh` were removed afterwards; they are in the repository's history up to commit `648005e`. The test itself was removed on 16 November 2026 because it failed intermittently on CI; it is in the history up to commit `60c4954e`. Live Radar has since moved to the Think model and has its own switch, so the settings named below no longer match the app.
 
 A three-minute video for the Meta Global AI Developer Hackathon. The judges weigh impact 30%, use of Meta tooling 25%, technical depth 20%, and the demo 25%, and they ask whether the video is "genuinely cool to watch". The rules allow showing only hackathon-built work, so every shot is a hackathon feature. Recording, transcription, and screen memory appear only as the setting.
 

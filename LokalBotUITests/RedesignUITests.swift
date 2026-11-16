@@ -777,7 +777,10 @@ final class RedesignUITests: XCTestCase {
         XCTAssertEqual(UserDefaults(suiteName: suite!)?.data(forKey: "lokalbotv3.settings"), before)
     }
 
-    func testActionSearchPreservesSelectionAndCompletionRecoversFromSaveFailure() throws {
+    /// Completing an action is covered by
+    /// `MainWindowUITests.testMultiMeetingThreadCompletionRequiresConfirmation`,
+    /// and a failed save and its retry by `ActionThreadRevisionTests`.
+    func testActionSearchPreservesSelectionAndCommandClickSelectsSeveral() throws {
         let folder = fixture.folder(for: fixture.designReview)
         // Large-list persistence belongs to RedesignContractTests, which
         // covers 0, 40 and 400 actions without an accessibility snapshot of every row.
@@ -828,32 +831,6 @@ final class RedesignUITests: XCTestCase {
         action.click()
         XCTAssertTrue(UITestHarness.waitUntil { !self.element("actions.batch").exists },
                       "A plain click should return to one selected action")
-        let complete = app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH %@ AND value == %@", "outcome.thread.toggle.", "Synthetic commitment 1")).firstMatch
-        XCTAssertTrue(complete.waitForExistence(timeout: 4))
-        let stateFile = folder.appendingPathComponent("outcome-state.json")
-        try withBlockedStateFile(stateFile) {
-            complete.click()
-            XCTAssertTrue(UITestHarness.staticText(containing: "Could not update this action", in: app)
-                .waitForExistence(timeout: 4))
-            XCTAssertEqual(complete.label, "Mark action thread done", "A failed save must leave the action open")
-            snapshot("action-complete-write-failure")
-        }
-        complete.click()
-        // A completed action stays in the list, ticked, until the view changes.
-        XCTAssertTrue(UITestHarness.waitUntil { complete.exists && complete.label == "Reopen action thread" })
-        XCTAssertTrue(action.exists, "The ticked action should stay listed until the view changes")
-        XCTAssertFalse(UITestHarness.staticText(containing: "Could not update this action", in: app).exists,
-                       "A successful retry should clear the previous save error")
-        XCTAssertFalse(app.windows.buttons["Undo"].exists, "Completing an action must not leave a persistent Undo bar")
-        let saved = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: stateFile)) as? [String: Any])
-        let states = try XCTUnwrap(saved["actions"] as? [String: [String: Any]])
-        XCTAssertEqual(states["search-action-1"]?["status"] as? String, "done")
-        // Leaving Open and coming back closes the list up.
-        UITestHarness.selectSegment("Done", pickerIdentifier: "actions.status", in: app)
-        XCTAssertTrue(action.waitForExistence(timeout: 4), "The completed action belongs to the Done list")
-        UITestHarness.selectSegment("Open", pickerIdentifier: "actions.status", in: app)
-        XCTAssertTrue(UITestHarness.waitUntil { !action.exists }, "A completed action left the Open list")
     }
 
     func testAgentApprovalDescribesEffectAndDenialAndStopReachTheController() throws {
@@ -921,18 +898,6 @@ final class RedesignUITests: XCTestCase {
             run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "Redesign", environment: environment)
         }
         app = run.app; suite = run.defaultsSuiteName
-    }
-    /// Blocks writes by putting a directory where the state file belongs, then
-    /// restores the previous file, or its absence when no status was saved yet.
-    private func withBlockedStateFile(_ file: URL, perform body: () throws -> Void) throws {
-        let contents = try? Data(contentsOf: file)
-        if contents != nil { try FileManager.default.removeItem(at: file) }
-        try FileManager.default.createDirectory(at: file, withIntermediateDirectories: true)
-        defer {
-            try? FileManager.default.removeItem(at: file)
-            try? contents?.write(to: file, options: .atomic)
-        }
-        try body()
     }
 
     private func element(_ id: String) -> XCUIElement {
