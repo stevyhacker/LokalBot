@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "Chỉnh sửa này được lưu riêng với nguồn đã trích xuất.";
 "This meeting has no outcomes yet. Summarize it first." = "Cuộc họp chưa có kết quả. Hãy tóm tắt trước.";
 "This meeting only" = "Chỉ cuộc họp này";
-"This model supports English only and does not use vocabulary prompts." = "Mô hình này chỉ hỗ trợ tiếng Anh và không dùng lời nhắc từ vựng.";
 "This moment retained text context without screen pixels." = "Khoảnh khắc này giữ ngữ cảnh văn bản mà không có điểm ảnh màn hình.";
 "This permanently deletes the audio, transcript and summary files." = "Xóa vĩnh viễn tệp âm thanh, bản chép lời và bản tóm tắt.";
 "This permanently removes its pixels, captured text, and metadata." = "Xóa vĩnh viễn điểm ảnh, văn bản đã ghi và siêu dữ liệu.";

@@ -7,7 +7,7 @@ Engines (Settings → Models; CoreML/MLX, in-process, Neural Engine/Metal):
 | Engine | Coverage | Notes |
 | --- | --- | --- |
 | **IBM Granite Speech 4.1** | high-accuracy local ASR | optional |
-| **IBM Granite Speech 5.0 2B** (Q8, ~3.12 GB) | English, French, German, Spanish, Portuguese, Japanese | optional; local llama.cpp, vocabulary hints and punctuated output; separate from 4.1 and the English-only 470M TurboCTC model |
+| **IBM Granite Speech 5.0 2B** (Q8, ~3.12 GB) | English, French, German, Spanish, Portuguese, Japanese | optional; local llama.cpp, vocabulary hints and punctuated output; separate from 4.1 |
 | **Parakeet Ultra 0.6B** (CoreML, ~0.63 GB) | 25 European languages | fast multilingual option; separate from existing v2/v3 selections |
 | **Parakeet TDT 0.6B v3** | 25 languages, up to ~190× realtime in local benchmarks | fastest local option |
 | **Parakeet TDT 0.6B v2** | English only | slightly higher recall |

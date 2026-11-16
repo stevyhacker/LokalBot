@@ -3,6 +3,42 @@ import FluidAudio
 @testable import LokalBot
 
 final class TranscriptionModelStoreTests: XCTestCase {
+    /// Granite Speech 5 TurboCTC was removed: a saved selection, by raw value
+    /// or by its old display name, decodes as Parakeet v2 instead of resetting
+    /// the settings as corrupted.
+    func testRemovedGraniteTurboSelectionDecodesAsParakeetV2() throws {
+        for raw in ["granite-speech-5-turbo", "Granite Speech 5 fast (English)"] {
+            let data = try JSONEncoder().encode([raw])
+            XCTAssertEqual(try JSONDecoder().decode([TranscriptionModelChoice].self, from: data), [.parakeetV2], raw)
+        }
+        XCTAssertFalse(TranscriptionModelChoice.allCases.map(\.rawValue).contains("granite-speech-5-turbo"))
+        XCTAssertThrowsError(try JSONDecoder().decode([TranscriptionModelChoice].self,
+                                                      from: Data(#"["no-such-model"]"#.utf8)))
+    }
+
+    /// The retired Granite Turbo folder is deleted by exact path; other model
+    /// folders and a symlink in its place are left alone.
+    func testRetiredModelFoldersAreRemovedByExactPath() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-retired-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let turbo = root.appendingPathComponent("granite-turbo/5.0-470m", isDirectory: true)
+        let kept = root.appendingPathComponent("granite-speech", isDirectory: true)
+        for folder in [turbo, kept] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: folder.appendingPathComponent("model.safetensors"))
+        }
+        let removed = TranscriptionModelStore.removeRetiredModels(appSupport: root)
+        XCTAssertEqual(removed.map(\.lastPathComponent), ["granite-turbo"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("granite-turbo").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: kept.appendingPathComponent("model.safetensors").path))
+
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("granite-turbo"), withDestinationURL: kept)
+        XCTAssertEqual(TranscriptionModelStore.removeRetiredModels(appSupport: root), [])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: kept.appendingPathComponent("model.safetensors").path))
+    }
+
     func testSpeech5RequiresItsOwnCompleteCacheAndDeletionPreserves41() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }

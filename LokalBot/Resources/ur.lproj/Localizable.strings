@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "یہ تصحیح اخذ کردہ ماخذ سے الگ محفوظ ہوتی ہے۔";
 "This meeting has no outcomes yet. Summarize it first." = "اس اجلاس کے ابھی کوئی نتائج نہیں۔ پہلے خلاصہ بنائیں۔";
 "This meeting only" = "صرف یہ اجلاس";
-"This model supports English only and does not use vocabulary prompts." = "یہ ماڈل صرف انگریزی کی حمایت کرتا ہے اور ذخیرۂ الفاظ کے پرامپٹس استعمال نہیں کرتا۔";
 "This moment retained text context without screen pixels." = "اس لمحے میں اسکرین پکسلز کے بغیر متنی سیاق برقرار رکھا گیا۔";
 "This permanently deletes the audio, transcript and summary files." = "اس سے آڈیو، نقل شدہ متن اور خلاصے کی فائلیں مستقل حذف ہوتی ہیں۔";
 "This permanently removes its pixels, captured text, and metadata." = "اس سے اس کے پکسلز، کیپچر کیا گیا متن اور میٹاڈیٹا مستقل ہٹ جاتے ہیں۔";

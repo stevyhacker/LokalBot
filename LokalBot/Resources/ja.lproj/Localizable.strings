@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "この修正は抽出したソースとは別に保存されます。";
 "This meeting has no outcomes yet. Summarize it first." = "この会議にはまだ成果がありません。先に要約してください。";
 "This meeting only" = "この会議のみ";
-"This model supports English only and does not use vocabulary prompts." = "このモデルは英語のみ対応で、語彙プロンプトは使用しません。";
 "This moment retained text context without screen pixels." = "この場面では画面の画像を保存せずにテキストコンテキストを保持しました。";
 "This permanently deletes the audio, transcript and summary files." = "音声、文字起こし、要約のファイルを完全に削除します。";
 "This permanently removes its pixels, captured text, and metadata." = "画像、取得したテキスト、メタデータを完全に削除します。";

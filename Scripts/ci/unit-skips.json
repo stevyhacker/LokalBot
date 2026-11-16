@@ -113,13 +113,6 @@
       ]
     },
     {
-      "reason": "Needs Granite speech weights and a public-audio reference manifest (LOKALBOT_GRANITE5_REFERENCE). Run for a Granite runtime update.",
-      "tests": [
-        "GraniteTurboTests/testNativeEnginePreparesAndTranscribesPublicAudioWhenFixtureProvided",
-        "GraniteTurboTests/testNativeInferenceMatchesReferenceWhenFixtureProvided"
-      ]
-    },
-    {
       "reason": "Needs a local sherpa-onnx Fun-ASR model and a public or synthetic speech WAV. Run for a Fun-ASR runtime update.",
       "tests": [
         "FunASRNanoRuntimeTests/testRealLocalModelWhenFixturesAreProvided"

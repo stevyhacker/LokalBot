@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "التصحيح ده بيتحفظ منفصل عن المصدر المستخرج.";
 "This meeting has no outcomes yet. Summarize it first." = "الاجتماع ده لسه ملوش نتائج. لخّصه الأول.";
 "This meeting only" = "الاجتماع ده بس";
-"This model supports English only and does not use vocabulary prompts." = "النموذج ده بيدعم الإنجليزي بس ومش بيستخدم تعليمات المفردات.";
 "This moment retained text context without screen pixels." = "اللحظة دي احتفظت بسياق نصي من غير بكسلات الشاشة.";
 "This permanently deletes the audio, transcript and summary files." = "ده بيحذف ملفات الصوت والتفريغ النصي والملخص نهائيًا.";
 "This permanently removes its pixels, captured text, and metadata." = "ده بيشيل البكسلات والنص الملتقط والبيانات الوصفية نهائيًا.";

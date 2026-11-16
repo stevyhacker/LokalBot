@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "此修正會與提取出的來源分開儲存。";
 "This meeting has no outcomes yet. Summarize it first." = "此會議尚無成果，請先產生摘要。";
 "This meeting only" = "僅此會議";
-"This model supports English only and does not use vocabulary prompts." = "此模型僅支援英文，不使用詞彙提示。";
 "This moment retained text context without screen pixels." = "此時刻僅保留文字上下文，未保留螢幕畫面像素。";
 "This permanently deletes the audio, transcript and summary files." = "這會永久刪除音訊、逐字稿和摘要檔案。";
 "This permanently removes its pixels, captured text, and metadata." = "這會永久移除其畫面像素、擷取的文字和中繼資料。";

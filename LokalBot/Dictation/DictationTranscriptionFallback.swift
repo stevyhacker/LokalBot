@@ -27,7 +27,7 @@ enum DictationTranscriptionFallback {
         .qwenASR17B, .whisperLarge, .qwenASR06B, .parakeetV3, .parakeetUltra, .graniteSpeech5, .graniteSpeech,
     ]
     /// Used only when the language is set to English.
-    static let englishOnly: [TranscriptionModelChoice] = [.parakeetV2, .graniteTurbo]
+    static let englishOnly: [TranscriptionModelChoice] = [.parakeetV2]
 
     /// Added to the message when the server failed and nothing could take over.
     static let nothingDownloadedHint =

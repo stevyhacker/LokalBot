@@ -2,6 +2,30 @@ import Foundation
 import FluidAudio
 
 struct TranscriptionModelStore {
+    /// Folders of transcription models the app no longer offers, relative to
+    /// Application Support: Granite Speech 5 TurboCTC (about 0.95 GB, MLX).
+    static let retiredModelFolders = ["granite-turbo"]
+
+    /// Deletes the retired models' folders by exact path. Never follows a
+    /// symlink in a folder's place. Returns the folders it removed.
+    @discardableResult
+    static func removeRetiredModels(appSupport: URL) -> [URL] {
+        var removed: [URL] = []
+        for name in retiredModelFolders {
+            let folder = appSupport.appendingPathComponent(name, isDirectory: true)
+            let values = try? folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            guard values?.isDirectory == true, values?.isSymbolicLink != true else { continue }
+            do {
+                try FileManager.default.removeItem(at: folder)
+                removed.append(folder)
+                lokalbotLog("removed retired transcription model folder=\(name)")
+            } catch {
+                lokalbotLog("could not remove retired transcription model folder=\(name): \(error.localizedDescription)")
+            }
+        }
+        return removed
+    }
+
     struct Environment {
         let appSupport: URL
         let fluidAudioRoot: URL
@@ -93,8 +117,6 @@ struct TranscriptionModelStore {
                 && ModelFileValidator.looksLikeGGUF(GraniteSpeechEngine.projectorURL(
                     configuration: graniteConfiguration,
                     appSupport: environment.appSupport))
-        case .graniteTurbo:
-            return GraniteTurboEngine.isDownloaded(appSupport: environment.appSupport)
         case .whisperLarge:
             return whisperModelDirectories(environment: environment).contains { directory in
                 requiredFilesPresent(
@@ -154,8 +176,6 @@ struct TranscriptionModelStore {
             [GraniteSpeechEngine.modelRoot(
                 configuration: .speech5,
                 appSupport: environment.appSupport)]
-        case .graniteTurbo:
-            [GraniteTurboEngine.modelRoot(appSupport: environment.appSupport)]
         case .whisperLarge:
             whisperModelDirectories(environment: environment)
         case .cohere:

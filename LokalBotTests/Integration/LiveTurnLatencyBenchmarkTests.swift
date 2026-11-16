@@ -152,10 +152,10 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
     private static let rate = Double(VadManager.sampleRate)
     /// Pause rules compared without a model, beside the app's own.
     private static let studied = ["1:off", "2:off", "3:off", "4:off", "2:3", "2:4", "2:6"].compactMap { Rule($0[...]) }
-    private static let englishOnly: Set<TranscriptionModelChoice> = [.parakeetV2, .graniteTurbo, .graniteSpeech]
+    private static let englishOnly: Set<TranscriptionModelChoice> = [.parakeetV2, .graniteSpeech]
     private static let candidates: [TranscriptionModelChoice] = [
         .parakeetV3, .parakeetUltra, .parakeetV2, .qwenASR17B, .qwenASR06B,
-        .whisperLarge, .graniteTurbo, .graniteSpeech,
+        .whisperLarge, .graniteSpeech,
     ]
 
     func testTurnByTurnDelay() async throws {

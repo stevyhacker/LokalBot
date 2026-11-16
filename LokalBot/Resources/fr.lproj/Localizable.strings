@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "Cette correction est enregistrée séparément de la source extraite.";
 "This meeting has no outcomes yet. Summarize it first." = "Cette réunion n’a pas encore de résultats. Résumez-la d’abord.";
 "This meeting only" = "Cette réunion uniquement";
-"This model supports English only and does not use vocabulary prompts." = "Ce modèle ne prend en charge que l’anglais et n’utilise pas de consignes de vocabulaire.";
 "This moment retained text context without screen pixels." = "Ce moment a conservé du contexte textuel sans image d’écran.";
 "This permanently deletes the audio, transcript and summary files." = "Supprime définitivement les fichiers audio, de transcription et de résumé.";
 "This permanently removes its pixels, captured text, and metadata." = "Supprime définitivement ses images, son texte capturé et ses métadonnées.";

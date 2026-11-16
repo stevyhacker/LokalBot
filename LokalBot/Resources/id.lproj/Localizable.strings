@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "Koreksi ini disimpan terpisah dari sumber yang diekstrak.";
 "This meeting has no outcomes yet. Summarize it first." = "Rapat ini belum memiliki hasil. Ringkas terlebih dahulu.";
 "This meeting only" = "Hanya rapat ini";
-"This model supports English only and does not use vocabulary prompts." = "Model ini hanya mendukung bahasa Inggris dan tidak menggunakan prompt kosakata.";
 "This moment retained text context without screen pixels." = "Momen ini menyimpan konteks teks tanpa piksel layar.";
 "This permanently deletes the audio, transcript and summary files." = "Ini menghapus file audio, transkrip, dan ringkasan secara permanen.";
 "This permanently removes its pixels, captured text, and metadata." = "Ini menghapus piksel, teks yang ditangkap, dan metadatanya secara permanen.";

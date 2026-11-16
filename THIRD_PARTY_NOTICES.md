@@ -18,7 +18,6 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | LaunchAtLogin-Modern | MIT | https://github.com/sindresorhus/LaunchAtLogin-Modern |
 | swift-argument-parser, swift-log, SwiftNIO and related Apple Swift packages | Apache-2.0 | https://github.com/apple |
 | MLX Swift | MIT | https://github.com/ml-explore/mlx-swift |
-| mlx-audio Granite 5 inference and audio frontend (adapted to Swift) | MIT | https://github.com/Blaizzy/mlx-audio/tree/0d3ad3c58220a0ceb4b09b07734b7ba07439d420/mlx_audio/stt/models/granite_speech5_ctc |
 | Cotabby (portions of the Autocomplete engine, ported and modified) | AGPL-3.0 | https://github.com/FuJacob/cotabby |
 | Hugging Face Swift libraries | Apache-2.0 | https://github.com/huggingface |
 | Hummingbird and related packages | Apache-2.0 | https://github.com/hummingbird-project |
@@ -280,8 +279,6 @@ also includes:
 | ML Kit Barcode Scanning, with its bundled model, for scanning the pairing code | ML Kit Terms of Service | https://developers.google.com/ml-kit/terms |
 
 ## MIT License
-
-mlx-audio portions: Copyright (c) 2024 Prince Canuma.
 
 DigUp and DigUpKit portions: Copyright (c) 2026 Abdur Rahim.
 

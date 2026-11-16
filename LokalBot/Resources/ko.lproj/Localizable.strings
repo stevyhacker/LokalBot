@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "이 수정 사항은 추출된 원본과 별도로 저장됩니다.";
 "This meeting has no outcomes yet. Summarize it first." = "이 회의에는 아직 결과가 없습니다. 먼저 요약하세요.";
 "This meeting only" = "이 회의만";
-"This model supports English only and does not use vocabulary prompts." = "이 모델은 영어만 지원하며 어휘 프롬프트를 사용하지 않습니다.";
 "This moment retained text context without screen pixels." = "이 순간에는 화면 픽셀 없이 텍스트 맥락만 보관되었습니다.";
 "This permanently deletes the audio, transcript and summary files." = "오디오, 전사문 및 요약 파일이 영구적으로 삭제됩니다.";
 "This permanently removes its pixels, captured text, and metadata." = "해당 픽셀, 캡처한 텍스트 및 메타데이터가 영구적으로 삭제됩니다.";

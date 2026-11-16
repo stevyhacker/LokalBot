@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "ఈ సవరణ సంగ్రహించిన మూలానికి విడిగా నిల్వ అవుతుంది.";
 "This meeting has no outcomes yet. Summarize it first." = "ఈ సమావేశానికి ఇంకా ఫలితాలు లేవు. ముందు సారాంశం రూపొందించండి.";
 "This meeting only" = "ఈ సమావేశం మాత్రమే";
-"This model supports English only and does not use vocabulary prompts." = "ఈ మోడల్ ఇంగ్లీష్‌కే మద్దతు ఇస్తుంది, పదజాల ప్రాంప్ట్‌లను వాడదు.";
 "This moment retained text context without screen pixels." = "ఈ క్షణంలో స్క్రీన్ పిక్సెల్‌లు లేకుండా వచన సందర్భం ఉంచబడింది.";
 "This permanently deletes the audio, transcript and summary files." = "ఇది ఆడియో, ట్రాన్స్‌క్రిప్ట్, సారాంశ ఫైల్‌లను శాశ్వతంగా తొలగిస్తుంది.";
 "This permanently removes its pixels, captured text, and metadata." = "ఇది దాని పిక్సెల్‌లు, సంగ్రహించిన వచనం, మెటాడేటాను శాశ్వతంగా తీసివేస్తుంది.";

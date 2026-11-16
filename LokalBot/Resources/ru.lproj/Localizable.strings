@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "Исправление хранится отдельно от извлечённого источника.";
 "This meeting has no outcomes yet. Summarize it first." = "У этой встречи пока нет результатов. Сначала создайте сводку.";
 "This meeting only" = "Только эта встреча";
-"This model supports English only and does not use vocabulary prompts." = "Модель поддерживает только английский и не использует словарные подсказки.";
 "This moment retained text context without screen pixels." = "Этот момент сохранил текстовый контекст без пикселей экрана.";
 "This permanently deletes the audio, transcript and summary files." = "Безвозвратно удаляет аудиофайлы, расшифровку и сводку.";
 "This permanently removes its pixels, captured text, and metadata." = "Безвозвратно удаляет его пиксели, захваченный текст и метаданные.";

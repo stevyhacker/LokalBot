@@ -1145,7 +1145,6 @@
 "This correction is stored separately from the extracted source." = "Sahihisho hili huhifadhiwa kando na chanzo kilichotolewa.";
 "This meeting has no outcomes yet. Summarize it first." = "Mkutano huu bado hauna matokeo. Tengeneza muhtasari wake kwanza.";
 "This meeting only" = "Mkutano huu pekee";
-"This model supports English only and does not use vocabulary prompts." = "Modeli hii inasaidia Kiingereza pekee na haitumii maelekezo ya msamiati.";
 "This moment retained text context without screen pixels." = "Tukio hili lilihifadhi muktadha wa maandishi bila pikseli za skrini.";
 "This permanently deletes the audio, transcript and summary files." = "Hii hufuta kabisa faili za sauti, nakala ya sauti na muhtasari.";
 "This permanently removes its pixels, captured text, and metadata." = "Hii huondoa kabisa pikseli zake, maandishi yaliyonaswa na metadata.";
