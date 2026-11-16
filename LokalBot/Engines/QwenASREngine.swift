@@ -50,10 +50,13 @@ actor QwenASREngine: TranscriptionEngine {
     private static let maxSegmentSeconds = 15.0
 
     /// Decode windows for the word-attribution path: VAD spans merged across
-    /// short pauses. 1.7B gains from 60 s windows without speech-swift's
-    /// repetition blocking. 0.6B decoded long windows 5–10× slower for a small
-    /// gain, and worse with blocking on, so it stays at 15 s, where blocking
-    /// never engages (Benchmarks/transcribe/QwenSpanLength).
+    /// short pauses. 1.7B gains from long windows without speech-swift's
+    /// repetition blocking. Each window is one forced-aligner segment, and the
+    /// CoreML aligner takes at most 30 s, so 1.7B merges to 30 s rather than
+    /// the 60 s it used with the MLX aligner; on AMI the two were within
+    /// noise. 0.6B decoded long windows 5–10× slower for a small gain, and
+    /// worse with blocking on, so it stays at 15 s, where blocking never
+    /// engages (Benchmarks/transcribe/QwenSpanLength).
     struct WordAttributionWindows: Equatable, Sendable {
         var maxSeconds: TimeInterval
         var maxGapSeconds: TimeInterval
@@ -62,7 +65,8 @@ actor QwenASREngine: TranscriptionEngine {
 
     nonisolated static func wordAttributionWindows(for variant: Variant) -> WordAttributionWindows {
         switch variant {
-        case .accuracy: .init(maxSeconds: 60, maxGapSeconds: 5, disablesRepetitionBlocking: true)
+        case .accuracy: .init(maxSeconds: QwenWordAligner.maxSegmentSeconds, maxGapSeconds: 5,
+                              disablesRepetitionBlocking: true)
         case .compact: .init(maxSeconds: 15, maxGapSeconds: 5, disablesRepetitionBlocking: false)
         }
     }

@@ -81,9 +81,9 @@
       ]
     },
     {
-      "reason": "Needs the downloaded Qwen3 forced aligner (LOKALBOT_QWEN_ALIGNER_TEST_DIR). Run for an aligner or MLX update.",
+      "reason": "Needs the downloaded CoreML Qwen3 forced aligner (LOKALBOT_QWEN_ALIGNER_TEST_DIR). Run for an aligner or speech-swift update.",
       "tests": [
-        "WordAttributionTests/testCachedAlignerKeepsScratchBuffersBoundedAcrossSegmentLengths",
+        "WordAttributionTests/testCachedAlignerKeepsFootprintFlatAcrossSegments",
         "WordAttributionTests/testCachedAlignerVerifiesPinsAndTimesEveryWord"
       ]
     },

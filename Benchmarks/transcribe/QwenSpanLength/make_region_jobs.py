@@ -114,18 +114,28 @@ def main():
     if sys.argv[1:2] == ['align-job']:
         # Word timings for a condition's windows in runs.jsonl (default engine-15).
         # ALIGNER_VARIANT=8bit uses the 8-bit aligner in ALIGNER_MODEL_DIR instead.
+        # ALIGNER_ENGINE=coreml ALIGNER_VARIANT=int8|fp16 uses CoreMLForcedAligner on the
+        # compiled bundles in ALIGNER_MODEL_DIR. ALIGN_IDS=a,b limits the items.
         # RUNS_FILE=runs-06b.jsonl ALIGNED_PREFIX=aligned06 aligns the compact-tier runs.
-        items = [{'id': r['id'], 'wav': r['path']} for r in manifest]
-        variant = os.environ.get('ALIGNER_VARIANT', '4bit')
+        engine = os.environ.get('ALIGNER_ENGINE', 'mlx')
+        ids = set(filter(None, os.environ.get('ALIGN_IDS', '').split(',')))
+        items = [{'id': r['id'], 'wav': r['path']} for r in manifest if not ids or r['id'] in ids]
+        variant = os.environ.get('ALIGNER_VARIANT', 'int8' if engine == 'coreml' else '4bit')
         runs_file = os.environ.get('RUNS_FILE', 'runs.jsonl')
-        prefix = os.environ.get('ALIGNED_PREFIX', 'aligned' if variant == '4bit' else 'aligned8')
+        default_prefix = ('aligned' if variant == '4bit' else f'aligned-coreml-{variant}' if engine == 'coreml'
+                          else 'aligned8')
+        prefix = os.environ.get('ALIGNED_PREFIX', default_prefix)
+        model_id = (f'aufklarer/Qwen3-ForcedAligner-0.6B-CoreML-{variant.upper()}' if engine == 'coreml'
+                    else f'aufklarer/Qwen3-ForcedAligner-0.6B-{variant}')
+        suffix = os.environ.get('ALIGN_SUFFIX', '')
         for condition in sys.argv[2:] or ['engine-15']:
             name = 'aligned-engine15' if (prefix, condition) == ('aligned', 'engine-15') else f'{prefix}-{condition}'
+            name += suffix
             path = OUT / ('align.json' if name == 'aligned-engine15' else
-                          f'align-{variant}-{condition}.json' if prefix in ('aligned', 'aligned8') else
-                          f'align-{prefix}-{condition}.json')
+                          f'align-{variant}-{condition}{suffix}.json' if prefix in ('aligned', 'aligned8') else
+                          f'align-{prefix.removeprefix("aligned-")}-{condition}{suffix}.json')
             path.write_text(json.dumps({
-                'modelId': f'aufklarer/Qwen3-ForcedAligner-0.6B-{variant}', 'modelDir': str(ALIGNER_DIR),
+                'modelId': model_id, 'modelDir': str(ALIGNER_DIR), 'engine': engine,
                 'runs': str(OUT / runs_file), 'condition': condition, 'language': 'English',
                 'items': items, 'output': str(OUT / f'{name}.jsonl')}))
             print(f'{path.name}: {len(items)} items -> {name}.jsonl')

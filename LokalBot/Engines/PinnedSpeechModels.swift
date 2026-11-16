@@ -184,17 +184,37 @@ extension PinnedModelSnapshot {
     /// Qwen3-ASR 1.7B's former MLX weights. The tier now runs on llama.cpp
     /// (`QwenLlamaASR`), which deletes this folder once its GGUFs are in.
     static let legacyQwenAccuracyRepository = "aufklarer/Qwen3-ASR-1.7B-MLX-8bit"
-    /// speech-swift's default Qwen3 forced aligner (4-bit MLX). It times the
-    /// words of a whole-track Qwen transcript for speaker attribution.
-    static let qwenAligner = Self(repository: "aufklarer/Qwen3-ForcedAligner-0.6B-4bit", revision: "f0e9f12a0ddbcb5f1e1b7f0339090628f1cede1d", files: [
-        .init(path: "config.json", bytes: 5982,
-              digest: "7b9883fe52d0ba896773687a7fdad38eacab062d", isGitBlob: true),
+    /// speech-swift's CoreML Qwen3 forced aligner (INT8-palettized encoder and
+    /// decoder, fp16 embedding table). It times the words of a whole-track
+    /// transcript for speaker attribution. Only the compiled `.mlmodelc`
+    /// bundles are fetched, so loading never compiles a package.
+    static let qwenAligner = Self(repository: "aufklarer/Qwen3-ForcedAligner-0.6B-CoreML-INT8", revision: "a9d6ec64612e3d764cd0addfac0749e43b72dc07", files: [
+        .init(path: "audio_encoder.mlmodelc/analytics/coremldata.bin", bytes: 243,
+              digest: "c3cff651be40392d81b73d1c5a449a43a68eb7f5d4a642f0a2efaf315aa4d17e", isGitBlob: false),
+        .init(path: "audio_encoder.mlmodelc/coremldata.bin", bytes: 376,
+              digest: "d310aae19a7b4bb18c5a9dbbeca9a4afc44062b3b28ef2df72bc3c273b39597e", isGitBlob: false),
+        .init(path: "audio_encoder.mlmodelc/metadata.json", bytes: 2743,
+              digest: "ecceec2e97118d127a47681c5dc79b842bf24835", isGitBlob: true),
+        .init(path: "audio_encoder.mlmodelc/model.mil", bytes: 1380783,
+              digest: "97d186a03f8c4d3c1fc5d18fea079b1099924d9b", isGitBlob: true),
+        .init(path: "audio_encoder.mlmodelc/weights/weight.bin", bytes: 317035136,
+              digest: "7b4eddd9b588c002922922840086d08a7b195a6932774c506dc2d4cdc94a1b9b", isGitBlob: false),
+        .init(path: "config.json", bytes: 233,
+              digest: "6296118410b60b58f9d744aa1f8ad1af7faca64f", isGitBlob: true),
+        .init(path: "embed_tokens.fp16.bin", bytes: 311427072,
+              digest: "a6968a6f3a6520111cf9288239a09e766cdebba9067c43e59ef06c6aac8e0512", isGitBlob: false),
         .init(path: "merges.txt", bytes: 1671853,
               digest: "31349551d90c7606f325fe0f11bbb8bd5fa0d7c7", isGitBlob: true),
-        .init(path: "model.safetensors", bytes: 978674048,
-              digest: "8187bcb2ab9046cbb274559523d21f60249410ccc561682bc5860b07101c5568", isGitBlob: false),
-        .init(path: "quantize_config.json", bytes: 214,
-              digest: "20ba9d363146422572ef706429cee64895d572d3", isGitBlob: true),
+        .init(path: "text_decoder.mlmodelc/analytics/coremldata.bin", bytes: 243,
+              digest: "ac45c534534d1b8c4c28c3823a65ca73e5c511d412bdd712feec35aae77d1c6e", isGitBlob: false),
+        .init(path: "text_decoder.mlmodelc/coremldata.bin", bytes: 323,
+              digest: "147c6ed553d4ebb7ff9f1cc358416051a08e92a90d94f63c63f1bf8aaa5d96e2", isGitBlob: false),
+        .init(path: "text_decoder.mlmodelc/metadata.json", bytes: 2028,
+              digest: "cfc274508e62fdd18feffdc966ad78d6714ee3d0", isGitBlob: true),
+        .init(path: "text_decoder.mlmodelc/model.mil", bytes: 769149,
+              digest: "b7559d91aadf2d2eca51a693a0382ef9cab5d0ad", isGitBlob: true),
+        .init(path: "text_decoder.mlmodelc/weights/weight.bin", bytes: 446498960,
+              digest: "083cfeabb070794b7745694564f0154aa4329020c7eb344aff3406f348b25e3f", isGitBlob: false),
         .init(path: "tokenizer_config.json", bytes: 12666,
               digest: "3df92df83b22342e36a7b11cf9a70de2a2996bec", isGitBlob: true),
         .init(path: "vocab.json", bytes: 2776833,

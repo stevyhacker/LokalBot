@@ -350,7 +350,7 @@ The app may make these outbound connections:
   Nemotron speaker diarization, the default on fresh installs, downloads its
   pinned CoreML model on first use. With Qwen3-ASR, or a transcription server
   that does not return word times, speaker separation also downloads a pinned
-  Qwen3 forced aligner (about 1 GB) that times each word; alignment and speaker
+  CoreML Qwen3 forced aligner (about 1.1 GB) that times each word; alignment and speaker
   processing remain on this Mac. Remembering voices also uses the local
   Pyannote models, which download on first use like the speaker models.
   Turning on Files downloads EmbeddingGemma 2's image and audio projector

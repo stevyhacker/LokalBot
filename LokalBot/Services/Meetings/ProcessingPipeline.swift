@@ -1123,7 +1123,8 @@ final class ProcessingPipeline: ObservableObject {
             // Silent regions skipped, the track's language kept for regions, Latin script.
             "track-language-v1"]
         if engine.speakerAttribution == .alignedWords {
-            parts.append("aligned-words-\(QwenWordAligner.snapshot.revision)-merged-windows-v2")
+            // v3: the CoreML aligner, with 1.7B windows merged to 30 s instead of 60 s.
+            parts.append("aligned-words-\(QwenWordAligner.snapshot.revision)-merged-windows-v3")
         }
         return try JSONEncoder().encode(parts)
     }
