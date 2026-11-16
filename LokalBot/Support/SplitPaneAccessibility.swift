@@ -24,7 +24,13 @@ struct HeldPaneWidth {
             settle(at: paneWidth)
             return nil
         }
-        guard let width, abs(paneWidth - width) > Self.tolerance else { return nil }
+        guard let width else { return nil }
+        guard abs(paneWidth - width) > Self.tolerance else {
+            // The split reached the held width after all, so a width it once
+            // clamped a restore to says nothing about the next re-division.
+            unreachableWidth = nil
+            return nil
+        }
         if let unreachableWidth, abs(paneWidth - unreachableWidth) <= Self.tolerance { return nil }
         return width
     }
@@ -94,6 +100,9 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
         /// of times so it never fights a divider the user is dragging.
         private var initialWidthAttempts = 0
         private static let maximumInitialWidthAttempts = 12
+        /// Later run-loop turns a missed restore is retried on before the
+        /// width counts as one the split cannot reach.
+        private static let maximumRestoreRetries = 2
         private var held = HeldPaneWidth()
         private var dividerDrag = DividerDragDetector()
         private weak var observedSplit: NSSplitView?
@@ -242,13 +251,34 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
 
         private func splitDidResize(pane: NSView?, byUser: Bool) {
             guard let pane, let split = observedSplit, !initialWidthPending, !restoringHeldWidth,
-                  let index = split.arrangedSubviews.firstIndex(where: { $0 === pane }),
+                  split.arrangedSubviews.contains(where: { $0 === pane }),
                   let target = held.resized(to: Self.shownWidth(of: pane), byUser: byUser) else { return }
+            restore(pane, to: target, in: split, retries: Self.maximumRestoreRetries)
+        }
+
+        /// SwiftUI can re-divide the split again in the same update that
+        /// reported the first re-division, overriding the position just set:
+        /// selecting a project left its list at the column's maximum. A width
+        /// is only given up on, as one the split cannot reach, once a restore
+        /// on a later turn of the run loop, after that update, still misses it.
+        private func restore(_ pane: NSView, to target: CGFloat, in split: NSSplitView, retries: Int) {
+            guard let index = split.arrangedSubviews.firstIndex(where: { $0 === pane }) else { return }
             restoringHeldWidth = true
-            defer { restoringHeldWidth = false }
             split.setPosition(Self.dividerPosition(showing: target, of: pane, at: index, in: split), ofDividerAt: 0)
+            restoringHeldWidth = false
             let restored = Self.shownWidth(of: pane)
-            if abs(restored - target) > 1 { held.restoreFailed(at: restored) }
+            guard abs(restored - target) > 1 else { return }
+            guard retries > 0 else {
+                held.restoreFailed(at: restored)
+                return
+            }
+            DispatchQueue.main.async { [weak self, weak pane, weak split] in
+                guard let self, let pane, let split, self.observedSplit === split,
+                      // A divider drag in between chose a new width.
+                      self.held.width == target,
+                      abs(Self.shownWidth(of: pane) - target) > 1 else { return }
+                self.restore(pane, to: target, in: split, retries: retries - 1)
+            }
         }
 
         private static func hasSavedFrames(_ autosaveName: String) -> Bool {
