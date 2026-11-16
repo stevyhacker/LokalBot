@@ -8,7 +8,7 @@ VERIFIED. LokalBot's facts must match the README and PRIVACY.md.
 Monthly re-check:
 1. For each tool, check the latest release, license, platforms, price, memory
    and document features against the sources in its "sources" list.
-2. Update the tool's fields and prose, set VERIFIED to the check date, and add
+2. Update the tool's fields and prose, set VERIFIED to the check date (leave TESTED alone unless you retook the screenshots), and add
    an UPDATE_LOG entry that says what changed (or that nothing did).
 3. Retake a screenshot when the app's main window has visibly changed. The
    recipe is in Docs/guides/best-ai-assistants-screenshots.md.
@@ -23,7 +23,9 @@ from html import escape
 SLUG = "best-open-source-ai-assistants"
 PUBLISHED = "2026-11-09"
 # The day every competitor fact below was last checked against its source.
-VERIFIED = "2026-11-09"
+VERIFIED = "2026-11-16"
+# The day we installed the apps and took the screenshots. It moves only when they are retaken.
+TESTED = "2026-11-09"
 IMAGES = "assets/compare/ai-assistants"
 ISSUES_URL = "https://github.com/stevyhacker/lokalbot/issues"
 REPO_URL = "https://github.com/stevyhacker/lokalbot"
@@ -36,6 +38,12 @@ def _long_date(iso: str) -> str:
 
 # Newest first. Say what changed on the page each month, even "nothing changed".
 UPDATE_LOG = [
+    (
+        "2026-11-16",
+        "Re-checked sources. Ollama is now 0.40.16 (November 9); the other apps are unchanged at LM Studio 0.4.28, Jan 0.8.8, "
+        "AnythingLLM 1.19.0, and Open WebUI 0.13.3. LokalBot is now 0.13.1. Updated star counts. Screenshots are still from the "
+        "November 9 test.",
+    ),
     (
         "2026-11-09",
         "First published. Checked Ollama 0.40.15, LM Studio 0.4.28, Jan 0.8.8, AnythingLLM 1.19.0, "
@@ -55,7 +63,7 @@ TOOLS = [
         "alt": "A terminal running Ollama 0.40.15 on Linux: ollama list shows qwen3.5:4b, then ollama run answers a question about bread.",
         "caption": "Real output from Ollama 0.40.15's command line on Linux, answering with Qwen3.5 4B on the CPU. On macOS and Windows, Ollama also has a chat window.",
         "about": (
-            "<p>With about 186,000 GitHub stars, Ollama is the best-known way to run open models on your own computer. One command downloads a model and runs it, "
+            "<p>With about 187,000 GitHub stars, Ollama is the best-known way to run open models on your own computer. One command downloads a model and runs it, "
             "and a local API that speaks the OpenAI and Anthropic formats serves it to other apps. That API is why so many tools in this list, "
             "LokalBot included, can use Ollama as their engine. On macOS and Windows it also has a simple chat app with chat history, "
             "file attachments, and a thinking switch. On Linux it is command line only.</p>"
@@ -69,11 +77,11 @@ TOOLS = [
             "Cloud models and web search are on by default, and using them needs an Ollama account. Set <code>OLLAMA_NO_CLOUD=1</code> to turn them off.",
         ],
         "facts": [
-            ("Latest release", "0.40.15, November 3, 2026"),
+            ("Latest release", "0.40.16, November 9, 2026"),
             ("License", '<a href="https://github.com/ollama/ollama/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>, app included'),
             ("Runs on", "macOS 14+, Windows 10+, Linux (command line only), Docker"),
             ("Price", "Free on your own hardware; optional cloud plans from $20 a month"),
-            ("Source", '<a href="https://github.com/ollama/ollama" target="_blank" rel="noopener">github.com/ollama/ollama</a> · about 186k stars'),
+            ("Source", '<a href="https://github.com/ollama/ollama" target="_blank" rel="noopener">github.com/ollama/ollama</a> · about 187k stars'),
         ],
         "links": [
             ("Download Ollama", "https://ollama.com/download"),
@@ -169,7 +177,7 @@ TOOLS = [
             ("License", '<a href="https://github.com/janhq/jan/blob/main/LICENSE" target="_blank" rel="noopener">Apache 2.0</a> since May 2025 (AGPLv3 before)'),
             ("Runs on", "macOS 13.6+ (Apple Silicon for local models), Windows 10+, Linux (x64)"),
             ("Price", "Free"),
-            ("Source", '<a href="https://github.com/janhq/jan" target="_blank" rel="noopener">github.com/janhq/jan</a> · about 45.6k stars'),
+            ("Source", '<a href="https://github.com/janhq/jan" target="_blank" rel="noopener">github.com/janhq/jan</a> · about 45.7k stars'),
         ],
         "links": [
             ("Download Jan", "https://www.jan.ai/download"),
@@ -266,7 +274,7 @@ TOOLS = [
             ("License", '<a href="https://github.com/open-webui/open-webui/blob/main/LICENSE" target="_blank" rel="noopener">Open WebUI License</a> (BSD-3 plus a branding clause)'),
             ("Runs on", "Any OS with Docker or Python 3.11–3.12; a desktop app for macOS, Windows, and Linux"),
             ("Price", "Free; enterprise license for rebranding and support"),
-            ("Source", '<a href="https://github.com/open-webui/open-webui" target="_blank" rel="noopener">github.com/open-webui/open-webui</a> · about 158k stars'),
+            ("Source", '<a href="https://github.com/open-webui/open-webui" target="_blank" rel="noopener">github.com/open-webui/open-webui</a> · about 159k stars'),
         ],
         "links": [
             ("Quick start", "https://docs.openwebui.com/getting-started/quick-start"),
@@ -313,11 +321,11 @@ TOOLS = [
             "It's best on a Mac. The Windows and Linux app is in alpha, and LokalBot is a small project built by one developer.",
         ],
         "facts": [
-            ("Latest release", "0.12.2, November 5, 2026"),
+            ("Latest release", "0.13.1, November 14, 2026"),
             ("License", '<a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSE" target="_blank" rel="noopener">GPLv3</a>'),
             ("Runs on", 'macOS 15+ on Apple Silicon; Windows 10/11 and Linux in alpha (<a href="system-requirements">requirements</a>)'),
             ("Price", "Free, no account"),
-            ("Source", f'<a href="{REPO_URL}" target="_blank" rel="noopener">github.com/stevyhacker/lokalbot</a> · 91 stars'),
+            ("Source", f'<a href="{REPO_URL}" target="_blank" rel="noopener">github.com/stevyhacker/lokalbot</a> · 112 stars'),
         ],
         "links": [
             ("Download LokalBot", "https://github.com/stevyhacker/lokalbot/releases/latest"),
@@ -485,9 +493,10 @@ def _sources() -> str:
 
 def render_body() -> str:
     verified = _long_date(VERIFIED)
+    tested = _long_date(TESTED)
     sections = "\n\n".join(_tool_section(tool) for tool in TOOLS)
     return f"""
-        <p class="blog-note"><strong>Disclosure:</strong> LokalBot is our app. To keep this fair, we installed the latest release of every app on {verified}, took every screenshot ourselves, and checked each claim against the project's own site, docs, license, and release notes, listed at the end. Nobody paid to be included. We re-check the page every month; if something is wrong or out of date, <a href="{ISSUES_URL}" target="_blank" rel="noopener">tell us on GitHub</a>.</p>
+        <p class="blog-note"><strong>Disclosure:</strong> LokalBot is our app. To keep this fair, we installed the latest release of every app on {tested}, took every screenshot ourselves, and checked each claim against the project's own site, docs, license, and release notes, listed at the end. Nobody paid to be included. We re-check the page every month; if something is wrong or out of date, <a href="{ISSUES_URL}" target="_blank" rel="noopener">tell us on GitHub</a>.</p>
 
         <h2 id="short-answer">The short answer</h2>
         <p>These six tools all run AI on your own computer, but they do different jobs. Pick by what you want to do:</p>
@@ -529,7 +538,7 @@ def render_body() -> str:
         </ul>
 
         <h2 id="how-we-tested">How we tested</h2>
-        <p>On {verified}, we installed the latest release of each app on a Linux test machine with an 8-core AMD Ryzen 7 9700X, 64 GB of memory, and no GPU, so every model ran on the CPU. LM Studio and Jan used the model each one suggests on first run: Gemma 4 E4B and Jan-v3.5-4B. Open WebUI and AnythingLLM used Qwen3.5 4B served by Ollama, as did Ollama itself. We kept each app's default settings, except that we declined Jan's analytics prompt and added two memories in Open WebUI by hand. In Open WebUI, the 4B model kept reaching for the built-in automation tools, and with thinking on it once thought for four minutes without answering, so the screenshot's chat uses Legacy tool calling with thinking off. LokalBot's screenshot comes from its Mac app with fictional demo data. The handbook and the questions are made up too.</p>
+        <p>On {tested}, we installed the latest release of each app on a Linux test machine with an 8-core AMD Ryzen 7 9700X, 64 GB of memory, and no GPU, so every model ran on the CPU. LM Studio and Jan used the model each one suggests on first run: Gemma 4 E4B and Jan-v3.5-4B. Open WebUI and AnythingLLM used Qwen3.5 4B served by Ollama, as did Ollama itself. We kept each app's default settings, except that we declined Jan's analytics prompt and added two memories in Open WebUI by hand. In Open WebUI, the 4B model kept reaching for the built-in automation tools, and with thinking on it once thought for four minutes without answering, so the screenshot's chat uses Legacy tool calling with thinking off. LokalBot's screenshot comes from its Mac app with fictional demo data. The handbook and the questions are made up too.</p>
         <p>A 4B model on a CPU is a modest setup: answers arrived at about 12 to 20 tokens a second. With a GPU or an Apple Silicon Mac, every one of these apps is faster and can run larger models, which also follow instructions and use memory more reliably.</p>
 
         <h2 id="updates">Update log</h2>
