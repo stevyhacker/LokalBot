@@ -8,7 +8,7 @@ tests; GitHub reports a job skipped by its condition as passing. Everything else
 builds, including the files the app bundles (PRIVACY.md, LICENSE, LICENSES/,
 THIRD_PARTY_NOTICES.md and the CLI skill) and Benchmarks/, which unit tests read.
 Pushes, schedules, dispatches and calls always build, but a push of only these
-paths doesn't start Build or XcodeGen at all: their `paths-ignore` lists mirror
+paths doesn't start Build or CI helpers at all: their `paths-ignore` lists mirror
 DOCS_ONLY.
 
 Nothing here reaches a release artifact, so release-candidate.py also lets these

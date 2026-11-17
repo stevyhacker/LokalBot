@@ -123,7 +123,20 @@ def gate(build, critical, reduced, shards, selector=''):
         raise ValueError('Every Reduce Motion, functional and visual shard must succeed')
 
 
+def matrix_jobs():
+    """The phases the workflow runs, one runner each. The visual sizes share one
+    runner: each takes about three minutes, about as long as a runner's setup."""
+    return [phase for phase in plan() if phase not in ('smoke', 'reduced-motion')
+            and not phase.startswith('visual-')] + ['visual']
+
+
 def execute(phase, selected=None):
+    if phase == 'visual':
+        # Each size keeps its own result, log and report, so verify() and the
+        # evidence look exactly as they did with one runner per size. A failed
+        # size doesn't stop the others.
+        codes = [execute(f'visual-{size}') for size in SIZES]
+        return next((code for code in codes if code), 0)
     if os.environ.get('CI') != 'true':
         raise ValueError('Shard execution is hosted-only')
     phases = plan()

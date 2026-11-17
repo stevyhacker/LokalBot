@@ -120,6 +120,9 @@ class SpeechFixtureTests(unittest.TestCase):
         self.assertTrue(any(encoded[0]))
 
 
+# Encodes audio with /usr/bin/afconvert. Build's unit-test job runs it on macOS;
+# the CI helpers job on Linux skips it.
+@unittest.skipUnless(sys.platform == "darwin", "needs macOS audio tools")
 class SeedProfileTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

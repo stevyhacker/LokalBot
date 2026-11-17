@@ -17,7 +17,7 @@ GATES = {
     'build.yml': ['xcodebuild (macOS)', 'xcodebuild test (macOS)'],
     'ui-tests.yml': ['XCUITest (macOS)'],
     'lint.yml': ['SwiftLint'],
-    'xcodegen.yml': ['project.yml generates cleanly'],
+    'ci-helpers.yml': ['CI helpers and release metadata'],
 }
 # UI Tests no longer runs on every master push. prepare-release.sh dispatches
 # it for the candidate, and that run binds itself to the exact SHA it was
@@ -169,7 +169,7 @@ def check_candidate():
     sha = trusted_candidate()
     changed = command('git', 'diff', '--name-only', f'{sha}^', sha).splitlines()
     if changed and all(relevance.docs_only(path) for path in changed):
-        raise ValueError('This commit changes only website and docs files, so Build and XcodeGen never run on it. '
+        raise ValueError('This commit changes only website and docs files, so Build and CI helpers never run on it. '
                          'Release from the last commit on master that changed anything else.')
 
 
