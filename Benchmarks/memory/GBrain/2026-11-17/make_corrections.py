@@ -9,6 +9,8 @@
 usage: python3 make_corrections.py <corpus.jsonl from prepare.py> <out dir>
 """
 import datetime as dt, json, os, random, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # python3 -I drops the script folder
 from corrections_data import FACTS, DISTRACTORS, PAIRS, FILLER, check
 
 assert not check(), check()

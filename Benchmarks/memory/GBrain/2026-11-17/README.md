@@ -2,7 +2,7 @@
 
 Feeds the same public meetings to LokalBot's Ask retrieval and to GBrain, then
 compares retrieval accuracy, latency, resource use and how each handles
-corrections. The report is [REPORT.md](REPORT.md) once the runs finish.
+corrections. Results: [REPORT.md](REPORT.md).
 
 - Data: QMSum (Zhong et al., NAACL 2021, MIT): 232 meetings (AMI product
   design, ICSI research, Welsh and Canadian parliamentary committees) and its

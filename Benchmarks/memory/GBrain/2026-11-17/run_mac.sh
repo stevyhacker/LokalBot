@@ -96,6 +96,8 @@ gb_init() { # <home> [embedding]
   (cd "$G" && bun src/cli.ts transcripts archive off >/dev/null 2>&1; bun src/cli.ts config set maintenance.auto false >/dev/null 2>&1)
 }
 export LLAMA_SERVER_BASE_URL="$EMB"
+# GBrain refuses a content folder inside a Git worktree (local_conflict).
+export GIT_CEILING_DIRECTORIES="$WORK"
 
 log "GBrain keyword-only"
 gb_init "$W/gb-keyword-home"
@@ -106,7 +108,7 @@ du -sk "$GBRAIN_HOME/.gbrain/brain.pglite" > "$W/gb-keyword-disk.txt"
 log "GBrain with EmbeddingGemma"
 gb_init "$W/gb-hybrid-home" embedding
 (cd "$G" && M gbrain-import-embed "$R" -- bun src/cli.ts import "$W/gbrain" --json > "$W/gb-import-hybrid.json")
-(cd "$G" && bun src/cli.ts embed --stale > "$W/gb-embed-stale.log" 2>&1 || true)
+(cd "$G" && M gbrain-embed-stale "$R" -- bun src/cli.ts embed --stale > "$W/gb-embed-stale.log" 2>&1 || true)
 M gbrain-query-hybrid "$R" -- python3 "$HERE/gbrain_run.py" "$G" "$W/corpus.jsonl" "$W/queries.jsonl" "$W/gb-hybrid.jsonl" --tools query 2> "$W/gb-hybrid.log"
 du -sk "$GBRAIN_HOME/.gbrain/brain.pglite" > "$W/gb-hybrid-disk.txt"
 (cd "$G" && bun src/cli.ts doctor --json --fast > "$W/gb-doctor.json" 2>&1 || true)

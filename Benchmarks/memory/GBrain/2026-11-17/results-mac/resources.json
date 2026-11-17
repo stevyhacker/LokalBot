@@ -1,0 +1,19 @@
+{
+ "machine": "Apple M4 Max (Mac16,5), 48 GB",
+ "llama_server": "version 1.0.0 (build 12359), AppleClang 21, Darwin arm64; embeddinggemma-2-Q8_0.gguf checksum verified",
+ "wall_time_minutes": 31.3,
+ "steps": [
+  {"label": "lokalbot-ingest", "seconds": 8.65, "peak_rss_mb": 22.3},
+  {"label": "lokalbot-embed", "seconds": 176.07, "peak_rss_mb": 19.2, "note": "harness only; vectors computed in the shared llama-server"},
+  {"label": "lokalbot-query-keyword", "seconds": 5.56, "peak_rss_mb": 48.5},
+  {"label": "lokalbot-query-hybrid", "seconds": 64.21, "peak_rss_mb": 50.1},
+  {"label": "gbrain-import-keyword", "seconds": 7.65, "peak_rss_mb": 1143.3},
+  {"label": "gbrain-query-keyword", "seconds": 476.74, "peak_rss_mb": 966.8, "note": "two MCP calls per question; peak is the gbrain serve process"},
+  {"label": "gbrain-import-embed", "seconds": 8.29, "peak_rss_mb": 1151.2, "note": "pages only; vectors came from the untimed embed --stale that followed"},
+  {"label": "gbrain-query-hybrid", "seconds": 792.74, "peak_rss_mb": 1064.9}
+ ],
+ "llama_server_peak_rss_mb": 495.5,
+ "disk_mb": {"lokalbot_library_with_vectors": 167, "gbrain_keyword_only": 185, "gbrain_with_vectors": 247},
+ "gbrain_embedding_coverage": "embed --stale embedded 5,519 of 5,689 chunks across 221 of 232 pages (one retry)",
+ "gbrain_search_mode": "conservative (picked by init: no chat key, no reranker)"
+}
