@@ -324,7 +324,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         try ditto(exports, to: archive, keepParent: true)
 
         let result = ExternalMeetingReaders.scan(.macWhisper, urls: [archive, archive])
-        result.cleanup()
 
         XCTAssertEqual(result.scan.problems, [])
         XCTAssertEqual(result.scan.meetings.map(\.title).sorted(), ["Pricing review", "hello"], "the same archive twice is read once")
@@ -332,7 +331,11 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         XCTAssertEqual(audio.count, 1)
         if let recording = audio.first {
             addTeardownBlock { try? FileManager.default.removeItem(at: recording.deletingLastPathComponent()) }
-            XCTAssertTrue(fileManager.fileExists(atPath: recording.path), "the unpacked recording outlives the scan's own folders")
+            XCTAssertTrue(fileManager.fileExists(atPath: recording.path), "the unpacked recording is there while the import runs")
+            result.cleanup()
+            XCTAssertFalse(fileManager.fileExists(atPath: recording.path), "cleanup removes the staged copy of the recording")
+        } else {
+            result.cleanup()
         }
     }
 

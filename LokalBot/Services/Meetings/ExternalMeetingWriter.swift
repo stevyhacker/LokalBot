@@ -47,7 +47,8 @@ enum ExternalMeetingWriter {
         if let audio = external.audioURL {
             meeting = try await MeetingImportService.importExternalRecording(
                 from: audio, id: id, title: title, appName: external.source.title,
-                startedAt: external.startedAt, storage: storage, now: now)
+                startedAt: external.startedAt, track: recordingTrack(for: external.source),
+                storage: storage, now: now)
         } else {
             let duration = external.duration ?? transcript?.segments.map(\.end).max() ?? 0
             let start = min(external.startedAt ?? fallbackStart(for: external, now: now),
@@ -84,6 +85,12 @@ enum ExternalMeetingWriter {
             throw error
         }
         return Result(meeting: meeting, needsTranscription: external.audioURL != nil && transcript == nil)
+    }
+
+    /// Voice Memos are recorded on the person's own microphone, so "My
+    /// microphone is me" applies to them; other sources' recordings are calls.
+    static func recordingTrack(for source: ExternalMeetingSource) -> MeetingAudioFiles.Track {
+        source == .voiceMemos ? .mic : .system
     }
 
     static func title(for external: ExternalMeeting) -> String {

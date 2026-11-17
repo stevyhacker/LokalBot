@@ -130,6 +130,28 @@ final class ExternalMeetingReadersTests: XCTestCase {
         XCTAssertEqual(ExternalImportText.files(in: unpacked).map(\.lastPathComponent), ["note.txt"])
     }
 
+    func testStagedRecordingFoldersAreCleanedUpButNothingElse() throws {
+        let temporary = URL(fileURLWithPath: "/tmp/lokalbot-tests-\(UUID().uuidString)")
+        func meeting(_ id: String, audio: String?) -> ExternalMeeting {
+            ExternalMeeting(source: .macWhisper, sourceID: id, title: id,
+                            audioURL: audio.map { temporary.appendingPathComponent($0) },
+                            origin: URL(fileURLWithPath: "/tmp/x"))
+        }
+        let folders = ExternalMeetingReaders.stagedFolders(in: [
+            meeting("a", audio: "lokalbot-import-macwhisper-1/a.m4a"),
+            meeting("b", audio: "lokalbot-import-macwhisper-1/b.m4a"),
+            meeting("c", audio: "lokalbot-import-zip/inner/c.m4a"),
+            meeting("d", audio: "someone-else/d.m4a"),
+            meeting("e", audio: nil),
+        ], temporaryDirectory: temporary)
+        XCTAssertEqual(folders.map(\.lastPathComponent), ["lokalbot-import-macwhisper-1"])
+        XCTAssertTrue(ExternalMeetingReaders.stagedFolders(
+            in: [ExternalMeeting(source: .zoom, sourceID: "z", title: "z",
+                                 audioURL: URL(fileURLWithPath: "/Users/someone/Documents/Zoom/a.m4a"),
+                                 origin: URL(fileURLWithPath: "/tmp/x"))],
+            temporaryDirectory: temporary).isEmpty, "a source's own files are never cleaned up")
+    }
+
     func testEmptyMeetingsAndRepeatedKeysAreRecognized() {
         let origin = URL(fileURLWithPath: "/tmp/x")
         let meetings = [

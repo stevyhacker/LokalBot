@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import LokalBot
 
@@ -135,6 +136,38 @@ final class ExternalMeetingWriterTests: XCTestCase {
         XCTAssertEqual(plan.toTranscribe, 1)
         XCTAssertEqual(plan.json["newMeetings"]?.intValue, 2)
         XCTAssertNil(plan.json["meetings"], "the plan carries counts, never contents")
+    }
+
+    func testVoiceMemosRecordingsGoOnTheMicrophoneTrack() async throws {
+        let folder = try temporaryDirectory("external-voice-memo")
+        let audio = folder.appendingPathComponent("Standup.wav")
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let frames = AVAudioFrameCount(16_000 * 4)
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames))
+        buffer.frameLength = frames
+        let samples = try XCTUnwrap(buffer.floatChannelData)[0]
+        for index in 0..<Int(frames) { samples[index] = 0.2 * sinf(Float(index) * 2 * .pi * 220 / 16_000) }
+        // The file is closed, and its header finished, when it goes out of scope.
+        try {
+            let file = try AVAudioFile(forWriting: audio, settings: [
+                AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16_000, AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16, AVLinearPCMIsFloatKey: false,
+            ])
+            try file.write(from: buffer)
+        }()
+
+        var memo = sample(.voiceMemos, id: "memo-1")
+        memo.audioURL = audio
+        let storage = StorageManager(rootURL: try temporaryDirectory("external-voice-library"))
+        let result = try await ExternalMeetingWriter.write(memo, storage: storage,
+                                                           now: Date(timeIntervalSince1970: 1_800_000_000))
+        XCTAssertTrue(result.needsTranscription)
+        XCTAssertFalse(result.meeting.hasSystemTrack)
+        let meetingFolder = result.meeting.folderURL(in: storage)
+        XCTAssertNotNil(MeetingAudioFiles.readableURL(for: .mic, in: meetingFolder))
+        XCTAssertNil(MeetingAudioFiles.readableURL(for: .system, in: meetingFolder))
+        XCTAssertEqual(result.meeting.importSource?.key, "voice-memos/memo-1")
+        XCTAssertEqual(ExternalMeetingWriter.recordingTrack(for: .zoom), .system)
     }
 
     func testSummaryMessageExplainsAnEmptyImport() {

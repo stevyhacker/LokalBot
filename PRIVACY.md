@@ -93,7 +93,10 @@ is saved in your library like a recorded one, with its source's name and its id
 there, so importing the same export again adds nothing twice; the source's notes
 are kept unchanged in `imported-notes.md` beside LokalBot's `summary.md`. A
 recording without a transcript is transcribed with your current Transcribe
-choice. Screen memory is not attached to imported meetings. The log records only
+choice; Voice Memos recordings count as your own microphone, like a paired
+phone's. A recording or archive that has to be unpacked to be read is put in a
+private temporary folder and deleted when the import ends. Screen memory is not
+attached to imported meetings. The log records only
 how many meetings were imported, never their titles or contents. Deleting your
 account or data at the other app is up to you.
 

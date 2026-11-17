@@ -245,6 +245,11 @@ enum ExternalMeetingReaders {
                 result.problems.append(.init(path: url.path, reason: error.localizedDescription))
             }
         }
+        // A reader that had to stage a recording (MacWhisper unpacks the one
+        // inside a .whisper document) leaves it in a `lokalbot-import-…`
+        // temporary folder. Those copies go with the rest, including ones for
+        // meetings dropped below.
+        temporaryFolders += stagedFolders(in: result.meetings)
         var seen = Set<String>()
         result.meetings = result.meetings.filter { meeting in
             !meeting.isEmpty && seen.insert(meeting.importKey).inserted
@@ -254,6 +259,24 @@ enum ExternalMeetingReaders {
             for folder in folders { try? FileManager.default.removeItem(at: folder) }
         }
         return (result, cleanup)
+    }
+}
+
+extension ExternalMeetingReaders {
+    /// The temporary folders, directly under the temporary directory and
+    /// named `lokalbot-import-…`, that hold meetings' recordings.
+    static func stagedFolders(in meetings: [ExternalMeeting],
+                              temporaryDirectory: URL = FileManager.default.temporaryDirectory) -> [URL] {
+        let root = temporaryDirectory.resolvingSymlinksInPath().standardizedFileURL.path
+        var folders: [URL] = []
+        for audio in meetings.compactMap(\.audioURL) {
+            let folder = audio.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+            guard folder.lastPathComponent.hasPrefix("lokalbot-import-"),
+                  folder.deletingLastPathComponent().path == root,
+                  !folders.contains(folder) else { continue }
+            folders.append(folder)
+        }
+        return folders
     }
 }
 
