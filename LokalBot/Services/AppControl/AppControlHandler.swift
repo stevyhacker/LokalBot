@@ -65,6 +65,8 @@ final class AppControlHandler {
                 let secret = try Self.secret(request.params ?? [:])
                 try app.setAgentSecret(secret, to: nil, caller: peer.description)
                 return .success(["cleared": .string(secret.rawValue)])
+            case .meetingsImport:
+                return .success(try await importMeetings(request.params ?? [:], caller: peer.description, in: app))
             case .setupPlan, .setupFinish, .modelsStatus, .modelsPreset, .modelsDownload, .modelsCancel,
                  .permissionsList, .permissionsRequest, .launchAtLogin, .restart, .doctor:
                 return .success(try setupResponse(method, request.params ?? [:], peer: peer, in: app))
@@ -162,6 +164,34 @@ final class AppControlHandler {
         let pending = try app.settingsApprovals.submit(
             .secret(secret, value: value), caller: caller, items: [], changes: [change])
         return AppControlError.needsApproval(pending.json, asking: pending.headline)
+    }
+
+    /// Imports another app's meetings, after the person approves. The app
+    /// reads the files itself; the CLI only names them. A dry run, or a plan
+    /// with nothing new, returns the counts without asking anyone.
+    private func importMeetings(_ params: [String: JSONValue], caller: String, in app: AppState) async throws -> JSONValue {
+        guard let name = params["source"]?.stringValue, let source = ExternalMeetingSource(rawValue: name) else {
+            throw AppControlError.invalidRequest("Name the app in \"source\": "
+                + ExternalMeetingSource.allCases.map(\.rawValue).joined(separator: ", ") + ".")
+        }
+        guard case .array(let values)? = params["paths"] else {
+            throw AppControlError.invalidRequest("meetings.import needs a \"paths\" array of files or folders.")
+        }
+        let paths = values.compactMap(\.stringValue)
+        guard !paths.isEmpty, paths.count == values.count, paths.count <= 100, paths.allSatisfy({ $0.hasPrefix("/") }) else {
+            throw AppControlError.invalidRequest("meetings.import needs 1 to 100 absolute paths.")
+        }
+        let plan = await app.planExternalImport(source, urls: paths.map { URL(fileURLWithPath: $0) })
+        var reply = plan.json.objectValue ?? [:]
+        if params["dryRun"] == .bool(true) || plan.newMeetings == 0 {
+            reply["imported"] = false
+            if params["dryRun"] == .bool(true) { reply["dryRun"] = true }
+            return .object(reply)
+        }
+        let pending = try app.settingsApprovals.submit(
+            .meetingImport(.init(source: source, paths: paths)),
+            caller: caller, items: [], changes: [plan.json])
+        throw AppControlError.needsApproval(pending.json, asking: pending.headline)
     }
 
     private static func secret(_ params: [String: JSONValue]) throws -> AppSecret {

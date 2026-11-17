@@ -52,6 +52,21 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// keeps every imported source's names, so it stays imported.
     var importedFileNames: [String]?
 
+    /// Set on a meeting brought in from another app's notes or transcript
+    /// (`ExternalMeetingWriter`): which app and the meeting's id there, so
+    /// importing the same export again skips it instead of adding a copy.
+    var importSource: ImportSource?
+
+    struct ImportSource: Codable, Equatable, Sendable {
+        /// An `ExternalMeetingSource` raw value, such as "otter".
+        var app: String
+        /// The meeting's id in that app, or a hash of what identifies it.
+        var id: String
+        var importedAt: Date
+
+        var key: String { "\(app)/\(id)" }
+    }
+
     /// Set on LokalBot's bundled sample meeting ("orders-api/en"): a made-up
     /// call with synthetic voices (`SampleMeeting`). Ask, search and agents
     /// still see it; personal memory (the day, digests, people, projects,
