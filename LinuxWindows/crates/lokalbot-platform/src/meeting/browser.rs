@@ -183,6 +183,30 @@ pub(crate) fn telemost_room_frame(room: &str, frame: &str) -> bool {
     frame == format!("https://telemost.yandex.ru/private-join/{code}")
 }
 
+/// Match the title of an already verified room against a browser tab label.
+#[cfg(windows)]
+pub(crate) fn title_names_room(title: &str, room: &str, verified: &str) -> bool {
+    let title = title.to_lowercase();
+    if let Some((_, code)) = room.rsplit_once('/')
+        && code.len() >= 10
+        && title.contains(code)
+    {
+        return true;
+    }
+    let verified = verified.trim().to_lowercase();
+    !matches!(
+        verified.as_str(),
+        "" | "телемост"
+            | "яндекс телемост"
+            | "yandex telemost"
+            | "telemost"
+            | "мтс линк"
+            | "мтс линк встречи"
+            | "mts link"
+            | "mts link meetings"
+    ) && title.contains(&verified)
+}
+
 /// The landing page reached when leaving a supported room. This is only
 /// consulted for its previously verified window once its call tab is gone.
 #[cfg(windows)]
@@ -400,6 +424,23 @@ mod tests {
             "https://my.mts-link.ru/j/123/456",
             "https://mts-link.ru/meetingguest/"
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn only_a_distinctive_title_or_room_code_keeps_the_verified_tab_present() {
+        let room = "https://telemost.yandex.ru/j/12345678901234";
+        assert!(title_names_room(
+            "Синхронизация команды — Воспроизводится звук",
+            room,
+            "Синхронизация команды"
+        ));
+        assert!(title_names_room(
+            "12345678901234 | Телемост",
+            room,
+            "Телемост"
+        ));
+        assert!(!title_names_room("Яндекс Телемост", room, "Телемост"));
     }
 
     #[test]

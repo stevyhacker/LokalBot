@@ -917,11 +917,10 @@ impl BrowserCallReader {
                 }
                 documents.push(document);
             } else if let Some(call) = bound {
-                let still_open = !call.title.is_empty()
-                    && window
-                        .tabs
-                        .iter()
-                        .any(|tab| tab.to_lowercase().contains(&call.title.to_lowercase()));
+                let still_open = window
+                    .tabs
+                    .iter()
+                    .any(|tab| browser::title_names_room(tab, &call.document.url, &call.title));
                 if still_open {
                     documents.push(call.observation(CallState::Present));
                 } else if (family == "mts-link"

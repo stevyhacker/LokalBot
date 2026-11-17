@@ -1,16 +1,16 @@
 //! Meeting detection (`MeetingDetector.swift`, `MeetingMatcher.swift`,
 //! `BrowserMeetingSession.StartGate`).
 //!
-//! Evidence is a meeting app's own microphone stream, never the global "mic
-//! in use" flag: WASAPI capture sessions on Windows, PulseAudio/PipeWire
-//! source outputs on Linux. Zoom, Webex, Tencent Meeting and VooV Meeting
+//! Microphone evidence comes from the meeting app's own WASAPI capture session
+//! on Windows or its PulseAudio/PipeWire source output on Linux. Zoom, Webex, Tencent Meeting and VooV Meeting
 //! start at once; Teams, Slack, Discord, Feishu, Lark, DingTalk and WeCom need
-//! 12 s of sustained evidence (gaps up to 6 s tolerated); browsers need a Google Meet window title plus the browser's own mic stream
-//! for 2 s. A meeting ends `stop_debounce` after its evidence disappears.
+//! 12 s of sustained evidence (gaps up to 6 s tolerated). A meeting ends
+//! `stop_debounce` after its evidence disappears.
 //!
-//! Where a browser's accessibility tree can be read ([`browser`]), it decides:
-//! call controls start a call, a waiting room doesn't, and a page that says the
-//! call is over ends it at once. Anything unread falls back to the title.
+//! Google Meet can also use the browser's title and microphone. On Windows,
+//! Telemost and MTS Link browser calls use a verified room and its joined-call
+//! controls for start, and its bound tab or window for continuation. An
+//! explicit end in the accessibility tree ([`browser`]) stops immediately.
 //!
 //! The calendar ([`CalendarHint`], `MeetingDetector.swift`) adds evidence but
 //! never replaces it: a browser holding the microphone during an event with
@@ -38,7 +38,7 @@ use lokalbot_core::calendar::{MeetingService, meeting_room};
 pub struct DetectedMeeting {
     /// The app's name, such as "Zoom", "Tencent Meeting" or "Google Meet".
     pub app_name: String,
-    /// The executable that holds the microphone ("Zoom.exe", "chrome").
+    /// The app or browser supplying detection evidence ("Zoom.exe", "chrome").
     pub process_name: String,
     pub pid: u32,
     /// The top process of the app, whose tree plays the call's sound.
@@ -109,7 +109,7 @@ pub(crate) struct WindowTitle {
 pub(crate) struct Evidence {
     pub capturing: Vec<CaptureStream>,
     pub windows: Vec<WindowTitle>,
-    /// Meet documents read from browsers' accessibility trees.
+    /// Meeting documents read from the accessibility tree.
     pub documents: Vec<BrowserDocument>,
 }
 
