@@ -868,10 +868,19 @@ fn compressed_codex_rollouts_are_read_like_plain_ones() {
     let at = noon(2);
     let name = rollout_name("thread-z", at);
     let lines = codex_rollout("thread-z", at);
-    write_lines(&dir.path().join("plain/sessions/x").join(&name), &lines);
+    write_lines(
+        &dir.path()
+            .join("plain")
+            .join("sessions")
+            .join("x")
+            .join(&name),
+        &lines,
+    );
     let size = write_compressed(
         &dir.path()
-            .join("packed/sessions/x")
+            .join("packed")
+            .join("sessions")
+            .join("x")
             .join(format!("{name}.zst")),
         &lines,
     );
@@ -910,7 +919,8 @@ fn a_compressed_rollout_counts_on_the_day_it_began() {
     let root = dir.path().join("codex");
     write_compressed(
         &root
-            .join("sessions/x")
+            .join("sessions")
+            .join("x")
             .join(format!("{}.zst", rollout_name("thread-n", at))),
         &codex_rollout("thread-n", at),
     );
@@ -927,7 +937,10 @@ fn a_rollout_kept_plain_and_compressed_is_read_once_from_the_newer_copy() {
     let dir = tempfile::tempdir().unwrap();
     let at = noon(1);
     let root = dir.path().join("codex");
-    let plain = root.join("sessions/x").join(rollout_name("thread-d", at));
+    let plain = root
+        .join("sessions")
+        .join("x")
+        .join(rollout_name("thread-d", at));
     let lines = codex_rollout("thread-d", at);
     write_lines(&plain, &lines);
     let packed = PathBuf::from(format!("{}.zst", plain.display()));
@@ -954,7 +967,8 @@ fn a_compressed_rollout_cut_off_inside_a_frame_is_unreadable() {
     let at = noon(1);
     let root = dir.path().join("codex");
     let packed = root
-        .join("sessions/x")
+        .join("sessions")
+        .join("x")
         .join(format!("{}.zst", rollout_name("thread-c", at)));
     write_compressed(&packed, &codex_rollout("thread-c", at));
     let bytes = fs::read(&packed).unwrap();
