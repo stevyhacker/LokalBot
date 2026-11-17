@@ -53,7 +53,7 @@ impl ClaudeCodeReader {
         // A fork or resumed session copies earlier records under their original
         // ids. Reading older files first credits that history to the session
         // where it happened.
-        let mut candidates = cache::candidate_files(files, start, end);
+        let mut candidates = cache::candidate_files(files, start, end, false);
         candidates.sort_by(|a, b| a.created.cmp(&b.created).then(a.path.cmp(&b.path)));
         let mut seen_records: HashSet<u64> = HashSet::new();
         let mut selected: HashSet<PathBuf> = HashSet::new();

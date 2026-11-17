@@ -1,5 +1,6 @@
 //! Reads Codex rollouts from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` and
-//! `~/.codex/archived_sessions/` (`CodexSessionReader.swift`).
+//! `~/.codex/archived_sessions/` (`CodexSessionReader.swift`). Codex compresses
+//! rollouts it is done with to `*.jsonl.zst`, which are read too.
 //!
 //! A rollout stays in the folder of the day it started even when it is resumed
 //! weeks later, so files are selected by modification date rather than by
@@ -53,7 +54,7 @@ impl CodexReader {
         for folder in ["sessions", "archived_sessions"] {
             walk(&self.root.join(folder), &mut files);
         }
-        let mut candidates = cache::candidate_files(files, start, end);
+        let mut candidates = newest_copies(cache::candidate_files(files, start, end, true));
         candidates.sort_by(|a, b| a.path.cmp(&b.path));
         let mut selected: HashSet<PathBuf> = HashSet::new();
         for candidate in candidates {
@@ -93,10 +94,26 @@ impl CodexReader {
     }
 }
 
+/// One file per rollout: a rollout kept both plain and compressed is read from
+/// the copy written last. Reading both would count its work twice.
+fn newest_copies(files: Vec<cache::CandidateFile>) -> Vec<cache::CandidateFile> {
+    let mut chosen: HashMap<PathBuf, cache::CandidateFile> = HashMap::new();
+    for file in files {
+        let key = cache::plain_path(&file.path);
+        if chosen
+            .get(&key)
+            .is_none_or(|other| other.modified < file.modified)
+        {
+            chosen.insert(key, file);
+        }
+    }
+    chosen.into_values().collect()
+}
+
 /// Thread names by id; later lines are renames and win.
 fn thread_titles(index: &Path, cache: Option<&ParseCache>) -> HashMap<String, String> {
     let (past, future) = (cache::distant_past(), DateTime::<Utc>::MAX_UTC);
-    let Some(file) = cache::candidate_files([index.to_path_buf()], past, future)
+    let Some(file) = cache::candidate_files([index.to_path_buf()], past, future, false)
         .into_iter()
         .next()
     else {
