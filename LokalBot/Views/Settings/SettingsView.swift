@@ -537,8 +537,8 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.autoRecordMode", selected: app.focusedSettingID)
                     LabeledContent {
-                        Text(Set(MeetingDetector.knownApps.values).union(["MTS Link"]).sorted().joined(separator: ", ")
-                             + ", and Google Meet, Yandex Telemost, and MTS Link in a browser")
+                        Text(Set(MeetingDetector.knownApps.values)
+                            .union(["Google Meet", "MTS Link"]).sorted().joined(separator: ", "))
                             .settingsSecondary()
                     } label: {
                         SettingsLabel("Detected apps",

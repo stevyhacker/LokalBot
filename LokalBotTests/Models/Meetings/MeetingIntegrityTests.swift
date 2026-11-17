@@ -57,7 +57,7 @@ final class MeetingIntegrityTests: XCTestCase {
     }
 
     func testTelemostOnlyTrustsItsSameRoomFrameAndCallControls() throws {
-        let room = try XCTUnwrap(BrowserMeetingSession.Room("https://telemost.yandex.ru/j/12345678901"))
+        let room = try XCTUnwrap(ConferenceRoom("https://telemost.yandex.ru/j/12345678901"))
         XCTAssertTrue(room.acceptsFrame("https://telemost.yandex.ru/private-join/12345678901"))
         XCTAssertFalse(room.acceptsFrame("https://telemost.yandex.ru/private-join/12345678902"))
         XCTAssertFalse(room.acceptsFrame("https://other.example/private-join/12345678901"))
@@ -73,10 +73,10 @@ final class MeetingIntegrityTests: XCTestCase {
     func testMTSLinkPreviewCannotStartEvenWhenRoomToolbarIsVisible() {
         let roomControls = ["Покинуть встречу", "Участники", "Включить микрофон"]
         XCTAssertEqual(BrowserMeetingSession.state(
-            buttons: roomControls + ["Присоединиться к встрече"], messages: [], service: .mtsLink), .unavailable)
+            buttons: roomControls + ["Присоединиться к встрече"], messages: [], service: .mtsLink), .waitingRoom)
         XCTAssertEqual(BrowserMeetingSession.state(
             buttons: roomControls, messages: [], service: .mtsLink,
-            disabledButtons: ["Присоединиться к встрече"]), .unavailable)
+            disabledButtons: ["Присоединиться к встрече"]), .waitingRoom)
         XCTAssertEqual(BrowserMeetingSession.state(
             buttons: roomControls, messages: [], service: .mtsLink), .inCall)
         XCTAssertEqual(BrowserMeetingSession.state(
@@ -84,6 +84,33 @@ final class MeetingIntegrityTests: XCTestCase {
             messages: [], service: .mtsLink), .unavailable)
         XCTAssertEqual(BrowserMeetingSession.state(
             buttons: ["Участники", "Включить микрофон"], messages: [], service: .mtsLink), .unavailable)
+    }
+
+    func testVerifiedDesktopRoomCanCloseWithoutABrowserTabStrip() {
+        XCTAssertEqual(BrowserMeetingSession.nativeWindowState(
+            roomSeen: false, allWindowsInspected: true, minimized: false), .ended)
+        XCTAssertNil(BrowserMeetingSession.nativeWindowState(
+            roomSeen: false, allWindowsInspected: false, minimized: false))
+        XCTAssertEqual(BrowserMeetingSession.nativeWindowState(
+            roomSeen: true, allWindowsInspected: false, minimized: false), .present)
+        XCTAssertEqual(BrowserMeetingSession.nativeWindowState(
+            roomSeen: false, allWindowsInspected: false, minimized: true), .minimized)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .ended, hostPresent: false, observationLostAt: nil, now: .now, grace: 120),
+            .endImmediately)
+    }
+
+    func testLandingEndsOnlyTheVerifiedClosedTab() throws {
+        let telemost = try XCTUnwrap(ConferenceRoom("https://telemost.yandex.ru/j/12345678901"))
+        let mts = try XCTUnwrap(ConferenceRoom("https://my.mts-link.ru/j/123/456"))
+        XCTAssertTrue(telemost.isPostCallPage("https://telemost.yandex.ru/"))
+        XCTAssertTrue(mts.isPostCallPage("https://mts-link.ru/meetingguest/?source=test"))
+        XCTAssertFalse(telemost.isPostCallPage("https://telemost.yandex.ru/j/12345678901"))
+        XCTAssertFalse(mts.isPostCallPage("https://other.example/meetingguest"))
+        XCTAssertEqual(BrowserMeetingSession.landingState(boundWindowOnLanding: true, tabHoldsRoom: false), .ended)
+        XCTAssertNil(BrowserMeetingSession.landingState(boundWindowOnLanding: true, tabHoldsRoom: true))
+        XCTAssertNil(BrowserMeetingSession.landingState(boundWindowOnLanding: true, tabHoldsRoom: nil))
+        XCTAssertNil(BrowserMeetingSession.landingState(boundWindowOnLanding: false, tabHoldsRoom: false))
     }
 
     func testTelemostCallTitleDoesNotMatchTheHomeTab() {

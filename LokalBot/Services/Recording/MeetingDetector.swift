@@ -378,8 +378,21 @@ final class MeetingDetector {
         let boundApp = activeApp
         let eventURL = calendarEnabled ? calendar?.activeCandidate(now: environment.clock.now())?.meetingURL : nil
         let expectedURL = boundApp?.meetingURL ?? eventURL
-        let browserApps = environment.workspace.runningApplications().filter {
-            $0.bundleIdentifier.map(Self.documentCallHosts.contains) ?? false
+        let browserApps = environment.workspace.runningApplications().filter { app in
+            guard let bundleID = app.bundleIdentifier, Self.documentCallHosts.contains(bundleID) else {
+                return false
+            }
+            guard BrowserMeetingSession.nativeWebClients[bundleID] != nil, boundApp?.bundleID != bundleID else {
+                return true
+            }
+            // Native chat stays open idle. Only inspect it when its audio
+            // family is active, or while following a previously bound call.
+            return Self.currentAudioProcesses().contains { stream in
+                guard let owner = stream.bundleID, Self.audioBundleID(owner, belongsTo: bundleID) else {
+                    return false
+                }
+                return stream.isRunningOutput || environment.audio.isProcessRunningInput(processID: stream.id)
+            }
         }
         let pids = browserApps.filter {
             // Once bound, unrelated browsers cannot delay the call's evidence
@@ -794,7 +807,8 @@ final class MeetingDetector {
     private func tickBrowser(_ app: DetectedApp, now: Date) {
         let host = environment.workspace.runningApplications().first { $0.bundleIdentifier == app.bundleID }
         let snapshot = host.flatMap { browserSnapshots[$0.processIdentifier] }
-        let observedState: BrowserMeetingSession.State? = snapshot.map {
+        let nativeHostQuit = host == nil && BrowserMeetingSession.nativeWebClients[app.bundleID] != nil
+        let observedState: BrowserMeetingSession.State? = nativeHostQuit ? .ended : snapshot.map {
             $0.url == app.meetingURL ? $0.state : .unavailable
         }
         if observedState == .inCall, let host {

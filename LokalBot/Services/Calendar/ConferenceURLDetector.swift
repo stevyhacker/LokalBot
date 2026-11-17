@@ -43,8 +43,8 @@ enum ConferenceURLDetector {
     /// Whether `url`'s host is (a subdomain of) a known conferencing host.
     static func isMeetingURL(_ url: URL?) -> Bool {
         guard let host = url?.host?.lowercased() else { return false }
-        if host == BrowserMeetingSession.Service.telemost.rawValue || host == BrowserMeetingSession.Service.mtsLink.rawValue {
-            return url.flatMap { BrowserMeetingSession.roomURL($0.absoluteString) } != nil
+        if host == ConferenceRoom.Service.telemost.rawValue || host == ConferenceRoom.Service.mtsLink.rawValue {
+            return url.flatMap { ConferenceRoom($0.absoluteString) } != nil
         }
         return hosts.contains { host == $0 || host.hasSuffix("." + $0) }
     }
