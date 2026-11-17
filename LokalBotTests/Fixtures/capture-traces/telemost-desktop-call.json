@@ -1,0 +1,12 @@
+{
+  "header": {"schemaVersion": 1,"macOSVersion": "27.2.1","origin": "reconstructed","scenario": "telemost-desktop-call","scrubberVersion": 1,"recordedAt": "2026-11-17T00:00:00Z"},
+  "events": [
+    {"t": 0,"query": "runningApps","apps": [{"processIdentifier": 801,"bundleIdentifier": "ru.yandex.desktop.telemost","localizedName": "Yandex Telemost"}]},
+    {"t": 0,"query": "audioProcesses","processes": [{"id": 801,"name": "Yandex Telemost","bundleID": "ru.yandex.desktop.telemost","objectID": 90,"isRunningOutput": true}]},
+    {"t": 2,"query": "audioProcesses","processes": [{"id": 801,"name": "Yandex Telemost","bundleID": "ru.yandex.desktop.telemost","objectID": 90,"isRunningOutput": false}]},
+    {"t": 20,"query": "audioProcesses","processes": [{"id": 801,"name": "Yandex Telemost","bundleID": "ru.yandex.desktop.telemost","objectID": 90,"isRunningOutput": true}]},
+    {"t": 20,"query": "inputRunning","processID": 801,"flag": true},
+    {"t": 72,"query": "audioProcesses","processes": [{"id": 801,"name": "Yandex Telemost","bundleID": "ru.yandex.desktop.telemost","objectID": 90,"isRunningOutput": false}]},
+    {"t": 72,"query": "inputRunning","processID": 801,"flag": false}
+  ]
+}

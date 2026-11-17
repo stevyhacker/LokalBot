@@ -506,7 +506,7 @@
 "Go to Settings" = "Ir para Ajustes";
 "Go to Timeline" = "Ir para Linha do tempo";
 "Go to Today" = "Ir para Hoje";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "O Google Meet só é detectado com a interface em inglês. Outras chamadas no navegador, como Jitsi, Whereby ou Teams na web, não são detectadas, e gravá-las manualmente salva apenas seu microfone.";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "O Google Meet é detetado em inglês, e o Yandex Telemost e o MTS Link em russo. Nas outras chamadas no navegador, a gravação manual só guarda o áudio do microfone.";
 "Grant Access" = "Conceder acesso";
 "Grant Accessibility access…" = "Conceder acesso de Acessibilidade…";
 "Grant Calendar Access…" = "Conceder acesso ao Calendário…";

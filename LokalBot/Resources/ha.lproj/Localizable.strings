@@ -506,7 +506,7 @@
 "Go to Settings" = "Je zuwa Saituna";
 "Go to Timeline" = "Je zuwa Layin lokaci";
 "Go to Today" = "Je zuwa Yau";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "Ana gano Google Meet ne kawai idan mu'amalarsa Turanci ce. Ba a gano sauran kiran burauza, kamar Jitsi, Whereby, ko Teams na yanar gizo ba, kuma idan ka yi rikodinsu da kanka, makirufonka kawai ake adanawa.";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "Ana gano Google Meet da Turanci, da Yandex Telemost da MTS Link da Rashanci. Rikodin hannu na sauran kiran burauza yana ajiye sautin makirufo kawai.";
 "Grant Access" = "Bada dama";
 "Grant Accessibility access…" = "Bada izinin Sauƙin amfani…";
 "Grant Calendar Access…" = "Bada damar kalanda…";

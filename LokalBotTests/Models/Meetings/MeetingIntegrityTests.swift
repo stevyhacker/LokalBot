@@ -23,17 +23,75 @@ final class MeetingIntegrityTests: XCTestCase {
     }
 
     func testOnlyExactMeetRoomURLsIdentifyACallDocument() {
-        XCTAssertEqual(BrowserMeetingSession.meetURL("https://meet.google.com/abc-defg-hij?authuser=0"),
+        XCTAssertEqual(BrowserMeetingSession.roomURL("https://meet.google.com/abc-defg-hij?authuser=0"),
                        "https://meet.google.com/abc-defg-hij")
         // #372: Meet also shows the room under /meet/; it is the same room.
-        XCTAssertEqual(BrowserMeetingSession.meetURL("https://meet.google.com/meet/abc-defg-hij?authuser=0"),
+        XCTAssertEqual(BrowserMeetingSession.roomURL("https://meet.google.com/meet/abc-defg-hij?authuser=0"),
                        "https://meet.google.com/abc-defg-hij")
         for bad in ["http://meet.google.com/abc-defg-hij", "https://meet.google.com.evil.test/abc-defg-hij",
                     "https://meet.google.com/landing", "https://evil@meet.google.com/abc-defg-hij",
                     "https://meet.google.com/meet/landing", "https://meet.google.com/meet/meet/abc-defg-hij",
                     "https://meet.google.com/other/abc-defg-hij", "https://meet.google.com/meetabc-defg-hij"] {
-            XCTAssertNil(BrowserMeetingSession.meetURL(bad))
+            XCTAssertNil(BrowserMeetingSession.roomURL(bad))
         }
+    }
+
+    func testTelemostAndMTSLinkRoomAddresses() {
+        for (address, room) in [
+            ("https://telemost.yandex.ru/j/12345678901?share=1", "https://telemost.yandex.ru/j/12345678901"),
+            ("https://my.mts-link.ru/j/1234/5678/stream-new/123/", "https://my.mts-link.ru/j/1234/5678"),
+            ("https://my.mts-link.ru/1234/5678?token=test", "https://my.mts-link.ru/j/1234/5678"),
+        ] {
+            XCTAssertEqual(BrowserMeetingSession.roomURL(address), room)
+        }
+        for address in [
+            "https://telemost.yandex.ru/", "https://telemost.yandex.ru/private-join/12345678901",
+            "https://telemost.yandex.ru.example.org/j/12345678901", "http://telemost.yandex.ru/j/1234",
+            "https://my.mts-link.ru/chats/auth", "https://my.mts-link.ru/j/1234/5678/record",
+            "https://my.mts-link.ru/j/1234/5678/stream-new/123/record",
+            "https://login@my.mts-link.ru/j/1234/5678", "https://my.mts-link.ru:8443/j/1234/5678",
+            "https://my.mts-link.ru/j/1234//5678"
+        ] {
+            XCTAssertNil(BrowserMeetingSession.roomURL(address), address)
+        }
+    }
+
+    func testTelemostOnlyTrustsItsSameRoomFrameAndCallControls() throws {
+        let room = try XCTUnwrap(BrowserMeetingSession.Room("https://telemost.yandex.ru/j/12345678901"))
+        XCTAssertTrue(room.acceptsFrame("https://telemost.yandex.ru/private-join/12345678901"))
+        XCTAssertFalse(room.acceptsFrame("https://telemost.yandex.ru/private-join/12345678902"))
+        XCTAssertFalse(room.acceptsFrame("https://other.example/private-join/12345678901"))
+        XCTAssertFalse(room.acceptsFrame("http://telemost.yandex.ru/private-join/12345678901"))
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: ["Подключиться к звонку", "Включить микрофон"], messages: [], service: .telemost), .unavailable)
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: ["Завершить звонок", "Выключить микрофон"], messages: [], service: .telemost), .inCall)
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: ["Выйти из встречи", "Включить микрофон"], messages: [], service: .telemost), .inCall)
+    }
+
+    func testMTSLinkPreviewCannotStartEvenWhenRoomToolbarIsVisible() {
+        let roomControls = ["Покинуть встречу", "Участники", "Включить микрофон"]
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: roomControls + ["Присоединиться к встрече"], messages: [], service: .mtsLink), .unavailable)
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: roomControls, messages: [], service: .mtsLink,
+            disabledButtons: ["Присоединиться к встрече"]), .unavailable)
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: roomControls, messages: [], service: .mtsLink), .inCall)
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: ["Покинуть встречу", "Включить микрофон Меню", "Участники"],
+            messages: [], service: .mtsLink), .unavailable)
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: ["Участники", "Включить микрофон"], messages: [], service: .mtsLink), .unavailable)
+    }
+
+    func testTelemostCallTitleDoesNotMatchTheHomeTab() {
+        let url = URL(string: "https://telemost.yandex.ru/j/12345678901")!
+        let verified = "Идёт звонок · Яндекс Телемост"
+        XCTAssertTrue(BrowserMeetingSession.titleNamesCall(verified + " - Audio playing", url: url, verifiedTitle: verified))
+        XCTAssertFalse(BrowserMeetingSession.titleNamesCall("Яндекс Телемост", url: url, verifiedTitle: verified))
+        XCTAssertFalse(BrowserMeetingSession.titleNamesCall("Яндекс Телемост", url: url, verifiedTitle: "Яндекс Телемост"))
     }
 
     func testBrowserRequiresCallControlsAndSustainedSameDocument() {

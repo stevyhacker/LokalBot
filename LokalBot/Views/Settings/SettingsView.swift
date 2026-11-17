@@ -537,12 +537,12 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.autoRecordMode", selected: app.focusedSettingID)
                     LabeledContent {
-                        Text(Set(MeetingDetector.knownApps.values).sorted().joined(separator: ", ")
-                             + ", and Google Meet in a browser")
+                        Text(Set(MeetingDetector.knownApps.values).union(["MTS Link"]).sorted().joined(separator: ", ")
+                             + ", and Google Meet, Yandex Telemost, and MTS Link in a browser")
                             .settingsSecondary()
                     } label: {
                         SettingsLabel("Detected apps",
-                                      help: "Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone.")
+                                      help: "Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone.")
                     }
                     LabeledContent("Wait before stopping") {
                         Stepper(value: $app.settings.stopDebounceSeconds,

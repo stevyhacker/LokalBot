@@ -506,7 +506,7 @@
 "Go to Settings" = "Idi na odeljak Podešavanja";
 "Go to Timeline" = "Idi na odeljak Vremenska linija";
 "Go to Today" = "Idi na odeljak Danas";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "Google Meet se otkriva samo ako mu je interfejs na engleskom. Drugi pozivi u pregledaču, kao što su Jitsi, Whereby ili Teams na vebu, ne otkrivaju se, a ako takav poziv sami snimate, čuva se samo zvuk vašeg mikrofona.";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "Google Meet se prepoznaje na engleskom, a Yandex Telemost i MTS Link na ruskom. Ručno snimanje drugih poziva u pregledaču čuva samo zvuk sa mikrofona.";
 "Grant Access" = "Odobri pristup";
 "Grant Accessibility access…" = "Odobri pristup za Pristupačnost…";
 "Grant Calendar Access…" = "Odobri pristup kalendaru…";

@@ -75,6 +75,7 @@ final class MeetingDetector {
         "com.larksuite.larkApp": "Lark",
         "com.alibaba.DingTalkMac": "DingTalk",
         "com.tencent.WeWorkMac": "WeCom",
+        "ru.yandex.desktop.telemost": "Yandex Telemost",
     ]
 
     /// Native bundles whose newly-started output is a strong meeting signal on
@@ -178,6 +179,10 @@ final class MeetingDetector {
         "com.microsoft.edgemac", "com.brave.Browser", "org.mozilla.firefox",
     ]
 
+    /// Browsers and trusted desktop web clients that must prove an in-call
+    /// document before they can start recording or select a system audio tap.
+    nonisolated static let documentCallHosts = browsers.union(BrowserMeetingSession.nativeWebClients.keys)
+
     var onMeetingStarted: ((MeetingDetectionContext) -> Void)?
     var onMeetingSwitched: ((MeetingDetectionContext) -> Void)?
     var onMeetingEnded: ((MeetingDetectionEnd) -> Void)?
@@ -239,7 +244,7 @@ final class MeetingDetector {
     /// manual recording joins only a proven session.
     var verifiesActiveCall: Bool {
         guard let activeApp else { return false }
-        return !Self.browsers.contains(activeApp.bundleID) || browserLifecycle.lostAt == nil
+        return !Self.documentCallHosts.contains(activeApp.bundleID) || browserLifecycle.lostAt == nil
     }
 
     private var micListener: AudioObjectPropertyListenerBlock?
@@ -374,12 +379,12 @@ final class MeetingDetector {
         let eventURL = calendarEnabled ? calendar?.activeCandidate(now: environment.clock.now())?.meetingURL : nil
         let expectedURL = boundApp?.meetingURL ?? eventURL
         let browserApps = environment.workspace.runningApplications().filter {
-            $0.bundleIdentifier.map(Self.browsers.contains) ?? false
+            $0.bundleIdentifier.map(Self.documentCallHosts.contains) ?? false
         }
         let pids = browserApps.filter {
             // Once bound, unrelated browsers cannot delay the call's evidence
             // or make a valid observation expire before it reaches the detector.
-            guard let boundApp, Self.browsers.contains(boundApp.bundleID) else { return true }
+            guard let boundApp, Self.documentCallHosts.contains(boundApp.bundleID) else { return true }
             return $0.bundleIdentifier == boundApp.bundleID
         }.map(\.processIdentifier)
         // A bound call that stopped proving itself must not hide a verified
@@ -419,7 +424,7 @@ final class MeetingDetector {
     /// calendar-backed handoff reads only that room. Nil reads any single
     /// verified call. Calendar links can carry query parameters.
     nonisolated static func otherRoom(_ eventURL: URL?, than boundURL: URL?) -> URL? {
-        guard let room = eventURL.flatMap({ BrowserMeetingSession.meetURL($0.absoluteString) }),
+        guard let room = eventURL.flatMap({ BrowserMeetingSession.roomURL($0.absoluteString) }),
               room != boundURL?.absoluteString else { return nil }
         return URL(string: room)
     }
@@ -430,7 +435,7 @@ final class MeetingDetector {
         let calendarEvent = calendarEnabled ? calendar?.activeCandidate(now: now) : nil
 
         if let currentApp = activeApp {
-            if Self.browsers.contains(currentApp.bundleID) {
+            if Self.documentCallHosts.contains(currentApp.bundleID) {
                 tickBrowser(currentApp, now: now)
                 return
             }
@@ -438,7 +443,7 @@ final class MeetingDetector {
             let appAudioActive = continuingApp.map {
                 hasContinuingAudio(for: $0, now: now)
             } ?? false
-            let isBrowserApp = continuingApp.map { Self.browsers.contains($0.bundleID) } ?? false
+            let isBrowserApp = continuingApp.map { Self.documentCallHosts.contains($0.bundleID) } ?? false
             let calendarBackedBrowserWithAudio = isBrowserApp
                 && calendarEnabled
                 && calendarEvent?.meetingURL != nil
@@ -518,7 +523,7 @@ final class MeetingDetector {
             calendarEvent: calendarEvent,
             calendarEnabled: calendarEnabled,
             requireCalendarForBrowser: requireCalendarForBrowser, snapshots: browserSnapshots)
-        let isBrowserApp = runningMeetingApp.map { Self.browsers.contains($0.bundleID) } ?? false
+        let isBrowserApp = runningMeetingApp.map { Self.documentCallHosts.contains($0.bundleID) } ?? false
         let calendarBackedBrowser = isBrowserApp && calendarEnabled && calendarEvent?.meetingURL != nil
         // Both start and continuation hinge on the selected app's OWN audio
         // (input or output), not the global mic flag. A global mic check can
@@ -613,7 +618,7 @@ final class MeetingDetector {
     /// window's evidence clock; `tick()` separately decides whether a gap
     /// since the last call may still keep this same window alive.
     private func startConfirmed(app: DetectedApp, calendarBacked: Bool, now: Date) -> Bool {
-        if Self.browsers.contains(app.bundleID) {
+        if Self.documentCallHosts.contains(app.bundleID) {
             guard let url = app.meetingURL else { browserStart = .init(); return false }
             return browserStart.observe(.init(url: url, state: .inCall), at: now)
         }
@@ -757,7 +762,7 @@ final class MeetingDetector {
         guard activeApp != nil, let sessionID = activeSessionID, pendingStop == nil else { return }
         // Native app audio gaps may use calendar grace. A browser call uses
         // only its bound document state and never receives that extension.
-        let isBrowser = activeApp.map { Self.browsers.contains($0.bundleID) } ?? false
+        let isBrowser = activeApp.map { Self.documentCallHosts.contains($0.bundleID) } ?? false
         let calendarStillActive = !isBrowser && (activeCalendarEvent?.isActive(at: now) ?? false)
         let debounce = immediately ? 0 : calendarStillActive ? max(stopDebounce, Self.calendarBackedGrace) : stopDebounce
         pendingStop = environment.clock.schedule(after: debounce) { [weak self] in
@@ -859,7 +864,7 @@ final class MeetingDetector {
     private func splitAtCalendarHandoff(_ app: DetectedApp, now: Date) {
         guard calendarEnabled, let room = app.meetingURL?.absoluteString,
               let event = calendar?.activeCandidate(now: now),
-              event.meetingURL.flatMap({ BrowserMeetingSession.meetURL($0.absoluteString) }) == room else { return }
+              event.meetingURL.flatMap({ BrowserMeetingSession.roomURL($0.absoluteString) }) == room else { return }
         let previousEventID = activeCalendarEvent?.externalID
         activeCalendarEvent = event
         guard MeetingMatcher.shouldSplitForCalendarHandoff(activeEventID: previousEventID,
@@ -961,7 +966,7 @@ final class MeetingDetector {
         let calendarBacked = calendarEnabled && calendarEvent?.meetingURL != nil
         guard !requireCalendarForBrowser || calendarBacked else { return nil }
         for app in running {
-            guard let bid = app.bundleIdentifier, browsers.contains(bid),
+            guard let bid = app.bundleIdentifier, documentCallHosts.contains(bid),
                   let snapshot = snapshots.map({ $0[app.processIdentifier] })
                     ?? BrowserMeetingSession.snapshot(processID: app.processIdentifier,
                         expectedURL: calendarBacked ? calendarEvent?.meetingURL : nil),
@@ -1035,7 +1040,7 @@ final class MeetingDetector {
     /// adds its broader open-stream and silent-process fallbacks separately.
     nonisolated private static func rankedOutputAudioProcess(for app: DetectedApp,
                                                              in processes: [AudioProcess]) -> AudioProcess? {
-        if browsers.contains(app.bundleID) || app.bundleID == "us.zoom.xos" {
+        if documentCallHosts.contains(app.bundleID) || app.bundleID == "us.zoom.xos" {
             let matches = processes.filter { process in
                 guard process.isRunningOutput, let bundleID = process.bundleID else { return false }
                 return audioBundleID(bundleID, belongsTo: app.bundleID)
@@ -1194,7 +1199,7 @@ final class MeetingDetector {
     /// hand routinely begins before the remote side says anything, and a tap on
     /// a silent process records nothing until audio arrives rather than
     /// failing. A browser is eligible only when its Accessibility tree proves
-    /// one unambiguous in-call Meet document, so a manual recording does not
+    /// one unambiguous in-call meeting document, so a manual recording does not
     /// silently widen its capture scope to arbitrary browser media.
     nonisolated static func captureCandidateApp(
         in running: [RunningApp] = CaptureEnvironment.current.workspace.runningApplications(),
@@ -1207,7 +1212,7 @@ final class MeetingDetector {
         // call the user is recording just because it happens to be open.
         if expectedMeetingURL == nil, let native = nativeMeetingApp(in: running, requireAudio: true) { return native }
         for app in running {
-            guard let bundleID = app.bundleIdentifier, browsers.contains(bundleID),
+            guard let bundleID = app.bundleIdentifier, documentCallHosts.contains(bundleID),
                   let snapshot = BrowserMeetingSession.snapshot(
                     processID: app.processIdentifier,
                     expectedURL: expectedMeetingURL),
@@ -1305,7 +1310,7 @@ final class MeetingDetector {
         if knownApps[app.bundleID] != nil {
             return running.contains { $0.bundleIdentifier == app.bundleID } ? app : nil
         }
-        if browsers.contains(app.bundleID) {
+        if documentCallHosts.contains(app.bundleID) {
             return running.contains { $0.bundleIdentifier == app.bundleID } ? app : nil
         }
         return CaptureEnvironment.current.workspace.isRunning(processID: app.pid) ? app : nil
@@ -1346,10 +1351,10 @@ final class MeetingDetector {
     }
 
     nonisolated private static func hasInputAudio(for app: DetectedApp) -> Bool {
-        // Browser mic capture lives in helper processes we don't track here, so
-        // browsers rely on output audio. For native apps the per-process input
-        // flag is the app's own mic use — never our recorder's.
-        guard !browsers.contains(app.bundleID) else { return false }
+        // A web-based call uses its verified document, never mic activity.
+        // For other native apps the input flag is the app's own microphone
+        // use — never our recorder's.
+        guard !documentCallHosts.contains(app.bundleID) else { return false }
         return CaptureEnvironment.current.audio.isProcessRunningInput(processID: app.pid)
     }
 }

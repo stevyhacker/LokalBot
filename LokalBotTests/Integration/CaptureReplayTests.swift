@@ -241,6 +241,65 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ended.first ?? 0, 300, "must not end before the call does")
     }
 
+    func testTelemostAndMTSLinkCallsAttachSystemAudioAndEndAfterLeaving() async throws {
+        for (trace, room, bundleID) in [
+            ("telemost-browser-call", "https://telemost.yandex.ru/j/12345678901", "com.google.Chrome"),
+            ("mts-link-browser-call", "https://my.mts-link.ru/j/1234/5678", "com.google.Chrome"),
+            ("mts-link-desktop-call", "https://my.mts-link.ru/j/1234/5678", "ru.weteams.desktop"),
+        ] {
+            let replay = try replay(trace)
+            let detector = MeetingDetector()
+            var started: [(TimeInterval, MeetingDetector.DetectedApp?)] = []
+            var ended: [TimeInterval] = []
+            detector.onMeetingStarted = { started.append((replay.clock.elapsed, $0.detectedApp)) }
+            detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+            let intent = Meeting.CaptureIntent(systemAudioRequested: true)
+            XCTAssertNil(RecordingSystemAudioSource.find(for: intent), "\(trace) preview or idle client")
+            for second in stride(from: 0.0, through: 24, by: 2) {
+                await replay.clock.advance(to: second)
+                await detector.tickForTesting()
+            }
+            let call = try XCTUnwrap(started.first?.1, trace)
+            XCTAssertEqual(started.count, 1, trace)
+            XCTAssertEqual(started.first?.0, 12, trace)
+            XCTAssertEqual(call.bundleID, bundleID, trace)
+            XCTAssertEqual(call.meetingURL?.absoluteString, room, trace)
+            XCTAssertEqual(RecordingSystemAudioSource.find(for: intent), .verified(call), trace)
+            XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: call)?.id, 802, trace)
+            for second in stride(from: 26.0, through: 170, by: 2) {
+                await replay.clock.advance(to: second)
+                await detector.tickForTesting()
+            }
+            XCTAssertEqual(ended, [150], trace)
+            XCTAssertEqual(started.count, 1, "remaining app audio cannot restart \(trace)")
+            XCTAssertNil(RecordingSystemAudioSource.find(for: intent), trace)
+        }
+    }
+
+    func testNativeTelemostIgnoresShortAudioAndStopsOnceItsCallAudioEnds() async throws {
+        let replay = try replay("telemost-desktop-call")
+        let detector = MeetingDetector()
+        var started: [(TimeInterval, MeetingDetector.DetectedApp?)] = []
+        var ended: [TimeInterval] = []
+        detector.onMeetingStarted = { started.append((replay.clock.elapsed, $0.detectedApp)) }
+        detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+        for second in stride(from: 0.0, through: 50, by: 2) {
+            await replay.clock.advance(to: second)
+            await detector.tickForTesting()
+        }
+        let call = try XCTUnwrap(started.first?.1)
+        XCTAssertEqual(started.count, 1)
+        XCTAssertGreaterThanOrEqual(started.first?.0 ?? 0, 20 + MeetingDetector.nativeAudioMinimumConfirmationDuration)
+        XCTAssertEqual(call.bundleID, "ru.yandex.desktop.telemost")
+        XCTAssertEqual(RecordingSystemAudioSource.find(for: .init(systemAudioRequested: true)), .verified(call))
+        for second in stride(from: 52.0, through: 120, by: 2) {
+            await replay.clock.advance(to: second)
+            await detector.tickForTesting()
+        }
+        XCTAssertEqual(ended.count, 1)
+        XCTAssertGreaterThanOrEqual(ended.first ?? 0, 72)
+    }
+
     /// 2026-10-03: Meet's page after the first call was not recognized as an
     /// end, so that call stayed bound but unverified, and the next meeting, in
     /// another room, was never detected. A verified call in another room must

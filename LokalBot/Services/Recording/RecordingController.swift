@@ -534,7 +534,7 @@ final class RecordingController: ObservableObject {
             do {
                 try Task.checkCancellation()
                 if ["detector", "audio-monitor", "notification"].contains(source),
-                   let detectedApp, MeetingDetector.browsers.contains(detectedApp.bundleID) {
+                   let detectedApp, MeetingDetector.documentCallHosts.contains(detectedApp.bundleID) {
                     let host = CaptureEnvironment.current.workspace.runningApplications()
                         .first { $0.bundleIdentifier == detectedApp.bundleID }
                     let session = host.flatMap { BrowserMeetingSession.snapshot(processID: $0.processIdentifier,
@@ -542,7 +542,7 @@ final class RecordingController: ObservableObject {
                     guard session?.state == .inCall, session?.url == detectedApp.meetingURL else {
                         audioMonitor.isRecordingActive = false
                         audioMonitor.reseed()
-                        onError("The detected Meet call is no longer available. Start recording manually if needed.")
+                        onError("The detected call is no longer available. Start recording manually if needed.")
                         return
                     }
                 }
@@ -580,7 +580,7 @@ final class RecordingController: ObservableObject {
                     systemAudioRequested: systemAudioPolicy == .meetingAppWhenAvailable,
                     appBundleID: detectedApp?.bundleID,
                     meetingURL: meeting.meetingURL.flatMap { url in
-                        BrowserMeetingSession.meetURL(url.absoluteString).flatMap(URL.init(string:))
+                        BrowserMeetingSession.roomURL(url.absoluteString).flatMap(URL.init(string:))
                     })
                 try storage.saveMeta(meeting)
                 healthReport = RecordingHealthReport()
@@ -782,7 +782,7 @@ final class RecordingController: ObservableObject {
         guard capturedBundleID == detected.bundleID else { return false }
         guard let recordingURL, let detectedURL = detected.meetingURL else { return true }
         // Calendar links can carry query parameters such as ?authuser=0.
-        let room = { (url: URL) in BrowserMeetingSession.meetURL(url.absoluteString) ?? url.absoluteString }
+        let room = { (url: URL) in BrowserMeetingSession.roomURL(url.absoluteString) ?? url.absoluteString }
         return room(recordingURL) == room(detectedURL)
     }
 
@@ -1452,7 +1452,7 @@ final class RecordingController: ObservableObject {
     /// Helpers within a live authorized host may move. A new browser host must
     /// first be verified against the same room, then offered by the detector.
     private func mayRecoverSource(_ target: SystemAudioTarget) -> Bool {
-        !MeetingDetector.browsers.contains(target.bundleID)
+        !MeetingDetector.documentCallHosts.contains(target.bundleID)
             || (target.hostPID != nil && target.hostPID == Self.hostPID(for: target.bundleID))
     }
 

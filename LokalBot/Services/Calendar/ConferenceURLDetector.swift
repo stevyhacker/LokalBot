@@ -1,9 +1,8 @@
 import Foundation
 
 /// Recognizes video-conferencing links inside free text (calendar notes,
-/// location, the event URL). Two jobs: flag an event as an online meeting, and
-/// — crucially — let a browser's audio count as a meeting when the window title
-/// is generic or Accessibility missed it. Pure and trivially testable.
+/// location, the event URL). This flags an event as an online meeting and
+/// provides its URL so the detector can verify the right room.
 enum ConferenceURLDetector {
     /// Known conferencing hosts (base domains; subdomains match via suffix).
     static let hosts: [String] = [
@@ -44,6 +43,9 @@ enum ConferenceURLDetector {
     /// Whether `url`'s host is (a subdomain of) a known conferencing host.
     static func isMeetingURL(_ url: URL?) -> Bool {
         guard let host = url?.host?.lowercased() else { return false }
+        if host == BrowserMeetingSession.Service.telemost.rawValue || host == BrowserMeetingSession.Service.mtsLink.rawValue {
+            return url.flatMap { BrowserMeetingSession.roomURL($0.absoluteString) } != nil
+        }
         return hosts.contains { host == $0 || host.hasSuffix("." + $0) }
     }
 }
