@@ -870,3 +870,35 @@ fn presentation_labels_past_meeting_as_ended() {
         Some("A, B, C, D +2")
     );
 }
+
+#[test]
+fn russian_conferencing_links_identify_only_supported_rooms() {
+    use super::{MeetingService, meeting_room};
+    let telemost = "https://telemost.yandex.ru/j/12345678901";
+    let mts_link = "https://my.mts-link.ru/j/1234/5678";
+    let room = meeting_room(telemost).expect("valid Telemost room");
+    assert_eq!(room.service, MeetingService::Telemost);
+    assert_eq!(room.url, telemost);
+    let live = "https://my.mts-link.ru/j/1234/5678/stream-new/912?guest=not-stored";
+    let room = meeting_room(live).expect("valid MTS Link room");
+    assert_eq!(room.service, MeetingService::MtsLink);
+    assert_eq!(room.url, mts_link);
+    assert_eq!(
+        meeting_room("https://my.mts-link.ru/1234/5678/").map(|room| room.url),
+        Some(mts_link.into())
+    );
+    assert!(is_meeting_url(telemost));
+    assert!(is_meeting_url(mts_link));
+    for unrelated in [
+        "https://telemost.yandex.ru/",
+        "https://telemost.yandex.ru/private-join/12345678901",
+        "https://telemost.yandex.ru.example.com/j/12345678901",
+        "https://user@telemost.yandex.ru/j/12345678901",
+        "https://my.mts-link.ru/chats/auth",
+        "https://my.mts-link.ru/j/1234/5678/record-new/912",
+        "https://my.mts-link.ru:8443/j/1234/5678",
+    ] {
+        assert!(!is_meeting_url(unrelated), "{unrelated}");
+        assert!(meeting_room(unrelated).is_none(), "{unrelated}");
+    }
+}
