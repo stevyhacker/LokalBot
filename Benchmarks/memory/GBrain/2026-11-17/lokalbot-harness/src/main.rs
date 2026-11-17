@@ -63,7 +63,9 @@ fn main() -> Result<()> {
         Some("query") if args.len() >= 5 => query(&args[2], &args[3], &args[4], args.get(5)),
         Some("delete") if args.len() == 4 => delete(&args[2], &args[3]),
         Some("facts") if args.len() == 4 => facts(&args[2], &args[3]),
-        _ => bail!("usage: ingest <corpus> <library> | embed <library> <url> | query <library> <queries> <out> [url]"),
+        _ => bail!(
+            "usage: ingest <corpus> <library> | embed <library> <url> | query <library> <queries> <out> [url]"
+        ),
     }
 }
 
@@ -92,15 +94,25 @@ fn ingest(corpus: &str, root: &str) -> Result<()> {
                 attribution: None,
             })
             .collect();
-        meeting.ended_at = Some(m.started_at + Duration::seconds((segments.len() as f64 * TURN_SECONDS) as i64));
+        meeting.ended_at =
+            Some(m.started_at + Duration::seconds((segments.len() as f64 * TURN_SECONDS) as i64));
         library.save_meeting(&meeting)?;
-        library.save_transcript(&meeting, &Transcript { segments, ..Default::default() })?;
+        library.save_transcript(
+            &meeting,
+            &Transcript {
+                segments,
+                ..Default::default()
+            },
+        )?;
         count += 1;
         let _ = m.id;
     }
     let written = started.elapsed().as_secs_f64();
     let indexed = library.reindex_stale()?;
-    eprintln!("{count} meetings written in {written:.1}s; {indexed} indexed in {:.1}s total", started.elapsed().as_secs_f64());
+    eprintln!(
+        "{count} meetings written in {written:.1}s; {indexed} indexed in {:.1}s total",
+        started.elapsed().as_secs_f64()
+    );
     Ok(())
 }
 
@@ -113,10 +125,18 @@ fn embed(root: &str, url: &str) -> Result<()> {
     for (n, meeting) in meetings.iter().enumerate() {
         chunks += index_with(&client, &library, meeting).with_context(|| meeting.title.clone())?;
         if n % 20 == 0 {
-            eprintln!("{n}/{} meetings, {chunks} chunks, {:.0}s", meetings.len(), started.elapsed().as_secs_f64());
+            eprintln!(
+                "{n}/{} meetings, {chunks} chunks, {:.0}s",
+                meetings.len(),
+                started.elapsed().as_secs_f64()
+            );
         }
     }
-    eprintln!("embedded {chunks} chunks from {} meetings in {:.1}s", meetings.len(), started.elapsed().as_secs_f64());
+    eprintln!(
+        "embedded {chunks} chunks from {} meetings in {:.1}s",
+        meetings.len(),
+        started.elapsed().as_secs_f64()
+    );
     Ok(())
 }
 
@@ -144,7 +164,14 @@ fn query(root: &str, queries: &str, out: &str, url: Option<&String>) -> Result<(
         let q: Query = serde_json::from_str(&line?)?;
         let started = Instant::now();
         // --- Ask's gather(), meeting part, with an unscoped question.
-        let search = SearchQuery { text: q.question.clone(), kinds: None, meeting_ids: None, since: None, until: None, limit: KEYWORD_LIMIT };
+        let search = SearchQuery {
+            text: q.question.clone(),
+            kinds: None,
+            meeting_ids: None,
+            since: None,
+            until: None,
+            limit: KEYWORD_LIMIT,
+        };
         let mut keyword = library.search(&search)?;
         if keyword.is_empty() {
             keyword = library.search_with_mode(&search, MatchMode::Any)?;
@@ -157,7 +184,10 @@ fn query(root: &str, queries: &str, out: &str, url: Option<&String>) -> Result<(
         let lowered = q.question.to_lowercase();
         let first: Vec<Uuid> = meetings
             .iter()
-            .filter(|m| m.title.trim().chars().count() >= 4 && lowered.contains(&m.title.trim().to_lowercase()))
+            .filter(|m| {
+                m.title.trim().chars().count() >= 4
+                    && lowered.contains(&m.title.trim().to_lowercase())
+            })
             .map(|m| m.id)
             .collect();
         let mut lexical: Vec<Uuid> = Vec::new();
@@ -173,19 +203,30 @@ fn query(root: &str, queries: &str, out: &str, url: Option<&String>) -> Result<(
             }
         }
         let mut ranked: Vec<Uuid> = Vec::new();
-        for id in first.into_iter().chain(rrf_fuse(&lexical, &meaning, RRF_K).into_iter().map(|(id, _)| id)) {
+        for id in first.into_iter().chain(
+            rrf_fuse(&lexical, &meaning, RRF_K)
+                .into_iter()
+                .map(|(id, _)| id),
+        ) {
             if !ranked.contains(&id) {
                 ranked.push(id);
             }
         }
         let mut evidence = Vec::new();
         for id in ranked.iter().take(MAX_MEETINGS) {
-            let Some(transcript) = transcripts.get(id) else { continue };
+            let Some(transcript) = transcripts.get(id) else {
+                continue;
+            };
             let mut starts: Vec<f64> = keyword
                 .iter()
                 .filter(|h| h.meeting_id == *id && h.kind == DocKind::Segment)
                 .filter_map(|h| h.start)
-                .chain(semantic.iter().filter(|h| h.meeting_id == *id && h.start > 0.0).map(|h| h.start))
+                .chain(
+                    semantic
+                        .iter()
+                        .filter(|h| h.meeting_id == *id && h.start > 0.0)
+                        .map(|h| h.start),
+                )
                 .collect();
             starts.dedup();
             let mut rows: BTreeSet<usize> = BTreeSet::new();
@@ -202,7 +243,9 @@ fn query(root: &str, queries: &str, out: &str, url: Option<&String>) -> Result<(
             for index in rows.into_iter().take(MAX_MOMENTS_PER_MEETING) {
                 let text = &transcript.segments[index].text;
                 let chars = text.chars().count().min(MOMENT_CHARACTERS);
-                evidence.push(json!({"meeting": qmsum_id(by_id[id]), "turns": [index], "chars": chars}));
+                evidence.push(
+                    json!({"meeting": qmsum_id(by_id[id]), "turns": [index], "chars": chars}),
+                );
             }
         }
         let ms = started.elapsed().as_secs_f64() * 1000.0;
@@ -237,7 +280,10 @@ fn delete(root: &str, id: &str) -> Result<()> {
     let started = Instant::now();
     library.delete_meeting(&meeting)?;
     library.reindex_stale()?;
-    eprintln!("deleted {id} in {:.1} ms", started.elapsed().as_secs_f64() * 1000.0);
+    eprintln!(
+        "deleted {id} in {:.1} ms",
+        started.elapsed().as_secs_f64() * 1000.0
+    );
     Ok(())
 }
 
@@ -261,7 +307,9 @@ struct FactSuite {
 /// are stated a day apart from their corrections, then every question gets
 /// Ask's Personal Context block (`select_context`, 2,000 characters).
 fn facts(input: &str, out: &str) -> Result<()> {
-    use lokalbot_core::personal::{CONTEXT_BUDGET, ClaimEdit, ClaimKind, Origin, PersonalModel, select_context};
+    use lokalbot_core::personal::{
+        CONTEXT_BUDGET, ClaimEdit, ClaimKind, Origin, PersonalModel, select_context,
+    };
     let suite: FactSuite = serde_json::from_str(&std::fs::read_to_string(input)?)?;
     let base: DateTime<Utc> = "2026-11-01T09:00:00Z".parse()?;
     let mut results = Vec::new();
@@ -273,11 +321,19 @@ fn facts(input: &str, out: &str) -> Result<()> {
             clock
         };
         for text in &suite.distractors {
-            model.add(text, ClaimKind::Fact, Origin::Added {}, tick()).map_err(|e| anyhow::anyhow!(e.message()))?;
+            model
+                .add(text, ClaimKind::Fact, Origin::Added {}, tick())
+                .map_err(|e| anyhow::anyhow!(e.message()))?;
         }
         let mut originals = Vec::new();
         for case in &suite.facts {
-            let claim = model.add(&case.original, ClaimKind::suggested(&case.original), Origin::Added {}, tick())
+            let claim = model
+                .add(
+                    &case.original,
+                    ClaimKind::suggested(&case.original),
+                    Origin::Added {},
+                    tick(),
+                )
                 .map_err(|e| anyhow::anyhow!(e.message()))?;
             originals.push(claim.id);
         }
@@ -287,11 +343,24 @@ fn facts(input: &str, out: &str) -> Result<()> {
             clock2 += Duration::minutes(1);
             match mode {
                 "edit" => {
-                    let edit = ClaimEdit { text: Some(case.correction.clone()), kind: None, always_use: None, sharing: None };
-                    model.update(*id, edit, clock2).map_err(|e| anyhow::anyhow!(e.message()))?;
+                    let edit = ClaimEdit {
+                        text: Some(case.correction.clone()),
+                        kind: None,
+                        always_use: None,
+                        sharing: None,
+                    };
+                    model
+                        .update(*id, edit, clock2)
+                        .map_err(|e| anyhow::anyhow!(e.message()))?;
                 }
                 "restate" => {
-                    model.add(&case.correction, ClaimKind::suggested(&case.correction), Origin::Added {}, clock2)
+                    model
+                        .add(
+                            &case.correction,
+                            ClaimKind::suggested(&case.correction),
+                            Origin::Added {},
+                            clock2,
+                        )
                         .map_err(|e| anyhow::anyhow!(e.message()))?;
                 }
                 _ => model.remove(&std::iter::once(*id).collect(), clock2),
