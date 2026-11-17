@@ -4735,6 +4735,7 @@ dependencies = [
  "uuid",
  "windows-sys 0.61.2",
  "zip 9.5.1",
+ "zstd",
 ]
 
 [[package]]

@@ -357,6 +357,105 @@ final class CodingAgentSessionTests: XCTestCase {
         }
     }
 
+    // MARK: - Codex, compressed
+
+    func testCodexReaderReadsCompressedRolloutsLikePlainOnes() throws {
+        let name = "sessions/2026/09/03/rollout-2026-09-03T10-00-00-T1.jsonl"
+        let plain = root.appendingPathComponent("plain", isDirectory: true)
+        let packed = root.appendingPathComponent("packed", isDirectory: true)
+        try write(codexResumedRollout, to: plain.appendingPathComponent(name),
+                  created: "2026-09-03T10:00:00Z", modified: "2026-09-29T18:00:00Z")
+        let text = codexResumedRollout.joined(separator: "\n") + "\n"
+        // Compressing gives the file the creation date of its last write.
+        try writeCompressed(text, to: packed.appendingPathComponent(name + ".zst"),
+                            created: "2026-09-29T18:00:00Z", modified: "2026-09-29T18:00:00Z")
+        let expected = CodexSessionReader(root: plain).transcripts(in: dayInterval).transcripts
+        let reader = CodexSessionReader(root: packed)
+        let cache = CodingAgentParseCache()
+
+        let first = reader.transcripts(in: dayInterval, cache: cache)
+        let again = reader.transcripts(in: dayInterval, cache: cache)
+
+        XCTAssertFalse(expected.isEmpty)
+        XCTAssertEqual(first.transcripts, expected)
+        XCTAssertEqual(first.filesRead, 1)
+        XCTAssertEqual(first.bytesRead, text.utf8.count, "the decompressed size is what was read")
+        XCTAssertTrue(first.unreadableFiles.isEmpty)
+        XCTAssertEqual(again.transcripts, expected)
+        XCTAssertEqual(again.filesRead, 0, "an unchanged compressed rollout is not decompressed again")
+    }
+
+    func testCompressedRolloutCountsOnTheDayItBeganThoughCompressedTheNextDay() throws {
+        let codex = root.appendingPathComponent("codex", isDirectory: true)
+        try writeCompressed(
+            [
+                #"{"timestamp":"2026-09-29T23:00:00.000Z","type":"session_meta","payload":{"id":"N1","cwd":"/Users/me/Code/Mojo","source":"cli"}}"#,
+                #"{"timestamp":"2026-09-29T23:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Ship the night build"}]}}"#,
+                #"{"timestamp":"2026-09-30T01:00:00.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Shipped."}]}}"#,
+            ].joined(separator: "\n") + "\n",
+            to: codex.appendingPathComponent("sessions/2026/09/29/rollout-2026-09-29T23-00-00-N1.jsonl.zst"),
+            created: "2026-09-30T01:05:00Z", modified: "2026-09-30T01:05:00Z")
+
+        let result = CodexSessionReader(root: codex).transcripts(in: dayInterval)
+
+        XCTAssertEqual(result.transcripts.map(\.sessionID), ["N1"])
+    }
+
+    func testRolloutKeptPlainAndCompressedIsReadOnceFromTheNewerCopy() throws {
+        let codex = root.appendingPathComponent("codex", isDirectory: true)
+        let rollout = codex.appendingPathComponent("sessions/2026/09/03/rollout-2026-09-03T10-00-00-T1.jsonl")
+        try write(codexResumedRollout, to: rollout, created: "2026-09-03T10:00:00Z", modified: "2026-09-29T18:00:00Z")
+        try writeCompressed(
+            codexResumedRollout.prefix(5).joined(separator: "\n") + "\n",
+            to: rollout.appendingPathExtension("zst"),
+            created: "2026-09-29T17:00:00Z", modified: "2026-09-29T17:00:00Z")
+
+        let result = CodexSessionReader(root: codex).transcripts(in: dayInterval)
+
+        XCTAssertEqual(result.filesRead, 1)
+        XCTAssertEqual(result.transcripts.map(\.sessionID), ["T1"])
+        XCTAssertEqual(
+            result.bytesRead, (codexResumedRollout.joined(separator: "\n") + "\n").utf8.count,
+            "the plain copy, written last, is the one read")
+    }
+
+    func testDecompressionHandsOverWholeLinesAcrossFramesAndBuffers() throws {
+        // Lines longer than the decoder's 4 MiB output buffer, split over many frames.
+        let lines = [
+            String(repeating: "a", count: 3 << 20), "{\"short\":1}",
+            String(repeating: "b", count: 5 << 20), "", "{\"short\":2}\r",
+            String(repeating: "c", count: 3 << 20), "last line without a newline",
+        ]
+        let text = lines.joined(separator: "\n")
+        let file = root.appendingPathComponent("rollout-2026-09-29T10-00-00-X.jsonl.zst")
+        try writeCompressed(text, to: file, created: "2026-09-29T10:00:00Z", modified: "2026-09-29T10:00:00Z")
+
+        var read: [String] = []
+        var batches = 0
+        let total = try CodingAgentCompressedTranscript.forEachBatch(of: file) { batch in
+            batches += 1
+            batch.forEach { read.append(String(decoding: $0.bytes, as: UTF8.self)) }
+        }
+
+        XCTAssertEqual(total, text.utf8.count)
+        XCTAssertGreaterThan(batches, 1, "the file is handed over a piece at a time")
+        XCTAssertEqual(read, lines.filter { !$0.isEmpty })
+
+        let whole = try Data(contentsOf: file)
+        try whole.dropLast(100).write(to: file)
+        XCTAssertThrowsError(try CodingAgentCompressedTranscript.forEachBatch(of: file) { _ in },
+                             "a file cut off inside a frame is unreadable")
+    }
+
+    func testCompressedRolloutStartsNoLaterThanTheDayInItsName() throws {
+        let url = URL(fileURLWithPath: "/x/sessions/2026/09/29/rollout-2026-09-29T23-00-00-N1.jsonl.zst")
+        XCTAssertTrue(CodingAgentCompressedTranscript.isCompressed(url))
+        XCTAssertEqual(CodingAgentCompressedTranscript.plainPath(of: url), "/x/sessions/2026/09/29/rollout-2026-09-29T23-00-00-N1.jsonl")
+        XCTAssertEqual(CodingAgentCompressedTranscript.startBound(of: url), try utc("2026-09-28T00:00:00Z"))
+        XCTAssertEqual(CodingAgentCompressedTranscript.startBound(of: URL(fileURLWithPath: "/x/other.jsonl.zst")), .distantPast)
+        XCTAssertFalse(CodingAgentCompressedTranscript.isCompressed(URL(fileURLWithPath: "/x/notes.zst")))
+    }
+
     // MARK: - Scanner and bursts
 
     func testScannerDropsSessionsInsideExcludedFolders() throws {
@@ -753,6 +852,39 @@ final class CodingAgentSessionTests: XCTestCase {
         try FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try Data(text.utf8).write(to: url)
+        try FileManager.default.setAttributes(
+            [.creationDate: try utc(created), .modificationDate: try utc(modified)],
+            ofItemAtPath: url.path)
+    }
+
+    /// Writes `text` as zstd frames of uncompressed blocks, which is what
+    /// zstd writes for bytes it cannot shrink. Decoding real compression is
+    /// libzstd's own, tested upstream; these frames test the reader around it.
+    private func writeCompressed(_ text: String, to url: URL, created: String, modified: String) throws {
+        let data = Data(text.utf8)
+        let frameSize = 1 << 20
+        let blockSize = 1 << 16
+        var out = Data()
+        var frameStart = 0
+        repeat {
+            let frameEnd = min(frameStart + frameSize, data.count)
+            out.append(contentsOf: [0x28, 0xB5, 0x2F, 0xFD])  // magic number
+            out.append(0x00)  // no content size, checksum or dictionary
+            out.append(0x38)  // window: 128 KiB
+            var blockStart = frameStart
+            repeat {
+                let blockEnd = min(blockStart + blockSize, frameEnd)
+                // A raw block: size, type 0, and whether it is the frame's last.
+                let header = UInt32(blockEnd - blockStart) << 3 | (blockEnd == frameEnd ? 1 : 0)
+                out.append(contentsOf: [UInt8(header & 0xFF), UInt8(header >> 8 & 0xFF), UInt8(header >> 16 & 0xFF)])
+                out.append(data[blockStart..<blockEnd])
+                blockStart = blockEnd
+            } while blockStart < frameEnd
+            frameStart = frameEnd
+        } while frameStart < data.count
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try out.write(to: url)
         try FileManager.default.setAttributes(
             [.creationDate: try utc(created), .modificationDate: try utc(modified)],
             ofItemAtPath: url.path)

@@ -47,6 +47,10 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   out.push('');
   const coverage = coverageNote(stats);
   if (coverage.length > 0) out.push(...coverage.map((line) => paint.dim(`  ${line}`)), '');
+  const skipped = stats.sources?.compressedSkipped ?? 0;
+  if (skipped > 0) {
+    out.push(paint.dim(`  ${plural(skipped, 'compressed Codex log')} left out: reading them needs Node.js 22.15 or later.`), '');
+  }
 
   if (stats.agents.length > 0) {
     const nameWidth = Math.max(...stats.agents.map((agent) => agent.name.length));
@@ -77,12 +81,12 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
  * logs. Empty when the logs cover the year.
  */
 export function coverageNote(stats) {
-  const { loggedFrom, earlier } = stats.coverage;
+  const { claudeLoggedFrom: loggedFrom = null, earlier } = stats.coverage;
   const usesClaude = stats.agents.some((agent) => agent.id === 'claude-code') || earlier !== null;
   const startsLate = loggedFrom !== null && loggedFrom > `${stats.year}-01-31`;
   if (!usesClaude || (!earlier && !startsLate)) return [];
   const lines = [];
-  if (loggedFrom) lines.push(`The session logs on this computer go back to ${dayLabel(loggedFrom)}.`);
+  if (loggedFrom) lines.push(`Claude Code's session logs on this computer go back to ${dayLabel(loggedFrom)}.`);
   if (earlier) {
     lines.push(`Claude Code's own count adds ${plural(earlier.days, 'earlier day')} this year: ${plural(earlier.sessions, 'session')},`);
     lines.push(`${number(earlier.toolCalls)} tool calls. They are the marks under the picture.`);
