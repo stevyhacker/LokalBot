@@ -477,16 +477,17 @@ impl Core {
                 if kind == AppKind::Meet || host_pid == self.own_pid {
                     continue;
                 }
-                let expected = current
+                let active_room = current
                     .filter(|call| call.family == Some(document.family))
-                    .and_then(|call| call.meeting.meeting_url.as_deref())
-                    .or_else(|| required_room.as_ref().map(|room| room.url.as_str()));
+                    .and_then(|call| call.meeting.meeting_url.as_deref());
+                let expected =
+                    active_room.or_else(|| required_room.as_ref().map(|room| room.url.as_str()));
                 let read = browser::verdict(&evidence.documents, document.family, expected);
                 let matches_call = read == Verdict::InCall(Some(document.url.clone()));
-                #[cfg(windows)]
+                #[cfg(any(windows, test))]
                 let still_present =
-                    read == Verdict::Present && expected == Some(document.url.as_str());
-                #[cfg(not(windows))]
+                    read == Verdict::Present && active_room == Some(document.url.as_str());
+                #[cfg(not(any(windows, test)))]
                 let still_present = false;
                 if matches_call || still_present {
                     found.push(Candidate {
@@ -917,7 +918,6 @@ mod tests {
             assert_eq!(started.app_name, expected_name);
             assert_eq!(started.audio_pid, 1234);
             assert_eq!(started.meeting_url.as_deref(), Some(url));
-            #[cfg(windows)]
             {
                 evidence.documents[0].state = browser::CallState::Present;
                 assert!(
@@ -936,6 +936,25 @@ mod tests {
                 [DetectorEvent::Ended(_)]
             ));
         }
+    }
+
+    #[test]
+    fn a_stale_room_binding_cannot_start_a_calendar_recording() {
+        let t0 = Instant::now();
+        let mut core = Core::new(9999);
+        let url = "https://my.mts-link.ru/j/123/456";
+        core.calendar.require_for_browser = true;
+        core.calendar.meeting_url = Some(url.into());
+        let stale = Evidence {
+            documents: vec![BrowserDocument {
+                family: "chrome",
+                url: url.into(),
+                state: browser::CallState::Present,
+                host_pid: Some(1234),
+            }],
+            ..Evidence::default()
+        };
+        assert!(run(&mut core, t0, 0, 6, &stale).is_empty());
     }
 
     #[cfg(windows)]

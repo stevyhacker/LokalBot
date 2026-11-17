@@ -29,12 +29,26 @@ const QUIET_MAX_AGE: Duration = Duration::from_secs(30);
 pub(crate) enum CallState {
     InCall,
     /// The already verified call is still in this window.
-    #[cfg(windows)]
+    #[cfg(any(windows, test))]
     Present,
     Ended,
-    /// A room without call controls: the waiting room, or controls
-    /// that couldn't be read.
+    /// The service visibly offers to join the room.
+    WaitingRoom,
+    /// A room whose controls couldn't be read.
     Unavailable,
+}
+
+#[cfg(any(windows, test))]
+impl CallState {
+    /// A device dialog can hide the controls of an existing call. A visible
+    /// Join action instead shows that the participant is back in the lobby.
+    pub fn in_bound_window(self) -> Self {
+        match self {
+            Self::Unavailable => Self::Present,
+            Self::WaitingRoom => Self::Ended,
+            state => state,
+        }
+    }
 }
 
 /// One supported room document found in a window.
@@ -55,7 +69,7 @@ pub(crate) enum Verdict {
     /// Call controls are on screen, in the one document named when it is known.
     InCall(Option<String>),
     /// The room is still in its bound window, but its controls are hidden.
-    #[cfg(windows)]
+    #[cfg(any(windows, test))]
     Present,
     /// A meeting document is open without call controls.
     NotInCall,
@@ -160,8 +174,10 @@ fn document_state(
                 || disabled_buttons
                     .iter()
                     .any(|label| join.contains(&label.trim().to_lowercase().as_str()));
-            mic && !preview
-                && has(&["покинуть встречу", "leave the meeting", "leave meeting"])
+            if preview {
+                return CallState::WaitingRoom;
+            }
+            mic && has(&["покинуть встречу", "leave the meeting", "leave meeting"])
                 && has(&["участники", "поднять руку", "participants", "raise hand"])
         }
     };
@@ -174,7 +190,7 @@ fn document_state(
 
 /// Whether a nested Telemost document belongs to the verified room; other
 /// iframe controls must not be used to prove that the user joined.
-#[cfg(windows)]
+#[cfg(any(windows, test))]
 pub(crate) fn telemost_room_frame(room: &str, frame: &str) -> bool {
     let Some(code) = room.strip_prefix("https://telemost.yandex.ru/j/") else {
         return false;
@@ -244,10 +260,10 @@ pub(crate) fn verdict(
         return match same.as_slice() {
             [document] => match document.state {
                 CallState::InCall => Verdict::InCall(Some(document.url.clone())),
-                #[cfg(windows)]
+                #[cfg(any(windows, test))]
                 CallState::Present => Verdict::Present,
                 CallState::Ended => Verdict::Ended,
-                CallState::Unavailable => Verdict::NotInCall,
+                CallState::WaitingRoom | CallState::Unavailable => Verdict::NotInCall,
             },
             _ => Verdict::Unknown,
         };
@@ -290,7 +306,7 @@ impl DocumentLabels {
             .extend(label.filter(|label| label.chars().count() <= MAX_LABEL));
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, test))]
     pub fn add_disabled_button(&mut self, label: Option<String>) {
         self.disabled_buttons
             .extend(label.filter(|label| label.chars().count() <= MAX_LABEL));
@@ -316,6 +332,111 @@ impl DocumentLabels {
             state,
             host_pid: None,
         })
+    }
+}
+
+/// The controls of a Windows window arrive in document order from UIA.
+#[cfg(any(windows, test))]
+#[derive(Default)]
+pub(crate) struct WindowCall {
+    pub labels: Option<DocumentLabels>,
+    pub document_address: Option<String>,
+    pub document_title: Option<String>,
+    pub tabs: Vec<String>,
+    google: Vec<DocumentLabels>,
+    saw_document: bool,
+    in_room: bool,
+}
+
+#[cfg(any(windows, test))]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CallControl {
+    Button,
+    Link,
+    Text,
+}
+
+#[cfg(any(windows, test))]
+impl WindowCall {
+    pub fn tab(&mut self, title: Option<String>) {
+        if !self.saw_document
+            && let Some(title) = title.filter(|title| !title.trim().is_empty())
+        {
+            self.tabs.push(title);
+        }
+    }
+
+    pub fn document(&mut self, address: Option<String>, title: Option<String>, mts_desktop: bool) {
+        let room = address
+            .as_deref()
+            .and_then(meeting_room)
+            .filter(|room| !mts_desktop || room.service == MeetingService::MtsLink);
+        let room = match room {
+            Some(room) if room.service == MeetingService::GoogleMeet => {
+                self.google.push(DocumentLabels {
+                    url: Some(room.url),
+                    ..Default::default()
+                });
+                None
+            }
+            room => room,
+        };
+        let embedded_mts_room = mts_desktop && self.labels.is_none() && room.is_some();
+        if self.saw_document && !embedded_mts_room {
+            self.in_room = self
+                .labels
+                .as_ref()
+                .and_then(|labels| labels.url.as_deref())
+                .zip(address.as_deref())
+                .is_some_and(|(room, frame)| telemost_room_frame(room, frame));
+            return;
+        }
+        self.saw_document = true;
+        self.document_title = title;
+        self.document_address = address;
+        self.labels = room.map(|room| DocumentLabels {
+            url: Some(room.url),
+            ..Default::default()
+        });
+        self.in_room = self.labels.is_some();
+    }
+
+    pub fn control(
+        &mut self,
+        kind: CallControl,
+        label: Option<String>,
+        enabled: bool,
+        offscreen: bool,
+    ) {
+        // UIA's flat list cannot find the end of an unrelated frame. Keep
+        // attaching controls to the last Meet document, as before.
+        if let Some(meet) = self.google.last_mut() {
+            if kind == CallControl::Text {
+                meet.add_message(label.clone());
+            } else {
+                meet.add_button(label.clone());
+            }
+        }
+        if !self.in_room || offscreen {
+            return;
+        }
+        let Some(labels) = self.labels.as_mut() else {
+            return;
+        };
+        if kind == CallControl::Text {
+            labels.add_message(label);
+        } else if kind == CallControl::Button && !enabled {
+            labels.add_disabled_button(label);
+        } else if kind == CallControl::Button {
+            labels.add_button(label);
+        }
+    }
+
+    pub fn google_calls(&mut self, family: &'static str) -> Vec<BrowserDocument> {
+        self.google
+            .drain(..)
+            .filter_map(|labels| labels.into_document(family))
+            .collect()
     }
 }
 
@@ -385,7 +506,7 @@ mod tests {
         let join = labels(&["Присоединиться к встрече"]);
         assert_eq!(
             document_state(MeetingService::MtsLink, &mts_controls, &join, &[]),
-            CallState::Unavailable
+            CallState::WaitingRoom
         );
         assert_eq!(
             document_state(
@@ -394,12 +515,56 @@ mod tests {
                 &[],
                 &[]
             ),
-            CallState::Unavailable
+            CallState::WaitingRoom
         );
         assert_eq!(
             document_state(MeetingService::MtsLink, &mts_controls, &[], &[]),
             CallState::InCall
         );
+    }
+
+    #[test]
+    fn join_prompt_ends_only_the_already_bound_mts_room() {
+        let room = "https://my.mts-link.ru/j/123/456";
+        let lobby = document(room, CallState::WaitingRoom);
+        assert_eq!(
+            verdict(std::slice::from_ref(&lobby), "chrome", Some(room)),
+            Verdict::NotInCall
+        );
+        assert_eq!(CallState::Unavailable.in_bound_window(), CallState::Present);
+        let ended = BrowserDocument {
+            state: lobby.state.in_bound_window(),
+            ..lobby
+        };
+        assert_eq!(verdict(&[ended], "chrome", Some(room)), Verdict::Ended);
+    }
+
+    #[test]
+    fn meet_keeps_its_toolbar_after_an_unrelated_frame() {
+        let mut window = WindowCall::default();
+        window.tab(Some("Meet".into()));
+        window.control(
+            CallControl::Text,
+            Some("Browser settings".into()),
+            true,
+            false,
+        );
+        window.document(
+            Some("https://meet.google.com/abc-defg-hij".into()),
+            Some("Meet".into()),
+            false,
+        );
+        window.document(Some("https://example.org/frame".into()), None, false);
+        window.control(
+            CallControl::Button,
+            Some("Turn on microphone".into()),
+            false,
+            true,
+        );
+        window.control(CallControl::Link, Some("Leave call".into()), true, false);
+        assert_eq!(window.tabs, ["Meet"]);
+        let calls = window.google_calls("chrome");
+        assert!(matches!(calls.as_slice(), [call] if call.state == CallState::InCall));
     }
 
     #[cfg(windows)]

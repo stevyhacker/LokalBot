@@ -45,7 +45,9 @@ use super::{
     AccessibleWindow, FocusedWindow, MAX_CHARACTERS, MAX_CHILDREN, MAX_NODES, TextRead, TextReader,
     WindowRect, append_text,
 };
-use crate::meeting::browser::{self, BrowserDocument, CallState, DocumentLabels, QuietWindows};
+use crate::meeting::browser::{
+    self, BrowserDocument, CallControl, CallState, QuietWindows, WindowCall,
+};
 use lokalbot_core::calendar::{MeetingService, meeting_room};
 
 /// How long one call may wait on the target app (UIA waits 20 s by
@@ -279,9 +281,16 @@ fn read_window(
 /// UI Automation refuses requests for a moment while another thread of the
 /// process is still setting it up, so this tries for a few milliseconds.
 fn cache_request(automation: &IUIAutomation) -> windows::core::Result<IUIAutomationCacheRequest> {
+    cache_request_with(automation, &CACHED_PROPERTIES)
+}
+
+fn cache_request_with(
+    automation: &IUIAutomation,
+    properties: &[UIA_PROPERTY_ID],
+) -> windows::core::Result<IUIAutomationCacheRequest> {
     let started = Instant::now();
     loop {
-        match new_cache_request(automation) {
+        match new_cache_request(automation, properties) {
             Err(_) if started.elapsed() < Duration::from_millis(20) => std::thread::yield_now(),
             result => return result,
         }
@@ -290,13 +299,14 @@ fn cache_request(automation: &IUIAutomation) -> windows::core::Result<IUIAutomat
 
 fn new_cache_request(
     automation: &IUIAutomation,
+    properties: &[UIA_PROPERTY_ID],
 ) -> windows::core::Result<IUIAutomationCacheRequest> {
     // SAFETY: builds a request object in this process.
     unsafe {
         let request = automation.CreateCacheRequest()?;
         // Every element we are handed gets its properties, whatever its view.
         request.SetTreeFilter(&automation.RawViewCondition()?)?;
-        for property in CACHED_PROPERTIES {
+        for &property in properties {
             request.AddProperty(property)?;
         }
         Ok(request)
@@ -826,14 +836,21 @@ impl BrowserCallReader {
         }
     }
 
-    /// Reads the windows of processes named by `family_of`.
+    /// Reads windows with audio evidence and windows with a bound call.
     pub(crate) fn read(
         &mut self,
+        active_families: &HashSet<&'static str>,
         family_of: impl Fn(u32) -> Option<&'static str>,
     ) -> Vec<BrowserDocument> {
+        if active_families.is_empty() && self.bound.is_empty() {
+            return Vec::new();
+        }
         let windows = top_level_windows()
             .into_iter()
             .filter_map(|(hwnd, pid)| Some((hwnd, pid, family_of(pid)?)))
+            .filter(|(hwnd, _, family)| {
+                active_families.contains(family) || self.bound.contains_key(&(hwnd.0 as usize))
+            })
             .collect::<Vec<_>>();
         if windows.len() > browser::MAX_WINDOWS || (windows.is_empty() && self.bound.is_empty()) {
             return Vec::new();
@@ -842,7 +859,16 @@ impl BrowserCallReader {
         let Ok(automation) = self.reader.automation() else {
             return Vec::new();
         };
-        let Ok(cache) = call_cache_request(&automation) else {
+        let Ok(cache) = cache_request_with(
+            &automation,
+            &[
+                UIA_NamePropertyId,
+                UIA_ControlTypePropertyId,
+                UIA_IsEnabledPropertyId,
+                UIA_IsOffscreenPropertyId,
+                UIA_IsValuePatternAvailablePropertyId,
+            ],
+        ) else {
             return Vec::new();
         };
         let Ok(condition) = call_control_condition(&automation) else {
@@ -888,13 +914,17 @@ impl BrowserCallReader {
             else {
                 continue;
             };
-            let Some(window) = call_labels(&found, family == "mts-link") else {
+            let Some(mut window) = call_labels(&found, family == "mts-link") else {
                 continue;
             };
+            let google = window.google_calls(family);
+            let has_google = !google.is_empty();
+            documents.extend(google);
             let document = window
                 .labels
                 .and_then(|labels| labels.into_document(family));
-            self.quiet.record(&key, &title, document.is_none(), now);
+            self.quiet
+                .record(&key, &title, document.is_none() && !has_google, now);
             if let Some(mut document) = document {
                 document.host_pid = Some(pid);
                 if document.state == CallState::InCall
@@ -909,11 +939,11 @@ impl BrowserCallReader {
                             title,
                         },
                     );
-                } else if document.state == CallState::Unavailable
-                    && bound.is_some_and(|call| call.document.url == document.url)
-                {
-                    // A device dialog or transient read obscured the controls.
-                    document.state = CallState::Present;
+                } else if bound.is_some_and(|call| call.document.url == document.url) {
+                    document.state = document.state.in_bound_window();
+                    if document.state == CallState::Ended {
+                        self.bound.remove(&handle);
+                    }
                 }
                 documents.push(document);
             } else if let Some(call) = bound {
@@ -962,26 +992,6 @@ impl BrowserCallReader {
     }
 }
 
-fn call_cache_request(
-    automation: &IUIAutomation,
-) -> windows::core::Result<IUIAutomationCacheRequest> {
-    // SAFETY: builds a request object in this process.
-    unsafe {
-        let request = automation.CreateCacheRequest()?;
-        request.SetTreeFilter(&automation.RawViewCondition()?)?;
-        for property in [
-            UIA_NamePropertyId,
-            UIA_ControlTypePropertyId,
-            UIA_IsEnabledPropertyId,
-            UIA_IsOffscreenPropertyId,
-            UIA_IsValuePatternAvailablePropertyId,
-        ] {
-            request.AddProperty(property)?;
-        }
-        Ok(request)
-    }
-}
-
 /// Documents, controls and browser tabs, the only elements this check reads.
 fn call_control_condition(
     automation: &IUIAutomation,
@@ -1007,16 +1017,7 @@ fn call_control_condition(
     condition.ok_or_else(windows::core::Error::empty)
 }
 
-#[derive(Default)]
-struct WindowCall {
-    labels: Option<DocumentLabels>,
-    document_address: Option<String>,
-    document_title: Option<String>,
-    tabs: Vec<String>,
-}
-
-/// In a browser, a nested document must be the verified Telemost room's
-/// meeting frame. The MTS Link desktop client may embed its own room.
+/// Translates UI Automation's flat list into observations about the window.
 fn call_labels(found: &IUIAutomationElementArray, mts_desktop: bool) -> Option<WindowCall> {
     // SAFETY: reads the array's own length.
     let count = unsafe { found.Length() }.ok()? as usize;
@@ -1024,8 +1025,6 @@ fn call_labels(found: &IUIAutomationElementArray, mts_desktop: bool) -> Option<W
         return None;
     }
     let mut result = WindowCall::default();
-    let mut saw_document = false;
-    let mut in_room = false;
     for index in 0..count {
         // SAFETY: each index is inside the array, and properties are cached.
         let Ok(element) = (unsafe { found.GetElement(index as i32) }) else {
@@ -1033,60 +1032,26 @@ fn call_labels(found: &IUIAutomationElementArray, mts_desktop: bool) -> Option<W
         };
         let kind = unsafe { element.CachedControlType() }.ok()?;
         if kind == UIA_TabItemControlTypeId {
-            if !saw_document
-                && let Some(title) = cached_name(&element).filter(|title| !title.trim().is_empty())
-            {
-                result.tabs.push(title);
-            }
-            continue;
-        }
-        if kind == UIA_DocumentControlTypeId {
+            result.tab(cached_name(&element));
+        } else if kind == UIA_DocumentControlTypeId {
             let address = cached_flag(&element, UIA_IsValuePatternAvailablePropertyId)
                 .then(|| current_string(&element, UIA_ValueValuePropertyId))
                 .flatten();
-            let room = address
-                .as_deref()
-                .and_then(meeting_room)
-                .filter(|room| !mts_desktop || room.service == MeetingService::MtsLink);
-            let embedded_mts_room = mts_desktop && result.labels.is_none() && room.is_some();
-            if saw_document && !embedded_mts_room {
-                in_room = result
-                    .labels
-                    .as_ref()
-                    .and_then(|labels| labels.url.as_deref())
-                    .zip(address.as_deref())
-                    .is_some_and(|(room, frame)| browser::telemost_room_frame(room, frame));
-                continue;
-            }
-            saw_document = true;
-            result.document_title = cached_name(&element);
-            result.document_address = address;
-            result.labels = room.map(|room| DocumentLabels {
-                url: Some(room.url),
-                ..Default::default()
-            });
-            in_room = result.labels.is_some();
-            continue;
-        }
-        if !in_room || cached_flag(&element, UIA_IsOffscreenPropertyId) {
-            continue;
-        }
-        let Some(labels) = result.labels.as_mut() else {
-            continue;
-        };
-        let name = cached_name(&element);
-        if kind == UIA_TextControlTypeId {
-            labels.add_message(name);
-        } else if kind == UIA_ButtonControlTypeId && !cached_flag(&element, UIA_IsEnabledPropertyId)
-        {
-            labels.add_disabled_button(name);
-        } else if kind == UIA_ButtonControlTypeId
-            || labels
-                .url
-                .as_deref()
-                .is_some_and(|url| url.starts_with("https://meet.google.com/"))
-        {
-            labels.add_button(name);
+            result.document(address, cached_name(&element), mts_desktop);
+        } else {
+            let control = if kind == UIA_ButtonControlTypeId {
+                CallControl::Button
+            } else if kind == UIA_TextControlTypeId {
+                CallControl::Text
+            } else {
+                CallControl::Link
+            };
+            result.control(
+                control,
+                cached_name(&element),
+                cached_flag(&element, UIA_IsEnabledPropertyId),
+                cached_flag(&element, UIA_IsOffscreenPropertyId),
+            );
         }
     }
     Some(result)

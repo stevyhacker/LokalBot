@@ -2,12 +2,12 @@
 //! active microphone (`IAudioSessionManager2`), their executable and parent
 //! names from a ToolHelp snapshot, and browser window titles.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, S_OK};
 use windows::Win32::Media::Audio::{
     AudioSessionStateActive, DEVICE_STATE_ACTIVE, EDataFlow, IAudioSessionControl2,
-    IAudioSessionManager2, IMMDeviceEnumerator, MMDeviceEnumerator, eCapture,
+    IAudioSessionManager2, IMMDeviceEnumerator, MMDeviceEnumerator, eCapture, eRender,
 };
 use windows::Win32::System::Com::{
     CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize,
@@ -52,9 +52,25 @@ impl EvidenceSource for WasapiEvidence {
         } else {
             Vec::new()
         };
-        let documents = self
-            .calls
-            .read(|pid| document_family(&processes.get(&pid)?.name));
+        // Render sessions can identify a muted call without turning UI
+        // Automation on for idle browsers.
+        let rendering = active_session_pids(eRender)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|pid| stream_for(pid, &processes))
+            .collect::<Vec<_>>();
+        let active_families = capturing
+            .iter()
+            .chain(&rendering)
+            .filter_map(|stream| {
+                std::iter::once(stream.process_name.as_str())
+                    .chain(stream.ancestors.iter().map(String::as_str))
+                    .find_map(document_family)
+            })
+            .collect::<HashSet<_>>();
+        let documents = self.calls.read(&active_families, |pid| {
+            document_family(&processes.get(&pid)?.name)
+        });
         Ok(Evidence {
             capturing,
             windows,
