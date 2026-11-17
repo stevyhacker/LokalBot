@@ -17,7 +17,7 @@ export function defaultYear(now = new Date()) {
  * otherwise `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are honoured, then the
  * agents' default folders. `onProgress(agentName, done, total)` reports files.
  */
-export function wrapped({
+export async function wrapped({
   year = defaultYear(),
   env = process.env,
   home = os.homedir(),
@@ -30,7 +30,7 @@ export function wrapped({
   const claude = claudeDirs ?? claudeRoots(env, home);
   const codex = codexDir ?? codexRoot(env, home);
   readClaude(claude, collector, (done, total) => onProgress('Claude Code', done, total));
-  readCodex(codex, collector, (done, total) => onProgress('Codex', done, total));
+  await readCodex(codex, collector, (done, total) => onProgress('Codex', done, total));
   const result = computeStats(collector, { year, userName, summaryDays: readClaudeSummary(claude) });
   result.stats.sources.claude = claude;
   result.stats.sources.codex = codex;

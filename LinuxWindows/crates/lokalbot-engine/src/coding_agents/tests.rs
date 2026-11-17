@@ -829,3 +829,175 @@ fn a_windows_folder_rule_under_home_matches_its_sessions() {
     let sibling = text::standardized_path(r"C:\Users\Ana\Code\client-two", home);
     assert!(!text::is_inside(&sibling, &folder));
 }
+
+/// A Codex rollout with one request and its reply, at `at`.
+fn codex_rollout(id: &str, at: DateTime<Utc>) -> Vec<serde_json::Value> {
+    vec![
+        json!({"type": "session_meta", "timestamp": iso(at), "payload": {
+            "id": id, "cwd": "/home/me/GitHub/app", "source": "cli",
+        }}),
+        json!({"type": "response_item", "timestamp": iso(at), "payload": {
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": "Ship the night build"}],
+        }}),
+        json!({"type": "response_item", "timestamp": iso(at + Duration::seconds(30)), "payload": {
+            "type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "Shipped."}],
+        }}),
+    ]
+}
+
+/// `rollout-<local start>-<id>.jsonl`, as Codex names a rollout.
+fn rollout_name(id: &str, at: DateTime<Utc>) -> String {
+    format!(
+        "rollout-{}-{id}.jsonl",
+        at.with_timezone(&Local).format("%Y-%m-%dT%H-%M-%S")
+    )
+}
+
+/// Writes `lines` compressed, as Codex keeps a rollout it is done with, and
+/// returns the uncompressed size.
+fn write_compressed(path: &Path, lines: &[serde_json::Value]) -> u64 {
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let body: String = lines.iter().map(|line| format!("{line}\n")).collect();
+    fs::write(path, zstd::encode_all(body.as_bytes(), 3).unwrap()).unwrap();
+    body.len() as u64
+}
+
+#[test]
+fn compressed_codex_rollouts_are_read_like_plain_ones() {
+    let dir = tempfile::tempdir().unwrap();
+    let at = noon(2);
+    let name = rollout_name("thread-z", at);
+    let lines = codex_rollout("thread-z", at);
+    write_lines(
+        &dir.path()
+            .join("plain")
+            .join("sessions")
+            .join("x")
+            .join(&name),
+        &lines,
+    );
+    let size = write_compressed(
+        &dir.path()
+            .join("packed")
+            .join("sessions")
+            .join("x")
+            .join(format!("{name}.zst")),
+        &lines,
+    );
+    // Both files were created just now, so the window runs past now.
+    let (start, _) = local_day_bounds(local_day(at));
+    let end = Utc::now() + Duration::hours(1);
+    let expected = codex::CodexReader {
+        root: dir.path().join("plain"),
+    }
+    .transcripts(start, end, None);
+    let reader = codex::CodexReader {
+        root: dir.path().join("packed"),
+    };
+    let cache = ParseCache::default();
+
+    let first = reader.transcripts(start, end, Some(&cache));
+    let again = reader.transcripts(start, end, Some(&cache));
+
+    assert_eq!(expected.transcripts.len(), 1, "{expected:?}");
+    assert_eq!(first.transcripts, expected.transcripts);
+    assert_eq!((first.files_read, first.bytes_read), (1, size));
+    assert!(first.unreadable_files.is_empty());
+    assert_eq!(again.transcripts, expected.transcripts);
+    assert_eq!(
+        again.files_read, 0,
+        "an unchanged compressed rollout is not decompressed again"
+    );
+}
+
+#[test]
+fn a_compressed_rollout_counts_on_the_day_it_began() {
+    // Compressing gives the file a creation time after its session began:
+    // here, now, two days after the work it holds.
+    let dir = tempfile::tempdir().unwrap();
+    let at = noon(2);
+    let root = dir.path().join("codex");
+    write_compressed(
+        &root
+            .join("sessions")
+            .join("x")
+            .join(format!("{}.zst", rollout_name("thread-n", at))),
+        &codex_rollout("thread-n", at),
+    );
+    let (start, end) = local_day_bounds(local_day(at));
+
+    let read = codex::CodexReader { root }.transcripts(start, end, None);
+
+    assert_eq!(read.transcripts.len(), 1, "{read:?}");
+    assert_eq!(read.transcripts[0].session_id, "thread-n");
+}
+
+#[test]
+fn a_rollout_kept_plain_and_compressed_is_read_once_from_the_newer_copy() {
+    let dir = tempfile::tempdir().unwrap();
+    let at = noon(1);
+    let root = dir.path().join("codex");
+    let plain = root
+        .join("sessions")
+        .join("x")
+        .join(rollout_name("thread-d", at));
+    let lines = codex_rollout("thread-d", at);
+    write_lines(&plain, &lines);
+    let packed = PathBuf::from(format!("{}.zst", plain.display()));
+    write_compressed(&packed, &lines[..1]);
+    fs::File::options()
+        .write(true)
+        .open(&packed)
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(600))
+        .unwrap();
+    let (start, _) = local_day_bounds(local_day(at));
+
+    let read =
+        codex::CodexReader { root }.transcripts(start, Utc::now() + Duration::hours(1), None);
+
+    assert_eq!(read.files_read, 1);
+    assert_eq!(read.bytes_read, fs::metadata(&plain).unwrap().len());
+    assert_eq!(read.transcripts.len(), 1);
+}
+
+#[test]
+fn a_compressed_rollout_cut_off_inside_a_frame_is_unreadable() {
+    let dir = tempfile::tempdir().unwrap();
+    let at = noon(1);
+    let root = dir.path().join("codex");
+    let packed = root
+        .join("sessions")
+        .join("x")
+        .join(format!("{}.zst", rollout_name("thread-c", at)));
+    write_compressed(&packed, &codex_rollout("thread-c", at));
+    let bytes = fs::read(&packed).unwrap();
+    fs::write(&packed, &bytes[..bytes.len() - 8]).unwrap();
+    let (start, _) = local_day_bounds(local_day(at));
+
+    let read =
+        codex::CodexReader { root }.transcripts(start, Utc::now() + Duration::hours(1), None);
+
+    assert_eq!(read.unreadable_files, vec![packed.display().to_string()]);
+    assert!(read.transcripts.is_empty());
+}
+
+#[test]
+fn compressed_rollouts_are_named_by_their_plain_path_and_start_day() {
+    let path = Path::new("/x/rollout-2026-09-29T23-00-00-n1.jsonl.zst");
+    assert!(cache::is_compressed(path));
+    assert_eq!(
+        cache::plain_path(path),
+        Path::new("/x/rollout-2026-09-29T23-00-00-n1.jsonl")
+    );
+    assert_eq!(
+        DateTime::<Utc>::from(cache::start_bound(path)),
+        Utc.with_ymd_and_hms(2026, 9, 28, 0, 0, 0).unwrap()
+    );
+    assert_eq!(
+        cache::start_bound(Path::new("/x/other.jsonl.zst")),
+        std::time::SystemTime::UNIX_EPOCH
+    );
+    assert!(!cache::is_compressed(Path::new("/x/notes.zst")));
+    assert!(!cache::is_compressed(Path::new("/x/rollout.jsonl")));
+}

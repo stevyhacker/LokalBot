@@ -18,7 +18,7 @@ Claude Code and Codex each keep a log of every session on your computer. This co
 
 - It makes no network requests. The package has no dependencies, and the source is about 2,200 lines you can read in [`src/`](src).
 - It counts what you and the agents wrote, and when. It never keeps or prints the text itself.
-- It reads Claude Code's session logs in `~/.claude/projects` and `~/.config/claude/projects`, and Codex's in `~/.codex/sessions` and `~/.codex/archived_sessions`, or wherever `CLAUDE_CONFIG_DIR` and `CODEX_HOME` point. Beside Claude Code's logs it also reads `stats-cache.json`, the per-day counts Claude Code keeps after it deletes old logs. It never opens credentials or settings.
+- It reads Claude Code's session logs in `~/.claude/projects` and `~/.config/claude/projects`, and Codex's in `~/.codex/sessions` and `~/.codex/archived_sessions`, or wherever `CLAUDE_CONFIG_DIR` and `CODEX_HOME` point. Codex compresses its older logs (`.jsonl.zst`); those are read too. Beside Claude Code's logs it also reads `stats-cache.json`, the per-day counts Claude Code keeps after it deletes old logs. It never opens credentials or settings.
 - The image leaves your project names out unless you pass `--projects`. The terminal card shows them, since that is your own screen.
 
 ## What the figures mean
@@ -62,7 +62,7 @@ Codex keeps its logs.
 --no-color          Plain text.
 ```
 
-Needs Node.js 20 or later. Tested on macOS, Linux and Windows.
+Needs Node.js 20 or later. Codex's compressed logs need Node.js 22.15 or later; with an older Node.js the card says how many it left out. Tested on macOS, Linux and Windows.
 
 ## Where it comes from
 

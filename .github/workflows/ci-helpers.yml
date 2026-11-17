@@ -1,0 +1,60 @@
+# CI helper and release-metadata checks.
+#
+# The Python tests for Scripts/, the release metadata preflight, shell syntax and
+# the capture recordings run on Linux, so they don't wait for or take one of
+# the account's few concurrent macOS runners. The few helper tests that need
+# macOS tools skip here and run in Build's unit-test job.
+#
+# This used to be the XcodeGen gate on macOS. Build's `xcodebuild (macOS)` job
+# runs `xcodegen generate` on every change that could alter project.yml, so an
+# invalid project.yml still fails a required check.
+
+name: CI helpers
+
+on:
+  pull_request:
+    branches: [master, dev]
+  push:
+    branches: [master, dev]
+    # A website or docs push has nothing to check here, and starting a run would
+    # cancel the CI helpers run of a release candidate that is still validating.
+    # Mirrors DOCS_ONLY in Scripts/ci/build-relevance.py; a test keeps them equal.
+    paths-ignore:
+      - "Docs/**"
+      - "Website/**"
+      - "Video/**"
+      - "Assets/**"
+      - "Distribution/**"
+      - "wrangler.jsonc"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - "README.md"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONTEXT.md"
+      - "DEVELOPMENT.md"
+      - "RELEASING.md"
+      - "SECURITY.md"
+      - "SUPPORT.md"
+
+concurrency:
+  group: ci-helpers-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  helpers:
+    name: CI helpers and release metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify CI helpers and release metadata
+        run: |
+          python3 -m unittest discover -s Scripts/tests -v
+          python3 Scripts/release/release-preflight.py --metadata-only
+          bash -n Scripts/test/ui-tests.sh Scripts/release/prepare-release.sh Scripts/ci/fetch-bun.sh
+          python3 Scripts/ci/check-capture-recordings.py LokalBotTests/Fixtures/capture-traces LokalBotUITests/Fixtures/background/capture-traces

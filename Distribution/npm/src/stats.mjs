@@ -28,16 +28,18 @@ export function yearWindow(year) {
  * safe to print as JSON. `grid` holds agent milliseconds for every hour of
  * every day, for drawing.
  *
- * `summaryDays` maps a date to the counts an agent kept for a day whose logs
- * it has since deleted. Those days have no hours, so they stay out of every
- * figure taken from the logs; they are reported on their own under
+ * `summaryDays` maps a date to the counts Claude Code kept for a day whose
+ * logs it has since deleted. Those counts have no hours, so they stay out of
+ * every figure taken from the logs; they are reported on their own under
  * `coverage`, extend the streak, and come back in `earlierDays` (tool calls
- * per day of the year) for drawing.
+ * per day of the year) for drawing. A day another agent's logs cover still
+ * gets Claude Code's count: only Claude Code's own logs replace it.
  */
 export function computeStats(collector, { year, userName = '', generatedAt = new Date(), summaryDays = new Map() } = {}) {
   const calendar = newCalendar(year);
   const grid = new Float64Array(calendar.days * 24);
   const dayTouched = new Uint8Array(calendar.days);
+  const claudeDays = new Uint8Array(calendar.days);
   const sessionsOnDay = new Uint32Array(calendar.days);
   const runs = [];
   const projects = new Map();
@@ -83,7 +85,8 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
       totals.sessions += 1;
     }
 
-    const sessionMs = addSessionTime(session, { calendar, grid, dayTouched, sessionsOnDay, runs });
+    const agentDays = session.agent === 'claude-code' ? claudeDays : null;
+    const sessionMs = addSessionTime(session, { calendar, grid, dayTouched, agentDays, sessionsOnDay, runs });
     agent.agentMs += sessionMs;
     totals.agentMs += sessionMs;
     creditProjects(session, sessionMs, projects, userName);
@@ -110,11 +113,13 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
   const earlierDays = new Float64Array(calendar.days);
   const earlier = { days: 0, sessions: 0, toolCalls: 0, from: null };
   const anyDay = Uint8Array.from(dayTouched);
+  let countedOnly = 0;
   for (const [date, counts] of [...summaryDays.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
     const [summaryYear, month, dayOfMonth] = date.split('-').map(Number);
     if (summaryYear !== year) continue;
     const day = calendar.dayOf(new Date(year, month - 1, dayOfMonth, 12).getTime());
-    if (dayTouched[day] || anyDay[day] || counts.sessions + counts.toolCalls === 0) continue;
+    if (claudeDays[day] || earlierDays[day] > 0 || counts.sessions + counts.toolCalls === 0) continue;
+    if (!anyDay[day]) countedOnly += 1;
     anyDay[day] = 1;
     // A day with sessions but no tool calls still gets a mark.
     earlierDays[day] = Math.max(1, counts.toolCalls);
@@ -124,6 +129,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     earlier.from ??= date;
   }
   const firstLogged = dayTouched.indexOf(1);
+  const firstClaudeLogged = claudeDays.indexOf(1);
 
   const agentList = [...agents.values()]
     .filter((agent) => agent.sessions > 0 || agent.tokens.input + agent.tokens.output > 0)
@@ -152,8 +158,9 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     totals: roundMs(totals),
     coverage: {
       loggedFrom: firstLogged === -1 ? null : calendar.date(firstLogged),
+      claudeLoggedFrom: firstClaudeLogged === -1 ? null : calendar.date(firstClaudeLogged),
       earlier: earlier.days > 0 ? earlier : null,
-      daysWithAnAgent: totals.activeDays + earlier.days,
+      daysWithAnAgent: totals.activeDays + countedOnly,
     },
     streak: longestStreak(anyDay, calendar),
     busiestDay: busiestDay(byDay, sessionsOnDay, calendar),
@@ -171,6 +178,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
       filesRead: collector.filesRead,
       bytesRead: collector.bytesRead,
       unreadableFiles: collector.unreadableFiles,
+      compressedSkipped: collector.compressedSkipped,
     },
   };
   stats.persona = persona(stats);
@@ -227,7 +235,7 @@ export function newCalendar(year) {
 }
 
 /** Adds one session's work to the grid and its runs to `runs`. Returns its agent milliseconds. */
-function addSessionTime(session, { calendar, grid, dayTouched, sessionsOnDay, runs }) {
+function addSessionTime(session, { calendar, grid, dayTouched, agentDays, sessionsOnDay, runs }) {
   if (session.times.length === 0) return 0;
   const times = Float64Array.from(session.times).sort();
   let total = 0;
@@ -243,6 +251,7 @@ function addSessionTime(session, { calendar, grid, dayTouched, sessionsOnDay, ru
     const day = (cell - (cell % 24)) / 24;
     if (day !== lastDay) {
       dayTouched[day] = 1;
+      if (agentDays) agentDays[day] = 1;
       sessionsOnDay[day] += 1;
       lastDay = day;
     }

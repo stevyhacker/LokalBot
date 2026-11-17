@@ -23,6 +23,7 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | EventSource | MIT | https://github.com/mattt/EventSource |
 | yyjson | MIT | https://github.com/ibireme/yyjson |
 | llama.cpp | MIT | https://github.com/ggml-org/llama.cpp |
+| Zstandard (`libzstd`, reads Codex's compressed session logs; dual-licensed, used under BSD) | BSD-3-Clause | https://github.com/facebook/zstd |
 | DigUpKit (DigUp's file crawler, readers, index and search, used by Files; image sizing ported to Swift in LokalBot) | MIT | https://github.com/ARahim3/DigUp |
 | sherpa-onnx | Apache-2.0 | https://github.com/k2-fsa/sherpa-onnx |
 | ONNX Runtime | MIT | https://github.com/microsoft/onnxruntime |

@@ -104,7 +104,7 @@ python3 Scripts/release/bump-version.py 1.0.0 100
 - `CFBundleShortVersionString`, the workspace version and `versionName` → marketing version, e.g. `1.0.0`
 - `CFBundleVersion` and `versionCode` → build number, e.g. `100` (monotonic; Sparkle and Android compare this)
 
-`release-preflight.py` (also in every XcodeGen CI run) fails when any of these
+`release-preflight.py` (also in every CI helpers run) fails when any of these
 disagree, or when the Linux/Windows update key differs from `SUPublicEDKey`.
 Then regenerate the project:
 
@@ -211,7 +211,7 @@ artifacts from the preceding attempt. UI Tests runs on pull requests that are
 ready for review, weekly on `master`, and for a release candidate that its
 merged pull request's run doesn't cover, when `Scripts/release/prepare-release.sh`
 dispatches it with the candidate's SHA; it no longer runs on every `master`
-push. Lint runs on every push, and Build and XcodeGen on every push except one
+push. Lint runs on every push, and Build and CI helpers on every push except one
 of only docs, the website and the scripts that generate it, assets, video or
 distribution notes (`DOCS_ONLY` in `Scripts/ci/build-relevance.py`, mirrored by
 their `paths-ignore`). Build also skips its macOS jobs on pull requests that
@@ -232,7 +232,7 @@ publishes no release. When the candidate is the merge of a pull request whose
 full UI run tested the candidate's exact tree (`release-candidate.py
 ui-covered`), that run is the UI gate; otherwise the script also dispatches the
 full UI Tests suite for the candidate's exact SHA. Wait for preparation, any
-UI Tests run it dispatched and the Build, Lint and XcodeGen push runs on the
+UI Tests run it dispatched and the Build, Lint and CI helpers push runs on the
 exact commit before creating the release tag. Merge the release pull request
 only once it contains the current `master`, so that its run covers the merge.
 
@@ -241,7 +241,7 @@ already landed after the candidate, the script can't prepare the archive or
 dispatch UI Tests for it: it succeeds when the merged pull request's run covers
 the candidate, and the tag run then builds the archive itself. Without that
 coverage, it refuses, and the release needs a new candidate. The script also
-refuses a commit that changes only `DOCS_ONLY` paths, because Build and XcodeGen
+refuses a commit that changes only `DOCS_ONLY` paths, because Build and CI helpers
 never run on one.
 
 Build and unit execution are separate jobs in `build.yml`, sharing one compile.
@@ -258,7 +258,7 @@ from outside those paths, or a file list GitHub cuts short (300 files) refuses
 the tag, and the release then needs a new candidate.
 
 Release also verifies successful **push** runs for Build (both jobs), Lint and
-XcodeGen, and a successful UI Tests run on that exact SHA, either a push run or the
+CI helpers, and a successful UI Tests run on that exact SHA, either a push run or the
 exact-SHA dispatch from `prepare-release.sh`; only a full run reports
 `XCUITest (macOS)`. When no UI Tests run exists on that SHA, the merged pull
 request's newest run counts instead, if the candidate merges a pull request
