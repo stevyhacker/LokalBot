@@ -79,6 +79,9 @@ final class CodingAgentParseCache: @unchecked Sendable {
         cache: CodingAgentParseCache?,
         empty: () -> Summary
     ) throws -> (summary: Summary, bytesRead: Int?) {
+        if CodingAgentCompressedTranscript.isCompressed(file.url) {
+            return try compressedSummary(of: file, from: start, cache: cache, empty: empty)
+        }
         let path = file.url.path
         var state: CodingAgentFileState<Summary>? = cache?.state(for: path)
         if let cached = state,
@@ -130,6 +133,39 @@ final class CodingAgentParseCache: @unchecked Sendable {
                 retainingFrom: current.retainedFrom)
         }
         return (summary, data.count - resumeAt)
+    }
+
+    /// A compressed transcript is one Codex has finished with, so nothing is
+    /// appended to it: it is read whole when it is new or changed, and its
+    /// summary is reused while its size and modification date stay the same.
+    /// Its state's `size` and `offset` are both the compressed size.
+    private static func compressedSummary<Summary: CodingAgentFileSummary>(
+        of file: CodingAgentCandidateFile,
+        from start: Date,
+        cache: CodingAgentParseCache?,
+        empty: () -> Summary
+    ) throws -> (summary: Summary, bytesRead: Int?) {
+        let path = file.url.path
+        if var cached: CodingAgentFileState<Summary> = cache?.state(for: path),
+           cached.retainedFrom <= start, cached.created == file.created, cached.timeZone == .current,
+           cached.size == file.size, cached.modified == file.modified {
+            if cached.retainedFrom < start {
+                cached.summary.trim(before: start)
+                cached.retainedFrom = start
+                cache?.store(cached, for: path)
+            }
+            return (cached.summary, nil)
+        }
+        var summary = empty()
+        let bytes = try CodingAgentCompressedTranscript.forEachBatch(of: file.url) {
+            summary.consume($0, retainingFrom: start)
+        }
+        cache?.store(
+            CodingAgentFileState(
+                created: file.created, modified: file.modified, size: file.size, offset: file.size,
+                boundary: 0, retainedFrom: start, timeZone: .current, summary: summary),
+            for: path)
+        return (summary, bytes)
     }
 
     private static func offset(_ distance: Int, in data: Data) -> Data.Index {

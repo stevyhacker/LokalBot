@@ -1,7 +1,8 @@
 import Foundation
 
 /// Reads Codex rollouts from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` and
-/// `~/.codex/archived_sessions/`.
+/// `~/.codex/archived_sessions/`. Codex compresses rollouts it is done with
+/// to `*.jsonl.zst`, which are read too.
 ///
 /// A rollout stays in the folder of the day it started even when it is
 /// resumed weeks later, so files are selected by modification date rather
@@ -33,7 +34,8 @@ struct CodexSessionReader: CodingAgentSessionReader {
                 options: [.skipsHiddenFiles])
             return (enumerator?.allObjects as? [URL]) ?? []
         }
-        let candidates = Self.candidateFiles(files, in: interval).sorted { $0.url.path < $1.url.path }
+        let candidates = Self.newestCopies(Self.candidateFiles(files, in: interval, compressedRollouts: true))
+            .sorted { $0.url.path < $1.url.path }
         var selected: Set<String> = []
         for candidate in candidates {
             selected.insert(candidate.url.path)
@@ -60,6 +62,18 @@ struct CodexSessionReader: CodingAgentSessionReader {
             }
         }
         return result
+    }
+
+    /// One file per rollout: a rollout kept both plain and compressed is read
+    /// from the copy written last. Reading both would count its work twice.
+    static func newestCopies(_ files: [CodingAgentCandidateFile]) -> [CodingAgentCandidateFile] {
+        var chosen: [String: CodingAgentCandidateFile] = [:]
+        for file in files {
+            let key = CodingAgentCompressedTranscript.plainPath(of: file.url)
+            if let other = chosen[key], other.modified >= file.modified { continue }
+            chosen[key] = file
+        }
+        return Array(chosen.values)
     }
 
     /// Thread names by id; later lines are renames and win.

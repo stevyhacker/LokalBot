@@ -25,19 +25,24 @@ extension CodingAgentSessionReader {
 
     /// Transcript files that may hold activity inside `interval`: written
     /// since it began, and created before it ended. Skipping by metadata
-    /// keeps multi-gigabyte archives out of every scan.
+    /// keeps multi-gigabyte archives out of every scan. `compressedRollouts`
+    /// also takes Codex's compressed rollouts, `*.jsonl.zst`.
     static func candidateFiles(
-        _ urls: [URL], in interval: DateInterval
+        _ urls: [URL], in interval: DateInterval, compressedRollouts: Bool = false
     ) -> [CodingAgentCandidateFile] {
         urls.compactMap { url in
-            guard url.pathExtension == "jsonl",
+            let compressed = compressedRollouts && CodingAgentCompressedTranscript.isCompressed(url)
+            guard url.pathExtension == "jsonl" || compressed,
                   let values = try? url.resourceValues(forKeys: [
                       .contentModificationDateKey, .creationDateKey, .fileSizeKey, .isRegularFileKey,
                   ]),
                   values.isRegularFile == true,
                   let modified = values.contentModificationDate, modified >= interval.start
             else { return nil }
-            let created = values.creationDate ?? modified
+            // A compressed file was created when it was compressed, after its session began.
+            let created = compressed
+                ? min(CodingAgentCompressedTranscript.startBound(of: url), modified)
+                : values.creationDate ?? modified
             guard created < interval.end else { return nil }
             return CodingAgentCandidateFile(
                 url: url, created: created, modified: modified, size: values.fileSize ?? 0)

@@ -54,6 +54,12 @@ packages:
   # `xcodegen generate` and the first build (DEVELOPMENT.md, every workflow).
   LokalBotSync:
     path: Vendor/lokalbot-sync
+  # Reads Codex's compressed session logs (`*.jsonl.zst`) for the timeline.
+  # macOS ships no zstd decoder: the system libarchive hands zstd to an
+  # external `zstd` program.
+  zstd:
+    url: https://github.com/facebook/zstd
+    exactVersion: 1.5.7
 
 # Shared application body. Both `LokalBot` (prod) and `LokalBot Dev` build the
 # SAME sources from this template and differ only in identity-bearing settings
@@ -141,6 +147,8 @@ targetTemplates:
         product: DigUpKit
       - package: LokalBotSync
         product: LokalBotSync
+      - package: zstd
+        product: libzstd
       # Embed the self-contained CLI into Contents/Helpers/ and code-sign it
       # on copy (hardened runtime during a notarised archive). It's a target
       # dependency so it's built first; `link: false` because a tool is

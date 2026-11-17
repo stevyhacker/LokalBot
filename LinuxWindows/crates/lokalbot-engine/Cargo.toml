@@ -28,6 +28,8 @@ regex.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+# Codex compresses the session logs it is done with (`*.jsonl.zst`).
+zstd = { version = "0.13", default-features = false }
 # Screen images are kept as JPEG inside their sealed files.
 # Files reads pictures in these formats too; PNG is how the image model takes them.
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "bmp", "tiff", "webp", "tga", "pnm"] }

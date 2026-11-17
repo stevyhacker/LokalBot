@@ -58,20 +58,60 @@ pub struct CandidateFile {
     pub size: u64,
 }
 
+/// Codex compresses rollouts it is done with to `<name>.jsonl.zst`.
+pub fn is_compressed(path: &Path) -> bool {
+    path.extension().is_some_and(|extension| extension == "zst")
+        && path.file_stem().is_some_and(|stem| {
+            Path::new(stem)
+                .extension()
+                .is_some_and(|inner| inner == "jsonl")
+        })
+}
+
+/// The path a transcript has uncompressed, which names it either way.
+pub fn plain_path(path: &Path) -> PathBuf {
+    if is_compressed(path) {
+        path.with_extension("")
+    } else {
+        path.to_path_buf()
+    }
+}
+
+/// A time no later than a compressed rollout's first record. Compressing gives
+/// the file a new creation time, the time it was last written, so the start
+/// comes from its name, `rollout-2026-10-19T08-23-26-<id>.jsonl.zst`. The name
+/// is in the local time where Codex ran, so a day before its date covers every
+/// zone.
+pub fn start_bound(path: &Path) -> SystemTime {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_prefix("rollout-"))
+        .and_then(|rest| rest.get(..10))
+        .and_then(|day| chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").ok())
+        .and_then(|date| date.pred_opt())
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|time| SystemTime::from(time.and_utc()))
+        .unwrap_or(SystemTime::UNIX_EPOCH)
+}
+
 /// Transcript files that may hold activity inside the window: written since it
 /// began, and created before it ended. Skipping by metadata keeps
-/// multi-gigabyte archives out of every scan.
+/// multi-gigabyte archives out of every scan. `compressed_rollouts` also takes
+/// Codex's compressed rollouts, `*.jsonl.zst`.
 pub fn candidate_files(
     paths: impl IntoIterator<Item = PathBuf>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
+    compressed_rollouts: bool,
 ) -> Vec<CandidateFile> {
     paths
         .into_iter()
         .filter_map(|path| {
-            if path
-                .extension()
-                .is_none_or(|extension| extension != "jsonl")
+            let compressed = compressed_rollouts && is_compressed(&path);
+            if !compressed
+                && path
+                    .extension()
+                    .is_none_or(|extension| extension != "jsonl")
             {
                 return None;
             }
@@ -84,7 +124,13 @@ pub fn candidate_files(
             if DateTime::<Utc>::from(modified) < start {
                 return None;
             }
-            let created = metadata.created().unwrap_or(modified);
+            // A compressed file was created when it was compressed, after its
+            // session began.
+            let created = if compressed {
+                start_bound(&path).min(modified)
+            } else {
+                metadata.created().unwrap_or(modified)
+            };
             if DateTime::<Utc>::from(created) >= end {
                 return None;
             }
@@ -176,6 +222,9 @@ pub fn summary_of<S: FileSummary>(
     cache: Option<&ParseCache>,
     empty: impl FnOnce() -> S,
 ) -> std::io::Result<(S, Option<u64>)> {
+    if is_compressed(&file.path) {
+        return compressed_summary_of(file, start, cache, empty);
+    }
     let path = file.path.as_path();
     let mut state: Option<FileState<S>> =
         cache
@@ -264,6 +313,78 @@ pub fn summary_of<S: FileSummary>(
         // The last line has no newline yet: read it for this scan only.
         summary.consume(Line(&unfinished), current.retained_from);
         summary.finish();
+    }
+    Ok((summary, Some(bytes_read)))
+}
+
+/// A compressed transcript is one Codex has finished with, so nothing is
+/// appended to it: it is read whole when it is new or changed, and its summary
+/// is reused while its size and modification time stay the same. Its state's
+/// `size` and `offset` are both the compressed size.
+fn compressed_summary_of<S: FileSummary>(
+    file: &CandidateFile,
+    start: DateTime<Utc>,
+    cache: Option<&ParseCache>,
+    empty: impl FnOnce() -> S,
+) -> std::io::Result<(S, Option<u64>)> {
+    let path = file.path.as_path();
+    let cached = cache
+        .and_then(|cache| cache.state(path))
+        .filter(|cached: &FileState<S>| {
+            cached.retained_from <= start
+                && cached.created == file.created
+                && cached.utc_offset == current_utc_offset()
+                && cached.size == file.size
+                && cached.modified == file.modified
+        });
+    if let Some(mut cached) = cached {
+        if cached.retained_from < start {
+            cached.summary.trim(start);
+            cached.retained_from = start;
+            if let Some(cache) = cache {
+                cache.store(path, cached.clone());
+            }
+        }
+        return Ok((cached.summary, None));
+    }
+    // The decoder reads frame after frame, and fails on a file that ends
+    // inside one.
+    let decoder = zstd::stream::read::Decoder::new(File::open(path)?)?;
+    let mut reader = BufReader::with_capacity(256 * 1024, decoder);
+    let mut summary = empty();
+    let mut line = Vec::new();
+    let mut bytes_read = 0;
+    let mut consumed = false;
+    loop {
+        line.clear();
+        let count = reader.read_until(b'\n', &mut line)?;
+        if count == 0 {
+            break;
+        }
+        bytes_read += count as u64;
+        let content = line.strip_suffix(b"\n").unwrap_or(&line);
+        if !content.is_empty() {
+            summary.consume(Line(content), start);
+            consumed = true;
+        }
+    }
+    if consumed {
+        summary.finish();
+    }
+    if let Some(cache) = cache {
+        cache.store(
+            path,
+            FileState {
+                created: file.created,
+                modified: file.modified,
+                size: file.size,
+                offset: file.size,
+                boundary: Vec::new(),
+                retained_from: start,
+                utc_offset: current_utc_offset(),
+                summary: summary.clone(),
+            },
+        );
     }
     Ok((summary, Some(bytes_read)))
 }
