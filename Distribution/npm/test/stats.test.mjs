@@ -97,6 +97,7 @@ test('days an agent only counted extend the streak and nothing else', () => {
   const { stats, earlierDays, calendar } = computeStats(data, { year: YEAR, summaryDays });
   assert.deepEqual(stats.coverage, {
     loggedFrom: `${YEAR}-06-05`,
+    claudeLoggedFrom: `${YEAR}-06-05`,
     earlier: { days: 2, sessions: 3, toolCalls: 50, from: `${YEAR}-06-03` },
     daysWithAnAgent: 3,
   });
@@ -106,6 +107,23 @@ test('days an agent only counted extend the streak and nothing else', () => {
   assert.equal(stats.totals.activeDays, 1);
   assert.equal(earlierDays[calendar.dayOf(Date.parse(at(6, 3)))], 40);
   assert.equal(earlierDays[calendar.dayOf(Date.parse(at(6, 5)))], 0);
+});
+
+test('a day Codex logged still gets the count Claude Code kept for it', () => {
+  const data = collector();
+  work(data, 'codex', 'c', at(2, 3, 10, 0), 30, { toolCalls: 7 });
+  work(data, 'claude-code', 'a', at(6, 5, 10, 0), 30, { toolCalls: 12 });
+  const summaryDays = new Map([[`${YEAR}-02-03`, { sessions: 2, toolCalls: 40 }]]);
+  const { stats, earlierDays, calendar } = computeStats(data, { year: YEAR, summaryDays });
+  assert.deepEqual(stats.coverage, {
+    loggedFrom: `${YEAR}-02-03`,
+    claudeLoggedFrom: `${YEAR}-06-05`,
+    earlier: { days: 1, sessions: 2, toolCalls: 40, from: `${YEAR}-02-03` },
+    // Feb 3 is one day, though both agents worked on it.
+    daysWithAnAgent: 2,
+  });
+  assert.equal(stats.totals.toolCalls, 19);
+  assert.equal(earlierDays[calendar.dayOf(Date.parse(at(2, 3)))], 40);
 });
 
 test('a helper thread adds tokens and tool calls but no session or hours', () => {

@@ -104,7 +104,7 @@ async function main() {
   const progress = progressLine(process.stderr.isTTY && !values.json);
   const result = values.demo
     ? demoYear(year)
-    : wrapped({
+    : await wrapped({
       year,
       claudeDirs: values['claude-dir'] ? [values['claude-dir']] : undefined,
       codexDir: values['codex-dir'],

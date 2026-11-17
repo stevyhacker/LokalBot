@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import zlib from 'node:zlib';
 
-import { forEachLine } from '../src/lines.mjs';
+import { canReadZstd, forEachLine, forEachLineAsync } from '../src/lines.mjs';
 import { temporaryFolder } from './helpers.mjs';
 
 function read(file, options) {
@@ -32,4 +33,32 @@ test('a line over the limit is skipped and the lines after it are kept', (t) => 
   const file = path.join(temporaryFolder(t), 'log.jsonl');
   fs.writeFileSync(file, `{"a":1}\n{"big":"${'x'.repeat(500)}"}\n{"c":3}\n`);
   assert.deepEqual(read(file, { chunkSize: 32, maxLine: 100 }).lines, ['{"a":1}', '{"c":3}']);
+});
+
+test('a zstd file is read line by line, across chunks, with the same lines as the plain one', { skip: !canReadZstd && 'this Node.js has no zstd' }, async (t) => {
+  const folder = temporaryFolder(t);
+  const text = ['{"a":1}', 'x'.repeat(5000), '', '{"b":2}\r', 'last without a newline'].join('\n');
+  const plain = path.join(folder, 'rollout.jsonl');
+  fs.writeFileSync(plain, text);
+  const packed = `${plain}.zst`;
+  fs.writeFileSync(packed, zlib.zstdCompressSync(Buffer.from(text)));
+
+  const lines = [];
+  const bytes = await forEachLineAsync(packed, (line) => lines.push(line.toString('utf8')), { chunkSize: 1024 });
+  assert.equal(bytes, Buffer.byteLength(text));
+  assert.deepEqual(lines, read(plain, { chunkSize: 1024 }).lines);
+  assert.deepEqual(lines, ['{"a":1}', 'x'.repeat(5000), '{"b":2}', 'last without a newline']);
+});
+
+test('throwing from the callback stops reading a zstd file', { skip: !canReadZstd && 'this Node.js has no zstd' }, async (t) => {
+  const folder = temporaryFolder(t);
+  const packed = path.join(folder, 'rollout.jsonl.zst');
+  fs.writeFileSync(packed, zlib.zstdCompressSync(Buffer.from('first\nsecond\nthird\n')));
+  const stop = new Error('stop');
+  const seen = [];
+  await assert.rejects(forEachLineAsync(packed, (line) => {
+    seen.push(line.toString('utf8'));
+    throw stop;
+  }), (error) => error === stop);
+  assert.deepEqual(seen, ['first']);
 });

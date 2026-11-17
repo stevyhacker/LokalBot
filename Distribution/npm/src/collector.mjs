@@ -23,6 +23,8 @@ export function createCollector({ start, end }) {
     filesRead: 0,
     bytesRead: 0,
     unreadableFiles: 0,
+    /** Compressed logs this Node.js cannot decompress. */
+    compressedSkipped: 0,
     inWindow(at) {
       return at >= start && at < end;
     },

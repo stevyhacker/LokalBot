@@ -1,5 +1,6 @@
 // Reads Codex rollouts from `<home>/sessions/YYYY/MM/DD/*.jsonl` and
-// `<home>/archived_sessions/`.
+// `<home>/archived_sessions/`. Codex compresses older rollouts with zstd, as
+// `*.jsonl.zst`; those are read too where Node.js can decompress them.
 //
 // The rules follow LokalBot's own reader (CodexSessionReader.swift). A
 // rollout stays in the folder of the day it started even when it is resumed
@@ -12,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { addActions, addFile, bump, emptyActions, mergeActions, toolLabel } from './collector.mjs';
-import { forEachLine } from './lines.mjs';
+import { canReadZstd, forEachLineAsync, isZstd } from './lines.mjs';
 import { actionsInCommand, classifyPrompt } from './text.mjs';
 
 const AGENT = 'codex';
@@ -25,10 +26,11 @@ export function codexRoot(env, home) {
 }
 
 /** Reads every rollout with activity in the collector's window. */
-export function readCodex(root, collector, onProgress = () => {}) {
+export async function readCodex(root, collector, onProgress = () => {}) {
   const files = [];
   for (const folder of ['sessions', 'archived_sessions']) walk(path.join(root, folder), files);
-  const rollouts = [];
+  // A rollout and its compressed copy are one thread: keep the newer file.
+  const chosen = new Map();
   for (const file of files) {
     let stat;
     try {
@@ -38,7 +40,17 @@ export function readCodex(root, collector, onProgress = () => {}) {
     }
     if (!stat.isFile() || stat.mtimeMs < collector.start) continue;
     if (stat.birthtimeMs > 0 && stat.birthtimeMs >= collector.end) continue;
-    rollouts.push({ file, meta: sessionMeta(file) });
+    const key = isZstd(file) ? file.slice(0, -'.zst'.length) : file;
+    const other = chosen.get(key);
+    if (!other || stat.mtimeMs > other.mtimeMs) chosen.set(key, { file, mtimeMs: stat.mtimeMs });
+  }
+  const rollouts = [];
+  for (const { file } of chosen.values()) {
+    if (isZstd(file) && !canReadZstd) {
+      collector.compressedSkipped += 1;
+      continue;
+    }
+    rollouts.push({ file, meta: await sessionMeta(file) });
   }
   rollouts.sort((a, b) => (a.file < b.file ? -1 : 1));
 
@@ -56,7 +68,7 @@ export function readCodex(root, collector, onProgress = () => {}) {
   let done = 0;
   for (const { file, meta } of rollouts) {
     try {
-      readRollout(file, meta, meta.parent ? rootOf(meta.parent) : null, collector);
+      await readRollout(file, meta, meta.parent ? rootOf(meta.parent) : null, collector);
       collector.filesRead += 1;
     } catch {
       collector.unreadableFiles += 1;
@@ -77,16 +89,16 @@ function walk(folder, into, depth = 0) {
     if (entry.name.startsWith('.')) continue;
     const full = path.join(folder, entry.name);
     if (entry.isDirectory() && depth < 6) walk(full, into, depth + 1);
-    else if (entry.isFile() && entry.name.endsWith('.jsonl')) into.push(full);
+    else if (entry.isFile() && (entry.name.endsWith('.jsonl') || entry.name.endsWith('.jsonl.zst'))) into.push(full);
   }
 }
 
 /** The id and origin of a rollout, from its first record. */
-function sessionMeta(file) {
+async function sessionMeta(file) {
   const fallback = { id: idFromName(file), parent: null, helper: false, cwd: null };
   let first = null;
   try {
-    forEachLine(file, (line) => {
+    await forEachLineAsync(file, (line) => {
       first = line.length <= PARSE_LIMIT ? line.toString('utf8') : '';
       throw STOP;
     });
@@ -116,14 +128,14 @@ function sessionMeta(file) {
 
 const STOP = Symbol('stop');
 
-/** `rollout-2026-10-14T09-12-33-<uuid>.jsonl` */
+/** `rollout-2026-10-14T09-12-33-<uuid>.jsonl`, or `.jsonl.zst` */
 function idFromName(file) {
-  const name = path.basename(file, '.jsonl');
+  const name = path.basename(isZstd(file) ? file.slice(0, -'.zst'.length) : file, '.jsonl');
   const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.exec(name);
   return uuid ? uuid[0] : name;
 }
 
-function readRollout(file, meta, parent, collector) {
+async function readRollout(file, meta, parent, collector) {
   const side = parent !== null;
   let session = null;
   let launched = false;
@@ -149,7 +161,7 @@ function readRollout(file, meta, parent, collector) {
     return session;
   };
 
-  collector.bytesRead += forEachLine(file, (line) => {
+  collector.bytesRead += await forEachLineAsync(file, (line) => {
     if (line.length > PARSE_LIMIT) return;
     let record;
     try {
