@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "ऑडियो या वीडियो रिकॉर्डिंग आयात करें";
 "Import Recording" = "रिकॉर्डिंग आयात करें";
 "Import Recording…" = "रिकॉर्डिंग आयात करें…";
+"Import Meetings From" = "दूसरे ऐप से मीटिंग आयात करें";
+"wants to import another app's meetings into LokalBot." = "किसी दूसरे ऐप की मीटिंग LokalBot में आयात करना चाहता है।";
 "Not inserted" = "डाला नहीं गया";
 "Pasted" = "पेस्ट किया गया";
 "Recent dictations" = "हाल के डिक्टेशन";

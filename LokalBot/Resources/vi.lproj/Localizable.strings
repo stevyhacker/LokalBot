@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Nhập bản ghi âm hoặc bản ghi video";
 "Import Recording" = "Nhập bản ghi âm";
 "Import Recording…" = "Nhập bản ghi âm…";
+"Import Meetings From" = "Nhập cuộc họp từ";
+"wants to import another app's meetings into LokalBot." = "muốn nhập cuộc họp từ một ứng dụng khác vào LokalBot.";
 "Not inserted" = "Chưa chèn";
 "Pasted" = "Đã dán";
 "Recent dictations" = "Các lần đọc chính tả gần đây";

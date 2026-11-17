@@ -82,6 +82,21 @@ other participants: naming one remembers that voice, and remembered voices can
 name its speakers. Screen memory from the file's time span is not attached to it,
 because the recording was not made on this Mac.
 
+**Meetings imported from other apps.** **Recording → Import Meetings From**
+reads another app's notes, transcripts, action items, and recordings — Granola,
+Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, or MacWhisper — from the
+export files or folder you choose, or from the app's own data folder on this Mac
+when it keeps one LokalBot can read. LokalBot only reads them: it never changes,
+moves, or deletes them, opens another app's database read-only, and contacts no
+account or server, so nothing is downloaded and no sign-in is used. Each meeting
+is saved in your library like a recorded one, with its source's name and its id
+there, so importing the same export again adds nothing twice; the source's notes
+are kept unchanged in `imported-notes.md` beside LokalBot's `summary.md`. A
+recording without a transcript is transcribed with your current Transcribe
+choice. Screen memory is not attached to imported meetings. The log records only
+how many meetings were imported, never their titles or contents. Deleting your
+account or data at the other app is up to you.
+
 **Sample meeting.** LokalBot includes a short made-up recording with synthetic
 voices. **Try a sample meeting** imports that bundled file the same way, so it
 needs no network access beyond the models you choose to download first. The
@@ -1034,7 +1049,10 @@ request, with lists showing each entry added or removed. Nothing changes unless
 you click Approve, which applies only the changes the card shows. If your settings
 change while it waits so that approving would allow more, the card shows the new
 changes and asks again. Requests expire after five minutes. A shorter retention policy shows the same cleanup review as Settings,
-and approving deletes only what it lists. `lokalbot-cli secret set` can save an
+and approving deletes only what it lists. `lokalbot-cli import` can ask LokalBot to import
+another app's meetings from files it names; LokalBot reads the files itself, and
+the card shows the paths and how many new meetings they hold before you approve.
+`lokalbot-cli secret set` can save an
 API key, also only after you approve it; the card shows the key's last four
 characters, and keys are never read back. Each change is recorded, with the
 program that made it, in the library's `diagnostics/settings-changes.jsonl` and

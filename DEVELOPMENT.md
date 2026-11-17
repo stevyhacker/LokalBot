@@ -24,6 +24,7 @@ Each topic has its own page under [`Docs/development/`](Docs/development/):
 | [Safe local routines](Docs/development/routines.md) | Scheduled local jobs |
 | [Email](Docs/development/email.md) | Read-only Gmail |
 | [Meeting note export](Docs/development/note-export.md) | Notes written to a folder |
+| [Importing from other apps](Docs/development/meeting-import.md) | Granola, Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, MacWhisper |
 | [Configuration](Docs/development/configuration.md) | Settings, languages, environment variables |
 | [Agent CLI and MCP](Docs/development/agent-cli.md) | `lokalbot-cli` and the MCP server |
 | [Headless flags](Docs/development/headless-flags.md) | The app binary as a test harness |

@@ -157,7 +157,7 @@ private struct SettingsApprovalCard: View {
 
     /// What an import adds, in full: where from, how many, and what stays
     /// untouched.
-    static func importRow(_ request: SettingsApprovals.MeetingImportRequest, plan: JSONValue?) -> Row {
+    private static func importRow(_ request: SettingsApprovals.MeetingImportRequest, plan: JSONValue?) -> Row {
         let count = { (key: String) in plan?[key]?.intValue ?? 0 }
         var lines = request.paths
         lines.append("\(count("newMeetings")) new meetings, \(count("alreadyImported")) already in your library")
