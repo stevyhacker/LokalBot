@@ -328,7 +328,8 @@ enum BrowserMeetingSession {
                 let join = ["присоединиться к встрече", "join the meeting", "join meeting"]
                 let leave = ["покинуть встречу", "leave the meeting", "leave meeting"]
                 let roomControls = ["участники", "participants", "поднять руку", "raise hand"]
-                let hasJoin = join.contains { buttons.contains($0) || disabledButtons.map(normalize).contains($0) }
+                let allButtons = buttons + disabledButtons.map(normalize)
+                let hasJoin = join.contains(where: allButtons.contains)
                 return !hasJoin && leave.contains(where: buttons.contains)
                     && roomControls.contains(where: buttons.contains) ? .inCall : .unavailable
             case .googleMeet: break
@@ -392,7 +393,7 @@ enum BrowserMeetingSession {
         let url = bound.snapshot.url
         // Meet has a room code in its tab title. The other services can show
         // just the call title, so use the exact title we verified in the room.
-        let fallbackTitle = Room(url.absoluteString)?.service == .googleMeet ? "" : bound.title
+        let fallbackTitle = url.host == Service.googleMeet.rawValue ? "" : bound.title
         guard titleNamesCall(bound.title, url: url, verifiedTitle: fallbackTitle) else { return nil }
         for window in windows {
             guard let title = value(window, kAXTitleAttribute) as? String,
@@ -417,8 +418,11 @@ enum BrowserMeetingSession {
         let generic = ["", "meet", "google meet", "телемост", "яндекс телемост", "yandex telemost",
                        "мтс линк", "мтс линк встречи", "mts link"]
         guard !generic.contains(verified) else { return false }
-        if Room(url.absoluteString)?.service == .googleMeet { return candidate.hasPrefix(verified) }
-        return candidate == verified || candidate.hasPrefix(verified + " - ") || candidate.hasPrefix(verified + ", ")
+        if url.host == Service.googleMeet.rawValue { return candidate.hasPrefix(verified) }
+        // Chrome can prefix the localized tab label and quote the title,
+        // then append a group name or a microphone/audio indicator. This
+        // comparison only keeps an existing binding; it cannot start one.
+        return candidate.contains(verified)
     }
 
     /// Searches the window's tab strip (the first tab group outside page
@@ -501,6 +505,7 @@ enum BrowserMeetingSession {
             var stack: [(AXUIElement, Int, Bool)] = [(window, 0, false)]
             var room: Room?
             var roomTitle: String?
+            var telemostCallState: State?
             var sawMeetingDocument = false
             var buttons: [String] = []
             var disabledButtons: [String] = []
@@ -519,14 +524,19 @@ enum BrowserMeetingSession {
                 if role == "AXWebArea" {
                     let raw = fields[kAXURLAttribute]
                     let text = (raw as? URL)?.absoluteString ?? (raw as? String) ?? ""
-                    if inside {
-                        guard room?.acceptsFrame(text) == true else { continue }
-                    } else if let candidate = Room(text), nativeService == nil || candidate.service == nativeService {
+                    if inside { continue }
+                    if let candidate = Room(text), nativeService == nil || candidate.service == nativeService {
                         sawMeetingDocument = true
                         guard expected == nil || candidate.url == expected else { continue }
                         guard room == nil else { continue windowLoop }
                         room = candidate
                         roomTitle = fields[kAXTitleAttribute] as? String
+                        if candidate.service == .telemost {
+                            telemostCallState = readTelemostCall(
+                                in: fields[kAXChildrenAttribute] as? [AXUIElement] ?? [],
+                                room: candidate, depth: depth + 1, budget: &budget)
+                            continue
+                        }
                         inDocument = true
                     } else if nativeService == nil {
                         // Never look for a conferencing iframe on an unrelated
@@ -552,8 +562,8 @@ enum BrowserMeetingSession {
             quietWindows.record(window, title: title, quiet: !sawMeetingDocument,
                                 processID: processID, now: started)
             if let room, let parsed = URL(string: room.url) {
-                let callState = state(buttons: buttons, messages: messages, service: room.service,
-                                      disabledButtons: disabledButtons)
+                let callState = telemostCallState ?? state(buttons: buttons, messages: messages,
+                                                           service: room.service, disabledButtons: disabledButtons)
                 let match = Window(element: window, snapshot: Snapshot(url: parsed, state: callState),
                                    title: room.service == .googleMeet ? title : roomTitle ?? title)
                 matches.append(match)
@@ -576,6 +586,40 @@ enum BrowserMeetingSession {
             return calls.count == 1 ? calls.first : nil
         }
         return matches.count == 1 ? matches.first : nil
+    }
+
+    /// Telemost keeps the entire chat application in the meeting page. Find
+    /// the call toolbar before walking deep chat lists; those lists can use
+    /// the full window budget even when the call controls are easy to reach.
+    private static func readTelemostCall(in children: [AXUIElement], room: Room, depth: Int,
+                                         budget: inout TraversalBudget) -> State {
+        guard budget.allowsChildren(children.count) else { return .unavailable }
+        var queue = children.map { ($0, depth) }
+        var index = 0
+        var buttons: [String] = []
+        while index < queue.count {
+            let (node, depth) = queue[index]
+            index += 1
+            guard depth <= TraversalBudget.maximumDepth else { break }
+            guard budget.visit(depth: depth, at: ProcessInfo.processInfo.systemUptime) else { break }
+            guard let fields = fields(node), fields["AXHidden"] as? Bool != true else { continue }
+            let role = fields[kAXRoleAttribute] as? String
+            if role == "AXWebArea" {
+                let raw = fields[kAXURLAttribute]
+                let address = (raw as? URL)?.absoluteString ?? (raw as? String) ?? ""
+                guard room.acceptsFrame(address) else { continue }
+            }
+            if role == "AXButton", fields[kAXEnabledAttribute] as? Bool != false {
+                buttons += [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute]
+                    .compactMap { fields[$0] as? String }.filter { $0.count <= 160 }
+                if state(buttons: buttons, messages: [], service: .telemost) == .inCall { return .inCall }
+            }
+            if let children = fields[kAXChildrenAttribute] as? [AXUIElement], budget.allowsChildren(children.count) {
+                let slots = max(0, TraversalBudget.maximumNodes - queue.count)
+                queue += children.prefix(slots).map { ($0, depth + 1) }
+            }
+        }
+        return .unavailable
     }
 
     /// Browser windows whose last complete read found no meeting document. A meeting

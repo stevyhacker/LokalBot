@@ -90,6 +90,9 @@ final class MeetingIntegrityTests: XCTestCase {
         let url = URL(string: "https://telemost.yandex.ru/j/12345678901")!
         let verified = "Идёт звонок · Яндекс Телемост"
         XCTAssertTrue(BrowserMeetingSession.titleNamesCall(verified + " - Audio playing", url: url, verifiedTitle: verified))
+        XCTAssertTrue(BrowserMeetingSession.titleNamesCall(
+            "Вкладка \"Идёт звонок · Яндекс Телемост\" — элемент группы, включена запись с микрофона",
+            url: url, verifiedTitle: verified))
         XCTAssertFalse(BrowserMeetingSession.titleNamesCall("Яндекс Телемост", url: url, verifiedTitle: verified))
         XCTAssertFalse(BrowserMeetingSession.titleNamesCall("Яндекс Телемост", url: url, verifiedTitle: "Яндекс Телемост"))
     }
