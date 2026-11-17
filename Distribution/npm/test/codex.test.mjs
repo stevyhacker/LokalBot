@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import zlib from 'node:zlib';
 
 import { readCodex } from '../src/codex.mjs';
 import { createCollector } from '../src/collector.mjs';
+import { canReadZstd } from '../src/lines.mjs';
 import { yearWindow } from '../src/stats.mjs';
 import { at, temporaryFolder, writeLines, YEAR } from './helpers.mjs';
 
@@ -21,13 +24,13 @@ const tokens = (timestamp, input, cached, output) => line(timestamp, 'event_msg'
 });
 const rollout = (root, sessionId) => path.join(root, 'sessions', String(YEAR), '03', '14', `rollout-${YEAR}-03-14T09-00-00-${sessionId}.jsonl`);
 
-function collect(root) {
+async function collect(root) {
   const collector = createCollector(yearWindow(YEAR));
-  readCodex(root, collector);
+  await readCodex(root, collector);
   return collector;
 }
 
-test('a rollout counts requests, tool calls, tokens and what the commands did', (t) => {
+test('a rollout counts requests, tool calls, tokens and what the commands did', async (t) => {
   const root = temporaryFolder(t);
   const lastYear = new Date(Date.UTC(YEAR - 1, 11, 31, 22)).toISOString();
   writeLines(rollout(root, PARENT), [
@@ -65,7 +68,7 @@ test('a rollout counts requests, tool calls, tokens and what the commands did', 
     tokens(at(3, 14, 9, 3, 2), 9000, 7000, 500),
   ]);
 
-  const collector = collect(root);
+  const collector = await collect(root);
   assert.equal(collector.sessions.size, 1);
   const session = collector.sessions.get(`codex:${PARENT}`);
   assert.equal(session.prompts, 1);
@@ -81,7 +84,7 @@ test('a rollout counts requests, tool calls, tokens and what the commands did', 
   assert.equal(session.hidden, false);
 });
 
-test('a rollout with no record of what ran falls back to what was asked for', (t) => {
+test('a rollout with no record of what ran falls back to what was asked for', async (t) => {
   const root = temporaryFolder(t);
   writeLines(rollout(root, PARENT), [
     meta(at(3, 14, 9, 0), PARENT),
@@ -91,13 +94,13 @@ test('a rollout with no record of what ran falls back to what was asked for', (t
     }),
     line(at(3, 14, 9, 2), 'response_item', { type: 'local_shell_call', call_id: 'c2', action: { command: ['bash', '-lc', 'git push'] } }),
   ]);
-  const session = collect(root).sessions.get(`codex:${PARENT}`);
+  const session = (await collect(root)).sessions.get(`codex:${PARENT}`);
   assert.equal(session.toolCalls, 2);
   assert.equal(session.edits, 1);
   assert.equal(session.pushes, 1);
 });
 
-test('subagent threads add to the session a person started', (t) => {
+test('subagent threads add to the session a person started', async (t) => {
   const root = temporaryFolder(t);
   writeLines(rollout(root, PARENT), [
     meta(at(3, 14, 9, 0), PARENT),
@@ -127,7 +130,7 @@ test('subagent threads add to the session a person started', (t) => {
     tokens(at(3, 14, 9, 3, 3), 50, 0, 5),
   ]);
 
-  const collector = collect(root);
+  const collector = await collect(root);
   assert.deepEqual([...collector.sessions.keys()].sort(), [`codex:${PARENT}`, `codex:${REVIEWER}`]);
   const session = collector.sessions.get(`codex:${PARENT}`);
   assert.equal(session.prompts, 1);
@@ -143,7 +146,7 @@ test('subagent threads add to the session a person started', (t) => {
   assert.equal(reviewer.tokens.output, 5);
 });
 
-test('a running total that starts again is counted in full', (t) => {
+test('a running total that starts again is counted in full', async (t) => {
   const root = temporaryFolder(t);
   writeLines(rollout(root, PARENT), [
     meta(at(3, 14, 9, 0), PARENT),
@@ -152,5 +155,58 @@ test('a running total that starts again is counted in full', (t) => {
     // Resumed in a new process: the total begins again.
     tokens(at(3, 15, 9, 0), 500, 0, 50),
   ]);
-  assert.deepEqual(collect(root).sessions.get(`codex:${PARENT}`).tokens, { input: 3500, cached: 0, output: 350 });
+  assert.deepEqual((await collect(root)).sessions.get(`codex:${PARENT}`).tokens, { input: 3500, cached: 0, output: 350 });
+});
+
+/** Compresses a rollout the way Codex does once it is old: `.jsonl` becomes `.jsonl.zst`. */
+function compress(file, { keep = false } = {}) {
+  fs.writeFileSync(`${file}.zst`, zlib.zstdCompressSync(fs.readFileSync(file)));
+  if (!keep) fs.rmSync(file);
+  return `${file}.zst`;
+}
+
+const needsZstd = { skip: !canReadZstd && 'this Node.js has no zstd' };
+
+test('compressed rollouts are read like plain ones, subagents included', needsZstd, async (t) => {
+  const root = temporaryFolder(t);
+  compress(writeLines(rollout(root, PARENT), [
+    meta(at(3, 14, 9, 0), PARENT),
+    line(at(3, 14, 9, 0, 1), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'split this into two tasks' }] }),
+    tokens(at(3, 14, 9, 0, 6), 100, 0, 10),
+  ]));
+  compress(writeLines(rollout(root, CHILD), [
+    meta(at(3, 14, 9, 1), CHILD, { subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } } }),
+    line(at(3, 14, 9, 1, 5), 'response_item', { type: 'function_call', name: 'shell', call_id: 'c1', arguments: '{"command":"ls"}' }),
+    tokens(at(3, 14, 9, 1, 6), 2000, 0, 200),
+  ]));
+
+  const collector = await collect(root);
+  assert.deepEqual([...collector.sessions.keys()], [`codex:${PARENT}`]);
+  const session = collector.sessions.get(`codex:${PARENT}`);
+  assert.equal(session.prompts, 1);
+  assert.equal(session.toolCalls, 1);
+  assert.equal(session.subagentFiles, 1);
+  assert.equal(session.tokens.output, 210);
+  assert.equal(collector.filesRead, 2);
+  assert.equal(collector.compressedSkipped, 0);
+});
+
+test('a rollout kept both plain and compressed is counted once', needsZstd, async (t) => {
+  const root = temporaryFolder(t);
+  const plain = writeLines(rollout(root, PARENT), [
+    meta(at(3, 14, 9, 0), PARENT),
+    line(at(3, 14, 9, 0, 1), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hello' }] }),
+    tokens(at(3, 14, 9, 1), 1000, 0, 100),
+  ]);
+  const packed = compress(plain, { keep: true });
+  // The plain copy was written last, so it is the one read.
+  const later = new Date(Date.UTC(YEAR, 2, 15));
+  fs.utimesSync(packed, new Date(Date.UTC(YEAR, 2, 14, 10)), new Date(Date.UTC(YEAR, 2, 14, 10)));
+  fs.utimesSync(plain, later, later);
+
+  const collector = await collect(root);
+  assert.equal(collector.filesRead, 1);
+  const session = collector.sessions.get(`codex:${PARENT}`);
+  assert.equal(session.prompts, 1);
+  assert.deepEqual(session.tokens, { input: 1000, cached: 0, output: 100 });
 });

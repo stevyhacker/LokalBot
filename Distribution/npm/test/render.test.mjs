@@ -78,10 +78,10 @@ test('a long title is set smaller, not cut off', () => {
 test('days whose logs are gone are drawn and explained', () => {
   const result = demoYear(2026);
   assert.deepEqual(coverageNote(result.stats), []);
-  result.stats.coverage = { loggedFrom: '2026-06-18', earlier: { days: 48, sessions: 186, toolCalls: 12080, from: '2026-01-16' }, daysWithAnAgent: 117 };
+  result.stats.coverage = { loggedFrom: '2026-06-18', claudeLoggedFrom: '2026-06-18', earlier: { days: 48, sessions: 186, toolCalls: 12080, from: '2026-01-16' }, daysWithAnAgent: 117 };
   result.earlierDays[20] = 300;
   const note = coverageNote(result.stats).join(' ');
-  assert.match(note, /go back to Jun 18\./);
+  assert.match(note, /Claude Code's session logs on this computer go back to Jun 18\./);
   assert.match(note, /48 earlier days this year: 186 sessions, 12,080 tool calls\./);
   assert.match(note, /"cleanupPeriodDays": 3650 in ~\/\.claude\/settings\.json/);
   assert.ok(renderTerminal(result).includes('▪'));
@@ -115,4 +115,11 @@ test('a year with one agent has no split to draw', () => {
   assert.equal(/Codex \d+%</.test(card), false);
   assert.equal(card.includes('Claude Code and Codex<'), false);
   assert.ok(renderTerminal(result).includes('Agent Wrapped 2026   Claude Code\n'));
+});
+
+test('the terminal card says when compressed Codex logs were left out', () => {
+  const result = demoYear(2026);
+  assert.ok(!renderTerminal(result).includes('compressed Codex'));
+  result.stats.sources = { ...result.stats.sources, compressedSkipped: 3 };
+  assert.match(renderTerminal(result), /3 compressed Codex logs left out: reading them needs Node\.js 22\.15 or later\./);
 });
