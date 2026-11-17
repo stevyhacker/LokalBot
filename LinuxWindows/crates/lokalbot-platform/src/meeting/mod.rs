@@ -31,6 +31,7 @@ mod win32;
 
 pub use browser::meet_url;
 use browser::{BrowserDocument, Verdict};
+use lokalbot_core::calendar::{MeetingService, meeting_room};
 
 /// A meeting the detector is tracking.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -147,6 +148,10 @@ enum AppKind {
     Lark,
     DingTalk,
     WeCom,
+    #[cfg(windows)]
+    TelemostDesktop,
+    TelemostWeb,
+    MtsLink,
     Meet,
     /// A browser call on a conferencing site other than Meet, known from the
     /// calendar event's link ("Zoom", "Teams", …).
@@ -167,13 +172,24 @@ impl AppKind {
             Self::Lark => "Lark",
             Self::DingTalk => "DingTalk",
             Self::WeCom => "WeCom",
+            #[cfg(windows)]
+            Self::TelemostDesktop => "Yandex Telemost",
+            Self::TelemostWeb => "Yandex Telemost",
+            Self::MtsLink => "MTS Link",
             Self::Meet => "Google Meet",
             Self::WebCall(name) => name,
         }
     }
 
     fn in_browser(self) -> bool {
-        matches!(self, Self::Meet | Self::WebCall(_))
+        matches!(
+            self,
+            Self::Meet | Self::TelemostWeb | Self::MtsLink | Self::WebCall(_)
+        )
+    }
+
+    fn requires_room(self) -> bool {
+        matches!(self, Self::TelemostWeb | Self::MtsLink)
     }
 
     /// Dedicated conferencing apps start at once; chat apps make short sounds
@@ -188,14 +204,24 @@ impl AppKind {
                 | Self::Lark
                 | Self::DingTalk
                 | Self::WeCom
-        )
+        ) || self.is_telemost_desktop()
+    }
+
+    fn is_telemost_desktop(self) -> bool {
+        #[cfg(windows)]
+        if self == Self::TelemostDesktop {
+            return true;
+        }
+        false
     }
 
     fn priority(self) -> u8 {
         match self {
             Self::Zoom | Self::Webex | Self::TencentMeeting | Self::VoovMeeting => 0,
             Self::Teams => 1,
-            Self::Meet | Self::WebCall(_) => 2,
+            Self::Meet | Self::TelemostWeb | Self::MtsLink | Self::WebCall(_) => 2,
+            #[cfg(windows)]
+            Self::TelemostDesktop => 3,
             Self::Slack | Self::Feishu | Self::Lark | Self::DingTalk | Self::WeCom => 3,
             Self::Discord => 4,
         }
@@ -221,6 +247,8 @@ fn native_kind(process: &str) -> Option<AppKind> {
         "lark" | "bytedance-lark" => AppKind::Lark,
         "dingtalk" | "com.alibabainc.dingtalk" => AppKind::DingTalk,
         "wxwork" | "wecom" => AppKind::WeCom,
+        #[cfg(windows)]
+        "yandextelemost" => AppKind::TelemostDesktop,
         _ => return None,
     })
 }
@@ -239,6 +267,24 @@ fn browser_family(process: &str) -> Option<&'static str> {
         "arc" => "arc",
         "zen" | "zen-bin" => "zen",
         _ => return None,
+    })
+}
+
+/// The native MTS Link client uses the same room UI as its web client.
+#[cfg(windows)]
+fn document_family(process: &str) -> Option<&'static str> {
+    if normalized(process) == "мтс линк" {
+        Some("mts-link")
+    } else {
+        browser_family(process)
+    }
+}
+
+fn document_kind(url: &str) -> Option<AppKind> {
+    Some(match meeting_room(url)?.service {
+        MeetingService::GoogleMeet => AppKind::Meet,
+        MeetingService::Telemost => AppKind::TelemostWeb,
+        MeetingService::MtsLink => AppKind::MtsLink,
     })
 }
 
@@ -293,7 +339,9 @@ fn link_kind(url: &str) -> Option<AppKind> {
     }
     let host = lokalbot_core::calendar::url_host(url)?;
     let is = |domain: &str| host == domain || host.ends_with(&format!(".{domain}"));
-    Some(if is("meet.google.com") {
+    Some(if let Some(kind) = document_kind(url) {
+        kind
+    } else if is("meet.google.com") {
         AppKind::Meet
     } else if is("zoom.us") || is("zoom.com") {
         AppKind::WebCall("Zoom")
@@ -336,6 +384,7 @@ impl Candidate {
 struct Confirmation {
     kind: AppKind,
     family: Option<&'static str>,
+    room: Option<String>,
     first_seen: Instant,
     last_seen: Instant,
 }
@@ -376,8 +425,8 @@ impl Core {
     }
 
     /// Meeting candidates in priority order, one per app.
-    /// `current` lets a browser call that is already running continue on its
-    /// browser's microphone alone, after the user switches tabs.
+    /// `current` keeps an active call tied to its room, or to the browser's
+    /// microphone for services that don't require room evidence.
     fn candidates(
         &mut self,
         evidence: &Evidence,
@@ -411,7 +460,50 @@ impl Core {
             }
         }
 
+        let required_room = self
+            .calendar
+            .require_for_browser
+            .then(|| self.calendar.meeting_url.as_deref().and_then(meeting_room))
+            .flatten();
         let mut found: Vec<Candidate> = Vec::new();
+        if browsers_allowed {
+            for document in &evidence.documents {
+                let Some(host_pid) = document.host_pid else {
+                    continue;
+                };
+                let Some(kind) = document_kind(&document.url) else {
+                    continue;
+                };
+                if kind == AppKind::Meet || host_pid == self.own_pid {
+                    continue;
+                }
+                let expected = current
+                    .filter(|call| call.family == Some(document.family))
+                    .and_then(|call| call.meeting.meeting_url.as_deref())
+                    .or_else(|| required_room.as_ref().map(|room| room.url.as_str()));
+                let read = browser::verdict(&evidence.documents, document.family, expected);
+                let matches_call = read == Verdict::InCall(Some(document.url.clone()));
+                #[cfg(windows)]
+                let still_present =
+                    read == Verdict::Present && expected == Some(document.url.as_str());
+                #[cfg(not(windows))]
+                let still_present = false;
+                if matches_call || still_present {
+                    found.push(Candidate {
+                        kind,
+                        family: Some(document.family),
+                        meeting: DetectedMeeting {
+                            app_name: kind.name().to_string(),
+                            process_name: document.family.to_string(),
+                            pid: host_pid,
+                            audio_pid: host_pid,
+                            meeting_url: Some(document.url.clone()),
+                            title_hint: None,
+                        },
+                    });
+                }
+            }
+        }
         for stream in &evidence.capturing {
             if stream.pid == self.own_pid {
                 continue;
@@ -435,6 +527,15 @@ impl Core {
                     let read = browser::verdict(&evidence.documents, family, expected);
                     let denied = matches!(read, Verdict::NotInCall | Verdict::Ended);
                     if let Verdict::InCall(url) = read {
+                        if url
+                            .as_deref()
+                            .and_then(document_kind)
+                            .is_some_and(AppKind::requires_room)
+                        {
+                            // The verified-room path above owns authorization and
+                            // loopback selection for these services.
+                            break;
+                        }
                         room = url;
                         let hint = meet_windows.get(family).cloned().flatten();
                         candidate = Some((AppKind::Meet, Some(family), hint));
@@ -443,11 +544,13 @@ impl Core {
                     } else if let Some((kind, active_family)) = active_browser
                         && active_family == family
                         && read != Verdict::Ended
+                        && !kind.requires_room()
                     {
-                        // Unreadable controls never prove a running call ended.
+                        // Keep the legacy microphone fallback for other calls.
                         candidate = Some((kind, Some(family), None));
                     } else if let Some(kind) = link_kind
                         && !(denied && kind == AppKind::Meet)
+                        && !kind.requires_room()
                     {
                         // The calendar's link check: the browser holds the
                         // microphone during an event with a conferencing link.
@@ -503,9 +606,15 @@ impl Core {
             }
             _ => return true,
         };
+        let room = candidate
+            .kind
+            .requires_room()
+            .then(|| candidate.meeting.meeting_url.clone())
+            .flatten();
         let continues = self.pending.as_ref().is_some_and(|pending| {
             pending.kind == candidate.kind
                 && pending.family == candidate.family
+                && pending.room == room
                 && now.duration_since(pending.last_seen) <= gap
         });
         if continues {
@@ -516,6 +625,7 @@ impl Core {
             self.pending = Some(Confirmation {
                 kind: candidate.kind,
                 family: candidate.family,
+                room,
                 first_seen: now,
                 last_seen: now,
             });
@@ -772,6 +882,123 @@ mod tests {
         events
     }
 
+    #[test]
+    fn verified_windows_room_can_start_with_its_microphone_muted() {
+        let t0 = Instant::now();
+        for (family, url, expected_name) in [
+            (
+                "chrome",
+                "https://telemost.yandex.ru/j/123",
+                "Yandex Telemost",
+            ),
+            ("edge", "https://my.mts-link.ru/j/123/456", "MTS Link"),
+            ("mts-link", "https://my.mts-link.ru/j/123/456", "MTS Link"),
+        ] {
+            let mut core = Core::new(9999);
+            let mut evidence = Evidence {
+                documents: vec![BrowserDocument {
+                    family,
+                    url: url.into(),
+                    state: browser::CallState::Unavailable,
+                    host_pid: Some(1234),
+                }],
+                ..Evidence::default()
+            };
+            assert!(
+                core.step(&evidence, t0).is_empty(),
+                "a preview cannot start"
+            );
+            evidence.documents[0].state = browser::CallState::InCall;
+            assert!(core.step(&evidence, t0 + Duration::from_secs(2)).is_empty());
+            let started = core.step(&evidence, t0 + Duration::from_secs(4));
+            let [DetectorEvent::Started(started)] = started.as_slice() else {
+                panic!("expected one start, got {started:?}");
+            };
+            assert_eq!(started.app_name, expected_name);
+            assert_eq!(started.audio_pid, 1234);
+            assert_eq!(started.meeting_url.as_deref(), Some(url));
+            #[cfg(windows)]
+            {
+                evidence.documents[0].state = browser::CallState::Present;
+                assert!(
+                    core.step(&evidence, t0 + Duration::from_secs(20))
+                        .is_empty()
+                );
+                assert!(
+                    core.step(&evidence, t0 + Duration::from_secs(50))
+                        .is_empty()
+                );
+            }
+            evidence.documents[0].state = browser::CallState::Ended;
+            assert!(matches!(
+                core.step(&evidence, t0 + Duration::from_secs(52))
+                    .as_slice(),
+                [DetectorEvent::Ended(_)]
+            ));
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn recognizes_vendor_executables_without_classifying_mts_chat_audio_as_a_call() {
+        assert_eq!(
+            native_kind("YandexTelemost.exe"),
+            Some(AppKind::TelemostDesktop)
+        );
+        assert_eq!(native_kind("TelemostSetup.exe"), None);
+        assert_eq!(document_family("МТС Линк.exe"), Some("mts-link"));
+        assert_eq!(native_kind("МТС Линк.exe"), None);
+    }
+
+    #[test]
+    fn other_audio_does_not_authorize_an_mts_link_or_telemost_calendar_event() {
+        let t0 = Instant::now();
+        for url in [
+            "https://my.mts-link.ru/j/123/456",
+            "https://telemost.yandex.ru/j/123",
+        ] {
+            let mut core = Core::new(9999);
+            core.calendar.meeting_url = Some(url.into());
+            let evidence = Evidence {
+                capturing: vec![CaptureStream {
+                    pid: 1234,
+                    process_name: "chrome.exe".into(),
+                    ..CaptureStream::default()
+                }],
+                ..Evidence::default()
+            };
+            assert!(core.step(&evidence, t0).is_empty());
+            assert!(core.step(&evidence, t0 + Duration::from_secs(3)).is_empty());
+        }
+    }
+
+    #[test]
+    fn another_browser_tab_using_the_microphone_does_not_keep_a_verified_room_recording() {
+        let t0 = Instant::now();
+        let mut core = Core::new(9999);
+        let room = Evidence {
+            documents: vec![BrowserDocument {
+                family: "chrome",
+                url: "https://telemost.yandex.ru/j/123".into(),
+                state: browser::CallState::InCall,
+                host_pid: Some(1234),
+            }],
+            ..Evidence::default()
+        };
+        assert!(matches!(
+            run(&mut core, t0, 0, 2, &room).as_slice(),
+            [(2, DetectorEvent::Started(_))]
+        ));
+        let unrelated = Evidence {
+            capturing: vec![stream(1234, "chrome")],
+            ..Evidence::default()
+        };
+        assert!(matches!(
+            run(&mut core, t0, 4, 22, &unrelated).as_slice(),
+            [(20, DetectorEvent::Ended(_))]
+        ));
+    }
+
     fn meet_room(state: browser::CallState) -> Evidence {
         Evidence {
             capturing: vec![stream(7, "chrome")],
@@ -783,6 +1010,7 @@ mod tests {
                 family: "chrome",
                 url: "https://meet.google.com/abc-defg-hij".into(),
                 state,
+                host_pid: None,
             }],
         }
     }

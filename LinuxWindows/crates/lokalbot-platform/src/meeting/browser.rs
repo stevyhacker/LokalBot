@@ -2,12 +2,14 @@
 //! (`BrowserMeetingSession.swift`). Only a supported meeting document and its
 //! call controls count, and no pixels, participant names or page text are kept.
 //!
-//! The tree is optional evidence. Where it can't be read (a Chromium with no
-//! screen reader on Linux, a large page, a slow app) detection falls back to
-//! the window title and the browser's microphone.
+//! The older Google Meet title and microphone fallback remains available.
+//! Telemost and MTS Link must prove a room, including from the desktop MTS
+//! Link web view.
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+use lokalbot_core::calendar::{MeetingService, meeting_room};
 
 /// All of a poll's windows give up after this long.
 pub(crate) const READ_DEADLINE: Duration = Duration::from_secs(1);
@@ -26,18 +28,23 @@ const QUIET_MAX_AGE: Duration = Duration::from_secs(30);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CallState {
     InCall,
+    /// The already verified call is still in this window.
+    #[cfg(windows)]
+    Present,
     Ended,
-    /// A Meet document without call controls: the waiting room, or controls
+    /// A room without call controls: the waiting room, or controls
     /// that couldn't be read.
     Unavailable,
 }
 
-/// One Meet document found in a browser window.
+/// One supported room document found in a window.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BrowserDocument {
     pub family: &'static str,
     pub url: String,
     pub state: CallState,
+    /// Window owner when the operating system can identify it for loopback.
+    pub host_pid: Option<u32>,
 }
 
 /// What the documents of one browser say.
@@ -47,7 +54,10 @@ pub(crate) enum Verdict {
     Unknown,
     /// Call controls are on screen, in the one document named when it is known.
     InCall(Option<String>),
-    /// A Meet document is open without call controls.
+    /// The room is still in its bound window, but its controls are hidden.
+    #[cfg(windows)]
+    Present,
+    /// A meeting document is open without call controls.
     NotInCall,
     /// The document says the call is over.
     Ended,
@@ -57,25 +67,9 @@ pub(crate) enum Verdict {
 /// `https://meet.google.com/abc-defg-hij` document. Meet also serves the room
 /// as `/meet/abc-defg-hij`; both give the short form calendar links use.
 pub fn meet_url(raw: &str) -> Option<String> {
-    let rest = raw
-        .get(..8)
-        .filter(|scheme| scheme.eq_ignore_ascii_case("https://"))
-        .map(|_| &raw[8..])?;
-    let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
-    let (authority, tail) = rest.split_at(end);
-    let host = authority.strip_suffix(":443").unwrap_or(authority);
-    if !host.eq_ignore_ascii_case("meet.google.com") {
-        return None;
-    }
-    let path = tail.split(['?', '#']).next().unwrap_or("");
-    let path = path.strip_prefix("/meet").unwrap_or(path);
-    let code = path.strip_prefix('/')?;
-    let parts: Vec<&str> = code.split('-').collect();
-    let is_code = parts.len() == 3
-        && [3, 4, 3].iter().zip(&parts).all(|(length, part)| {
-            part.len() == *length && part.bytes().all(|b| b.is_ascii_lowercase())
-        });
-    is_code.then(|| format!("https://meet.google.com/{code}"))
+    meeting_room(raw)
+        .filter(|room| room.service == MeetingService::GoogleMeet)
+        .map(|room| room.url)
 }
 
 /// `BrowserMeetingSession.state`: which call state the labels show.
@@ -120,6 +114,93 @@ pub(crate) fn call_state(buttons: &[String], messages: &[String]) -> CallState {
     }
 }
 
+fn document_state(
+    service: MeetingService,
+    buttons: &[String],
+    disabled_buttons: &[String],
+    messages: &[String],
+) -> CallState {
+    if service == MeetingService::GoogleMeet {
+        return call_state(buttons, messages);
+    }
+    let controls = buttons
+        .iter()
+        .map(|label| label.trim().to_lowercase())
+        .collect::<Vec<_>>();
+    let has = |labels: &[&str]| {
+        controls
+            .iter()
+            .any(|button| labels.contains(&button.as_str()))
+    };
+    let mic = has(&[
+        "включить микрофон",
+        "выключить микрофон",
+        "turn on microphone",
+        "turn off microphone",
+        "mute microphone",
+        "unmute microphone",
+    ]);
+    let in_call = match service {
+        MeetingService::GoogleMeet => unreachable!(),
+        MeetingService::Telemost => {
+            mic && has(&[
+                "выйти из встречи",
+                "завершить звонок",
+                "leave meeting",
+                "end call",
+            ])
+        }
+        MeetingService::MtsLink => {
+            let join = [
+                "присоединиться к встрече",
+                "join the meeting",
+                "join meeting",
+            ];
+            let preview = has(&join)
+                || disabled_buttons
+                    .iter()
+                    .any(|label| join.contains(&label.trim().to_lowercase().as_str()));
+            mic && !preview
+                && has(&["покинуть встречу", "leave the meeting", "leave meeting"])
+                && has(&["участники", "поднять руку", "participants", "raise hand"])
+        }
+    };
+    if in_call {
+        CallState::InCall
+    } else {
+        CallState::Unavailable
+    }
+}
+
+/// Whether a nested Telemost document belongs to the verified room; other
+/// iframe controls must not be used to prove that the user joined.
+#[cfg(windows)]
+pub(crate) fn telemost_room_frame(room: &str, frame: &str) -> bool {
+    let Some(code) = room.strip_prefix("https://telemost.yandex.ru/j/") else {
+        return false;
+    };
+    let frame = frame.split(['?', '#']).next().unwrap_or("");
+    frame == format!("https://telemost.yandex.ru/private-join/{code}")
+}
+
+/// The landing page reached when leaving a supported room. This is only
+/// consulted for its previously verified window once its call tab is gone.
+#[cfg(windows)]
+pub(crate) fn is_post_call_page(room: &str, address: &str) -> bool {
+    let address = address.split(['?', '#']).next().unwrap_or("");
+    match meeting_room(room).map(|room| room.service) {
+        Some(MeetingService::Telemost) => matches!(
+            address,
+            "https://telemost.yandex.ru" | "https://telemost.yandex.ru/"
+        ),
+        Some(MeetingService::MtsLink) => matches!(
+            address,
+            "https://mts-link.ru/meetingguest" | "https://mts-link.ru/meetingguest/"
+        ),
+        _ => false,
+    }
+}
+
 /// What `documents` say about `family`'s call. `expected` is the room a call
 /// already in progress is bound to: another room's document says nothing about it.
 pub(crate) fn verdict(
@@ -139,6 +220,8 @@ pub(crate) fn verdict(
         return match same.as_slice() {
             [document] => match document.state {
                 CallState::InCall => Verdict::InCall(Some(document.url.clone())),
+                #[cfg(windows)]
+                CallState::Present => Verdict::Present,
                 CallState::Ended => Verdict::Ended,
                 CallState::Unavailable => Verdict::NotInCall,
             },
@@ -154,8 +237,10 @@ pub(crate) fn verdict(
         .collect();
     match calls.as_slice() {
         [call] => Verdict::InCall(Some(call.url.clone())),
-        // Several calls can't name one room, but a call is on.
-        [_, ..] => Verdict::InCall(None),
+        // Keep the existing Google Meet behavior. Other providers must
+        // identify one room before they can authorize a new recording.
+        [_, ..] if calls.iter().all(|call| meet_url(&call.url).is_some()) => Verdict::InCall(None),
+        [_, ..] => Verdict::NotInCall,
         [] if own
             .iter()
             .all(|document| document.state == CallState::Ended) =>
@@ -172,11 +257,18 @@ pub(crate) struct DocumentLabels {
     pub url: Option<String>,
     pub buttons: Vec<String>,
     pub messages: Vec<String>,
+    pub disabled_buttons: Vec<String>,
 }
 
 impl DocumentLabels {
     pub fn add_button(&mut self, label: Option<String>) {
         self.buttons
+            .extend(label.filter(|label| label.chars().count() <= MAX_LABEL));
+    }
+
+    #[cfg(windows)]
+    pub fn add_disabled_button(&mut self, label: Option<String>) {
+        self.disabled_buttons
             .extend(label.filter(|label| label.chars().count() <= MAX_LABEL));
     }
 
@@ -186,11 +278,19 @@ impl DocumentLabels {
     }
 
     pub fn into_document(self, family: &'static str) -> Option<BrowserDocument> {
-        let state = call_state(&self.buttons, &self.messages);
+        let url = self.url?;
+        let room = meeting_room(&url)?;
+        let state = document_state(
+            room.service,
+            &self.buttons,
+            &self.disabled_buttons,
+            &self.messages,
+        );
         Some(BrowserDocument {
             family,
-            url: self.url?,
+            url: room.url,
             state,
+            host_pid: None,
         })
     }
 }
@@ -237,7 +337,69 @@ mod tests {
             family: "chrome",
             url: url.into(),
             state,
+            host_pid: None,
         }
+    }
+
+    #[test]
+    fn russian_room_controls_require_a_joined_call() {
+        let mic_and_leave = labels(&["Включить микрофон", "Выйти из встречи"]);
+        assert_eq!(
+            document_state(MeetingService::Telemost, &mic_and_leave, &[], &[]),
+            CallState::InCall
+        );
+        assert_eq!(
+            document_state(
+                MeetingService::Telemost,
+                &labels(&["Включить микрофон"]),
+                &[],
+                &[]
+            ),
+            CallState::Unavailable
+        );
+        let mts_controls = labels(&["Включить микрофон", "Покинуть встречу", "Участники"]);
+        let join = labels(&["Присоединиться к встрече"]);
+        assert_eq!(
+            document_state(MeetingService::MtsLink, &mts_controls, &join, &[]),
+            CallState::Unavailable
+        );
+        assert_eq!(
+            document_state(
+                MeetingService::MtsLink,
+                &[mts_controls.clone(), join].concat(),
+                &[],
+                &[]
+            ),
+            CallState::Unavailable
+        );
+        assert_eq!(
+            document_state(MeetingService::MtsLink, &mts_controls, &[], &[]),
+            CallState::InCall
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn only_the_same_telemost_room_has_a_trusted_frame() {
+        let room = "https://telemost.yandex.ru/j/123";
+        assert!(telemost_room_frame(
+            room,
+            "https://telemost.yandex.ru/private-join/123?alias=1"
+        ));
+        assert!(!telemost_room_frame(
+            room,
+            "https://telemost.yandex.ru/private-join/456"
+        ));
+        assert!(!telemost_room_frame(
+            room,
+            "https://example.org/private-join/123"
+        ));
+        assert!(is_post_call_page(room, "https://telemost.yandex.ru/"));
+        assert!(!is_post_call_page(room, "https://telemost.yandex.ru/j/456"));
+        assert!(is_post_call_page(
+            "https://my.mts-link.ru/j/123/456",
+            "https://mts-link.ru/meetingguest/"
+        ));
     }
 
     #[test]

@@ -7,7 +7,7 @@
 //! viewport. Secure fields are never read, and the lines of a page that
 //! overlap one are dropped.
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::c_void;
 use std::time::{Duration, Instant};
 
@@ -26,16 +26,17 @@ use windows::Win32::UI::Accessibility::{
     UIA_ComboBoxControlTypeId, UIA_ControlTypePropertyId, UIA_DataItemControlTypeId,
     UIA_DocumentControlTypeId, UIA_E_TIMEOUT, UIA_EditControlTypeId, UIA_FrameworkIdPropertyId,
     UIA_HeaderControlTypeId, UIA_HeaderItemControlTypeId, UIA_HelpTextPropertyId,
-    UIA_HyperlinkControlTypeId, UIA_IsOffscreenPropertyId, UIA_IsPasswordPropertyId,
-    UIA_IsScrollPatternAvailablePropertyId, UIA_IsTextPatternAvailablePropertyId,
-    UIA_IsValuePatternAvailablePropertyId, UIA_ListItemControlTypeId, UIA_MenuItemControlTypeId,
-    UIA_NamePropertyId, UIA_PROPERTY_ID, UIA_ProcessIdPropertyId, UIA_RadioButtonControlTypeId,
-    UIA_ScrollBarControlTypeId, UIA_SplitButtonControlTypeId, UIA_TabItemControlTypeId,
-    UIA_TextControlTypeId, UIA_TextPatternId, UIA_TitleBarControlTypeId, UIA_TreeItemControlTypeId,
+    UIA_HyperlinkControlTypeId, UIA_IsEnabledPropertyId, UIA_IsOffscreenPropertyId,
+    UIA_IsPasswordPropertyId, UIA_IsScrollPatternAvailablePropertyId,
+    UIA_IsTextPatternAvailablePropertyId, UIA_IsValuePatternAvailablePropertyId,
+    UIA_ListItemControlTypeId, UIA_MenuItemControlTypeId, UIA_NamePropertyId, UIA_PROPERTY_ID,
+    UIA_ProcessIdPropertyId, UIA_RadioButtonControlTypeId, UIA_ScrollBarControlTypeId,
+    UIA_SplitButtonControlTypeId, UIA_TabItemControlTypeId, UIA_TextControlTypeId,
+    UIA_TextPatternId, UIA_TitleBarControlTypeId, UIA_TreeItemControlTypeId,
     UIA_ValueValuePropertyId, UIA_WindowControlTypeId,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, GetForegroundWindow, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+    EnumWindows, GetForegroundWindow, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
 };
 use windows::core::{AgileReference, BOOL, HRESULT, Interface};
 
@@ -44,7 +45,8 @@ use super::{
     AccessibleWindow, FocusedWindow, MAX_CHARACTERS, MAX_CHILDREN, MAX_NODES, TextRead, TextReader,
     WindowRect, append_text,
 };
-use crate::meeting::browser::{self, BrowserDocument, DocumentLabels, QuietWindows};
+use crate::meeting::browser::{self, BrowserDocument, CallState, DocumentLabels, QuietWindows};
+use lokalbot_core::calendar::{MeetingService, meeting_room};
 
 /// How long one call may wait on the target app (UIA waits 20 s by
 /// default), so a hung app holds a read for about this long.
@@ -794,12 +796,25 @@ fn current_string(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> 
     }
 }
 
-/// Meet documents in browsers' windows, for meeting detection
-/// (`BrowserMeetingSession.window`). A browser's tree can be slow to answer, so
-/// a window that doesn't answer in time says nothing and its title decides.
+/// Meeting documents in browser windows and in MTS Link's desktop web view.
 pub(crate) struct BrowserCallReader {
     reader: UiaReader,
     quiet: QuietWindows,
+    bound: HashMap<usize, VerifiedCall>,
+}
+
+struct VerifiedCall {
+    document: BrowserDocument,
+    title: String,
+}
+
+impl VerifiedCall {
+    fn observation(&self, state: CallState) -> BrowserDocument {
+        BrowserDocument {
+            state,
+            ..self.document.clone()
+        }
+    }
 }
 
 impl BrowserCallReader {
@@ -807,42 +822,49 @@ impl BrowserCallReader {
         Self {
             reader: UiaReader::new(),
             quiet: QuietWindows::default(),
+            bound: HashMap::new(),
         }
     }
 
-    /// Reads the windows of `families`. `family_of` names a process's browser.
+    /// Reads the windows of processes named by `family_of`.
     pub(crate) fn read(
         &mut self,
-        families: &[&'static str],
         family_of: impl Fn(u32) -> Option<&'static str>,
     ) -> Vec<BrowserDocument> {
+        let windows = top_level_windows()
+            .into_iter()
+            .filter_map(|(hwnd, pid)| Some((hwnd, pid, family_of(pid)?)))
+            .collect::<Vec<_>>();
+        if windows.len() > browser::MAX_WINDOWS || (windows.is_empty() && self.bound.is_empty()) {
+            return Vec::new();
+        }
         let _com = ComScope::enter();
         let Ok(automation) = self.reader.automation() else {
             return Vec::new();
         };
-        let Ok(cache) = cache_request(&automation) else {
+        let Ok(cache) = call_cache_request(&automation) else {
             return Vec::new();
         };
         let Ok(condition) = call_control_condition(&automation) else {
             return Vec::new();
         };
-        let mut windows = top_level_windows();
-        windows.retain(|(_, pid)| family_of(*pid).is_some_and(|family| families.contains(&family)));
-        if windows.len() > browser::MAX_WINDOWS {
-            return Vec::new();
-        }
         let deadline = Instant::now() + browser::READ_DEADLINE;
         let mut documents = Vec::new();
         let mut seen = Vec::new();
-        for (hwnd, pid) in windows {
+        for (hwnd, pid, family) in windows {
             if Instant::now() >= deadline {
-                return documents;
+                break;
             }
-            let Some(family) = family_of(pid) else {
-                continue;
-            };
+            let handle = hwnd.0 as usize;
+            let bound = self
+                .bound
+                .get(&handle)
+                .filter(|call| call.document.host_pid == Some(pid));
             // SAFETY: a plain query on a handle from EnumWindows; a stale one fails.
             if unsafe { IsIconic(hwnd) }.as_bool() {
+                if let Some(call) = bound {
+                    documents.push(call.observation(CallState::Present));
+                }
                 continue;
             }
             // SAFETY: UI Automation validates the handle; a stale one fails.
@@ -856,7 +878,7 @@ impl BrowserCallReader {
             let key = format!("{:p}", hwnd.0);
             seen.push(key.clone());
             let now = Instant::now();
-            if self.quiet.is_quiet(&key, &title, now) {
+            if bound.is_none() && self.quiet.is_quiet(&key, &title, now) {
                 continue;
             }
             // One cross-process call returns every control the check needs.
@@ -866,22 +888,102 @@ impl BrowserCallReader {
             else {
                 continue;
             };
-            let Some(labels) = call_labels(&found) else {
+            let Some(window) = call_labels(&found, family == "mts-link") else {
                 continue;
             };
-            self.quiet.record(&key, &title, labels.is_empty(), now);
-            documents.extend(
-                labels
-                    .into_iter()
-                    .filter_map(|labels| labels.into_document(family)),
-            );
+            let document = window
+                .labels
+                .and_then(|labels| labels.into_document(family));
+            self.quiet.record(&key, &title, document.is_none(), now);
+            if let Some(mut document) = document {
+                document.host_pid = Some(pid);
+                if document.state == CallState::InCall
+                    && meeting_room(&document.url)
+                        .is_some_and(|room| room.service != MeetingService::GoogleMeet)
+                {
+                    let title = window.document_title.clone().unwrap_or_default();
+                    self.bound.insert(
+                        handle,
+                        VerifiedCall {
+                            document: document.clone(),
+                            title,
+                        },
+                    );
+                } else if document.state == CallState::Unavailable
+                    && bound.is_some_and(|call| call.document.url == document.url)
+                {
+                    // A device dialog or transient read obscured the controls.
+                    document.state = CallState::Present;
+                }
+                documents.push(document);
+            } else if let Some(call) = bound {
+                let still_open = !call.title.is_empty()
+                    && window
+                        .tabs
+                        .iter()
+                        .any(|tab| tab.to_lowercase().contains(&call.title.to_lowercase()));
+                if still_open {
+                    documents.push(call.observation(CallState::Present));
+                } else if (family == "mts-link"
+                    || (!call.title.is_empty() && !window.tabs.is_empty()))
+                    && window.document_address.as_deref().is_some_and(|address| {
+                        browser::is_post_call_page(&call.document.url, address)
+                    })
+                {
+                    documents.push(call.observation(CallState::Ended));
+                    self.bound.remove(&handle);
+                }
+            }
         }
         self.quiet.keep(&seen);
+        let alive = documents
+            .iter()
+            .filter(|doc| matches!(doc.state, CallState::InCall | CallState::Present))
+            .map(|doc| (doc.family, doc.url.clone()))
+            .collect::<HashSet<_>>();
+        self.bound.retain(|handle, call| {
+            let window = HWND(*handle as *mut c_void);
+            // SAFETY: queries only, and the process id guards reused handles.
+            let still_exists = unsafe { IsWindow(Some(window)) }.as_bool()
+                && unsafe {
+                    let mut pid = 0u32;
+                    GetWindowThreadProcessId(window, Some(&mut pid));
+                    call.document.host_pid == Some(pid)
+                };
+            if !still_exists && !alive.contains(&(call.document.family, call.document.url.clone()))
+            {
+                documents.push(call.observation(CallState::Ended));
+            }
+            still_exists
+        });
+        documents.retain(|doc| {
+            doc.state != CallState::Ended || !alive.contains(&(doc.family, doc.url.clone()))
+        });
         documents
     }
 }
 
-/// Documents, buttons, links and text, the only controls the check reads.
+fn call_cache_request(
+    automation: &IUIAutomation,
+) -> windows::core::Result<IUIAutomationCacheRequest> {
+    // SAFETY: builds a request object in this process.
+    unsafe {
+        let request = automation.CreateCacheRequest()?;
+        request.SetTreeFilter(&automation.RawViewCondition()?)?;
+        for property in [
+            UIA_NamePropertyId,
+            UIA_ControlTypePropertyId,
+            UIA_IsEnabledPropertyId,
+            UIA_IsOffscreenPropertyId,
+            UIA_IsValuePatternAvailablePropertyId,
+        ] {
+            request.AddProperty(property)?;
+        }
+        Ok(request)
+    }
+}
+
+/// Documents, controls and browser tabs, the only elements this check reads.
 fn call_control_condition(
     automation: &IUIAutomation,
 ) -> windows::core::Result<IUIAutomationCondition> {
@@ -891,6 +993,7 @@ fn call_control_condition(
         UIA_ButtonControlTypeId,
         UIA_HyperlinkControlTypeId,
         UIA_TextControlTypeId,
+        UIA_TabItemControlTypeId,
     ] {
         // SAFETY: builds condition objects in this process.
         unsafe {
@@ -905,47 +1008,89 @@ fn call_control_condition(
     condition.ok_or_else(windows::core::Error::empty)
 }
 
-/// Groups the controls of one window under their Meet documents, in tree
-/// order. `None` when there are too many to be read as call controls.
-fn call_labels(found: &IUIAutomationElementArray) -> Option<Vec<DocumentLabels>> {
+#[derive(Default)]
+struct WindowCall {
+    labels: Option<DocumentLabels>,
+    document_address: Option<String>,
+    document_title: Option<String>,
+    tabs: Vec<String>,
+}
+
+/// In a browser, a nested document must be the verified Telemost room's
+/// meeting frame. The MTS Link desktop client may embed its own room.
+fn call_labels(found: &IUIAutomationElementArray, mts_desktop: bool) -> Option<WindowCall> {
     // SAFETY: reads the array's own length.
-    let count = unsafe { found.Length() }.ok()?;
-    if count as usize > browser::MAX_NODES {
+    let count = unsafe { found.Length() }.ok()? as usize;
+    if count > browser::MAX_NODES {
         return None;
     }
-    let mut documents: Vec<DocumentLabels> = Vec::new();
+    let mut result = WindowCall::default();
+    let mut saw_document = false;
+    let mut in_room = false;
     for index in 0..count {
-        // SAFETY: the index is inside the array.
-        let Ok(element) = (unsafe { found.GetElement(index) }) else {
+        // SAFETY: each index is inside the array, and properties are cached.
+        let Ok(element) = (unsafe { found.GetElement(index as i32) }) else {
             continue;
         };
-        let node = Node::cached(&element);
-        if node.control_type == UIA_DocumentControlTypeId {
-            let url = node
-                .value_pattern
-                .then(|| current_string(&element, UIA_ValueValuePropertyId))
-                .flatten()
-                .and_then(|raw| browser::meet_url(&raw));
-            if let Some(url) = url {
-                documents.push(DocumentLabels {
-                    url: Some(url),
-                    ..Default::default()
-                });
+        let kind = unsafe { element.CachedControlType() }.ok()?;
+        if kind == UIA_TabItemControlTypeId {
+            if !saw_document
+                && let Some(title) = cached_name(&element).filter(|title| !title.trim().is_empty())
+            {
+                result.tabs.push(title);
             }
             continue;
         }
-        let Some(labels) = documents.last_mut() else {
-            // The browser's own toolbar comes before any document.
+        if kind == UIA_DocumentControlTypeId {
+            let address = cached_flag(&element, UIA_IsValuePatternAvailablePropertyId)
+                .then(|| current_string(&element, UIA_ValueValuePropertyId))
+                .flatten();
+            let room = address
+                .as_deref()
+                .and_then(meeting_room)
+                .filter(|room| !mts_desktop || room.service == MeetingService::MtsLink);
+            let embedded_mts_room = mts_desktop && result.labels.is_none() && room.is_some();
+            if saw_document && !embedded_mts_room {
+                in_room = result
+                    .labels
+                    .as_ref()
+                    .and_then(|labels| labels.url.as_deref())
+                    .zip(address.as_deref())
+                    .is_some_and(|(room, frame)| browser::telemost_room_frame(room, frame));
+                continue;
+            }
+            saw_document = true;
+            result.document_title = cached_name(&element);
+            result.document_address = address;
+            result.labels = room.map(|room| DocumentLabels {
+                url: Some(room.url),
+                ..Default::default()
+            });
+            in_room = result.labels.is_some();
+            continue;
+        }
+        if !in_room || cached_flag(&element, UIA_IsOffscreenPropertyId) {
+            continue;
+        }
+        let Some(labels) = result.labels.as_mut() else {
             continue;
         };
         let name = cached_name(&element);
-        if node.control_type == UIA_TextControlTypeId {
+        if kind == UIA_TextControlTypeId {
             labels.add_message(name);
-        } else {
+        } else if kind == UIA_ButtonControlTypeId && !cached_flag(&element, UIA_IsEnabledPropertyId)
+        {
+            labels.add_disabled_button(name);
+        } else if kind == UIA_ButtonControlTypeId
+            || labels
+                .url
+                .as_deref()
+                .is_some_and(|url| url.starts_with("https://meet.google.com/"))
+        {
             labels.add_button(name);
         }
     }
-    Some(documents)
+    Some(result)
 }
 
 unsafe extern "system" fn visit_top_level(window: HWND, lparam: LPARAM) -> BOOL {

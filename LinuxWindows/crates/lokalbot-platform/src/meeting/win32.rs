@@ -20,7 +20,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 use windows::core::{BOOL, Interface};
 
-use super::{CaptureStream, Evidence, EvidenceSource, WindowTitle, browser_family};
+use super::{
+    CaptureStream, Evidence, EvidenceSource, WindowTitle, browser_family, document_family,
+};
 
 pub(super) struct WasapiEvidence {
     calls: crate::screen::BrowserCallReader,
@@ -50,20 +52,9 @@ impl EvidenceSource for WasapiEvidence {
         } else {
             Vec::new()
         };
-        let documents = if browsing {
-            let families: Vec<&'static str> = capturing
-                .iter()
-                .filter_map(|stream| {
-                    std::iter::once(&stream.process_name)
-                        .chain(&stream.ancestors)
-                        .find_map(|name| browser_family(name))
-                })
-                .collect();
-            self.calls
-                .read(&families, |pid| browser_family(&processes.get(&pid)?.name))
-        } else {
-            Vec::new()
-        };
+        let documents = self
+            .calls
+            .read(|pid| document_family(&processes.get(&pid)?.name));
         Ok(Evidence {
             capturing,
             windows,
