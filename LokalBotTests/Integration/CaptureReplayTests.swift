@@ -276,6 +276,49 @@ final class CaptureReplayTests: XCTestCase {
         }
     }
 
+    func testMicrophoneBasedDetectsNativeAndOptedInBrowserCalls() async throws {
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        for (bundle, additional, browserEnabled, starts) in [
+            ("ru.unlimitedtech.express.desktop", "", false, true),
+            ("com.example.CorporateClient", "com.example.CorporateClient", false, true),
+            ("com.google.Chrome", "", true, true),
+            ("com.google.Chrome", "", false, false),
+        ] {
+            let trace = CaptureTrace(header: .init(schemaVersion: 1, macOSVersion: "Test",
+                origin: .scripted, scenario: "microphone-based-call", recordedAt: start), events: [
+                    .init(t: 0, query: .runningApps, apps: [
+                        .init(processIdentifier: 801, bundleIdentifier: bundle, localizedName: "Call app")
+                    ]),
+                    .init(t: 0, query: .audioProcesses, processes: [
+                        .init(id: 802, name: "Call helper", bundleID: bundle + ".helper",
+                              objectID: 90, isRunningOutput: true)
+                    ]),
+                    .init(t: 30, query: .inputRunning, processID: 802, flag: true),
+                    .init(t: 70, query: .inputRunning, processID: 802, flag: false)
+                ])
+            let replay = ReplayCaptureEnvironment(trace: trace, start: start)
+            CaptureEnvironment.install(replay.environment)
+            MeetingDetector.invalidateAudioProcessSnapshot()
+            MeetingDetector.resetCaptureTargetMemory()
+            let detector = MeetingDetector(microphoneWindowsAllowed: { Set($0) })
+            detector.additionalCallApps = additional
+            detector.detectOtherBrowserCalls = browserEnabled
+            var began: [TimeInterval] = []
+            var ended: [TimeInterval] = []
+            detector.onMeetingStarted = {
+                XCTAssertEqual($0.detectedApp?.bundleID, bundle)
+                began.append(replay.clock.elapsed)
+            }
+            detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+            for time in stride(from: 0.0, through: 96, by: 2) {
+                await replay.clock.advance(to: time)
+                await detector.tickForTesting()
+            }
+            XCTAssertEqual(began, starts ? [42] : [], bundle)
+            XCTAssertEqual(ended, starts ? [85] : [], bundle)
+        }
+    }
+
     func testNativeTelemostIgnoresShortAudioAndStopsOnceItsCallAudioEnds() async throws {
         let replay = try replay("telemost-desktop-call")
         let detector = MeetingDetector()

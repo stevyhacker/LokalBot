@@ -216,6 +216,22 @@ pub const ENTRIES: &[Entry] = &[
             )
         },
     },
+    #[cfg(windows)]
+    Entry {
+        id: "settings.detectOtherBrowserCalls",
+        title: "Detect other browser calls",
+        category: Meetings,
+        aliases: "browser microphone unspecified site corporate calls",
+        value: |s| on_off(s.detect_other_browser_calls),
+    },
+    #[cfg(windows)]
+    Entry {
+        id: "settings.additionalCallApps",
+        title: "Additional call apps",
+        category: Meetings,
+        aliases: "native executable custom corporate eXpress",
+        value: |s| s.additional_call_apps.clone(),
+    },
     Entry {
         id: "settings.recordSystemAudio",
         title: "Record system audio",

@@ -2,6 +2,8 @@
 
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
+#[cfg(windows)]
+use gpui_kit::component::input::Input;
 use gpui_kit::{Context, SharedString};
 use lokalbot_core::settings::{AutoRecordMode, NoteTemplate};
 
@@ -74,7 +76,11 @@ fn template_description(template: NoteTemplate) -> &'static str {
 }
 
 /// Apps whose calls LokalBot notices on Linux and Windows.
+#[cfg(not(windows))]
 const DETECTED_APPS: &str = "Zoom, Microsoft Teams, Slack, Webex, and Google Meet in a browser";
+#[cfg(windows)]
+const DETECTED_APPS: &str =
+    "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
 
 impl SettingsPage {
     pub(super) fn meetings_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
@@ -180,6 +186,31 @@ impl SettingsPage {
                         }
                     }),
                     self.is_focused("settings.microphoneDevice"),
+                    cx,
+                ),
+            );
+
+        #[cfg(windows)]
+        let meetings = meetings
+            .row(
+                "settings.detectOtherBrowserCalls",
+                self.toggle(
+                    "settings.detectOtherBrowserCalls",
+                    lokalbot_i18n::tr("Detect other browser calls"),
+                    Some(lokalbot_i18n::tr("Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.")),
+                    settings.detect_other_browser_calls,
+                    |s, v| s.detect_other_browser_calls = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.additionalCallApps",
+                settings_row::stacked_row(
+                    "settings.additionalCallApps",
+                    lokalbot_i18n::tr("Additional call apps"),
+                    Some(lokalbot_i18n::tr("Enter executable names separated by commas, such as CustomClient.exe.").into()),
+                    Input::new(&self.additional_call_apps),
+                    self.is_focused("settings.additionalCallApps"),
                     cx,
                 ),
             );

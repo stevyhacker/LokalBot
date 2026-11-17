@@ -2597,3 +2597,11 @@
 "Priorities for today" = "आजचे प्राधान्यक्रम";
 "Priorities from %@" = "%@ चे प्राधान्यक्रम";
 "Priorities from a previous workday" = "मागील एका कामाच्या दिवसाचे प्राधान्यक्रम";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Bundle identifiers" = "Bundle identifiers";
+"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Enter bundle identifiers separated by commas, such as com.example.CallApp.";
+"Enter executable names separated by commas, such as CustomClient.exe." = "Enter executable names separated by commas, such as CustomClient.exe.";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";

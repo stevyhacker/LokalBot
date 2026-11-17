@@ -2597,3 +2597,11 @@
 "Priorities for today" = "Приоритеты на сегодня";
 "Priorities from %@" = "Приоритеты: %@";
 "Priorities from a previous workday" = "Приоритеты за предыдущий рабочий день";
+
+"Detect other browser calls" = "Обнаруживать другие звонки в браузере";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Определяет звонки на других сайтах по активности микрофона. В запись может попасть звук других вкладок того же браузера.";
+"Additional call apps" = "Дополнительные приложения для звонков";
+"Bundle identifiers" = "Идентификаторы приложений";
+"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Укажите идентификаторы приложений через запятую, например com.example.CallApp.";
+"Enter executable names separated by commas, such as CustomClient.exe." = "Укажите имена исполняемых файлов через запятую, например CustomClient.exe.";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Яндекс Телемост, МТС Линк и eXpress";

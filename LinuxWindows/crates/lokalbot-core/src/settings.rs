@@ -32,6 +32,9 @@ pub struct Settings {
 
     // Meetings
     pub auto_record_mode: AutoRecordMode,
+    pub detect_other_browser_calls: bool,
+    /// Comma-separated executable names for additional native call clients.
+    pub additional_call_apps: String,
     pub stop_debounce_seconds: f64,
     pub record_system_audio: bool,
     /// Empty means the system default input.
@@ -312,6 +315,8 @@ impl Default for Settings {
             getting_started_dismissed: false,
 
             auto_record_mode: AutoRecordMode::Ask,
+            detect_other_browser_calls: false,
+            additional_call_apps: String::new(),
             stop_debounce_seconds: 15.0,
             record_system_audio: true,
             microphone_device: String::new(),

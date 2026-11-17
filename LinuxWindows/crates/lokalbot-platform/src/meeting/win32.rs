@@ -44,9 +44,11 @@ impl EvidenceSource for WasapiEvidence {
             .into_iter()
             .map(|pid| stream_for(pid, &processes))
             .collect();
-        let browsing = capturing
-            .iter()
-            .any(|stream| browser_family(&stream.process_name).is_some());
+        let browsing = capturing.iter().any(|stream| {
+            std::iter::once(stream.process_name.as_str())
+                .chain(stream.ancestors.iter().map(String::as_str))
+                .any(|name| browser_family(name).is_some())
+        });
         let windows = if browsing {
             browser_windows(&processes)
         } else {

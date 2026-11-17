@@ -104,6 +104,9 @@ struct AppSettings: Codable, Equatable {
     /// New installs ask before recording a detected meeting. Decoding old
     /// settings preserves the previous automatic default.
     var autoRecordMode: AutoRecordMode = .ask
+    var detectOtherBrowserCalls = false
+    /// Comma-separated bundle identifiers of additional native call clients.
+    var additionalCallApps = ""
     /// Seconds the meeting app's own audio must be gone before a meeting counts
     /// as ended.
     var stopDebounceSeconds: TimeInterval = Self.defaultStopDebounceSeconds
@@ -991,6 +994,8 @@ struct AppSettings: Codable, Equatable {
         case meetingSettingsVersion
         case echoCancellation
         case autoRecordMode
+        case detectOtherBrowserCalls
+        case additionalCallApps
         case stopDebounceSeconds
         case calendarDetectionEnabled
         case useCalendarTitles
@@ -1219,6 +1224,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(Self.currentMeetingSettingsVersion, forKey: .meetingSettingsVersion)
         try c.encode(echoCancellation, forKey: .echoCancellation)
         try c.encode(autoRecordMode, forKey: .autoRecordMode)
+        try c.encode(detectOtherBrowserCalls, forKey: .detectOtherBrowserCalls)
+        try c.encode(additionalCallApps, forKey: .additionalCallApps)
         try c.encode(
             Self.migratedStopDebounceSeconds(
                 stopDebounceSeconds,
@@ -1425,6 +1432,8 @@ struct AppSettings: Codable, Equatable {
         let meetingSettingsVersion = decode(.meetingSettingsVersion, 0)
         echoCancellation = decode(.echoCancellation, defaults.echoCancellation)
         autoRecordMode = decode(.autoRecordMode, c.contains(.autoRecordMode) ? defaults.autoRecordMode : .automatic)
+        detectOtherBrowserCalls = decode(.detectOtherBrowserCalls, defaults.detectOtherBrowserCalls)
+        additionalCallApps = decode(.additionalCallApps, defaults.additionalCallApps)
         stopDebounceSeconds = Self.migratedStopDebounceSeconds(
             decode(.stopDebounceSeconds, defaults.stopDebounceSeconds),
             decodedSettingsVersion: meetingSettingsVersion)

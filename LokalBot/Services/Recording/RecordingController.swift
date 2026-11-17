@@ -534,18 +534,13 @@ final class RecordingController: ObservableObject {
             do {
                 try Task.checkCancellation()
                 if ["detector", "audio-monitor", "notification"].contains(source),
-                   let detectedApp, MeetingDetector.documentCallHosts.contains(detectedApp.bundleID) {
-                    let host = CaptureEnvironment.current.workspace.runningApplications()
-                        .first { $0.bundleIdentifier == detectedApp.bundleID }
-                    let session = host.flatMap { BrowserMeetingSession.snapshot(processID: $0.processIdentifier,
-                        expectedURL: detectedApp.meetingURL) }
-                    guard session?.state == .inCall, session?.url == detectedApp.meetingURL else {
-                        audioMonitor.isRecordingActive = false
-                        audioMonitor.reseed()
-                        onError("The detected call is no longer available. Start recording manually if needed.")
-                        return
-                    }
+                   let detectedApp, !(await detectedCallIsAvailable(detectedApp)) {
+                    audioMonitor.isRecordingActive = false
+                    audioMonitor.reseed()
+                    onError("The detected call is no longer available. Start recording manually if needed.")
+                    return
                 }
+                try Task.checkCancellation()
                 let title = MeetingMatcher.recordingTitle(
                     calendarTitle: calendarEvent?.title,
                     useCalendarTitles: settings.useCalendarTitles,
@@ -666,6 +661,27 @@ final class RecordingController: ObservableObject {
                 preserveAudioFromInterruptedStart(created)
             }
         }
+    }
+
+    private func detectedCallIsAvailable(_ app: MeetingDetector.DetectedApp) async -> Bool {
+        if app.usesMicrophoneDetection {
+            if MeetingDetector.microphoneBrowsers.contains(app.bundleID) {
+                guard settings.detectOtherBrowserCalls,
+                      await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: [app.pid]).contains(app.pid)
+                else { return false }
+            } else if MeetingDetector.knownApps[app.bundleID] == nil,
+                      !MeetingDetector.configuredCallBundleIDs(settings.additionalCallApps)
+                        .contains(app.bundleID.lowercased()) {
+                return false
+            }
+            return MeetingDetector.microphoneIsActive(for: app)
+        }
+        guard MeetingDetector.documentCallHosts.contains(app.bundleID) else { return true }
+        let host = CaptureEnvironment.current.workspace.runningApplications().first { $0.bundleIdentifier == app.bundleID }
+        let session = host.flatMap {
+            BrowserMeetingSession.snapshot(processID: $0.processIdentifier, expectedURL: app.meetingURL)
+        }
+        return session?.state == .inCall && session?.url == app.meetingURL
     }
 
     func stop(process: Bool = true, contentEndedAt: Date? = nil, deferProcessing: Bool = false,

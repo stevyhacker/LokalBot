@@ -113,6 +113,23 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertNil(BrowserMeetingSession.landingState(boundWindowOnLanding: false, tabHoldsRoom: false))
     }
 
+    func testOptionalMicrophoneDetectionRequiresPublicBrowserWindows() {
+        XCTAssertTrue(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video"]))
+        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed([]))
+        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", nil]))
+        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", "New Tab - Incognito"]))
+    }
+
+    func testExpressUsesTheMicrophoneAndCustomAppsUseBundleIdentifiers() throws {
+        let bundle = "ru.unlimitedtech.express.desktop"
+        let express = try XCTUnwrap(MeetingDetector.meetingAppCandidates(bundleIDs: [(bundle, 100)]).first)
+        XCTAssertEqual(express.name, "eXpress")
+        XCTAssertTrue(express.usesMicrophoneDetection)
+        XCTAssertFalse(MeetingDetector.shouldAutoRecordNativeAudioMonitor(bundleID: bundle, calendarBacked: true))
+        XCTAssertEqual(MeetingDetector.configuredCallBundleIDs(
+            "com.example.CallApp, COM.EXAMPLE.CALLAPP, /tmp/bad.app\ncorp.VKS"), ["com.example.callapp", "corp.vks"])
+    }
+
     func testTelemostCallTitleDoesNotMatchTheHomeTab() {
         let url = URL(string: "https://telemost.yandex.ru/j/12345678901")!
         let verified = "Идёт звонок · Яндекс Телемост"
