@@ -421,6 +421,65 @@
       hint.hidden = false;
     }
   }
+  /* desktop install lines (Homebrew, other downloads) mean nothing on a phone */
+  if (handheld) {
+    $$("[data-desktop-only]").forEach(function (el) { el.hidden = true; });
+  }
+
+  /* ---------- copy a command, such as the Homebrew line ---------- */
+  $$("[data-copy-text]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var text = button.getAttribute("data-copy-text");
+      var live = $("[data-copy-status]");
+      var done = function (ok) {
+        if (live) {
+          live.textContent = "";
+          live.textContent = ok ? "Command copied." : "Couldn't copy. Select the command and copy it instead.";
+        }
+        var glyph = $("i.ph", button);
+        if (!ok || !glyph || button.dataset.copying) return;
+        var before = glyph.className;
+        button.dataset.copying = "1";
+        glyph.className = "ph ph-check";
+        setTimeout(function () { glyph.className = before; delete button.dataset.copying; }, 2000);
+      };
+      /* the clipboard API can be refused (no focus, permissions); fall back to a selected textarea */
+      var fallback = function () {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        var ok = false;
+        try { ok = document.execCommand("copy"); } catch (_) {}
+        document.body.removeChild(ta);
+        button.focus();
+        done(ok);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+
+  /* ---------- "Watch the demo": scroll to it (the link's own job) and start it from the top ---------- */
+  $$("[data-play-demo]").forEach(function (link) {
+    link.addEventListener("click", function () {
+      var first = $("[data-demo-stage] .demo-tab");
+      if (first) first.click();
+      var video = $("[data-demo-stage] video");
+      /* without autoplay the film keeps its controls; a click is permission to play it */
+      if (video && video.hasAttribute("controls") && video.paused) {
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+      }
+    });
+  });
 
   /* ---------- full-size screenshot links open the appearance on screen ---------- */
   $$(".home-image-link").forEach(function (link) {

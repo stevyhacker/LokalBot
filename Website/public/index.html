@@ -97,7 +97,7 @@
         "publisher": {
           "@id": "https://www.lokalbot.com/#organization"
         },
-        "dateModified": "2026-11-11",
+        "dateModified": "2026-11-17",
         "image": "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
         "screenshot": [
           "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
@@ -164,18 +164,18 @@
         "mainEntity": [
           {
             "@type": "Question",
-            "name": "What does it capture from my screen?",
+            "name": "Does anything leave my computer, or does a bot join my calls?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "New installs track only app and window activity, and you can turn that off. Visible text and encrypted screenshots are opt-in, and are deleted after 14 days by default unless you save the moment. Excluded apps and sites, password managers, and focused password fields are skipped. Private browser windows are captured like any other, so exclude the browser or site to keep them out."
+              "text": "No bot joins. LokalBot records your microphone and the meeting's audio on separate tracks on your computer; on Windows and Linux the second track is the meeting app where it can be separated, and otherwise everything your computer plays. Recordings and built-in processing stay local by default. The network is used for model downloads, update checks, and optional agent setup. A remote model gets context only after you approve its server, approved agent commands can use the network, and connected CLI or MCP tools have their own data handling. Tell participants you're recording and get their consent. See the privacy policy and how recording works."
             }
           },
           {
             "@type": "Question",
-            "name": "Does anything leave my computer?",
+            "name": "What does it capture from my screen?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Recordings and built-in processing stay local. The network is used for model downloads, update checks, and optional agent setup. A remote model gets context only after you approve its server. Approved agent commands can also use the network, and connected CLI or MCP tools have their own data handling. See the privacy policy."
+              "text": "Screen text and screenshots are off until you turn them on. New installs track only which app and window you're using, and you can turn that off too. If you opt in, visible text and encrypted screenshots are deleted after 14 days by default unless you save the moment. Excluded apps and sites, password managers, and focused password fields are skipped. Private browser windows are treated like any other window, so exclude the browser or site if you want them left out."
             }
           },
           {
@@ -201,14 +201,6 @@
               "@type": "Answer",
               "text": "Yes. It records calls in Tencent Meeting, VooV Meeting, Feishu, Lark, DingTalk, and WeCom, search finds Chinese, Japanese, and Korean words, and models can download from HF-Mirror or ModelScope."
             }
-          },
-          {
-            "@type": "Question",
-            "name": "Does a bot join my meetings?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. LokalBot records your microphone and the meeting's audio on separate tracks; on Windows and Linux the second track is the meeting app where it can be separated, and otherwise everything your computer plays. Tell participants you're recording and get their consent. Read how recording works."
-            }
           }
         ]
       }
@@ -229,9 +221,9 @@
     <nav class="nav__links" aria-label="Primary">
       <a href="#demo">Demo</a>
       <a href="#features">What it does</a>
-      <a href="#how">How it works</a>
-      <a href="#proof">Privacy</a>
       <a href="#compare">Compare</a>
+      <a href="#proof">Privacy</a>
+      <a href="#how">How it works</a>
       <a href="guides">Guides</a>
       <a href="blog">Blog</a>
     </nav>
@@ -246,29 +238,32 @@
   <main>
     <section class="hero home-hero" aria-labelledby="hero-title">
       <div class="hero__copy">
-        <a class="home-badge" href="#android">
-          <span class="home-badge__tag">New</span>
-          <span class="home-badge__text">LokalBot for Android, on Google Play</span>
+        <a class="home-badge" href="#download">
+          <span class="home-badge__tag">Free</span>
+          <span class="home-badge__text">For Mac, with Windows and Linux in alpha</span>
           <i class="ph ph-arrow-right" aria-hidden="true"></i>
         </a>
-        <h1 class="hero__title" id="hero-title">Your personal context engine.</h1>
-        <p class="hero__sub">Notes from every call with no bot. One search for everything you saw and heard. Autocomplete and dictation in any app. Local by default.</p>
+        <p class="eyebrow hero__kicker">Your personal context engine</p>
+        <h1 class="hero__title" id="hero-title">AI meeting notes that stay on your computer.</h1>
+        <p class="hero__sub">Record any call with no bot joining. Transcripts, notes, and action items are made on your computer by default, with no account or subscription. Add dictation, search, and opt-in screen recall when you want them.</p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
             <i class="ph ph-apple-logo" aria-hidden="true"></i>
             Download for Mac
           </a>
-          <a class="btn btn--ghost" href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener" data-phone-label="Star to follow releases" data-phone-icon="ph-star">
-            <i class="ph ph-github-logo" aria-hidden="true"></i>
-            View on GitHub
+          <a class="btn btn--ghost" href="#demo" data-play-demo>
+            <i class="ph ph-play" aria-hidden="true"></i>
+            Watch the demo
           </a>
         </div>
+        <p class="home-install" data-desktop-only data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so if SmartScreen stops it, choose More info, then Run anyway." data-req-linux="Extract the archive and run ./install.sh, or use the .deb, .rpm, or Arch package from the same release.">Or with Homebrew: <span class="home-install__cmd"><code>brew install --cask stevyhacker/tap/lokalbot</code><button type="button" class="home-install__copy" data-copy-text="brew install --cask stevyhacker/tap/lokalbot" aria-label="Copy the Homebrew command"><i class="ph ph-copy" aria-hidden="true"></i></button></span></p>
+        <p class="home-platform-links" data-desktop-only>Other downloads: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="#download">All options</a></p>
         <p class="home-handoff" data-handoff hidden>
           <i class="ph ph-monitor" aria-hidden="true"></i>
           <span>LokalBot is a desktop app for Mac, with Windows and Linux in alpha. <span data-handoff-share>Send this page to your computer with <span data-handoff-methods>AirDrop, Messages, or Notes</span>, or <button type="button" class="text-button" data-copy-link>copy the link</button>.</span><span data-handoff-copy hidden>Copy the link and open it on your computer.</span><span data-handoff-android hidden> The Android companion app is on <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">Google Play</a>.</span></span>
         </p>
         <p class="visually-hidden" role="status" aria-live="polite" data-copy-status></p>
-        <p class="hero__meta">Free and open source. No account. Screen memory is opt-in.</p>
+        <p class="hero__meta">Free and open source. No account. Works offline once the models are downloaded, and the Mac app is notarized by Apple.</p>
         <p class="home-requirements" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon, macOS 15+.</p>
       </div>
       <figure class="demo-stage" id="demo" data-demo-stage>
@@ -301,6 +296,31 @@
       </figure>
     </section>
 
+    <section class="section home-setup" id="setup" aria-labelledby="setup-title">
+      <header class="section__head">
+        <p class="eyebrow">Getting started</p>
+        <h2 class="section__title" id="setup-title">From download to your first notes.</h2>
+        <p class="section__lead">No account to create and no API key to bring.</p>
+      </header>
+      <ol class="home-writing__grid home-setup__steps">
+        <li class="tile">
+          <i class="ph ph-download-simple tile__icon" aria-hidden="true"></i>
+          <h3>1. Install it</h3>
+          <p>On a Mac, drag LokalBot to Applications, or use Homebrew. On Windows, the installer needs no administrator rights; it isn't code-signed yet, so if SmartScreen stops it, choose <strong>More info</strong>, then <strong>Run anyway</strong>. On Linux, run <code>./install.sh</code> or use the .deb, .rpm, or Arch package.</p>
+        </li>
+        <li class="tile">
+          <i class="ph ph-shield-check tile__icon" aria-hidden="true"></i>
+          <h3>2. Allow only what you use</h3>
+          <p>Meeting notes need your microphone and, on a Mac, System Audio Recording for the other side of the call. Accessibility lets it notice calls in a browser. Screen text, screenshots, and autocomplete ask for their own permissions only when you turn them on.</p>
+        </li>
+        <li class="tile">
+          <i class="ph ph-play tile__icon" aria-hidden="true"></i>
+          <h3>3. Try the sample meeting</h3>
+          <p>Setup downloads the speech and notes models, about 5.3 GB on a Mac, then opens a sample meeting: a made-up three-and-a-half-minute call. Read its notes and ask it a question before your first real meeting.</p>
+        </li>
+      </ol>
+    </section>
+
     <section class="section home-examples" id="features" aria-labelledby="features-title">
       <header class="section__head">
         <h2 class="section__title" id="features-title">Pick up where you left off.</h2>
@@ -321,6 +341,57 @@
           <h3>Where did the day go?</h3>
           <p>Retrace your day session by session. Screen text and screenshots are opt-in.</p>
         </article>
+      </div>
+    </section>
+
+    <section class="section home-compare" id="compare" aria-labelledby="compare-title">
+      <header class="section__head">
+        <p class="eyebrow">Switching</p>
+        <h2 class="section__title" id="compare-title">Coming from another app?</h2>
+        <p class="section__lead">Drop old audio or video files onto Meetings to get transcripts, speakers, and notes.</p>
+      </header>
+      <div class="home-writing__grid">
+        <article class="tile">
+          <h3><a href="lokalbot-vs-granola">Granola</a></h3>
+          <p>The same bot-free capture, processed on your computer. No account or subscription.</p>
+        </article>
+        <article class="tile">
+          <h3><a href="lokalbot-vs-otter">Otter</a> or <a href="lokalbot-vs-fireflies">Fireflies</a></h3>
+          <p>Nothing joins your call, audio stays local, and there are no minute caps.</p>
+        </article>
+        <article class="tile">
+          <h3><a href="lokalbot-vs-apple-notes">Apple Notes</a></h3>
+          <p>With headphones on, Notes misses the other side of the call. LokalBot records both.</p>
+        </article>
+        <article class="tile">
+          <h3><a href="lokalbot-vs-rewind">Rewind</a> or <a href="lokalbot-vs-screenpipe">Screenpipe</a></h3>
+          <p>Rewind's Mac app is discontinued. Here screen capture is opt-in and deleted after 14 days by default.</p>
+        </article>
+        <article class="tile">
+          <h3><a href="lokalbot-vs-hyprnote">Hyprnote</a>, <a href="lokalbot-vs-meetily">Meetily</a>, or <a href="lokalbot-vs-openwhispr">OpenWhispr</a></h3>
+          <p>Also open source. Here everything is local by default, and speaker separation, meeting detection, and MCP are free.</p>
+        </article>
+        <article class="tile">
+          <h3><a href="lokalbot-vs-wispr-flow">Wispr Flow</a>, <a href="lokalbot-vs-superwhisper">Superwhisper</a>, or <a href="lokalbot-vs-macwhisper">MacWhisper</a></h3>
+          <p>Free local dictation, plus meeting notes and recall. For transcribing existing files, MacWhisper is better.</p>
+        </article>
+      </div>
+      <p class="home-compare__note">Competitor details were last verified on October 26, 2026. <a href="guides#compare">All comparisons</a> &middot; <a href="granola-otter-alternatives-linux-windows">Alternatives for Linux and Windows</a></p>
+    </section>
+
+    <section class="section home-privacy" id="proof" aria-labelledby="privacy-title">
+      <div class="home-privacy__heading">
+        <p class="eyebrow">Privacy</p>
+        <h2 class="section__title" id="privacy-title">Your recordings stay on your computer.</h2>
+      </div>
+      <div class="home-privacy__copy">
+        <p>Recording, transcription, and the built-in models run on your computer. Screen text and screenshots are optional, and you choose what to capture and how long to keep it.</p>
+        <p>Models and updates need a download. A remote model gets context only after the app asks. Agents and external tools have their own permissions and data handling.</p>
+        <div class="home-privacy__links">
+          <a href="privacy">Read the privacy policy</a>
+          <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">Read the source</a>
+          <a href="enshittification-proof">How local storage works</a>
+        </div>
       </div>
     </section>
 
@@ -374,6 +445,46 @@
           <p>Turn a meeting into a draft you review and send, or keep notes in Obsidian or Logseq.</p>
         </article>
       </div>
+    </section>
+
+    <section class="section home-agents" id="agents" aria-labelledby="agents-title">
+      <div class="home-agents__copy">
+        <p class="eyebrow">Agent access</p>
+        <h2 class="section__title" id="agents-title">Works with your agents.</h2>
+        <p>Claude Code, Codex, or any MCP client can search your meetings through the bundled <code>lokalbot-cli</code> or its MCP server.</p>
+        <ul class="home-agents__facts">
+          <li><i class="ph ph-lock-key" aria-hidden="true"></i><span><strong>Read-only.</strong> Agents can search and read your library, not change it.</span></li>
+          <li><i class="ph ph-shield-check" aria-hidden="true"></i><span><strong>Off until you turn it on</strong> in Settings. Screen memory and the Personal Context you share each need their own permission.</span></li>
+          <li><i class="ph ph-terminal-window" aria-hidden="true"></i><span><strong>Your agent, your provider.</strong> Results go to its model provider, so connect only clients you trust.</span></li>
+        </ul>
+        <p>Open any action item in Claude Code or Codex, prompt ready to review. Optional Agent Mode works on your files with your approval.</p>
+      </div>
+      <div class="home-agents__demo">
+        <pre class="code" aria-label="Connect Claude Code to LokalBot and search from the terminal"><span class="c-op"># Connect Claude Code over MCP</span>
+<span class="c-prompt">$</span> claude mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp
+
+<span class="c-op"># Or search from any shell or agent</span>
+<span class="c-prompt">$</span> lokalbot-cli search <span class="c-str">"database decision"</span>
+<span class="c-prompt">$</span> lokalbot-cli actions <span class="c-flag">--owner</span> me</pre>
+        <p class="home-agents__links"><a href="claude-code-codex-meeting-notes">Set up agent access</a> <a href="claude-code-codex-plugins">Claude Code and Codex plugins</a> <a href="https://www.raycast.com/stevan_bogosavljevic/lokalbot" target="_blank" rel="noopener">Raycast extension</a></p>
+      </div>
+    </section>
+
+    <section class="section home-how" id="how" aria-labelledby="how-title">
+      <header class="section__head">
+        <p class="eyebrow">Under the hood</p>
+        <h2 class="section__title" id="how-title">A small AI team on your computer.</h2>
+        <p class="section__lead">Each job has its own local model, downloaded when its job needs it. Setup fetches speech and notes, about 5.3 GB on a Mac. Autocomplete is optional, search by meaning downloads on first use, and screen text uses Apple Vision, built into macOS. With every role on, the Mac defaults come to about 9.6 GB. Windows and Linux use their own, about 4 GB by default.</p>
+      </header>
+      <ul class="home-models">
+        <li><span class="home-models__job">Knows who's talking</span><strong>Nemotron 3</strong><span class="home-models__size">0.2 GB</span></li>
+        <li><span class="home-models__job">Turns speech into text</span><strong>Qwen3-ASR 1.7B</strong><span class="home-models__size">2.52 GB &middot; at setup</span></li>
+        <li><span class="home-models__job">Writes the recap and answers</span><strong>Qwen3.5 4B</strong><span class="home-models__size">2.74 GB &middot; at setup</span></li>
+        <li><span class="home-models__job">Finishes your sentences</span><strong>Gemma 4 E2B</strong><span class="home-models__size">3.85 GB &middot; optional</span></li>
+        <li><span class="home-models__job">Searches by meaning</span><strong>EmbeddingGemma 2</strong><span class="home-models__size">0.31 GB &middot; on first use</span></li>
+        <li><span class="home-models__job">Reads screen text, if you opt in</span><strong>Apple Vision</strong><span class="home-models__size">Built into macOS</span></li>
+      </ul>
+      <p class="home-how__links"><a href="https://github.com/stevyhacker/lokalbot/blob/master/DEVELOPMENT.md" target="_blank" rel="noopener">Technical deep dive</a> <a href="benchmarks">Model benchmarks</a></p>
     </section>
 
     <section class="section home-platforms" id="windows-linux" aria-labelledby="platforms-title">
@@ -434,95 +545,48 @@
       </figure>
     </section>
 
-    <section class="section home-agents" id="agents" aria-labelledby="agents-title">
-      <div class="home-agents__copy">
-        <p class="eyebrow">Agent access</p>
-        <h2 class="section__title" id="agents-title">Works with your agents.</h2>
-        <p>Claude Code, Codex, or any MCP client can search your meetings through the bundled <code>lokalbot-cli</code> or its MCP server.</p>
-        <ul class="home-agents__facts">
-          <li><i class="ph ph-lock-key" aria-hidden="true"></i><span><strong>Read-only.</strong> Agents can search and read your library, not change it.</span></li>
-          <li><i class="ph ph-shield-check" aria-hidden="true"></i><span><strong>Off until you turn it on</strong> in Settings. Screen memory and the Personal Context you share each need their own permission.</span></li>
-          <li><i class="ph ph-terminal-window" aria-hidden="true"></i><span><strong>Your agent, your provider.</strong> Results go to its model provider, so connect only clients you trust.</span></li>
-        </ul>
-        <p>Open any action item in Claude Code or Codex, prompt ready to review. Optional Agent Mode works on your files with your approval.</p>
-      </div>
-      <div class="home-agents__demo">
-        <pre class="code" aria-label="Connect Claude Code to LokalBot and search from the terminal"><span class="c-op"># Connect Claude Code over MCP</span>
-<span class="c-prompt">$</span> claude mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp
-
-<span class="c-op"># Or search from any shell or agent</span>
-<span class="c-prompt">$</span> lokalbot-cli search <span class="c-str">"database decision"</span>
-<span class="c-prompt">$</span> lokalbot-cli actions <span class="c-flag">--owner</span> me</pre>
-        <p class="home-agents__links"><a href="claude-code-codex-meeting-notes">Set up agent access</a> <a href="claude-code-codex-plugins">Claude Code and Codex plugins</a> <a href="https://www.raycast.com/stevan_bogosavljevic/lokalbot" target="_blank" rel="noopener">Raycast extension</a></p>
-      </div>
-    </section>
-
-    <section class="section home-how" id="how" aria-labelledby="how-title">
+    <section class="section faq home-faq" id="faq" aria-labelledby="faq-title">
       <header class="section__head">
-        <p class="eyebrow">Under the hood</p>
-        <h2 class="section__title" id="how-title">A small AI team on your computer.</h2>
-        <p class="section__lead">Each job has its own local model. These are the Mac defaults, about 9.6 GB if you use every role. Windows and Linux use their own, about 4 GB by default.</p>
+        <h2 class="section__title" id="faq-title">A few questions.</h2>
       </header>
-      <ul class="home-models">
-        <li><span class="home-models__job">Knows who's talking</span><strong>Nemotron 3</strong><span class="home-models__size">0.2 GB</span></li>
-        <li><span class="home-models__job">Turns speech into text</span><strong>Qwen3-ASR 1.7B</strong><span class="home-models__size">2.47 GB</span></li>
-        <li><span class="home-models__job">Writes the recap and answers</span><strong>Qwen3.5 4B</strong><span class="home-models__size">2.74 GB</span></li>
-        <li><span class="home-models__job">Finishes your sentences</span><strong>Gemma 4 E2B</strong><span class="home-models__size">3.85 GB</span></li>
-        <li><span class="home-models__job">Searches by meaning</span><strong>EmbeddingGemma 2</strong><span class="home-models__size">0.31 GB</span></li>
-        <li><span class="home-models__job">Reads screen text, if you opt in</span><strong>Apple Vision</strong><span class="home-models__size">Built into macOS</span></li>
-      </ul>
-      <p class="home-how__links"><a href="https://github.com/stevyhacker/lokalbot/blob/master/DEVELOPMENT.md" target="_blank" rel="noopener">Technical deep dive</a> <a href="benchmarks">Model benchmarks</a></p>
-    </section>
-
-    <section class="section home-privacy" id="proof" aria-labelledby="privacy-title">
-      <div class="home-privacy__heading">
-        <p class="eyebrow">Privacy</p>
-        <h2 class="section__title" id="privacy-title">Your recordings stay on your computer.</h2>
-      </div>
-      <div class="home-privacy__copy">
-        <p>Recording, transcription, and the built-in models run on your computer. Screen text and screenshots are optional, and you choose what to capture and how long to keep it.</p>
-        <p>Models and updates need a download. A remote model gets context only after the app asks. Agents and external tools have their own permissions and data handling.</p>
-        <div class="home-privacy__links">
-          <a href="privacy">Read the privacy policy</a>
-          <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">Read the source</a>
-          <a href="enshittification-proof">How local storage works</a>
-        </div>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>Does anything leave my computer, or does a bot join my calls?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No bot joins. LokalBot records your microphone and the meeting's audio on separate tracks on your computer; on Windows and Linux the second track is the meeting app where it can be separated, and otherwise everything your computer plays. Recordings and built-in processing stay local by default. The network is used for model downloads, update checks, and optional agent setup. A remote model gets context only after you approve its server, approved agent commands can use the network, and connected CLI or MCP tools have their own data handling. Tell participants you're recording and get their consent. See the <a href="privacy">privacy policy</a> and <a href="record-both-sides-mac-meeting-without-bot">how recording works</a>.</p>
+        </details>
+        <details class="qa">
+          <summary>What does it capture from my screen?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Screen text and screenshots are off until you turn them on. New installs track only which app and window you're using, and you can turn that off too. If you opt in, visible text and encrypted screenshots are deleted after 14 days by default unless you save the moment. Excluded apps and sites, password managers, and focused password fields are skipped. Private browser windows are treated like any other window, so exclude the browser or site if you want them left out.</p>
+        </details>
+        <details class="qa">
+          <summary>Can I choose my own models?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. Use the built-in local models, another downloaded model, Ollama, an OpenAI-compatible server, or, on Mac, Apple Intelligence. Summaries and chat can also run on your own ChatGPT or Claude plan. A remote server or plan gets context only after you approve it. See the <a href="local-transcription-models-mac">transcription model guide</a> and <a href="offline-meeting-transcription-mac">offline setup guide</a>.</p>
+        </details>
+        <details class="qa">
+          <summary>Which languages does it support?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Transcription covers 52 languages and dialects with the default Qwen3-ASR model. Notes follow the meeting's language unless you choose another, and the app is translated into 24 languages. On Mac, autocomplete also writes in German, French, Italian, Spanish, and more.</p>
+        </details>
+        <details class="qa">
+          <summary>Does it work in mainland China?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. It records calls in Tencent Meeting, VooV Meeting, Feishu, Lark, DingTalk, and WeCom, search finds Chinese, Japanese, and Korean words, and models can download from HF-Mirror or ModelScope.</p>
+        </details>
       </div>
     </section>
 
-    <section class="section home-compare" id="compare" aria-labelledby="compare-title">
-      <header class="section__head">
-        <p class="eyebrow">Switching</p>
-        <h2 class="section__title" id="compare-title">Coming from another app?</h2>
-        <p class="section__lead">Drop old audio or video files onto Meetings to get transcripts, speakers, and notes.</p>
-      </header>
-      <div class="home-writing__grid">
-        <article class="tile">
-          <h3><a href="lokalbot-vs-granola">Granola</a></h3>
-          <p>The same bot-free capture, processed on your computer. No account or subscription.</p>
-        </article>
-        <article class="tile">
-          <h3><a href="lokalbot-vs-otter">Otter</a> or <a href="lokalbot-vs-fireflies">Fireflies</a></h3>
-          <p>Nothing joins your call, audio stays local, and there are no minute caps.</p>
-        </article>
-        <article class="tile">
-          <h3><a href="lokalbot-vs-apple-notes">Apple Notes</a></h3>
-          <p>With headphones on, Notes misses the other side of the call. LokalBot records both.</p>
-        </article>
-        <article class="tile">
-          <h3><a href="lokalbot-vs-rewind">Rewind</a> or <a href="lokalbot-vs-screenpipe">Screenpipe</a></h3>
-          <p>Rewind's Mac app is discontinued. Here screen capture is opt-in and deleted after 14 days by default.</p>
-        </article>
-        <article class="tile">
-          <h3><a href="lokalbot-vs-hyprnote">Hyprnote</a>, <a href="lokalbot-vs-meetily">Meetily</a>, or <a href="lokalbot-vs-openwhispr">OpenWhispr</a></h3>
-          <p>Also open source. Here everything is local by default, and speaker separation, meeting detection, and MCP are free.</p>
-        </article>
-        <article class="tile">
-          <h3><a href="lokalbot-vs-wispr-flow">Wispr Flow</a>, <a href="lokalbot-vs-superwhisper">Superwhisper</a>, or <a href="lokalbot-vs-macwhisper">MacWhisper</a></h3>
-          <p>Free local dictation, plus meeting notes and recall. For transcribing existing files, MacWhisper is better.</p>
-        </article>
+    <section class="section download home-download" id="download" aria-labelledby="download-title">
+      <div class="download__panel">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="64" height="64" />
+        <h2 class="section__title" id="download-title">Try it on your computer.</h2>
+        <p class="section__lead">Free and open source. No account or subscription.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
+          <i class="ph ph-apple-logo" aria-hidden="true"></i>
+          Download for Mac
+        </a>
+        <p class="download__sub" data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Extract the archive and run ./install.sh; updates then come through the app. The release page also has a .deb, an .rpm for Fedora, which apt or dnf keep updated, and an Arch package.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a></p>
+        <p class="home-download__setup">Apple Silicon (M1 or later) with macOS 15+ &middot; Windows 10 or 11, x64 &middot; Linux x86_64<br />Windows and Linux are in alpha. Models download during setup. <strong>Try a sample meeting</strong> before you record.</p>
+        <p class="home-download__help"><a href="system-requirements">System requirements</a> &middot; <a href="support">Setup help and feedback</a></p>
       </div>
-      <p class="home-compare__note">Competitor details were last verified on October 26, 2026. <a href="guides#compare">All comparisons</a> &middot; <a href="granola-otter-alternatives-linux-windows">Alternatives for Linux and Windows</a></p>
     </section>
 
     <section class="section home-blog" id="latest-posts" aria-labelledby="latest-posts-title">
@@ -550,54 +614,6 @@
         <!-- LATEST-POSTS:END -->
       </div>
       <p class="home-blog__more"><a href="blog">All posts</a> &middot; <a href="blog/feed.xml">Atom feed</a></p>
-    </section>
-
-    <section class="section download home-download" id="download" aria-labelledby="download-title">
-      <div class="download__panel">
-        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="64" height="64" />
-        <h2 class="section__title" id="download-title">Try it on your computer.</h2>
-        <p class="section__lead">Free and open source. No account or subscription.</p>
-        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
-          <i class="ph ph-apple-logo" aria-hidden="true"></i>
-          Download for Mac
-        </a>
-        <p class="download__sub" data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Extract the archive and run ./install.sh; updates then come through the app. The release page also has a .deb, an .rpm for Fedora, which apt or dnf keep updated, and an Arch package.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
-        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a></p>
-        <p class="home-download__setup">Apple Silicon (M1 or later) with macOS 15+ &middot; Windows 10 or 11, x64 &middot; Linux x86_64<br />Windows and Linux are in alpha. Models download during setup. <strong>Try a sample meeting</strong> before you record.</p>
-        <p class="home-download__help"><a href="system-requirements">System requirements</a> &middot; <a href="support">Setup help and feedback</a></p>
-      </div>
-    </section>
-
-    <section class="section faq home-faq" id="faq" aria-labelledby="faq-title">
-      <header class="section__head">
-        <h2 class="section__title" id="faq-title">A few questions.</h2>
-      </header>
-      <div class="faq__list">
-        <details class="qa">
-          <summary>What does it capture from my screen?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>New installs track only app and window activity, and you can turn that off. Visible text and encrypted screenshots are opt-in, and are deleted after 14 days by default unless you save the moment. Excluded apps and sites, password managers, and focused password fields are skipped. Private browser windows are captured like any other, so exclude the browser or site to keep them out.</p>
-        </details>
-        <details class="qa">
-          <summary>Does anything leave my computer?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Recordings and built-in processing stay local. The network is used for model downloads, update checks, and optional agent setup. A remote model gets context only after you approve its server. Approved agent commands can also use the network, and connected CLI or MCP tools have their own data handling. See the <a href="privacy">privacy policy</a>.</p>
-        </details>
-        <details class="qa">
-          <summary>Can I choose my own models?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Yes. Use the built-in local models, another downloaded model, Ollama, an OpenAI-compatible server, or, on Mac, Apple Intelligence. Summaries and chat can also run on your own ChatGPT or Claude plan. A remote server or plan gets context only after you approve it. See the <a href="local-transcription-models-mac">transcription model guide</a> and <a href="offline-meeting-transcription-mac">offline setup guide</a>.</p>
-        </details>
-        <details class="qa">
-          <summary>Which languages does it support?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Transcription covers 52 languages and dialects with the default Qwen3-ASR model. Notes follow the meeting's language unless you choose another, and the app is translated into 24 languages. On Mac, autocomplete also writes in German, French, Italian, Spanish, and more.</p>
-        </details>
-        <details class="qa">
-          <summary>Does it work in mainland China?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Yes. It records calls in Tencent Meeting, VooV Meeting, Feishu, Lark, DingTalk, and WeCom, search finds Chinese, Japanese, and Korean words, and models can download from HF-Mirror or ModelScope.</p>
-        </details>
-        <details class="qa">
-          <summary>Does a bot join my meetings?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. LokalBot records your microphone and the meeting's audio on separate tracks; on Windows and Linux the second track is the meeting app where it can be separated, and otherwise everything your computer plays. Tell participants you're recording and get their consent. Read <a href="record-both-sides-mac-meeting-without-bot">how recording works</a>.</p>
-        </details>
-      </div>
     </section>
   </main>
 
@@ -639,7 +655,7 @@
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">Star on GitHub</a>
       <a href="about">About</a>
       <a href="blog">Blog</a>
       <a href="benchmarks">Benchmarks</a>
