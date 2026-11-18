@@ -66,6 +66,12 @@ enum BrowserMeetingSession {
         boundWindowOnLanding && tabHoldsRoom == false ? .ended : nil
     }
 
+    /// A Join screen ends the bound call only in the call's own window. The
+    /// same room's lobby elsewhere, such as a reopened invite link, is not it.
+    static func waitingRoomState(inBoundWindow: Bool) -> State? {
+        inBoundWindow ? .ended : nil
+    }
+
     /// Why the last lifecycle read of a browser found no call document.
     enum ReadIssue: String, Codable, Sendable {
         case accessibilityUntrusted, windowListUnavailable, tooManyWindows, deadline
@@ -332,15 +338,19 @@ enum BrowserMeetingSession {
             bindings.set(nil, for: processID)
         } else if let bound {
             let state: State?
-            if observed?.snapshot.state == .waitingRoom {
-                state = .ended
+            let lobby = observed?.snapshot.state == .waitingRoom
+            let observedInBoundWindow = observed.map { CFEqual($0.element, bound.element) } == true
+            if lobby, let ended = waitingRoomState(inBoundWindow: observedInBoundWindow) {
+                state = ended
             } else if native != nil {
                 let stillOpen = read.windows?.contains { CFEqual($0, bound.element) } == true
                 let minimized = stillOpen && value(bound.element, kAXMinimizedAttribute) as? Bool == true
                 state = nativeWindowState(roomSeen: read.expectedRoomSeen,
                     allWindowsInspected: read.windows?.count == read.inspected.count, minimized: minimized)
             } else {
-                state = boundWindowState(bound: bound, read: read, documentReadable: observed != nil)
+                // The same room's lobby in another window is not the call's
+                // document, so the bound window and its tabs still decide.
+                state = boundWindowState(bound: bound, read: read, documentReadable: observed != nil && !lobby)
             }
             if let state {
                 if state == .ended { bindings.set(nil, for: processID) }
@@ -506,11 +516,15 @@ enum BrowserMeetingSession {
         windowLoop: for window in ordered {
             guard ProcessInfo.processInfo.systemUptime < deadline else { issue = .deadline; return nil }
             let title = value(window, kAXTitleAttribute) as? String ?? ""
-            if ScreenContextPrivacy.isPrivateWindow(title: title)
-                || value(window, kAXMinimizedAttribute) as? Bool == true { continue }
-            let started = ProcessInfo.processInfo.systemUptime
             let checksNativeClosure = bound != nil && nativeService != nil
             let isBoundWindow = bound.map { CFEqual($0.element, window) } == true
+            // A native client's closure check must read its other windows even
+            // when minimized, or one minimized chat window keeps the call open.
+            // The bound window's own minimized state is reported separately.
+            let skipsMinimized = !checksNativeClosure || isBoundWindow
+            if ScreenContextPrivacy.isPrivateWindow(title: title)
+                || (skipsMinimized && value(window, kAXMinimizedAttribute) as? Bool == true) { continue }
+            let started = ProcessInfo.processInfo.systemUptime
             if !checksNativeClosure, !isBoundWindow,
                quietWindows.isQuiet(window, title: title, processID: processID, now: started) {
                 continue
