@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 16,
+      "speaker": "them",
+      "text": "The on-device angle is why we're here \u2014 legal blocked every cloud notetaker."
+    },
+    {
+      "start": 16,
+      "end": 32,
+      "speaker": "me",
+      "text": "Then you'll want the verification walkthrough \u2014 I'll run it with your security team next week."
+    }
+  ]
+}
