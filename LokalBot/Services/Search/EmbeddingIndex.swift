@@ -966,12 +966,11 @@ final class EmbeddingIndex {
     }
 
     /// A capture's best meaning match for a query, and what search shows for it.
+    /// Its text is read only for the captures a search keeps (`screenTexts`).
     struct ScreenMeaningMatch: Sendable {
         let meaning: ScreenSearchRanking.Meaning
         let ts: Date
         let app: String
-        /// The capture's text, when it has a text vector.
-        let text: String?
     }
 
     /// Screens have been searched by meaning on this library.
@@ -1012,7 +1011,6 @@ final class EmbeddingIndex {
             let snapshotID: Int64
             let ts: Date
             let app: String
-            let text: String?
             let modality: ScreenSearchRanking.Modality
             let cosine: Float
         }
@@ -1020,16 +1018,18 @@ final class EmbeddingIndex {
         let byteCount = scorer.byteCount
         func read(_ statement: OpaquePointer, modality: ScreenSearchRanking.Modality) -> Row? {
             guard let app = sqlite3_column_text(statement, 2),
-                  let blob = sqlite3_column_blob(statement, 4),
-                  Int(sqlite3_column_bytes(statement, 4)) == byteCount else { return nil }
-            let text = sqlite3_column_text(statement, 3).map { String(cString: $0) }
+                  let blob = sqlite3_column_blob(statement, 3),
+                  Int(sqlite3_column_bytes(statement, 3)) == byteCount else { return nil }
             return Row(snapshotID: sqlite3_column_int64(statement, 0),
                        ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
-                       app: String(cString: app), text: text, modality: modality,
+                       app: String(cString: app), modality: modality,
                        cosine: scorer.score(blob))
         }
+        // Text stays unread here: a search shows a few hundred captures at
+        // most, and reading every capture's text was about a quarter of this
+        // scan's time at 30,000 captures.
         var rows: [Row] = database.query("""
-            SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.text, embedded.vec
+            SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.vec
             FROM screen_embeddings AS embedded
             JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
             WHERE embedded.model_id = ?1
@@ -1039,7 +1039,7 @@ final class EmbeddingIndex {
             SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_image_embeddings'
             """) {
             rows += database.query("""
-                SELECT embedded.snapshot_id, shot.ts, shot.app, NULL, embedded.vec
+                SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.vec
                 FROM screen_image_embeddings AS embedded
                 JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
                 WHERE embedded.model_id = ?1 AND shot.path != ''
@@ -1048,10 +1048,8 @@ final class EmbeddingIndex {
         let meanings = ScreenSearchRanking.meaning(rows.map {
             ScreenSearchRanking.Score(snapshotID: $0.snapshotID, modality: $0.modality, cosine: $0.cosine)
         })
-        var texts: [Int64: String] = [:]
         var places: [Int64: (ts: Date, app: String)] = [:]
         for row in rows {
-            if let text = row.text { texts[row.snapshotID] = text }
             places[row.snapshotID] = (row.ts, row.app)
         }
         var matches: [Int64: ScreenMeaningMatch] = [:]
@@ -1060,9 +1058,39 @@ final class EmbeddingIndex {
             if let ids = filter.snapshotIDs, !ids.contains(id) { continue }
             if let interval = filter.interval, !(place.ts >= interval.start && place.ts < interval.end) { continue }
             if let app = filter.app, app.caseInsensitiveCompare(place.app) != .orderedSame { continue }
-            matches[id] = ScreenMeaningMatch(meaning: meaning, ts: place.ts, app: place.app, text: texts[id])
+            matches[id] = ScreenMeaningMatch(meaning: meaning, ts: place.ts, app: place.app)
         }
         return matches
+    }
+
+    /// The text behind each capture's text vector, for the captures a search
+    /// shows (`screenMeanings` leaves it unread). A capture with only a
+    /// picture vector, or none, has no entry.
+    nonisolated static func screenTexts(_ ids: [Int64], in database: SQLiteDatabase) -> [Int64: String] {
+        let wanted = Array(Set(ids))
+        var texts: [Int64: String] = [:]
+        for start in stride(from: 0, to: wanted.count, by: 400) {
+            let chunk = Array(wanted[start..<min(start + 400, wanted.count)])
+            let placeholders = (2...(chunk.count + 1)).map { "?\($0)" }.joined(separator: ", ")
+            var bindings: [Any] = [indexVersion]
+            bindings += chunk.map { $0 as Any }
+            let rows: [(Int64, String)] = database.query("""
+                SELECT embedded.snapshot_id, embedded.text
+                FROM screen_embeddings AS embedded
+                WHERE embedded.model_id = ?1 AND embedded.snapshot_id IN (\(placeholders))
+                  AND EXISTS (SELECT 1 FROM ocr_metadata AS ocr WHERE ocr.snapshot_id = embedded.snapshot_id)
+                """, bind: bindings) { statement in
+                sqlite3_column_text(statement, 1).map { (sqlite3_column_int64(statement, 0), String(cString: $0)) }
+            }
+            for (id, text) in rows { texts[id] = text }
+        }
+        return texts
+    }
+
+    /// `screenTexts` on this index's connection.
+    func screenTexts(ids: [Int64]) -> [Int64: String] {
+        guard let database else { return [:] }
+        return Self.screenTexts(ids, in: database)
     }
 
     func search(_ query: String, limit: Int = 10,

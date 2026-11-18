@@ -705,7 +705,8 @@ final class MeetingChatTools: ChatToolRunner {
                     store.ocrText(snapshotID: $0)
                 }
                 hits = ScreenSearch.ranked(query: query, keyword: hits, coverage: coverage, meanings: meanings,
-                                           limit: 12, screenshots: { store.screenshots(ids: $0) })
+                                           limit: 12, screenshots: { store.screenshots(ids: $0) },
+                                           texts: { embeddingIndex.screenTexts(ids: $0) })
             }
         }
         hits = Array(hits.prefix(12))

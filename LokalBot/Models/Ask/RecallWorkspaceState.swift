@@ -366,9 +366,11 @@ extension RecallSearch {
                 let keyword = result.screens.flatMap(\.matches)
                 let coverage = result.screenCoverage
                 let groups = await ActivityStore.readInBackground(at: url) { store in
+                    let embeddings = SQLiteDatabase(url: url, readOnly: true)
                     let ranked = ScreenSearch.ranked(
                         query: query, keyword: keyword, coverage: coverage, meanings: meanings,
-                        limit: 2_000, screenshots: { store.screenshots(ids: $0) })
+                        limit: 2_000, screenshots: { store.screenshots(ids: $0) },
+                        texts: { ids in embeddings.map { EmbeddingIndex.screenTexts(ids, in: $0) } ?? [:] })
                     return screenGroups(ranked, limit: displayLimit + 1)
                 }
                 guard !Task.isCancelled else { return Result() }
