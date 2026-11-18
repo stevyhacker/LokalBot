@@ -274,10 +274,12 @@ delete those existing copies.
 Browser meeting detection checks the Meet document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
 An authorized browser recording continues when call observation is unavailable,
-including a temporarily missing browser host. It stops when you press Stop or
-when LokalBot positively verifies the call ended or its bound tab closed. The
-recording UI keeps the uncertainty visible. Capture is scoped to an application
-process, not reliably to one tab, so continuing browser capture may include
+including a temporarily missing browser host. It stops when you press Stop, when
+LokalBot positively verifies the call ended or its bound tab closed, or when no
+one has spoken for 15 minutes. That last rule applies to every recording: its
+transcript and summary end where the talking stopped, and the original audio is
+kept. The recording UI keeps the uncertainty visible. Capture is scoped to an
+application process, not reliably to one tab, so continuing browser capture may include
 other tabs playing audio in that process. A replacement browser host must verify
 the same call before recovery attaches; uncertainty does not authorize another
 app, a global audio tap, or a new automatic recording. Microphone-only recording

@@ -144,12 +144,12 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func recordingStopped(title: String, duration: TimeInterval, willTranscribe: Bool,
-                          waitingForModels: Bool = false) {
+                          waitingForModels: Bool = false, headline: String? = nil) {
         let minutes = max(1, Int(duration / 60))
         var body = "\(title) · \(minutes) min"
         if willTranscribe { body += " · transcribing…" }
         if waitingForModels { body += " · processes after models download" }
-        post(title: "Recording saved", body: body)
+        post(title: headline ?? "Recording saved", body: body)
     }
 
     /// Posts a real, actionable prompt for `.ask` recording mode. The action

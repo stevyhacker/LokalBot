@@ -1,4 +1,5 @@
 import AVFoundation
+import CryptoKit
 import XCTest
 @testable import LokalBot
 
@@ -131,6 +132,44 @@ final class AudioRecoveryJournalTests: XCTestCase {
         let failure = AudioWriteSafety.write(recovery: { false }, primary: { throw CocoaError(.fileWriteOutOfSpace) })
         XCTAssertFalse(failure.saved)
         XCTAssertNotNil(failure.error)
+    }
+
+    /// The recording of 2026-11-17 left 28,712 checkpoints on one track and
+    /// 18,016 on the other. The rebuild searched the whole manifest for each
+    /// checkpoint, so every launch spent itself on that meeting and the library
+    /// never finished loading. A few thousand checkpoints tell a rebuild that
+    /// looks each one up from that one.
+    func testThousandsOfCheckpointsRebuildWithoutSearchingTheManifestForEach() throws {
+        let (folder, format) = try fixture()
+        let preview = folder.appendingPathComponent(AudioPreviewTee.systemFileName)
+        let directory = AudioRecoveryJournal.directory(for: preview)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let count = 4_000
+        let framesPerChunk: AVAudioFrameCount = 16
+        let chunk = try buffer(format, frames: framesPerChunk, value: 0.1)
+        var manifest = AudioRecoveryJournal.Manifest(sampleRate: format.sampleRate, channels: format.channelCount)
+        for index in 0..<count {
+            let start = Int64(index) * Int64(framesPerChunk)
+            let url = directory.appendingPathComponent("frame-\(start)-\(UUID().uuidString).caf")
+            do {
+                let file = try AVAudioFile(forWriting: url, settings: format.settings,
+                                           commonFormat: format.commonFormat, interleaved: format.isInterleaved)
+                try file.write(from: chunk)
+            }
+            let digest = SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
+            manifest.segments.append(.init(file: url.lastPathComponent, startFrame: start,
+                                           frames: Int64(framesPerChunk), sha256: digest))
+        }
+        try JSONEncoder().encode(manifest).write(to: directory.appendingPathComponent("manifest.json"))
+
+        let started = Date()
+        let recovered = try XCTUnwrap(AudioRecoveryJournal.recover(previewURL: preview))
+        let elapsed = Date().timeIntervalSince(started)
+        XCTAssertEqual(try samples(recovered).count, count * Int(framesPerChunk))
+        XCTAssertTrue(try XCTUnwrap(AudioRecoveryJournal.receipt(previewURL: preview)).complete)
+        // Measured in a Debug build on 2026-11-18: 0.49 s with lookups, 10.8 s
+        // with a search per checkpoint. The limit leaves room for slower Macs.
+        XCTAssertLessThan(elapsed, 5, "rebuilt \(count) checkpoints in \(String(format: "%.1f", elapsed)) s")
     }
 
     func testExistingJournalCannotBeOverwrittenByAnotherStart() throws {
