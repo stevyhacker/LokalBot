@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000018-1",
+      "schemaVersion": 2,
+      "text": "Schedule the verification walkthrough",
+      "citations": [
+        {
+          "meetingID": "00000018-0000-4000-8000-000000000018",
+          "segmentID": "segment-0001-0000016000-0000032000",
+          "start": 16,
+          "end": 32,
+          "speaker": "me",
+          "excerpt": "Then you'll want the verification walkthrough \u2014 I'll run it with your security team next week."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}
