@@ -3,7 +3,7 @@ import Foundation
 /// Shared compact evidence for narrative facts and actionable outcomes. Model
 /// IDs are local to this immutable snapshot; durable artifacts use stable IDs.
 struct MeetingNotesEvidence {
-    static let ownershipPolicyVersion = "action-evidence-v4"
+    static let ownershipPolicyVersion = "action-evidence-v5"
 
     struct Unit: Codable, Equatable {
         var source: String

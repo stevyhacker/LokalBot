@@ -108,6 +108,31 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertGreaterThan(observed1, 0)
     }
 
+    func testVaultReplayKeepsTheStagingCheckAndContractPatchSeparate() async throws {
+        let staging = "I will verify both the allowance and the bridge fee quote on the staging deployment tomorrow."
+        let patch = "Confirmed, I will deliver the contract patch by Friday."
+        let transcript = Transcript(segments: [
+            .init(start: 49, end: 54, speaker: "them", text: staging),
+            .init(start: 90, end: 95, speaker: "me", text: "The staging environment is up."),
+            .init(start: 125, end: 130, speaker: "them", text: patch),
+        ], engine: "fixture", speakerAliases: ["them": "Bojan"])
+        let script = Script([.text(try response(actions: [
+            ["text": "Deliver the contract patch by Friday.", "source": "s3", "context": ["s1"],
+             "owner": "source", "basis": "commitment", "quote": patch, "due": "Friday", "importance": 4],
+            ["text": "Verify both the allowance and the bridge fee quote on the staging deployment tomorrow.",
+             "source": "s1", "context": [], "owner": "source", "basis": "commitment", "quote": staging,
+             "due": "tomorrow", "importance": 4],
+        ]))])
+
+        let result = try await generate(script, transcript: transcript)
+        let tasks = result.outcomes.actionItems
+        XCTAssertEqual(tasks.map(\.owner), ["Bojan", "Bojan"])
+        XCTAssertEqual(tasks.map(\.due), ["tomorrow", "Friday"])
+        XCTAssertEqual(tasks.compactMap { $0.citations.first?.start }, [49, 125])
+        XCTAssertTrue(result.body.contains("staging deployment tomorrow"))
+        XCTAssertTrue(result.body.contains("Deliver the contract patch by Friday"))
+    }
+
     /// The built-in Qwen3.5 4B copied cited source IDs into `due`, and the
     /// notes rendered "due s268" (2026-10-01).
     func testSourceIDInDueIsNotADueDate() async throws {
