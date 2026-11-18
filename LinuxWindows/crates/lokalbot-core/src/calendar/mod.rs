@@ -20,7 +20,10 @@ use chrono::{DateTime, Utc};
 use crate::model::{CalendarParticipantIdentity, Meeting};
 
 pub use agenda::{MAX_AGENDA_CHARACTERS, sanitize_agenda};
-pub use conference::{CONFERENCE_HOSTS, first_meeting_url, is_meeting_url, url_host};
+pub use conference::{
+    CONFERENCE_HOSTS, MeetingRoom, MeetingService, first_meeting_url, is_meeting_url, meeting_room,
+    url_host,
+};
 pub use identity::resolved_meeting_identities;
 pub use suggestion::{SpeakerSuggestion, SuggestionSource};
 

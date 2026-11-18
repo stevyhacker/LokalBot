@@ -70,7 +70,9 @@ fn audio_target(meeting: &lokalbot_platform::DetectedMeeting) -> AppAudioTarget 
 /// (`CaptureIntent.accepts`): a recording that names a room accepts only that
 /// room. Calendar links can carry query parameters such as `?authuser=0`.
 fn accepts_call(recording_url: Option<&str>, detected_url: Option<&str>) -> bool {
-    let room = |url: &str| lokalbot_platform::meet_url(url).unwrap_or_else(|| url.to_string());
+    let room = |url: &str| {
+        lokalbot_core::calendar::meeting_room(url).map_or_else(|| url.to_string(), |room| room.url)
+    };
     match (recording_url, detected_url) {
         (Some(recording), Some(detected)) => room(recording) == room(detected),
         _ => true,
