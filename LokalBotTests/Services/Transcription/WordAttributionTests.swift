@@ -336,6 +336,28 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(engine.calls.regionLanguages, Array(repeating: "hr", count: 4))
     }
 
+    /// Qwen stops after its language sample when the track settles on a
+    /// language the aligner cannot time, and returns no segments: the track
+    /// still goes to speaker regions, decoded in that language, rather than
+    /// being saved empty.
+    @MainActor
+    func testEngineThatStoppedForRegionsIsAttributedByRegionsInItsLanguage() async throws {
+        let url = try writeTrack(seconds: 10)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let engine = ServerTimedASR(providesWordTimings: false, segments: [], trackLanguage: "hr",
+                                    needsSpeakerRegions: true)
+        let aligner = AlignerFetches()
+
+        let result = try await AttributedTrackTranscriber.transcribe(
+            url: url, duration: 10, diarization: twoTurns, source: .system,
+            engine: engine, language: nil, prompt: nil, prepareAligner: { try aligner.fetch() })
+
+        XCTAssertEqual(engine.calls.wordAttribution, 1)
+        XCTAssertEqual(engine.calls.regions, 4)
+        XCTAssertEqual(engine.calls.regionLanguages, Array(repeating: "hr", count: 4))
+        XCTAssertFalse(result.segments.isEmpty)
+    }
+
     /// Speaker regions also cover the pauses between turns. Given one with
     /// no speech, Whisper writes a stock phrase such as "Thank you.", so a
     /// region without detected speech is not decoded.
@@ -463,12 +485,15 @@ private struct ServerTimedASR: TranscriptionEngine {
     var providesWordTimings: Bool
     var segments: [WordTimedTranscript.Segment]
     var trackLanguage: String?
+    var needsSpeakerRegions = false
     let calls = Calls()
 
-    init(providesWordTimings: Bool, segments: [WordTimedTranscript.Segment], trackLanguage: String? = nil) {
+    init(providesWordTimings: Bool, segments: [WordTimedTranscript.Segment], trackLanguage: String? = nil,
+         needsSpeakerRegions: Bool = false) {
         self.providesWordTimings = providesWordTimings
         self.segments = segments
         self.trackLanguage = trackLanguage
+        self.needsSpeakerRegions = needsSpeakerRegions
     }
 
     var displayName: String { "Server fixture" }
@@ -485,7 +510,9 @@ private struct ServerTimedASR: TranscriptionEngine {
 
     func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript {
         calls.wordAttribution += 1
-        return WordTimedTranscript(segments: segments, engine: displayName, trackLanguage: trackLanguage)
+        var transcript = WordTimedTranscript(segments: segments, engine: displayName, trackLanguage: trackLanguage)
+        transcript.needsSpeakerRegions = needsSpeakerRegions
+        return transcript
     }
 }
 

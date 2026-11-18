@@ -1,0 +1,354 @@
+{
+ "deterministic": [
+  {
+   "layout": "word",
+   "size": 4,
+   "share": 0.8,
+   "one pass": 17,
+   "fallback": 6,
+   "WRONG PIN": 0,
+   "seconds": 368.4,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 4,
+   "share": 0.85,
+   "one pass": 17,
+   "fallback": 6,
+   "WRONG PIN": 0,
+   "seconds": 368.4,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 4,
+   "share": 0.9,
+   "one pass": 17,
+   "fallback": 6,
+   "WRONG PIN": 0,
+   "seconds": 368.4,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 8,
+   "share": 0.8,
+   "one pass": 19,
+   "fallback": 4,
+   "WRONG PIN": 0,
+   "seconds": 420.3,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 8,
+   "share": 0.85,
+   "one pass": 18,
+   "fallback": 5,
+   "WRONG PIN": 0,
+   "seconds": 425.3,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 8,
+   "share": 0.9,
+   "one pass": 15,
+   "fallback": 8,
+   "WRONG PIN": 0,
+   "seconds": 438.4,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 12,
+   "share": 0.8,
+   "one pass": 20,
+   "fallback": 3,
+   "WRONG PIN": 0,
+   "seconds": 466.0,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 12,
+   "share": 0.85,
+   "one pass": 20,
+   "fallback": 3,
+   "WRONG PIN": 0,
+   "seconds": 466.0,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 12,
+   "share": 0.9,
+   "one pass": 16,
+   "fallback": 7,
+   "WRONG PIN": 0,
+   "seconds": 474.6,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 16,
+   "share": 0.8,
+   "one pass": 15,
+   "fallback": 8,
+   "WRONG PIN": 0,
+   "seconds": 519.1,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 16,
+   "share": 0.85,
+   "one pass": 15,
+   "fallback": 8,
+   "WRONG PIN": 0,
+   "seconds": 519.1,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "word",
+   "size": 16,
+   "share": 0.9,
+   "one pass": 15,
+   "fallback": 8,
+   "WRONG PIN": 0,
+   "seconds": 519.1,
+   "beforeSeconds": 638.2
+  },
+  {
+   "layout": "plain",
+   "size": 4,
+   "share": 0.8,
+   "one pass": 10,
+   "fallback": 8,
+   "WRONG PIN": 1,
+   "seconds": 393.2,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 4,
+   "share": 0.85,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 399.5,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 4,
+   "share": 0.9,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 399.5,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 8,
+   "share": 0.8,
+   "one pass": 10,
+   "fallback": 8,
+   "WRONG PIN": 1,
+   "seconds": 409.4,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 8,
+   "share": 0.85,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 416.0,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 8,
+   "share": 0.9,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 416.0,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 12,
+   "share": 0.8,
+   "one pass": 10,
+   "fallback": 8,
+   "WRONG PIN": 1,
+   "seconds": 427.6,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 12,
+   "share": 0.85,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 430.9,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 12,
+   "share": 0.9,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 430.9,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 16,
+   "share": 0.8,
+   "one pass": 12,
+   "fallback": 6,
+   "WRONG PIN": 1,
+   "seconds": 431.1,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 16,
+   "share": 0.85,
+   "one pass": 10,
+   "fallback": 9,
+   "WRONG PIN": 0,
+   "seconds": 438.9,
+   "beforeSeconds": 556.6
+  },
+  {
+   "layout": "plain",
+   "size": 16,
+   "share": 0.9,
+   "one pass": 9,
+   "fallback": 10,
+   "WRONG PIN": 0,
+   "seconds": 446.0,
+   "beforeSeconds": 556.6
+  }
+ ],
+ "resampled": [
+  {
+   "size": 4,
+   "share": 0.8,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.238,
+   "wrongPinMax": 0.609,
+   "pinnedTracks": 34,
+   "onePassMean": 0.827
+  },
+  {
+   "size": 4,
+   "share": 0.85,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.154,
+   "wrongPinMax": 0.498,
+   "pinnedTracks": 34,
+   "onePassMean": 0.793
+  },
+  {
+   "size": 4,
+   "share": 0.9,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.102,
+   "wrongPinMax": 0.401,
+   "pinnedTracks": 34,
+   "onePassMean": 0.77
+  },
+  {
+   "size": 8,
+   "share": 0.8,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.116,
+   "wrongPinMax": 0.565,
+   "pinnedTracks": 34,
+   "onePassMean": 0.882
+  },
+  {
+   "size": 8,
+   "share": 0.85,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.073,
+   "wrongPinMax": 0.45,
+   "pinnedTracks": 34,
+   "onePassMean": 0.827
+  },
+  {
+   "size": 8,
+   "share": 0.9,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.043,
+   "wrongPinMax": 0.317,
+   "pinnedTracks": 34,
+   "onePassMean": 0.774
+  },
+  {
+   "size": 12,
+   "share": 0.8,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.091,
+   "wrongPinMax": 0.556,
+   "pinnedTracks": 34,
+   "onePassMean": 0.906
+  },
+  {
+   "size": 12,
+   "share": 0.85,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.052,
+   "wrongPinMax": 0.392,
+   "pinnedTracks": 34,
+   "onePassMean": 0.877
+  },
+  {
+   "size": 12,
+   "share": 0.9,
+   "mixedTracks": 8,
+   "wrongPinMean": 0.029,
+   "wrongPinMax": 0.234,
+   "pinnedTracks": 34,
+   "onePassMean": 0.778
+  },
+  {
+   "size": 16,
+   "share": 0.8,
+   "mixedTracks": 6,
+   "wrongPinMean": 0.112,
+   "wrongPinMax": 0.558,
+   "pinnedTracks": 29,
+   "onePassMean": 0.927
+  },
+  {
+   "size": 16,
+   "share": 0.85,
+   "mixedTracks": 6,
+   "wrongPinMean": 0.062,
+   "wrongPinMax": 0.366,
+   "pinnedTracks": 29,
+   "onePassMean": 0.879
+  },
+  {
+   "size": 16,
+   "share": 0.9,
+   "mixedTracks": 6,
+   "wrongPinMean": 0.034,
+   "wrongPinMax": 0.203,
+   "pinnedTracks": 29,
+   "onePassMean": 0.841
+  }
+ ]
+}

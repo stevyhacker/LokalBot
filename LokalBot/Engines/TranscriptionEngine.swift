@@ -202,6 +202,10 @@ struct WordTimedTranscript {
     /// track falls back to speaker regions, those decode in this language:
     /// a few seconds of speech are too little to detect it again.
     var trackLanguage: String?
+    /// The engine settled on a `trackLanguage` the forced aligner cannot time
+    /// and stopped there: attribute by speaker regions decoded in it, without
+    /// `segments`, which may be incomplete.
+    var needsSpeakerRegions = false
 
     init(segments: [Segment], engine: String, trackLanguage: String? = nil) {
         self.segments = segments

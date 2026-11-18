@@ -73,6 +73,12 @@
       ]
     },
     {
+      "reason": "Benchmarks Qwen3-ASR's language sampling on benchmark tracks (LOKALBOT_QWEN_SAMPLE_MANIFEST) with the pinned 1.7B GGUF pair (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR). Downloaded audio and models, run by hand; see Benchmarks/transcribe/QwenLanguageSample.",
+      "tests": [
+        "QwenLanguageSampleReplayTests/testReplayBenchmarkTracks"
+      ]
+    },
+    {
       "reason": "Needs the downloaded CoreML Qwen3 forced aligner (LOKALBOT_QWEN_ALIGNER_TEST_DIR). Run for an aligner or speech-swift update.",
       "tests": [
         "WordAttributionTests/testCachedAlignerKeepsFootprintFlatAcrossSegments",
