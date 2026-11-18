@@ -3,7 +3,7 @@ import Foundation
 /// Shared compact evidence for narrative facts and actionable outcomes. Model
 /// IDs are local to this immutable snapshot; durable artifacts use stable IDs.
 struct MeetingNotesEvidence {
-    static let ownershipPolicyVersion = "action-evidence-v5"
+    static let ownershipPolicyVersion = "action-evidence-v6"
 
     struct Unit: Codable, Equatable {
         var source: String
@@ -334,8 +334,10 @@ struct MeetingNotesEvidence {
                 guard let stable = citationIDs[id], let segment = sources[stable] else { return nil }
                 return citation(stable, segment, (visible[id] ?? []).map(\.text).joined(separator: " "))
             }
+            let groundedDue = !due.isEmpty && ownership.supportsDeadline(due, task: text, cited: ids.map(row),
+                quote: attribution.quote ?? quote) ? due : nil
             let action = MeetingOutcomes.ActionItem(text: text, owner: resolvedOwner,
-                due: due.isEmpty ? nil : due, isForUser: attribution.resolution == .user,
+                due: groundedDue, isForUser: attribution.resolution == .user,
                 importance: importance, citations: citations, attribution: attribution)
             result.outcomes.actionItems.append(action)
             result.records.append(.init(kind: "actions", source: anchor, text: text))

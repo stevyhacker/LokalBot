@@ -133,6 +133,67 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertTrue(result.body.contains("Deliver the contract patch by Friday"))
     }
 
+    func testVaultDeadlineStaysOnTheRequestWhenAnotherTaskCitesTheExchange() async throws {
+        let request = "Alex, please send risk the cap table by 16:00 today."
+        let reply = "Yes, and I will add a regression case for a fee quote increasing between preview and execution."
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "them", text: request),
+            .init(start: 6, end: 12, speaker: "me", text: reply),
+        ], engine: "fixture", speakerAliases: ["me": "Alex"])
+        let script = Script([.text(try response(actions: [
+            ["text": "Send the cap table to risk", "source": "s1", "context": [], "owner": "p1",
+             "basis": "request", "quote": request, "due": "today 16:00", "importance": 5],
+            ["text": "Add a regression case for a fee quote increase", "source": "s2", "context": ["s1"],
+             "owner": "source", "basis": "commitment", "quote": reply, "due": "today 16:00", "importance": 4],
+        ]))])
+
+        let result = try await generate(script, transcript: transcript)
+        XCTAssertEqual(result.outcomes.userActionItems.count, 2)
+        let requestAction = try XCTUnwrap(result.outcomes.actionItems.first { $0.text.contains("cap table") })
+        let regression = try XCTUnwrap(result.outcomes.actionItems.first { $0.text.contains("regression case") })
+        XCTAssertEqual(requestAction.due, "today 16:00")
+        XCTAssertNil(regression.due)
+    }
+
+    func testEachUndertakingInTheSameSentenceHasItsOwnDeadline() throws {
+        var transcript = transcript
+        transcript.segments[0].text = "I will send the redacted trace by Friday, and I will write the handoff notes."
+        let evidence = MeetingNotesEvidence(transcript: transcript)
+        var send = action(owner: "source")
+        send["text"] = "Send the redacted trace"
+        var write = send
+        write["text"] = "Write the handoff notes"
+
+        let result = evidence.validate(try response(actions: [send, write]), units: evidence.units,
+            template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
+        XCTAssertEqual(result.outcomes.userActionItems.map(\.due), ["Friday", nil])
+    }
+
+    func testDeadlineStaysOnAnAcceptedRequestAndAnAdjacentTranscriptFragment() throws {
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "them", text: "Could you send the draft by Friday?"),
+            .init(start: 5, end: 8, speaker: "me", text: "Yes, I can do that."),
+            .init(start: 9, end: 13, speaker: "me", text: "On Tuesday I will verify the staging restore"),
+            .init(start: 13, end: 16, speaker: "me", text: "by 16:00."),
+        ], engine: "fixture")
+        let evidence = MeetingNotesEvidence(transcript: transcript)
+        var send = action("s2", owner: "source")
+        send["context"] = ["s1"]
+        send["text"] = "Send the draft"
+        var verify = action("s3", owner: "source")
+        verify["context"] = ["s4"]
+        verify["text"] = "Verify the staging restore"
+        verify["due"] = "Tuesday"
+
+        let result = evidence.validate(try response(actions: [send, verify]), units: evidence.units,
+            template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
+        XCTAssertEqual(result.outcomes.userActionItems.map(\.due), ["Friday", "Tuesday"])
+        verify["due"] = "16:00"
+        let split = evidence.validate(try response(actions: [verify]), units: evidence.units,
+            template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
+        XCTAssertEqual(split.outcomes.userActionItems.first?.due, "16:00")
+    }
+
     /// The built-in Qwen3.5 4B copied cited source IDs into `due`, and the
     /// notes rendered "due s268" (2026-10-01).
     func testSourceIDInDueIsNotADueDate() async throws {
