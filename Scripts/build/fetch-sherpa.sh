@@ -24,7 +24,10 @@ URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/$VERSION/$ARTIFACT"
 ARCHIVE_SHA256=b10e5c7e2c30ea03de9c442655d14860d9edc475c6251d58a8f5f06e913a1d56
 SHERPA_LICENSE_URL="https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/$VERSION/LICENSE"
 SHERPA_LICENSE_SHA256=cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
-ONNXRUNTIME_LICENSE_URL="https://raw.githubusercontent.com/microsoft/onnxruntime/$ONNXRUNTIME_VERSION/LICENSE"
+# ONNX Runtime's MIT license, committed rather than downloaded: on 2026-11-18
+# github.com/microsoft/onnxruntime started answering 404, which broke every
+# clean build. Same bytes as its $ONNXRUNTIME_VERSION LICENSE.
+ONNXRUNTIME_LICENSE=LICENSES/onnxruntime-LICENSE.txt
 ONNXRUNTIME_LICENSE_SHA256=2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c
 DEST=Vendor/sherpa-onnx
 BUILD_MARKER="$VERSION-onnxruntime-$ONNXRUNTIME_VERSION-macos$DEPLOYMENT_TARGET-arm64-verified"
@@ -112,7 +115,7 @@ curl -fsSL -o "$tmp/sherpa.tar.bz2" "$URL"
 verify_sha256 "$tmp/sherpa.tar.bz2" "$ARCHIVE_SHA256"
 curl -fsSL -o "$tmp/LICENSE.sherpa-onnx" "$SHERPA_LICENSE_URL"
 verify_sha256 "$tmp/LICENSE.sherpa-onnx" "$SHERPA_LICENSE_SHA256"
-curl -fsSL -o "$tmp/LICENSE.onnxruntime" "$ONNXRUNTIME_LICENSE_URL"
+cp "$ONNXRUNTIME_LICENSE" "$tmp/LICENSE.onnxruntime"
 verify_sha256 "$tmp/LICENSE.onnxruntime" "$ONNXRUNTIME_LICENSE_SHA256"
 tar -xjf "$tmp/sherpa.tar.bz2" -C "$tmp"
 src="$tmp/${ARTIFACT%.tar.bz2}"

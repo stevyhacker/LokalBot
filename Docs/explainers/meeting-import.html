@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: Import meetings from other apps</title>
+<!--
+  Release explainer source (RELEASING.md, "Explainers for major features").
+  Render: python3 Website/generator/render_explainer.py Docs/explainers/meeting-import.html Website/public/explainers/meeting-import.pdf
+  One A4 sheet, pictures first. The pictures are drawn in HTML with made-up content.
+  Checked against source on 2026-11-18 (PR 516): the Recording menu's
+  "Import Meetings From" submenu lists ExternalMeetingSource titles with "…"
+  (LokalBotApp.swift); the panel shows each reader's exportHint; agent imports
+  need Settings › AI agents › "Allow external agents to change LokalBot
+  settings" and show SettingsApprovalView's meetingImport card (Deny / Approve);
+  `lokalbot-cli import <source> --dry-run --table` prints previewTable.
+-->
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.14); --line-strong: rgba(150, 180, 200, 0.26);
+  --text: #ecf3f7; --text-dim: #a2b4c2; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --warn-text: #fbbf24; --no: #f0857a;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12px; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 11mm 14mm 7mm; display: flex; flex-direction: column; gap: 7px; background: radial-gradient(120% 60% at 80% 0%, #0d1c26 0%, var(--bg) 60%); }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 30px; line-height: 1.05; letter-spacing: -0.025em; font-weight: 760; }
+.lede { font-size: 14px; color: var(--text-dim); max-width: 64ch; }
+.eyebrow, .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent-text); }
+.label { display: flex; align-items: center; gap: 8px; }
+.label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+code, .mono { font-family: var(--mono); font-size: 0.9em; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stack { display: grid; gap: 8px; }
+.cap { font-size: 11px; color: var(--text-dim); }
+.cap b { color: var(--text); font-weight: 650; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 6px 9px; display: grid; gap: 2px; align-content: start; }
+.tile svg { width: 15px; height: 15px; color: var(--accent-text); flex: none; }
+.tile h3 { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 680; line-height: 1.2; }
+.tile p { font-size: 9.5px; color: var(--text-dim); line-height: 1.32; }
+.tile .lim { color: var(--warn-text); font-size: 9px; }
+.arrow { color: var(--accent-text); font-size: 20px; text-align: center; align-self: center; }
+.win { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; overflow: hidden; }
+.win .bar { display: flex; align-items: center; gap: 5px; padding: 6px 9px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 10px; color: var(--text-faint); }
+.win .bar i { width: 7px; height: 7px; border-radius: 50%; background: #3a4a5a; display: block; }
+.win .bar b { color: var(--text); font-weight: 650; }
+.win .body { padding: 8px 10px; display: grid; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line-strong); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.chip.on { border-color: rgba(35,196,174,.6); color: var(--accent-text); background: rgba(35,196,174,.12); }
+.chip.file { border-radius: 5px; font-family: var(--mono); font-size: 9px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.src { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.src div { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 4px 7px; }
+.src b { display: block; font-size: 10.5px; font-weight: 650; }
+.src span { font-family: var(--mono); font-size: 8.5px; color: var(--text-faint); }
+.line { display: grid; grid-template-columns: 38px 1fr; gap: 6px; font-size: 10.5px; }
+.line b { font-size: 10px; color: var(--accent-text); font-weight: 650; }
+.line span { color: var(--text-dim); }
+.menu { background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 8px; padding: 3px; font-size: 10px; }
+.menu div { padding: 2px 7px; border-radius: 4px; display: flex; justify-content: space-between; gap: 10px; color: var(--text); white-space: nowrap; }
+.menu div small { color: var(--text-faint); font-size: 9.5px; }
+.menu .sel { background: rgba(35,196,174,.22); color: var(--accent-text); }
+.menu .sep { height: 1px; background: var(--line); padding: 0; margin: 3px 4px; }
+.term { background: #05090e; border: 1px solid var(--line-strong); border-radius: 9px; overflow: hidden; }
+.term .bar { display: flex; align-items: center; gap: 5px; padding: 5px 9px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 10px; color: var(--text-faint); }
+.term .bar i { width: 7px; height: 7px; border-radius: 50%; background: #3a4a5a; display: block; }
+.term pre { margin: 0; padding: 7px 9px; font-family: var(--mono); font-size: 8.2px; line-height: 1.45; color: var(--text-dim); white-space: pre-wrap; }
+.term pre .p { color: var(--accent-text); }
+.term pre .c { color: var(--text-faint); }
+.term pre .o { color: var(--text); }
+.btn { display: inline-block; padding: 3px 12px; border-radius: 6px; font-size: 10.5px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #04211c; font-weight: 650; }
+.step { display: grid; grid-template-columns: 18px 1fr; gap: 6px; align-items: start; font-size: 10px; color: var(--text-dim); }
+.step b { color: var(--text); font-weight: 650; }
+.num { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: rgba(35,196,174,.16); color: var(--accent-text); border: 1px solid rgba(35,196,174,.5); font-weight: 700; font-size: 10px; flex: none; }
+.plat { font-size: 12.5px; font-weight: 700; }
+.warn { color: var(--warn-text); font-size: 10px; }
+.note { color: var(--text-faint); font-size: 10px; }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 7px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">Mac · new in 0.13.2 · read on this computer</div>
+  <h1>Bring your meeting history home</h1>
+  <p class="lede">Import notes, transcripts, action items and recordings from eight other apps. They become ordinary LokalBot meetings on your own disk, ready for search and Ask.</p>
+
+  <div class="label">Eight apps in · one library out</div>
+  <div style="display:grid;grid-template-columns:1.25fr 22px .78fr 22px 1.35fr;gap:6px;align-items:center">
+    <div class="src">
+      <div><b>Granola</b><span>CSV export</span></div>
+      <div><b>Otter</b><span>TXT · DOCX · SRT</span></div>
+      <div><b>Fireflies</b><span>JSON · SRT · MP3</span></div>
+      <div><b>Fathom</b><span>copied text · MP4</span></div>
+      <div><b>Screenpipe</b><span>~/.screenpipe</span></div>
+      <div><b>Zoom</b><span>Documents/Zoom</span></div>
+      <div><b>Voice Memos</b><span>.m4a recordings</span></div>
+      <div><b>MacWhisper</b><span>.whisper documents</span></div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="win" style="border-color:rgba(35,196,174,.55)">
+      <div class="body" style="justify-items:center;text-align:center;gap:4px;padding:10px 8px">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-text)"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <b style="font-size:12px">Read only</b>
+        <span style="font-size:9.5px;color:var(--text-dim)">files never changed</span>
+        <span style="font-size:9.5px;color:var(--text-dim)">no sign-in, no network</span>
+        <span style="font-size:9.5px;color:var(--text-dim)">a .zip is unpacked to a private temp folder, deleted after</span>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="win">
+      <div class="bar"><i></i><i></i><i></i><b style="margin-left:4px">Pricing</b><span class="chip on" style="margin-left:auto;padding:1px 7px">Imported · Otter</span></div>
+      <div class="body" style="gap:5px">
+        <span style="font-size:9.5px;color:var(--text-faint)">Jun 18 · 42 min · Mila, Jonas</span>
+        <div class="line"><b>Mila</b><span>Annual discount first?</span></div>
+        <div class="line"><b>Jonas</b><span>Ten percent, no setup fee.</span></div>
+        <div class="chips"><span class="chip file">summary.md</span><span class="chip file">imported-notes.md</span><span class="chip file">transcript</span><span class="chip file">recording</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="cap"><b>Speakers keep their names.</b> A recording that came without a transcript is transcribed with your Transcribe choice.</p>
+
+  <div class="label">Start an import</div>
+  <div style="display:grid;grid-template-columns:.88fr 1.3fr .92fr;gap:10px;align-items:start">
+    <div class="stack" style="gap:6px">
+      <div class="plat">In the app</div>
+      <div style="position:relative;height:226px">
+        <div class="menu" style="position:absolute;left:0;top:0;width:158px">
+          <div style="color:var(--text-faint);font-size:9.5px">Recording</div>
+          <div>Start Recording <small>⇧⌘R</small></div>
+          <div>Import Recording…</div>
+          <div class="sel">Import Meetings From <small style="color:var(--accent-text)">›</small></div>
+        </div>
+        <div class="menu" style="position:absolute;left:62px;top:76px;width:96px">
+          <div>Granola…</div><div class="sel">Otter…</div><div>Fireflies…</div><div>Fathom…</div><div>Screenpipe…</div><div>Zoom…</div><div>Voice Memos…</div><div>MacWhisper…</div>
+        </div>
+      </div>
+      <p class="cap" style="font-size:9.5px"><b>Recording › Import Meetings From</b>, then choose the export, folder or .zip. The panel says where to find it.</p>
+    </div>
+    <div class="stack" style="gap:6px">
+      <div class="plat">From an agent</div>
+      <div class="term">
+        <div class="bar"><i></i><i></i><i></i><span style="margin-left:4px">Terminal</span></div>
+<pre><span class="p">$</span> <span class="o">lokalbot-cli import otter \
+    ~/Downloads/otter.zip --dry-run --table</span>
+3 Otter meetings
+2026-06-18 10:00 Pricing 412 lines, notes, recording
+2026-05-02 15:30 Hiring  230 lines, notes
+2026-03-04 09:00 Vendors 188 lines, notes
+<span class="p">$</span> <span class="o">lokalbot-cli import otter \
+    ~/Downloads/otter.zip --wait 120</span>
+<span class="c"># LokalBot reads the files itself and asks you</span></pre>
+      </div>
+      <p class="cap" style="font-size:9.5px">Needs <b>Settings › AI agents › Allow external agents to change LokalBot settings</b>. MCP stays read-only.</p>
+    </div>
+    <div class="stack" style="gap:6px">
+      <div class="plat">You approve</div>
+      <div class="win">
+        <div class="body" style="gap:5px;padding:8px 9px">
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-dim)"><path d="M4 17l6-5-6-5M12 19h8"/></svg><b>lokalbot-cli</b><span class="mono" style="margin-left:auto;color:var(--text-faint);font-size:9.5px">4:52</span></div>
+          <div style="font-size:10.5px;color:var(--text-dim)">wants to import another app's meetings into LokalBot.</div>
+          <div style="border-top:1px solid var(--line);padding-top:6px;display:grid;gap:3px">
+            <b style="font-size:11px">Import from Otter</b>
+            <span style="font-size:9.5px;color:var(--text-faint)">Copies notes, transcripts, and recordings into your library. The original files aren't changed.</span>
+            <span class="mono" style="font-size:8.5px;color:var(--text-dim)">~/Downloads/otter.zip</span>
+            <span style="font-size:9.5px;color:var(--text-dim)">3 new meetings, 0 already in your library</span>
+            <span style="font-size:9.5px;color:var(--text-dim)">From 2026-03-04 to 2026-06-18</span>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:6px"><span class="btn">Deny</span><span class="btn pri">Approve</span></div>
+        </div>
+      </div>
+      <p class="cap" style="font-size:9.5px">Nothing is written until you approve.</p>
+    </div>
+  </div>
+
+  <div class="label">Getting each app's history out</div>
+  <div class="g4">
+    <div class="tile"><h3>Granola</h3><p>Settings › Profile › Export historical data › Generate CSV.</p><p class="lim">No audio or line times.</p></div>
+    <div class="tile"><h3>Otter</h3><p>Conversation › ⋯ › Export as TXT, DOCX or SRT, speaker names on. Bulk ZIP on Business.</p><p class="lim">PDF isn't read.</p></div>
+    <div class="tile"><h3>Fireflies</h3><p>A meeting's Download icon (Pro or higher), or the account data export.</p><p class="lim">PDF and DOCX aren't read.</p></div>
+    <div class="tile"><h3>Fathom</h3><p>Copy Transcript and Copy Summary into text files, plus Download Video.</p><p class="lim">No bulk export; copied dates lack a year.</p></div>
+    <div class="tile"><h3>Screenpipe</h3><p>No export: quit Screenpipe, then choose <span class="mono">~/.screenpipe</span>.</p><p class="lim">Text in compressed storage is skipped.</p></div>
+    <div class="tile"><h3>Zoom</h3><p>Choose <span class="mono">Documents/Zoom</span>, or cloud Audio only + Audio transcript.</p><p class="lim">Cloud files have no topic; no notes.</p></div>
+    <div class="tile"><h3>Voice Memos</h3><p>Drag recordings to Finder, or choose the Recordings folder in the panel.</p><p class="lim">Not tried on a real library; no speakers.</p></div>
+    <div class="tile"><h3>MacWhisper</h3><p><span class="mono">.whisper</span> files, exports, or <span class="mono">main.sqlite</span> for everything.</p><p class="lim">No "me" lines; split tracks lose audio.</p></div>
+  </div>
+
+  <div class="g4">
+    <div class="tile"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Only read</h3><p>Never changed, moved or deleted; databases open read-only.</p></div>
+    <div class="tile"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>No sign-in, no network</h3><p>Nothing is downloaded. Closing the old account is up to you.</p></div>
+    <div class="tile"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/></svg>Nothing twice</h3><p>Importing again, or a newer export, adds only what's new.</p></div>
+    <div class="tile"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M9 12h6M9 16h4"/></svg>Their notes, kept</h3><p>They become the summary, an untouched copy beside it. No auto-summary.</p></div>
+  </div>
+
+  <p class="warn">Mac only for now. Every reader is partial: none of these apps fully documents its export, so the readers follow help pages and open-source readers and were tested on made-up files. The menu, import panel and approval card haven't been checked in the running app yet.</p>
+  <p class="note">Pictures are drawings with made-up content, not screenshots. Imported meetings get no screen memory; the log keeps counts only.</p>
+
+  <div class="foot"><span>LokalBot · Import meetings from other apps</span><span>Full details: PRIVACY.md</span></div>
+</section>
+</body>
+</html>
