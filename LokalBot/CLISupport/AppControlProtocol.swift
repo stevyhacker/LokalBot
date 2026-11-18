@@ -34,6 +34,7 @@ enum AppControlProtocol {
         case secretList = "secret.list"
         case secretSet = "secret.set"
         case secretClear = "secret.clear"
+        case meetingsImport = "meetings.import"
         case setupPlan = "setup.plan"
         case setupFinish = "setup.finish"
         case modelsStatus = "models.status"

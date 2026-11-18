@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "匯入音訊或影片錄音";
 "Import Recording" = "匯入錄音";
 "Import Recording…" = "匯入錄音…";
+"Import Meetings From" = "從其他 App 匯入會議";
+"wants to import another app's meetings into LokalBot." = "想要將另一個 App 的會議匯入 LokalBot。";
 "Not inserted" = "未插入";
 "Pasted" = "已貼上";
 "Recent dictations" = "最近的聽寫";

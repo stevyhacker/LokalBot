@@ -67,6 +67,19 @@ enum MeetingImportService {
             sampleID: sample?.id, datedNow: sample != nil))
     }
 
+    /// A recording that came with a meeting from another app (Zoom, Voice
+    /// Memos, MacWhisper): its id, title, and start come from that app. Call
+    /// audio goes on the system track like any imported file; a recording the
+    /// person made on their own device's microphone, as Voice Memos are, goes
+    /// on the microphone track like a paired phone's.
+    static func importExternalRecording(from url: URL, id: UUID, title: String, appName: String,
+                                        startedAt: Date?, track: MeetingAudioFiles.Track = .system,
+                                        storage: StorageManager, now: Date = Date()) async throws -> Meeting {
+        try await makeMeeting(from: url, storage: storage, now: now, plan: Plan(
+            name: url.lastPathComponent, id: id, title: title, appName: appName,
+            importedFileName: url.lastPathComponent, track: track, statedStart: startedAt))
+    }
+
     /// Makes a meeting of a recording from a paired device. It is the device's
     /// microphone, the person's own, so it becomes the microphone track: their
     /// speech counts as theirs under "My microphone is me", and other voices
