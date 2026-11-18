@@ -27,7 +27,7 @@ final class AppleSpeechEngineTests: XCTestCase {
             ensureAsset: { _, _ in
                 XCTFail("Asset installer should not run when language is unsupported")
             },
-            analyze: { _, _ in
+            analyze: { _, _, _ in
                 XCTFail("Analyzer should not read audio when language is unsupported")
                 return []
             }))
@@ -59,7 +59,7 @@ final class AppleSpeechEngineTests: XCTestCase {
                 throw CancellationError()
             },
             ensureAsset: { _, _ in },
-            analyze: { _, _ in [] }))
+            analyze: { _, _, _ in [] }))
 
         for action in 0..<2 {
             do {
@@ -92,7 +92,7 @@ final class AppleSpeechEngineTests: XCTestCase {
                 progress?(0.5, "Downloading…")
                 progress?(1.0, "Ready")
             },
-            analyze: { _, _ in [] }))
+            analyze: { _, _, _ in [] }))
 
         try await downloadingEngine.prepare(language: "en") { update in
             Task { await collector.append(update) }
@@ -114,7 +114,7 @@ final class AppleSpeechEngineTests: XCTestCase {
             availabilityError: { nil },
             resolve: { _ in resolution },
             ensureAsset: { _, _ in },
-            analyze: { _, _ in
+            analyze: { _, _, _ in
                 [
                     .init(start: 0.2, end: 1.8, text: "  Merhaba   dünya. "),
                     .init(start: 2.0, end: 3.0, text: "   "),
@@ -137,7 +137,7 @@ final class AppleSpeechEngineTests: XCTestCase {
             availabilityError: { nil },
             resolve: { _ in resolution },
             ensureAsset: { _, _ in },
-            analyze: { _, _ in
+            analyze: { _, _, _ in
                 try await Task.sleep(for: .seconds(5))
                 return []
             }))
@@ -198,6 +198,61 @@ final class AppleSpeechEngineTests: XCTestCase {
         }
         #endif
     }
+
+    func testContextualStringsParseDeduplicateAndCapAtOneHundred() {
+        XCTAssertEqual(AppleSpeechVocabulary.contextualStrings(from: nil), [])
+        XCTAssertEqual(AppleSpeechVocabulary.contextualStrings(from: "   \n , ; "), [])
+
+        let parsed = AppleSpeechVocabulary.contextualStrings(
+            from: "Mila Novak, Orion Launch\nLokalBot; mila novak · \"Acme\"")
+        XCTAssertEqual(parsed, ["Mila Novak", "Orion Launch", "LokalBot", "Acme"])
+
+        let oversized = (1...130).map { "Term \($0)" }.joined(separator: ", ")
+        let capped = AppleSpeechVocabulary.contextualStrings(from: oversized)
+        XCTAssertEqual(capped.count, 100)
+        XCTAssertEqual(capped.first, "Term 1")
+        XCTAssertEqual(capped.last, "Term 100")
+    }
+
+    func testPromptForwardsContextualStringsAndStripsPromptEchoRows() async throws {
+        let english = AppleSpeechLocaleResolver.Resolution(
+            localeIdentifier: "en_US",
+            languageCode: "en",
+            module: .speechTranscriber)
+        let capture = ContextualCapture()
+        let engine = AppleSpeechEngine(backend: .init(
+            availabilityError: { nil },
+            resolve: { _ in english },
+            ensureAsset: { _, _ in },
+            analyze: { _, _, contextualStrings in
+                await capture.set(contextualStrings)
+                return [
+                    .init(start: 0.0, end: 0.4, text: "Mila Novak, Orion Launch, Acme."),
+                    .init(start: 0.5, end: 2.0, text: "Mila Novak"),
+                    .init(start: 2.2, end: 4.0, text: "Let's ship Orion Launch today."),
+                ]
+            }))
+
+        let prompt = "Mila Novak, Orion Launch, Acme"
+        let transcript = try await engine.transcribe(
+            audio: URL(fileURLWithPath: "/tmp/mock.wav"),
+            language: "en",
+            prompt: prompt)
+        let sent = await capture.phrases
+        XCTAssertEqual(sent, ["Mila Novak", "Orion Launch", "Acme"])
+        XCTAssertEqual(transcript.segments.map(\.text), ["Mila Novak", "Let's ship Orion Launch today."])
+
+        let attributed = try await engine.transcribeForWordAttribution(
+            audio: URL(fileURLWithPath: "/tmp/mock.wav"),
+            language: "en",
+            prompt: prompt)
+        XCTAssertEqual(attributed.segments.map(\.segment.text), ["Mila Novak", "Let's ship Orion Launch today."])
+    }
+}
+
+private actor ContextualCapture {
+    private(set) var phrases: [String] = []
+    func set(_ phrases: [String]) { self.phrases = phrases }
 }
 
 private actor UpdateCollector {

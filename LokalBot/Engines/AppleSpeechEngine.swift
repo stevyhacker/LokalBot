@@ -23,6 +23,30 @@ enum AppleSpeechError: LocalizedError, Equatable, Sendable {
     }
 }
 
+enum AppleSpeechVocabulary {
+    static let maxContextualPhrases = 100
+
+    /// Parses comma-, semicolon-, middot-, or newline-separated vocabulary hints
+    /// into deduplicated phrases capped at Apple Speech's 100-phrase limit.
+    static func contextualStrings(from prompt: String?) -> [String] {
+        guard let normalized = TranscriptionPrompt.normalized(prompt) else { return [] }
+        let separators = CharacterSet(charactersIn: ",;·").union(.newlines)
+        var seen = Set<String>()
+        var phrases: [String] = []
+        for component in normalized.components(separatedBy: separators) {
+            let trimmed = component
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+            guard !trimmed.isEmpty else { continue }
+            let key = trimmed.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            guard seen.insert(key).inserted else { continue }
+            phrases.append(trimmed)
+            if phrases.count == maxContextualPhrases { break }
+        }
+        return phrases
+    }
+}
+
 /// On-device transcription via Apple's macOS 26+ `SpeechAnalyzer` framework.
 ///
 /// Mirrors `AppleIntelligenceEngine` by keeping macOS 26 `Speech` symbols
@@ -45,7 +69,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
         ) async throws -> Void
         var analyze: @Sendable (
             _ audio: URL,
-            _ resolution: AppleSpeechLocaleResolver.Resolution
+            _ resolution: AppleSpeechLocaleResolver.Resolution,
+            _ contextualStrings: [String]
         ) async throws -> [RawUtterance]
 
         static var live: Self {
@@ -78,12 +103,13 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     #endif
                     throw AppleSpeechError.unavailable(AppleSpeechAvailability.unsupportedMessage)
                 },
-                analyze: { audio, resolution in
+                analyze: { audio, resolution, contextualStrings in
                     #if canImport(Speech)
                     if #available(macOS 26.0, *) {
                         return try await AppleSpeechEngine.analyzeLiveFile(
                             audio: audio,
-                            resolution: resolution)
+                            resolution: resolution,
+                            contextualStrings: contextualStrings)
                     }
                     #endif
                     throw AppleSpeechError.unavailable(AppleSpeechAvailability.unsupportedMessage)
@@ -128,7 +154,11 @@ actor AppleSpeechEngine: TranscriptionEngine {
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
-        try await transcribeForWordAttribution(audio: url, language: language, prompt: nil).transcript
+        try await transcribe(audio: url, language: language, prompt: nil)
+    }
+
+    func transcribe(audio url: URL, language: String?, prompt: String?) async throws -> Transcript {
+        try await transcribeForWordAttribution(audio: url, language: language, prompt: prompt).transcript
     }
 
     func transcribeForWordAttribution(
@@ -147,10 +177,19 @@ actor AppleSpeechEngine: TranscriptionEngine {
         try await backend.ensureAsset(resolution, nil)
         try Task.checkCancellation()
 
-        let utterances = try await backend.analyze(url, resolution)
+        let contextualStrings = AppleSpeechVocabulary.contextualStrings(from: prompt)
+        let utterances = try await backend.analyze(url, resolution, contextualStrings)
         try Task.checkCancellation()
+        var segments = Self.buildTimedSegments(from: utterances)
+        if let echo = TranscriptionPromptEcho(prompt: prompt) {
+            let originalCount = segments.count
+            segments = segments.filter { !echo.matches($0.segment.displayText) }
+            if segments.count < originalCount {
+                lokalbotLog("apple-speech: dropped \(originalCount - segments.count) row(s) echoing the vocabulary prompt")
+            }
+        }
         return WordTimedTranscript(
-            segments: Self.buildTimedSegments(from: utterances),
+            segments: segments,
             engine: Self.engineLabel(for: resolution),
             trackLanguage: resolution.languageCode)
     }
@@ -347,7 +386,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
     @available(macOS 26.0, *)
     private static func analyzeLiveFile(
         audio: URL,
-        resolution: AppleSpeechLocaleResolver.Resolution
+        resolution: AppleSpeechLocaleResolver.Resolution,
+        contextualStrings: [String]
     ) async throws -> [RawUtterance] {
         let file = try AVAudioFile(forReading: audio)
         guard file.length > 0 else { return [] }
@@ -361,7 +401,7 @@ actor AppleSpeechEngine: TranscriptionEngine {
                 reportingOptions: [],
                 attributeOptions: [.audioTimeRange])
             let analyzer = SpeechAnalyzer(modules: [module], options: options)
-            return try await runAnalyzer(analyzer, file: file) {
+            return try await runAnalyzer(analyzer, file: file, contextualStrings: contextualStrings) {
                 var items: [RawUtterance] = []
                 for try await result in module.results {
                     try Task.checkCancellation()
@@ -377,7 +417,7 @@ actor AppleSpeechEngine: TranscriptionEngine {
         case .dictationTranscriber:
             let module = DictationTranscriber(locale: resolution.locale, preset: .timeIndexedLongDictation)
             let analyzer = SpeechAnalyzer(modules: [module], options: options)
-            return try await runAnalyzer(analyzer, file: file) {
+            return try await runAnalyzer(analyzer, file: file, contextualStrings: contextualStrings) {
                 var items: [RawUtterance] = []
                 for try await result in module.results {
                     try Task.checkCancellation()
@@ -397,8 +437,14 @@ actor AppleSpeechEngine: TranscriptionEngine {
     private static func runAnalyzer(
         _ analyzer: SpeechAnalyzer,
         file: AVAudioFile,
+        contextualStrings: [String],
         collectResults: @escaping @Sendable () async throws -> [RawUtterance]
     ) async throws -> [RawUtterance] {
+        if !contextualStrings.isEmpty {
+            let context = AnalysisContext()
+            context.contextualStrings[.general] = contextualStrings
+            try await analyzer.setContext(context)
+        }
         let readerTask = Task(operation: collectResults)
         return try await withTaskCancellationHandler {
             do {
@@ -436,6 +482,13 @@ private struct ConfiguredAppleSpeechEngine: TranscriptionEngine {
 
     func transcribe(audio: URL, language: String?) async throws -> Transcript {
         try await AppleSpeechEngine.shared.transcribe(audio: audio, language: language ?? self.language)
+    }
+
+    func transcribe(audio: URL, language: String?, prompt: String?) async throws -> Transcript {
+        try await AppleSpeechEngine.shared.transcribe(
+            audio: audio,
+            language: language ?? self.language,
+            prompt: prompt)
     }
 
     func transcribeForWordAttribution(

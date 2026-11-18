@@ -101,7 +101,7 @@ final class AppleSpeechWordAttributionTests: XCTestCase {
             availabilityError: { nil },
             resolve: { _ in english },
             ensureAsset: { _, _ in },
-            analyze: { _, _ in
+            analyze: { _, _, _ in
                 [
                     .init(
                         start: 0.1,
