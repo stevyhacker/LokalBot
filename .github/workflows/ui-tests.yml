@@ -254,10 +254,12 @@ jobs:
 
   build-smoke:
     # Preserve this check's name and build dependency for existing branch rules.
+    # A full run puts the critical group, functional-1 and Reduce Motion on this
+    # runner; a focused dispatch runs only its requested test here.
     name: UI build and critical tests
     needs: build
     runs-on: ${{ inputs.runner || 'macos-15' }}
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Select Xcode
@@ -274,11 +276,12 @@ jobs:
         run: python3 Scripts/ci/test-products.py unpack ui
       - name: Enable standard UI motion
         run: defaults write com.apple.universalaccess reduceMotion -bool false
-      - name: Verify critical interactions
+      - name: Verify critical interactions, functional-1 and Reduce Motion
         if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
         env:
           CODE_SIGNING_ALLOWED: "NO"
-        run: python3 Scripts/ci/ui-shards.py run smoke
+          CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
+        run: python3 Scripts/ci/ui-shards.py run runner-1
       - name: Run requested single test
         if: github.event_name == 'workflow_dispatch' && inputs.filter != ''
         env:
@@ -290,61 +293,19 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          overwrite: true
-          name: ui-results-smoke
-          path: .build/ui-results
-          retention-days: 14
-
-  reduced-motion:
-    name: UI reduced-motion
-    needs: build
-    if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
-    runs-on: ${{ inputs.runner || 'macos-15' }}
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
-        with:
-          xcode-version: ${{ inputs.xcode || '26.3' }}
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: ui-products
-          path: .build/transfer
-      - name: Verify and restore compiled UI tests
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-        run: python3 Scripts/ci/test-products.py unpack ui
-      # Accessibility preferences belong to this runner only.
-      - name: Verify Reduce Motion
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-        run: |
-          trap 'defaults write com.apple.universalaccess reduceMotion -bool false; defaults write org.localhost.lokalbot.redesign-ci requiresReducedMotion -bool false' EXIT
-          defaults write com.apple.universalaccess reduceMotion -bool true
-          defaults write org.localhost.lokalbot.redesign-ci requiresReducedMotion -bool true
-          python3 Scripts/ci/ui-shards.py run reduced-motion
-      - name: Save phase evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          overwrite: true
-          name: ui-results-reduced-motion
+          overwrite: true # full reruns replace artifacts from earlier attempts
+          name: ui-results-runner-1
           path: .build/ui-results
           retention-days: 14
 
   shards:
-    name: UI ${{ matrix.phase }}
+    # Scripts/ci/ui-shards.py GROUPS; a test keeps the two runners' commands
+    # equal to it. `visual` runs the three window sizes one after another.
+    name: UI functional-2, visual and background
     needs: build
     if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
     runs-on: ${{ inputs.runner || 'macos-15' }}
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        # Scripts/ci/ui-shards.py matrix_jobs(); a test keeps them equal. `visual`
-        # runs the three window sizes one after another on one runner.
-        phase: [functional-1, functional-2, background, visual]
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Select Xcode
@@ -362,26 +323,24 @@ jobs:
       - name: Enable standard UI motion
         run: defaults write com.apple.universalaccess reduceMotion -bool false
       - name: Fetch pinned Bun for the background shard's model stub
-        if: matrix.phase == 'background'
         run: echo "LOKALBOT_TEST_BUN=$(bash Scripts/ci/fetch-bun.sh | tail -1)" >> "$GITHUB_ENV"
-      - name: Run shard
+      - name: Run shards
         env:
           CODE_SIGNING_ALLOWED: "NO"
-          UI_PHASE: ${{ matrix.phase }}
           CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
-        run: python3 Scripts/ci/ui-shards.py run "$UI_PHASE"
+        run: python3 Scripts/ci/ui-shards.py run runner-2
       - name: Save shard evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
-          name: ui-results-${{ matrix.phase }}
+          name: ui-results-runner-2
           path: .build/ui-results
           retention-days: 14
 
   complete:
     name: ${{ (inputs.filter != '' || inputs.capture_mode == 'legacy') && 'UI focused / comparison (macOS)' || 'XCUITest (macOS)' }}
-    needs: [changes, build, build-smoke, reduced-motion, shards]
+    needs: [changes, build, build-smoke, shards]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -398,13 +357,12 @@ jobs:
         if: needs.changes.outputs.relevant == 'true'
         env:
           BUILD_RESULT: ${{ needs.build.result }}
-          CRITICAL_RESULT: ${{ needs.build-smoke.result }}
-          REDUCED_RESULT: ${{ needs.reduced-motion.result }}
-          SHARD_RESULT: ${{ needs.shards.result }}
+          FIRST_RESULT: ${{ needs.build-smoke.result }}
+          SECOND_RESULT: ${{ needs.shards.result }}
           FILTER: ${{ inputs.filter || '' }}
           CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
         run: |
-          python3 Scripts/ci/ui-shards.py gate "$BUILD_RESULT" "$CRITICAL_RESULT" "$REDUCED_RESULT" "$SHARD_RESULT" "$FILTER"
+          python3 Scripts/ci/ui-shards.py gate "$BUILD_RESULT" "$FIRST_RESULT" "$SECOND_RESULT" "$FILTER"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         if: needs.changes.outputs.relevant == 'true' && inputs.filter == ''
         with:
