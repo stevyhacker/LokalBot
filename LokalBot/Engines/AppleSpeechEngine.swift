@@ -353,21 +353,31 @@ actor AppleSpeechEngine: TranscriptionEngine {
             DictationTranscriber(locale: resolution.locale, preset: .timeIndexedLongDictation)
         }
 
-        if let request = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
-            if UITestRuntime.isUnitTesting {
-                do {
-                    try UITestRuntime.refuseDownloadInUnitTests(
-                        of: "Apple Speech (\(resolution.localeIdentifier))")
-                } catch {
-                    throw AppleSpeechError.assetDownloadRefusedInUnitTests(resolution.localeIdentifier)
-                }
+        let currentStatus = await AssetInventory.status(forModules: [module])
+        if currentStatus == .installed {
+            progress?(1.0, "Ready")
+            return
+        }
+
+        if UITestRuntime.isUnitTesting {
+            do {
+                try UITestRuntime.refuseDownloadInUnitTests(
+                    of: "Apple Speech (\(resolution.localeIdentifier))")
+            } catch {
+                throw AppleSpeechError.assetDownloadRefusedInUnitTests(resolution.localeIdentifier)
             }
-            progress?(0, "Downloading…")
+        }
+
+        try await reserveLocaleIfNeeded(resolution.locale)
+
+        if let request = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
+            let statusLabel = "Downloading \(resolution.localeIdentifier)…"
+            progress?(0, statusLabel)
             let progressTask = Task {
                 while !Task.isCancelled {
                     let fraction = request.progress.fractionCompleted
                     let clamped = fraction.isFinite ? min(1, max(0, fraction)) : nil
-                    progress?(clamped, "Downloading…")
+                    progress?(clamped, statusLabel)
                     try? await Task.sleep(for: .milliseconds(250))
                 }
             }
@@ -381,6 +391,32 @@ actor AppleSpeechEngine: TranscriptionEngine {
             }
         }
         progress?(1.0, "Ready")
+    }
+
+    @available(macOS 26.0, *)
+    private static func reserveLocaleIfNeeded(_ locale: Locale) async throws {
+        let targetKey = normalizedReservationKey(locale.identifier)
+        let reserved = await AssetInventory.reservedLocales
+        guard !reserved.contains(where: { normalizedReservationKey($0.identifier) == targetKey }) else {
+            return
+        }
+        let maxReserved = AssetInventory.maximumReservedLocales
+        if maxReserved > 0, reserved.count >= maxReserved, let oldest = reserved.first {
+            _ = await AssetInventory.release(reservedLocale: oldest)
+        }
+        do {
+            try await AssetInventory.reserve(locale: locale)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw AppleSpeechError.assetInstallationFailed(error.localizedDescription)
+        }
+    }
+
+    private nonisolated static func normalizedReservationKey(_ identifier: String) -> String {
+        identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "_")
+            .lowercased()
     }
 
     @available(macOS 26.0, *)
