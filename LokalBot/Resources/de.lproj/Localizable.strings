@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Audio- oder Videoaufnahme importieren";
 "Import Recording" = "Aufnahme importieren";
 "Import Recording…" = "Aufnahme importieren…";
+"Import Meetings From" = "Besprechungen importieren aus";
+"wants to import another app's meetings into LokalBot." = "möchte Besprechungen aus einer anderen App in LokalBot importieren.";
 "Not inserted" = "Nicht eingefügt";
 "Pasted" = "Eingefügt";
 "Recent dictations" = "Letzte Diktate";

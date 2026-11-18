@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Importa una registrazione audio o video";
 "Import Recording" = "Importa registrazione";
 "Import Recording…" = "Importa registrazione…";
+"Import Meetings From" = "Importa riunioni da";
+"wants to import another app's meetings into LokalBot." = "vuole importare in LokalBot le riunioni di un’altra app.";
 "Not inserted" = "Non inserito";
 "Pasted" = "Incollato";
 "Recent dictations" = "Dettature recenti";

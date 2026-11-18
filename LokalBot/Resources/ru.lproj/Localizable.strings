@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Импортировать аудио- или видеозапись";
 "Import Recording" = "Импортировать запись";
 "Import Recording…" = "Импортировать запись…";
+"Import Meetings From" = "Импортировать встречи из";
+"wants to import another app's meetings into LokalBot." = "хочет импортировать встречи из другого приложения в LokalBot.";
 "Not inserted" = "Не вставлено";
 "Pasted" = "Вставлено";
 "Recent dictations" = "Недавние диктовки";

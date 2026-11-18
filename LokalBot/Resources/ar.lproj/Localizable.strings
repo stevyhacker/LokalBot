@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "استيراد تسجيل صوت أو فيديو";
 "Import Recording" = "استيراد تسجيل";
 "Import Recording…" = "استيراد تسجيل…";
+"Import Meetings From" = "استيراد اجتماعات من تطبيق آخر";
+"wants to import another app's meetings into LokalBot." = "يريد استيراد اجتماعات من تطبيق آخر إلى LokalBot.";
 "Not inserted" = "لم يُدرج";
 "Pasted" = "تم اللصق";
 "Recent dictations" = "الإملاءات الأخيرة";

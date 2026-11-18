@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "녹음 또는 녹화 가져오기";
 "Import Recording" = "녹음 가져오기";
 "Import Recording…" = "녹음 가져오기…";
+"Import Meetings From" = "다른 앱에서 회의 가져오기";
+"wants to import another app's meetings into LokalBot." = "다른 앱의 회의를 LokalBot으로 가져오려고 합니다.";
 "Not inserted" = "삽입되지 않음";
 "Pasted" = "붙여넣음";
 "Recent dictations" = "최근 받아쓰기";

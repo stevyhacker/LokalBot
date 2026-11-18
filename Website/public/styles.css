@@ -823,6 +823,31 @@ kbd {
 .home .hero__cta { gap: 12px; margin-top: 28px; justify-content: flex-start; }
 .home .hero__meta { margin-top: 20px; }
 .home-requirements { margin-top: 6px; color: var(--text-faint); font-size: 0.85rem; }
+.home .hero__kicker { margin-bottom: 10px; }
+/* hero install line: Homebrew on a Mac, installer notes on Windows and Linux (app.js swaps the text) */
+.home-install,
+.home-platform-links { margin-top: 14px; color: var(--text-faint); font-size: 0.86rem; }
+.home-platform-links { margin-top: 6px; }
+.home-install { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; max-width: 52ch; }
+.home-install[hidden], .home-platform-links[hidden] { display: none; }
+.home-install__cmd { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.home-install code { font-family: var(--mono); font-size: 0.86em; color: var(--text-dim); overflow-wrap: anywhere; }
+.home-install__copy {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.home-install__copy:hover { color: var(--accent-text); border-color: rgba(110, 242, 220, 0.4); }
+.home-install__copy:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.home-platform-links a { color: var(--accent-text); }
+.home-platform-links a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .home-shot { margin: 0; min-width: 0; }
 .home-image-link {
   display: block;
@@ -1110,7 +1135,7 @@ kbd {
   .home .hero__title { max-width: 13ch; }
   .home .hero__sub { max-width: 54ch; }
   .home-hero > .demo-stage { order: 1; margin-top: 24px; }
-  .home .hero__cta { order: 2; }
+  .home .hero__cta, .home-install, .home-platform-links { order: 2; }
   .home-handoff { order: 3; }
   .home .hero__meta { order: 4; }
   .home-requirements { order: 5; }

@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Impor rekaman audio atau video";
 "Import Recording" = "Impor Rekaman";
 "Import Recording…" = "Impor Rekaman…";
+"Import Meetings From" = "Impor Rapat dari";
+"wants to import another app's meetings into LokalBot." = "ingin mengimpor rapat dari aplikasi lain ke LokalBot.";
 "Not inserted" = "Tidak disisipkan";
 "Pasted" = "Ditempel";
 "Recent dictations" = "Dikte terbaru";

@@ -2,6 +2,50 @@
 
 Everything the [README](README.md) summarizes, in full detail: build workflows, subsystem internals, configuration, headless flags, testing, and the on-disk layout. Shared contributor instructions live in [AGENTS.md](AGENTS.md); the data and network contract lives in [PRIVACY.md](PRIVACY.md). For signing and publication, use [RELEASING.md](RELEASING.md). This guide covers the Mac app; the Windows and Linux app (Rust + GPUI, in `LinuxWindows/`) has its own guide in [LinuxWindows/README.md](LinuxWindows/README.md).
 
+## Build from source
+
+For the Mac app, use an Apple Silicon Mac with full Xcode installed; the [build workflow](.github/workflows/build.yml) pins the CI toolchain. With Homebrew available:
+
+```bash
+brew install xcodegen cmake
+# Rust (https://rustup.rs) builds the phone and tablet sync library; the repo
+# pins the toolchain, which rustup installs on first use.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+
+git clone https://github.com/stevyhacker/lokalbot.git
+cd lokalbot
+
+# XcodeGen needs these paths before the first build fetches the runtimes.
+mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+# The phone and tablet sync library (Rust), as a local Swift package.
+Scripts/build/build-sync-xcframework.sh
+xcodegen generate
+open LokalBot.xcodeproj
+```
+
+Select **LokalBot Dev**, set your signing team, and run. The Dev app has its own identity, macOS permission grants, library, model storage, and Keychain namespace, so it can live alongside the installed release without applying development retention settings to release data. The first build prepares pinned native runtimes; model downloads happen separately.
+
+For the Windows and Linux app, see [Build from source](LinuxWindows/README.md#build-from-source) in its README (Rust).
+
+[Build and test commands](Docs/development/build-workflows.md) · [Testing guide](Docs/development/testing.md) · [Screenshot guide](Docs/guides/screenshot-kit.md)
+
+### Find your way around the code
+
+```text
+LokalBot/
+├── Views/       # Native SwiftUI screens, settings, and onboarding
+├── Services/    # Recording, search, storage, and workday memory
+├── Engines/     # Transcription, model catalog, and local inference
+├── Cotyping/    # System-wide autocomplete
+├── Dictation/   # Voice typing
+└── Agent/       # Optional Agent Mode and approval flow
+CLI/             # Command-line interface and MCP entry points
+LinuxWindows/    # Windows and Linux app (Rust + GPUI)
+LokalBotTests/   # Unit tests
+Scripts/         # Build, verification, capture, and release tooling
+project.yml      # XcodeGen source of truth
+```
+
 ## Topics
 
 Each topic has its own page under [`Docs/development/`](Docs/development/):
@@ -24,6 +68,7 @@ Each topic has its own page under [`Docs/development/`](Docs/development/):
 | [Safe local routines](Docs/development/routines.md) | Scheduled local jobs |
 | [Email](Docs/development/email.md) | Read-only Gmail |
 | [Meeting note export](Docs/development/note-export.md) | Notes written to a folder |
+| [Importing from other apps](Docs/development/meeting-import.md) | Granola, Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, MacWhisper |
 | [Configuration](Docs/development/configuration.md) | Settings, languages, environment variables |
 | [Agent CLI and MCP](Docs/development/agent-cli.md) | `lokalbot-cli` and the MCP server |
 | [Headless flags](Docs/development/headless-flags.md) | The app binary as a test harness |

@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "ఆడియో లేదా వీడియో రికార్డింగ్‌ను దిగుమతి చేయండి";
 "Import Recording" = "రికార్డింగ్‌ను దిగుమతి చేయండి";
 "Import Recording…" = "రికార్డింగ్‌ను దిగుమతి చేయండి…";
+"Import Meetings From" = "ఇతర యాప్ నుండి సమావేశాలను దిగుమతి చేయండి";
+"wants to import another app's meetings into LokalBot." = "మరో యాప్ సమావేశాలను LokalBotలోకి దిగుమతి చేయాలనుకుంటోంది.";
 "Not inserted" = "చొప్పించబడలేదు";
 "Pasted" = "పేస్ట్ చేయబడింది";
 "Recent dictations" = "ఇటీవలి డిక్టేషన్‌లు";

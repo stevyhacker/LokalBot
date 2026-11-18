@@ -234,6 +234,10 @@ final class MeetingDetector {
     private var workspaceObservers: [NSObjectProtocol] = []
     private var browserPollGeneration = 0
     private var browserPollTask: Task<Void, Never>?
+    /// Diagnostics only. See `noteBrowserPollStillRunning`.
+    private var browserPollStartedAt: Date?
+    private var reportedLongBrowserPoll = false
+    nonisolated static let longBrowserPollReport: TimeInterval = 30
     private var browserSnapshots: [pid_t: BrowserMeetingSession.Snapshot] = [:]
     /// Calls in rooms other than the bound one, read only while the bound
     /// call cannot be verified. See `handOffIfAnotherRoomIsInCall`.
@@ -285,6 +289,7 @@ final class MeetingDetector {
         browserPollGeneration &+= 1
         browserPollTask?.cancel()
         browserPollTask = nil
+        browserPollStartedAt = nil
         browserSnapshots = [:]
         otherRoomSnapshots = [:]
         timer?.cancel()
@@ -373,7 +378,10 @@ final class MeetingDetector {
 
     private func tick() {
         // Coalesce mic/device/timer bursts while cross-process AX is running.
-        guard browserPollTask == nil else { return }
+        guard browserPollTask == nil else {
+            noteBrowserPollStillRunning()
+            return
+        }
         let generation = browserPollGeneration
         let boundApp = activeApp
         let eventURL = calendarEnabled ? calendar?.activeCandidate(now: environment.clock.now())?.meetingURL : nil
@@ -410,6 +418,8 @@ final class MeetingDetector {
             applyTick()
             return
         }
+        browserPollStartedAt = environment.clock.now()
+        reportedLongBrowserPoll = false
         browserPollTask = Task { @MainActor [weak self] in
             let clock = CaptureEnvironment.current.clock
             let started = clock.now()
@@ -420,7 +430,12 @@ final class MeetingDetector {
                 otherRooms = await BrowserMeetingSession.observe(processIDs: otherRoomPIDs, expectedURL: otherRoomURL)
             }
             guard let self, !Task.isCancelled, generation == self.browserPollGeneration else { return }
+            if self.reportedLongBrowserPoll, let started = self.browserPollStartedAt {
+                lokalbotLog("detector browser observation finished after="
+                    + String(format: "%.1fs", clock.now().timeIntervalSince(started)))
+            }
             self.browserPollTask = nil
+            self.browserPollStartedAt = nil
             guard self.activeApp == boundApp,
                   eventURL == (self.calendarEnabled ? self.calendar?.activeCandidate(now: self.environment.clock.now())?.meetingURL : nil) else {
                 self.tick()
@@ -431,6 +446,21 @@ final class MeetingDetector {
             self.otherRoomSnapshots = clock.now().timeIntervalSince(otherRoomsStarted) < 2 ? otherRooms : [:]
             self.applyTick()
         }
+    }
+
+    /// Every tick waits for the browser observation in flight, so one that
+    /// never finishes stops the detector without a word. On 2026-11-17 no
+    /// observation of a Meet call came back after 18:51, when the app's Swift
+    /// task pool appears to have stalled; the call's end went unseen and the
+    /// recording ran all night. This line dates such a stall. It changes no
+    /// decision: the recording's own silence watch ends that recording.
+    private func noteBrowserPollStillRunning() {
+        guard !reportedLongBrowserPoll, let started = browserPollStartedAt else { return }
+        let elapsed = environment.clock.now().timeIntervalSince(started)
+        guard elapsed >= Self.longBrowserPollReport else { return }
+        reportedLongBrowserPoll = true
+        lokalbotLog("detector browser observation still running after="
+            + String(format: "%.0fs", elapsed) + "; call checks wait for it")
     }
 
     /// The calendar event's room when it differs from the bound one, so a

@@ -1,0 +1,26 @@
+[
+ {
+  "label": "gbrain-import-keyword",
+  "seconds": 20.92,
+  "peak_rss_mb": 772.9,
+  "exit": 0
+ },
+ {
+  "label": "lokalbot-ingest-keyword",
+  "seconds": 2.85,
+  "peak_rss_mb": 13.2,
+  "exit": 0
+ },
+ {
+  "label": "lokalbot-query-keyword",
+  "seconds": 11.95,
+  "peak_rss_mb": 41.0,
+  "exit": 0
+ },
+ {
+  "label": "gbrain-query-keyword",
+  "seconds": 1151.43,
+  "peak_rss_mb": 36.7,
+  "exit": 0
+ }
+]

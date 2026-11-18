@@ -173,6 +173,22 @@ Changing settings:
 - `[read_only]` settings can't be changed from the terminal.
 - Never write LokalBot's preferences with `defaults write`, and never create or edit files in its `control/` folder: a partial preferences write silently resets other settings (it can turn automatic recording on), and the running app overwrites it anyway.
 
+## Importing from other apps
+
+When the user wants their history from Granola, Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, or MacWhisper in LokalBot:
+
+```bash
+lokalbot-cli import sources --table                      # each app, how to export from it, and data found on this computer
+lokalbot-cli import otter ~/Downloads/otter.zip --dry-run --table   # what the files hold; changes nothing, needs no access
+lokalbot-cli import otter ~/Downloads/otter.zip --wait 120          # asks the user in LokalBot, then imports
+lokalbot-cli import screenpipe --wait 120                # no path: the app's own data folder, when LokalBot can read it
+```
+
+- Ask the user before requesting an import, and tell them a card is waiting in LokalBot. Exit codes match `config set`: 0 approved, 3 waiting, 4 declined, 5 expired. A plan with nothing new returns its counts without asking.
+- The source files are only read. Re-importing the same export adds nothing twice.
+- The user exports from the other app themselves; `import sources` says where. Don't sign in to their accounts or use their API tokens for them.
+- Approval starts the import in LokalBot; check the result with `lokalbot-cli list --limit 20` once it finishes.
+
 ## Setting up LokalBot
 
 When the user wants LokalBot set up, run these steps in order; `lokalbot-cli <command> --help` describes each command. If LokalBot isn't installed yet, install it first: on a Mac with `brew install --cask stevyhacker/tap/lokalbot`, and on Windows and Linux from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest), after which the user picks what LokalBot remembers in the app. On Windows and Linux the same commands work once the app is running; those systems have no permission prompts, so `permissions` says what the desktop allows.

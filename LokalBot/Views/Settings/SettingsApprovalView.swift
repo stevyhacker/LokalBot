@@ -66,7 +66,7 @@ private struct SettingsApprovalCard: View {
                         .settingsSecondary()
                 }
             }
-            Text(isSecret ? secretLine : settingsLine)
+            Text(subjectLine)
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(rows) { row in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -114,13 +114,17 @@ private struct SettingsApprovalCard: View {
 
     private let secretLine: LocalizedStringKey = "wants to save an API key in LokalBot."
     private let settingsLine: LocalizedStringKey = "wants to change LokalBot settings."
+    private let importLine: LocalizedStringKey = "wants to import another app's meetings into LokalBot."
+
+    private var subjectLine: LocalizedStringKey {
+        switch request.subject {
+        case .secret: secretLine
+        case .settings: settingsLine
+        case .meetingImport: importLine
+        }
+    }
     private let approveTitle: LocalizedStringKey = "Approve"
     private let cleanupTitle: LocalizedStringKey = "Approve and clean up"
-
-    private var isSecret: Bool {
-        if case .secret = request.subject { return true }
-        return false
-    }
 
     private struct Row: Identifiable {
         let id: String
@@ -138,6 +142,9 @@ private struct SettingsApprovalCard: View {
                 change: ["\(change?["previous"]?.stringValue ?? "") → \(change?["value"]?.stringValue ?? "")"],
                 widens: true)]
         }
+        if case .meetingImport(let importRequest) = request.subject {
+            return [Self.importRow(importRequest, plan: request.changes.first)]
+        }
         let language = app.settings.appLanguage
         return request.items.map { item in
             Row(id: item.spec.key,
@@ -146,6 +153,25 @@ private struct SettingsApprovalCard: View {
                 change: item.spec.changeLines(from: item.previous, to: item.stored, language: language),
                 widens: item.change == .widening)
         }
+    }
+
+    /// What an import adds, in full: where from, how many, and what stays
+    /// untouched.
+    private static func importRow(_ request: SettingsApprovals.MeetingImportRequest, plan: JSONValue?) -> Row {
+        let count = { (key: String) in plan?[key]?.intValue ?? 0 }
+        var lines = request.paths
+        lines.append("\(count("newMeetings")) new meetings, \(count("alreadyImported")) already in your library")
+        if count("toTranscribe") > 0 {
+            lines.append("\(count("toTranscribe")) recordings will be transcribed on this computer")
+        }
+        if let earliest = plan?["earliest"]?.stringValue, let latest = plan?["latest"]?.stringValue {
+            lines.append("From \(earliest.prefix(10)) to \(latest.prefix(10))")
+        }
+        return Row(
+            id: "import.\(request.source.rawValue)",
+            title: "Import from \(request.source.title)",
+            detail: "Copies notes, transcripts, and recordings into your library. The original files aren't changed.",
+            change: lines, widens: true)
     }
 
     private func remaining(at date: Date) -> String {

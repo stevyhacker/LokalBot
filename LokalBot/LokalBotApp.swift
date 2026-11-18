@@ -295,6 +295,14 @@ struct LokalBotApp: App {
                     RecordingImportPanel.choose(into: app)
                 }
 
+                Menu(language.localized("Import Meetings From")) {
+                    ForEach(ExternalMeetingSource.allCases, id: \.self) { source in
+                        Button(source.title + "…") {
+                            ExternalImportPanel.choose(source, into: app)
+                        }
+                    }
+                }
+
                 Divider()
 
                 Button(language.localized(
