@@ -126,6 +126,7 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     static func processingReadinessChanged(from old: AppSettings,
                                            to new: AppSettings) -> Bool {
         old.transcriptionModel != new.transcriptionModel
+            || (new.transcriptionModel == .appleSpeech && old.transcriptionLanguage != new.transcriptionLanguage)
             || old.graniteSpeechModel != new.graniteSpeechModel
             || old.funASRNanoModelDirectory != new.funASRNanoModelDirectory
             || old.remoteTranscription != new.remoteTranscription

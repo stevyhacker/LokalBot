@@ -104,12 +104,14 @@ final class ModelRoles: ObservableObject {
         let granite: GraniteSpeechModelConfiguration?
         let funASRNanoDirectory: String?
         let remote: RemoteTranscriptionConfiguration?
+        let appleSpeechLanguage: TranscriptionLanguage?
 
         init(_ choice: TranscriptionModelChoice, _ settings: AppSettings) {
             id = choice.id
             granite = choice == .graniteSpeech ? settings.graniteSpeechModel : nil
             funASRNanoDirectory = choice == .funASRNano ? settings.funASRNanoModelDirectory : nil
             remote = choice == .remoteServer ? settings.remoteTranscription : nil
+            appleSpeechLanguage = choice == .appleSpeech ? settings.transcriptionLanguage : nil
         }
     }
 
@@ -301,7 +303,9 @@ final class ModelRoles: ObservableObject {
             && preparationTask?.id == TranscriptionModelChoice.graniteSpeech.id
         let invalidatedFunASR = funASRDirectoryChanged
             && preparationTask?.id == TranscriptionModelChoice.funASRNano.id
-        if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation || invalidatedFunASR {
+        let invalidatedAppleSpeech = old.transcriptionLanguage != new.transcriptionLanguage
+            && preparationTask?.id == TranscriptionModelChoice.appleSpeech.id
+        if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation || invalidatedFunASR || invalidatedAppleSpeech {
             cancelPreparation()
         }
         refreshDiskState()
@@ -398,7 +402,9 @@ final class ModelRoles: ObservableObject {
     /// model and its settings intact until the replacement is available.
     func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
         let key = TranscriptionConfiguration(choice, configuration)
-        if choice != .funASRNano, downloadedTranscriptionModels(configuration).contains(choice.id), preparationErrors[key] == nil {
+        if choice != .funASRNano && choice != .appleSpeech,
+           downloadedTranscriptionModels(configuration).contains(choice.id),
+           preparationErrors[key] == nil {
             return
         }
         if let preparationTask, preparationTask.configuration != key {
