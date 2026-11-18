@@ -33,6 +33,7 @@ actor AppleSpeechEngine: TranscriptionEngine {
         var start: TimeInterval
         var end: TimeInterval
         var text: String
+        var words: [AlignedWordTiming] = []
     }
 
     struct Backend: Sendable {
@@ -96,6 +97,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
     nonisolated let displayName = AppleSpeechLocaleResolver.modelDisplayName
     nonisolated let checkpointIdentity = "apple-speech"
     nonisolated let supportsStreaming = false
+    nonisolated let speakerAttribution: SpeakerAttributionStrategy = .alignedWords
+    nonisolated let providesWordTimings = true
 
     private let backend: Backend
 
@@ -125,6 +128,14 @@ actor AppleSpeechEngine: TranscriptionEngine {
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        try await transcribeForWordAttribution(audio: url, language: language, prompt: nil).transcript
+    }
+
+    func transcribeForWordAttribution(
+        audio url: URL,
+        language: String?,
+        prompt: String?
+    ) async throws -> WordTimedTranscript {
         try Task.checkCancellation()
         try AppleSpeechLocaleResolver.validateLanguage(language, modelName: displayName)
         if let reason = backend.availabilityError() {
@@ -138,32 +149,140 @@ actor AppleSpeechEngine: TranscriptionEngine {
 
         let utterances = try await backend.analyze(url, resolution)
         try Task.checkCancellation()
-        return Transcript(
-            segments: Self.segments(from: utterances),
-            engine: Self.engineLabel(for: resolution))
+        return WordTimedTranscript(
+            segments: Self.buildTimedSegments(from: utterances),
+            engine: Self.engineLabel(for: resolution),
+            trackLanguage: resolution.languageCode)
     }
 
     nonisolated static func engineLabel(for resolution: AppleSpeechLocaleResolver.Resolution) -> String {
         "\(AppleSpeechLocaleResolver.modelDisplayName) (\(resolution.localeIdentifier))"
     }
 
-    nonisolated static func segments(from utterances: [RawUtterance]) -> [Transcript.Segment] {
-        utterances.compactMap { utterance in
-            let text = Transcript.normalizedText(utterance.text)
-            guard !text.isEmpty,
-                  utterance.start.isFinite,
-                  utterance.end.isFinite,
-                  utterance.end > utterance.start else {
-                return nil
+    #if canImport(Speech)
+    @available(macOS 26.0, *)
+    nonisolated static func extractWordTimings(from attributed: AttributedString) -> [AlignedWordTiming] {
+        var words: [AlignedWordTiming] = []
+        for run in attributed.runs {
+            let chunk = String(attributed[run.range].characters)
+            let tokens = chunk.split(whereSeparator: \.isWhitespace).map(String.init)
+            guard !tokens.isEmpty else { continue }
+            for token in tokens {
+                let core = token.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+                guard !core.isEmpty else {
+                    if !words.isEmpty {
+                        words[words.count - 1].text += token
+                    }
+                    continue
+                }
+                guard let range = run.audioTimeRange else { continue }
+                let start = range.start.seconds
+                let end = range.end.seconds
+                guard start.isFinite, end.isFinite, end > start else { continue }
+                words.append(AlignedWordTiming(
+                    text: token,
+                    start: max(0, start),
+                    end: end))
             }
-            return Transcript.Segment(
-                start: max(0, utterance.start),
-                end: utterance.end,
-                speaker: "speaker",
-                text: text,
-                confidence: nil,
-                timingPrecision: .span)
         }
+        return words
+    }
+    #endif
+
+    nonisolated static func buildTimedSegments(
+        from utterances: [RawUtterance],
+        maxPause: TimeInterval = AttributedTrackTranscriber.wordPauseSplit,
+        maxDuration: TimeInterval = AttributedTrackTranscriber.maxSegmentSeconds
+    ) -> [WordTimedTranscript.Segment] {
+        var result: [WordTimedTranscript.Segment] = []
+        for utterance in utterances {
+            let normalized = Transcript.normalizedText(utterance.text)
+            guard !normalized.isEmpty else { continue }
+
+            let validWords = utterance.words.filter { word in
+                let core = word.text.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+                return !core.isEmpty && word.start.isFinite && word.end.isFinite && word.end > word.start
+            }
+            guard !validWords.isEmpty else {
+                guard utterance.start.isFinite, utterance.end.isFinite, utterance.end > utterance.start else {
+                    continue
+                }
+                result.append(WordTimedTranscript.Segment(
+                    segment: Transcript.Segment(
+                        start: max(0, utterance.start),
+                        end: utterance.end,
+                        speaker: "speaker",
+                        text: normalized,
+                        confidence: nil,
+                        timingPrecision: .span),
+                    words: nil))
+                continue
+            }
+
+            let allStarts = AttributedTrackTranscriber.wordStarts(
+                validWords.map(\.text),
+                in: normalized)
+
+            var chunkStartIndex = 0
+            while chunkStartIndex < validWords.count {
+                var chunkEndIndex = chunkStartIndex + 1
+                let chunkStartTime = validWords[chunkStartIndex].start
+                while chunkEndIndex < validWords.count {
+                    let previous = validWords[chunkEndIndex - 1]
+                    let next = validWords[chunkEndIndex]
+                    if next.start - previous.end >= maxPause || next.end - chunkStartTime > maxDuration {
+                        break
+                    }
+                    chunkEndIndex += 1
+                }
+
+                let chunkWords = Array(validWords[chunkStartIndex..<chunkEndIndex])
+                let text = chunkText(
+                    original: normalized,
+                    allStarts: allStarts,
+                    chunkRange: chunkStartIndex..<chunkEndIndex,
+                    totalWords: validWords.count,
+                    chunkWords: chunkWords)
+                if !text.isEmpty, let first = chunkWords.first, let last = chunkWords.last {
+                    let start = max(0, first.start)
+                    let end = max(start, last.end)
+                    if end > start {
+                        result.append(WordTimedTranscript.Segment(
+                            segment: Transcript.Segment(
+                                start: start,
+                                end: end,
+                                speaker: "speaker",
+                                text: text,
+                                confidence: nil,
+                                timingPrecision: .token),
+                            words: chunkWords))
+                    }
+                }
+                chunkStartIndex = chunkEndIndex
+            }
+        }
+        return result
+    }
+
+    private nonisolated static func chunkText(
+        original: String,
+        allStarts: [String.Index]?,
+        chunkRange: Range<Int>,
+        totalWords: Int,
+        chunkWords: [AlignedWordTiming]
+    ) -> String {
+        if let allStarts, allStarts.count == totalWords {
+            let startIdx = chunkRange.lowerBound == 0 ? original.startIndex : allStarts[chunkRange.lowerBound]
+            let endIdx = chunkRange.upperBound < totalWords ? allStarts[chunkRange.upperBound] : original.endIndex
+            if startIdx <= endIdx {
+                let sliced = Transcript.normalizedText(String(original[startIdx..<endIdx]))
+                if !sliced.isEmpty,
+                   AttributedTrackTranscriber.wordStarts(chunkWords.map(\.text), in: sliced) != nil {
+                    return sliced
+                }
+            }
+        }
+        return Transcript.normalizedText(chunkWords.map(\.text).joined(separator: " "))
     }
 
     nonisolated static func configured(language: String?) -> any TranscriptionEngine {
@@ -250,7 +369,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     items.append(RawUtterance(
                         start: result.range.start.seconds,
                         end: result.range.end.seconds,
-                        text: String(result.text.characters)))
+                        text: String(result.text.characters),
+                        words: extractWordTimings(from: result.text)))
                 }
                 return items
             }
@@ -265,7 +385,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     items.append(RawUtterance(
                         start: result.range.start.seconds,
                         end: result.range.end.seconds,
-                        text: String(result.text.characters)))
+                        text: String(result.text.characters),
+                        words: extractWordTimings(from: result.text)))
                 }
                 return items
             }
@@ -306,6 +427,8 @@ private struct ConfiguredAppleSpeechEngine: TranscriptionEngine {
     var displayName: String { AppleSpeechEngine.shared.displayName }
     var checkpointIdentity: String { AppleSpeechEngine.shared.checkpointIdentity }
     let supportsStreaming = false
+    var speakerAttribution: SpeakerAttributionStrategy { AppleSpeechEngine.shared.speakerAttribution }
+    var providesWordTimings: Bool { AppleSpeechEngine.shared.providesWordTimings }
 
     func prepare(progress: ModelPreparationProgressHandler?) async throws {
         try await AppleSpeechEngine.shared.prepare(language: language, progress: progress)
@@ -313,5 +436,16 @@ private struct ConfiguredAppleSpeechEngine: TranscriptionEngine {
 
     func transcribe(audio: URL, language: String?) async throws -> Transcript {
         try await AppleSpeechEngine.shared.transcribe(audio: audio, language: language ?? self.language)
+    }
+
+    func transcribeForWordAttribution(
+        audio: URL,
+        language: String?,
+        prompt: String?
+    ) async throws -> WordTimedTranscript {
+        try await AppleSpeechEngine.shared.transcribeForWordAttribution(
+            audio: audio,
+            language: language ?? self.language,
+            prompt: prompt)
     }
 }
