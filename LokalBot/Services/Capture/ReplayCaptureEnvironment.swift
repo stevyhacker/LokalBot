@@ -196,13 +196,12 @@ final class ReplayCaptureEnvironment: @unchecked Sendable {
         }
         func browserMeetingSnapshot(processID: pid_t, expectedURL: URL?) -> BrowserMeetingSession.Snapshot? {
             guard var snapshot = replay.answer(.browserSnapshot, processID: processID)?.browser else { return nil }
-            // Like the live reader, only a Meet room document answers, under
+            // Like the live reader, only a supported room document answers, under
             // its canonical URL, and a read for one room never answers with another.
-            guard let room = BrowserMeetingSession.meetURL(snapshot.url.absoluteString),
+            guard let room = BrowserMeetingSession.roomURL(snapshot.url.absoluteString),
                   let canonical = URL(string: room) else { return nil }
             snapshot.url = canonical
-            if let expected = expectedURL.flatMap({ BrowserMeetingSession.meetURL($0.absoluteString) }),
-               room != expected { return nil }
+            if let expectedURL, room != BrowserMeetingSession.roomURL(expectedURL.absoluteString) { return nil }
             return snapshot
         }
         func browserReadIssue(processID: pid_t) -> BrowserMeetingSession.ReadIssue? {

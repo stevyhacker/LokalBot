@@ -1,0 +1,10 @@
+{
+  "header": {"schemaVersion": 1,"macOSVersion": "27.2.1","origin": "reconstructed","scenario": "mts-link-desktop-call","scrubberVersion": 1,"recordedAt": "2026-11-17T00:00:00Z"},
+  "events": [
+    {"t": 0,"query": "runningApps","apps": [{"processIdentifier": 801,"bundleIdentifier": "ru.weteams.desktop","localizedName": "МТС Линк"}]},
+    {"t": 0,"query": "audioProcesses","processes": [{"id": 802,"name": "МТС Линк","bundleID": "ru.weteams.desktop.helper","objectID": 90,"isRunningOutput": true}]},
+    {"t": 0,"query": "browserSnapshot","processID": 801,"browser": {"url": "https://my.mts-link.ru/j/1234/5678/stream-new/912","state": "unavailable"}},
+    {"t": 10,"query": "browserSnapshot","processID": 801,"browser": {"url": "https://my.mts-link.ru/j/1234/5678/stream-new/912","state": "inCall"}},
+    {"t": 30,"query": "browserSnapshot","processID": 801,"browser": {"url": "https://my.mts-link.ru/j/1234/5678/stream-new/912","state": "gone"}}
+  ]
+}

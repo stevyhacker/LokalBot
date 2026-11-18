@@ -28,6 +28,15 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertTrue(ConferenceURLDetector.isMeetingURL(url))
     }
 
+    func testDetectsTelemostAndMTSLinkCalendarRooms() {
+        XCTAssertEqual(ConferenceURLDetector.firstMeetingURL(in: "https://telemost.yandex.ru/j/12345678901")?.host,
+                       "telemost.yandex.ru")
+        XCTAssertEqual(ConferenceURLDetector.firstMeetingURL(in: "https://my.mts-link.ru/j/1234/5678/")?.host,
+                       "my.mts-link.ru")
+        XCTAssertNil(ConferenceURLDetector.firstMeetingURL(in: "https://my.mts-link.ru/chats/auth"))
+        XCTAssertNil(ConferenceURLDetector.firstMeetingURL(in: "https://telemost.yandex.ru/"))
+    }
+
     func testDetectsZoomSubdomain() {
         let url = URL(string: "https://us02web.zoom.us/j/123456789")
         XCTAssertTrue(ConferenceURLDetector.isMeetingURL(url))

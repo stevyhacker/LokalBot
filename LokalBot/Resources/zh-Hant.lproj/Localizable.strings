@@ -506,7 +506,7 @@
 "Go to Settings" = "前往設定";
 "Go to Timeline" = "前往時間軸";
 "Go to Today" = "前往今天";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "僅能偵測介面為英文的 Google Meet。無法偵測 Jitsi、Whereby 或網頁版 Teams 等其他瀏覽器通話；若你自行錄製這類通話，只會儲存你的麥克風音訊。";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "Google Meet 支援英文介面偵測，Yandex Telemost 和 MTS Link 支援俄文介面偵測。手動錄製其他瀏覽器通話時，只會儲存麥克風音訊。";
 "Grant Access" = "授予取用權限";
 "Grant Accessibility access…" = "授予輔助使用權限…";
 "Grant Calendar Access…" = "授予行事曆取用權限…";

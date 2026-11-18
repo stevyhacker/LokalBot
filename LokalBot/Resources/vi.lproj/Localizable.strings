@@ -506,7 +506,7 @@
 "Go to Settings" = "Đi đến Cài đặt";
 "Go to Timeline" = "Đi đến Dòng thời gian";
 "Go to Today" = "Đi đến Hôm nay";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "Google Meet chỉ được phát hiện khi giao diện bằng tiếng Anh. Các cuộc gọi khác trong trình duyệt như Jitsi, Whereby hoặc Teams trên web không được phát hiện; nếu tự ghi, chỉ âm thanh micrô được lưu.";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "Google Meet được nhận diện ở giao diện tiếng Anh; Yandex Telemost và MTS Link ở giao diện tiếng Nga. Khi ghi thủ công các cuộc gọi khác trong trình duyệt, chỉ âm thanh micrô được lưu.";
 "Grant Access" = "Cấp quyền truy cập";
 "Grant Accessibility access…" = "Cấp quyền Trợ năng…";
 "Grant Calendar Access…" = "Cấp quyền truy cập lịch…";

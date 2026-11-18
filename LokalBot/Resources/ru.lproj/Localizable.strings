@@ -506,7 +506,7 @@
 "Go to Settings" = "Перейти к Настройкам";
 "Go to Timeline" = "Перейти к Хронологии";
 "Go to Today" = "Перейти к Сегодня";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "Google Meet обнаруживается только с английским интерфейсом. Другие звонки в браузере, например Jitsi, Whereby или Teams в интернете, не обнаруживаются; при ручной записи сохраняется только ваш микрофон.";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "LokalBot распознаёт звонки Google Meet на английском, а Яндекс Телемоста и МТС Линка — на русском. При ручной записи других звонков в браузере сохраняется только звук с микрофона.";
 "Grant Access" = "Разрешить доступ";
 "Grant Accessibility access…" = "Разрешить универсальный доступ…";
 "Grant Calendar Access…" = "Разрешить доступ к календарю…";

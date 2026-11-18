@@ -25,9 +25,21 @@ final class CaptureTraceScrubberTests: XCTestCase {
 
     func testMeetCodesKeepTheirShape() {
         let output = scrubber.scrubURL("https://meet.google.com/abc-defg-hij?authuser=2#x")
-        XCTAssertNotNil(BrowserMeetingSession.meetURL(output), output)
+        XCTAssertNotNil(BrowserMeetingSession.roomURL(output), output)
         XCTAssertFalse(output.contains("abc-defg-hij"))
         XCTAssertFalse(output.contains("authuser"))
+    }
+
+    func testTelemostAndMTSLinkRoomAddressesRemainReplayableButScrubbed() {
+        for address in [
+            "https://telemost.yandex.ru/j/12345678901?secret=value",
+            "https://my.mts-link.ru/j/1234/5678/stream-new/912?secret=value"
+        ] {
+            let output = scrubber.scrubURL(address)
+            XCTAssertNotNil(BrowserMeetingSession.roomURL(output), output)
+            XCTAssertNotEqual(output, String(address.prefix(while: { $0 != "?" })))
+            XCTAssertFalse(output.contains("secret"))
+        }
     }
 
     func testScrubberReplacesNonASCIIAndStripsEmailsAndQueries() {
@@ -53,7 +65,7 @@ final class CaptureTraceScrubberTests: XCTestCase {
     }
 
     func testEveryDetectionBundleIDSurvivesScrubbing() {
-        let detection = Array(MeetingDetector.knownApps.keys) + Array(MeetingDetector.browsers)
+        let detection = Array(MeetingDetector.knownApps.keys) + Array(MeetingDetector.documentCallHosts)
             + Array(MeetingDetector.alwaysOpenAudioBundles)
         for id in detection {
             XCTAssertEqual(scrubber.scrubBundleID(id), id)

@@ -506,7 +506,7 @@
 "Go to Settings" = "Nenda kwa Mipangilio";
 "Go to Timeline" = "Nenda kwa Mfuatano wa Matukio";
 "Go to Today" = "Nenda kwa Leo";
-"Google Meet is detected only with its interface in English. Other browser calls, such as Jitsi, Whereby, or Teams on the web, are not detected, and recording one yourself saves only your microphone." = "Google Meet hutambuliwa tu ikiwa kiolesura chake ni cha Kiingereza. Simu nyingine za kivinjari, kama Jitsi, Whereby au Teams kwenye wavuti, hazitambuliwi, na ukizirekodi mwenyewe huhifadhi sauti ya maikrofoni yako pekee.";
+"Google Meet is detected in English, and Yandex Telemost and MTS Link in Russian. For other browser calls, manual recording saves only your microphone." = "Google Meet hutambuliwa katika Kiingereza, na Yandex Telemost na MTS Link katika Kirusi. Ukirekodi mwenyewe simu nyingine za kivinjari, sauti ya maikrofoni pekee ndiyo huhifadhiwa.";
 "Grant Access" = "Toa Ufikiaji";
 "Grant Accessibility access…" = "Toa ufikiaji wa Ufikivu…";
 "Grant Calendar Access…" = "Toa Ufikiaji wa Kalenda…";
